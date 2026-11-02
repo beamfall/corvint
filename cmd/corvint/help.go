@@ -940,6 +940,12 @@ from HEAD, so the plan may not be the one current source gives, or
 self-binary-unverified when that comparison could not complete; stderr repeats
 it with the rebuild command (AFP-V0-846), except when stdout and stderr are
 one pipe or file (2>&1), so the document still parses (AFP-V0-871).
+degradationDetails maps each such code to that stderr notice: the rebuild
+command, for a stale binary "go run ./cmd/corvint" to use this checkout's own
+build without installing it, and that the notice changes no plan, selection or
+exit status; --format text adds a "degraded-detail CODE NOTICE" line after
+"degraded CODE" (ACX-V0-750). Each invocation prints at most one such stderr
+line and keeps no state between runs (ACX-V0-751).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane
@@ -1009,8 +1015,9 @@ and only the units it adds. --format text writes "affected by-path scope=S
 paths=N shared=K revision=SHA", one "shared UNIT tests=N WITNESS" line per
 shared unit, then per path "path P scope=S shared=J/K additions=M" with its
 "  added UNIT tests=N WITNESS" and "  unknown REASON DETAIL" lines. A stale
-or unverified binary (AFP-V0-846) is named on stderr, in degradations, and on a
-"degraded CODE" text line.
+or unverified binary (AFP-V0-846) is named on stderr, in degradations and
+degradationDetails, and on "degraded CODE" and "degraded-detail CODE NOTICE"
+text lines (ACX-V0-750).
 Example: corvint affected --by-path --path docs/GLOSSARY.md docs/README.md --format text
 
 --path PATH [PATH ...] (experimental; repeatable, up to 4096 paths in all) plans
@@ -1039,7 +1046,10 @@ with --require-clean, --snapshot or --base) plans the named paths against the
 working tree, dirty and ignored files included, instead of refusing a dirty
 worktree. The receipt carries the degradation worktree-path-plan and a warning
 naming HEAD and the dirty count: the plan is worktree-derived, not pinned
-evidence. Without --worktree the refusal stays the default.
+evidence. Without --worktree the refusal stays the default. With --base it
+refuses and names the alternatives: --base alone plans BASE..HEAD with every
+dirty worktree path, and a named subset against the working tree is a
+--worktree path list that adds the range's own paths (ACX-V0-752).
 Example: corvint affected --worktree --path internal/foo/foo.go --format text
 
 --paths-from FILE (experimental) adds the --path values listed in FILE, one
@@ -2101,7 +2111,8 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM] BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM]
+    [--intents-draft FILE] BASE
   corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE
     [--draft DRAFT] BASE
   corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
@@ -2212,6 +2223,12 @@ BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
 (DCW-V0-885). The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+--intents-draft FILE also writes the draft DOGFOOD_INTENTS_FILE, its only write
+(DCW-V0-711): each Markdown file the change adds or modifies that derives as an
+intent at HEAD, sorted one per line, else #no-intent-declared. A file whose
+edits only repin citations, or an intent over one OCM map's obligation bound, is
+left out, the latter named in a NOTE; review the draft before use.
 
 --from-cem CEM seeds the same refresh from a sealed CEM instead of a plan, such as
 .corvint/changes/COMMIT.cem.json after a mainline merge (DCW-V0-843): each of its

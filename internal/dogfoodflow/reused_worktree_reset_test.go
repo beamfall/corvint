@@ -14,11 +14,12 @@ import (
 	"github.com/Beamfall/corvint/internal/trace"
 )
 
-// TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase (V1-3318): a lane binds
-// (its bind commit gains a worktree-local trace), resets that unpushed commit
-// away and reruns. The check-only pre-flight refuses naming the reset-after-bind
-// case and its one-step migrate-traces recovery; the real run retires the
-// stranded trace itself and goes on to its steps.
+// TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase (V1-3318, V1-4318): a
+// lane binds (its bind commit gains a worktree-local trace), resets that
+// unpushed commit away and reruns. The check-only pre-flight notes the stranded
+// trace, moves nothing and goes on (DWC-V0-003: a plan of stranded traces alone
+// is one finish-lane applies itself); the real run retires the stranded trace
+// and goes on to its steps, so the reset and rerun need no manual step.
 func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -32,7 +33,9 @@ func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 		t.Fatal(err)
 	}
 	testGit(t, root, "commit", "-q", "-am", "change")
-	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".context-corvint/\n"), 0o666); err != nil {
+	// The pre-flight now goes on to its steps, which write the report the
+	// repository ignores.
+	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".context-corvint/\n.corvint/dogfood-report.json\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	// Bind: an early bind/seal commit whose trace the worktree-local store keeps.
@@ -81,13 +84,14 @@ func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 		}
 		return code, calls, stderr.String()
 	}
-	code, calls, out := rerun(true)
-	if code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-inputs-check: REFUSE reused-worktree-state\n") ||
-		!strings.Contains(out, "or this lane's own bind/seal commits reset away before push") ||
-		!strings.Contains(out, "  stale trace: the worktree-local trace store names "+bound+", which HEAD does not reach") ||
-		!strings.Contains(out, "  fix: corvint migrate-traces --apply --plan-digest ") ||
-		!strings.Contains(out, "one-step recovery after a reset of this lane's own unpushed bind/seal commits (DCW-V0-844)") {
-		t.Fatalf("exit=%d step calls=%d stderr=%q, want the reset case and its recovery named", code, calls, out)
+	_, calls, out := rerun(true)
+	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") ||
+		!strings.Contains(out, "dogfood-inputs-check: NOTE stranded trace "+bound+": the worktree-local trace store names a commit HEAD does not reach") ||
+		!strings.Contains(out, "dogfood finish-lane quarantines it byte-preserved with migrate-traces --apply --plan-digest ") {
+		t.Fatalf("step calls=%d stderr=%q, want a note and the pre-flight steps run", calls, out)
+	}
+	if _, err := os.Lstat(filepath.Join(traces, bound+".jsonl")); err != nil {
+		t.Fatalf("the check-only pre-flight moved the stranded trace: %v", err)
 	}
 	_, calls, out = rerun(false)
 	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") ||

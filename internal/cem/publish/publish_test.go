@@ -63,6 +63,9 @@ func TestPublishAtomicPrivate(t *testing.T) {
 }
 
 func TestPublishSecureAtomicPrivate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PublishSecure needs POSIX private modes and refuses on Windows (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	root := openRoot(t)
 	if err := PublishSecure(context.Background(), Output{Root: root, Relative: "a/b/report.md", Data: []byte("report\n")}, true); err != nil {
 		t.Fatal(err)

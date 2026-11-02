@@ -283,8 +283,10 @@ done
 # dogfood-finish, and names the sealed-head precheck as its own next command (DCW-V0-923, V1-3850),
 # which selects since the last passing receipt (DCW-V0-944, V1-3550). The first precheck runs with
 # BATCH_PRECHECK_SKIP_DRIFT=1 (ASD-V0-837, ICL-V0-020), shown as skip-drift:.
-recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'dogfood-inputs-check skip-drift:batch-precheck dogfood-finish next:dogfood-closeout-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+# The lane-closeout step runs the batch precheck script directly under BATCH_PRECHECK_LANE_CLOSEOUT=1
+# (ASD-V0-1991), shown as lane-closeout:skip-drift:batch-precheck.
+recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+[[ $recipe == 'dogfood-inputs-check lane-closeout:skip-drift:batch-precheck dogfood-finish next:dogfood-closeout-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
 recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == 'since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
@@ -352,7 +354,7 @@ for interrupt in tree-source:INT:build-tree:130 base-source:TERM:build-base:143;
   # DCW-V0-380: the input pre-flight runs between the two builds, so an interrupted base build
   # follows exactly that one inputs-check and never reaches finish-lane.
   flow=
-  [[ $step != build-base ]] || flow="dogfood inputs-check --base $base --citations $root/cites.tsv --sealed skip --corvint-bin *[^/]/repo/.git/corvint/corvint"
+  [[ $step != build-base ]] || flow="dogfood inputs-check --base $base --citations $root/cites.tsv --sealed skip --entry dogfood-finish --corvint-bin *[^/]/repo/.git/corvint/corvint"
   # The git dir is the resolved path, which may differ from $root through a symlink.
   # shellcheck disable=SC2053
   [[ $status == "$code" && $(cat "$TEST_FLOW_LOG") == $flow ]] || { printf '%s: status=%s flow=%s\n' "$step" "$status" "$(cat "$TEST_FLOW_LOG")" >&2; exit 1; }

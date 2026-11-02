@@ -160,10 +160,17 @@ pi_tuple "$pi_version"
 if ! command -v node > /dev/null 2>&1; then
   printf 'batch-precheck_test: SKIP case 1b: node is not on PATH, so the Pi tuple test is NOT_RUN\n'
 else
-node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
+# Run node:test in this process with an explicit TAP reporter. Node 22's isolated --test runner
+# can collapse a failing file to ERR_TEST_FAILURE without reporting the assertion's test name.
+# ASD-V0-1970: require a named pass as well as a named failure, never just a nonzero Node exit.
+pi_capabilities() { node --test-reporter=tap --test-name-pattern='^PWV-V0-011 registered tools' "$pi/integrations/pi/capabilities.test.mjs"; }
+pi_capabilities > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
+grep -q '^ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "matching tuple did not run PWV-V0-011: $(tail -40 "$tmp/out")"
 pi_tuple "0.0.0-stale"
-node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 && fail "a stale Pi spec tuple passed"
+pi_capabilities > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a stale Pi spec tuple did not exit 1: $(tail -40 "$tmp/out")"
 grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple did not fail PWV-V0-011: $(tail -40 "$tmp/out")"
+grep -q "adapterVersion: '0.0.0-stale'" "$tmp/out" || fail "stale tuple assertion did not name its adapter version: $(tail -40 "$tmp/out")"
 fi
 
 # 2. A fixture repository, workflow and packages.
@@ -175,7 +182,10 @@ cat > "$tmp/regen-stub" <<'EOF'
 #!/bin/sh
 case $1 in
   --golden-tests) printf '%s\n' ${STUB_GOLDENS:-} | sed 's/:/ /' ;;
-  --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt; exit 0 ;;
+  --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt
+    [ -n "${STUB_REPIN_STAGE:-}" ] && git add derived.txt
+    [ -n "${STUB_REPIN_TERM:-}" ] && kill -TERM "$PPID"
+    exit 0 ;;
 esac
 EOF
 chmod +x "$tmp/regen-stub"
@@ -341,6 +351,7 @@ echo "make \$* GOPROXY=\${GOPROXY-unset}" >> $tmp/calls
 mkdir -p $tmp/running && : > $tmp/running/\$2
 case "\$2" in
   test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; } ;;
+  spec-requirements-check) [ -n "\${STUB_RESTAGE:-}" ] && { printf restaged >> derived.txt; git add derived.txt; } ;;
   slow-*) sleep 3 ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
       sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi ;;
@@ -563,6 +574,24 @@ STUB_REPIN=1 run && fail "a repin that changed a file passed"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | repin (mechanical)$' "$tmp/out" || fail "repin fail row: $(cat "$tmp/out")"
 grep -q 'mechanical repins changed tracked files' "$tmp/out" || fail "repin message: $(cat "$tmp/out")"
 git -C "$repo" checkout -q -- derived.txt
+# ASD-V0-787 (NEW-D4): a repin that staged its rewrite is unstaged when the run ends, and the
+# rewrite stays in the worktree; an entry staged again after the repin is left alone.
+STUB_REPIN=1 STUB_REPIN_STAGE=1 STUB_REPIN_TERM=1 run
+[[ $? == 143 ]] || fail 'an interrupted repin must exit 143'
+grep -q '^batch-precheck: unstaged 1 path(s) the mechanical repin staged' "$tmp/out" || fail "interrupted unstage line: $(cat "$tmp/out")"
+git -C "$repo" diff --cached --quiet HEAD -- || fail 'the interrupted run left the repin staged'
+[[ $(cat "$repo/derived.txt") == $'v0\nrepinned' ]] || fail 'the interrupted repin rewrite left the worktree'
+git -C "$repo" checkout -q HEAD -- derived.txt
+STUB_REPIN=1 STUB_REPIN_STAGE=1 run && fail "a staged repin that changed a file passed"
+grep -q '^batch-precheck: | FAIL | *[0-9]*s | repin (mechanical)$' "$tmp/out" || fail "staged repin fail row: $(cat "$tmp/out")"
+grep -q '^batch-precheck: unstaged 1 path(s) the mechanical repin staged' "$tmp/out" || fail "unstage line: $(cat "$tmp/out")"
+git -C "$repo" diff --cached --quiet HEAD -- || fail "the failed run left the repin staged: $(git -C "$repo" status --porcelain)"
+[[ $(cat "$repo/derived.txt") == $'v0\nrepinned' ]] || fail "the repin rewrite left the worktree: $(cat "$repo/derived.txt")"
+git -C "$repo" checkout -q -- derived.txt
+STUB_REPIN=1 STUB_REPIN_STAGE=1 STUB_RESTAGE=1 run && fail "a restaged repin passed"
+grep -q 'unstaged [0-9]* path(s)' "$tmp/out" && fail "an entry staged after the repin was unstaged: $(cat "$tmp/out")"
+[[ $(git -C "$repo" show :derived.txt) == $'v0\nrepinnedrestaged' ]] || fail "the later staging was lost: $(git -C "$repo" show :derived.txt)"
+git -C "$repo" checkout -q HEAD -- derived.txt
 
 # 4b. Ledger reuse (ASD-V0-042, V1-2985): a rerun on identical inputs reuses every step's recorded
 # pass, reports it and still writes the receipt; a tree change reruns the whole-tree steps while
@@ -763,11 +792,11 @@ GIT_DIR=$crepo/.git GIT_WORK_TREE=$crepo crun --base "$basesha" && fail "GIT_DIR
 grep -q '^batch-precheck: FAIL make capabilities-check .* introduced' "$tmp/out" || fail "GIT_DIR leak: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "GIT_DIR base-present: $(cat "$tmp/out")"
 [[ $(git -C "$crepo" worktree list --porcelain | grep -c '^worktree ') == 1 ]] || fail "base worktree left behind"
-# Without --base the same failures still fail; an unresolvable base classifies nothing as base-present.
+# Without --base the same failures still fail; an invalid base now fails static discovery first (ASD-V0-1923).
 crun && fail "no-base run passed with failures"
 crun --base no-such-rev && fail "bad base passed"
-grep -q '^batch-precheck: FAIL make test-read-scopes-check .* introduced: base no-such-rev is not a commit' "$tmp/out" ||
-  fail "bad base reason: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FAIL static go-build-vet (package discovery)$' "$tmp/out" &&
+  grep -q '^fix: verify --base no-such-rev names a commit' "$tmp/out" || fail "bad base reason: $(cat "$tmp/out")"
 crun --base > /dev/null 2>&1
 [[ $? == 2 ]] || fail "--base without a value did not exit 2"
 
@@ -783,6 +812,53 @@ grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "vol
 printf 'timeout limit 3s exceeded\n--- FAIL: TestX (0.01s)\n' > "$crepo/fail-test-commands-check"
 crun --base "$base2" && fail "a changed diagnostic number was classified base-present"
 grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "diagnostic number: $(cat "$tmp/out")"
+
+# Exercise the actual normalize function without executing the precheck entry point. awk must
+# parse the whole program even for plain input; some awks reject an unescaped / in a class.
+sed -n '/^normalize() {/,/^}/p' "$pre" > "$tmp/normalize.sh"
+for awk_name in awk /usr/bin/awk original-awk mawk; do
+  awk_bin=$(command -v "$awk_name") || continue
+  NORMALIZE_AWK=$awk_bin bash -c '
+    set -o pipefail
+    source "$1"
+    awk() { "$NORMALIZE_AWK" "$@"; }
+    normalize "$2"
+  ' _ "$tmp/normalize.sh" "$tmp" <<< 'plain diagnostic' > "$tmp/normalized"
+  rc=$?
+  [[ $rc == 0 && $(cat "$tmp/normalized") == 'plain diagnostic' ]] ||
+    fail "normalize plain input with $awk_bin rc=$rc: $(cat "$tmp/normalized")"
+  printf 'batch-precheck_test: normalize plain input: %s rc=%s\n' "$awk_bin" "$rc"
+done
+
+# 6b. ASD-V0-1971 (V1-4327): moving a failing test changes locations and group totals, not its
+# finding. A second finding in the same output must still be introduced.
+printf 'lane-scripts_test: FAIL inherited mismatch 42\nlane-scripts_test: 10 groups passed, 1 failed:\n  group 7: line 123: inherited mismatch 42\n  - case "6b. stable case" line 125: inherited mismatch 42\n    fixture_test.go:17:9: inherited mismatch 42\nbatch-precheck_test: FAIL 1 case(s):\n' > "$crepo/fail-test-commands-check"
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm shifted-base || fail "shifted base commit"
+shiftbase=$(git -C "$crepo" rev-parse HEAD)
+sed -e 's/10 groups/11 groups/' -e 's/group 7: line 123:/group 8: line 145:/' -e 's/line 125:/line 147:/' -e 's/fixture_test.go:17:9:/fixture_test.go:29:4:/' \
+  "$crepo/fail-test-commands-check" > "$tmp/shifted"
+cp "$tmp/shifted" "$crepo/fail-test-commands-check"
+crun --base "$shiftbase" || fail "shifted inherited finding counted as new: $(cat "$tmp/out")"
+grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "shifted finding not warned: $(cat "$tmp/out")"
+printf 'lane-scripts_test: FAIL genuinely new mismatch 43\n  group 9: line 160: genuinely new mismatch 43\n' >> "$crepo/fail-test-commands-check"
+sed -e 's/1 failed:/2 failed:/' -e 's/FAIL 1 case(s):/FAIL 2 case(s):/' "$crepo/fail-test-commands-check" > "$tmp/shifted"
+cp "$tmp/shifted" "$crepo/fail-test-commands-check"
+crun --base "$shiftbase" && fail "new finding hidden beside shifted inherited failure"
+grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "shifted plus new finding: $(cat "$tmp/out")"
+
+# A second occurrence in the same source file is new even when coordinates normalize equally.
+printf 'fixture_test.go:17:9: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm occurrence-base || fail "occurrence base commit"
+occurrencebase=$(git -C "$crepo" rev-parse HEAD)
+printf 'fixture_test.go:29:4: inherited mismatch 42\nfixture_test.go:35:2: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
+crun --base "$occurrencebase" && fail "second normalized-identical finding classified base-present"
+grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "duplicate finding: $(cat "$tmp/out")"
+# Fewer occurrences remain inherited: comparison is containment, rather than exact count equality.
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm two-occurrences || fail "two occurrences commit"
+twobase=$(git -C "$crepo" rev-parse HEAD)
+printf 'fixture_test.go:41:1: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
+crun --base "$twobase" || fail "fewer inherited occurrences classified introduced: $(cat "$tmp/out")"
+grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "fewer occurrences: $(cat "$tmp/out")"
 
 # 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
 # real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input
@@ -1421,7 +1497,7 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
+grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\')' ||
   fail "dogfood-closeout-precheck does not select since the receipt (DCW-V0-923)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
@@ -1557,8 +1633,8 @@ BATCH_PRECHECK_SKIP_DRIFT=1 prun && fail "a failing pre-bind entry passed the pr
 row_is FAIL 'batch-drift (pre-bind, 2 packages)'
 grep -q 'batch-drift (skipped before the bind)' "$tmp/out" && fail "a skip row with nothing held: $(cat "$tmp/out")"
 [[ -f $prec ]] && fail "a failed pre-bind run left a record: $(cat "$prec")"
-# ASD-V0-825 (V1-4069): under LANE=1 an @own entry runs only when a companion input changed; the
-# receipt of such a run is marked, and a since-receipt run without LANE does not narrow from it.
+# ASD-V0-825 (V1-4069): in explicit lane-closeout mode an @own entry runs only when a companion
+# input changed; its receipt is marked, and a batch since-receipt run does not narrow from it.
 odrift='./golden TestGoldenDrift @go
 ./golden TestFreeze @own @go'
 orun() { (unset GOFLAGS; cd "$rrepo" && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$odrift "$pre" "$@") > "$tmp/out" 2>&1; }
@@ -1566,7 +1642,7 @@ printf 'package golden\n' > "$rrepo/golden/extra.go"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'lane go change'
 ohead=$(git -C "$rrepo" rev-parse HEAD)
 pbase=$rbase plan "$frontier" golden
-LANE=1 orun --base "$rbase" || fail "lane run failed: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run failed: $(cat "$tmp/out")"
 grep -qx "batch-precheck:   skipped ./golden TestFreeze (lane closeout: no companion input changed since $rbase; the batch precheck runs it, ASD-V0-825)" "$tmp/out" ||
   fail "the lane run did not skip the @own entry: $(cat "$tmp/out")"
 grep -q '| batch-drift TestFreeze$' "$tmp/out" && fail "the lane run ran the @own entry: $(cat "$tmp/out")"
@@ -1577,14 +1653,244 @@ olane="$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-prech
 mkdir -p "$rrepo/.corvint/changes" && printf '{}\n' > "$rrepo/.corvint/changes/$ohead.cem.json"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal lane change evidence'
 BATCH_PRECHECK_SINCE_RECEIPT=1 orun --base "$rbase" || fail "batch run over a lane receipt failed: $(cat "$tmp/out")"
-grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that skipped the @own companion builds (ASD-V0-825)$' "$tmp/out" ||
+grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)$' "$tmp/out" ||
   fail "a batch run narrowed from a lane receipt: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 [[ ! -e $olane ]] || fail "a batch receipt kept the .lane mark"
 # A changed companion input runs the @own entry in a lane closeout too.
 mkdir -p "$rrepo/internal/companionrelease" && printf 'x\n' > "$rrepo/internal/companionrelease/note.txt"
-LANE=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 /bin/rm -rf "$rrepo/internal"
+
+
+# 17. ASD-V0-1990 (V1-4329): selection-baseline is deferred in both lane closeout passes,
+# including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
+for target in dogfood-closeout dogfood-closeout-precheck; do
+  grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
+  grep -A4 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
+done
+baseline_deferred() {
+  grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
+    fail "lane deferral not named: $(cat "$tmp/out")"
+  grep -q '^batch-precheck: | NOT_RUN | *[0-9]*s | make selection-baseline-check: lane closeout: selection-baseline-check deferred to the batch precheck' "$tmp/out" ||
+    fail "lane deferral row missing: $(cat "$tmp/out")"
+  grep -qE '^batch-precheck: (PASS make selection-baseline-check|\| (PASS|REUSE) \| *[0-9]*s \| make selection-baseline-check)' "$tmp/out" &&
+    fail "lane deferral recorded as a pass: $(cat "$tmp/out")"
+  grep -q 'selection-baseline-check' "$tmp/scalls" && fail "deferred baseline built or ran: $(cat "$tmp/scalls")"
+  return 0
+}
+pbase=$rbase plan "$frontier" golden
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "pre-bind lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun || fail "no-base lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+# sdrift contains no @own entry: selection-baseline alone must mark the clean lane receipt.
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase" || fail "lane baseline receipt run: $(cat "$tmp/out")"
+baseline_deferred
+bhead=$(git -C "$rrepo" rev-parse HEAD)
+breceipt=$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+grep -qx 'not-run selection-baseline-check lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$breceipt" ||
+  fail "receipt does not retain the deferral: $(cat "$breceipt")"
+[[ $(cat "$breceipt.lane" 2> /dev/null) == "$bhead" ]] || fail "baseline-only deferral did not mark the lane receipt"
+# Review regression: deferred-receipt-push-refusal (ASD-V0-1992).
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: guard accepted a lane receipt"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "deferred-receipt-push-refusal: missing repair command"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --verify-receipt "$bhead" || fail "lane reader refused its own receipt: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt records NOT_RUN selection-baseline-check lane closeout:' "$tmp/out" || fail "receipt hides deferral"
+# Use the real entry-point recipes; only the nested precheck workload is stubbed.
+real_make=$(command -v make)
+# BATCH_PRECHECK_ROOT is a fixture: give the script an absolute argv[0], as rrun does, so its
+# helper steps resolve to the real scripts after it changes directory. Keep recipe env intact.
+printf '#!/bin/sh\n[ "$1" = script/batch-precheck.sh ] || exit 2\nshift\nexec "%s" "$@"\n' "$pre" > "$tmp/precheck-entry"
+chmod +x "$tmp/precheck-entry"
+bmake() { (unset GOFLAGS; cd "$script/.." && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$sdrift "$real_make" --no-print-directory -s HEAVY_ADMIT="$tmp/precheck-entry" BASE="$rbase" "$@") > "$tmp/out" 2>&1; }
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 bmake batch-push-check && fail "deferred-receipt-push-refusal: push entry point trusted inherited closeout mode"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "push refusal missing repair command"
+# Neither omission of the sidecar nor omission of the deferral line can bypass the guard.
+cp "$breceipt" "$tmp/deferred-receipt"
+/bin/rm -f "$breceipt.lane"
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: unmarked deferral accepted"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "unmarked deferral missing repair command"
+# The verifier's field grammar accepts tabs too; the limit check must use that same grammar.
+sed $'s/^not-run selection-baseline-check /not-run\tselection-baseline-check\t/' "$tmp/deferred-receipt" > "$breceipt"
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: tab-separated deferral accepted"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "tab-separated deferral missing repair command"
+printf '%s\n' "$bhead" > "$breceipt.lane"
+sed '/^not-run selection-baseline-check /d; s/^steps .*/steps 1/; s/^passed .*/passed 1/' "$tmp/deferred-receipt" > "$breceipt"
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: marker-only receipt accepted"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "marker-only receipt missing repair command"
+cp "$tmp/deferred-receipt" "$breceipt"
+# Review regression: inherited-lane-batch-entry (ASD-V0-1991), including the HEAD shortcut.
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 bmake batch-precheck || fail "inherited-lane-batch-entry: batch run failed: $(cat "$tmp/out")"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "inherited-lane-batch-entry: inherited lane mode suppressed baseline"
+row_is PASS 'make selection-baseline-check'
+[[ ! -e $breceipt.lane ]] || fail "inherited-lane-batch-entry: batch kept lane marker"
+[[ -f $breceipt ]] || fail "inherited-lane-batch-entry: batch wrote no receipt: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 bmake batch-push-check || fail "push guard refused completed batch evidence: $(cat "$tmp/out")"
+# Plain LANE alone cannot defer even at a direct script entry point.
+: > "$tmp/scalls"
+LANE=1 rrun --base "$rbase" || fail "plain LANE batch run failed: $(cat "$tmp/out")"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "inherited-lane-batch-entry: plain LANE deferred baseline"
+# Restore the closeout receipt for the sealed-head composition below.
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase" || fail "restore lane receipt: $(cat "$tmp/out")"
+# Model the sealed-head pass: an evidence-only commit follows the marked lane receipt.
+printf '{}\n' > "$rrepo/.corvint/changes/$bhead.cem.json"
+git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal baseline deferral'
+pbase=$bhead plan "$frontier"
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "sealed-head lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+# Outside lane closeout the marked receipt cannot hide Go changes, even at the same clean HEAD.
+pbase=$rbase plan "$frontier" golden
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "batch baseline run: $(cat "$tmp/out")"
+grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check' "$tmp/out" || fail "batch reused lane deferral"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "batch did not run baseline: $(cat "$tmp/scalls")"
+row_is PASS 'make selection-baseline-check'
+[[ ! -e $breceipt.lane ]] || fail "batch baseline receipt kept lane marker"
+
+
+# The real closeout expands doc-gates: defer only the baseline target, retaining its peers.
+sed -i.bak 's/make -s spec-requirements-check selection-baseline-check/make doc-gates/' "$rrepo/.github/workflows/ci.yml" && /bin/rm -f "$rrepo/.github/workflows/ci.yml.bak"
+printf 'DOC_GATE_TARGETS := spec-requirements-check selection-baseline-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' >> "$rrepo/Makefile"
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase" || fail "expanded doc-gates lane run: $(cat "$tmp/out")"
+baseline_deferred
+grep -qx 'make -s spec-requirements-check' "$tmp/scalls" || fail "lane deferral hid a peer doc gate"
+# Recipe drift must refuse before an opaque aggregate can build/run the deferred baseline.
+printf '\t@echo extra\n' >> "$rrepo/Makefile"
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase"
+[[ $? == 2 ]] || fail "opaque doc-gates lane run did not refuse: $(cat "$tmp/out")"
+grep -q '^batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates;' "$tmp/out" || fail "opaque aggregate refusal unnamed"
+grep -qE '^make -s (doc-gates|selection-baseline-check)$' "$tmp/scalls" && fail "opaque aggregate built/ran the baseline"
+: > "$tmp/scalls"
+LANE=0 rrun --base "$rbase" || fail "opaque doc-gates non-lane run: $(cat "$tmp/out")"
+grep -qx 'make -s doc-gates' "$tmp/scalls" || fail "non-lane aggregate fallback changed"
+# 18. ASD-V0-1923 (V1-4317): --static runs the static doc gates and go build/vet of the changed
+# packages first, one at a time; the first failure prints `FAIL static GATE`, its output and a
+# `fix:` line and nothing later runs, well inside 60 s. A full run starts with the same phase and
+# its later rows of those gates print REUSE instead of running again.
+strepo=$tmp/strepo stbin=$tmp/stbin
+mkdir -p "$strepo/.github/workflows" "$strepo/pkg" "$strepo/interop/cem01-go" "$stbin"
+git init -q "$strepo" || fail "static fixture git init"
+printf 'package pkg\n\nimport "testing"\n\nfunc TestDrift(t *testing.T) {}\n' > "$strepo/pkg/a_test.go"
+cat > "$strepo/.github/workflows/ci.yml" << 'EOF'
+jobs:
+  doc-gates:
+    steps:
+      - run: make -s spec-requirements-check flow-guide-check bash32-check
+  go-static:
+    steps:
+      - run: |
+          test -z "$(gofmt -l .)"
+  go-interop:
+    steps:
+      - run: |
+          test -z "$(gofmt -l .)"
+EOF
+cat > "$stbin/make" << EOF
+#!/bin/sh
+echo "make \$* untracked=\${BASH32_INCLUDE_UNTRACKED:-}" >> $tmp/stcalls
+[ "\$2" = "\${STATIC_STUB_FAIL:-}" ] && { echo "script/lane-x.sh:3: refusal x names no recovery"; exit 1; }
+exit 0
+EOF
+cat > "$stbin/go" << EOF
+#!/bin/sh
+echo "go \$*" >> $tmp/stcalls
+echo ok
+EOF
+printf '#!/bin/sh\nexit 0\n' > "$stbin/gofmt"
+printf '#!/bin/sh\nexit 0\n' > "$stbin/node"
+chmod +x "$stbin"/*
+git -C "$strepo" add -A && git -C "$strepo" commit -q -m fixture || fail "static fixture commit"
+stbase=$(git -C "$strepo" rev-parse HEAD)
+printf 'package pkg\n\nfunc Changed() {}\n' > "$strepo/pkg/b.go"
+strun() { (cd "$strepo" && PATH=$stbin:$PATH BATCH_PRECHECK_ROOT=$strepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER= BATCH_PRECHECK_DRIFT="./pkg TestDrift" CORVINT_GATE_LEDGER=off "$pre" "$@") > "$tmp/out" 2>&1; }
+: > "$tmp/stcalls"
+t0=$SECONDS
+STATIC_STUB_FAIL=flow-guide-check strun --static --base "$stbase"
+rc=$?
+secs=$((SECONDS - t0))
+[[ $rc == 1 ]] || fail "a failing static gate did not exit 1 (rc=$rc): $(cat "$tmp/out")"
+((secs < 60)) || fail "the static failure took ${secs}s, not under 60 s"
+grep -q '^batch-precheck: FAIL static flow-guide-check ' "$tmp/out" || fail "no FAIL static line: $(cat "$tmp/out")"
+grep -q '^  | script/lane-x.sh:3: refusal x names no recovery$' "$tmp/out" || fail "the failing gate's output is missing: $(cat "$tmp/out")"
+grep -q '^fix: give each refusal named above a `fix:` line' "$tmp/out" || fail "no fix: line: $(cat "$tmp/out")"
+grep -q 'nothing later ran (ASD-V0-1923)$' "$tmp/out" || fail "no fail-fast summary: $(cat "$tmp/out")"
+grep -q 'bash32-check\|^go ' "$tmp/stcalls" && fail "a step after the failure ran: $(cat "$tmp/stcalls")"
+grep -q 'spec-requirements-check' "$tmp/stcalls" && fail "a non-static doc gate ran in the static phase: $(cat "$tmp/stcalls")"
+# Passing: bash32-check scans untracked scripts, the changed package is built and vetted, and the
+# receipt is never touched.
+streceipt=$(git -C "$strepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+printf 'keep\n' > "$streceipt"
+: > "$tmp/stcalls"
+strun --static --base "$stbase" || fail "a passing static phase failed: $(cat "$tmp/out")"
+grep -qx 'make -s bash32-check untracked=1' "$tmp/stcalls" || fail "bash32-check was not untracked-aware: $(cat "$tmp/stcalls")"
+grep -qx 'go build ./pkg' "$tmp/stcalls" && grep -qx 'go vet ./pkg' "$tmp/stcalls" || fail "the changed package was not built and vetted: $(cat "$tmp/stcalls")"
+grep -q '^batch-precheck: static phase passed 3 steps in ' "$tmp/out" || fail "static pass summary: $(cat "$tmp/out")"
+[[ $(cat "$streceipt") == keep ]] || fail "--static touched the receipt"
+grep -q 'batch-drift\|sync-check' "$tmp/out" && fail "--static ran later steps: $(cat "$tmp/out")"
+# A full run: the static rows print REUSE and each static gate ran once.
+: > "$tmp/stcalls"
+strun --base "$stbase" || fail "full run after the static phase failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *0s | make flow-guide-check$' "$tmp/out" || fail "flow-guide-check row not reused: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *0s | make bash32-check$' "$tmp/out" || fail "bash32-check row not reused: $(cat "$tmp/out")"
+[[ $(grep -c 'make -s flow-guide-check' "$tmp/stcalls") == 1 ]] || fail "flow-guide-check ran more than once: $(cat "$tmp/stcalls")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | make spec-requirements-check$' "$tmp/out" || fail "a non-static row did not run: $(cat "$tmp/out")"
+# A full run whose static gate fails stops before the selection and the parallel steps.
+: > "$tmp/stcalls"
+STATIC_STUB_FAIL=bash32-check strun --base "$stbase"
+[[ $? == 1 ]] && grep -q '^batch-precheck: FAIL static bash32-check ' "$tmp/out" || fail "a full run did not stop at the static failure: $(cat "$tmp/out")"
+grep -q 'spec-requirements-check' "$tmp/stcalls" && fail "the full run went on after the static failure: $(cat "$tmp/stcalls")"
+# ASD-V0-1923: static_steps propagates an invalid base instead of selecting zero packages.
+(cd "$strepo" &&
+  source <(sed -n '/^static_packages()/,/^}/p; /^static_steps()/,/^}/p' "$pre")
+  go_wrapper='' gocache=$tmp/cache
+  doc_gate_rows() { :; }
+  static_steps not-a-revision) > "$tmp/out" 2>&1
+[[ $? != 0 ]] || fail "bad base became an empty static selection: $(cat "$tmp/out")"
+# A discovery failure after the base checks must also fail the complete static/full precheck.
+real_git=$(command -v git)
+cat > "$stbin/git" << EOF
+#!/bin/sh
+case "\$*" in *'diff --name-only --no-renames '*" -- *.go")
+  [ "\${STATIC_DISCOVERY_FAIL:-}" = 1 ] && exit 1 ;;
+esac
+exec "$real_git" "\$@"
+EOF
+chmod +x "$stbin/git"
+for mode in --static ''; do
+  : > "$tmp/stcalls"
+  STATIC_DISCOVERY_FAIL=1 strun $mode --base "$stbase"
+  [[ $? == 1 ]] || fail "discovery error passed $mode: $(cat "$tmp/out")"
+  grep -q 'FAIL static go-build-vet' "$tmp/out" || fail "no discovery failure: $(cat "$tmp/out")"
+  grep -q '^fix:' "$tmp/out" || fail "no discovery recovery: $(cat "$tmp/out")"
+  grep -q 'no Go package changed' "$tmp/out" && fail "discovery error became empty selection"
+done
+# A package containing only tests is vetted in both modes and never built.
+/bin/rm -f "$strepo/pkg/b.go"
+printf '// changed test\n' >> "$strepo/pkg/a_test.go"
+cat > "$stbin/go" << EOF
+#!/bin/sh
+echo "go \$*" >> $tmp/stcalls
+[ "\$1" = build ] && { echo 'no non-test Go files'; exit 1; }
+echo ok
+EOF
+for mode in --static ''; do
+  : > "$tmp/stcalls"
+  strun $mode --base "$stbase" || fail "test-only package failed $mode: $(cat "$tmp/out")"
+  grep -q '^go build' "$tmp/stcalls" && fail "test-only package built: $(cat "$tmp/stcalls")"
+  grep -qx 'go vet ./pkg' "$tmp/stcalls" || fail "test-only package not vetted: $(cat "$tmp/stcalls")"
+done
+strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base without REV was accepted"
 
 finish

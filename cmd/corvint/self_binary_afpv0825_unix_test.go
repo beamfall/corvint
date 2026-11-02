@@ -78,7 +78,7 @@ func TestAFPV0825StaleCheckReusesThePlanHEAD(t *testing.T) {
 		if code != planCode || code != 3 {
 			t.Fatalf("%s: test --dry-run exited %d, %d without a stamp: %s", state.name, code, planCode, stderr)
 		}
-		line := "corvint-test: DEGRADED " + own.Code + ": " + own.Detail + "\n"
+		line := "corvint-test: DEGRADED " + own.Code + ": " + selfBinaryNotice(own) + "\n"
 		if (own.Code == "") == strings.Contains(stderr, "corvint-test: DEGRADED ") || own.Code != "" && !strings.Contains(stderr, line) {
 			t.Fatalf("%s: stderr does not carry exactly the verdict %q:\n%s", state.name, line, stderr)
 		}

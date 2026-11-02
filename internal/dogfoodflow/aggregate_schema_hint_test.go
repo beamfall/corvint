@@ -77,6 +77,8 @@ func TestDCWV0817RecordIntentHintNamesAcceptedForms(t *testing.T) {
 		`spec Markdown file with a "## Requirements" heading`,
 		"#no-intent-declared",
 		"rerun corvint dogfood change feedface (DCW-V0-817)",
+		// ASD-V0-733 (NEW-B1): the record paths are RecordPath's, not docs/decisions/.
+		"touches nothing but docs/build-log/ and .agent-evidence/ paths and CEM sidecars (editing a docs/decisions/ file makes it a change, DCW-V0-057)",
 	} {
 		if !strings.Contains(hint, want) {
 			t.Fatalf("record intent hint %q lacks %q", hint, want)

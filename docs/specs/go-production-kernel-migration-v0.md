@@ -783,6 +783,24 @@ which is the whole of what the row asserts.
   carries abstention. Rollback: delete `internal/contextindex/query_fusion.go`, restore
   `widenQueryResult` to the `GPK-V0-090` slot-ranking form, restore the core-freeze goldens and
   re-extract the `DR-0045` candidates.
+- `GPK-V0-1950`: (accepted 2026-11-02, standing auto-accept; V1-2716) The lexical identifier
+  channel of `GPK-V0-092` (`TaskLexicalChannel`) MUST tokenize a task that arrives as one escaped
+  JSON string literal on its decoded text. A complete, valid JSON serialization boundary is
+  required; a count of `\n` escapes is insufficient. Existing `contextQueryValues` extraction
+  MUST run before lexical scanning: JSON envelopes contribute only string values, never field
+  names, and JSON escapes (including `\u` unicode escapes) are decoded once. Extracted values
+  MUST NOT be decoded again. Plain or invalid JSON task text is read exactly as written,
+  preserving ordinary Windows paths, regex text and quoted code even with multiple literal
+  `\n` sequences. Ambiguous unquoted escaped bodies are not decoded. The confident tier
+  (`EvalQuery`), the task-context ranking (`TaskContext`, and so the `context` verb), the harness
+  packets, `prove` and the receipt's echo of the request are unchanged for every task. Failure
+  modes: read as written, "\n\nThe" yields the identifier `nThe` and "\nopenLedgerFile" yields
+  `nopenLedgerFile`, so `widening.lexical.identifiers` discloses names the task never wrote and the
+  identifier gate searches for them instead of the name the task did write (product invariant 2); a
+  newline-count heuristic corrupts Windows paths and quoted code; decoding before JSON extraction
+  invalidates envelopes, admitting field names and artificial unicode identifiers. The valid-JSON
+  boundary and single extraction exclude those failures. Rollback: drop the lexical scan override
+  in `TaskLexicalChannel` and delete `internal/contextindex/task_escapes.go`.
 - `GPK-V0-093`: (accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in
   three stages: candidate generation (the ranked records, documents and frontier symbols), hard
   admission, and ranking and budget (placement, dependency links, the `--limit` ceiling and the
@@ -2080,6 +2098,7 @@ negative result.
 |---|---|---|
 | `GPK-V0-090` (accepted 2026-10-25, V1-2716) | `withQueryWidening`, `widenQueryResult` in `cmd/corvint/query_widening.go`; `repositoryQueryOver` in `cmd/corvint/harness_context.go`; `StabilizePacketBytes` in `internal/contextindex/query_degradation.go`; `wideningDivergence`, `validWideningDivergence` in `conformance/cli-parity-v0/manifest.go` | `TestStandaloneQueryWidensBeneathConfidentResults`, `TestStandaloneQueryWideningYieldsBudgetToResults`, `TestHarnessUserPromptCarriesNoWidening`, `TestWideningDivergenceAdmitsOnlyTheWholeMember`, `TestGPKV0002ManifestReplay` (`PASS-WITH-KNOWN-DIVERGENCE … register=DR-0045`), core-freeze goldens `query-repository-task.json`, `query-excluded-sources.json` |
 | `GPK-V0-092` (accepted 2026-10-26, V1-2716) | `TaskLexicalChannel` in `internal/contextindex/query_fusion.go`; `widenQueryResult`, `fusedPacketRow` in `cmd/corvint/query_widening.go` | `TestStandaloneQueryWideningFusesLexicalChannel`, `TestTaskLexicalChannelRanksTheNamedIdentifierFirst`, `TestStandaloneQueryWidensBeneathConfidentResults`, `TestGPKV0002ManifestReplay`, core-freeze goldens `query-repository-task.json`, `query-excluded-sources.json`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-26-v2716-query-fusion.md` |
+| `GPK-V0-1950` (accepted 2026-11-02, V1-2716) | `taskScanText` reuses `contextQueryValues` in `internal/contextindex/task_escapes.go`; `TaskLexicalChannel` in `internal/contextindex/query_fusion.go` preserves compiler JSON extraction before overriding the default lexical scan | `TestTaskScanTextDecodesOnlyAnEscapedTask_GPKV01950`, `TestTaskLexicalChannelDecodesAnEscapedTask_GPKV01950`, `TestTaskLexicalChannelPreservesLiteralEscapes_GPKV01950`, `TestTaskLexicalChannelExtractsJSONValues_GPKV01950`; `docs/build-log/2026-11-02-ret-u43-fix.md` (review repair); `docs/build-log/2026-11-02-ret-u43.md` (pre-repair ContextBench dev split: rankings identical on 40 of 40 measured rows; not remeasured for this repair) |
 | `GPK-V0-093` (accepted 2026-10-28, V1-2946) | `evalAdmitSiblings`, `evalRelations`, `evalScope`, `evalDiscriminatingWords`, `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go`; `evalConfidentSymbols`, `evalQuery` in `internal/contextindex/eval_query.go` | `TestEvalAdmitSiblingsRequiresDemonstratedRelation`, `TestEvalAdmitSiblingsPythonRelations`, `TestEvalBlankCommentsAndStrings`, `TestEvalQueryScopeRefusesRepositoryVocabulary`, `TestEvalQueryScopeAdmitsLedgerRecordOnCommonWords`, `TestEvalQueryScopeOneSourceWordDiscriminates`, `TestEvalQueryScopeAbsentWordDoesNotWithdrawNamedSymbol`, `TestEvalScopeNamesExactly`, `TestEvalQueryRelevanceFloor`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v2946-v2953-admission-and-candidate-kinds.md` |
 | `GPK-V0-095` (accepted 2026-10-29, V1-3140) | `stripWebNonCode`, `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd`, `evalWebQuotedEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0095StripWebNonCodeBlanksNestedTemplates`, `TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates`, `TestGPKV0095ImpactReadsNoImportInsideNestedTemplates`; `DR-0046` |
 | `GPK-V0-295` (accepted 2026-10-30, V1-3150) | `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go` | `TestGPKV0295BlankCommentsAndStringsNestedTemplates`; `DR-0046` |
@@ -2113,3 +2132,17 @@ member; no receipt, index, snapshot or trace changes.
 |---|---|---|
 | `GPK-V0-880` (experimental 2026-11-01, V1-3873) | `impactPathSuffixRefusal` in `cmd/corvint/diagnostic_refusals.go`; `affected.use-path` in `docs/specs/FIX-REGISTRY.tsv` | `TestGPKV0880SuffixRefusalNamesAffectedForDirectoryAndMakefile`, `TestFixIdentifiersResolveInRegistry` |
 | `GPK-V0-881` (experimental 2026-11-01, V1-2081) | `ImpactCapabilities` in `internal/contextindex/impact_capabilities.go` | `TestGPKV0881ImpactCapabilitiesStateTheReverseImportClosure`, `TestGPKV0084ImpactCapabilitiesListing` |
+
+## Amendment 2026-11-02 (V1-2716): the lexical channel decodes an escaped task
+
+A diagnosis of `corvint query` file recall over the ContextBench development split (393 of its 419
+scored rows; no held-out row read) found the widening's lexical channel searching for identifiers
+such as `nThe`, `nEmail` and `nConfiguration` on the 20 rows whose problem statement is one escaped
+string. `GPK-V0-1950` (defined under "Performance and packaging" beside `GPK-V0-092`) decodes such a
+task for the channel only. Measured on the development rows, it changes no ranked answer (recall and
+precision identical); it corrects what the receipt discloses. The same diagnosis measured that the
+remaining recall loss is not recoverable by widening further at the precision bar: 54% of gold
+files appear in no lexical arm's top 20, and appending even one more lexical row to the rows the
+gate leaves unwidened costs more precision than it returns recall. Non-goals: no change to the
+fusion constants, the identifier gate, the cutoff or the confident tier. Acceptance evidence:
+`docs/build-log/2026-11-02-ret-u43.md`.

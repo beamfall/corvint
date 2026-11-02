@@ -17,6 +17,8 @@ __pycache__/
 build/
 dist/
 .context-corvint/
+# Writable scratch/cache overrides suggested by script/heavy.sh for agent sandboxes.
+/.lane-tmp/
 .corvint-benchmark-cache/
 .corvint/change.ocm.json
 .corvint/change.ocm-intents

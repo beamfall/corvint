@@ -24,6 +24,9 @@ GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAI
 # DOC_GATE_GO_TEST runs a doc gate's go test through script/heavy.sh, so doc-gates queues on the
 # host test semaphore (and may offload) like every other Go test (ASD-V0-924, V1-3442).
 DOC_GATE_GO_TEST = script/heavy.sh $(GO_TEST_COMMAND)
+# ASD-V0-732 (NEW-B6): a doc gate that runs a few named tests admits through the light class
+# (ASD-V0-731), so it never queues behind long test runs; inside doc-gates it nests on that slot.
+DOC_GATE_LIGHT_GO_TEST = $(HEAVY_LIGHT_ENV) $(DOC_GATE_GO_TEST)
 
 
 .PHONY: build
@@ -69,6 +72,7 @@ GATE_STEPS = \
   analyzer-schema-test \
   bash32-check \
   bash32-test \
+  batch-assemble-test \
   batch-precheck-test \
   binary-blobs-check \
   capability-catalog-test \
@@ -103,6 +107,7 @@ GATE_STEPS = \
   host-package-versions-test \
   instruction-conflicts-test \
   interop-gate \
+  lane-interrupted-test \
   legal-file-pins-check \
   license-headers-check \
   license-headers-test \
@@ -361,7 +366,7 @@ spec-requirements-check:
 	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
-	$(DOC_GATE_GO_TEST) -run '^(TestSpecsStayWithinTheOCMObligationBound$$|Test[A-Za-z0-9]*Specs?Enumerat)' ./internal/lrfrepo
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^(TestSpecsStayWithinTheOCMObligationBound$$|Test[A-Za-z0-9]*Specs?Enumerat)' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
@@ -853,9 +858,11 @@ pre-push-dogfood-seal-test:
 # batch-review-packet BASE=<sha> [HEAD=<rev>] prints the bounded, read-only batch reviewer input for
 # the checked-out merged range: the reviewed revision, lane overlap, corvint impact and dogfood
 # batch-check (ASD-V0-043, V1-2986).
+# ASD-V0-1991: public batch entry points clear inherited lane-closeout authority. Only the two
+# closeout recipes below opt in inline, invoking the script directly rather than this target.
 .PHONY: batch-precheck
 batch-precheck:
-	@$(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@BATCH_PRECHECK_LANE_CLOSEOUT=0 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
 .PHONY: batch-regen
 batch-regen:
@@ -863,7 +870,19 @@ batch-regen:
 
 .PHONY: batch-push-check
 batch-push-check:
-	@script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
+	@BATCH_PRECHECK_LANE_CLOSEOUT=0 script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
+
+# batch-assemble BRANCHES='claude/lane-a claude/lane-b' [DISPOSITIONS=FILE] merges lanes sealed at
+# their own base into the checked-out batch branch in one pass, with batch-check's attribute-free
+# derivation (ASD-V0-785..786, NEW-D1; docs/LANE-ORCHESTRATION.md section 16).
+.PHONY: batch-assemble
+batch-assemble:
+	@test -n "$(BRANCHES)" || { echo "BRANCHES is required: make batch-assemble BRANCHES='claude/lane-a claude/lane-b'" >&2; exit 2; }
+	@script/batch-assemble.sh $(if $(DISPOSITIONS),--dispositions '$(DISPOSITIONS)') $(BRANCHES)
+
+.PHONY: batch-assemble-test
+batch-assemble-test:
+	@script/batch-assemble_test.sh
 
 .PHONY: adopter-ci-advisory-test
 adopter-ci-advisory-test:
@@ -1056,13 +1075,15 @@ dogfood-finish:
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
-# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
+# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first,
+# unadmitted line also runs the static input pre-check (DCW-V0-731); its second admits on heavy.sh's
+# light pool (ASD-V0-732).
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
 	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT_LIGHT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
@@ -1071,14 +1092,14 @@ dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
 # batch-precheck runs the whole internal/tasks package (ASD-V0-783, V1-3486).
 .PHONY: import-direction-check
 import-direction-check:
-	$(DOC_GATE_GO_TEST) -run '^(TestImportDirection|TestImportViolationControls)$$' ./internal/tasks
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^(TestImportDirection|TestImportViolationControls)$$' ./internal/tasks
 
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
 # internal/liveverify/affected package (DCW-V0-812).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
-	$(DOC_GATE_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
 # tasks-profiles-check fails, naming the profile and file, when a taskman-NAME/N literal in the
 # non-test sources under internal/tasks is not in exactly one of cli.LiveFormats, outputOnlyProfiles and
@@ -1093,13 +1114,13 @@ tasks-profiles-check:
 # committed without its executable bit, fails in doc-gates, not only in go test (DCW-V0-813).
 .PHONY: shell-test-registration-check
 shell-test-registration-check:
-	$(DOC_GATE_GO_TEST) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
 
 # ASD-V0-880 (V1-3882): every GOVERSION toolchain check in AGENTS.md, README.md, this Makefile and
 # the workflows names the version go.mod pins.
 .PHONY: go-version-pins-check
 go-version-pins-check:
-	$(DOC_GATE_GO_TEST) -run '^TestASDV0880' ./tools/capabilities-check
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestASDV0880' ./tools/capabilities-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
@@ -1134,7 +1155,7 @@ dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
-	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 	@$(MAKE) --no-print-directory dogfood-finish
 	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
 
@@ -1144,7 +1165,7 @@ dogfood-closeout:
 .PHONY: dogfood-closeout-precheck
 dogfood-closeout-precheck: export LANE = 1
 dogfood-closeout-precheck:
-	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:
@@ -1203,6 +1224,11 @@ dogfood-change-runs:
 .PHONY: lane-scripts-test
 lane-scripts-test:
 	@script/lane-scripts_test.sh
+
+# ASD-V0-788 (NEW-D6): the interrupted-lane marker (docs/LANE-ORCHESTRATION.md section 17).
+.PHONY: lane-interrupted-test
+lane-interrupted-test:
+	@script/lane-interrupted_test.sh
 
 # ASD-V0-641 (V1-3745): every script a shell test or a Makefile recipe names exists.
 .PHONY: test-script-refs-check
@@ -1311,6 +1337,7 @@ shell-test: \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
   bash32-test \
+  batch-assemble-test \
   batch-precheck-test \
   capability-catalog-test \
   cem-base-retention-test \
@@ -1332,6 +1359,7 @@ shell-test: \
   hlq-local-test \
   host-package-versions-test \
   instruction-conflicts-test \
+  lane-interrupted-test \
   license-headers-test \
   line-citations-test \
   no-python-runtime-dependency-test \
@@ -1390,6 +1418,11 @@ HEAVY_NICE ?= 10
 # (ASD-V0-931). --admit-only: a slot only, no offload or argument rules. Empty under CI, and
 # HEAVY_ADMIT= opts out.
 HEAVY_ADMIT ?= $(if $(CI),,script/heavy.sh --admit-only)
+# ASD-V0-732 (NEW-B6): short, bounded targets (dogfood-inputs-check and the doc gates that run a
+# few named tests) admit on heavy.sh's light pool under its run-time cap (ASD-V0-731) instead of
+# queueing behind long test runs. Empty under CI; HEAVY_CLASS=heavy make TARGET runs one as heavy.
+HEAVY_LIGHT_ENV = $(if $(CI),,HEAVY_CLASS=$(or $(HEAVY_CLASS),light))
+HEAVY_ADMIT_LIGHT ?= $(if $(strip $(HEAVY_ADMIT)),$(HEAVY_LIGHT_ENV) $(HEAVY_ADMIT))
 HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),$(if $(shell command -v nice 2> /dev/null),nice -n $(HEAVY_NICE)))
 
 # cce-live runs the live CCE prove tests and fails, rather than skips, when the Playwright

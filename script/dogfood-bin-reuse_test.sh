@@ -185,6 +185,16 @@ grep -q '^# go1.27.2$' "$tree_bin" || exit 1
 printf 'more\n' >> docs/notes.md
 git -c user.name=test -c user.email=test@example.invalid commit -qam docs
 expect_builds change 0 'doc-only commit'
+# DCW-V0-731 (NEW-B2): a GOFLAGS -p=N word sets parallelism only, so the heavy admission's exported -p keeps
+# the key; any other GOFLAGS word still changes it.
+expect_builds_with GOFLAGS=-p=3 change 0 'a -p parallelism flag'
+expect_builds_with GOFLAGS='-p=3 -tags=x' change 1 'another GOFLAGS word'
+# Only the -p word leaves the key: quoted spaces and a second line stay byte-exact, so GOFLAGS that
+# build different binaries never share a key.
+expect_builds_with GOFLAGS='-ldflags="-X main.v=hello  world"' change 1 'a quoted value with two spaces'
+expect_builds_with GOFLAGS='-ldflags="-X main.v=hello world"' change 1 'that value with one space'
+expect_builds_with GOFLAGS='-ldflags="-X main.v=hello world" -p=3' change 0 'that value with a -p word'
+expect_builds_with GOFLAGS=$'-tags=x\n-tags=y' change 1 'a second GOFLAGS line'
 
 # The C toolchain and its flags are key inputs.
 expect_builds_with TEST_CC=clang change 1 'new C compiler'

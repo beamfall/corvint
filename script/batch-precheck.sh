@@ -10,6 +10,12 @@
 #   script/batch-precheck.sh --base REV             as above, but rerun each failed step on a detached
 #                                                   worktree of REV and exit 1 only for failures REV
 #                                                   does not already show
+#   script/batch-precheck.sh --static [--base REV]  only the static fail-fast phase (ASD-V0-1923):
+#                                                   flow-guide, bash32 (untracked too), test-exec-writes
+#                                                   and host-package-versions checks, then go build and
+#                                                   vet of the packages changed since REV; the first
+#                                                   failure prints `FAIL static GATE` and `fix:`. A full
+#                                                   run starts with it and its later rows REUSE it
 #   script/batch-precheck.sh --sync-check           only verify the step list still mirrors CI
 #   script/batch-precheck.sh --list                 print the steps without running them
 #   script/batch-precheck.sh --list-print-only      print the listed steps that only print a reason
@@ -107,12 +113,13 @@
 # `corvint affected --path` plan of those paths that selects none of its packages and has no
 # unknown beyond the frontier); otherwise it prints why and runs the entry again.
 #
-# Lane closeout (ASD-V0-825, V1-4069): with LANE=1 (dogfood-closeout exports it), an `@own` entry
+# Lane closeout (ASD-V0-825, V1-4069): with BATCH_PRECHECK_LANE_CLOSEOUT=1 (set inline by the two
+# closeout recipes), an `@own` entry
 # (the companion-release reproducible builds, about 170 s each) runs only when a COMPANION_INPUTS
 # path changed since the base; otherwise it is skipped with the reason printed, and the batch
-# precheck, which runs without LANE, runs it. With no readable diff it runs. A receipt written by
-# such a run gets a `.lane` sidecar naming its head, and a since-receipt run without LANE=1 does
-# not narrow from that receipt.
+# precheck, which clears that mode, runs it. With no readable diff it runs. A receipt written by
+# such a run gets a `.lane` sidecar naming its head. Outside lane-closeout mode, a since-receipt
+# run cannot narrow from it and the push guard refuses it (ASD-V0-1991, ASD-V0-1992).
 #
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
@@ -123,6 +130,9 @@ export LC_ALL=C
 root=${BATCH_PRECHECK_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)} || exit 2
 self_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
 cd "$root" || exit 2
+# ASD-V0-1991: consume only the dedicated recipe opt-in. Do not pass it to child gates/tests.
+lane_closeout=${BATCH_PRECHECK_LANE_CLOSEOUT:-0}
+unset BATCH_PRECHECK_LANE_CLOSEOUT
 workflow=${BATCH_PRECHECK_WORKFLOW:-.github/workflows/ci.yml}
 heavy=${BATCH_PRECHECK_HEAVY-script/heavy.sh}
 # ASD-V0-941 (V1-3037): an operator wrapper (a host semaphore or offload hook) for the make and
@@ -377,9 +387,9 @@ sync_check() {
 # Selection state (ASD-V0-050, ASD-V0-051): sel_on=1 once select_plan narrowed the run; otherwise
 # sel_why says why everything runs. drift_on[i] is 1 for each DRIFT_TESTS entry that runs and
 # cat_skip, when set, is why capability-catalog-check is skipped, and sb_skip why
-# selection-baseline-check is (ASD-V0-944).
+# selection-baseline-check is (ASD-V0-944); sb_deferred names its lane deferral (ASD-V0-1990).
 sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why='' sel_docs=0
-drift_on=() cat_skip='' sb_skip='' sel_diff=0
+drift_on=() cat_skip='' sb_skip='' sb_deferred='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
@@ -636,11 +646,11 @@ select_report() {
   select_baseline
 }
 
-# lane_own_skip leaves out, under LANE=1, each @own entry no COMPANION_INPUTS path reaches
+# lane_own_skip leaves out, in lane-closeout mode, each @own entry no COMPANION_INPUTS path reaches
 # (ASD-V0-825, V1-4069); with no readable diff every entry stays.
 lane_own_skip() {
   local i n=${#DRIFT_TESTS[@]} pkg prefix inputs
-  [[ ${LANE:-} == 1 ]] || return 0
+  [[ $lane_closeout == 1 ]] || return 0
   if ((!sel_diff)); then
     printf 'batch-precheck: lane closeout runs the @own companion builds (%s)\n' "$sel_why"
     return 0
@@ -659,8 +669,23 @@ lane_own_skip() {
 # select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
 # diff read but no usable plan, only when no Go input and no declared input changed at all.
 select_baseline() {
-  local pkgs tok p
+  local pkgs tok p expanded
   grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
+  # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
+  if [[ $lane_closeout == 1 ]]; then
+    # An opaque aggregate could invoke the target behind our back. Refuse before any step runs.
+    if doc_gates | grep -qx $'make\tdoc-gates'; then
+      expanded=$(doc_gate_expansion)
+      [[ -n $expanded && $expanded != drift ]] || {
+        printf 'batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates; update doc_gate_expansion before rerunning\n' >&2
+        exit 2
+      }
+    fi
+    sb_deferred='lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)'
+    lane_skipped=1
+    printf 'batch-precheck: %s\n' "$sb_deferred"
+    return 0
+  fi
   # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
@@ -782,25 +807,7 @@ steps() {
   else
     printf 'make lane-scripts-test\t%senv CORVINT_GOCACHE=%q make -s lane-scripts-test\n' "$go_wrap" "$gocache"
   fi
-  while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
-  expanded=$(doc_gate_expansion)
-  if [[ $expanded == drift ]]; then
-    expanded=
-    printf '%s\n' "batch-precheck: the Makefile doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh (expected \`@\$(MAKE) --no-print-directory --keep-going \$(DOC_GATE_TARGETS)\` then \`@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\`); make doc-gates runs as one serial step until both are updated in one commit (ASD-V0-911)" >&2
-  fi
-  while IFS=$'\t' read -r kind value; do
-    case $kind in
-      make)
-        if [[ $value == selection-baseline-check && -n $sb_skip ]]; then
-          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
-        else
-          printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
-        fi ;;
-      gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
-    esac
-  done < <(doc_gates | while IFS=$'\t' read -r kind value; do
-    if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
-  done)
+  doc_gate_rows "$go_wrap"
   for s in "${GOFMT_SETS[@]}"; do
     dir=${s%%|*}
     args=${s#*|}
@@ -816,9 +823,148 @@ steps() {
   # the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
 }
 
-base=${BATCH_PRECHECK_BASE:-}
+# doc_gate_rows GO_WRAP prints the doc-gate steps, one per make target and per go run, under the
+# doc-gates job env; steps() and the static phase share it, so a static row is the same command.
+doc_gate_rows() {
+  local go_wrap=$1 line kind value expanded envs=()
+  while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
+  expanded=$(doc_gate_expansion)
+  if [[ $expanded == drift ]]; then
+    expanded=
+    printf '%s\n' "batch-precheck: the Makefile doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh (expected \`@\$(MAKE) --no-print-directory --keep-going \$(DOC_GATE_TARGETS)\` then \`@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\`); make doc-gates runs as one serial step until both are updated in one commit (ASD-V0-911)" >&2
+  fi
+  while IFS=$'\t' read -r kind value; do
+    case $kind in
+      make)
+        if [[ $value == selection-baseline-check && -n ${sb_deferred-} ]]; then
+          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "NOT_RUN: $sb_deferred"
+        elif [[ $value == selection-baseline-check && -n ${sb_skip-} ]]; then
+          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
+        else
+          printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
+        fi ;;
+      gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
+    esac
+  done < <(doc_gates | while IFS=$'\t' read -r kind value; do
+    if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
+  done)
+}
+
+# ASD-V0-1923 (V1-4317): the static fail-fast phase. These doc gates read no Go test result, take
+# seconds, and catch what most often fails a lane late (an unhinted refusal, a Bash 4 construct, a
+# test that writes an executable with os.WriteFile, an unbumped host package); with go build and go
+# vet of the changed packages they run first, one at a time, and the first failure ends the run.
+STATIC_GATES=(flow-guide-check bash32-check test-exec-writes-check host-package-versions-check)
+
+# static_fix GATE prints the recovery printed after `FAIL static GATE`.
+static_fix() {
+  case $1 in
+    'make flow-guide-check') printf '%s' 'give each refusal named above a `fix:` line, a failRecoveries entry or a guide refusal-table row (tools/flow-guide-check/unhinted-refusals.tsv only shrinks), and name only real commands, flags and codes in docs/LANE-ORCHESTRATION.md section 13 and the corvint-lane-flow skill; then rerun script/batch-precheck.sh --static' ;;
+    'make bash32-check') printf '%s' 'rewrite each Bash 4+ construct named above for Bash 3.2, or end a deliberate fixture line with `# bash32: allow`; untracked scripts are scanned too; then rerun script/batch-precheck.sh --static' ;;
+    'make test-exec-writes-check') printf '%s' 'write each executable a test runs with execfile.WriteFile (Tasks: fixture.WriteExecutable), never os.WriteFile; then rerun script/batch-precheck.sh --static' ;;
+    'make host-package-versions-check') printf '%s' 'bump the named host package so every version location agrees (make host-package-version-bump), or restore the changed shipped file; then rerun script/batch-precheck.sh --static' ;;
+    go-build-vet*) printf '%s' 'fix the go build or go vet finding named above at its file:line; then rerun script/batch-precheck.sh --static' ;;
+    *) printf '%s' 'read the output above; then rerun script/batch-precheck.sh --static' ;;
+  esac
+}
+
+# static_packages BASE prints ./DIR for each directory of the root module that holds a .go file
+# changed since BASE or untracked, still holds a .go file, and is no testdata, `_` or `.` directory.
+static_packages() {
+  local f d
+  { git -c core.quotePath=false diff --name-only --no-renames "$1" -- '*.go' &&
+    git -c core.quotePath=false ls-files -o --exclude-standard -- '*.go'; } 2> /dev/null |
+    while IFS= read -r f; do
+      d=$(dirname "$f")
+      case /$d/ in */testdata/* | */_* | */.*) continue ;; esac
+      printf '%s\n' "$d"
+    done | sort -u | while IFS= read -r d; do
+      [[ -d $d ]] && compgen -G "$d/*.go" > /dev/null || continue
+      # A directory under another module (interop/cem01-go) is not built from the root module.
+      local up=$d nested=0
+      while [[ $up != . && $up != / ]]; do [[ -f $up/go.mod ]] && { nested=1; break; }; up=$(dirname "$up"); done
+      ((nested)) || printf './%s\n' "$d"
+    done
+}
+
+# static_steps prints the static phase's steps in the steps() format: each STATIC_GATES doc-gate row
+# exactly as the full run lists it (bash32-check also scanning untracked scripts), then go build and
+# vet of the changed packages, or a print-only row saying why none ran.
+static_steps() {
+  local go_wrap='' sbase=$1 pkgs=() builds=() p f line name selected
+  [[ -z $go_wrapper ]] || go_wrap="$(printf '%q' "$go_wrapper") "
+  while IFS= read -r line; do
+    name=${line%%$'\t'*}
+    contains "${name#make }" "${STATIC_GATES[@]}" || continue
+    [[ $name == 'make bash32-check' ]] && line=${line/ make -s / BASH32_INCLUDE_UNTRACKED=1 make -s }
+    printf '%s\n' "$line"
+  done < <(doc_gate_rows "$go_wrap")
+  if [[ -z $sbase ]]; then
+    printf 'go-build-vet (no base)\tprintf "%%s\\n" %q\n' "go-build-vet: no base (--base, BATCH_PRECHECK_BASE or a merge base with origin/main), so no changed package is built or vetted"
+    return 0
+  fi
+  # A process substitution loses static_packages' exit status, turning a bad base or Git error
+  # into a successful empty selection. Capture its status before consuming the package list.
+  selected=$(static_packages "$sbase") || return 1
+  while IFS= read -r p; do [[ -z $p ]] || pkgs+=("$p"); done <<< "$selected"
+  if ((${#pkgs[@]} == 0)); then
+    printf 'go-build-vet (0 packages)\tprintf "%%s\\n" %q\n' "go-build-vet: no Go package changed since $sbase"
+    return 0
+  fi
+  # go build rejects a package holding only _test.go files; go vet still checks those tests.
+  for p in "${pkgs[@]}"; do
+    for f in "$p"/*.go; do
+      case $f in *_test.go) continue ;; esac
+      builds+=("$p")
+      break
+    done
+  done
+  printf 'go-build-vet (%d packages)\t' "${#pkgs[@]}"
+  if ((${#builds[@]})); then
+    printf '%senv GOCACHE=%q GOTOOLCHAIN=local go build %s && ' "$go_wrap" "$gocache" "${builds[*]}"
+  fi
+  printf '%senv GOCACHE=%q GOTOOLCHAIN=local go vet %s\n' "$go_wrap" "$gocache" "${pkgs[*]}"
+}
+
+# static_phase runs the static steps in order through run_one (so through the ledger when reuse is
+# on) under $dir/static and stops at the first failure, printing `FAIL static NAME`, the last 40
+# output lines and a `fix:` line. On a pass it writes $dir/static.pass, the names a later row of
+# this run reuses.
+static_phase() {
+  local sdir=$dir/static i n name rc secs t0=$SECONDS sbase=${base:-$(git merge-base HEAD origin/main 2> /dev/null)}
+  mkdir -p "$sdir" || return 2
+  if ! static_steps "$sbase" > "$sdir/steps"; then
+    printf 'batch-precheck: FAIL static go-build-vet (package discovery)\n'
+    printf 'fix: verify --base %s names a commit and Git can list changed and untracked Go files; then rerun script/batch-precheck.sh --static\n' "$sbase"
+    return 1
+  fi
+  n=$(grep -c . "$sdir/steps")
+  : > "$dir/static.pass.tmp"
+  for ((i = 1; i <= n; i++)); do
+    name=$(sed -n "${i}p" "$sdir/steps" | cut -f1)
+    BATCH_PRECHECK_DIR=$sdir run_one "$i" | sed -E 's/^batch-precheck: (PASS|FAIL|REUSE) (make )?/batch-precheck: \1 static /'
+    read -r rc secs _ < "$sdir/$i.rc" 2> /dev/null || { rc=1 secs=0; }
+    if ((rc)); then
+      tail -n 40 "$sdir/$i.log" | sed 's/^/  | /'
+      printf 'fix: %s\n' "$(static_fix "$name")"
+      printf 'batch-precheck: static phase failed at %s after %ss; nothing later ran (ASD-V0-1923)\n' "$name" $((SECONDS - t0))
+      /bin/rm -f "$dir/static.pass.tmp"
+      return 1
+    fi
+    printf '%s\n' "$name" >> "$dir/static.pass.tmp"
+  done
+  /bin/mv -f "$dir/static.pass.tmp" "$dir/static.pass"
+  printf 'batch-precheck: static phase passed %d steps in %ss (ASD-V0-1923)\n' "$n" $((SECONDS - t0))
+}
+
+base=${BATCH_PRECHECK_BASE:-} static_only=0
 receipt_path() { git rev-parse --path-format=absolute --git-path batch-precheck-receipt; }
 
+# ASD-V0-1992: either indicator disqualifies a lane receipt as batch evidence.
+receipt_has_lane_limits() {
+  [[ -e $1.lane ]] || awk '$1 == "not-run" && $2 == "selection-baseline-check" { found = 1 }
+    END { exit !found }' "$1" 2> /dev/null
+}
 verify_receipt() {
   local want head receipt
   receipt=$(receipt_path) || return 2
@@ -835,6 +981,11 @@ verify_receipt() {
     END { exit (bad || NR < 5 || passed + NR - 5 != steps) }' "$receipt" || { printf 'batch-precheck: refused: %s is not a well-formed passing precheck receipt; rerun make batch-precheck\n' "$receipt" >&2; return 1; }
   head=$(awk '$1 == "head" { print $2 }' "$receipt")
   [[ $head == "$want" ]] || { printf 'batch-precheck: refused: the precheck receipt names %s, not %s; rerun make batch-precheck\n' "${head:-nothing}" "$want" >&2; return 1; }
+  if [[ $lane_closeout != 1 ]] && receipt_has_lane_limits "$receipt"; then
+    printf 'batch-precheck: refused: lane closeout receipt deferred selection-baseline-check or skipped @own companion builds; batch evidence is required (ASD-V0-1992)\n' >&2
+    printf 'batch-precheck: fix: make batch-precheck\n' >&2
+    return 1
+  fi
   printf 'batch-precheck: receipt matches %s (%s)\n' "$want" "$(awk '$1 == "finished" { print $2 }' "$receipt")"
   awk 'NR > 5 { $1 = ""; sub(/^ /, ""); print "batch-precheck: receipt records NOT_RUN " $0 }' "$receipt"
 }
@@ -903,8 +1054,15 @@ case ${1:-} in
   --list-print-only) need_gocache; steps | while IFS=$'\t' read -r name cmd; do [[ $cmd != 'printf "%s\n" '* ]] || printf '%s\n' "$name"; done; exit 0 ;;
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
+  # ASD-V0-1923 (V1-4317): only the static fail-fast phase; it never touches the receipt.
+  --static)
+    static_only=1
+    if [[ $# != 1 ]]; then
+      [[ $# == 3 && $2 == --base && -n $3 ]] || { printf 'usage: script/batch-precheck.sh --static [--base REV]\n' >&2; exit 2; }
+      base=$3
+    fi ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--static [--base REV]|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
@@ -914,7 +1072,9 @@ need_gocache
 # finding compares equal at the base and the head: the checkout path (as given, as the shell prints
 # it, and with symlinks resolved), a temporary-directory path, a `pid N`, the heavy.sh banner that
 # names the tree it ran on, and a timing only on a go test result line (`ok`, `FAIL`, `--- FAIL:`
-# and the like). A number inside a diagnostic, such as `timeout limit 2s exceeded`, stays.
+# and the like), source locations and shell-test group/case summary counts (ASD-V0-1971).
+# A number inside a diagnostic, such as `timeout limit 2s exceeded`, stays. Keep repeated
+# findings: comm pairs equal occurrences, leaving any excess at the head introduced.
 normalize() {
   PRECHECK_DIRS="$1"$'\n'"$(cd "$1" && pwd)"$'\n'"$(cd "$1" && pwd -P)" PRECHECK_TMP="${TMPDIR:-/tmp}" awk 'BEGIN {
     n = split(ENVIRON["PRECHECK_DIRS"], d, "\n")
@@ -950,6 +1110,28 @@ normalize() {
       line = substr(line, RSTART + RLENGTH)
     }
     line = out line
+    # Source coordinates move as tests are inserted. Restrict this to known source suffixes;
+    # numeric diagnostic values, requirement IDs and digits in file names remain findings.
+    out = ""
+    while (match(line, /[A-Za-z0-9_.\/-]+\.(go|sh|mjs|js|ts):[0-9]+(:[0-9]+)?/)) {
+      loc = substr(line, RSTART, RLENGTH)
+      sub(/:[0-9]+(:[0-9]+)?$/, ":<line>", loc)
+      out = out substr(line, 1, RSTART - 1) loc
+      line = substr(line, RSTART + RLENGTH)
+    }
+    line = out line
+    if (line ~ /^[[:space:]]*group [0-9]+: line [0-9]+:/) {
+      sub(/group [0-9]+: line [0-9]+:/, "group <n>: line <line>:", line)
+      sub(/ \(\+[0-9]+ more\)$/, " (+<n> more)", line)
+    }
+    if (line ~ /case ".*" line [0-9]+:/)
+      sub(/" line [0-9]+:/, "\" line <line>:", line)
+    if (line ~ /^[A-Za-z0-9_-]+_test: [0-9]+ groups passed(, [0-9]+ failed:)?$/) {
+      sub(/[0-9]+ groups passed/, "<n> groups passed", line)
+      sub(/[0-9]+ failed:/, "<n> failed:", line)
+    }
+    if (line ~ /^[A-Za-z0-9_-]+_test: FAIL [0-9]+ case\(s\):$/)
+      sub(/FAIL [0-9]+ case/, "FAIL <n> case", line)
     # A timing is a whole token: digits[.digits][m]s between line ends, blanks or parentheses, so
     # a name such as v1schema.go keeps its digits; it is erased only on a go test result line.
     if (line ~ /^(ok|FAIL|PASS|---[[:space:]]+(FAIL|PASS|SKIP):)([[:space:]]|$)/) {
@@ -966,7 +1148,7 @@ normalize() {
     }
     sub(/[[:space:]]+$/, "", line)
     if (line != "") print line
-  }' | sort -u
+  }' | sort
 }
 
 basewt= baseerr=
@@ -1005,7 +1187,57 @@ at_base() {
 }
 
 dir=
+# unstage_repin (ASD-V0-787, NEW-D4): the line-citation repin stages what it rewrites, because its
+# check reads the index, so each index entry the mechanical repin changed is put back as it was
+# before the repin when the run ends, however it ends; the rewrites stay in the worktree. An entry
+# that changed again after the repin (someone staged it meanwhile) is left alone.
+repin_warn() {
+  printf 'batch-precheck: WARN could not unstage what the mechanical repin staged; git diff --cached shows it (ASD-V0-787)\n' >&2
+}
+unstage_repin() {
+  local n prog
+  [[ -n $dir && -f $dir/stage.before ]] || return 0
+  # A signal can arrive while the repinner is running, before the after snapshot exists.
+  # No later check has run yet: capture the interrupted repin's current entries for cleanup.
+  if [[ ! -f $dir/stage.repin ]]; then
+    git -C "$root" ls-files -s -z > "$dir/stage.repin" 2> /dev/null || { repin_warn; return 0; }
+  fi
+  cmp -s "$dir/stage.before" "$dir/stage.repin" && return 0
+  # Reads the three `ls-files -s -z` snapshots; writes the --index-info input that removes each
+  # path the repin changed and still holds, then restores its entries from before; prints the count.
+  prog='
+    my @snap = ({}, {}, {});
+    for my $i (0 .. 2) {
+        open my $in, "<", $ARGV[$i] or die "$ARGV[$i]: $!\n";
+        local $/ = "\0";
+        while (my $rec = <$in>) {
+            my ($path) = $rec =~ /\t(.*)\0\z/s or die "$ARGV[$i]: malformed entry\n";
+            $snap[$i]{$path} .= $rec;
+        }
+    }
+    my ($before, $repin, $exit) = @snap;
+    my %paths = (%$before, %$repin);
+    open my $out, ">", $ARGV[3] or die "$ARGV[3]: $!\n";
+    my $count = 0;
+    for my $path (sort keys %paths) {
+        my ($was, $staged, $now) = map { $_->{$path} // "" } $before, $repin, $exit;
+        next if $was eq $staged || $now ne $staged;
+        my ($oid) = ($was || $staged) =~ /\A[0-7]+ ([0-9a-f]+) /;
+        print $out "0 " . ("0" x length $oid) . "\t$path\0" . $was;
+        $count++;
+    }
+    close $out or die "$ARGV[3]: $!\n";
+    print "$count\n";'
+  if git -C "$root" ls-files -s -z > "$dir/stage.exit" 2> /dev/null &&
+    n=$(perl -e "$prog" "$dir/stage.before" "$dir/stage.repin" "$dir/stage.exit" "$dir/stage.info") &&
+    { ((n == 0)) || git -C "$root" update-index -z --index-info < "$dir/stage.info"; }; then
+    ((n == 0)) || printf 'batch-precheck: unstaged %s path(s) the mechanical repin staged; its rewrites stay in the worktree (ASD-V0-787)\n' "$n"
+  else
+    repin_warn
+  fi
+}
 cleanup() {
+  unstage_repin
   [[ -z $dir ]] || /bin/rm -rf "$dir"
   if [[ -n $basewt ]]; then
     git worktree remove --force "$basewt" > /dev/null 2>&1
@@ -1026,10 +1258,10 @@ since_receipt() {
   local named head
   named=$(awk '$1 == "head" { print $2 }' "$(receipt_path)" 2> /dev/null) || named=
   head=$(git rev-parse HEAD)
-  if [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
+  if [[ $lane_closeout != 1 ]] && receipt_has_lane_limits "$(receipt_path)"; then
+    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)\n'
+  elif [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
     printf 'batch-precheck: since-receipt not used: no well-formed passing receipt\n'
-  elif [[ ${LANE:-} != 1 && $(cat "$(receipt_path).lane" 2> /dev/null) == "$named" ]]; then
-    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that skipped the @own companion builds (ASD-V0-825)\n'
   elif [[ $named == "$head" ]] && tree_clean; then
     printf 'batch-precheck: SKIP receipt already names HEAD %s and the checkout is clean; no step reruns (ASD-V0-943)\n' "$head"
     exit 0
@@ -1043,9 +1275,9 @@ since_receipt() {
   fi
 }
 since_base=
-[[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
+((static_only)) || [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-/bin/rm -f "$receipt" "$receipt.lane"
+((static_only)) || /bin/rm -f "$receipt" "$receipt.lane"
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
@@ -1091,11 +1323,17 @@ tree_clean && pristine_before=1
 
 # The mechanical repins run alone, before any check reads the files they write.
 repin_rc=0
-if [[ -n $regen ]]; then
+if [[ -n $regen ]] && ((!static_only)); then
   t0=$SECONDS
+  # ASD-V0-787 (NEW-D4): the index before and after the repin, for unstage_repin.
+  { git ls-files -s -z > "$dir/stage.before.tmp" 2> /dev/null && mv "$dir/stage.before.tmp" "$dir/stage.before"; } || repin_warn
   "$regen" --mechanical > "$dir/repin.log" 2>&1 < /dev/null || repin_rc=1
+  if [[ -f $dir/stage.before ]]; then
+    { git ls-files -s -z > "$dir/stage.repin.tmp" 2> /dev/null && mv "$dir/stage.repin.tmp" "$dir/stage.repin"; } ||
+      { /bin/rm -f "$dir/stage.before"; repin_warn; }
+  fi
   if ((clean_before)) && ! tracked_clean; then
-    { printf 'mechanical repins changed tracked files; commit them and rerun:\n'; git status --porcelain --untracked-files=no; } >> "$dir/repin.log"
+    { printf 'mechanical repins changed tracked files; commit them and rerun (the run unstages what the repin staged):\n'; git status --porcelain --untracked-files=no; } >> "$dir/repin.log"
     repin_rc=1
   fi
   printf '%s %s\n' "$repin_rc" $((SECONDS - t0)) > "$dir/repin.rc"
@@ -1170,24 +1408,6 @@ else
   printf 'batch-precheck: ledger reuse off (%s); every step runs\n' "$ledger_off"
 fi
 
-# Drift and catalog selection against the base (ASD-V0-050, ASD-V0-051).
-select_plan
-select_report
-lst_report
-lane_own_skip
-# ICL-V0-020/021: a pre-bind run replaces the carry record only when it passes; a later run
-# carries what the record still binds.
-prebind_ran=()
-if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
-  prebind=$(prebind_rec) && /bin/rm -f "$prebind"
-  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
-    [[ ${drift_on[i]:-1} == 1 ]] && is_prebind "$i" && prebind_ran+=("${DRIFT_TESTS[i]}")
-  done
-else
-  prebind_carry
-fi
-steps > "$dir/steps"
-n=$(wc -l < "$dir/steps" | tr -d ' ')
 # run_one N runs step N, through the ledger when reuse is on; its rc file holds "RC SECS" and, for
 # a reused pass, a third word `reuse`.
 run_one() {
@@ -1195,6 +1415,12 @@ run_one() {
   line=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/steps")
   name=${line%%$'\t'*}
   cmd=${line#*$'\t'}
+  # ASD-V0-1923 (V1-4317): a row the static phase of this run already passed is not run again.
+  if [[ -n ${BATCH_PRECHECK_STATIC_PASS:-} ]] && grep -qxF -- "$name" "$BATCH_PRECHECK_STATIC_PASS" 2> /dev/null; then
+    printf '0 0 reuse\n' > "$BATCH_PRECHECK_DIR/$1.rc"
+    printf 'batch-precheck: REUSE %s (0s): passed in the static phase of this run (ASD-V0-1923)\n' "$name"
+    return 0
+  fi
   # ASD-V0-892 (V1-3572): a print-only row (a skipped step's reason) never goes through the ledger,
   # whose per-step whole-tree key costs about 0.6 s on Linux and 3 s on a loaded Mac for a printf.
   if [[ -n ${BATCH_PRECHECK_LEDGER_BIN:-} && $cmd != 'printf "%s\n" '* ]]; then
@@ -1217,7 +1443,9 @@ run_one() {
     rc=$?
   fi
   printf '%s %s %s\n' "$rc" $((SECONDS - t0)) "$reused" > "$BATCH_PRECHECK_DIR/$1.rc"
-  if [[ -n $reused ]]; then
+  if [[ $rc == 0 && $cmd == 'printf "%s\n" '* ]] && grep -q '^NOT_RUN: ' "$log"; then
+    printf 'batch-precheck: NOT_RUN %s (%ss): %s\n' "$name" $((SECONDS - t0)) "$(sed -n 's/^NOT_RUN: //p' "$log")"
+  elif [[ -n $reused ]]; then
     printf 'batch-precheck: REUSE %s (%ss): %s\n' "$name" $((SECONDS - t0)) "$(grep -m1 '^gate-ledger: HIT ' "$log" | sed 's/^gate-ledger: HIT [^ ]* //')"
   else
     printf 'batch-precheck: %s %s (%ss)\n' "$( ((rc)) && echo FAIL || echo PASS)" "$name" $((SECONDS - t0))
@@ -1226,6 +1454,34 @@ run_one() {
 }
 export -f run_one
 export BATCH_PRECHECK_DIR=$dir BATCH_PRECHECK_LEDGER_BIN=$ledger
+
+# ASD-V0-1923 (V1-4317): the static fail-fast phase runs before the selection and every slow step.
+static_phase
+static_rc=$?
+if ((static_only || static_rc)); then
+  ((static_rc)) && exit 1
+  exit 0
+fi
+export BATCH_PRECHECK_STATIC_PASS=$dir/static.pass
+
+# Drift and catalog selection against the base (ASD-V0-050, ASD-V0-051).
+select_plan
+select_report
+lst_report
+lane_own_skip
+# ICL-V0-020/021: a pre-bind run replaces the carry record only when it passes; a later run
+# carries what the record still binds.
+prebind_ran=()
+if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+  prebind=$(prebind_rec) && /bin/rm -f "$prebind"
+  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
+    [[ ${drift_on[i]:-1} == 1 ]] && is_prebind "$i" && prebind_ran+=("${DRIFT_TESTS[i]}")
+  done
+else
+  prebind_carry
+fi
+steps > "$dir/steps"
+n=$(wc -l < "$dir/steps" | tr -d ' ')
 # ASD-V0-047 (V1-3142): a SERIAL_TARGETS step runs alone after the parallel ones, so its timing
 # bounds never compete with this run's own go test steps; its rerun (ASD-V0-046) is alone too.
 parallel=() serial=()
@@ -1314,11 +1570,15 @@ pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0 notrun=()
 # pass prints REUSE and counts as passed. A print-only step (CMD) whose output is NOT_AVAILABLE
 # prints NOT_AVAILABLE and counts as not run (ASD-V0-973).
 row() {
-  local rc secs flag why=
+  local rc secs flag why= deferred=
   read -r rc secs flag < "$2" 2> /dev/null || { rc=1 secs=0 flag=; }
   summed=$((summed + secs))
   [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && why=$(sed -n '1s/^NOT_AVAILABLE: //p' "${2%.rc}.log" 2> /dev/null)
-  if [[ -n $why ]]; then
+  [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && deferred=$(sed -n '1s/^NOT_RUN: //p' "${2%.rc}.log" 2> /dev/null)
+  if [[ -n $deferred ]]; then
+    notrun+=("${1#make } $deferred")
+    printf 'batch-precheck: | NOT_RUN | %5ss | %s: %s\n' "$secs" "$1" "$deferred"
+  elif [[ -n $why ]]; then
     notrun+=("${1#make } $why")
     printf 'batch-precheck: | NOT_AVAILABLE | %5ss | %s: %s\n' "$secs" "$1" "$why"
   elif [[ $rc == 0 && $flag == flaky ]]; then
@@ -1391,7 +1651,7 @@ elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_bef
     "$head_before" "$((pass + fail + ${#notrun[@]}))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     for x in ${notrun[@]+"${notrun[@]}"}; do printf 'not-run %s\n' "$x"; done; } > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
     printf 'batch-precheck: receipt for %s written to %s\n' "$head_before" "$receipt"
-    # A lane closeout receipt that skipped @own entries is marked so no batch narrows from it.
+    # A lane receipt with deferred selection-baseline or skipped @own entries cannot narrow a batch.
     ((!lane_skipped)) || printf '%s\n' "$head_before" > "$receipt.lane" || /bin/rm -f "$receipt"
   else
     /bin/rm -f "$receipt.tmp"

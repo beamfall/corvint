@@ -71,7 +71,8 @@ func TestChangeDCWV0063NamesUnalignedCiteSpanCause(t *testing.T) {
 
 // DCW-V0-114 (V1-1724): one dogfood-change pass names every refused cite row
 // of the plan, not only the first; the probes leave the prepared map and the
-// repository unchanged, and unknown rows are not probed.
+// repository unchanged, and unknown rows are not probed. DCW-V0-710: each
+// named row carries cem cite's detail.
 func TestChangeDCWV0114ReportsEveryRefusedCiteRow(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -118,8 +119,15 @@ func TestChangeDCWV0114ReportsEveryRefusedCiteRow(t *testing.T) {
 		`row 1 hunk=1 path="gate.sh" lines=1:1 cite-span-not-stable`,
 		`row 4 hunk=1 path="gate.sh" lines=1:1 cite-span-not-stable`,
 	}
-	if strings.Join(c.citationRefusals, "\n") != strings.Join(want, "\n") {
-		t.Fatalf("refusals:\n%s\nwant:\n%s", strings.Join(c.citationRefusals, "\n"), strings.Join(want, "\n"))
+	// DCW-V0-710: each named row carries cem cite's own detail, which names
+	// the unstable bound (CEM-V1-710), so one rerun can repair every row.
+	if len(c.citationRefusals) != len(want) {
+		t.Fatalf("refusals:\n%s\nwant rows:\n%s", strings.Join(c.citationRefusals, "\n"), strings.Join(want, "\n"))
+	}
+	for i, refusal := range c.citationRefusals {
+		if !strings.HasPrefix(refusal, want[i]+": ") || !strings.Contains(refusal, "unstable bound: start line 1 removed or replaced by a hunk") {
+			t.Fatalf("refusal %d = %q, want %q with its cem cite detail", i+1, refusal, want[i])
+		}
 	}
 	after, err := os.ReadFile(mapPath)
 	if err != nil || !bytes.Equal(before, after) {

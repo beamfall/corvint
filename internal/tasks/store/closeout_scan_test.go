@@ -9,6 +9,44 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// TCD-V0-774: moved or deleted lane refs must not change the captured scan.
+// Duplicate commit pins retain attribution to the first head in input order.
+func TestTCDV0774_LaneScanUsesCapturedCommits(t *testing.T) {
+	root := t.TempDir()
+	run := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", root, "-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	run("init", "-q", "-b", "main")
+	run("commit", "-q", "--allow-empty", "-m", "base")
+	base := run("rev-parse", "HEAD")
+	run("checkout", "-q", "-b", "lane")
+	run("commit", "-q", "--allow-empty", "-m", "Refs V1-9001")
+	commit := run("rev-parse", "HEAD")
+	run("update-ref", "refs/lanes/remote", commit)
+	heads, err := LaneHeads(root, base, "refs/lanes/")
+	if err != nil || len(heads) == 0 {
+		t.Fatalf("heads: %+v %v", heads, err)
+	}
+	run("checkout", "-q", "main")
+	run("update-ref", "refs/heads/lane", base)
+	run("update-ref", "-d", "refs/lanes/remote")
+	for _, h := range append(heads, LaneHead{Ref: "refs/lanes/remote", Commit: commit}) {
+		t.Run(h.Ref, func(t *testing.T) {
+			pins := []LaneHead{h, {Ref: "refs/heads/alias", Commit: commit}}
+			scan, err := ScanLaneMentions(root, base, pins, []string{"V1-9001"}, 10)
+			if err != nil || len(scan.Mentions) != 1 || scan.Mentions[0].Commit != commit || scan.Mentions[0].Ref != h.Ref {
+				t.Fatalf("captured scan: %+v %v, heads %+v", scan, err, pins)
+			}
+		})
+	}
+}
+
 // TestTCDV0002_ScanIsBoundedAndPlain: the scan argv runs no hook,
 // fsmonitor, signature program or first-parent walk and passes revisions
 // after --end-of-options; an output over the bound is LIMIT_EXCEEDED; a

@@ -1240,7 +1240,9 @@ test('AHI-212 idle surface is one direct tool; its first call unlocks the follow
  const idle=async()=>{assert.deepEqual(Object.keys(host.tools),['corvint_context']);assert.equal(host.reloads.count,0)}
  // Idle: one direct tool with a one-sentence description, no skill, no reload.
  await idle();const tool=host.tools.corvint_context
- assert.equal(tool.options?.codemode,false);assert.ok(tool.description.length<=80,tool.description);assert.equal(tool.description.split('. ').length,1,tool.description)
+ assert.equal(tool.options?.codemode,false);assert.ok(tool.description.length<=160,tool.description);assert.equal(tool.description.split('. ').length,1,tool.description)
+ // AHI-1962: the idle description names when to call, before the skill that says so is registered.
+ assert.match(tool.description,/^Call first for a code change, before grep or read:/)
  // A confident packet is injected without widening the surface.
  await host.hooks['session.prompt']({sessionID:'s',messageID:'s1',prompt:{text:'inspect delta'}})
  const injected={sessionID:'s',system:[]};await host.hooks['session.context'](injected)

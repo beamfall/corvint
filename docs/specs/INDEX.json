@@ -4380,5 +4380,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/daily-change-evidence-workflow-companion-v0.md",
+    "title": "Regenerated Spec Merge V0",
+    "reqPrefix": "DWC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Daily-workflow requirements beyond the 256-obligation limit of `daily-change-evidence-workflow-v0.md`, under their own prefix.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

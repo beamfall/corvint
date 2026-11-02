@@ -34,6 +34,9 @@ type ProposeOptions struct {
 	// FromCEM names a sealed CEM whose hunks seed the refresh rows in place
 	// of a --refresh plan (DCW-V0-843).
 	FromCEM string
+	// IntentsDraft names a file to write the change's draft
+	// DOGFOOD_INTENTS_FILE to (DCW-V0-711).
+	IntentsDraft string
 }
 
 // proposal drafts a per-hunk citation plan from the prepared map (DCW-V0-150).
@@ -153,6 +156,7 @@ type proposedHunk struct {
 // or an unknown row where none is found (DCW-V0-393). It is read-only:
 // it writes no plan, map or evidence, and the draft is accepted only when the
 // lane reviews it and writes it to its DOGFOOD_CITATIONS file (DCW-V0-150).
+// Its one write is the --intents-draft file, when named (DCW-V0-711).
 func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stderr io.Writer) (int, error) {
 	run := &proposal{
 		flow:    flow{ctx: ctx, prefix: "dogfood-propose-citations", root: options.Root, stderr: stderr},
@@ -176,6 +180,7 @@ func (p *proposal) run() int {
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
 	p.requireBaseAncestor(p.base, p.target)
+	p.writeIntentsDraft()
 	if p.cemBase != "" {
 		// The sealed CEM's base is the BASE its rows were cited at (DCW-V0-843).
 		if prior, status := p.git(true, "rev-parse", "--verify", "-q", p.cemBase+"^{commit}"); status == 0 {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: script/lane-setup.sh --repo SHARED --dir DIR --branch BRANCH [--base REF]
+# usage: script/lane-setup.sh --repo SHARED --dir DIR --branch BRANCH [--base REF] [--rebuild-corvint]
 #
 # Creates one lane checkout the way docs/LANE-ORCHESTRATION.md section 6 prescribes:
 # `git -C SHARED worktree add -b BRANCH DIR REF` (REF default origin/main). Before anything it
@@ -10,17 +10,21 @@
 # ASD-V0-831, V1-3337); a hook it cannot install is named and exits 1 (the lane is still created).
 # It also turns rerere off in the lane worktree's own config, since every linked worktree shares
 # rr-cache and MERGE_RR.lock (ASD-V0-965, V1-3651); a config write it cannot make likewise exits 1.
+# Last it judges the installed corvint against the new lane's base with script/lane-binary-check.sh
+# (ASD-V0-757, V1-3761): a STALE or UNVERIFIED binary is named with both builds and exits 1 (the
+# lane is still created); --rebuild-corvint rebuilds and installs it from the lane instead.
 # Exit 2 on any refusal. Relative SHARED and DIR resolve against the caller's working directory.
 set -uo pipefail
 export LC_ALL=C
 refuse() { printf 'lane-setup: REFUSE %s\n' "$*" >&2; exit 2; }
-repo='' dir='' branch='' ref=origin/main
+repo='' dir='' branch='' ref=origin/main rebuild=()
 while (($#)); do
   case $1 in
     --repo | --dir | --branch | --base) [[ $# -ge 2 && -n $2 ]] || refuse "$1 needs a value"
       case $1 in --repo) repo=$2 ;; --dir) dir=$2 ;; --branch) branch=$2 ;; --base) ref=$2 ;; esac
       shift 2 ;;
-    *) printf 'usage: script/lane-setup.sh --repo SHARED --dir DIR --branch BRANCH [--base REF]\n' >&2; exit 2 ;;
+    --rebuild-corvint) rebuild=(--rebuild); shift ;;
+    *) printf 'usage: script/lane-setup.sh --repo SHARED --dir DIR --branch BRANCH [--base REF] [--rebuild-corvint]\n' >&2; exit 2 ;;
   esac
 done
 [[ -n $repo && -n $dir && -n $branch ]] || refuse 'usage: --repo, --dir and --branch are required'
@@ -43,6 +47,10 @@ guard=$dir/script/check-ai-coauthor-trailers.sh
 [[ -x $guard ]] || guard=$here/check-ai-coauthor-trailers.sh
 if ! (cd "$dir" && "$guard" --install-hook); then
   printf 'lane-setup: %s was created, but the ai-trailer commit-msg hook was not installed; see above\n' "$dir" >&2
+  exit 1
+fi
+if ! "$here/lane-binary-check.sh" ${rebuild[@]+"${rebuild[@]}"} "$dir"; then
+  printf 'lane-setup: %s was created, but the installed corvint does not match its base; see above\n' "$dir" >&2
   exit 1
 fi
 exit 0

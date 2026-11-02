@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/trace"
 )
 
 // DCW-V0-061: only a one-parent commit titled as the bind commit that changes
@@ -639,7 +641,10 @@ func TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues(t *testing.T) {
 
 // DCW-V0-400 (V1-3211): inputs-check refuses, before any prepare, a reused
 // worktree whose local trace store names a commit HEAD does not reach, and
-// names the migrate-traces recovery with the dry run's digest.
+// names the migrate-traces recovery with the dry run's digest. Since
+// DWC-V0-003 that refusal needs a plan finish-lane would not apply itself, so
+// the store also holds a reachable tree-keyed legacy trace the same plan
+// rekeys; the recovery is one fix line.
 func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -662,6 +667,18 @@ func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(traces, stranded+".jsonl"), []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tree := testGit(t, root, "rev-parse", "HEAD^{tree}")
+	record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: tree, Task: "legacy", Outcome: "passed"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := trace.Encode(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(traces, tree+".jsonl"), row, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	scratch := t.TempDir()
@@ -689,7 +706,8 @@ func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {
 	out := stderr.String()
 	if code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-inputs-check: REFUSE reused-worktree-state\n") ||
 		!strings.Contains(out, "  stale trace: the worktree-local trace store names "+stranded+", which HEAD does not reach") ||
-		!strings.Contains(out, "  fix: corvint migrate-traces --apply --plan-digest ") {
+		!strings.Contains(out, "  the same migration plan also rekeys 1 reachable tree-keyed legacy trace(s)") ||
+		!strings.Contains(out, "  fix: corvint migrate-traces --apply --plan-digest ") || strings.Count(out, "  fix: ") != 1 {
 		t.Fatalf("exit=%d step calls=%d stderr=%q, want REFUSE reused-worktree-state naming migrate-traces", code, calls, out)
 	}
 }

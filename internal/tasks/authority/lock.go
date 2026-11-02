@@ -106,6 +106,9 @@ func acquireLock(ctx context.Context, repo *intent.Repository, opts LockOptions,
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	if err := refuseForbiddenStore(repo.CommonDir); err != nil {
+		return nil, err
+	}
 	wantWriterLock := filepath.Join(repo.CommonDir, LockFileName)
 	wantLock := filepath.Join(repo.CommonDir, name)
 	if repo.LockPath != wantWriterLock {

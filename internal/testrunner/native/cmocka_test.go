@@ -2,6 +2,7 @@ package native
 
 import (
 	tr "github.com/Beamfall/corvint/internal/testrunner"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -104,6 +105,9 @@ func TestCMockaBoundaryContradictions(t *testing.T) {
 	}
 }
 func TestCMockaClosedBuild(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute fixture paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	valid := func() tr.Request {
 		return tr.Request{Runner: cmockaRunner, Executable: "/native-test", ReportDir: "/fresh", Target: "CProof", ExpectedTests: []string{"CProof::test_pass"}, Selectors: []string{"CProof::test_pass"}}
 	}

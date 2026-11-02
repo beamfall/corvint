@@ -30,6 +30,9 @@ type affectedVerdict struct {
 	Tiers        affectedVerdictTiers `json:"tiers"`
 	Tool         string               `json:"tool"`
 	Warning      string               `json:"warning,omitempty"`
+
+	// DegradationDetails is the compact receipt's notice per code (ACX-V0-750).
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
 }
 
 // affectedVerdictRange is the plan range without its path list, which can be
@@ -79,6 +82,8 @@ func affectedVerdictOf(receipt affectedCompactReceipt) affectedVerdict {
 		Tiers:        tiers,
 		Tool:         receipt.Tool,
 		Warning:      receipt.Warning,
+
+		DegradationDetails: receipt.DegradationDetails,
 	}
 }
 
@@ -92,9 +97,7 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 		fmt.Fprintf(&out, " base=%s", verdict.Range.Base)
 	}
 	out.WriteString("\n")
-	for _, degradation := range verdict.Degradations {
-		fmt.Fprintf(&out, "degraded %s\n", textWord(degradation))
-	}
+	writeAffectedDegradations(&out, verdict.Degradations, verdict.DegradationDetails)
 	if verdict.Warning != "" {
 		fmt.Fprintf(&out, "warning %s\n", textWord(verdict.Warning))
 	}

@@ -216,12 +216,37 @@ func quotedRunRefusal(line string) string {
 		return ""
 	}
 	word := match[1] + match[2]
+	reason := fmt.Sprintf("the quoted -run word %q is none of the admitted forms: a name (with bracket classes), ^A$, ^A, A$, .*, an alternation of names, ^(A|B)$, ^(A|B) or ^A$|^B$ (DCW-V0-991, DCW-V0-814)", word)
 	for index, r := range word {
 		if !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:@=+-|^$()[]", r) {
-			return fmt.Sprintf("the quoted -run word %q holds %q at byte %d, which the verify grammar does not admit (DCW-V0-991)", word, string(r), index)
+			reason = fmt.Sprintf("the quoted -run word %q holds %q at byte %d, which the verify grammar does not admit (DCW-V0-991)", word, string(r), index)
+			break
 		}
 	}
-	return fmt.Sprintf("the quoted -run word %q is none of the admitted forms: a name (with bracket classes), ^A$, ^A, A$, .*, an alternation of names, ^(A|B)$, ^(A|B) or ^A$|^B$ (DCW-V0-991, DCW-V0-814)", word)
+	if form := subtestRunForm(line, word); form != "" {
+		reason += "; a subtest pattern is admitted unquoted: " + form + " (DCW-V0-732, V1-3862)"
+	}
+	return reason
+}
+
+// subtestRunForm is a refused verify line with its quoted -run word written
+// as the unquoted subtest form go test admits, TestX/sub: each /-separated
+// element loses its ^ and $ anchors and a space becomes _, as go test names a
+// subtest. It is "" when the word holds no / or that form is still refused
+// (DCW-V0-732, V1-3862).
+func subtestRunForm(line, word string) string {
+	if !strings.Contains(word, "/") {
+		return ""
+	}
+	parts := strings.Split(word, "/")
+	for index, part := range parts {
+		parts[index] = strings.ReplaceAll(strings.TrimSuffix(strings.TrimPrefix(part, "^"), "$"), " ", "_")
+	}
+	form := strings.TrimSpace(quotedRunWord.ReplaceAllLiteralString(line, " -run "+strings.Join(parts, "/")))
+	if quotedRunWord.MatchString(form) || ValidateVerifyLine(form) != nil {
+		return ""
+	}
+	return form
 }
 
 // ValidateVerifyLine reports whether one verify-file line is a command the

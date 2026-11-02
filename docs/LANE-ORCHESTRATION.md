@@ -593,7 +593,12 @@ run once per CI or merge-queue event, never in a loop. It prints one decision: a
 whose failing Go tests all match `script/known-flakes.txt` is rerun (at most 3 times per head
 commit); auto-merge turned off by a bot's merge-queue removal is re-armed (at most 2 times); a
 real failure, an exhausted cap or a human dequeue prints `ESCALATE` and appends one line to the
-alerts file that the session's Monitor tails. Without `--act` it only reports.
+alerts file that the session's Monitor tails. Without `--act` it only reports. The first pass that
+sees `MERGED` also runs the post-merge Tasks reconcile (`script/tasks-reconcile.sh`, closeout-debt
+proposing each `batch-close`) once per PR and prints `RECONCILE status=N log=FILE`; debt or a
+refusal adds a `reconcile=` line to the same alerts file, so the Tasks backlog cannot drift from
+main unseen (ASD-V0-1922, V1-3496). It applies a proposal only with `--act` and the operator's
+`RECONCILE_APPLY`.
 
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
@@ -657,6 +662,14 @@ every gap above the threshold with the time the watchdog would have flagged it.
   lock after its commits landed: record HEAD before it, compare after a failure, and retry only when
   HEAD did not move. When HEAD moved, verify the landed commits (`git log --oneline BEFORE..HEAD`)
   instead of repeating the command, which would land them twice.
+- The installed `corvint` matches the lane base (ASD-V0-755..757, V1-3761, V1-4044). A stale one
+  reports `DEGRADED self-binary-stale` and can widen or skew `corvint affected` and `corvint test`
+  evidence. `lane-setup.sh` ends with `script/lane-binary-check.sh <lane>`, which prints `FRESH`,
+  `STALE` or `UNVERIFIED` with the installed and expected builds and commits, and exits 1 on a stale
+  binary (the lane is still created). After a merge, rebuild a lane host's binary with
+  `script/lane-binary-check.sh --rebuild <clean checkout at origin/main>` (or pass
+  `--rebuild-corvint` to `lane-setup.sh`); it installs through `install-local-bin.sh`, so
+  `install-local-bin.sh --rollback ~/.local/bin/corvint` restores the previous binary.
 - Never run `git stash` in a lane. The stash is one ref (`refs/stash`) in the clone's common
   directory, shared by every linked worktree, so one lane's `git stash pop` can apply another
   lane's stash (incident, 2026-10-21: the dogfood-flow lane's `git stash pop` applied the affected-selection lane's stash `723eec1`, V1-2161). Park work in a
@@ -1221,3 +1234,70 @@ test that blocks on the old code otherwise hangs for the full 10-minute tool tim
 test that races a FIFO opens the writer non-blocking so a missing reader fails fast:
 `syscall.Open(path, O_WRONLY|O_NONBLOCK, 0)` in a retry loop bounded by a deadline (ENXIO means no
 reader yet), never a plain `os.OpenFile(path, O_WRONLY, 0)`, which blocks forever against old code.
+
+## 16. Parallel batch assembly (ASD-V0-785..786, NEW-D1)
+
+The per-lane rebind merges the batch tip into each lane and rebinds and reseals it there before the
+lane merges, so each lane waits for the one before it: batch-1102a took 94 minutes for 13 lanes.
+This procedure seals each lane once, at its own base, and adds one sealed change after assembly. It
+is the `DCW-V0-073` path: a merge may keep the batch side (`-Xours`) because a later sealed change
+restores or dispositions every dropped hunk. The "do not use -X ours" advice of `docs/DOGFOOD.md`
+section 4 step 2 applies to the per-lane rebind, where no such change follows.
+
+1. Bind, check and seal each lane against its own base, in parallel, each in its own worktree
+   (`DCW-V0-044`). Do not merge the batch tip into a lane.
+2. On the batch branch, at its base, run `make batch-assemble BRANCHES='claude/lane-a claude/lane-b'`
+   in merge order. Each merge uses `dogfood batch-check`'s own attribute-free derivation, so the
+   repository's merge drivers (`merge=union`, `merge=use-case-pins`) do not run: a clean merge is
+   `derivation=ort`, a conflict keeps the batch side and names its paths (`derivation=ort-ours`), and
+   a branch `-Xours` cannot resolve (modify/delete, rename) is skipped as `ours-unresolved`. The
+   manifest is `<git-dir>/corvint/batch-assemble-manifest.txt`.
+3. Build and run the affected selection at the assembled head (`NEXT verify`). Textually clean merges
+   can still break the build: batch-1102a's assembly did not compile `internal/tasks/cli`, because
+   one lane changed `initActor`'s signature and another added a call to it.
+4. Commit one restore change on the assembled head. It restores the lane side of each conflicted
+   path's dropped hunks, keeping each hunk's lines contiguous. It also regenerates generated files
+   (`make spec-requirements`, `make capability-catalog`) and carries the step 3 fix.
+5. Run `make dogfood-batch-check BASE=<batch base>` once before sealing to list each `dropped-hunk`
+   and its `id`. Some hunks cannot be held contiguously, such as a regenerated catalog entry or a
+   line both sides rewrote. Disposition each one this way:
+   1. Write one `BRANCH ID REASON` line per hunk to a file.
+   2. Start a fresh branch at the batch base and rerun step 2 with `DISPOSITIONS=FILE`. The merge
+      trees are identical; only those merge messages change.
+   3. Cherry-pick the restore change onto the new head.
+6. Bind, check and seal the restore change once with `BASE=<assembled head>` (`docs/DOGFOOD.md`
+   section 4). Then run `make dogfood-batch-check BASE=<batch base>`. Every `dropped-hunk` must read
+   `coverage=restored:...` or `coverage=disposition`.
+7. Some lanes were skipped as `ours-unresolved`. Each takes the per-lane rebind of `docs/DOGFOOD.md`
+   section 4 step 2 at the assembled head, then merges.
+
+## 17. Interrupted lanes: marker and resume (ASD-V0-788, NEW-D6)
+
+A lane session can end without its handback: a usage-limit kill, a crash or a closed SSH session.
+Its commits and uncommitted edits stay in the worktree, but nothing records which tickets are left,
+so the lane was neither resumed nor requeued. The marker is derived from Git state alone, so the
+orchestrator writes it on the lane's host after the fact and the dead lane does nothing.
+
+1. Detect: the idle watchdog (section 5) flags the lane, or the session ends with no
+   `~/lane-reports/<lane>/final.md` (section 14).
+2. Record, on the lane's host:
+
+   ```sh
+   script/lane-interrupted.sh record --dir <lane dir> --env <dir>/lane.env --reason usage-limit
+   ```
+
+   It writes `<worktree git dir>/corvint/lane-interrupted` and prints it: `head`, `base`,
+   `commits`, `cited` (each ID a lane commit names, with the newest such commit), `remaining` (the
+   other IDs in dispatch order) and one `path <XY> <path>` line per uncommitted entry. Without a
+   `lane.env`, pass `--lane`, `--base` and the IDs. Only the lane's own non-merge commits on its
+   first-parent chain cite, so a merged batch tip never marks another lane's IDs as done.
+3. Requeue: each round, `script/lane-interrupted.sh list` in the host's repository prints one
+   `INTERRUPTED lane=... head=... remaining=<n> dirty=<n> dir=...` line per marker and exits 1
+   while any exists.
+4. Resume in the same worktree and branch, never from a fresh base: the new brief names `head`, the
+   `remaining` IDs and the dirty paths, which are the killed session's work and must not be
+   discarded. A cited ID is not delivered; the resumed lane screens it again (charter rule 0).
+5. Clear: after the resumed lane hands back, `script/lane-interrupted.sh clear --dir <lane dir>`.
+
+`lane-clean.sh` keeps a dirty or unmerged checkout (section 6), so an interrupted worktree is not
+removed before it is recorded.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,9 @@ const userSpec = "spec/models/user_spec.rb"
 // path:line[:line...] or path[scoped-id,...]; it is validated, passed to RSpec
 // verbatim and recorded as the selection, or withheld when secret-shaped.
 func TestLPCVV0131SelectorsValidatedAndRecorded(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX project-relative selector paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	for value, want := range map[string]selector{
 		userSpec:                   {kind: SelectorPath, path: userSpec},
 		"spec":                     {kind: SelectorPath, path: "spec"},

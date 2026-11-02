@@ -5,7 +5,8 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), lane-binary-check.sh (ASD-V0-755..757),
+# requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
 # (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
 # lane-dispatch.sh (ASD-V0-065 to ASD-V0-067), lane-stage-inputs.sh (ASD-V0-742),
@@ -19,9 +20,14 @@ export LC_ALL=C
 # (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS..., as a Git hook exports) would
 # point them at the caller's repository and its remote instead of the fixtures.
 unset $(git rev-parse --local-env-vars)
+# A closeout exports its entry to nested make targets. Fixtures choose their own entry and
+# preflight mode; inheriting the closeout entry would incorrectly require OUTCOME in inputs-check.
+unset DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_PREFLIGHT
 
 script=$(cd "$(dirname "$0")" && pwd)
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-scripts-test.XXXXXX") || exit 1
+# A trailing slash on TMPDIR (the macOS default) is dropped: heavy.sh and Perl name paths without "//".
+tmp=${TMPDIR:-/tmp}
+tmp=$(mktemp -d "${tmp%/}/corvint-lane-scripts-test.XXXXXX") || exit 1
 trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
 # DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
 # run reports every failing group. A group is the code up to its `ok`; `ok` counts it passed only
@@ -622,12 +628,14 @@ HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 hvp sub go test -run X ./... > /dev/null 2>
 # ASD-V0-038 (V1-2904): a local run uses the Makefile's cache unless the caller set GOCACHE; that
 # default follows TMPDIR (hv sets $off/ltmp), as the Makefile's does (ASD-V0-914, V1-3796).
 out=$(unset GOCACHE CORVINT_GOCACHE; HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(unset GOCACHE
-  CORVINT_GOCACHE=/x/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE=/y/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
-[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == "where=local dir=sub gocache=$off/ltmp/corvint-go-build-cache where=local dir=sub gocache=/x/c where=local dir=sub gocache=/y/c " ]] ||
+  CORVINT_GOCACHE="$off/x/c" HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE="$off/y/c" HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
+[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == "where=local dir=sub gocache=$off/ltmp/corvint-go-build-cache where=local dir=sub gocache=$off/x/c where=local dir=sub gocache=$off/y/c " ]] ||
   fail "heavy.sh local Go cache: $out"
 # ASD-V0-914 (V1-3796): the Makefile's CORVINT_GOCACHE default follows TMPDIR (a trailing `/` dropped),
 # else /tmp; an explicit CORVINT_GOCACHE still wins.
-mk_cache() { (cd "$script/.." && env -u CORVINT_GOCACHE "$@" make -s --no-print-directory --eval 'print-corvint-gocache: ; @echo $(CORVINT_GOCACHE)' print-corvint-gocache 2>&1); }
+# An include wrapper, not `make --eval`, which GNU make 3.81 (macOS /usr/bin/make) lacks.
+printf 'include Makefile\nprint-corvint-gocache: ; @echo $(CORVINT_GOCACHE)\n' > "$tmp/print-gocache.mk"
+mk_cache() { (cd "$script/.." && env -u CORVINT_GOCACHE "$@" make -s --no-print-directory -f "$tmp/print-gocache.mk" print-corvint-gocache 2>&1); }
 out=$(mk_cache TMPDIR="$tmp/")$'\n'$(mk_cache -u TMPDIR)$'\n'$(mk_cache TMPDIR="$tmp" CORVINT_GOCACHE=/y/c)
 [[ $out == "$tmp/corvint-go-build-cache"$'\n/tmp/corvint-go-build-cache\n/y/c' ]] || fail "Makefile CORVINT_GOCACHE default: $out"
 ok
@@ -646,7 +654,9 @@ out+=$(HEAVY_REMOTE_HOST=box GOFLAGS=-cpuprofile=p.out hv go test ./... 2> /dev/
   fail "heavy.sh fallback log: $(cat "$off/fallback.log")"
 ok
 # ASD-V0-028: a TERM to the wrapper during an offload stops its ssh at once and exits 143.
-(cd "$off/lc/sub" && exec env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+term_scratch=$off/term-scratch
+mkdir -p "$term_scratch"
+(cd "$off/lc/sub" && exec env PATH="$off/bin:$PATH" TMPDIR="$term_scratch" HEAVY_REMOTE_SSH="$off/bin/ssh" \
   HEAVY_REMOTE_HOST=hang HEAVY_REMOTE_RETRY=0 HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" go test ./...) 2> /dev/null &
 wrapper=$!
 wait_for "$off/hang.pid"
@@ -654,7 +664,7 @@ kill -TERM "$wrapper"
 wait "$wrapper"
 rc=$?
 gone "$(cat "$off/hang.pid")" || { kill "$(cat "$off/hang.pid")" 2> /dev/null; fail "heavy.sh left ssh running after TERM"; }
-[[ $rc == 143 && -z $(ls -A "$off/ltmp") ]] || fail "heavy.sh TERM during offload: exit $rc, scratch $(ls -A "$off/ltmp")"
+[[ $rc == 143 && -z $(ls -A "$term_scratch") ]] || fail "heavy.sh TERM during offload: exit $rc, scratch $(ls -A "$term_scratch")"
 ok
 # ASD-V0-028: HEAVY_CONFIG supplies settings the environment leaves unset; the environment wins.
 printf '# lane host\nHEAVY_REMOTE_HOST=box\nHEAVY_REMOTE_SHELL="bash -s"\nNOT_HEAVY=1\n' > "$off/heavy.env"
@@ -950,6 +960,29 @@ out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
 [[ $out == *'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file'*'relation decision'*'docs/DOGFOOD.md "Record-only closeout"'* ]] ||
   fail "finish refusal for a missing plan names no record-only recipe: $out"
 grep -q '^Record-only closeout (`ASD-V0-961`' "$script/../docs/DOGFOOD.md" || fail "docs/DOGFOOD.md has no record-only closeout section"
+# ASD-V0-733 (NEW-B1): a BASE..HEAD that touches a non-record path (a decision included) gets the
+# spec or #no-intent-declared line instead of the record-only recipe; a record range keeps the
+# recipe; the recipe states its precondition. The script reads its own checkout, so a fixture
+# repository holds a copy of it.
+rr=$tmp/record-repo
+rrg() { git -C "$rr" -c user.name=t -c user.email=t@example.invalid "$@"; }
+rfinish() { (cd "$tmp" && env -u CORVINT_BIN -u DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_LANE=1 "$rr/script/dogfood-finish.sh" "$1" '' plan.tsv plan.tsv passed 2>&1); }
+mkdir -p "$rr/script" "$rr/docs/build-log" "$rr/docs/decisions" "$rr/.corvint/changes" && cp "$script/dogfood-finish.sh" "$rr/script/" &&
+  git init -q -b main "$rr" && rrg add script && rrg commit -qm base || fail "record fixture init"
+rbase=$(rrg rev-parse HEAD)
+printf 'entry
+' > "$rr/docs/build-log/2026-01-01-x.md" && printf '{}
+' > "$rr/.corvint/changes/x.cem.json" &&
+  rrg add docs .corvint && rrg commit -qm record || fail "record fixture commit"
+out=$(rfinish "$rbase")
+[[ $out == *'fix: a record-only change'* && $out != *'not record-only'* ]] || fail "finish refusal for a record range dropped the record-only recipe: $out"
+printf 'decision
+' > "$rr/docs/decisions/0001-x.md" && rrg add docs && rrg commit -qm decision || fail "decision fixture commit"
+out=$(rfinish "$rbase")
+[[ $out == *'fix: this change is not record-only (it touches docs/decisions/0001-x.md), so the INTENTS file names the spec with a "## Requirements" heading'*'#no-intent-declared'* &&
+  $out != *'fix: a record-only change'* ]] || fail "finish refusal named the record-only recipe for a change that is not a record: $out"
+grep -q '^out in one try. The recipe applies only when `git diff --name-only "$BASE" HEAD` lists nothing but$' "$script/../docs/DOGFOOD.md" ||
+  fail "docs/DOGFOOD.md record-only recipe states no precondition"
 ok
 
 # DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
@@ -1163,6 +1196,30 @@ HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
   fail "heavy.sh one-reason refusal: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> /dev/null
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh whole-only refusal: $(cat "$pol/out")"
+# ASD-V0-730 (NEW-B3): every reason refusal prints the exact command that reruns it from any
+# directory, with each missing reason as a leading word, and for a missing HEAVY_WHOLE_REASON
+# also the Corvint selection command; the stdout marker is unchanged.
+hself=$(cd "$script" && pwd -P)/heavy.sh
+HEAVY_WHOLE_REASON= pv go test -count=1 ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] &&
+  grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test -count=1 ./x" "$pol/err" &&
+  grep -qF "heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd $pol && corvint test --base " "$pol/err" &&
+  grep -qE " --dry-run --manifest [^ ]*heavy-selection\.json && $hself --plan [^ ]*heavy-selection\.json\$" "$pol/err" ||
+  fail "heavy.sh whole refusal did not print its rerun lines: $(cat "$pol/out" "$pol/err")"
+HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test ./x" "$pol/err" &&
+  ! grep -q 'rerun with Corvint selection' "$pol/err" ||
+  fail "heavy.sh local refusal did not print its rerun line: $(cat "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_REMOTE=0 pv go test -run '.*/Sub' ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test -run .\\*/Sub ./x" "$pol/err" ||
+  fail "heavy.sh two-reason refusal did not print one quoted rerun line: $(cat "$pol/err")"
+# An env word that sets a missing reason empty would override the one the line adds, so it is left out.
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv env A=1 HEAVY_WHOLE_REASON= go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself env A=1 go test ./x" "$pol/err" ||
+  fail "heavy.sh rerun line kept the empty HEAVY_WHOLE_REASON word: $(cat "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv env HEAVY_WHOLE_REASON= go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test ./x" "$pol/err" ||
+  fail "heavy.sh rerun line kept a bare env with the empty reason word: $(cat "$pol/err")"
 # ASD-V0-980 (V1-3888): a selected go test of several packages runs once with every package; a
 # failure exits with the command's status and the ASD-V0-940 cause line, never silently.
 # The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
@@ -1357,7 +1414,7 @@ adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HE
 [[ $(adm) == '[script/heavy.sh --admit-only]' && $(adm CI=true) == '[]' && $(adm HEAVY_ADMIT=) == '[]' ]] || fail "HEAVY_ADMIT default: $(adm) $(adm CI=true)"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-inputs-check dogfood-finish 2> /dev/null) > "$tmp/admit.out"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
-[[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -q '^WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
+[[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -Eq '^(BATCH_PRECHECK_LANE_CLOSEOUT=0 )?WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
   [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] && grep -Eq '^([^ ]*/)?make --no-print-directory --keep-going ' "$tmp/admit.out" &&
   grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
@@ -1448,18 +1505,92 @@ HEAVY_REFUSE_FREE_GB=x tv true > /dev/null
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-refuse-free HEAVY_REFUSE_FREE_GB=x' "$to/err" || fail "heavy.sh accepted HEAVY_REFUSE_FREE_GB=x: $(cat "$to/err")"
 # ASD-V0-061 (V1-3824, V1-2904): on a tmpfs /tmp a local run whose caller set none of them gets the
 # home-disk Go cache (the remote half's) and TMPDIR, named on one line; a caller's own values, and a
-# /tmp on disk, keep theirs.
+# /tmp on disk, keep theirs. The command's TMPDIR is the run's private heavy-run.* directory under
+# that one (ASD-V0-734), and CORVINT_GOCACHE stays the cache a Makefile derives from it.
 tf=$tmp/tmpfs
-mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=$TMPDIR cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
+mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=${TMPDIR%%/heavy-run.*} cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
 tfv() { (cd "$to" && env -u TMPDIR -u GOCACHE -u CORVINT_GOCACHE PATH="$tf/bin:$to/bin:$PATH" XDG_CACHE_HOME="$tf/xdg" HEAVY_LOCK_DIR="$to/slots" HEAVY_SLOTS=1 "$@" "$heavy" go vet ./x 2> "$tf/err"); }
 x=$tf/xdg
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs) == "tmp=$x/corvint-tmp cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" && -d $x/corvint-tmp ]] &&
   grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache TMPDIR=$x/corvint-tmp" "$tf/err" ||
   fail "heavy.sh tmpfs defaults: $(tfv HEAVY_TMP_FSTYPE=tmpfs) $(cat "$tf/err")"
-[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE=/c) == "tmp=$tf cache=/c corvint=/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE=/g) == "tmp=$tf cache=/g corvint=" ]] &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3) == 'tmp= cache=/tmp/corvint-go-build-cache corvint=' ]] ||
+[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE="$tf/c") == "tmp=$tf cache=$tf/c corvint=$tf/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE="$tf/g") == "tmp=$tf cache=$tf/g corvint=$tf/corvint-go-build-cache" ]] &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3 TMPDIR="$tf/disk") == "tmp=$tf/disk cache=$tf/disk/corvint-go-build-cache corvint=$tf/disk/corvint-go-build-cache" ]] ||
   fail "heavy.sh tmpfs defaults overrode a caller or a disk /tmp: $(cat "$tf/err")"
+# ASD-V0-1972 (V1-4328): mkdir succeeds on existing read-only sandbox paths, but the actual write
+# probe must refuse before running anything, name every override once and permit a corrected run.
+wp=$tmp/writable-paths
+mkdir -p "$wp/locks" "$wp/scratch" "$wp/cache" "$wp/ro" "$wp/home-cache/corvint-tmp" "$wp/home-cache/corvint-go-build-cache"
+wprun() { (cd "$wp" && env -u GOTMPDIR -u CORVINT_GOCACHE HEAVY_LOCK_DIR="$wp/locks" HEAVY_SELECTION_LOG="$wp/selection.log" \
+  HEAVY_FALLBACK_LOG="$wp/fallback.log" TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$@" "$heavy" sh -c ': > ran' > "$wp/out" 2> "$wp/err"); }
+wp_refused() {
+  local rc=$1 name
+  [[ $rc == 2 && ! -e $wp/ran && $(cat "$wp/out") == 'heavy.sh: REFUSED unwritable-paths (exit 2)' ]] &&
+    [[ $(grep -c '^heavy.sh: REFUSE ' "$wp/err") == 1 && $(grep -c '^fix: ' "$wp/err") == 1 ]] ||
+    fail "heavy.sh writable-path refusal rc=$rc: $(cat "$wp/out" "$wp/err")"
+  for name in HEAVY_LOCK_DIR HEAVY_SELECTION_LOG HEAVY_FALLBACK_LOG TMPDIR GOTMPDIR GOCACHE CORVINT_GOCACHE; do
+    grep -q "^fix: .* $name=" "$wp/err" || fail "heavy.sh writable-path fix lacks $name: $(cat "$wp/err")"
+  done
+}
+if [[ $(id -u) != 0 ]]; then
+  chmod 555 "$wp/ro"
+  for name in HEAVY_LOCK_DIR TMPDIR GOCACHE CORVINT_GOCACHE GOTMPDIR; do
+    wprun "$name=$wp/ro"; rc=$?
+    wp_refused "$rc"
+    grep -qF "heavy.sh: unwritable $name=$wp/ro" "$wp/err" || fail "heavy.sh did not identify $name: $(cat "$wp/err")"
+  done
+  : > "$wp/readonly.log"; chmod 444 "$wp/readonly.log"
+  for name in HEAVY_SELECTION_LOG HEAVY_FALLBACK_LOG; do
+    wprun "$name=$wp/readonly.log"; rc=$?
+    wp_refused "$rc"
+    grep -qF "heavy.sh: unwritable $name=$wp/readonly.log" "$wp/err" || fail "heavy.sh did not identify $name: $(cat "$wp/err")"
+  done
+  : > "$wp/locks/slot1"; chmod 444 "$wp/locks/slot1"
+  wprun; rc=$?
+  wp_refused "$rc"
+  grep -qF "($wp/locks/slot1)" "$wp/err" || fail "heavy.sh did not identify the read-only slot: $(cat "$wp/err")"
+  chmod 644 "$wp/locks/slot1"
+  # A command's explicit cache override must be checked even when the wrapper's own cache works.
+  (cd "$wp" && env HEAVY_LOCK_DIR="$wp/locks" HEAVY_SELECTION_LOG="$wp/selection.log" HEAVY_FALLBACK_LOG="$wp/fallback.log" \
+    TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$heavy" env GOCACHE="$wp/ro" sh -c ': > ran' > "$wp/out" 2> "$wp/err"); rc=$?
+  wp_refused "$rc"
+  grep -qF "heavy.sh: unwritable GOCACHE=$wp/ro" "$wp/err" || fail "heavy.sh ignored a wrapped cache override: $(cat "$wp/err")"
+  # Options must not hide later assignments, including the two-word -u NAME spelling.
+  for option in unset separate ignore long dash end; do
+    case $option in
+      unset) set -- -uUNUSED ;;
+      separate) set -- -u UNUSED ;;
+      ignore) set -- -i ;;
+      long) set -- --unset=UNUSED ;;
+      dash) set -- - ;;
+      end) set -- -- ;;
+    esac
+    (cd "$wp" && env HEAVY_LOCK_DIR="$wp/locks" HEAVY_SELECTION_LOG="$wp/selection.log" HEAVY_FALLBACK_LOG="$wp/fallback.log" \
+      TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$heavy" env "$@" GOTMPDIR="$wp/ro" /bin/sh -c ': > ran' > "$wp/out" 2> "$wp/err"); rc=$?
+    wp_refused "$rc"
+    grep -qF "heavy.sh: unwritable GOTMPDIR=$wp/ro" "$wp/err" || fail "heavy.sh ignored GOTMPDIR after env $*: $(cat "$wp/err")"
+  done
+  wprun HEAVY_LOCK_DIR="$wp/ro" TMPDIR="$wp/ro" GOCACHE="$wp/ro" HEAVY_SELECTION_LOG="$wp/readonly.log" HEAVY_FALLBACK_LOG="$wp/readonly.log"; rc=$?
+  wp_refused "$rc"
+  # The home-disk defaults are subject to the same check even though both directories exist.
+  chmod 555 "$wp/home-cache/corvint-tmp" "$wp/home-cache/corvint-go-build-cache"
+  wprun env -u TMPDIR -u GOCACHE HEAVY_TMP_FSTYPE=tmpfs XDG_CACHE_HOME="$wp/home-cache"; rc=$?
+  wp_refused "$rc"
+  grep -qF "heavy.sh: unwritable TMPDIR=$wp/home-cache/corvint-tmp" "$wp/err" &&
+    grep -qF "heavy.sh: unwritable GOCACHE=$wp/home-cache/corvint-go-build-cache" "$wp/err" || fail "heavy.sh trusted existing home-cache paths: $(cat "$wp/err")"
+  chmod 755 "$wp/ro" "$wp/home-cache/corvint-tmp" "$wp/home-cache/corvint-go-build-cache"; chmod 644 "$wp/readonly.log"
+else
+  printf 'lane-scripts_test: SKIP chmod read-only paths (root bypasses mode bits)\n'
+fi
+# A non-directory also exercises the refusal under root, and --print-lock-dir stays read-only.
+: > "$wp/not-a-dir"
+wprun HEAVY_LOCK_DIR="$wp/not-a-dir/locks"; rc=$?
+wp_refused "$rc"
+[[ $(HEAVY_LOCK_DIR="$wp/missing/locks" "$heavy" --print-lock-dir) == "$wp/missing/locks" && ! -e $wp/missing ]] || fail "heavy.sh --print-lock-dir wrote a directory"
+wprun && [[ -e $wp/ran ]] || fail "heavy.sh refused writable overrides: $(cat "$wp/out" "$wp/err")"
+[[ -z $(find "$wp" -name '.heavy-write.*' -print) ]] || fail "heavy.sh left write-probe files"
+ok
 # ASD-V0-104 (V1-3787): a local run trims its GOCACHE with go-cache-trim.sh --apply at most once per
 # HEAVY_CACHE_TRIM_HOURS (a stamp in the lock dir); 0 disables it and a malformed value refuses. The
 # df stub reports a 1 MiB file system, so the 40% bound is below the one old 1 MiB entry.
@@ -1503,19 +1634,112 @@ for c in "dogfood-inputs-check|BASE CITATIONS INTENTS VERIFY" "dogfood-finish|BA
     fail "$target did not refuse missing inputs before admission (rc=$rc): $(cat "$to/early.err")"
 done
 printf '1\tdocs/specs/README.md\t1:1\tdecision\n' > "$to/plan.tsv" || fail "plan"
-# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too: with the only
-# slot held, its recipe waits for it (a stub admission wrapper stands in for the preflight build).
+# Every admitted inputs-check below passes valid INTENTS, VERIFY and OUTCOME, so a caller's LANE=1
+# (a lane closeout, which requires them, ASD-V0-015) cannot refuse the fixture as missing-inputs.
+printf '#no-intent-declared\n' > "$to/intents.txt" && printf 'go version\n' > "$to/verify.txt" || fail "inputs"
+admit_inputs=(INTENTS="$to/intents.txt" VERIFY="$to/verify.txt" OUTCOME=passed)
+# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too, and
+# ASD-V0-732 (NEW-B6): on the light pool, so with the only heavy slot held it is admitted at once
+# (a stub admission wrapper stands in for the preflight build); HEAVY_CLASS=heavy queues it as before.
 printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-only true\n' "$to" "$heavy" > "$to/bin/admit" && chmod +x "$to/bin/admit" || fail "admit stub"
+for cls in light heavy; do
+  extra=()
+  [[ $cls == heavy ]] && extra=(HEAVY_CLASS=heavy)
+  (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
+  holder=$!
+  sleep 0.5
+  s0=$SECONDS
+  (cd "$script/.." && env -u HEAVY_CLASS DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check \
+    HEAVY_ADMIT="$to/bin/admit" ${extra[@]+"${extra[@]}"} BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/admit.err")
+  rc=$?
+  t=$((SECONDS - s0))
+  wait "$holder"
+  if [[ $cls == light ]]; then
+    ((rc == 0 && t < 2)) && grep -Eq '^heavy.sh: light slot 1/2 after 0s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
+      fail "dogfood-inputs-check was not admitted on the light pool past the occupied heavy slot (rc=$rc, ${t}s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
+  else
+    ((rc == 0 && t >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" ||
+      fail "HEAVY_CLASS=heavy make dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, ${t}s): $(cat "$to/admit.err")"
+  fi
+done
+# ASD-V0-731 (NEW-B6): HEAVY_CLASS=light admits on its own pool at once while every heavy slot is
+# held, queues only behind its own pool, passes the load gate, logs class=light, runs under a hard
+# cap (exit 124, cause=light-cap, one rerun-as-heavy line), nests on an enclosing heavy slot, is
+# never set by the config file, and refuses an invalid class, pool or cap.
 (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
 holder=$!
 sleep 0.5
 s0=$SECONDS
-(cd "$script/.." && HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" \
-  BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
-rc=$?
+HEAVY_CLASS=light tv --admit-only true && grep -qx 'heavy.sh: light slot 1/2 after 0s' "$to/err" &&
+  HEAVY_CLASS=light tv true && grep -qx 'heavy.sh: light slot 1/2 after 0s' "$to/err" && ((SECONDS - s0 < 2)) &&
+  grep -q ' cmd=true class=light script=[0-9a-f]\{12\}$' "$tmp/selection.log" ||
+  fail "a light run was not admitted at once with every heavy slot held ($((SECONDS - s0))s): $(cat "$to/err")"
+(HEAVY_CLASS=light HEAVY_LIGHT_SLOTS=1 HEAVY_LOCK_DIR=$to/slots "$heavy" sleep 2 2> /dev/null) &
+lholder=$!
+sleep 0.5
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_SLOTS=1 tv true
+wait "$lholder"
 wait "$holder"
-((rc == 0 && SECONDS - s0 >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
-  fail "dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, $((SECONDS - s0))s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
+((SECONDS - s0 >= 1)) && grep -q '^heavy.sh: queued for a light slot (1/1 held)' "$to/err" ||
+  fail "a full light pool did not queue the next light run: $(cat "$to/err")"
+STUB_LOAD=50.00 HEAVY_MAX_LOAD=1 HEAVY_LOAD_WAIT=1 HEAVY_CLASS=light pv true 2> "$pol/err" && grep -q '^heavy.sh: queued for host load' "$pol/err" &&
+  grep -q '^heavy.sh: light slot 1/2 ' "$pol/err" || fail "a light run skipped the load gate: $(cat "$pol/err")"
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sleep 30
+rc=$?
+((rc == 124 && SECONDS - s0 < 8)) && grep -qx 'heavy.sh: light run exceeded its 1s cap; stopping it' "$to/err" &&
+  grep -qx 'heavy.sh: exit rc=124 cause=light-cap cmd=sleep' "$to/err" &&
+  grep -Eq '^heavy.sh: rerun as heavy: cd [^ ]+ && HEAVY_CLASS=heavy /[^ ]*/heavy\.sh --admit-only sleep 30 \(a make target: HEAVY_CLASS=heavy make TARGET\)$' "$to/err" ||
+  fail "the light cap did not stop the run with its rerun line (rc=$rc, $((SECONDS - s0))s): $(cat "$to/err")"
+# A descendant that ignores TERM outlives its parent's exit, so the cap's KILL still reaches it,
+# and the run returns only once the group, and with it the slot lock, is gone.
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c 'sh -c "trap \"\" TERM; echo \$\$ > \"\$1/stubborn.pid\"; exec sleep 300" _ "$1" & wait' _ "$to"
+rc=$?
+stubborn=$(cat "$to/stubborn.pid" 2> /dev/null)
+((rc == 124 && SECONDS - s0 < 12)) && [[ -n $stubborn ]] && ! kill -0 "$stubborn" 2> /dev/null ||
+  fail "the light cap left a TERM-ignoring descendant running (rc=$rc, pid=$stubborn, $((SECONDS - s0))s): $(cat "$to/err")"
+# ASD-V0-734 (V1-4319): the command's TMPDIR is a private directory under the caller's, removed
+# after a normal run and after a timeout or cap kill, so a killed job leaves nothing behind.
+# The commands name $TMPDIR in the template: a bare `mktemp -d` on macOS ignores TMPDIR. The shared Go
+# cache, derived from the caller's TMPDIR and probed before the run (ASD-V0-1972), is kept outside it.
+mkdir -p "$to/tmproot"
+TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache tv --admit-only sh -c 'echo "$TMPDIR" > "$1/run.tmp"; mktemp -d "$TMPDIR/t.XXXXXX" > /dev/null' _ "$to" ||
+  fail "heavy.sh private TMPDIR run failed: $(cat "$to/err")"
+rtmp=$(cat "$to/run.tmp")
+[[ ${rtmp%/*} == "$to/tmproot" && ${rtmp##*/} == heavy-run.* && -z $(/bin/ls -A "$to/tmproot") ]] ||
+  fail "heavy.sh did not run the command in a private TMPDIR it removed (TMPDIR=$rtmp, left: $(/bin/ls -A "$to/tmproot"))"
+leaker='d=$(mktemp -d "$TMPDIR/leak.XXXXXX"); echo "$d" > "$1/leak.path"; : > "$d/f"; mkdir "$d/ro"; chmod 555 "$d/ro"; exec sleep 30'
+TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c "$leaker" _ "$to"
+rc=$?
+leak=$(cat "$to/leak.path" 2> /dev/null)
+((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
+  fail "a job stopped by the light cap left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
+if command -v timeout > /dev/null; then
+  : > "$to/leak.path"
+  TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache tv --admit-only timeout 1 sh -c "$leaker" _ "$to"
+  rc=$?
+  leak=$(cat "$to/leak.path" 2> /dev/null)
+  ((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
+    fail "a job killed on timeout left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
+fi
+tv sh -c 'HEAVY_CLASS=light "$heavy" true 2> "$1/light-nested.err"' _ "$to"
+grep -qx 'heavy.sh: HEAVY_CLASS=light runs on the enclosing heavy slot' "$to/light-nested.err" && grep -q '^heavy.sh: slot 1.inner/1 ' "$to/light-nested.err" ||
+  fail "a light run inside a heavy holder did not nest on it: $(cat "$to/light-nested.err")"
+printf 'HEAVY_CLASS=light\n' > "$to/class.env"
+HEAVY_CONFIG=$to/class.env tv true && grep -q '^heavy.sh: slot 1/1 ' "$to/err" || fail "the config file set HEAVY_CLASS: $(cat "$to/err")"
+for c in 'HEAVY_CLASS=medium|invalid-class' 'HEAVY_LIGHT_SLOTS=0|invalid-light-slots' 'HEAVY_LIGHT_SLOTS=17|invalid-light-slots' 'HEAVY_LIGHT_MAX_SECS=5m|invalid-light-max-secs'; do
+  IFS='|' read -r setting code <<< "$c"
+  out=$(env HEAVY_CLASS=light "$setting" bash -c 'cd "$1" && env PATH="$1/bin:$PATH" HEAVY_LOCK_DIR="$1/slots" HEAVY_SLOTS=1 "$2" true' _ "$to" "$heavy" 2> "$to/err")
+  [[ $? == 2 && $out == "heavy.sh: REFUSED $code (exit 2)" ]] || fail "heavy.sh accepted $setting: $out $(cat "$to/err")"
+done
+# ASD-V0-732: the light doc gates and dogfood-inputs-check name the light class, not under CI, and a
+# caller's HEAVY_CLASS=heavy wins.
+lmk() { (cd "$script/.." && env -u CI -u HEAVY_CLASS -u HEAVY_ADMIT "$@" make -n --no-print-directory shell-foreign-callers-check dogfood-inputs-check 2> /dev/null); }
+[[ $(lmk | grep -c 'HEAVY_CLASS=light script/heavy.sh') == 2 && $(lmk CI=true | grep -c 'HEAVY_CLASS=') == 0 &&
+  $(lmk HEAVY_CLASS=heavy | grep -c 'HEAVY_CLASS=heavy script/heavy.sh') == 2 ]] ||
+  fail "the light Makefile targets do not admit through the light class: $(lmk)"
 MAKEFLAGS='n --no-print-directory' tv --admit-only true && ! grep -q 'slot' "$to/err" || fail "a make dry run took a slot: $(cat "$to/err")"
 MAKEFLAGS=' --no-print-directory' tv --admit-only true && grep -q 'slot 1/1' "$to/err" || fail "a long make flag read as a dry run"
 TLOCK=$to/slots/ tv sh -c 'HEAVY_LOCK_DIR=$1 perl -e "alarm 10; exec @ARGV" "$heavy" true 2> "$1/../nested.err"' _ "$to/slots"
@@ -1526,6 +1750,35 @@ grep -q "^# the holder's apostrophe$" "$to/heavy-quote.sh" && bash -n "$to/heavy
   HEAVY_LOCK_DIR=$to/slots bash "$to/heavy-quote.sh" true 2> /dev/null || fail "an apostrophe in the slot_perl body breaks heavy.sh"
 bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script/heavy.sh" "$script"/lane-*.sh)
 [[ -z $bad ]] || fail "unguarded array expansion (bash 3.2 set -u aborts on an empty one; use \${a[@]+\"\${a[@]}\"}): $bad"
+ok
+# DCW-V0-731 (NEW-B2): with no cached tree build (an empty bin cache), the inputs-only phase runs the
+# static pre-check with an installed corvint that lists --static: its refusal stops make before any
+# admission and names the escape; DOGFOOD_STATIC_PRECHECK=0 skips it; a binary without --static is
+# a SKIP and the admitted run goes on.
+mkdir -p "$to/static/bin" "$to/static/cache" || fail "static fixture"
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/bin/corvint" &&
+  chmod +x "$to/static/bin/corvint" || fail "static corvint stub"
+static_make() {
+  /bin/rm -f "$to/admitted"
+  (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK PATH="$to/static/bin:$PATH" \
+    CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$@" make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit-never" \
+    BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/static/err")
+}
+static_make
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
+  grep -q "ran the installed $to/static/bin/corvint, not this tree's build; .*DOGFOOD_STATIC_PRECHECK=0" "$to/static/err" &&
+  grep -q -- '--entry dogfood-inputs-check --static yes$' "$to/static/args" ||
+  fail "the static pre-check did not refuse before admission (rc=$rc): $(cat "$to/static/err" "$to/static/args" 2> /dev/null)"
+static_make DOGFOOD_STATIC_PRECHECK=0
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && ! grep -q 'REFUSE' "$to/static/err" ||
+  fail "DOGFOOD_STATIC_PRECHECK=0 did not skip the static pre-check (rc=$rc): $(cat "$to/static/err")"
+printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
+static_make
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP no-static-binary' "$to/static/err" ||
+  fail "a corvint without --static was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
 # matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases
@@ -1854,6 +2107,96 @@ git -C "$tmp/lane-caller/lanes/b" -c user.name=t -c user.email=t@t commit -q --a
   fail "the relative lane's hook let an AI trailer through"
 ok
 
+# ASD-V0-755..757 (V1-3761, V1-4044): lane-binary-check.sh judges an installed corvint against a
+# Corvint checkout's HEAD with the AFP-V0-846 rule and names both builds; --rebuild installs a
+# rebuilt binary with a rollback; a foreign module is not judged; lane-setup.sh reports a stale
+# binary with exit 1 after creating the lane. The corvint and go here are fakes: no Go build runs.
+lb=$tmp/lane-binary
+mkdir -p "$lb/repo/cmd/corvint" "$lb/bin" || fail "lane-binary dirs"
+printf 'module github.com/Beamfall/corvint\n' > "$lb/repo/go.mod"
+printf 'package main\n' > "$lb/repo/cmd/corvint/main.go"
+git -C "$lb/repo" init -q && git -C "$lb/repo" add . && git -C "$lb/repo" -c user.name=t -c user.email=t@t commit -q -m one || fail "lane-binary repo"
+c1=$(git -C "$lb/repo" rev-parse HEAD)
+fake_corvint() { printf '#!/bin/sh\necho "Corvint 1.0.0 (build %s, commit %s)"\n' "$1" "$2" > "$lb/bin/corvint" && chmod 0755 "$lb/bin/corvint"; }
+fake_corvint 1 "$c1"
+# Refusals name an actionable recovery on a separate line and retain exit 2.
+binary_refusal() {
+  local reason=$1 out rc
+  shift
+  out=$("$script/lane-binary-check.sh" "$@" 2>&1)
+  rc=$?
+  [[ $rc == 2 && $out == *"REFUSE $reason"*$'\n''fix: '?* ]] || fail "lane-binary refusal $reason: rc=$rc $out"
+}
+binary_refusal --corvint --corvint
+binary_refusal unknown-option --unknown
+binary_refusal usage:
+binary_refusal usage: "$lb/repo" "$lb/repo"
+binary_refusal not-a-directory "$lb/absent"
+binary_refusal not-a-repository "$lb/bin"
+binary_refusal corvint-not-executable --corvint "$lb/absent" "$lb/repo"
+# Supply only shell utilities on PATH, so an installed host corvint cannot satisfy the fixture.
+mkdir "$lb/no-corvint"
+for utility in bash dirname sed head git; do
+  ln -s "$(command -v "$utility")" "$lb/no-corvint/$utility"
+done
+PATH=$lb/no-corvint binary_refusal corvint-not-found "$lb/repo"
+mkdir "$lb/unborn" && git -C "$lb/unborn" init -q
+printf 'module github.com/Beamfall/corvint\n' > "$lb/unborn/go.mod"
+binary_refusal no-head --corvint "$lb/bin/corvint" "$lb/unborn"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == "lane-binary-check: FRESH corvint build 1 (commit ${c1:0:12}) for build 1 (commit ${c1:0:12})" ]] || fail "lane-binary fresh: $out"
+printf 'package main\n' > "$lb/repo/cmd/corvint/main_test.go"
+git -C "$lb/repo" add . && git -C "$lb/repo" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-binary commit two"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == *'FRESH corvint build 1'*'for build 2'*'(no Go source differs)' ]] || fail "lane-binary test-only change: $out"
+printf 'package main\n\nfunc x() {}\n' > "$lb/repo/cmd/corvint/main.go"
+git -C "$lb/repo" add . && git -C "$lb/repo" -c user.name=t -c user.email=t@t commit -q -m three || fail "lane-binary commit three"
+c3=$(git -C "$lb/repo" rev-parse HEAD)
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == "lane-binary-check: STALE corvint build 1 (commit ${c1:0:12}) for build 3 (commit ${c3:0:12}): 1 Go source paths differ (cmd/corvint/main.go); rebuild: script/lane-binary-check.sh --rebuild $lb/repo" ]] ||
+  fail "lane-binary stale: $out"
+# A commit whose tree is unavailable (cat-file succeeds, the diff fails) is UNVERIFIED, never FRESH.
+cp -R "$lb/repo" "$lb/broken" || fail "lane-binary broken copy"
+t1=$(git -C "$lb/broken" rev-parse "$c1^{tree}") && rm -f "$lb/broken/.git/objects/${t1:0:2}/${t1:2}" || fail "lane-binary drop tree"
+git -C "$lb/broken" cat-file -e "$c1^{commit}" || fail "lane-binary broken copy lost its commit"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/broken" 2>&1)
+[[ $? == 1 && $out == *"UNVERIFIED corvint build 1 (commit ${c1:0:12})"*'git diff from commit'*'failed in'* ]] || fail "lane-binary failed diff: $out"
+# A plain `go build` states `(commit SHA)` with no build number; a modified build states no clean commit.
+printf '#!/bin/sh\necho "Corvint 1.0.0-rc.3.dev (commit %s)"\n' "$c3" > "$lb/bin/corvint"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == "lane-binary-check: FRESH corvint unstamped build (commit ${c3:0:12}) for build 3 (commit ${c3:0:12})" ]] || fail "lane-binary commit-only: $out"
+printf '#!/bin/sh\necho "Corvint 1.0.0-rc.3.dev (commit %s, modified)"\n' "$c3" > "$lb/bin/corvint"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == *'UNVERIFIED'*'states no build commit'* ]] || fail "lane-binary modified build: $out"
+fake_corvint 1 0123456789012345678901234567890123456789
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == *'UNVERIFIED corvint build 1 (commit 012345678901)'*'is absent in'* ]] || fail "lane-binary absent commit: $out"
+printf '#!/bin/sh\necho "Corvint 1.0.0 (build 0)"\n' > "$lb/bin/corvint"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == *'UNVERIFIED'*'states no build commit'* ]] || fail "lane-binary unstamped: $out"
+mkdir -p "$lb/foreign" && printf 'module example.com/other\n' > "$lb/foreign/go.mod" && git -C "$lb/foreign" init -q
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/foreign" 2>&1)
+[[ $? == 0 && -z $out ]] || fail "lane-binary judged a foreign module: $out"
+# --rebuild: a fake go writes a corvint that reports the checkout's HEAD and the stamped build.
+printf '#!/bin/sh\nwhile [ $# -gt 0 ]; do case $1 in -o) o=$2; shift;; -ldflags) l=$2; shift;; esac; shift; done\nb=${l##*=}\nprintf "#!/bin/sh\\necho \\"Corvint 1.0.0 (build %%s, commit %%s)\\"\\n" "$b" "$(git rev-parse HEAD)" > "$o"\n' > "$lb/go"
+chmod 0755 "$lb/go"
+fake_corvint 1 "$c1"
+touch "$lb/repo/untracked"
+out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 2 && $out == *'REFUSE dirty-checkout'*$'\n''fix: commit or move aside'* ]] || fail "lane-binary rebuild of a dirty checkout: $out"
+rm -f "$lb/repo/untracked"
+TMPDIR=$lb/absent binary_refusal temp-dir-failed --rebuild --corvint "$lb/bin/corvint" "$lb/repo"
+GO=/bin/false binary_refusal build-failed --rebuild --corvint "$lb/bin/corvint" "$lb/repo"
+out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == *'STALE'*'INSTALLED'*"FRESH corvint build 3 (commit ${c3:0:12}) for build 3"* && -f $lb/bin/corvint.corvint-prev-1 ]] ||
+  fail "lane-binary rebuild: $out"
+# lane-setup.sh names a stale installed corvint (on PATH) and exits 1 after creating the lane.
+fake_corvint 1 "$c1"
+out=$(PATH=$lb/bin:$PATH "$script/lane-setup.sh" --repo "$lb/repo" --dir "$lb/lane" --branch claude/lb --base HEAD 2>&1)
+[[ $? == 1 && -d $lb/lane && $out == *'STALE corvint build 1'*'for build 3'*'installed corvint does not match its base'* ]] ||
+  fail "lane-setup with a stale corvint: $out"
+ok
+
 # ASD-V0-064 (V1-3219): the Codex review preflight reports NOT_AVAILABLE once, with the login fix.
 out=$("$script/codex-review_test.sh" 2>&1) || fail "codex-review_test.sh: $out"
 ok
@@ -1986,9 +2329,66 @@ EOF
 chmod +x "$lw/gh"
 printf 'TestFlaky.*\n# comment\n' > "$lw/flakes"
 head40=0123456789abcdef0123456789abcdef01234567
-lwr() { GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
-printf 'MERGED\tfalse\t%s\n' "$head40" > "$lw/s/view"
-[[ $(lwr 7) == MERGED ]] || fail "landing watch missed a merged PR"
+# The stub reconcile records RECONCILE_APPLY and exits LW_RECONCILE_RC (ASD-V0-1922).
+cat > "$lw/reconcile" << 'STUB'
+#!/usr/bin/env bash
+echo "apply=${RECONCILE_APPLY:-}" >> "$LW_SCENARIO/reconciles"
+echo "closeout-debt report"
+exit "${LW_RECONCILE_RC:-0}"
+STUB
+chmod +x "$lw/reconcile"
+# ASD-V0-1922: use a real, stale tracking ref and a disposable local origin.
+git init -q -b main "$lw/origin"
+printf 'before merge\n' > "$lw/origin/merged"
+git -C "$lw/origin" add merged
+git -C "$lw/origin" commit -q -m before
+git clone -q "$lw/origin" "$lw/checkout"
+mkdir -p "$lw/checkout/script"
+cp "$script/pr-landing-watch.sh" "$lw/checkout/script/"
+printf 'merged\n' > "$lw/origin/merged"
+git -C "$lw/origin" commit -q -am merged
+merge40=$(git -C "$lw/origin" rev-parse HEAD)
+lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+# A failed fetch must not consume the once-only marker or invoke reconcile.
+git -C "$lw/checkout" remote set-url origin "$lw/missing-origin"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=2 '* && ! -e $lw/s/reconciles ]] || fail "unfetched merge reconciled: $out"
+grep -q '^reconciled=' "$lw/state/pr-19" && fail "failed fetch consumed reconciliation"
+git -C "$lw/checkout" remote set-url origin "$lw/origin"
+# Even after a successful fetch, an absent merge commit must remain retryable.
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$head40" > "$lw/s/view"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=2 '* && ! -e $lw/s/reconciles ]] || fail "unverified merge reconciled: $out"
+grep -q '^reconciled=' "$lw/state/pr-19" && fail "missing merge consumed reconciliation"
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=0 '* && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 1 ]] || fail "verified merge was not retried: $out"
+/bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
+# Move origin ahead again: the first successful pass must refresh origin/main.
+printf 'later merge\n' > "$lw/origin/merged"
+git -C "$lw/origin" commit -q -am later
+merge40=$(git -C "$lw/origin" rev-parse HEAD)
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+out=$(lwr 7)
+[[ $(git -C "$lw/checkout" rev-parse origin/main) == "$merge40" ]] || fail "reconciled against stale origin/main"
+[[ $out == "MERGED
+RECONCILE status=0 log=$lw/state/reconcile-7.log" ]] || fail "landing watch missed a merged PR or its reconcile: $out"
+[[ $(lwr 7) == MERGED && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 1 ]] || fail "a merged PR was reconciled twice"
+[[ $(cat "$lw/s/reconciles") == apply= ]] || fail "a dry pass applied: $(cat "$lw/s/reconciles")"
+grep -q 'closeout-debt report' "$lw/state/reconcile-7.log" || fail "reconcile output not kept"
+[[ ! -e $lw/state/alerts.log ]] || fail "a clean reconcile alerted: $(cat "$lw/state/alerts.log")"
+# Debt alerts; --act passes RECONCILE_APPLY through; a refusal alerts as refused; --no-reconcile skips.
+out=$(LW_RECONCILE_RC=1 RECONCILE_APPLY=manual lwr --act 16); rc=$?
+[[ $rc == 0 && $out == "MERGED
+RECONCILE status=1 log=$lw/state/reconcile-16.log" ]] || fail "debt reconcile: rc=$rc $out"
+[[ $(tail -1 "$lw/s/reconciles") == apply=manual ]] || fail "--act did not pass RECONCILE_APPLY: $(cat "$lw/s/reconciles")"
+grep -q "pr=16 reconcile=closeout-debt log=$lw/state/reconcile-16.log" "$lw/state/alerts.log" || fail "debt not alerted"
+out=$(LW_RECONCILE_RC=2 RECONCILE_APPLY=manual lwr 17)
+[[ $out == *'RECONCILE status=2 '* && $(tail -1 "$lw/s/reconciles") == apply= ]] || fail "refused or dry reconcile: $out"
+grep -q 'pr=17 reconcile=refused' "$lw/state/alerts.log" || fail "refused reconcile not alerted"
+[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 3 ]] || fail "--no-reconcile still reconciled"
+/bin/rm -f "$lw/state/alerts.log"
 printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
 [[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
 # A listed flake reruns three times under --act, then escalates rerun-cap once into the alerts file.
@@ -2376,7 +2776,7 @@ mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n: > "%s/ran"\
   printf 'module example.com/m\n\ngo 1.27\n' > "$hid/repo/go.mod" && git -C "$hid/repo" init -q && git -C "$hid/repo" add -A &&
   git -C "$hid/repo" -c user.name=t -c user.email=t@t commit -qm i || fail "identity fixture setup failed"
 hv_id() { /bin/rm -f "$hid/ran"; (cd "$hid/repo" && env PATH="$hid/bin:$PATH" HEAVY_SELECTION_LOG="$hid/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
-  HEAVY_WHOLE_REASON= TMPDIR="${ID_TMPDIR:-$hid/tmp}" "$heavy" "$@"); }
+  HEAVY_WHOLE_REASON= TMPDIR="${ID_TMPDIR:-$hid/tmp}" CORVINT_GOCACHE="$hid/gocache" "$heavy" "$@"); }
 hid_head=$(git -C "$hid/repo" rev-parse HEAD)
 hv_id go test -run TestA ./x > /dev/null 2> "$hid/err" && grep -Eq "^heavy.sh: running locally at $hid_head tree=[0-9a-f]{40} dirty=0\$" "$hid/err" ||
   fail "heavy.sh local identity: $(cat "$hid/err")"
@@ -2387,8 +2787,8 @@ GIT_CONFIG_GLOBAL=$hid/tmp hv_id go test -run TestA ./x > /dev/null 2> "$hid/err
 # V1-3523: a read-only TMPDIR, then an index that cannot be read, refuse before the command runs.
 mkdir -p "$hid/ro" && chmod 555 "$hid/ro"
 ID_TMPDIR=$hid/ro hv_id go test -run TestA ./x > "$hid/out" 2> "$hid/err"
-[[ $? == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED index-copy-failed (exit 2)' && ! -e $hid/ran ]] &&
-  grep -q "^heavy.sh: REFUSE index-copy-failed cannot copy the Git index to a scratch file in $hid/ro on volume /.* KiB free): .*set TMPDIR to a writable directory with space\$" "$hid/err" ||
+[[ $? == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED unwritable-paths (exit 2)' && ! -e $hid/ran ]] &&
+  grep -qF "heavy.sh: unwritable TMPDIR=$hid/ro" "$hid/err" && grep -q '^fix: .* TMPDIR=' "$hid/err" ||
   fail "heavy.sh read-only TMPDIR (ran=$([[ -e $hid/ran ]] && echo yes)): $(cat "$hid/out" "$hid/err")"
 chmod 755 "$hid/ro"
 if [[ $(id -u) != 0 ]]; then
@@ -2500,6 +2900,50 @@ for lock in "$tmp"/slots/slot* "$pol"/slots/slot* "$off"/rhome/.cache/corvint-he
   busy "$lock" && fail "a heavy.sh fixture outlived the test holding $lock (pid $(cat "$lock"))"
 done
 [[ ! -s $heavy_escapes ]] || fail "a heavy.sh fixture ran with a lock dir outside the test directory"
+ok
+
+# DWC-V0-002 (V1-1467): merge-regenerate-specs.sh merges a lane whose only conflict is the
+# generated REQUIREMENTS.tsv by regenerating it inside the merge with the real generator; any
+# other conflict is left in progress and named.
+mrs=$tmp/merge-regen
+mkdir -p "$mrs/script" "$mrs/docs/specs"
+cp "$script/gen-spec-requirements.sh" "$mrs/script/"
+mg() { GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid git -C "$mrs" "$@"; }
+mspec() { # mspec FILE TITLE LINES...
+  local f=$1 title=$2
+  shift 2
+  { printf '# %s\n\nIntent status: accepted\nDelivery status: implemented\n\n## Agent digest\n- Claim: fixture.\n\n## Requirements\n\n' "$title"
+    printf '%s\n' "$@"; } > "$mrs/docs/specs/$f"
+}
+mregen() { mg add -A && (cd "$mrs" && script/gen-spec-requirements.sh --write > /dev/null 2>&1); }
+mg init -q -b main
+mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.'
+mspec fixture-b-v0.md B 'No numbered requirement yet.'
+mspec fixture-c-v0.md C '- `FXC-V0-001`: One MUST hold.'
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n|---|---|---:|---:|---|\n' > "$mrs/docs/specs/README.md"
+mregen && mg commit -qm base || fail "merge-regen fixture base"
+mg checkout -qb lane-a && mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.' '- `FXA-V0-002`: Two MUST hold.' && mregen && mg commit -qm a
+mg checkout -q main && mg checkout -qb lane-c && mspec fixture-c-v0.md C '- `FXC-V0-000`: Zero MUST hold.' '- `FXC-V0-001`: One MUST hold.' && mregen && mg commit -qm c
+mg checkout -q main && mg merge -q --no-ff --no-edit lane-a
+out=$(cd "$mrs" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  "$script/merge-regenerate-specs.sh" lane-c 'Merge lane c' 2>&1) || fail "merge-regenerate-specs refused a REQUIREMENTS.tsv-only conflict: $out"
+[[ $out == *'was regenerated from the merged specs (DWC-V0-002)'* ]] || fail "no regeneration line: $out"
+[[ $(mg rev-list --count --merges -1 HEAD) == 1 && $(mg log -1 --format=%P | wc -w | tr -d ' ') == 2 ]] || fail "HEAD is not the merge"
+mg log -1 --format=%B | grep -q '# Conflicts:' && fail "the merge message keeps a conflicts block"
+for id in FXA-V0-001 FXA-V0-002 FXC-V0-000 FXC-V0-001; do
+  mg show HEAD:docs/specs/REQUIREMENTS.tsv | grep -q "^$id"$'\t' || fail "the regenerated REQUIREMENTS.tsv lacks $id"
+done
+(cd "$mrs" && script/gen-spec-requirements.sh --check > /dev/null 2>&1) || fail "the merged generated files are not the generator's output"
+# A conflict in a spec stays for the operator: exit 1, the path named, the merge in progress.
+mg checkout -q -b lane-a2 "$(mg rev-list --max-parents=0 HEAD)" && mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.' '- `FXA-V0-009`: Nine MUST hold.' && mregen && mg commit -qm a2
+mg checkout -q main
+out=$(cd "$mrs" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  "$script/merge-regenerate-specs.sh" lane-a2 2>&1); rc=$?
+[[ $rc == 1 && $out == *'  docs/specs/fixture-a-v0.md'* && $out == *'fix: follow the merge-resolution-unbound recovery'* && -f $mrs/.git/MERGE_HEAD ]] ||
+  fail "a spec conflict was not left for the operator: rc=$rc $out"
+mg merge --abort
+out=$(cd "$mrs" && "$script/merge-regenerate-specs.sh" 2>&1); rc=$?
+[[ $rc == 2 ]] || fail "no REV was accepted: rc=$rc $out"
 ok
 
 summary

@@ -58,7 +58,7 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
 | `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1) and normally exists at `BASE`. A spec this change creates MAY be listed as a same-change bootstrap intent scope (`OCM-V0-009`, decisions 0055 and 0170; section 2): its matching CEM hunk MUST stay explicitly `unknown` and never counts as historical evidence (so `DOGFOOD_CITATIONS` gives it no row or an `unknown` row; `dogfood inputs-check` refuses a row that cites it, `bootstrap-intent-not-unknown`, before any bind, `DCW-V0-449`), and dogfood subtracts it from the unknown ceiling only after every OCM map and the aggregate verify against the same exact base, target, map digest and patch digest; any OCM failure grants no subtraction. When no such spec governs the change, the file instead holds exactly the one line `#no-intent-declared` (`DCW-V0-024`): no OCM step runs, `ocm-prepare`, `ocm-status` and `ocm-aggregate` report `no-intent-declared`, `ocmStatus` is `NOT_ASSESSED`, and the check prints `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared`; an unset variable or an empty file still refuses `missing-intent-scope` | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
 | `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. `HUNK<TAB>PATH<TAB>START:END<TAB>RELATION` rows, `HUNK` being a hunk's ordinal in `hunks` order (from 1) or its full hunk ID; cite each hunk with the base lines that hunk itself depends on or implements, and a hunk cited against several bases takes one row each; one span cited for every hunk of a non-chore change with at least two hunks refuses `citation-plan-uniform` (`DCW-V0-048`); LF-terminated, at most 256 rows; `START:END` is a BASE line span, or `bytes:START:END` a zero-based half-open byte span as the CEM records it (`DCW-V0-990`); the span must exist at `BASE`, and `PATH` may be any file there, code and tests as well as specs (`DCW-V0-041`). Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`). A hunk no base evidence supports takes `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` instead, `REASON` being `insufficient-evidence` or `conflicting-evidence` and `NOTE` a one-line reason; it stays `unknown` with that reason, is admitted, and is counted in the check's `unknownShare` (`DCW-V0-046`). An intent left for later takes `deferred<TAB>PATH<TAB>REASON` (at most 4 rows, `REASON` one line of 1..200 bytes, `PATH` not also in `DOGFOOD_INTENTS_FILE`); it is not a cite row, runs `cem defer` before any cite, writes `.corvint/deferred-intents/<sha256>.json`, which the bind commit carries and whose hunk is cited for you, and bounds `cem status --max-deferred-intents` (`DCW-V0-370..372`) | row `1	AGENTS.md	26:28	specification` |
-| `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7). Quote a `-run` alternation as one word, `go test -run 'TestA|TestB' ./pkg`; unquoted, it is refused (`DCW-V0-403`) | line `go test ./internal/lrfrepo` |
+| `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7). Canonical line: the focused command bare, `go test -count=1 -run TestA ./pkg`; an agent shell runs that same line through `script/heavy.sh`, and the wrapped line, `script/heavy.sh go test -count=1 -run TestA ./pkg`, is admitted too. A subtest is one unquoted word, `go test -count=1 -run TestA/sub ./pkg`. An alternation is quoted as one word, `go test -count=1 -run 'TestA|TestB' ./pkg` or `go test -count=1 -run '^(TestA|TestB)' ./pkg` (`DCW-V0-384`, `DCW-V0-814`). Refused (`DCW-V0-403`, `DCW-V0-732`): an unquoted `|`, `go test -count=1 -run TestA|TestB ./pkg`, whose refusal gives the quoted form, and an anchored subtest, `go test -count=1 -run '^TestA$/^sub$' ./pkg`, whose refusal gives the unquoted `TestA/sub` form | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 | `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
 | `DOGFOOD_OUTPUT_CHANGE` | Optional, `dogfood-check` and `dogfood-seal` only. One requirement ID, set only when the change alters the canonical `cem status` output by construction, so the base verifier cannot agree (`DCW-V0-047`). Admitted only when `docs/specs/REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that `BASE..HEAD` modifies; the `cem status` comparison, and the `dogfood-ocm status` comparison, then run the tree verifier in both roles, and it records `base-independence=NOT_PROVED` with both stdout digests. Unset, the check is unchanged | `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047` |
@@ -564,9 +564,20 @@ entries (`DCW-V0-943`).
 
 Before the costly base verifier build, `make dogfood-finish` runs `corvint dogfood inputs-check`
 with the same inputs: the input checks and prepare pass alone, which bind and commit nothing and
-leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a cite of a span the
+leave no map, so an unquoted `-run` alternation (`|`) in the verify file, a uniform plan, a stale ordinal, a cite of a span the
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
+Each refusal's fix line reruns the target you ran, with its variables (`DCW-V0-730`). Before the
+host admission, the wrapper first runs a static pre-check (`corvint dogfood inputs-check --static
+yes`) with the cached tree build of HEAD, or else an installed `corvint` that has `--static`. It checks
+the plan rows, the verify grammar, the intent manifest and the outcome in under a second, and prints
+`STATIC PASS` or the full refusal. With no such binary it prints `static pre-check SKIP
+no-static-binary`; `DOGFOOD_STATIC_PRECHECK=0` skips it (`DCW-V0-731`). `make dogfood-inputs-check`
+and the short doc gates are admitted on `script/heavy.sh`'s light pool (`HEAVY_CLASS=light`). That
+pool has its own slots (`HEAVY_LIGHT_SLOTS`) and a hard runtime cap (`HEAVY_LIGHT_MAX_SECS`), and
+still applies the load gate, so these checks never queue behind a long test run. A run stopped at
+the cap exits 124 and names its rerun as heavy, `HEAVY_CLASS=heavy make TARGET` (`ASD-V0-731`,
+`ASD-V0-732`).
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
 worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before any build
 it runs the requirement-definitions check, and the test read-scopes check when a `*_test.go` file or
@@ -834,6 +845,10 @@ line naming this path (`DCW-V0-040`, amended by decision 0584). Instead (`DCW-V0
    and do not use `-X ours` or `-X theirs`, which silently drop the other side's conflicting hunks:
    rebase that change's own work commits (not its old bind and seal commits) onto the batch head,
    resolve each conflict there, bind, check and seal it again with `BASE=<batch head>`, then merge it.
+   The one exception is a conflict only in the generated `docs/specs/REQUIREMENTS.tsv`, as when two
+   lanes each add requirement rows: merge with `script/merge-regenerate-specs.sh BRANCH`, which
+   regenerates that file inside the merge, and `dogfood-batch-check` derives the merge as
+   `regenerated-specs` (`DWC-V0-001`, `DWC-V0-002`).
    Commit any other edit to the batch, such as an orchestrator's index or decision update or a
    hand-merged file, as its own sealed change on a branch and merge that.
 3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or
@@ -1061,7 +1076,11 @@ A record change touches only `docs/build-log/` or `.agent-evidence/` paths, with
 Its sealed map has no role and reads `citationClass` `{"class": "record", "role": "change"}`, which the baseline summarizes apart from `change` (`CEM-V1-170`, `DCW-V0-059`).
 
 Record-only closeout (`ASD-V0-961`, V1-3394). A lane whose only change is its build-log entry closes
-out in one try:
+out in one try. The recipe applies only when `git diff --name-only "$BASE" HEAD` lists nothing but
+`docs/build-log/` or `.agent-evidence/` paths and CEM sidecars (`DCW-V0-057`); a change that touches
+any other path, a `docs/decisions/` file included, names in `intents.txt` the spec with a
+`## Requirements` heading that governs it, or the one line `#no-intent-declared` (`DCW-V0-817`), and a
+`dogfood-closeout` without `CITATIONS` names which applies (`ASD-V0-733`):
 
 ```sh
 printf '%s\n' docs/build-log/YYYY-MM-DD-LANE.md > "$LANE_DIR/intents.txt"

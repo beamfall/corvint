@@ -2,11 +2,15 @@ package platform
 
 import (
 	tr "github.com/Beamfall/corvint/internal/testrunner"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestRobolectricOfflineSDKProfile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Runner: "robolectric", Root: "/source", Project: "classes", Executable: "/jdk/bin/java", ExecutableSha256: strings.Repeat("a", 64), Reporter: "/tools/console.jar", ReporterSha256: strings.Repeat("b", 64), Config: "/sdks/android-all-instrumented-15-robolectric-13954326-i7.jar", ConfigSha256: strings.Repeat("c", 64), Target: "35", ReportDir: "/fresh"}
 	inv, e := Build(r)
 	if e != nil {

@@ -493,8 +493,9 @@ async function setup(ctx) {
   const corvintContext = {
     name: "corvint_context",
     options: directTool,
-    // AHI-212: one sentence; this is the only description the idle prompt carries.
-    description: "Ranked, revision-pinned files for a task; abstains when unsure.",
+    // AHI-212: one sentence; this is the only description the idle prompt carries. AHI-1962 (V1-2717):
+    // it names when to call, because the skill that says so is registered only after the first call.
+    description: "Call first for a code change, before grep or read: the files to read and edit for the task, ranked and revision-pinned; abstains when unsure.",
     input: {
       type: "object",
       properties: { task: { type: "string" } },

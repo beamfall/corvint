@@ -1247,7 +1247,7 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 			c.citeSpanUnaligned = bytes.Contains(stderr, []byte(citeSpanUnedited))
 			reason := failureReason(stderr, status)
 			if planRowCodes[reason] && !unknownRow(fields) {
-				c.probeCitationRows(readLines(plan), index, citeMap, reason)
+				c.probeCitationRows(readLines(plan), index, citeMap, reason, stderr)
 			}
 			return "NOT_PRODUCED", reason
 		}
@@ -1269,8 +1269,9 @@ var planRowCodes = map[string]bool{"cite-span-not-stable": true, "cite-self-modi
 // staged or tracked map changes. The checks a row can fail read only its own
 // evidence and the map's patch, never another row's citation, so the probe
 // sees what a corrected rerun would. Unknown rows are not probed (DCW-V0-114).
-func (c *change) probeCitationRows(lines []string, failed int, citeMap, reason string) {
-	c.citationRefusals = []string{citationRefusal(failed, lines[failed], reason)}
+// Each named row carries cem cite's own detail (DCW-V0-710).
+func (c *change) probeCitationRows(lines []string, failed int, citeMap, reason string, stderr []byte) {
+	c.citationRefusals = []string{detailedRefusal(failed, lines[failed], reason, stderr)}
 	probe := ".corvint/.cem-citations-probe." + filepath.Base(c.runTmp) + ".json"
 	defer func() { _ = removeFile(c.path(probe)) }()
 	for index := failed + 1; index < len(lines); index++ {
@@ -1283,7 +1284,8 @@ func (c *change) probeCitationRows(lines []string, failed int, citeMap, reason s
 			c.runTmp+"/cem-cite-probe.json", errorFile)
 		_ = removeFile(c.path(probe))
 		if status != 0 {
-			c.citationRefusals = append(c.citationRefusals, citationRefusal(index, lines[index], failureReason(readFile(errorFile), status)))
+			probed := readFile(errorFile)
+			c.citationRefusals = append(c.citationRefusals, detailedRefusal(index, lines[index], failureReason(probed, status), probed))
 		}
 	}
 }
@@ -1330,11 +1332,7 @@ func (c *change) precheckCitationPlan() int {
 		if reason == "" {
 			reason = code
 		}
-		refusal := citationRefusal(index, line, code)
-		if detail := refusalDetail(stderr); detail != "" {
-			refusal += ": " + detail
-		}
-		c.citationRefusals = append(c.citationRefusals, refusal)
+		c.citationRefusals = append(c.citationRefusals, detailedRefusal(index, line, code, stderr))
 	}
 	if reason == "" {
 		return 0
@@ -1415,6 +1413,16 @@ func citationRefusal(index int, line, reason string) string {
 		fields = append(fields, "")
 	}
 	return fmt.Sprintf("row %d hunk=%s path=%s lines=%s %s", index+1, fields[0], strconv.Quote(fields[1]), fields[2], reason)
+}
+
+// detailedRefusal is citationRefusal followed by cem cite's own detail from
+// stderr, when it has one (DCW-V0-335, DCW-V0-710).
+func detailedRefusal(index int, line, reason string, stderr []byte) string {
+	refusal := citationRefusal(index, line, reason)
+	if detail := refusalDetail(stderr); detail != "" {
+		refusal += ": " + detail
+	}
+	return refusal
 }
 
 // maxNamedRefusals bounds how many refused plan rows the report names.
@@ -2678,7 +2686,7 @@ const (
 	requirementsSectionHint = `the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, must be a spec Markdown file with exactly one "## Requirements" heading outside code fences; give it one, or name instead the spec that holds this change's requirements, then rerun corvint dogfood change {base}`
 	// recordIntentHint names the record-change rule for a build-log entry or
 	// decision named as an intent of a change that is not a record (DCW-V0-817).
-	recordIntentHint                 = `%s on line %s of DOGFOOD_INTENTS_FILE is a build-log entry or decision, which is an intent only of a record change: one that touches nothing but docs/build-log/*.md entries, docs/decisions/*.md files and CEM sidecars, and that edits the named build-log entry (DCW-V0-058); this change touches other paths, so name instead the spec Markdown file with a "## Requirements" heading that governs it, or the one line #no-intent-declared when no spec does, then rerun corvint dogfood change {base} (DCW-V0-817)`
+	recordIntentHint                 = `%s on line %s of DOGFOOD_INTENTS_FILE is a build-log entry or decision, which is an intent only of a record change: one that touches nothing but docs/build-log/ and .agent-evidence/ paths and CEM sidecars (editing a docs/decisions/ file makes it a change, DCW-V0-057), and that edits the named build-log entry (DCW-V0-058); this change touches other paths, so name instead the spec Markdown file with a "## Requirements" heading that governs it, or the one line #no-intent-declared when no spec does, then rerun corvint dogfood change {base} (DCW-V0-817)`
 	requirementsSectionBootstrapHint = `%s on line %s of DOGFOOD_INTENTS_FILE is absent at BASE, a bootstrap intent this change adds (such as a new companion spec, DCW-V0-449); it is read at the change's commit and must hold exactly one "## Requirements" heading outside code fences: add the heading to that new spec and commit it, keep each of its hunks as no row or an unknown row in DOGFOOD_CITATIONS, then rerun corvint dogfood change {base}`
 )
 

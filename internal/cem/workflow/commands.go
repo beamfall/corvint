@@ -622,8 +622,10 @@ const citeSpanRule = "rule: a cited BASE span must survive the change, so its ex
 // before and after span (CEM-V1-322). A candidate is the nearest maximal run
 // of base lines no hunk removes or splits, clipped toward span to the citation
 // byte bound, and is named only when its text classifies stable or relocated
-// against the patched blob, so a named span is citable as stated. At most two
-// candidates are classified, so the refusal stays linear in the file.
+// against the patched blob, so a named span is citable as stated. It also
+// names the unstable bound and the longest accepted span inside span
+// (CEM-V1-710). At most three candidates are classified, so the refusal stays
+// linear in the file.
 func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wire.Span) string {
 	targetExists := group.NewPath != nil && *group.NewPath == *group.OldPath
 	if !targetExists {
@@ -637,15 +639,23 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 	bytesOf := func(start, end int64) wire.Span {
 		return lineSpan(baseBlob, starts, start, end)
 	}
-	var found []string
-	name := func(start, end int64) {
+	// stable returns start:end when those base lines classify stable or
+	// relocated against the patched blob, else "".
+	stable := func(start, end int64) string {
 		candidate := bytesOf(start, end)
 		if candidate.End <= candidate.Start || candidate.End-candidate.Start > wire.MaxCitationSpanBytes {
-			return
+			return ""
 		}
 		status, _ := verify.ClassifySpan(true, unchanged, patchedBlob, baseBlob[candidate.Start:candidate.End], candidate)
 		if status == verify.DriftStable || status == verify.DriftRelocated {
-			found = append(found, strconv.FormatInt(start, 10)+":"+strconv.FormatInt(end, 10))
+			return strconv.FormatInt(start, 10) + ":" + strconv.FormatInt(end, 10)
+		}
+		return ""
+	}
+	var found []string
+	name := func(start, end int64) {
+		if named := stable(start, end); named != "" {
+			found = append(found, named)
 		}
 	}
 	// Before: the run ending at the nearest unedited line above the span,
@@ -680,10 +690,68 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 		}
 		name(start, end)
 	}
-	if len(found) == 0 {
-		return citeSpanRule + "; no nearby unedited base line span is stable"
+	// V1-3855: name which bound of the span made it unstable and, when one
+	// exists, the longest accepted span inside it (CEM-V1-710).
+	prefix := citeSpanRule + "; " + citeSpanBounds(edited, splitBefore, first, last)
+	if start, end := innerUneditedRun(edited, splitBefore, first, last); start != 0 && (start != first || end != last) {
+		for end > start && bytesOf(start, end).End-bytesOf(start, end).Start > wire.MaxCitationSpanBytes {
+			end--
+		}
+		if named := stable(start, end); named != "" {
+			prefix += "; accepted span inside it: --lines " + named
+		}
 	}
-	return citeSpanRule + "; nearest stable base spans: --lines " + strings.Join(found, ", --lines ")
+	if len(found) == 0 {
+		return prefix + "; no nearby unedited base line span is stable"
+	}
+	return prefix + "; nearest stable base spans: --lines " + strings.Join(found, ", --lines ")
+}
+
+// citeSpanBounds names why base lines first..last are unstable: each bound a
+// hunk removes, else the first line inside the span a hunk removes or inserts
+// before, else that no hunk edits it and its text repeats (CEM-V1-710).
+func citeSpanBounds(edited, splitBefore []bool, first, last int64) string {
+	var bounds []string
+	if edited[first] {
+		bounds = append(bounds, "start line "+strconv.FormatInt(first, 10))
+	}
+	if last != first && edited[last] {
+		bounds = append(bounds, "end line "+strconv.FormatInt(last, 10))
+	}
+	if len(bounds) != 0 {
+		return "unstable bound: " + strings.Join(bounds, " and ") + " removed or replaced by a hunk"
+	}
+	for line := first; line <= last; line++ {
+		if edited[line] {
+			return "unstable inside: base line " + strconv.FormatInt(line, 10) + " removed or replaced by a hunk"
+		}
+		if line > first && splitBefore[line] {
+			return "unstable inside: a hunk inserts lines before base line " + strconv.FormatInt(line, 10)
+		}
+	}
+	return "unstable text: no hunk edits these lines, but their text is not unique in the changed file"
+}
+
+// innerUneditedRun returns the longest run of base lines inside first..last
+// that no hunk removes or splits, the earlier one on a tie, or 0, 0 when every
+// line is removed (CEM-V1-710).
+func innerUneditedRun(edited, splitBefore []bool, first, last int64) (int64, int64) {
+	var bestStart, bestEnd int64
+	for line := first; line <= last; {
+		if edited[line] {
+			line++
+			continue
+		}
+		end := line
+		for end < last && !edited[end+1] && !splitBefore[end+1] {
+			end++
+		}
+		if bestStart == 0 || end-line > bestEnd-bestStart {
+			bestStart, bestEnd = line, end
+		}
+		line = end + 1
+	}
+	return bestStart, bestEnd
 }
 
 // hunkLineEdits marks, by one-based base line, each line a hunk of group

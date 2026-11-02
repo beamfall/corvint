@@ -68,8 +68,9 @@ func waitFrame(ctx context.Context, root, label string, has, absent []string, wi
 
 // frameWitnessCause names why a witness frame never matched (AHI-620): no
 // captured frame, or the frame's size and each expected string it lacks or
-// forbidden string it shows, plus the witness plugin's last logged error and
-// whether the failed frame was saved.
+// forbidden string it shows, plus the witness plugin's last logged error, the
+// host's last failed Corvint plugin operation (AHI-1961) and whether the failed
+// frame was saved.
 func frameWitnessCause(root string, f frame, has, absent []string, width int, saveErr error) string {
 	var parts []string
 	if len(f.data) == 0 {
@@ -103,6 +104,9 @@ func frameWitnessCause(root string, f frame, has, absent []string, width int, sa
 	}
 	if logged := witnessLastError(root); logged != "" {
 		parts = append(parts, "witness plugin error "+strconv.Quote(logged))
+	}
+	if failed := hostPluginFailure(root); failed != "" {
+		parts = append(parts, failed)
 	}
 	if saveErr != nil {
 		return strings.Join(append(parts, "frame not saved to "+root+"/failed-frame.txt: "+saveErr.Error()), "; ")
@@ -164,6 +168,77 @@ func readRegularBounded(path string, limit int64) ([]byte, error) {
 		return nil, errEvidenceBound
 	}
 	return b, nil
+}
+
+// hostLogFields parses the top-level key=value fields of one host log line. A key starts at the
+// line start or after whitespace; a quoted value is consumed whole, escapes included, so text that
+// looks like a field inside a quoted value or a path is never read as one (AHI-1961).
+func hostLogFields(line string) map[string]string {
+	fields := map[string]string{}
+	for i := 0; i < len(line); {
+		if line[i] == ' ' || line[i] == '\t' {
+			i++
+			continue
+		}
+		start := i
+		for i < len(line) && line[i] != '=' && line[i] != ' ' && line[i] != '\t' {
+			i++
+		}
+		if i >= len(line) || line[i] != '=' {
+			continue
+		}
+		key := line[start:i]
+		i++
+		if i < len(line) && line[i] == '"' {
+			end := i + 1
+			for end < len(line) && line[end] != '"' {
+				if line[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(line) {
+				return fields
+			}
+			if value, err := strconv.Unquote(line[i : end+1]); err == nil {
+				fields[key] = value
+			} else {
+				fields[key] = line[i+1 : end]
+			}
+			i = end + 1
+			continue
+		}
+		start = i
+		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
+			i++
+		}
+		fields[key] = line[start:i]
+	}
+	return fields
+}
+
+// hostPluginFailure names the last Corvint TUI plugin operation the host logged as failed
+// (AHI-1961): OpenCode drops every slot of a plugin whose setup throws, so a missing Corvint
+// witness is otherwise indistinguishable from a slow frame. The log is the run's own regular
+// file within maxEvidenceBytes; anything else names nothing.
+func hostPluginFailure(root string) string {
+	bytes, err := readRegularBounded(root+"/data/opencode/log/opencode.log", maxEvidenceBytes)
+	if err != nil {
+		return ""
+	}
+	last := ""
+	for _, line := range strings.Split(string(bytes), "\n") {
+		fields := hostLogFields(line)
+		if fields["message"] != "plugin operation failed" || !strings.HasPrefix(fields["plugin"], "corvint") {
+			continue
+		}
+		cause := ""
+		if value, ok := fields["error"]; ok {
+			cause = ": " + strconv.Quote(value)
+		}
+		last = "host plugin " + fields["plugin"] + " " + fields["stage"] + " failed" + cause
+	}
+	return last
 }
 
 func witnessLogged(root, stage string) bool {

@@ -568,6 +568,11 @@ func (b *batch) deriveMerge(merge, first, second string) {
 			attempted = written
 		}
 	}
+	// DWC-V0-001 (V1-1467): conflicts only in generated spec files, resolved by regenerating them.
+	if conflicted != "" && !firstTree && b.regeneratedSpecs(merge, tree, conflicted) {
+		b.derive(merge, "regenerated-specs")
+		return
+	}
 	detail := ""
 	if attempted != "" {
 		differing, _ := b.scratchGit("diff-tree", "-r", "--name-only", attempted, tree)

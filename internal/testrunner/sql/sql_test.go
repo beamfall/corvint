@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -175,6 +176,9 @@ func buildRequest(t *testing.T, runner string) tr.Request {
 	return r
 }
 func TestFixedInvocations(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	for _, runner := range Runners() {
 		r := buildRequest(t, runner)
 		v, e := Build(r)
