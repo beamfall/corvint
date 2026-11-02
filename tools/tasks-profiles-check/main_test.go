@@ -23,7 +23,7 @@ func tasksTree(t *testing.T, output string) string {
 		"internal/tasks/cli/doctor_closed_index.go": "package cli\n\nconst profileClosedIndexRebuild = \"taskman-closed-index-rebuild/0\"\n",
 		"internal/tasks/cli/live_upgrade_test.go": "package cli_test\n\nvar outputOnlyProfiles = []string{" + output + "}\n\n" +
 			"var adoptOnlyProfiles = []string{\"taskman-dispatch-state/1\"}\n",
-		"internal/tasks/dispatch/state.go": "package dispatch\n\nvar old = \"taskman-dispatch-state/1\"\n",
+		"internal/tasks/dispatch/state.go":      "package dispatch\n\nvar old = \"taskman-dispatch-state/1\"\n",
 		"internal/tasks/dispatch/state_test.go": "package dispatch\n\nvar fixture = \"taskman-test-only/0\"\n",
 	}
 	for name, body := range files {
