@@ -16,8 +16,8 @@ import (
 // stays OPEN, and a ticket without review references renders byte-identically
 // before and after the offer exists.
 func TestERGV0011_CompletionOfferThroughTheCLI(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	other := planTicket(t, root, "unreviewed", "P2", `["lib/"]`)

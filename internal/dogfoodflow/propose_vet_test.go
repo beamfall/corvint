@@ -14,8 +14,9 @@ import (
 // removes (pre.go 10, "first line 6") and a row whose text occurs more than
 // once after the change (pre.go 18, "}"). Before DCW-V0-840 both were carried
 // verbatim and the bind's cite precheck refused them cite-span-not-stable;
-// now each is printed as an unknown row naming the refusal, a stable row is
-// kept, and the printed draft passes the real cem cite precheck.
+// now each is re-pinned to the nearest surviving line with the refusal named
+// (DCW-V0-980), a stable row is kept, and the printed draft passes the real
+// cem cite precheck.
 func TestProposeCitationsDCWV0840VetsCarriedRows(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	var stdout, stderr bytes.Buffer
@@ -26,9 +27,11 @@ func TestProposeCitationsDCWV0840VetsCarriedRows(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("draft rows = %q\n%s", rows, stderr.String())
 	}
-	cases := [][2]string{
-		{"pre.go\t10:10\timplementation", "overlap BASE lines 10:10 that hunk "},
-		{"pre.go\t18:18\timplementation", "after the change (it must occur exactly once in the changed file)"},
+	// DCW-V0-980: each refused row is re-pinned to the nearest line the
+	// change leaves intact: 9 ("first line 5") and 17 ("return 1").
+	cases := [][3]string{
+		{"pre.go\t10:10\timplementation", "overlap BASE lines 10:10 that hunk ", "pre.go\t9:9\timplementation"},
+		{"pre.go\t18:18\timplementation", "after the change (it must occur exactly once in the changed file)", "pre.go\t17:17\timplementation"},
 	}
 	for _, kept := range []bool{false, true} {
 		plan := []string{}
@@ -58,11 +61,11 @@ func TestProposeCitationsDCWV0840VetsCarriedRows(t *testing.T) {
 				}
 				continue
 			}
-			if containsLine(refreshed, line) || !containsPrefix(refreshed, id+"\tunknown\tinsufficient-evidence\t") {
-				t.Errorf("the refused row %q was printed as a cite row:\n%s", line, stdout.String())
+			if containsLine(refreshed, line) || !containsLine(refreshed, id+"\t"+cases[index][2]) {
+				t.Errorf("the refused row %q was not re-pinned to %q:\n%s", line, cases[index][2], stdout.String())
 			}
-			if !strings.Contains(stdout.String(), cases[index][1]) || !strings.Contains(stdout.String(), "DCW-V0-840") {
-				t.Errorf("the unknown row does not name %q:\n%s", cases[index][1], stdout.String())
+			if output := stdout.String() + stderr.String(); !strings.Contains(output, cases[index][1]) || !strings.Contains(output, "DCW-V0-980") {
+				t.Errorf("the re-pin note does not name %q:\n%s", cases[index][1], output)
 			}
 		}
 		next := filepath.Join(filepath.Dir(planPath), "plan.new")

@@ -15,7 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // serverFixture is the pidfile shell-child pattern from
@@ -30,7 +32,7 @@ func serverFixture(t *testing.T) (script, pidfile string) {
 	pidfile = filepath.Join(dir, "descendant.pid")
 	script = filepath.Join(dir, "server")
 	body := fmt.Sprintf("#!/bin/sh\n/bin/sleep 60 &\nchild=$!\ntrap 'kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null; exit 0' INT TERM\necho $child > '%s'\nwait\n", pidfile)
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -198,7 +200,7 @@ func TestRunE2E_ServerNotReadyRecordsTeardown(t *testing.T) {
 		receipt, err := RunE2E(context.Background(), E2EConfig{
 			Config:           Config{Dir: filepath.Dir(script), RunnerName: "playwright", Timeout: 20 * time.Second},
 			ServerArgv:       []string{script},
-			ServerReadyURL:   "http://127.0.0.1:1/",
+			ServerReadyURL:   "http://" + testsupport.RefusedLoopbackAddr(t) + "/",
 			ServerReadyLimit: limit,
 			TestArgv:         []string{"/bin/sh", "-c", "exit 0"},
 		})
@@ -234,7 +236,7 @@ func TestRunE2E_CancelledDuringReadinessWait(t *testing.T) {
 	receipt, err := RunE2E(ctx, E2EConfig{
 		Config:           Config{Dir: t.TempDir(), RunnerName: "playwright", Timeout: 20 * time.Second},
 		ServerArgv:       []string{"/bin/sleep", "60"},
-		ServerReadyURL:   "http://127.0.0.1:1/",
+		ServerReadyURL:   "http://" + testsupport.RefusedLoopbackAddr(t) + "/",
 		ServerReadyLimit: 10 * time.Second,
 		TestArgv:         []string{"/bin/sh", "-c", "exit 0"},
 	})

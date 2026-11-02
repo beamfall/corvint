@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // serviceFixture writes a service-control program whose state lives in dir:
@@ -53,7 +55,7 @@ live-attempts)
 *) exit 2 ;;
 esac
 `
-	if err := os.WriteFile(program, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(program, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return program
@@ -216,13 +218,13 @@ func TestUPDV0014LiveAttemptsAdoptedOrDrained(t *testing.T) {
 		}
 	}
 	bin := filepath.Join(t.TempDir(), "corvint-tasks")
-	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho '{\"items\":[{\"formats\":[\"b/0\",\"a/0\"],\"version\":\"x+build.5\"}],\"profile\":\"taskman-command-result/0\"}'\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(bin, []byte("#!/bin/sh\necho '{\"items\":[{\"formats\":[\"b/0\",\"a/0\"],\"version\":\"x+build.5\"}],\"profile\":\"taskman-command-result/0\"}'\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if got := tasksFormats(context.Background(), bin, ""); strings.Join(got, ",") != "a/0,b/0" {
 		t.Fatalf("formats: %v", got)
 	}
-	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho 'not json'\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(bin, []byte("#!/bin/sh\necho 'not json'\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if got := tasksFormats(context.Background(), bin, ""); got != nil {

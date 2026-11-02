@@ -108,7 +108,10 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 			if wide != nil && len(wide.Warnings) > 0 {
 				wideRefusal = "; the ticket show items were not readable: " + wide.Warnings[0]
 			}
-		case checkCompactFields(wide.Items, fields) == "":
+		default:
+			// The show items are the wider shape: either they carry every
+			// key, or their refusal names the key no item carries, where the
+			// narrow items would name a show-only key (TCL-V0-612).
 			res = wide
 		}
 	}

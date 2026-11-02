@@ -61,7 +61,8 @@ func ParseWith(data []byte, opts ParseOptions) (Value, error) {
 	if p.pos != len(body) {
 		return Value{}, Errorf(CodeMalformed, p.where(), "trailing bytes after the document")
 	}
-	enc := Encode(v)
+	// Sized to the body, which a canonical document re-encodes to exactly.
+	enc := appendValue(make([]byte, 0, len(body)), v)
 	if string(enc) != string(body) {
 		off := 0
 		for off < len(enc) && off < len(body) && enc[off] == body[off] {
@@ -375,7 +376,30 @@ func (p *parser) hex4() (rune, bool) {
 func (p *parser) str() (string, error) {
 	start := p.pos
 	p.pos++ // opening quote
-	out := make([]byte, 0, 32)
+	// A string with no escape is its bytes as written: scan to the first
+	// '"', '\\' or control and, at a closing quote, take the run without
+	// building it byte by byte (V1-3186). Anything else falls back to the
+	// general loop from the run's end, with the run already copied.
+	// The scan also ORs the run's bytes: below 0x80 means plain ASCII, so
+	// the hostile check is needed only for a run with a byte above it.
+	run, high := p.pos, byte(0)
+	for run < len(p.data) && !escapedByte[p.data[run]] {
+		high |= p.data[run]
+		run++
+	}
+	if run < len(p.data) && p.data[run] == '"' {
+		s := string(p.data[p.pos:run])
+		p.pos = run + 1
+		if high >= 0x80 {
+			if err := checkHostile(s, fmt.Sprintf("byte %d", start), true); err != nil {
+				return "", err
+			}
+		}
+		return s, nil
+	}
+	out := make([]byte, 0, max(32, 2*(run-p.pos)))
+	out = append(out, p.data[p.pos:run]...)
+	p.pos = run
 	for {
 		if p.pos >= len(p.data) {
 			return "", Errorf(CodeMalformed, fmt.Sprintf("byte %d", start), "unterminated string")

@@ -80,7 +80,7 @@ func tdsVerdicts(t *testing.T, x run) map[string]string {
 // ticket nothing delivers is NOT_OBSERVED, never CLEAR. The store and
 // journal trees are unchanged (TCD-V0-159..162).
 func TestTCDV0159_DeliveryScreenVerdicts(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, inflight := tcdTicket(t, root, "inflight", "")
 	_, merged := tcdTicket(t, root, "merged", "")
@@ -135,7 +135,8 @@ func TestTCDV0159_DeliveryScreenVerdicts(t *testing.T) {
 // at the merge commit or batch head; a mentioned ticket listed apart; an
 // unnamed PR ignored; an unmerged batch refused (TCD-V0-163..164).
 func TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, a := tcdTicket(t, root, "alpha", "")
 	_, b := tcdTicket(t, root, "bravo", "")
@@ -229,7 +230,7 @@ func TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns(t *testing.T) {
 // oldest commit of a scan cut at --limit is TRUNCATED rather than CLEAR or
 // NOT_OBSERVED, and one created after it keeps its verdict (TCD-V0-168).
 func TestTCDV0167_DeliveryScreenCitedAndTruncated(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, prose := tcdTicket(t, root, "prose", "")
 	_, trailer := tcdTicket(t, root, "trailer", "")
@@ -289,8 +290,7 @@ func mapsEqual(a, b map[string]string) bool {
 // IN_FLIGHT, a merged branch is not scanned, and without the flag the screen
 // is unchanged (TLF-V0-887).
 func TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	_, onLane := tcdTicket(t, root, "onlane", "")
 	reviewID, review := tcdTicket(t, root, "review", "")
@@ -355,7 +355,7 @@ func TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead(t *testing.T) {
 // leaves that ticket TRUNCATED (never CLEAR, exit 1) and reports the cut on
 // the lane head and the item (TLF-V0-887).
 func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	_, hidden := tcdTicket(t, root, "hidden", "")
 	out, err := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD").Output()
@@ -386,7 +386,7 @@ func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
 // TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs: --lane-refs belongs to
 // delivery-screen; closeout-debt refuses it, so its help must not offer it.
 func TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	if x := tdsRun(t, root, "ticket", "closeout-debt", "--lane-refs"); !hasCode(x.res, wire.CodeMalformed) {
 		t.Fatalf("closeout-debt --lane-refs: %s", x.stdout)

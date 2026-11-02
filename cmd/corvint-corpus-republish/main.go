@@ -34,7 +34,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	mode := args[0]
 	if mode != "build" && mode != "queue" {
-		return fmt.Errorf("republish command unavailable")
+		return fmt.Errorf("UNKNOWN_COMMAND: republish command unavailable: %q", mode)
 	}
 	fs := flag.NewFlagSet("corvint-corpus-republish", flag.ContinueOnError)
 	fs.SetOutput(stderr)

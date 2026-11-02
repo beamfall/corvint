@@ -64,7 +64,7 @@ func TestCALV0060_WritersRetainACheckpointReadsResumeFromIt(t *testing.T) {
 	scrub = func(v wire.Value) {
 		switch v.Kind {
 		case wire.KindObject:
-			for _, k := range []string{"journalAudit", "observedAt", "holderStatus"} {
+			for _, k := range []string{"journalAudit", "journalAuditCheckpoint", "observedAt", "holderStatus"} {
 				if _, ok := v.Obj.Get(k); ok {
 					v.Obj.Set(k, wire.String(""))
 				}

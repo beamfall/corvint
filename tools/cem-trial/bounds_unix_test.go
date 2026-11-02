@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // CRT-V0-006: an empty reply, a reply without a citations block and an
@@ -56,7 +58,7 @@ func fakeCodex(t *testing.T, replyBytes int, events string, padding int) {
 		reply +
 		"printf '%s\\n' '" + events + "'\n" +
 		"head -c " + strconv.Itoa(padding) + " /dev/zero | tr '\\0' z\n"
-	if err := os.WriteFile(filepath.Join(directory, "codex"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "codex"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -105,7 +107,7 @@ func TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation(t *testing.T) {
 func TestScriptRunRecordsStdoutTruncation(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "agent.sh")
 	body := "#!/bin/sh\nhead -c " + strconv.Itoa(maxOutputBytes+1024) + " /dev/zero | tr '\\0' z\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	result, err := scriptAgent{command: script}.run(context.Background(), t.TempDir(), "prompt", time.Minute)

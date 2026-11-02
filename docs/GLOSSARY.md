@@ -177,10 +177,10 @@ expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, n
 **Normative definition.** A named gate, trial, or promotion step has not been executed. It
 describes **delivery evidence about Corvint itself**, never a value inside a receipt. `NOT_RUN`
 evidence stays visible and is never converted into a pass
-(`docs/SPEC-DRIVEN-DEVELOPMENT.md:163@ef8f012f`).
+(`docs/SPEC-DRIVEN-DEVELOPMENT.md:167@ef8f012f`).
 
 **Declared variants.** Used throughout the specification index and candidate profiles as a delivery
-state (`docs/specs/README.md:14,15,21,32,40,44,46@a62af3de`;
+state (`docs/specs/README.md:14,15,21,24,36,44,46@874566fb`;
 `docs/specs/analyzer-candidate-profiles.md:444@57f8e367`;
 `docs/specs/analyzer-candidate-profiles.md:542@6424bf91`). It is also used once for a metric denominator
 — a zero positive denominator is `NOT_RUN`
@@ -377,7 +377,7 @@ declared relations are those involving rank 30, which no surface previously orde
 
 The first two are enumerable and bounded by exactly one declared input. The third is a standing
 property of the repository, is not enumerable as items, and is also a programme name
-(`docs/specs/README.md:78@b5ba0a4e`, "Unknown Frontier outcome gate"). `docs/ARCHITECTURE.md:82@311e28e5` and `:198@16bd8a01`
+(`docs/specs/README.md:63@efc19d01`, "Unknown Frontier outcome gate"). `docs/ARCHITECTURE.md:82@311e28e5` and `:198@16bd8a01`
 are not the same set either: `:82@311e28e5` is the complement of one certificate, `:198@16bd8a01` is the repository
 residue.
 

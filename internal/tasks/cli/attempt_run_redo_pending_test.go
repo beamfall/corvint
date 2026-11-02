@@ -17,7 +17,7 @@ import (
 // store lock, the command runs, and the envelope reports the redo.
 func TestCALV0260_AttemptRunSettlesHeldPendingReceipt(t *testing.T) {
 	root, a := attemptStore(t)
-	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	setActor(t, "holder")
 	ref := attemptRef{attempt: a.AttemptID, generation: gen(a)}
 	seq := holdPending(t, root, heartbeatOnce(t, root, ref, "beat-run"))
 	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 0")
@@ -46,7 +46,7 @@ func TestCALV0260_AttemptRunSettlesHeldPendingReceipt(t *testing.T) {
 // completed redo.
 func TestCALV0260_AttemptRunRefusalReportsSettledRedo(t *testing.T) {
 	root, a := attemptStore(t)
-	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	setActor(t, "holder")
 	holdPending(t, root, func() {
 		t.Helper()
 		if x := atm(t, root, nil, "release", "--attempt", a.AttemptID, "--generation", gen(a), "--request-id", "release-held"); x.code != 0 {

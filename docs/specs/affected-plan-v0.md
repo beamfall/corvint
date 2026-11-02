@@ -724,7 +724,7 @@ and container qualification; full fallback remains available.
   in `.github/cishards/test-slices.json`, after which the plan equals AFP-V0-022, or revert the
   workflow slice loop and the helper files.
 
-### Declared confined test read scopes
+### Declared confined test read scopes and unbounded readers
 
 - **AFP-V0-023:** (owner-directed, proposed, 2026-10-01; V1-0246, V1-0081; declaration-edit
   clause amended by decision 0528, V1-1399) A project MAY commit
@@ -768,45 +768,6 @@ and container qualification; full fallback remains available.
   campaign refuses to start without it when a declaration exists); and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
   packages. Rollback deletes the declaration, which restores rule (d) for every package; removing
   the `-exec` wrapper alone without deleting the declaration is not a supported state.
-- **AFP-V0-024:** (owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the owner's standing auto-accept (2026-10-11); V1-0760) A push to `main` MAY reuse a
-  passed pull-request or merge-queue result instead of repeating the root Go race invocation, only when all of
-  the following hold: the pushed commit is a two-parent merge; a completed, successful run of
-  `.github/workflows/ci.yml` in this repository exists that is either a `pull_request` run for
-  the merged head (the pushed commit's second parent) or a `merge_group` run whose head is the
-  pushed commit itself (V1-0760: with merge method `MERGE` the queue commit is the commit that
-  becomes `main`); and that run's AFP-V0-170 `ci-tested-tree-record` job printed a record of the
-  current shard count whose tree is exactly the pushed commit's tree id (amended under the owner's
-  standing auto-accept (2026-10-11); V1-2271: the per-shard `ci-tested-tree-TREE-full-SHARD-of-SHARDS`
-  artifacts it replaces were trusted by name alone, and the shard jobs that uploaded them run
-  repository code, so any tested tree could forge them). That job SHALL print the record only
-  after every shard passed its complete package set in the full branch, so a documentation-only
-  (DCI-V0), selection-narrowed or reused (AFP-V0-046) run can never be reused; after a reused
-  queue run the push can reuse only the same pull-request run, whose record names the same tree. Tree
-  identity binds every tracked file, including the workflow file blob and the pinned Go
-  version; no separate comparison is trusted. REUSE therefore means that the pull-request
-  merge-ref commit, or the queue commit, with the identical tree passed in full. A fork pull-request run is admitted like any
-  other: it runs in this repository, and a record for the merged head can only come from a
-  workflow that head, and so the merged tree, contains. The decision SHALL be made by `tools/ci-reuse-plan --event push`, built from
-  the pushed `main` commit, over retained public run and job listings (the `pull_request`
-  runs of the merged head and the `merge_group` runs of the pushed commit) and the record job's
-  log, read with `actions: read` and `contents: read` (an ARTIFACT-V0-008 exception row names the
-  `docs-plan` job); no artifact is read. The decision's `head` stays the merged head for either admitted run; `runId`
-  names the reused run. Only the root race invocation is omitted: static, build, interop, documentation
-  and artifact checks still run, except that AFP-V0-080 skips `go-static`, `go-interop` and
-  `artifact-integrity` when the queue run of the pushed commit itself passed them. The decision, with the reused run id and tree id, SHALL be
-  retained as the `ci-reuse` artifact. A missing record, an unreachable API, a failed build, any
-  other event or any mismatch runs FULL. Limits: the record name is written by the reused run's
-  own workflow steps, which the tree identity binds to the merged, owner-protected workflow;
-  the commit id and history of the checkout, the event environment, the installed host
-  packages and the hosted runner image are not part of the identity and may differ between the
-  two runs; a run still in progress is not admitted, and the required `ci-control-plane`
-  status, posted only on a completed run (AFP-V0-026), is what normally completes the queue run
-  before `main` moves; the
-  hosted reuse path and its effect on completed `main` results are `NOT_OBSERVED` until a
-  merge lands with matching records, and the reuse of a `merge_group` run is `NOT_OBSERVED`
-  until the first push after a queue run that wrote them. Rollback removes the `reuse` step, which restores FULL
-  for every push; restoring the `pull_request`-only record condition and dropping the
-  `merge_group` listing withdraws only the V1-0760 queue-run reuse.
 - **AFP-V0-025:** (owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
   commit `.corvint/unbounded-readers.json`, the closed object
   `{"profile":"corvint-unbounded-reader-set/0","units":[DIR...],"reasons":{DIR:REASON}}`, at
@@ -844,232 +805,6 @@ and container qualification; full fallback remains available.
   branch or a merge queue, which are repository settings outside this contract, closes
   those.
   Rollback removes the make step and the two workflow steps.
-- **AFP-V0-026:** (accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04; V1-0752; identical-tree reuse amendment under the owner's standing auto-accept (2026-10-11); V1-1360) `.github/workflows/ci.yml`
-  SHALL also run on `merge_group` `checks_requested`, so a merge-queue entry reports the
-  required `go-product` and `doc-gates` checks on the exact commit that becomes `main`. Such a
-  run MUST be FULL except for the identical-tree reuse of AFP-V0-046 and, while
-  `CORVINT_MQ_NARROWING` is on, the merge-queue narrowing of AFP-V0-730 to AFP-V0-733
-  (amended 2026-10-28, V1-3064): the documentation
-  classifier (DCI-V0), the AFP-V0-013 driver and the AFP-V0-022 order plan stay bound to their
-  own events and are off for it, and the AFP-V0-024 reuse applies to it only in the form
-  AFP-V0-046 admits. `.github/workflows/ci-control-plane.yml` SHALL post `ci-control-plane` `success` on
-  the head of a completed `merge_group` run of `CI` whose branch begins
-  `gh-readonly-queue/main/pr-`, and post nothing for any other branch; it still never checks
-  out or executes repository code. That status carries no consent of its own: a pull request
-  enters the queue only after the AFP-V0-016 decision on its own head, and a queue commit
-  holds only such pull requests on top of `main`. Limits: enabling the queue is the owner's
-  ruleset change and hosted queue behavior is `NOT_OBSERVED` until then; V1-0760, which lets
-  the `main` push reuse the queue run of the identical commit (now part of AFP-V0-024), is a prerequisite for narrowing
-  (AFP-V0-028); a narrowed PR MUST NOT write an AFP-V0-024 tested-tree record; the pull-request run
-  still tests a possibly stale merge, so only the queue run closes the AFP-V0-025 residual
-  skews; the status is posted only after the whole `CI` run completes, so the queue's
-  status-check timeout must exceed that run; the queue-entry precondition, the branch form
-  and `workflow_run` delivery for `merge_group` runs are GitHub behavior assumed here, and a
-  wrong assumption about the latter two posts nothing; the status stays on a queue commit
-  after its entry leaves the queue, so a pull request whose head is that commit shows it
-  until its own `CI` run completes and AFP-V0-016 replaces it, which can admit only
-  `.github/` content already consented to on a queued head. Rollback: disable the queue in the ruleset
-  only after restoring FULL PR runs (R1 below), then remove the trigger and the `merge-group` job; removing them while the queue is
-  on leaves every entry waiting for checks that never report.
-
-- **AFP-V0-027:** (owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-  `ci:batched` is a constituent whose commits a batch pull request carries and tests; the
-  `go-product-shard` and `go-static` jobs SHALL NOT start for it, so a constituent push spends no
-  race-shard runner time. The label SHALL only withhold tests, never admit a merge. Amended
-  (V1-2265): when the label is on the `pull_request` payload and both `go-product-shard` and
-  `go-static` were skipped, the required `go-product` check SHALL pass with a `::notice::` and a
-  step-summary line naming the label and saying nothing was tested, provided `doc-gates` passed;
-  any other skip, failure or cancellation still fails it. The red check this replaces made every
-  constituent look broken. The merge guard is the `main` ruleset's active `merge_queue` rule (read
-  2026-10-22: ruleset 23699808, MERGE method, ALLGREEN grouping): every merge, armed auto-merge
-  included, runs the `merge_group` event, which ignores the label, tests the combined tree, and
-  finds no AFP-V0-170 tree record for the constituent (its shards did not succeed), so it runs
-  FULL. The constituent lands only as part of a batch whose own run (or merge-queue run,
-  AFP-V0-026) tests the combined tree. The label is read
-  from the event payload, so it is off for `push` and `merge_group` events, and removing it takes
-  effect on the next push or reopen, not on a re-run of an earlier event. `doc-gates`,
-  `docs-plan` and `go-product` still run; AFP-V0-081 also withholds `go-interop`,
-  `artifact-integrity`, `ci-shard-cost-drift` and intake containment, which the batch reruns. Limits: the label is applied by
-  the batching agent and nothing checks that a batch pull request actually contains the
-  constituent; a mislabelled pull request shows a passing `go-product` notice but is still
-  tested in full by the merge queue before it lands. If the `merge_queue` rule is ever removed,
-  this amendment MUST be reverted in the same change. Rollback removes the job condition and the
-  `go-product` notice branch (restoring the failing message).
-- **AFP-V0-028:** (accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHALL apply only to
-  `pull_request` root Go race packages selected by the trusted AFP-V0-012 selector, intersected
-  with the existing AFP-V0-022 complete-universe shard partition (amended by `AFP-V0-590`,
-  V1-2942: a record with the `BALANCED` placement places the selection itself across the shards
-  by measured cost instead, under the `AFP-V0-591` coverage guard). Empty intersections SHALL run
-  no Go test and retain their audit. Only the package set may differ: argv, environment,
-  AFP-V0-023 `test-confine` wrapper and cache policy SHALL match the full branch, not the driver's
-  historical closed replay environment. Missing or untrusted tools, planning or selector failure,
-  a `FALLBACK` verdict, topology or partition drift, a dirty root module definition and any
-  module-level Go frontier SHALL still force FULL. Three additional conditions SHALL force FULL:
-  the PR base is not `main`; a changed path is under `.github/`; or the API cannot read the
-  `main` branch rules or they lack an active `merge_queue` rule. Disabling the queue while
-  narrowing is armed SHALL therefore force FULL. `merge_group`, `main` push and release stay
-  FULL; static, vet, format, cross-build, interop, documentation and artifact checks stay full
-  on every event (a `main` push takes them from the queue run of its own commit, AFP-V0-080, and a
-  `ci:batched` constituent from its batch, AFP-V0-081; neither narrows a package set). AFP-V0-026 keeps DCI, the driver, order plan and AFP-V0-024 reuse off on
-  `merge_group`.
-  Scope `UNKNOWN` may narrow only when every `plan.unknown` entry belongs to this closed,
-  reviewed allowlist of classes already covered by AFP-V0-012 widening: `LANGUAGE_FRONTIER`
-  with a non-`go:` detail (fixture paths still attributed by rules (b) to (d));
-  `go:build-constraint-variants` and `go:nested-module-frontier` (the race job covers only
-  linux/amd64 root packages and cross-build/nested interop remain full); `UNOWNED_DIRTY_PATH`
-  attributed by rules (b), (c) and (d); and `NO_SELECTABLE_TEST` traversed to dependents
-  (AFP-V0-020). Every other reason or detail, including future additions, SHALL force FULL
-  until reviewed amendment of the allowlist.
-  Planner, selector and driver SHALL remain built outside the PR checkout from a reviewed
-  `main` commit pinned in `ci.yml`; changes to the pin require AFP-V0-016 exact-head admin
-  consent. Go version, Git and tool-digest drift SHALL force FULL. The SHA256 historical
-  qualification artifact and 200-row campaign SHALL NOT be prerequisites; AFP-V0-014/017
-  and the historical workflow remain optional evidence. V1-0760 MUST be merged and the
-  AFP-V0-029 shadow bar met before narrowing is enabled. A narrowed PR run MUST NOT write an
-  AFP-V0-024 tested-tree record. Selection remains non-authoritative (AFP-V0-004); exclusions
-  are deferred to the full queue run, which MUST pass before the commit reaches `main`.
-  Both `go-product` and step summaries SHALL say "selected packages passed: N of M; the full
-  suite runs in the merge queue", never "suite passed". Hosted behavior, net cost and batch
-  speedup remain `NOT_OBSERVED`; batch speedup is not claimed.
-- **AFP-V0-029:** (accepted, decision 0509; intent decision 0431; amended decision 0537; amended by the owner (owner chat, 2026-10-20; V1-0812); amended by the orchestrator under owner delegation (owner chat, 2026-10-31)) Every PR run computing a trusted selection SHALL
-  retain S with tool source, plan and selection digests and shard partition digest. Every
-  `merge_group` shard SHALL retain bounded terminal `go test -json` package outcomes. A
-  default-branch `workflow_run` job, as in AFP-V0-016, SHALL build one row per queue run,
-  with only `actions: read` and `contents: read`, never executing repository code. S is the
-  selection of the latest successful PR run for the head entering the queue; F is every queue
-  package with fail, timeout, build failure or missing outcome. A miss is F minus S for a PR
-  whose PR-time run narrowed; F intersect S is `SELECTED_FAILED_IN_QUEUE` (base skew, flakiness
-  or environment difference), not a miss. Each failing package SHALL be rerun once on the
-  same queue commit; a pass is `FLAKY`, but the queue verdict remains failure. Missing or
-  unreadable inputs SHALL produce `INCOMPLETE`, neither clean nor a miss, including a missing
-  selection artifact at queue time. (Amended by the owner, decision 0537; V1-1514.) A hosted
-  pre-step failure, a shard job the runner failed at `Set up job` before any step of its own, SHALL
-  instead produce `INFRA` when it explains every gap of the row, as AFP-V0-052 states; an `INFRA`
-  row is neither complete nor `INCOMPLETE`.
-  The row SHALL be `corvint-pr-forward-row/0`, at most 64 KiB, named
-  `ci-forward-<CLEAN|FLAKY|MISS|INCOMPLETE|INFRA|NARROWED>-pr<N>-<queue sha>`, with default artifact
-  retention; `NARROWED` is the AFP-V0-099 class of a pull-request run that narrowed.
-  The class is the worst in the row: `MISS` if any missed package fails its rerun, `FLAKY`
-  if every missed package passes it. Rows SHALL NOT feed ranking, selection or learning;
-  their admission effect can only widen to FULL. Shadow SHALL first enable the queue,
-  full-event policy and rows with PR tests still FULL, computing and retaining S before the
-  full shard. Shadow PR runs SHALL produce rows from their same-commit complete outcomes.
-  Shadow is enabled only after a real PR has merged through the queue with `go-product`,
-  `doc-gates` and `ci-control-plane` reported on the queue commit, `main` equal to that commit
-  and `dogfood-check` reading its seal; until then it is `NOT_OBSERVED`.
-  Narrowing requires, among all complete shadow rows of the current epoch (one per pull request
-  and commit, not only the latest 20), at least 8 complete rows, at least 1 of them with failing
-  packages, and no row anywhere in the epoch with a miss other than `FLAKY`; `INFRA` rows stay
-  outside these counts and `INCOMPLETE` rows are not complete. The bar is met only on a listing
-  that reached the start of the epoch (it read every artifact or names a row of an earlier
-  epoch); otherwise it is not established, never met. (Amended by the owner (owner chat,
-  2026-10-20; V1-0812): the bar counts the whole epoch; the AFP-V0-030 kill switch keeps its
-  latest-20 window.) (Amended by the orchestrator under owner delegation (owner chat,
-  2026-10-20; V1-0812).) (Amended by the orchestrator under owner delegation (owner chat,
-  2026-10-31): the bar was lowered from 20 complete rows, at least 5 failing, to 8 complete rows,
-  at least 1 failing; the no-miss rule, the coverage rule and AFP-V0-030 are unchanged.)
-  `NARROWED` rows (AFP-V0-099) are outside every count of this bar and are
-  dropped before the per-(pull request, commit) deduplication, so a narrowed run never replaces a
-  counted row; a PR run reads the bar only through the trusted verdict of AFP-V0-097, never by
-  listing the epoch itself. Hosted queue branch form, `workflow_run` delivery,
-  branch-rules API and `main` reaching the tested queue commit remain assumed, `NOT_OBSERVED`.
-- **AFP-V0-030:** (accepted, decision 0509; intent decision 0431; amended decision 0537; amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812)) PR runs SHALL return to FULL with reason
-  `forward-qualification-tripped` when the latest 20 rows of the current epoch, counting
-  `INCOMPLETE` rows in the window, contain at least 2 `MISS` rows or at least 3 `INCOMPLETE`
-  rows. (Amended by the owner, decision 0537; V1-1514.) An `INFRA` row (AFP-V0-052) takes no place
-  in the window and never counts as `INCOMPLETE` or toward the 8 complete rows of AFP-V0-029.
-  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812).)
-  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-31): the AFP-V0-029
-  count follows its lowered bar.) A `NARROWED` row (AFP-V0-099) likewise takes no place in the window. The window is read twice:
-  in the trusted AFP-V0-097 verdict, and live by the PR job over the newest 25 pages of artifact
-  names, so rows newer than the verdict can still trip it. (Amended 2026-10-28 on the owner report "every
-  PR ran full CI": the page budget rose from 5 to 25 because 500 artifacts held about 8 forward rows.)
-  The PR job SHALL list artifact names as AFP-V0-024 does, without downloading them;
-  listing failure SHALL force FULL. Narrowing is off unless the admin-settable repository
-  variable `CORVINT_PR_NARROWING` is exactly `on`; unset, `off` or any other value SHALL force
-  FULL immediately, and the variable can only disable. A reviewer
-  classifying a single `MISS` as `CHANGE_CAUSED` SHALL set that variable; this classification
-  is human judgment, not information carried by an artifact name. Re-arming SHALL require a
-  reviewed `.github/` change advancing the `CORVINT_PR_FORWARD_EPOCH` pin, removing earlier
-  rows from the window, with a build-log entry naming the review. The queue fails and ejects
-  a missed PR before it reaches `main`; the switch protects PR-time green and queue throughput.
-  Rollback of AFP-V0-028..030 SHALL follow decision 0431: R1 sets
-  `CORVINT_PR_NARROWING=off` or clears `CORVINT_PR_TOOL_SOURCE`, restoring full PR race runs
-  while the queue remains and forward rows continue in shadow; R2, only after R1, removes
-  the `main` ruleset's `merge_queue` rule, restoring `pull_request` plus the three required
-  checks (the inert `merge_group` trigger may stay); R3 reverts the spec amendments and
-  requirements AFP-V0-028..030, restoring decisions 0289/0320's required AFP-V0-014 artifact.
-- **AFP-V0-031:** (accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
-  frontier) The Go plugin SHALL decide the `go:nested-module-frontier` per unlisted module:
-  it reads each such module's `go.mod` through the same `affected.Source` as every other input
-  (the worktree, or the immutable tree under `BuildFS`, where a read error stays fatal), and the
-  frontier is raised only when at least one module stays open. A module stays open when its
-  manifest is unreadable, larger than 1 MiB, or not parsable by a reader that lexes as the go
-  tool does and fails on any verb, token, block, or directive argument it does not admit (for
-  example an invalid or quoted `go` or `toolchain` version, a quoted `godebug` or one without
-  `=`, a malformed `retract` interval, a raw string, a quote inside an unquoted argument, a block
-  of a verb the go tool does not admit as a block, a module version that is not canonical or
-  whose major does not match the module path's suffix, or a replacement whose target is a
-  directory with a version or a module path without one); when it requires, replaces, or names a tool under an observed
-  module path (a tool under its own module path excepted), or replaces a module with one; when a
-  directory replacement is absolute or not repository-relative, resolves outside the repository,
-  or resolves anywhere other than its own directory or another unlisted module (a relative
-  replacement that resolves to the root, or into an observed module, therefore keeps it open);
-  when a `go.work` sits in its directory or any ancestor below the root; or when the observed
-  side draws it in: an observed `go.mod` or the root `go.work` requires, replaces, or names a
-  tool under its module path, or replaces a module with its directory, because the observed
-  build then compiles its packages and resolves their imports against the observed modules.
-  Every nested module stays open when the observed side cannot be read the same way: an observed
-  module path is unresolved, an observed `go.mod` or the root `go.work` is unreadable, over-size,
-  or unparsable, an observed `go.mod` declares a module path other than the one the plugin read
-  (the plugin reads a quoted path with Go string-literal rules and leaves one it cannot read
-  unresolved, V1-0873), the root `go.work` use set differs from the observed
-  directories, or an observed directory replacement is not repository-relative or does not name
-  exactly an observed module directory or a path at or below an unlisted module's directory (a
-  differently cased or linked path can name a nested module, so identity is not established).
-  A module that is
-  none of these neither builds against an observed module nor is built by one,
-  so no change to an observed module reaches it and it closes. The plugin keeps one evidence
-  record per nested `go.mod` read, with the reason it stayed open; it is internal and does not
-  reach the plan wire. The reverse direction: a nested module's files are never units, so a
-  change inside one is the `LANGUAGE_FRONTIER` detail of AFP-V0-191, which names the module
-  directory, not `UNINDEXED_SOURCE_PATH`.
-  Non-goals: reads by a nested module's tests of observed data (AFP-V0-012 already treats nested
-  literals as selecting nothing), symlinked manifests the walk does not follow, and a `GOWORK` or
-  `GOFLAGS` (`-modfile`) environment value, which the plugin cannot observe. Rollback restores the unconditional frontier
-  in `observeModules` and removes `nested.go`.
-- **AFP-V0-190:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0874)) The Go
-  plugin's workspace use set (AFP-V0-008) MUST come from the strict manifest reader
-  (`readManifest`, the AFP-V0-031 reader), so the unit universe and the nested-module check read one
-  `go.work` the same way: a quoted directory is unquoted with Go string-literal rules and two
-  directories on one `use` line are both read. A `go.work` that reader refuses (a raw-string or
-  otherwise unreadable `use` entry, an unknown directive, over-size or unreadable) MUST raise the
-  frontier `go:workspace-unparsed` and observe only the root module, which the AFP-V0-031 rules
-  then keep open against every nested module; `CommittedReadScopes` treats the same refusal as an
-  unknown base (AFP-V0-050). Before this, a loose line reader guessed a use set
-  from such a file and the plan stayed bounded. Evidence:
-  `TestWorkspaceUseSetIsTheStrictReaders_AFPV0190` (fails without the change). Rollback: restore the
-  line reader in `workspaceDirectories`.
-- **AFP-V0-191:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0922)) A language
-  plugin MAY return `Result.Unobserved`: canonical repository-relative directories, strictly
-  ascending, that it owns but builds no unit for; `Build` MUST refuse any other value as
-  `ErrInvalidLanguage`, and the graph digest body carries them as the `unobserved` member
-  (`namespace:directory`), omitted when empty so a graph without them keeps its digest. A dirty
-  path such a plugin claims that lies under one of them MUST be the unknown `LANGUAGE_FRONTIER`
-  with detail `<namespace>:unobserved-directory:<directory>:<path>` (the longest directory wins) in
-  place of `UNINDEXED_SOURCE_PATH`; the reason enum is unchanged and the detail keeps the plan
-  `UNKNOWN` and the gate tier full (AFP-V0-028 admits only its own `go:` details). The Go plugin
-  reports the directory of every nested `go.mod` it does not observe, leaving out the root and any
-  directory that is or contains an observed module, because an unindexed file there may belong to
-  an observed module and stays `UNINDEXED_SOURCE_PATH`. Evidence:
-  `TestNestedModuleChangeIsANestedModuleUnknown_AFPV0191`,
-  `TestUnobservedLeavesOutDirectoriesHoldingObservedModules_AFPV0191`,
-  `TestUnobservedDirectoriesAreValidatedAndDigested_AFPV0191`, and the amended expectation of
-  `TestIndependentNestedModulesCloseTheFrontier_V1_0867`. Non-goal: indexing a nested module's
-  packages, which would need its own root-runnable test command (V1-0922 design note, PR #1420);
-  amended by AFP-V0-650, under which an independent nested module's own `go test ./...` runs as
-  a `corvint test` unit without indexing its packages.
-  Rollback: drop `Result.Unobserved`, the digest member and `Graph.unownedUnknown`.
 - **AFP-V0-192:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2075)) Every
   `UNBOUNDED_READER` witness MUST carry a `cause` object, `{"unit": <unit id>, "reads": <that unit's
   unboundedReads>}`, naming the concrete read path that makes the unit read any dirty path: the
@@ -1084,16 +819,6 @@ and container qualification; full fallback remains available.
   the amended expectations of `TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984`.
   Non-goal: proving that a rule (d) unit cannot reach the dirty path, which needs a bound the
   repository declares (AFP-V0-023). Rollback: drop `Witness.Cause` and `Graph.causes`.
-
-- **AFP-V0-032:** (accepted by decision 0438; V1-0865) Only a declaration path that
-  does not exist is absent for AFP-V0-009. A `Makefile` or `AGENTS.md` path that exists but is not a
-  readable regular file (a directory, a FIFO or other special file, a dangling symlink, or an open,
-  stat or read error) MUST add `MANDATORY_DECLARATION_UNREADABLE: <path> exists but is not a
-  readable regular file` to `unknown`, yield no checks from that path, and MUST NOT add
-  `NO_REPOSITORY_GATE_DECLARED`. The read MUST NOT block: it opens non-blocking and confirms a
-  regular file before reading. A symlink to a readable regular file is still read, as before.
-  Rollback restores the previous reader, which treated these paths as absent.
-
 - **AFP-V0-033:** (accepted by decision 0438; V1-0868) Every `units` directory of
   `.corvint/unbounded-readers.json` (AFP-V0-025) SHALL have a `reasons` entry that names the
   unbounded read, the call, literal, inherited dependency or path set that leaves the package's
@@ -1110,580 +835,6 @@ and container qualification; full fallback remains available.
   source and a container measurement, not a proof that no narrower declaration exists; the
   measurement covers the Linux test files only. Rollback restores the optional `reasons` check;
   the reasons themselves stay as documentation.
-- **AFP-V0-034:** (accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`ReadSource`, `readSourceFile` in
-  `internal/liveverify/affected`) admits a unit on the descriptor it reads, not on a separate
-  look-up of the name. On darwin and linux it opens the path `O_RDONLY|O_NOFOLLOW|O_NONBLOCK`:
-  a symlink is refused at open (`ELOOP`/`EMLINK` become `ErrInvalidUnit`), a FIFO cannot block
-  the open, and the regular-file and `MaxSourceBytes` checks run on `fstat` of that descriptor;
-  a body that grows past the bound after the stat is refused (`ErrWalkLimit`) while it is read.
-  A path whose open fails for any other reason (a socket, a directory the process may not read)
-  is `Lstat`-ed only then, so a non-regular path keeps the `ErrInvalidUnit` the `Lstat` path
-  gave it and the success path stays at one open and one `fstat`.
-  Other platforms keep the `Lstat`-then-`ReadFile` pair (`read_other.go`). The refusals, error
-  values and bound are unchanged; the change removes one path resolution per source, which was
-  19% of `affected` CPU on a 200,000-file repository (3.7 of 19.7 sampled seconds; see
-  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0416-refusal-order-and-affected-reads.md` for the before/after
-  table). `ReadBounded`'s disk path still takes the pair (follow-up). Falsifier: a symlink,
-  directory or FIFO at a unit path that is read rather than refused, or a sparse file over the
-  bound that is read. Rollback: delete `read_unix.go` and `read_other.go` and restore the
-  `Lstat` body of `ReadSource` in `walk.go`.
-- **AFP-V0-035:** (proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
-  `--base` and `--snapshot` forms MUST write `profile="affected-plan/1"`: the AFP-V0-003 document
-  with every member except `plan` unchanged and `plan` projected as follows. `graphDigest`,
-  `dirty`, `scope` and `unknown` are unchanged; each `selected` entry keeps `unitId` and `witness`
-  (whose `via` chain AFP-V0-640 states by reference) and replaces `tests` with `testCount`, the
-  length of that list; `excluded` becomes one object
-  `{count, digest, groups}`, where `count` is the number of exclusions, `digest` is
-  `affected-excluded:sha256:` plus the lowercase hex SHA-256 of the exact `plan.excluded` bytes
-  of the `--full` document for the same inputs (`gokernel.CanonicalJSON`, an empty array when
-  nothing is excluded), and `groups` states each distinct `{reason, universe, invalidation}` once
-  with its `count`, sorted by reason, universe, then invalidation. A bare `--full` (at most once)
-  MUST write the `affected-plan/0` document byte-for-byte as before; `--full` with
-  `--playwright-config` is `invalid-arguments`, and the Playwright profile is unchanged. In-repo
-  readers that check the profile (`internal/companionrelease` core smoke, `.github/cishards`,
-  `tools/corvint-pr-tests`) MUST accept both identifiers; a reader that needs test files
-  (`tools/retrieval-bench`) MUST pass `--full`. Falsifier: a default document whose digest differs
-  from the hash of the `--full` exclusion bytes, whose counts differ from the full lists, or a
-  `--full` document that differs from the previous default. Rollback: delete
-  `cmd/corvint/affected_compact.go` and the `--full` option, restore `affected-plan/0` as the
-  default, and restore the renamed core-freeze goldens.
-- **AFP-V0-036:** (proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
-  indexed Go unit P are P's own declared `_test.go` files MUST select P's tests with a
-  `DIRECT_TEST_CHANGE` witness and MUST NOT traverse from P: P's importers and the units whose
-  tests import P are not reached through P, because Go compiles a test file only into P's own
-  test binary and no other package can import it. They stay excluded with
-  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` unless another dirty path reaches them. A non-test dirty
-  path in P, a deleted or unindexed Go path in P's directory (AFP-V0-012 rule (a)), or a data
-  path that traverses from P (rule (b)) keeps P a traversal root, and P's witness then names its
-  smallest dirty source path rather than a test path. The rule is Go-only; every other plugin
-  keeps the conservative traversal. Path-literal readers (AFP-V0-021), unbounded readers
-  (rule (d)), declared read scopes (AFP-V0-023), language frontiers and `UNKNOWN` scope are
-  attributed per dirty path exactly as before. Measured on this repository at `0b5096ca` with
-  one new `internal/contextindex` test file: 99 selected (72 `DEPENDENCY_PATH`) before, 43
-  selected (0 `DEPENDENCY_PATH`) after; see
-  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0984-affected-test-only-changes.md`. Falsifier: a test-only Go
-  change that selects an importer through a `DEPENDENCY_PATH` witness, or a non-test change in
-  P that does not. Rollback: remove `testOnlyGoUnits` and its use in `reach`, and the
-  source-first witness preference in `seed`, in `internal/liveverify/affected/select.go`.
-
-- **AFP-V0-037:** (proposed (V1-0991); no GitHub issue) A package whose code or tests run the built
-  binary of a command, a `package main` of the root module, depends on that command's whole build
-  though no import edge says so. The Go plugin MUST record such a command edge as the unit's
-  `execs` member (sorted command unit ids, part of the AFP-V0-005 projection when non-empty) from
-  either source: a path token of the unit (AFP-V0-021) that names a command's directory exactly,
-  resolved against the module root when anchored or plain (`go build ./cmd/corvint` runs there)
-  and against the unit's directory when climbing, never the unit itself; or the project-owned
-  declaration `.corvint/test-binary-execs.json`, the closed object
-  `{"profile":"corvint-test-binary-execs/0","packages":{DIR:[COMMAND_DIR...]}}`, at most 1 MiB,
-  4096 packages and 1 to 256 strictly ascending entries per package, for a package that runs a
-  binary it is handed (a `--corvint` flag) and so names no literal. Every `DIR` must hold an observed
-  Go package and every entry an observed command other than `DIR`. A declaration that is present but
-  unreadable, oversized, not a regular file or invalid in any member keeps no declared edge and
-  raises the module-level frontier `go:test-binary-execs-invalid`; literal edges stay. Selection
-  MUST then select, with witness `BINARY_EXEC` and `via` ending in the command then the consumer,
-  every consumer of a command that the dirty set reaches through the dependency closure
-  (traverse) or the enclosing-package rule, before the read-path rules; the consumer is selected
-  one edge past the command and not traversed further, like `testUsersOf`. A command reached only
-  as a test user, or a change that reaches no command, selects no consumer. Limits: a literal that
-  names a command directory as data over-selects, except in the data-only positions of
-  AFP-V0-402; a command at the module root (`.`) is never a
-  literal target; an exec consumer's importers are not selected through it; a dirty
-  `.corvint/test-binary-execs.json` is an unowned path and widens the plan to `UNKNOWN`; a
-  `_test.go`-only change to a command still counts as reaching its build. Intent: `corvint affected`
-  missed `conformance/host-lifecycle-v1` on a `cmd/corvint/help.go` change, with no import edge and
-  no stated uncertainty (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0991-affected-binary-readers.md`).
-  Falsifier: a package that runs a command's binary and is excluded on a change the command's build
-  reaches, or a `BINARY_EXEC` selection on a change that reaches no command. Rollback: delete
-  `execs.go`, `golang/binaryexecs.go` and `.corvint/test-binary-execs.json`, the `Execs` member and
-  its digest field, the `execUsersOf` call in `reach`, and the gate tool's frontier entry.
-
-- **AFP-V0-038:** (proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
-  advisory check whose `source` is `affected-plan` MUST NOT repeat `provider.go.packages`: when its
-  `affected-plan/0` command is exactly `GOTOOLCHAIN=local go test -count=1` followed by every
-  `provider.go.packages` entry POSIX single-quoted and joined by one space, the check MUST carry
-  `command="GOTOOLCHAIN=local go test -count=1"` and `arguments="provider.go.packages"`, and appending
-  those entries the same way MUST reproduce the `affected-plan/0` command exactly. Every other check,
-  and any command that does not have that form, MUST be kept whole without `arguments`; `--full` and
-  the mandatory checks are unchanged. Falsifier: a default document whose advice names a package
-  path, or whose resolved advice differs from the `--full` advice. Rollback: drop
-  `compactAffectedAdvice` and copy the `affected-plan/0` advice into the default again.
-
-- **AFP-V0-039:** (proposed (V1-0662); no GitHub issue) A Go test fixture under
-  `internal/liveverify` that hides the host's global Git config (`GIT_CONFIG_GLOBAL` or a `HOME=`
-  override) and runs a Git subcommand that ends by launching automatic maintenance (`am`,
-  `cherry-pick`, `commit`, `fetch`, `merge`, `pull`, `rebase`, `revert`) MUST pass
-  `-c maintenance.auto=false -c gc.auto=0` on that command, because CI's global settings no longer
-  reach it and a detached `git maintenance` can outlive the test and fail its `TempDir` cleanup.
-  Config isolation, assertions and cleanup are unchanged. A source-level guard over
-  `internal/liveverify` MUST fail any such file that lacks either string literal. Falsifier: a
-  fixture test under `internal/liveverify` whose Git trace records a `git maintenance` child
-  launch, or such a fixture that passes the guard without both literals. Rollback: delete
-  `internal/liveverify/affected/fixture_maintenance_test.go` and the two config arguments in each
-  fixture helper.
-
-- **AFP-V0-040:** (accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
-  report drift of the AFP-V0-022 cost table without ever failing on it. Each
-  full `go-product-shard` whose `go test -json` invocation passed SHALL keep that stream and upload
-  it as the artifact `ci-shard-costs-<shard>` with 3-day retention; a docs-only, reused, selected
-  or empty shard keeps none, and only `go test`'s own exit status decides the shard, except as
-  AFP-V0-441 allows. Capture is
-  best-effort: when its directory or file cannot be created the shard runs `go test` without `tee`
-  and retains nothing, so capture and retention never decide the required shard. The job
-  `ci-shard-cost-drift` (`needs: go-product-shard`, run unless cancelled) SHALL run
-  `tools/ci-shard-costs check --advisory --shards N` only when every shard succeeded and exactly N
-  outcome artifacts are present, and otherwise SHALL abstain with its reason in the job summary
-  (invariant 2). The advisory form appends a Markdown table to the job summary and SHALL exit 0
-  whatever it finds; it exits 2, with `Abstained: <reason>` in the summary, when the logs are not N
-  readable, passing shard streams or the table is invalid. Each stream SHALL be well formed and
-  finished: every non-blank line is a `go test -json` event with an Action from the closed test2json
-  and build-event set, a Package on every test event and an ImportPath on every build event; no
-  test, package or build fails; every package outcome follows that package's single start; at
-  least one package reaches a terminal outcome, and no package start lacks one. An empty,
-  malformed, structurally invalid or unfinished stream abstains. A finding is material when the time it
-  misplaces (|observed - recorded| for drift, the observed time for a missing package; a stale
-  entry places no package and misplaces nothing) reaches `--share` percent, default 10, of the
-  ideal shard (all observed package time divided by N). A material drift is reported even within
-  the AFP-V0-022 factor, because shard balance depends on absolute time, not ratio; non-material
-  findings keep the AFP-V0-022 factor and floor. Each material finding gets one `::warning::`
-  annotation, and one further warning counts every remaining drift, missing and stale finding, so
-  no run exceeds the ten warnings GitHub shows per step. The job and each of its steps are
-  continue-on-error, so a checkout, toolchain, download, build or report failure abstains and the
-  job never ends red. Every abstention SHALL put `Abstained: <reason>` in the job summary; a final
-  always-run step writes it when no earlier step did. The 10% default is chosen from run
-  38055182050 (ideal shard 1,281s): hosted per-package noise reached about 60s (5%), while
-  `internal/tasks/store` misplaced 1,001s (78%) and the missing `internal/appmap` 132s (10.3%).
-  Non-goals: the job is not a required check, never posts or changes the `ci-control-plane` or any
-  commit status, never refreshes, rewrites or commits the table, and never changes shard
-  membership or placement; refreshing remains the operator's AFP-V0-022 `refresh` step. Failure
-  modes: a failed, skipped or cancelled shard, or a missing or extra artifact, abstains with its
-  reason; an artifact upload or download failure only removes evidence and is continue-on-error;
-  re-run attempts overwrite their own shard's artifact. Falsifier: a pull request whose required
-  checks fail, or whose shard membership or placement changes, because of this job or the
-  retained stream; or a report over fewer than N shard streams. Acceptance evidence: the
-  `TestAFPV0040*` tests, `actionlint`, `make ci-least-privilege-check`, and a local dry run of the
-  job's steps against the six shard logs of run 38055182050 (build log
-  2026-10-10-ci-shard-drift-detection); hosted behaviour is NOT_OBSERVED until the change's own CI
-  runs. Under AFP-V0-041 the capture holds every invocation of the shard, and a split package's
-  slice outcomes combine into one cost as AFP-V0-041 (8) states. Rollback: delete the
-  `ci-shard-cost-drift` job and the retention step, restore the plain
-  `go test` invocation in `go-product-shard`, and remove `--advisory` from `tools/ci-shard-costs`.
-
-- **AFP-V0-042:** (accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
-  `.github` change under decision 0390) The `go-static` job of `.github/workflows/ci.yml` SHALL run
-  `CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go vet ./...` on the root module and on
-  `interop/cem01-go`, so a `_test.go` file that does not type-check for Windows fails the required
-  `go-product` check before merge; `go build` never compiles test files and the native `go vet`
-  never sees a file excluded by its build constraint. The step SHALL be skipped only on a pull
-  request whose checked-out merge commit has the event base as its first parent and changes no
-  `.go`, `go.mod` or `go.sum` path against it; a push, merge-group entry, missing base parent or
-  failed diff runs the vet (invariant 2). The checkout keeps `fetch-depth: 2` for that diff.
-  Non-goals: `GOOS=linux GOARCH=arm64` stays with the Makefile `cross-vet` and nightly release
-  gates; no new job, no change to shard membership, docs-plan modes or the `ci-control-plane`.
-  Failure modes: a Windows-only vet failure fails `go-static` and therefore `go-product`; a
-  non-Go input that only Windows vet would reject (such as an embedded file) on a skipped pull
-  request is caught by the merge-group and main runs. Falsifier: a pull request adding a
-  `//go:build windows` test that references an undefined name passes `go-static`. Acceptance
-  evidence: `actionlint`, `make ci-least-privilege-check`, and the local fixture run of the step's
-  script (build log 2026-10-10-windows-test-vet): a docs-only merge skips, a merge adding such a
-  test exits 1 while the native vet and Windows build pass; hosted behaviour is NOT_OBSERVED until
-  the change's own CI runs. Rollback: delete the step and the `fetch-depth: 2` line.
-
-- `AFP-V0-043`: (accepted, decision 0505) Cost-table
-  `refresh` and plain `check` MUST validate each shard log against the completed-stream
-  standard of AFP-V0-040 before combining costs or writing the table: every non-blank
-  line is a valid event, every started package ends, and each log has a terminal package
-  outcome. Malformed lines, truncated final events and unfinished packages MUST refuse
-  with exit 2 and leave the table unchanged. Valid raw streams MUST retain the prior
-  non-strict observer's encoded table bytes. Non-goal: changing the legacy `observe`
-  helper's other callers. Rollback: revert the strict reader selection and its tests.
-
-- `AFP-V0-044`: (accepted, decision 0519 (V1-1141); GitHub #783) When `--base`
-  contributes at least one committed range path that is not in the worktree dirty set and that
-  dirty set is non-empty, the worktree-planned receipt (`affected-plan/0`, `affected-plan/1` and the
-  Playwright receipt) MUST carry a top-level `warning` string naming the HEAD commit the receipt's
-  `revision` names and the worktree dirty-path count, and stating that the dirty content is
-  mutable and pinned by no commit. It is the `affected` counterpart of `DIRTY-CACHE-014`: the
-  requested paths are the committed range, and the plan unions them with uncommitted worktree
-  content (AFP-V0-010). A clean worktree, the worktree-only form (whose request is the dirty set
-  itself), a range entirely within the dirty set, and `--snapshot` (which never reads the
-  worktree) MUST omit the member, so those receipts stay byte-identical. The warning carries no
-  path or file content. Rollback: remove the member.
-- `AFP-V0-045`: (accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST
-  accept the experimental boolean `--require-clean` on the worktree, `--base`, provider and
-  Playwright forms. When the worktree status (AFP-V0-002, untracked files included) has any entry,
-  it MUST refuse with exit 2, code `unsupported-affected-mixed-worktree`, a message naming the
-  HEAD commit and dirty-path count, and no stdout document, before the range diff, the graph walk
-  or any provider runs. `affected` has no structured abstention document, so the strict form is
-  this typed refusal, consistent with its other fail-closed codes. A clean worktree MUST produce
-  the byte-identical receipt the command produces without the flag. The flag rejects a value or
-  repetition, `--snapshot`, and `affected discovery`, each as `invalid-arguments`. It adds no
-  repository, index or ledger write. Rollback: remove the flag and its refusal.
-- **AFP-V0-094:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
-  `affected` MUST accept the experimental repeatable `--path PATH` (as `--path PATH` or
-  `--path=PATH`, at most 4096 distinct paths; the separated form refuses a value that begins with
-  `-` as `invalid-arguments`, so `--path --full` never swallows the next option, and a
-  dash-prefixed name is written `--path=VALUE`) and plan exactly that changed-path set at the
-  captured HEAD instead of the worktree status set or a `--base` range. Each value MUST be a
-  canonical repository-relative path (`ValidRelativePath`), else `invalid-arguments`; a repeated
-  path collapses, and `plan.dirty` is the sorted unique set. A path absent at HEAD is planned as
-  a deleted or unindexed path under AFP-V0-004, never refused. The worktree status is still read
-  (AFP-V0-001): any entry, untracked included, MUST refuse with exit 2, code
-  `unsupported-affected-mixed-worktree`, a message naming the HEAD commit and dirty count, and
-  no stdout document, before the graph walk, because a dirty graph is not HEAD's. An ignored file
-  HEAD does not track is not a dirty path, so after the graph build the ignored untracked set
-  (`git ls-files --others --ignored --exclude-standard --directory`, with the status bounds) is
-  read, and a listed path or any graph unit source or test that is, or lies under, an ignored
-  entry MUST refuse with the same code, naming that path and the HEAD commit; so MUST an ignored
-  entry that overlaps a Go unit's `testdata/` directory, its package directory when the unit
-  embeds files or declares a read scope (which admits that subtree even with no entries), or one
-  of its declared read scopes, naming that area (amended for V1-2086). The receipt is
-  the `affected-plan/1` (or, with `--full`, `affected-plan/0`) document of the default form with
-  the same advice, provider projection, drift checks and `range` `{base: "", paths: []}`, plus
-  one optional top-level `path_list` member echoing the sorted set (CCF-V1-006: an added optional
-  member); every other form omits it and stays byte-identical. For one committed change its
-  `plan` MUST be byte-identical to the `--base` plan of that change over the same clean tree.
-  `--path` MUST NOT combine with `--snapshot`, `--base`, `--provider`, `--playwright-config`,
-  `--playwright-discovery` or `--appmap-impact` (`invalid-arguments`). Non-goals: no
-  Playwright, provider or snapshot path-list profile, no overlay of uncommitted bytes, no change
-  to `impact` output. Rollback: remove the flag, its refusal and the member.
-- **AFP-V0-095:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
-  A `--path` plan MUST use the same transitive reverse-dependency traversal as every other form
-  (`affected.Select`), so a test reached through an intermediate importer is selected with its
-  full witness chain even when the intermediate unit declares no test, and MUST keep the
-  existing scope vocabulary: `plan.scope` is `BOUNDED` only when no listed path raised a
-  widening reason, and an unowned, unindexed or frontier-bearing listed path leaves `UNKNOWN`
-  with its typed `plan.unknown` entry. No `--path` receipt states a selection as complete that
-  its graph did not close. Rollback: with AFP-V0-094.
-- **AFP-V0-096:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
-  The `impact` help MUST state that its reverse-import results stop at direct importers (one
-  hop; Ruby's advisory autoload rows reach two), that a test reached through an intermediate
-  importer is absent, that a `READY` impact receipt is evidence and not a closed test
-  selection, and that `affected --path` plans one; the `affected` help and
-  `docs/CAPABILITIES.md` MUST document `--path`. The `impact` receipt bytes are unchanged: they
-  are pinned by `conformance/cli-parity-v0/manifest.json` under CCF-V1-006, so a
-  machine-readable closure-depth member there remains a separate breaking-change decision.
-  Rollback: remove the sentences.
-- **AFP-V0-097:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
-  V1-0812)) Whole-epoch bar evidence. The AFP-V0-029 bar and AFP-V0-030 window SHALL be
-  computed over the whole epoch only by the trusted `.github/workflows/ci-forward-bar.yml`
-  workflow, which runs on `schedule` or `workflow_dispatch` from `refs/heads/main` alone, with
-  only `actions: read` and `contents: read`, executes only `.github/forward-rows` of that main
-  commit and no repository code, and retains `afp-shadow-bar-epoch-<N>` holding one
-  `afp-shadow-bar-verdict/0` document: status `MET`, `NOT MET` or `NOT ESTABLISHED`, the epoch
-  counts and window, the kill switch, the epoch start, the run id and attempt, the repository and
-  the main SHA. A pull request MAY narrow only when the newest such artifact by `created_at`
-  (a) came from a `schedule` or `workflow_dispatch` run of that workflow path on `main` of this
-  repository, not a fork, (b) says `MET` with a clear kill switch, (c) was created at most 7 days
-  ago and has not expired, and (d) names the current forward epoch; and the newest 25 pages of
-  forward-row names still show no `MISS` of the epoch and a clear kill switch. Those pages SHALL
-  either end the listing or reach back to the verdict artifact's `created_at` and hold the latest
-  20 rows of the epoch or its start; a read that stops at the page budget without that coverage
-  cannot exclude a `MISS` beyond it. Anything else, including an unreadable listing, run or
-  download, an unparseable verdict or one naming another run, or uncovered pages, SHALL run full
-  CI with the reason recorded in the job summary. The acceptance script runs
-  from the pull request's base commit, not its head. The `CORVINT_PR_FORWARD_EPOCH` pin in
-  `ci.yml`, `FORWARD_EPOCH` in `ci-control-plane.yml` and `ci-forward-bar.yml`, and the epoch in
-  the verdict artifact name SHALL be equal. Non-goals: no push trigger (a whole-epoch listing
-  costs up to 400 artifact pages); no new marker artifacts; no authority beyond widening.
-  Failure modes: a stale verdict up to 7 days old is bounded by the live 5-page kill-switch read;
-  a verdict whose listing did not reach the epoch's start is `NOT ESTABLISHED`; an epoch advance
-  leaves no verdict for the new epoch, so every PR runs full until the schedule computes one.
-  Rollback: unset `CORVINT_PR_NARROWING`, or revert the change.
-- **AFP-V0-098:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
-  V1-0812)) Selector identity. A pull-request Go shard SHALL narrow only when the driver's
-  selection (`corvint-pr-tests --mode plan`, which executes nothing) is a superset of the
-  `corvint test --dry-run` shadow selection of AFP-V0-047 for the same base and tested merge
-  commit, so a miss computed against the shadow S of the epoch's rows can never fail open. The
-  gate SHALL also force FULL, recording each reason in the `corvint-pr-narrowing/0` record, when
-  the base branch is not `main`, the change touches `.github/` or its change set is unreadable,
-  `main` has no `merge_queue` rule or its rules are unreadable, the driver refused, fell back or
-  selected the whole universe, its plan names another base, head or target, the shadow exited
-  other than 0 or 3, wrote no plan, has a scope other than `NARROWED`, `FULL` or `NOTHING`, or is
-  incomplete for anything but a declared adapter limit. It runs only on same-repository
-  `pull_request` events with `CORVINT_PR_NARROWING` exactly `on`, a MET AFP-V0-097 verdict, and
-  both `CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE` set, from the trusted tool
-  checkout. A narrowed shard runs its own packages and slices intersected with the driver
-  selection (amended by `AFP-V0-590`: its part of the balanced placement of that selection),
-  writes no AFP-V0-024 tested-tree record and no cost capture, and says "selected
-  packages passed; the full suite runs in the merge queue". The gate is the only route to a
-  narrowed shard; the driver never executes tests in CI. A skipped, refused or failed verdict or
-  gate, a record that could not be retained, an `executed` list beside the record that was not
-  written or is unreadable or not equal line for line to the retained record's `executed`, or an
-  executed set that differs from the record runs the whole shard. Only a verified empty
-  `executed` (an AFP-V0-028 empty intersection) runs no Go test.
-  Non-goals: no change to the `merge_group` run, which stays full. Rollback: as AFP-V0-097.
-- **AFP-V0-800:** (accepted by the owner, V1-3093, 2026-10-28) Effective PR base.
-  The AFP-V0-098 deciding driver in `--mode plan` and the CI shadow planner SHALL admit
-  an event base older than the tested merge's first parent only when that immutable merge
-  has exactly two parents, parent 1 equals the event head, and the event base is an ancestor
-  of parent 0 (equality included). Both SHALL plan against parent 0. Missing or invalid OIDs,
-  unreadable parents, a parent count other than two, a head mismatch, or unproved ancestry
-  SHALL refuse narrowing with a named reason (`pr-base-invalid-oid`,
-  `pr-base-parents-unreadable`, `pr-base-parent-count`, `pr-base-head-mismatch`, or
-  `pr-base-not-ancestor`). Existing clean-checkout, HEAD/tree and graft guards remain.
-  Non-goals: no change to the historical execution/qualification wire, merge-queue whole-range
-  selection, shadow admission bar, or other FULL guards. Rollback restores exact event-parent
-  equality and the event-base planners together.
-- **AFP-V0-801:** (accepted by the owner, V1-3093, 2026-10-28) Range consistency.
-  The PR driver selection SHALL add `EventBase` in plan mode while `Base` names the effective
-  base. The narrowing script SHALL use that proven effective base for its shadow dry-run and
-  its no-renames `.github/` diff to the tested merge; a missing or mismatched event identity
-  SHALL leave FULL. The additive `eventBase` and `effectiveBase` members of
-  `corvint-pr-narrowing/0` SHALL retain both identities, with `base` equal to `effectiveBase`.
-  On a refused topology the effective identity may be empty; the driver's named reason remains.
-  The workflow's retained shadow selection and tiers SHALL use the same effective base.
-  Main-only `.github/` commits between the event base and parent 0 SHALL not be attributed to
-  the PR; PR-owned changes to `.github/`, including renames out, still force FULL.
-  Existing consumers of `base` continue to see the actual planned range. Frozen historical
-  records are not rewritten. Rollback removes these additive fields with AFP-V0-800.
-- **AFP-V0-802:** (accepted by the owner, V1-3093, 2026-10-28) Forward-row ownership.
-  For a PR row, the collector SHALL derive parent 0 from the single tested target named by
-  the retained shadow selections, all bound to the run and event head, then prove the same
-  two-parent, head and event-ancestry conditions through GitHub's commit/compare API.
-  An artifact target is only a hint: parent 0 MUST also be an ancestor of current main,
-  and both the PR head and tested merge compared from that base MUST exclude `.github/`.
-  Missing evidence, disagreement, unproved ancestry, or an unbounded/unreadable file list
-  SHALL exclude the row with a named reason, never trust artifact contents to waive ownership.
-  No tested code executes in collection. Queue rows retain their existing range.
-  Acceptance: `TestAFPV0800StaleEventBase`, `TestAFPV0800ShadowBase`,
-  `TestAFPV0098SupersetGuardSidecar` and `TestAFPV0047CollectorNamesRows` exercise stale
-  bases, main-only `.github/` changes, consistent ranges and closed refusals.
-  Rollback restores event-base comparison and drops this collector resolution.
-- **AFP-V0-099:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
-  V1-0812)) Rows of narrowed runs. Each narrowing gate SHALL retain its record as
-  `ci-narrowing-<shard index>` (90 days). A pull-request row whose run retained any `NARROWED`
-  record, or a record that cannot be read, SHALL be class `NARROWED`, excluded from the
-  AFP-V0-029 bar and the AFP-V0-030 window. A `merge_group` run SHALL always run full: it never
-  reuses a narrowed run, because a narrowed shard writes no tested-tree record. `collect.sh`
-  SHALL download the selection run's narrowing records, and `row.jq` SHALL classify a queue
-  failure of a package a record lists as skipped as a `MISS`, even when its rerun passes, since a
-  narrowed-out failure is exactly what the PR did not test. A record of another run, a malformed
-  record or unreadable records SHALL make the queue row `INCOMPLETE`. Failure modes: a record
-  that says `NARROWED` while the shard ran whole is still treated as narrowed (conservative);
-  rows expire with default artifact retention, so an old `MISS` can drop out of a later verdict,
-  which AFP-V0-030 re-arming by epoch bounds. Rollback: as AFP-V0-097.
-- **AFP-V0-046:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A
-  `merge_group` run of `.github/workflows/ci.yml` MAY reuse the passed pull-request run of the
-  same tree instead of repeating the root Go race invocation, only when all of the following
-  hold: the queue commit is a two-parent merge; its first parent is an ancestor of the
-  checked-out `refs/remotes/origin/main`, so the entry is built directly on `main`; a completed,
-  successful `pull_request` run of `.github/workflows/ci.yml` in this repository exists whose
-  head is the queue commit's second parent (the PR head); and that run's AFP-V0-170
-  `ci-tested-tree-record` job printed a record of the current shard count whose tree is exactly
-  the queue commit's tree id (amended under the owner's standing auto-accept (2026-10-11);
-  V1-2271, as for AFP-V0-024). The first entry on an unmoved `main` has
-  the parents of the merge ref the PR run tested, so the trees are equal; a later entry whose
-  tree includes a preceding entry differs and stays FULL. The decision SHALL be made by
-  `tools/ci-reuse-plan --event merge_group`, which admits no `merge_group` run, built from the
-  queue commit's first parent (so a PR's own edit to the tool cannot decide its queue run), over
-  the same public listings and permissions as AFP-V0-024, and the `docs-plan` job SHALL retain
-  its decision as the `ci-reuse` artifact; `head` names the PR head and `runId` the reused run.
-  Only the root race invocation is omitted: `doc-gates`, `go-static`, `go-interop`,
-  `artifact-integrity` and the other non-race checks still run, and `go-product` aggregates a
-  REUSE shard as for AFP-V0-024. A REUSE queue run SHALL write no tested-tree record, gocache
-  entry or shard cost outcome. Every failure path is FULL: a first parent not on `main`, a
-  single-parent commit, an unreadable run or job listing or record job log, a failed, cancelled, unfinished,
-  other-workflow or other-repository run, a missing, partial or other-tree record, a different
-  shard count, a tool that does not build or exits nonzero, and a decision the workflow's
-  admission check does not accept. Limits: AFP-V0-029 shadow rows (V1-0811) MUST take a REUSE
-  queue run's outcomes from the reused pull-request run, because the queue run has none; the
-  `ci-control-plane` status still posts on the completed `merge_group` run (AFP-V0-026); the
-  change that introduces this requirement runs its own queue run with the previous tool and so
-  in full; hosted observation is `NOT_OBSERVED` until the first REUSE queue run.
-  AFP-V0-028 keeps every `merge_group` run unnarrowed; this exception skips the race invocation only
-  for a tree a full pull-request run already passed, and a narrowed PR run writes no record, so
-  its queue run still runs in full. Amended 2026-10-28 (V1-3064): AFP-V0-734 also admits a
-  narrowed pull-request run whose `ci-narrowed-tree-record` names this tree and this entry's first
-  parent as its selection base, and AFP-V0-730 to AFP-V0-733 let an entry that does not reuse narrow
-  its own shards; the AFP-V0-028 sentence holds only while `CORVINT_MQ_NARROWING` is unset. Rollback: restore the `push`-only condition on the `reuse` step and the
-  `pull_request`-only record step.
-- **AFP-V0-170:** (accepted under the owner's standing auto-accept (2026-10-11); V1-2271) The
-  only evidence an AFP-V0-024 or AFP-V0-046 REUSE decision accepts that a run tested a tree in full
-  SHALL be one line in the log of that run's `ci-tested-tree-record` job:
-  `corvint-ci-tested-tree/1 tree=TREE target=COMMIT head=HEAD shards=N`, at the start of a log line
-  after at most the hosted timestamp prefix. The job SHALL run only in a `pull_request` or
-  `merge_group` run after every `go-product-shard` succeeded, when no shard narrowed and
-  `docs-plan` decided neither `DOCS` nor `REUSE`. No shard narrowed when `narrowing-verdict` is not
-  `MET` or (amended under the owner's standing auto-accept (2026-10-11); V1-3051) when every
-  `go-product-shard` output `full<index>`, one per matrix shard, is `FULL`: each is non-empty only
-  in the shard of that index (matrix job outputs are last-writer-wins) and is `FULL` only when that
-  shard's `tests` step succeeded and its AFP-V0-098 narrowing gate (`steps.narrow`, the only route
-  to a narrowed shard, fixed before any repository test runs) did not output `NARROWED`; no output
-  of the `tests` step, which runs repository code, is read. A `NARROWED` gate whose shard then ran
-  whole still records nothing (conservative, as AFP-V0-099), and a missing, overwritten or
-  empty output records nothing, so the queue runs FULL. The `docs-plan` reuse step fetches the log
-  of a record job only when it concluded `success`, since a skipped one has no log. The job SHALL run no
-  repository code (one `actions/checkout` with `persist-credentials: false`, then shell built-ins,
-  `git` and `printf` only), and print the line only when the checked-out commit is the run's
-  two-parent merge and, for a pull request, its second parent is the pull-request head. Trust
-  argument: an artifact, or a line any other job prints, can be produced by repository code of
-  the tested tree (a test, a build step, a fork's workflow edit), so neither is evidence; this
-  job's own log can only be written by the steps of this job, whose definition is the trusted
-  `ci.yml` of the very tree the reusing commit must equal, and changing it needs the AFP-V0-016
-  admin review. `tools/ci-reuse-plan` SHALL read only the jobs listing of an admitted run and the
-  log of its record job (`--jobs`, `--logs`) and decide REUSE only when that run has exactly one
-  job of that name, it belongs to the run and its head, it completed with `success`, its log holds
-  exactly one record line, and that line names the deciding tree, head and shard count (and, for a
-  reused `merge_group` run, that run's own commit as target); the decision names it by
-  `recordJobId`. Failure modes, each FULL: no record job (a forged artifact set, a narrowed,
-  documentation-only or reused run), two record jobs, a failed, skipped or unfinished job, a job
-  of another run or head, a missing, repeated, prefixed or suffixed line, another tree, head or
-  shard count, an older record profile, and an unreadable listing or log. Non-goals: proving that
-  GitHub runs the job as defined, and protecting against a repository administrator. Transition:
-  until this tool is on `main`, a queue entry builds the earlier tool, whose flags the reuse step
-  no longer passes, and runs FULL. Rollback: revert the record job, the reuse step and the tool
-  together; the earlier artifact records are no longer written, so a partial rollback runs FULL.
-  The V1-3051 amendment rolls back alone by removing the `full<index>` outputs and their clause.
-- **AFP-V0-171:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1847) When
-  the `control-plane` job of `.github/workflows/ci-control-plane.yml` would post `failure` on a
-  pull-request head, it SHALL first read the head's commit statuses (newest first) and post
-  nothing when the newest `ci-control-plane` status there is `success` posted by a creator of
-  type `User` (the admin review AFP-V0-016 requires), so a CI rerun on an already reviewed head
-  keeps the review. A new push has no status on its head and still gets `failure`; a newer
-  failure, a bot-posted success, another context and a pending status still get `failure`; an
-  unreadable status listing stops the step, posting nothing, so the merge stays blocked. Limits:
-  any user with write access can already post that status, so the rule widens nothing; a head
-  with more than 100 newer statuses is not proved reviewed and gets `failure`. Rollback: remove
-  the status read; reruns then overwrite the review again.
-- **AFP-V0-047:** (accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The
-  AFP-V0-029 shadow SHALL run without the deciding driver. `go-product-shard` SHALL carry
-  `CORVINT_TEST_SHADOW_SOURCE`, a full reviewed `main` commit id pinned apart from
-  `CORVINT_PR_TOOL_SOURCE` (whose deciding driver, before AFP-V0-048, refused AFP-V0-041 test slices); on a
-  `pull_request` run at a mode other than DOCS or REUSE, a step SHALL check out that commit outside
-  the tested checkout without credentials, verify `HEAD` equals the pin, build only `./cmd/corvint`
-  to `$RUNNER_TEMP/corvint-shadow-bin/corvint`, and the shadow `corvint test --dry-run` (STR-V0-012
-  step 3) SHALL use that binary; the Go tests step keeps executing the full shard, so no PR run
-  narrows. Each such shard SHALL retain, in its `corvint-test-shadow-<shard>` artifact beside
-  `dry-run.json` and `manifest.json`, a `selection.json` document `corvint-pr-selection/0` with
-  keys `profile`, `toolSource`, `toolDigest`, `pr`, `head`, `base`, `target`, `tree`, `runId`,
-  `runAttempt`, `shard`, `shards`, `exit`, `scope`, `reason`, `placement`, `shardIndex`,
-  `shardCount`, `incomplete`, `selected` (the shard's run set), `manifestDigest`, `manifestUnits`,
-  `planDigest`, `partitionDigest`, `sourceDigest` and `notProduced`, which names every digest the
-  dry-run does not print (the selection digest) instead of inventing it. Every `pull_request` and
-  `merge_group` full-branch shard SHALL retain `ci-outcomes-<event>-<shard>`, a
-  `corvint-ci-outcomes/0` document with keys `profile`, `event`, `runId`, `runAttempt`, `target`,
-  `head`, `tree`, `shard`, `shards`, `status`, `outcomes` (package-level `pass`, `fail`, `skip`, or
-  `missing` for an expected package or slice without a terminal event) and `rerun`, also after a
-  failed shard. A shard whose tests failed SHALL rerun each failed package or AFP-V0-041 slice
-  once under the same confinement, at most 8 invocations, recording `rerun.state` `RAN` with the
-  rerun outcomes, `NOT_NEEDED`, `INTERRUPTED`, or `SKIPPED_BOUND` with no rerun above the bound;
-  the shard still fails, except as AFP-V0-441 allows; a failed outcomes setup leaves that shard without outcomes (so its rows
-  are INCOMPLETE) and never changes the shard's status. The `forward-rows` job of `.github/workflows/ci-control-plane.yml`, on a
-  completed (`success` or `failure`) `merge_group` or `pull_request` run of CI, SHALL hold only
-  `actions: read` and `contents: read`, run only the default-branch `.github/forward-rows` scripts
-  through a sparse checkout of its own commit with `gh` and `jq`, and download only the
-  `ci-outcomes-*`, `corvint-test-shadow-*` and `ci-reuse` artifacts. A queue row takes S from the
-  latest successful `pull_request` run of the queue commit's second parent and F from the queue
-  run, or, for a REUSE queue run (AFP-V0-046), from the reused run its `ci-reuse` decision names,
-  recording `outcomesSource` `reuse` (else `merge_group`, or `pull_request` for a PR row); a PR
-  row takes both from its own run and names its tested merge commit. A run on a branch that is not
-  a queue branch of `main`, without a pull request number, or a PR run that retained neither
-  outcomes nor a shadow plan produces no row. Because a change to `.github/` runs its own
-  workflow and could upload any outcome, a run whose change set (the pull request's base to head,
-  or the queue commit's first parent to the commit, read through the compare API) touches a
-  `.github/` path, or lists 300 files or more, also produces no row; an unreadable change set
-  makes the row INCOMPLETE.
-  The row SHALL be INCOMPLETE, never CLEAN, when any selection or outcomes shard is missing,
-  unreadable, misshapen (including a tool source, head or target that is not a full commit id, or a
-  tool, manifest, plan or partition digest that is not `sha256:` hex) or duplicated, when a shard count differs from the job's
-  `FORWARD_SHARDS`, when a document names another run, head or target than the row (or, for a
-  REUSE row, another tree than the decision), when the
-  dry-run exited other than 0 or 3, when shards disagree on the manifest digest, when the selection
-  records a gap other than a non-Go language without an adapter (retained in `selection.limits`),
-  when a failed shard names no failed package, or when the collector could not read an input.
-  The row is `corvint-pr-forward-row/0` with the closed keys `class`, `counts`, `epoch`, `failed`,
-  `flaky`, `head`, `incomplete`, `infrastructure` (AFP-V0-052), `kind`, `missed`, `outcomesRunId`, `outcomesSource`, `pr`,
-  `profile`, `reruns`, `runId`, `selectedFailedInQueue`, `selection`, `selectionRunId`, `sha`,
-  `shards` and `truncated`, at most 64 KiB (package lists are cut and `truncated` set), uploaded
-  with default retention as `ci-forward-<CLASS>-pr<N>-<sha>-e<EPOCH>-f<0|1>`, where `EPOCH` is
-  `CORVINT_PR_FORWARD_EPOCH` and `f1` marks a row with failing packages. The job's step summary
-  SHALL count, from the names of non-expired artifacts that runs on `main` of this repository
-  uploaded (a pull-request or queue run can upload any name) and without downloading, two
-  separate counts of the current epoch's rows (one per pull request and commit): every listed row
-  against the AFP-V0-029 bar of 8 complete and 1 failing rows with no non-`FLAKY` miss (amended by
-  the orchestrator under owner delegation (owner chat, 2026-10-31); formerly 20 and 5), and the
-  latest 20 rows against the AFP-V0-030 thresholds. It SHALL say NOT MET while the epoch is short
-  and NOT ESTABLISHED, never MET, when the listing neither read every artifact nor reached a row of
-  an earlier epoch (owner chat, 2026-10-20; V1-0812). Nothing in
-  this requirement narrows a run or changes a required check. Limits: hosted row delivery is
-  `NOT_OBSERVED` until the first queue run on `main` after the change; the rerun bound leaves a
-  ninth failure without a rerun, so its misses are MISS; artifact listing reads at most 20 pages;
-  shadow artifacts keep 14-day retention, so a queue run later than that is INCOMPLETE; fork pull
-  requests produce no row; a pull request's own test code runs in its shards and could rewrite its
-  outcomes files, so a row is as trustworthy as the reviewed change, like any test result.
-  Rollback: clear `CORVINT_TEST_SHADOW_SOURCE` (the shadow and its
-  selection stop) and remove the `forward-rows` job; no consumer reads the rows before V1-0812.
-
-- **AFP-V0-048:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A
-  sharded AFP-V0-022 run of the package-level PR driver `tools/corvint-pr-tests` SHALL execute
-  exactly what the protected full path places on its shard. It SHALL take the complete placement
-  of the enumerated runtime universe from the same `cishards.Plan` call that `ci-shards --slices`
-  makes, never a reimplemented partition. It SHALL run the shard's whole packages in one `go test`
-  invocation and then each AFP-V0-041 slice placed on the shard in its own invocation (the driver's
-  test arguments, the slice's `-run` or catch-all `-skip` pattern, then the package), all within
-  one deadline, and the shard SHALL fail when any invocation fails. A FULL run executes the
-  shard's whole placement. A narrowed run executes the selected whole packages placed on the
-  shard and, for each selected split package, every slice placed on the shard, so over all shards
-  a selected split package runs each slice exactly once and never whole; a selected package
-  outside the runtime universe, or repeated, refuses. Before any execution the driver SHALL
-  refuse, with exit 2, a reason naming `AFP-V0-048` and no execution record, a placement that does
-  not have the declared shard count, places a package other than exactly once whole or as
-  slices, runs a split package whole as well, places a slice other than exactly once, gives one
-  package two slice counts, or holds a slice whose index, flag (`-run` for a named slice, `-skip`
-  for the catch-all) or pattern (an anchored alternation of plain `Test`, `Example` or `Fuzz`
-  names within `MaxPatternBytes`) is malformed, or whose named slices of one package overlap or
-  whose catch-all does not skip exactly their union. A FULL fallback executes the same placement,
-  so it refuses too. The AFP-V0-022 profile digest, shard source and source drift checks still
-  precede execution. A slice file whose names are stale needs no refusal: as in the full path, a
-  removed name matches nothing and a new or renamed test runs in the catch-all slice; an unusable
-  or unadmitted slice file leaves the affected package whole, as in the full path.
-  `selection.json` SHALL record the shard's slices (`ShardSlices`) and `execution.json` each slice
-  invocation's arguments and exit (`Slices`); with no split package both documents and the
-  whole-package arguments are unchanged. Non-goals: selection authority from slices, slicing in
-  qualification rows or the container profile (both stay unsharded), and a change to the
-  protected helper or workflow. Limits: like the driver's whole-package invocation, each slice
-  invocation runs without the AFP-V0-023 `test-confine` wrapper that the full path applies (the
-  AFP-V0-023 residual for the AFP-V0-013 driver; AFP-V0-028 requires the full branch's wrapper
-  before narrowing); hosted execution is `NOT_OBSERVED` until V1-0812 sets
-  `CORVINT_PR_TOOL_SOURCE`, and the `.github/workflows/ci.yml` comment beside that pin still
-  describes the earlier refusal until V1-0812 edits it. Falsifier: a driver shard set whose union
-  of whole packages and slices differs from the full path's for the same universe and shard
-  count, or a top-level test of a selected split package with zero or two terminal outcomes over
-  the shards. Rollback: revert the change, which restores the AFP-V0-041 (6) refusal.
-
-- **AFP-V0-049:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1371)
-  `tools/ci-test-slices generate` and `replay` SHALL combine the per-slice terminal outcomes of a
-  split package as AFP-V0-041 (8) does for `tools/ci-shard-costs refresh`, so a complete, passing
-  sliced run can regenerate the slice file and be replayed. The split set SHALL be the one the
-  tested tree ran with: `generate` reads the allow-list and slice file of the `--revision`
-  checkout and `replay` those of `--root`, through the same `SplitPackages` call over the
-  packages the logs name and the declared `--shards N`; `replay --slices` chooses only the
-  placement it predicts.
-  (1) A package the files split into K slices SHALL have exactly K terminal outcomes across the
-  logs. Its time is the sum of those outcomes and its top-level test times the union of theirs.
-  (2) Each outcome SHALL be attributed to one slice by its top-level tests: every top-level test
-  of the outcome SHALL belong to the slice that admits the first of them in byte order (the
-  catch-all admits every name that no named slice names), and no slice SHALL be attributed twice.
-  An outcome without top-level tests, such as a named slice whose tests the run no longer has,
-  counts toward K without a name.
-  (3) Every other AFP-V0-041 (5) refusal SHALL be kept, with exit 2 and no write: a repeated
-  outcome of a package the files do not split, including every package when the allow-list or
-  slice file is absent or unusable ("package P has two terminal outcomes"); a top-level test
-  with two terminal outcomes across the run; a test outside the slice its log ran; a slice
-  attributed twice; any count other than K, so a run made before the split or a run missing a
-  slice refuses ("N terminal outcomes for its K test slices"); and an allowed package that the
-  slice file splits into more slices than N.
-  (4) `replay` SHALL state that its sliced plan places every package of the run exactly once,
-  whole or as each of its slices ("units U placed exactly once"), and SHALL refuse a plan that
-  drops, repeats or adds a unit.
-  Non-goals: attributing subtests; changing which packages split; cost-table changes.
-  Limits: an outcome without top-level tests is attributed by count only, so which named slice it
-  was is not checked; the per-log lifecycle rule of AFP-V0-041 (5) is unchanged, so two slices of
-  one package in one shard log still refuse; the exactly-once line checks the helper's plan, not
-  the hosted run. Falsifier: an accepted run in which a top-level test has two terminal outcomes,
-  a slice runs twice, or a package the files do not split ends twice. Rollback: revert `combine`
-  and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` then refuse a sliced
-  run as before, and the committed slice file stays valid.
 - **AFP-V0-050:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1298; (3)
   and (4) amended by the owner, decision 0528, V1-1399, V1-1400; (3) reworded by the owner, decision 0529, V1-1425) When
   `.corvint/test-read-scopes.json` is among the changed paths, `corvint affected` SHALL read
@@ -1779,208 +930,181 @@ and container qualification; full fallback remains available.
   Falsifier: the current tree with the `protocol/cem-1.0/stable/tamper-matrix/` entry of
   `internal/cem/verify` removed passes the check. Rollback: remove the `test-read-scopes-check`
   target from `make gate` and from the `doc-gates` step list, and delete the tool and the record.
-- **AFP-V0-052:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the
-  AFP-V0-029/030 amendment it implements is owner-accepted, decision 0537) A forward row SHALL tell
-  a hosted pre-step failure apart from runner incompleteness. (1) The `forward-rows` collector
-  SHALL read the job list of the outcomes run (`filter=latest`) and name each `go-product-shard (N)`
-  job whose conclusion is `failure` and whose first step, `Set up job`, failed; an unreadable job
-  list names none and says so in the step summary. (2) The row SHALL carry `infrastructure`, one
-  reason `infrastructure: go-product-shard (N) of run R failed at Set up job` per named shard, also
-  listed in `incomplete`. (3) The class SHALL be `INFRA`, not `INCOMPLETE`, only when the named
-  shards are below the shard count, the outcomes documents cover exactly the other shards, the
-  selection documents cover every shard or, when the selection run is the outcomes run (a
-  pull-request row), exactly the other shards, every other incomplete reason is absent, and no
-  missed package failed its rerun; otherwise the row stays `INCOMPLETE`, so a real gap beside a
-  hosted failure is never hidden. A hosted failure therefore never makes a row `CLEAN`, `FLAKY` or
-  `MISS`. (4) The row name SHALL use `INFRA`, and the step-summary bar count SHALL accept it, give an
-  `INFRA` row no place in the latest-20 window, never count it as complete or `INCOMPLETE`, and
-  report how many `INFRA` rows lie between the window's rows.
-  Non-goals: it does not rerun the lost shard, change a required check, or classify any other job or
-  step; a later step's failure, a cancelled job and a runner lost mid-job stay `INCOMPLETE`.
-  Limits: the selection run of a queue row is the latest successful pull-request run, which has no
-  failed job, so only the outcomes run is read; a queue run whose every shard failed at set-up
-  retained no outcomes artifact and stays `INCOMPLETE` on the collector's reason; hosted `INFRA`
-  rows are `NOT_OBSERVED` until a hosted set-up failure recurs after the change.
-  Falsifier: the queue-row fixture of run 38686348902 (shard 5 lost at `Set up job`, its real job
-  list) classifies `INCOMPLETE`, or a row with a missing shard that no set-up failure names classifies
-  `INFRA`.
-  Rollback: revert the `infra` reading in `collect.sh`, `classify.sh`, `row.jq` and `bar.jq` and
-  decision 0537; earlier `INFRA` artifacts then match no bar name and are not counted.
 
-- **AFP-V0-053:** (accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))
-  Historical replay Git compatibility. (1) The AFP-V0-014 frozen identity SHALL include the Git
-  executable that tests resolve under the `go test` environment: its resolved path, SHA-256 and
-  `git --version` output. On Darwin, when that executable is the `/usr/bin/git` xcrun shim, the
-  identity SHALL also bind the resolved path and SHA-256 of the Git that `xcrun --find git` names
-  under the closed environment (V1-1521). Execution MUST refuse when Git cannot be identified, and Git drift
-  before execution MUST fail safely like Go/compiler drift. (2) Git configuration inputs are bound
-  through the frozen environment, not a separate field: `GIT_CONFIG_NOSYSTEM=1`,
-  `GIT_CONFIG_GLOBAL=/dev/null`, a private `HOME`, `GIT_NO_REPLACE_OBJECTS=1`,
-  `GIT_GRAFT_FILE=/dev/null` and the `GIT_CONFIG_COUNT` entries. The `go test` environment SHALL
-  equal the driver's closed environment except for one entry, `advice.graftFileDeprecated=false`,
-  so tests keep the graft refusal while Git prints no graft advice into the output they parse.
-  (3) A corpus, row or qualification frozen under another identity, including one frozen before Git
-  joined it, MUST NOT be resumed, reused or relabelled under the current identity; it needs a fresh
-  freeze and campaign. (4) A failure observed under a superseded profile stays retained as observed.
-  It is classified as a compatibility failure, not a change-caused omission, only by a controlled
-  replay at both pair commits that varies the profile input alone; that classification never
-  waives an omitted failing package under AFP-V0-014, never names packages as a safety proof, and
-  says nothing about the selector's sufficiency for any other pair.
-  Non-goals: Git's exec-path helpers and templates are not hashed (the version string stands for
-  them), and the developer directory that xcrun consults is identified only through the Git it
-  resolves; the hosted profile is Linux. It qualifies no selective CI.
-  Falsifier: with the resume identity check removed from `shadow`, a corpus frozen without a Git
-  identity is resumed. Rollback: remove this requirement; the implementation notes below still
-  describe the shipped driver.
+### CI run reuse, batched constituents and control-plane jobs
 
-- **AFP-V0-054:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no
-  GitHub issue) Local Windows vet before push. (1) The Makefile target `windows-vet` SHALL run
-  exactly the `go vet` commands of the AFP-V0-042 step, in the same order and module directories
-  (the root module, then `interop/cem01-go`), with the same file-selecting environment as the
-  step's effective environment (the `go-static` job env with the step's own `env` merged over it):
-  `CGO_ENABLED=0 GOOS=windows GOARCH=amd64`, `GOTOOLCHAIN=local`, `GOWORK=off` and an empty
-  `GOFLAGS`, so no build tag is added and `_test.go` files are type-checked. It SHALL also set
-  `GOENV=off`, so a value saved by `go env -w` (which an empty `GOFLAGS` falls back to) cannot
-  change the selected files, and SHALL depend on the `go-version` target, so it runs only on the
-  `go1.27.3` toolchain CI's `setup-go` pins (decision 0557). (2) The
-  `AGENTS.md` Verify section SHALL declare `make windows-vet` in a shell fence and scope it, in a
-  sentence naming the command, to a change that touches a `.go`, `go.mod` or `go.sum` file, so
-  `corvint affected` lists it as a `conditional` check (AFP-V0-009, decision 0531) and an agent
-  runs it before the push that CI would otherwise be first to judge. (3) A test that calls a helper
-  defined only in a `//go:build unix` file (the PR #1089 shape, V1-1092) SHALL pass the native
-  `go vet` and fail the target's root-module command naming the undefined helper.
-  Design: the whole-module run, not a touched-package subset, is the smallest exact match. It is the
-  CI command itself; a subset would miss a break in a package whose files did not change (a
-  dependent's test, or a helper moved under a constraint) and would need a package resolver CI does
-  not use. It costs about 5 s warm and 45 s cold (build log 2026-10-10-windows-test-vet; 19 s
-  observed on this change). The declaration is project-owned authority (invariant 3): no
-  `corvint affected` code changes, so other repositories see no new advice.
-  Non-goals: no `.github/` change, no skip logic mirroring the step's pull-request condition (the
-  scoping sentence carries it), no pre-push hook, no `GOOS=linux GOARCH=arm64` run (it stays in
-  `cross-vet`), and no new `GATE_STEPS` entry (`cross-vet` already covers Windows in `make gate`).
-  Failure modes: a target that drifts from the step (another GOOS, a tag in `GOFLAGS`, a dropped
-  module, a dropped `GOENV=off` or `go-version` prerequisite) fails
-  `TestAFPV0054WindowsVetTargetMatchesTheCIStep`; a tag added in the step's own `env` fails it too
-  (`TestAFPV0054StepEnvOverridesJobEnv`); a saved `go env -w GOFLAGS` is ignored
-  (`TestAFPV0054WindowsVetIgnoresSavedGoEnv`); an agent that skips the check is
-  still stopped by the unchanged AFP-V0-042 step, one CI round later. Falsifier: the fixture of (3)
-  passes `make windows-vet`'s root-module command. Acceptance evidence: the five `TestAFPV0054*`
-  tests, mutation checks and a `corvint affected` run on this tree listing the conditional check
-  (build log 2026-10-18-v1-1719-local-windows-vet). Rollback: delete the target, the `AGENTS.md`
-  paragraph and fence, and the tests.
-
-- **AFP-V0-060:** (accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016
-  consent for the `.github/` edits of V1-1096 and V1-0812 only and accepted the V1-1096 amendment
-  of AFP-V0-022 that AFP-V0-041 states; V1-1096; no GitHub issue) Production test-name slices of
-  the oversized allowed packages. (1) The committed `.github/cishards/test-slices.json` SHALL split
-  both allowed packages, `cmd/corvint` and `internal/tasks/store`, and SHALL be regenerated by
-  `tools/ci-test-slices generate --target` of at most 350s from one complete, passing hosted run
-  of the full go-product-shard matrix, with `package-costs.json` refreshed by
-  `tools/ci-shard-costs refresh` from the same run, so both files record one revision and run.
-  (2) Over the committed cost table's package universe and the 8-shard matrix, every planned slice
-  of a split package SHALL carry at most 400,000 ms, the plan SHALL place every unsplit package
-  and every slice exactly once, and sibling slices SHALL land in different shards. (3) Every test
-  name the slice file records SHALL be selected by exactly one slice of its package; a name added
-  or renamed after generation SHALL be selected by the catch-all alone, and a removed name by
-  none. The AFP-V0-041 refusals and whole-package fallbacks, the AFP-V0-022 complete-universe
-  partition, the full-suite merge-queue run and the required checks `go-product`, `doc-gates` and
-  `ci-control-plane` are unchanged.
-  Non-goals: no new allow-list entry (`internal/tasks/cli` and `internal/tasks/authority` stay
-  whole); no PR narrowing or selective execution (V1-0812 stays behind the AFP-V0-029 bar); no
-  claim of hosted speedup from local replay alone.
-  Failure modes: a refresh from a failed, partial or repeated run is refused by the tools, as
-  AFP-V0-022 and AFP-V0-041 (5) state; a slice file that no longer decodes or that a package
-  outgrows keeps the package whole (AFP-V0-041 (3)); with fewer shards than a package's slices the
-  package runs whole.
-  Acceptance evidence: `TestAFPV0060CommittedSlicesBoundOversizedPackages` in
-  `.github/cishards/slices_test.go`; the per-shard Go-test step times and the largest
-  `cmd/corvint` slice of this change's hosted run; ten paired sliced and unsliced runs with an
-  identical pass/fail set (`NOT_OBSERVED` until collected). Falsifier: with the bound lowered to
-  300,000 ms the test fails on the largest `internal/tasks/store` slice.
-  Rollback: revert the two JSON files to their previous revision; placement returns to the
-  previous slices and costs with no other change.
-- **AFP-V0-066:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub
-  #1130 item 4) Advisory RSpec check. This amends AFP-V0-009's single advisory entry. (1) When
-  `plan.selected` holds a unit whose id begins `ruby:rspec:`, `advice.checks` MUST gain one
-  `advisory` entry with source `affected-plan`, placed after the Go advisory entry when there is
-  one, whose command is `bundle exec rspec` followed by the sorted, deduplicated `tests` files of
-  those units, each prefixed `./` so a dash-leading file name is never read as an RSpec option and
-  POSIX single-quoted as AFP-V0-009 quotes packages, and whose reason counts the RSpec units. (2) The entry exists only when the working-tree root holds a regular-file `Gemfile`,
-  observed by `lstat`; otherwise `unknown` gains
-  `NO_ADVISORY_RSPEC_COMMAND: the plan selected RSpec units but the repository root has no Gemfile`.
-  Amended for V1-1828 under the owner's standing auto-accept (2026-10-11), the entry also needs
-  `rspec`, `rspec-core` or `rspec-rails` declared by the `NGI-V0-052` check: a `gem` line of the root
-  `Gemfile`, or a two-space `DEPENDENCIES` or four-space specs entry of the root `Gemfile.lock`, each
-  read only as a regular file of at most 256 KiB, so an absent, oversized or unreadable manifest
-  declares nothing. Otherwise, as for a Minitest repository with a `spec/` directory, `unknown` gains
-  `NO_ADVISORY_RSPEC_COMMAND: the plan selected RSpec units but the root Gemfile and Gemfile.lock declare no rspec gem`.
-  (3) More than 1024 distinct spec files yield no entry and
-  `NO_ADVISORY_RSPEC_COMMAND: <n> selected spec files exceed the 1024-file bound`. (4) A plan that
-  selects no RSpec unit gains nothing, so every receipt without one keeps its exact bytes; the Go
-  advisory entry, its `NO_ADVISORY_GO_COMMAND` line and the AFP-V0-038 compact form are unchanged,
-  and the RSpec command is never compacted.
-  Non-goals: no Minitest or `rails test` command, no Ruby `provider` projection (`provider` keeps
-  only `go`, and this is advice, not a provider package list), no execution, no Gemfile read beyond
-  the bounded gem-declaration check, and no change to `corvint test`.
-  Failure modes: a plan whose Ruby frontier widens scope (for example `ruby:rails-autoload`) still
-  lists only the selected files; the unknown frontier says the list may be incomplete, and mandatory
-  checks stay required (AFP-V0-004). A root Gemfile and Gemfile.lock that declare no `rspec`,
-  `rspec-core` or `rspec-rails` gem get no advisory command and the `NO_ADVISORY_RSPEC_COMMAND`
-  line instead, even when the selected units were classified as RSpec by their own source; a
-  manifest that is a symlink, FIFO or other non-regular file, is swapped during the read, or exceeds
-  256 KiB declares nothing.
-  Acceptance evidence: `TestAFPV0066AdviceListsSelectedRSpecFiles`,
-  `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`,
-  `TestAFPV0066DashLeadingSpecFileIsNeverAnOption`,
-  `TestAFPV0066RSpecAdviceNeedsDeclaredRSpecGem`, `TestAFPV0066SymlinkedGemManifestDeclaresNothing`, and a
-  `corvint affected` run on the GitHub #1130 reproduction (build log
-  2026-10-18-v1-1796-ruby-verification-command). Rollback: delete `advisoryRSpecCheck`, its
-  constants and the tests.
-
-- **AFP-V0-072:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no
-  GitHub issue) File-name-only Go readers must place the path. AFP-V0-021 selects a unit whose
-  path token names a dirty path, and V1-0290 lets an unanchored lone token without `..` name only
-  the path's file name. (1) For a Go unit and any dirty path except the CEM sidecar (whose own
-  narrowing is unchanged), when every token that names the path does so only through such a lone
-  file-name run, the unit SHALL be a `PATH_LITERAL_READER` of that path only when the path lies in
-  the unit's own directory subtree (or the unit is at the repository root), or the path lies under a
-  base the unit's literals can reach and every directory component of the path below that base is
-  a whole component of one of the unit's tokens (so literals such as
-  `filepath.Join(root, "docs", "specs", "README.md")` could assemble it) or a component the Go
-  lexicon cannot keep in one token (a space, a non-ASCII letter or any other character outside
-  `[A-Za-z0-9._~@+-]`), which no token can witness. The bases are the repository root and, when
-  any token has a `..` component (`filepath.Join("..", "model.go")`), every ancestor of the unit's
-  directory. (2) A token that places a directory SHALL keep the component-run relation: a run of
-  two or more components (with its fragment outer components), an anchored token, or a climbing
-  token. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
-  directory is unknown; AFP-V0-400 amends this for a shell unit that certifies placement. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
-  unit that (1) keeps out of the plan is still named, so no unknown entry is added or removed and
-  the plan's scope is unchanged; rule (d) unbounded readers, declared read scopes (AFP-V0-023),
-  dependency and binary edges are unchanged.
-  Design: a Go test runs in its package directory. A bounded unit (not a rule (d) reader) reaches
-  another repository directory only through a literal that names it, which (1) and (2) keep, or a
-  root supplied at run time, which no literal index bounds (AFP-V0-021). A lone `README.md` joined
-  with `t.TempDir()` is the dominant false reader: on the PR #1134 range (`70a21da5d..5c57314aa`)
-  it selected 7 of 52 path-literal readers through `docs/specs/README.md` alone.
-  Non-goals: anchored lone tokens (`root + "/corvint"`), shell and other non-Go readers, fragment
-  matches of multi-component runs (`"ecs/aff"`; short outer components the literal delimits are
-  V1-1818's AFP-V0-021 amendment), readers of `.corvint/changes/` sealed CEMs, the
-  binary data-literal edges of V1-1006, and any symbol-level narrowing of a changed constant (a
-  schema-ID bump keeps the package's reverse-dependency closure).
-  Failure modes: a Go test that reaches a repository directory through a run-time root naming
-  the directory itself (an environment variable or flag set to `docs/specs`) and then a lone
-  file name is no longer selected; this is the AFP-V0-021 run-time-root gap, and the plan's scope
-  stays as before. A directory name assembled from fragments (`"spe" + "cs"`) is not a whole
-  component and does not place the path. A narrowed unit whose frontier vanished would turn an
-  `UNKNOWN` plan `BOUNDED`; the narrowed set feeds the frontier, as reached units do. Falsifier: a file-name-only fixture reader under
-  `t.TempDir()` is still selected for `docs/specs/README.md`, or a reader that joins `"docs"`,
-  `"specs"` and `"README.md"` is dropped. Acceptance evidence:
-  `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`,
-  `TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072` (a `..` reader, a spaced directory, and
-  the narrowed unit's frontier), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`, a mutation that
-  restores the old relation failing the first and one mutation per clause failing the second, and the before/after plans on the
-  PR #1134 range (build log 2026-10-18-V1-1806-affected-overselection-1806). Rollback: make
-  `resolves` return true for every path but the CEM sidecar and delete the two tests.
+- **AFP-V0-024:** (owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the owner's standing auto-accept (2026-10-11); V1-0760) A push to `main` MAY reuse a
+  passed pull-request or merge-queue result instead of repeating the root Go race invocation, only when all of
+  the following hold: the pushed commit is a two-parent merge; a completed, successful run of
+  `.github/workflows/ci.yml` in this repository exists that is either a `pull_request` run for
+  the merged head (the pushed commit's second parent) or a `merge_group` run whose head is the
+  pushed commit itself (V1-0760: with merge method `MERGE` the queue commit is the commit that
+  becomes `main`); and that run's AFP-V0-170 `ci-tested-tree-record` job printed a record of the
+  current shard count whose tree is exactly the pushed commit's tree id (amended under the owner's
+  standing auto-accept (2026-10-11); V1-2271: the per-shard `ci-tested-tree-TREE-full-SHARD-of-SHARDS`
+  artifacts it replaces were trusted by name alone, and the shard jobs that uploaded them run
+  repository code, so any tested tree could forge them). That job SHALL print the record only
+  after every shard passed its complete package set in the full branch, so a documentation-only
+  (DCI-V0), selection-narrowed or reused (AFP-V0-046) run can never be reused; after a reused
+  queue run the push can reuse only the same pull-request run, whose record names the same tree. Tree
+  identity binds every tracked file, including the workflow file blob and the pinned Go
+  version; no separate comparison is trusted. REUSE therefore means that the pull-request
+  merge-ref commit, or the queue commit, with the identical tree passed in full. A fork pull-request run is admitted like any
+  other: it runs in this repository, and a record for the merged head can only come from a
+  workflow that head, and so the merged tree, contains. The decision SHALL be made by `tools/ci-reuse-plan --event push`, built from
+  the pushed `main` commit, over retained public run and job listings (the `pull_request`
+  runs of the merged head and the `merge_group` runs of the pushed commit) and the record job's
+  log, read with `actions: read` and `contents: read` (an ARTIFACT-V0-008 exception row names the
+  `docs-plan` job); no artifact is read. The decision's `head` stays the merged head for either admitted run; `runId`
+  names the reused run. Only the root race invocation is omitted: static, build, interop, documentation
+  and artifact checks still run, except that AFP-V0-080 skips `go-static`, `go-interop` and
+  `artifact-integrity` when the queue run of the pushed commit itself passed them. The decision, with the reused run id and tree id, SHALL be
+  retained as the `ci-reuse` artifact. A missing record, an unreachable API, a failed build, any
+  other event or any mismatch runs FULL. Limits: the record name is written by the reused run's
+  own workflow steps, which the tree identity binds to the merged, owner-protected workflow;
+  the commit id and history of the checkout, the event environment, the installed host
+  packages and the hosted runner image are not part of the identity and may differ between the
+  two runs; a run still in progress is not admitted, and the required `ci-control-plane`
+  status, posted only on a completed run (AFP-V0-026), is what normally completes the queue run
+  before `main` moves; the
+  hosted reuse path and its effect on completed `main` results are `NOT_OBSERVED` until a
+  merge lands with matching records, and the reuse of a `merge_group` run is `NOT_OBSERVED`
+  until the first push after a queue run that wrote them. Rollback removes the `reuse` step, which restores FULL
+  for every push; restoring the `pull_request`-only record condition and dropping the
+  `merge_group` listing withdraws only the V1-0760 queue-run reuse.
+- **AFP-V0-026:** (accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04; V1-0752; identical-tree reuse amendment under the owner's standing auto-accept (2026-10-11); V1-1360) `.github/workflows/ci.yml`
+  SHALL also run on `merge_group` `checks_requested`, so a merge-queue entry reports the
+  required `go-product` and `doc-gates` checks on the exact commit that becomes `main`. Such a
+  run MUST be FULL except for the identical-tree reuse of AFP-V0-046 and, while
+  `CORVINT_MQ_NARROWING` is on, the merge-queue narrowing of AFP-V0-730 to AFP-V0-733
+  (amended 2026-10-28, V1-3064): the documentation
+  classifier (DCI-V0), the AFP-V0-013 driver and the AFP-V0-022 order plan stay bound to their
+  own events and are off for it, and the AFP-V0-024 reuse applies to it only in the form
+  AFP-V0-046 admits. `.github/workflows/ci-control-plane.yml` SHALL post `ci-control-plane` `success` on
+  the head of a completed `merge_group` run of `CI` whose branch begins
+  `gh-readonly-queue/main/pr-`, and post nothing for any other branch; it still never checks
+  out or executes repository code. That status carries no consent of its own: a pull request
+  enters the queue only after the AFP-V0-016 decision on its own head, and a queue commit
+  holds only such pull requests on top of `main`. Limits: enabling the queue is the owner's
+  ruleset change and hosted queue behavior is `NOT_OBSERVED` until then; V1-0760, which lets
+  the `main` push reuse the queue run of the identical commit (now part of AFP-V0-024), is a prerequisite for narrowing
+  (AFP-V0-028); a narrowed PR MUST NOT write an AFP-V0-024 tested-tree record; the pull-request run
+  still tests a possibly stale merge, so only the queue run closes the AFP-V0-025 residual
+  skews; the status is posted only after the whole `CI` run completes, so the queue's
+  status-check timeout must exceed that run; the queue-entry precondition, the branch form
+  and `workflow_run` delivery for `merge_group` runs are GitHub behavior assumed here, and a
+  wrong assumption about the latter two posts nothing; the status stays on a queue commit
+  after its entry leaves the queue, so a pull request whose head is that commit shows it
+  until its own `CI` run completes and AFP-V0-016 replaces it, which can admit only
+  `.github/` content already consented to on a queued head. Rollback: disable the queue in the ruleset
+  only after restoring FULL PR runs (R1 below), then remove the trigger and the `merge-group` job; removing them while the queue is
+  on leaves every entry waiting for checks that never report.
+- **AFP-V0-027:** (owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+  `ci:batched` is a constituent whose commits a batch pull request carries and tests; the
+  `go-product-shard` and `go-static` jobs SHALL NOT start for it, so a constituent push spends no
+  race-shard runner time. The label SHALL only withhold tests, never admit a merge. Amended
+  (V1-2265): when the label is on the `pull_request` payload and both `go-product-shard` and
+  `go-static` were skipped, the required `go-product` check SHALL pass with a `::notice::` and a
+  step-summary line naming the label and saying nothing was tested, provided `doc-gates` passed;
+  any other skip, failure or cancellation still fails it. The red check this replaces made every
+  constituent look broken. The merge guard is the `main` ruleset's active `merge_queue` rule (read
+  2026-10-22: ruleset 23699808, MERGE method, ALLGREEN grouping): every merge, armed auto-merge
+  included, runs the `merge_group` event, which ignores the label, tests the combined tree, and
+  finds no AFP-V0-170 tree record for the constituent (its shards did not succeed), so it runs
+  FULL. The constituent lands only as part of a batch whose own run (or merge-queue run,
+  AFP-V0-026) tests the combined tree. The label is read
+  from the event payload, so it is off for `push` and `merge_group` events, and removing it takes
+  effect on the next push or reopen, not on a re-run of an earlier event. `doc-gates`,
+  `docs-plan` and `go-product` still run; AFP-V0-081 also withholds `go-interop`,
+  `artifact-integrity`, `ci-shard-cost-drift` and intake containment, which the batch reruns. Limits: the label is applied by
+  the batching agent and nothing checks that a batch pull request actually contains the
+  constituent; a mislabelled pull request shows a passing `go-product` notice but is still
+  tested in full by the merge queue before it lands. If the `merge_queue` rule is ever removed,
+  this amendment MUST be reverted in the same change. Rollback removes the job condition and the
+  `go-product` notice branch (restoring the failing message).
+- **AFP-V0-046:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A
+  `merge_group` run of `.github/workflows/ci.yml` MAY reuse the passed pull-request run of the
+  same tree instead of repeating the root Go race invocation, only when all of the following
+  hold: the queue commit is a two-parent merge; its first parent is an ancestor of the
+  checked-out `refs/remotes/origin/main`, so the entry is built directly on `main`; a completed,
+  successful `pull_request` run of `.github/workflows/ci.yml` in this repository exists whose
+  head is the queue commit's second parent (the PR head); and that run's AFP-V0-170
+  `ci-tested-tree-record` job printed a record of the current shard count whose tree is exactly
+  the queue commit's tree id (amended under the owner's standing auto-accept (2026-10-11);
+  V1-2271, as for AFP-V0-024). The first entry on an unmoved `main` has
+  the parents of the merge ref the PR run tested, so the trees are equal; a later entry whose
+  tree includes a preceding entry differs and stays FULL. The decision SHALL be made by
+  `tools/ci-reuse-plan --event merge_group`, which admits no `merge_group` run, built from the
+  queue commit's first parent (so a PR's own edit to the tool cannot decide its queue run), over
+  the same public listings and permissions as AFP-V0-024, and the `docs-plan` job SHALL retain
+  its decision as the `ci-reuse` artifact; `head` names the PR head and `runId` the reused run.
+  Only the root race invocation is omitted: `doc-gates`, `go-static`, `go-interop`,
+  `artifact-integrity` and the other non-race checks still run, and `go-product` aggregates a
+  REUSE shard as for AFP-V0-024. A REUSE queue run SHALL write no tested-tree record, gocache
+  entry or shard cost outcome. Every failure path is FULL: a first parent not on `main`, a
+  single-parent commit, an unreadable run or job listing or record job log, a failed, cancelled, unfinished,
+  other-workflow or other-repository run, a missing, partial or other-tree record, a different
+  shard count, a tool that does not build or exits nonzero, and a decision the workflow's
+  admission check does not accept. Limits: AFP-V0-029 shadow rows (V1-0811) MUST take a REUSE
+  queue run's outcomes from the reused pull-request run, because the queue run has none; the
+  `ci-control-plane` status still posts on the completed `merge_group` run (AFP-V0-026); the
+  change that introduces this requirement runs its own queue run with the previous tool and so
+  in full; hosted observation is `NOT_OBSERVED` until the first REUSE queue run.
+  AFP-V0-028 keeps every `merge_group` run unnarrowed; this exception skips the race invocation only
+  for a tree a full pull-request run already passed, and a narrowed PR run writes no record, so
+  its queue run still runs in full. Amended 2026-10-28 (V1-3064): AFP-V0-734 also admits a
+  narrowed pull-request run whose `ci-narrowed-tree-record` names this tree and this entry's first
+  parent as its selection base, and AFP-V0-730 to AFP-V0-733 let an entry that does not reuse narrow
+  its own shards; the AFP-V0-028 sentence holds only while `CORVINT_MQ_NARROWING` is unset. Rollback: restore the `push`-only condition on the `reuse` step and the
+  `pull_request`-only record step.
+- **AFP-V0-170:** (accepted under the owner's standing auto-accept (2026-10-11); V1-2271) The
+  only evidence an AFP-V0-024 or AFP-V0-046 REUSE decision accepts that a run tested a tree in full
+  SHALL be one line in the log of that run's `ci-tested-tree-record` job:
+  `corvint-ci-tested-tree/1 tree=TREE target=COMMIT head=HEAD shards=N`, at the start of a log line
+  after at most the hosted timestamp prefix. The job SHALL run only in a `pull_request` or
+  `merge_group` run after every `go-product-shard` succeeded, when no shard narrowed and
+  `docs-plan` decided neither `DOCS` nor `REUSE`. No shard narrowed when `narrowing-verdict` is not
+  `MET` or (amended under the owner's standing auto-accept (2026-10-11); V1-3051) when every
+  `go-product-shard` output `full<index>`, one per matrix shard, is `FULL`: each is non-empty only
+  in the shard of that index (matrix job outputs are last-writer-wins) and is `FULL` only when that
+  shard's `tests` step succeeded and its AFP-V0-098 narrowing gate (`steps.narrow`, the only route
+  to a narrowed shard, fixed before any repository test runs) did not output `NARROWED`; no output
+  of the `tests` step, which runs repository code, is read. A `NARROWED` gate whose shard then ran
+  whole still records nothing (conservative, as AFP-V0-099), and a missing, overwritten or
+  empty output records nothing, so the queue runs FULL. The `docs-plan` reuse step fetches the log
+  of a record job only when it concluded `success`, since a skipped one has no log. The job SHALL run no
+  repository code (one `actions/checkout` with `persist-credentials: false`, then shell built-ins,
+  `git` and `printf` only), and print the line only when the checked-out commit is the run's
+  two-parent merge and, for a pull request, its second parent is the pull-request head. Trust
+  argument: an artifact, or a line any other job prints, can be produced by repository code of
+  the tested tree (a test, a build step, a fork's workflow edit), so neither is evidence; this
+  job's own log can only be written by the steps of this job, whose definition is the trusted
+  `ci.yml` of the very tree the reusing commit must equal, and changing it needs the AFP-V0-016
+  admin review. `tools/ci-reuse-plan` SHALL read only the jobs listing of an admitted run and the
+  log of its record job (`--jobs`, `--logs`) and decide REUSE only when that run has exactly one
+  job of that name, it belongs to the run and its head, it completed with `success`, its log holds
+  exactly one record line, and that line names the deciding tree, head and shard count (and, for a
+  reused `merge_group` run, that run's own commit as target); the decision names it by
+  `recordJobId`. Failure modes, each FULL: no record job (a forged artifact set, a narrowed,
+  documentation-only or reused run), two record jobs, a failed, skipped or unfinished job, a job
+  of another run or head, a missing, repeated, prefixed or suffixed line, another tree, head or
+  shard count, an older record profile, and an unreadable listing or log. Non-goals: proving that
+  GitHub runs the job as defined, and protecting against a repository administrator. Transition:
+  until this tool is on `main`, a queue entry builds the earlier tool, whose flags the reuse step
+  no longer passes, and runs FULL. Rollback: revert the record job, the reuse step and the tool
+  together; the earlier artifact records are no longer written, so a partial rollback runs FULL.
+  The V1-3051 amendment rolls back alone by removing the `full<index>` outputs and their clause.
+- **AFP-V0-171:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1847) When
+  the `control-plane` job of `.github/workflows/ci-control-plane.yml` would post `failure` on a
+  pull-request head, it SHALL first read the head's commit statuses (newest first) and post
+  nothing when the newest `ci-control-plane` status there is `success` posted by a creator of
+  type `User` (the admin review AFP-V0-016 requires), so a CI rerun on an already reviewed head
+  keeps the review. A new push has no status on its head and still gets `failure`; a newer
+  failure, a bot-posted success, another context and a pending status still get `failure`; an
+  unreadable status listing stops the step, posting nothing, so the merge stays blocked. Limits:
+  any user with write access can already post that status, so the rule widens nothing; a head
+  with more than 100 newer statuses is not proved reviewed and gets `failure`. Rollback: remove
+  the status read; reruns then overwrite the review again.
 - **AFP-V0-079:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue;
   the `control-plane` start rule for a cancelled run amended by AFP-V0-855) The
   `control-plane` and `merge-group` jobs of `.github/workflows/ci-control-plane.yml` SHALL start
@@ -2102,6 +1226,802 @@ and container qualification; full fallback remains available.
   AFP-V0-080 each costs about 6 runner-minutes. Acceptance evidence:
   `TestAFPV0082PushConcurrencyGroupsByCommit`; hosted behavior `NOT_OBSERVED` until two merges
   land within one push run. Rollback: restore `github.event.pull_request.number || github.ref`.
+
+### Pull-request narrowing, shadow selection and the forward bar
+
+- **AFP-V0-028:** (accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHALL apply only to
+  `pull_request` root Go race packages selected by the trusted AFP-V0-012 selector, intersected
+  with the existing AFP-V0-022 complete-universe shard partition (amended by `AFP-V0-590`,
+  V1-2942: a record with the `BALANCED` placement places the selection itself across the shards
+  by measured cost instead, under the `AFP-V0-591` coverage guard). Empty intersections SHALL run
+  no Go test and retain their audit. Only the package set may differ: argv, environment,
+  AFP-V0-023 `test-confine` wrapper and cache policy SHALL match the full branch, not the driver's
+  historical closed replay environment. Missing or untrusted tools, planning or selector failure,
+  a `FALLBACK` verdict, topology or partition drift, a dirty root module definition and any
+  module-level Go frontier SHALL still force FULL. Three additional conditions SHALL force FULL:
+  the PR base is not `main`; a changed path is under `.github/`; or the API cannot read the
+  `main` branch rules or they lack an active `merge_queue` rule. Disabling the queue while
+  narrowing is armed SHALL therefore force FULL. `merge_group`, `main` push and release stay
+  FULL; static, vet, format, cross-build, interop, documentation and artifact checks stay full
+  on every event (a `main` push takes them from the queue run of its own commit, AFP-V0-080, and a
+  `ci:batched` constituent from its batch, AFP-V0-081; neither narrows a package set). AFP-V0-026 keeps DCI, the driver, order plan and AFP-V0-024 reuse off on
+  `merge_group`.
+  Scope `UNKNOWN` may narrow only when every `plan.unknown` entry belongs to this closed,
+  reviewed allowlist of classes already covered by AFP-V0-012 widening: `LANGUAGE_FRONTIER`
+  with a non-`go:` detail (fixture paths still attributed by rules (b) to (d));
+  `go:build-constraint-variants` and `go:nested-module-frontier` (the race job covers only
+  linux/amd64 root packages and cross-build/nested interop remain full); `UNOWNED_DIRTY_PATH`
+  attributed by rules (b), (c) and (d); and `NO_SELECTABLE_TEST` traversed to dependents
+  (AFP-V0-020). Every other reason or detail, including future additions, SHALL force FULL
+  until reviewed amendment of the allowlist.
+  Planner, selector and driver SHALL remain built outside the PR checkout from a reviewed
+  `main` commit pinned in `ci.yml`; changes to the pin require AFP-V0-016 exact-head admin
+  consent. Go version, Git and tool-digest drift SHALL force FULL. The SHA256 historical
+  qualification artifact and 200-row campaign SHALL NOT be prerequisites; AFP-V0-014/017
+  and the historical workflow remain optional evidence. V1-0760 MUST be merged and the
+  AFP-V0-029 shadow bar met before narrowing is enabled. A narrowed PR run MUST NOT write an
+  AFP-V0-024 tested-tree record. Selection remains non-authoritative (AFP-V0-004); exclusions
+  are deferred to the full queue run, which MUST pass before the commit reaches `main`.
+  Both `go-product` and step summaries SHALL say "selected packages passed: N of M; the full
+  suite runs in the merge queue", never "suite passed". Hosted behavior, net cost and batch
+  speedup remain `NOT_OBSERVED`; batch speedup is not claimed.
+- **AFP-V0-029:** (accepted, decision 0509; intent decision 0431; amended decision 0537; amended by the owner (owner chat, 2026-10-20; V1-0812); amended by the orchestrator under owner delegation (owner chat, 2026-10-31)) Every PR run computing a trusted selection SHALL
+  retain S with tool source, plan and selection digests and shard partition digest. Every
+  `merge_group` shard SHALL retain bounded terminal `go test -json` package outcomes. A
+  default-branch `workflow_run` job, as in AFP-V0-016, SHALL build one row per queue run,
+  with only `actions: read` and `contents: read`, never executing repository code. S is the
+  selection of the latest successful PR run for the head entering the queue; F is every queue
+  package with fail, timeout, build failure or missing outcome. A miss is F minus S for a PR
+  whose PR-time run narrowed; F intersect S is `SELECTED_FAILED_IN_QUEUE` (base skew, flakiness
+  or environment difference), not a miss. Each failing package SHALL be rerun once on the
+  same queue commit; a pass is `FLAKY`, but the queue verdict remains failure. Missing or
+  unreadable inputs SHALL produce `INCOMPLETE`, neither clean nor a miss, including a missing
+  selection artifact at queue time. (Amended by the owner, decision 0537; V1-1514.) A hosted
+  pre-step failure, a shard job the runner failed at `Set up job` before any step of its own, SHALL
+  instead produce `INFRA` when it explains every gap of the row, as AFP-V0-052 states; an `INFRA`
+  row is neither complete nor `INCOMPLETE`.
+  The row SHALL be `corvint-pr-forward-row/0`, at most 64 KiB, named
+  `ci-forward-<CLEAN|FLAKY|MISS|INCOMPLETE|INFRA|NARROWED>-pr<N>-<queue sha>`, with default artifact
+  retention; `NARROWED` is the AFP-V0-099 class of a pull-request run that narrowed.
+  The class is the worst in the row: `MISS` if any missed package fails its rerun, `FLAKY`
+  if every missed package passes it. Rows SHALL NOT feed ranking, selection or learning;
+  their admission effect can only widen to FULL. Shadow SHALL first enable the queue,
+  full-event policy and rows with PR tests still FULL, computing and retaining S before the
+  full shard. Shadow PR runs SHALL produce rows from their same-commit complete outcomes.
+  Shadow is enabled only after a real PR has merged through the queue with `go-product`,
+  `doc-gates` and `ci-control-plane` reported on the queue commit, `main` equal to that commit
+  and `dogfood-check` reading its seal; until then it is `NOT_OBSERVED`.
+  Narrowing requires, among all complete shadow rows of the current epoch (one per pull request
+  and commit, not only the latest 20), at least 8 complete rows, at least 1 of them with failing
+  packages, and no row anywhere in the epoch with a miss other than `FLAKY`; `INFRA` rows stay
+  outside these counts and `INCOMPLETE` rows are not complete. The bar is met only on a listing
+  that reached the start of the epoch (it read every artifact or names a row of an earlier
+  epoch); otherwise it is not established, never met. (Amended by the owner (owner chat,
+  2026-10-20; V1-0812): the bar counts the whole epoch; the AFP-V0-030 kill switch keeps its
+  latest-20 window.) (Amended by the orchestrator under owner delegation (owner chat,
+  2026-10-20; V1-0812).) (Amended by the orchestrator under owner delegation (owner chat,
+  2026-10-31): the bar was lowered from 20 complete rows, at least 5 failing, to 8 complete rows,
+  at least 1 failing; the no-miss rule, the coverage rule and AFP-V0-030 are unchanged.)
+  `NARROWED` rows (AFP-V0-099) are outside every count of this bar and are
+  dropped before the per-(pull request, commit) deduplication, so a narrowed run never replaces a
+  counted row; a PR run reads the bar only through the trusted verdict of AFP-V0-097, never by
+  listing the epoch itself. Hosted queue branch form, `workflow_run` delivery,
+  branch-rules API and `main` reaching the tested queue commit remain assumed, `NOT_OBSERVED`.
+- **AFP-V0-030:** (accepted, decision 0509; intent decision 0431; amended decision 0537; amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812)) PR runs SHALL return to FULL with reason
+  `forward-qualification-tripped` when the latest 20 rows of the current epoch, counting
+  `INCOMPLETE` rows in the window, contain at least 2 `MISS` rows or at least 3 `INCOMPLETE`
+  rows. (Amended by the owner, decision 0537; V1-1514.) An `INFRA` row (AFP-V0-052) takes no place
+  in the window and never counts as `INCOMPLETE` or toward the 8 complete rows of AFP-V0-029.
+  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812).)
+  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-31): the AFP-V0-029
+  count follows its lowered bar.) A `NARROWED` row (AFP-V0-099) likewise takes no place in the window. The window is read twice:
+  in the trusted AFP-V0-097 verdict, and live by the PR job over the newest 25 pages of artifact
+  names, so rows newer than the verdict can still trip it. (Amended 2026-10-28 on the owner report "every
+  PR ran full CI": the page budget rose from 5 to 25 because 500 artifacts held about 8 forward rows.)
+  The PR job SHALL list artifact names as AFP-V0-024 does, without downloading them;
+  listing failure SHALL force FULL. Narrowing is off unless the admin-settable repository
+  variable `CORVINT_PR_NARROWING` is exactly `on`; unset, `off` or any other value SHALL force
+  FULL immediately, and the variable can only disable. A reviewer
+  classifying a single `MISS` as `CHANGE_CAUSED` SHALL set that variable; this classification
+  is human judgment, not information carried by an artifact name. Re-arming SHALL require a
+  reviewed `.github/` change advancing the `CORVINT_PR_FORWARD_EPOCH` pin, removing earlier
+  rows from the window, with a build-log entry naming the review. The queue fails and ejects
+  a missed PR before it reaches `main`; the switch protects PR-time green and queue throughput.
+  Rollback of AFP-V0-028..030 SHALL follow decision 0431: R1 sets
+  `CORVINT_PR_NARROWING=off` or clears `CORVINT_PR_TOOL_SOURCE`, restoring full PR race runs
+  while the queue remains and forward rows continue in shadow; R2, only after R1, removes
+  the `main` ruleset's `merge_queue` rule, restoring `pull_request` plus the three required
+  checks (the inert `merge_group` trigger may stay); R3 reverts the spec amendments and
+  requirements AFP-V0-028..030, restoring decisions 0289/0320's required AFP-V0-014 artifact.
+- **AFP-V0-097:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
+  V1-0812)) Whole-epoch bar evidence. The AFP-V0-029 bar and AFP-V0-030 window SHALL be
+  computed over the whole epoch only by the trusted `.github/workflows/ci-forward-bar.yml`
+  workflow, which runs on `schedule` or `workflow_dispatch` from `refs/heads/main` alone, with
+  only `actions: read` and `contents: read`, executes only `.github/forward-rows` of that main
+  commit and no repository code, and retains `afp-shadow-bar-epoch-<N>` holding one
+  `afp-shadow-bar-verdict/0` document: status `MET`, `NOT MET` or `NOT ESTABLISHED`, the epoch
+  counts and window, the kill switch, the epoch start, the run id and attempt, the repository and
+  the main SHA. A pull request MAY narrow only when the newest such artifact by `created_at`
+  (a) came from a `schedule` or `workflow_dispatch` run of that workflow path on `main` of this
+  repository, not a fork, (b) says `MET` with a clear kill switch, (c) was created at most 7 days
+  ago and has not expired, and (d) names the current forward epoch; and the newest 25 pages of
+  forward-row names still show no `MISS` of the epoch and a clear kill switch. Those pages SHALL
+  either end the listing or reach back to the verdict artifact's `created_at` and hold the latest
+  20 rows of the epoch or its start; a read that stops at the page budget without that coverage
+  cannot exclude a `MISS` beyond it. Anything else, including an unreadable listing, run or
+  download, an unparseable verdict or one naming another run, or uncovered pages, SHALL run full
+  CI with the reason recorded in the job summary. The acceptance script runs
+  from the pull request's base commit, not its head. The `CORVINT_PR_FORWARD_EPOCH` pin in
+  `ci.yml`, `FORWARD_EPOCH` in `ci-control-plane.yml` and `ci-forward-bar.yml`, and the epoch in
+  the verdict artifact name SHALL be equal. Non-goals: no push trigger (a whole-epoch listing
+  costs up to 400 artifact pages); no new marker artifacts; no authority beyond widening.
+  Failure modes: a stale verdict up to 7 days old is bounded by the live 5-page kill-switch read;
+  a verdict whose listing did not reach the epoch's start is `NOT ESTABLISHED`; an epoch advance
+  leaves no verdict for the new epoch, so every PR runs full until the schedule computes one.
+  Rollback: unset `CORVINT_PR_NARROWING`, or revert the change.
+- **AFP-V0-098:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
+  V1-0812)) Selector identity. A pull-request Go shard SHALL narrow only when the driver's
+  selection (`corvint-pr-tests --mode plan`, which executes nothing) is a superset of the
+  `corvint test --dry-run` shadow selection of AFP-V0-047 for the same base and tested merge
+  commit, so a miss computed against the shadow S of the epoch's rows can never fail open. The
+  gate SHALL also force FULL, recording each reason in the `corvint-pr-narrowing/0` record, when
+  the base branch is not `main`, the change touches `.github/` or its change set is unreadable,
+  `main` has no `merge_queue` rule or its rules are unreadable, the driver refused, fell back or
+  selected the whole universe, its plan names another base, head or target, the shadow exited
+  other than 0 or 3, wrote no plan, has a scope other than `NARROWED`, `FULL` or `NOTHING`, or is
+  incomplete for anything but a declared adapter limit. It runs only on same-repository
+  `pull_request` events with `CORVINT_PR_NARROWING` exactly `on`, a MET AFP-V0-097 verdict, and
+  both `CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE` set, from the trusted tool
+  checkout. A narrowed shard runs its own packages and slices intersected with the driver
+  selection (amended by `AFP-V0-590`: its part of the balanced placement of that selection),
+  writes no AFP-V0-024 tested-tree record and no cost capture, and says "selected
+  packages passed; the full suite runs in the merge queue". The gate is the only route to a
+  narrowed shard; the driver never executes tests in CI. A skipped, refused or failed verdict or
+  gate, a record that could not be retained, an `executed` list beside the record that was not
+  written or is unreadable or not equal line for line to the retained record's `executed`, or an
+  executed set that differs from the record runs the whole shard. Only a verified empty
+  `executed` (an AFP-V0-028 empty intersection) runs no Go test.
+  Non-goals: no change to the `merge_group` run, which stays full. Rollback: as AFP-V0-097.
+- **AFP-V0-800:** (accepted by the owner, V1-3093, 2026-10-28) Effective PR base.
+  The AFP-V0-098 deciding driver in `--mode plan` and the CI shadow planner SHALL admit
+  an event base older than the tested merge's first parent only when that immutable merge
+  has exactly two parents, parent 1 equals the event head, and the event base is an ancestor
+  of parent 0 (equality included). Both SHALL plan against parent 0. Missing or invalid OIDs,
+  unreadable parents, a parent count other than two, a head mismatch, or unproved ancestry
+  SHALL refuse narrowing with a named reason (`pr-base-invalid-oid`,
+  `pr-base-parents-unreadable`, `pr-base-parent-count`, `pr-base-head-mismatch`, or
+  `pr-base-not-ancestor`). Existing clean-checkout, HEAD/tree and graft guards remain.
+  Non-goals: no change to the historical execution/qualification wire, merge-queue whole-range
+  selection, shadow admission bar, or other FULL guards. Rollback restores exact event-parent
+  equality and the event-base planners together.
+- **AFP-V0-801:** (accepted by the owner, V1-3093, 2026-10-28) Range consistency.
+  The PR driver selection SHALL add `EventBase` in plan mode while `Base` names the effective
+  base. The narrowing script SHALL use that proven effective base for its shadow dry-run and
+  its no-renames `.github/` diff to the tested merge; a missing or mismatched event identity
+  SHALL leave FULL. The additive `eventBase` and `effectiveBase` members of
+  `corvint-pr-narrowing/0` SHALL retain both identities, with `base` equal to `effectiveBase`.
+  On a refused topology the effective identity may be empty; the driver's named reason remains.
+  The workflow's retained shadow selection and tiers SHALL use the same effective base.
+  Main-only `.github/` commits between the event base and parent 0 SHALL not be attributed to
+  the PR; PR-owned changes to `.github/`, including renames out, still force FULL.
+  Existing consumers of `base` continue to see the actual planned range. Frozen historical
+  records are not rewritten. Rollback removes these additive fields with AFP-V0-800.
+- **AFP-V0-802:** (accepted by the owner, V1-3093, 2026-10-28) Forward-row ownership.
+  For a PR row, the collector SHALL derive parent 0 from the single tested target named by
+  the retained shadow selections, all bound to the run and event head, then prove the same
+  two-parent, head and event-ancestry conditions through GitHub's commit/compare API.
+  An artifact target is only a hint: parent 0 MUST also be an ancestor of current main,
+  and both the PR head and tested merge compared from that base MUST exclude `.github/`.
+  Missing evidence, disagreement, unproved ancestry, or an unbounded/unreadable file list
+  SHALL exclude the row with a named reason, never trust artifact contents to waive ownership.
+  No tested code executes in collection. Queue rows retain their existing range.
+  Acceptance: `TestAFPV0800StaleEventBase`, `TestAFPV0800ShadowBase`,
+  `TestAFPV0098SupersetGuardSidecar` and `TestAFPV0047CollectorNamesRows` exercise stale
+  bases, main-only `.github/` changes, consistent ranges and closed refusals.
+  Rollback restores event-base comparison and drops this collector resolution.
+- **AFP-V0-099:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
+  V1-0812)) Rows of narrowed runs. Each narrowing gate SHALL retain its record as
+  `ci-narrowing-<shard index>` (90 days). A pull-request row whose run retained any `NARROWED`
+  record, or a record that cannot be read, SHALL be class `NARROWED`, excluded from the
+  AFP-V0-029 bar and the AFP-V0-030 window. A `merge_group` run SHALL always run full: it never
+  reuses a narrowed run, because a narrowed shard writes no tested-tree record. `collect.sh`
+  SHALL download the selection run's narrowing records, and `row.jq` SHALL classify a queue
+  failure of a package a record lists as skipped as a `MISS`, even when its rerun passes, since a
+  narrowed-out failure is exactly what the PR did not test. A record of another run, a malformed
+  record or unreadable records SHALL make the queue row `INCOMPLETE`. Failure modes: a record
+  that says `NARROWED` while the shard ran whole is still treated as narrowed (conservative);
+  rows expire with default artifact retention, so an old `MISS` can drop out of a later verdict,
+  which AFP-V0-030 re-arming by epoch bounds. Rollback: as AFP-V0-097.
+- **AFP-V0-047:** (accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The
+  AFP-V0-029 shadow SHALL run without the deciding driver. `go-product-shard` SHALL carry
+  `CORVINT_TEST_SHADOW_SOURCE`, a full reviewed `main` commit id pinned apart from
+  `CORVINT_PR_TOOL_SOURCE` (whose deciding driver, before AFP-V0-048, refused AFP-V0-041 test slices); on a
+  `pull_request` run at a mode other than DOCS or REUSE, a step SHALL check out that commit outside
+  the tested checkout without credentials, verify `HEAD` equals the pin, build only `./cmd/corvint`
+  to `$RUNNER_TEMP/corvint-shadow-bin/corvint`, and the shadow `corvint test --dry-run` (STR-V0-012
+  step 3) SHALL use that binary; the Go tests step keeps executing the full shard, so no PR run
+  narrows. Each such shard SHALL retain, in its `corvint-test-shadow-<shard>` artifact beside
+  `dry-run.json` and `manifest.json`, a `selection.json` document `corvint-pr-selection/0` with
+  keys `profile`, `toolSource`, `toolDigest`, `pr`, `head`, `base`, `target`, `tree`, `runId`,
+  `runAttempt`, `shard`, `shards`, `exit`, `scope`, `reason`, `placement`, `shardIndex`,
+  `shardCount`, `incomplete`, `selected` (the shard's run set), `manifestDigest`, `manifestUnits`,
+  `planDigest`, `partitionDigest`, `sourceDigest` and `notProduced`, which names every digest the
+  dry-run does not print (the selection digest) instead of inventing it. Every `pull_request` and
+  `merge_group` full-branch shard SHALL retain `ci-outcomes-<event>-<shard>`, a
+  `corvint-ci-outcomes/0` document with keys `profile`, `event`, `runId`, `runAttempt`, `target`,
+  `head`, `tree`, `shard`, `shards`, `status`, `outcomes` (package-level `pass`, `fail`, `skip`, or
+  `missing` for an expected package or slice without a terminal event) and `rerun`, also after a
+  failed shard. A shard whose tests failed SHALL rerun each failed package or AFP-V0-041 slice
+  once under the same confinement, at most 8 invocations, recording `rerun.state` `RAN` with the
+  rerun outcomes, `NOT_NEEDED`, `INTERRUPTED`, or `SKIPPED_BOUND` with no rerun above the bound;
+  the shard still fails, except as AFP-V0-441 allows; a failed outcomes setup leaves that shard without outcomes (so its rows
+  are INCOMPLETE) and never changes the shard's status. The `forward-rows` job of `.github/workflows/ci-control-plane.yml`, on a
+  completed (`success` or `failure`) `merge_group` or `pull_request` run of CI, SHALL hold only
+  `actions: read` and `contents: read`, run only the default-branch `.github/forward-rows` scripts
+  through a sparse checkout of its own commit with `gh` and `jq`, and download only the
+  `ci-outcomes-*`, `corvint-test-shadow-*` and `ci-reuse` artifacts. A queue row takes S from the
+  latest successful `pull_request` run of the queue commit's second parent and F from the queue
+  run, or, for a REUSE queue run (AFP-V0-046), from the reused run its `ci-reuse` decision names,
+  recording `outcomesSource` `reuse` (else `merge_group`, or `pull_request` for a PR row); a PR
+  row takes both from its own run and names its tested merge commit. A run on a branch that is not
+  a queue branch of `main`, without a pull request number, or a PR run that retained neither
+  outcomes nor a shadow plan produces no row. Because a change to `.github/` runs its own
+  workflow and could upload any outcome, a run whose change set (the pull request's base to head,
+  or the queue commit's first parent to the commit, read through the compare API) touches a
+  `.github/` path, or lists 300 files or more, also produces no row; an unreadable change set
+  makes the row INCOMPLETE.
+  The row SHALL be INCOMPLETE, never CLEAN, when any selection or outcomes shard is missing,
+  unreadable, misshapen (including a tool source, head or target that is not a full commit id, or a
+  tool, manifest, plan or partition digest that is not `sha256:` hex) or duplicated, when a shard count differs from the job's
+  `FORWARD_SHARDS`, when a document names another run, head or target than the row (or, for a
+  REUSE row, another tree than the decision), when the
+  dry-run exited other than 0 or 3, when shards disagree on the manifest digest, when the selection
+  records a gap other than a non-Go language without an adapter (retained in `selection.limits`),
+  when a failed shard names no failed package, or when the collector could not read an input.
+  The row is `corvint-pr-forward-row/0` with the closed keys `class`, `counts`, `epoch`, `failed`,
+  `flaky`, `head`, `incomplete`, `infrastructure` (AFP-V0-052), `kind`, `missed`, `outcomesRunId`, `outcomesSource`, `pr`,
+  `profile`, `reruns`, `runId`, `selectedFailedInQueue`, `selection`, `selectionRunId`, `sha`,
+  `shards` and `truncated`, at most 64 KiB (package lists are cut and `truncated` set), uploaded
+  with default retention as `ci-forward-<CLASS>-pr<N>-<sha>-e<EPOCH>-f<0|1>`, where `EPOCH` is
+  `CORVINT_PR_FORWARD_EPOCH` and `f1` marks a row with failing packages. The job's step summary
+  SHALL count, from the names of non-expired artifacts that runs on `main` of this repository
+  uploaded (a pull-request or queue run can upload any name) and without downloading, two
+  separate counts of the current epoch's rows (one per pull request and commit): every listed row
+  against the AFP-V0-029 bar of 8 complete and 1 failing rows with no non-`FLAKY` miss (amended by
+  the orchestrator under owner delegation (owner chat, 2026-10-31); formerly 20 and 5), and the
+  latest 20 rows against the AFP-V0-030 thresholds. It SHALL say NOT MET while the epoch is short
+  and NOT ESTABLISHED, never MET, when the listing neither read every artifact nor reached a row of
+  an earlier epoch (owner chat, 2026-10-20; V1-0812). Nothing in
+  this requirement narrows a run or changes a required check. Limits: hosted row delivery is
+  `NOT_OBSERVED` until the first queue run on `main` after the change; the rerun bound leaves a
+  ninth failure without a rerun, so its misses are MISS; artifact listing reads at most 20 pages;
+  shadow artifacts keep 14-day retention, so a queue run later than that is INCOMPLETE; fork pull
+  requests produce no row; a pull request's own test code runs in its shards and could rewrite its
+  outcomes files, so a row is as trustworthy as the reviewed change, like any test result.
+  Rollback: clear `CORVINT_TEST_SHADOW_SOURCE` (the shadow and its
+  selection stop) and remove the `forward-rows` job; no consumer reads the rows before V1-0812.
+- **AFP-V0-052:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the
+  AFP-V0-029/030 amendment it implements is owner-accepted, decision 0537) A forward row SHALL tell
+  a hosted pre-step failure apart from runner incompleteness. (1) The `forward-rows` collector
+  SHALL read the job list of the outcomes run (`filter=latest`) and name each `go-product-shard (N)`
+  job whose conclusion is `failure` and whose first step, `Set up job`, failed; an unreadable job
+  list names none and says so in the step summary. (2) The row SHALL carry `infrastructure`, one
+  reason `infrastructure: go-product-shard (N) of run R failed at Set up job` per named shard, also
+  listed in `incomplete`. (3) The class SHALL be `INFRA`, not `INCOMPLETE`, only when the named
+  shards are below the shard count, the outcomes documents cover exactly the other shards, the
+  selection documents cover every shard or, when the selection run is the outcomes run (a
+  pull-request row), exactly the other shards, every other incomplete reason is absent, and no
+  missed package failed its rerun; otherwise the row stays `INCOMPLETE`, so a real gap beside a
+  hosted failure is never hidden. A hosted failure therefore never makes a row `CLEAN`, `FLAKY` or
+  `MISS`. (4) The row name SHALL use `INFRA`, and the step-summary bar count SHALL accept it, give an
+  `INFRA` row no place in the latest-20 window, never count it as complete or `INCOMPLETE`, and
+  report how many `INFRA` rows lie between the window's rows.
+  Non-goals: it does not rerun the lost shard, change a required check, or classify any other job or
+  step; a later step's failure, a cancelled job and a runner lost mid-job stay `INCOMPLETE`.
+  Limits: the selection run of a queue row is the latest successful pull-request run, which has no
+  failed job, so only the outcomes run is read; a queue run whose every shard failed at set-up
+  retained no outcomes artifact and stays `INCOMPLETE` on the collector's reason; hosted `INFRA`
+  rows are `NOT_OBSERVED` until a hosted set-up failure recurs after the change.
+  Falsifier: the queue-row fixture of run 38686348902 (shard 5 lost at `Set up job`, its real job
+  list) classifies `INCOMPLETE`, or a row with a missing shard that no set-up failure names classifies
+  `INFRA`.
+  Rollback: revert the `infra` reading in `collect.sh`, `classify.sh`, `row.jq` and `bar.jq` and
+  decision 0537; earlier `INFRA` artifacts then match no bar name and are not counted.
+
+### Shard cost tables and test-name slices
+
+- **AFP-V0-040:** (accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
+  report drift of the AFP-V0-022 cost table without ever failing on it. Each
+  full `go-product-shard` whose `go test -json` invocation passed SHALL keep that stream and upload
+  it as the artifact `ci-shard-costs-<shard>` with 3-day retention; a docs-only, reused, selected
+  or empty shard keeps none, and only `go test`'s own exit status decides the shard, except as
+  AFP-V0-441 allows. Capture is
+  best-effort: when its directory or file cannot be created the shard runs `go test` without `tee`
+  and retains nothing, so capture and retention never decide the required shard. The job
+  `ci-shard-cost-drift` (`needs: go-product-shard`, run unless cancelled) SHALL run
+  `tools/ci-shard-costs check --advisory --shards N` only when every shard succeeded and exactly N
+  outcome artifacts are present, and otherwise SHALL abstain with its reason in the job summary
+  (invariant 2). The advisory form appends a Markdown table to the job summary and SHALL exit 0
+  whatever it finds; it exits 2, with `Abstained: <reason>` in the summary, when the logs are not N
+  readable, passing shard streams or the table is invalid. Each stream SHALL be well formed and
+  finished: every non-blank line is a `go test -json` event with an Action from the closed test2json
+  and build-event set, a Package on every test event and an ImportPath on every build event; no
+  test, package or build fails; every package outcome follows that package's single start; at
+  least one package reaches a terminal outcome, and no package start lacks one. An empty,
+  malformed, structurally invalid or unfinished stream abstains. A finding is material when the time it
+  misplaces (|observed - recorded| for drift, the observed time for a missing package; a stale
+  entry places no package and misplaces nothing) reaches `--share` percent, default 10, of the
+  ideal shard (all observed package time divided by N). A material drift is reported even within
+  the AFP-V0-022 factor, because shard balance depends on absolute time, not ratio; non-material
+  findings keep the AFP-V0-022 factor and floor. Each material finding gets one `::warning::`
+  annotation, and one further warning counts every remaining drift, missing and stale finding, so
+  no run exceeds the ten warnings GitHub shows per step. The job and each of its steps are
+  continue-on-error, so a checkout, toolchain, download, build or report failure abstains and the
+  job never ends red. Every abstention SHALL put `Abstained: <reason>` in the job summary; a final
+  always-run step writes it when no earlier step did. The 10% default is chosen from run
+  38055182050 (ideal shard 1,281s): hosted per-package noise reached about 60s (5%), while
+  `internal/tasks/store` misplaced 1,001s (78%) and the missing `internal/appmap` 132s (10.3%).
+  Non-goals: the job is not a required check, never posts or changes the `ci-control-plane` or any
+  commit status, never refreshes, rewrites or commits the table, and never changes shard
+  membership or placement; refreshing remains the operator's AFP-V0-022 `refresh` step. Failure
+  modes: a failed, skipped or cancelled shard, or a missing or extra artifact, abstains with its
+  reason; an artifact upload or download failure only removes evidence and is continue-on-error;
+  re-run attempts overwrite their own shard's artifact. Falsifier: a pull request whose required
+  checks fail, or whose shard membership or placement changes, because of this job or the
+  retained stream; or a report over fewer than N shard streams. Acceptance evidence: the
+  `TestAFPV0040*` tests, `actionlint`, `make ci-least-privilege-check`, and a local dry run of the
+  job's steps against the six shard logs of run 38055182050 (build log
+  2026-10-10-ci-shard-drift-detection); hosted behaviour is NOT_OBSERVED until the change's own CI
+  runs. Under AFP-V0-041 the capture holds every invocation of the shard, and a split package's
+  slice outcomes combine into one cost as AFP-V0-041 (8) states. Rollback: delete the
+  `ci-shard-cost-drift` job and the retention step, restore the plain
+  `go test` invocation in `go-product-shard`, and remove `--advisory` from `tools/ci-shard-costs`.
+- `AFP-V0-043`: (accepted, decision 0505) Cost-table
+  `refresh` and plain `check` MUST validate each shard log against the completed-stream
+  standard of AFP-V0-040 before combining costs or writing the table: every non-blank
+  line is a valid event, every started package ends, and each log has a terminal package
+  outcome. Malformed lines, truncated final events and unfinished packages MUST refuse
+  with exit 2 and leave the table unchanged. Valid raw streams MUST retain the prior
+  non-strict observer's encoded table bytes. Non-goal: changing the legacy `observe`
+  helper's other callers. Rollback: revert the strict reader selection and its tests.
+- **AFP-V0-048:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A
+  sharded AFP-V0-022 run of the package-level PR driver `tools/corvint-pr-tests` SHALL execute
+  exactly what the protected full path places on its shard. It SHALL take the complete placement
+  of the enumerated runtime universe from the same `cishards.Plan` call that `ci-shards --slices`
+  makes, never a reimplemented partition. It SHALL run the shard's whole packages in one `go test`
+  invocation and then each AFP-V0-041 slice placed on the shard in its own invocation (the driver's
+  test arguments, the slice's `-run` or catch-all `-skip` pattern, then the package), all within
+  one deadline, and the shard SHALL fail when any invocation fails. A FULL run executes the
+  shard's whole placement. A narrowed run executes the selected whole packages placed on the
+  shard and, for each selected split package, every slice placed on the shard, so over all shards
+  a selected split package runs each slice exactly once and never whole; a selected package
+  outside the runtime universe, or repeated, refuses. Before any execution the driver SHALL
+  refuse, with exit 2, a reason naming `AFP-V0-048` and no execution record, a placement that does
+  not have the declared shard count, places a package other than exactly once whole or as
+  slices, runs a split package whole as well, places a slice other than exactly once, gives one
+  package two slice counts, or holds a slice whose index, flag (`-run` for a named slice, `-skip`
+  for the catch-all) or pattern (an anchored alternation of plain `Test`, `Example` or `Fuzz`
+  names within `MaxPatternBytes`) is malformed, or whose named slices of one package overlap or
+  whose catch-all does not skip exactly their union. A FULL fallback executes the same placement,
+  so it refuses too. The AFP-V0-022 profile digest, shard source and source drift checks still
+  precede execution. A slice file whose names are stale needs no refusal: as in the full path, a
+  removed name matches nothing and a new or renamed test runs in the catch-all slice; an unusable
+  or unadmitted slice file leaves the affected package whole, as in the full path.
+  `selection.json` SHALL record the shard's slices (`ShardSlices`) and `execution.json` each slice
+  invocation's arguments and exit (`Slices`); with no split package both documents and the
+  whole-package arguments are unchanged. Non-goals: selection authority from slices, slicing in
+  qualification rows or the container profile (both stay unsharded), and a change to the
+  protected helper or workflow. Limits: like the driver's whole-package invocation, each slice
+  invocation runs without the AFP-V0-023 `test-confine` wrapper that the full path applies (the
+  AFP-V0-023 residual for the AFP-V0-013 driver; AFP-V0-028 requires the full branch's wrapper
+  before narrowing); hosted execution is `NOT_OBSERVED` until V1-0812 sets
+  `CORVINT_PR_TOOL_SOURCE`, and the `.github/workflows/ci.yml` comment beside that pin still
+  describes the earlier refusal until V1-0812 edits it. Falsifier: a driver shard set whose union
+  of whole packages and slices differs from the full path's for the same universe and shard
+  count, or a top-level test of a selected split package with zero or two terminal outcomes over
+  the shards. Rollback: revert the change, which restores the AFP-V0-041 (6) refusal.
+- **AFP-V0-049:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1371)
+  `tools/ci-test-slices generate` and `replay` SHALL combine the per-slice terminal outcomes of a
+  split package as AFP-V0-041 (8) does for `tools/ci-shard-costs refresh`, so a complete, passing
+  sliced run can regenerate the slice file and be replayed. The split set SHALL be the one the
+  tested tree ran with: `generate` reads the allow-list and slice file of the `--revision`
+  checkout and `replay` those of `--root`, through the same `SplitPackages` call over the
+  packages the logs name and the declared `--shards N`; `replay --slices` chooses only the
+  placement it predicts.
+  (1) A package the files split into K slices SHALL have exactly K terminal outcomes across the
+  logs. Its time is the sum of those outcomes and its top-level test times the union of theirs.
+  (2) Each outcome SHALL be attributed to one slice by its top-level tests: every top-level test
+  of the outcome SHALL belong to the slice that admits the first of them in byte order (the
+  catch-all admits every name that no named slice names), and no slice SHALL be attributed twice.
+  An outcome without top-level tests, such as a named slice whose tests the run no longer has,
+  counts toward K without a name.
+  (3) Every other AFP-V0-041 (5) refusal SHALL be kept, with exit 2 and no write: a repeated
+  outcome of a package the files do not split, including every package when the allow-list or
+  slice file is absent or unusable ("package P has two terminal outcomes"); a top-level test
+  with two terminal outcomes across the run; a test outside the slice its log ran; a slice
+  attributed twice; any count other than K, so a run made before the split or a run missing a
+  slice refuses ("N terminal outcomes for its K test slices"); and an allowed package that the
+  slice file splits into more slices than N.
+  (4) `replay` SHALL state that its sliced plan places every package of the run exactly once,
+  whole or as each of its slices ("units U placed exactly once"), and SHALL refuse a plan that
+  drops, repeats or adds a unit.
+  Non-goals: attributing subtests; changing which packages split; cost-table changes.
+  Limits: an outcome without top-level tests is attributed by count only, so which named slice it
+  was is not checked; the per-log lifecycle rule of AFP-V0-041 (5) is unchanged, so two slices of
+  one package in one shard log still refuse; the exactly-once line checks the helper's plan, not
+  the hosted run. Falsifier: an accepted run in which a top-level test has two terminal outcomes,
+  a slice runs twice, or a package the files do not split ends twice. Rollback: revert `combine`
+  and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` then refuse a sliced
+  run as before, and the committed slice file stays valid.
+- **AFP-V0-060:** (accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016
+  consent for the `.github/` edits of V1-1096 and V1-0812 only and accepted the V1-1096 amendment
+  of AFP-V0-022 that AFP-V0-041 states; V1-1096; no GitHub issue) Production test-name slices of
+  the oversized allowed packages. (1) The committed `.github/cishards/test-slices.json` SHALL split
+  both allowed packages, `cmd/corvint` and `internal/tasks/store`, and SHALL be regenerated by
+  `tools/ci-test-slices generate --target` of at most 350s from one complete, passing hosted run
+  of the full go-product-shard matrix, with `package-costs.json` refreshed by
+  `tools/ci-shard-costs refresh` from the same run, so both files record one revision and run.
+  (2) Over the committed cost table's package universe and the 8-shard matrix, every planned slice
+  of a split package SHALL carry at most 400,000 ms, the plan SHALL place every unsplit package
+  and every slice exactly once, and sibling slices SHALL land in different shards. (3) Every test
+  name the slice file records SHALL be selected by exactly one slice of its package; a name added
+  or renamed after generation SHALL be selected by the catch-all alone, and a removed name by
+  none. The AFP-V0-041 refusals and whole-package fallbacks, the AFP-V0-022 complete-universe
+  partition, the full-suite merge-queue run and the required checks `go-product`, `doc-gates` and
+  `ci-control-plane` are unchanged.
+  Non-goals: no new allow-list entry (`internal/tasks/cli` and `internal/tasks/authority` stay
+  whole); no PR narrowing or selective execution (V1-0812 stays behind the AFP-V0-029 bar); no
+  claim of hosted speedup from local replay alone.
+  Failure modes: a refresh from a failed, partial or repeated run is refused by the tools, as
+  AFP-V0-022 and AFP-V0-041 (5) state; a slice file that no longer decodes or that a package
+  outgrows keeps the package whole (AFP-V0-041 (3)); with fewer shards than a package's slices the
+  package runs whole.
+  Acceptance evidence: `TestAFPV0060CommittedSlicesBoundOversizedPackages` in
+  `.github/cishards/slices_test.go`; the per-shard Go-test step times and the largest
+  `cmd/corvint` slice of this change's hosted run; ten paired sliced and unsliced runs with an
+  identical pass/fail set (`NOT_OBSERVED` until collected). Falsifier: with the bound lowered to
+  300,000 ms the test fails on the largest `internal/tasks/store` slice.
+  Rollback: revert the two JSON files to their previous revision; placement returns to the
+  previous slices and costs with no other change.
+
+### Local and CI Windows vet
+
+- **AFP-V0-042:** (accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
+  `.github` change under decision 0390) The `go-static` job of `.github/workflows/ci.yml` SHALL run
+  `CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go vet ./...` on the root module and on
+  `interop/cem01-go`, so a `_test.go` file that does not type-check for Windows fails the required
+  `go-product` check before merge; `go build` never compiles test files and the native `go vet`
+  never sees a file excluded by its build constraint. The step SHALL be skipped only on a pull
+  request whose checked-out merge commit has the event base as its first parent and changes no
+  `.go`, `go.mod` or `go.sum` path against it; a push, merge-group entry, missing base parent or
+  failed diff runs the vet (invariant 2). The checkout keeps `fetch-depth: 2` for that diff.
+  Non-goals: `GOOS=linux GOARCH=arm64` stays with the Makefile `cross-vet` and nightly release
+  gates; no new job, no change to shard membership, docs-plan modes or the `ci-control-plane`.
+  Failure modes: a Windows-only vet failure fails `go-static` and therefore `go-product`; a
+  non-Go input that only Windows vet would reject (such as an embedded file) on a skipped pull
+  request is caught by the merge-group and main runs. Falsifier: a pull request adding a
+  `//go:build windows` test that references an undefined name passes `go-static`. Acceptance
+  evidence: `actionlint`, `make ci-least-privilege-check`, and the local fixture run of the step's
+  script (build log 2026-10-10-windows-test-vet): a docs-only merge skips, a merge adding such a
+  test exits 1 while the native vet and Windows build pass; hosted behaviour is NOT_OBSERVED until
+  the change's own CI runs. Rollback: delete the step and the `fetch-depth: 2` line.
+- **AFP-V0-054:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no
+  GitHub issue) Local Windows vet before push. (1) The Makefile target `windows-vet` SHALL run
+  exactly the `go vet` commands of the AFP-V0-042 step, in the same order and module directories
+  (the root module, then `interop/cem01-go`), with the same file-selecting environment as the
+  step's effective environment (the `go-static` job env with the step's own `env` merged over it):
+  `CGO_ENABLED=0 GOOS=windows GOARCH=amd64`, `GOTOOLCHAIN=local`, `GOWORK=off` and an empty
+  `GOFLAGS`, so no build tag is added and `_test.go` files are type-checked. It SHALL also set
+  `GOENV=off`, so a value saved by `go env -w` (which an empty `GOFLAGS` falls back to) cannot
+  change the selected files, and SHALL depend on the `go-version` target, so it runs only on the
+  `go1.27.3` toolchain CI's `setup-go` pins (decision 0557). (2) The
+  `AGENTS.md` Verify section SHALL declare `make windows-vet` in a shell fence and scope it, in a
+  sentence naming the command, to a change that touches a `.go`, `go.mod` or `go.sum` file, so
+  `corvint affected` lists it as a `conditional` check (AFP-V0-009, decision 0531) and an agent
+  runs it before the push that CI would otherwise be first to judge. (3) A test that calls a helper
+  defined only in a `//go:build unix` file (the PR #1089 shape, V1-1092) SHALL pass the native
+  `go vet` and fail the target's root-module command naming the undefined helper.
+  Design: the whole-module run, not a touched-package subset, is the smallest exact match. It is the
+  CI command itself; a subset would miss a break in a package whose files did not change (a
+  dependent's test, or a helper moved under a constraint) and would need a package resolver CI does
+  not use. It costs about 5 s warm and 45 s cold (build log 2026-10-10-windows-test-vet; 19 s
+  observed on this change). The declaration is project-owned authority (invariant 3): no
+  `corvint affected` code changes, so other repositories see no new advice.
+  Non-goals: no `.github/` change, no skip logic mirroring the step's pull-request condition (the
+  scoping sentence carries it), no pre-push hook, no `GOOS=linux GOARCH=arm64` run (it stays in
+  `cross-vet`), and no new `GATE_STEPS` entry (`cross-vet` already covers Windows in `make gate`).
+  Failure modes: a target that drifts from the step (another GOOS, a tag in `GOFLAGS`, a dropped
+  module, a dropped `GOENV=off` or `go-version` prerequisite) fails
+  `TestAFPV0054WindowsVetTargetMatchesTheCIStep`; a tag added in the step's own `env` fails it too
+  (`TestAFPV0054StepEnvOverridesJobEnv`); a saved `go env -w GOFLAGS` is ignored
+  (`TestAFPV0054WindowsVetIgnoresSavedGoEnv`); an agent that skips the check is
+  still stopped by the unchanged AFP-V0-042 step, one CI round later. Falsifier: the fixture of (3)
+  passes `make windows-vet`'s root-module command. Acceptance evidence: the five `TestAFPV0054*`
+  tests, mutation checks and a `corvint affected` run on this tree listing the conditional check
+  (build log 2026-10-18-v1-1719-local-windows-vet). Rollback: delete the target, the `AGENTS.md`
+  paragraph and fence, and the tests.
+
+### Go plugin modules, workspaces and command edges
+
+- **AFP-V0-031:** (accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
+  frontier) The Go plugin SHALL decide the `go:nested-module-frontier` per unlisted module:
+  it reads each such module's `go.mod` through the same `affected.Source` as every other input
+  (the worktree, or the immutable tree under `BuildFS`, where a read error stays fatal), and the
+  frontier is raised only when at least one module stays open. A module stays open when its
+  manifest is unreadable, larger than 1 MiB, or not parsable by a reader that lexes as the go
+  tool does and fails on any verb, token, block, or directive argument it does not admit (for
+  example an invalid or quoted `go` or `toolchain` version, a quoted `godebug` or one without
+  `=`, a malformed `retract` interval, a raw string, a quote inside an unquoted argument, a block
+  of a verb the go tool does not admit as a block, a module version that is not canonical or
+  whose major does not match the module path's suffix, or a replacement whose target is a
+  directory with a version or a module path without one); when it requires, replaces, or names a tool under an observed
+  module path (a tool under its own module path excepted), or replaces a module with one; when a
+  directory replacement is absolute or not repository-relative, resolves outside the repository,
+  or resolves anywhere other than its own directory or another unlisted module (a relative
+  replacement that resolves to the root, or into an observed module, therefore keeps it open);
+  when a `go.work` sits in its directory or any ancestor below the root; or when the observed
+  side draws it in: an observed `go.mod` or the root `go.work` requires, replaces, or names a
+  tool under its module path, or replaces a module with its directory, because the observed
+  build then compiles its packages and resolves their imports against the observed modules.
+  Every nested module stays open when the observed side cannot be read the same way: an observed
+  module path is unresolved, an observed `go.mod` or the root `go.work` is unreadable, over-size,
+  or unparsable, an observed `go.mod` declares a module path other than the one the plugin read
+  (the plugin reads a quoted path with Go string-literal rules and leaves one it cannot read
+  unresolved, V1-0873), the root `go.work` use set differs from the observed
+  directories, or an observed directory replacement is not repository-relative or does not name
+  exactly an observed module directory or a path at or below an unlisted module's directory (a
+  differently cased or linked path can name a nested module, so identity is not established).
+  A module that is
+  none of these neither builds against an observed module nor is built by one,
+  so no change to an observed module reaches it and it closes. The plugin keeps one evidence
+  record per nested `go.mod` read, with the reason it stayed open; it is internal and does not
+  reach the plan wire. The reverse direction: a nested module's files are never units, so a
+  change inside one is the `LANGUAGE_FRONTIER` detail of AFP-V0-191, which names the module
+  directory, not `UNINDEXED_SOURCE_PATH`.
+  Non-goals: reads by a nested module's tests of observed data (AFP-V0-012 already treats nested
+  literals as selecting nothing), symlinked manifests the walk does not follow, and a `GOWORK` or
+  `GOFLAGS` (`-modfile`) environment value, which the plugin cannot observe. Rollback restores the unconditional frontier
+  in `observeModules` and removes `nested.go`.
+- **AFP-V0-190:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0874)) The Go
+  plugin's workspace use set (AFP-V0-008) MUST come from the strict manifest reader
+  (`readManifest`, the AFP-V0-031 reader), so the unit universe and the nested-module check read one
+  `go.work` the same way: a quoted directory is unquoted with Go string-literal rules and two
+  directories on one `use` line are both read. A `go.work` that reader refuses (a raw-string or
+  otherwise unreadable `use` entry, an unknown directive, over-size or unreadable) MUST raise the
+  frontier `go:workspace-unparsed` and observe only the root module, which the AFP-V0-031 rules
+  then keep open against every nested module; `CommittedReadScopes` treats the same refusal as an
+  unknown base (AFP-V0-050). Before this, a loose line reader guessed a use set
+  from such a file and the plan stayed bounded. Evidence:
+  `TestWorkspaceUseSetIsTheStrictReaders_AFPV0190` (fails without the change). Rollback: restore the
+  line reader in `workspaceDirectories`.
+- **AFP-V0-191:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0922)) A language
+  plugin MAY return `Result.Unobserved`: canonical repository-relative directories, strictly
+  ascending, that it owns but builds no unit for; `Build` MUST refuse any other value as
+  `ErrInvalidLanguage`, and the graph digest body carries them as the `unobserved` member
+  (`namespace:directory`), omitted when empty so a graph without them keeps its digest. A dirty
+  path such a plugin claims that lies under one of them MUST be the unknown `LANGUAGE_FRONTIER`
+  with detail `<namespace>:unobserved-directory:<directory>:<path>` (the longest directory wins) in
+  place of `UNINDEXED_SOURCE_PATH`; the reason enum is unchanged and the detail keeps the plan
+  `UNKNOWN` and the gate tier full (AFP-V0-028 admits only its own `go:` details). The Go plugin
+  reports the directory of every nested `go.mod` it does not observe, leaving out the root and any
+  directory that is or contains an observed module, because an unindexed file there may belong to
+  an observed module and stays `UNINDEXED_SOURCE_PATH`. Evidence:
+  `TestNestedModuleChangeIsANestedModuleUnknown_AFPV0191`,
+  `TestUnobservedLeavesOutDirectoriesHoldingObservedModules_AFPV0191`,
+  `TestUnobservedDirectoriesAreValidatedAndDigested_AFPV0191`, and the amended expectation of
+  `TestIndependentNestedModulesCloseTheFrontier_V1_0867`. Non-goal: indexing a nested module's
+  packages, which would need its own root-runnable test command (V1-0922 design note, PR #1420);
+  amended by AFP-V0-650, under which an independent nested module's own `go test ./...` runs as
+  a `corvint test` unit without indexing its packages.
+  Rollback: drop `Result.Unobserved`, the digest member and `Graph.unownedUnknown`.
+- **AFP-V0-037:** (proposed (V1-0991); no GitHub issue) A package whose code or tests run the built
+  binary of a command, a `package main` of the root module, depends on that command's whole build
+  though no import edge says so. The Go plugin MUST record such a command edge as the unit's
+  `execs` member (sorted command unit ids, part of the AFP-V0-005 projection when non-empty) from
+  either source: a path token of the unit (AFP-V0-021) that names a command's directory exactly,
+  resolved against the module root when anchored or plain (`go build ./cmd/corvint` runs there)
+  and against the unit's directory when climbing, never the unit itself; or the project-owned
+  declaration `.corvint/test-binary-execs.json`, the closed object
+  `{"profile":"corvint-test-binary-execs/0","packages":{DIR:[COMMAND_DIR...]}}`, at most 1 MiB,
+  4096 packages and 1 to 256 strictly ascending entries per package, for a package that runs a
+  binary it is handed (a `--corvint` flag) and so names no literal. Every `DIR` must hold an observed
+  Go package and every entry an observed command other than `DIR`. A declaration that is present but
+  unreadable, oversized, not a regular file or invalid in any member keeps no declared edge and
+  raises the module-level frontier `go:test-binary-execs-invalid`; literal edges stay. Selection
+  MUST then select, with witness `BINARY_EXEC` and `via` ending in the command then the consumer,
+  every consumer of a command that the dirty set reaches through the dependency closure
+  (traverse) or the enclosing-package rule, before the read-path rules; the consumer is selected
+  one edge past the command and not traversed further, like `testUsersOf`. A command reached only
+  as a test user, or a change that reaches no command, selects no consumer. Limits: a literal that
+  names a command directory as data over-selects, except in the data-only positions of
+  AFP-V0-402; a command at the module root (`.`) is never a
+  literal target; an exec consumer's importers are not selected through it; a dirty
+  `.corvint/test-binary-execs.json` is an unowned path and widens the plan to `UNKNOWN`; a
+  `_test.go`-only change to a command still counts as reaching its build. Intent: `corvint affected`
+  missed `conformance/host-lifecycle-v1` on a `cmd/corvint/help.go` change, with no import edge and
+  no stated uncertainty (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0991-affected-binary-readers.md`).
+  Falsifier: a package that runs a command's binary and is excluded on a change the command's build
+  reaches, or a `BINARY_EXEC` selection on a change that reaches no command. Rollback: delete
+  `execs.go`, `golang/binaryexecs.go` and `.corvint/test-binary-execs.json`, the `Execs` member and
+  its digest field, the `execUsersOf` call in `reach`, and the gate tool's frontier entry.
+
+### Planner inputs, receipt projection and advisory checks
+
+- **AFP-V0-032:** (accepted by decision 0438; V1-0865) Only a declaration path that
+  does not exist is absent for AFP-V0-009. A `Makefile` or `AGENTS.md` path that exists but is not a
+  readable regular file (a directory, a FIFO or other special file, a dangling symlink, or an open,
+  stat or read error) MUST add `MANDATORY_DECLARATION_UNREADABLE: <path> exists but is not a
+  readable regular file` to `unknown`, yield no checks from that path, and MUST NOT add
+  `NO_REPOSITORY_GATE_DECLARED`. The read MUST NOT block: it opens non-blocking and confirms a
+  regular file before reading. A symlink to a readable regular file is still read, as before.
+  Rollback restores the previous reader, which treated these paths as absent.
+- **AFP-V0-034:** (accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`ReadSource`, `readSourceFile` in
+  `internal/liveverify/affected`) admits a unit on the descriptor it reads, not on a separate
+  look-up of the name. On darwin and linux it opens the path `O_RDONLY|O_NOFOLLOW|O_NONBLOCK`:
+  a symlink is refused at open (`ELOOP`/`EMLINK` become `ErrInvalidUnit`), a FIFO cannot block
+  the open, and the regular-file and `MaxSourceBytes` checks run on `fstat` of that descriptor;
+  a body that grows past the bound after the stat is refused (`ErrWalkLimit`) while it is read.
+  A path whose open fails for any other reason (a socket, a directory the process may not read)
+  is `Lstat`-ed only then, so a non-regular path keeps the `ErrInvalidUnit` the `Lstat` path
+  gave it and the success path stays at one open and one `fstat`.
+  Other platforms keep the `Lstat`-then-`ReadFile` pair (`read_other.go`). The refusals, error
+  values and bound are unchanged; the change removes one path resolution per source, which was
+  19% of `affected` CPU on a 200,000-file repository (3.7 of 19.7 sampled seconds; see
+  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0416-refusal-order-and-affected-reads.md` for the before/after
+  table). `ReadBounded`'s disk path still takes the pair (follow-up). Falsifier: a symlink,
+  directory or FIFO at a unit path that is read rather than refused, or a sparse file over the
+  bound that is read. Rollback: delete `read_unix.go` and `read_other.go` and restore the
+  `Lstat` body of `ReadSource` in `walk.go`.
+- **AFP-V0-035:** (proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
+  `--base` and `--snapshot` forms MUST write `profile="affected-plan/1"`: the AFP-V0-003 document
+  with every member except `plan` unchanged and `plan` projected as follows. `graphDigest`,
+  `dirty`, `scope` and `unknown` are unchanged; each `selected` entry keeps `unitId` and `witness`
+  (whose `via` chain AFP-V0-640 states by reference) and replaces `tests` with `testCount`, the
+  length of that list; `excluded` becomes one object
+  `{count, digest, groups}`, where `count` is the number of exclusions, `digest` is
+  `affected-excluded:sha256:` plus the lowercase hex SHA-256 of the exact `plan.excluded` bytes
+  of the `--full` document for the same inputs (`gokernel.CanonicalJSON`, an empty array when
+  nothing is excluded), and `groups` states each distinct `{reason, universe, invalidation}` once
+  with its `count`, sorted by reason, universe, then invalidation. A bare `--full` (at most once)
+  MUST write the `affected-plan/0` document byte-for-byte as before; `--full` with
+  `--playwright-config` is `invalid-arguments`, and the Playwright profile is unchanged. In-repo
+  readers that check the profile (`internal/companionrelease` core smoke, `.github/cishards`,
+  `tools/corvint-pr-tests`) MUST accept both identifiers; a reader that needs test files
+  (`tools/retrieval-bench`) MUST pass `--full`. Falsifier: a default document whose digest differs
+  from the hash of the `--full` exclusion bytes, whose counts differ from the full lists, or a
+  `--full` document that differs from the previous default. Rollback: delete
+  `cmd/corvint/affected_compact.go` and the `--full` option, restore `affected-plan/0` as the
+  default, and restore the renamed core-freeze goldens.
+- **AFP-V0-036:** (proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
+  indexed Go unit P are P's own declared `_test.go` files MUST select P's tests with a
+  `DIRECT_TEST_CHANGE` witness and MUST NOT traverse from P: P's importers and the units whose
+  tests import P are not reached through P, because Go compiles a test file only into P's own
+  test binary and no other package can import it. They stay excluded with
+  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` unless another dirty path reaches them. A non-test dirty
+  path in P, a deleted or unindexed Go path in P's directory (AFP-V0-012 rule (a)), or a data
+  path that traverses from P (rule (b)) keeps P a traversal root, and P's witness then names its
+  smallest dirty source path rather than a test path. The rule is Go-only; every other plugin
+  keeps the conservative traversal. Path-literal readers (AFP-V0-021), unbounded readers
+  (rule (d)), declared read scopes (AFP-V0-023), language frontiers and `UNKNOWN` scope are
+  attributed per dirty path exactly as before. Measured on this repository at `0b5096ca` with
+  one new `internal/contextindex` test file: 99 selected (72 `DEPENDENCY_PATH`) before, 43
+  selected (0 `DEPENDENCY_PATH`) after; see
+  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0984-affected-test-only-changes.md`. Falsifier: a test-only Go
+  change that selects an importer through a `DEPENDENCY_PATH` witness, or a non-test change in
+  P that does not. Rollback: remove `testOnlyGoUnits` and its use in `reach`, and the
+  source-first witness preference in `seed`, in `internal/liveverify/affected/select.go`.
+- **AFP-V0-038:** (proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
+  advisory check whose `source` is `affected-plan` MUST NOT repeat `provider.go.packages`: when its
+  `affected-plan/0` command is exactly `GOTOOLCHAIN=local go test -count=1` followed by every
+  `provider.go.packages` entry POSIX single-quoted and joined by one space, the check MUST carry
+  `command="GOTOOLCHAIN=local go test -count=1"` and `arguments="provider.go.packages"`, and appending
+  those entries the same way MUST reproduce the `affected-plan/0` command exactly. Every other check,
+  and any command that does not have that form, MUST be kept whole without `arguments`; `--full` and
+  the mandatory checks are unchanged. Falsifier: a default document whose advice names a package
+  path, or whose resolved advice differs from the `--full` advice. Rollback: drop
+  `compactAffectedAdvice` and copy the `affected-plan/0` advice into the default again.
+- `AFP-V0-044`: (accepted, decision 0519 (V1-1141); GitHub #783) When `--base`
+  contributes at least one committed range path that is not in the worktree dirty set and that
+  dirty set is non-empty, the worktree-planned receipt (`affected-plan/0`, `affected-plan/1` and the
+  Playwright receipt) MUST carry a top-level `warning` string naming the HEAD commit the receipt's
+  `revision` names and the worktree dirty-path count, and stating that the dirty content is
+  mutable and pinned by no commit. It is the `affected` counterpart of `DIRTY-CACHE-014`: the
+  requested paths are the committed range, and the plan unions them with uncommitted worktree
+  content (AFP-V0-010). A clean worktree, the worktree-only form (whose request is the dirty set
+  itself), a range entirely within the dirty set, and `--snapshot` (which never reads the
+  worktree) MUST omit the member, so those receipts stay byte-identical. The warning carries no
+  path or file content. Rollback: remove the member.
+- `AFP-V0-045`: (accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST
+  accept the experimental boolean `--require-clean` on the worktree, `--base`, provider and
+  Playwright forms. When the worktree status (AFP-V0-002, untracked files included) has any entry,
+  it MUST refuse with exit 2, code `unsupported-affected-mixed-worktree`, a message naming the
+  HEAD commit and dirty-path count, and no stdout document, before the range diff, the graph walk
+  or any provider runs. `affected` has no structured abstention document, so the strict form is
+  this typed refusal, consistent with its other fail-closed codes. A clean worktree MUST produce
+  the byte-identical receipt the command produces without the flag. The flag rejects a value or
+  repetition, `--snapshot`, and `affected discovery`, each as `invalid-arguments`. It adds no
+  repository, index or ledger write. Rollback: remove the flag and its refusal.
+- **AFP-V0-066:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub
+  #1130 item 4) Advisory RSpec check. This amends AFP-V0-009's single advisory entry. (1) When
+  `plan.selected` holds a unit whose id begins `ruby:rspec:`, `advice.checks` MUST gain one
+  `advisory` entry with source `affected-plan`, placed after the Go advisory entry when there is
+  one, whose command is `bundle exec rspec` followed by the sorted, deduplicated `tests` files of
+  those units, each prefixed `./` so a dash-leading file name is never read as an RSpec option and
+  POSIX single-quoted as AFP-V0-009 quotes packages, and whose reason counts the RSpec units. (2) The entry exists only when the working-tree root holds a regular-file `Gemfile`,
+  observed by `lstat`; otherwise `unknown` gains
+  `NO_ADVISORY_RSPEC_COMMAND: the plan selected RSpec units but the repository root has no Gemfile`.
+  Amended for V1-1828 under the owner's standing auto-accept (2026-10-11), the entry also needs
+  `rspec`, `rspec-core` or `rspec-rails` declared by the `NGI-V0-052` check: a `gem` line of the root
+  `Gemfile`, or a two-space `DEPENDENCIES` or four-space specs entry of the root `Gemfile.lock`, each
+  read only as a regular file of at most 256 KiB, so an absent, oversized or unreadable manifest
+  declares nothing. Otherwise, as for a Minitest repository with a `spec/` directory, `unknown` gains
+  `NO_ADVISORY_RSPEC_COMMAND: the plan selected RSpec units but the root Gemfile and Gemfile.lock declare no rspec gem`.
+  (3) More than 1024 distinct spec files yield no entry and
+  `NO_ADVISORY_RSPEC_COMMAND: <n> selected spec files exceed the 1024-file bound`. (4) A plan that
+  selects no RSpec unit gains nothing, so every receipt without one keeps its exact bytes; the Go
+  advisory entry, its `NO_ADVISORY_GO_COMMAND` line and the AFP-V0-038 compact form are unchanged,
+  and the RSpec command is never compacted.
+  Non-goals: no Minitest or `rails test` command, no Ruby `provider` projection (`provider` keeps
+  only `go`, and this is advice, not a provider package list), no execution, no Gemfile read beyond
+  the bounded gem-declaration check, and no change to `corvint test`.
+  Failure modes: a plan whose Ruby frontier widens scope (for example `ruby:rails-autoload`) still
+  lists only the selected files; the unknown frontier says the list may be incomplete, and mandatory
+  checks stay required (AFP-V0-004). A root Gemfile and Gemfile.lock that declare no `rspec`,
+  `rspec-core` or `rspec-rails` gem get no advisory command and the `NO_ADVISORY_RSPEC_COMMAND`
+  line instead, even when the selected units were classified as RSpec by their own source; a
+  manifest that is a symlink, FIFO or other non-regular file, is swapped during the read, or exceeds
+  256 KiB declares nothing.
+  Acceptance evidence: `TestAFPV0066AdviceListsSelectedRSpecFiles`,
+  `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`,
+  `TestAFPV0066DashLeadingSpecFileIsNeverAnOption`,
+  `TestAFPV0066RSpecAdviceNeedsDeclaredRSpecGem`, `TestAFPV0066SymlinkedGemManifestDeclaresNothing`, and a
+  `corvint affected` run on the GitHub #1130 reproduction (build log
+  2026-10-18-v1-1796-ruby-verification-command). Rollback: delete `advisoryRSpecCheck`, its
+  constants and the tests.
+- **AFP-V0-072:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no
+  GitHub issue) File-name-only Go readers must place the path. AFP-V0-021 selects a unit whose
+  path token names a dirty path, and V1-0290 lets an unanchored lone token without `..` name only
+  the path's file name. (1) For a Go unit and any dirty path except the CEM sidecar (whose own
+  narrowing is unchanged), when every token that names the path does so only through such a lone
+  file-name run, the unit SHALL be a `PATH_LITERAL_READER` of that path only when the path lies in
+  the unit's own directory subtree (or the unit is at the repository root), or the path lies under a
+  base the unit's literals can reach and every directory component of the path below that base is
+  a whole component of one of the unit's tokens (so literals such as
+  `filepath.Join(root, "docs", "specs", "README.md")` could assemble it) or a component the Go
+  lexicon cannot keep in one token (a space, a non-ASCII letter or any other character outside
+  `[A-Za-z0-9._~@+-]`), which no token can witness. The bases are the repository root and, when
+  any token has a `..` component (`filepath.Join("..", "model.go")`), every ancestor of the unit's
+  directory. (2) A token that places a directory SHALL keep the component-run relation: a run of
+  two or more components (with its fragment outer components), an anchored token, or a climbing
+  token. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
+  directory is unknown; AFP-V0-400 amends this for a shell unit that certifies placement. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
+  unit that (1) keeps out of the plan is still named, so no unknown entry is added or removed and
+  the plan's scope is unchanged; rule (d) unbounded readers, declared read scopes (AFP-V0-023),
+  dependency and binary edges are unchanged.
+  Design: a Go test runs in its package directory. A bounded unit (not a rule (d) reader) reaches
+  another repository directory only through a literal that names it, which (1) and (2) keep, or a
+  root supplied at run time, which no literal index bounds (AFP-V0-021). A lone `README.md` joined
+  with `t.TempDir()` is the dominant false reader: on the PR #1134 range (`70a21da5d..5c57314aa`)
+  it selected 7 of 52 path-literal readers through `docs/specs/README.md` alone.
+  Non-goals: anchored lone tokens (`root + "/corvint"`), shell and other non-Go readers, fragment
+  matches of multi-component runs (`"ecs/aff"`; short outer components the literal delimits are
+  V1-1818's AFP-V0-021 amendment), readers of `.corvint/changes/` sealed CEMs, the
+  binary data-literal edges of V1-1006, and any symbol-level narrowing of a changed constant (a
+  schema-ID bump keeps the package's reverse-dependency closure).
+  Failure modes: a Go test that reaches a repository directory through a run-time root naming
+  the directory itself (an environment variable or flag set to `docs/specs`) and then a lone
+  file name is no longer selected; this is the AFP-V0-021 run-time-root gap, and the plan's scope
+  stays as before. A directory name assembled from fragments (`"spe" + "cs"`) is not a whole
+  component and does not place the path. A narrowed unit whose frontier vanished would turn an
+  `UNKNOWN` plan `BOUNDED`; the narrowed set feeds the frontier, as reached units do. Falsifier: a file-name-only fixture reader under
+  `t.TempDir()` is still selected for `docs/specs/README.md`, or a reader that joins `"docs"`,
+  `"specs"` and `"README.md"` is dropped. Acceptance evidence:
+  `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`,
+  `TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072` (a `..` reader, a spaced directory, and
+  the narrowed unit's frontier), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`, a mutation that
+  restores the old relation failing the first and one mutation per clause failing the second, and the before/after plans on the
+  PR #1134 range (build log 2026-10-18-V1-1806-affected-overselection-1806). Rollback: make
+  `resolves` return true for every path but the CEM sidecar and delete the two tests.
 - **AFP-V0-088:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2049); (2) amended under it for V1-2069; no GitHub issue)
   A dirty path of a Corvint Tasks store projection is task state, not source. (1) The recognised
   projection layout is closed: `.taskman/policy.json`, `.taskman/queue.json`, and one
@@ -2148,6 +2068,94 @@ and container qualification; full fallback remains available.
   `internal/liveverify/affected/taskstate.go` and its test, the `NonSource` plan field and its
   `participants` exclusion, and the compact receipt member; for the V1-2069 amendment alone,
   call `namesAny` instead of `namesFileAny` in `named`.
+
+### Path-list plans and impact help
+
+- **AFP-V0-094:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
+  `affected` MUST accept the experimental repeatable `--path PATH` (as `--path PATH` or
+  `--path=PATH`, at most 4096 distinct paths; the separated form refuses a value that begins with
+  `-` as `invalid-arguments`, so `--path --full` never swallows the next option, and a
+  dash-prefixed name is written `--path=VALUE`) and plan exactly that changed-path set at the
+  captured HEAD instead of the worktree status set or a `--base` range. Each value MUST be a
+  canonical repository-relative path (`ValidRelativePath`), else `invalid-arguments`; a repeated
+  path collapses, and `plan.dirty` is the sorted unique set. A path absent at HEAD is planned as
+  a deleted or unindexed path under AFP-V0-004, never refused. The worktree status is still read
+  (AFP-V0-001): any entry, untracked included, MUST refuse with exit 2, code
+  `unsupported-affected-mixed-worktree`, a message naming the HEAD commit and dirty count, and
+  no stdout document, before the graph walk, because a dirty graph is not HEAD's. An ignored file
+  HEAD does not track is not a dirty path, so after the graph build the ignored untracked set
+  (`git ls-files --others --ignored --exclude-standard --directory`, with the status bounds) is
+  read, and a listed path or any graph unit source or test that is, or lies under, an ignored
+  entry MUST refuse with the same code, naming that path and the HEAD commit; so MUST an ignored
+  entry that overlaps a Go unit's `testdata/` directory, its package directory when the unit
+  embeds files or declares a read scope (which admits that subtree even with no entries), or one
+  of its declared read scopes, naming that area (amended for V1-2086). The receipt is
+  the `affected-plan/1` (or, with `--full`, `affected-plan/0`) document of the default form with
+  the same advice, provider projection, drift checks and `range` `{base: "", paths: []}`, plus
+  one optional top-level `path_list` member echoing the sorted set (CCF-V1-006: an added optional
+  member); every other form omits it and stays byte-identical. For one committed change its
+  `plan` MUST be byte-identical to the `--base` plan of that change over the same clean tree.
+  `--path` MUST NOT combine with `--snapshot`, `--base`, `--provider`, `--playwright-config`,
+  `--playwright-discovery` or `--appmap-impact` (`invalid-arguments`). Non-goals: no
+  Playwright, provider or snapshot path-list profile, no overlay of uncommitted bytes, no change
+  to `impact` output. Rollback: remove the flag, its refusal and the member.
+- **AFP-V0-095:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
+  A `--path` plan MUST use the same transitive reverse-dependency traversal as every other form
+  (`affected.Select`), so a test reached through an intermediate importer is selected with its
+  full witness chain even when the intermediate unit declares no test, and MUST keep the
+  existing scope vocabulary: `plan.scope` is `BOUNDED` only when no listed path raised a
+  widening reason, and an unowned, unindexed or frontier-bearing listed path leaves `UNKNOWN`
+  with its typed `plan.unknown` entry. No `--path` receipt states a selection as complete that
+  its graph did not close. Rollback: with AFP-V0-094.
+- **AFP-V0-096:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
+  The `impact` help MUST state that its reverse-import results stop at direct importers (one
+  hop; Ruby's advisory autoload rows reach two), that a test reached through an intermediate
+  importer is absent, that a `READY` impact receipt is evidence and not a closed test
+  selection, and that `affected --path` plans one; the `affected` help and
+  `docs/CAPABILITIES.md` MUST document `--path`. The `impact` receipt bytes are unchanged: they
+  are pinned by `conformance/cli-parity-v0/manifest.json` under CCF-V1-006, so a
+  machine-readable closure-depth member there remains a separate breaking-change decision.
+  Rollback: remove the sentences.
+
+### Fixture Git identity and historical replay
+
+- **AFP-V0-039:** (proposed (V1-0662); no GitHub issue) A Go test fixture under
+  `internal/liveverify` that hides the host's global Git config (`GIT_CONFIG_GLOBAL` or a `HOME=`
+  override) and runs a Git subcommand that ends by launching automatic maintenance (`am`,
+  `cherry-pick`, `commit`, `fetch`, `merge`, `pull`, `rebase`, `revert`) MUST pass
+  `-c maintenance.auto=false -c gc.auto=0` on that command, because CI's global settings no longer
+  reach it and a detached `git maintenance` can outlive the test and fail its `TempDir` cleanup.
+  Config isolation, assertions and cleanup are unchanged. A source-level guard over
+  `internal/liveverify` MUST fail any such file that lacks either string literal. Falsifier: a
+  fixture test under `internal/liveverify` whose Git trace records a `git maintenance` child
+  launch, or such a fixture that passes the guard without both literals. Rollback: delete
+  `internal/liveverify/affected/fixture_maintenance_test.go` and the two config arguments in each
+  fixture helper.
+- **AFP-V0-053:** (accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))
+  Historical replay Git compatibility. (1) The AFP-V0-014 frozen identity SHALL include the Git
+  executable that tests resolve under the `go test` environment: its resolved path, SHA-256 and
+  `git --version` output. On Darwin, when that executable is the `/usr/bin/git` xcrun shim, the
+  identity SHALL also bind the resolved path and SHA-256 of the Git that `xcrun --find git` names
+  under the closed environment (V1-1521). Execution MUST refuse when Git cannot be identified, and Git drift
+  before execution MUST fail safely like Go/compiler drift. (2) Git configuration inputs are bound
+  through the frozen environment, not a separate field: `GIT_CONFIG_NOSYSTEM=1`,
+  `GIT_CONFIG_GLOBAL=/dev/null`, a private `HOME`, `GIT_NO_REPLACE_OBJECTS=1`,
+  `GIT_GRAFT_FILE=/dev/null` and the `GIT_CONFIG_COUNT` entries. The `go test` environment SHALL
+  equal the driver's closed environment except for one entry, `advice.graftFileDeprecated=false`,
+  so tests keep the graft refusal while Git prints no graft advice into the output they parse.
+  (3) A corpus, row or qualification frozen under another identity, including one frozen before Git
+  joined it, MUST NOT be resumed, reused or relabelled under the current identity; it needs a fresh
+  freeze and campaign. (4) A failure observed under a superseded profile stays retained as observed.
+  It is classified as a compatibility failure, not a change-caused omission, only by a controlled
+  replay at both pair commits that varies the profile input alone; that classification never
+  waives an omitted failing package under AFP-V0-014, never names packages as a safety proof, and
+  says nothing about the selector's sufficiency for any other pair.
+  Non-goals: Git's exec-path helpers and templates are not hashed (the version string stands for
+  them), and the developer directory that xcrun consults is identified only through the Git it
+  resolves; the hosted profile is Linux. It qualifies no selective CI.
+  Falsifier: with the resume identity check removed from `shadow`, a corpus frozen without a Git
+  identity is resumed. Rollback: remove this requirement; the implementation notes below still
+  describe the shipped driver.
 
 ### Plan observation bounds
 
@@ -4599,6 +4607,20 @@ selected package unrun. The full fallback is unchanged.
   commit, record an omission. Rollback: restore `CORVINT_TEST_SHADOW_SOURCE`
   `5163d1ed4b61084fc32cf79355848899c3e8a5bb` (every batch then records FULL again) and delete
   `replay_v13067_test.go`.
+- **AFP-V0-604:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1753)
+  The AFP-V0-040 advisory report SHALL also measure shard balance, the staleness trigger for the
+  AFP-V0-022 cost table. For each shard log its observed load is the sum of its package outcomes
+  and its predicted load is the table's cost of the same packages: the table's median for a package
+  it lacks, as the partition places it, and for a split package the table's whole-package cost in
+  that slice's observed share, since slice balance belongs to the AFP-V0-041 slice file. The
+  summary SHALL list every shard's predicted and observed load and its distance from the ideal
+  shard. When the slowest shard exceeds the ideal shard by at least the material share and its
+  prediction by at least as much, the report SHALL emit one `CI shard balance stale` warning first,
+  within the AFP-V0-040 warning limit, and still exit 0. Failure modes: an exact table never
+  triggers, however unequal two indivisible packages make the shards; a stale slice file is not
+  detected here. Non-goal: wiring this into a box-shard job, splitting `internal/tasks/store`, or
+  refreshing the slice file; each is a `.github` change (blocked on a separate `.github` PR).
+  Rollback: delete `shardLoads`, `staleShard` and their summary and warning lines.
 - **AFP-V0-620:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2973)
   A dirty `_test.go` path that no unit lists drops its `UNINDEXED_SOURCE_PATH` entry when all of
   these hold: only the Go plugin claims it; it is absent from the disk checkout the graph was
@@ -4616,6 +4638,94 @@ selected package unrun. The full fallback is unchanged.
   Falsifier: a moved or deleted `_test.go` path whose test outcome changes in a package the plan
   excludes. Rollback: drop the `deletedGoTest` check in `seed`; the path raises
   `UNINDEXED_SOURCE_PATH` again.
+
+- **AFP-V0-820:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
+  amends AFP-V0-510 and AFP-V0-928) With `--base`, `plan.dirty` is the worktree status set unioned
+  with the committed range (AFP-V0-010), so `summary.dirty` alone cannot tell a clean lane tree from
+  a dirty one. The compact summary SHALL also carry `committed`, the number of committed range
+  paths, and `worktree`, the number of worktree status paths before the union; a clean tree reads
+  `worktree=0`, and so does a `--path` plan whose dirty set AFP-V0-832 tolerates, which leaves the
+  receipt a clean tree gives. `summary.line` is unchanged, and the text form's header SHALL read
+  `affected <summary.line> worktree=N revision=SHA [base=SHA]`. The two members are optional
+  additions to the frozen summary (CCF-V1-006). Failure mode: a path both committed and edited
+  counts once in `dirty` and in each of `committed` and `worktree`, so the two may sum to more than
+  `dirty`. Rollback: drop the two members and the header field.
+
+- **AFP-V0-821:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
+  amends AFP-V0-620) A dirty non-test `.go` path that no unit lists drops its
+  `UNINDEXED_SOURCE_PATH` entry when only the Go plugin claims it, no directory the Go plugin reports
+  as unobserved encloses it, its directory is not a package the graph observes, and that directory
+  is absent from the disk checkout the graph was observed from: the whole package was deleted or
+  moved away since the base. Its importers, if any are left, import a package the graph no longer
+  observes, and rule (a) already selects every unit with an edge to an absent package; command edges
+  (AFP-V0-037) name only observed commands, so a deleted command has no remaining executor. A
+  directory that is still present (a package whose other files remain, or a file the graph cannot
+  see) keeps the entry, and so does every path of a sparse worktree (`core.sparseCheckout` set, or
+  unreadable), whose absent directory may only lie outside the cone; the language frontier still
+  applies. Example: the deletion of
+  `internal/tasks/cmd/closed-index/` (`46e9ee1fd`) no longer keeps a clean lane tree `UNKNOWN`.
+  A dirty `Makefile` still raises `UNOWNED_DIRTY_PATH` (AFP-V0-601), whose frontier entries each
+  name a language (AFP-V0-511); that is a driver input every gate consumer reads, not a defect of
+  this rule. Falsifier: a deleted package whose loss changes a test outcome in a unit the plan
+  excludes. Rollback: drop the `deletedGoPackage` check in `seed`.
+
+- **AFP-V0-822:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4192;
+  extends AFP-V0-436 to AFP-V0-439) `corvint test` SHALL plan from the default affected graph
+  cache that `corvint affected` reads, so an unchanged tree is not observed again. It SHALL also
+  keep a gateselect scan memo, `affected-graph-scan-<hash>.json`, in the same cache directory.
+  The memo holds the imports, root-locator calls, embed flag, tokenize outcome and path tokens
+  that each Go source contributed to the attribution index, keyed by root, module and program
+  identity and pinned per file by the graph-entry stat stamp. The indexing walk still runs in full.
+  A file whose stamp matches is recalled without a read. A file that the stamp cannot pin is read
+  again and is not stored: a platform without a change time, or a change inside the
+  `GraphCacheRacyWindow` of the index start. Rule: the memo is written and read under every
+  placement, privacy, checksum, size and eviction rule of a graph entry. A memo that fails any of
+  them, names another root, module or program, or does not decode, is ignored, and every file is
+  scanned. A scan error is never stored. The index is built while the graph compiles, and the
+  plan, manifest and stdout SHALL be byte-identical with and without either cache. Failure mode: a
+  same-stamp rewrite is trusted, as it is for a graph entry (AFP-V0-392). Acceptance: on an
+  unchanged tree `test --dry-run` runs within 1.5x of `corvint affected` on the same host.
+  Falsifier: a cached plan that differs from the uncached plan of the same tree. Rollback: drop
+  `testScanMemo` and `StartIndex` in `cmd/corvint/test.go` and plan with
+  `gateselect.SelectStructural` and an uncached graph again.
+
+- **AFP-V0-823:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4237;
+  extends AFP-V0-822 and TSP-V0-940) The gated root-locator literal check SHALL go through the
+  AFP-V0-822 scan memo. That check reads each non-test file of a declared root-locating package
+  for its gate literal. The memo stores, per file, the stat stamp, the literal checked and whether
+  the file carries it. A file whose stamp and literal both match is recalled without a read. Any
+  other file is read again, and so is a file the stamp cannot pin. A read error is never stored,
+  and the memo is rewritten only when a check changed. Failure mode: a same-stamp rewrite is
+  trusted, as in AFP-V0-822. Falsifier: an index through the memo whose rule (d) set differs from
+  the full scan of the same tree. Rollback: call `readCarries` directly in `carriesLiteral` and
+  drop the `gated` memo member.
+- **AFP-V0-824:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4237)
+  `corvint test` SHALL compile its plan from the HEAD revision and dirty set it read for its
+  source identity, so that it does not read them twice. The closing AFP-V0-150 drift recheck of
+  the dirty set and HEAD still runs after the last source read, so an observation that the
+  worktree has since left is refused as `unsupported-affected-drift`. `corvint affected` still
+  reads its own. Acceptance for AFP-V0-823 and AFP-V0-824 together: on an unchanged tree, a warm
+  `test --dry-run` runs within 1.15x of `corvint affected` on the same host, with byte-identical
+  output, measured interleaved with the host load recorded. Falsifier: a plan from the shared
+  observation that differs from the plan that reads its own. Rollback: pass no `observed` from
+  `testRunInput`.
+- **AFP-V0-825:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4246;
+  extends AFP-V0-846 and AFP-V0-824) `corvint test` SHALL resolve HEAD once and judge its own
+  binary (AFP-V0-846) against that revision, the same one its source identity and plan use, so
+  the stale-binary check spawns no `rev-parse` of its own. A binary built from another commit
+  still needs the one bounded diff of AFP-V0-846, because the plan's changed set covers BASE to
+  HEAD, not the stamped commit to HEAD; that diff names the resolved revision, never symbolic
+  `HEAD`, so a HEAD that moves after the read cannot change the verdict. The shared read's
+  elapsed time counts against the check's 2 s deadline: a read that fails or takes the whole
+  bound is `self-binary-unverified`, as the check's own failed or expired read was, and after a
+  failed read the source identity reads HEAD again as before (the saving is given up there).
+  For a fresh, a stale and an unverified binary, the verdict and its stderr line stay
+  byte-identical to the check that reads HEAD itself. `corvint affected` and the dogfood flows
+  still read their own. Falsifier: a verdict or stderr line that differs from the self-resolving
+  check, a stale binary judged fresh because HEAD moved back to its commit, a failed or slower
+  than 2 s read that is not unverified or stops the run, or a fresh binary whose `test --dry-run`
+  spawns more Git processes than an unstamped one. Rollback: call `selfBinaryStale` in `runTest`
+  and `testObserveSource` for the identity.
 
 - **AFP-V0-615:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2952)
   A package whose tests launch a sandbox of their own is never declared in
@@ -4703,6 +4813,57 @@ selected package unrun. The full fallback is unchanged.
   with the base (`6c967b21c`) and the changed binary over the 20 newest merges of that base: 0
   selections lost in 20 merges and every scope equal (UNKNOWN); one merge, `6c967b21c` itself,
   names 17 more `typescript:e2e-runtime-dependency` unknowns that the base had excluded.
+- **AFP-V0-725:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571;
+  amending `AFP-V0-446` and `AFP-V0-818`) A located, unpinned TypeScript
+  `typescript:e2e-runtime-dependency` site whose file a unit under a `testdata` directory owns
+  SHALL be that unit's own frontier, under the same conditions (i) and (ii) of `AFP-V0-446` and
+  with the same promotion back to the plugin when no Go unit hosts the directory, unless an
+  end-to-end runner configuration (Playwright, Cypress, WebdriverIO, TestCafe, Nightwatch or Detox)
+  whose directory encloses the site file lies outside that `testdata` directory. The Go toolchain
+  runs nothing below `testdata`, so such a spec runs only when some harness drives it, and that
+  harness is either a test of the hosting package (selected by `AFP-V0-004` rule (b) whenever the
+  fixture changes) or a test elsewhere that a declared runtime edge (`AFP-V0-819`) names; a runner
+  configuration outside the fixture would collect the spec as part of the repository's own suite,
+  so its site stays plugin-wide. A localized site then bears on a plan only when the plan reaches
+  the fixture unit. This repository's `.corvint/runtime-edges.json` declares the remaining
+  cross-language edges outside `testdata` (the interactive-alpha conformance spec runs against
+  `cmd/corvint-console` and `cmd/corvint-dashboard-snapshot`, the web-flows fixture runs
+  `cmd/corvint-web-flows`, the obligation qualification spec is a manual fixture of
+  `internal/tasks/obligation`) and, for the three escaped `testdata` fixtures rule (ii) keeps
+  plugin-wide, an edge from their `tests/` directories to their own `server.cjs`. Non-goal: listing
+  every site behind the plugin's `+N` summary, which `AFP-V0-818` still never covers. Failure
+  modes: a harness outside the package that runs a localized spec without a declared edge is
+  missed when only the binary it drives changes; an e2e configuration added outside the fixture
+  later returns the site to the plugin. Rollback: drop the `FrontierE2ERuntimeDependency` pass in
+  `localizeFixtureFrontier` and the declaration's V1-3571 edges.
+  Acceptance: `TestFixtureE2ESiteIsTheFixtureUnitsOwn_AFPV0725` (fails first on the base: the
+  fixture spec's site leaves the plugin frontier for its unit; a plan over an unrelated source is
+  `BOUNDED`; a plan over the spec names it) and `TestFixtureE2ESiteStaysPluginWide_AFPV0725` (a
+  root Playwright config and an escaped import keep it plugin-wide; an unhosted fixture is
+  promoted back, failing first on the base) in `internal/liveverify/affected/typescript`;
+  `TestSealOnlyCEMDeltaStaysBounded_V13571` (`internal/liveverify/affected`, real repository: the
+  seal-only dirty set with `.corvint/change.cem.json` is `BOUNDED`, 0 unknowns, where the base
+  named 18).
+- **AFP-V0-987:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3898;
+  amending `AFP-V0-818`) The `AFP-V0-818` cross-language entries MUST NOT be named when every dirty
+  path is declared data: a `TASK_STORE_PROJECTION` (`AFP-V0-088`), `DECLARED_DOCUMENTATION`
+  (`AFP-V0-160`) or `DECLARED_RUNTIME_READERS` (`AFP-V0-602`) path. Such a dirty set changes no
+  plugin's code, so no end-to-end runtime edge from another plugin's code carries it into a
+  terminal unit, and the repository declares that every runtime reader of a runtime-readers path
+  is a unit the reader rules already select; the plugin's entries are then left out under
+  `AFP-V0-560` and recorded in `plan.frontierExcluded`. A `CORVINT_DECLARATION` path (`AFP-V0-443`)
+  or any other dirty path keeps `AFP-V0-818` unchanged. Motivation: a seal commit, which only
+  moves the bound CEM from `.corvint/change.cem.json` into `.corvint/changes/`, was UNKNOWN with
+  17 `typescript:e2e-runtime-dependency` entries because `integrations/pi/core.test.mjs` names
+  the CEM path as a literal (the remaining `shell:foreign-invocation-unmodelled` entry is closed
+  by declaring the reached scripts' callers under `TSP-V0-005`). Non-goal: narrowing a dirty set
+  that holds any source path. Failure mode: a runtime-readers entry whose declared readers are
+  incomplete was already unsound under `AFP-V0-602`; this rule inherits that declaration's
+  authority and adds no new trust. Rollback: drop the `changesCode` guard in `frontierUnknowns`.
+  Acceptance: `TestDeclaredDataAloneCarriesNoRuntimeEdge_AFP_V0_987` (fake plugins; fails on the
+  base) and `TestSealCommitPlanIsBounded_V13898` (the repository graph with every plugin over the
+  seal pair `f31dd540e..8dca05f13`: 17 e2e entries on the base, a BOUNDED plan with no unknown
+  after).
 - **AFP-V0-640:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2647;
   witness contract decided by the orchestrator: reference, not copy) In the `affected-plan/1`
   document (AFP-V0-035) each `selected` witness MUST replace `via` with `viaLength`, the length of
@@ -5435,6 +5596,98 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   in both outputs. Rollback: delete `cmd/corvint/self_binary.go` and its three call sites, and the
   `Degradations` members.
 
+### A merged output stream still parses (AFP-V0-871; V1-4112)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-4112): lanes that ran
+`corvint affected ... 2>&1` with a stale binary got the AFP-V0-846 `DEGRADED` line ahead of the
+JSON document and needed `tail -n +2` before any JSON tool would read it.
+
+- **AFP-V0-871:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4112)
+  Amending AFP-V0-846: when `corvint affected` writes an `affected-plan/1` (compact or `--full`)
+  or `affected-by-path/1` receipt that carries the `degradations` member, and its stdout and
+  stderr are the same pipe or regular file (`os.SameFile`, as after `2>&1`), it SHALL leave out
+  the `corvint: DEGRADED` stderr line, so stdout stays one parseable document that still names
+  the degradation. A terminal, two distinct files or pipes, or a writer that is not a file keeps
+  the line. `--format text` for the plan SHALL carry one `degraded CODE` line after its header,
+  as `--by-path` text already does. Non-goals: `corvint test` (whose `--dry-run` manifest has no
+  degradation member) keeps its line; Playwright receipts, which carry no member, keep theirs;
+  no other stderr output changes. Failure mode: a reader that captured only stderr from a merged
+  stream cannot exist, so no reader loses the code. Acceptance evidence:
+  `TestAffectedStaleBinaryMergedStreamStillParses` and `TestSharedOutputStream`. Rollback:
+  delete `sharedOutputStream` and print the line unconditionally again.
+
+### A few-line verdict on request (AFP-V0-872; V1-4052, V1-3831)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-4052, V1-3831): a tests-only
+change produced about 42 KB of `affected-plan/1` JSON, and lanes wrote Python to pull the
+per-tier counts and tier-0 unit names out of a 44.7 KB plan, the only parts a lane acts on.
+
+- **AFP-V0-872:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4052,
+  V1-3831) `corvint affected --summary` SHALL plan exactly as the default invocation and write,
+  instead of the plan, one canonical `affected-summary/1` JSON document: `profile`, `tool`, `ok`,
+  `mutates`, `revision`, `range` as `{base, paths}` where `paths` is the range's path count, the
+  AFP-V0-510 `summary` object unchanged, `tiers` as `{counts, summary, tier0, tier1}` where the
+  counts and summary are the AFP-V0-162 members and `tier0` and `tier1` are the sorted unit ids of
+  those tiers (both empty when nothing is selected), the AFP-V0-846 `degradations` and the receipt
+  `warning` when present, and a `detail` string naming the flags that print the plan. With
+  `--format text` it SHALL write the AFP-V0-928 header line, `degraded CODE` and `warning TEXT`
+  lines when present, `tiers <summary>`, then one `tier0 UNIT` and one `tier1 UNIT` line per unit.
+  `--summary` SHALL be refused with `--full`, `--by-path` or `--playwright-config`, and given once
+  without a value. Decision (lane aff-w23): the default stays the `affected-plan/1` plan, because
+  skills, dogfood steps and gate scripts read `plan.selected` and `advice` from it; the compact
+  verdict V1-4052 asks for is the opt-in `--summary`, which `affected --help` documents.
+  Non-goals: dropping or truncating any default member; listing tier-2 units, witnesses or
+  unknown details, which the plan keeps. Failure mode: a reader that treats the verdict as the
+  plan would miss tier-2 units; the document names only counts for them and says where the
+  plan is. Acceptance evidence: `TestAFPV0872AffectedSummaryVerdict` (the verdict is at most
+  4 KiB and restates the plan's summary and tiers exactly); live, a tests-only edit of
+  `cmd/corvint/affected_summary_test.go` on this repository gave a 656-byte verdict where the
+  default plan was 37,369 bytes. Rollback: delete `cmd/corvint/affected_verdict.go`, the flag and
+  its help paragraph.
+
+### Built-binary readers declare their closure (AFP-V0-873; V1-3763, V1-3587, V1-3788)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-3763, V1-3587, V1-3788): a
+one-line spec, `REQUIREMENTS.tsv` or Makefile edit selected about 70 units, 42 of them on the
+unbounded floor that every change selects, though most of those packages read only Go source.
+
+- **AFP-V0-873:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3587, V1-3788) `internal/perfbudget` and `internal/opencodequalification`, whose tests
+  `go build` repository binaries (`./cmd/corvint`, `./cmd/corvint-corpus-mcp`,
+  `./tools/qualify-opencode`), SHALL carry AFP-V0-023 declarations that name `go.mod`, `go.sum`
+  and directory entries covering every non-standard directory of those builds' import closure,
+  plus their literal reads, and SHALL leave `.corvint/unbounded-readers.json`. A change inside the
+  closure still selects them as `DECLARED_READ_SCOPE`; a `docs/specs`, Makefile or root script
+  edit no longer does. Decision (lane aff-w23): a package stays on the floor when its confined
+  run (`.github/testconfine`, Landlock) fails or needs `.git` or `/`: `internal/postmergehost`,
+  `internal/postmergeworkflow`, `conformance/dashboard-snapshot-v0` and `internal/mcp/docsbridge`
+  were tried and kept. Non-goals: narrowing any other floor unit; listing the closure directory by
+  directory. Failure mode: a new import outside the declared entries fails the confined CI shard
+  and `TestRepositoryBuiltReaderDeclarations_AFPV0873`, never under-selects silently. Acceptance
+  evidence: `TestRepositoryBuiltReaderDeclarations_AFPV0873` (the closure of each build lies in
+  the declaration, which names no spec, Makefile or script path; removing `tools/` from the
+  OpenCode declaration fails it), both packages passing under `test-confine`, and the before and
+  after counts in `docs/build-log/2026-11-01-aff-w23.md`. Rollback: delete the two declarations
+  and restore the two units and their reasons in `.corvint/unbounded-readers.json`.
+
+### Remediation files are documented (AFP-V0-874; V1-3934)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-3934): a Playwright plan told
+the reader to declare a path in `.corvint/playwright-unreached-paths.json`, a file no help text
+explained.
+
+- **AFP-V0-874:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3934)
+  `corvint help affected` SHALL document `.corvint/playwright-unreached-paths.json`: its location,
+  the TJAA-V0-106 schema, an example and its effect on the plan. Every `.corvint/*.json` file that
+  a remediation message of the affected planner (non-test Go under `internal/liveverify/affected`
+  and `cmd/corvint/affected*.go`) names right after a "declare ... in", "record ... in", "list ...
+  in" or "add ... in" phrase SHALL appear in that help text. Non-goals: documenting every
+  declaration file the planner reads; messages of other commands. Failure mode: a remediation
+  phrased another way escapes the scan; the scan fails when it finds no Playwright remediation, so
+  a rewording that hides the known one is caught. Acceptance evidence:
+  `TestAffectedRemedyDeclarationsAreDocumented_AFPV0874` (it failed before the help paragraph).
+  Rollback: delete the paragraph and the test.
+
 ### Frontier routes (AFP-V0-761; V1-2051)
 
 - **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)
@@ -6135,10 +6388,19 @@ traceability table.
 | AFP-V0-601 | `goReadData`, `namedGoReadData`, `confinedReaders` and `driverInput` in `internal/liveverify/affected/select.go`, called from `seed` | `TestGoReadDataIsAttributedToItsReader_AFPV0601` (`ownership_test.go`: read-scope entry, declared subtree, read-scoped package subtree, hosted fixture, declared documentation, unattributed and root-scope paths), `TestEmbeddedDriverInputStaysUnowned_AFPV0601`, `TestUnconfinedReaderKeepsReadDataUnowned_AFPV0601` (`ownership_test.go`); `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`: unconfined then declared readers); `TestTestdataIsFixtureDataNotAPackage_AFPV0008` (`golang/golang_test.go`); measured counts in the build-log entry |
 | AFP-V0-602 | `readRuntimeReaders`, `validRuntimeReaderPath`, `runtimeReaderPaths` in `internal/liveverify/affected/runtime_readers.go`; `declarations`, `declarationsOf`, `digestBody.RuntimeReaders` in `graph.go`; `cacheEntry.RuntimeReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `declarationPath` in `documentation.go`; `selectPlan` in `select.go`; the repository declaration `.corvint/runtime-readers.json` | `TestDeclaredRuntimeReadersIsNonSourceNotUnknown_AFPV0602`, `TestDeclaredRuntimeReadersKeepsEveryReader_AFPV0602`, `TestRuntimeReadersDeclarationIsValidated_AFPV0602`, `TestRuntimeReadersDeclarationIsInTheDigest_AFPV0602`, `TestRuntimeReadersDeclarationIsCorvintDeclaration_AFPV0602`, `TestDeclaredRuntimeReadersLeavesDriversAndSelectionAlone_AFPV0602` (`runtime_readers_test.go`); the `runtime readers declaration appears at a path read as absent` row of `TestAFPV0392CacheFailsClosedOnAnyMismatch` (`graphcache_test.go`); `TestBatchReplayDeclaredRuntimeReaders_V12941` (`replay_v12941_test.go`, built over the repository with every plugin: batch 1028c and 1028a replays and a documentation-only plan); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-2941-runtime-readers-declaration.md` |
 | AFP-V0-603 | `Select` and `SelectStructural` in `internal/gateselect/select.go`; `plan` in `tools/corvint-pr-tests/main.go`; `CORVINT_TEST_SHADOW_SOURCE` in `.github/workflows/ci.yml` (rule (3)) | `TestDriverSelectionCoversTheShadow_V13067` (`internal/liveverify/affected/replay_v13067_test.go`: PR #1961 replay, `benchmarks/runner` pin; mutation-checked against `resolvedEvidence`); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3067-driver-shadow-pin-skew.md` |
+| AFP-V0-725 | `localizeFixtureFrontier` (the `FrontierE2ERuntimeDependency` pass) and `collectedOutside` in `internal/liveverify/affected/typescript/fixture_frontier.go`, fed by the e2e configuration directories `observe` returns; the V1-3571 edges of `.corvint/runtime-edges.json` | `internal/liveverify/affected/typescript/fixture_e2e_frontier_test.go` TestFixtureE2ESiteIsTheFixtureUnitsOwn_AFPV0725, TestFixtureE2ESiteStaysPluginWide_AFPV0725; `internal/liveverify/affected/seal_only_selection_v13571_test.go` TestSealOnlyCEMDeltaStaysBounded_V13571 |
+| AFP-V0-604 | `shardLoads`, `staleShard`, `shardLoad` and the shard-balance lines of `report` in `tools/ci-shard-costs/main.go` | `TestAFPV0604ShardBalanceStaleTrigger`: a 500 s shard predicted at 100 s warns first and the summary lists both shards; a table refreshed from the same logs stays quiet; balanced shards never warn; `TestAFPV0040AdvisoryReportNeverFailsOnFindings` and `TestAFPV0041AdvisoryCombinesTestSlices` (an exact table over split packages does not warn); hosted run `NOT_OBSERVED` |
+| AFP-V0-987 | `changesCode` and its guard on the cross-language loop in `frontierUnknowns` (`internal/liveverify/affected/select.go`); the V1-3898 script entries in `.corvint/shell-foreign-callers.json` | `TestDeclaredDataAloneCarriesNoRuntimeEdge_AFP_V0_987`, `TestSealCommitPlanIsBounded_V13898` |
 | AFP-V0-818, AFP-V0-819 | `runtime_edges.go`, the cross-language loop in `frontierUnknowns`, `declarationsOf`, `applyRuntimeEdges` in `build` and the graph cache's declaration stamps in `internal/liveverify/affected`; `CrossLanguageFrontiers` in `internal/liveverify/affected/typescript/frontier_reach.go` | `TestCrossLanguageRuntimeFrontierIsNeverExcluded_AFP_V0_818`, `TestDeclaredRuntimeEdgeSelectsTheSpec_AFP_V0_819`, `TestRuntimeEdgesDeclarationRefusals_AFP_V0_819`, `TestGoServerChangeSelectsDeclaredE2ESpec_V12906`, `TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819`, `TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819`, `TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819`, `TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819` |
 | AFP-V0-817 | `unsupportedKeys` and `dependentModule` in `tools/test-read-scopes-check/main.go` | `TestUnsupportedReadScopeKeysNameTheirReason_V1_3326` (a root package key passes; a dependent nested module key and a package-less key each exit 2 naming the reason; fails first on the generic refusal) |
 | AFP-V0-615 | `readSandboxes` and the `sandbox` finding in `check` and `run` of `tools/test-read-scopes-check`; `.corvint/test-nested-sandboxes.json`; the unrecorded message in `tools/unbounded-readers` | `TestDeclaredNestedSandboxPackageFails_V1_2952` (`tools/test-read-scopes-check/main_test.go`: declared, undeclared and unrecorded packages; blank-reason, unclean-package and unknown-member refusals); the real tree with `internal/liveverify/mutate` declared exits 1 naming the package, the bubblewrap reason and `.corvint/unbounded-readers.json`, and the current tree exits 0 (build log 2026-10-28-test-selection-isolation) |
 | AFP-V0-620 | `deletedGoTest` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (a test file moved to a new package selects its base package and the new one at `BOUNDED` scope; a test file on disk but unindexed, a deleted test file whose directory holds no package, and a deleted non-test file keep `UNINDEXED_SOURCE_PATH`; fails before the change); the V1-2973 case `e7c6398aa` against base `aa3b6e4f0` goes from `FALLBACK` to `NARROWED 199 execution units` in build log 2026-10-28-moved-test-base-package |
+| AFP-V0-820 | `WorktreeDirty` in `affectedReceipt` (`cmd/corvint/affected.go`); `Committed` and `Worktree` in `affectedSummary`, `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`); the text header in `cmd/corvint/affected_text.go` | `TestAFPV0820CleanTreeWithARangeReadsWorktreeZero` (a committed-only range reads `worktree=0` and `committed=dirty`; an edit reads `worktree=1`; the text header names it), `TestAFPV0510AffectedSummaryRestatesThePlan`, `TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions` and `TestAFPV0928AffectedFormatTextRestatesThePlan` and `TestPathListToleratesDirtyDocumentation_AFP_V0_832` (a tolerated documentation edit reads `worktree=0`) and the regenerated core-freeze goldens in `cmd/corvint` |
+| AFP-V0-821 | `deletedGoPackage` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go`; `WithSparseCheckout` in `graph.go`, set by `affectedSparseCheckout` in `cmd/corvint/affected.go` | `TestDeletedGoPackageIsAttributedToItsImporters_AFPV0821` in `internal/liveverify/affected/golang/deletedtests_test.go` (a deleted command package is `BOUNDED` with nothing selected; a deleted library package selects its importer's tests; a deleted file whose directory remains keeps `UNINDEXED_SOURCE_PATH`); `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` and `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` in `cmd/corvint/core_freeze_test.go` (a sparse clone keeps its out-of-cone paths `UNKNOWN`) |
+| AFP-V0-822 | `testRunInput` and `testScanMemo` in `cmd/corvint/test.go`; `StartIndex`, `SelectStructuralIndexed` in `internal/gateselect/select.go`; `ScanMemo` in `internal/gateselect/scanmemo.go`; `ScanMemoEntryPath`, `LoadScanMemo`, `StoreScanMemo`, `FileStamp` in `internal/liveverify/affected/scanmemo.go` | `TestAFPV0822DryRunCachedPlanMatchesUncached` in `cmd/corvint` (uncached, cold and warm plans byte-identical in stdout and manifest, before and after a source change; the warm run hits the graph cache and a memo is stored); `TestAFPV0822ScanMemoIndexMatchesTheFullScan` and `TestAFPV0822UnpinnedFilesAreNeverRecalled` in `internal/gateselect` |
+| AFP-V0-823 | `carries` and `gatedMemoEntry` in `internal/gateselect/scanmemo.go`; `carriesLiteral`, `readCarries` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go` | `TestAFPV0823GatedLocatorChecksAreRecalled` in `internal/gateselect` (cold and warm memo indexes equal the full scan, a warm index recalls an unreadable root-locating file and leaves the memo as it was, and a moved gate literal is read again; `TestAFPV0823MovedDeclaredGateIsCheckedAgain`: a declaration whose gate moved while every source byte stayed the same is checked again, and the warm index equals the uncached scan) |
+| AFP-V0-824 | `affectedObservation`, `affectedObserve` and `compileAffectedGraph` in `cmd/corvint/affected.go`; `testObserveSource` and `testRunInput` in `cmd/corvint/test.go` | `TestAFPV0824SharedObservationPlansAsItsOwnRead` in `cmd/corvint` (the shared observation plans the same receipt as the plan's own read, and a stale observation is refused as `unsupported-affected-drift`) |
+| AFP-V0-825 | `headRead`, `selfBinaryStaleAt` and `binaryStaleAgainst` in `cmd/corvint/self_binary.go`; `runTest` and `testObserveSourceAt` in `cmd/corvint/test.go` | `TestAFPV0825StaleCheckReusesThePlanHEAD` in `cmd/corvint` (fresh, stale and unverified verdicts and stderr lines equal the self-resolving check; a fresh binary spawns no Git process beyond an unstamped one, a stale or unverified one only its diff against the read revision); `TestAFPV0825StaleCheckJudgesTheReadRevision` (a stale binary stays stale after HEAD moves back to its commit; a failed read or one at or past the 2 s bound is unverified); `TestAFPV0825FailedOrSlowHEADReadIsUnverified` (a fail-once or 3 s shared read reports `self-binary-unverified` and the dry run still plans, exit 3); the last two fail before the codex fix |
 | AFP-V0-980 | `readExistenceReaders`, `manifestNames`, `existenceReaderUnits`, `existenceReadersOf`, `absent` in `internal/liveverify/affected/existence_readers.go`; `declarations`, `digestBody.ExistenceReaders` in `graph.go`; `cacheEntry.ExistenceReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `terminalWitness` in `select.go`; the repository declaration `.corvint/existence-readers.json` | `TestDeletedManifestNameSelectsExistenceReader_AFPV0980`, `TestExistenceReadersDeclarationIsValidated_AFPV0980` (`internal/liveverify/affected/golang/existence_readers_test.go`, the first fails before the change); `TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980` (`cmd/corvint/affected_existence_readers_unix_test.go`: `corvint affected`, the gate selector the CI driver runs on its receipt, and the shadow `corvint test --dry-run` all select the reader; fails before the change); build log 2026-11-01-rts-w9 |
 | AFP-V0-981 | `statReaders` and its call in `check`, `tools/test-read-scopes-check/main.go` | `TestStatOfDataDerivedPathFails_V1_3772` (`tools/test-read-scopes-check/main_test.go`); on this repository the check found `internal/observations` (`TestFixedFrontierDegradationIsReportedByDesign` stats the decision records `degradationByDesign` names), now declared |
 | AFP-V0-982 | `AllowedUnknown` and `UnobservedModule` in `internal/gateselect/allowlist.go`, called by `unknownNarrowing` in `select.go` and `allowedUnknown`/`moduleDirectory` in `internal/sessiontest/plan.go`; `make selection-baseline-check` keeps its floor of 12 | `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest/allowlist_afpv0982_test.go`: every planner unknown reason against every Go frontier detail and non-Go frontiers; five entries diverged before the change); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` unchanged |

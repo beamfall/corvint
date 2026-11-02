@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestOptIn(t *testing.T) {
@@ -128,7 +130,7 @@ func TestBackendRefusals(t *testing.T) {
 	}
 	dir := t.TempDir()
 	server := filepath.Join(dir, "server")
-	if err := os.WriteFile(server, []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
+	if err := execfile.WriteFile(server, []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	missing := filepath.Join(dir, "absent-server")

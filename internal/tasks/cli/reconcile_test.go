@@ -113,6 +113,7 @@ func TestTMV0007_AS35_CLIInspectReconcileRetryWorkflow(t *testing.T) {
 }
 
 func TestTMV0007_AS35_CLIReconcileInputFailuresWriteNothing(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	for _, kind := range []string{"missing-choice", "both-choices", "duplicate", "adopt-digest", "invalid-role", "missing-file", "oversize", "symlink", "stale-digest"} {
 		t.Run(kind, func(t *testing.T) {
 			r := receiptFixture(t)

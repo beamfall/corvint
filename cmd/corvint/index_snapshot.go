@@ -237,6 +237,11 @@ produce the same output.
 With --if-stale, a matching snapshot writes nothing and reports state "fresh";
 a missing or stale snapshot is rebuilt exactly as above. A linked worktree
 whose tree already has a snapshot in the shared store reuses it.
+
+CORVINT_INDEX_STORE=DIR (operator env var, off by default) makes DIR, a real
+directory, the store that every command writes and reads instead of the shared
+one, so a scratch or measurement binary leaves the shared store untouched.
+Example: CORVINT_INDEX_STORE=/tmp/corvint-store corvint index
 `
 
 // evictedSnapshotsPayload is the receipt's list of every file an index write

@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -158,5 +159,53 @@ func TestInstructionProfileManifestBinding(t *testing.T) {
 	}
 	if len(manifest.Profiles) != 1 || manifest.Profiles[0].Host != "codex" || manifest.Profiles[0].Version != "0.153.2" || manifest.Profiles[0].Source != instructionRuleURL || manifest.Profiles[0].SHA256 != instructionRuleSHA256 {
 		t.Fatal("profile source binding drift", manifest)
+	}
+}
+
+// TestInstructionLoadSetDeferredBodiesMatchFullRead_IDXSNAPV0813: an
+// instruction file that is intact but not valid UTF-8 (a 0xff byte) gets the
+// same lossy decode through a deferred gob load's lazy body as through a full
+// read, not an unavailable row (IDX-SNAP-V0-813).
+func TestInstructionLoadSetDeferredBodiesMatchFullRead_IDXSNAPV0813(t *testing.T) {
+	t.Setenv("CORVINT_"+indexStoreSuffix, t.TempDir())
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":         "module example.test/fixture\n\ngo 1.27.0\n",
+		"AGENTS.md":      "# rules\n\xff\xfe binary-ish line\n",
+		"app/AGENTS.md":  "app rules\n",
+		"app/source.go":  "package app\n\nfunc Source() {}\n",
+		"app/README.txt": "notes\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteSnapshot(index); err != nil {
+		t.Fatal(err)
+	}
+	full, hit, err := LoadSnapshot(context.Background(), root)
+	if err != nil || !hit {
+		t.Fatalf("full load hit=%v err=%v", hit, err)
+	}
+	deferred, hit, err := LoadSnapshotDeferred(context.Background(), root)
+	if err != nil || !hit {
+		t.Fatalf("deferred load hit=%v err=%v", hit, err)
+	}
+	defer deferred.Release()
+	if deferred.Sources["AGENTS.md"].body.gob == nil {
+		t.Fatal("AGENTS.md is not a lazy body on the deferred load")
+	}
+	want, err := InstructionLoadSet(full, "app/source.go", doctorOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := InstructionLoadSet(deferred, "app/source.go", doctorOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want["state"] == "UNKNOWN" || mustJSON(t, got) != mustJSON(t, want) {
+		t.Fatalf("deferred instruction receipt differs from the full read:\n got %s\nwant %s", mustJSON(t, got), mustJSON(t, want))
+	}
+	if err := deferred.SnapshotRefusal(); err != nil {
+		t.Fatalf("an intact body was refused: %v", err)
 	}
 }
