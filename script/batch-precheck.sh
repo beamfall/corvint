@@ -675,7 +675,8 @@ select_baseline() {
   # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
   if [[ $lane_closeout == 1 ]]; then
     # An opaque aggregate could invoke the target behind our back. Refuse before any step runs.
-    if doc_gates | grep -qx $'make\tdoc-gates'; then
+    # One grep over captured rows: under pipefail grep -q's early exit can SIGPIPE doc_gates.
+    if grep -qx $'make\tdoc-gates' <<< "$(doc_gates)"; then
       expanded=$(doc_gate_expansion)
       [[ -n $expanded && $expanded != drift ]] || {
         printf 'batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates; update doc_gate_expansion before rerunning\n' >&2

@@ -158,8 +158,9 @@ git -C "$static_repo" update-ref HEAD "$static_head"
 static_receipt=$(git -C "$static_repo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
 for static_mode in '' --static-check; do
   printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps 1\npassed 1\nfinished fixture\n' "$static_head" > "$static_receipt"
-  printf '%s\n' "$static_head" > "$static_receipt.lane"
+  # ASD-V0-1992 refuses a lane-marked receipt, so verify before adding the marker.
   (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --verify-receipt HEAD) > "$tmp/out" 2>&1 || fail "seeded static receipt does not verify: $(cat "$tmp/out")"
+  printf '%s\n' "$static_head" > "$static_receipt.lane"
   (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" $static_mode) > "$tmp/out" 2>&1
   rc=$?
   [[ $rc == 1 && ! -e $static_receipt && ! -e $static_receipt.lane ]] || fail "static failure $static_mode retained a receipt (exit $rc): $(cat "$tmp/out")"
