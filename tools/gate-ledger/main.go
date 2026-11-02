@@ -41,7 +41,7 @@ import (
 
 const (
 	schema      = "gate-ledger/1"
-	maxRecords  = 4096
+	maxRecords  = 32768 // about 88 h at 370 records an hour (GL-V0-910)
 	prefixOut   = "gate-ledger: "
 	treeScope   = "tree"
 	neverScope  = "never"
@@ -1126,8 +1126,28 @@ func (l *ledger) record(rec record) error {
 	return l.prune()
 }
 
-// prune keeps the ledger bounded at maxRecords, dropping the oldest records.
+// pruneStamp names the file whose modification time is the last prune scan, and
+// pruneInterval how long a scan stays fresh (GL-V0-911).
+const (
+	pruneStamp    = "prune.stamp"
+	pruneInterval = 5 * time.Minute
+)
+
+// prune keeps the ledger bounded at maxRecords, dropping the oldest records, and
+// reclaims free lock files. It scans the directory at most once per pruneInterval;
+// any other call costs one stat (GL-V0-911).
 func (l *ledger) prune() error {
+	stamp := filepath.Join(l.dir, pruneStamp)
+	if info, err := os.Lstat(stamp); err == nil && info.Mode().IsRegular() && time.Since(info.ModTime()) < pruneInterval {
+		return nil
+	}
+	now := time.Now()
+	if err := os.Chtimes(stamp, now, now); err != nil {
+		if err := os.WriteFile(stamp, nil, 0o600); err != nil {
+			return err
+		}
+	}
+	l.reclaimLocks()
 	matches, err := filepath.Glob(filepath.Join(l.dir, "*.json"))
 	if err != nil || len(matches) <= maxRecords {
 		return err
@@ -1151,21 +1171,63 @@ func (l *ledger) prune() error {
 	return nil
 }
 
-// lock serialises concurrent runs of one key so the step executes once and the
-// waiter reads the record.
-func (l *ledger) lock(key, step string) (func(), error) {
-	f, err := os.OpenFile(filepath.Join(l.dir, key+".lock"), os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, err
+// reclaimLocks removes every lock file no run holds, taking each lock without
+// waiting and removing the file while holding it (GL-V0-913).
+func (l *ledger) reclaimLocks() {
+	matches, _ := filepath.Glob(filepath.Join(l.dir, "*.lock"))
+	for _, name := range matches {
+		f, err := os.OpenFile(name, os.O_RDWR, 0o600)
+		if err != nil {
+			continue
+		}
+		if lockExclusive(f, true) == nil {
+			if sameFile(f, name) {
+				os.Remove(name)
+			}
+			unlock(f)
+		}
+		f.Close()
 	}
-	if err := lockExclusive(f, true); err != nil {
-		fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
-		if err := lockExclusive(f, false); err != nil {
-			f.Close()
+}
+
+// sameFile reports whether path still names the open file f.
+func sameFile(f *os.File, path string) bool {
+	held, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	named, err := os.Lstat(path)
+	return err == nil && os.SameFile(held, named)
+}
+
+// lock serialises concurrent runs of one key so the step executes once and the
+// waiter reads the record. The holder removes KEY.lock before releasing it, and
+// an acquirer whose file was removed meanwhile opens the path again, so no lock
+// file outlives its run and two holders never coexist (GL-V0-912).
+func (l *ledger) lock(key, step string) (func(), error) {
+	path := filepath.Join(l.dir, key+".lock")
+	waited := false
+	for {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+		if err != nil {
 			return nil, err
 		}
+		if err := lockExclusive(f, true); err != nil {
+			if !waited {
+				fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
+				waited = true
+			}
+			if err := lockExclusive(f, false); err != nil {
+				f.Close()
+				return nil, err
+			}
+		}
+		if sameFile(f, path) {
+			return func() { os.Remove(path); unlock(f); f.Close() }, nil
+		}
+		unlock(f)
+		f.Close()
 	}
-	return func() { unlock(f); f.Close() }, nil
 }
 
 // execute runs command with inherited stdio and returns its exit status; a
