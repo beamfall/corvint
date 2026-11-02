@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775, GL-V0-776 and GL-V0-785 experimental under the standing lane auto-accept (2026-11-01; V1-4160)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775, GL-V0-776 and GL-V0-785 experimental under the standing lane auto-accept (2026-11-01; V1-4160); GL-V0-786 experimental under the standing lane auto-accept (2026-11-01; V1-4194)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -201,6 +201,25 @@ therefore come from something keyed on content, not from Go's cache.
   the test until it is classified. A declared scope's completeness (that the command reads
   nothing outside it) stays the declaring change's claim under GL-V0-001; the test proves the
   key follows the declaration. Rollback: delete `tools/gate-ledger/precheck_steps_test.go`.
+- `GL-V0-786`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4194)
+  - `gate-ledger digest FILE` MUST write this worktree's digest (root, tree, entries or the
+    GL-V0-005 refusal) as `corvint-gate-ledger-digest/1`.
+  - A ledger process whose `GATE_LEDGER_SHARED_DIGEST` names such a file, and whose working
+    directory is that file's root, MUST take its digest from the file instead of digesting the
+    worktree. Its keys are then exactly the keys it would derive itself.
+  - A missing, foreign, malformed or other-root file is ignored, and the process digests the
+    worktree itself.
+  - `gate-ledger digest --verify FILE` MUST digest the worktree again. When the tree moved, it
+    MUST remove every record written under FILE's tree since FILE was written, and exit 1. No
+    pass then stays keyed on content its step may not have read.
+  - With ledger reuse on, `script/batch-precheck.sh` MUST write the digest once, after the
+    repins, and export it to every step. It MUST hash every step's salt in one
+    `git hash-object --no-filters --stdin-paths` call, checked against the per-step
+    `git hash-object --stdin` form on the first salt, and run `--verify` after the steps.
+  - The variable is outside the GO*, CGO_* and CORVINT_* prefixes the salt hashes, so the
+    run-specific path never enters a key.
+  - Measured in `docs/build-log/2026-11-01-csp-w33.md`.
+  - Rollback: unset the variable in `script/batch-precheck.sh`; each step digests itself again.
 
 ## Non-goals and simpler baseline
 
@@ -303,6 +322,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-775 | `scopedInputs`, `testClosure`, `readTestScopes`, `inTestReadScope` in `tools/gate-ledger/test_scope.go`; `listedFilesFor` in `tools/gate-ledger/main.go` | `TestRunStepKeysTestScopeOnPackageClosure`: a CEM-only change, a build-log edit and an unrelated package edit hit; a subtree, dependency source, embedded file, declared entry or declaration edit reruns; `TestRunStepTestScopeFallsBackToTheTree`: an undeclared package, an unknown member, a wrong profile and a `..` entry key on the tree with the reason printed |
 | GL-V0-776 | `testScopes` in `tools/gate-ledger/test_scope.go` | `TestDeclaredTestScopesNameOnePackage`: each declared step's Makefile recipe is one go test of its package; the batch-precheck REUSE lines in `docs/build-log/2026-11-01-csp-w33.md` |
 | GL-V0-785 | `precheckLedgerNames` in `tools/gate-ledger/precheck_steps_test.go` | `TestPrecheckLedgerNamesAreComplete_GLV0785` (every `DOC_GATE_TARGETS` and `EXTRA_TARGETS` entry is classified); `TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785` (each declared step's key follows its entries and ignores a CEM-only change; each undeclared step's key changes on a CEM, build-log and source edit) |
+| GL-V0-786 | `openShared`, `digestCommand`, `forgetSince` in `tools/gate-ledger/shared_digest.go`; `salt_input`, the shared digest, salt batch and `--verify` in `script/batch-precheck.sh` | `TestSharedDigestKeysEqualOwnDigest_GLV0786` (shared keys equal own keys for declared, salted, tree, `@test:` and unscoped steps; other-root, foreign and malformed files are ignored); `TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786`; the batch-precheck spawn counts and the per-step `plan` HIT check in the build log |
 
 ## Rollout, rollback, and drift
 

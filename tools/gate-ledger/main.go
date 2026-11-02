@@ -12,6 +12,8 @@
 //	                                        and the unresolved packages under a tree-keyed record;
 //	                                        --packages limits the run to LIST's go list patterns
 //	gate-ledger plan STEP...                print HIT or RUN per step; reads nothing but the ledger
+//	gate-ledger digest [--verify] FILE      write the worktree digest the run's steps share through
+//	                                        GATE_LEDGER_SHARED_DIGEST, or check it still holds
 //
 // Every doubt is a RUN: a step with no declared scope, a worktree the tool cannot
 // digest (skip-worktree or assume-unchanged entries, an ignored Go file, a failed
@@ -178,6 +180,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		l := open(stdout, stderr)
 		l.scope = scope
 		return l.goTest(command)
+	case "digest":
+		return digestCommand(args[1:], stdout, stderr)
 	case "plan":
 		if len(args) < 2 {
 			return usage(stderr)
@@ -188,7 +192,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(stderr io.Writer) int {
-	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP...")
+	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP... | digest [--verify] FILE")
 	return 2
 }
 
@@ -233,6 +237,9 @@ func open(stdout, stderr io.Writer) *ledger {
 		l.dirErr = "CORVINT_GATE_LEDGER=off"
 		l.stdout = io.Discard
 		return l
+	}
+	if shared, ok := openShared(stdout, stderr); ok {
+		return shared
 	}
 	root, err := gitOutput("", "rev-parse", "--show-toplevel")
 	if err != nil {

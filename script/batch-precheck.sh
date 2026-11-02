@@ -987,6 +987,12 @@ select_report
 lst_report
 steps > "$dir/steps"
 n=$(wc -l < "$dir/steps" | tr -d ' ')
+# salt_input NAME CMD prints what a ledger step's salt hashes: its name, its command and every GO*,
+# CGO_* and CORVINT_* variable (ASD-V0-042).
+salt_input() {
+  { printf '%s\n%s\n' "$1" "$2"; env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; }
+}
+export -f salt_input
 # run_one N runs step N, through the ledger when reuse is on; its rc file holds "RC SECS" and, for
 # a reused pass, a third word `reuse`.
 run_one() {
@@ -1002,7 +1008,9 @@ run_one() {
       'gofmt '*) lname=go-format-check ;;
       *) lname=batch-precheck ;;
     esac
-    salt=$({ printf '%s\n%s\n' "$name" "$cmd"; env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; } | git hash-object --stdin) || salt=
+    # GL-V0-786 (V1-4194): the salt batch-precheck hashed for every step at once, else this one.
+    salt=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/salts" 2> /dev/null)
+    [[ -n $salt ]] || salt=$(salt_input "$name" "$cmd" | git hash-object --stdin) || salt=
     if [[ -n $salt ]]; then
       "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
       rc=$?
@@ -1025,6 +1033,26 @@ run_one() {
 }
 export -f run_one
 export BATCH_PRECHECK_DIR=$dir BATCH_PRECHECK_LEDGER_BIN=$ledger
+# GL-V0-786 (V1-4194): with reuse on, the steps share one worktree digest (GATE_LEDGER_SHARED_DIGEST,
+# outside the salted prefixes) and one `git hash-object` call for every salt, instead of a
+# private-index digest of 8 git calls and a hash-object per step. The first salt is checked against
+# the per-step form; a mismatch or a failed batch leaves each step to hash its own.
+if [[ -n $ledger ]]; then
+  if "$ledger" digest "$dir/ledger-digest.json" > "$dir/ledger-digest.log" 2>&1 < /dev/null; then
+    export GATE_LEDGER_SHARED_DIGEST=$dir/ledger-digest.json
+  else
+    printf 'batch-precheck: shared ledger digest unavailable (%s); each step digests the worktree\n' "$(tail -n 1 "$dir/ledger-digest.log")"
+  fi
+  for ((i = 1; i <= n; i++)); do
+    line=$(sed -n "${i}p" "$dir/steps")
+    salt_input "${line%%$'\t'*}" "${line#*$'\t'}" > "$dir/salt.$i"
+    printf '%s\n' "$dir/salt.$i"
+  done > "$dir/salt-paths"
+  if ! git hash-object --no-filters --stdin-paths < "$dir/salt-paths" > "$dir/salts" 2> /dev/null ||
+    [[ $(wc -l < "$dir/salts" | tr -d ' ') != "$n" || $(sed -n 1p "$dir/salts") != $(git hash-object --stdin < "$dir/salt.1") ]]; then
+    : > "$dir/salts"
+  fi
+fi
 # ASD-V0-047 (V1-3142): a SERIAL_TARGETS step runs alone after the parallel ones, so its timing
 # bounds never compete with this run's own go test steps; its rerun (ASD-V0-046) is alone too.
 parallel=() serial=()
@@ -1034,6 +1062,10 @@ for ((i = 1; i <= n; i++)); do
 done
 ((${#parallel[@]})) && printf '%s\n' "${parallel[@]}" | xargs -P "$jobs" -n 1 bash -c 'run_one "$1"' _
 for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
+# GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest.
+if [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]]; then
+  "$ledger" digest --verify "$GATE_LEDGER_SHARED_DIGEST" 2>&1 < /dev/null | sed 's/^gate-ledger: /batch-precheck: ledger /'
+fi
 
 # failing_tests LOG prints the go test and subtest names (`--- FAIL: NAME`) and node/TAP `not ok`
 # names a step log reports, comma-separated, at most 20, or nothing.
