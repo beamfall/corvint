@@ -118,7 +118,7 @@ func TestResultCacheEqualsReplay_ASDV0778(t *testing.T) {
 	if got := invocations(t, count); !reflect.DeepEqual(got, []string{"--version"}) {
 		t.Fatalf("warm run replayed: %q", got)
 	}
-	cache, off := openCache(ctx, root, corvint, selector)
+	cache, off := openCache(ctx, root, corvint, selector, []byte(mustReadFile(t, filepath.Join(root, ".github", "cishards", "package-costs.json"))))
 	if cache == nil || len(hex.EncodeToString(cache.stamp)) != 64 {
 		t.Fatalf("no cache key: %s", off)
 	}
@@ -204,5 +204,44 @@ func TestCacheEnvironmentKeepsBehaviourVariables_ASDV0778(t *testing.T) {
 	want := []string{"CGO_ENABLED=0", "CORVINT_A=1", "GIT_DIR=/x", "GOFLAGS=-x"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("cacheEnvironment = %q, want %q", got, want)
+	}
+}
+
+func mustReadFile(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// TestResultCacheKeysTheCostBytesReplayRead_ASDV0778 (Codex P2): the key is
+// derived from the cost bytes replay parsed, not from a second read of the
+// file, so a table that changes between the read and the key cannot store
+// results measured with one table under the other's key.
+func TestResultCacheKeysTheCostBytesReplayRead_ASDV0778(t *testing.T) {
+	root, corvint, selector, _, _ := cacheFixture(t)
+	ctx := context.Background()
+	costsFile := filepath.Join(root, ".github", "cishards", "package-costs.json")
+	a := []byte(mustReadFile(t, costsFile))
+	b := []byte(`{"milliseconds":{"example.com/fixture/x":99}}` + "\n")
+	stamp := func(costs []byte) string {
+		t.Helper()
+		cache, off := openCache(ctx, root, corvint, selector, costs)
+		if cache == nil {
+			t.Fatalf("cache off: %s", off)
+		}
+		return hex.EncodeToString(cache.stamp)
+	}
+	sa := stamp(a)
+	if err := os.WriteFile(costsFile, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := stamp(a); got != sa {
+		t.Fatalf("a changed file moved the key of the bytes read: %s vs %s", got, sa)
+	}
+	if stamp(b) == sa {
+		t.Fatal("other cost bytes kept the key")
 	}
 }

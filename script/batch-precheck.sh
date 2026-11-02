@@ -1080,9 +1080,13 @@ for ((i = 1; i <= n; i++)); do
 done
 ((${#parallel[@]})) && printf '%s\n' "${parallel[@]}" | xargs -P "$jobs" -n 1 bash -c 'run_one "$1"' _
 for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
-# GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest.
+# GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest, and
+# the run fails: a step may have reused, or recorded, a pass for content it did not read. A verify
+# that cannot run fails the same way.
+ledger_moved=0
 if [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]]; then
-  "$ledger" digest --verify "$GATE_LEDGER_SHARED_DIGEST" 2>&1 < /dev/null | sed 's/^gate-ledger: /batch-precheck: ledger /'
+  "$ledger" digest --verify "$GATE_LEDGER_SHARED_DIGEST" > "$dir/ledger-verify.log" 2>&1 < /dev/null || ledger_moved=1
+  sed 's/^gate-ledger: /batch-precheck: ledger /' "$dir/ledger-verify.log"
 fi
 
 # failing_tests LOG prints the go test and subtest names (`--- FAIL: NAME`) and node/TAP `not ok`
@@ -1194,6 +1198,10 @@ printf 'batch-precheck: %d passed, %d failed in %ss wall, %ss summed\n' "$pass" 
 ((reused)) && printf 'batch-precheck: %d of %d steps reused a ledger pass on identical inputs (CORVINT_GATE_LEDGER=off reruns them)\n' "$reused" "$n"
 if ((warn)); then
   printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]}")"
+fi
+if ((ledger_moved)); then
+  printf 'batch-precheck: FAIL the worktree changed during the run, so no step result above holds for one tree; the records written under the shared digest were removed; rerun on a tree nothing edits (GL-V0-786)\n'
+  exit 1
 fi
 if ((fail)); then
   if ((repin_rc)); then

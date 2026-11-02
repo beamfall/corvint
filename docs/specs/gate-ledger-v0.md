@@ -212,6 +212,9 @@ therefore come from something keyed on content, not from Go's cache.
   - `gate-ledger digest --verify FILE` MUST digest the worktree again. When the tree moved, it
     MUST remove every record written under FILE's tree since FILE was written, and exit 1. No
     pass then stays keyed on content its step may not have read.
+  - A `--verify` that exits non-zero MUST fail the batch-precheck run (`batch-precheck: FAIL the
+    worktree changed during the run ...`, exit 1, no receipt), since a step may have reused or
+    recorded a pass for content it did not read.
   - With ledger reuse on, `script/batch-precheck.sh` MUST write the digest once, after the
     repins, and export it to every step. It MUST hash every step's salt in one
     `git hash-object --no-filters --stdin-paths` call, checked against the per-step
@@ -225,7 +228,10 @@ therefore come from something keyed on content, not from Go's cache.
   `GL-V0-775`) A scope entry `@deps:DIR` MUST add every file `go list -deps -test ./DIR`
   compiles or embeds, without requiring a read-scope declaration for DIR: the scope's other
   entries declare what the step reads. `@all` MUST select every worktree path; an entry
-  `!PATTERN` MUST remove the paths it matches from `@all` only; a plain entry (a `*.ext` suffix, a
+  `!PATTERN` MUST remove the paths it matches from `@all` only, and only a regular file (mode
+  100644 or 100755) whose name has only `A-Za-z0-9._@+-` characters and no `.` or `..` component.
+  Any other name or mode stays in the key, since a step's source walk may refuse the name or follow
+  the link even where it never reads the content. A plain entry (a `*.ext` suffix, a
   `DIR/` prefix, a one-component `DIR/*.ext` glob or an exact path) MUST add paths. The gate
   tooling is always in the key. A closure that cannot be proven keys on the whole tree, as
   GL-V0-775 states. Rollback: drop the `@deps:`, `@all` and `!` branches of `scopedInputs`.
@@ -350,9 +356,9 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-775 | `scopedInputs`, `testClosure`, `readTestScopes`, `inTestReadScope` in `tools/gate-ledger/test_scope.go`; `listedFilesFor` in `tools/gate-ledger/main.go` | `TestRunStepKeysTestScopeOnPackageClosure`: a CEM-only change, a build-log edit and an unrelated package edit hit; a subtree, dependency source, embedded file, declared entry or declaration edit reruns; `TestRunStepTestScopeFallsBackToTheTree`: an undeclared package, an unknown member, a wrong profile and a `..` entry key on the tree with the reason printed |
 | GL-V0-776 | `testScopes` in `tools/gate-ledger/test_scope.go` | `TestDeclaredTestScopesNameOnePackage`: each declared step's Makefile recipe is one go test of its package; the batch-precheck REUSE lines in `docs/build-log/2026-11-01-csp-w33.md` |
 | GL-V0-785 | `precheckLedgerNames` in `tools/gate-ledger/precheck_steps_test.go` | `TestPrecheckLedgerNamesAreComplete_GLV0785` (every `DOC_GATE_TARGETS` and `EXTRA_TARGETS` entry is classified); `TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785` (each declared step's key follows its entries and ignores a CEM-only change; each undeclared step's key changes on a CEM, build-log and source edit) |
-| GL-V0-786 | `openShared`, `digestCommand`, `forgetSince` in `tools/gate-ledger/shared_digest.go`; `salt_input`, the shared digest, salt batch and `--verify` in `script/batch-precheck.sh` | `TestSharedDigestKeysEqualOwnDigest_GLV0786` (shared keys equal own keys for declared, salted, tree, `@test:` and unscoped steps; other-root, foreign and malformed files are ignored); `TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786`; the batch-precheck spawn counts and the per-step `plan` HIT check in the build log |
+| GL-V0-786 | `openShared`, `digestCommand`, `forgetSince` in `tools/gate-ledger/shared_digest.go`; `salt_input`, the shared digest, salt batch and `--verify` in `script/batch-precheck.sh` | `TestSharedDigestKeysEqualOwnDigest_GLV0786` (shared keys equal own keys for declared, salted, tree, `@test:` and unscoped steps; other-root, foreign and malformed files are ignored); `TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786`; `make batch-precheck-test` 4b (an always-run step that edits the tree while another step reuses fails the run, writes no receipt for HEAD; red with the failure check disabled); the batch-precheck spawn counts and the per-step `plan` HIT check in the build log |
 | GL-V0-787 | `scopedInputs`, `matchesScope` and `testClosure`'s undeclared mode in `tools/gate-ledger/test_scope.go` | `TestRunStepKeysDepsAndAllScope_GLV0787` |
-| GL-V0-788 | the `shell-foreign-callers-check` entry of `testScopes` | `TestRunStepKeysDepsAndAllScope_GLV0787` (CEM, build-log and `.tsv` edits hit; a script, a caller, the declaration, a new caller and an embedded `.json` rerun); `TestDeclaredTestScopesNameOnePackage`; the test-log read audit in `docs/build-log/2026-11-01-csp-w33.md` |
+| GL-V0-788 | the `shell-foreign-callers-check` entry of `testScopes` | `TestRunStepKeysDepsAndAllScope_GLV0787` (CEM, build-log and `.tsv` edits hit; a script, a caller, the declaration, a new caller, an embedded `.json`, an excluded-suffix name with a backslash or a space, and a symlink rerun); `TestDeclaredTestScopesNameOnePackage`; the test-log read audit in `docs/build-log/2026-11-01-csp-w33.md` |
 
 ## Rollout, rollback, and drift
 

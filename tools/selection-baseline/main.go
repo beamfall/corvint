@@ -267,7 +267,12 @@ func fullOID(s string) bool {
 
 func replay(ctx context.Context, root string, set changeSet, changesFile, corvint, selector string) (results, error) {
 	r := results{Profile: resultsProfile, Changes: filepath.ToSlash(changesFile), Floor: set.Floor}
-	costs, err := readCosts(filepath.Join(root, ".github", "cishards", "package-costs.json"))
+	// The cost table is read once: the same bytes are parsed and hashed into the cache key.
+	costsData, err := os.ReadFile(filepath.Join(root, ".github", "cishards", "package-costs.json"))
+	if err != nil {
+		return r, err
+	}
+	costs, err := parseCosts(costsData)
 	if err != nil {
 		return r, err
 	}
@@ -283,7 +288,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	measured := make([]Result, len(set.Changes))
 	errs := make([]error, len(set.Changes))
 	// ASD-V0-778: a change whose record matches its exact inputs is read, not replayed.
-	cache, off := openCache(ctx, root, corvint, selector)
+	cache, off := openCache(ctx, root, corvint, selector, costsData)
 	keys := make([]string, len(set.Changes))
 	var pending []int
 	for i, c := range set.Changes {
@@ -652,16 +657,12 @@ func verdictLines(s Summary, f floor) []string {
 	return lines
 }
 
-func readCosts(name string) (map[string]float64, error) {
+func parseCosts(data []byte) (map[string]float64, error) {
 	var doc struct {
 		Milliseconds map[string]float64 `json:"milliseconds"`
 	}
-	data, err := os.ReadFile(name)
-	if err != nil {
-		return nil, err
-	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, fmt.Errorf("package-costs.json: %w", err)
 	}
 	return doc.Milliseconds, nil
 }

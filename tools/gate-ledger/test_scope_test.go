@@ -192,6 +192,9 @@ func TestRunStepKeysDepsAndAllScope_GLV0787(t *testing.T) {
 		{".corvint/shell-foreign-callers.json", `{"scripts":{"jobs/run.sh":{}}}` + "\n"}, //corvint:fixture-path
 		{"tools2/new.py", "import subprocess\nsubprocess.run(['jobs/run.sh'])\n"},
 		{"lib/table.json", "{\"edited\":true}\n"},
+		// Codex P2: an excluded suffix with a name the source walk refuses still reruns it.
+		{`notes/bad\name.md`, "walk-invalid\n"},   //corvint:fixture-path
+		{"notes/with space.md", "unusual name\n"}, //corvint:fixture-path
 	}
 	for _, edit := range misses {
 		writeAll(t, root, edit.file, edit.body)
@@ -201,5 +204,12 @@ func TestRunStepKeysDepsAndAllScope_GLV0787(t *testing.T) {
 	}
 	if got := runs(t, root); got != 1+len(misses) {
 		t.Fatalf("the step ran %d times, want %d", got, 1+len(misses))
+	}
+	// A symlink with an excluded suffix stays in the key: a walk may follow it.
+	if err := os.Symlink("../docs/read.md", filepath.Join(root, "notes", "link.md")); err != nil {
+		t.Skipf("no symlinks here: %v", err)
+	}
+	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RUN fixture-callers+aaa: no recorded pass") {
+		t.Fatalf("a new symlink with an excluded suffix hit: %q", out)
 	}
 }

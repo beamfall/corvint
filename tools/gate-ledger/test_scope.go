@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -101,11 +102,34 @@ func (l *ledger) scopedInputs(scope []string) string {
 	}
 	h := sha256.New()
 	for _, entry := range l.entries {
-		if selected[entry.path] || matchesScope(entry.path, rest) || (all && !matchesScope(entry.path, excluded)) || inScope(entry.path, tooling) {
+		if selected[entry.path] || matchesScope(entry.path, rest) || (all && !(matchesScope(entry.path, excluded) && excludable(entry))) || inScope(entry.path, tooling) {
 			fmt.Fprintf(h, "%s\n", entry.line)
 		}
 	}
 	return "test-closure " + hex.EncodeToString(h.Sum(nil))
+}
+
+// plainName is a path a source walk accepts by its name alone.
+var plainName = regexp.MustCompile(`^[A-Za-z0-9._@+-]+(/[A-Za-z0-9._@+-]+)*$`)
+
+// excludable reports whether a `!PATTERN` match may leave the key: only a
+// regular file with a plain name. Any other name (a backslash, a space, a
+// control or non-ASCII byte, a dot component) or mode (a symlink, a gitlink)
+// stays in the key, since a step's source walk may refuse the name or follow
+// the link even where it never reads the content (GL-V0-787).
+func excludable(entry treeEntry) bool {
+	if !strings.HasPrefix(entry.line, "100644 ") && !strings.HasPrefix(entry.line, "100755 ") {
+		return false
+	}
+	if !plainName.MatchString(entry.path) {
+		return false
+	}
+	for _, component := range strings.Split(entry.path, "/") {
+		if component == "." || component == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 // matchesScope is inScope plus one-component `DIR/*.ext` globs.

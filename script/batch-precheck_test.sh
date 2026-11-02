@@ -291,6 +291,7 @@ mkdir -p $tmp/running && : > $tmp/running/\$2
 case "\$2" in
   test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; } ;;
   slow-*) sleep 3 ;;
+  go-archive-gate) [ -n "\${STUB_MUTATE:-}" ] && echo moved >> $repo/mutated.txt ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
       sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi ;;
 esac
@@ -562,6 +563,19 @@ printf 'other\n' > "$repo/notes.txt"
 STUB_FAIL=1 lrun && fail "a failing ledger run passed"
 STUB_FAIL=1 lrun && fail "a failure was reused"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "failure rerun: $(cat "$tmp/out")"
+# GL-V0-786: an always-run step (go-archive-gate, scope never) that edits the tree while the other
+# steps reuse passes keyed on the run's shared digest fails the run, names why, writes no receipt for
+# HEAD and leaves no record written under the moved tree.
+write_ci "test-commands-check go-archive-gate"
+git -C "$repo" add .github/workflows/ci.yml && git -C "$repo" commit -qm 'mutating step' || fail "mutating-step fixture commit"
+lrun || fail "mutating-step first run failed: $(cat "$tmp/out")"
+STUB_MUTATE=1 lrun && fail "a run whose tree moved during the steps passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "the cached step did not reuse its pass: $(cat "$tmp/out")"
+grep -q '^batch-precheck: ledger DIGEST changed during the run' "$tmp/out" && grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" ||
+  fail "a moved tree was not reported as a failure: $(cat "$tmp/out")"
+names_head && fail "a run whose tree moved wrote a receipt"
+/bin/rm -f "$repo/mutated.txt"
+git -C "$repo" reset -q --hard HEAD~1
 /bin/rm -f "$repo/notes.txt" "$receipt"
 
 # ASD-V0-922 (V1-3342): the full batch-regen run regenerates the documentation-paths declaration

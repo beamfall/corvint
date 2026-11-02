@@ -41,7 +41,7 @@ type cacheRecord struct {
 }
 
 // openCache returns the run's cache, or nil and the reason it is off.
-func openCache(ctx context.Context, root, corvint, selector string) (*resultCache, string) {
+func openCache(ctx context.Context, root, corvint, selector string, costs []byte) (*resultCache, string) {
 	if os.Getenv("SELECTION_BASELINE_CACHE") == "off" || os.Getenv("CORVINT_GATE_LEDGER") == "off" {
 		return nil, "SELECTION_BASELINE_CACHE=off or CORVINT_GATE_LEDGER=off"
 	}
@@ -65,13 +65,15 @@ func openCache(ctx context.Context, root, corvint, selector string) (*resultCach
 	}
 	h := sha256.New()
 	fmt.Fprintf(h, "%s\n", cacheSchema)
-	for _, file := range []string{corvint, selector, self, filepath.Join(root, ".github", "cishards", "package-costs.json")} {
+	for _, file := range []string{corvint, selector, self} {
 		sum, err := fileDigest(file)
 		if err != nil {
 			return nil, err.Error()
 		}
 		fmt.Fprintf(h, "file %s\n", sum)
 	}
+	// The exact cost bytes replay parsed, never a second read of the file (Codex P2).
+	fmt.Fprintf(h, "costs %x\n", sha256.Sum256(costs))
 	module, err := moduleOf(filepath.Join(root, "go.mod"))
 	if err != nil {
 		return nil, err.Error()
