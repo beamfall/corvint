@@ -3518,6 +3518,22 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   DCG-V0-045; a hunk that also edits prose does not). Rollback: remove `repinOnly` and
   `repinProposal`.
 
+- `DCW-V0-710`: (experimental under the standing lane auto-accept, 2026-11-02; lane cit-w41
+  NEW-A1; extends `DCW-V0-114`) A citation plan row that `cem cite` refuses with a plan-row code
+  (`cite-span-not-stable`, `cite-self-modified-authority`, `missing-evidence` or
+  `invalid-arguments`) MUST NOT end the bind at that row. `script/dogfood-bind-range.sh` MUST cite
+  every remaining row of the plan in its private worktree, then fail once with `FAIL cem-cite <first
+  code> refused plan rows=N`, one line per refused row (number, hunk, path, span, code and
+  `cem cite`'s own one-line detail, at most 32 rows then `(+M more)`) and a `fix:` line naming the
+  plan. Every row that `corvint dogfood change` probes under `DCW-V0-114` MUST carry the same
+  detail, as the `DCW-V0-335` precheck already does. Any other `cem cite` refusal still fails at its
+  row with the existing single line. Non-goals: rewriting a plan row; publishing a partial binding.
+  Failure mode: a refusal with no JSON `error` member is named without detail. Evidence: the
+  `DCW-V0-710` case of `script/dogfood-bind-range_test.sh` (two refused rows around an admitted
+  row: both named with their unescaped detail, the admitted row still cited, exit 1) and
+  `TestChangeDCWV0114ReportsEveryRefusedCiteRow` (each probed row carries the `CEM-V1-710` bound
+  detail). Rollback: restore the first-refusal `fail` in the cite loop and drop `detailedRefusal`.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -3895,6 +3911,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
 | `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
+| `DCW-V0-710` (experimental under the standing lane auto-accept; lane cit-w41 NEW-A1) | `script/dogfood-bind-range.sh` cite loop, `plan_row_refusal`, `refusal_detail`; `internal/dogfoodflow/change.go` `probeCitationRows`, `detailedRefusal`; `script/dogfood-bind-range_test.sh` `DCW-V0-710` case; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` | implemented; focused tests PASS |
 | `DCW-V0-984` (experimental under the standing lane auto-accept; V1-3810) | `internal/dogfoodflow/check_anchor_grep.go` `anchorGrep`, `anchorRecords`; `prepareAnchors` in `propose.go`; the `binding` sub-phase and `verifier-pair` rows in `check.go` and `check_tiers.go`; `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate`, `TestDCWV0984BindingSubphaseRows` | implemented; focused tests PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |

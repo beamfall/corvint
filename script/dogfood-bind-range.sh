@@ -93,6 +93,28 @@ failure_reason() {
   printf '%s' "${reason:-exit-$2}"
 }
 
+# plan_row_refusal reports a cem cite refusal that one plan row caused and the plan can repair
+# (DCW-V0-710); the dogfood-change probe uses the same codes (DCW-V0-114).
+plan_row_refusal() {
+  case $1 in
+    cite-span-not-stable | cite-self-modified-authority | missing-evidence | invalid-arguments) return 0 ;;
+  esac
+  return 1
+}
+
+# max_named_refusals bounds how many refused plan rows one report names (DCW-V0-710).
+max_named_refusals=32
+
+# refusal_detail prints the error member of a cem cite JSON refusal on one line, or nothing.
+refusal_detail() {
+  local text re='"error"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
+  text=$(head -c 65536 "$1" | tr '\n' ' ')
+  [[ $text =~ $re ]] || return 0
+  text=${BASH_REMATCH[1]}
+  text=${text//\\\"/\"}
+  printf '%s' "${text//\\\\/\\}"
+}
+
 resolve_corvint_bin() {
   local expected_version
   expected_version=$(cat "$repo/VERSION")
@@ -321,7 +343,13 @@ else
   [[ -n $auto_inherit || ! -s $run_tmp/citations.snapshot ]] || citation_plan_matches_map ||
     fail 'cem-cite citation-plan-map-mismatch'
   refused_inherited=0
+  # DCW-V0-710: a plan-row refusal does not stop the loop, so one rerun repairs every row.
+  row=0
+  refused_rows=0
+  refused_first=
+  refused_named=
   while IFS=$'\t' read -r hunk evidence_path lines relation; do
+    row=$((row + 1))
     span_flag=(--lines "$lines")
     [[ ! $lines =~ ^bytes:([0-9]+:[0-9]+)$ ]] || span_flag=(--bytes "${BASH_REMATCH[1]}")
     run_child "$run_tmp/cem-cite.json" "$run_tmp/cem-cite.stderr" \
@@ -330,9 +358,22 @@ else
     if [[ $child_status -ne 0 && -n $auto_inherit ]]; then
       refused_inherited=$((refused_inherited + 1))
     elif [[ $child_status -ne 0 ]]; then
-      fail "cem-cite $(failure_reason "$run_tmp/cem-cite.stderr" "$child_status")"
+      reason=$(failure_reason "$run_tmp/cem-cite.stderr" "$child_status")
+      plan_row_refusal "$reason" || fail "cem-cite $reason"
+      refused_rows=$((refused_rows + 1))
+      [[ -n $refused_first ]] || refused_first=$reason
+      ((refused_rows > max_named_refusals)) ||
+        refused_named+=$(printf '\n  row %d hunk=%s path=%s lines=%s %s: %s' "$row" "$hunk" "$evidence_path" "$lines" "$reason" "$(refusal_detail "$run_tmp/cem-cite.stderr")")
     fi
   done < "$run_tmp/citations.snapshot"
+  if ((refused_rows > 0)); then
+    {
+      printf 'dogfood-bind-range: FAIL cem-cite %s refused plan rows=%d (DCW-V0-710)%s\n' "$refused_first" "$refused_rows" "$refused_named"
+      ((refused_rows <= max_named_refusals)) || printf '  (+%d more)\n' "$((refused_rows - max_named_refusals))"
+      printf '  fix: repair every named row in %s (a span a detail names as --lines A:B cites as stated), then rerun\n' "$DOGFOOD_CITATIONS"
+    } >&2
+    exit 1
+  fi
   ((refused_inherited == 0)) ||
     printf 'dogfood-bind-range: NOTE cem-cite NOT_PRODUCED inherited-rows-refused count=%s\n' "$refused_inherited" >&2
 fi
