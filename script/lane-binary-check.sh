@@ -10,7 +10,8 @@
 #   lane-binary-check: FRESH corvint build N (commit C) for build M (commit H)            exit 0
 #   lane-binary-check: STALE corvint build N (commit C) for build M (commit H): K Go
 #     source paths differ (a, b, c ...); rebuild: script/lane-binary-check.sh --rebuild DIR   exit 1
-#   lane-binary-check: UNVERIFIED ... (no stamped commit, or the commit is absent in DIR)     exit 1
+#   lane-binary-check: UNVERIFIED ... (no stamped commit, the commit is absent in DIR, or the  exit 1
+#     diff from it fails)
 # A DIR whose go.mod is not the Corvint module is not judged (exit 0, no output), so a fixture or
 # foreign repository never fails lane setup. --rebuild (ASD-V0-756) builds ./cmd/corvint from DIR
 # with the expected build stamp into a temporary directory, refuses a dirty DIR (the build would
@@ -47,8 +48,11 @@ expected="build $(git -C "$dir" rev-list --first-parent --count HEAD) (commit ${
 judge() {
   local line installed commit paths count shown
   line=$("$corvint" --version 2> /dev/null | head -1)
-  installed=$(sed -n 's/.*(\(build [0-9]*\), commit \([0-9a-f]\{40\}\)).*/\1/p' <<< "$line")
-  commit=$(sed -n 's/.*(build [0-9]*, commit \([0-9a-f]\{40\}\)).*/\1/p' <<< "$line")
+  # The commit member is read on its own: a plain `go build` states `(commit SHA)` without a build
+  # number (CRB-V0-003), and a `, modified` build states no clean commit, so it is UNVERIFIED.
+  commit=$(sed -n 's/.*[(,] *commit \([0-9a-f]\{40\}\)).*/\1/p' <<< "$line")
+  installed=$(sed -n 's/.*(\(build [0-9]*\), commit [0-9a-f]\{40\}).*/\1/p' <<< "$line")
+  installed=${installed:-unstamped build}
   if [[ -z $commit ]]; then
     printf 'lane-binary-check: UNVERIFIED corvint %s states no build commit (%s) for %s; rebuild: script/lane-binary-check.sh --rebuild %s\n' "$corvint" "${line:-no --version output}" "$expected" "$dir"
     return 1
@@ -62,7 +66,11 @@ judge() {
     printf 'lane-binary-check: UNVERIFIED corvint %s for %s: commit %s is absent in %s (fetch, or rebuild: script/lane-binary-check.sh --rebuild %s)\n' "$installed" "$expected" "${commit:0:12}" "$dir" "$dir"
     return 1
   fi
-  paths=$(git -C "$dir" diff --name-only --no-renames "$commit" "$head" -- ':(glob)**/*.go' ':(exclude,glob)**/*_test.go' ':(exclude,glob)**/testdata/**' go.mod go.sum)
+  # A failed diff (for example an offline partial clone missing the commit's tree) is no evidence.
+  if ! paths=$(git -C "$dir" diff --name-only --no-renames "$commit" "$head" -- ':(glob)**/*.go' ':(exclude,glob)**/*_test.go' ':(exclude,glob)**/testdata/**' go.mod go.sum 2> /dev/null); then
+    printf 'lane-binary-check: UNVERIFIED corvint %s for %s: git diff from commit %s failed in %s (fetch, or rebuild: script/lane-binary-check.sh --rebuild %s)\n' "$installed" "$expected" "${commit:0:12}" "$dir" "$dir"
+    return 1
+  fi
   if [[ -z $paths ]]; then
     printf 'lane-binary-check: FRESH corvint %s for %s (no Go source differs)\n' "$installed" "$expected"
     return 0

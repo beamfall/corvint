@@ -254,7 +254,9 @@ to the five hypotheses above and no `corvint` command.
   on its own temporary copy, and MUST write the report in sample order with `jobs` recorded. It MUST
   refuse a value outside 1..16, and any value above 1 with `--snapshot-latency` or
   `--context-packets`. The first error cancels the run. Wall times under N above 1 measure a shared
-  host and are not comparable to a serial run. Rollback: drop the flag; the serial loop is `--jobs 1`.
+  host and are not comparable to a serial run, so `--summarize` MUST keep `jobs` and refuse to merge
+  reports run under different `jobs` (a report without `jobs` ran serially). Rollback: drop the flag;
+  the serial loop is `--jobs 1`.
 - `CEP-V0-757`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)
   Binary binding. Every report's `corvint` identity MUST carry the binary's `--version` line, its
   `sha256` and `commit`, the 40- or 64-hex commit that line states, or `UNKNOWN` when it states
@@ -359,7 +361,7 @@ to the five hypotheses above and no `corvint` command.
 | CEP-V0-960 | `contextBenchMetrics`, `contextBenchFileMetrics`, `contextBenchLengthMatched`, `rederiveContextBench` | `TestContextBenchAbstentionAndLengthMatchedPrecision`, `TestSummarizeRederivesContextBenchFileMetrics`, `TestContextBenchFixtureScoresFileAndLineCoverage`; the v2716f rescore in build log `docs/build-log/2026-10-31-tools-r-w7.md` |
 | CEP-V0-961 | `resolveDataRoot`, `usageText`, `dataRootEnv` | `TestDataRootResolvesAndRefuses` |
 | CEP-V0-755 | `spanMetrics`, `goldSpanIntervals` in `tools/retrieval-bench/spans.go`; `parseContextPacket`, `judge` | `TestCEPV0755SpanModeScoresGoldSpans`; edit2ripple coverage-0 gap from lane ctx-u15 |
-| CEP-V0-756 | `validateJobs`, `judgeSamples` in `tools/retrieval-bench/jobs.go`; `benchSample`, `corpusFor` lock | `TestCEPV0756JobsBoundedAndOrdered` (also under `-race`) |
+| CEP-V0-756 | `validateJobs`, `judgeSamples` in `tools/retrieval-bench/jobs.go`; `benchSample`, `corpusFor` lock | `TestCEPV0756JobsBoundedAndOrdered` (also under `-race`); `storedReport.jobs`, `resummarize`: `TestCEPV0756SummarizeKeepsJobsAndRefusesMixedJobs` |
 | CEP-V0-757 | `corvintIdentity`, `versionCommitPattern` | `TestCEPV0757IdentityRecordsCommit` |
 | CEP-V0-003 | `readSamples` digest, `resolveSnapshot` | `TestContextBenchFixtureScoresFileAndLineCoverage` (pinned `samples_sha256`); full ContextBench run retained as an aggregate receipt (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v0415-contextbench-swebench-pro.md`, V1-0415) |
 | CEP-V0-004 | `validateControl`, `scoringGold` in `tools/cw-trial/control.go` | `TestAlreadyFixedControlRefusesGoldAndUnknownControls`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |

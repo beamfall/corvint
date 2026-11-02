@@ -837,6 +837,42 @@ func TestSummarizeRefusesUnknownArmsAndMergesNullArms(t *testing.T) {
 	}
 }
 
+// CEP-V0-756: a parallel report keeps its --jobs through --summarize, and
+// reports run under different --jobs are not merged.
+func TestCEPV0756SummarizeKeepsJobsAndRefusesMixedJobs(t *testing.T) {
+	directory := t.TempDir()
+	writeReport := func(name, jobs, arm string) string {
+		path := filepath.Join(directory, name)
+		body := `{"samples_sha256":"s","limit":10` + jobs + `,"details":[{"id":"a","repo":"gin-gonic/gin","stratum":"positive","arms":{"` + arm + `":{"ranked":["x"],"wall_ms":5}},"metrics":{"` + arm + `":{"recall@10":1}}}]}`
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	parallel := writeReport("parallel.json", `,"jobs":4`, "context")
+	parallelGrep := writeReport("parallel-grep.json", `,"jobs":4`, "grep")
+	serial := writeReport("serial.json", `,"jobs":1`, "grep")
+	legacy := writeReport("legacy.json", ``, "grep")
+	report, err := resummarize(options{summaries: []string{parallel}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report["jobs"] != 4 {
+		t.Fatalf("summarized parallel report jobs = %v, want 4", report["jobs"])
+	}
+	if report, err = resummarize(options{summaries: []string{parallel, parallelGrep}}); err != nil || report["jobs"] != 4 {
+		t.Fatalf("merge of two --jobs 4 reports = %v, %v", report["jobs"], err)
+	}
+	for _, mixed := range [][]string{{parallel, serial}, {legacy, parallel}} {
+		if _, err := resummarize(options{summaries: mixed}); err == nil || !strings.Contains(err.Error(), "--jobs") {
+			t.Errorf("merge of %s and %s = %v, want mixed --jobs refused", filepath.Base(mixed[0]), filepath.Base(mixed[1]), err)
+		}
+	}
+	if report, err = resummarize(options{summaries: []string{legacy, serial}}); err != nil || report["jobs"] != 1 {
+		t.Fatalf("a report without jobs is serial: %v, %v", report["jobs"], err)
+	}
+}
+
 func TestSummarizeRefusesMixedLimitsOrBinariesAndKeepsTheMeasuredIdentity(t *testing.T) {
 	directory := t.TempDir()
 	writeReport := func(name string, limit int, sha, arm string) string {

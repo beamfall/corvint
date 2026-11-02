@@ -1753,6 +1753,19 @@ c3=$(git -C "$lb/repo" rev-parse HEAD)
 out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
 [[ $? == 1 && $out == "lane-binary-check: STALE corvint build 1 (commit ${c1:0:12}) for build 3 (commit ${c3:0:12}): 1 Go source paths differ (cmd/corvint/main.go); rebuild: script/lane-binary-check.sh --rebuild $lb/repo" ]] ||
   fail "lane-binary stale: $out"
+# A commit whose tree is unavailable (cat-file succeeds, the diff fails) is UNVERIFIED, never FRESH.
+cp -R "$lb/repo" "$lb/broken" || fail "lane-binary broken copy"
+t1=$(git -C "$lb/broken" rev-parse "$c1^{tree}") && rm -f "$lb/broken/.git/objects/${t1:0:2}/${t1:2}" || fail "lane-binary drop tree"
+git -C "$lb/broken" cat-file -e "$c1^{commit}" || fail "lane-binary broken copy lost its commit"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/broken" 2>&1)
+[[ $? == 1 && $out == *"UNVERIFIED corvint build 1 (commit ${c1:0:12})"*'git diff from commit'*'failed in'* ]] || fail "lane-binary failed diff: $out"
+# A plain `go build` states `(commit SHA)` with no build number; a modified build states no clean commit.
+printf '#!/bin/sh\necho "Corvint 1.0.0-rc.3.dev (commit %s)"\n' "$c3" > "$lb/bin/corvint"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == "lane-binary-check: FRESH corvint unstamped build (commit ${c3:0:12}) for build 3 (commit ${c3:0:12})" ]] || fail "lane-binary commit-only: $out"
+printf '#!/bin/sh\necho "Corvint 1.0.0-rc.3.dev (commit %s, modified)"\n' "$c3" > "$lb/bin/corvint"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == *'UNVERIFIED'*'states no build commit'* ]] || fail "lane-binary modified build: $out"
 fake_corvint 1 0123456789012345678901234567890123456789
 out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
 [[ $? == 1 && $out == *'UNVERIFIED corvint build 1 (commit 012345678901)'*'is absent in'* ]] || fail "lane-binary absent commit: $out"
