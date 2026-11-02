@@ -6,11 +6,16 @@
 // it never touches a real queue, and every store it writes lives under the
 // root the caller names.
 //
-//	tasks-scale gen --root DIR --tickets N
+//	tasks-scale gen --root DIR --tickets N [--resume] [--pause-after K] [--max-seconds S]
 //	tasks-scale run --store DIR [--fds] [--cpuprofile F] [--memprofile F] [--out F] -- ARGS...
 //	tasks-scale matrix --store DIR [--reps N] [--writes] [--profiles DIR] [--outputs DIR]
 //	tasks-scale contend --store DIR [--writers W] [--readers R] [--seconds S] [--work DIR] [-- READ ARGS...]
 //	tasks-scale relocate --store COPY [--from OLD]
+//
+// `gen --pause-after K` or `--max-seconds S` stops cleanly after a ticket and
+// `gen --resume` continues it (TCX-V0-850), so a store too large for one
+// bounded command is built across several, each through the product's own
+// writers; the manifest records the wall time of every 500 tickets.
 //
 // A generated store pins its primary worktree in head.json, so a copy made
 // with `cp -a STORE COPY` refuses every write until it is relocated
@@ -115,7 +120,26 @@ type manifest struct {
 	// Root is the primary worktree gen built the store in; a copy is
 	// relocated from it.
 	Root string `json:"root,omitempty"`
+	// ChunkSeconds is the wall time of each 500 tickets, across every
+	// resumed segment (TCX-V0-850).
+	ChunkSeconds []float64 `json:"chunkSeconds,omitempty"`
 }
+
+// genProgress is a paused gen's place, kept in the store's .git directory so
+// the store's own commit never includes it (TCX-V0-850). Every request ID gen
+// sends is derived from the ticket number, so a ticket redone after a kill
+// replays rather than duplicates.
+type genProgress struct {
+	Tickets      int       `json:"tickets"`
+	Next         int       `json:"next"`
+	Receipts     int       `json:"receipts"`
+	Committed    bool      `json:"committed"`
+	Seconds      float64   `json:"seconds"`
+	ChunkSeconds []float64 `json:"chunkSeconds"`
+	Partial      float64   `json:"partial"`
+}
+
+func progressPath(store string) string { return filepath.Join(store, ".git", "scale-progress.json") }
 
 func manifestPath(store string) string { return filepath.Join(store, ".scale-manifest.json") }
 
@@ -216,16 +240,21 @@ func writeJSONFile(path string, v any) error {
 
 func gen(args []string) error {
 	fs := flag.NewFlagSet("gen", flag.ExitOnError)
-	root := fs.String("root", "", "store root to create (must not exist)")
+	root := fs.String("root", "", "store root to create (must not exist unless --resume)")
 	n := fs.Int("tickets", 1000, "ticket count (the frozen queue limit is 10000)")
+	resume := fs.Bool("resume", false, "continue a paused gen of the same --root and --tickets")
+	pauseAfter := fs.Int("pause-after", 0, "pause cleanly after this many tickets in this run (0: no limit)")
+	maxSeconds := fs.Float64("max-seconds", 0, "pause cleanly once this run has taken this many seconds (0: no limit)")
 	_ = fs.Parse(args)
 	if *root == "" || *n < 2*reservedWrites+10 {
 		return errors.New("gen needs --root and --tickets >= 58")
 	}
-	if _, err := os.Lstat(*root); err == nil {
-		return fmt.Errorf("%s exists; refusing to reuse it", *root)
+	if *resume {
+		return genLoop(*root, *n, nil, *pauseAfter, *maxSeconds)
 	}
-	start := time.Now()
+	if _, err := os.Lstat(*root); err == nil {
+		return fmt.Errorf("%s exists; refusing to reuse it (pass --resume to continue a paused gen)", *root)
+	}
 	if err := os.MkdirAll(filepath.Join(*root, ".taskman"), 0o755); err != nil {
 		return err
 	}
@@ -267,17 +296,49 @@ func gen(args []string) error {
 	if _, err := call(store, "init", "--request-id", "scale-init"); err != nil {
 		return err
 	}
-	receipts := 1
-	m := manifest{Tickets: *n, Label: "optimizations", Show: local(*n / 2), Root: store}
+	return genLoop(store, *n, &genProgress{Tickets: *n, Next: 1, Receipts: 1}, *pauseAfter, *maxSeconds)
+}
+
+// genLoop writes tickets p.Next..n into store, pausing after pauseAfter
+// tickets or maxSeconds of this run; a nil p resumes from the store's
+// progress file (TCX-V0-850).
+func genLoop(root string, n int, p *genProgress, pauseAfter int, maxSeconds float64) error {
+	start := time.Now()
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	store, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return err
+	}
+	if p == nil {
+		raw, err := os.ReadFile(progressPath(store))
+		if err != nil {
+			return fmt.Errorf("%s has no paused gen to resume: %v", root, err)
+		}
+		p = &genProgress{}
+		if err := json.Unmarshal(raw, p); err != nil {
+			return err
+		}
+		if p.Tickets != n {
+			return fmt.Errorf("%s was paused generating %d tickets, not %d", root, p.Tickets, n)
+		}
+	}
+	receipts := p.Receipts
+	m := manifest{Tickets: n, Label: "optimizations", Show: local(n / 2), Root: store}
 	reserved := map[int]bool{}
 	for k := 0; k < reservedWrites; k++ {
-		c, d := *n-2*reservedWrites+k+1, *n-reservedWrites+k+1
+		c, d := n-2*reservedWrites+k+1, n-reservedWrites+k+1
 		reserved[c], reserved[d] = true, true
 		m.Claim = append(m.Claim, local(c))
 		m.Complete = append(m.Complete, local(d))
 	}
-	committed := false
-	for i := 1; i <= *n; i++ {
+	committed := p.Committed
+	chunkStart, done := time.Now(), 0
+	// One ticket's writes; the bookkeeping after it runs for every ticket,
+	// reserved ones included.
+	ticketWrites := func(i int) error {
 		var deps []string
 		if !reserved[i] && i > 10 && i%3 == 0 {
 			for k := 1; k <= 1+i%3; k++ {
@@ -289,7 +350,7 @@ func gen(args []string) error {
 		}
 		receipts++
 		if reserved[i] {
-			continue
+			return nil
 		}
 		if i%2 == 0 {
 			if _, err := call(store, "ticket", "prioritize", "--request-id", fmt.Sprintf("p%d", i), "--target", local(i),
@@ -327,12 +388,37 @@ func gen(args []string) error {
 			}
 			receipts++
 		}
+		return nil
+	}
+	for i := p.Next; i <= n; i++ {
+		if err := ticketWrites(i); err != nil {
+			return err
+		}
+		done++
+		p.Next, p.Receipts, p.Committed = i+1, receipts, committed
 		if i%500 == 0 {
-			fmt.Fprintf(os.Stderr, "gen: %d/%d tickets, %d receipts, %.0fs\n", i, *n, receipts, time.Since(start).Seconds())
+			p.ChunkSeconds = append(p.ChunkSeconds, p.Partial+time.Since(chunkStart).Seconds())
+			p.Partial, chunkStart = 0, time.Now()
+		}
+		if i < n && ((pauseAfter > 0 && done >= pauseAfter) || (maxSeconds > 0 && time.Since(start).Seconds() >= maxSeconds)) {
+			p.Partial += time.Since(chunkStart).Seconds()
+			p.Seconds += time.Since(start).Seconds()
+			if err := writeJSONFile(progressPath(store), p); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "gen: paused at %d/%d tickets after %.0fs; rerun with --resume\n", i, n, time.Since(start).Seconds())
+			return nil
+		}
+		if i%500 == 0 {
+			fmt.Fprintf(os.Stderr, "gen: %d/%d tickets, %d receipts, %.0fs\n", i, n, receipts, p.Seconds+time.Since(start).Seconds())
 		}
 	}
 	m.Receipts = receipts
-	m.Seconds = time.Since(start).Seconds()
+	m.Seconds = p.Seconds + time.Since(start).Seconds()
+	m.ChunkSeconds = p.ChunkSeconds
+	if err := os.Remove(progressPath(store)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	return writeJSONFile(manifestPath(store), m)
 }
 

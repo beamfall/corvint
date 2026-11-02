@@ -144,6 +144,17 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
   The `TCX-V0-848` target is unchanged. Acceptance: `TestTCXV0849IncrementalRewriteMatchesFullEncode`,
   `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`,
   `TestTCXV0849SameStatRewriteReparsed`.
+- `TCX-V0-850`: (experimental under the standing lane auto-accept; V1-1148) `tasks-scale gen`
+  takes `--pause-after K` and `--max-seconds S`. Either makes a run stop cleanly after a whole
+  ticket, recording its place in `.git/scale-progress.json`, outside the store's commit. `gen
+  --resume` with the same `--root` and `--tickets` continues from that place through the same
+  product writers, so a store too large for one bounded command is built across several. Every
+  request ID gen sends is derived from the ticket number, so a ticket redone after a kill replays.
+  The manifest records `chunkSeconds`, the wall time of each 500 tickets across segments. A
+  finished resumed store has the same tickets, statuses and receipt count as an unpaused one.
+  Target, set before the build: ticket creation is roughly linear, the last 500-ticket chunk of a
+  2,000-ticket gen taking at most 1.5 times the first. Acceptance:
+  `TestTCXV0850PausedGenResumesToTheSameStore`; the chunk times are in the build log.
 
 ## Non-goals
 
@@ -195,3 +206,4 @@ their commit removes them with no effect on stores.
 | `TCX-V0-847` | `TestTCXV0847PreloadMatchesFullLoad` |
 | `TCX-V0-848` | `TestTCXV0848JournalByteIdenticalWithIndex`; before and after numbers in `docs/build-log/2026-11-02-msc-u34-tasks-write-path.md` |
 | `TCX-V0-849` | `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`, `TestTCXV0849SameStatRewriteReparsed` |
+| `TCX-V0-850` | `TestTCXV0850PausedGenResumesToTheSameStore`; chunk times in the build log |

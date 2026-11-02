@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
@@ -195,5 +196,82 @@ func TestRelativeGenRootRelocatesACopy(t *testing.T) {
 	}
 	if err := relocate([]string{"--store", "copy"}); err != nil {
 		t.Fatalf("relocate of a relative-root copy: %v", err)
+	}
+}
+
+// genOutcome is what a finished gen built: its manifest minus timings and
+// root, and every ticket's status by file name.
+func genOutcome(t *testing.T, store string) (manifest, map[string]string) {
+	t.Helper()
+	raw, err := os.ReadFile(manifestPath(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m manifest
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	m.Seconds, m.Root, m.ChunkSeconds = 0, "", nil
+	dir := filepath.Join(store, ".taskman", "tickets")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statuses := map[string]string{}
+	for _, e := range entries {
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rec struct {
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(raw, &rec); err != nil {
+			t.Fatal(err)
+		}
+		statuses[e.Name()] = rec.Status
+	}
+	return m, statuses
+}
+
+// TestTCXV0850PausedGenResumesToTheSameStore: a gen paused twice and resumed
+// builds the same tickets, statuses, receipts and manifest as one unpaused
+// gen, leaves no progress file, and refuses a resume without a paused gen or
+// with another ticket count.
+func TestTCXV0850PausedGenResumesToTheSameStore(t *testing.T) {
+	skipPOSIXWriters(t)
+	if testing.Short() {
+		t.Skip("generates two stores")
+	}
+	dir := t.TempDir()
+	straight, paused := filepath.Join(dir, "straight"), filepath.Join(dir, "paused")
+	if err := gen([]string{"--root", straight, "--tickets", "70"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := gen([]string{"--root", paused, "--tickets", "70", "--pause-after", "30"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(manifestPath(paused)); err == nil {
+		t.Fatal("a paused gen wrote its manifest")
+	}
+	if err := gen([]string{"--root", paused, "--tickets", "71", "--resume"}); err == nil {
+		t.Fatal("a resume with another ticket count was accepted")
+	}
+	if err := gen([]string{"--root", paused, "--tickets", "70", "--resume", "--pause-after", "20"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := gen([]string{"--root", paused, "--tickets", "70", "--resume"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(progressPath(paused)); !os.IsNotExist(err) {
+		t.Fatalf("the finished gen left its progress file: %v", err)
+	}
+	wantM, wantS := genOutcome(t, straight)
+	gotM, gotS := genOutcome(t, paused)
+	if !reflect.DeepEqual(gotM, wantM) || !reflect.DeepEqual(gotS, wantS) {
+		t.Fatalf("resumed store %+v %v, unpaused %+v %v", gotM, gotS, wantM, wantS)
+	}
+	if err := gen([]string{"--root", straight, "--tickets", "70", "--resume"}); err == nil {
+		t.Fatal("a resume of a finished gen was accepted")
 	}
 }
