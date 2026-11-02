@@ -580,7 +580,43 @@
           "const": "NOT_OBSERVED"
         },
         "authentication": {
-          "const": "NOT_OBSERVED"
+          "anyOf": [
+            {
+              "const": "NOT_OBSERVED"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method"
+              ],
+              "properties": {
+                "method": {
+                  "const": "none"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "keyid",
+                "envelopeSha256"
+              ],
+              "properties": {
+                "method": {
+                  "const": "dsse-ed25519"
+                },
+                "keyid": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "envelopeSha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -645,7 +681,8 @@
             "tasks-claimed-ticket",
             "runner-plan",
             "runner-receipt",
-            "tasks-snapshot-head-receipt"
+            "tasks-snapshot-head-receipt",
+            "receipt-attestation"
           ]
         },
         "path": {
@@ -883,7 +920,11 @@
           "unchanged-hunk",
           "unproven-mechanical",
           "unsupported-tree-mode",
-          "zero-hunks"
+          "zero-hunks",
+          "attestation-malformed",
+          "attestation-key-mismatch",
+          "attestation-subject-mismatch",
+          "attestation-signature-invalid"
         ]
       }
     },
@@ -998,7 +1039,8 @@
               "tasks-claimed-ticket",
               "runner-plan",
               "runner-receipt",
-              "tasks-snapshot-head-receipt"
+              "tasks-snapshot-head-receipt",
+              "receipt-attestation"
             ]
           },
           "path": {
@@ -1247,7 +1289,12 @@
           "const": "NOT_OBSERVED"
         },
         "authentication": {
-          "const": "NOT_OBSERVED"
+          "enum": [
+            "NOT_OBSERVED",
+            "UNTRUSTED_KEY",
+            "VERIFIED",
+            "FAILED"
+          ]
         },
         "dependencyClosure": {
           "const": "NOT_OBSERVED"

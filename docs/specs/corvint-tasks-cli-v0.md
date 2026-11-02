@@ -447,6 +447,33 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   to `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`. It runs in about a second, so the
   `46e9ee1fd` shape (an output-only `taskman-closed-index-rebuild/0` constant no list registers)
   fails before the long `internal/tasks/cli` package runs.
+- `TCL-V0-610`: (experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1)
+  The help item of every `ticket` mutation verb MUST carry `payloadKeyTypes`, an object that maps
+  each of the operation's closed payload keys (and its optional keys) to a type string: the
+  CTW-V0-012 field type, `enum A|B|...` with the closed values the decoder enforces, and an
+  `or null` suffix for a nullable key. Help reads no store, so gate and pool values are open.
+  `payloadKeyTypes` is call-forming, so it extends the CAL-V0-170 terse key set as `reasonCodes`
+  does for `release` (TCD-V0-178): terse and verbose help both carry it.
+- `TCL-V0-611`: (experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1,
+  V1-3714 AC2; supersedes the "no other verb takes it" clause of CTW-V0-012, formerly
+  CAL-V0-073) `corvint-tasks ticket VERB --template` for every mutation verb other than
+  `create` MUST return one read-only item with `operation`, `queueId`, a decodable example
+  `payload` (also as the exact canonical string `payloadCanonical`), `fill` naming the members
+  the caller decides, and `fields` documenting each of the verb's payload keys and dotted
+  members as CTW-V0-012 does. Prose placeholders read `REPLACE: why` and decode as is; a
+  `grant-approval` template names the invoking actor (CORVINT_TASKS_ACTOR, ATM_ACTOR or the OS
+  user), the only actor the write accepts. The verb's derived help example (TCL-V0-861), with
+  `JSON` replaced by `payloadCanonical` and any `fill` member that names ticket state
+  (`grant-approval` `targetRevision`, the `acceptanceRevision` that `ticket show` reports) set,
+  MUST run; `ticket hold` usage therefore marks one
+  `--target` required (its further targets and `--expected-revision` stay optional).
+  `--template` composes with no other flag, `--skeleton` stays CREATE-only, and nothing is read
+  from the journal, locked or written.
+- `TCL-V0-612`: (experimental under the standing lane auto-accept (2026-11-01); V1-3714 AC3)
+  When `ticket list` or `ticket search` `--fields` widens to the `ticket show` items
+  (TCL-V0-862) and those items still lack a requested key, the `MALFORMED` refusal MUST be
+  judged against the show items, so it names the key no show item carries rather than a
+  show-only key, such as `record`, that the narrow list items lack.
 
 ## Non-goals
 
@@ -570,6 +597,11 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   with paired wall times in `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-826, TCL-V0-827).
 - `tools/tasks-profiles-check/main_test.go`: `TestTCLV0815_UnregisteredProfileFailsUntilRegistered`,
   `TestTCLV0815_ProfileInTwoListsFails` (TCL-V0-815).
+- `internal/tasks/cli/mutation_template_test.go`: `TestTCLV0610_HelpNamesPayloadKeyTypes`
+  (TCL-V0-610), `TestTCLV0611_EveryMutationTemplateRuns` (TCL-V0-611),
+  `TestTCLV0612_WideFieldsRefusalNamesTheMissingKey` (TCL-V0-612);
+  `internal/tasks/cli/create_template_test.go`: `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`
+  (TCL-V0-611 flag and `--skeleton` refusals).
 
 ## Rollback
 

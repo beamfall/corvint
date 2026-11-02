@@ -1,0 +1,17 @@
+{
+  "reason": "V1-2521: CEM-V1-084 (accepted by decision 0546) lets a runner receipt carry authentication {\"method\":\"none\"} beside the sealed legacy string, and both consumers echo the map's form at references.runnerReceipts[].authentication; decision 0589 has the schema follow the accepted requirement.",
+  "pointer": "/$defs/runnerReceipt/properties/authentication",
+  "predecessorSha256": "489bc408c369e15c814b81bd73593496564a76153ffe1cf43c744164af54ad1e",
+  "branch": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "method"
+    ],
+    "properties": {
+      "method": {
+        "const": "none"
+      }
+    }
+  }
+}

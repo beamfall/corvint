@@ -42,7 +42,7 @@ func commandHelp(args []string) *wire.Result {
 }
 
 // terseKeys are the help keys an agent needs to form a valid call.
-var terseKeys = []string{"usage", "implemented", "flags", "required", "example", "operation", "payloadKeys", "optionalPayloadKeys"}
+var terseKeys = []string{"usage", "implemented", "flags", "required", "example", "operation", "payloadKeys", "payloadKeyTypes", "optionalPayloadKeys"}
 
 func terseHelp(cmd []string, full *wire.Result) *wire.Result {
 	o := full.Items[0].Obj

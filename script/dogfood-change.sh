@@ -82,4 +82,20 @@ if [[ -f internal/contextindex/analyzer_schema_test.go && -x script/analyzer-inp
   printf 'dogfood-change: NOTE analyzer-schema: %s analyzer input(s) changed since %s, first %s: script/analyzer-schema.sh check --output decides whether a bump is needed, and dogfood-finish runs it before the bind\n' \
     "$(grep -c . <<< "$analyzer_inputs")" "$base_arg" "${analyzer_inputs%%$'\n'*}"
 fi
+# DCW-V0-621 (V1-3681): `make dogfood-change BASE= TASK= PATHS=` (DOGFOOD_TASK and
+# DOGFOOD_PRECHANGE_PATHS) records the agent pre-change receipts bound to BASE through
+# `dogfood prechange` before the change runs, so the one change-start command, run before the
+# first edit, produces them and every later run reports them OBSERVED bound. A run that finds the
+# binding already written skips the step; one whose prechange refuses (after the first edit, say)
+# keeps the refusal as a NOTE and goes on, so its receipts stay NOT_OBSERVED as before.
+if [[ -n ${DOGFOOD_PRECHANGE_PATHS:-} && ! -e $evidence/prechange-binding.json ]]; then
+  if [[ -z ${DOGFOOD_TASK:-} ]]; then
+    printf 'dogfood-change: REFUSE prechange-task-missing: PATHS (DOGFOOD_PRECHANGE_PATHS) records the pre-change receipts and needs TASK (DOGFOOD_TASK), the task text; rerun as make dogfood-change BASE=%s TASK="THE CHANGE" PATHS="PATH..."\n' "$base_arg" >&2
+    exit 2
+  fi
+  read -r -a prechange_paths <<< "$DOGFOOD_PRECHANGE_PATHS"
+  if ! "$corvint_bin" dogfood prechange "$base_arg" "${prechange_paths[@]}" >&2; then
+    printf 'dogfood-change: NOTE prechange NOT_PRODUCED: dogfood prechange refused above, so the receipts stay unbound (DCW-V0-621)\n' >&2
+  fi
+fi
 exec "$corvint_bin" dogfood change --corvint-bin "$corvint_bin" "$base_arg"

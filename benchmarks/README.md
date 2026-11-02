@@ -52,7 +52,11 @@ observation, not a first-use median or an adoption result.
 The Agent Retrieval Bench control arm (Corvint beside a grep baseline over the bench's frozen
 snapshots) is `tools/retrieval-bench`; its protocol and kill-criterion reading are in that
 directory's README. Its first run over a released subset is preserved under `benchmarks/results/`
-as first-observation evidence.
+as first-observation evidence. Those `agent-retrieval-bench-<task>.json` and
+`-development.json` reports measured `Corvint 0.4.0a0` and no longer govern any claim about the
+current ranker; the governing reports are `agent-retrieval-bench-<task>-rc3.json` (all five v2
+releases, every arm, `Corvint 1.0.0-rc.3.dev` build 43 at commit
+`55f5a9fd74a4e0e0d3fcc72d5837a2a90fba1520`, recorded in `docs/build-log/2026-11-01-lsp-w27.md`).
 
 Run against exact local checkouts:
 

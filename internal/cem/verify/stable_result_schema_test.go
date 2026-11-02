@@ -431,3 +431,206 @@ func schemaTypeOf(want string, value any) bool {
 	}
 	return false
 }
+
+// stableSchemaNode returns the object at an RFC 6901 pointer of a decoded
+// schema copy, so a test can restore one sealed predecessor node.
+func stableSchemaNode(t *testing.T, schema map[string]any, pointer string) (parent map[string]any, key string) {
+	t.Helper()
+	tokens := strings.Split(strings.TrimPrefix(pointer, "/"), "/")
+	node := schema
+	for _, token := range tokens[:len(tokens)-1] {
+		next, ok := node[token].(map[string]any)
+		if !ok {
+			t.Fatalf("schema pointer %s: %s is not an object", pointer, token)
+		}
+		node = next
+	}
+	return node, tokens[len(tokens)-1]
+}
+
+// stableResultObject round-trips a verify result through its JSON encoding.
+func stableResultObject(t *testing.T, result StableResult) any {
+	t.Helper()
+	b, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// TestCEMV1843ReceiptAuthenticationResultsValidate proves every complete
+// native verify result of the public receipt-authentication case (the
+// VERIFIED ACCEPT, the five axis cases and the thirteen refusals) validates
+// against both committed RESULT.schema.json copies as they are, and that the
+// sealed predecessor nodes (const NOT_OBSERVED at axes.authentication and at
+// the runner receipt echo, the issue code enum without the attestation codes,
+// the two artifact kind enums without receipt-attestation) each refuse them,
+// which is the gap V1-2521 closed (CEM-V1-840..843, decision 0589).
+func TestCEMV1843ReceiptAuthenticationResultsValidate(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	c := loadReceiptAuthCase(t)
+	repo, base, target := c.materialize(t)
+	options := StableOptions{Repository: repo, ExpectedBase: base, Target: target, ArtifactRoot: c.root, TrustedKeys: c.trusted(t, c.expect.Accept.TrustedKeys)}
+	accept, exit := Stable(context.Background(), c.raw, options)
+	if exit != 0 || accept.Outcome != "ACCEPT" || accept.Axes["authentication"] != AuthenticationVerified {
+		t.Fatalf("Stable exit=%d result=%s, want the VERIFIED ACCEPT", exit, stableResultDebug(accept))
+	}
+	results := map[string]any{"accept": stableResultObject(t, accept)}
+	axes := map[string]string{"accept": AuthenticationVerified}
+	issues := map[string]string{}
+	for _, m := range append(append([]receiptAuthMutation{}, c.expect.AxisCases...), c.expect.Refusals...) {
+		o := options
+		o.TrustedKeys = c.trusted(t, m.TrustedKeys)
+		result, exit := Stable(context.Background(), c.mutate(t, m.Set), o)
+		if exit != m.Exit || result.Outcome != m.Outcome || result.Axes["authentication"] != m.Authentication {
+			t.Fatalf("%s: Stable exit=%d result=%s, want %d %s authentication %s", m.Name, exit, stableResultDebug(result), m.Exit, m.Outcome, m.Authentication)
+		}
+		results[m.Name] = stableResultObject(t, result)
+		axes[m.Name] = m.Authentication
+		if m.IssueCode != "" {
+			issues[m.Name] = m.IssueCode
+		}
+	}
+	seenAxes, seenIssues := map[string]bool{}, map[string]bool{}
+	for _, v := range axes {
+		seenAxes[v] = true
+	}
+	for _, v := range issues {
+		seenIssues[v] = true
+	}
+	for _, want := range []string{AuthenticationNotObserved, AuthenticationUntrusted, AuthenticationVerified, AuthenticationFailed} {
+		if !seenAxes[want] {
+			t.Fatalf("the public case never yields authentication %s", want)
+		}
+	}
+	for _, want := range []string{"attestation-malformed", "attestation-key-mismatch", "attestation-subject-mismatch", "attestation-signature-invalid"} {
+		if !seenIssues[want] {
+			t.Fatalf("the public case never yields issue code %s", want)
+		}
+	}
+	echo, _ := results["accept"].(map[string]any)["references"].(map[string]any)["runnerReceipts"].([]any)[0].(map[string]any)["authentication"].(map[string]any)
+	if echo["method"] != "dsse-ed25519" {
+		t.Fatalf("the accept result echoes runner receipt authentication %v, want the dsse-ed25519 object", echo)
+	}
+	top := repositoryRoot(t)
+	for _, rel := range stableSchemaCopies {
+		schema := loadStableSchema(t, filepath.Join(top, rel))
+		for name, v := range results {
+			if err := schemaValidate(schema, schema, v, "$"); err != nil {
+				t.Fatalf("%s rejects the %s result (authentication %s): %v", rel, name, axes[name], err)
+			}
+		}
+		// Each sealed predecessor node, restored on its own, refuses the
+		// result that CEM-V1-084 makes both consumers emit.
+		predecessors := []struct {
+			pointer string
+			node    any
+			result  string
+			at      string
+		}{
+			{"/properties/axes/properties/authentication", map[string]any{"const": "NOT_OBSERVED"}, "accept", "$.axes.authentication"},
+			{"/$defs/runnerReceipt/properties/authentication", map[string]any{"const": "NOT_OBSERVED"}, "accept", "$.references.runnerReceipts[0].authentication"},
+			{"/$defs/artifact/properties/kind", nil, "accept", "$.references.artifacts[2].kind"},
+			{"/properties/artifactChecks/items/properties/kind", nil, "accept", "$.artifactChecks[2].kind"},
+		}
+		for name, code := range issues {
+			if strings.HasPrefix(code, "attestation-") {
+				predecessors = append(predecessors, struct {
+					pointer string
+					node    any
+					result  string
+					at      string
+				}{"/properties/issueCodes/items", nil, name, "$.issueCodes[0]"})
+			}
+		}
+		for _, p := range predecessors {
+			sealed := loadStableSchema(t, filepath.Join(top, rel))
+			parent, key := stableSchemaNode(t, sealed, p.pointer)
+			node := p.node
+			if node == nil {
+				var kept []any
+				for _, v := range parent[key].(map[string]any)["enum"].([]any) {
+					if !strings.Contains(v.(string), "attestation") {
+						kept = append(kept, v)
+					}
+				}
+				node = map[string]any{"enum": kept}
+			}
+			parent[key] = node
+			if err := schemaValidate(sealed, sealed, results[p.result], "$"); err == nil || !strings.HasPrefix(err.Error(), p.at) {
+				t.Fatalf("the sealed predecessor of %s at %s on the %s result: %v", rel, p.pointer, p.result, err)
+			}
+		}
+	}
+}
+
+// TestCEMV1844TasksBoundResultsValidate proves the sealed Tasks-bound results
+// keep validating after the CEM-V1-881 widening: every full-result case of
+// the S0E packet validates against both committed copies as they are, the
+// ACCEPT cases carry only Tasks-form criterion bindings (the plain branch
+// alone refuses them, the Tasks branch alone admits them), and the plain
+// neutral-criterion ACCEPT line validates beside them (CEM-V1-844, V1-2520,
+// decision 0589). The live Tasks-bound run is TestCEMV1844TasksBoundLiveResultValidates.
+func TestCEMV1844TasksBoundResultsValidate(t *testing.T) {
+	t.Parallel()
+	packet := loadS0EPacket(t)
+	if len(packet.cases) != 56 {
+		t.Fatalf("public packet has %d cases, want 56", len(packet.cases))
+	}
+	top := repositoryRoot(t)
+	neutralLine, err := os.ReadFile(filepath.Join(top, neutralCaseRoot, "results", "accept.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var neutral any
+	if err := json.Unmarshal(neutralLine, &neutral); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range stableSchemaCopies {
+		schema := loadStableSchema(t, filepath.Join(top, rel))
+		tasksOnly := loadStableSchema(t, filepath.Join(top, rel))
+		plainOnly := loadStableSchema(t, filepath.Join(top, rel))
+		for _, s := range []map[string]any{tasksOnly, plainOnly} {
+			alts, ok := s["$defs"].(map[string]any)["criterionBinding"].(map[string]any)["anyOf"].([]any)
+			if !ok || len(alts) != 2 {
+				t.Fatalf("%s criterionBinding is not anyOf the Tasks and plain forms", rel)
+			}
+		}
+		tasksOnly["$defs"].(map[string]any)["criterionBinding"] = tasksOnly["$defs"].(map[string]any)["criterionBinding"].(map[string]any)["anyOf"].([]any)[0]
+		plainOnly["$defs"].(map[string]any)["criterionBinding"] = plainOnly["$defs"].(map[string]any)["criterionBinding"].(map[string]any)["anyOf"].([]any)[1]
+		if err := schemaValidate(schema, schema, neutral, "$"); err != nil {
+			t.Fatalf("%s rejects the sealed neutral-criterion ACCEPT line: %v", rel, err)
+		}
+		if err := schemaValidate(tasksOnly, tasksOnly, neutral, "$"); err == nil || !strings.HasPrefix(err.Error(), "$.references.criterionBindings[0]") {
+			t.Fatalf("the Tasks-only criterionBinding of %s on the plain line: %v", rel, err)
+		}
+		bound := 0
+		for _, c := range packet.cases {
+			if err := schemaValidate(schema, schema, c.ExpectedResult, "$"); err != nil {
+				t.Fatalf("%s rejects sealed case %s: %v", rel, c.ID, err)
+			}
+			refs, _ := c.ExpectedResult["references"].(map[string]any)
+			bindings, _ := refs["criterionBindings"].([]any)
+			if len(bindings) == 0 {
+				continue
+			}
+			bound++
+			if err := schemaValidate(tasksOnly, tasksOnly, c.ExpectedResult, "$"); err != nil {
+				t.Fatalf("the Tasks-only criterionBinding of %s rejects sealed case %s: %v", rel, c.ID, err)
+			}
+			if err := schemaValidate(plainOnly, plainOnly, c.ExpectedResult, "$"); err == nil || !strings.HasPrefix(err.Error(), "$.references.criterionBindings[0]") {
+				t.Fatalf("the plain-only criterionBinding of %s on sealed case %s: %v", rel, c.ID, err)
+			}
+		}
+		if bound == 0 {
+			t.Fatal("no sealed case carries a Tasks-bound criterion")
+		}
+	}
+}

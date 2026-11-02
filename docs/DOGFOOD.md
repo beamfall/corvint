@@ -337,6 +337,14 @@ needs forwarding to closeout. Run it before the first edit, while `HEAD` is BASE
 $ make dogfood-prechange BASE=BASE_SHA TASK="THE CHANGE" PATHS="PATH..."
 ```
 
+The change-start command takes the same two variables and runs that recorder first when no binding
+exists yet (`DCW-V0-621`), so one command before the first edit both records the receipts and starts
+the change; `PATHS` without `TASK` refuses `prechange-task-missing`:
+
+```console
+$ make dogfood-change BASE=BASE_SHA TASK="THE CHANGE" PATHS="PATH..."
+```
+
 It writes the same three receipts plus `prechange-binding.json`, which names BASE, its tree, this Git
 directory, the task and each receipt's digest. `prechange-query` is satisfied by `corvint query
 --task`, `prechange-impact` by `corvint impact PATH...`; `prechange-context` is orientation and

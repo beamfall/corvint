@@ -1346,6 +1346,12 @@ CEM-V1-621	docs/specs/cem-stable-v1.md	(proposed; V1-2107) Both `RESULT.schema.j
 CEM-V1-622	docs/specs/cem-stable-v1.md	(proposed; V1-2107) A test MUST validate the complete native verify result of th	unrecorded	-
 CEM-V1-880	docs/specs/cem-stable-v1.md	(proposed; V1-2615) An object-schema node of both `RESULT.schema.json` copies MA	unrecorded	-
 CEM-V1-881	docs/specs/cem-stable-v1.md	(proposed; V1-2615) Both `RESULT.schema.json` copies MUST admit, at	unrecorded	-
+CEM-V1-840	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) Both `RESULT.schema.json` copies MUST admit a	unrecorded	-
+CEM-V1-841	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) Both copies MUST admit at	unrecorded	-
+CEM-V1-842	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) Both copies MUST admit at	unrecorded	-
+CEM-V1-843	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) A test in each consumer MUST run the public	unrecorded	-
+CEM-V1-844	docs/specs/cem-stable-v1.md	(proposed; V1-2520; decision 0589) A test in each consumer MUST validate against	unrecorded	-
+CEM-V1-845	docs/specs/cem-stable-v1.md	(proposed; V1-2521, V1-2520; decision 0589) Until the stable profile is promoted	unrecorded	-
 CEM-V1-633	docs/specs/cem-stable-v1.md	(proposed; V1-2599) Neither stable reader's verdict MAY depend on a runner	unrecorded	-
 CEM-V1-634	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2599, V1-2658) No	owner	2026-10-25; V1-2658; V1-2599
 CEM-V1-635	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2658) The gate MUST	owner	2026-10-25; V1-2658
@@ -1361,6 +1367,7 @@ CEM-V1-644	docs/specs/cem-stable-v1.md	(experimental under the owner's standing 
 CEM-V1-645	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2809)	standing	2026-10-11; V1-2809
 CEM-V1-646	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2809)	standing	2026-10-11; V1-2809
 CEM-V1-647	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (GitHub #1942)) `cem cite`,	standing	#1942
+CEM-V1-900	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3997)) The `invalid-argume	standing	V1-3997
 CEM-V1-648	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (GitHub #1941)) Every `cem`	standing	#1941
 CEM-V1-655	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2964, GitHub #1950)) When	standing	V1-2964; #1950
 CEM-V1-690	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2989)) both verifiers MUST	standing	V1-2989
@@ -1388,6 +1395,9 @@ CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-961	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-962	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-963	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
+CEM-V1-860	docs/specs/cem-stable-v1.md	(proposed; V1-0591) Every platform row of the committed release-readiness	unrecorded	-
+CEM-V1-861	docs/specs/cem-stable-v1.md	(proposed; V1-0591) A `hosts` entry of `QUALIFICATION.json` MUST identify the ho	unrecorded	-
+CEM-V1-862	docs/specs/cem-stable-v1.md	(proposed; V1-0591) `protocol/cem-1.0/structural-corpus/manifest.json`	unrecorded	-
 CEM-V1-1020	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)	standing	2026-10-11; V1-3852
 CEM-V1-1021	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)	standing	2026-10-11; V1-3852
 CEM-V1-750	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`	standing	V1-3771
@@ -1945,6 +1955,7 @@ CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST label every
 CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(accepted, decision 0548; V1-0945) Root help is a compact verb index of at most	owner	decision 0548; V1-0945
 CCF-V1-650	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730,	standing	2026-10-11; V1-3730
 CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
+CCF-V1-620	docs/specs/core-compatibility-freeze-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3342;	standing	2026-10-11; V1-3342
 RCP-V0-001	docs/specs/corpus-republish-v0.md	The operator supplies separate closed request and trusted approval-policy files.	unrecorded	-
 RCP-V0-002	docs/specs/corpus-republish-v0.md	Approval pins bind the exact documentation bytes: every provider/document input	unrecorded	-
 RCP-V0-003	docs/specs/corpus-republish-v0.md	Closed versioned input/output profiles reject unknown/duplicate members, invalid	unrecorded	-
@@ -2741,6 +2752,9 @@ TCL-V0-825	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing l
 TCL-V0-826	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4208) The	standing	2026-11-01; V1-4208
 TCL-V0-827	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4208) An	standing	2026-11-01; V1-4208
 TCL-V0-815	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4184; refines	standing	2026-11-01; V1-4184
+TCL-V0-610	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1)	standing	2026-11-01; V1-3738
+TCL-V0-611	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1,	standing	2026-11-01; V1-3738
+TCL-V0-612	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3714 AC3)	standing	2026-11-01; V1-3714
 TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
 TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
 TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket search`, `roadmap`, `queue status`, `ticket show` and	unrecorded	-
@@ -3213,6 +3227,7 @@ ON-V0-012	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amen
 ON-V0-013	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amends the CAL-V0-061 tail rule) A read resumed from the rea	unrecorded	-
 ON-V0-014	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650) Any failure to bind an ON-V0-012 or ON-V0-013 pre-state MUST	unrecorded	-
 ON-V0-015	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-1663; amends	standing	2026-10-11; V1-1663
+ON-V0-786	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; amends the ON-V0	standing	2026-10-11
 PUR-V0-001	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	`pause` and `unpause` run `TM-V0-009` redo of a pending receipt under their own	unrecorded	-
 PUR-V0-002	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending UNPAUSE receipt completes its paired non-null pre/null post	unrecorded	-
 PUR-V0-003	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending receipt whose kind is UNPAUSE and which posts no `intent/` pat	unrecorded	-
@@ -3398,6 +3413,7 @@ CTS-V0-990	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-991	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11), V1-3566) Whe	standing	2026-10-11; V1-3566
 CTS-V0-820	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
 CTS-V0-821	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
+CTS-V0-680	docs/specs/corvint-tasks-store-init-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11), 2026-11-	standing	2026-10-11; 2026-11-01
 CTS-V0-780	docs/specs/corvint-tasks-store-init-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3562) A	standing	2026-11-01; V1-3562
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
@@ -3742,6 +3758,10 @@ DCW-V0-925	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-923	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends	standing	2026-11-01; V1-3850
 DCW-V0-924	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3792; refines	standing	2026-11-01; V1-3792
 DCW-V0-548	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3545) A hunk	standing	2026-11-01; V1-3545
+DCW-V0-620	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3633 AC2;	standing	2026-11-01; V1-3633
+DCW-V0-621	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3681; refines	standing	2026-11-01; V1-3681
+DCW-V0-690	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-1724; refines	standing	2026-11-01; V1-1724
+DCW-V0-691	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3604; refines	standing	2026-11-01; V1-3604
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -4668,6 +4688,12 @@ GL-V0-051	docs/specs/gate-ledger-v0.md	(experimental under the standing lane aut
 GL-V0-720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends	standing	2026-11-01; V1-3846
 GL-V0-600	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)	standing	2026-11-01; V1-3580; V1-4099
 GL-V0-601	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)	standing	2026-11-01; V1-3580; V1-4099
+GL-V0-910	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends	standing	2026-11-01; V1-4241
+GL-V0-911	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A recor	standing	2026-11-01; V1-4241
+GL-V0-912	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends	standing	2026-11-01; V1-4241
+GL-V0-913	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune	standing	2026-11-01; V1-4241
+GL-V0-914	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-9	standing	2026-11-01; V1-4241
+GL-V0-787	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run	standing	2026-11-01; V1-4188
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
 GVA-V0-003	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) Each command MUST map its outco	standing	2026-10-27; V1-2841

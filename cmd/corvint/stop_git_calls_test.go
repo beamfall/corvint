@@ -25,8 +25,9 @@ func TestEnrolledStopSpawnsBoundedGit(t *testing.T) {
 	path, spawns := countingGit(t)
 	t.Setenv("PATH", path[len("PATH="):])
 	// This pins subprocess count, not latency. Use the existing test deadline
-	// override so a loaded host cannot turn a count assertion into a timeout.
-	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	// override, and lift the Git probe's fixed 10 s bound as well, so a loaded host
+	// cannot turn a count assertion into a timeout (V1-1413).
+	ctx := liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute }))
 	var stdout, stderr bytes.Buffer
 	code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("stop"),
 		strings.NewReader(`{"stopHookActive":false,"sessionIdSha256":"`+key+`"}`), &stdout, &stderr)

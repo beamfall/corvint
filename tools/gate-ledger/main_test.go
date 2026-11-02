@@ -11,12 +11,18 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
+
+// fixtureInvocations holds each test's invocation: its fixture worktree as the
+// working directory and its private ledger settings in the environment, so tests
+// run in parallel without process cwd or env (V1-4188).
+var fixtureInvocations sync.Map // *testing.T -> *invocation
 
 // fixtureRepository is one committed git worktree the test runs inside, with a
 // private ledger directory, so every key derives from fixture content only.
@@ -36,10 +42,39 @@ func fixtureRepository(t *testing.T) string {
 	git(t, root, "init", "-q", "-b", "main")
 	git(t, root, "add", "-A")
 	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "fixture")
-	t.Setenv("CORVINT_GATE_LEDGER", "")
-	t.Setenv("CORVINT_GATE_LEDGER_DIR", filepath.Join(t.TempDir(), "ledger"))
-	t.Chdir(root)
+	inv := &invocation{dir: root, env: append(os.Environ(), "CORVINT_GATE_LEDGER=", "CORVINT_GATE_LEDGER_DIR="+filepath.Join(t.TempDir(), "ledger"))}
+	fixtureInvocations.Store(t, inv)
+	t.Cleanup(func() { fixtureInvocations.Delete(t) })
 	return root
+}
+
+// fixture is the invocation fixtureRepository gave t.
+func fixture(t *testing.T) *invocation {
+	t.Helper()
+	inv, ok := fixtureInvocations.Load(t)
+	if !ok {
+		t.Fatal("no fixture repository for this test")
+	}
+	return inv.(*invocation)
+}
+
+// setenv sets key in t's invocation environment only.
+func setenv(t *testing.T, key, value string) {
+	t.Helper()
+	inv := fixture(t)
+	inv.env = append(inv.env, key+"="+value)
+}
+
+// chdir moves t's invocation to dir only.
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+	fixture(t).dir = dir
+}
+
+// ledgerDirectoryOf is t's private ledger directory.
+func ledgerDirectoryOf(t *testing.T) string {
+	t.Helper()
+	return fixture(t).getenv("CORVINT_GATE_LEDGER_DIR")
 }
 
 func git(t *testing.T, root string, args ...string) {
@@ -62,7 +97,7 @@ func write(t *testing.T, root, file, body string) {
 func ledgerRun(t *testing.T, args ...string) (int, string) {
 	t.Helper()
 	var out bytes.Buffer
-	code := run(args, &out, &out)
+	code := run(*fixture(t), args, &out, &out)
 	return code, out.String()
 }
 
@@ -75,7 +110,7 @@ func runs(t *testing.T, root string) int {
 
 func records(t *testing.T) int {
 	t.Helper()
-	matches, err := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	matches, err := filepath.Glob(filepath.Join(ledgerDirectoryOf(t), "*.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,6 +124,7 @@ var counting = []string{"--", "sh", "-c", "echo ran >> COUNT"}
 // hits, a failure and an undeclared step leave no record, and plan reports
 // without running.
 func TestRunStepSkipsOnlyRecordedIdenticalInputs(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	step := append([]string{"run", "decision-numbers-check"}, counting...)
@@ -135,6 +171,7 @@ func TestRunStepSkipsOnlyRecordedIdenticalInputs(t *testing.T) {
 // an undeclared salted name keys on the whole tree, and an unsalted undeclared
 // name still records nothing.
 func TestRunStepKeysSaltedStepsByBaseScope(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	write(t, root, ".gitignore", "COUNT\n")
@@ -189,6 +226,7 @@ func TestRunStepKeysSaltedStepsByBaseScope(t *testing.T) {
 // and a ledger directory another user could read all run the step and record
 // nothing; CORVINT_GATE_LEDGER=off runs it silently.
 func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	step := append([]string{"run", "decision-numbers-check"}, counting...)
@@ -213,7 +251,7 @@ func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(root, "build")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(os.Getenv("CORVINT_GATE_LEDGER_DIR"), 0o755); err != nil {
+	if err := os.Chmod(ledgerDirectoryOf(t), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RUN decision-numbers-check: ledger directory is group- or world-accessible") {
@@ -222,7 +260,7 @@ func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
 	if got := records(t); got != 0 {
 		t.Fatalf("a refused run recorded %d records", got)
 	}
-	t.Setenv("CORVINT_GATE_LEDGER", "off")
+	setenv(t, "CORVINT_GATE_LEDGER", "off")
 	if code, out := ledgerRun(t, step...); code != 0 || out != "" {
 		t.Fatalf("off: code %d, %q", code, out)
 	}
@@ -236,6 +274,7 @@ func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
 // and an identical tree hits. The log lives outside the worktree because the
 // tree key sees every untracked file.
 func TestGoTestFallsBackToOneUncachedRun(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	fixtureRepository(t)
 	log := filepath.Join(t.TempDir(), "ARGS")
@@ -257,26 +296,29 @@ func TestGoTestFallsBackToOneUncachedRun(t *testing.T) {
 // promise: a pass recorded in a `git worktree add` checkout, whose index lives
 // under the main repository's `.git/worktrees/`, is hit from the main worktree.
 func TestRunStepRecordsFromLinkedWorktree(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
 	linked := filepath.Join(t.TempDir(), "linked")
 	git(t, root, "worktree", "add", "-q", "--detach", linked, "HEAD")
-	t.Chdir(linked)
+	chdir(t, linked)
 	step := append([]string{"run", "decision-numbers-check"}, counting...)
 	if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RECORD decision-numbers-check") {
 		t.Fatalf("linked worktree: code %d, %q", code, out)
 	}
-	t.Chdir(root)
+	chdir(t, root)
 	if _, out := ledgerRun(t, step...); !strings.Contains(out, "HIT decision-numbers-check") {
 		t.Fatalf("main worktree after a linked record: %q", out)
 	}
 }
 
 func TestWorktreeDigestIgnoresCachedStat(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	t.Run("GL-V0-001 exact content", func(t *testing.T) {
 		for _, newerIndex := range []bool{false, true} {
 			t.Run(fmt.Sprintf("newer-index-%t", newerIndex), func(t *testing.T) {
+				t.Parallel()
 				root := fixtureRepository(t)
 				git(t, root, "config", "core.checkStat", "minimal")
 				git(t, root, "config", "core.trustctime", "false")
@@ -300,7 +342,7 @@ func TestWorktreeDigestIgnoresCachedStat(t *testing.T) {
 				if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RUN decision-numbers-check: no recorded pass") {
 					t.Fatalf("same-size restored-time edit: %d %s", code, out)
 				}
-				tree, _, reason := worktreeDigest(root)
+				tree, _, reason := fixture(t).worktreeDigest(root)
 				if reason != "" {
 					t.Fatal(reason)
 				}
@@ -347,13 +389,14 @@ func assertIndexUnchanged(t *testing.T, path string) {
 
 func assertTreeBody(t *testing.T, root, tree, path, want string) {
 	t.Helper()
-	got, err := gitOutput(root, "show", tree+":"+path)
+	got, err := processInvocation().gitOutput(root, "show", tree+":"+path)
 	if err != nil || got != want {
 		t.Fatalf("tree %s path %q: got %q, want %q, error %v", tree, path, got, want, err)
 	}
 }
 
 func TestWorktreeDigestPreservesMembershipAndPaths(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	root := fixtureRepository(t)
 	for _, path := range []string{"ignored.txt", "staged.txt", "gone.txt", "recreated-ignored.txt", "recreated.txt", "executable", "line\nbreak\t.txt"} {
 		write(t, root, path, "old\n")
@@ -389,7 +432,7 @@ func TestWorktreeDigestPreservesMembershipAndPaths(t *testing.T) {
 	git(t, root, "config", "core.ignorestat", "true")
 	git(t, root, "config", "core.fsmonitor", "true")
 	assertIndexUnchanged(t, filepath.Join(root, ".git/index"))
-	tree, entries, reason := worktreeDigest(root)
+	tree, entries, reason := fixture(t).worktreeDigest(root)
 	if reason != "" {
 		t.Fatal(reason)
 	}
@@ -398,7 +441,7 @@ func TestWorktreeDigestPreservesMembershipAndPaths(t *testing.T) {
 	}
 	assertTreeBody(t, root, tree, "link", "staged.txt")
 	for _, path := range []string{"gone.txt", "excluded.txt", "recreated-ignored.txt"} {
-		if _, err := gitOutput(root, "cat-file", "-e", tree+":"+path); err == nil {
+		if _, err := processInvocation().gitOutput(root, "cat-file", "-e", tree+":"+path); err == nil {
 			t.Errorf("unexpected tree member %q", path)
 		}
 	}
@@ -412,10 +455,11 @@ func TestWorktreeDigestPreservesMembershipAndPaths(t *testing.T) {
 }
 
 func TestWorktreeDigestWithoutIndex(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	root := t.TempDir()
 	git(t, root, "init", "-q", "-b", "main")
 	write(t, root, "new.txt", "new\n")
-	tree, _, reason := worktreeDigest(root)
+	tree, _, reason := processInvocation().worktreeDigest(root)
 	if reason != "" {
 		t.Fatal(reason)
 	}
@@ -438,10 +482,10 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 		if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		t.Setenv("ACTUAL_TEST_GIT", actualGit)
-		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+		setenv(t, "ACTUAL_TEST_GIT", actualGit)
+		setenv(t, "PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 		private := t.TempDir()
-		t.Setenv("TMPDIR", private)
+		setenv(t, "TMPDIR", private)
 		assertIndexUnchanged(t, filepath.Join(root, ".git/index"))
 		step := append([]string{"run", "decision-numbers-check"}, counting...)
 		code, out := ledgerRun(t, step...)
@@ -526,6 +570,7 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 // the others (such as gated_locators.go) enters the fixture without editing this test, while
 // test files stay out and an unexpected in-module import is refused by name.
 func TestSelectorFixtureCopiesANewGateselectSource(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	internal := t.TempDir()
 	for name, body := range map[string]string{
 		"taskprojection/taskprojection.go": "package taskprojection\n",
@@ -564,6 +609,7 @@ func TestSelectorFixtureCopiesANewGateselectSource(t *testing.T) {
 // resolved batch still runs the unresolved packages, records their pass, and
 // the step exits with the resolved batch's status.
 func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	packageRepository(t, map[string]string{
 		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
@@ -587,6 +633,7 @@ func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
 // GL-V0-720 (V1-3846): go-test --packages runs only the listed packages, says so, records the
 // scope, and refuses an empty list or a flag-like pattern before anything runs.
 func TestGoTestScopedPackages(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	packageRepository(t, map[string]string{
 		"go.mod":              "module example.com/fixture\n\ngo 1.27\n",
@@ -613,7 +660,7 @@ func TestGoTestScopedPackages(t *testing.T) {
 	if data, _ := os.ReadFile(log); strings.Contains(string(data), "other") || !strings.Contains(string(data), "example.com/fixture/core") {
 		t.Fatalf("go test received %q", data)
 	}
-	records, _ := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	records, _ := filepath.Glob(filepath.Join(ledgerDirectoryOf(t), "*.json"))
 	if len(records) != 1 {
 		t.Fatalf("records %q", records)
 	}
@@ -631,6 +678,7 @@ func TestGoTestScopedPackages(t *testing.T) {
 // declaration, not the tree: an unrelated edit hits its record, and an edit
 // under a declared entry or to the declaration reruns it.
 func TestGoTestKeysDeclaredPackagesByTheirScope(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := packageRepository(t, map[string]string{
 		"go.mod":                         "module example.com/fixture\n\ngo 1.27\n",
@@ -664,6 +712,7 @@ func TestGoTestKeysDeclaredPackagesByTheirScope(t *testing.T) {
 }
 
 func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	files := map[string]string{
 		"go.mod":                "module example.com/fixture\n\ngo 1.27\n",
@@ -689,7 +738,7 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/core ") || !strings.Contains(out, "RECORD go-test-package example.com/fixture/reader ") {
 		t.Fatalf("first run: code %d, %q", code, out)
 	}
-	bound, _ := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	bound, _ := filepath.Glob(filepath.Join(ledgerDirectoryOf(t), "*.json"))
 	for _, name := range bound {
 		data, _ := os.ReadFile(name)
 		if strings.Contains(string(data), `"step":"go-test-package"`) && !strings.Contains(string(data), `"bound":"go list -deps -test `) {
@@ -698,11 +747,11 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	}
 	linked := filepath.Join(t.TempDir(), "linked")
 	git(t, root, "worktree", "add", "-q", "--detach", linked, "HEAD")
-	t.Chdir(linked)
+	chdir(t, linked)
 	if _, out := ledgerRun(t, args...); !strings.Contains(out, "HIT go-test-package example.com/fixture/core ") || strings.Contains(out, "RUN go-test-package") {
 		t.Fatalf("linked worktree: %q", out)
 	}
-	t.Chdir(root)
+	chdir(t, root)
 	write(t, root, "core/core.go", "package core\n\nvar changed = true\n")
 	_, out = ledgerRun(t, args...)
 	if lines := packageLines(out); !strings.Contains(lines, "RUN go-test-package example.com/fixture/core:") || !strings.Contains(lines, "RUN go-test-package example.com/fixture/dep:") || !strings.Contains(lines, "HIT go-test-package example.com/fixture/reader") {
@@ -725,11 +774,15 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 // GL-V0-002/009: actual Go JSON, package keys and unresolved whole-tree
 // misses compose correctly on a same-tree retry after a failed batch.
 func TestGoTestPartialPassRerun(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for name, bad := range map[string]string{
 		"test failure":  "package bad\nimport \"testing\"\nfunc TestBad(t *testing.T) { t.Fatal(\"expected failure\") }\n",
 		"build failure": "package bad\nimport \"testing\"\nfunc TestBad(t *testing.T) { missingSymbol() }\n",
 	} {
-		t.Run(name, func(t *testing.T) { testGoTestPartialPassRerun(t, bad) })
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testGoTestPartialPassRerun(t, bad)
+		})
 	}
 }
 
@@ -749,11 +802,11 @@ func testGoTestPartialPassRerun(t *testing.T, bad string) {
 	if code != 1 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/good ") || strings.Contains(out, "RECORD go-test-package example.com/fixture/bad ") || strings.Contains(out, "RECORD go-test-unresolved") {
 		t.Fatalf("first failed batch: code %d, %s", code, out)
 	}
-	keyed, reason := open(&bytes.Buffer{}, &bytes.Buffer{}).packageKeys([]string{"example.com/fixture/bad"})
+	keyed, reason := open(*fixture(t), &bytes.Buffer{}, &bytes.Buffer{}).packageKeys([]string{"example.com/fixture/bad"})
 	if reason != "" || len(keyed) != 1 || keyed[0].reason != "" {
 		t.Fatalf("bad package key unavailable: %q, %+v", reason, keyed)
 	}
-	if _, hit := open(&bytes.Buffer{}, &bytes.Buffer{}).lookup(keyed[0].key); hit {
+	if _, hit := open(*fixture(t), &bytes.Buffer{}, &bytes.Buffer{}).lookup(keyed[0].key); hit {
 		t.Fatal("failed package recorded")
 	}
 	code, out = ledgerRun(t, args...)
@@ -770,6 +823,7 @@ func testGoTestPartialPassRerun(t *testing.T, bad string) {
 // GL-V0-002: a package pass alone is insufficient if any requested outcome
 // is missing, contradictory, malformed or truncated, even on exit zero.
 func TestPackageOutcomesRefusesIncomplete(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	start := `{"Action":"start","Package":"good"}` + "\n"
 	pass := `{"Action":"pass","Package":"good"}` + "\n"
 	for name, stream := range map[string]string{
@@ -808,6 +862,7 @@ func TestPackageOutcomesRefusesIncomplete(t *testing.T) {
 }
 
 func TestPackageOutcomesPassAndFailure(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	var out bytes.Buffer
 	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
 	stream := `{"Action":"start","Package":"good"}
@@ -828,6 +883,7 @@ func TestPackageOutcomesPassAndFailure(t *testing.T) {
 // GL-V0-002: every package terminal must close its tests, even when another
 // package has passed and would otherwise be eligible for recording.
 func TestPackageOutcomesRefusesUnfinishedTestsAtTerminal(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for _, terminal := range []string{"pass", "fail", "skip"} {
 		t.Run(terminal, func(t *testing.T) {
 			var out bytes.Buffer
@@ -850,6 +906,7 @@ func TestPackageOutcomesRefusesUnfinishedTestsAtTerminal(t *testing.T) {
 // GL-V0-002: framed benchmark runs, including subbenchmarks, need not emit
 // individual terminals before the package outcome (Go's framebig.json).
 func TestPackageOutcomesAcceptsBenchmarkRuns(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for name, events := range map[string]string{
 		"framed": `{"Action":"run","Package":"good","Test":"BenchmarkIndex"}
 {"Action":"output","Package":"good","Test":"BenchmarkIndex","Output":"=== RUN   BenchmarkIndex\n","OutputType":"frame"}
@@ -886,6 +943,7 @@ func TestPackageOutcomesAcceptsBenchmarkRuns(t *testing.T) {
 // GL-V0-002: benchmark failure remains a failure, even though a package
 // terminal may close benchmark runs that have no individual terminal.
 func TestPackageOutcomesBenchmarkFailure(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for _, names := range [][2]string{
 		{"BenchmarkBad", "BenchmarkBad"},
 		{"BenchmarkBad", "BenchmarkBad-3"},
@@ -912,6 +970,7 @@ func TestPackageOutcomesBenchmarkFailure(t *testing.T) {
 // GL-V0-002: repeated benchmark terminals under -count=2 need no new run,
 // preserve unrelated package passes, and never undo an earlier failure.
 func TestPackageOutcomesRepeatedBenchmarkTerminals(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for _, names := range [][2]string{
 		{"BenchmarkBad", "BenchmarkBad"},
 		{"BenchmarkBad", "BenchmarkBad-3"},
@@ -946,6 +1005,7 @@ func TestPackageOutcomesRepeatedBenchmarkTerminals(t *testing.T) {
 
 // GL-V0-002: CPU suffix matching is limited to benchmarks with a preceding run.
 func TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for _, names := range [][2]string{
 		{"TestBad", "TestBad-3"},
 		{"BenchmarkBad", "BenchmarkBad-cpu"},
@@ -965,6 +1025,7 @@ func TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals(t *testing.T) {
 // GL-V0-002: FailedBuild contradicts a package pass, including when a dependency
 // failed or the field appeared on an earlier event.
 func TestPackageOutcomesRefusesFailedBuildPass(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	for _, action := range []string{"start", "output", "pass"} {
 		t.Run(action, func(t *testing.T) {
 			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, io.Discard)
@@ -990,6 +1051,7 @@ func TestPackageOutcomesRefusesFailedBuildPass(t *testing.T) {
 // the field is not needed for package lifecycle tracking. One bad event refuses
 // the whole batch, including packages that already passed.
 func TestPackageOutcomesRefusesMalformedFieldTypes(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	fields := []string{"Time", "Action", "Package", "ImportPath", "Test", "Output", "OutputType", "FailedBuild", "Key", "Value", "Path", "Elapsed", "Teſt", "Elapſed", "Key"}
 	for _, field := range fields {
 		values := []string{`null`, `true`, `{}`, `[]`}
@@ -1024,6 +1086,7 @@ func TestPackageOutcomesRefusesMalformedFieldTypes(t *testing.T) {
 }
 
 func TestPackageOutcomesAcceptsTypedFields(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	var out bytes.Buffer
 	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
 	_, _ = o.Write([]byte(`{"Time":"2026-10-10T10:00:00.123456789Z","Action":"start","Package":"good"}
@@ -1041,6 +1104,7 @@ func TestPackageOutcomesAcceptsTypedFields(t *testing.T) {
 // GL-V0-002: Go's metadata and benchmark events do not terminate tests or
 // packages, and their output remains visible.
 func TestPackageOutcomesAcceptsNonTerminalEvents(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	var out bytes.Buffer
 	o := newPackageOutcomes([]packageKey{{pkg: "good"}}, &out)
 	stream := `{"Action":"start","Package":"good"}
@@ -1064,14 +1128,16 @@ func TestPackageOutcomesAcceptsNonTerminalEvents(t *testing.T) {
 
 // GL-V0-002: stream refusal also reaches the record-writing boundary.
 func TestRunPackagesRefusesPartialOutput(t *testing.T) {
+	t.Parallel() // per-test invocation, no process cwd or env (V1-4188)
 	testplatform.SkipPOSIXShell(t, "the go test stand-in is an sh -c command")
 	for _, ending := range []string{"", "garbled\n", `{"Action":"start","Package":"bad"}
 {"Action":"pass","Package":"bad","Elapsed":"invalid"}
 `} {
 		t.Run(fmt.Sprintf("ending-%q", ending), func(t *testing.T) {
+			t.Parallel()
 			fixtureRepository(t)
 			var out bytes.Buffer
-			l := open(&out, &out)
+			l := open(*fixture(t), &out, &out)
 			keyed := []packageKey{{pkg: "good", key: strings.Repeat("a", 64), bound: "fixture"}, {pkg: "bad", key: strings.Repeat("b", 64), bound: "fixture"}}
 			command := []string{"sh", "-c", `printf '%s\n' '{"Action":"start","Package":"good"}' '{"Action":"pass","Package":"good"}'; printf '%s' "$0"`, ending}
 			if code := l.runPackages(keyed, command); code != 0 {
