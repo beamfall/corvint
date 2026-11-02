@@ -1297,9 +1297,24 @@ only.
   with and without the table. The one exception is the order of a `declaredByToken` list, sorted
   in the table and in map order before, which reaches no output: that list is only searched for
   definers to credit under one shared label. A table whose counts, offsets or ids do not fit is
-  refused on decode (the miss). On this repository the linker build fell from 16.8% of `context`
-  CPU (0.13 s per call) to 0.9%; the gate is in `IDX-SNAP-V0-810`. Rollback: stop writing the
-  table (`TestLinksLength` 0).
+  refused on decode (the miss).
+
+  Gate on this repository, the round-2 head (`2694548e0`) against this change, built from source
+  on WSL2 in one session, runs interleaved:
+
+  | Measure | Round-2 head | This change |
+  |---|---|---|
+  | Linker build share of `context` CPU | 16.8% (0.13 s per call) | 0.9% |
+  | Snapshot size | 182,807,261 bytes | 186,635,253 bytes (+2.1%) |
+  | Three cold `index` runs | 2.35-3.21 s | 2.48-2.79 s |
+  | Reuse `index` | 1.99 s | 1.97 s |
+  | 20 `context` loads, load 10.6-14 | p50 0.76 s, CPU 1.34 s | p50 0.63 s, CPU 1.20 s |
+  | 15 `context` loads, load 34-35 | p50 1.02 s, CPU 1.42 s | p50 0.89 s, CPU 1.25 s |
+  | `user-prompt`, `session-start` and `impact` | (no test linker) | unchanged within noise |
+
+  Outputs are byte-identical. Writes are deterministic.
+
+  Rollback: stop writing the table (`TestLinksLength` 0).
 - `IDX-SNAP-V0-808`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4200)
   `CORVINT_INDEX_STORE=DIR`, an operator env var that is off by default, MUST make DIR (made
   absolute against the working directory) the snapshot store that every write and read uses
