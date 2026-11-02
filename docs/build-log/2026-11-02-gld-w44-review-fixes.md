@@ -6,12 +6,12 @@ The orchestrator owns committing, CEM binding, post-commit checks and integratio
 are `NOT_PRODUCED` here because this repair task explicitly forbids commits and changes under
 `.corvint/changes/`, and the real Git directory is read-only.
 
-- `DRS-V0-001`: replay now uses ort's merged inputs alone, with its scratch object store as
+- `DWC-V0-001`: replay now uses ort's merged inputs alone, with its scratch object store as
   an alternate. It rejects non-regular generated entries before loading the tree and checks
   output/destination types before writing. Complete tree comparison includes modes. The new
-  `TestBatchCheckDRSV0001RejectsGeneratedSymlinksAndModes` reproduced writes to external targets
+  `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes` reproduced writes to external targets
   for all three generated paths before the fix. The new
-  `TestBatchCheckDRSV0001RejectsPreservedHandEdits` reproduced accepted README prose and INDEX
+  `TestBatchCheckDWCV0001RejectsPreservedHandEdits` reproduced accepted README prose and INDEX
   `implementation`/`dependsOn` edits before the fix. Both pass after it; the existing valid merge
   and other-conflict regressions also pass.
 - `ASD-V0-1922`: reconciliation fetches origin/main and verifies the reported merge commit is

@@ -642,7 +642,7 @@ func TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues(t *testing.T) {
 // DCW-V0-400 (V1-3211): inputs-check refuses, before any prepare, a reused
 // worktree whose local trace store names a commit HEAD does not reach, and
 // names the migrate-traces recovery with the dry run's digest. Since
-// DCW-V0-770 that refusal needs a plan finish-lane would not apply itself, so
+// DWC-V0-003 that refusal needs a plan finish-lane would not apply itself, so
 // the store also holds a reachable tree-keyed legacy trace the same plan
 // rekeys; the recovery is one fix line.
 func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {

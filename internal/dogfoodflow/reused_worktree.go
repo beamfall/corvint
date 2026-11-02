@@ -37,11 +37,11 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 // steps that already report it. The dogfood inputs-check pre-flight passes
 // retire=false: it only checks and moves nothing. It notes stale sidecars
 // (DCW-V0-810, DCW-V0-964) and stranded traces whose dry-run plan holds them
-// alone (DCW-V0-770), the state finish-lane retires itself, and refuses the
+// alone (DWC-V0-003), the state finish-lane retires itself, and refuses the
 // rest with the manual recovery (DCW-V0-400). The refusal names the
 // reset-after-bind case, a lane that reset its own unpushed bind/seal commits,
 // and its one-step recovery (DCW-V0-844), as one copy-paste fix line
-// (DCW-V0-770).
+// (DWC-V0-003).
 func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	stranded, digest, legacy := f.strandedTraces()
 	stale := f.staleOCMSidecars(base)
@@ -50,14 +50,14 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	}
 	// DCW-V0-810: the pre-flight runs no OCM step, and finish-lane moves stale
 	// sidecars aside byte-preserved before it prepares, so sidecars alone are
-	// a note there. DCW-V0-770 (V1-4318): a stranded trace whose dry-run plan
+	// a note there. DWC-V0-003 (V1-4318): a stranded trace whose dry-run plan
 	// holds only stranded traces is a note too, since finish-lane applies that
 	// plan itself (DCW-V0-406), so resetting a reused worktree and rerunning
 	// needs no manual step; a plan that would also rekey a reachable legacy
 	// trace still refuses.
 	if !retire && (len(stranded) == 0 || (legacy == 0 && digest != "")) {
 		for _, revision := range stranded {
-			f.say("%s: NOTE stranded trace %s: the worktree-local trace store names a commit HEAD does not reach (a reset, amend or earlier lane); dogfood finish-lane quarantines it byte-preserved with migrate-traces --apply --plan-digest %s before it prepares (DCW-V0-406, DCW-V0-770)\n", f.prefix, revision, digest)
+			f.say("%s: NOTE stranded trace %s: the worktree-local trace store names a commit HEAD does not reach (a reset, amend or earlier lane); dogfood finish-lane quarantines it byte-preserved with migrate-traces --apply --plan-digest %s before it prepares (DCW-V0-406, DWC-V0-003)\n", f.prefix, revision, digest)
 		}
 		for _, name := range stale {
 			f.say("%s: NOTE stale sidecar %s is ignored and was last written before BASE %s was committed; dogfood finish-lane moves it under %s/corvint/stale-ocm before it prepares (DCW-V0-406, DCW-V0-810)\n", f.prefix, name, base[:12], gitDir)
@@ -86,7 +86,7 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	if len(stranded) > 0 && legacy > 0 {
 		f.say("  the same migration plan also rekeys %d reachable tree-keyed legacy trace(s), so it was not applied automatically (DCW-V0-406)\n", legacy)
 	}
-	// DCW-V0-770: one copy-paste command for everything still stale.
+	// DWC-V0-003: one copy-paste command for everything still stale.
 	var fix []string
 	if len(stale) > 0 {
 		aside := shellQuote(gitDir + "/corvint/stale-ocm")

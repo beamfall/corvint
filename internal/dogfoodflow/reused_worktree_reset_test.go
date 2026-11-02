@@ -17,7 +17,7 @@ import (
 // TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase (V1-3318, V1-4318): a
 // lane binds (its bind commit gains a worktree-local trace), resets that
 // unpushed commit away and reruns. The check-only pre-flight notes the stranded
-// trace, moves nothing and goes on (DCW-V0-770: a plan of stranded traces alone
+// trace, moves nothing and goes on (DWC-V0-003: a plan of stranded traces alone
 // is one finish-lane applies itself); the real run retires the stranded trace
 // and goes on to its steps, so the reset and rerun need no manual step.
 func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {

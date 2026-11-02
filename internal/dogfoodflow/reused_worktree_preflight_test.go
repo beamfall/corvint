@@ -14,13 +14,13 @@ import (
 	"github.com/Beamfall/corvint/internal/trace"
 )
 
-// TestDCWV0770PreflightRefusalPrintsOneCommand (V1-4318): when the pre-flight
+// TestDWCV0003PreflightRefusalPrintsOneCommand (V1-4318): when the pre-flight
 // still refuses, here a stale sidecar and a stranded trace whose plan also
 // rekeys a reachable legacy trace, it prints exactly one fix line that pastes
 // as one command: the sidecar move and the migrate-traces apply joined by &&.
 // It still names the reset case and its recovery (DCW-V0-844), notes no
 // stranded trace, and the sidecar part runs as printed.
-func TestDCWV0770PreflightRefusalPrintsOneCommand(t *testing.T) {
+func TestDWCV0003PreflightRefusalPrintsOneCommand(t *testing.T) {
 	root, stale, run := staleSidecarLane(t)
 	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".corvint/change.ocm*\n.context-corvint/\n"), 0o666); err != nil {
 		t.Fatal(err)

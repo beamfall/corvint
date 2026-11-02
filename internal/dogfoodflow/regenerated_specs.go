@@ -22,11 +22,11 @@ var generatedSpecFiles = []string{"docs/specs/REQUIREMENTS.tsv", "docs/specs/IND
 // conflicting hand edits a regeneration from one side could drop, so their conflicts stay unbound.
 const regeneratedConflict = "docs/specs/REQUIREMENTS.tsv"
 
-// specRegenerationTimeout bounds one merge's generator replay (DRS-V0-001).
+// specRegenerationTimeout bounds one merge's generator replay (DWC-V0-001).
 const specRegenerationTimeout = 5 * time.Minute
 
 // regeneratedSpecs reports whether merge is ort's merge of its parents with every conflict in a
-// generated spec file, resolved by regenerating those files from the merged specs (DRS-V0-001,
+// generated spec file, resolved by regenerating those files from the merged specs (DWC-V0-001,
 // V1-1467): conflicted is ort's own `merge-tree -z` result, every path ort conflicted on is
 // regeneratedConflict, every path where the merge tree differs from ort's written tree is a
 // generatedSpecFiles entry, and a
@@ -70,7 +70,7 @@ func (b *batch) regeneratedSpecs(merge, tree, conflicted string) bool {
 
 // replaySpecs loads ort's merged inputs alone in a private clone, including the preserved README
 // prose and INDEX fields. Replaying from the candidate would let hand edits validate themselves.
-// The complete staged tree comparison includes file modes (DRS-V0-001).
+// The complete staged tree comparison includes file modes (DWC-V0-001).
 func (b *batch) replaySpecs(written, tree string) bool {
 	if b.scratch == "" {
 		b.scratchGit("rev-parse", "--git-dir")

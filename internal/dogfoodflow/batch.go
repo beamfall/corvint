@@ -568,7 +568,7 @@ func (b *batch) deriveMerge(merge, first, second string) {
 			attempted = written
 		}
 	}
-	// DRS-V0-001 (V1-1467): conflicts only in generated spec files, resolved by regenerating them.
+	// DWC-V0-001 (V1-1467): conflicts only in generated spec files, resolved by regenerating them.
 	if conflicted != "" && !firstTree && b.regeneratedSpecs(merge, tree, conflicted) {
 		b.derive(merge, "regenerated-specs")
 		return

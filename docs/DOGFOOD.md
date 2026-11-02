@@ -848,7 +848,7 @@ line naming this path (`DCW-V0-040`, amended by decision 0584). Instead (`DCW-V0
    The one exception is a conflict only in the generated `docs/specs/REQUIREMENTS.tsv`, as when two
    lanes each add requirement rows: merge with `script/merge-regenerate-specs.sh BRANCH`, which
    regenerates that file inside the merge, and `dogfood-batch-check` derives the merge as
-   `regenerated-specs` (`DRS-V0-001`, `DRS-V0-002`).
+   `regenerated-specs` (`DWC-V0-001`, `DWC-V0-002`).
    Commit any other edit to the batch, such as an orchestrator's index or decision update or a
    hand-merged file, as its own sealed change on a branch and merge that.
 3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or

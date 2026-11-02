@@ -113,12 +113,12 @@ func (r *batchRepo) mergeRegenerated(second string) {
 	testGit(r.t, r.root, "commit", "-q", "--no-edit", "--cleanup=strip")
 }
 
-// TestBatchCheckDRSV0001RegeneratedRequirementsMerge is DRS-V0-001 (V1-1467): two lanes each
+// TestBatchCheckDWCV0001RegeneratedRequirementsMerge is DWC-V0-001 (V1-1467): two lanes each
 // add a requirement row at the same place in REQUIREMENTS.tsv while their spec edits merge
 // cleanly. A merge that resolves that only conflict by regenerating it inside the merge is derived
 // as regenerated-specs and the batch passes; before the change it failed merge-resolution-unbound.
 // A hand edit to the regenerated file beyond the generator's output stays unbound.
-func TestBatchCheckDRSV0001RegeneratedRequirementsMerge(t *testing.T) {
+func TestBatchCheckDWCV0001RegeneratedRequirementsMerge(t *testing.T) {
 	repo := specFixtureRepo(t)
 	sealA := repo.specLane("lane-a", "- `FXA-V0-002`: The second requirement MUST hold.\n", "")
 	sealB := repo.specLane("lane-b", "", "- `FXC-V0-000`: The zeroth requirement MUST hold.\n")
@@ -151,10 +151,10 @@ func TestBatchCheckDRSV0001RegeneratedRequirementsMerge(t *testing.T) {
 	}
 }
 
-// TestBatchCheckDRSV0001OtherConflictStaysUnbound: a merge that also resolved a conflict in a
+// TestBatchCheckDWCV0001OtherConflictStaysUnbound: a merge that also resolved a conflict in a
 // spec, then regenerated, is not derived as regenerated-specs; it keeps HEAD's side, so it fails
 // merge-side-dropped naming the spec hunk. Only a REQUIREMENTS.tsv conflict is regenerated.
-func TestBatchCheckDRSV0001OtherConflictStaysUnbound(t *testing.T) {
+func TestBatchCheckDWCV0001OtherConflictStaysUnbound(t *testing.T) {
 	repo := specFixtureRepo(t)
 	sealA := repo.specLane("lane-a", "- `FXA-V0-002`: The second requirement MUST hold.\n", "")
 	sealB := repo.specLane("lane-b", "- `FXA-V0-004`: A different second requirement MUST hold.\n", "")
@@ -185,8 +185,8 @@ func mergeTreeStatus(t *testing.T, root, first, second string) (string, int) {
 	return string(output), 0
 }
 
-// DRS-V0-001: replay must neither follow a candidate's generated symlink nor accept its mode.
-func TestBatchCheckDRSV0001RejectsGeneratedSymlinksAndModes(t *testing.T) {
+// DWC-V0-001: replay must neither follow a candidate's generated symlink nor accept its mode.
+func TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes(t *testing.T) {
 	for _, path := range generatedSpecFiles {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			repo := specFixtureRepo(t)
@@ -232,8 +232,8 @@ func TestBatchCheckDRSV0001RejectsGeneratedSymlinksAndModes(t *testing.T) {
 	}
 }
 
-// DRS-V0-001: fields the generator preserves must come from the merged inputs alone.
-func TestBatchCheckDRSV0001RejectsPreservedHandEdits(t *testing.T) {
+// DWC-V0-001: fields the generator preserves must come from the merged inputs alone.
+func TestBatchCheckDWCV0001RejectsPreservedHandEdits(t *testing.T) {
 	for _, path := range []string{"docs/specs/README.md", "docs/specs/INDEX.json"} {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			repo := specFixtureRepo(t)
