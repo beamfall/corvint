@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/similar"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -379,7 +380,7 @@ func ticketRecur(env Env, args []string) *wire.Result {
 			return wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is not in the queue", prose(arg))
 		}
 		if !rc.journalAbsent {
-			idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+			idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 			if _, found, err := idx.Lookup(flags.requestID); err == nil && found {
 				// The index records no operation, so a replay is the same
 				// ticket whose body already carries this context's line.
@@ -451,7 +452,7 @@ func createDuplicateGuard(env Env, cmd []string, flags mutateFlags, payload wire
 		}
 		if len(dups) > 0 && !rc.journalAbsent {
 			// A replay finds its own ticket; it must replay, not refuse.
-			idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+			idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 			if _, found, err := idx.Lookup(flags.requestID); err == nil && found {
 				replay = true
 			}

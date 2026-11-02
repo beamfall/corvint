@@ -93,6 +93,13 @@ func ReadWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
 	return wc
 }
 
+// RequestIndexOf is the request index over repo's journal whose lookups the
+// bound writer checkpoint may serve (LGL-V0-811); reader is the journal
+// reader the complete lookup uses.
+func RequestIndexOf(repo *intent.Repository, reader journal.Reader) journal.RequestIndex {
+	return journal.RequestIndex{Reader: reader, WriterCheckpoint: func() *journal.WriterCheckpoint { return ReadWriterCheckpoint(repo) }}
+}
+
 // retainWriterCheckpoint replaces the derived writer checkpoint with wc,
 // bound to since: the token read before the audit wc was derived from. It
 // retains nothing when that token was unobserved or has changed since, so a

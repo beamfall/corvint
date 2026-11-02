@@ -26,7 +26,7 @@ import (
 func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) string {
 	generic := "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
 		"and issuedAt defaulted to " + string(issued) + " because --issued-at was not given: a retry replays only with the original --issued-at"
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
 	entry, found, err := idx.Lookup(flags.requestID)
 	if err != nil || !found || idx.TicketID == "" {
 		return generic
@@ -93,7 +93,7 @@ func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, 
 	if err != nil {
 		return live
 	}
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
 	entry, found, err := idx.Lookup(flags.requestID)
 	if err != nil || !found {
 		return live
