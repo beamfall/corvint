@@ -94,10 +94,13 @@ measure. None of them drops a unit the change can reach.
   path literal or its enclosing directory, which `AFP-V0-160` (3) keeps selecting, and a package
   `files` list ships it without running it. A README-only edit is then `DECLARED_DOCUMENTATION`,
   not `UNOWNED_DIRTY_PATH`, and admits no language plugin. Target, measured on this repository
-  with `affected --path integrations/opencode/README.md`: no `UNOWNED_DIRTY_PATH` and no
-  `LANGUAGE_FRONTIER` entry (76 before), with `internal/opencodequalification`, which hashes that
-  README, still selected. Non-goal: any other file under `integrations/`, which stays a source or
-  unowned path.
+  with `affected --path integrations/opencode/README.md`: no `UNOWNED_DIRTY_PATH` entry and no
+  frontier of a plugin that neither owns, reads nor reaches the path (cfamily, dotnet and the
+  others; 76 entries before), with `internal/opencodequalification`, which hashes that README,
+  still selected. The TypeScript tests that name `README.md` stay selected as path-literal
+  readers, so that plugin still takes part and keeps its own entries under `AFP-V0-511` (3).
+  Non-goal: any other file under `integrations/`, which stays a source or unowned path, and the
+  TypeScript literal rule itself.
 
 ## Non-goals
 
