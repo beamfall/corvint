@@ -332,6 +332,21 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   with a retired prefix supports none (`Result.Checkpoint`; retire drops both, JRT-V0-002), and both resumed read
   routes decline it. Reads after a retire walk only from the retire anchor, so their cost is
   bounded by the receipts since the anchor, not by the retired history.
+- `LGL-V0-811`: (proposed; V1-3275) `RequestIndex.Lookup` MUST, when given the bound writer
+  checkpoint (`store.RequestIndexOf`), first serve the lookup by the writer route a writer's own
+  replay uses (CAL-V0-116 `AuditForWriter`, then CAL-V0-190 `WriterReplay`):
+  - The route validates the tail.
+  - For a request recorded at most `MaxWriterTail` receipts before the checkpoint, it walks the
+    checkpoint's chain back to the receipt that posted the request and binds the afterimage,
+    outcome and codes to it.
+  - It answers absent only when neither the checkpoint nor the tail holds the request.
+
+  Any decline falls back to the complete lookup, which derives the entry, its absence or the
+  refusal itself. Only a failed close of the route's reads is terminal, as for the writer. Every
+  CLI and store caller MUST construct its index this way. The answer MUST equal the complete
+  lookup's. The verification boundary is LGL-V0-808's: a receipt before the checkpoint that the
+  route does not walk is accepted as audited. Non-goal: `mutation.IndexEntry` gains no operation
+  field, because the request afterimage records none and adding one is a store-format change.
 
 ## Non-goals
 
@@ -660,6 +675,15 @@ measured right after each operation:
 
 After seal and compact the items are byte-identical with and without the retained checkpoint.
 
+For `LGL-V0-811`, `TestLGLV0811_RequestLookupFromTheWriterCheckpoint` shows the routed lookup
+equals the complete one for a request in the checkpoint, one in the tail and an absent one.
+Absent and tail requests read the same 2-4 receipts at 40 and 400 history receipts. A request 401
+receipts back falls back to the complete audit. `TestLGLV0811_TamperedRequestStillRefused` shows
+a tampered afterimage and a tampered tail receipt are refused with the complete lookup's error,
+and that a forged checkpoint only falls back. `ticket recur` with a fresh request ID on a
+40,002-receipt store with a current writer checkpoint went from 3.46-3.55 s to 0.49-0.55 s
+(Unraid Linux, load 3.9-4.9).
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -692,4 +716,5 @@ inline post again. The results are equal, and nothing is stored. Reverting LGL-V
 complete audit. Nothing is stored, and both checkpoint files keep their format. Reverting
 LGL-V0-809 returns seal, unseal, compaction and unretire to leaving no read checkpoint, so reads
 pay the complete audit until the next ordinary writer. A read checkpoint they left is still an
-ordinary one that any binary reads or ignores.
+ordinary one that any binary reads or ignores. Reverting LGL-V0-811 (constructing indexes without
+`WriterCheckpoint`) returns every lookup to the complete audit; nothing is stored.
