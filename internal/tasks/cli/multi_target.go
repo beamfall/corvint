@@ -92,27 +92,6 @@ func landedRevision(env Env, requestID, current string) string {
 	return expected
 }
 
-// landedRevisions is landedRevision for many request ids in one store load:
-// the expected revision each completed request named, keyed by request id;
-// a request not yet landed, or a failed lookup, is absent (TLF-V0-1102).
-func landedRevisions(env Env, requestIDs []string) map[string]string {
-	out := map[string]string{}
-	_, _ = withInventoryStore(env, func(rc *readCtx) error {
-		idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
-		for _, id := range requestIDs {
-			entry, found, err := idx.Lookup(id)
-			if err != nil || !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ResultingRevision == nil {
-				continue
-			}
-			if rev := entry.Outcome.ResultingRevision.Int(); rev > 1 {
-				out[id] = string(wire.CountOf(rev - 1))
-			}
-		}
-		return nil
-	})
-	return out
-}
-
 // targetRequestID derives one target's request id from the caller's.
 func targetRequestID(base, ticketID, local string) string {
 	id := base + "-" + local

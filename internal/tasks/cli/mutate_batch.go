@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -78,7 +79,7 @@ func mutationBatchCommand(env Env, cmd []string, operation string, flags mutateF
 			return errorResult(cmd, err)
 		}
 	}
-	envelopes, targets, err := batchEnvelopes(env, operation, flags, store0, actor, issued)
+	envelopes, targets, settled, err := batchEnvelopes(env, operation, flags, store0, actor, issued)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -87,6 +88,9 @@ func mutationBatchCommand(env Env, cmd []string, operation string, flags mutateF
 		return errorResult(cmd, err)
 	}
 	res := batchResult(cmd, flags.requestID, issued, targets, report)
+	if settled {
+		res.Warnings = append(res.Warnings, "a receipt left pending by an interrupted run was completed before this batch (§5.2 redo)")
+	}
 	for _, entry := range report.Entries {
 		if entry.Report != nil && entry.Report.Kind == "Transaction" && entry.Report.Outcome.Outcome == mutation.OutcomeCompleted {
 			if entry.Report.MutationEffects != nil {
@@ -101,57 +105,71 @@ func mutationBatchCommand(env Env, cmd []string, operation string, flags mutateF
 // canonical envelope of operation per entry, in input order, with the
 // qualified target of each. Nothing is written; any refusal names its entry.
 // A PROGRESS_SET entry may name expectedRevision "current" (TLF-V0-1102).
-func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Store, actor mutation.Binding, issued wire.Timestamp) ([][]byte, []string, error) {
+func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Store, actor mutation.Binding, issued wire.Timestamp) ([][]byte, []string, bool, error) {
+	settled := false
 	raw := flags.payload
 	if len(raw) > maxBatchBytes {
-		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, "payload", "batch larger than %d bytes", maxBatchBytes)
+		return nil, nil, settled, wire.Errorf(wire.CodeLimitExceeded, "payload", "batch larger than %d bytes", maxBatchBytes)
 	}
 	if flags.targetsFile != "" {
 		data, err := readBoundedFile("--targets-file", commandPath(env.Cwd, flags.targetsFile), maxBatchBytes)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, settled, err
 		}
 		raw = string(data)
 	}
 	if flags.payloadFromStdin {
 		data, err := io.ReadAll(io.LimitReader(env.Stdin, int64(maxBatchBytes)+1))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, settled, err
 		}
 		if len(data) > maxBatchBytes {
-			return nil, nil, wire.Errorf(wire.CodeLimitExceeded, "payload", "batch larger than %d bytes", maxBatchBytes)
+			return nil, nil, settled, wire.Errorf(wire.CodeLimitExceeded, "payload", "batch larger than %d bytes", maxBatchBytes)
 		}
 		raw = string(data)
 	}
 	if strings.TrimSpace(raw) == "" {
-		return nil, nil, wire.Errorf(wire.CodeMalformed, "payload", "no batch: pass a JSON array of {target, expectedRevision, payload} with --payload-stdin or --payload")
+		return nil, nil, settled, wire.Errorf(wire.CodeMalformed, "payload", "no batch: pass a JSON array of {target, expectedRevision, payload} with --payload-stdin or --payload")
 	}
 	v, err := wire.ParseInput([]byte(raw))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, settled, err
 	}
 	if v.Kind != wire.KindArray || len(v.Arr) == 0 {
-		return nil, nil, wire.Errorf(wire.CodeMalformed, "/", "a batch is a non-empty JSON array of {target, expectedRevision, payload}")
+		return nil, nil, settled, wire.Errorf(wire.CodeMalformed, "/", "a batch is a non-empty JSON array of {target, expectedRevision, payload}")
 	}
 	if len(v.Arr) > maxBatchEntries {
-		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, "/", "batch longer than %d entries (%d)", maxBatchEntries, len(v.Arr))
+		return nil, nil, settled, wire.Errorf(wire.CodeLimitExceeded, "/", "batch longer than %d entries (%d)", maxBatchEntries, len(v.Arr))
 	}
 	if len(batchEntryRequestID(flags.requestID, len(v.Arr)-1)) > wire.MaxRequestIDBytes {
-		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, "requestId", "entry request IDs <request-id>/<index> would exceed %d bytes", wire.MaxRequestIDBytes)
+		return nil, nil, settled, wire.Errorf(wire.CodeLimitExceeded, "requestId", "entry request IDs <request-id>/<index> would exceed %d bytes", wire.MaxRequestIDBytes)
 	}
 	queueID := st.Queue.QueueID.Raw
 	known := make(map[string]string, len(st.Tickets))
 	for _, rec := range st.Tickets {
 		known[rec.TicketID.Raw] = string(rec.Revision)
 	}
-	// TLF-V0-1102: every entry's landed revision is read in one store load.
-	var landed map[string]string
-	if operation == mutation.OpProgressSet {
-		ids := make([]string, len(v.Arr))
-		for i := range v.Arr {
-			ids[i] = batchEntryRequestID(flags.requestID, i)
+	// TLF-V0-1102: a "current" entry is matched against the request index
+	// read directly, as the single-target form does (TCL-V0-860), so a
+	// pending receipt elsewhere never hides a recorded entry. Without a
+	// journal nothing is recorded and the writer refuses UNINITIALIZED.
+	idx, repo, err := batchRequestIndex(env, st)
+	if err != nil {
+		return nil, nil, settled, err
+	}
+	// lookup resolves a "current" entry. A receipt left pending by an
+	// interrupted writer hides the index (REDO_PENDING); it is settled once
+	// under the writer lock, as store.Mutate would, and the index read again.
+	lookup := func(f mutateFlags, payload wire.Value, n uint64) (string, bool, error) {
+		r, ok, err := recordedRevision(*idx, operation, st.Queue.QueueID.Raw, actor, f, payload, issued, n)
+		if wire.CodeOf(err) == wire.CodeRedoPending && !settled {
+			settled = true
+			if _, serr := store.Settle(writerContext(), repo); serr != nil {
+				return "", false, serr
+			}
+			r, ok, err = recordedRevision(*idx, operation, st.Queue.QueueID.Raw, actor, f, payload, issued, n)
 		}
-		landed = landedRevisions(env, ids)
+		return r, ok, err
 	}
 	seen := map[string]int{}
 	envelopes := make([][]byte, len(v.Arr))
@@ -168,23 +186,23 @@ func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Sto
 			expected = r.Field("expectedRevision").Count()
 		}
 		if err := r.Err(); err != nil {
-			return nil, nil, err
+			return nil, nil, settled, err
 		}
 		id, err := wire.ParseTicketID(where+"/target", qualifyTicket(queueID, target))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, settled, err
 		}
 		revision, ok := known[id.Raw]
 		if !ok {
-			return nil, nil, wire.Errorf(wire.CodeOutOfScope, where+"/target", "no ticket %s in this queue", id.Raw)
+			return nil, nil, settled, wire.Errorf(wire.CodeOutOfScope, where+"/target", "no ticket %s in this queue", id.Raw)
 		}
 		if first, dup := seen[id.Raw]; dup {
-			return nil, nil, wire.Errorf(wire.CodeDuplicateID, where+"/target", "ticket %s is already entry %d; a batch names each target once", id.Raw, first)
+			return nil, nil, settled, wire.Errorf(wire.CodeDuplicateID, where+"/target", "ticket %s is already entry %d; a batch names each target once", id.Raw, first)
 		}
 		seen[id.Raw] = i
 		payload, err := mutation.CanonicalPayload(operation, entry.Obj.Vals["payload"])
 		if err != nil {
-			return nil, nil, wire.Annotatef(err, where+"/payload", "%v", err)
+			return nil, nil, settled, wire.Annotatef(err, where+"/payload", "%v", err)
 		}
 		f := flags
 		f.requestID, f.target, f.expected = batchEntryRequestID(flags.requestID, i), id.Raw, string(expected)
@@ -192,8 +210,14 @@ func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Sto
 			// As a single-target hold does (TCD-V0-967), a request that
 			// already landed keeps the revision it named, so a retry replays.
 			f.expected = revision
-			if r, ok := landed[f.requestID]; ok {
-				f.expected = r
+			if n, perr := strconv.ParseUint(revision, 10, 64); idx != nil && perr == nil {
+				r, ok, err := lookup(f, payload, n)
+				if err != nil {
+					return nil, nil, settled, wire.Annotatef(err, where+"/expectedRevision", "the request index for %s is unreadable, so \"current\" cannot be resolved: %v", f.requestID, err)
+				}
+				if ok {
+					f.expected = r
+				}
 			}
 		}
 		envelope, err := buildEnvelope(operation, queueID, actor, f, payload, issued)
@@ -201,11 +225,11 @@ func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Sto
 			_, err = mutation.Decode(envelope)
 		}
 		if err != nil {
-			return nil, nil, wire.Annotatef(err, where, "%v", err)
+			return nil, nil, settled, wire.Annotatef(err, where, "%v", err)
 		}
 		envelopes[i], targets[i] = envelope, id.Raw
 	}
-	return envelopes, targets, nil
+	return envelopes, targets, settled, nil
 }
 
 // batchResult renders one item: the batch facts and one entry per input
@@ -295,6 +319,19 @@ func batchResult(cmd []string, requestID string, issued wire.Timestamp, targets 
 	return res
 }
 
+// batchRequestIndex is the queue's request index, or nil when the checkout
+// has no journal.
+func batchRequestIndex(env Env, st *intent.Store) (*journal.RequestIndex, *intent.Repository, error) {
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return nil, nil, err
+	}
+	if absent, err := journalAbsent(repo.StateDir); err != nil || absent {
+		return nil, repo, err
+	}
+	return &journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}, repo, nil
+}
+
 // entryValue is member key of a batch entry object, if present.
 func entryValue(entry wire.Value, key string) (wire.Value, bool) {
 	if entry.Kind != wire.KindObject || entry.Obj == nil {
@@ -328,7 +365,7 @@ var batchHelp = "ticket refine --batch reads a JSON array of 1.." + strconv.Itoa
 var progressBatchHelp = "ticket progress --batch marks many tickets in one invocation: a JSON array of 1.." + strconv.Itoa(maxBatchEntries) +
 	" entries {\"target\":TICKET|LOCAL,\"expectedRevision\":\"N\"|\"current\",\"payload\":{PROGRESS_SET payload}} (at most " +
 	strconv.Itoa(maxBatchBytes/wire.MiB) + " MiB, each target once) from --payload, --payload-stdin or --targets-file FILE (which implies --batch). " +
-	"Absent nullable payload keys read as null (TLF-V0-820); \"current\" reads the target's revision from the store, or for an entry whose request already landed the revision it named, so a retry replays. " +
+	"Absent nullable payload keys read as null (TLF-V0-820); \"current\" reads the target's revision from the store, or for an entry the request index records the revision whose envelope digest it recorded, so a retry replays (a pending receipt is settled first; without a journal the batch refuses UNINITIALIZED). " +
 	"Every entry is validated before anything is written; one bad entry refuses the whole batch naming its index. Entries then apply in input order through the refine --batch chunked writer, " +
 	"each an ordinary PROGRESS_SET with its own CAS and receipt under request ID <request-id>/<index>; a stale or refused entry is reported alone and the rest still apply. " +
 	"The result lists each entry's outcome, codes, receipt and resultingRevision; retry with the same --request-id and --issued-at to replay (TLF-V0-1102). " +
