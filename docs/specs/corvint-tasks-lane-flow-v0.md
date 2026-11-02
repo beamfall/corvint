@@ -120,15 +120,16 @@ done and number requirements that a peer branch already used.
   per-head grep.
 - `TLF-V0-887`: `ticket delivery-screen --lane-refs` MUST additionally scan every local branch and
   detached worktree head not contained in the screened ref that shares a root commit with it (an
-  unrelated lineage is no lane), at most `--limit` commits each outside
-  it, and report a candidate ticket that such a commit delivers (a delivery line or ticket-scoped
+  unrelated lineage is no lane), outside it (since TCD-V0-774 in one walk, with fetched
+  `refs/lanes/` heads, keeping at most `--limit` commits that name a screened ticket), and report a candidate ticket that such a commit delivers (a delivery line or ticket-scoped
   subject of `TCD-V0-167`) as `DELIVERED_ON_LANE` with `laneCommits` (ref, commit, subject), after
   `DELIVERED` and ahead of `TRUNCATED` and `CLEAR`, and a candidate whose effective progress phase is
   `DELIVERED_ON_BRANCH`, `IN_REVIEW`, `IN_MERGE_QUEUE` or `MERGED_AWAITING_CLOSEOUT` as `IN_FLIGHT`;
   the item lists the scanned `laneHeads`, and more than 256 such heads is refused
   `LIMIT_EXCEEDED`. A lane scan cut at `--limit` MUST be reported as `scanTruncated` on its
-  `laneHeads` entry and `laneScanTruncated` on the item, and a candidate not otherwise resolved that
-  was created before the oldest scanned commit of such a lane is `TRUNCATED`, never `CLEAR`.
+  `laneHeads` entry (every entry, since TCD-V0-774) and `laneScanTruncated` on the item, and a
+  candidate not otherwise resolved that was created before the oldest kept lane commit is
+  `TRUNCATED`, never `CLEAR`.
   Without the flag the screen MUST be unchanged.
 - `TLF-V0-888`: `ticket effects-proposals` MUST, for each OPEN ticket in the `TLF-V0-800`
   population, propose touch paths derived from repository paths named in the ticket's title, body
@@ -244,7 +245,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
 | TLF-V0-960 | V1-3650 | `tools/requirement-id-collisions` (`outermost`) | `TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped`; `TestTLFV0886_ReproducesASDV0Collisions` | none |
 | TLF-V0-805 | V1-4093 | `tools/requirement-id-collisions` (`outermost`, `definitions`) | `TestTLFV0805_BatchedReadsEqualPerHeadReads` | none |
-| TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear` | none |
+| TLF-V0-887 | V1-3331; NEW-D7 | `internal/tasks/cli/delivery_screen.go`, `internal/tasks/store/closeout_scan.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear`; `TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes` | none |
 | TLF-V0-800 | V1-3957 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0800_EffectsProposalsCoversTheBlockerPopulation` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0888_RootFilesWithoutExtension`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
 | TLF-V0-742 | V1-3957 criteria 1-3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0742_ProposalsCoverTheBlockerPopulation` | none |

@@ -613,6 +613,31 @@ closeout step is missing.
   the gate run result's `reusedFrom` names, else null. Derived records are
   written as mode-0600 files into one private temporary directory per command, which is removed on
   every path; the store's `evidence/<sha256>` copy is the retained record.
+- `TCD-V0-773`: (experimental under the standing lane auto-accept (2026-11-02); NEW-D7, a
+  journal-less lane host refused `ticket V1-3739 is not in the queue`) `ticket delivery-screen
+  --unaudited` reads no Tasks journal, projection or policy, so it runs on any checkout of the
+  repository. Each argument is a raw ticket ID (a letter, then letters, digits, `_` or `-`, ending
+  in a letter or digit, at most 64 bytes); any other argument is refused `MALFORMED`, and a repeat
+  that folds to the same ID is one row. Each ID is screened against commit messages, `--lane-refs`
+  heads and any `--prs` export by the same rules as an audited ticket (TCD-V0-160, TCD-V0-167,
+  TLF-V0-887). The item carries `audited` false and `ticketState` `NOT_OBSERVED`, and each row's
+  `status`, `holds` and `operatorNote` state are `NOT_OBSERVED`, never absent, so no row is
+  `COMPLETED`, `HELD` or progress-`IN_FLIGHT`. `--ref` defaults to `origin/main`, else local
+  `main`. A ticket's creation time is not observed, so while the commit scan or the lane walk is
+  cut at `--limit`, every row not delivered is `TRUNCATED`. The first warning states that the
+  result is unaudited. The audited screen on a journal-less host that lacks a ticket in its
+  projection names `--unaudited` in its refusal. Rollback: revert.
+- `TCD-V0-774`: (experimental under the standing lane auto-accept (2026-11-02); NEW-D7; refines
+  TLF-V0-887) `--lane-refs` lists, besides local branches and detached worktree heads, every
+  `refs/lanes/` head (another host's lanes fetched, for example, with `git fetch HOST
+  '+refs/heads/claude/lane-*:refs/lanes/HOST/*'`) under the same containment, lineage and 256-head
+  rules. It reads all heads in one `git log --source` walk outside the screened ref, filtered by
+  one fixed-string, case-insensitive grep per token of a screened ticket, and keeps at most
+  `--limit` matching commits, each attributed to the head the walk reached it from. It never
+  spawns Git per head or per ticket. A walk cut at `--limit` sets `scanTruncated` on every
+  `laneHeads` entry and `laneScanTruncated` on the item, and a candidate created before the oldest
+  kept commit is `TRUNCATED`. Each `laneHeads` entry reports `commitsMatched`, the number of kept
+  commits attributed to it, in place of `commitsScanned`. Rollback: revert to the per-head scan.
 - `TCD-V0-806`: (experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151) when a `gate run` of a reusable gate finds no qualifying result
   (`TCD-V0-151`) but a qualifying PASSED result at another tree is refused only because that tree
   is not yet a commit on the protected intent branch, the result adds a warning. The warning names
@@ -885,6 +910,13 @@ closeout step is missing.
 - A push run still in progress has no conclusion: its row is `UNRUNNABLE` until a rerun after it
   completes. The policy entry's repository must match the run URL's spelling (`gh` prints
   `beamfall/corvint`); another case is `GATE_STALE` and is never folded.
+- An unaudited `CLEAR` (TCD-V0-773) says only that no observed commit or PR delivers the ID. A
+  ticket completed without a delivering commit, held, or already claimed is still `CLEAR` there;
+  the dispatching operator rechecks those facts on a host with the store.
+- The single lane walk (TCD-V0-774) matches tokens as substrings, so `V1-001` also keeps a commit
+  naming `V1-0010`; such commits count toward `--limit` and `commitsMatched` but never deliver.
+  Lane refs are as fresh as the last fetch into `refs/lanes/`; an unfetched host's lanes are not
+  observed and the result does not say so.
 
 ## Non-goals
 
@@ -1007,6 +1039,8 @@ closeout step is missing.
 | TCD-V0-770 | NEW-D2 | `internal/tasks/cli` (`ghRun`, `deriveCIRun`, `gatedBatch.ciGateFor`, `plan`, `runGates`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (push run 7 of workflow CI is chosen over a higher merge-queue CI run and another workflow's run; the gate's command exits 1, yet the row closes `VERIFIED` with the gate `REUSED`; the retained `evidence/<sha256>` is the derived record byte for byte; receipt audit passes) | a live close of a merged batch: NOT_RUN (the store policy has no `ciEvidence` entry for `full-gate` until the operator's `policy update`) |
 | TCD-V0-771 | NEW-D2 | `internal/tasks/cli` (`deriveCIRun`, `ciGateFor`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (merge-queue run only, pull-request run only, an export without event, another repository `GATE_STALE`, a later failed push run `GATE_FAILED`, a push run of another commit: each row `UNRUNNABLE` with the gate `NONE`, the store byte-identical) | none |
 | TCD-V0-772 | NEW-D2 | `internal/tasks/cli` (`gatedRowValue`, `ciRunFile`, `cleanup`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (`ciRunId` `7` on the dry run and after the close, null on the `LOCAL` gate; no `corvint-batch-close-ci-*` directory left behind) | none |
+| TCD-V0-773 | NEW-D7 | `internal/tasks/cli` (`unauditedScreen`, `rawTicketID`, `deliveryScreenCommand`) | `TestTCDV0773_UnauditedScreensRawIDsWithoutStore` (a repository with no store: ref commit `DELIVERED`, lane commit `DELIVERED_ON_LANE`, unnamed ID `CLEAR`, repeated ID one row, `audited` false, `ticketState`, `status`, `holds` and note `NOT_OBSERVED`, a cut scan `TRUNCATED`, `../V1-9001` refused `MALFORMED`, the audited screen refused) | none |
+| TCD-V0-774 | NEW-D7 | `internal/tasks/store` (`LaneHeads`, `ScanLaneMentions`), `internal/tasks/cli` (`scanLaneHeads`) | `TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes` (a `refs/lanes/` head delivers, `commitsMatched` 1, 0 and 2 per head); `TestTLFV0887_TruncatedLaneScanIsNotClear` (a walk cut at `--limit 1` keeps the tip mention and leaves the earlier delivery `TRUNCATED`) | wsl-lanes timing in `docs/build-log/2026-11-02-bat-w43.md` |
 
 ## Rollout and rollback
 
@@ -1075,6 +1109,10 @@ store format, receipt, wire codec or policy change; a derived record is an ordin
 (an older binary refuses a policy carrying the key, TCD-V0-154). To roll back, remove the entry
 through a store `policy update`, after which the gate runs locally again, or revert the change.
 Completed attempts keep their CI-backed results, which the audit verifies as before.
+
+TCD-V0-773..774 add one read-only flag and change how `--lane-refs` reads lane heads. They add
+the item members `audited` and `ticketState` (unaudited only) and the `laneHeads` member
+`commitsMatched` in place of `commitsScanned`; nothing is written. To roll back, revert the change.
 
 TCD-V0-185..190 make the gated close the default. They add one output-only profile revision
 (`taskman-batch-close/1`), one digest profile (`taskman-batch-merge/0`), two flags (`--seal`,
