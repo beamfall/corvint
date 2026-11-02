@@ -387,3 +387,10 @@ index a2ab7d2d9..19897e659 100644
    - Expected: a cheap refusal.
    - Actual: 820 to 850 ms CPU and 310 MB, against about 65 ms and 28 MB for the successful
      create. This is a new hot spot outside these blocks.
+8. `TestDCPV1281AdditionalRepositoryWarmCallsAtScale` fails under load spikes.
+   - Repro: run it at load about 12 on unraid-lanes.
+   - Expected: the warm p95 bound measures the warm path.
+   - Actual: the test takes p95 of 20 samples as the 20th sorted sample, that is the maximum. So
+     one pairing call's Git observation (1,304 ms at load 12, about 16 ms when quiet) failed the
+     1 s bound once in round 1. BASE and lane both take exactly one such observation per run, so
+     the flake predates this lane.
