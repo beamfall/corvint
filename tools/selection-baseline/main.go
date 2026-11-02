@@ -200,6 +200,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "selection-baseline:", err)
 		os.Exit(2)
 	}
+	if err := servedByOrigin(context.Background(), *root, set.Changes); err != nil {
+		fmt.Fprintln(os.Stderr, "selection-baseline:", err)
+		os.Exit(2)
+	}
 	r, err := replay(context.Background(), *root, set, *changesFile, abs(*corvint), abs(*selector))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "selection-baseline:", err)
@@ -250,6 +254,34 @@ func readChanges(name string) (changeSet, error) {
 		seen[c.ID] = true
 	}
 	return set, nil
+}
+
+// servedByOrigin refuses, naming the change, every base or head commit that
+// neither origin/main nor any other refs/remotes/origin ref contains (TSP-V0-908,
+// V1-3538). A pull-request head rewritten before merge stays in a local clone's
+// objects, so the replay passed locally and then failed in CI, whose full-history
+// checkout has only what origin serves. Adding an entry to the change set is a
+// hand edit that this same check covers before the replay starts. Recorded limit:
+// a stale local remote-tracking branch that origin has since deleted still counts
+// until `git fetch --prune origin`.
+func servedByOrigin(ctx context.Context, root string, changes []change) error {
+	var problems []string
+	for _, c := range changes {
+		for _, side := range []struct{ name, oid string }{{"base", c.Base}, {"head", c.Head}} {
+			if _, err := run(ctx, root, "git", "merge-base", "--is-ancestor", side.oid, "refs/remotes/origin/main"); err == nil {
+				continue
+			}
+			refs, err := run(ctx, root, "git", "for-each-ref", "--count=1", "--format=%(refname)", "--contains", side.oid, "refs/remotes/origin/")
+			if err == nil && strings.TrimSpace(refs) != "" {
+				continue
+			}
+			problems = append(problems, fmt.Sprintf("change %s: %s %s is not reachable from origin/main or any refs/remotes/origin ref, so a CI checkout cannot read it; run git fetch origin, or drop the entry or record a commit origin serves (TSP-V0-908)", c.ID, side.name, side.oid))
+		}
+	}
+	if len(problems) != 0 {
+		return errors.New(strings.Join(problems, "\n"))
+	}
+	return nil
 }
 
 func fullOID(s string) bool {

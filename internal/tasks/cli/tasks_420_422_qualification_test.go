@@ -14,6 +14,7 @@ import (
 // With CORVINT_HANDOFF_TEST_BINARY set this runs the actual candidate executable
 // over disposable initialized fixture queues. All subprocesses are waited for.
 func TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	for _, limit := range []int{0, 4} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
 			root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -25,7 +26,7 @@ func fakeBatchGit(t *testing.T, batch string) {
 	}
 	dir := t.TempDir()
 	script := "#!/bin/sh\nREAL=" + real + "\nif [ \"$3\" = cat-file ] && [ \"$4\" = --batch ]; then\n" + batch + "\nfi\nexec \"$REAL\" \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755); err != nil {
+	if err := fixture.WriteExecutable(filepath.Join(dir, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

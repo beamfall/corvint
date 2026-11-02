@@ -96,7 +96,9 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 		t.Fatal(err)
 	}
 	if slices.Contains(result.Frontier, shell.FrontierForeignCallersInvalid) {
-		t.Fatalf("the shell plugin refused %s", affected.ShellForeignCallersPath)
+		// V1-4062 (TSP-V0-820): name the cause, not only the refusal.
+		cause := shell.CheckForeignCallers(affected.DiskSourceContext(context.Background(), root))
+		t.Fatalf("the shell plugin refused %s: %v (a completeness mismatch is named above when the cause is nil)", affected.ShellForeignCallersPath, cause)
 	}
 	for _, unit := range result.Units {
 		if _, ok := declared.Scripts[strings.TrimPrefix(unit.ID, "shell:")]; ok {

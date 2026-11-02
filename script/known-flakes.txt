@@ -2,5 +2,8 @@
 # expression per line, matched against the whole failing Go test name. A run whose failing tests all
 # match is rerun at most 3 times per head commit; anything else escalates. Each line names where the
 # flake was observed; remove it when the flake is fixed.
-# Observed 2026-10-18 failing PR runs that passed on rerun (V1-1735).
+# Observed 2026-10-18 failing PR runs that passed on rerun (V1-1735). Kept with a measured reason
+# (V1-3520, 2026-11-01): 0 failures in 240 runs on Unraid at load 3-9 on 12 cores, so the cause is
+# not diagnosed; the test bounds a detached claim by a 1500 ms ceiling, which a loaded CI runner can
+# miss. A fix lives in internal/tasks/cli; remove this line once it lands.
 TestPSRV0111.*

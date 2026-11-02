@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestParseOptionsSelectsTaskCompatibilityFlags(t *testing.T) {
@@ -47,11 +49,11 @@ func TestParseOptionsSelectsTaskCompatibilityFlags(t *testing.T) {
 func TestFindCompanionPrefersAdjacentBeforePath(t *testing.T) {
 	dir := t.TempDir()
 	executable := filepath.Join(dir, "corvint-console")
-	if err := os.WriteFile(executable, []byte("console"), 0o755); err != nil {
+	if err := execfile.WriteFile(executable, []byte("console"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	legacy := filepath.Join(dir, "atm")
-	if err := os.WriteFile(legacy, []byte("legacy"), 0o755); err != nil {
+	if err := execfile.WriteFile(legacy, []byte("legacy"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	resolvedDir, err := filepath.EvalSymlinks(dir)
@@ -67,7 +69,7 @@ func TestFindCompanionPrefersAdjacentBeforePath(t *testing.T) {
 		t.Fatalf("companion = %q, PATH lookup = %v", got, lookedUp)
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, "corvint-tasks"), []byte("current"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "corvint-tasks"), []byte("current"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	got = findCompanion(executable, []string{"corvint-tasks", "atm"}, func(string) (string, error) {
@@ -103,7 +105,7 @@ func TestConsoleCommandRejectsFlagsBeforeChildrenWithExitTwo(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "git-ran")
 	binDir := t.TempDir()
 	git := filepath.Join(binDir, "git")
-	if err := os.WriteFile(git, []byte("#!/bin/sh\n: > \"$GIT_MARKER\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(git, []byte("#!/bin/sh\n: > \"$GIT_MARKER\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {

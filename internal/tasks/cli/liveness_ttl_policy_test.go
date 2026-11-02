@@ -87,6 +87,7 @@ func at(t *testing.T, s wire.Timestamp) time.Time {
 // further apart than the TTL, reads STALE_HOLDER inside its live lease.
 // The live reads at the end agree, and both help notes say so.
 func TestCALV0277_RenewOnlyHolderNeverReadsStale(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	now := time.Now().UTC().Truncate(time.Second)
 	const step = 540 * time.Second
 	ticks := []time.Time{now.Add(-60*time.Second - 3*step), now.Add(-60*time.Second - 2*step), now.Add(-60*time.Second - step), now.Add(-60 * time.Second)}

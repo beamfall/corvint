@@ -92,6 +92,7 @@ func TestCALV0081_CriticalPathEscalationNodeBlocker(t *testing.T) {
 // the dependency as LOOP_DETECTED; without the policy the same history does
 // not.
 func TestCALV0081_CriticalPathLoopNodeBlocker(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	for _, opted := range []bool{true, false} {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 		if opted {

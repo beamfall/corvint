@@ -145,7 +145,7 @@ type doctorScan struct {
 }
 
 func doctorUsage() error {
-	return wire.Errorf(wire.CodeMalformed, "argv", "doctor takes [--refresh] [--plugins DIR] [--config FILE], or --line alone")
+	return wire.Errorf(wire.CodeMalformed, "argv", "doctor takes [--refresh] [--plugins DIR] [--config FILE], or --line or --rebuild-closed-index alone")
 }
 
 func doctorCommand(env Env, args []string) *wire.Result {

@@ -31,6 +31,7 @@ func TestATRV0212_ReadOnlySessionRefusesMutations(t *testing.T) {
 		{"ticket", "create", "--request-id", "ro-create"},
 		{"claim", id, "--holder", "reviewer", "--request-id", "ro-claim"},
 		{"doctor", "--refresh"},
+		{"doctor", "--rebuild-closed-index"},
 		{"pause", "--request-id", "ro-pause"},
 	} {
 		r := handoffCLI(t, root, args...)

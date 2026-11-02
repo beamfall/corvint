@@ -574,9 +574,32 @@ func sameDecision(t *testing.T, got, want writerRun) {
 	if (got.err == nil) != (want.err == nil) || wire.CodeOf(got.err) != wire.CodeOf(want.err) {
 		t.Fatalf("refusal %v, complete route %v", got.err, want.err)
 	}
-	if got.err == nil && (got.rep.Outcome.Outcome != want.rep.Outcome.Outcome || got.rep.Kind != want.rep.Kind || !reflect.DeepEqual(got.rep.Outcome.Codes, want.rep.Outcome.Codes)) {
-		t.Fatalf("report %+v, complete route %+v", got.rep, want.rep)
+	if got.err != nil {
+		return
 	}
+	// V1-3815: the whole Report is the oracle, so a field one route sets
+	// and the other omits (an OriginalReceipt, a Directories entry) fails.
+	// Only the request id may differ, when the oracle write used its own.
+	oracle := *want.rep
+	oracle.Outcome.RequestID = got.rep.Outcome.RequestID
+	if !reflect.DeepEqual(*got.rep, oracle) {
+		t.Fatalf("report differs from the complete route in %s:\n%+v\n%+v", reportFieldDiff(got.rep, &oracle), got.rep, &oracle)
+	}
+}
+
+// reportFieldDiff names the Report fields that differ between got and want.
+func reportFieldDiff(got, want *Report) string {
+	if got == nil || want == nil {
+		return "a nil report"
+	}
+	g, w := reflect.ValueOf(*got), reflect.ValueOf(*want)
+	names := []string{}
+	for i := 0; i < g.NumField(); i++ {
+		if !reflect.DeepEqual(g.Field(i).Interface(), w.Field(i).Interface()) {
+			names = append(names, g.Type().Field(i).Name)
+		}
+	}
+	return strings.Join(names, ", ")
 }
 
 // CAL-V0-116 (proposed): the route declines a request file no receipt

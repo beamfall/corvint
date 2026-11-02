@@ -165,6 +165,7 @@ func TestCALV0111_LockWaitBoundsContendedRelease(t *testing.T) {
 // commits it once, a further re-submission (with or without --lock-wait)
 // replays that receipt without a write, and the handoff charges no retry.
 func TestCALV0112_SameRequestHandoffReplayAfterLockTimeout(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, repo, id, attempt, generation := lockWaitStore(t)
 	handoff := []string{"release", "--attempt", attempt, "--generation", generation, "--request-id", "release-2671", "--reason", "HANDOFF", "--evidence", "local:review-result"}
 	before := fixture.TreeSnapshot(t, repo.StateDir)
@@ -211,6 +212,7 @@ func TestCALV0112_SameRequestHandoffReplayAfterLockTimeout(t *testing.T) {
 // that follows a timed-out HANDOFF for the same attempt and generation stays
 // a plain release and is charged; nothing converts it into a HANDOFF.
 func TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, repo, id, attempt, generation := lockWaitStore(t)
 	held := holdPreparation(t, repo)
 	start := time.Now()

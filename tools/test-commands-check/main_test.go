@@ -154,10 +154,12 @@ func TestSTRV0006LedgerMatchesDeclaration(t *testing.T) {
 	makefile := filepath.Join(root, "Makefile")
 	const recipe = "ledger/go-test:\n\t@$(GATE_LEDGER) go-test -- go test $(GO_TEST_FLAGS)\n"
 	refusals := map[string][3]string{
-		"flags":              {"GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)", "GO_TEST_FLAGS = -p 4 -timeout $(GO_TEST_TIMEOUT)", "runs go test [-p 4 -timeout 30m] (GO_TEST_FLAGS)"},
-		"timeout":            {"GO_TEST_TIMEOUT ?= 30m", "GO_TEST_TIMEOUT ?= 10m", "runs go test [-p 1 -timeout 10m] (GO_TEST_FLAGS)"},
-		"race":               {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = -race -p 1", "runs go test [-race -p 1 -timeout 30m]"},
-		"cache":              {"CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache", "CORVINT_GOCACHE ?= /tmp/other", "runs go with [GOCACHE=/tmp/other GOTOOLCHAIN=local] (GATE_LEDGER)"},
+		"flags":   {"GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)", "GO_TEST_FLAGS = -p 4 -timeout $(GO_TEST_TIMEOUT)", "runs go test [-p 4 -timeout 30m] (GO_TEST_FLAGS)"},
+		"timeout": {"GO_TEST_TIMEOUT ?= 30m", "GO_TEST_TIMEOUT ?= 10m", "runs go test [-p 1 -timeout 10m] (GO_TEST_FLAGS)"},
+		"race":    {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = -race -p 1", "runs go test [-race -p 1 -timeout 30m]"},
+		"cache":   {"CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache", "CORVINT_GOCACHE ?= /tmp/other", "runs go with [GOCACHE=/tmp/other GOTOOLCHAIN=local] (GATE_LEDGER)"},
+		// STR-V0-908: only the exact TMPDIR default resolves; another make function stays a refusal.
+		"cache function":     {"CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache", "CORVINT_GOCACHE ?= $(or $(TMPDIR),/tmp)/corvint-go-build-cache", "GATE_LEDGER expands \"GOCACHE=$(or $(TMPDIR),/tmp)/"},
 		"ledger env":         {"GATE_LEDGER = GOCACHE", "GATE_LEDGER = GOFLAGS=-race GOCACHE", "runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]"},
 		"appended flags":     {"", "GO_TEST_FLAGS += -race\n", "GO_TEST_FLAGS is assigned 2 times"},
 		"unknown variable":   {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = $(EXTRA) -p 1", "GO_TEST_FLAGS expands"},

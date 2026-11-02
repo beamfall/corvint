@@ -63,7 +63,8 @@ func requireNode(lookPath func(string) (string, error), getenv func(string) stri
 	if err == nil {
 		return path, "", false
 	}
-	return "", "NOT_RUN: node is not on PATH; set CORVINT_REQUIRE_NODE=1 to fail instead", getenv("CORVINT_REQUIRE_NODE") != ""
+	// CI provisions node, so a missing node fails there too (ASD-V0-973).
+	return "", "NOT_RUN: node is not on PATH; set CORVINT_REQUIRE_NODE=1 to fail instead", getenv("CORVINT_REQUIRE_NODE") != "" || getenv("CI") != ""
 }
 
 func nodeForTest(t *testing.T) string {
@@ -95,6 +96,10 @@ func TestASDV0644RequireNode(t *testing.T) {
 	}
 	if path, got, fatal := requireNode(missing, env("1")); path != "" || got != reason || !fatal {
 		t.Fatalf("missing node, CORVINT_REQUIRE_NODE=1: %q %q %v", path, got, fatal)
+	}
+	ci := func(key string) string { return map[string]string{"CI": "true"}[key] }
+	if path, got, fatal := requireNode(missing, ci); path != "" || got != reason || !fatal {
+		t.Fatalf("missing node, CI set: %q %q %v", path, got, fatal) // ASD-V0-973
 	}
 	found := func(string) (string, error) { return "/opt/node/bin/node", nil }
 	if path, got, fatal := requireNode(found, env("1")); path != "/opt/node/bin/node" || got != "" || fatal {

@@ -129,9 +129,15 @@ func (c *change) refuseInvalidIntents(intents []string) {
 		c.say("%s\n", line)
 	}
 	c.say("  ocm-prepare refuses each of these after the bind commit with the same code; no step ran and the previous evidence is kept (DCW-V0-945)\n")
-	c.say("  fix: commit each intent as a UTF-8 Markdown spec with a Requirements section at HEAD, or drop it from DOGFOOD_INTENTS_FILE, then rerun\n")
+	c.say("%s\n", intentFormatFix)
 	c.exit(2)
 }
+
+// intentFormatFix is the intent-invalid fix line. It states the
+// DOGFOOD_INTENTS_FILE format first, because a prose line, or a build-log or
+// README path, passes the manifest grammar and is first refused here
+// (DCW-V0-948, V1-3633).
+const intentFormatFix = "  fix: each DOGFOOD_INTENTS_FILE line is the repository-relative path of a spec committed at HEAD, not prose: UTF-8 Markdown with exactly one ## Requirements heading (for example docs/specs/<name>-v0.md); a build-log entry or README without that heading is not an intent (a record change names its build-log entry instead, DCW-V0-058); commit each such spec, or drop its line, then rerun"
 
 // deferredPlanPaths are the paths the citation plan's deferred rows name, read
 // as the four-field grammar without validating the rest of the plan.

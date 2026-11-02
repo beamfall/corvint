@@ -198,7 +198,7 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 	if operation == mutation.OpReviewResubmit && f.author == "" {
 		return usage(cmd, "--author-attempt is required")
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

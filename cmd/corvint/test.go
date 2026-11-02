@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,10 +30,13 @@ Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
     [--profile local|ci [--confine PATH]] [--go-parallel N]
-    [--dry-run [--summary]] [--manifest PATH] [--receipt PATH]
+    [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
+
+--base takes a full commit id, an unambiguous prefix or a revision such as
+HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
 
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
@@ -89,6 +93,12 @@ a dry run prints instead a text summary of at most 4 KiB: scope, reason,
 unit counts by adapter and slice, the first selected units and the counts
 of checks and incomplete entries (STR-V0-800). Example: corvint test
 --base "$(git merge-base HEAD origin/main)" --dry-run --summary.
+With --pins a dry run prints instead, per selected Go package, the test
+functions whose bodies or test-file helpers name a changed declaration or
+hold a string overlapping a changed literal, as one
+"pins go:PKG -run '^(...)$'" line each: advice for which tests to run
+first when a package is selected whole; the plan is unchanged
+(TSP-V0-944).
 Without --dry-run a supplied --manifest must equal the recomputed one.
 Each shard writes one
 corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).
@@ -98,6 +108,9 @@ manifest and every execution unit passed exactly once.
 Executes repository code with your authority; no containment is claimed.
 A narrowed PASS is not a gate PASS: make gate and the required CI checks
 stay binding. Exit: 0 PASS, 1 FAIL, 2 usage, 3 INCOMPLETE, 128+n signal.
+A --dry-run exits 0 when its plan can run complete (verdict PLANNED) and 3
+when it cannot (verdict INCOMPLETE, for example an unreadable
+.github/cishards/test-commands.json); 3 is never a test failure.
 `
 
 // testCommandExit maps a shard or fan-in result to the process status:
@@ -118,6 +131,9 @@ type testOptions struct {
 	// summary is --summary: a dry run prints the bounded text summary
 	// instead of the JSON plan (STR-V0-800).
 	summary bool
+	// pins is --pins: a dry run prints the advisory pinned tests instead
+	// of the JSON plan (TSP-V0-944).
+	pins bool
 }
 
 // testInvocation recognises `[--root PATH] test ...`.
@@ -172,8 +188,9 @@ func parseTestOptions(args []string) (testOptions, error) {
 	once("go-parallel", &goParallel)
 	f.BoolVar(&options.dryRun, "dry-run", false, "")
 	f.BoolVar(&options.summary, "summary", false, "")
+	f.BoolVar(&options.pins, "pins", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -185,10 +202,12 @@ func parseTestOptions(args []string) (testOptions, error) {
 	switch {
 	case options.summary && !options.dryRun:
 		return options, argumentError("--summary applies only to --dry-run (STR-V0-800)")
+	case options.pins && (!options.dryRun || options.summary):
+		return options, argumentError("--pins applies only to --dry-run, without --summary (TSP-V0-944)")
 	case *requireClean:
 		return options, argumentError("test runs the bytes that execute, dirty paths included; --require-clean is not accepted")
-	case !validGitObjectID(options.base):
-		return options, argumentError("test needs --base FULL_COMMIT_ID")
+	case !validBaseArgument(options.base):
+		return options, argumentError("test needs --base FULL_COMMIT_ID (or an unambiguous prefix or a revision such as HEAD~1, TSP-V0-720)")
 	case options.placement != sessiontest.PlacementUniverse && options.placement != sessiontest.PlacementBalanced && options.placement != sessiontest.PlacementMeasured:
 		return options, argumentError("--placement must be universe, balanced or measured")
 	case (options.placement == sessiontest.PlacementMeasured) != (options.shardPlan != ""):
@@ -275,12 +294,22 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
+	if options.base, err = resolveBaseArgument(root, options.base); err != nil {
+		emitError(stderr, err)
+		return 2
+	}
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
-	if freshness := selfBinaryStale(ctx, root); freshness.Code != "" {
+	// HEAD is read once: the stale-binary check and the source identity below
+	// both use it, so the check spawns no rev-parse of its own. A failed read
+	// is the check's own failed read, unverified, and the source identity then
+	// reads HEAD again as before (AFP-V0-825).
+	started := time.Now()
+	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
+	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
 	}
 	receiptFlag := "--receipt"
@@ -305,12 +334,18 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	identify := func(ctx context.Context) (sessiontest.SourceIdentity, error) {
 		return testSourceIdentity(ctx, gitExecutable, root)
 	}
-	source, err := identify(ctx)
+	var source sessiontest.SourceIdentity
+	var observed *affectedObservation
+	if headErr != nil {
+		source, observed, err = testObserveSource(ctx, gitExecutable, root)
+	} else {
+		source, observed, err = testObserveSourceAt(ctx, gitExecutable, root, head)
+	}
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "test cannot capture the source identity: " + err.Error()})
 		return 2
 	}
-	input := testRunInput(ctx, root, options, source)
+	input, pins := testRunInput(ctx, root, options, source, observed)
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -327,6 +362,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	}
 	testVerdict(stderr, manifest)
 	if options.dryRun {
+		if options.pins {
+			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
+		}
 		return testDryRun(manifest, digest, input.Declared, root, options, stdout, stderr)
 	}
 	// STR-V0-073: an executing run names each whole-package go test's
@@ -421,10 +459,30 @@ func testWithin(path, directory string) bool {
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
+// testScanMemo is the gateselect scan memo kept beside the affected graph
+// entries in the resolved cache directory, or nil when there is none
+// (AFP-V0-822).
+func testScanMemo(invocation affectedInvocation, module string) *gateselect.ScanMemo {
+	if invocation.Cache == "" {
+		return nil
+	}
+	horizon := time.Now().Add(-affected.GraphCacheRacyWindow)
+	return &gateselect.ScanMemo{
+		Identity: affectedProgramIdentity(),
+		Load: func() []byte {
+			return affected.LoadScanMemo(invocation.Cache, invocation.Root, invocation.CacheExcluded, module)
+		},
+		Store: func(body []byte) {
+			_ = affected.StoreScanMemo(invocation.Cache, invocation.Root, invocation.CacheExcluded, module, body)
+		},
+		Stamp: func(info fs.FileInfo) (string, bool) { return affected.FileStamp(info, horizon) },
+	}
+}
+
 // testRunInput plans in process through `corvint affected --base` and the
 // AFP-V0-012 attribution, and reads the declared full scope and partition
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
-func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity) sessiontest.Input {
+func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity, observed *affectedObservation) (sessiontest.Input, testPinsResult) {
 	input := sessiontest.Input{
 		Base: options.base, Placement: options.placement, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
 		Partition: sessiontest.PartitionFiles{
@@ -433,10 +491,34 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
 	}
-	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
+	var pins testPinsResult
+	// The graph comes from the default affected graph cache when one can be
+	// placed, as `corvint affected` reads it, so an unchanged tree is not
+	// re-scanned; the cache returns the same graph bytes (AFP-V0-438,
+	// AFP-V0-822).
+	// The attribution index depends only on the root and module, so it is
+	// built while the graph compiles, and its per-file scans are memoized in
+	// the same cache directory (AFP-V0-822).
+	// The compile reuses the identity's HEAD and dirty set, and its closing
+	// recheck spans the identity read too (AFP-V0-824).
+	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed}
+	err := resolveAffectedBatchAndCache(&invocation)
+	var index *gateselect.Index
+	if module, moduleErr := golang.ReadModulePath(root); err == nil && moduleErr == nil {
+		index = gateselect.StartIndex(root, module, testScanMemo(invocation, module))
+	}
+	var receipt affectedReceipt
+	var graph *affected.Graph
+	if err == nil {
+		receipt, graph, err = compileAffectedGraph(ctx, invocation)
+	}
 	if err == nil {
 		input.GraphDigest = graph.Digest()
-		err = testFillPlan(ctx, &input, receipt, graph, root, options.base)
+		err = testFillPlan(ctx, &input, receipt, graph, root, options.base, index)
+	}
+	if err == nil && options.pins {
+		pins.tokens = testChangedTokens(ctx, root, options.base, receipt.Plan.Dirty)
+		pins.units = testPins(receipt.Plan, graph, root, pins.tokens)
 	}
 	if err != nil {
 		message := err.Error()
@@ -449,10 +531,16 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 	// The declaration is read independently of the plan, so a planning
 	// failure still finds every declared full command (STR-V0-003).
 	input.Declared = sessiontest.ReadDeclared(root)
-	return input
+	return input, pins
 }
 
-func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string) error {
+// testPinsResult carries the --pins report inputs (TSP-V0-944).
+type testPinsResult struct {
+	tokens testPinTokens
+	units  []testPinUnit
+}
+
+func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string, index *gateselect.Index) error {
 	compact, err := compactAffectedReceipt(receipt)
 	if err != nil {
 		return err
@@ -498,7 +586,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	case err != nil:
 		input.GoSelection = "FALLBACK the root module path cannot be read"
 	default:
-		lines := gateselect.SelectStructural(plan, module, root)
+		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
 		if len(lines) != 0 {
 			input.GoSelection = lines[len(lines)-1]
 		}
@@ -569,21 +657,37 @@ func testReadOptional(name string) []byte {
 // testSourceIdentity is the STR-V0-017 source identity: HEAD, its tree and
 // every dirty path's content digest.
 func testSourceIdentity(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, error) {
+	identity, _, err := testObserveSource(ctx, gitExecutable, root)
+	return identity, err
+}
+
+// testObserveSource is testSourceIdentity that also returns the HEAD and
+// dirty set it read, which the plan's compile then reuses (AFP-V0-824).
+func testObserveSource(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, *affectedObservation, error) {
 	head, err := affectedHeadRevision(ctx, gitExecutable, root)
 	if err != nil {
-		return sessiontest.SourceIdentity{}, err
+		return sessiontest.SourceIdentity{}, nil, err
 	}
+	return testObserveSourceAt(ctx, gitExecutable, root, head)
+}
+
+// testObserveSourceAt is testObserveSource for an already-resolved HEAD.
+func testObserveSourceAt(ctx context.Context, gitExecutable, root, head string) (sessiontest.SourceIdentity, *affectedObservation, error) {
 	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
 	defer cancel()
 	tree, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", head+"^{tree}").Output()
 	if err != nil {
-		return sessiontest.SourceIdentity{}, errors.New("HEAD tree cannot be read")
+		return sessiontest.SourceIdentity{}, nil, errors.New("HEAD tree cannot be read")
 	}
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return sessiontest.SourceIdentity{}, err
+		return sessiontest.SourceIdentity{}, nil, err
 	}
-	return sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+	identity, err := sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+	if err != nil {
+		return sessiontest.SourceIdentity{}, nil, err
+	}
+	return identity, &affectedObservation{revision: head, dirty: dirty}, nil
 }
 
 func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
@@ -618,6 +722,19 @@ func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
 	for _, check := range m.Checks {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: still required, not run: %s\n", check)
 	}
+	if len(m.Incomplete) != 0 {
+		// STR-V0-120 (V1-3530): one verdict the dry-run JSON verdict matches.
+		_, _ = fmt.Fprintf(stderr, "corvint-test: VERDICT INCOMPLETE: scope %s is planned but cannot run complete (%s); exit 3 is INCOMPLETE, not FAIL\n", m.Scope, m.Incomplete[0])
+	}
+}
+
+// testPlanVerdict is the dry-run verdict: INCOMPLETE when the plan cannot
+// run complete, else PLANNED (STR-V0-120).
+func testPlanVerdict(m sessiontest.Manifest) string {
+	if len(m.Incomplete) != 0 {
+		return "INCOMPLETE"
+	}
+	return "PLANNED"
 }
 
 // testDryRun prints the shard's run set and argv and executes nothing but
@@ -638,6 +755,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
 		"noSuite": m.NoSuite, "placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
+		"verdict": testPlanVerdict(m),
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)
@@ -649,9 +767,12 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 			return 2
 		}
 	}
-	if options.summary {
+	switch {
+	case options.pins:
+		// The pins report was written in place of the JSON plan (TSP-V0-944).
+	case options.summary:
 		_, _ = io.WriteString(stdout, testDryRunSummary(m, digest, invocations, options.shard))
-	} else {
+	default:
 		encoded, err := gokernel.CanonicalJSON(document)
 		if err != nil {
 			emitError(stderr, err)

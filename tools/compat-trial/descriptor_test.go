@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -157,7 +158,7 @@ func TestDigestMismatchForMutatedExecutable(t *testing.T) {
 	base := filepath.Dir(path)
 	task := p.Manifest.Tasks[0]
 	mutated := append(append([]byte{}, fixtureBinary...), 'x')
-	if err := os.WriteFile(filepath.Join(base, task.Old.Executable), mutated, 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(base, task.Old.Executable), mutated, 0700); err != nil {
 		t.Fatal(err)
 	}
 	pt := prepareTask(base, task, p.Profile, ownedRegistry(fixtureBinary))

@@ -1037,7 +1037,7 @@ func TestRenderTalliesAdapterDegradations(t *testing.T) {
 	}
 	want := "SELF-OBSERVATIONS events=0 zero-authoritative-rate=NOT_OBSERVED budget-omission-rate=NOT_OBSERVED latency-p50=0ms latency-p95=0ms\n" +
 		"ADAPTER-DEGRADATION windows=2 key=claude-code/user-prompt/prompt-over-query-bound latest=2026-09-12T12Z\n" +
-		"ADAPTER-DEGRADATION windows=1 key=codex/stop/corvint-event-rejected:dogfood-event-deadline latest=2026-09-12T09Z\n"
+		"ADAPTER-DEGRADATION windows=1 key=codex/stop/corvint-event-rejected:harness-event-deadline latest=2026-09-12T09Z\n"
 	if output.String() != want {
 		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
 	}
@@ -1100,7 +1100,7 @@ func TestDogfoodPlanRowLimitObservationsPersist(t *testing.T) {
 // SOL-V0-010 (V1-0880, decision 0533): the worktree-churn rejection keeps its code in the ledger.
 func TestAdapterDegradationAdmitsWorktreeChurn(t *testing.T) {
 	row := AdapterDegradationEvent("codex", "user-prompt", "corvint-event-rejected:dogfood-event-worktree-churn", "1.0.0", time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC))
-	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:dogfood-event-worktree-churn" {
+	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:harness-event-worktree-churn" {
 		t.Fatalf("adapter codes %v", row.AdapterCodes)
 	}
 }
@@ -1108,7 +1108,7 @@ func TestAdapterDegradationAdmitsWorktreeChurn(t *testing.T) {
 // SOL-V0-010 (V1-1976, LCP-V0-034): the prompt-bounds rejection keeps its code in the ledger.
 func TestAdapterDegradationAdmitsPromptBounds(t *testing.T) {
 	row := AdapterDegradationEvent("claude-code", "user-prompt", "corvint-event-rejected:dogfood-event-prompt-bounds", "1.0.0", time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC))
-	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:dogfood-event-prompt-bounds" {
+	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:harness-event-prompt-bounds" {
 		t.Fatalf("adapter codes %v", row.AdapterCodes)
 	}
 }
@@ -1300,5 +1300,50 @@ func TestSOLV0014LedgerDirectoryRefusesEveryOperationAfterSwap(t *testing.T) {
 	}
 	if _, err := OpenLedgerDirectory(root, false, refuse); !errors.Is(err, refuse) {
 		t.Fatalf("opening a symlinked .corvint: %v", err)
+	}
+}
+
+// SOL-V0-120 (V1-3729): a new row spells a `dogfood event` runtime rejection as harness-event-*,
+// and the reader tallies a retained dogfood-event-* row under the same key, so an adopter that
+// never runs dogfood sees no dogfood code and old and new rows still count together.
+func TestSOLV0120HarnessEventCodesAndLegacyRowsTallyTogether(t *testing.T) {
+	hour := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	row := AdapterDegradationEvent("codex", "stop", "corvint-event-rejected:dogfood-event-deadline", "1.0.0", hour)
+	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:harness-event-deadline" {
+		t.Fatalf("new row codes %v", row.AdapterCodes)
+	}
+	for _, code := range []string{"corvint-event-rejected:invalid-dogfood-event-input", "corvint-event-rejected:harness-event-deadline"} {
+		if got := AdapterDegradationEvent("codex", "stop", code, "1.0.0", hour).AdapterCodes[0]; got != code {
+			t.Errorf("code %s became %s", code, got)
+		}
+	}
+	if validAdapterCode("corvint-event-rejected:harness-event-not-a-code") {
+		t.Error("an unadmitted harness-event code is admitted")
+	}
+	root := t.TempDir()
+	writeIgnore(t, root)
+	legacy := Event{Kind: KindAdapterDegradation, Host: "codex", Event: "session-start", AdapterCodes: []string{"corvint-event-rejected:dogfood-event-index-snapshot-stale"}, Window: hour.Format(adapterWindowLayout), CorvintVersion: "1.0.0"}
+	for _, event := range []Event{
+		legacy,
+		AdapterDegradationEvent("codex", "session-start", "corvint-event-rejected:dogfood-event-index-snapshot-stale", "1.0.0", hour.Add(2*time.Hour)),
+	} {
+		if err := Append(root, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var output bytes.Buffer
+	if err := Render(root, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"ADAPTER-DEGRADATION windows=2 key=codex/session-start/corvint-event-rejected:harness-event-index-snapshot-stale latest=2026-11-01T11Z\n",
+		"\nSETUP key=index-snapshot-stale rows=2 latest=2026-11-01T11Z fix: corvint index --if-stale\n",
+	} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("digest lacks %q:\n%s", want, output.String())
+		}
+	}
+	if strings.Contains(output.String(), "dogfood-event-") {
+		t.Errorf("digest still names a dogfood-event code:\n%s", output.String())
 	}
 }

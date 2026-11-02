@@ -106,7 +106,8 @@ each requirement records its own mode in the leading parenthetical of its defini
 Accepted forms. A definition line is `` - `ID`: (note) text ``, `- **ID:** (note) text`,
 `- **ID.** (note) text` or `ID. (note) text`; a note between the id and its colon, as in
 `` - `ID` (V1-NNNN): text ``, is not a definition, and `make requirement-definitions-check` names
-such a line when the id has no other definition (`RDG-V0-022`). The acceptance note is the first
+such a line when the id has no other definition (`RDG-V0-022`), as every `make spec-requirements`
+mode does inside `## Requirements` (`SRG-V0-760`). The acceptance note is the first
 parenthetical after the id, in one of these forms:
 
 - `owner`: `(accepted, decision NNNN; V1-NNNN)` or `(accepted YYYY-MM-DD; V1-NNNN)`;
@@ -129,7 +130,10 @@ of its own.
 
 Every substantive capability spec contains:
 
-1. owner, date, intent status, delivery status, and authoritative inputs;
+1. owner, date, intent status, delivery status, and authoritative inputs, and an `## Agent digest`
+   whose `- Claim:` is one sentence of at most 160 characters ending in `.`, `?` or `!`, which
+   README.md and INDEX.json project; a longer Claim is refused naming its line (`SRG-V0-040`,
+   `SRG-V0-763`), so detail belongs in the spec body;
 2. affected user and measurable job;
 3. verified current state with repository paths or pinned evidence;
 4. numbered requirements using a stable capability prefix, under one heading that is exactly

@@ -557,6 +557,25 @@ V1-2657.
   under the Git operation bound one revision needs, which six one-revision batches exceed),
   `TestDCRV1410VerifiedReadRefusals` and every other pin-verification refusal test unchanged.
   Rollback: call `CommitTree` per revision again.
+- `DCR-V1-985`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2745)
+  Inside an object session, a `LookupTreeEntry` at a full object ID MUST be answered by the
+  session's one `git cat-file --batch` co-process instead of a new one-shot batch per call: it reads
+  the peeled commit, then the commit's root tree, then each directory tree by the object ID its
+  verified parent names, and answers only when every record is present, self-hashes to its name,
+  and the one-shot batch's trailing records (with an absent directory's remaining `missing`
+  records) stay within `MaxTreeBytes`. Any other answer replays the original one-shot batch under
+  the same operation reservation, so the lookup charges exactly one Git operation either way and
+  every result, refusal, code and remaining budget is the one-shot lookup's. Motivation: each
+  lookup paid one process spawn (about 2.2 ms on WSL2), so the per-path reference reads in the
+  `DCP-V1-216` tests paid one spawn per path. Non-goal: caching tree bodies across lookups (a
+  replaced loose object must be read again) or changing lookups at a ref or abbreviated name,
+  which keep the one-shot batch. Failure mode: a co-process that cannot answer, refuses a record
+  or is stopped falls back to the one-shot batch, which costs one spawn as before. Rollback: drop
+  the `sessionTreeEntry` branch in `lookupTreeEntry`. Acceptance:
+  `TestDCRV1985SessionLookupsShareOneCatFile` (120 lookups over present, absent, nested and
+  non-tree paths at two revisions: one `cat-file` spawn in a session, one per lookup without, with
+  equal answers and remaining operations) and `TestObjectSessionMatchesOneShotReads` (a forged
+  directory tree read through the session fails as the one-shot lookup does).
 
 ## Non-goals
 
@@ -611,6 +630,7 @@ DCPV1.
 | DCR-V1-554..558 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go`, `claim_audit.go`, `read.go` | `TestDCRV1554UndecodableHeaderMemberRefuses`, `TestDCRV1431StreamedDecodeMatchesInMemory`, `TestDCRV1414ParallelDecodeMatchesClosedDecode`, `TestDCRV1419FastIndexMatchesReference`, `TestDCRV1419FastIndexDeclinesEveryRefusal`, `TestDCRV1557ClaimAuditGapsMatchReference`, `TestDCRV1410VerifiedReadRefusals`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-corpus-warm-read.md |
 | DCR-V1-559 | `internal/doccorpus/artifact_scan.go`, `artifact_decode.go` | `TestDCRV1559BlockScanMatchesScan`, `TestDCRV1552ParallelScanMatchesSequential`; measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-corpus-block-prescan.md` |
 | DCR-V1-975 | `internal/doccorpus/read.go`, `internal/cem/gitauth/tree.go` | `TestDCRV1975PinnedRevisionsOneBatchPerCheckout`, `TestDCRV1410VerifiedReadRefusals` |
+| DCR-V1-985 | `sessionTreeEntry` and `servedTreeEntry` in `internal/cem/gitauth/object_session_lookup.go`; `runCommitBatch` in `commitstream.go`; `RunReservedStream` and `RunReservationStream` in `internal/cem/gitrun/gitrun.go` | `TestDCRV1985SessionLookupsShareOneCatFile`, `TestObjectSessionMatchesOneShotReads` |
 | DCR-V1-460..462 | `internal/doccorpus/delta_open.go`, `delta.go`, `read.go`, `artifact_decode.go`, `compile.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus_help.go` | `TestDCRV1460DeltaVerifiedReadMatchesRederived`, `TestDCRV1460DeltaVerifiedReadRefusesClosed`, `TestDCRV1460DeltaVerifiedReadUnavailableCheckout`, `TestDCRV1460DeltaCLIVerifiedRead`, `TestDCRV1461PreviousOverDefaultBound`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCR-V1-463 | `internal/perfbudget/budgets.json`, `harness.go` | `TestPRBV0050UnchangedDeltaBudget`, `TestDCRV1460DeltaCLIVerifiedRead`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-corpus-delta-verified-read.md |
 | DCR-V1-464 | `internal/doccorpus/delta_open.go` | `TestDCRV1464DeltaVerifiedReadChecksInputBindings` |
