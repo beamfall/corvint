@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func bashRequest(t *testing.T, output string, isError bool, tool string) []byte {
@@ -431,9 +433,7 @@ func TestLMGV0009OversizeRefused(t *testing.T) {
 		t.Fatalf("code %d, upstream called %v", recorder.Code, called)
 	}
 
-	closed := httptest.NewServer(http.NotFoundHandler())
-	closed.Close()
-	down, _ := url.Parse(closed.URL)
+	down, _ := url.Parse("http://" + testsupport.RefusedLoopbackAddr(t))
 	var buf bytes.Buffer
 	broken := NewProxy(down, nil, &buf)
 	var log bytes.Buffer

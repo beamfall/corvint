@@ -179,6 +179,13 @@ type PostEntry struct {
 	Sha256     *wire.Digest
 	Record     *wire.Value
 	BlobSha256 *wire.Digest
+	// Raw is the canonical file encoding of Record, set when a receipt was
+	// decoded from bytes (decodeReceiptValue), so the receipt's bound and
+	// digest checks and the journal walk share one encoding instead of
+	// each re-encoding the record (LGL-V0-805). Record is then a member of
+	// a value wire.Parse returned, so wire.Parse(Raw) would return Record
+	// itself (LGL-V0-806). Nil for an entry built in memory.
+	Raw []byte
 }
 
 // PreEntry is one receipt pre entry.
@@ -223,7 +230,10 @@ func DecodeReceipt(data []byte) (*Receipt, error) {
 	return decodeReceiptValue(v, ProfileReceipt, "")
 }
 
-// decodeReceiptValue decodes one parsed receipt of profile. elided names the
+// decodeReceiptValue decodes one parsed receipt of profile. v must be a value
+// wire.Parse returned, or a shallow copy whose members are, so every inline
+// record is a member of a canonical parse and PostEntry.Raw its encoding
+// (LGL-V0-806). elided names the
 // one attempt post whose record a taskman-receipt/1 omits (CAL-V0-303); it
 // is empty for a taskman-receipt/0, where every non-null post carries its
 // record or blob.
@@ -285,11 +295,12 @@ func decodeReceiptValue(v wire.Value, profile, elided string) (*Receipt, error) 
 			if rv.Kind != wire.KindObject {
 				rec.Fail(wire.CodeMalformed, "record must be an object or null")
 			}
-			if len(wire.EncodeFile(rv)) > wire.MaxInlinePostEntryBytes {
+			raw := wire.EncodeFile(rv)
+			if len(raw) > wire.MaxInlinePostEntryBytes {
 				rec.Fail(wire.CodeLimitExceeded, "inline post entry larger than %d bytes", wire.MaxInlinePostEntryBytes)
 			}
 			inline++
-			pe.Record = &rv
+			pe.Record, pe.Raw = &rv, raw
 		}
 		pe.BlobSha256 = p.Field("blobSha256").DigestOrNull()
 		omitted := elided != "" && pe.Path == elided && pe.Sha256 != nil && pe.Record == nil && pe.BlobSha256 == nil

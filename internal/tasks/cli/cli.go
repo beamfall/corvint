@@ -75,6 +75,17 @@ type Env struct {
 	// ScopeDeriver derives a claim scope for a ticket that declares none
 	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
 	ScopeDeriver store.ScopeDeriver
+	// Role is the session principal class (TAW-V0-001): AGENT, OPERATOR or
+	// OWNER; empty reads CORVINT_TASKS_ROLE, and unset keeps today's behavior.
+	Role string
+	// Actor, when non-empty, is the local operator identity of this run in
+	// place of CORVINT_TASKS_ACTOR and ATM_ACTOR (TCL-V0-825). cmd/corvint-tasks
+	// leaves it empty, so the binary resolves the process environment as
+	// before; in-process callers such as parallel tests set it.
+	Actor string
+	// qualifiedVersions, when non-nil, replaces the shipped TOL-V0-009
+	// qualified Playwright versions; only tests set it (TCL-V0-826).
+	qualifiedVersions []string
 }
 
 // ReadVerbs are the verb paths this binary implements. The reads are pure
@@ -85,8 +96,8 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
-	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket orphan-lanes", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
+	"queue status", "queue snapshot", "queue parity", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -105,6 +116,7 @@ var ReadVerbs = []string{
 	"worktree ensure",
 	"source contains",
 	"defects add", "defects update", "defects list",
+	"work start", "work deliver", "work block", "work finding", "work close-merged", "work release-sync",
 	"run-batch",
 	"qualify",
 	"gate record", "gate resubmit", "gate history", "gate packet", "gate state",
@@ -160,6 +172,9 @@ func Run(env Env) int {
 	if result := readOnlyRefusal(args); result != nil {
 		return emit(env.Stdout, result)
 	}
+	if result := classRefusal(env, args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
 	}
@@ -209,6 +224,9 @@ func Run(env Env) int {
 	case "defects":
 		// TDR-V0-010: the defect register.
 		return emit(env.Stdout, defectsCommand(env, args[1:]))
+	case "work":
+		// TAW-V0-003..014: the role-scoped agent workflow verbs.
+		return emit(env.Stdout, workCommand(env, args[1:]))
 	case "run-batch":
 		return emit(env.Stdout, runBatch(env, []string{"run-batch"}, args[1:]))
 	case "qualify":
@@ -227,7 +245,7 @@ func Run(env Env) int {
 			wide.showItems = true
 			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketSearch(wide, a) }}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
-			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
+			return ticketShowCommand(env, args[2:])
 		case "blockers":
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "closeout-debt":
@@ -238,6 +256,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
 		case "effects-proposals":
 			return emit(env.Stdout, effectsProposalsCommand(env, args[2:]))
+		case "orphan-lanes":
+			return emit(env.Stdout, orphanLanesCommand(env, args[2:]))
 		case "batch-close":
 			return emit(env.Stdout, batchCloseCommand(env, args[2:]))
 		case "export":
@@ -292,6 +312,9 @@ func Run(env Env) int {
 		// --line is the documented plain-text exception (TQD-V0-012).
 		if len(args) == 2 && args[1] == "--line" {
 			return doctorLine(env)
+		}
+		if len(args) == 2 && args[1] == "--rebuild-closed-index" {
+			return emit(env.Stdout, doctorRebuildClosedIndex(env))
 		}
 		return emit(env.Stdout, doctorCommand(env, args[1:]))
 	case "pool":
@@ -351,10 +374,13 @@ func Run(env Env) int {
 		if len(args) >= 2 && args[1] == "snapshot" {
 			return queueSnapshot(env, args[2:])
 		}
+		if len(args) >= 2 && args[1] == "parity" {
+			return emit(env.Stdout, queueParity(env, args[2:]))
+		}
 		if len(args) >= 2 && args[1] == "status" {
 			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
-		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status or snapshot"))
+		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status, snapshot or parity"))
 	case "roadmap":
 		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: listValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
@@ -495,6 +521,7 @@ func globalRoot(env *Env) *wire.Result {
 
 func emit(w io.Writer, res *wire.Result) int {
 	binaryVersionWarning(res)
+	retentionWarning(res)
 	data, err := res.Encode()
 	if err != nil {
 		fallback := errorResult(res.Command, err)
@@ -521,6 +548,16 @@ func binaryVersionWarning(res *wire.Result) {
 			res.Warnings = append(res.Warnings, "this binary is corvint-tasks "+Version+"+build."+Build+"; compare it with the build that wrote the store")
 			return
 		}
+	}
+}
+
+// retentionWarning names the derived checkpoint files a writer in this
+// command failed to retain (LGL-V0-803, V1-1058). The outcome is unchanged
+// (CAL-V0-060), committed or refused; the warning is what keeps a retention that fails
+// on every write from showing only as slow complete reads.
+func retentionWarning(res *wire.Result) {
+	for _, name := range store.TakeRetentionFailures() {
+		res.Warnings = append(res.Warnings, "CHECKPOINT_RETENTION_FAILED: derived file "+name+" was not retained; this result is the one the command would have given with it retained, and the next read or write that needs it pays one complete journal audit (CAL-V0-060)")
 	}
 }
 
@@ -677,6 +714,9 @@ type readCtx struct {
 	// proof is the one journal audit a read command shares (CAL-V0-061). It
 	// is bound to snap and dropped whenever the snapshot is re-read.
 	proof *journal.Result
+	// checkpoint is why the shared audit had no retained checkpoint to
+	// resume from, or "" when it had one (LGL-V0-803).
+	checkpoint string
 	// tree is the intent tree the snapshot's first probe hashed, set only
 	// while body runs: the second probe hashes the tree again after body, so
 	// a journal audit inside body shares both hashes instead of reading the
@@ -826,16 +866,32 @@ func projectionStale(rc *readCtx) string {
 // flags parses `--name value` / `--name=value` pairs; positional arguments
 // are returned in order. Unknown flags are reported.
 func flags(args []string, known ...string) (map[string]string, []string, error) {
-	out := map[string]string{}
-	var pos []string
-	isKnown := func(n string) bool {
-		for _, k := range known {
-			if k == n {
-				return true
-			}
-		}
-		return false
+	out, _, pos, err := flagsBool(args, nil, known...)
+	return out, pos, err
+}
+
+// flagsWithBooleans is flags with declared boolean flags (TCL-V0-801): a
+// boolean flag takes no value, a present one maps to "true", and
+// `--name=VALUE` on one is refused MALFORMED naming the flag. It is flagsBool
+// with each present boolean folded into the value map.
+func flagsWithBooleans(args []string, booleans []string, known ...string) (map[string]string, []string, error) {
+	out, set, pos, err := flagsBool(args, booleans, known...)
+	if err != nil {
+		return nil, nil, err
 	}
+	for name := range set {
+		out[name] = "true"
+	}
+	return out, pos, nil
+}
+
+// flagsBool is flags with declared boolean flags (TCL-V0-737, V1-3606): a
+// name in bools is a bare `--name` that takes no value, reported in the
+// second map; `--name=value` on it is refused. Value flags parse as flags.
+func flagsBool(args []string, bools []string, known ...string) (map[string]string, map[string]bool, []string, error) {
+	out := map[string]string{}
+	set := map[string]bool{}
+	var pos []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if !strings.HasPrefix(a, "--") {
@@ -843,19 +899,26 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 			continue
 		}
 		name, val, hasVal := strings.Cut(a[2:], "=")
-		if !isKnown(name) {
-			return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
+		if slices.Contains(bools, name) {
+			if hasVal {
+				return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s takes no value", name)
+			}
+			set[name] = true
+			continue
+		}
+		if !slices.Contains(known, name) {
+			return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
 		}
 		if !hasVal {
 			if i+1 >= len(args) {
-				return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s needs a value", name)
+				return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s needs a value", name)
 			}
 			i++
 			val = args[i]
 		}
 		out[name] = val
 	}
-	return out, pos, nil
+	return out, set, pos, nil
 }
 
 // pageValueFlags and searchValueFlags are the value-taking flags of the paged
@@ -863,7 +926,7 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
-	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle", "--supersedes"}
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
@@ -1216,6 +1279,9 @@ type searchFilter struct {
 	text      *string // lower-cased substring of title or body
 	phase     *string // effective progress phase or NONE (TLF-V0-882)
 	lifecycle *string // derived delivery lifecycle (TLC-V0-009)
+	// supersedes is the ticket argument whose typed supersedes link a
+	// match must carry (TCL-V0-739); it is resolved against the store.
+	supersedes *string
 }
 
 func enumFlag(fl map[string]string, name string, allowed []string) (*string, error) {
@@ -1308,12 +1374,18 @@ func parseSearchFilter(fl map[string]string, all bool) (searchFilter, error) {
 	if f.lifecycle, err = enumFlag(fl, "lifecycle", lifecycleStates); err != nil {
 		return f, err
 	}
-	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil || f.lifecycle != nil
+	if v, ok := fl["supersedes"]; ok {
+		if v == "" {
+			return f, wire.Errorf(wire.CodeMalformed, "--supersedes", "--supersedes names a ticket")
+		}
+		f.supersedes = &v
+	}
+	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil || f.lifecycle != nil || f.supersedes != nil
 	if all && filtered {
 		return f, wire.Errorf(wire.CodeMalformed, "--all", "--all lists every ticket and takes no filter flag")
 	}
 	if !all && !filtered {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle, --supersedes); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
 	}
 	return f, nil
 }
@@ -1403,7 +1475,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle")
+	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle", "supersedes")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
@@ -1422,12 +1494,21 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
 		inv := rc.store.Inventory
+		supersedes := ""
+		if f.supersedes != nil {
+			id, err := resolveTicketArg(rc, *f.supersedes)
+			if err != nil {
+				return err
+			}
+			supersedes = id
+		}
 		for _, id := range inv.Sorted() {
 			if s, _ := inv.Summary(id); !f.matchesSummary(s) || !f.matchesPhase(inv, id, s) {
 				continue
 			}
-			if f.text != nil {
-				if rec, _ := inv.Get(id); !f.matchesText(rec) {
+			if f.text != nil || supersedes != "" {
+				rec, _ := inv.Get(id)
+				if !f.matchesText(rec) || (supersedes != "" && (rec.Supersedes == nil || rec.Supersedes.Raw != supersedes)) {
 					continue
 				}
 			}
@@ -1997,7 +2078,7 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 	if rc.journalAbsent {
 		val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
 	} else {
-		val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
+		val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, rc.store.Policy, attempts, id))
 	}
 	// V1-2038: the gate set complete enforces, policy-required gates included.
 	val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
@@ -2177,6 +2258,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 			o.Set("retries", wire.Array(retries...))
 		}
 		o.Set("journalAudit", wire.String(auditMode(rc)))
+		o.Set("journalAuditCheckpoint", wire.String(auditCheckpoint(rc)))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil

@@ -83,7 +83,7 @@ An adapter must map native identifiers and definition lines into that complete g
 
 ## The three constraints any integration must respect
 
-1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:421-424@2d724bbb`). A flow
+1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:432-435@2d724bbb`). A flow
    where the agent writes the spec and the code together needs a two-commit shape or an explicit
    bootstrap-unknown. This is a hard ordering constraint, not a preference.
 2. **Intent identity is a byte span, and specs get edited.** `ocmIntent` pins

@@ -72,3 +72,44 @@ func TestCEMV1647MutatorsReadAnOutOfTreeMapIntoARelativeOutput(t *testing.T) {
 		t.Fatalf("the out-of-tree map changed: %v", err)
 	}
 }
+
+// TestCEMV1647AbsoluteOutputRefusalNamesTheRelativeForm pins CEM-V1-900: an
+// absolute or scratch --output is refused invalid-arguments with text that
+// names the repository-relative form and why (CEM-V1-647).
+func TestCEMV1647AbsoluteOutputRefusalNamesTheRelativeForm(t *testing.T) {
+	t.Parallel()
+	root, base, target := makeCalcRepo(t)
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	scratch := filepath.Join(t.TempDir(), "out.cem.json")
+	_, err := openSession(t, root).Mark(ctx(), MarkOptions{MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "unknown", Reason: "insufficient-evidence", Output: scratch})
+	if err == nil {
+		t.Fatal("an absolute --output was accepted")
+	}
+	assertOutputRefusal(t, "mark", err)
+	if _, statErr := os.Stat(scratch); statErr == nil {
+		t.Error("the scratch output was written")
+	}
+	beginScratch := filepath.Join(t.TempDir(), "begin.cem.json")
+	_, err = openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "change.patch", Base: base, Output: beginScratch})
+	if err == nil {
+		t.Fatal("an absolute begin --output was accepted")
+	}
+	assertOutputRefusal(t, "begin", err)
+	if _, statErr := os.Stat(beginScratch); statErr == nil {
+		t.Error("the begin scratch output was written")
+	}
+}
+
+func assertOutputRefusal(t *testing.T, command string, err error) {
+	t.Helper()
+	if cemcode.CodeOf(err) != cemcode.InvalidArguments {
+		t.Errorf("%s: error = %v, want invalid-arguments", command, err)
+	}
+	for _, want := range []string{"--output must be a repository-relative path", "for example", "repository's lock", "scratch"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: refusal %q lacks %q", command, err, want)
+		}
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/liveverify/rbmutate/minirspec"
 	"github.com/Beamfall/corvint/internal/testplatform"
@@ -567,7 +568,7 @@ func TestTCQV0094RunnerProbeNamesTheCause(t *testing.T) {
 		}
 	}
 	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "bundle"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "bundle"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin)

@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // Actual GNU tar1.35 output from the pinned image's tmpfs probe. Raw SHA256
@@ -86,7 +88,7 @@ func TestContainerExportTransport(t *testing.T) {
 		archive := filepath.Join(dir, "archive")
 		os.WriteFile(archive, exportArchive(t), 0600)
 		script := "#!/bin/sh\nif [ \"$3\" != exec ]; then echo tmpfs-cp-unavailable >&2; exit 1; fi\ncat '" + archive + "'\n"
-		if err := os.WriteFile(filepath.Join(dir, "docker"), []byte(script), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(dir, "docker"), []byte(script), 0700); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
@@ -98,7 +100,7 @@ func TestContainerExportTransport(t *testing.T) {
 		if err != nil || len(b) != 19 {
 			t.Fatal("evidence not retained")
 		}
-		os.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\necho diagnostic-witness >&2\nexit 1\n"), 0700)
+		execfile.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\necho diagnostic-witness >&2\nexit 1\n"), 0700)
 		err = copyContainerFile(context.Background(), "fixture", "owned", "/work/corvint-export-probe.txt", filepath.Join(dir, "failed"), 19)
 		if err == nil || !strings.Contains(err.Error(), "diagnostic-witness") {
 			t.Fatalf("lost export stderr: %v", err)
@@ -106,7 +108,7 @@ func TestContainerExportTransport(t *testing.T) {
 		if _, e := os.Stat(filepath.Join(dir, "failed")); !os.IsNotExist(e) {
 			t.Fatal("partial evidence survived")
 		}
-		os.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\nhead -c 2097152 /dev/zero >&2\n"), 0700)
+		execfile.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\nhead -c 2097152 /dev/zero >&2\n"), 0700)
 		if err := copyContainerFile(context.Background(), "fixture", "owned", "/work/corvint-export-probe.txt", filepath.Join(dir, "overflow"), 19); err == nil || len(err.Error()) > (1<<20)+1024 {
 			t.Fatal("export stderr not bounded")
 		}
@@ -201,7 +203,7 @@ func TestContainerExportInterruption(t *testing.T) {
 		dir := t.TempDir()
 		pidfile := filepath.Join(dir, "pid")
 		script := "#!/bin/sh\nsleep 60 &\necho $! > '" + pidfile + "'\nwait\n"
-		os.WriteFile(filepath.Join(dir, "docker"), []byte(script), 0700)
+		execfile.WriteFile(filepath.Join(dir, "docker"), []byte(script), 0700)
 		t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

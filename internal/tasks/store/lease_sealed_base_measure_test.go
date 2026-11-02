@@ -24,7 +24,10 @@ import (
 // the sealed history is built in (a real disk, not tmpfs: V1-2563), kept
 // for later runs; CORVINT_TASKS_LGL_RELEASE_RECEIPTS is its size (default
 // 47000) and CORVINT_TASKS_LGL_RELEASE_ITERATIONS the acquire and release
-// pairs (default 20). Each run restores the history, takes the store to a
+// pairs (default 20). CORVINT_TASKS_LGL_RELEASE_INTERLEAVE=complete runs
+// one untimed complete-route write between each acquire and its release
+// (V1-2621 AC3), so the release measures the sealed base LGL-V0-891 keeps.
+// Each run restores the history, takes the store to a
 // writer checkpoint whose FullSeq is the sealed sequence, as writer-route
 // traffic leaves it, then times each Lease call with the in-process audit
 // cache cleared, as a fresh CLI process would.
@@ -44,6 +47,10 @@ func TestLGLV0011_PoolReleaseLatency(t *testing.T) {
 	iterations, err := strconv.Atoi(envOr("CORVINT_TASKS_LGL_RELEASE_ITERATIONS", "20"))
 	if err != nil || iterations < 1 || iterations > 200 {
 		t.Fatal("CORVINT_TASKS_LGL_RELEASE_ITERATIONS")
+	}
+	interleave := os.Getenv("CORVINT_TASKS_LGL_RELEASE_INTERLEAVE")
+	if interleave != "" && interleave != "complete" {
+		t.Fatal("CORVINT_TASKS_LGL_RELEASE_INTERLEAVE is empty or complete")
 	}
 	dir := filepath.Join(base, strconv.Itoa(receipts))
 	pristine, live, ready := filepath.Join(dir, "pristine"), filepath.Join(dir, "live"), filepath.Join(dir, "ready")
@@ -127,6 +134,15 @@ func TestLGLV0011_PoolReleaseLatency(t *testing.T) {
 		f.claim = claim.rep
 		acquired := timed("pool-acquire", f.acquire(fmt.Sprintf("lgl-acquire-%d", i)))
 		allocation := acquired.PoolAllocation
+		if interleave == "complete" {
+			mutateWriterOff.Store(repo.StateDir, struct{}{})
+			complete := writerMutate(t, repo, fmt.Sprintf("lgl-complete-%d", i), nil)
+			mutateWriterOff.Delete(repo.StateDir)
+			if !complete.completed() || complete.fast() {
+				t.Fatalf("complete-route write %d: %+v %v %v", i, complete.rep, complete.err, complete.stages)
+			}
+			f.now = WallClock()
+		}
 		timed("pool-release", f.release(fmt.Sprintf("lgl-release-%d", i), string(allocation.AllocationID)))
 		// A released member stays quarantined until it is confirmed safe;
 		// the confirmation takes the writer route, untimed.
@@ -142,7 +158,7 @@ func TestLGLV0011_PoolReleaseLatency(t *testing.T) {
 		}
 	}
 	loadAfter := hostLoad()
-	report := map[string]any{"ticket": "V1-1702", "requirement": "LGL-V0-011", "receipts": receipts, "iterations": iterations, "host": b3Host(), "tmp": live,
+	report := map[string]any{"ticket": "V1-1702", "requirement": "LGL-V0-011", "receipts": receipts, "iterations": iterations, "interleave": interleave, "host": b3Host(), "tmp": live,
 		"loadBefore": loadBefore, "loadAfter": loadAfter, "qualification": b3Qualification([]float64{b3ParseLoad1(loadBefore), b3ParseLoad1(loadAfter)}, runtime.NumCPU()),
 		"statistic": "nearest-rank percentiles of wall time per Lease call, in-process audit cache cleared before every call"}
 	stats := map[string]b3Stats{}

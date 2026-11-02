@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TCP-V0-021: cancelling an index subprocess kills its process group before
@@ -20,7 +22,7 @@ func TestSnapshotIndexCancellationLeavesNoDescendant(t *testing.T) {
 	pidFile := filepath.Join(root, "child.pid")
 	script := filepath.Join(root, "corvint")
 	body := "#!/bin/sh\nchild=''\ntrap '[ -z \"$child\" ] || kill \"$child\" 2>/dev/null || true' EXIT INT TERM\nsleep 30 &\nchild=$!\necho \"$child\" > \"$2/child.pid\"\nwait \"$child\"\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

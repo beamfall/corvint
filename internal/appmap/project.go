@@ -86,7 +86,13 @@ func ParseMap(raw []byte) (*Map, error) {
 	var m Map
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
-	if d.Decode(&m) != nil || d.Decode(new(any)) != io.EOF {
+	if err := d.Decode(&m); err != nil {
+		if msg := newerMapMember(raw, err); msg != "" {
+			return nil, bad(msg)
+		}
+		return nil, bad("--map is not application-map/0 JSON")
+	}
+	if d.Decode(new(any)) != io.EOF {
 		return nil, bad("--map is not application-map/0 JSON")
 	}
 	if m.Schema != MapSchema {
@@ -101,6 +107,29 @@ func ParseMap(raw []byte) (*Map, error) {
 		return nil, bad("--map digest does not match its content")
 	}
 	return &m, nil
+}
+
+// newerMapMember names the member an application-map/0 map carries that this binary does not
+// decode (AMAP-V0-960). The digest covers every member, so such a map is refused, not read without
+// the member; the message says which member and which builder wrote it. It returns "" when err is
+// not an unknown-member error or raw is not an application-map/0 object.
+func newerMapMember(raw []byte, err error) string {
+	member, ok := strings.CutPrefix(err.Error(), "json: unknown field ")
+	if !ok {
+		return ""
+	}
+	var head struct {
+		Schema  string `json:"schema"`
+		Builder string `json:"builder"`
+	}
+	if json.Unmarshal(raw, &head) != nil || head.Schema != MapSchema {
+		return ""
+	}
+	builder := head.Builder
+	if builder == "" {
+		builder = "an unrecorded builder"
+	}
+	return fmt.Sprintf("--map carries member %s, which this binary (%s) does not read; the map was written by %s and its digest covers every member, so it is refused rather than read without it: upgrade Corvint or rebuild the map with this binary", member, BuilderVersion, builder)
 }
 
 // freshness compares returned anchors with the evaluated revision (AMAP-V0-010).

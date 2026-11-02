@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 )
 
 // launchedGroup is one worker process group a test started: launch makes
@@ -331,5 +335,102 @@ func TestCALV0353_UnmatchedLeaderIsReportedNotSignalled(t *testing.T) {
 	}
 	if _, _, unverified := reapLaunched(from); len(unverified) != 0 {
 		t.Fatalf("unverified %v after the child exited", unverified)
+	}
+}
+
+// strayProcesses lists every process other than this one whose argv names
+// root or, where /proc shows it, whose working directory lies under root. A
+// defunct process shows neither, so only a running one is listed.
+func strayProcesses(root string) (map[int]string, error) {
+	out, err := exec.Command("/bin/ps", "-eo", "pid=,args=").Output()
+	if err != nil {
+		return nil, err
+	}
+	strays, self := map[int]string{}, os.Getpid()
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		pid, err := strconv.Atoi(fields[0])
+		if err != nil || pid == self {
+			continue
+		}
+		args := strings.Join(fields[1:], " ")
+		if strings.Contains(args, root) {
+			strays[pid] = args
+		} else if cwd, err := os.Readlink("/proc/" + fields[0] + "/cwd"); err == nil && (cwd == root || strings.HasPrefix(cwd, root+"/")) {
+			strays[pid] = args + " (cwd " + cwd + ")"
+		}
+	}
+	return strays, nil
+}
+
+// failOnStrays registers a cleanup that runs after the reap testConfig
+// registers next (cleanups run last in, first out) and before root is
+// removed. Any process still running from root by argv or working directory
+// is one the recorded-group reap missed, whatever path started it: it is
+// killed and fails the test (V1-2815, extending V1-0948). A process the reap
+// has just signalled gets the same bounded wait as drained.
+func failOnStrays(t *testing.T, root string) {
+	t.Helper()
+	t.Cleanup(func() {
+		var strays map[int]string
+		for i := 0; i < 250; i++ {
+			found, err := strayProcesses(root)
+			if err != nil {
+				t.Errorf("V1-2815: list processes running from %s: %v", root, err)
+				return
+			}
+			if strays = found; len(strays) == 0 {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		for pid := range strays {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+		t.Errorf("V1-2815: processes still run from the test directory %s after the reap: %v (killed)", root, strays)
+	})
+}
+
+// V1-2815: the stray check finds a process the recorded-group reap does not
+// know, started outside launch from a test directory, by its argv and, on
+// Linux, by the working directory of a child whose argv names nothing.
+func TestStrayCheckFindsAnUnrecordedProcessRunningFromTheTestDirectory(t *testing.T) {
+	root := t.TempDir()
+	script := filepath.Join(root, "stray.sh")
+	if err := fixture.WriteExecutable(script, []byte("#!/bin/sh\nwhile :; do /bin/sleep 1; done\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("/bin/sh", script)
+	cmd.Dir = root
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	pid := cmd.Process.Pid
+	exited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { _ = syscall.Kill(-pid, syscall.SIGKILL); <-exited })
+	var strays map[int]string
+	for i := 0; i < 250; i++ {
+		var err error
+		if strays, err = strayProcesses(root); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := strays[pid]; ok && (runtime.GOOS != "linux" || len(strays) >= 2) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, ok := strays[pid]; !ok {
+		t.Fatalf("stray check missed the shell %d running %s: %v", pid, script, strays)
+	}
+	if runtime.GOOS == "linux" && len(strays) < 2 {
+		t.Fatalf("stray check missed the child sleeping in %s: %v", root, strays)
+	}
+	if found, _ := strayProcesses(t.TempDir()); len(found) != 0 {
+		t.Fatalf("an unused directory has strays: %v", found)
 	}
 }

@@ -20,8 +20,7 @@ import (
 // event. The surviving reference is the winner's at generation 1, revision
 // 1; history holds one event; the receipt audit replays it.
 func TestERGV0005_TwoWritersOneWinner(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	runOK := func(args ...string) run {
 		t.Helper()

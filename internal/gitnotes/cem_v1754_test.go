@@ -56,6 +56,7 @@ func portableLedger(t *testing.T, binary, root, rev string) (map[string]any, int
 // native listing's state and records for every ledger state, and the native
 // refusal code for a commit that does not resolve, and writes nothing.
 func TestCEMV1754PortableVerdictLedgerMatchesNative(t *testing.T) {
+	t.Parallel() // each case reads its own fixture repository (V1-2293)
 	binary := buildPortableLedgerReader(t)
 	a, b := strings.Repeat("a", 64), strings.Repeat("b", 64)
 	cases := []struct {
@@ -133,6 +134,7 @@ func TestCEMV1754PortableVerdictLedgerMatchesNative(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			root := fixtureRepo(t)
 			head := fixtureGit(t, root, nil, "rev-parse", "HEAD")
 			if c.body != nil {
@@ -160,6 +162,7 @@ func TestCEMV1754PortableVerdictLedgerMatchesNative(t *testing.T) {
 		})
 	}
 	t.Run("unresolvable commit", func(t *testing.T) {
+		t.Parallel()
 		root := fixtureRepo(t)
 		_, err := ProvenanceWithVerdicts(context.Background(), root, "no-such-revision", "", true)
 		want := cemcode.CodeOf(err)
@@ -169,6 +172,7 @@ func TestCEMV1754PortableVerdictLedgerMatchesNative(t *testing.T) {
 		}
 	})
 	t.Run("relative repository", func(t *testing.T) {
+		t.Parallel()
 		got, status := portableLedger(t, binary, "relative/repository", "HEAD")
 		if status != 2 || got["code"] != cemcode.InvalidArguments {
 			t.Fatalf("portable exit %d %v", status, got)
@@ -215,6 +219,7 @@ func flatNotes(t *testing.T, root string, count int) {
 // read, a notes listing over 4 MiB and a note over 1 MiB refuse
 // git-output-exceeded, and each bound admits its limit.
 func TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative(t *testing.T) {
+	t.Parallel() // each case reads its own fixture repository (V1-2293)
 	binary := buildPortableLedgerReader(t)
 	cases := []struct {
 		name, code, state string
@@ -284,6 +289,7 @@ func TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			repo := c.repo(t)
 			want, code := nativeLedger(t, repo)
 			if code != c.code || (code == "" && want["state"] != c.state) {

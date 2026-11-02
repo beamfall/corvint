@@ -56,6 +56,10 @@
   ([snapshot](internal/capcatalog/trees/corvint-tasks.json))
 - `corvint-test help --json`: the test companion's tree
   ([snapshot](internal/capcatalog/trees/corvint-test.json))
+- `corvint-update help --json`: the official release updater's tree
+  ([snapshot](internal/capcatalog/trees/corvint-update.json))
+- `corvint-work-queue help --json`: the read-only work-queue observation producer's tree
+  ([snapshot](internal/capcatalog/trees/corvint-work-queue.json))
 
 ## Adoption
 

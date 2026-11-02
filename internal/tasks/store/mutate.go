@@ -158,6 +158,12 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 			report.Ticket = audit.TicketID
 			report.OriginalReceipt = originalReceipt(audit.Entry)
 		}
+		// The audit that refused the conflict bound the recorded request and
+		// its ticket; the CLI explains the refusal from them instead of
+		// auditing the journal again (LGL-V0-846).
+		if result.Outcome.Outcome == mutation.OutcomeRequestIDConflict {
+			report.conflict = &writerReplay{entry: audit.Entry, ticket: audit.TicketID}
+		}
 		return report, nil
 	}
 	inv, paths, canonical, err := observeMutation(ctx, repo, reader, audit, watch)

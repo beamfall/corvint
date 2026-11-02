@@ -9,7 +9,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -84,7 +83,7 @@ func barrier(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		return report, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 	}
 	reader := lockedJournalReader(repo, head)
-	index := journal.RequestIndex{Reader: reader}
+	index := RequestIndexOf(repo, reader)
 	entry, found, err := index.Lookup(request.RequestID)
 	if err != nil {
 		return report, err

@@ -58,3 +58,36 @@ func TestDCWV0880PrechangeArguments(t *testing.T) {
 		t.Error("prechange accepted --refresh")
 	}
 }
+
+// TestCAPV0120DogfoodSubverbHelpDescribesOptions pins V1-3682: `dogfood
+// propose-citations --help` printed only its usage and a bare flag list. Every
+// daily-path subverb's node help now lists each option it takes with a
+// description, and the plan-taking subverbs print the citation plan format.
+func TestCAPV0120DogfoodSubverbHelpDescribesOptions(t *testing.T) {
+	t.Parallel()
+	used := map[string]bool{}
+	for action, options := range dogfoodFlowOptions {
+		text := helpText(nodeHelpPrefix + "dogfood " + action)
+		if !strings.Contains(text, "\nOptions:\n") {
+			t.Errorf("dogfood %s --help has no Options block:\n%s", action, text)
+		}
+		for name := range options {
+			used[name] = true
+			description := dogfoodFlowOptionHelp[name]
+			if description == "" || !strings.Contains(text, "\n  "+name+" ") || !strings.Contains(text, description) {
+				t.Errorf("dogfood %s --help does not describe %s:\n%s", action, name, text)
+			}
+		}
+		if plan := options["--refresh"] || options["--citations"]; plan != strings.Contains(text, "HUNK<TAB>PATH<TAB>START:END<TAB>RELATION") {
+			t.Errorf("dogfood %s --help plan format shown=%t, want %t:\n%s", action, !plan, plan, text)
+		}
+	}
+	for name := range dogfoodFlowOptionHelp {
+		if !used[name] {
+			t.Errorf("dogfoodFlowOptionHelp describes %s, which no subverb takes", name)
+		}
+	}
+	if text := helpText(nodeHelpPrefix + "dogfood status"); strings.Contains(text, "\nOptions:\n") {
+		t.Errorf("a non-daily-path dogfood node gained an Options block:\n%s", text)
+	}
+}

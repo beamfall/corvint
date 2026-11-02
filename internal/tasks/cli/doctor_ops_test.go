@@ -424,9 +424,7 @@ func notifyHook(t *testing.T, tail string) (string, func() int, func() []byte) {
 	dir := t.TempDir()
 	hook := filepath.Join(dir, "hook.sh")
 	body := "#!/bin/sh\necho run >> '" + dir + "/runs'\ncat > '" + dir + "/stdin'\n" + tail + "\n"
-	if err := os.WriteFile(hook, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, hook, []byte(body), 0o755)
 	runs := func() int {
 		raw, _ := os.ReadFile(filepath.Join(dir, "runs"))
 		return bytes.Count(raw, []byte("run\n"))
@@ -714,6 +712,7 @@ func TestTQDV0031_WorkStateHealth(t *testing.T) {
 // TQD-V0-032: a reopen ends the NO_PROGRESS_HANDOFF streak; hand-offs
 // before it never count toward the reopened ticket's streak.
 func TestTQDV0032_ReopenResetsNoProgressStreak(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	id := planTicket(t, root, "reopened", "P1", `["src/"]`)
 	loopCLIHandoffs(t, root, id, 3)

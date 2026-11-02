@@ -14,6 +14,7 @@ import (
 // CAL-V0-096: claim results always carry poolAllocation, a retry's prior
 // generation records the ended stage and member, and attempt show writes nothing.
 func TestCALV0096_ClaimAllocationAndPriorHistory(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-096 ClaimAllocationAndPriorHistory", func(t *testing.T) {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 		runOK := func(args ...string) run {

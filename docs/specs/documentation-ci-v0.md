@@ -12,7 +12,7 @@ invariants 1, 2 and 8; `docs/specs/affected-plan-v0.md` AFP-V0-013/014/016; V1-0
 - Claim: A separately qualified README presentation policy can omit the root Go race invocation while retaining documentation and other CI checks.
 - Status: accepted direction (owner request, 2026-09-29); bounded admission requires reviewed qualification/experimental
 - Exists: `tools/docs-ci-plan` and the trusted-base `docs-plan` CI job, with adversarial Git-fixture tests.
-- Blocked on: independent consumer review, approved source-bound qualification, exact-head control-plane acceptance and hosted DOCS-path observation.
+- Blocked on: independent review approving the DCI-V0-855 qualification proposal, exact-head control-plane acceptance and hosted DOCS-path observation.
 - Read next: Requirements; Consumer inventory; Qualification and rollout.
 
 ## Intent and boundary
@@ -54,10 +54,9 @@ from selected package counts. Missing hosted observations remain NOT_OBSERVED.
   fetched; remote availability, semantic accuracy and exhaustive Markdown rendering are not claimed.
 - `DCI-V0-005`: Admission MUST require an approved `corvint-docs-ci-qualification/0` artifact read
   from the trusted event base. It MUST name this consumer inventory, nonempty independent review
-  evidence, the exact fixed check list, classifier-source digest and a SHA256 of the complete sorted
-  tracked tree rows (path, mode, type, blob identity), excluding ONLY the two admitted document paths
-  and `.github/qualifications/docs-only.json` itself. Any other drift or missing/malformed artifact
-  chooses FULL. The proposal command MUST emit `approved:false` and cannot grant its own approval.
+  evidence, the exact fixed check list and the source digests DCI-V0-855 names (amended by
+  DCI-V0-855; it formerly bound a SHA256 of the whole tracked tree). Any drift of those digests or a
+  missing/malformed artifact chooses FULL. The proposal command MUST emit `approved:false` and cannot grant its own approval.
   A PR cannot admit itself by supplying a new artifact. The artifact contains data only.
 - `DCI-V0-006`: CI MUST build the classifier from a separate checkout at the captured event base,
   never from PR source. A missing classifier/build or unsupported plan MUST leave mode FULL. Only
@@ -75,6 +74,40 @@ from selected package counts. Missing hosted observations remain NOT_OBSERVED.
   semantic-spec, workflow, artifact, topology, dirty-tree, replacement/graft and parser attacks.
   Local fixture success MUST NOT claim hosted admission. The first real hosted DOCS decision and
   omitted root race step MUST be inspected before calling the integrated route delivered.
+- `DCI-V0-855`: (experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470);
+  amends DCI-V0-005) The qualification profile is `corvint-docs-ci-qualification/1`. It MUST carry
+  `classifierSha256`, the SHA256 of the sorted tracked tree rows under `tools/docs-ci-plan/`, and
+  `policySha256`, the SHA256 of the tree row of `docs/specs/documentation-ci-v0.md` (this policy
+  and its consumer inventory), both read at the event base. It MUST NOT bind the rest of the tree:
+  a change elsewhere neither invalidates nor requires requalification. A change to the classifier
+  or this policy MUST invalidate it and choose FULL. Every tracked entry at the base MUST still be a
+  regular blob, or the plan chooses FULL. The check list gains `merge-queue-full-race`. The receipt
+  carries `policySha256` in place of `treeSha256`. A `/0` artifact chooses FULL.
+  Design: the whole-tree binding went stale with every merge to `main`, so the approved artifact of
+  2026-09-29 never admitted a hosted README run (V1-0470 recurrence 2026-10-02:
+  `qualification-source-drift`). DCI-V0-856 keeps the safety that binding bought: a consumer added
+  after the review that a README presentation change breaks fails the entry's full merge-queue run,
+  so it never reaches `main`. It costs a later failure, not a missed one. The queue's own selection
+  (AFP-V0-730), when enabled, carries its own qualified reader uncertainty, independent of DCI.
+  Failure modes: a new unreviewed README reader passes the pull-request run and fails in the queue;
+  the entry leaves the queue and the next README change still runs DOCS until the inventory is
+  re-reviewed. Rollback: set `approved:false` or remove the artifact.
+- `DCI-V0-856`: (experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470))
+  A pull-request run whose `docs-plan` mode is DOCS MUST NOT produce evidence that lets a
+  `merge_group` or `push` run skip its root race invocation: the `ci-tested-tree-record` and
+  `ci-narrowed-tree-record` jobs MUST NOT run for it, and only a `pull_request` event may plan DOCS.
+  Every queue entry of a DOCS pull request therefore runs its own root race invocation (full, or
+  narrowed only by the queue's own AFP-V0-730 selection when that is enabled) before `main` moves.
+- `DCI-V0-857`: (experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470);
+  amends DCI-V0-003 and DCI-V0-006) The admitted Markdown subset MUST accept exactly the two
+  capability-table region markers `<!-- capability-gate:readme -->` and
+  `<!-- /capability-gate:readme -->` as HTML comments. Any other comment, or an unclosed one, MUST
+  choose FULL. A DOCS run MUST also run `go test -race ./tools/capabilities-check`, the consumer
+  that reads that region of the root `README.md`, and the check list gains
+  `capabilities-check-tests`.
+  Design: the root `README.md` gained the capability table and its markers after the 2026-09-29
+  review, so every README change chose FULL (`unsupported-html`) even with a fresh qualification.
+  Its reader is a Go test the omitted root race invocation would otherwise run only in the queue.
 
 ## Consumer inventory
 
@@ -84,16 +117,21 @@ proof of equivalent Go coverage or an automatic waiver of generic `affected` UNK
 | Consumer | Evidence and retained check |
 |---|---|
 | README links, presentation markup and executable examples | `tools/docs-ci-plan` checks immutable blobs and preserves code blocks. Its own fixture tests remain selected. |
+| README capability table (`<!-- capability-gate:readme -->` region) | `tools/capabilities-check` reads the table and maps each row to the catalog; its Go tests run under DOCS (DCI-V0-857). |
 | Frontier decision brief's README line citation | Exact existing file is the only citation-relocation exception. The classifier verifies spans; the full line-citation gate still scans all tracked docs. |
 | Specification index/header/digest consistency | `internal/specindex` runs under DOCS. Its `docs/specs/README.md` input is outside the admitted scope. |
 | Release/archive readers | Full archive-integrity, static/build and interop jobs remain. `internal/companionrelease` and `internal/releasecandidate` README literals largely describe generated bundle/candidate READMEs, not the root file. |
 | Go test-fixture README literals | `cmd/corvint/{main,init_adopt,diagnostic_refusals,kernel}_test.go`, `internal/genesis`, `internal/witness`, and conformance fixtures create their own README bytes. A matching filename alone does not make the root README their input. |
 | Generic index/reader heuristics | Runtime-built repository reads remain uncertain. No AFP profile, unbounded-reader edge or full-suite qualification artifact is rewritten by DCI. Source-bound independent review must accept this limited verification policy before its artifact is approved. |
 
-The whole-tree binding deliberately invalidates approval after changes outside the two documents,
-including new test consumers or policy changes. It may require frequent requalification. A literal
+Approval binds the classifier and this policy (DCI-V0-855), not the whole tree. A test consumer
+added after review is not re-reviewed before the next DOCS run; the merge-queue race run
+(DCI-V0-856) catches one that a README presentation change breaks, before `main` moves. A literal
 search alone cannot establish completeness; review must inspect the original consumers and retain
-its limitations. Do not silently expand the allowlist or ignore new inputs to improve hit rate.
+its limitations. Do not silently expand the allowlist to improve hit rate. Inventory refresh
+2026-11-01 (V1-0470): the root `README.md` literals in `conformance/cli-parity-v0/readme_counts_test.go`
+read that package's own README, and the `cmd/corvint`, `internal/doccorpus`, `internal/appmap`
+and `internal/clitree` literals write or name fixture READMEs; none reads the root file.
 
 ## Qualification and rollout
 
@@ -123,6 +161,9 @@ in the qualification artifact; missing/stale approval already selects FULL. No b
 | DCI-V0-005 | `TestQualificationInvalidation` and independently reviewed artifact/source binding |
 | DCI-V0-006, DCI-V0-007 | workflow lint, focused native CLI fixtures and hosted DOCS/FULL/failure job observations |
 | DCI-V0-008 | retained local test/review evidence and first hosted README qualification; absent observations stay NOT_OBSERVED |
+| DCI-V0-855 | `TestQualificationInvalidation`, `TestQualificationIgnoresUnrelatedDrift`, `TestNativeCLI`; build log 2026-11-01-ci-w34 |
+| DCI-V0-857 | `TestCapabilityMarkerComments`; `TestDCIV0856DocsRunLeavesNoQueueReuseEvidence` (the DOCS test command); actual README replay in build log 2026-11-01-ci-w34 |
+| DCI-V0-856 | `TestDCIV0856DocsRunLeavesNoQueueReuseEvidence` in `tools/ci-reuse-plan`; hosted DOCS queue run `NOT_OBSERVED` |
 
 Non-goals: general Markdown parsing, accepting changed executable examples, skipping checks merely
 because a path ends in `.md`, resolving all unbounded readers, changing release validation, or
