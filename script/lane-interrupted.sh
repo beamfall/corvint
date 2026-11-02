@@ -91,7 +91,7 @@ record() {
   fi
   [[ $lane =~ ^[a-z0-9][a-z0-9.-]*$ ]] || refuse "bad-lane '$lane' (pass --lane or LANE= in --env; lower-case letters, digits, . and -)"
   ((${#ids[@]})) || refuse 'no-tickets: name the dispatched IDs (positional, or TICKETS= in --env)'
-  for id in "${ids[@]}"; do
+  for id in ${ids[@]+"${ids[@]}"}; do
     [[ $id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "bad-id '$id'"
   done
   [[ $reason != *$'\n'* && $reason != *$'\r'* ]] || refuse 'bad-reason: one line only'
@@ -113,7 +113,7 @@ record() {
       {
         printf 'lane-interrupted/0\nlane=%s\ndir=%s\nbranch=%s\nbase=%s\nhead=%s\ncommits=%s\nrecorded=%s\nreason=%s\n' \
           "$lane" "$dir" "$branch" "$base" "$head" "$n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$reason" &&
-          perl -e "$cite_perl" "$tmp.log" "${ids[@]}" &&
+          perl -e "$cite_perl" "$tmp.log" ${ids[@]+"${ids[@]}"} &&
           printf 'dirty=%s\n' "$(grep -c '' "$tmp.status")" &&
           sed 's/^\(..\) /path \1 /' "$tmp.status"
       } > "$tmp" && mv -f "$tmp" "$marker"
