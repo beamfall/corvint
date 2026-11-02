@@ -101,6 +101,7 @@ func stateDigest(t *testing.T, r *fixture.Repo) [32]byte {
 // TestCALV0106_BatchRefineAllSuccess applies a batch longer than one chunk;
 // every entry commits with its own receipt and request ID.
 func TestCALV0106_BatchRefineAllSuccess(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r, ids := batchRepo(t, 10)
 	x := refineBatch(t, r, "batch-1", batchInput(ids, ones(len(ids)), "Refined"))
 	if x.res.Outcome != wire.OutcomeOK {
@@ -212,6 +213,7 @@ func TestCALV0106_BatchRefineMalformedEntryWritesNothing(t *testing.T) {
 // request ID and issuedAt replays every entry and writes nothing; a changed
 // issuedAt is a request ID conflict, not a second application.
 func TestCALV0106_BatchRefineReplayIsIdempotent(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r, ids := batchRepo(t, 10)
 	input := batchInput(ids, ones(len(ids)), "Refined")
 	if x := refineBatch(t, r, "batch-replay", input); x.res.Outcome != wire.OutcomeOK {

@@ -304,7 +304,7 @@ func (a *importAudit) lookup(repo *intent.Repository, head *snapshot.Head, id st
 	if !present {
 		return mutation.IndexEntry{}, false, nil
 	}
-	index := journal.RequestIndex{Reader: lockedJournalReader(repo, head)}
+	index := RequestIndexOf(repo, lockedJournalReader(repo, head))
 	return index.Lookup(id)
 }
 

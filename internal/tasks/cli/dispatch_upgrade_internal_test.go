@@ -26,6 +26,7 @@ import (
 // a refused configuration is REFUSED, and a build that prints no result is
 // UNKNOWN.
 func TestDSGV0007_UpgradeCheck(t *testing.T) {
+	t.Parallel() // no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	fixture.SkipUnsupportedPlatform(t)
 	stateDir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -77,9 +78,7 @@ func TestDSGV0007_UpgradeCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 		script := "#!/bin/sh\n[ \"$1 $2 $7 $8\" = \"dispatch status --events 0\" ] || exit 2\ncat " + filepath.Join(stateDir, "replay.json") + "\n"
-		if err := os.WriteFile(build, []byte(script), 0o700); err != nil {
-			t.Fatal(err)
-		}
+		writeExecutable(t, build, []byte(script), 0o700)
 	}
 	check := func() map[string]string {
 		t.Helper()
@@ -155,6 +154,7 @@ func TestDSGV0007_UpgradeCheck(t *testing.T) {
 // handover support, a handover already executing, a fourth distinct live
 // build, and a second request while one is pending.
 func TestDSGV0011_UpgradeApplyRequestsOrRefuses(t *testing.T) {
+	t.Parallel() // no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	fixture.SkipUnsupportedPlatform(t)
 	stateDir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -210,9 +210,7 @@ func TestDSGV0011_UpgradeApplyRequestsOrRefuses(t *testing.T) {
 			t.Fatal(err)
 		}
 		script := "#!/bin/sh\n[ \"$1 $2 $7 $8\" = \"dispatch status --events 0\" ] || exit 2\ncat " + filepath.Join(stateDir, "replay.json") + "\n"
-		if err := os.WriteFile(build, []byte(script), 0o700); err != nil {
-			t.Fatal(err)
-		}
+		writeExecutable(t, build, []byte(script), 0o700)
 	}
 	apply := func() (string, string) {
 		t.Helper()

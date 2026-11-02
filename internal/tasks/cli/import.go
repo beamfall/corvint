@@ -30,7 +30,7 @@ func importCommand(env Env, args []string) *wire.Result {
 	if !seen["--file"] {
 		return usage(cmd, "import requires --file PATH")
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

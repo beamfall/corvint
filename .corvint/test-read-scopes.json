@@ -575,9 +575,6 @@
     "internal/tasks/authority": [
       "go.mod"
     ],
-    "internal/tasks/cmd/closed-index": [
-      "go.mod"
-    ],
     "internal/tasks/intent": [
       "go.mod"
     ],

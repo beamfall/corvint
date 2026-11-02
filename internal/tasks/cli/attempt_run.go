@@ -226,7 +226,7 @@ func parseAttemptRun(env Env, args []string) (*attemptRunner, []string, *wire.Re
 	if role == "" {
 		role = "OPERATOR"
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return nil, nil, errorResult(cmd, err)
 	}

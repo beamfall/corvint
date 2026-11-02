@@ -26,7 +26,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:970-971@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:972-973@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
@@ -82,9 +82,9 @@ about their safety as a triggered step.
 
 Where each row was verified:
 
-- `affected`: profile `cmd/corvint/affected.go:37@af9fb447`; exits `cmd/corvint/affected.go:779-836@99384bb0`; its
+- `affected`: profile `cmd/corvint/affected.go:37@af9fb447`; exits `cmd/corvint/affected.go:787-844@99384bb0`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1124-1129@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:970@f024c3ab`).
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:972@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:460-489@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:143-200@7e596fa3`; refusals pass through the ledger recorder
@@ -112,7 +112,7 @@ range (1 s resolution): `affected` 8 and 9 s, `cem verify` 2 and 2 s, `cem statu
 
 Corvint sets no whole-command timeout on these steps. Some internal Git steps carry their own
 deadline and fail the command when it expires: the index build and the range-impact diff use 30 s
-(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:353@c925936b`,
+(`internal/contextindex/git.go:27@e8c8d0ea`, `internal/contextindex/index.go:359@c925936b`,
 `internal/contextindex/range_impact.go:131@c925936b`), and `affected` reads `git status` under 10 s
 (`internal/liveverify/affected/dirty.go:34@bb3abea6`, `internal/liveverify/affected/dirty.go:50@d3f19770`). Otherwise
 the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1800@5434511f`,

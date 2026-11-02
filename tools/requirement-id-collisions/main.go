@@ -106,10 +106,15 @@ func check(repo, base string) ([]string, []head, []head, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	baseDefs, err := definitions(repo, "base", baseCommit)
+	commits := []string{baseCommit}
+	for _, h := range heads {
+		commits = append(commits, h.commit)
+	}
+	all, err := definitions(repo, commits)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	baseDefs := withRef(all[baseCommit], "base")
 	var collisions []string
 	report := func(id, why string, sites ...site) {
 		line := finding + " " + id + " " + why
@@ -120,10 +125,7 @@ func check(repo, base string) ([]string, []head, []head, error) {
 	}
 	fresh := map[string][]site{} // IDs the base lacks, by lane site
 	for _, h := range heads {
-		defs, err := definitions(repo, h.ref, h.commit)
-		if err != nil {
-			return nil, nil, nil, err
-		}
+		defs := withRef(all[h.commit], h.ref)
 		for _, id := range sortedKeys(defs) {
 			sites := defs[id]
 			if files := distinctFiles(sites); len(files) > 1 {
@@ -155,25 +157,28 @@ func check(repo, base string) ([]string, []head, []head, error) {
 // carries and may since have reworded (TLF-V0-960, V1-3650). It returns the
 // heads kept and the heads skipped, each in ref order.
 func outermost(repo string, heads []head) (kept, skipped []head, err error) {
+	if len(heads) < 2 {
+		return heads, nil, nil
+	}
+	// One merge-base --independent prints exactly the heads no other listed
+	// head reaches, replacing a pairwise --is-ancestor walk (V1-4093).
+	args := []string{"merge-base", "--independent", "--end-of-options"}
 	for _, h := range heads {
-		contained := false
-		for _, other := range heads {
-			if other.commit == h.commit {
-				continue
-			}
-			_, ancestorErr := git(repo, "merge-base", "--is-ancestor", "--end-of-options", h.commit, other.commit)
-			if ancestorErr == nil {
-				contained = true
-				break
-			}
-			if exit, ok := ancestorErr.(*exitError); !ok || exit.code != 1 {
-				return nil, nil, ancestorErr
-			}
-		}
-		if contained {
-			skipped = append(skipped, h)
-		} else {
+		args = append(args, h.commit)
+	}
+	out, err := git(repo, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	independent := map[string]bool{}
+	for _, c := range strings.Fields(out) {
+		independent[c] = true
+	}
+	for _, h := range heads {
+		if independent[h.commit] {
 			kept = append(kept, h)
+		} else {
+			skipped = append(skipped, h)
 		}
 	}
 	return kept, skipped, nil
@@ -202,9 +207,11 @@ func laneHeads(repo, baseCommit string) ([]head, error) {
 		return nil, err
 	}
 	var all []head
+	branch := map[string]bool{} // --no-merged already excludes these from the base
 	for _, line := range strings.Split(refs, "\n") {
 		if commit, ref, ok := strings.Cut(line, " "); ok {
 			all = append(all, head{ref: ref, commit: commit})
+			branch[commit] = true
 		}
 	}
 	for _, block := range strings.Split(wt, "\n\n") {
@@ -231,6 +238,10 @@ func laneHeads(repo, baseCommit string) ([]head, error) {
 			continue
 		}
 		seen[h.commit] = true
+		if branch[h.commit] {
+			out = append(out, h)
+			continue
+		}
 		if _, err := git(repo, "merge-base", "--is-ancestor", "--end-of-options", h.commit, baseCommit); err == nil {
 			continue
 		}
@@ -243,21 +254,31 @@ func laneHeads(repo, baseCommit string) ([]head, error) {
 	return out, nil
 }
 
-// definitions reads every defining bullet of commit's docs/specs/*.md.
-func definitions(repo, ref, commit string) (map[string][]site, error) {
+// definitions reads every defining bullet of each commit's docs/specs/*.md
+// with one git grep over all the trees, keyed by commit; each site's ref is
+// left for withRef to set.
+func definitions(repo string, commits []string) (map[string]map[string][]site, error) {
 	// Explicit format flags win over repository grep.* configuration, so the
 	// output is always commit:path:text (TLF-V0-886).
-	out, err := git(repo, "grep", "-I", "--no-color", "--full-name", "--no-line-number", "--no-column", "-E", "^- `[A-Z][A-Z0-9]*-V[0-9]+-[0-9]+`:", commit, "--", specs)
+	args := []string{"grep", "-I", "--no-color", "--full-name", "--no-line-number", "--no-column", "-E", "^- `[A-Z][A-Z0-9]*-V[0-9]+-[0-9]+`:"}
+	args = append(append(args, commits...), "--", specs)
+	all := map[string]map[string][]site{}
+	for _, c := range commits {
+		all[c] = map[string][]site{}
+	}
+	out, err := git(repo, args...)
 	if err != nil {
 		if exit, ok := err.(*exitError); ok && exit.code == 1 && exit.stderr == "" {
-			return map[string][]site{}, nil // no match
+			return all, nil // no match
 		}
 		return nil, err
 	}
-	defs := map[string][]site{}
-	prefix := commit + ":"
 	for _, line := range strings.Split(out, "\n") {
-		rest, ok := strings.CutPrefix(line, prefix)
+		commit, rest, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		defs, ok := all[commit]
 		if !ok {
 			continue
 		}
@@ -269,9 +290,23 @@ func definitions(repo, ref, commit string) (map[string][]site, error) {
 		if m == nil {
 			continue
 		}
-		defs[m[1]] = append(defs[m[1]], site{ref: ref, file: file, text: strings.TrimSpace(m[2])})
+		defs[m[1]] = append(defs[m[1]], site{file: file, text: strings.TrimSpace(m[2])})
 	}
-	return defs, nil
+	return all, nil
+}
+
+// withRef returns defs with every site's ref set to ref.
+func withRef(defs map[string][]site, ref string) map[string][]site {
+	out := make(map[string][]site, len(defs))
+	for id, sites := range defs {
+		named := make([]site, len(sites))
+		for i, s := range sites {
+			s.ref = ref
+			named[i] = s
+		}
+		out[id] = named
+	}
+	return out
 }
 
 func sharesRoot(repo, commit string, roots []string) bool {

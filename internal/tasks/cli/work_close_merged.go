@@ -201,7 +201,7 @@ func (r *closeMergedRun) submit(op, id string, payload wire.Value, issuedAt stri
 	if err != nil {
 		return false, []string{wire.CodeOf(err)}, err.Error()
 	}
-	actor, err := initActor(r.role)
+	actor, err := initActor(r.env, r.role)
 	if err != nil {
 		return false, []string{wire.CodeOf(err)}, err.Error()
 	}

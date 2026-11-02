@@ -50,7 +50,7 @@ type snapshotBundleFile struct {
 
 // snapshotVerbs are the verbs SnapshotEnv serves (TCL-V0-011).
 var snapshotVerbs = map[string]bool{
-	"version": true, "--version": true, "roadmap": true, "queue status": true,
+	"version": true, "--version": true, "roadmap": true, "queue status": true, "queue parity": true,
 	"ticket search": true, "ticket show": true, "ticket blockers": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
 }
 
@@ -232,10 +232,12 @@ func withSnapshotStore(path string, body func(*readCtx) error) (*readCtx, error)
 	return rc, body(rc)
 }
 
-// bundleWarning names where and when the served snapshot was produced.
+// bundleWarning names where and when the served snapshot was produced, its
+// tree digest and its age at this read (TCL-V0-742).
 func bundleWarning(rc *readCtx) string {
 	return "served read-only from the " + SnapshotEnv + " snapshot " + rc.bundlePath + " (host " + rc.bundle.SourceHost +
-		", primary worktree " + rc.bundle.PrimaryWorktree + ", produced " + rc.bundle.ProducedAt + ", journal seq " +
+		", primary worktree " + rc.bundle.PrimaryWorktree + ", produced " + rc.bundle.ProducedAt + ", age " +
+		snapshotAge(rc.bundle.ProducedAt, time.Now()) + ", tree " + rc.bundle.TreeSha256 + ", journal seq " +
 		snapshotSeqValue(rc.bundle.Journal).Str + "); intent written after it, journal history and liveness are NOT_OBSERVED"
 }
 
@@ -268,5 +270,5 @@ func snapshotRefusal(env Env, args []string) *wire.Result {
 }
 
 func snapshotVerbList() []string {
-	return []string{"ticket search", "ticket show", "ticket export", "ticket similar", "ticket digest", "roadmap", "queue status"}
+	return []string{"ticket search", "ticket show", "ticket export", "ticket similar", "ticket digest", "roadmap", "queue status", "queue parity"}
 }

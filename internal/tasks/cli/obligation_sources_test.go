@@ -57,6 +57,7 @@ var digestA = strings.Repeat("a", 64)
 // a secret in a source ref, query or searched id refuses SECRET_DETECTED. Without the policy the same ledger
 // has no source-review finding.
 func TestTOLV0040_PreflightRequiresSourceReview(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepoWith(t, sourceReviewPolicy)
 	seedObligations(t, r.Root, id)
 	setSources(t, r.Root, id, "set-sources", reviewChanges)
@@ -98,6 +99,7 @@ func TestTOLV0040_PreflightRequiresSourceReview(t *testing.T) {
 // fold to the same entry bytes with the policy on and off, show and plan
 // add no sourceReview member, and a policy without the key decodes as off.
 func TestTOLV0039_PolicyLeavesLedgerBytes(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	entries := func(edit func(wire.Value)) (string, wire.Value) {
 		r, id, _ := obligationRepoWith(t, edit)
 		seedObligations(t, r.Root, id)
@@ -137,6 +139,7 @@ func TestTOLV0039_PolicyLeavesLedgerBytes(t *testing.T) {
 // obligation stays WITNESSED; an unreadable source is unresolved with the
 // reason; plan's ok is unchanged; neither read writes state.
 func TestTOLV0042_StaleSourcesListed(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	sum := sha256.Sum256([]byte(obligationSpec))

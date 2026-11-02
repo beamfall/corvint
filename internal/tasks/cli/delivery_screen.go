@@ -408,6 +408,13 @@ type screenRow struct {
 	note  wire.Value
 }
 
+// deliveryScreenBools and deliveryScreenValues are the declared boolean and
+// value flags of delivery-screen; its usage names exactly these (TCL-V0-737).
+var (
+	deliveryScreenBools  = []string{"lane-refs", "json"}
+	deliveryScreenValues = []string{"prs", "ref", "since", "limit"}
+)
+
 // deliveryScreenCommand is `corvint-tasks ticket delivery-screen`. It takes
 // no lock and writes nothing (TCD-V0-159); exit 0 when every ticket is
 // CLEAR, 1 otherwise, 2 on a refusal (TCD-V0-162). A COMPLETED or HELD
@@ -416,8 +423,8 @@ type screenRow struct {
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
 	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
-	fl, pos, err := flagsWithBooleans(args, []string{"lane-refs", "json"}, "prs", "ref", "since", "limit")
-	laneRefs := fl["lane-refs"] == "true"
+	fl, set, pos, err := flagsBool(args, deliveryScreenBools, deliveryScreenValues...)
+	laneRefs := set["lane-refs"]
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
 	}
@@ -740,6 +747,18 @@ type batchInput struct {
 	// laneScan is the merge's lane commits (TCD-V0-731); nil when they are
 	// NOT_OBSERVED.
 	laneScan *store.CommitScan
+	// root is the primary worktree the merge ancestry is read in, "" when
+	// none resolved; parent is the merge's first parent, resolved once by
+	// headInBatch (TLF-V0-1101).
+	root, parent   string
+	parentResolved bool
+	parentErr      error
+	// ancestry is the error-preserving ancestry query, store.Ancestry
+	// unless a test injects a failure (TLF-V0-1101).
+	ancestry func(root, a, b string) (bool, error)
+	// progressNotes names each progress mark that names this batch but
+	// delivers nothing, with why; both verbs report them as warnings.
+	progressNotes []string
 }
 
 // excludedLane is one PR the batch title or body names that was left out of
@@ -824,11 +843,31 @@ func (in *batchInput) laneWarnings() []string {
 	return nil
 }
 
+// Delivery sources of a batch hit (TLF-V0-1101).
+const (
+	sourcePRText     = "PR_TEXT"
+	sourceLaneCommit = "LANE_COMMIT"
+	sourceProgress   = "PROGRESS"
+)
+
+// progressWarnings names the progress marks that name this batch but
+// deliver nothing (TLF-V0-1101), so an operator sees why a marked ticket was
+// left out.
+func (in *batchInput) progressWarnings() []string {
+	if len(in.progressNotes) == 0 {
+		return nil
+	}
+	return []string{"recorded progress delivers nothing for " + strings.Join(in.progressNotes, "; ") + " (TLF-V0-1101): fetch the commits or correct the mark with ticket progress"}
+}
+
 // batchHit is one ticket a batch delivered or only mentioned.
 type batchHit struct {
 	ticketID string
 	lane     int64  // 0 = the batch text itself, or a lane commit
 	commit   string // the lane commit that is the source, "" for PR text (TCD-V0-731)
+	// source is PR_TEXT, LANE_COMMIT or PROGRESS, and phase the recorded
+	// progress phase of a PROGRESS hit (TLF-V0-1101).
+	source, phase string
 }
 
 // parseBatchInput reads the batch inputs of verb from already-parsed flags.
@@ -865,6 +904,10 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	case err != nil:
 	case in.batch == nil:
 		err = wire.Errorf(wire.CodeMalformed, "--pr", "PR #%d is not in the --prs export", in.number)
+	case in.batch.State == "" || prose(in.batch.State) != in.batch.State:
+		// TCD-V0-1103: an export without `state` names the field and the
+		// whole field list, never a withheld message in place of the state.
+		err = wire.Errorf(wire.CodeMalformed, "--prs", "PR #%d in the --prs export has no state: the `state` field is missing, empty or not text (TCD-V0-1103); rerun gh pr list --state merged --json %s", in.number, batchPRFields)
 	case in.batch.State != "MERGED":
 		err = wire.Errorf(wire.CodePrerequisiteUnsatisfied, "--pr", "PR #%d is %s, not merged", in.number, prose(in.batch.State))
 	case in.batch.mergeOid() == "":
@@ -877,6 +920,7 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	if repo, e := intent.Resolve(env.Cwd); e == nil {
 		root = repo.PrimaryWorktree
 	}
+	in.root = root
 	in.deriveLanes(root)
 	in.scanLanes(root)
 	for _, r := range in.runs {
@@ -935,7 +979,118 @@ func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 		rec, _ := rc.store.Inventory.Get(id)
 		index.add(rec)
 	}
-	return in.hits(index)
+	delivered, mentioned = in.hits(index)
+	return in.progressHits(rc, delivered, mentioned)
+}
+
+// progressHits adds the tickets whose effective progress says this batch
+// delivered them (TLF-V0-1101): a review, merge-queue or merged phase whose
+// pr is the batch PR or one of its lane PRs, or a branch or merged phase
+// whose head the merge reaches and its first parent does not. Progress only
+// speaks for a ticket the batch text never names: a text delivery keeps its
+// source, and a mention, which may be a TCD-V0-730 veto such as BLOCKED or
+// ALREADY-DELIVERED, stays mentioned.
+func (in *batchInput) progressHits(rc *readCtx, delivered, mentioned []batchHit) ([]batchHit, []batchHit) {
+	seen := map[string]bool{}
+	for _, h := range append(slices.Clone(delivered), mentioned...) {
+		seen[h.ticketID] = true
+	}
+	for _, id := range rc.store.Inventory.Sorted() {
+		if seen[id] {
+			continue
+		}
+		rec, _ := rc.store.Inventory.Get(id)
+		p := rec.EffectiveProgress()
+		if p == nil {
+			continue
+		}
+		lane, ok, why := in.progressDelivery(p)
+		if ok {
+			delivered = append(delivered, batchHit{ticketID: id, lane: lane, source: sourceProgress, phase: p.Phase})
+		} else if why != "" {
+			in.progressNotes = append(in.progressNotes, rec.TicketID.Local+" "+p.Phase+": "+why)
+		}
+	}
+	return delivered, mentioned
+}
+
+// progressDelivery reports whether progress entry p delivers its ticket in
+// this batch, through which lane PR (0 for the batch itself), and otherwise
+// why a mark that names this batch delivers nothing (TLF-V0-1101). Every
+// piece of evidence the mark carries must hold: a pr must be the batch PR or
+// one of its lane PRs, so an excluded or unexported PR stays excluded
+// whatever its head; and a head must be one the batch merged, so a pr match
+// never overrides a contradicting head. A head whose ancestry this clone
+// cannot read abstains.
+func (in *batchInput) progressDelivery(p *ticket.Progress) (lane int64, ok bool, why string) {
+	byPR := p.Phase == ticket.PhaseInReview || p.Phase == ticket.PhaseInMergeQueue || p.Phase == ticket.PhaseMergedAwaitingCloseout
+	byHead := p.Phase == ticket.PhaseDeliveredOnBranch || p.Phase == ticket.PhaseMergedAwaitingCloseout
+	if p.PR != nil {
+		if !byPR {
+			return 0, false, ""
+		}
+		n := p.PR.Int()
+		if n != in.number && !slices.Contains(in.lanes, n) {
+			return 0, false, ""
+		}
+		if n != in.number {
+			lane = n
+		}
+	} else if !byHead || p.Head == nil {
+		return 0, false, ""
+	}
+	if p.Head == nil {
+		return lane, true, ""
+	}
+	merged, err := in.headInBatch(*p.Head)
+	switch {
+	case err != nil:
+		return 0, false, "head " + *p.Head + " is NOT_OBSERVED against batch PR #" + strconv.FormatInt(in.number, 10) + " (" + prose(err.Error()) + ")"
+	case !merged:
+		if p.PR == nil {
+			return 0, false, ""
+		}
+		return 0, false, "head " + *p.Head + " is not merged by batch PR #" + strconv.FormatInt(in.number, 10)
+	}
+	return lane, true, ""
+}
+
+// headInBatch reports whether this clone proves head merged by the batch:
+// the merge commit reaches it and the merge's first parent does not. An
+// error means the answer is unobservable here (an unfetched head, merge or
+// parent, or a failed ancestry query), never a no and never a yes.
+func (in *batchInput) headInBatch(head string) (bool, error) {
+	if in.root == "" {
+		return false, wire.Errorf(wire.CodeUnsupported, "root", "no repository resolved")
+	}
+	merge, err := store.ResolveCommit(in.root, in.batch.mergeOid())
+	if err != nil {
+		return false, err
+	}
+	if !in.parentResolved {
+		in.parentResolved = true
+		in.parent, in.parentErr = store.ResolveCommit(in.root, merge+"^1")
+	}
+	if in.parentErr != nil {
+		return false, in.parentErr
+	}
+	h, err := store.ResolveCommit(in.root, head)
+	if err != nil {
+		return false, err
+	}
+	ancestry := in.ancestry
+	if ancestry == nil {
+		ancestry = store.Ancestry
+	}
+	inMerge, err := ancestry(in.root, h, merge)
+	if err != nil || !inMerge {
+		return false, err
+	}
+	inParent, err := ancestry(in.root, h, in.parent)
+	if err != nil {
+		return false, err
+	}
+	return !inParent, nil
 }
 
 // hits is batchHits over an already-built index.
@@ -943,6 +1098,10 @@ func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHi
 	seen := map[string]bool{}
 	var weak []batchHit
 	hit := func(refs map[string]string, n int64, commit string) {
+		source := sourcePRText
+		if commit != "" {
+			source = sourceLaneCommit
+		}
 		ids := make([]string, 0, len(refs))
 		for id := range refs {
 			ids = append(ids, id)
@@ -952,9 +1111,9 @@ func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHi
 			switch {
 			case refs[id] == refDelivered && !seen[id]:
 				seen[id] = true
-				delivered = append(delivered, batchHit{id, n, commit})
+				delivered = append(delivered, batchHit{ticketID: id, lane: n, commit: commit, source: source})
 			case refs[id] == refMentioned:
-				weak = append(weak, batchHit{id, n, commit})
+				weak = append(weak, batchHit{ticketID: id, lane: n, commit: commit, source: source})
 			}
 		}
 	}
@@ -1034,6 +1193,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		o.Set("status", wire.String(st))
 		o.Set("lanePr", lanePR(h.lane))
 		o.Set("commit", orNull(h.commit))
+		o.Set("source", wire.String(h.source))
 		o.Set("batchPr", wire.String(strconv.FormatInt(number, 10)))
 		o.Set("mergeCommit", wire.String(batch.mergeOid()))
 		o.Set("greenRuns", greenValue)
@@ -1077,6 +1237,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		res.Warnings = append(res.Warnings, w)
 	}
 	res.Warnings = append(res.Warnings, in.laneWarnings()...)
+	res.Warnings = append(res.Warnings, in.progressWarnings()...)
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	res.Untrusted = true
 	return res

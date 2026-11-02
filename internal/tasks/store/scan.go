@@ -304,8 +304,10 @@ func fileEntryWithReader(full, rel string, read inventoryReader, observed ...map
 	if !ok {
 		bound = wire.MaxEvidenceBlobBytes
 	}
-	if len(observed) > 0 {
-		if file, present := observed[0][rel]; present {
+	// The first observation that holds rel answers it (LGL-V0-845 adds the
+	// preload capture after the audit's own reads).
+	for _, files := range observed {
+		if file, present := files[rel]; present {
 			if file.Bytes < 0 || file.Bytes > bound {
 				return archive.FileEntry{}, false, wire.Errorf(wire.CodeLimitExceeded, rel, "observed inventory bytes exceed bound")
 			}

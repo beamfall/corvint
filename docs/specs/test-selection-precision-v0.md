@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355; TSP-V0-722: V1-3300; TSP-V0-723: V1-3780, V1-3825; TSP-V0-830: V1-3763, V1-3587, V1-3788, V1-3755; TSP-V0-831: V1-4254. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-785: V1-4109; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355; TSP-V0-722: V1-3300; TSP-V0-723: V1-3780, V1-3825; TSP-V0-830: V1-3763, V1-3587, V1-3788, V1-3755; TSP-V0-831: V1-4254. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -303,6 +303,12 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   with 18 unknowns. Narrowing proceeds per unit through declared read scopes (ASD read-scope
   declarations), each with a test that the declared reader stays selected for a path it reads;
   focused runs use `--dry-run --summary` and `--pins` (TSP-V0-944) meanwhile.
+- **TSP-V0-785:** (experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,
+  2026-11-01; V1-4109) `testSourceSlice` SHALL parse each file of the sliced package at most once
+  per process for the same path and bytes, keyed by the SHA-256 of both, and reuse that read-only
+  parse (with its test functions) on a later call, so a scan that slices one package for many
+  candidate changes parses each unchanged file once. A hit SHALL yield the slice a fresh parse
+  yields; a changed byte SHALL miss. The cache SHALL hold at most 4096 files and empties when full.
 - **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
   `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
   the fixed change set `benchmarks/selection-baseline/changes.json`
@@ -681,6 +687,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-945 | the shell plugin's `shell:runs-toolchain` unbounded-reader witness in `internal/liveverify/affected/shell` | `TestAffectedMakefileRecipeOnlySelectsScriptTest_TSP_V0_945` in `cmd/corvint/affected_makefile_recipe_unix_test.go` |
 | TSP-V0-946 | the gitignore-aware source walk and dirty set in `internal/liveverify/affected` | `TestAffectedIgnoresGitignoredBuildProducts_TSP_V0_946` in `cmd/corvint/affected_makefile_recipe_unix_test.go` (dirty and `--base` modes; fails when the ignore rule is removed) |
 | TSP-V0-947 | the `UNBOUNDED_READER` witness in `internal/liveverify/affected/select.go` | measured counts in the requirement and `docs/build-log/2026-11-01-aff-w16.md`; `TestAffectedMakefileRecipeOnlySelectsScriptTest_TSP_V0_945` pins one unbounded reader |
+| TSP-V0-785 | `testSourceParse`, `testSourceParsed` and `testSourceParsedCache` in `cmd/corvint/test_source_slices.go` | `TestTSPV0785ParsedFilesAreReusedAndEqual` in `cmd/corvint/test_source_slices_tspv0785_test.go` (a cold slice, a warm slice and a slice after the cache is emptied are equal and the warm one adds no entry; one changed byte adds one entry); the before/after in build log `docs/build-log/2026-11-01-tsf-w33.md` |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-710 | `Moved`, `change.Recorded` and the `replay` call in `tools/selection-baseline/main.go`; the `recorded` member of every change in `benchmarks/selection-baseline/changes.json` | `TestSelectionBaselineNamesMovedVerdicts_V13501` (one recorded change flips each way and one carries no record; a move alone leaves the floor check passing) and the recorded-verdict check of `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the records come from the base replay at 12/19 narrowed, 0 misses (build log 2026-11-01-sel-w10) |
 | TSP-V0-720 | `validBaseArgument` and `resolveBaseArgument` in `cmd/corvint/affected_abbrev_base.go`; their calls in `parseTestOptions` and `runTest` (`cmd/corvint/test.go`) and in `resolveAffectedAbbrevBase` | `TestTSPV0720BaseRevisionExpressionResolves` in `cmd/corvint/affected_abbrev_base_test.go` (`HEAD`, `HEAD^`, `HEAD~1`, a branch, `branch^{commit}` and `@` resolve and the affected receipt records the full id; an unknown ref, an out-of-range ancestor, a range, a leading `-`, a path and whitespace are refused; all-hex values are not revisions; `test --base HEAD~1 --dry-run` records the full id in its manifest and `test --base HEAD~9` exits 2); `TestACXV0854RevisionBase`, `TestAFPV0230AbbreviatedBaseAndTrailingRoot` and `TestAFPV0232AmbiguousAbbreviatedBase` unchanged |
@@ -716,7 +723,8 @@ original reason. No stored state depends on it. TSP-V0-007: stop passing `--prio
 not written and only `selection.json` decides, as before. TSP-V0-860: delete the
 `selection-baseline-check` target; no other target or stored state depends on it. TSP-V0-861: in
 `testSourceEligible`, return the fallback again when a test file of the package is dirty. TSP-V0-864: make
-`testSourceAdditive` return false; every residue change keeps the package whole again. TSP-V0-665: drop the `HiddenRoots` loop in
+`testSourceAdditive` return false; every residue change keeps the package whole again. TSP-V0-785: make
+`testSourceParse` skip the cache lookup; every call then parses afresh, as before. TSP-V0-665: drop the `HiddenRoots` loop in
 `foreignCallersComplete` and the workflow caller; `.github` is then unscanned again. TSP-V0-666: delete `tools/plan-delta`; nothing depends on it. TSP-V0-960: make
 `constructed` return false and pass an empty `built` map; computed words are then ignored again.
 No stored state depends on it. TSP-V0-950 and TSP-V0-951: delete `.corvint/shell-read-scopes.json` (a

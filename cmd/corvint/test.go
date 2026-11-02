@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -302,7 +303,13 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
-	if freshness := selfBinaryStale(ctx, root); freshness.Code != "" {
+	// HEAD is read once: the stale-binary check and the source identity below
+	// both use it, so the check spawns no rev-parse of its own. A failed read
+	// is the check's own failed read, unverified, and the source identity then
+	// reads HEAD again as before (AFP-V0-825).
+	started := time.Now()
+	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
+	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
 	}
 	receiptFlag := "--receipt"
@@ -327,12 +334,18 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	identify := func(ctx context.Context) (sessiontest.SourceIdentity, error) {
 		return testSourceIdentity(ctx, gitExecutable, root)
 	}
-	source, err := identify(ctx)
+	var source sessiontest.SourceIdentity
+	var observed *affectedObservation
+	if headErr != nil {
+		source, observed, err = testObserveSource(ctx, gitExecutable, root)
+	} else {
+		source, observed, err = testObserveSourceAt(ctx, gitExecutable, root, head)
+	}
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "test cannot capture the source identity: " + err.Error()})
 		return 2
 	}
-	input, pins := testRunInput(ctx, root, options, source)
+	input, pins := testRunInput(ctx, root, options, source, observed)
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -446,10 +459,30 @@ func testWithin(path, directory string) bool {
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
+// testScanMemo is the gateselect scan memo kept beside the affected graph
+// entries in the resolved cache directory, or nil when there is none
+// (AFP-V0-822).
+func testScanMemo(invocation affectedInvocation, module string) *gateselect.ScanMemo {
+	if invocation.Cache == "" {
+		return nil
+	}
+	horizon := time.Now().Add(-affected.GraphCacheRacyWindow)
+	return &gateselect.ScanMemo{
+		Identity: affectedProgramIdentity(),
+		Load: func() []byte {
+			return affected.LoadScanMemo(invocation.Cache, invocation.Root, invocation.CacheExcluded, module)
+		},
+		Store: func(body []byte) {
+			_ = affected.StoreScanMemo(invocation.Cache, invocation.Root, invocation.CacheExcluded, module, body)
+		},
+		Stamp: func(info fs.FileInfo) (string, bool) { return affected.FileStamp(info, horizon) },
+	}
+}
+
 // testRunInput plans in process through `corvint affected --base` and the
 // AFP-V0-012 attribution, and reads the declared full scope and partition
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
-func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity) (sessiontest.Input, testPinsResult) {
+func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity, observed *affectedObservation) (sessiontest.Input, testPinsResult) {
 	input := sessiontest.Input{
 		Base: options.base, Placement: options.placement, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
 		Partition: sessiontest.PartitionFiles{
@@ -459,10 +492,29 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		},
 	}
 	var pins testPinsResult
-	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
+	// The graph comes from the default affected graph cache when one can be
+	// placed, as `corvint affected` reads it, so an unchanged tree is not
+	// re-scanned; the cache returns the same graph bytes (AFP-V0-438,
+	// AFP-V0-822).
+	// The attribution index depends only on the root and module, so it is
+	// built while the graph compiles, and its per-file scans are memoized in
+	// the same cache directory (AFP-V0-822).
+	// The compile reuses the identity's HEAD and dirty set, and its closing
+	// recheck spans the identity read too (AFP-V0-824).
+	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed}
+	err := resolveAffectedBatchAndCache(&invocation)
+	var index *gateselect.Index
+	if module, moduleErr := golang.ReadModulePath(root); err == nil && moduleErr == nil {
+		index = gateselect.StartIndex(root, module, testScanMemo(invocation, module))
+	}
+	var receipt affectedReceipt
+	var graph *affected.Graph
+	if err == nil {
+		receipt, graph, err = compileAffectedGraph(ctx, invocation)
+	}
 	if err == nil {
 		input.GraphDigest = graph.Digest()
-		err = testFillPlan(ctx, &input, receipt, graph, root, options.base)
+		err = testFillPlan(ctx, &input, receipt, graph, root, options.base, index)
 	}
 	if err == nil && options.pins {
 		pins.tokens = testChangedTokens(ctx, root, options.base, receipt.Plan.Dirty)
@@ -488,7 +540,7 @@ type testPinsResult struct {
 	units  []testPinUnit
 }
 
-func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string) error {
+func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string, index *gateselect.Index) error {
 	compact, err := compactAffectedReceipt(receipt)
 	if err != nil {
 		return err
@@ -534,7 +586,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	case err != nil:
 		input.GoSelection = "FALLBACK the root module path cannot be read"
 	default:
-		lines := gateselect.SelectStructural(plan, module, root)
+		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
 		if len(lines) != 0 {
 			input.GoSelection = lines[len(lines)-1]
 		}
@@ -605,21 +657,37 @@ func testReadOptional(name string) []byte {
 // testSourceIdentity is the STR-V0-017 source identity: HEAD, its tree and
 // every dirty path's content digest.
 func testSourceIdentity(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, error) {
+	identity, _, err := testObserveSource(ctx, gitExecutable, root)
+	return identity, err
+}
+
+// testObserveSource is testSourceIdentity that also returns the HEAD and
+// dirty set it read, which the plan's compile then reuses (AFP-V0-824).
+func testObserveSource(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, *affectedObservation, error) {
 	head, err := affectedHeadRevision(ctx, gitExecutable, root)
 	if err != nil {
-		return sessiontest.SourceIdentity{}, err
+		return sessiontest.SourceIdentity{}, nil, err
 	}
+	return testObserveSourceAt(ctx, gitExecutable, root, head)
+}
+
+// testObserveSourceAt is testObserveSource for an already-resolved HEAD.
+func testObserveSourceAt(ctx context.Context, gitExecutable, root, head string) (sessiontest.SourceIdentity, *affectedObservation, error) {
 	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
 	defer cancel()
 	tree, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", head+"^{tree}").Output()
 	if err != nil {
-		return sessiontest.SourceIdentity{}, errors.New("HEAD tree cannot be read")
+		return sessiontest.SourceIdentity{}, nil, errors.New("HEAD tree cannot be read")
 	}
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return sessiontest.SourceIdentity{}, err
+		return sessiontest.SourceIdentity{}, nil, err
 	}
-	return sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+	identity, err := sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+	if err != nil {
+		return sessiontest.SourceIdentity{}, nil, err
+	}
+	return identity, &affectedObservation{revision: head, dirty: dirty}, nil
 }
 
 func testVerdict(stderr io.Writer, m sessiontest.Manifest) {

@@ -29,6 +29,12 @@
 #                      CI (V1-3741, ASD-V0-643). The row reports the host's ABI
 #                      and never fails the preflight; CORVINT_LANDLOCK_PROBE names
 #                      a probe command to run instead of building test-confine.
+#   tasks-store        lane hosts read a stale store copy (808 tickets against 3713
+#                      on the Mac, V1-3931, TCL-V0-742). The row runs queue parity
+#                      against CORVINT_TASKS_AUTHORITY or the newest staged
+#                      ~/lane-inputs/ticket-bodies-*/queue-snapshot.json, warns when
+#                      behind and never fails the preflight; CORVINT_TASKS_BIN
+#                      names the corvint-tasks command.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 status=0
@@ -178,6 +184,28 @@ else
 		esac
 	fi
 	[ -z "$probe_dir" ] || rm -rf "$probe_dir"
+fi
+# tasks-store (V1-3931, TCL-V0-742): compare the store this host reads with the authoritative queue
+# snapshot staged by script/lane-stage-inputs.sh, so a lane never trusts a stale copy silently.
+authority=${CORVINT_TASKS_AUTHORITY:-}
+if [ -z "$authority" ]; then
+	authority=$(ls -t "$HOME"/lane-inputs/ticket-bodies-*/queue-snapshot.json 2>/dev/null | head -n 1 || true)
+fi
+tasks=${CORVINT_TASKS_BIN:-corvint-tasks}
+if [ -z "$authority" ]; then
+	note "tasks-store" "no authoritative queue snapshot (CORVINT_TASKS_AUTHORITY unset, none under ~/lane-inputs/ticket-bodies-*/) -- store parity NOT_OBSERVED"
+elif ! command -v "$tasks" >/dev/null 2>&1; then
+	note "tasks-store" "UNKNOWN: $tasks is not on PATH -- store parity with $authority NOT_OBSERVED"
+else
+	parity=$(cd "$root" && "$tasks" queue parity --against "$authority" 2>/dev/null) && parity_rc=0 || parity_rc=$?
+	pcount() { printf '%s' "$parity" | sed -n "s/.*\"$1Count\":\"\([0-9]*\)\".*/\1/p"; }
+	case $parity in
+	*'"inSync":true'*) note "tasks-store" "in sync with $authority" ;;
+	*'"inSync":false'*)
+		first=$(printf '%s' "$parity" | sed -n 's/.*"missing":\[\([^]]*\)\].*/\1/p' | tr -d '"' | cut -c1-120)
+		note "tasks-store" "WARN behind $authority: $(pcount missing) tickets missing${first:+ ($first)}, $(pcount stale) stale, $(pcount extra) extra -- read tickets with CORVINT_TASKS_SNAPSHOT=$authority, and cite the store revision in any claim about store contents" ;;
+	*) note "tasks-store" "UNKNOWN: queue parity exited $parity_rc without a parity item -- store parity with $authority NOT_OBSERVED" ;;
+	esac
 fi
 printf '\n%s\n' "Build and test only the packages you own; a red ./... here is usually not yours."
 exit "$status"

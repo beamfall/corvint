@@ -1079,6 +1079,14 @@ import-direction-check:
 shell-foreign-callers-check:
 	$(DOC_GATE_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
+# tasks-profiles-check fails, naming the profile and file, when a taskman-NAME/N literal in the
+# non-test sources under internal/tasks is not in exactly one of cli.LiveFormats, outputOnlyProfiles and
+# adoptOnlyProfiles, so an unregistered profile fails in doc-gates instead of only inside the long
+# internal/tasks/cli package (TCL-V0-815, V1-4184).
+.PHONY: tasks-profiles-check
+tasks-profiles-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/tasks-profiles-check >/dev/null
+
 # shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
 # executable-bit check alone, so a GATE_STEPS shell step missing from shell-test, or a script test
 # committed without its executable bit, fails in doc-gates, not only in go test (DCW-V0-813).
@@ -1095,7 +1103,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
@@ -1209,7 +1217,7 @@ dr-numbers-check:
 # make lane-dispatch-check BASE=$(git rev-parse origin/main) LANES="a=tickets-a.json b=tickets-b.json" WAIVE=V1-1
 .PHONY: lane-dispatch-check
 lane-dispatch-check:
-	@script/lane-dispatch-check.sh $(if $(BASE),--base "$(BASE)") $(foreach w,$(WAIVE),--waive $(w)) $(LANES)
+	@script/lane-dispatch-check.sh $(if $(BASE),--base "$(BASE)") $(if $(ORPHANS),--orphans "$(ORPHANS)") $(foreach w,$(WAIVE),--waive $(w)) $(LANES)
 
 # ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These five are gate steps, so CI's
 # shell command runs them; companion-release-gate-test also runs release-env-compat_test.sh.

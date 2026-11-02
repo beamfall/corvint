@@ -77,6 +77,7 @@ func TestTOLV0060_PrintFixture(t *testing.T) {
 // id; a malformed report refuses OBLIGATION_REPORT:; neither writes the
 // allow-list or any store state.
 func TestTOLV0061_QualificationRefusals(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, _, _ := obligationRepo(t)
 	before := fixture.TreeSnapshot(t, r.StateDir)
 	mismatch := fixtureRun(t, qualifiedVersion, func(s []pwSpec) { s[2].Tests[0].Results[0].Status = "passed" })
@@ -103,6 +104,7 @@ func TestTOLV0061_QualificationRefusals(t *testing.T) {
 // repeat replaces the entry; an unreadable allow-list refuses a report
 // witness rather than admitting nothing or everything.
 func TestTOLV0062_AllowListRecorded(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	before := fixture.TreeSnapshot(t, r.StateDir)
@@ -153,6 +155,7 @@ func mustEval(t *testing.T, p string) string {
 // OBLIGATION_REPORT_VERSION_UNQUALIFIED:); after it the same report credits;
 // an unqualified version still refuses.
 func TestTOLV0063_QualifiedVersionAdmitted(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	spec := pwSpec{Title: "AC-1 login", ID: "s1", File: "e2e/login.spec.ts", Tests: []pwTest{passed("chromium")}}
@@ -268,6 +271,7 @@ func separateTestRepo(t *testing.T) (string, string) {
 // passed at retry 0; the evidence names the repository; the witness passes
 // receipt audit (AC2, AC3).
 func TestTOLV0065_SeparateTestRepository1_64(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)
@@ -302,6 +306,7 @@ func TestTOLV0065_SeparateTestRepository1_64(t *testing.T) {
 // matches in the declared test repository, so removing it makes the audit
 // inconsistent.
 func TestTOLV0066_AuditInTestRepository(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)
@@ -329,6 +334,7 @@ func TestTOLV0066_AuditInTestRepository(t *testing.T) {
 // OBLIGATION_TEST_REPOSITORY_UNDECLARED: at the command and at the writer;
 // a declared path that is not a Git worktree refuses MISSING_EVIDENCE.
 func TestTOLV0067_UndeclaredRefusalsUnchanged(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, head := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app, "plain": t.TempDir()}))
 	seedObligations(t, r.Root, id)
@@ -371,6 +377,7 @@ func TestTOLV0067_UndeclaredRefusalsUnchanged(t *testing.T) {
 // class lists) admits nothing, so its version still refuses
 // UNSUPPORTED_VERSION; qualify-version replaces it.
 func TestTOLV0063_ForgedAllowListEntryNotAdmitted(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := qualifyVersion(t, r.Root, fixtureRun(t, qualifiedVersion, nil)); x.res.Outcome != wire.OutcomeOK {
@@ -414,6 +421,7 @@ func TestTOLV0063_ForgedAllowListEntryNotAdmitted(t *testing.T) {
 // directory inside the store's repository, refuses MISSING_EVIDENCE rather
 // than resolving to the enclosing repository.
 func TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepoWith(t, testRepoPolicy(map[string]string{"nested": "nested"}))
 	seedObligations(t, r.Root, id)
 	nested := filepath.Join(r.Root, "nested")
@@ -436,6 +444,7 @@ func TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot(t *testing.T) {
 // writing nothing, when the testRepository's declared path at write time is
 // not the one the witness resolved, or when no resolved path is bound.
 func TestTOLV0065_WriterBindsDeclaredPath(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	other, _ := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
@@ -469,6 +478,7 @@ func TestTOLV0065_WriterBindsDeclaredPath(t *testing.T) {
 // worktree that loses its .git, so Git would resolve its directory to the
 // enclosing repository at the same commit, makes the audit inconsistent.
 func TestTOLV0066_AuditRequiresExactTestRepositoryRoot(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	encl := filepath.Join(t.TempDir(), "encl")
 	fixture.Write(t, filepath.Join(encl, "e2e", "login.spec.ts"), []byte(obligationSpec))
 	git(t, encl, "init", "-q")
@@ -502,6 +512,7 @@ func TestTOLV0066_AuditRequiresExactTestRepositoryRoot(t *testing.T) {
 // exactly 1.63.0, whose live fixture run is retained, so a 1.63.0 report
 // credits in a store with no allow-list, and another 1.63 patch still refuses.
 func TestTOLV0126_ShippedVersionAdmitted(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	if got := strings.Join(obligation.QualifiedVersions(), ","); got != "1.63.0" {
 		t.Fatalf("shipped qualified versions %q, want 1.63.0", got)
 	}

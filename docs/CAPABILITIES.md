@@ -329,17 +329,25 @@ never a `corvint` subcommand, and it has its own developer release channel. Star
 
 Before filing, `corvint-tasks ticket similar --text|--payload-stdin` ranks open tickets with the
 context compiler's BM25 and names the matched terms; `ticket create` refuses a likely duplicate
-(`DUPLICATE_ID`) unless `--not-duplicate-of` names it; `ticket digest` prints a one-line friction
+(`DUPLICATE_ID`) unless `--not-duplicate-of` names it, and refuses touch paths absent from
+`origin/main` unless the body records `Source ref: BRANCH@SHA` or `--creates-paths` is given
+([TCL-V0-743](specs/corvint-tasks-cli-v0.md)); `ticket orphan-lanes` lists lane commits that
+deliver OPEN tickets no batch branch or the integration ref contains ([TCL-V0-744](specs/corvint-tasks-cli-v0.md)); `ticket digest` prints a one-line friction
 digest that `ticket similar --digest FILE` matches without a store; `ticket recur` records a
 recurrence on the existing ticket. `queue snapshot` exports a verified intent snapshot that
 `CORVINT_TASKS_SNAPSHOT=FILE` serves read-only on a lane host without a journal, refusing every
 other verb; `queue snapshot --worktree DIR` exports a linked or pruned worktree's own store so its
-blockers and dependency closure are validated instead of the primary checkout's (experimental; [TCL-V0](specs/corvint-tasks-cli-v0.md), [lane use](LANE-ORCHESTRATION.md)).
+blockers and dependency closure are validated instead of the primary checkout's; `queue parity
+--against FILE` names the tickets a lane host's store lacks or holds stale against an authoritative
+snapshot and refuses `STALE_TICKET` when it is behind (experimental; [TCL-V0](specs/corvint-tasks-cli-v0.md), [lane use](LANE-ORCHESTRATION.md)).
 
 Lane flow (experimental; [TLF-V0](specs/corvint-tasks-lane-flow-v0.md)): `ticket progress` records
 an advisory lane phase (IN_PROGRESS to MERGED_AWAITING_CLOSEOUT, BLOCKED, CLEARED) on a live ticket,
-admitted under an OPERATOR/ADMISSION barrier; `ticket search --phase PHASE|NONE` and `roadmap` rows
-read it, and `ticket closeout-debt` reports an OPEN ticket whose progress head is a scanned commit.
+admitted under an OPERATOR/ADMISSION barrier; `ticket progress --batch` (or `--targets-file FILE`)
+marks many tickets in one invocation with a per-target outcome. `ticket search --phase PHASE|NONE` and
+`roadmap` rows read it, `ticket closeout-debt` reports an OPEN ticket whose progress head is a scanned
+commit, and `ticket batch-delivered` and `batch-close` treat a review or merged phase naming the batch
+or a lane PR as a delivery (`source` PROGRESS).
 `ticket effects-proposals` proposes touch paths, labelled "proposal: not authority", for OPEN tickets
 with UNKNOWN effects coverage. `ticket delivery-screen --lane-refs` also scans unmerged local branch
 and worktree heads (DELIVERED_ON_LANE, IN_FLIGHT by progress). The repository check

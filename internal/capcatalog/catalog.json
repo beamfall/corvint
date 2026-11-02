@@ -1446,7 +1446,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "The command reads the Git worktree status, builds the multi-language unit graph from source text, and writes one affected-plan/1 document to stdout: the selector's plan (selected units with witnesses and test counts, an exclusion summary, unknowns, scope) and provider.go.packages, the exact import paths an operator may copy into a Go live-test provider bundle.",
-        "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
+        "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> worktree=N revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
         "Example: corvint affected --base FULL_SHA --format text --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted tier-0 and tier-1 unit names a lane runs locally, range {base, paths count}, degradations and warning; --format text writes it as lines (\"affected <summary.line> ...\", \"tiers ...\", one \"tier0 UNIT\" or \"tier1 UNIT\" per unit).",
         "Example: corvint affected --base FULL_SHA --summary --full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
@@ -1706,7 +1706,8 @@
         "Writes corvint/index/<object-format>-<tree>-<engine>.gob under the Git common directory, shared by every linked worktree (index-snapshot-v0, experimental): the compiled index of HEAD's tree, keyed by the tree id and by a digest of this binary, so a changed tree or a rebuilt Corvint never reads it.",
         "Eight snapshots per worktree are kept, up to 64 and 1 GiB: the one just written, then this binary's of a tree checked out at a live worktree HEAD, then this binary's others, then another binary's live trees, then the rest, newest first.",
         "This is the only verb that writes there; \"context\" reads a matching snapshot in place of rebuilding the index and applies the worktree's dirty paths from git status, and falls back to a full build when none matches.",
-        "With --if-stale, a matching snapshot writes nothing and reports state \"fresh\"; a missing or stale snapshot is rebuilt exactly as above."
+        "With --if-stale, a matching snapshot writes nothing and reports state \"fresh\"; a missing or stale snapshot is rebuilt exactly as above.",
+        "CORVINT_INDEX_STORE=DIR (operator env var, off by default) makes DIR, a real directory, the store that every command writes and reads instead of the shared one, so a scratch or measurement binary leaves the shared store untouched."
       ],
       "unknowns": [
         {

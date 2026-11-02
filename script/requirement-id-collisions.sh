@@ -69,13 +69,30 @@ self=$(git rev-parse -q --verify HEAD 2> /dev/null || true)
   git for-each-ref --format='%(objectname) %(refname:short)' refs/heads
   git worktree list --porcelain | awk '/^worktree / { path = substr($0, 10) } /^HEAD / { print $2 " " path }'
 } | awk '!seen[$1]++' > "$work/refs"
+: > "$work/open"
+# Branch tips are classified with one for-each-ref: --no-merged drops tips already in the base and
+# --contains of each base root keeps only tips that share history with it (V1-4093). Any other head,
+# a detached worktree, keeps the two per-commit merge-base checks.
+contains=()
+for root in $(git rev-list --max-parents=0 "$base_sha"); do contains+=("--contains=$root"); done
+git for-each-ref --format='%(objectname)' refs/heads > "$work/branches" &&
+  git for-each-ref --format='%(objectname)' --no-merged="$base_sha" ${contains[@]+"${contains[@]}"} refs/heads > "$work/open-branches" ||
+  refuse "refs-unreadable: git for-each-ref failed: run git fsck and rerun"
+awk -v self="$self" '
+  FILENAME == ARGV[1] { branch[$1] = 1; next }
+  FILENAME == ARGV[2] { open[$1] = 1; next }
+  $1 == self { next }
+  !($1 in branch) { print "check " $0; next }
+  $1 in open { print "open " $0 }' "$work/branches" "$work/open-branches" "$work/refs" > "$work/classified"
+# A classified ref is a candidate when it is not in the base and shares history with it.
 : > "$work/candidates"
-while read -r sha name; do
-  [[ $sha == "$self" ]] && continue
-  git merge-base --is-ancestor "$sha" "$base_sha" 2> /dev/null && continue
-  git merge-base "$sha" "$base_sha" > /dev/null 2>&1 || continue
+while read -r kind sha name; do
+  if [[ $kind == check ]]; then
+    git merge-base --is-ancestor "$sha" "$base_sha" 2> /dev/null && continue
+    git merge-base "$sha" "$base_sha" > /dev/null 2>&1 || continue
+  fi
   printf '%s %s\n' "$sha" "$name" >> "$work/candidates"
-done < "$work/refs"
+done < "$work/classified"
 # A candidate that another candidate or this checkout's HEAD contains, such as a lane head already
 # merged into a batch branch, is skipped: the containing head carries its rows, possibly reworded,
 # and comparing both reported each batch/lane pair as a collision (V1-4065, ASD-V0-820).
@@ -84,7 +101,11 @@ if [[ -s $work/candidates ]]; then
   git merge-base --independent $(cut -d' ' -f1 "$work/candidates") ${self:+"$self"} > "$work/outer" 2> /dev/null ||
     refuse "merge-base-failed: git merge-base --independent over the open refs failed; run git fsck"
 fi
-: > "$work/open"
+# An open ref that shares history with this checkout beyond the base (a batch that merged an
+# earlier head of this lane) takes the per-ref path below, which drops the IDs the two share
+# (ASD-V0-821); every other open ref is read in the one batch (V1-4093, ASD-V0-805).
+: > "$work/open-refs"
+: > "$work/missing"
 open=0
 while read -r sha name; do
   if ! grep -qxF "$sha" "$work/outer"; then
@@ -92,6 +113,44 @@ while read -r sha name; do
     continue
   fi
   open=$((open + 1))
+  if [[ -z $block && -n $self ]] && mb=$(git merge-base "$self" "$sha" 2> /dev/null) && [[ $mb != "$base_sha" ]]; then
+    printf '%s %s\n' "$sha" "$name" >> "$work/missing"
+  else
+    printf '%s %s\n' "$sha" "$name" >> "$work/open-refs"
+  fi
+done < "$work/candidates"
+
+# One cat-file --batch reads every open ref's committed index; a ref it reports missing (no index in
+# its tree, or an index blob that cannot be read) takes the per-ref path below, which tells the two
+# apart.
+: > "$work/batch-missing"
+if [[ -s $work/open-refs ]]; then
+  awk '{ print $1 ":docs/specs/REQUIREMENTS.tsv" }' "$work/open-refs" | git cat-file --batch > "$work/batch" ||
+    refuse "batch-read-failed: git cat-file --batch could not read the open refs' indexes: run git fsck and rerun"
+  awk -F'\t' -v names="$work/open-refs" -v missing="$work/batch-missing" '
+    BEGIN { while ((getline line < names) > 0) { n++; sha[n] = substr(line, 1, index(line, " ") - 1); ref[n] = substr(line, index(line, " ") + 1) } }
+    FILENAME == ARGV[1] { known[$1] = 1; next }
+    left > 0 {
+      left -= length($0) + 1
+      if (!first && !($1 in known)) print $1 "\t" $2 "\t" $3 "\t" ref[i] " (" substr(sha[i], 1, 12) ")"
+      first = 0
+      if (left == 0) skip = 1
+      next
+    }
+    skip { skip = 0; if ($0 == "") next }
+    {
+      i++
+      split($0, h, " ")
+      if (h[2] == "missing") { print sha[i] " " ref[i] > missing; next }
+      if (h[2] != "blob") { bad = 1; exit }
+      left = h[3] + 0; first = 1
+      if (left == 0) skip = 1
+    }
+    END { if (bad || i != n) exit 2 }' "$work/base.ids" "$work/batch" >> "$work/open" ||
+    refuse "batch-read-failed: the open refs' indexes could not be parsed: run git fsck and rerun"
+fi
+cat "$work/batch-missing" >> "$work/missing"
+while read -r sha name; do
   # A ref whose tree has no index has nothing to compare; one whose index blob cannot be read is
   # an error, never an empty definition set (fail closed).
   if ! blob=$(git rev-parse -q --verify "$sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null); then
@@ -111,7 +170,7 @@ while read -r sha name; do
   fi
   new_rows ${shared[@]+"${shared[@]}"} < "$work/ref.tsv" | awk -F'\t' -v ref="$name (${sha:0:12})" '{ print $0 "\t" ref }' >> "$work/open" ||
     { printf '%s: REFUSE could not read the rows of %s\n' "$me" "$name" >&2; exit 2; }
-done < "$work/candidates"
+done < "$work/missing"
 
 if [[ -n $block ]]; then
   used=$(awk -F'\t' -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '

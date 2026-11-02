@@ -112,6 +112,11 @@ func (v *segmentView) receipt(seq uint64) ([]byte, error) {
 func (v *segmentView) load(i int) error {
 	e := v.manifest.Segments[i]
 	name := snapshot.SegmentName(e.First, e.Last)
+	if f := segmentLoadFault.Load(); f != nil {
+		if err := (*f)(name); err != nil {
+			return err
+		}
+	}
 	raw, err := v.inner.Read(name, snapshot.MaxSegmentBytes)
 	if os.IsNotExist(err) {
 		return wire.Errorf(wire.CodeJournalForked, name, "bound segment absent")
@@ -135,10 +140,17 @@ func (v *segmentView) load(i int) error {
 		return wire.Errorf(wire.CodeJournalForked, name, "segment differs from its manifest entry")
 	}
 	if !v.loaded[i] {
+		// Every request is checked before any is kept, so a refused load
+		// leaves the view as it was and a later load of the same segment
+		// refuses on the same path (LGL-V0-813).
+		seen := map[string]bool{}
 		for _, f := range s.Requests {
-			if _, dup := v.requests[f.Path]; dup {
+			if _, dup := v.requests[f.Path]; dup || seen[f.Path] {
 				return wire.Errorf(wire.CodeJournalForked, f.Path, "request sealed in more than one segment")
 			}
+			seen[f.Path] = true
+		}
+		for _, f := range s.Requests {
 			v.requests[f.Path] = append([]byte(nil), f.Raw...)
 		}
 		v.loaded[i] = true
