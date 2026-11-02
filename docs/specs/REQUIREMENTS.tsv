@@ -3227,6 +3227,7 @@ ON-V0-012	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amen
 ON-V0-013	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amends the CAL-V0-061 tail rule) A read resumed from the rea	unrecorded	-
 ON-V0-014	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650) Any failure to bind an ON-V0-012 or ON-V0-013 pre-state MUST	unrecorded	-
 ON-V0-015	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-1663; amends	standing	2026-10-11; V1-1663
+ON-V0-786	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; amends the ON-V0	standing	2026-10-11
 PUR-V0-001	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	`pause` and `unpause` run `TM-V0-009` redo of a pending receipt under their own	unrecorded	-
 PUR-V0-002	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending UNPAUSE receipt completes its paired non-null pre/null post	unrecorded	-
 PUR-V0-003	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending receipt whose kind is UNPAUSE and which posts no `intent/` pat	unrecorded	-
@@ -4689,6 +4690,7 @@ GL-V0-911	docs/specs/gate-ledger-v0.md	(experimental under the standing lane aut
 GL-V0-912	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends	standing	2026-11-01; V1-4241
 GL-V0-913	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune	standing	2026-11-01; V1-4241
 GL-V0-914	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-9	standing	2026-11-01; V1-4241
+GL-V0-787	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run	standing	2026-11-01; V1-4188
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
 GVA-V0-003	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) Each command MUST map its outco	standing	2026-10-27; V1-2841

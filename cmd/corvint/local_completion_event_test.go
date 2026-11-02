@@ -30,7 +30,9 @@ func TestAHI001AdapterWireVersion(t *testing.T) {
 		t.Fatalf("adapter wire version = %q, want 0.1.0", adapterWireVersion)
 	}
 	root := queryCLIRepository(t)
-	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	// The wire, not latency: lift the event deadline and the Git probe's fixed 10 s
+	// bound (V1-1413).
+	ctx := liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute }))
 	for _, host := range []string{"claude-code", "codex"} {
 		t.Run(host, func(t *testing.T) {
 			exact := options{host: host, hostVersion: dogfoodHostVersions[host], surface: "plugin", adapterVersion: "0.1.0"}
