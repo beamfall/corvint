@@ -6,8 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
@@ -270,7 +273,14 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 					statRoot, statRel = sub, ""
 				}
 			}
-			for _, tn := range tnames {
+			// The records are stat'd concurrently and consumed in listing
+			// order, so each name's refusals keep their serial position
+			// (CAL-V0-973).
+			infos, statErrs := make([]os.FileInfo, len(tnames)), make([]error, len(tnames))
+			ParallelEach(len(tnames), func(i int) {
+				infos[i], statErrs[i] = statRegularInfo(statRoot, filepath.Join(rootPath, name, tnames[i]), statRel+tnames[i], bound)
+			})
+			for i, tn := range tnames {
 				rel := name + "/" + tn
 				tfull := filepath.Join(rootPath, name, tn)
 				_, ok := ticketLocal(tn)
@@ -280,7 +290,7 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 				if !ok {
 					return Tree{}, wire.Errorf(wire.CodeMalformed, tfull, "unexpected entry in the intent store (%s/ admits only named JSON records)", name)
 				}
-				info, err := statRegularInfo(statRoot, tfull, statRel+tn, bound)
+				info, err := infos[i], statErrs[i]
 				if err != nil {
 					return Tree{}, err
 				}
@@ -313,7 +323,7 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 	if beforeTreeCapture != nil {
 		beforeTreeCapture()
 	}
-	dirs := pinnedTreeDirs{}
+	dirs := newPinnedTreeDirs()
 	defer dirs.close()
 	tree, err := captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
 		return dirs.read(root, full, rel, max)
@@ -326,31 +336,71 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 	})
 }
 
-// captureTree reads the planned entries with read and digests them.
+// captureTree reads the planned entries with read and digests them. The
+// entries are read and hashed concurrently (CAL-V0-973): each is read and
+// checked on its own, so the walk's refusals are reported in plan order
+// exactly as the serial walk reported them, and the tree's files, bytes and
+// digest are the same. read must admit concurrent calls.
 func captureTree(rootPath string, plan []plannedFile, read func(full, rel string, max int) ([]byte, error)) (Tree, error) {
-	files := make([]File, 0, len(plan))
-	captured := 0
-	for _, p := range plan {
-		var f File
+	files := make([]File, len(plan))
+	refusals := make([]error, len(plan))
+	ParallelEach(len(plan), func(i int) {
+		p := plan[i]
 		if p.known != nil {
-			f = File{Path: p.path, Sha256: p.known.Sha, Bytes: int(p.known.Size)}
-		} else {
-			raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
-			if err != nil {
-				return Tree{}, err
-			}
-			f = File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw}
+			files[i] = File{Path: p.path, Sha256: p.known.Sha, Bytes: int(p.known.Size)}
+			return
+		}
+		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
+		if err != nil {
+			refusals[i] = err
+			return
+		}
+		files[i] = File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw}
+	})
+	captured := 0
+	for i := range plan {
+		if refusals[i] != nil {
+			return Tree{}, refusals[i]
 		}
 		// Indexed entries count too: a file read here may have grown since
 		// the stat pass, so the bound is checked after either branch.
-		captured += f.Bytes
+		captured += files[i].Bytes
 		if captured > wire.MaxIntentTreeBytes {
 			return Tree{}, wire.Errorf(wire.CodeLimitExceeded, rootPath, "intent tree larger than %d bytes", wire.MaxIntentTreeBytes)
 		}
-		files = append(files, f)
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	return Tree{Files: files, TotalBytes: captured, Sha256: DigestOfFiles(files)}, nil
+}
+
+// parallelSerialBelow keeps a small walk on the calling goroutine, where
+// the start-up of the workers would cost more than the work.
+const parallelSerialBelow = 64
+
+// ParallelEach runs capture for every index below n, on at most
+// min(GOMAXPROCS, 8) goroutines (CAL-V0-973). Every index runs; capture
+// must write only its own index's results, and the caller consumes them in
+// index order so every refusal keeps its serial position.
+func ParallelEach(n int, capture func(int)) {
+	workers := min(runtime.GOMAXPROCS(0), 8)
+	if n < parallelSerialBelow || workers < 2 {
+		for i := 0; i < n; i++ {
+			capture(i)
+		}
+		return
+	}
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := int(next.Add(1) - 1); i < n; i = int(next.Add(1) - 1) {
+				capture(i)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 // listNames lists a directory inside the store through the root-confined
@@ -416,27 +466,45 @@ func readInRoot(root *os.Root, full, rel string, max int) ([]byte, error) {
 // record there costs InRoot's final openat alone instead of its whole
 // traversal. A subdirectory that cannot be pinned is read through readInRoot
 // per file, which reports the same open failure as before.
-type pinnedTreeDirs map[string]*os.File
+//
+// The capture reads concurrently, so the pin of a subdirectory is taken
+// under a lock once, by the first read beneath it; the reads themselves
+// share the descriptor without it.
+type pinnedTreeDirs struct {
+	mu   sync.Mutex
+	dirs map[string]*os.File
+}
+
+func newPinnedTreeDirs() *pinnedTreeDirs { return &pinnedTreeDirs{dirs: map[string]*os.File{}} }
 
 // pinTreeDirs exists so the parity test can compare pinned and per-file reads.
 var pinTreeDirs = true
 
-func (d pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, error) {
+// dir returns the pinned descriptor of sub, pinning it on the first call;
+// nil when the subdirectory cannot be pinned.
+func (d *pinnedTreeDirs) dir(root *os.Root, sub string) *os.File {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if dir, seen := d.dirs[sub]; seen {
+		return dir
+	}
+	pinned, err := safeopen.PinSubDir(root, sub)
+	if err != nil {
+		pinned = nil
+	}
+	d.dirs[sub] = pinned
+	if pinned != nil && afterTreeDirPin != nil {
+		afterTreeDirPin(sub)
+	}
+	return pinned
+}
+
+func (d *pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, error) {
 	sub, name, nested := strings.Cut(rel, "/")
 	if !pinTreeDirs || !nested || strings.Contains(name, "/") {
 		return readInRoot(root, full, rel, max)
 	}
-	dir, seen := d[sub]
-	if !seen {
-		pinned, err := safeopen.PinSubDir(root, sub)
-		if err != nil {
-			pinned = nil
-		}
-		d[sub], dir = pinned, pinned
-		if pinned != nil && afterTreeDirPin != nil {
-			afterTreeDirPin(sub)
-		}
-	}
+	dir := d.dir(root, sub)
 	if dir == nil {
 		return readInRoot(root, full, rel, max)
 	}
@@ -453,8 +521,10 @@ var beforeTreeCapture func()
 
 // bound reports whether every pinned subdirectory is still the directory its
 // name resolves to beneath root.
-func (d pinnedTreeDirs) bound(root *os.Root) bool {
-	for sub, dir := range d {
+func (d *pinnedTreeDirs) bound(root *os.Root) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for sub, dir := range d.dirs {
 		if dir == nil {
 			continue
 		}
@@ -470,8 +540,10 @@ func (d pinnedTreeDirs) bound(root *os.Root) bool {
 	return true
 }
 
-func (d pinnedTreeDirs) close() {
-	for _, dir := range d {
+func (d *pinnedTreeDirs) close() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, dir := range d.dirs {
 		if dir != nil {
 			dir.Close()
 		}
@@ -532,6 +604,31 @@ func LoadTree(primaryWorktree string, tree Tree, want wire.Digest) (*Store, erro
 		return nil, wire.Errorf(wire.CodeSnapshotMoved, filepath.Join(primaryWorktree, Dir), "intent tree digest %s differs from the pinned snapshot %s", tree.Sha256, want)
 	}
 	return decodeTree(filepath.Join(primaryWorktree, Dir), tree)
+}
+
+// LoadTreeSelecting is LoadTree over tree with only the ticket records keep
+// admits, by path and canonical bytes, decoded and held: every other ticket
+// is absent from the store, so the inventory holds the selected records
+// alone and its structural checks run over them only. A read whose answer
+// depends on a key that only some records carry selects by the bytes and
+// decodes those records instead of the whole inventory (CAL-V0-974,
+// V1-4315). Tree is kept whole.
+func LoadTreeSelecting(primaryWorktree string, tree Tree, keep func(path string, raw []byte) bool) (*Store, error) {
+	files := make([]File, 0, len(tree.Files))
+	for _, f := range tree.Files {
+		if strings.HasPrefix(f.Path, TicketsDir+"/") && !keep(f.Path, f.Raw) {
+			continue
+		}
+		files = append(files, f)
+	}
+	selected := tree
+	selected.Files = files
+	st, err := decodeTree(filepath.Join(primaryWorktree, Dir), selected)
+	if err != nil {
+		return nil, err
+	}
+	st.Tree = tree
+	return st, nil
 }
 
 func decodeTree(root string, tree Tree) (*Store, error) {

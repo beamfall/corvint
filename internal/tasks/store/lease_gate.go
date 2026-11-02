@@ -401,10 +401,12 @@ func gateAdmitted(ctx context.Context, repo *intent.Repository, actor mutation.B
 }
 
 // unlockedAttemptProof is unlockedAttempt that also returns the read it
-// decoded both from.
+// decoded both from: the checkpoint-resumed read audit (CAL-V0-972), since
+// the lease write that records the run audits the store again on its own
+// route and rechecks under the lock everything decided from this read.
 func unlockedAttemptProof(ctx context.Context, repo *intent.Repository, attemptID string) (*snapshot.Attempt, *intent.Policy, *journal.Result, error) {
 	path := "attempts/" + attemptID + ".json"
-	proof, err := readLeaseProof(ctx, repo)
+	proof, err := checkpointedLeaseProof(ctx, repo)
 	if err != nil {
 		return nil, nil, nil, err
 	}

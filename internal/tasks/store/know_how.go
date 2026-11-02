@@ -2,6 +2,7 @@ package store
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -435,8 +436,28 @@ type ClaimedKnowHow struct {
 	Err      error
 }
 
-func claimKnowHow(repo *intent.Repository, root string, repos map[string]string, ticketID string) ClaimedKnowHow {
-	st, err := intent.Load(repo.IntentRoot())
+// captured is the tree the writer route captured and rechecked for the
+// claim, when it served it; nil captures the tree here.
+func claimKnowHow(repo *intent.Repository, root string, repos map[string]string, ticketID string, captured *intent.Tree) ClaimedKnowHow {
+	id, err := wire.ParseTicketID("ticketId", ticketID)
+	if err != nil {
+		return ClaimedKnowHow{Err: err}
+	}
+	var tree intent.Tree
+	if captured != nil {
+		tree = *captured
+	} else if tree, err = intent.TreeDigest(repo.IntentRoot()); err != nil {
+		return ClaimedKnowHow{Err: err}
+	}
+	// CAL-V0-974 (V1-4315): only the claimed ticket and the records whose
+	// canonical bytes carry a knowHow key are decoded; a canonical record
+	// with know-how always carries the key, so the selection never drops a
+	// note, and a record selected by a look-alike byte sequence only
+	// decodes as before.
+	claimed := intent.TicketsDir + "/" + id.Local + ".json"
+	st, err := intent.LoadTreeSelecting(repo.IntentRoot(), tree, func(path string, raw []byte) bool {
+		return path == claimed || bytes.Contains(raw, knowHowKey)
+	})
 	if err != nil {
 		return ClaimedKnowHow{Err: err}
 	}
@@ -456,6 +477,9 @@ func claimKnowHow(repo *intent.Repository, root string, repos map[string]string,
 	}
 	return c
 }
+
+// knowHowKey is the canonical record key a ticket with know-how carries.
+var knowHowKey = []byte(`"knowHow":`)
 
 // catFileObject is one `--batch-check` answer: the object's id, type and
 // size in bytes.

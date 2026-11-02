@@ -167,16 +167,20 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 
 // writerLeaseVerb reports whether the writer-checkpoint route serves the
 // request: the liveness and claim writes that dominate queue traffic
-// (V1-0887), and pool confirm-safe, which otherwise ran the complete-history
-// audit under the preparation gate (CAL-V0-205, V1-1045). Every
-// other lease verb keeps the complete route, which prepares outside the
-// preparation gate (CAL-V0-263).
+// (V1-0887), pool confirm-safe, which otherwise ran the complete-history
+// audit under the preparation gate (CAL-V0-205, V1-1045), and the gate
+// verbs SUBMIT, GATE_RUN and COMPLETE, which a gated batch close runs once
+// per row and which otherwise paid the complete audit and the complete
+// inventory measure for every row (CAL-V0-970, V1-4315). Every other lease
+// verb keeps the complete route, which prepares outside the preparation
+// gate (CAL-V0-263).
 func writerLeaseVerb(request transaction.Request) bool {
 	if request.Operation != transaction.Lease || request.Lease == nil {
 		return false
 	}
 	switch request.Lease.Verb {
-	case transaction.LeaseClaim, transaction.LeaseClaimNext, transaction.LeaseRenew, transaction.LeaseHeartbeat, transaction.LeaseRelease, transaction.LeasePoolSafe:
+	case transaction.LeaseClaim, transaction.LeaseClaimNext, transaction.LeaseRenew, transaction.LeaseHeartbeat, transaction.LeaseRelease, transaction.LeasePoolSafe,
+		transaction.LeaseSubmit, transaction.LeaseGateRun, transaction.LeaseComplete:
 		return true
 	}
 	return false
@@ -256,10 +260,26 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return leaseDeclined(ctx, request, "staging")
 	}
 	read := time.Now()
+	// CAL-V0-973 (V1-4315): the route captures the intent tree itself,
+	// under the lock, and hands it to the audit as its outer snapshot, as
+	// the mutation writer takes the CLI's preload (LGL-V0-845): the audit
+	// takes a file's bytes from it while the file still has that size and
+	// lists the rest, and bindObservation reads and hashes every intent
+	// file again before any effect, so the capture is never the evidence
+	// that the modeled bytes are current. A liveness write lists no intent
+	// directory (JSG-V0-001) and captures nothing.
+	var preload *intent.Tree
+	if !transaction.LivenessLease(request) {
+		tree, err := intent.TreeDigest(repo.IntentRoot())
+		if err != nil {
+			return leaseDeclined(ctx, request, "preload: "+err.Error())
+		}
+		preload = &tree
+	}
 	// Only the audit attempts the resumed route ran are resumed walks: a
 	// decline before its audit charges none (PSR-V0-151).
 	var walks journal.WalkStats
-	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, nil)
+	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, preload)
 	timing.SnapshotRead += time.Since(read)
 	timing.walked(walks)
 	if terminal != nil {
@@ -311,6 +331,17 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	if err := ctx.Err(); err != nil {
 		return true, false, nil, err
+	}
+	if !live {
+		// CAL-V0-971 (TCX-V0-970): as the mutation writer does under
+		// TCX-V0-846, the route hands the model the derived ticket index,
+		// so an unselected ticket whose canonical bytes equal an entry's
+		// by SHA-256 and length is held as its summary and decoded only on
+		// its first Get. The index governs only this queue and policy and
+		// is never authority: every projection check and refusal of the
+		// decoding route is kept, and a store without an index decodes as
+		// before.
+		input.TicketIndex = intent.ReadClosedIndex(repo.StateDir).WriterSummaries(request.QueueID, wire.Sum(input.Policy))
 	}
 	if err := leaseInput(w.proof, input.Attempts, facts, &input); err != nil {
 		return leaseDeclined(ctx, request, "facts: "+err.Error())
@@ -383,6 +414,11 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return true, false, nil, err
 	}
 	refresh = advanceWriterCheckpoint(ctx, repo, w)
+	if request.Lease.Verb == transaction.LeaseClaim || request.Lease.Verb == transaction.LeaseClaimNext {
+		// The claim's know-how read is over the tree this write audited
+		// and rechecked; a claim changes no touch path and no note.
+		report.intentTree = preload
+	}
 	writerStage(ctx, "lease.commit", checkpointed)
 	return true, refresh, w.proof, nil
 }
