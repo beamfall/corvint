@@ -1375,6 +1375,28 @@ env_reasons() {
   done
 }
 
+# rerun_lines MISSING... -- COMMAND...: ASD-V0-730 (NEW-B3). After a reason refusal, the exact
+# commands that rerun COMMAND from any directory: with each missing reason as a leading NAME=VALUE
+# word and, for a missing HEAVY_WHOLE_REASON, Corvint's selection, whose manifest --plan prints each
+# package's command with HEAVY_SELECTION set (ASD-V0-891).
+rerun_lines() {
+  local reasons=() missing='' self base manifest
+  while [[ $# -gt 0 && $1 != -- ]]; do
+    missing+=" $1"
+    shift
+  done
+  shift
+  [[ $missing != *whole-reason-missing* ]] || reasons+=("HEAVY_WHOLE_REASON='<reason>'")
+  [[ $missing != *local-reason-missing* ]] || reasons+=("HEAVY_LOCAL_REASON='<why it needs this host>'")
+  self=$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd -P)/${BASH_SOURCE[0]##*/}
+  printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]}" "$self" "$(printf ' %q' "$@")" >&2
+  [[ $missing == *whole-reason-missing* ]] || return 0
+  base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
+  manifest=$(git rev-parse --absolute-git-dir 2> /dev/null)/heavy-selection.json || manifest=$PWD/heavy-selection.json
+  printf 'heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd %q && corvint test --base %s --dry-run --manifest %q && %q --plan %q\n' \
+    "$PWD" "$base" "$manifest" "$self" "$manifest" >&2
+}
+
 # local_policy COMMAND...: refuse an offloadable command under HEAVY_REMOTE=0 without
 # HEAVY_LOCAL_REASON (ASD-V0-030). Returns 1 on refusal.
 local_policy() {
@@ -1754,12 +1776,14 @@ main() {
     # ASD-V0-890 (V1-3506): evaluate both reason rules, then refuse once naming every missing reason.
     local missing=()
     env_reasons "$@"
+    local asked=("$@")
     selection_policy "$@" || missing+=(whole-reason-missing)
     go_test_timeout "$@"
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
     local_policy "$@" || missing+=(local-reason-missing)
     if ((${#missing[@]})); then
       ((${#missing[@]} > 1)) && printf 'heavy.sh: refused: set both HEAVY_WHOLE_REASON and HEAVY_LOCAL_REASON\n' >&2
+      rerun_lines ${missing[@]+"${missing[@]}"} -- ${asked[@]+"${asked[@]}"}
       printf 'heavy.sh: REFUSED %s (exit 2)\n' "$(IFS=+; printf '%s' "${missing[*]}")" # stdout marker (V1-3213)
       heavy_cause=refused
       return 2

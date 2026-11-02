@@ -1163,6 +1163,23 @@ HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
   fail "heavy.sh one-reason refusal: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> /dev/null
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh whole-only refusal: $(cat "$pol/out")"
+# ASD-V0-730 (NEW-B3): every reason refusal prints the exact command that reruns it from any
+# directory, with each missing reason as a leading word, and for a missing HEAVY_WHOLE_REASON
+# also the Corvint selection command; the stdout marker is unchanged.
+hself=$(cd "$script" && pwd -P)/heavy.sh
+HEAVY_WHOLE_REASON= pv go test -count=1 ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] &&
+  grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test -count=1 ./x" "$pol/err" &&
+  grep -qF "heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd $pol && corvint test --base " "$pol/err" &&
+  grep -qE " --dry-run --manifest [^ ]*heavy-selection\.json && $hself --plan [^ ]*heavy-selection\.json\$" "$pol/err" ||
+  fail "heavy.sh whole refusal did not print its rerun lines: $(cat "$pol/out" "$pol/err")"
+HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test ./x" "$pol/err" &&
+  ! grep -q 'rerun with Corvint selection' "$pol/err" ||
+  fail "heavy.sh local refusal did not print its rerun line: $(cat "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_REMOTE=0 pv go test -run '.*/Sub' ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test -run .\\*/Sub ./x" "$pol/err" ||
+  fail "heavy.sh two-reason refusal did not print one quoted rerun line: $(cat "$pol/err")"
 # ASD-V0-980 (V1-3888): a selected go test of several packages runs once with every package; a
 # failure exits with the command's status and the ASD-V0-940 cause line, never silently.
 # The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
