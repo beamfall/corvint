@@ -193,6 +193,9 @@ if (@undefined) {
     $failed = 1;
     print STDERR "requirement definitions: no clause body defines these ids, only a table row:\n";
     print STDERR "  $_\n" for @undefined;
+    # RDG-V0-741 (V1-3699): REQUIREMENTS.tsv is generated from the staged specs.
+    print STDERR "  if the spec defines them now, stage the spec, then run make spec-requirements to regenerate "
+        . "docs/specs/REQUIREMENTS.tsv; otherwise restore their definitions (RDG-V0-741)\n";
 }
 if (@duplicated) {
     $failed = 1;

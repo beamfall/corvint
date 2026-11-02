@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gitancestry/ancestrytest"
 )
 
@@ -226,7 +227,7 @@ func TestCompileGitConfiguration(t *testing.T) {
 		to = strings.TrimSpace(string(out))
 		marker := filepath.Join(root, "verifier-ran")
 		verifier := filepath.Join(root, "verifier")
-		if err := os.WriteFile(verifier, []byte("#!/bin/sh\nprintf invoked > '"+marker+"'\nexit 1\n"), 0700); err != nil {
+		if err := execfile.WriteFile(verifier, []byte("#!/bin/sh\nprintf invoked > '"+marker+"'\nexit 1\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		gitTest(t, root, "config", "log.showSignature", "true")
@@ -483,7 +484,7 @@ func TestCompileShallowCheckCancellationKeepsGitUnavailable(t *testing.T) {
 		shim := t.TempDir()
 		marker := filepath.Join(shim, "entered")
 		script := "#!/bin/sh\nfor a in \"$@\"; do if [ \"$a\" = --is-shallow-repository ]; then : > '" + marker + "'; sleep 30; exit 1; fi; done\nexec '" + real + "' \"$@\"\n"
-		if e := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
+		if e := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
 			t.Fatal(e)
 		}
 		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -687,7 +688,7 @@ func TestCompileRangeBoundAndTimeout(t *testing.T) {
 		shim := t.TempDir()
 		log := filepath.Join(shim, "calls")
 		script := "#!/bin/sh\necho \"$*\" >> '" + log + "'\nexec '" + real + "' \"$@\"\n"
-		if e := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
+		if e := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
 			t.Fatal(e)
 		}
 		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -720,7 +721,7 @@ func TestCompileRangeBoundAndTimeout(t *testing.T) {
 		}
 		shim := t.TempDir()
 		script := "#!/bin/sh\nfor a in \"$@\"; do if [ \"$a\" = --first-parent ]; then sleep 30; exit 1; fi; done\nexec '" + real + "' \"$@\"\n"
-		if e := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
+		if e := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
 			t.Fatal(e)
 		}
 		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))

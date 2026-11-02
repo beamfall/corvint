@@ -58,6 +58,10 @@ type mutateFlags struct {
 	// notDuplicateOf is each --not-duplicate-of, accepted only by ticket
 	// create (TCL-V0-004).
 	notDuplicateOf []string
+	// reasonCode is --reason-code, accepted only by ticket complete-manual
+	// and archive; it leads the payload reason with [TAW-REASON:CODE]
+	// (TAW-V0-013).
+	reasonCode string
 	// others counts the flags passed besides --help and --template, so
 	// --template refuses any flag by presence, not by value.
 	others int
@@ -118,6 +122,9 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		if err != nil && operation == mutation.OpCreate {
 			err = diagnoseCreatePayload(env, raw, err)
 		}
+	}
+	if err == nil && flags.reasonCode != "" {
+		payload, err = withReasonCode(operation, flags.reasonCode, payload)
 	}
 	if err != nil {
 		return errorResult(cmd, err)
@@ -199,6 +206,18 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		if args[i] == "--batch" {
 			f.batch = true
+			f.others++
+			continue
+		}
+		if args[i] == "--reason-code" {
+			if v := cmd[len(cmd)-1]; v != "complete-manual" && v != "archive" {
+				return f, usage(cmd, "unknown flag --reason-code: only ticket complete-manual and archive take a reason code (TAW-V0-013)")
+			}
+			if i+1 >= len(args) {
+				return f, usage(cmd, args[i]+" needs a value")
+			}
+			i++
+			f.reasonCode = args[i]
 			f.others++
 			continue
 		}
@@ -346,6 +365,9 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	if operation == mutation.OpCreate {
 		usageText += " [--not-duplicate-of TICKET|LOCAL ...]; corvint-tasks " + strings.Join(cmd, " ") + " --template [--skeleton]"
 	}
+	if operation == mutation.OpCompleteManual || operation == mutation.OpArchive {
+		usageText += " [--reason-code " + strings.Join(reasonCodes(operation), "|") + "]"
+	}
 	if operation == mutation.OpRefine {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"
 		o.Set("batch", wire.String(batchHelp))
@@ -418,6 +440,9 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 // submitMutationContext is submitMutation under a caller's writer context,
 // which may carry write-time inputs such as an obligation report check.
 func submitMutationContext(ctx context.Context, env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
+	if err := writerGuard(env, operation, payload); err != nil {
+		return errorResult(cmd, err)
+	}
 	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -439,6 +464,15 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 			return errorResult(cmd, err)
 		}
 	}
+	// TCL-V0-800 (V1-3958): a retry without --issued-at of a recorded request
+	// that differs only in the defaulted issuedAt reuses the recorded one, so
+	// it replays instead of refusing REQUEST_ID_CONFLICT.
+	recoveredIssuedAt := false
+	if flags.issuedAt == "" {
+		if at, _, ok := recordedIssuedAt(repo, store0, operation, actor, flags, payload, issued); ok {
+			issued, recoveredIssuedAt = at, true
+		}
+	}
 	envelope, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, issued)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -457,8 +491,11 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 	if w := attemptLiveWarning(env, res, store0.Queue.QueueID.Raw, flags.target); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}
-	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" {
-		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(repo, store0, operation, actor, flags, payload, issued))
+	if recoveredIssuedAt {
+		res.Warnings = append(res.Warnings, "request "+flags.requestID+" is recorded with the same request bytes except the defaulted issuedAt; this retry reused the recorded issuedAt "+string(issued)+" (TCL-V0-800)")
+	}
+	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" && !recoveredIssuedAt {
+		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(issued))
 	}
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {

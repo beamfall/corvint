@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // repository writes a module with one bounded and one unbounded test package.
@@ -195,6 +197,35 @@ func TestAFPV0025FileLevelUnitsAreRecordedByTheirTestFile(t *testing.T) {
 	}
 }
 
+// TSP-V0-723, V1-3780: an unrecorded reader's refusal names the record file and the
+// exact entry shape to add, besides the import chain (AFP-V0-500).
+func TestUnrecordedRefusalNamesTheEntryShape(t *testing.T) {
+	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
+	for name, content := range map[string]string{
+		"late/l.go":      "package late\n\nimport _ \"example.test/m/untested\"\n",
+		"late/l_test.go": "package late\n\nimport \"testing\"\n\nfunc TestL(t *testing.T) {}\n",
+	} {
+		file := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 {
+		t.Fatalf("exit %d, want 1: %s", code, stderr.String())
+	}
+	want := `  late: to record it, insert "late" into units of .corvint/unbounded-readers.json in ascending order and add "late": "<the unbounded read, and why .corvint/test-read-scopes.json cannot declare it>" to its reasons`
+	if !strings.Contains(stderr.String(), want+"\n") {
+		t.Fatalf("refusal lacks the entry shape:\n%s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "import chain") {
+		t.Fatalf("refusal lacks the import chain:\n%s", stderr.String())
+	}
+}
+
 // TestAFPV0500RefusalNamesTheImportChain proves V1-2823: a package that becomes
 // an unbounded reader only because it imports one is refused with the importing
 // package, every import edge, and the unbounded reader at the chain's end.
@@ -242,7 +273,7 @@ func TestRunsToolchainRefusalNamesTheUnitsEntry(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(test), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(test, []byte("#!/bin/sh\nset -eu\nout=$(make -s -n instruction-conflicts)\ntest \"$out\" = \"script/check-instruction-conflicts.sh --repository-only\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(test, []byte("#!/bin/sh\nset -eu\nout=$(make -s -n instruction-conflicts)\ntest \"$out\" = \"script/check-instruction-conflicts.sh --repository-only\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
@@ -255,5 +286,45 @@ func TestRunsToolchainRefusalNamesTheUnitsEntry(t *testing.T) {
 	}
 	if strings.Count(stderr.String(), "runs a build or language toolchain") != 1 {
 		t.Fatalf("the toolchain route is named for a non-shell unit too:\n%s", stderr.String())
+	}
+}
+
+// ASD-V0-614, V1-3806: a shell test whose own read is shell:dynamic-source is
+// refused with each computed `source` or `.` line as file:line and the literal
+// path that bounds it; a test that sources itself through "$0" is told to move
+// the shared functions into a helper. A literal source line is not named.
+func TestDynamicSourceRefusalNamesTheLine_ASD_V0_614(t *testing.T) {
+	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
+	for name, body := range map[string]string{
+		"script/self_test.sh": "#!/bin/sh\nset -eu\nif [ \"${1-}\" = lib ]; then return 0; fi\n. \"$0\" lib\n",
+		"script/lib_test.sh":  "#!/bin/sh\nset -eu\n. ./script/lib.sh\nsource \"$HELPERS/x.sh\"\n",
+		"script/lib.sh":       "f() { :; }\n",
+	} {
+		file := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := execfile.WriteFile(file, []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 {
+		t.Fatalf("exit %d, want 1: %s", code, stderr.String())
+	}
+	for _, want := range []string{
+		`script/self_test.sh:4 sources itself through "$0", a computed path (shell:dynamic-source): move the functions it shares into a helper file beside it and source that by a literal path`,
+		`script/lib_test.sh:4 sources "$HELPERS/x.sh", a computed path (shell:dynamic-source): spell it as a literal path, such as "$(dirname "$0")/NAME.sh" or a repository-relative path, or add "script/lib_test.sh" to units in .corvint/unbounded-readers.json with a reasons entry naming the read`,
+	} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("refusal lacks %q:\n%s", want, stderr.String())
+		}
+	}
+	// V1-4117 case 4: the shell read-scope declaration is named as no route.
+	if want := `; .corvint/shell-read-scopes.json bounds only shell:runs-toolchain units (TSP-V0-950)`; strings.Count(stderr.String(), want) != 2 {
+		t.Errorf("hints do not name the shell declaration limit twice:\n%s", stderr.String())
+	}
+	if strings.Contains(stderr.String(), "lib_test.sh:3") {
+		t.Errorf("a literal source line is named:\n%s", stderr.String())
 	}
 }

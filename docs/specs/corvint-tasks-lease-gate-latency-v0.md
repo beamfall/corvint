@@ -202,6 +202,20 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   manifest's; and it MUST NOT be used when that write's verify (JSG-V0-003) refuted the bound
   checkpoint. The next pool acquire or release then still resumes from the sealed base (LGL-V0-009).
   No store format changes and no process stays resident.
+- `LGL-V0-885`: (proposed; V1-3950; experimental under the standing lane auto-accept) `gate run` on
+  a policy gate that declares `sharedResource` MUST hold an exclusive, non-blocking lock named by
+  that resource's class and key for the whole run, so at most one gate run per resource executes on
+  one host at a time; a gate without `sharedResource` takes no lock. The lock file lives under the
+  repository's Git common directory (`taskman-gate-resources/<sha256(class, key)>.lock`), never in
+  the state directory, so the store inventory is unchanged. A run that finds the resource held MUST
+  refuse `LOCK_TIMEOUT` (retryable) before it executes or records anything, leaving the store
+  byte-identical, so the same `gate run` can succeed once the holder ends. Gates on other resources
+  run concurrently. On a platform without `flock` the run refuses `UNSUPPORTED`. `preflight` still
+  refuses a gate with `sharedResource` (`UNSUPPORTED`), because it does not serialize. This amends
+  the CAL A13 restriction that `gate run` refuses `sharedResource`. Failure mode (V1-3950): the
+  policy accepted `sharedResource` but `gate run` refused every such gate, so a heavy gate could
+  neither run nor be serialized. Non-goals: cross-host serialization, waiting or queueing for the
+  resource, and declared `inputs`.
 - `LGL-V0-900`: (proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,
   its commit step MUST, under the writer lock, re-read the head and the segment manifest it binds;
   a manifest that is absent or whose SHA-256 differs from the head's binding MUST refuse at once
@@ -234,6 +248,15 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   run the harness MUST run the complete audit and record it in the report's `audit` field, failing
   unless it is `CONSISTENT AGREES`; the report names the mutator count. The harness measures and
   checks; it sets no latency target and no production path reads the knob.
+- `LGL-V0-810`: (proposed; V1-3941; experimental under the standing lane auto-accept) While
+  `gate run` executes a gate program (not a reused result), it MUST heartbeat the attempt it runs
+  for: an ordinary `HEARTBEAT` lease write (CAL-V0-120) by the gate run's actor at the attempt's
+  generation, under its own derived request id, every third of the policy `heartbeatTTLSeconds`
+  and at most every 240 s, so a gate that runs longer than the TTL leaves its holder
+  `FRESH_HOLDER` rather than `STALE_HOLDER`. The first beat that does not complete (fenced,
+  released, supervised, or failed) ends the beating without failing the gate run. The beating MUST
+  stop, and any beat in flight finish, before the gate result is recorded. Each beat holds the
+  writer lock only for its own write; the gate program still runs outside the lock (CAL-V0-016).
 
 ## Non-goals
 
@@ -321,6 +344,12 @@ tests pass unchanged. Interleaved runs (five per binary per size, Darwin arm64, 
 40,000, with byte-identical audit items; total allocation on the live copy fell from 7.95 to
 5.42 GB. The runs and profiles are in the build-log entry
 `docs/build-log/2026-10-31-tasks-core-w2.md`.
+
+`TestLGLV0885_GateRunSerializesASharedResource` (`internal/tasks/store/gate_resource_unix_test.go`,
+V1-3950) holds one `sharedResource` gate running: a second gate on the same resource refuses
+`LOCK_TIMEOUT` (retryable) without running its command and leaves the store digest unchanged, a
+gate on another resource passes meanwhile, and after the holder ends the refused gate passes; all
+three record `PASSED`, and `preflight` refuses the gate `UNSUPPORTED`.
 
 `TestLGLV0001_ReadyRouteTakesNoCleanupLockOutsideGate`
 (`internal/tasks/store/lease_orphan_route_test.go`) holds the writer lock 600 ms over an orphan
@@ -456,6 +485,12 @@ load 7.09, labelled QUALIFIED) made 248 calls, 102 of them non-lease, with no er
 refuses `MALFORMED: policy.json: closed object violated` without writing) are in the build-log
 entry `docs/build-log/2026-10-31-tasks-core-w2.md`.
 
+For `LGL-V0-810`, `TestLGLV0810_GateRunHeartbeatsItsHolder`
+(`internal/tasks/store/gate_heartbeat_test.go`) shortens the beat gap, claims at minute 0 and runs
+a gate at minute 11 under the default 600 s TTL: a gate program that sleeps 1 s leaves the holder
+`FRESH_HOLDER`, while a gate that ends before the first beat leaves it `STALE_HOLDER`, and both
+gate results record `COMPLETED`.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -466,6 +501,8 @@ LGL-V0-005 reads unchanged under the reverted binary, and any staging residue is
 binaries already clear. Reverting LGL-V0-009 and LGL-V0-010 returns the pool verbs to the complete
 audit, and reverting LGL-V0-012 (the `sealedResumeVerb` cases for `WIDEN` and `REAP`) returns
 widen and reap to it; the writer checkpoint, segments and receipts they read and write are unchanged in format.
+Reverting LGL-V0-885 returns `gate run` to refusing a gate that declares `sharedResource`; the
+lock files under the Git common directory are inert and can be removed; nothing in the store changes.
 Reverting LGL-V0-013 (`applyLease` back to `applyBeforeCommit`, or `leaseStagesTogether` false)
 returns lease writes to staging one artifact at a time; nothing it writes differs in format, and
 any slot it leaves is the orphan both binaries clear. Reverting LGL-V0-014 (`loadTickets` back to
@@ -477,4 +514,6 @@ directories before the next is published; nothing it writes differs in format, a
 binary or an older one reads and redoes the store unchanged. Reverting LGL-V0-800 (the
 `TicketPosts.attempt` memo, or passing a nil memo) returns each binding step to reading and
 decoding its own attempt posts; nothing is stored. Reverting LGL-V0-801 removes the mutator
-workers and the post-run audit; with the knob unset the harness runs as before.
+workers and the post-run audit; with the knob unset the harness runs as before. Reverting LGL-V0-810
+(`gateHeartbeat` in `internal/tasks/store/gate_heartbeat.go`) stops gate run heartbeating; the
+beats it wrote are ordinary heartbeat receipts that every binary reads.

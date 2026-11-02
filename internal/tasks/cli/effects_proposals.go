@@ -110,7 +110,9 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 				continue
 			}
 			rec, _ := rc.store.Inventory.Get(id)
-			if rec.Effects.Coverage != "UNKNOWN" {
+			// TLF-V0-800: the population the COVERAGE_UNKNOWN blocker names,
+			// every coverage short of QUALIFIED (UNKNOWN and INCOMPLETE).
+			if rec.Effects.Coverage == "QUALIFIED" {
 				continue
 			}
 			sources := [][2]string{{"title", rec.Title}}
@@ -125,6 +127,7 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 			o.Set("ticketId", wire.String(rec.TicketID.Raw))
 			o.Set("local", wire.String(rec.TicketID.Local))
 			o.Set("revision", wire.String(string(rec.Revision)))
+			o.Set("coverage", wire.String(rec.Effects.Coverage))
 			paths := make([]wire.Value, 0, len(props))
 			for _, p := range props {
 				paths = append(paths, wire.ObjectValue(wire.NewObject().Set("path", wire.String(p.path)).Set("source", wire.String(p.source)).Set("span", wire.String(p.span))))
@@ -150,7 +153,7 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 	o.Set("ticketsScreened", count(len(rows)))
 	o.Set("ticketsProposed", count(proposed))
 	o.Set("tickets", wire.Array(rows...))
-	o.Set("human", wire.Strings(append([]string{"effects-proposals: " + strconv.Itoa(proposed) + " of " + strconv.Itoa(len(rows)) + " UNKNOWN-coverage OPEN ticket(s) have a proposal; " + labelProposal}, human...)))
+	o.Set("human", wire.Strings(append([]string{"effects-proposals: " + strconv.Itoa(proposed) + " of " + strconv.Itoa(len(rows)) + " OPEN ticket(s) with coverage short of QUALIFIED (UNKNOWN or INCOMPLETE) have a proposal; " + labelProposal}, human...)))
 	o.Set("mutationAuthority", wire.Bool(false))
 	res := success(cmd, rc)
 	res.Items = []wire.Value{wire.ObjectValue(o)}

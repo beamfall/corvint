@@ -69,6 +69,10 @@ func strictJSON(raw []byte, output any, bound int) error {
 	return nil
 }
 
+// optionalTagKey and optionalTagValue form the struct tag that lets strictJSON
+// accept an absent member (LCP-V0-780).
+const optionalTagKey, optionalTagValue = "localcompletion", "optional"
+
 func validateJSONTypes(value wire.Value, kind reflect.Type) error {
 	bad := errors.New("invalid-local-completion-schema")
 	if kind.Kind() == reflect.Pointer {
@@ -86,11 +90,11 @@ func validateJSONTypes(value wire.Value, kind reflect.Type) error {
 			field := kind.Field(index)
 			name := strings.Split(field.Tag.Get("json"), ",")[0]
 			member, present := value.Obj.Get(name)
+			// LCP-V0-780 (V1-4053): a member may be absent only when its field is
+			// tagged `localcompletion:"optional"`, so an optional field is declared
+			// on the type rather than in a list here.
 			if !present {
-				if kind == reflect.TypeFor[state]() && (name == "aggregateOutcome" || name == "sealedContinuation") {
-					continue
-				}
-				if kind == reflect.TypeFor[Check]() && name == "allowCemSidecarOnlyReuse" {
+				if field.Tag.Get(optionalTagKey) == optionalTagValue {
 					continue
 				}
 				return bad

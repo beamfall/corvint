@@ -415,10 +415,9 @@ type screenRow struct {
 // row carries the ticket's holds and latest operator note (TCD-V0-170).
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
-	laneRefs := slices.Contains(args, "--lane-refs")
 	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
-	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--lane-refs" || a == "--json" })
-	fl, pos, err := flags(args, "prs", "ref", "since", "limit")
+	fl, pos, err := flagsWithBooleans(args, []string{"lane-refs", "json"}, "prs", "ref", "since", "limit")
+	laneRefs := fl["lane-refs"] == "true"
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
 	}

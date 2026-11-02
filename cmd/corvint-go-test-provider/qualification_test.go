@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/gorunner"
 	"github.com/Beamfall/corvint/internal/liveverify/provider"
 )
@@ -58,7 +59,7 @@ func runQualificationAuthority(ctx context.Context, encoded string, capability [
 		if err := os.Chmod(target, 0700); err != nil {
 			return 97
 		}
-		if err := os.WriteFile(target, append(original, []byte("\nAT14 drift\n")...), 0700); err != nil {
+		if err := execfile.WriteFile(target, append(original, []byte("\nAT14 drift\n")...), 0700); err != nil {
 			return 98
 		}
 		if mode == "dependency" {
@@ -75,7 +76,7 @@ func runQualificationAuthority(ctx context.Context, encoded string, capability [
 		if err := os.Chmod(target, 0700); err != nil {
 			return 101
 		}
-		if err := os.WriteFile(target, original, 0700); err != nil {
+		if err := execfile.WriteFile(target, original, 0700); err != nil {
 			return 102
 		}
 		if mode == "dependency" {
@@ -124,7 +125,7 @@ func qualificationDriftBundle(t *testing.T, mode string) authorityBundle {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(goExecutable, original, 0700); err != nil {
+	if err := execfile.WriteFile(goExecutable, original, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(filepath.Join(modules, "fixture.txt"), 0444); err != nil {

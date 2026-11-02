@@ -1124,6 +1124,24 @@ separate exact extension tuple remains governed by AHI-024.
   subdirectory the server binds its toplevel, and when it is empty, unexpanded or not inside a
   worktree the server still connects, lists its tools and answers each repository call
   `invalid-root`, naming the reason on stderr, instead of closing the connection.
+- `AHI-860`: (experimental under the standing lane auto-accept (2026-11-01); V1-3894) The server
+  the Claude Code plugin declares in `.mcp.json` MUST complete the `2025-11-25` handshake, list
+  exactly the tools its `CORVINT_PLUGIN_TOOLS` declares and keep the connection open for every
+  `${CLAUDE_PROJECT_DIR}` substitution Claude Code has been observed to make: the repository, a
+  repository subdirectory, a Claude desktop spare directory that no longer exists, an existing spare
+  directory outside Git, and the unexpanded variable. A Claude desktop spare session (2.1.316)
+  substitutes the spare directory in argv while the server's working directory and its
+  `CLAUDE_PROJECT_DIR` environment name the real project. `corvint.status` MUST answer from the
+  repository, with `io.corvint/pluginCompatibility` compatible, for the first four shapes
+  (`MCPV0-115` serves the launch worktree for the deleted spare, `MCPV0-861` for the existing one),
+  and MUST answer `invalid-root` with the reason on stderr for the unexpanded variable
+  (`MCPV0-950`). Non-goals: root resolution itself (owned by `MCPV0-115` and `MCPV0-861`), the
+  host's argv expansion, and the plugin cache an install left behind. Failure mode: a binary
+  older than `MCPV0-950` exits 2 on an unusable root and Claude Code reports only
+  `CONNECTION_CLOSED`; the reason is in the host's MCP log, not the session. Evidence:
+  `TestAHI860ClaudePluginHandshakeAcrossProjectDirShapes` (`cmd/corvint`, the declared args run in
+  a helper process per shape); the host MCP log and process receipts in
+  `docs/build-log/2026-11-01-plg-m17.md`. Rollback: delete the test and this entry.
 - `AHI-373`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendment to
   `AHI-198` and `AHI-207`. The core `corvint` binary MUST serve the read-only stdio MCP server as
   `corvint mcp ARGS`, passing every argument after the verb unchanged to the same server code as the
@@ -2852,6 +2870,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-808` (experimental under the standing lane auto-accept (2026-11-01); V1-3543) | `cmd/corvint/host_adapter.go` (`unsupportedHookEvent`, `claudeCodeAdapterEvents`, `codexHookEvents`); `cmd/corvint/help.go` (`adapterHelp`) | `TestAHI808AdapterEventsAreDiscoverable` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
+| `AHI-860` (experimental under the standing lane auto-accept (2026-11-01); V1-3894) | `integrations/claude-code/plugins/corvint/.mcp.json`, `integrations/claude-code/README.md` | `TestAHI860ClaudePluginHandshakeAcrossProjectDirShapes`; host MCP log receipts in `docs/build-log/2026-11-01-plg-m17.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
 | `AHI-209` (accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPROVAL-RELAY-VISIBILITY-1) | `integrations/codex/plugins/corvint/skills/corvint/SKILL.md`, `integrations/codex/README.md` | `TestAHI209CodexApprovalGuidanceNamesRootGrantAndRecord`; live guardian verdicts in the 2026-10-23 Codex matrix entry |
 | `AHI-210` (accepted 2026-10-25; V1-2717) | `orientationFrame`, `collectTaskContext`, `onPrompt`, `corvintContext.description` in `integrations/opencode/src/index.js` | `AHI-210 AHI-211 AHI-215 prompt hook abstains by default and delivers compact candidates, not the packet` (`integrations/host-adapters.test.mjs`); `TestHostAdapterJavaScriptHosts`; paired trial in `docs/build-log/2026-10-25-v2716-v2717-query-recall-opencode-adoption.md` |

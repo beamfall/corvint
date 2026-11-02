@@ -678,6 +678,14 @@ func commandName(name string) string {
 
 // Check compares the catalog (and, when readme is non-nil, the README capability table) with
 // the inventory. linkBase is the directory relative catalog links resolve against.
+// newCommandChecklist is the missing-command finding's detail (CAP-V0-780, V1-3886): a new
+// top-level command fails three checks one after another unless all three artifacts change, so
+// the first of them names every artifact and the command that updates it.
+const newCommandChecklist = "no catalog row; a new top-level command updates three artifacts: " +
+	"(1) add its row to the docs/CAPABILITIES.md commands table and the README capability table, " +
+	"(2) regenerate internal/capcatalog with `make capability-catalog`, " +
+	"(3) repin conformance/use-cases-v0/receipts with `script/repin-use-case-receipts.sh`"
+
 func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 	findings, commands := checkDispatch(inv)
 	catalogRows := map[string]map[string]row{}
@@ -714,7 +722,11 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 		for _, item := range sec.items {
 			want[item] = true
 			if _, ok := byName[item]; !ok {
-				findings = append(findings, Finding{"missing", sec.name, item, "no catalog row"})
+				detail := "no catalog row"
+				if sec.name == sectionCommands {
+					detail = newCommandChecklist
+				}
+				findings = append(findings, Finding{"missing", sec.name, item, detail})
 			}
 		}
 		for name, r := range byName {

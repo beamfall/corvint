@@ -146,3 +146,41 @@ func TestTLFV0888_RootFilesWithoutExtension(t *testing.T) {
 	}
 	t.Fatalf("ticket %s not screened", id)
 }
+
+// TestTLFV0800_EffectsProposalsCoversTheBlockerPopulation: an INCOMPLETE
+// OPEN ticket carries the COVERAGE_UNKNOWN blocker and is screened alongside
+// an UNKNOWN one; each row names its coverage and the human line names the
+// population (V1-3957).
+func TestTLFV0800_EffectsProposalsCoversTheBlockerPopulation(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	t.Setenv("ATM_ACTOR", "tester")
+	root, _ := ergStore(t)
+	unknown := tlfUnknownTicket(t, root, "unknown", "See internal/ for the code.", "it works")
+	payload := strings.NewReplacer(`"title":"Console ticket"`, `"title":"incomplete"`, `"coverage":"QUALIFIED"`, `"coverage":"INCOMPLETE"`,
+		`"body":null`, `"body":"Touches internal/ as well."`).Replace(createPayloadJSON)
+	x := atm(t, root, nil, "ticket", "create", "--request-id", "create-incomplete", "--issued-at", "2026-10-31T12:00:00Z", "--payload", payload)
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("create incomplete: %s", x.stdout)
+	}
+	incomplete := field(x.res.Items[0], "ticketId").Str
+	for _, id := range []string{unknown, incomplete} {
+		b := atm(t, root, nil, "ticket", "blockers", id)
+		if !strings.Contains(string(b.stdout), "COVERAGE_UNKNOWN") {
+			t.Fatalf("%s lacks COVERAGE_UNKNOWN: %s", id, b.stdout)
+		}
+	}
+	item := tlfProposals(t, root)
+	if field(item, "ticketsScreened").Str != "2" {
+		t.Fatalf("header: %s", wire.Encode(item))
+	}
+	coverage := map[string]string{}
+	for _, r := range field(item, "tickets").Arr {
+		coverage[field(r, "ticketId").Str] = field(r, "coverage").Str
+	}
+	if coverage[unknown] != "UNKNOWN" || coverage[incomplete] != "INCOMPLETE" {
+		t.Fatalf("row coverage: %v", coverage)
+	}
+	if h := field(item, "human").Arr; len(h) == 0 || !strings.Contains(h[0].Str, "short of QUALIFIED (UNKNOWN or INCOMPLETE)") {
+		t.Fatalf("human line: %s", wire.Encode(item))
+	}
+}

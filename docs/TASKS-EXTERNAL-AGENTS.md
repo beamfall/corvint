@@ -133,6 +133,17 @@ and may say UNKNOWN even when admission is possible. `claim --next` makes select
 reservation atomic. Explicit `claim TICKET --scope src/` can bound a requested scope; its
 safety remains the holder's responsibility, and submitted changes outside it refuse.
 
+A `SELECTED` entry's reason `DEVELOPMENT_MODE` is the selection's disposition, not a build or
+qualification check: the closed reason vocabulary has no separate "selected" code, so `state` is
+the discriminator and a `SELECTED` entry is exactly a ticket `claim --next` admits
+(`corvint-tasks-agent-leases-v0.md`, plan preview; `native-taskman-planning-v0.md`). Neither
+`plan preview` nor `claim --next` reads the build's `version` or `verification` fields, so an
+unstamped or `0.0.0-tcp01-unverified` build can preview and claim. That label only means its
+output is not qualification evidence; to proceed, claim as usual and keep the version in your
+evidence. The qualification rule that does gate claims is the queue's: until `cutover
+--execution` is recorded, a non-fixture queue shows every entry `BLOCKED CUTOVER_MISSING` in
+`plan preview`, and `claim --next` refuses with the same code.
+
 `corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]...` is a read-only proposal
 of integration batches: submitted or ready candidates with pairwise-disjoint changed paths (apart
 from shared paths), each join confirmed by a dry `git merge-tree` that adds no object or ref.
@@ -203,6 +214,62 @@ unchanged, and attached evidence never satisfies a gate or criterion. `ticket sh
 entries under `attachedEvidence` with the actor, time and acceptance revision. A digest already
 attached at the current acceptance revision refuses `DUPLICATE_ID`; non-OPEN or imported tickets
 refuse `TICKET_STATE`; an identical retry replays (TEA-V0-001).
+
+## Report lane work with commit trailers
+
+A lane on a host without the store (or without write access to it) reports ticket state in its
+commits instead of writing the store. The store host ingests the trailers after the merge
+([Corvint Tasks agent workflow V0](specs/corvint-tasks-agent-workflow-v0.md), TAW-V0-002 to
+TAW-V0-009). On the lane host:
+
+```sh
+export CORVINT_TASKS_ROLE=AGENT
+corvint-tasks work start V1-1234 --lane my-lane            # optional; when work begins
+corvint-tasks work deliver V1-1234 --lane my-lane          # on the commit that delivers it
+corvint-tasks work block V1-1235 --reason "needs internal/x owned by lane y" --lane my-lane
+```
+
+Each verb checks the IDs against the local store copy when one is present (`--allow-unknown`
+admits an ID filed after the copy), writes nothing, and prints the trailers plus ready `git
+commit --trailer` arguments (`gitArgs`):
+
+```text
+Corvint-Ticket: V1-1234
+Corvint-Ticket-State: delivered
+Corvint-Ticket-Lane: my-lane
+```
+
+Rules for the lane:
+
+- One state per commit. Put the trailers in the final paragraph of the message; one commit may
+  name several tickets with repeated `Corvint-Ticket:` lines.
+- `delivered` goes on the commit whose content delivers the ticket; `blocked` needs a one-line
+  `Corvint-Ticket-Reason:` (`needs <file> owned by <lane>` for an ownership block).
+- Do not run `claim`, `complete`, `complete-manual`, `archive` or `note` from the lane. Under
+  `AGENT`, `complete-manual` and `archive` refuse without `--reason-code` from the fixed set, and
+  `reopen`, `restore`, `hold` and `release-hold` refuse (TAW-V0-013).
+- Report findings with `work finding --payload FILE --request-id R` on the store host, or hand the
+  orchestrator a JSON array of create payloads for `work finding --ingest FILE`. A finding that
+  matches an existing ticket attaches to it as a recurrence; `--new-despite ID` files it anyway and
+  records the override.
+
+On the store host, after the batch merges, the operator ingests the trailers:
+
+```sh
+CORVINT_TASKS_ROLE=OPERATOR corvint-tasks work close-merged --integration origin/main --dry-run
+CORVINT_TASKS_ROLE=OPERATOR corvint-tasks work close-merged --integration origin/main --lane-ref claude/lane-x
+CORVINT_TASKS_ROLE=OPERATOR corvint-tasks work release-sync --release v1-0 --milestone v1-0 --request-id sync-1
+```
+
+`close-merged` completes each delivered ticket whose commit is reachable from the ref through a
+receipt-bearing `COMPLETE_MANUAL` with an evidence document and reason code
+`INTEGRATED`, records blocks as progress, and reports a delivery seen only on a
+`--lane-ref` as `NOT_ON_INTEGRATION_REF` (the ticket reads `AWAITING_INTEGRATION`). A rerun writes
+nothing. A squash merge drops the trailers from the parsed message, so merge with merge commits.
+`corvint-mcp --tool-profile tasks-work` serves the same verbs as `tasks_work_*` tools: the lane verbs
+and finding by default, and `close-merged` and `release-sync` under `--tasks-role OPERATOR` or
+`OWNER` (TAW-V0-015). Each call runs the installed `corvint-tasks`, found beside `corvint-mcp` or on
+PATH; without it the call fails `TASKS_BINARY_UNAVAILABLE` (TAW-V0-025).
 
 ## Payloads and shared worktrees
 

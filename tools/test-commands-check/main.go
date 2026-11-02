@@ -75,6 +75,14 @@ const (
 // declaration.
 var ledgerNames = map[string]bool{"GATE_LEDGER": true, "GO_TEST_FLAGS": true, "GO_TEST_TIMEOUT": true, "CORVINT_GOCACHE": true}
 
+// tmpdirDefault is the one make expression a ledger value may hold besides
+// ledgerNames: the Makefile's CORVINT_GOCACHE default directory, TMPDIR without
+// its trailing slash or else /tmp (ASD-V0-914). checkLedger resolves it as /tmp,
+// its value in the declared CI environment, which sets no TMPDIR; a caller's
+// TMPDIR only moves the build cache, as a caller's CORVINT_GOCACHE does
+// (STR-V0-174, STR-V0-908).
+const tmpdirDefault = "$(patsubst %/,%,$(or $(TMPDIR),/tmp))"
+
 // controlNames are the variables whose assignment anywhere, global or for
 // any target, changes how make runs every recipe, so the fixed go-test line
 // would not mean what it says.
@@ -208,7 +216,7 @@ func checkLedger(s *scanner, declared sessiontest.Declared) []string {
 		case !slices.Contains([]string{"=", ":=", "::=", "?="}, assigned[0].op):
 			problems = append(problems, fmt.Sprintf("%s: %s is assigned with %s; `%s:` needs a plain assignment", assigned[0].at, name, assigned[0].op, ledgerTarget))
 		default:
-			values[name] = assigned[0].value
+			values[name] = strings.ReplaceAll(assigned[0].value, tmpdirDefault, "/tmp")
 		}
 	}
 	if len(problems) != 0 {

@@ -8,8 +8,11 @@
 # lane records the review as NOT_RUN instead of retrying "401 Not logged in" until it times out.
 #   --preflight  only the check, for lane setup: prints `codex-review: OK logged-in` and exits 0.
 #   otherwise    runs `codex exec -m CODEX_REVIEW_MODEL -s read-only CODEX_EXEC_ARG...` (the prompt
-#                as an argument or on stdin) and exits with its status.
-#   CODEX_BIN           the codex executable (default: codex from PATH)
+#                as an argument or on stdin) and exits with its status. ASD-V0-1020 (V1-3959): its
+#                first stdout line pins the reviewed checkout, `codex-review: reviewed-head=SHA
+#                tree=SHA dirty=yes|no` (or `reviewed-head=NOT_PRODUCED not-a-git-checkout`), so
+#                the saved review names the head its findings are about (script/review-head-check.sh).
+#   CODEX_BIN          the codex executable (default: codex from PATH)
 #   CODEX_REVIEW_MODEL  the review model (default gpt-6.1-sol)
 #   CODEX_REVIEW_HEAVY  the host-queue wrapper the review runs through as WRAPPER --admit-only CODEX...
 #                       (ASD-V0-930, V1-3626; default the heavy.sh beside this script, which then
@@ -18,7 +21,7 @@
 set -uo pipefail
 
 if [[ ${1-} == -h || ${1-} == --help ]]; then
-  sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 codex=${CODEX_BIN:-codex}
@@ -43,4 +46,12 @@ if [[ ${1-} == --preflight ]]; then
   exit 0
 fi
 heavy=${CODEX_REVIEW_HEAVY-$(dirname "$0")/heavy.sh}
+# ASD-V0-1020: pin the reviewed head before the review starts; the review reads this checkout.
+if head=$(git rev-parse --verify -q 'HEAD^{commit}' 2> /dev/null); then
+  dirty=no
+  git diff --quiet HEAD -- 2> /dev/null || dirty=yes
+  printf 'codex-review: reviewed-head=%s tree=%s dirty=%s\n' "$head" "$(git rev-parse 'HEAD^{tree}')" "$dirty"
+else
+  printf 'codex-review: reviewed-head=NOT_PRODUCED not-a-git-checkout\n'
+fi
 exec ${heavy:+"$heavy" --admit-only} "$resolved" exec -m "$model" -s read-only "$@"

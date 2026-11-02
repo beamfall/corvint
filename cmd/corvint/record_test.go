@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/trace"
 	"os"
 	"os/exec"
@@ -323,7 +324,7 @@ func writeExecutable(t *testing.T, path, data string) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(path, []byte(data), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(data), 0o755); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -268,6 +268,10 @@ type Index struct {
 	// resolves (NGI-V0-036). It is set only on the per-request view
 	// withRubyMapped returns, so the shared index is never written.
 	rubyMapped map[string]struct{}
+	// moduleMapped names the requested Swift, Kotlin and C# paths a module
+	// reading resolves (NGI-V0-984). Like rubyMapped it is set only on the
+	// per-request view withModuleMapped returns.
+	moduleMapped map[string]struct{}
 	// rubyTests selects the Ruby reading's test-path rule (isRubyTestPath) for
 	// every row of a request naming a Ruby path (NGI-V0-063). It is set only on
 	// the per-request view withRubyTests returns.

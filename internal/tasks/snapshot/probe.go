@@ -112,7 +112,7 @@ func Probe(stateDir string) (*Snapshot, error) {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, stateDir, "state dir is not a directory")
 	}
 	if _, err := os.Lstat(filepath.Join(stateDir, "RESTORE_INCOMPLETE")); err == nil {
-		return nil, wire.Errorf(wire.CodeRestoreIncomplete, stateDir, "an interrupted restore left its marker; only `archive restore` may continue")
+		return nil, wire.Errorf(wire.CodeRestoreIncomplete, stateDir, "a RESTORE_INCOMPLETE marker is present, which `archive restore` never writes: move the state dir aside and rerun `archive restore FILE` into the absent state dir (TRL-V0-960)")
 	}
 	// journal.RetireIncompleteFile (JRT-V0-009); snapshot cannot import journal.
 	if _, err := os.Lstat(filepath.Join(stateDir, "RETIRE_INCOMPLETE")); err == nil {
