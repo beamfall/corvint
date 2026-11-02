@@ -97,12 +97,12 @@ scratch_env+=(LANG=C LC_ALL=C GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
   GIT_CONFIG_SYSTEM=/dev/null GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 GIT_NO_LAZY_FETCH=1
   GIT_NO_REPLACE_OBJECTS=1 GCM_INTERACTIVE=never GIT_ASKPASS= GIT_ALLOW_PROTOCOL= GIT_ATTR_NOSYSTEM=1)
 sgit() {
-  (cd "$scratch" && env -i "${scratch_env[@]}" GIT_CEILING_DIRECTORIES="$scratch" \
+  (cd "$scratch" && env -i ${scratch_env[@]+"${scratch_env[@]}"} GIT_CEILING_DIRECTORIES="$scratch" \
     GIT_OBJECT_DIRECTORY="$objects" git --git-dir=repository.git -c core.hooksPath=/dev/null \
     -c core.attributesFile=/dev/null -c merge.conflictStyle=merge "$@")
 }
 format=$(git rev-parse --show-object-format 2> /dev/null) || format=sha1
-(cd "$scratch" && env -i "${scratch_env[@]}" git init -q --bare --template= --object-format="$format" repository.git) \
+(cd "$scratch" && env -i ${scratch_env[@]+"${scratch_env[@]}"} git init -q --bare --template= --object-format="$format" repository.git) \
   > /dev/null 2>&1 || refuse 'scratch-repository-unavailable'
 
 manifest_dir=$git_dir/corvint
