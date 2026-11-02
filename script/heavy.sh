@@ -1438,7 +1438,7 @@ rerun_lines() {
   # A leading `env NAME=VALUE` word that sets a reason the line adds would override it, so it is
   # dropped, and so is an `env` left with no assignment.
   if [[ ${1-} == env ]]; then
-    local kept=(env) a
+    local kept=(env)
     shift
     while [[ $# -gt 0 && $1 =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do
       case $1 in
@@ -1451,7 +1451,7 @@ rerun_lines() {
     ((${#kept[@]} == 1)) && kept=()
     set -- ${kept[@]+"${kept[@]}"} "$@"
   fi
-  printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]}" "$self" "$(printf ' %q' "$@")" >&2
+  printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]-}" "$self" "$(printf ' %q' "$@")" >&2
   [[ $missing == *whole-reason-missing* ]] || return 0
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
   manifest=$(git rev-parse --absolute-git-dir 2> /dev/null)/heavy-selection.json || manifest=$PWD/heavy-selection.json
