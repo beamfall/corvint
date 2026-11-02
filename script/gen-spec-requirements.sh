@@ -339,25 +339,36 @@ push @reads, 'docs/specs/README.md'
 my $blobs = index_blobs(@reads);
 my @noted_definitions;
 
-# The same section/fence reader supplies staged counts and immutable-base ID differences.
-# Keep the accepted obligation forms aligned with internal/lrfrepo/ocm.go.
+# The same reader supplies staged counts and immutable-base ID differences for each mode.
+# Capacity mirrors scanRequirements in internal/lrfrepo/ocm.go: fences hide headings, but
+# not definition lines; IDs have exactly three digits and a bounded prefix. Generation
+# retains its pre-capacity rule (three or more digits, unfenced definitions only).
 sub section_obligation_ids {
     my ($blob) = @_;
+    my $ocm = $mode eq 'capacity';
     my ($inside, $fence) = (0, '');
     my %ids;
     for my $line (split /^/, $blob) {
-        my ($run, $rest) = $line =~ /^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?\z/ ? ($1, $2) : ('', '');
+        $line =~ s/\n\z//;
+        $line =~ s/\r\z//;
+        my $fenced = $fence ne '';
+        my ($run, $rest) = $line =~ /\A {0,3}(`{3,}|~{3,})(.*)\z/ ? ($1, $2) : ('', '');
         if ($fence ne '') {
             $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
                 && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
-            next;
+        } elsif ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) {
+            $fence = $run;
+            $fenced = 1;
         }
-        if ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) { $fence = $run; next; }
-        if ($line =~ /^## Requirements\r?\n?\z/) { $inside = 1; }
-        elsif ($line =~ /^##(?: |\r?\n?\z)/) { $inside = 0; }
-        elsif ($inside && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3,})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3,})[:.]\*\* )/) {
-            $ids{$1 // $2} = 1;
+        if (!$fenced) {
+            if ($line eq '## Requirements') { $inside = 1; next; }
+            last if $inside && $line =~ /^##(?: |\z)/;
         }
+        next unless $inside && ($ocm || !$fenced);
+        my $id = $line =~ /^- (?:`([^`]+)`: |\*\*(.+?)[:.]\*\* )/ ? ($1 // $2) : '';
+        next unless $ocm ? $id =~ /\A[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\z/
+                        : $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3,}\z/;
+        $ids{$id} = 1;
     }
     return \%ids;
 }
@@ -384,7 +395,7 @@ for my $file (sort @specs) {
     # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
     # OCM-form definition after that section before doc-gates does.
     my ($in_section, $sections, $section_fence, @outside) = (0, 0, '');
-    # SRG-V0-740: the OCM obligations of the section, counted as internal/lrfrepo/ocm.go counts them.
+    # SRG-V0-740/744: section bounds for the mode-specific obligation reader below.
     my $section_line = 0;
     my $line_number = 0;
     my $previous_blank = 1;
@@ -684,7 +695,7 @@ sub status_ids {
             . "spec-requirements (SRG-V0-968)\n";
     }
 }
-# SRG-V0-740/744/745: generation retains OCM's >256 refusal; the proactive capacity
+# SRG-V0-740/744/745: generation retains its existing >256 refusal; the proactive capacity
 # check also refuses a spec filled to 256 since BASE. Unchanged or unattributed full
 # specs only warn. Both report every spec before exiting.
 {

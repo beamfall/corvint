@@ -903,7 +903,13 @@ static_checks() {
   "$self_dir/check-spec-readme.sh" || rc=1
   SPEC_REQUIREMENTS_BASE="$base" SPEC_CAPACITY_MARGIN="${SPEC_CAPACITY_MARGIN:-8}" \
     "$root/script/gen-spec-requirements.sh" --capacity || rc=1
-  ((rc == 0)) || { printf 'batch-precheck: FAIL static spec checks; stopped before repins and slow doc gates\n' >&2; return 1; }
+  if ((rc != 0)); then
+    local stale_receipt
+    stale_receipt=$(receipt_path) || return 2
+    /bin/rm -f "$stale_receipt" "$stale_receipt.lane" || return 2
+    printf 'batch-precheck: FAIL static spec checks; stopped before repins and slow doc gates\n' >&2
+    return 1
+  fi
   printf 'batch-precheck: PASS static spec checks\n'
 }
 

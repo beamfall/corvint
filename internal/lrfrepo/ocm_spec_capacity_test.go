@@ -122,6 +122,58 @@ func TestSpecCapacityCombinedLanes(t *testing.T) {
 			t.Errorf("unchanged full spec lost base attribution: %s", out)
 		}
 	}
+	// Capacity follows OCM's ID and fence rules; generation retains its older,
+	// broader digit form and exclusion of fenced definitions.
+	for _, tc := range []struct {
+		name       string
+		data       []byte
+		count      int
+		generateOK bool
+		added      string
+	}{
+		{
+			name:       "four-digit ID is indexed but is not an OCM obligation",
+			data:       append(bytes.Clone(full), []byte("- `CAPACITY-V0-1000`: (proposed) Four digits.\n")...),
+			count:      256,
+			generateOK: false,
+			added:      "(none)",
+		},
+		{
+			name: "fenced definitions count and fenced headings do not end the section",
+			data: append(bytes.Clone(full[:bytes.LastIndex(full, []byte("- `CAPACITY-V0-256`"))]),
+				[]byte("```markdown\n## Examples\n- `CAPACITY-V0-256`: (proposed) Fenced.\n```\n~~~\n- **CAPACITY-V0-257.** (proposed) Fenced too.\n~~~\n")...),
+			count:      257,
+			generateOK: true,
+			added:      "CAPACITY-V0-257",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ids, _, err := scanRequirements("fixture.md", "", tc.data, 512)
+			if err != nil || len(ids) != tc.count {
+				t.Fatalf("OCM count = %d, error = %v; want %d", len(ids), err, tc.count)
+			}
+			wantRefusal := ""
+			if tc.count > 256 {
+				wantRefusal = "too-many-obligations"
+			}
+			if got := IntentRequirementsRefusal(tc.data); got != wantRefusal {
+				t.Fatalf("OCM refusal = %q, want %q", got, wantRefusal)
+			}
+			stage(tc.data)
+			out := run([]string{"BASE=" + fullBase}, tc.count <= 256, "sh", "script/gen-spec-requirements.sh", "--capacity")
+			countText := "holds 257 obligations; the limit is 256"
+			if tc.count == 256 {
+				countText = "holds 256 of the 256 obligations"
+			}
+			if !strings.Contains(out, countText) || !strings.Contains(out, "requirement IDs added since BASE="+fullBase+" ("+fullBase+"): "+tc.added) {
+				t.Errorf("capacity count or base IDs differ from OCM: %s", out)
+			}
+			out = run(nil, tc.generateOK, "sh", "script/gen-spec-requirements.sh")
+			if !tc.generateOK && !strings.Contains(out, "holds 257 obligations; the limit is 256") {
+				t.Errorf("generation lost its existing four-digit count: %s", out)
+			}
+		})
+	}
 	// Capacity is a generator mode: it must retain the shared duplicate-definition refusal.
 	stage(append(bytes.Clone(a), []byte("- `CAPACITY-V0-001`: (proposed) Duplicate.\n")...))
 	out = run(nil, false, "sh", "script/gen-spec-requirements.sh", "--capacity")

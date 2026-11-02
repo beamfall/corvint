@@ -264,7 +264,8 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
   `BASE=$(BASE)` to spec-capacity-check; batch-precheck MUST use `BATCH_PRECHECK_BASE`, falling
   back to `DOGFOOD_BASE` (an explicit `--base` overrides these). Above 256 fails; exactly 256
   fails only with IDs added since BASE, otherwise warns with the companion route. Any static failure
-  stops the run without a passing receipt. `--static-check` runs only this phase; workflow-only
+  stops the run and invalidates any existing precheck receipt and its `.lane` companion.
+  `--static-check` runs only this phase with the same failure invalidation; workflow-only
   fixtures with neither README.md nor INDEX.json have no spec corpus and skip the phase.
 - `ASD-V0-2011`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4332)
   That static phase MUST cheaply check worktree docs/specs/README.md rows against INDEX.json,
@@ -498,7 +499,7 @@ same change's BUILD-LOG evidence record.
 
 | Requirement | Implementation and deterministic evidence |
 |---|---|
-| ASD-V0-2010 | `script/batch-precheck.sh` static phase; `script/batch-precheck_test.sh` case 1d checks closeout BASE forwarding, both batch base variables, LANE=1 refusal before repins for newly filled 256 and warning/pass for untouched 256; `make spec-capacity-check` |
+| ASD-V0-2010 | `script/batch-precheck.sh` static phase; `script/batch-precheck_test.sh` case 1d checks closeout BASE forwarding, both batch base variables, LANE=1 refusal before repins for newly filled 256, warning/pass for untouched 256, and seeded HEAD receipt/`.lane` invalidation on normal and static-only failures; `make spec-capacity-check` |
 | ASD-V0-2011 | `script/check-spec-readme.sh`; `script/batch-precheck_test.sh` case 1d (duplicate fix and both line numbers, valid row, anchored-only and missing row); `bash script/check-bash32_test.sh` |
 
 For V1-4331/V1-4332, rollback removes the static calls and README check together with their

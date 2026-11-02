@@ -984,7 +984,7 @@ case $big_err in *'warning:'*) fail "247 unexpectedly warned with margin 8" ;; e
 big_err=$(SPEC_CAPACITY_MARGIN=16 run --capacity 2>&1) || fail "margin override refused: $big_err"
 case $big_err in *'holds 247 of the 256 obligations'*) ;; *) fail "margin override gave no warning: $big_err" ;; esac
 for bad_margin in -1 nope 257; do
-  SPEC_CAPACITY_MARGIN=$bad_margin run --capacity > /dev/null 2>&1 && fail "invalid margin $bad_margin passed"
+  (SPEC_CAPACITY_MARGIN=$bad_margin run --capacity) > /dev/null 2>&1 && fail "invalid margin $bad_margin passed"
 done
 obligation_spec 248
 # Unstaged bytes must not change the staged budget.
@@ -1014,7 +1014,7 @@ case $big_err in *'256 obligations; the limit is 256'*'requirement IDs added sin
 capacity_full=$(capacity_base)
 big_err=$(BASE=$capacity_full run --capacity 2>&1) || fail "unchanged full spec refused: $big_err"
 case $big_err in *'warning: its ## Requirements section holds 256 of the 256 obligations'*'companion spec'*'requirement IDs added since BASE='*'(none)'*) ;; *) fail "unchanged full spec lacked warning/attribution: $big_err" ;; esac
-BASE=not-a-revision run --capacity > /dev/null 2>&1 && fail "invalid BASE was ignored"
+(BASE=not-a-revision run --capacity) > /dev/null 2>&1 && fail "invalid BASE was ignored"
 obligation_spec 257
 run --capacity > /dev/null 2>&1 && fail "capacity accepted 257 without BASE"
 big_err=$(run 2>&1 > /dev/null) && fail "257 section definitions were accepted"
