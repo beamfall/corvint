@@ -2113,7 +2113,15 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
 		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
 		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
-		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id)
+		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id)
+}
+
+// snapshotRouteHint is the CTS-V0-680 addition to a journal-absent miss: a
+// host that cannot reach the primary worktree reads an exported queue
+// snapshot instead, so the refusal names that route as well.
+func snapshotRouteHint(id string) string {
+	return " On a host without that checkout, export a snapshot on the primary with `corvint-tasks queue snapshot --out FILE`, copy FILE here and retry with `" +
+		SnapshotEnv + "=FILE corvint-tasks ticket show " + id + "` (CTS-V0-680)."
 }
 
 func queueStatus(env Env, args []string) *wire.Result {
