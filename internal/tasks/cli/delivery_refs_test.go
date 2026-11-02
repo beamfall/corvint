@@ -14,7 +14,7 @@ import (
 // a PR title's final parenthetical delivers its IDs unless the body vetoes
 // one (TCD-V0-730).
 func TestTCDV0730_ReferencesVetoPerID(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	var l []string
 	for _, n := range []string{"alpha", "bravo", "charlie", "delta", "echo", "golf", "foxtrot", "hotel"} {
@@ -38,7 +38,8 @@ func TestTCDV0730_ReferencesVetoPerID(t *testing.T) {
 // commit delivers) and PR #38 (only a title parenthetical); a merge commit
 // that does not resolve leaves the lane commits NOT_OBSERVED (TCD-V0-731).
 func TestTCDV0731_BatchDeliveredPR25And38Shapes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	var l []string
 	for _, n := range []string{"alpha", "bravo", "charlie", "delta", "kilo", "echo", "foxtrot", "lima"} {
@@ -92,7 +93,7 @@ func TestTCDV0731_BatchDeliveredPR25And38Shapes(t *testing.T) {
 // constituent already cites adds no umbrella rows, while a merge commit that
 // is a ticket's only citer still lists it (TCD-V0-731).
 func TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	one, oneLocal := tcdTicket(t, root, "one", "")
 	only, onlyLocal := tcdTicket(t, root, "only", "")
@@ -143,7 +144,7 @@ func TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows(t *testing.T) {
 // it, and a veto in another clause of the title governs only its own ID,
 // both in delivery-screen and in batch-delivered.
 func TestTCDV0730_PRTitleMidLineDelivers(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, a := tcdTicket(t, root, "alpha", "")
 	_, b := tcdTicket(t, root, "bravo", "")
@@ -171,7 +172,7 @@ func TestTCDV0730_PRTitleMidLineDelivers(t *testing.T) {
 // non-merge commits only), and closeout-debt --prs proposes BATCH_CLOSE for
 // those tickets (TCD-V0-731, TCD-V0-871).
 func TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, t1 := tcdTicket(t, root, "one", "")
 	_, t2 := tcdTicket(t, root, "two", "")

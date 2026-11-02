@@ -10,10 +10,10 @@ import (
 	"testing"
 )
 
-// TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst (V1-3290): inputs-check
+// TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst (V1-3290; ASD-V0-840, V1-3922): inputs-check
 // and finish-lane refuse an unsorted, duplicated or non-canonical --intents
 // manifest before running any step, naming the line and, for an ordering
-// fault, the sort -u command that fixes it; a sorted manifest passes on.
+// fault, the code intent-manifest-unsorted and the sort -u command that fixes it; a sorted manifest passes on.
 func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -53,12 +53,15 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 		want           []string
 	}{
 		{"unsorted pre-flight", "docs/specs/b.md\ndocs/specs/a.md\n", true, []string{
-			"dogfood-inputs-check: REFUSE missing-intent-scope\n",
+			"dogfood-inputs-check: REFUSE intent-manifest-unsorted\n",
 			"  input: --intents " + intents + "\n",
 			`  line 2 "docs/specs/a.md" does not sort after line 1 "docs/specs/b.md"`,
 			"  fix: LC_ALL=C sort -u -o " + intents + " " + intents + ", then rerun corvint dogfood finish-lane --base " + base + "\n",
 		}},
-		{"duplicate finish-lane", "docs/a.md\ndocs/a.md\n", false, []string{"dogfood-finish-lane: REFUSE missing-intent-scope\n", "LC_ALL=C sort -u -o "}},
+		{"duplicate finish-lane", "docs/a.md\ndocs/a.md\n", false, []string{"dogfood-finish-lane: REFUSE intent-manifest-unsorted\n", "LC_ALL=C sort -u -o "}},
+		// ASD-V0-840 (V1-3922): the two committed intents of the passing
+		// manifest below, swapped, are refused as unsorted, not as missing.
+		{"swapped complete pre-flight", "docs/b.md\ndocs/a.md\n", true, []string{"dogfood-inputs-check: REFUSE intent-manifest-unsorted\n", `  line 2 "docs/a.md" does not sort after line 1 "docs/b.md"`}},
 		{"non-canonical", "./docs/a.md\n", true, []string{`  line 1 "./docs/a.md" is not a canonical repository-relative path`, "  fix: " + intentScopeHint}},
 	}
 	for _, tc := range cases {
@@ -75,6 +78,9 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 			code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: tc.preflight, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if strings.Contains(tc.want[0], "intent-manifest-unsorted") && strings.Contains(stderr.String(), "missing-intent-scope") {
+				t.Errorf("an ordering fault is named missing-intent-scope:\n%s", stderr.String())
 			}
 			if code != 2 || calls != 0 {
 				t.Errorf("exit=%d step calls=%d; want 2 before any step:\n%s", code, calls, stderr.String())

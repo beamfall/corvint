@@ -30,10 +30,13 @@ import (
 const readme = "README.md"
 const citationFile = "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md"
 const qualificationFile = ".github/qualifications/docs-only.json"
+const policyFile = "docs/specs/documentation-ci-v0.md"
+const qualificationProfile = "corvint-docs-ci-qualification/1"
 const profile = "corvint-docs-ci/0"
 const maxOutput = 8 << 20
 
-var checks = []string{"immutable-local-links", "unchanged-executable-blocks", "identical-citation-spans", "doc-gates", "docs-ci-plan-tests", "specindex-tests", "full-static-build-interop-archive"}
+var checks = []string{"immutable-local-links", "unchanged-executable-blocks", "identical-citation-spans", "doc-gates", "docs-ci-plan-tests", "specindex-tests", "full-static-build-interop-archive", "merge-queue-full-race", "capabilities-check-tests"}
+var markerComments = map[string]bool{"<!-- capability-gate:readme -->": true, "<!-- /capability-gate:readme -->": true}
 var oidPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var citation = regexp.MustCompile(`README\.md:([0-9]+)-([0-9]+)@([0-9a-f]{8})`)
 var markdownLink = regexp.MustCompile(`\]\(\s*([^\s)]+)(?:\s+"[^"]*")?\s*\)`)
@@ -43,8 +46,8 @@ var referenceLink = regexp.MustCompile(`(?m)^ {0,3}\[[^]\n]+\]:|\[[^]\n]+\]\[[^]
 type qualification struct {
 	Profile    string   `json:"profile"`
 	Approved   bool     `json:"approved"`
-	Tree       string   `json:"treeSha256"`
 	Classifier string   `json:"classifierSha256"`
+	Policy     string   `json:"policySha256"`
 	Checks     []string `json:"checks"`
 	Inventory  string   `json:"inventory"`
 	Review     string   `json:"review"`
@@ -58,8 +61,8 @@ type receipt struct {
 	Head          string   `json:"head"`
 	Target        string   `json:"target"`
 	Qualification string   `json:"qualificationSha256,omitempty"`
-	Tree          string   `json:"treeSha256,omitempty"`
 	Classifier    string   `json:"classifierSha256,omitempty"`
+	Policy        string   `json:"policySha256,omitempty"`
 	Changed       []string `json:"changed"`
 	Checks        []string `json:"checks"`
 	Verified      bool     `json:"verified"`
@@ -96,14 +99,15 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 func digest(b []byte) string                         { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func (r repo) blob(rev, name string) ([]byte, error) { return r.git("show", rev+":"+name) }
 
-// Tree rows include pathname, mode, object type and immutable identity. Only the two
-// reviewed inputs and the non-executable qualification artifact are exempt from drift.
+// Tree rows include pathname, mode, object type and immutable identity. DCI-V0-855: only the
+// classifier source and this policy are bound; the rest of the tree must be regular blobs but may
+// drift, because a DOCS run's queue entry still runs its own root race (DCI-V0-856).
 func (r repo) identities(rev string) (string, string, error) {
 	b, err := r.git("ls-tree", "-r", "-z", rev)
 	if err != nil {
 		return "", "", err
 	}
-	var all, tool bytes.Buffer
+	var policy, tool bytes.Buffer
 	for _, row := range bytes.Split(b, []byte{0}) {
 		if len(row) == 0 {
 			continue
@@ -117,11 +121,10 @@ func (r repo) identities(rev string) (string, string, error) {
 		if len(meta) != 3 || meta[1] != "blob" || (meta[0] != "100644" && meta[0] != "100755") {
 			return "", "", errors.New("unsupported-tree-entry")
 		}
-		if name == readme || name == citationFile || name == qualificationFile {
-			continue
+		if name == policyFile {
+			policy.Write(row)
+			policy.WriteByte(0)
 		}
-		all.Write(row)
-		all.WriteByte(0)
 		if strings.HasPrefix(name, "tools/docs-ci-plan/") {
 			tool.Write(row)
 			tool.WriteByte(0)
@@ -130,7 +133,10 @@ func (r repo) identities(rev string) (string, string, error) {
 	if tool.Len() == 0 {
 		return "", "", errors.New("classifier-source-missing")
 	}
-	return digest(all.Bytes()), digest(tool.Bytes()), nil
+	if policy.Len() == 0 {
+		return "", "", errors.New("policy-missing")
+	}
+	return digest(tool.Bytes()), digest(policy.Bytes()), nil
 }
 
 func (r repo) stable(target string) error {
@@ -183,15 +189,15 @@ func (r repo) plan(base, head, target string) receipt {
 	var q qualification
 	d := json.NewDecoder(bytes.NewReader(b))
 	d.DisallowUnknownFields()
-	if d.Decode(&q) != nil || d.Decode(new(any)) != io.EOF || q.Profile != "corvint-docs-ci-qualification/0" || !q.Approved || q.Inventory != "docs/specs/documentation-ci-v0.md#consumer-inventory" || strings.TrimSpace(q.Review) == "" || !slices.Equal(q.Checks, checks) {
+	if d.Decode(&q) != nil || d.Decode(new(any)) != io.EOF || q.Profile != qualificationProfile || !q.Approved || q.Inventory != "docs/specs/documentation-ci-v0.md#consumer-inventory" || strings.TrimSpace(q.Review) == "" || !slices.Equal(q.Checks, checks) {
 		return fail(errors.New("qualification-unapproved-or-invalid"))
 	}
 	p.Qualification = digest(b)
-	p.Tree, p.Classifier, err = r.identities(base)
+	p.Classifier, p.Policy, err = r.identities(base)
 	if err != nil {
 		return fail(err)
 	}
-	if p.Tree != q.Tree || p.Classifier != q.Classifier {
+	if p.Classifier != q.Classifier || p.Policy != q.Policy {
 		return fail(errors.New("qualification-source-drift"))
 	}
 	b, err = r.git("diff-tree", "--no-commit-id", "--no-renames", "-r", "--raw", "-z", base, target)
@@ -335,6 +341,16 @@ func htmlLinks(b []byte) ([]string, error) {
 	space := func(c byte) bool { return c == ' ' || c == '\n' || c == '\t' }
 	for i := 0; i < len(b); i++ {
 		if b[i] != '<' {
+			continue
+		}
+		// DCI-V0-857: the capability table's two region markers are the only admitted comments;
+		// tools/capabilities-check reads that region and runs under DOCS.
+		if bytes.HasPrefix(b[i:], []byte("<!--")) {
+			end := bytes.Index(b[i:], []byte("-->"))
+			if end < 0 || !markerComments[string(b[i:i+end+3])] {
+				return bad()
+			}
+			i += end + 2
 			continue
 		}
 		i++
@@ -587,12 +603,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "full base SHA required")
 			os.Exit(2)
 		}
-		t, c, e := r.identities(*base)
+		c, pol, e := r.identities(*base)
 		if e != nil {
 			fmt.Fprintln(os.Stderr, e)
 			os.Exit(2)
 		}
-		json.NewEncoder(os.Stdout).Encode(qualification{Profile: "corvint-docs-ci-qualification/0", Tree: t, Classifier: c, Checks: checks, Inventory: "docs/specs/documentation-ci-v0.md#consumer-inventory"})
+		json.NewEncoder(os.Stdout).Encode(qualification{Profile: qualificationProfile, Classifier: c, Policy: pol, Checks: checks, Inventory: "docs/specs/documentation-ci-v0.md#consumer-inventory"})
 		return
 	}
 	p := r.plan(*base, *head, *target)

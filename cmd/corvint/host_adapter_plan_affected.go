@@ -147,7 +147,7 @@ func planAffectedObject(ctx context.Context, root string, paths []string) map[st
 	if err != nil {
 		return planAffectedRefusal(paths, "plan-affected-refused")
 	}
-	summary := summarizeAffectedPlan(receipt.Plan, len(receipt.Plan.Excluded))
+	summary := summarizeAffectedPlan(receipt.Plan, len(receipt.Plan.Excluded), receipt.WorktreeDirty, len(receipt.Range.Paths))
 	units := make([]string, 0, min(len(receipt.Plan.Selected), planAffectedUnitLimit))
 	for _, selection := range receipt.Plan.Selected[:min(len(receipt.Plan.Selected), planAffectedUnitLimit)] {
 		units = append(units, selection.UnitID)

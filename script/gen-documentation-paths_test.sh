@@ -82,6 +82,19 @@ if tool --check 2>/dev/null; then fail "check passed a backslash name"; fi
 git -C "$test_root" rm -qf --cached -- "$back" && rm -f "$test_root/$back"
 cases=$((cases + 1))
 
+# 6. AFP-V0-830 (V1-3509): integrations/README.md and each integrations/HOST/README.md are
+# declared once tracked; a deeper README and another host file are not.
+mkdir -p "$test_root/integrations/host/sub"
+for f in README.md host/README.md host/sub/README.md host/notes.md host/index.js; do
+    printf 'i\n' >"$test_root/integrations/$f"
+done
+git -C "$test_root" add integrations
+tool || fail "generate failed with integrations READMEs"
+got=$(jq -c '[.paths[] | select(startswith("integrations"))]' "$test_root/.corvint/documentation-paths.json")
+[ "$got" = '["integrations/README.md","integrations/host/README.md"]' ] || fail "integrations entries $got"
+tool --check || fail "check refused a fresh declaration with integrations READMEs"
+cases=$((cases + 1))
+
 # 5. An unknown argument is a usage refusal.
 status=0
 tool --nope >/dev/null 2>&1 || status=$?

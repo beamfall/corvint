@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func tasksBinary(build int) []byte {
@@ -42,7 +43,7 @@ func tasksEngine(t *testing.T) (engine, string) {
 	e := fixtureEngine(t)
 	e.config.Component = "tasks"
 	dest := filepath.Join(e.config.BinDir, "corvint-tasks")
-	if err := os.WriteFile(dest, tasksBinary(400), 0o700); err != nil {
+	if err := execfile.WriteFile(dest, tasksBinary(400), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return e, dest

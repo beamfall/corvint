@@ -113,6 +113,7 @@ func handoffCLIWithBinary(t *testing.T, root, binary string, args ...string) run
 // preserve failures at count three, and do not make old readers silently accept
 // new metadata. The disposable store is fixture-profile, not live migration.
 func TestCALV0044_CLIHandoffAccounting(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-044 CLIHandoffAccounting", func(t *testing.T) {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 		id := planTicket(t, root, "handoff", "P1", `["src/"]`)

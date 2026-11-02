@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testrunner/dynamic"
@@ -73,7 +74,7 @@ func TestMochaActualSelectionQualification(t *testing.T) {
 	launcher := filepath.Join(output, "mocha-launcher.cjs")
 	modules := filepath.Dir(filepath.Dir(filepath.Dir(cli)))
 	launch := fmt.Sprintf("#!%s\nprocess.env.NODE_PATH=%q;require('node:module').Module._initPaths();require(%q);\n", node, modules, cli)
-	if e := os.WriteFile(launcher, []byte(launch), 0700); e != nil {
+	if e := execfile.WriteFile(launcher, []byte(launch), 0700); e != nil {
 		t.Fatal(e)
 	}
 	base := map[string]string{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -18,6 +19,32 @@ import (
 // misses a file naming the script or lists a file that no longer names it
 // declares nothing, names FrontierForeignCallersInvalid and keeps the
 // frontier bearing; a dirty declaration leaves the plan UNKNOWN.
+// TSP-V0-820 (V1-4062): an over-long reason refusal names its length and the
+// 1024-byte limit; a reason of exactly 1024 bytes reads.
+func TestForeignCallerReasonLimit_TSPV0820(t *testing.T) {
+	for _, tc := range []struct {
+		size int
+		want string
+	}{
+		{size: 1024},
+		{size: 1025, want: `script "run.sh" reason has 1025 bytes; want non-empty valid UTF-8 without control characters, at most 1024 bytes`},
+	} {
+		root := t.TempDir()
+		write(t, root, "run.sh", "#!/bin/sh\n")
+		write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run.sh":{"callers":["Makefile"],"reason":"`+strings.Repeat("r", tc.size)+`"}}}`)
+		err := CheckForeignCallers(affected.DiskSourceContext(context.Background(), root))
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%d-byte reason refused: %v", tc.size, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%d-byte reason: error %v, want it to contain %q", tc.size, err, tc.want)
+		}
+	}
+	if err := CheckForeignCallers(affected.DiskSourceContext(context.Background(), t.TempDir())); err != nil {
+		t.Errorf("absent declaration: %v", err)
+	}
+}
+
 func TestForeignCallerDeclaration_TSP_V0_005(t *testing.T) {
 	base := map[string]string{
 		"go.mod":                "module example.test/m\n",
@@ -60,6 +87,10 @@ func TestForeignCallerDeclaration_TSP_V0_005(t *testing.T) {
 		{name: "unlisted make caller", declaration: declare(listed), extra: map[string]string{"sub/rules.mk": "x:\n\tsh run/run.sh\n"}, invalid: true},
 		{name: "unlisted python caller", declaration: declare(listed), extra: map[string]string{"lane.py": "import subprocess\nsubprocess.run(['run/run.sh'])\n"}, invalid: true},
 		{name: "unlisted workflow caller", declaration: declare(listed), extra: map[string]string{"ci/flow.yml": "run: run/run.sh\n"}, invalid: true},
+		// A workflow under .github is a caller too (V1-4178); it owns no unit.
+		{name: "hidden workflow caller", declaration: declare(`"callers":[".github/workflows/ci.yml","Makefile","caller/caller.go","direct/direct_test.go"]`), extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"}, declared: true}, //corvint:fixture-path
+		{name: "unlisted hidden workflow caller", declaration: declare(listed), extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"}, invalid: true},                                                                                 //corvint:fixture-path
+		{name: "stale hidden workflow caller", declaration: declare(`"callers":[".github/workflows/ci.yml","Makefile","caller/caller.go","direct/direct_test.go"]`), extra: map[string]string{".github/workflows/ci.yml": "run: true\n"}, invalid: true},     //corvint:fixture-path
 		{name: "stale caller", declaration: declare(`"callers":["Makefile","caller/caller.go","direct/direct_test.go","other/other.go"]`), invalid: true},
 		{name: "unsorted callers", declaration: declare(`"callers":["caller/caller.go","Makefile","direct/direct_test.go"]`), invalid: true},
 		{name: "no script unit", declaration: `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{` + listed + `,"reason":"r"},"gone.sh":{"callers":["Makefile"],"reason":"r"}}}`, invalid: true},

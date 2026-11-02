@@ -16,26 +16,24 @@ corvint-analyzer-sql-native	analyzer process the analyzer host starts over its o
 corvint-analyzer-structured-data	analyzer process the analyzer host starts over its own protocol; no command tree yet
 corvint-analyzer-swift	analyzer process the analyzer host starts over its own protocol; no command tree yet
 corvint-behavior-falsify	folded into corvint-test falsify, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
-corvint-companion-release	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-console	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-corpus-http	no command-tree snapshot yet; remove this row when the binary ships one
+corvint-companion-release	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-console	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-corpus-http	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-corpus-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
-corvint-corpus-parity	no command-tree snapshot yet; remove this row when the binary ships one
+corvint-corpus-parity	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-docs-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
-corvint-go-toolchain-receipt	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-lsp	no command-tree snapshot yet; remove this row when the binary ships one
+corvint-go-toolchain-receipt	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-lsp	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
 corvint-playwright-minimize	folded into corvint-test minimize, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
-corvint-postmerge-host-launcher	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-public-release-check	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-readiness-record	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-release-candidate	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-release-gate	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-release-install	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-remote-provider	no command-tree snapshot yet; remove this row when the binary ships one
+corvint-postmerge-host-launcher	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-public-release-check	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-readiness-record	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-release-candidate	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-release-gate	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-release-install	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
+corvint-remote-provider	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-test-runner	folded into corvint-test runner, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
 corvint-test-validity-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
 corvint-tests-accept	folded into corvint-test accept, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
-corvint-update	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-web-flows	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-work-queue	no command-tree snapshot yet; remove this row when the binary ships one
+corvint-web-flows	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one

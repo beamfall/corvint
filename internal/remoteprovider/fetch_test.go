@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func testConfig(t *testing.T, handler http.HandlerFunc) Config {
@@ -62,7 +64,7 @@ func TestRemoteFailures(t *testing.T) {
 				})
 				switch mode {
 				case "unavailable":
-					config.URL = "https://127.0.0.1:1"
+					config.URL = "https://" + testsupport.RefusedLoopbackAddr(t)
 				case "pin":
 					config.SPKISHA256 = strings.Repeat("0", 64)
 				case "trust":

@@ -35,7 +35,7 @@ func cutoverCommand(env Env, args []string) *wire.Result {
 	if _, err := mutation.ParseRequestID("decision", decision); err != nil {
 		return errorResult(cmd, err)
 	}
-	actor, err := initActor("OWNER")
+	actor, err := initActor(env, "OWNER")
 	if err != nil {
 		return errorResult(cmd, err)
 	}

@@ -109,8 +109,8 @@ func ergGateView(t *testing.T, root, id string) (dispatch.GateView, string) {
 // the dispatcher observation, STALE after a newer candidate, and receipt
 // audit binding every event to its receipt (a forged receipt refuses).
 func TestERGV0009_NativeVerdictsThroughTheCLI(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	runOK := func(args ...string) run {
@@ -250,8 +250,8 @@ func TestERGV0009_NativeVerdictsThroughTheCLI(t *testing.T) {
 // the retry replays even after the head moved (the default prior RETURN), the
 // policy changed and the author lease ended; a changed input is refused.
 func TestERGV0009_ReviewRetriesReplay(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	runOK := func(args ...string) run {

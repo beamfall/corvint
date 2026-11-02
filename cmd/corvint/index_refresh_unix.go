@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/procprofile"
 )
 
 const snapshotRefreshWorkerEnv = "CORVINT_INTERNAL_INDEX_REFRESH"
@@ -135,15 +137,7 @@ func spawnSnapshotRefresh(ctx context.Context, root string, lock *os.File) strin
 	if env == nil {
 		env = os.Environ()
 	}
-	// Do not let inherited internal markers or GOMAXPROCS override the child
-	// boundary. It performs no shell lookup and inherits no hook pipe.
-	command.Env = make([]string, 0, len(env)+2)
-	for _, entry := range env {
-		if !strings.HasPrefix(entry, snapshotRefreshWorkerEnv+"=") && !strings.HasPrefix(entry, snapshotRefreshPriorityEnv+"=") && !strings.HasPrefix(entry, "GOMAXPROCS=") {
-			command.Env = append(command.Env, entry)
-		}
-	}
-	command.Env = append(command.Env, snapshotRefreshWorkerEnv+"=1", "GOMAXPROCS=1")
+	command.Env = snapshotRefreshEnv(env)
 	if err := command.Start(); err != nil {
 		return "failed to start"
 	}
@@ -151,6 +145,23 @@ func spawnSnapshotRefresh(ctx context.Context, root string, lock *os.File) strin
 	// child is adopted by the OS reaper. No pipes or completion wait are retained.
 	go func() { _ = command.Wait() }()
 	return "started"
+}
+
+// snapshotRefreshEnv is the refresh worker's environment: the parent's,
+// without inherited internal markers, GOMAXPROCS or the CORVINT_CPUPROFILE and
+// CORVINT_MEMPROFILE knobs, so neither can override the child boundary and the
+// worker never writes over the profile of the hook that started it
+// (IDX-SNAP-V0-805). It performs no shell lookup and inherits no hook pipe.
+func snapshotRefreshEnv(env []string) []string {
+	dropped := append([]string{snapshotRefreshWorkerEnv, snapshotRefreshPriorityEnv, "GOMAXPROCS"}, procprofile.Knobs...)
+	out := make([]string, 0, len(env)+2)
+	for _, entry := range env {
+		name, _, _ := strings.Cut(entry, "=")
+		if !slices.Contains(dropped, name) {
+			out = append(out, entry)
+		}
+	}
+	return append(out, snapshotRefreshWorkerEnv+"=1", "GOMAXPROCS=1")
 }
 
 // runSnapshotRefreshWorker runs only at process startup with an inherited lock

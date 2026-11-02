@@ -153,6 +153,7 @@ func TestMutationTargetTakesTheLocalIDAndHelpNamesThePayload(t *testing.T) {
 }
 
 func TestCALV0043_CLIRecoveryAndPreview(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-043 operator recovery CLI", func(t *testing.T) {
 		root, old := expiredCLIStore(t, 1)
 		ok := func(args ...string) wire.Value {
@@ -268,6 +269,7 @@ func indentJSON(t *testing.T, canonical, sep string) string {
 // key: a retry with the canonical payload under the same request ID and
 // issuedAt replays, which it does only when the envelope digests are equal.
 func TestV10750_MutationPayloadsAreCanonicalizedBeforeTheDigest(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	sets := strings.NewReplacer(`"labels":[]`, `"labels":["alpha","zeta"]`,
 		`"requirementRefs":[]`, `"requirementRefs":["REQ-1","REQ-2"]`,
 		`"touchPaths":[]`, `"touchPaths":["a/y.go","b/x.go"]`)

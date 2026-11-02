@@ -112,6 +112,7 @@ func TestCALV0098_CLIExcludeAuthors(t *testing.T) {
 // authorship refuses INDEPENDENCE_UNVERIFIED and known authors stay named,
 // both for complete explicit exclusion and for occupied members.
 func TestCALV0098_ExhaustedPoolParity(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	type surface struct{ name, code, detail string }
 	agree := func(t *testing.T, root, id, code, detail string, flags ...string) {
 		t.Helper()

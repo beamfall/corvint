@@ -536,3 +536,30 @@ test('expectedStatus failed inverts the recorded state of a test.fail() test', (
   assert.equal(states['ordinary-pass'].state, 'passed');
   assert.equal(states['ordinary-fail'].state, 'failed');
 });
+
+// V1-4066 (not reproduced): the suspicion was that `let state = result.status` lets a passing
+// test.fail() count as a pass. It does not: the expectedStatus inversion right after it (V1-3636)
+// applies on every attempt, so a test.fail() body that passes on each retry stays a failure, one
+// whose retry fails as declared reads flaky, and a test.fail() body that times out is never a pass.
+test('V1-4066 a test.fail() body that passes is never a pass on any attempt', () => {
+  const Reporter = loadReporter();
+  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-expected-retry-')), 'report.json');
+  const reporter = new Reporter({output});
+  const project = {name: 'chromium', use: {}, metadata: {}};
+  const item = id => ({id, title: id, retries: 1, repeatEachIndex: 0, expectedStatus: 'failed', location: {file: '/repo/test.cjs', line: 1}, _testType: {fixtures: []}, parent: {project: () => project}, titlePath: () => [id]});
+  const run = (status, retry) => ({status, retry, workerIndex: 0, duration: 1, errors: status === 'failed' ? [{message: 'expected failure'}] : [], attachments: [], steps: []});
+  reporter.onTestEnd(item('always-passes'), run('passed', 0));
+  reporter.onTestEnd(item('always-passes'), run('passed', 1));
+  reporter.onTestEnd(item('fails-on-retry'), run('passed', 0));
+  reporter.onTestEnd(item('fails-on-retry'), run('failed', 1));
+  reporter.onTestEnd(item('times-out'), run('timedOut', 0));
+  reporter.onEnd({status: 'failed'});
+  const states = Object.fromEntries(JSON.parse(fs.readFileSync(output, 'utf8')).tests.map(t => [t.name, t]));
+  assert.equal(states['always-passes'].state, 'failed');
+  assert.deepEqual(states['always-passes'].attempts.map(a => a.state), ['failed', 'failed']);
+  assert.match(states['always-passes'].failureMessage, /expected to fail/);
+  assert.equal(states['fails-on-retry'].state, 'flaky');
+  assert.deepEqual(states['fails-on-retry'].attempts.map(a => a.state), ['failed', 'passed']);
+  assert.notEqual(states['times-out'].state, 'passed');
+  assert.equal(states['times-out'].attempts[0].failureKind, 'test-timeout');
+});

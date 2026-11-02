@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/gorunner"
 	"github.com/Beamfall/corvint/internal/liveverify/provider"
 )
@@ -48,7 +49,7 @@ func TestCancellingAuthorityCleansNestedGoProcessGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(goExecutable, verifierBytes, 0o700); err != nil {
+	if err := execfile.WriteFile(goExecutable, verifierBytes, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(moduleCache, 0o555); err != nil {

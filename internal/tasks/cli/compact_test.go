@@ -366,6 +366,7 @@ func TestCALV0173_ListItemsDropTerminalAndStoreWideNoise(t *testing.T) {
 // roadmap take --fields and --summary over every paged item; the bytes are
 // recorded in the V1-0935 build-log entry.
 func TestCALV0174_SearchAndRoadmapCompact(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-174", func(t *testing.T) {
 		r := compactListRepo(t)
 		state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)

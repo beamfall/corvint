@@ -33,8 +33,7 @@ func TestCALV0319_HangupInterruptsGateRun(t *testing.T) {
 		_, _ = os.Stdout.Write(out.Bytes())
 		os.Exit(code)
 	}
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	// A gate argv entry is at most 128 bytes, so the pid file and the clean
 	// worktree live under a short directory.

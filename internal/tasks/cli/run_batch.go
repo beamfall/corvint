@@ -533,7 +533,7 @@ func (j *runJob) runTests(ctx context.Context, name, dir string, specs []string)
 	run := store.RunBatchCommand(ctx, append(append([]string{}, j.cfg.TestCommand...), specs...), dir, j.environment(report), j.cfg.TimeoutSeconds)
 	j.writeLog(name+"/output.log", run.Output)
 	s := j.record(name, run, name+"/output.log")
-	qualified, err := admittedVersionsAt(j.env.Cwd)
+	qualified, err := admittedVersionsAt(j.env)
 	if err != nil {
 		return nil, s, prose(err.Error())
 	}
