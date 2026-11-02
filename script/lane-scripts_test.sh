@@ -1203,6 +1203,13 @@ grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_LOCAL_REASON='<why it needs this ho
 HEAVY_WHOLE_REASON= HEAVY_REMOTE=0 pv go test -run '.*/Sub' ./x > /dev/null 2> "$pol/err"
 grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test -run .\\*/Sub ./x" "$pol/err" ||
   fail "heavy.sh two-reason refusal did not print one quoted rerun line: $(cat "$pol/err")"
+# An env word that sets a missing reason empty would override the one the line adds, so it is left out.
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv env A=1 HEAVY_WHOLE_REASON= go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself env A=1 go test ./x" "$pol/err" ||
+  fail "heavy.sh rerun line kept the empty HEAVY_WHOLE_REASON word: $(cat "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv env HEAVY_WHOLE_REASON= go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test ./x" "$pol/err" ||
+  fail "heavy.sh rerun line kept a bare env with the empty reason word: $(cat "$pol/err")"
 # ASD-V0-980 (V1-3888): a selected go test of several packages runs once with every package; a
 # failure exits with the command's status and the ASD-V0-940 cause line, never silently.
 # The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
@@ -1601,6 +1608,14 @@ rc=$?
   grep -qx 'heavy.sh: exit rc=124 cause=light-cap cmd=sleep' "$to/err" &&
   grep -Eq '^heavy.sh: rerun as heavy: cd [^ ]+ && HEAVY_CLASS=heavy /[^ ]*/heavy\.sh --admit-only sleep 30 \(a make target: HEAVY_CLASS=heavy make TARGET\)$' "$to/err" ||
   fail "the light cap did not stop the run with its rerun line (rc=$rc, $((SECONDS - s0))s): $(cat "$to/err")"
+# A descendant that ignores TERM outlives its parent's exit, so the cap's KILL still reaches it,
+# and the run returns only once the group, and with it the slot lock, is gone.
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c 'sh -c "trap \"\" TERM; echo \$\$ > \"\$1/stubborn.pid\"; exec sleep 300" _ "$1" & wait' _ "$to"
+rc=$?
+stubborn=$(cat "$to/stubborn.pid" 2> /dev/null)
+((rc == 124 && SECONDS - s0 < 12)) && [[ -n $stubborn ]] && ! kill -0 "$stubborn" 2> /dev/null ||
+  fail "the light cap left a TERM-ignoring descendant running (rc=$rc, pid=$stubborn, $((SECONDS - s0))s): $(cat "$to/err")"
 tv sh -c 'HEAVY_CLASS=light "$heavy" true 2> "$1/light-nested.err"' _ "$to"
 grep -qx 'heavy.sh: HEAVY_CLASS=light runs on the enclosing heavy slot' "$to/light-nested.err" && grep -q '^heavy.sh: slot 1.inner/1 ' "$to/light-nested.err" ||
   fail "a light run inside a heavy holder did not nest on it: $(cat "$to/light-nested.err")"

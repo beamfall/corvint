@@ -427,11 +427,12 @@ setpgid($pid, $pid);
 # The command runs in its own process group; a forwarded signal reaches the whole group.
 $SIG{$_} = do { my $s = $_; sub { kill $s, -$pid } } for qw(INT TERM HUP);
 # ASD-V0-731: past the cap the whole group gets TERM, then KILL 5 s later, and the run exits 124.
-my $capped = 0;
+my ($capped, $termed) = (0, 0);
 if ($cap) {
     $SIG{ALRM} = sub {
         if ($capped++) { kill "KILL", -$pid; return }
         printf STDERR "heavy.sh: %srun exceeded its %ds cap; stopping it\n", $pfx, $cap;
+        $termed = time;
         kill "TERM", -$pid;
         alarm 5;
     };
@@ -441,6 +442,20 @@ my $got;
 do { $got = waitpid($pid, 0) } until $got == $pid || ($got == -1 && !$!{EINTR});
 my $status = $?;
 alarm 0 if $cap;
+# A capped run is over only when its whole group is: a descendant that outlives the command, and
+# may ignore TERM, still holds the slot through the inherited lock, so the KILL escalation stays
+# armed until no group member is left (bounded, since KILL cannot be ignored).
+if ($capped) {
+    my $deadline = $capped < 2 ? $termed + 5 : time + 5;
+    while (kill(0, -$pid)) {
+        if (time >= $deadline) {
+            last if $capped >= 2;
+            kill "KILL", -$pid;
+            ($capped, $deadline) = (2, time + 5);
+        }
+        select(undef, undef, undef, 0.1);
+    }
+}
 my $rc = $capped ? 124 : $status & 127 ? 128 + ($status & 127) : $status >> 8;
 my $t2 = time;
 printf STDERR "heavy.sh: done queue=%.1fs (load=%ds slot=%.1fs) run=%.1fs rc=%d\n", $loadwait + $t1 - $t0, $loadwait, $t1 - $t0, $t2 - $t1, $rc;
@@ -1420,6 +1435,22 @@ rerun_lines() {
   [[ $missing != *whole-reason-missing* ]] || reasons+=("HEAVY_WHOLE_REASON='<reason>'")
   [[ $missing != *local-reason-missing* ]] || reasons+=("HEAVY_LOCAL_REASON='<why it needs this host>'")
   self=$(self_path)
+  # A leading `env NAME=VALUE` word that sets a reason the line adds would override it, so it is
+  # dropped, and so is an `env` left with no assignment.
+  if [[ ${1-} == env ]]; then
+    local kept=(env) a
+    shift
+    while [[ $# -gt 0 && $1 =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do
+      case $1 in
+        HEAVY_WHOLE_REASON=*) [[ $missing == *whole-reason-missing* ]] || kept+=("$1") ;;
+        HEAVY_LOCAL_REASON=*) [[ $missing == *local-reason-missing* ]] || kept+=("$1") ;;
+        *) kept+=("$1") ;;
+      esac
+      shift
+    done
+    ((${#kept[@]} == 1)) && kept=()
+    set -- ${kept[@]+"${kept[@]}"} "$@"
+  fi
   printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]}" "$self" "$(printf ' %q' "$@")" >&2
   [[ $missing == *whole-reason-missing* ]] || return 0
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
