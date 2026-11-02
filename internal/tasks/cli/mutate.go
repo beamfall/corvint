@@ -417,12 +417,29 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 
 // submitMutationContext is submitMutation under a caller's writer context,
 // which may carry write-time inputs such as an obligation report check.
-func submitMutationContext(ctx context.Context, env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
+func submitMutationContext(ctx context.Context, env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) (res *wire.Result) {
 	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	store0, err := intent.Load(repo.IntentRoot())
+	// The preload feeds only intent checks and warnings; a ticket whose bytes
+	// match its index entry is held as the summary and decoded from those
+	// bytes on demand (TCX-V0-847). A held record that cannot be decoded is
+	// the command's error, as on the read path.
+	var index *intent.ClosedIndex
+	if useClosedIndex {
+		index = intent.ReadClosedIndex(repo.StateDir)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			me, ok := r.(ticket.MaterializeError)
+			if !ok {
+				panic(r)
+			}
+			res = errorResult(cmd, me.Err)
+		}
+	}()
+	store0, err := intent.LoadSummarized(repo.IntentRoot(), index)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -453,7 +470,7 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	res := mutateResult(cmd, report)
+	res = mutateResult(cmd, report)
 	if w := attemptLiveWarning(env, res, store0.Queue.QueueID.Raw, flags.target); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}
