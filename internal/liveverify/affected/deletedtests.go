@@ -50,7 +50,8 @@ func (graph *Graph) deletedGoTest(path string, packages map[string]string) bool 
 // directory still present on disk (a file the graph cannot see into may
 // remain) or a graph without a disk root keeps the entry.
 func (graph *Graph) deletedGoPackage(path string, packages map[string]string) bool {
-	if graph.root == "" || !strings.HasSuffix(path, ".go") || !fs.ValidPath(path) {
+	// A sparse checkout's absent directory may only lie outside the cone.
+	if graph.root == "" || graph.sparse || !strings.HasSuffix(path, ".go") || !fs.ValidPath(path) {
 		return false
 	}
 	directory := relativeDirectory(path)
