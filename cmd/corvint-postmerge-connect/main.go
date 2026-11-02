@@ -30,6 +30,9 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: corvint-postmerge-connect <plan|read-intake|write> --experimental --root REPO --fixture FILE --policy FILE --input FILE [--mode dry-run|recording|live --output FILE --author-root DIR]; live is local-fixture-only")
 	}
+	if args[0] != "plan" && args[0] != "read-intake" && args[0] != "write" {
+		return fmt.Errorf("unknown-operation: %q", args[0])
+	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	experimental := flags.Bool("experimental", false, "admit experimental local fixture profile; no remote qualification")
 	root := flags.String("root", "", "product Git checkout")

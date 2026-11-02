@@ -82,6 +82,7 @@ type affectedCompactAdvice struct {
 	TestSelection map[string]any          `json:"test_selection,omitempty"`
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
+	WholePackages []affectedWhole         `json:"whole_packages,omitempty"`
 }
 
 // affectedCompactCheck is an advice check. When Arguments is set, the
@@ -317,7 +318,7 @@ func compactAffectedAdvice(advice affectedAdvice, packages []string, planUnknown
 		}
 		checks = append(checks, compact)
 	}
-	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown)}
+	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown), WholePackages: advice.WholePackages}
 }
 
 func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []string {

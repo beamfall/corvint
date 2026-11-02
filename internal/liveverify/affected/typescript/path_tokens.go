@@ -28,19 +28,29 @@ func pathTokens(body string) ([]string, bool) {
 // specifier the import scan parsed at that offset and the adapter resolved to a unit
 // (TJAA-V0-126). skip maps a specifier's content offset to its text; a literal is left out only
 // when it is that one quoted specifier, so the same text in any other literal is still read, and
-// a module read whole because it does not tokenize keeps every token.
+// a module read whole because it does not tokenize keeps every token. A token only literals
+// starting or ending on a fixturePathMarker line hold is left out too (TJAA-V0-830).
 func pathTokensSkipping(body string, skip map[int]string) ([]string, bool) {
 	tokens := map[string]bool{}
+	var into map[string]bool
 	add := func(text string) {
 		decoded, _ := decodeStringEscapes(text)
 		for _, token := range pathLexicon.FindAllString(decoded, -1) {
 			if pathShaped(token) {
 				tokens[token] = true
+				if into != nil {
+					into[token] = true
+				}
 			}
 		}
 	}
 	clean, err := stripComments(body, false)
 	lexed, ok := playwrightLex(clean)
+	var markers [][2]int
+	if err == nil && ok {
+		markers = fixtureLines(body, clean)
+	}
+	marked, unmarked := map[string]bool{}, map[string]bool{}
 	switch {
 	case err != nil:
 		add(body)
@@ -65,8 +75,17 @@ func pathTokensSkipping(body string, skip map[int]string) ([]string, bool) {
 				// Only a regular expression's run starts at a slash: drop its delimiters.
 				literal = strings.TrimSuffix(literal[1:], "/")
 			}
+			into = unmarked
+			if onMarkedLine(markers, start) || onMarkedLine(markers, end-1) {
+				into = marked
+			}
 			add(literal)
 			start = end
+		}
+	}
+	for token := range marked {
+		if !unmarked[token] {
+			delete(tokens, token)
 		}
 	}
 	if len(tokens) > maxPathTokens {
@@ -92,4 +111,41 @@ func pathShaped(token string) bool {
 	return strings.IndexFunc(token, func(c rune) bool {
 		return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 	}) >= 0
+}
+
+// fixturePathMarker is the per-literal fixture marker of ASD-V0-895 and AFP-V0-551: a literal
+// starting or ending on its line names no repository read (TJAA-V0-830).
+const fixturePathMarker = "//corvint:fixture-path"
+
+// fixtureLines returns the [start, end) byte range of each line of body holding a line comment
+// that is exactly fixturePathMarker: an occurrence counts only where stripComments blanked it, so
+// the same text inside a literal marks nothing. clean keeps body's offsets.
+func fixtureLines(body, clean string) [][2]int {
+	var lines [][2]int
+	for offset := 0; ; {
+		index := strings.Index(body[offset:], fixturePathMarker)
+		if index < 0 {
+			return lines
+		}
+		index += offset
+		offset = index + len(fixturePathMarker)
+		end := offset + strings.IndexAny(body[offset:], "\r\n")
+		if end < offset {
+			end = len(body)
+		}
+		if clean[index] == ' ' && strings.TrimSpace(body[offset:end]) == "" {
+			start := strings.LastIndexAny(body[:index], "\r\n") + 1
+			lines = append(lines, [2]int{start, end})
+		}
+	}
+}
+
+// onMarkedLine reports whether offset lies on a line fixtureLines returned.
+func onMarkedLine(lines [][2]int, offset int) bool {
+	for _, line := range lines {
+		if offset >= line[0] && offset < line[1] {
+			return true
+		}
+	}
+	return false
 }

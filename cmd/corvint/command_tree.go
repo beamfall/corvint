@@ -60,6 +60,8 @@ var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint-ruby-test-provider", Command: "corvint-ruby-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-ruby-test-provider.json"},
 	{Binary: "corvint-tasks", Command: "corvint-tasks help --json", Snapshot: "internal/capcatalog/trees/corvint-tasks.json"},
 	{Binary: "corvint-test", Command: "corvint-test help --json", Snapshot: "internal/capcatalog/trees/corvint-test.json"},
+	{Binary: "corvint-update", Command: "corvint-update help --json", Snapshot: "internal/capcatalog/trees/corvint-update.json"},
+	{Binary: "corvint-work-queue", Command: "corvint-work-queue help --json", Snapshot: "internal/capcatalog/trees/corvint-work-queue.json"},
 }
 
 // commandTreeJSON is `corvint help --tree`, the canonical corvint-command-tree/0 document.

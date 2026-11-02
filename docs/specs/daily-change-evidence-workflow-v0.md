@@ -3507,6 +3507,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   anchored and in the NOTE count. Evidence:
   `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames`. Rollback: drop the fix field.
 
+- `DCW-V0-548`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3545) A hunk
+  of the `dogfood propose-citations` draft whose edited lines pair, in order, with lines that
+  differ only in `path:line[-line][@hex]` citation pins, with at least one pin changed, MUST be
+  proposed against `DCG-V0-045` in `docs/specs/documentation-citation-gate-v0.md`. That is the
+  rule `script/check-line-citations.sh --repin` enforces. It replaces a same-file anchor. A hunk
+  with any other edit, an insertion or a deletion keeps the existing proposal. Non-goals:
+  checking that the new pins are correct; the citation gate does that. Evidence:
+  `TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule` (a repin-only hunk cites
+  DCG-V0-045; a hunk that also edits prose does not). Rollback: remove `repinOnly` and
+  `repinProposal`.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -3902,6 +3913,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-844` (experimental under the standing lane auto-accept; V1-3318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase` | implemented; focused tests PASS |
 | `DCW-V0-845` (experimental under the standing lane auto-accept; V1-3302) | `internal/dogfoodflow/propose.go` `run`, `template`; `internal/dogfoodflow/change.go` `fixHints`, `citeSpanUnalignedHint`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal`, `TestChangeDCWV0063NamesUnalignedCiteSpanCause`, `script/dogfood-change_test.sh` | implemented; focused Go tests PASS |
 | `DCW-V0-846` (experimental under the standing lane auto-accept; V1-1724) | `internal/dogfoodflow/propose.go` `propose`, `printDraft`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal` | implemented; amended by `DCW-V0-962`; focused tests PASS |
+| `DCW-V0-548` (experimental under the standing lane auto-accept; V1-3545) | `internal/dogfoodflow/propose_repin.go` `repinOnly`, `repinProposal`; the call in `internal/dogfoodflow/propose.go`; `TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule` | implemented; focused tests PASS |
 | `DCW-V0-920` (experimental under the standing lane auto-accept; V1-3043) | `internal/dogfoodflow/propose.go` `stable`, `draft`; `TestProposeCitationsDCWV0920SkipsSpansOverTheCiteBound` (a BASE line one MiB over the bound is skipped with a note, the same line within it is cited) | implemented; focused tests PASS |
 | `DCW-V0-813` (experimental under the standing lane auto-accept; lane friction F13) | the `doc-gates` recipe, the `shell-test-registration-check` target and its `DOC_GATE_TARGETS` entry in `Makefile`; `doc_gate_expansion` in `script/batch-precheck.sh` | implemented; probe and `batch-precheck_test.sh` PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |

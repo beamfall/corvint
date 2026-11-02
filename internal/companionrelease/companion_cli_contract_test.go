@@ -23,7 +23,7 @@ var contractCompanions = []string{
 
 // treeCompanions answer the help forms from their command tree (CAP-V0-972) and
 // take only the --version forms from the companion contract.
-var treeCompanions = map[string]bool{"corvint-dashboard-snapshot": true}
+var treeCompanions = map[string]bool{"corvint-dashboard-snapshot": true, "corvint-update": true}
 
 func buildContractCompanions(t *testing.T) string {
 	t.Helper()

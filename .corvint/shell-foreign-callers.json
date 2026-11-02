@@ -40,9 +40,10 @@
     },
     "script/check-install-lifecycle.sh": {
       "callers": [
+        ".github/workflows/release-gates.yml",
         "script/check-install-lifecycle_test.sh"
       ],
-      "reason": "Every tracked file in the source universe naming check-install-lifecycle.sh: its shell test runs it. The release-gates workflow also runs it through run-gate; .github is outside the source universe and holds no test unit, so it adds no edge (TSP-V0-005; V1-3571)."
+      "reason": "Every tracked file naming check-install-lifecycle.sh: its shell test runs it, and the release-gates workflow runs it through run-gate; the workflow owns no unit, so it adds no edge (TSP-V0-005; V1-3571, V1-4178)."
     },
     "script/dogfood-bind-coverage.sh": {
       "callers": [
@@ -76,6 +77,7 @@
         "script/dogfood-change_test.sh",
         "script/dogfood-seal.sh",
         "script/lane-scripts_test.sh",
+        "script/review-head-check_test.sh",
         "script/runtime-environment_test.sh"
       ],
       "reason": "Every tracked file naming dogfood-check.sh: make dogfood-check and dogfood-seal.sh run it, and five shell tests and a cmd/corvint test run or copy it into fixtures; the others name it in comments, or match it as an argv string without running it (TSP-V0-005; V1-3898: the scripts a seal commit's CEM paths reach).",
@@ -86,14 +88,14 @@
         "internal/dogfoodflow/flow.go",
         "internal/localcompletion/storage.go",
         "internal/localcompletion/storage_test.go",
-        "script/dogfood-finish.sh",
-        "script/review-head-check_test.sh"
+        "script/dogfood-finish.sh"
       ]
     },
     "script/dogfood-seal.sh": {
       "callers": [
         "Makefile",
-        "script/dogfood-change_test.sh"
+        "script/dogfood-change_test.sh",
+        "script/review-head-check_test.sh"
       ],
       "mentions": [
         "internal/console/chain.go",
@@ -101,10 +103,9 @@
         "internal/console/chain_test.go",
         "internal/liveverify/affected/replay_v12941_test.go",
         "script/pre-push-dogfood-seal.sh",
-        "script/pre-push-dogfood-seal_test.sh",
-        "script/review-head-check_test.sh"
+        "script/pre-push-dogfood-seal_test.sh"
       ],
-      "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571)."
+      "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571). review-head-check_test.sh copies and runs it, with a stub dogfood-check.sh it writes (V1-3959)."
     },
     "script/heavy.sh": {
       "callers": [
@@ -125,6 +126,8 @@
         "cmd/corvint/test_whole_reason_cli_unix_test.go",
         "cmd/corvint/test_whole_reason_test.go",
         "internal/dogfoodflow/verify_run_match_test.go",
+        "internal/liveverify/affected/measure_test.go",
+        "internal/liveverify/affected/replay_v14170_test.go",
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
         "script/analyzer-schema_test.sh",

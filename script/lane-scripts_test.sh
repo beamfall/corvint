@@ -1489,12 +1489,14 @@ out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY
 # ICL-V0-030 (V1-1629): a missing input is refused before admission, so a held slot or host load
 # cannot delay it; the admission wrapper is never invoked and the refusal names every missing input.
 # The pre-flight alone does not require OUTCOME (DCW-V0-848). MAKEFLAGS is cleared so a calling
-# make's command-line BASE (make batch-precheck BASE=...) does not reach the fixture.
+# make's command-line BASE (make batch-precheck BASE=...) does not reach the fixture, and
+# DOGFOOD_FINISH_ENTRY is unset because `make dogfood-closeout` exports it and batch-precheck runs
+# this suite under it, where the pre-flight rightly requires OUTCOME as well (DCW-V0-848).
 printf '#!/bin/sh\ntouch "%s/admitted"\n' "$to" > "$to/bin/admit-never" && chmod +x "$to/bin/admit-never" || fail "admit-never stub"
 for c in "dogfood-inputs-check|BASE CITATIONS INTENTS VERIFY" "dogfood-finish|BASE CITATIONS INTENTS VERIFY OUTCOME"; do
   IFS='|' read -r target want <<< "$c"
   /bin/rm -f "$to/admitted"
-  (cd "$script/.." && env -u BASE -u CITATIONS -u INTENTS -u VERIFY -u OUTCOME -u MAKEFLAGS -u MFLAGS -u MAKELEVEL make -s --no-print-directory "$target" LANE=1 HEAVY_ADMIT="$to/bin/admit-never" 2> "$to/early.err")
+  (cd "$script/.." && env -u BASE -u CITATIONS -u INTENTS -u VERIFY -u OUTCOME -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY make -s --no-print-directory "$target" LANE=1 HEAVY_ADMIT="$to/bin/admit-never" 2> "$to/early.err")
   rc=$?
   ((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q "REFUSE missing-inputs $want\$" "$to/early.err" &&
     grep -q 'nothing was built, prepared or bound' "$to/early.err" ||

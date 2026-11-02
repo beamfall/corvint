@@ -22,8 +22,8 @@ func TestSTRV0063SelectedSlicePlacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Unit{
-		{Adapter: AdapterGo, Flag: "-run", Pattern: "^(TestA|TestA2)$", Reason: "selected: the tests of a/a_test.go", Slice: SliceSelected, Unit: "go:example.test/m/a"},
-		{Adapter: AdapterGo, Reason: "whole: DIRECT_SOURCE_CHANGE via b/b.go", Slice: SliceWhole, Unit: "go:example.test/m/b"},
+		{Adapter: AdapterGo, Flag: "-run", Pattern: "^(TestA|TestA2)$", Reason: "selected: the tests of a/a_test.go", ReasonCode: ReasonSelectedChangedTests, Slice: SliceSelected, Unit: "go:example.test/m/a"},
+		{Adapter: AdapterGo, Reason: "whole: DIRECT_SOURCE_CHANGE via b/b.go", ReasonCode: ReasonDirectSource, Slice: SliceWhole, Unit: "go:example.test/m/b"},
 	}
 	if m.Scope != ScopeNarrowed || !reflect.DeepEqual(m.Units, want) || m.SlicedUnits() != 1 {
 		t.Fatalf("units %+v scope %s sliced %d", m.Units, m.Scope, m.SlicedUnits())

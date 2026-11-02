@@ -196,6 +196,9 @@ type affectedAdvice struct {
 	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
+	// WholePackages names each selected Go unit a TestMain change makes
+	// whole, with the reason (AFP-V0-550); omitted when there is none.
+	WholePackages []affectedWhole `json:"whole_packages,omitempty"`
 }
 
 type affectedCheck struct {
@@ -1172,8 +1175,11 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
+	documentationOnly := false
 	if len(invocation.PathList) != 0 && len(dirty) != 0 && !invocation.Worktree {
-		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		if documentationOnly = affectedDocumentationOnly(root, dirty); !documentationOnly {
+			return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		}
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
@@ -1182,6 +1188,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	graph, err := affectedBuildGraph(affectedGraphContext(ctx), invocation)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
+	}
+	if documentationOnly && slices.ContainsFunc(dirty, func(path string) bool { _, owned := graph.OwnerOf(path); return owned }) {
+		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
 	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	if len(invocation.PathList) != 0 {
@@ -1370,6 +1379,7 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	plan := affectedSelect(graph, changed, in.shared)
 	provider := providerGoProjection(graph, plan)
 	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)
+	advice = withWholePackages(ctx, advice, in.repository, in.tree, in.base, in.revision, plan)
 	return graph, plan, provider, advice
 }
 
