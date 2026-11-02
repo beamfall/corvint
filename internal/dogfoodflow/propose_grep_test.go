@@ -60,3 +60,33 @@ func TestProposeCitationsDCWV0754AnchorSearchMatchesGitGrep(t *testing.T) {
 		}
 	}
 }
+
+// TestProposeCitationsDCWV0754LongLineStaysBoundedAndInterruptible (review):
+// a long line with an overlapping match at every byte keeps only the matches
+// still open, stops at the output bound as Git's output would, and a deadline
+// passed during the scan stops it.
+func TestProposeCitationsDCWV0754LongLineStaysBoundedAndInterruptible(t *testing.T) {
+	data := []byte(strings.Repeat("a", 4<<20))
+	matcher := newFixedMatcher([]string{"a", "aa", "aaa"})
+	var out strings.Builder
+	if matcher.records(&out, "f", data, 1<<20, nil) || out.Len() > 1<<20 {
+		t.Fatalf("a 4 MiB line under a 1 MiB bound: wrote %d bytes and did not report the overflow", out.Len())
+	}
+	out.Reset()
+	if !matcher.records(&out, "f", data[:64], 1<<20, nil) || out.String() != strings.Repeat("f\x001\x00aaa\n", 21)+"f\x001\x00a\n" {
+		t.Fatalf("64 bytes of a: %q, want 21 leftmost-longest aaa and one a", out.String())
+	}
+	ticks := 0
+	stopped := func() (stopped bool) {
+		defer func() { stopped = recover() != nil }()
+		matcher.records(&strings.Builder{}, "f", data, 64<<20, func() {
+			if ticks++; ticks == 3 {
+				panic("deadline")
+			}
+		})
+		return false
+	}()
+	if !stopped || ticks != 3 {
+		t.Fatalf("the scan did not stop at its third tick: stopped=%v ticks=%d", stopped, ticks)
+	}
+}

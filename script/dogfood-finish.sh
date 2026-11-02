@@ -85,9 +85,13 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 # lines, by the same Go validator (tools/verify-syntax-check calls it), before any Git read, static
 # check or build: a warm go run takes about 0.1 s, against about 18-25 s to reach the late check.
 # A tool that does not build or run (an older tree, no Go) leaves the late check to refuse.
+# A relative VERIFY names a file under the caller's directory, so it is made absolute here, before
+# the cd into the repository.
 if [[ -n $verify && -f $repo/tools/verify-syntax-check/main.go ]]; then
+  verify_path=$verify
+  [[ $verify_path == /* ]] || verify_path=$PWD/$verify_path
   verify_out=$(cd "$repo" && GOCACHE=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}} \
-    GOTOOLCHAIN=local go run ./tools/verify-syntax-check --prefix "$prefix" --base "$base_arg" "$([[ $verify == /* ]] && printf '%s' "$verify" || printf '%s' "$PWD/$verify")" 2>&1 < /dev/null)
+    GOTOOLCHAIN=local go run ./tools/verify-syntax-check --prefix "$prefix" --base "$base_arg" "$verify_path" 2>&1 < /dev/null)
   if [[ $verify_out == "$prefix: REFUSE "* ]]; then
     grep -v -E '^exit status [0-9]+$' <<< "$verify_out" >&2
     printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
@@ -103,10 +107,12 @@ git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 # clean worktree has the same key (the dogfood-finish after its dogfood-inputs-check) skips them,
 # saying so; a dirty worktree, an unreadable key or any other key runs them.
 static_input_key() {
-  local tree toolchain
+  local tree toolchain status
   # The bind sidecar .corvint/change.cem.json, which dogfood change leaves untracked, is read by none
-  # of the checks (test-read-scopes-check skips it by name), so it does not dirty the key.
-  [[ -z $(git -C "$repo" status --porcelain=v1 --untracked-files=all -- . ':(exclude).corvint/change.cem.json' 2> /dev/null) ]] || return 1
+  # of the checks (test-read-scopes-check skips it by name), so it does not dirty the key. A status
+  # Git cannot read gives no key, never a clean one.
+  status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all -- . ':(exclude).corvint/change.cem.json' 2> /dev/null) || return 1
+  [[ -z $status ]] || return 1
   tree=$(git -C "$repo" rev-parse --verify -q 'HEAD^{tree}') || return 1
   toolchain=$(cd "$repo" && GOTOOLCHAIN=local go env GOVERSION GOOS GOARCH GOFLAGS CGO_ENABLED 2> /dev/null) || return 1
   printf 'dogfood-static-pass/1\ntree %s\nbase %s\n%s\n' "$tree" "$base" "$toolchain" | git -C "$repo" hash-object --stdin

@@ -34,6 +34,10 @@ for commit in $commits; do
     esac
   done < <(git diff-tree --no-commit-id --name-only -r --root "$commit")
 done
+# Review: a commit made while the range was inspected is never dropped: HEAD must still be the head
+# inspected right before the reset.
+now=$(git rev-parse --verify -q 'HEAD^{commit}') || keep "HEAD cannot be read again"
+[[ $now == "$head" ]] || keep "HEAD moved to $now while the bind and seal commits were inspected"
 git reset -q --keep "$start" || keep "git reset --keep $start refused"
 printf '%s: unwind: dropped %d bind and seal commit(s) %s; HEAD is %s again (the sealed head %s stays reachable: git reset --keep %s restores it)\n' \
   "$prefix" "$(wc -w <<< "$commits" | tr -d ' ')" "$(tr '\n' ' ' <<< "$commits" | sed 's/ $//')" "$start" "$head" "$head" >&2

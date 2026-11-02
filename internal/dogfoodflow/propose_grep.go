@@ -1,7 +1,6 @@
 package dogfoodflow
 
 import (
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -58,7 +57,7 @@ func (p *proposal) onlyMatching(arguments []string, patterns []string) (string, 
 		if !ok {
 			return p.boundedGit(arguments...)
 		}
-		if !matcher.records(&records, prefix+name, data, limit) {
+		if !matcher.records(&records, prefix+name, data, limit, p.checkpoint) {
 			return "", 0, false
 		}
 	}
@@ -70,6 +69,7 @@ func (p *proposal) onlyMatching(arguments []string, patterns []string) (string, 
 
 // fixedMatcher is an Aho-Corasick automaton over fixed byte patterns.
 type fixedMatcher struct {
+	longest int
 	next    []map[byte]int32
 	fail    []int32
 	lengths [][]int // lengths of the patterns ending at each state, own and by suffix
@@ -81,6 +81,7 @@ func newFixedMatcher(patterns []string) *fixedMatcher {
 		if pattern == "" {
 			continue
 		}
+		m.longest = max(m.longest, len(pattern))
 		state := int32(0)
 		for i := 0; i < len(pattern); i++ {
 			child, ok := m.next[state][pattern[i]]
@@ -127,47 +128,58 @@ type occurrence struct{ start, end int }
 
 // records appends git grep -z -n -o records for data to out, as Git prints
 // them for the file name: `name NUL line NUL match LF` per match. It reports
-// false once out would pass limit, as Git's output would.
-func (m *fixedMatcher) records(out *strings.Builder, name string, data []byte, limit int) bool {
+// false once out would pass limit, as Git's output would. A match is written
+// as soon as no later match can start before it or at its start (none is
+// longer than the longest pattern), so it keeps only the matches still open
+// in that window, never a whole line's, and checks limit as it writes; tick
+// runs every 64 KiB of data, so a deadline or an interrupt stops a long scan
+// (DCW-V0-754).
+func (m *fixedMatcher) records(out *strings.Builder, name string, data []byte, limit int, tick func()) bool {
 	state := int32(0)
-	line, lineStart := 1, 0
-	found := []occurrence{}
-	flush := func(end int) bool {
-		if len(found) > 0 {
-			sort.Slice(found, func(i, j int) bool {
-				if found[i].start != found[j].start {
-					return found[i].start < found[j].start
-				}
-				return found[i].end > found[j].end
-			})
-			number := strconv.Itoa(line)
-			at := lineStart
-			for _, match := range found {
-				if match.start < at {
-					continue
-				}
-				if out.Len()+len(name)+len(number)+match.end-match.start+3 > limit {
-					return false
-				}
-				out.WriteString(name)
-				out.WriteByte(0)
-				out.WriteString(number)
-				out.WriteByte(0)
-				out.Write(data[match.start:match.end])
-				out.WriteByte('\n')
-				at = match.end
+	line, lineStart, at := 1, 0, 0
+	number := "1"
+	pending := []occurrence{}
+	// emit writes the leftmost pending match, the longest at its start, and
+	// drops the matches it covers.
+	emit := func() bool {
+		best := 0
+		for index, match := range pending {
+			if match.start < pending[best].start || match.start == pending[best].start && match.end > pending[best].end {
+				best = index
 			}
-			found = found[:0]
 		}
-		line, lineStart = line+1, end+1
+		match := pending[best]
+		if out.Len()+len(name)+len(number)+match.end-match.start+3 > limit {
+			return false
+		}
+		out.WriteString(name)
+		out.WriteByte(0)
+		out.WriteString(number)
+		out.WriteByte(0)
+		out.Write(data[match.start:match.end])
+		out.WriteByte('\n')
+		at = match.end
+		kept := pending[:0]
+		for _, open := range pending {
+			if open.start >= at {
+				kept = append(kept, open)
+			}
+		}
+		pending = kept
 		return true
 	}
 	for i, symbol := range data {
+		if i&0xffff == 0 && tick != nil {
+			tick()
+		}
 		if symbol == '\n' {
-			if !flush(i) {
-				return false
+			for len(pending) > 0 {
+				if !emit() {
+					return false
+				}
 			}
-			state = 0
+			line, lineStart = line+1, i+1
+			at, number, state = lineStart, strconv.Itoa(line), 0
 			continue
 		}
 		for {
@@ -181,12 +193,32 @@ func (m *fixedMatcher) records(out *strings.Builder, name string, data []byte, l
 			state = m.fail[state]
 		}
 		for _, length := range m.lengths[state] {
-			found = append(found, occurrence{i + 1 - length, i + 1})
+			if start := i + 1 - length; start >= at {
+				pending = append(pending, occurrence{start, i + 1})
+			}
+		}
+		// A later match ends after i and starts at or after i+2-longest.
+		for len(pending) > 0 && m.settled(pending, i) {
+			if !emit() {
+				return false
+			}
 		}
 	}
 	// A last line without LF is still a line.
-	if len(found) > 0 {
-		return flush(len(data))
+	for len(pending) > 0 {
+		if !emit() {
+			return false
+		}
 	}
 	return true
+}
+
+// settled reports whether no match ending after position i can start at or
+// before the leftmost pending start.
+func (m *fixedMatcher) settled(pending []occurrence, i int) bool {
+	leftmost := pending[0].start
+	for _, match := range pending[1:] {
+		leftmost = min(leftmost, match.start)
+	}
+	return i+2-m.longest > leftmost
 }

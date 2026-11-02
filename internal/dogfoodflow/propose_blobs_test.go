@@ -5,7 +5,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath (V1-2360): the
@@ -53,6 +55,41 @@ func TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath(t *testing.T) {
 			if fastFound != slowFound || !bytes.Equal(fastData, slowData) {
 				t.Errorf("blob(%s, %s): fast = %v %q, slow = %v %q", commit[:7], name, fastFound, fastData, slowFound, slowData)
 			}
+		}
+	}
+}
+
+// TestProposeCitationsDCWV0752OversizedBlobClosesWithoutHanging (DCW-V0-752,
+// review): a blob over the read bound leaves its body unread in the cat-file
+// stream; the read reports it (or refuses the flow), and closing the reader
+// kills the blocked process instead of waiting on it forever.
+func TestProposeCitationsDCWV0752OversizedBlobClosesWithoutHanging(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	writeTree(t, root, map[string]string{"big.txt": strings.Repeat("0123456789abcdef\n", 1<<16)})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "big")
+	head := testGit(t, root, "rev-parse", "HEAD")
+	for _, refuse := range []bool{false, true} {
+		p := &proposal{flow: flow{ctx: context.Background(), prefix: "test", root: root, stderr: &bytes.Buffer{}, gitOutputLimit: 1024}, blobs: map[string][]byte{}, lines: map[string][][]byte{}}
+		entries, ok := p.commitTree(head)
+		if !ok {
+			t.Fatal("no tree listing")
+		}
+		var read bool
+		code, _ := boundary(context.Background(), func() int {
+			_, read = p.batchRead(entries["big.txt"].object, 1024, refuse)
+			return 0
+		}, func() {})
+		if read || refuse != (code == 2) {
+			t.Fatalf("refuse=%v: read=%v code=%d, want no read and a refusal only when asked", refuse, read, code)
+		}
+		closed := make(chan struct{})
+		go func() { p.closeBlobs(); close(closed) }()
+		select {
+		case <-closed:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("refuse=%v: closeBlobs hangs on the unread oversized blob", refuse)
 		}
 	}
 }

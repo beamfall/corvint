@@ -3409,7 +3409,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   that the sealed head stays reachable, and the closeout still exits 1. Otherwise it MUST change
   nothing and print `unwind: NOT_RUN REASON` with the hand command. A lane repairing the refusal
   then starts from its own head, so its refreshed citation plan holds no sealed-CEM hunk. A check or
-  seal failure inside `finish-lane` keeps its own recovery (`DCW-V0-806`). Non-goals: unwinding any
+  seal failure inside `finish-lane` keeps its own recovery (`DCW-V0-806`). HEAD MUST still be the inspected head right before the reset, else nothing is reset (`NOT_RUN HEAD moved to SHA while the bind and seal commits were inspected`), so a commit made during the inspection is never dropped. Non-goals: unwinding any
   commit that touches another path; deleting refs. Failure modes: no recorded start, a start that is
   not an ancestor, or a dirty tree leave HEAD as it is. Evidence: `script/dogfood-cache_test.sh`
   (`TEST_SEALED_RC=1` unwinds to the start with a clean tree; `TEST_EXTRA_COMMIT=1` prints
@@ -3468,11 +3468,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   requirement-family fallbacks once per change, not once per hunk. A listing that is unreadable or
   over the flow's Git output bound, or a batch answer that is not the expected blob, falls back to
   the per-blob commands, so the draft is byte-identical either way; a blob over the bound still
-  refuses `git-output-over-bound`. Measured on WSL (load 8 to 22), before and after, identical
+  refuses `git-output-over-bound`. A blob over the bound leaves the batch process broken, and closing the reader kills it before waiting, since its writer may block on the unread object. Measured on WSL (load 8 to 22), before and after, identical
   drafts: a 593-hunk lane 12.8-14.6 s to 2.1 s (2639 Git spawns to 20), a 629-hunk lane 19.7 s to
   3.8 s, 58 to 67 hunks 1.4-2.0 s to 0.6 s. Non-goals: changing any drafted row or note. Evidence:
   `TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath` (the draft and each blob, symbolic
-  link, directory and missing path read the same both ways) and
+  link, directory and missing path read the same both ways), `TestProposeCitationsDCWV0752OversizedBlobClosesWithoutHanging` and
   `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: set `blobFastPath` false and drop
   `familyFallbacks`.
 - `DCW-V0-753`: (experimental under the standing lane auto-accept, 2026-11-01; owner request
@@ -3483,7 +3483,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `dogfoodflow.CheckVerifySyntax`, finish-lane's own `requireVerifyInput`, so the early and late
   checks share one validator and print the same lines. A refusal prints those lines and `nothing was
   built, prepared or bound` and exits 2; a tool that does not build or run leaves the late check to
-  refuse. Measured on WSL: the repro line `go test -run '^TestA|^TestB' ./pkg` was refused after
+  refuse. A relative VERIFY is made absolute against the caller's directory before the wrapper enters the repository. Measured on WSL: the repro line `go test -run '^TestA|^TestB' ./pkg` was refused after
   17.7 s wall (22.3 s user CPU; 24.6 s and 63.8 s CPU in rdp-w33's run), and is now refused after
   0.17 s with identical lines (`go run` 0.08 s warm, 0.93 s on the first, linking run). Non-goals:
   changing what is admitted or any refusal text. Evidence:
@@ -3499,12 +3499,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   matches in process as `git grep -o` does: on each line the leftmost match of any pattern, the
   longest at that start, then the next from its end. The records MUST be byte-identical to the one
   `git grep -z -n -o` they replace, under the same output bound; a listing, tree or blob read it
-  cannot complete runs that one grep instead. Git checks every line against every `-e` pattern, so
+  cannot complete runs that one grep instead. The in-process match writes each match once no later match can start at or before it, keeping only the matches still open within the longest pattern's reach, checks the bound as it writes, and checks the flow's deadline every 64 KiB, so a long line with matches at every byte stays bounded and interruptible. Git checks every line against every `-e` pattern, so
   that grep grew with the pattern count. Measured on WSL (load 7 to 23) at lane gcr-w20's bind
   commit, the search over all 628 hunks (496 patterns) took 152.6 s for its grep and 153.1 s in all,
   and now takes 3.2 s and 3.8 s, with identical rows and candidate lines. Drafts of six lanes are
   byte-identical, and a 593 to 629-hunk draft drops from 2.3-3.0 s to 1.8-2.1 s. Non-goals: changing
-  which lines are candidates. Evidence: `TestProposeCitationsDCWV0754AnchorSearchMatchesGitGrep`
+  which lines are candidates. Evidence: `TestProposeCitationsDCWV0754LongLineStaysBoundedAndInterruptible`, `TestProposeCitationsDCWV0754AnchorSearchMatchesGitGrep`
   (overlapping, nested and repeated patterns, several matches on a line, CRLF, a last line without
   LF, a binary file, a symbolic link, an excluded path and no match print what Git prints) and
   `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: set `anchorGrepFastPath` false.
@@ -3536,7 +3536,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   (`go env GOVERSION GOOS GOARCH GOFLAGS CGO_ENABLED`) in the git directory's
   `corvint/dogfood-static-pass`, and a later run whose worktree gives the same key MUST skip those
   checks, printing `static checks REUSE: they passed for this clean tree TREE at BASE BASE
-  (DCW-V0-757)`. A dirty worktree, an unreadable key or any other key runs them. Measured on WSL at
+  (DCW-V0-757)`. A `git status` that fails gives no key, never a clean one. A dirty worktree, an unreadable key or any other key runs them. Measured on WSL at
   load 13-20 on the same subject, old against new code: `make dogfood-finish` 40.2 s to 24.2 s
   (wrapper 16.8-18.0 s to 4.1-4.4 s; rebind 13.2 s to 10.1 s), `make dogfood-change` 9.1 s to 6.6 s,
   and two runs at the same base sealed byte-identical CEMs. Evidence: the `DCW-V0-757` case of

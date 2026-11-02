@@ -109,11 +109,12 @@ func (p *proposal) batchRead(object string, limit int, refuseOver bool) ([]byte,
 		return nil, false
 	}
 	if size > limit {
+		// The stream still holds the unread object, so the process is not
+		// used again, and closeBlobs kills it rather than wait on it.
+		batch.broken = true
 		if refuseOver {
 			p.refuse(gitOutputOverBound)
 		}
-		// The stream still holds the object, so the process is not used again.
-		batch.broken = true
 		return nil, false
 	}
 	data := make([]byte, size+1)
@@ -130,6 +131,11 @@ func (p *proposal) closeBlobs() {
 		return
 	}
 	_ = p.batch.stdin.Close()
+	// A broken stream may hold an unread object whose writer blocks on a full
+	// pipe, so Wait would never return: the process is killed first.
+	if p.batch.broken && p.batch.command.Process != nil {
+		_ = p.batch.command.Process.Kill()
+	}
 	_ = p.batch.command.Wait()
 	p.batch = nil
 }

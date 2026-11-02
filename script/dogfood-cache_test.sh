@@ -348,6 +348,25 @@ EOF
   rg -q "^dogfood-closeout: unwind: NOT_RUN commit [0-9a-f]{40} changes other.txt, which is not a bind or seal path; HEAD stays [0-9a-f]{40} \(to unwind by hand: git reset --keep $start\)$" "$root/output" || { cat "$root/output" >&2; exit 1; }
   [[ $sealed != "$start" ]] || exit 1
 ) || { printf 'DCW-V0-745/746 closeout phase lines and unwind: FAIL\n' >&2; exit 1; }
+# Review (DCW-V0-746): a commit made while the unwind inspects the range is never dropped: the unwind
+# refuses when HEAD moved after its inspection, naming the new head.
+(
+  ur="$root/unwind-race"
+  mkdir -p "$ur/script" "$root/racebin"
+  /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$ur/script/"
+  cd "$ur"
+  git init -q && printf 'a\n' > a.txt && git add a.txt && git -c user.name=t -c user.email=t@e.invalid commit -qm start
+  start=$(git rev-parse HEAD)
+  mkdir -p .corvint && printf '{}\n' > .corvint/change.cem.json && git add .corvint/change.cem.json
+  git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: bind change evidence'
+  real_git=$(type -P git)
+  printf '#!/usr/bin/env bash\nif [[ ${1-} == diff-tree && ! -e %q ]]; then : > %q; printf "b\\n" > b.txt; %q add b.txt; %q -c user.name=t -c user.email=t@e.invalid commit -qm racing; fi\nexec %q "$@"\n' \
+    "$root/raced" "$root/raced" "$real_git" "$real_git" "$real_git" > "$root/racebin/git"
+  chmod +x "$root/racebin/git"
+  PATH="$root/racebin:$PATH" script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  rg -q 'unwind: NOT_RUN HEAD moved to [0-9a-f]{40} while the bind and seal commits were inspected' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git log -1 --format=%s) == racing ]] || { git log --oneline >&2; exit 1; }
+) || { printf 'DCW-V0-746 unwind refuses a moved HEAD: FAIL\n' >&2; exit 1; }
 # DCW-V0-750 (V1-3615, V1-3790): doc-gates-timed runs each named gate as its own make call, records
 # target, exit and seconds per gate, keeps going after a failure, and exits non-zero naming it.
 (
@@ -504,6 +523,7 @@ done
   cat > "$root/envbin/go" <<'EOF'
 #!/usr/bin/env bash
 if [[ ${1-} == env && ${2-} == GOVERSION ]]; then printf 'go1.27.3\nlinux\namd64\n\n0\n'; exit 0; fi
+if [[ ${1-} == run && ${2-} == ./tools/verify-syntax-check ]]; then printf '%s\n' "${!#}" >> "$TEST_VERIFY_LOG"; exit 0; fi
 exec "$TEST_FAKE_GO" "$@"
 EOF
   chmod +x "$root/envbin/go"
@@ -517,6 +537,22 @@ EOF
   printf 'x\n' > untracked-input
   PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
   [[ $(wc -l < "$TEST_STATIC_LOG") == 2 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
-  /bin/rm -f untracked-input .corvint/change.cem.json
+  /bin/rm -f untracked-input
+  # Review: a git status that fails with no output gives no key, so an existing stamp is not reused.
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  mkdir -p "$root/gitbin"
+  printf '#!/usr/bin/env bash\nfor a in "$@"; do [[ $a == status ]] && exit 128; done\nexec %q "$@"\n' "$(type -P git)" > "$root/gitbin/git"
+  chmod +x "$root/gitbin/git"
+  PATH="$root/gitbin:$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG") == 3 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  # Review: a relative VERIFY given from another directory reaches the early check as the caller's
+  # file, not as a path under the repository.
+  export TEST_VERIFY_LOG="$root/verify.log"
+  mkdir -p tools/verify-syntax-check "$root/caller/rel" && : > tools/verify-syntax-check/main.go && : > "$TEST_VERIFY_LOG"
+  printf 'go version\n' > "$root/caller/rel/verify.txt"
+  (cd "$root/caller" && PATH="$root/envbin:$PATH" DOGFOOD_FINISH_PREFLIGHT=1 bash "$root/repo/script/dogfood-finish.sh" "$base" "$root/closeout-cites.tsv" "$root/closeout-cites.tsv" rel/verify.txt passed) > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(cat "$TEST_VERIFY_LOG") == "$root/caller/rel/verify.txt" ]] || { cat "$TEST_VERIFY_LOG" "$root/output" >&2; exit 1; }
+  /bin/rm -rf tools/verify-syntax-check .corvint/change.cem.json
 ) || { printf 'DCW-V0-757 static check reuse: FAIL\n' >&2; exit 1; }
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'
