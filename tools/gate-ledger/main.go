@@ -41,7 +41,7 @@ import (
 
 const (
 	schema      = "gate-ledger/1"
-	maxRecords  = 4096
+	maxRecords  = 32768 // about 88 h at 370 records an hour (GL-V0-910)
 	prefixOut   = "gate-ledger: "
 	treeScope   = "tree"
 	neverScope  = "never"
@@ -1185,8 +1185,28 @@ func (l *ledger) record(rec record) error {
 	return l.prune()
 }
 
-// prune keeps the ledger bounded at maxRecords, dropping the oldest records.
+// pruneStamp names the file whose modification time is the last prune scan, and
+// pruneInterval how long a scan stays fresh (GL-V0-911).
+const (
+	pruneStamp    = "prune.stamp"
+	pruneInterval = 5 * time.Minute
+)
+
+// prune keeps the ledger bounded at maxRecords, dropping the oldest records, and
+// reclaims free lock files. It scans the directory at most once per pruneInterval;
+// any other call costs one stat (GL-V0-911).
 func (l *ledger) prune() error {
+	stamp := filepath.Join(l.dir, pruneStamp)
+	if info, err := os.Lstat(stamp); err == nil && info.Mode().IsRegular() && time.Since(info.ModTime()) < pruneInterval {
+		return nil
+	}
+	now := time.Now()
+	if err := os.Chtimes(stamp, now, now); err != nil {
+		if err := os.WriteFile(stamp, nil, 0o600); err != nil {
+			return err
+		}
+	}
+	l.reclaimLocks()
 	matches, err := filepath.Glob(filepath.Join(l.dir, "*.json"))
 	if err != nil || len(matches) <= maxRecords {
 		return err
@@ -1210,21 +1230,104 @@ func (l *ledger) prune() error {
 	return nil
 }
 
+// locksDirName is the lock namespace (GL-V0-912). Older binaries create KEY.lock at the
+// top of the ledger directory and never re-check the inode, so this protocol uses a
+// directory they never touch, and the top-level files are never unlinked (GL-V0-913).
+const (
+	locksDirName    = "locks"
+	maxLockAttempts = 8
+)
+
+// lockHook, nil outside tests, observes each lock attempt: "open" after the lock file is
+// opened and "flock" once it is locked, before the inode re-check.
+var lockHook func(step, event string)
+
+// locksDir returns the lock namespace, creating it private; an entry there that is not a
+// plain directory makes locking unavailable.
+func (l *ledger) locksDir() (string, error) {
+	dir := filepath.Join(l.dir, locksDirName)
+	if err := os.Mkdir(dir, 0o700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is not a plain directory", dir)
+	}
+	return dir, nil
+}
+
+// reclaimLocks removes every lock file of the namespace that no run holds, taking each
+// lock without waiting and removing the file while holding it (GL-V0-913).
+func (l *ledger) reclaimLocks() {
+	matches, _ := filepath.Glob(filepath.Join(l.dir, locksDirName, "*.lock"))
+	for _, name := range matches {
+		f, err := os.OpenFile(name, os.O_RDWR, 0o600)
+		if err != nil {
+			continue
+		}
+		if lockExclusive(f, true) == nil {
+			if sameFile(f, name) {
+				os.Remove(name)
+			}
+			unlock(f)
+		}
+		f.Close()
+	}
+}
+
+// sameFile reports whether path, not followed, still names the open file f.
+func sameFile(f *os.File, path string) bool {
+	held, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	named, err := os.Lstat(path)
+	return err == nil && os.SameFile(held, named)
+}
+
 // lock serialises concurrent runs of one key so the step executes once and the
-// waiter reads the record.
+// waiter reads the record. The holder removes locks/KEY.lock before releasing it,
+// and an acquirer whose file was removed or replaced meanwhile opens the path
+// again, at most maxLockAttempts times, so no lock file outlives its run, two
+// holders never coexist, and a symlinked lock file cannot loop (GL-V0-912).
 func (l *ledger) lock(key, step string) (func(), error) {
-	f, err := os.OpenFile(filepath.Join(l.dir, key+".lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	dir, err := l.locksDir()
 	if err != nil {
 		return nil, err
 	}
-	if err := lockExclusive(f, true); err != nil {
-		fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
-		if err := lockExclusive(f, false); err != nil {
-			f.Close()
+	path := filepath.Join(dir, key+".lock")
+	waited := false
+	for attempt := 0; attempt < maxLockAttempts; attempt++ {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+		if err != nil {
 			return nil, err
 		}
+		if lockHook != nil {
+			lockHook(step, "open")
+		}
+		if err := lockExclusive(f, true); err != nil {
+			if !waited {
+				fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
+				waited = true
+			}
+			if err := lockExclusive(f, false); err != nil {
+				f.Close()
+				return nil, err
+			}
+		}
+		if lockHook != nil {
+			lockHook(step, "flock")
+		}
+		if sameFile(f, path) {
+			return func() { os.Remove(path); unlock(f); f.Close() }, nil
+		}
+		unlock(f)
+		f.Close()
 	}
-	return func() { unlock(f); f.Close() }, nil
+	return nil, fmt.Errorf("%s kept changing under %d lock attempts", path, maxLockAttempts)
 }
 
 // execute runs command with inherited stdio and returns its exit status; a
