@@ -602,7 +602,10 @@ standing lane auto-accept; V1-2443 follow-up.
   digest is byte-identical to a serial walk; any chunk's refusal makes the stamp unavailable, and
   a cancelled call still stops at the next batch. Target, set before the build: the benchmark's
   capture median at or under 30 ms on the same host with load recorded, and an identical digest
-  for every chunk size. Non-goals: no change to what the stamp records, to the entry bound, or to
+  for every chunk size. Measured, interleaved at load 3.4 to 4.5: 34.2 to 36.7 ms against 46.5 to
+  47.3 ms before, 25% lower, so the 30 ms target is not met; the remainder is per-entry `lstat`
+  and `getdents` syscall time, and statting through an `os.Root` directory handle measured slower
+  (50.2 to 58.0 ms). Non-goals: no change to what the stamp records, to the entry bound, or to
   the coarse check of `DCR-V1-845`. Failure mode avoided: a large flat directory serializing the
   warm call. Acceptance: `TestDCRV1847ChunkedStatMatchesSerialDigest`,
   `BenchmarkDCRV1847CheckoutStamp`, and every `DCP-V1-314` and `DCR-V1-845` test unchanged.
