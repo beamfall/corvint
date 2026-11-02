@@ -589,6 +589,25 @@ for `DCR-V1-845` and `DCR-V1-846`: experimental under the standing lane auto-acc
   checkouts. The Windows cost is measured through the same code path on Linux, not on a Windows
   host. Acceptance: `TestDCRV1846GitFallbackWarmCallsWithinBudget`. Rollback: delete the test.
 
+The stamp capture is the largest term of a warm call once the stamp holds: on the `DCP-V1-317`
+fixture it took 44.0 ms per capture (`BenchmarkDCRV1847CheckoutStamp`, 50 iterations, load 2.2 to
+4.2) against about 21 ms for the Git path's freshness plus pin verification, and its CPU is 56%
+`lstat` and `getdents` syscalls. Each directory's entries were described on one goroutine, so the
+fixture's 12,000-file directory ran serially. Status for `DCR-V1-847`: experimental under the
+standing lane auto-accept; V1-2443 follow-up.
+
+- `DCR-V1-847`: A stamped directory with more than 1,024 recorded entries describes them in chunks
+  of 1,024 on additional goroutines while a stamp slot is free, and on the reading goroutine
+  otherwise. Records are assembled in name order and subdirectories are visited after, so the
+  digest is byte-identical to a serial walk; any chunk's refusal makes the stamp unavailable, and
+  a cancelled call still stops at the next batch. Target, set before the build: the benchmark's
+  capture median at or under 30 ms on the same host with load recorded, and an identical digest
+  for every chunk size. Non-goals: no change to what the stamp records, to the entry bound, or to
+  the coarse check of `DCR-V1-845`. Failure mode avoided: a large flat directory serializing the
+  warm call. Acceptance: `TestDCRV1847ChunkedStatMatchesSerialDigest`,
+  `BenchmarkDCRV1847CheckoutStamp`, and every `DCP-V1-314` and `DCR-V1-845` test unchanged.
+  Rollback: describe every directory serially again.
+
 ## Non-goals
 
 The parent contract's non-goals and simpler baseline apply; these blocks add none of their own.
@@ -650,3 +669,4 @@ DCPV1.
 | DCR-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCRV1452GitIndexVouchesUnchangedEntries`, `TestDCRV1452RacyEntryIsNotVouched`, `TestDCRV1452IndexVersionsAndFlags`, `TestDCRV1453UnusableIndexVouchesNothing`, `TestDCRV1453IndexPathnameBounds`, `FuzzParseGitIndex`, `TestDCRV1453FailedBlobBatchFallsBackToWorktree`, `TestDCRV1453RoutedPinMatchesParityRepository` |
 | DCR-V1-845 | `internal/mcp/corpusbridge/stamp.go` | `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale` |
 | DCR-V1-846 | `internal/mcp/corpusbridge/additional_freshness_test.go` | `TestDCRV1846GitFallbackWarmCallsWithinBudget` |
+| DCR-V1-847 | `internal/mcp/corpusbridge/stamp.go` | `TestDCRV1847ChunkedStatMatchesSerialDigest`, `BenchmarkDCRV1847CheckoutStamp` |
