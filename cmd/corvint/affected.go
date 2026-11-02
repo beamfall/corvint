@@ -1150,8 +1150,11 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
+	documentationOnly := false
 	if len(invocation.PathList) != 0 && len(dirty) != 0 && !invocation.Worktree {
-		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		if documentationOnly = affectedDocumentationOnly(root, dirty); !documentationOnly {
+			return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		}
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
@@ -1160,6 +1163,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	graph, err := affectedBuildGraph(affectedGraphContext(ctx), invocation)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
+	}
+	if documentationOnly && slices.ContainsFunc(dirty, func(path string) bool { _, owned := graph.OwnerOf(path); return owned }) {
+		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
 	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	if len(invocation.PathList) != 0 {

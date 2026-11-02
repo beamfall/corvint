@@ -329,3 +329,52 @@ func TestAFPV0094PathListRejectsOptionLookingSeparatedValue(t *testing.T) {
 		t.Fatalf("--path=-dash.txt: exit %d stderr=%s receipt=%v", code, stderr, receipt)
 	}
 }
+
+// AFP-V0-832 (V1-4259): --path plans beside dirty files the worktree's clean
+// documentation declaration names and no unit owns, with the same receipt a
+// clean worktree gives; any other dirty path, a dirty declaration or a dirty
+// declared path a unit owns still refuses.
+func TestPathListToleratesDirtyDocumentation_AFP_V0_832(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	write := func(relative, body string) {
+		t.Helper()
+		file := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".corvint/documentation-paths.json", `{"profile":"corvint-documentation-paths/0","paths":["core/core.go","docs/"]}`+"\n")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "declare documentation")
+	_, clean, stderr, code := runAffectedCLI(t, root, "--path", "core/core.go")
+	if code != 0 {
+		t.Fatalf("clean worktree: exit %d: %s", code, stderr)
+	}
+	write("docs/build-log/entry.md", "# an untracked log entry\n")
+	_, beside, stderr, code := runAffectedCLI(t, root, "--path", "core/core.go")
+	if code != 0 || !bytes.Equal(beside, clean) {
+		t.Fatalf("untracked documentation: exit %d, receipt equal %v: %s", code, bytes.Equal(beside, clean), stderr)
+	}
+	for _, tc := range []struct{ name, path, body string }{
+		{"untracked source", "core/extra.go", "package core\n"},
+		{"dirty declaration", ".corvint/documentation-paths.json", `{"profile":"corvint-documentation-paths/0","paths":["docs/"]}` + "\n"},
+		{"declared path a unit owns", "core/core.go", "package core\n\nconst Value = 3\n"},
+	} {
+		before, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(tc.path)))
+		existed := err == nil
+		write(tc.path, tc.body)
+		_, stdout, stderr, code := runAffectedCLI(t, root, "--path", "core/core.go")
+		if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, "unsupported-affected-mixed-worktree") {
+			t.Errorf("%s: exit %d stdout=%s stderr=%s", tc.name, code, stdout, stderr)
+		}
+		if existed {
+			write(tc.path, string(before))
+		} else if err := os.Remove(filepath.Join(root, filepath.FromSlash(tc.path))); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

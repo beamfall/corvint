@@ -1021,7 +1021,9 @@ deleted path. The receipt's path_list member echoes the sorted paths. A dirty
 worktree, or an ignored file HEAD does not track that the list names or the
 graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
 would not be HEAD's; one only a TypeScript unit lists, such as a gitignored
-playwright-report/ bundle, is instead excluded from the graph. One --path
+playwright-report/ bundle, is instead excluded from the graph. A worktree whose
+only dirty paths are declared documentation (.corvint/documentation-paths.json,
+itself clean) that no unit owns plans as a clean one would (AFP-V0-832). One --path
 takes every following value up to the next option, so --path a b c and
 --path a --path b --path c plan the same bytes. Write --path=VALUE for a name
 that begins with -. It does not combine with --base (invalid-arguments).
