@@ -96,12 +96,32 @@ func TestWorktreeWithBaseNamesTheAlternative_ACXV0752(t *testing.T) {
 func TestWorktreeWithBaseRecoveryKeepsRenameSources_ACXV0752(t *testing.T) {
 	t.Parallel()
 	root := affectedFixtureRepository(t)
+	for relative, body := range map[string]string{
+		"assets/old.txt":     "asset\n",
+		"core/asset_test.go": "package core\n\nconst asset = \"assets/old.txt\"\n",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "asset reader")
 	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	affectedGit(t, root, "mv", "README.md", "NOTES.md")
+	affectedGit(t, root, "mv", "assets/old.txt", "assets/new.txt")
 	affectedGit(t, root, "commit", "-qm", "rename")
-	appendAffectedLine(t, root, "core/core.go", "// local edit")
+	appendAffectedLine(t, root, "README.md", "local edit")
+	if listed := strings.Fields(affectedGit(t, root, "-c", "diff.renames=true", "diff", "--name-only", base, "HEAD")); !slices.Equal(listed, []string{"assets/new.txt"}) {
+		t.Fatalf("rename-detecting diff lists %q, want only the destination", listed)
+	}
 
-	_, _, stderr, code := runAffectedCLI(t, root, "--worktree", "--base", base, "--path", "core/core.go")
+	_, _, stderr, code := runAffectedCLI(t, root, "--worktree", "--base", base, "--path", "README.md")
+	if !strings.Contains(stderr, "git diff --no-renames --name-only BASE HEAD") {
+		t.Fatalf("refusal omits --no-renames recovery command: exit=%d stderr=%s", code, stderr)
+	}
 	start := strings.Index(stderr, "(git diff ")
 	end := strings.Index(stderr[max(start, 0):], " BASE HEAD)")
 	if code != 2 || start < 0 || end < 0 {
@@ -109,22 +129,28 @@ func TestWorktreeWithBaseRecoveryKeepsRenameSources_ACXV0752(t *testing.T) {
 	}
 	arguments := append([]string{"-c", "diff.renames=true"}, strings.Fields(stderr[start+len("(git "):start+end])...)
 	listed := strings.Fields(affectedGit(t, root, append(arguments, base, "HEAD")...))
-	if !slices.Contains(listed, "README.md") || !slices.Contains(listed, "NOTES.md") {
+	if !slices.Equal(listed, []string{"assets/new.txt", "assets/old.txt"}) {
 		t.Fatalf("recovery %q lists %q, want the rename source and destination", arguments, listed)
 	}
 
-	receipt, raw, stderr, code := runAffectedCLI(t, root, "--base", base)
-	if code != 0 || !strings.Contains(fmt.Sprint(receipt["plan"]), "README.md") {
-		t.Fatalf("--base plan omits the rename source: exit=%d stderr=%s receipt=%s", code, stderr, raw)
+	assertOldPathReader := func(receipt map[string]any, raw []byte, stderr string, code int) {
+		t.Helper()
+		plan, _ := receipt["plan"].(map[string]any)
+		selected := fmt.Sprint(plan["selected"])
+		if code != 0 || !strings.Contains(selected, "core/asset_test.go") || !strings.Contains(selected, "dirtyPath:assets/old.txt kind:PATH_LITERAL_READER") {
+			t.Fatalf("plan omits the old-path reader witness: exit=%d stderr=%s receipt=%s", code, stderr, raw)
+		}
 	}
-	options := []string{"--worktree", "--path", "core/core.go"}
+	assertOldPathReader(runAffectedCLI(t, root, "--full", "--base", base))
+	options := []string{"--full", "--worktree", "--path", "README.md"}
 	for _, path := range listed {
 		options = append(options, "--path", path)
 	}
-	receipt, raw, stderr, code = runAffectedCLI(t, root, options...)
-	if paths := fmt.Sprint(receipt["path_list"]); code != 0 || !strings.Contains(paths, "README.md") || !strings.Contains(paths, "NOTES.md") {
+	receipt, raw, stderr, code := runAffectedCLI(t, root, options...)
+	if paths := fmt.Sprint(receipt["path_list"]); code != 0 || !strings.Contains(paths, "assets/old.txt") || !strings.Contains(paths, "assets/new.txt") {
 		t.Fatalf("--worktree recovery plan: exit=%d stderr=%s receipt=%s", code, stderr, raw)
 	}
+	assertOldPathReader(receipt, raw, stderr, code)
 }
 
 // TestACXV0851WorktreeDirectoryAndByPath: ACX-V0-851. Under --worktree a
