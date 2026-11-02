@@ -417,7 +417,7 @@ and container qualification; full fallback remains available.
 - **AFP-V0-016:** (accepted (decision 0431); amended by decision 0431; originally decision 0320; ruleset and consent amended by decision 0390)
   `.github/workflows/ci-control-plane.yml` SHALL run
   on `workflow_run` after every completed `CI` run, cancelled ones included (AFP-V0-079) except a
-  cancelled pull-request run whose head is no listed pull request's head (AFP-V0-855), never check out
+  cancelled pull-request run whose payload lists pull requests none of which has its head (AFP-V0-855), never check out
   or execute PR code, and post the commit status
   `ci-control-plane` on the PR head: `failure` when a changed or renamed-from path is under
   `.github/` or the PR exceeds the files API's 3000-file listing, `success` otherwise. An API
@@ -2012,25 +2012,32 @@ and container qualification; full fallback remains available.
   default branch).
 - **AFP-V0-855:** (experimental under the owner's standing lane auto-accept (2026-10-11; V1-1778);
   amends AFP-V0-079) The `control-plane` job of `.github/workflows/ci-control-plane.yml` SHALL NOT
-  start for a completed `pull_request` `CI` run that concluded `cancelled` unless the run's head SHA
-  is the head SHA of a pull request the `workflow_run` payload lists
-  (`contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)`).
-  Every other conclusion, and a cancelled run whose head is still a listed pull request's head, keeps
-  the AFP-V0-079 behavior. The `merge-group` and `forward-rows` jobs are unchanged.
+  start for a completed `pull_request` `CI` run that concluded `cancelled` when the `workflow_run`
+  payload lists at least one pull request and none of them has the run's head SHA as its head
+  (`toJSON(github.event.workflow_run.pull_requests) == '[]' ||
+  contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)`
+  starts it). Every other conclusion, a cancelled run with an empty list, and a cancelled run whose
+  head is still a listed pull request's head keep the AFP-V0-079 behavior; the step's own open
+  pull-request lookup by head SHA still decides whether anything is posted. The `merge-group` and
+  `forward-rows` jobs are unchanged.
   Design: a run cancelled because a newer push superseded its head can post nothing (no open pull
-  request has that head), yet each such run still claimed a runner. Whether GitHub lists a pull
-  request by head SHA or by branch, a superseded head is not the head of any listed pull request,
-  so the condition skips it without a runner; the AFP-V0-079 case (a cancelled run whose head is
-  still the pull request's head) still starts the job. In the window of build log
-  2026-11-01-ci-w34 (201 control-plane runs, 2026-10-30 to 2026-11-01), 31 started for a cancelled
-  pull-request run, 30 of them for a head a newer push had superseded (26 s mean wall each).
-  Failure modes: a fork pull request is never listed, so its cancelled run posts nothing; this fails
-  closed (the required context stays missing until a rerun or the next push), never open. If GitHub
-  echoes the run's own head in a listed entry, the job starts as before: no saving, no new risk.
+  request has that head), yet each such run still claimed a runner. When GitHub lists the pull
+  request by branch, its listed head is the newer one, so the condition skips the superseded run
+  without a runner. An empty list is ambiguous: GitHub sends one for a fork pull request
+  (actions/runner#3444) as well as, possibly, for a superseded head, so it starts the job and keeps
+  the AFP-V0-079 liveness for a fork pull request whose cancelled run is still current. In the
+  window of build log 2026-11-01-ci-w34 (201 control-plane runs, 2026-10-30 to 2026-11-01), 31
+  started for a cancelled pull-request run, 30 of them for a head a newer push had superseded (26 s
+  mean wall each); how many of those carried a non-empty list is `NOT_OBSERVED` (the payloads are
+  not retained), so the saving is bounded by 30 runs and may be smaller.
+  Failure modes: if GitHub lists only pull requests whose head is the run's head, every superseded
+  run carries an empty list and starts the job as before: no saving, no new risk. A listed pull
+  request whose head differs can post nothing for this run, so skipping it loses no status.
   Acceptance evidence: `TestAFPV0079ControlPlaneReportsEveryCompletedRun` (the conditions evaluated
-  for every event, conclusion and listed-head case), `TestAFPV0855SupersededCancelledRunStartsNoJob`,
-  `TestAFPV0079CancelledRunStillPostsTheStatus`; the before window in build log 2026-11-01-ci-w34;
-  the after window `NOT_OBSERVED` until this change runs on `main`.
+  for every event, conclusion and payload list), `TestAFPV0855SupersededCancelledRunStartsNoJob`
+  (an empty list with a current fork pull request runs, a non-empty list without the head skips, a
+  non-cancelled run always runs), `TestAFPV0079CancelledRunStillPostsTheStatus`; the before window
+  in build log 2026-11-01-ci-w34; the after window `NOT_OBSERVED` until this change runs on `main`.
   Rollback: remove both `concurrency` blocks.
 - **AFP-V0-080:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) A `push`
   run of `.github/workflows/ci.yml` on `refs/heads/main` SHALL skip `go-static`, `go-interop` and
