@@ -347,6 +347,21 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   lookup's. The verification boundary is LGL-V0-808's: a receipt before the checkpoint that the
   route does not walk is accepted as audited. Non-goal: `mutation.IndexEntry` gains no operation
   field, because the request afterimage records none and adding one is a store-format change.
+- `LGL-V0-812`: (proposed; V1-3827) `claim <ticket> --scope-from-diff REV --widen-to-diff` MUST,
+  before the claim, compute the TCD-V0-174 diff paths and the ones the ticket's declared PATH
+  scope does not cover:
+  - If there are such paths, it MUST add exactly those paths to the ticket's `touchPaths` through
+    one ordinary `ticket set-effects` write under request ID `<request-id>/widen-to-diff`. That
+    write has its own receipt and the set-effects writer's own role, revision, digest and replay
+    checks, and keeps the ticket's other effects, capabilities and execution class.
+  - Only then does it claim. The claim stays inside the widened `DECLARED` scope, and its result
+    names the widening (`scopeWidening`: request ID and receipt) with a `SCOPE_WIDENED_TO_DIFF`
+    warning.
+  - A refused widening refuses the claim and claims nothing.
+  - A retry finds the widened scope and widens nothing again.
+  - Without the flag, TCD-V0-175's refusal is unchanged and writes nothing. The flag is
+    `MALFORMED` without `--scope-from-diff`.
+  - Widening past `wire.MaxTouchPaths` is `LIMIT_EXCEEDED` before any write.
 
 ## Non-goals
 
@@ -684,6 +699,15 @@ and that a forged checkpoint only falls back. `ticket recur` with a fresh reques
 40,002-receipt store with a current writer checkpoint went from 3.46-3.55 s to 0.49-0.55 s
 (Unraid Linux, load 3.9-4.9).
 
+For `LGL-V0-812`, `TestLGLV0812_ClaimWidensToTheDiffWithAReceipt` (`internal/tasks/cli`) shows the
+following:
+- The default claim refuses `OUT_OF_SCOPE` and leaves the store unchanged.
+- The flag alone is `MALFORMED`.
+- The widening claim adds exactly `docs/new.md docs/old.md` to `touchPaths ["src/"]`, names the
+  `wide/widen-to-diff` receipt, and claims `DECLARED`.
+- `receipt audit` passes.
+- A retry replays the claim without widening again or changing the store.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -717,4 +741,5 @@ complete audit. Nothing is stored, and both checkpoint files keep their format. 
 LGL-V0-809 returns seal, unseal, compaction and unretire to leaving no read checkpoint, so reads
 pay the complete audit until the next ordinary writer. A read checkpoint they left is still an
 ordinary one that any binary reads or ignores. Reverting LGL-V0-811 (constructing indexes without
-`WriterCheckpoint`) returns every lookup to the complete audit; nothing is stored.
+`WriterCheckpoint`) returns every lookup to the complete audit; nothing is stored. Reverting LGL-V0-812 removes the
+flag; a widening already recorded stays an ordinary set-effects receipt.

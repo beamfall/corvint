@@ -385,6 +385,9 @@ closeout step is missing.
   is `LIMIT_EXCEEDED`, and a Git failure is the Git error. None of them falls back to the title
   deriver, a requested scope or `WHOLE_REPOSITORY`. Under the writer-locked route (V1-2138), the
   `diff-tree` query between two full tree OIDs is immutable and served from the pre-lock probe.
+  An explicit opt-in exists since LGL-V0-812 (proposed; V1-3827): `--widen-to-diff` widens the
+  declaration first through one ordinary `ticket set-effects` write with its own receipt. The
+  diff itself still never widens a scope, and without the flag this refusal is unchanged.
 
 - `TCD-V0-176`: `ticket complete-manual` of an OPEN ticket whose `ticket show` `intentChecks` is
   `FAILED` (for example a MANUAL ticket; `INCOMPLETE` effects are an advisory since TCL-V0-868) stays
