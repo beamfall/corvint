@@ -16,8 +16,10 @@ import (
 // bytewise order and one-per-line grammar the manifest requires, or the
 // no-intent manifest when none does. A file whose every hunk only repins
 // citations is left out, since that edit declares no intent (DCW-V0-548), and
-// an intent over one OCM map's obligation bound is left out by name. The draft
-// is the only file propose-citations writes; the lane reviews it before use.
+// an intent over one OCM map's obligation bound is left out by name. A
+// derivation that fails for any reason other than a coded refusal of the
+// document is refused and leaves FILE as it was. The draft is the only file
+// propose-citations writes; the lane reviews it before use.
 func (p *proposal) writeIntentsDraft() {
 	target := p.options.IntentsDraft
 	if target == "" {
@@ -31,6 +33,12 @@ func (p *proposal) writeIntentsDraft() {
 			intents = append(intents, path)
 		case overMapBound(err):
 			p.say("%s: NOTE intents-draft left out %s: its Requirements section alone is over one OCM map's obligation bound, so ocm-prepare would refuse it too-many-obligations; cite its rows instead (DCW-V0-711, DCW-V0-961)\n", p.prefix, path)
+		case intentRefusal(err) == nil:
+			// Only a coded derivation refusal judges the document; a Git,
+			// repository or context failure says nothing about it, so no
+			// draft, least of all the no-intent manifest, is written.
+			p.say("%s: REFUSE intents-draft-underivable %s: %v\n  %s was not written or changed: the intent derivation could not read the repository, so whether this file is an intent is unknown; fix the cause and rerun, or omit --intents-draft (DCW-V0-711)\n", p.prefix, path, err, target)
+			p.exit(2)
 		}
 	}
 	content := noIntentManifest

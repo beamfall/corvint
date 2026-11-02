@@ -86,3 +86,42 @@ func TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck(t *testing.T) {
 		t.Fatalf("code-only intents draft = %q, want the no-intent manifest", got)
 	}
 }
+
+// TestProposeCitationsDCWV0711IntentsDraftRefusesAFailedDerivation pins the
+// review finding on V1-3956: a derivation that cannot read the repository
+// (here an ambient GIT_ALTERNATE_OBJECT_DIRECTORIES, which the intent
+// derivation refuses while the proposal's own Git reads drop it) is refused,
+// and an existing draft is left as it was, never replaced by the no-intent
+// manifest.
+func TestProposeCitationsDCWV0711IntentsDraftRefusesAFailedDerivation(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "init", "-q")
+	writeTree(t, root, map[string]string{"README.md": "# Readme\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{"docs/specs/a-v0.md": "# A\n\n## Requirements\n\n- `ASPEC-V0-001`: keep a.\n"}) //corvint:fixture-path
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "change")
+
+	draft := filepath.Join(t.TempDir(), "intents.txt")
+	const kept = "docs/specs/reviewed-v0.md\n" //corvint:fixture-path
+	if err := os.WriteFile(draft, []byte(kept), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_ALTERNATE_OBJECT_DIRECTORIES", t.TempDir())
+	var stdout, stderr bytes.Buffer
+	code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base, IntentsDraft: draft}, &stdout, &stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 2 || !strings.Contains(stderr.String(), "REFUSE intents-draft-underivable docs/specs/a-v0.md: ") { //corvint:fixture-path
+		t.Fatalf("a failed derivation was not refused: code=%d\n%s", code, &stderr)
+	}
+	if got, _ := os.ReadFile(draft); string(got) != kept {
+		t.Fatalf("the existing draft was changed to %q", got)
+	}
+}

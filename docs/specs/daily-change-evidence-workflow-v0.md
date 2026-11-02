@@ -3548,8 +3548,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   manifest admits at most 16. Without the option, propose-citations stays read-only. Non-goals:
   choosing among more than 16 specs; checking the aggregate obligation bound, which inputs-check
   still refuses by name. Failure modes: an unwritable FILE is refused `intents-draft-unwritable`
-  (exit 2); an unreadable canonical patch falls back to Git's added-or-modified name list without
-  the repin filter. Evidence: `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck`. Its
+  (exit 2). A derivation that fails other than by a coded refusal of the document, such as a
+  repository read the derivation cannot make, is refused `intents-draft-underivable` (exit 2), and
+  FILE is left as it was, never replaced by the no-intent manifest. An unreadable canonical patch falls back to Git's added-or-modified name list without
+  the repin filter. Evidence: `TestProposeCitationsDCWV0711IntentsDraftRefusesAFailedDerivation`
+  (an ambient object-alternates variable fails the derivation, and the existing draft is kept) and
+  `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck`. Its
   draft holds two new specs and leaves out a repin-only spec edit, a build-log entry and a README,
   and the inputs pre-flight accepts it unchanged; a later code-only change drafts the no-intent
   manifest. Rollback: drop the option and `internal/dogfoodflow/propose_intents.go`.
@@ -3932,7 +3936,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
 | `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0980EditedCitedLineRefreshPassesPrecheck`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
 | `DCW-V0-710` (experimental under the standing lane auto-accept; lane cit-w41 NEW-A1) | `script/dogfood-bind-range.sh` cite loop, `plan_row_refusal`, `refusal_detail`; `internal/dogfoodflow/change.go` `probeCitationRows`, `detailedRefusal`; `script/dogfood-bind-range_test.sh` `DCW-V0-710` case; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` | implemented; focused tests PASS |
-| `DCW-V0-711` (experimental under the standing lane auto-accept; lane cit-w41 V1-3956) | `internal/dogfoodflow/propose_intents.go` `writeIntentsDraft`, `changedMarkdown`; `cmd/corvint/dogfood_flow.go` `--intents-draft`; `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck` | implemented; focused tests PASS |
+| `DCW-V0-711` (experimental under the standing lane auto-accept; lane cit-w41 V1-3956) | `internal/dogfoodflow/propose_intents.go` `writeIntentsDraft`, `changedMarkdown`; `cmd/corvint/dogfood_flow.go` `--intents-draft`; `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck`, `TestProposeCitationsDCWV0711IntentsDraftRefusesAFailedDerivation` | implemented; focused tests PASS |
 | `DCW-V0-984` (experimental under the standing lane auto-accept; V1-3810) | `internal/dogfoodflow/check_anchor_grep.go` `anchorGrep`, `anchorRecords`; `prepareAnchors` in `propose.go`; the `binding` sub-phase and `verifier-pair` rows in `check.go` and `check_tiers.go`; `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate`, `TestDCWV0984BindingSubphaseRows` | implemented; focused tests PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
