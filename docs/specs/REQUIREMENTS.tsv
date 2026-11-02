@@ -3002,6 +3002,8 @@ JSG-V0-015	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the o
 JSG-V0-891	docs/specs/corvint-tasks-journal-segments-v0.md	(proposed; V1-2358; experimental under the standing lane auto-accept and the own	standing	V1-2358; 2026-11-01
 JSG-V0-020	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2204, V1-2278)	standing	2026-10-11; V1-2204; V1-2278
 JSG-V0-021	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2204) The B2 r	standing	2026-10-11; V1-2204
+JSG-V0-2160	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-3665) Checkpoi	standing	2026-11-02; V1-3665
+JSG-V0-2161	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-3665) A dedica	standing	2026-11-02; V1-3665
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path	unrecorded	-
 KHN-V0-002	docs/specs/corvint-tasks-know-how-notes-v0.md	A ticket record MAY carry the optional member `knowHow`. When present it is a	unrecorded	-
 KHN-V0-003	docs/specs/corvint-tasks-know-how-notes-v0.md	`KNOWHOW_ADD` (`{text, anchors, routes, commit, supersedes, reason, attempt,	unrecorded	-
@@ -5400,6 +5402,7 @@ LCP-V0-920	docs/specs/local-completion-policy-v0.md	(experimental under the stan
 LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LCP-V0-800	docs/specs/local-completion-policy-v0.md	(proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no	unrecorded	-
 LCP-V0-780	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4053) The	standing	2026-11-01; V1-4053
+LCP-V0-2160	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-3665) Local-co	standing	2026-11-02; V1-3665
 LMG-V0-001	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL ship as	unrecorded	-
 LMG-V0-002	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) `serve` SHALL bind a	unrecorded	-
 LMG-V0-003	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL forward	unrecorded	-
