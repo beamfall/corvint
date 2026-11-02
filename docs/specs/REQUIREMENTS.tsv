@@ -2530,6 +2530,10 @@ TCX-V0-985	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The journal audit 
 TCX-V0-986	docs/specs/corvint-tasks-closed-ticket-index-v0.md	`roadmap` renders a COMPLETED or ARCHIVED ticket's row from its summary, without	unrecorded	-
 TCX-V0-987	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The test fixture's journaled store `fixture.WriteWritableState` also creates the	unrecorded	-
 TCX-V0-988	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The development tool `go run ./internal/tasks/cmd/closed-index DIR` writes the i	unrecorded	-
+TCX-V0-845	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index format becomes `corvint-tasks-closed-index/3` and holds an entry for	unrecorded	-
+TCX-V0-846	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The native mutation writer gives the model the index's entries when the index	unrecorded	-
+TCX-V0-847	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The CLI's pre-mutation load, which feeds only intent checks and warnings, reads	unrecorded	-
+TCX-V0-848	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Derived-state argument and measurement. The index is derived, rebuildable state	unrecorded	-
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
