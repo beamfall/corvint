@@ -2796,7 +2796,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   A `bytes:` row and other refusals are never moved. Non-goals: judging whether the moved span is
   the right evidence. Evidence: `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`
   (a deleted test line re-pinned to its nearest line, a deleted file's row kept unknown, and the
-  draft passing the real `cem cite` precheck), `TestProposeCitationsDCWV0840VetsCarriedRows` and
+  draft passing the real `cem cite` precheck), `TestProposeCitationsDCWV0980EditedCitedLineRefreshPassesPrecheck`
+  (V1-3984: a cited fixture line the lane edits in place is re-pinned to its nearest intact line on
+  `--refresh`, and the refreshed draft passes the precheck), `TestProposeCitationsDCWV0840VetsCarriedRows` and
   `TestSurvivingPartsDCWV0980`. Rollback: drop `nearestSurvivingSpan` from `vetRows`.
 - `DCW-V0-990`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends
   `DCW-V0-827`) `corvint dogfood change`, `inputs-check` and `finish-lane` MUST accept the same
@@ -3928,7 +3930,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-825` (experimental under the standing lane auto-accept; V1-3366) | `script/dogfood-bind-range.sh` `policy_summary`; `script/dogfood-bind-range_test.sh` DCW-V0-825 case | implemented; shell test PASS |
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
-| `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
+| `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0980EditedCitedLineRefreshPassesPrecheck`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
 | `DCW-V0-710` (experimental under the standing lane auto-accept; lane cit-w41 NEW-A1) | `script/dogfood-bind-range.sh` cite loop, `plan_row_refusal`, `refusal_detail`; `internal/dogfoodflow/change.go` `probeCitationRows`, `detailedRefusal`; `script/dogfood-bind-range_test.sh` `DCW-V0-710` case; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` | implemented; focused tests PASS |
 | `DCW-V0-711` (experimental under the standing lane auto-accept; lane cit-w41 V1-3956) | `internal/dogfoodflow/propose_intents.go` `writeIntentsDraft`, `changedMarkdown`; `cmd/corvint/dogfood_flow.go` `--intents-draft`; `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck` | implemented; focused tests PASS |
 | `DCW-V0-984` (experimental under the standing lane auto-accept; V1-3810) | `internal/dogfoodflow/check_anchor_grep.go` `anchorGrep`, `anchorRecords`; `prepareAnchors` in `propose.go`; the `binding` sub-phase and `verifier-pair` rows in `check.go` and `check_tiers.go`; `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate`, `TestDCWV0984BindingSubphaseRows` | implemented; focused tests PASS |
