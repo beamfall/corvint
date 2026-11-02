@@ -633,7 +633,9 @@ out=$(unset GOCACHE CORVINT_GOCACHE; HEAVY_REMOTE_HOST= hv go test ./... 2> /dev
   fail "heavy.sh local Go cache: $out"
 # ASD-V0-914 (V1-3796): the Makefile's CORVINT_GOCACHE default follows TMPDIR (a trailing `/` dropped),
 # else /tmp; an explicit CORVINT_GOCACHE still wins.
-mk_cache() { (cd "$script/.." && env -u CORVINT_GOCACHE "$@" make -s --no-print-directory --eval 'print-corvint-gocache: ; @echo $(CORVINT_GOCACHE)' print-corvint-gocache 2>&1); }
+# An include wrapper, not `make --eval`, which GNU make 3.81 (macOS /usr/bin/make) lacks.
+printf 'include Makefile\nprint-corvint-gocache: ; @echo $(CORVINT_GOCACHE)\n' > "$tmp/print-gocache.mk"
+mk_cache() { (cd "$script/.." && env -u CORVINT_GOCACHE "$@" make -s --no-print-directory -f "$tmp/print-gocache.mk" print-corvint-gocache 2>&1); }
 out=$(mk_cache TMPDIR="$tmp/")$'\n'$(mk_cache -u TMPDIR)$'\n'$(mk_cache TMPDIR="$tmp" CORVINT_GOCACHE=/y/c)
 [[ $out == "$tmp/corvint-go-build-cache"$'\n/tmp/corvint-go-build-cache\n/y/c' ]] || fail "Makefile CORVINT_GOCACHE default: $out"
 ok
