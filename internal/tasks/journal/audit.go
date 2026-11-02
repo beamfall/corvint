@@ -149,6 +149,14 @@ type Reader struct {
 	// differs is read afresh, so a changed tree still moves the audit or
 	// fails the outer snapshot's comparison.
 	IntentTree *intent.Tree
+	// ShareIntentListing is only for a native writer whose tree was captured
+	// under its continuously held lock. The writer must recheck content before
+	// effects; ordinary readers and external preloads must not set it.
+	ShareIntentListing bool
+	// RetainIntentRaw lets a gate pre-read use the immutable native capture's
+	// bytes without another projection read. The caller MUST independently
+	// rebind current head/content before using any result (TCX-V0-977).
+	RetainIntentRaw bool
 	// ReceiptFold, when set, starts one fold per complete (ModeFull) audit
 	// attempt over the receipts that attempt validates, in sequence order
 	// from 1, so a caller that must fold every retained receipt does not
@@ -650,9 +658,15 @@ func requiredRead(s Source, p string, max int) ([]byte, error) {
 }
 
 func (r Reader) capture(lim limits, lite bool) (*observation, error) {
-	o := &observation{files: map[string]os.FileInfo{}, lite: lite, writer: r.writer != nil, intentDigests: map[string]wire.Digest{}, at: time.Now()}
-	if o.writer {
-		o.intentRaw = map[string][]byte{}
+	// The admitted outer capture supplies a bounded size hint, never
+	// membership or authority. Avoid repeatedly growing the full-tree maps.
+	hint := 0
+	if r.IntentTree != nil {
+		hint = min(len(r.IntentTree.Files), intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue)
+	}
+	o := &observation{files: make(map[string]os.FileInfo, hint+32), lite: lite, writer: r.writer != nil, intentDigests: make(map[string]wire.Digest, hint), at: time.Now()}
+	if o.writer || r.RetainIntentRaw {
+		o.intentRaw = make(map[string][]byte, hint)
 	}
 	remaining := lim.scan
 	if err := r.scan(o, ".", &remaining, true); err != nil {
@@ -664,8 +678,11 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	// release (JSG-V0-001): only the queue and policy its model decodes,
 	// by name, below.
 	if !r.liveness {
-		if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
-			return nil, err
+		shared := o.writer && r.ShareIntentListing && r.IntentTree.CapturedListing(func(p string, info os.FileInfo) { o.files[p] = info })
+		if !shared {
+			if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if _, ok := o.files["RESTORE_INCOMPLETE"]; ok {
@@ -696,7 +713,7 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			return nil, err
 		}
 	}
-	var paths []string
+	paths := make([]string, 0, len(o.files))
 	for p := range o.files {
 		paths = append(paths, p)
 	}
@@ -712,11 +729,22 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			inventory.Write(nl)
 		}
 	}
-	var intents []intent.File
+	intents := make([]intent.File, 0, hint)
 	total := 0
+	var inventoryLine [1024]byte
 	for _, p := range paths {
 		info := o.files[p]
-		fmt.Fprintf(inventory, "%s\x00%d\x00%d\x00%d\n", p, info.Mode(), info.Size(), info.ModTime().UnixNano())
+		// Exact legacy fingerprint encoding, without a formatting pass or
+		// variadic interface allocations for every file (TCX-V0-977).
+		line := append(inventoryLine[:0], p...)
+		line = append(line, 0)
+		line = strconv.AppendUint(line, uint64(info.Mode()), 10)
+		line = append(line, 0)
+		line = strconv.AppendInt(line, info.Size(), 10)
+		line = append(line, 0)
+		line = strconv.AppendInt(line, info.ModTime().UnixNano(), 10)
+		line = append(line, '\n')
+		inventory.Write(line)
 		if strings.HasPrefix(p, "receipts/") && !info.IsDir() && !isTemp(p) {
 			o.receipts = append(o.receipts, strings.TrimPrefix(p, "receipts/"))
 		}
@@ -755,7 +783,7 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			}
 			total += n
 			o.intentDigests[p] = sum
-			if o.writer {
+			if o.writer || r.RetainIntentRaw {
 				o.intentRaw[p] = raw
 			}
 			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: n})
