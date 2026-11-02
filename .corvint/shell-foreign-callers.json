@@ -91,6 +91,19 @@
         "script/dogfood-finish.sh"
       ]
     },
+    "script/dogfood-finish.sh": {
+      "callers": [
+        "Makefile",
+        "script/dogfood-cache_test.sh",
+        "script/lane-scripts_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-finish.sh: the make dogfood-finish, dogfood-inputs-check and closeout targets run it, and the dogfood-cache and lane-scripts tests run it with stub tools; gen-spec-requirements.sh, lane-guard.sh and spec-requirements-worktree-check.sh name it only in comments. Its dirty-tree filter names the sealed CEM paths (TSP-V0-005).",
+      "mentions": [
+        "script/gen-spec-requirements.sh",
+        "script/lane-guard.sh",
+        "script/spec-requirements-worktree-check.sh"
+      ]
+    },
     "script/dogfood-seal.sh": {
       "callers": [
         "Makefile",
