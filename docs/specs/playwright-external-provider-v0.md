@@ -936,7 +936,7 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
 | `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:290@5ac3fd01` |
 | `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:111@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:520@c7e353c5` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:518@c7e353c5` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
 | `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:86@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
@@ -1282,19 +1282,25 @@ qualify on the runtime tuple alone as `PWP-V3-015` intends, and `qualify-keep-re
   report-level string member `nodeVersion`, and the provider's report decoder admits it in every
   external profile. When the receipt Node version is still unobserved after `CCE-V0-140`, the
   provider fills it from the reported test identities and this member together: every test that
-  is not `browser: "none"` must carry a non-empty `use.corvintBrowser.nodeVersion`, every such
-  per-test version and a present, non-empty report-level version must be one value, and that value
-  is recorded. A `browser: "none"` test constrains nothing. Without a report-level version the rule
+  is not a `browser: "none"` record in the closed `PWP-V3-015` shape (runner 1.63.0 or 1.64.0, at
+  least one attempt, `use` exactly one closed `corvintBrowserless` reason the attempts agree with) must carry a non-empty
+  `use.corvintBrowser.nodeVersion`, every such per-test version and a present, non-empty
+  report-level version must be one value, and that value is recorded. A closed-shape
+  `browser: "none"` test constrains nothing; any other `browser: "none"` record must carry an
+  agreeing per-test version like a browser test. Without a report-level version the rule
   is the earlier one (every test carries an agreeing per-test version; a `browser: "none"` test
   leaves the version unobserved). Any disagreement, a missing per-test version on a test that is
-  not `browser: "none"`, or neither source leaves the version `""` (unobserved). The recorded
+  not a closed-shape `browser: "none"` record, or neither source leaves the version `""`
+  (unobserved). A version an executable source observed is never replaced. The recorded
   version is then admitted, or not, by the unchanged exact runtime tuple table
   (`PWP-V0-039..040`).
 
 Non-goals: no change to the admitted runtime tuples, to `nodeVersionFor` or the executable sources
 it reads, to the refusal codes or detail strings, to per-test browser identity, or to the
 owned-server path. An observed executable version is not cross-checked against the report-level
-version, and the report-level version is not projected as a separate receipt member.
+version, and the report-level version is not projected as a separate receipt member. On runner
+1.60.0, where any observed Node is a `candidate` tuple, a run with no tests can now record a
+version; no test qualifies from it.
 
 Failure modes and known gaps: the report-level version is the runner process's own claim, the same
 trust as the per-test `corvintBrowser.nodeVersion` it supplements; a reporter that misreports it is
@@ -1305,9 +1311,10 @@ behaviour. A live bare-`npx` browserless run on an admitted tuple is `NOT_RUN` o
 V1-2390 build-log entry.
 
 Rollback: remove the `nodeVersion` member from the reporter's `onEnd` report and from
-`qualifiedReport`, and return `recordedNodeVersion` to reading only per-test identities; receipts
+`qualifiedReport`, and return `recordedNodeVersion` (called through `fillRecordedNodeVersion`) to
+reading only per-test identities; receipts
 already written keep the version they recorded.
 
 | Requirement | Evidence |
 | --- | --- |
-| `PWP-V0-961` | `internal/jstestprovider/node_version_report_test.go` `TestPWPV0961ReportedNodeVersionFallback` (agreeing, disagreeing, missing and all-browserless cases), `TestPWPV0961ReportDecodesNodeVersion` (every external profile) and `TestPWPV0961BrowserlessNpxRunTupleCandidate` (runtime tuple `unobserved` to `candidate` with the table unchanged); Node case `PWP-V0-961 the report names the runner process.version` in `internal/jstestprovider/qualified-reporter_test.cjs`, run by `TestQualifiedReporterSensitiveRedaction` |
+| `PWP-V0-961` | `internal/jstestprovider/node_version_report_test.go` `TestPWPV0961ReportedNodeVersionFallback` (agreeing, disagreeing, missing and all-browserless cases), `TestPWPV0961ReportDecodesNodeVersion` (every external profile) and `TestPWPV0961BrowserlessNpxRunTupleCandidate` (through `fillRecordedNodeVersion`, the `runExternal` step: runtime tuple `unobserved` to `candidate` with the table unchanged, an observed version kept); Node case `PWP-V0-961 the report names the runner process.version` in `internal/jstestprovider/qualified-reporter_test.cjs`, run by `TestQualifiedReporterSensitiveRedaction` |

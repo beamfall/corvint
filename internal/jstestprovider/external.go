@@ -334,9 +334,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		r.Tests = report.Tests
 		externalHygiene(r.Tests)
 	}
-	if r.Identity.NodeVersion == "" {
-		r.Identity.NodeVersion = recordedNodeVersion(r.Tests, report.NodeVersion)
-	}
+	fillRecordedNodeVersion(&r, report)
 	if err := bindQualifiedReport(&r, report); err != nil {
 		r.Infrastructure = externalReportFailure(profile, "report-identity-unknown", err.Error())
 	}

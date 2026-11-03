@@ -73,19 +73,28 @@ func (c *cappedOutput) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// fillRecordedNodeVersion fills a receipt Node version that no executable source observed
+// (CCE-V0-140) from the versions the runner reported (PWP-V0-961).
+func fillRecordedNodeVersion(r *Receipt, report qualifiedReport) {
+	if r.Identity.NodeVersion == "" {
+		r.Identity.NodeVersion = recordedNodeVersion(r.Identity.RunnerVersion, r.Tests, report.NodeVersion)
+	}
+}
+
 // recordedNodeVersion is the one Node version the runner reported (process.version): every test
 // that is not browser "none" must name it in its browser identity, and a present, non-empty
-// report-level version must agree (PWP-V0-961). A browser "none" test names no version, so it
-// constrains nothing when the report names one and leaves the version unknown when it does not.
-// Any disagreement, a missing per-test version, or no source at all is "" (unobserved).
-func recordedNodeVersion(tests []TestOutcome, reported *string) string {
+// report-level version must agree (PWP-V0-961). A browser "none" test in the closed browserless
+// shape (browserlessReason) names no version, so it constrains nothing when the report names one
+// and leaves the version unknown when it does not; any other test must name the version. Any
+// disagreement, a missing per-test version, or no source at all is "" (unobserved).
+func recordedNodeVersion(runnerVersion string, tests []TestOutcome, reported *string) string {
 	version := ""
 	if reported != nil {
 		version = *reported
 	}
 	reportNamed := version != ""
 	for _, t := range tests {
-		if reportNamed && t.Project != nil && t.Project.Browser == BrowserlessProject {
+		if reportNamed && browserlessReason(runnerVersion, t) != "" {
 			continue
 		}
 		var use playwrightUseIdentity
