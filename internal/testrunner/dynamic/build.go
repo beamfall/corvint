@@ -34,7 +34,7 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	if !known(r.Runner) {
 		return tr.Invocation{}, fmt.Errorf("unknown dynamic runner %q", r.Runner)
 	}
-	if r.HasRSpecOnlyMembers() && r.Runner != "rspec" {
+	if r.HasRSpecOnlyMembers() && !admitsExecMembers(r.Runner) {
 		return tr.Invocation{}, fmt.Errorf("execPrefix, pathMap and formatter are admitted only for rspec")
 	}
 	if !filepath.IsAbs(r.Executable) || !filepath.IsAbs(r.ReportDir) {

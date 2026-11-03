@@ -448,6 +448,10 @@
       "conformance/interactive-alpha/fixture/",
       "internal/jstestprovider/testdata/"
     ],
+    "internal/langplugin": [
+      "cmd/",
+      "internal/"
+    ],
     "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
