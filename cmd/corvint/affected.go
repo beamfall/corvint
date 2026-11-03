@@ -1420,12 +1420,45 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	}
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
+		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), graph, changed))
 	}
 	plan := affectedSelect(graph, changed, in.shared)
+	// A --path plan (additive off, ADN-V0-009) names paths to probe, not a
+	// change, so an absent one is no deletion.
+	if in.additive && !(in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository)) {
+		plan.Deleted = affectedDeletedPaths(in.tree, plan.Dirty)
+	}
 	provider := providerGoProjection(graph, plan)
 	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)
 	advice = withWholePackages(ctx, advice, in.repository, in.tree, in.base, in.revision, plan)
 	return graph, plan, provider, advice
+}
+
+// affectedDeletedPaths lists, in order, each dirty path absent from tree:
+// Lstat reports it missing, or an ancestor of it is now a file other than a
+// directory, so neither a file nor a symlink is there (AFP-V0-2206). Any
+// other Lstat failure is no proof of absence.
+func affectedDeletedPaths(tree string, dirty []string) []string {
+	var deleted []string
+	for _, relative := range dirty {
+		_, err := os.Lstat(filepath.Join(tree, filepath.FromSlash(relative)))
+		if errors.Is(err, fs.ErrNotExist) || err != nil && affectedAncestorNotDirectory(tree, relative) {
+			deleted = append(deleted, relative)
+		}
+	}
+	return deleted
+}
+
+// affectedAncestorNotDirectory reports a parent directory of relative that
+// is present in tree as something other than a directory.
+func affectedAncestorNotDirectory(tree, relative string) bool {
+	for parent := path.Dir(relative); parent != "." && parent != "/"; parent = path.Dir(parent) {
+		info, err := os.Lstat(filepath.Join(tree, filepath.FromSlash(parent)))
+		if err == nil {
+			return !info.IsDir()
+		}
+	}
+	return false
 }
 
 // affectedGoAdditive reads, for each changed Go package, whether the change
@@ -1441,15 +1474,21 @@ func affectedGoAdditive(ctx context.Context, gitExecutable, root, base, revision
 // which is root itself or a review's snapshot of HEAD materialized elsewhere;
 // the commit is always read from root's Git objects.
 func affectedGoAdditiveAt(ctx context.Context, gitExecutable, root, tree, base, revision string, graph *affected.Graph, changed []string) []affected.GoAdditive {
-	commit := revision
-	if base != "" {
-		resolved, err := affectedRevision(ctx, gitExecutable, root, base)
-		if err != nil {
-			resolved = ""
-		}
-		commit = resolved
+	return golang.AdditiveChangesAt(ctx, root, tree, affectedMeasuredCommit(ctx, gitExecutable, root, base, revision), graph, changed)
+}
+
+// affectedMeasuredCommit is the commit a change is measured from: the
+// resolved base with --base, else HEAD's revision; empty when the base
+// cannot be resolved, which every comparison reads as unknown.
+func affectedMeasuredCommit(ctx context.Context, gitExecutable, root, base, revision string) string {
+	if base == "" {
+		return revision
 	}
-	return golang.AdditiveChangesAt(ctx, root, tree, commit, graph, changed)
+	resolved, err := affectedRevision(ctx, gitExecutable, root, base)
+	if err != nil {
+		return ""
+	}
+	return resolved
 }
 
 func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) ([]string, error) {

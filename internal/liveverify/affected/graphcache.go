@@ -200,6 +200,8 @@ type cachedUnit struct {
 	FrontierBears        string   `json:"frontierBears"`
 	Callers              []string `json:"callers"`
 	ExecConsumers        []string `json:"execConsumers"`
+	ImportGraphReads     []string `json:"importGraphReads"`
+	ImportGraphReadsAll  bool     `json:"importGraphReadsAll"`
 }
 
 type cachedStamp struct {

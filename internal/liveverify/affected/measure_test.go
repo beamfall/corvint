@@ -435,6 +435,8 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 		unit, found := graph.Unit(selection.UnitID)
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
 		return found && len(files) != 0 && slices.Contains(graph.ExistenceReaderPackages(), path.Dir(files[0]))
+	case affected.WitnessImportGraphReader:
+		return importGraphWitnessResolves(graph, selection)
 	}
 	if len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID || !viaEdges(graph, witness.Via) {
 		return false
@@ -458,6 +460,30 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	// from every enclosing package that embeds; the package itself carries the
 	// ENCLOSING_PACKAGE witness, so a chain from it reaches past it.
 	return len(witness.Via) > 1 && enclosesDataPath(graph, origin, witness.DirtyPath, true)
+}
+
+// importGraphWitnessResolves checks an IMPORT_GRAPH_READER witness
+// (AFP-V0-2201): a chain of the selected unit alone names a dirty path that
+// may change the module's import graph; any other chain runs over import
+// edges from the unit that owns the dirty path to a unit the reader lists
+// (or any unit, for a reader of the whole module), then the reader.
+func importGraphWitnessResolves(graph *affected.Graph, selection affected.Selection) bool {
+	witness := selection.Witness
+	unit, found := graph.Unit(selection.UnitID)
+	if !found || len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID || !unit.ImportGraphReadsAll && len(unit.ImportGraphReads) == 0 {
+		return false
+	}
+	if len(witness.Via) == 1 {
+		_, owned := graph.OwnerOf(witness.DirtyPath)
+		return affected.ModuleFile(witness.DirtyPath) || !owned
+	}
+	chain := witness.Via[:len(witness.Via)-1]
+	listed := chain[len(chain)-1]
+	if !unit.ImportGraphReadsAll && !slices.Contains(unit.ImportGraphReads, listed) || !viaEdges(graph, chain) {
+		return false
+	}
+	owner, owned := graph.OwnerOf(witness.DirtyPath)
+	return !owned || owner == chain[0]
 }
 
 // viaEdges reports that every consecutive pair of a witness chain is a graph
