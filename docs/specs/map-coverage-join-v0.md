@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-11-03
 Intent status: accepted
-Delivery status: not-started
+Delivery status: partial
 Authoritative inputs: owner request of 2026-11-03 (tie line-level test selection to the site map,
 page objects and the generated documentation across unit, integration and E2E tests, and stop
 re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V0-950..963);
@@ -12,8 +12,8 @@ re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V
 
 ## Agent digest
 - Claim: Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.
-- Status: accepted/not-started
-- Exists: nothing of this join. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
+- Status: accepted / partial
+- Exists: slice 3a as an experimental library, `internal/funclink` (V1-4386): functional units with code and test sets built from AFU-V1 declared links, the AMAP-V0 map and impact join, SKH-V0 page objects, steps and setup records, and an injected observed source; `functionality-link` gap-filling, test-side surface selection, the shadow fallback-replacement record and the gap report. It is not yet called by `corvint affected` or the CI selector, reads no project-config ownership, and has no observed source until the segment join (slices 1 and 3) exists. The rest of this join does not exist. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
 - Blocked on: a non-Go collector (LPCV-V0-955) for the observed links and segment requirements. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
 - Read next: Requirements; Functionality links; Shared-step selection; Failure modes; Delivery slices; Owner questions.
 
@@ -100,7 +100,10 @@ line selection: it never dedupes repeated steps and never tells the map which te
   shadow runs the full fallback; a **fallback miss** is a test the fallback ran that failed while
   the proposed linked set omitted it. Replacement is allowed only after zero fallback misses over
   at least 1,000 CI changes that took the fallback, plus the MCJ-V0-014 fault injection; a fallback
-  miss is handled as MCJ-V0-018 describes, with the omitted test and the unit in the ticket.
+  miss is handled as MCJ-V0-018 describes, with the omitted test and the unit in the ticket. A
+  changed block keeps the fallback, with its reason, when no unit links it (`unlinked`), only an
+  observed code set reaches it (`observed-only`), or declared and static code sets hold only part
+  of it (`partially-linked`, one entry per unheld part).
 - `MCJ-V0-023`: A change to a unit's test-side surface selects that unit's affected tests even when
   no product block changed. Test-side surfaces are a page-object method, a selector binding, a step
   helper, a setup record or a flow declaration. The affected tests are the tests whose steps call
@@ -186,6 +189,23 @@ line selection: it never dedupes repeated steps and never tells the map which te
   promotion until the cause is explained.
 - `MCJ-V0-019`: The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 100 ms
   beyond the `git diff` and base-blob reads on the reference host, measured with segments present.
+
+
+## Traceability
+
+Slice 3a is experimental: focused tests in `internal/funclink/funclink_test.go`, no live run. The
+library is not yet wired into the plan, the CLI or CI, so no plan carries its reasons.
+
+| Requirement | Implementation | Evidence |
+| --- | --- | --- |
+| MCJ-V0-020 | `internal/funclink/funclink.go` (`Builder`, `Build`, authority mask), `sources.go` (`FromIntents`, `FromMap`, `FromImpact`, `FromSiteKnowledge`, `FromSetup`, `FromObserved` over the `ObservedSource` interface) | `TestMCJV0_020_UnitsCarryCodeAndTestSetsFromEverySource`, `TestMCJV0_020_LowerAuthorityNeverOverwritesHigher`, `TestMCJV0_020_ObservedSourceErrorAddsNothing`. Partial: project-config declared ownership is not read; the observed source is an interface with a test fixture only |
+| MCJ-V0-021 | `select.go` `AddUncovered` | `TestMCJV0_021_AddsLinkedTestsForUncoveredBlocksOnly`, `TestMCJV0_021_023_FaultInjectionNeverDropsATest` (2,000 seeded random cases) |
+| MCJ-V0-022 | `select.go` `ShadowReplace`, `FallbackMisses` (records the proposed linked set beside the fallback set and the omitted tests) | `TestMCJV0_022_ShadowReplacementRecordsTheFallbackMissCheck`. Shadow record only: no CI shadow run, so the 1,000-change zero-miss bar is `NOT_RUN` |
+| MCJ-V0-023 | `select.go` `SelectSurfaces` | `TestMCJV0_023_PageObjectMethodChangeSelectsExactlyItsCallers`, `TestMCJV0_021_023_FaultInjectionNeverDropsATest` |
+| MCJ-V0-024 | `select.go` `Gaps` | `TestMCJV0_024_GapReport` |
+
+Test identities stay opaque: SKH-V0 test IDs, AFU-V1 test keys and `linecov` test IDs are separate
+spaces, and joining them is the caller's.
 
 ## Failure modes
 

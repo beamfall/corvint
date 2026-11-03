@@ -415,6 +415,7 @@
     "internal/extmutate": [],
     "internal/flowcoverage": [],
     "internal/flowdocs": [],
+    "internal/funclink": [],
     "internal/frontier": [
       "benchmarks/expert-audit-followup/finite-policy.json",
       "protocol/cem-1.0/stable/RESULT.schema.json"
