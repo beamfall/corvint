@@ -2,11 +2,13 @@
 # usage: script/requirement-ids-free.sh PREFIX LO HI [REF]
 #        script/requirement-ids-free.sh PREFIX [REF]
 #
-# Reports whether the requirement IDs PREFIX-LO..PREFIX-HI (three-digit numbers) are free in REF's
+# Reports whether the requirement IDs PREFIX-LO..PREFIX-HI are free in REF's
 # tree (default origin/main), so a lane charter never names a block already in use (ASD-V0-960,
 # V1-3472). Each ID some tracked file at REF names prints as `used ID PATH:LINE` (its first
 # occurrence) and the exit is 1; otherwise one `free PREFIX-LO..PREFIX-HI at REF (SHA)` line and
-# exit 0. A malformed input or a REF that is not a commit exits 2 naming it. It reads only Git
+# exit 0. An ID number is written with at least three digits (DCW-V0-007, AFP-V0-2200), so LO and HI
+# take any width up to nine digits (DCW-V0-2146, V1-4291). A malformed input or a REF that is not a
+# commit exits 2 naming it; a bare run (no PREFIX) prints the usage. It reads only Git
 # objects: the worktree, the index and unpushed branches other than REF are not consulted.
 #
 # With no range, PREFIX is a new family a charter wants to claim (ASD-V0-962, V1-3472): any row of
@@ -17,8 +19,8 @@ set -uo pipefail
 export LC_ALL=C
 
 usage='usage: script/requirement-ids-free.sh PREFIX LO HI [REF] (for example DCW-V0 960 979 origin/main), or PREFIX [REF] for a new prefix'
-if (($# < 1 || $# > 4)); then
-  printf 'requirement-ids-free: REFUSE bad-arguments\n%s\n' "$usage" >&2
+if (($# < 1 || $# > 4)) || [[ -z $1 ]]; then
+  printf 'requirement-ids-free: REFUSE bad-arguments\n%s\nor through make: make requirement-ids-free PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979\n' "$usage" >&2
   exit 2
 fi
 # Review fix: git grep with a tree searches only the caller's directory, so run from the top level.
@@ -66,8 +68,8 @@ if (($# <= 2)); then
   exit 1
 fi
 lo=$2 hi=$3 ref=${4:-origin/main}
-[[ $lo =~ ^[0-9]{1,3}$ && $hi =~ ^[0-9]{1,3}$ ]] && ((10#$lo <= 10#$hi)) || {
-  printf 'requirement-ids-free: REFUSE bad-range %q..%q: LO and HI are numbers 0..999 with LO <= HI\n' "$lo" "$hi" >&2
+[[ $lo =~ ^[0-9]{1,9}$ && $hi =~ ^[0-9]{1,9}$ ]] && ((10#$lo <= 10#$hi)) || {
+  printf 'requirement-ids-free: REFUSE bad-range %q..%q: LO and HI are numbers of 1 to 9 digits with LO <= HI\n' "$lo" "$hi" >&2
   exit 2
 }
 sha=$(git rev-parse --verify -q --end-of-options "$ref^{commit}") || {
@@ -76,7 +78,8 @@ sha=$(git rev-parse --verify -q --end-of-options "$ref^{commit}") || {
 }
 lo=$((10#$lo)) hi=$((10#$hi))
 # git grep prints SHA:PATH:LINE:MATCH; a path may hold ':' and MATCH may start with one, so the
-# parse anchors on LINE:, the one leading byte and the ID at the end. The leading byte keeps XDCW-V0-960 from counting as DCW-V0-960; four digits never match.
+# parse anchors on LINE:, the one leading byte and the ID at the end. The leading byte keeps XDCW-V0-960 from counting as DCW-V0-960.
+# An ID counts only in its canonical spelling (%03d): DCW-V0-0960 is not DCW-V0-960 (DCW-V0-2146).
 # git grep exits 1 when nothing matches, which is a free range, not a failure.
 matches=$(mktemp "${TMPDIR:-/tmp}/requirement-ids-free.XXXXXX") || exit 2
 trap '/bin/rm -f "$matches"' EXIT
@@ -97,7 +100,7 @@ used=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" -v sha="$sha:" '
       id = substr(rest, index(rest, ":") + 1)
       id = substr(id, index(id, prefix))
       number = substr(id, length(prefix) + 1)
-      if (length(number) != 3 || number + 0 < lo || number + 0 > hi || seen[id]++) next
+      if (sprintf("%03d", number + 0) != number || number + 0 < lo || number + 0 > hi || seen[id]++) next
       print "used " id " " path ":" line
     }' "$matches" | sort) || exit 2
 range=$(printf '%s-%03d..%s-%03d' "$prefix" "$lo" "$prefix" "$hi")
@@ -110,7 +113,7 @@ if [[ -n $used ]]; then
   next=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '
       match($0, prefix "[0-9]+$") {
         number = substr($0, RSTART + length(prefix))
-        if (length(number) == 3) taken[number + 0] = 1
+        if (sprintf("%03d", number + 0) == number) taken[number + 0] = 1
       }
       function free(start,   n) {
         for (n = start; n < start + width; n++) if (n in taken) return 0
@@ -118,7 +121,10 @@ if [[ -n $used ]]; then
       }
       END {
         width = hi - lo + 1
-        for (s = hi + 1; s + width <= 1000; s++) if (free(s)) { print s, s + width - 1; exit }
+        # The namespace is the IDs of the width HI is written in, at least three digits.
+        limit = 1000
+        while (limit <= hi) limit *= 10
+        for (s = hi + 1; s + width <= limit; s++) if (free(s)) { print s, s + width - 1; exit }
         for (s = 0; s + width <= lo; s++) if (free(s)) { print s, s + width - 1; exit }
       }' "$matches") || exit 2
   if [[ -n $next ]]; then

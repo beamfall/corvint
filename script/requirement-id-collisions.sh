@@ -43,7 +43,7 @@ while (($#)); do
 done
 if [[ -n $block ]]; then
   [[ $prefix =~ ^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$ ]] || refuse "bad-prefix $prefix: want upper-case letters and digits joined by -, such as DCW-V0"
-  [[ $lo =~ ^[0-9]{1,3}$ && $hi =~ ^[0-9]{1,3}$ ]] && ((10#$lo <= 10#$hi)) || refuse "bad-range $lo..$hi: want LO and HI of 1 to 3 digits with LO <= HI"
+  [[ $lo =~ ^[0-9]{1,9}$ && $hi =~ ^[0-9]{1,9}$ ]] && ((10#$lo <= 10#$hi)) || refuse "bad-range $lo..$hi: want LO and HI of 1 to 9 digits with LO <= HI"
   lo=$((10#$lo)) hi=$((10#$hi))
 fi
 top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || refuse "not-a-checkout $PWD: run it inside a Git checkout"
@@ -176,7 +176,7 @@ if [[ -n $block ]]; then
   used=$(awk -F'\t' -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '
     index($1, prefix) == 1 {
       number = substr($1, length(prefix) + 1)
-      if (number ~ /^[0-9][0-9][0-9]$/ && number + 0 >= lo && number + 0 <= hi) print "used " $1 " " $4 " " $2
+      if (number ~ /^[0-9]+$/ && sprintf("%03d", number + 0) == number && number + 0 >= lo && number + 0 <= hi) print "used " $1 " " $4 " " $2
     }' "$work/open" | sort -u)
   range=$(printf '%s-%03d..%s-%03d' "$prefix" "$lo" "$prefix" "$hi")
   if [[ -n $used ]]; then

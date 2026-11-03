@@ -719,25 +719,62 @@ sub status_ids {
     my $route = 'define new requirements in a companion spec with its own requirement prefix '
         . '(a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json '
         . 'per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md';
-    my @over;
+    # added_since REV FILE LABEL: the staged section IDs of FILE absent from it at commit REV.
+    my $added_since = sub {
+        my ($rev, $file, $label) = @_;
+        # ls-tree distinguishes a new spec from an unreadable existing base blob.
+        open my $ls, '-|', 'git', 'ls-tree', $rev, '--', $file or die "git ls-tree: $!\n";
+        my $exists = do { local $/; <$ls> };
+        close $ls or die "cannot list $file at $label\n";
+        my $old = {};
+        if (length $exists) {
+            open my $fh, '-|', 'git', 'cat-file', 'blob', "$rev:$file" or die "$file at $label: $!\n";
+            my $blob = do { local $/; <$fh> };
+            close $fh or die "cannot read $file at $label\n";
+            $old = section_obligation_ids($blob);
+        }
+        return sort grep { !$old->{$_} } keys %{$obligations{$file}};
+    };
+    # DCW-V0-2145 (V1-4401): generation names a near-cap spec only when the staged change adds a
+    # section ID to it, against BASE when given and available, else HEAD; the others are counted
+    # on one summary line. Capacity mode still reports every near-cap spec (SRG-V0-744).
+    my ($quiet_reference, $quiet_label);
+    if ($mode ne 'capacity') {
+        if (defined $revision) {
+            ($quiet_reference, $quiet_label) = ($revision, "BASE=$base");
+        } elsif (length $base) {
+            open my $rev, '-|', 'git', 'rev-parse', '--verify', '--quiet', '--end-of-options', "$base^{commit}"
+                or die "base $base: $!\n";
+            my $resolved = <$rev>;
+            if (close $rev) {
+                chomp $resolved;
+                ($quiet_reference, $quiet_label) = ($resolved, "BASE=$base");
+            }
+        }
+        if (!defined $quiet_reference) {
+            open my $rev, '-|', 'git', 'rev-parse', '--verify', '--quiet', 'HEAD^{commit}' or die "HEAD: $!\n";
+            my $resolved = <$rev>;
+            if (close $rev) {
+                chomp $resolved;
+                ($quiet_reference, $quiet_label) = ($resolved, 'HEAD');
+            }
+        }
+    }
+    my (@over, @quiet);
     for my $file (sort keys %obligations) {
         my $count = scalar keys %{$obligations{$file}};
         next if $count < 256 - $margin;
         my @added;
         my $attribute = $mode eq 'capacity' || $count > 256;
         if ($attribute && defined $revision) {
-            # ls-tree distinguishes a new spec from an unreadable existing base blob.
-            open my $ls, '-|', 'git', 'ls-tree', $revision, '--', $file or die "git ls-tree: $!\n";
-            my $exists = do { local $/; <$ls> };
-            close $ls or die "cannot list $file at BASE=$base\n";
-            my $old = {};
-            if (length $exists) {
-                open my $fh, '-|', 'git', 'cat-file', 'blob', "$revision:$file" or die "$file at BASE=$base: $!\n";
-                my $blob = do { local $/; <$fh> };
-                close $fh or die "cannot read $file at BASE=$base\n";
-                $old = section_obligation_ids($blob);
+            @added = $added_since->($revision, $file, "BASE=$base");
+        }
+        if (!$attribute && defined $quiet_reference) {
+            my @gained = $added_since->($quiet_reference, $file, $quiet_label);
+            if (!@gained) {
+                push @quiet, $file;
+                next;
             }
-            @added = sort grep { !$old->{$_} } keys %{$obligations{$file}};
         }
         my $fail = $count > 256
             || ($mode eq 'capacity' && $count == 256 && defined $revision && @added);
@@ -755,6 +792,10 @@ sub status_ids {
         } elsif ($fail) {
             print STDERR "$file: requirement IDs added since base: NOT_OBSERVED; rerun with BASE=<rev>\n";
         }
+    }
+    if (@quiet) {
+        printf STDERR "spec-requirements: NOTE %d spec(s) within margin=%d of the 256-obligation limit gain no requirement since %s, so they are not listed; make spec-capacity-check lists every one (SRG-V0-740, DCW-V0-2145)\n",
+            scalar @quiet, $margin, $quiet_label;
     }
     if (@over) {
         die "$route, then rerun make spec-" . ($mode eq 'capacity' ? 'capacity-check' : 'requirements')

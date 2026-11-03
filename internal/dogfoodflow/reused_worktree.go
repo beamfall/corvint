@@ -57,7 +57,7 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	// trace still refuses.
 	if !retire && (len(stranded) == 0 || (legacy == 0 && digest != "")) {
 		for _, revision := range stranded {
-			f.say("%s: NOTE stranded trace %s: the worktree-local trace store names a commit HEAD does not reach (a reset, amend or earlier lane); dogfood finish-lane quarantines it byte-preserved with migrate-traces --apply --plan-digest %s before it prepares (DCW-V0-406, DWC-V0-003)\n", f.prefix, revision, digest)
+			f.say("%s: NOTE stranded trace %s: the worktree-local trace store names a commit HEAD does not reach (a reset, amend or earlier lane); dogfood finish-lane and dogfood change quarantine it byte-preserved with migrate-traces --apply --plan-digest %s before they prepare (DCW-V0-406, DWC-V0-003); fix: to retire it now, as after a reset dropped an unpushed bind or seal commit, run make dogfood-retire-traces, then rerun (DCW-V0-2142)\n", f.prefix, revision, digest)
 		}
 		for _, name := range stale {
 			f.say("%s: NOTE stale sidecar %s is ignored and was last written before BASE %s was committed; dogfood finish-lane moves it under %s/corvint/stale-ocm before it prepares (DCW-V0-406, DCW-V0-810)\n", f.prefix, name, base[:12], gitDir)

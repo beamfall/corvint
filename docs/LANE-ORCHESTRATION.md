@@ -1109,6 +1109,12 @@ One lane runs this flow, in order; each step names the command and the section t
    BASE=..`. The bind commit changes only `.corvint/`, so a current review passes, and
    `dogfood-seal: REFUSE review-not-current` stops a seal over a head the review did not read
    before its check runs (ASD-V0-1024).
+   The post-bind rerun of `make dogfood-change` and `make dogfood-check` runs from a clean worktree:
+   one with no change after the bind commit (`git status --porcelain` lists nothing; ignored paths
+   do not count). The lane's own worktree qualifies as it stands; no fresh checkout is needed, and
+   `dogfood-check` refuses a dirty one naming the path count (DCW-V0-2144). The first
+   `make dogfood-change` with every input ends `PENDING commit-sidecar` and exits 0: commit
+   `.corvint/change.cem.json`, then rerun (DCW-V0-2143).
 6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
 
 Common refusals and their recovery:
@@ -1119,6 +1125,10 @@ Common refusals and their recovery:
 | `heavy.sh: REFUSED whole-reason-missing` | use a selective `-run '<selected>'` from `corvint test --base SHA --dry-run`, or set `HEAVY_WHOLE_REASON` with the evidence (Corvint selected the package whole, or UNKNOWN/FALLBACK); `-short` does not clear it |
 | `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
 | `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
+| `NOTE stranded trace` (after a reset dropped an unpushed bind or seal commit) | `make dogfood-retire-traces`, then rerun (DCW-V0-2142) |
+| `dogfood-change: PENDING commit-sidecar` | commit `.corvint/change.cem.json`, then rerun `make dogfood-change` (DCW-V0-2143) |
+| `self-binary-stale` | set `CORVINT_BIN` to a build of this tree, or unset it if set; for the static pre-check, `DOGFOOD_STATIC_PRECHECK=0` (DCW-V0-2140) |
+| `tier-below-anchored` (WARN) | keep the drafted anchoring row beside each requirement row; `corvint dogfood propose-citations BASE --refresh PLAN` restores dropped ones (DCW-V0-2141) |
 | `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
 | `dogfood-seal: REFUSE review-not-current` | review HEAD^ (the bind-ready head) through `script/codex-review.sh`, save the output, rerun with `DOGFOOD_REVIEW` set to it |
 | `review-head-check: REFUSE unpinned-review` | run the review through `script/codex-review.sh`, or pass `--reviewed-head REV` with the commit the reviewer read |

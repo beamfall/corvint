@@ -68,7 +68,13 @@ func TestDogfoodSingleCommitStagedCitationPlans(t *testing.T) {
 		cemWrite(t, inputsDir, name, plan.String())
 		plans = append(plans, filepath.Join(inputsDir, name))
 		code, _, stderr := run.exec(t, root, append(inputs[:len(inputs):len(inputs)], "DOGFOOD_CITATIONS="+plans[stage]), "dogfood", "change", base)
-		if code != 1 || strings.Contains(stderr, "  cem-cite:") && !strings.Contains(stderr, "the plan was added") {
+		// DCW-V0-2143: an earlier stage leaves hunks unknown (FAIL, 1); the last
+		// leaves only the uncommitted sidecar open (PENDING, 3).
+		want := 1
+		if end == len(doc.Hunks) {
+			want = 3
+		}
+		if code != want || strings.Contains(stderr, "  cem-cite:") && !strings.Contains(stderr, "the plan was added") {
 			t.Fatalf("stage %d exit=%d stderr=%s", stage, code, stderr)
 		}
 		data, err = os.ReadFile(mapPath)

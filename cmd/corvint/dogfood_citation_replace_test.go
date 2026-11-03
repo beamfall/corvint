@@ -75,7 +75,7 @@ func TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage(t *testing.T) {
 		fmt.Sprintf("%s\tintent.md\t1:1\tspecification\n", hunks[2].ID),
 	}
 	for index, plan := range stages {
-		if code, stderr := pass(fmt.Sprintf("stage-%d.tsv", index+1), plan); code != 1 || strings.Contains(stderr, "  cem-cite: citation") {
+		if code, stderr := pass(fmt.Sprintf("stage-%d.tsv", index+1), plan); code != 3 || strings.Contains(stderr, "  cem-cite: citation") {
 			t.Fatalf("stage %d exit=%d stderr=%s", index+1, code, stderr)
 		}
 	}
@@ -92,7 +92,7 @@ func TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage(t *testing.T) {
 	}
 
 	code, stderr = pass("corrected.tsv", corrected, "DOGFOOD_CITATION_REPLACE="+entry[1])
-	if code != 1 || !strings.Contains(stderr, "NOTE cem-cite replaced hunk="+hunks[0].ID) || strings.Contains(stderr, "  cem-cite: ") {
+	if code != 3 || !strings.Contains(stderr, "NOTE cem-cite replaced hunk="+hunks[0].ID) || strings.Contains(stderr, "  cem-cite: ") {
 		t.Fatalf("guarded replacement exit=%d stderr=%s", code, stderr)
 	}
 	replaced, replacedHunks := read()

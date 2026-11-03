@@ -502,7 +502,14 @@ this order:
    A binary file beside a textual hunk binds (`CEM-V1-980`); only a binary-only patch, a binary
    rename, copy or mode change, a `GIT binary patch` body and abbreviated object IDs still refuse
    (`DCW-V0-902`).
-2. Review the draft into `cites.tsv`. Write `intents.txt` (one owning spec path per line,
+2. Review the draft into `cites.tsv`. Keep the anchoring row the draft gives each hunk and add the
+   requirement row the hunk implements beside it, as a second row with the same hunk key: a
+   requirement row alone anchors a code hunk only when the hunk itself names that ID, so replacing
+   the drafted row with it leaves the hunk `cited` and `make dogfood-check` warns
+   `tier-below-anchored` for it. `corvint dogfood propose-citations BASE_SHA --refresh cites.tsv`
+   keeps the reviewed rows and drafts the anchoring row back for each hunk whose rows anchor
+   nothing, naming each on a `its carried rows anchor nothing` line and counting them as
+   `anchors-restored=N` (`DCW-V0-2141`). Write `intents.txt` (one owning spec path per line,
    `LC_ALL=C sort -u`; each line is the path of a spec committed at HEAD with exactly one
    `## Requirements` heading, never prose; a build-log entry or README is refused `intent-invalid`
    `code=invalid-requirements-section` unless the change is a record change, `DCW-V0-948`) and `verify.txt` (one verification command per line), and choose
@@ -583,7 +590,12 @@ existing 256-row plan limit, including `cite-span-not-stable` and `cite-self-mod
 Each diagnostic names the row, path, BASE span and reason; valid rows are omitted. Fix the whole
 list before binding (`DCW-V0-2130`, [citation-plan precheck](specs/dogfood-citation-plan-precheck-v0.md)).
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
-worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before any build
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). A trace stranded
+by a reset of this lane's own unpushed bind or seal commit is only noted (`NOTE stranded trace`),
+since finish-lane and `dogfood change` retire it; `make dogfood-retire-traces` retires it at once
+with this tree's build: it applies the `migrate-traces` dry-run plan with its own digest when that
+plan holds only stranded traces, and otherwise refuses naming the manual dry run and apply
+(`DCW-V0-2142`). Before any build
 it runs the requirement-definitions check, and the test read-scopes check when a `*_test.go` file or
 `.corvint/test-read-scopes.json` changed, refusing `requirement-definitions-invalid` or
 `test-read-scopes-invalid` (`DCW-V0-815`). Before the first
@@ -747,6 +759,19 @@ other prepare failure, including a transient `git-timeout`, is reported as `cem-
 `NOT_PRODUCED` with its reason and leaves the committed map untouched for the operator to rerun.
 `dogfood-check` then checks that committed change from a clean
 worktree. Running it before commit is a workflow refusal, not evidence that there was no change.
+A clean worktree here means one with no change after the bind commit: `git status --porcelain`
+lists nothing (ignored paths, such as the private `.corvint/` outputs, do not count). The lane's
+own worktree qualifies as it stands; no fresh checkout or second worktree is needed. A tree that
+is not clean is refused `dirty-worktree` (or `uncommitted-change-not-in-base-target`) with a `fix:`
+line naming the dirty path count (`DCW-V0-2144`).
+The first `dogfood-change` with every input supplied, whose only incomplete rows are those its own
+uncommitted sidecar causes (the recorder's `record-index-failed`, and with a sidecar HEAD already
+tracks the OCM, status and aggregate rows the bind commit clears), ends
+`dogfood-change: PENDING commit-sidecar base=<sha> target=<sha>` with a `fix:` line naming
+`commit .corvint/change.cem.json, then rerun`, instead of `FAIL not-complete`. `corvint dogfood change`
+and `script/dogfood-change.sh` exit 3 for it, `make dogfood-change` exits 0, and every other
+incomplete pass keeps `FAIL not-complete` and exit 1; finish-lane's in-process passes are unchanged
+(`DCW-V0-2143`).
 `dogfood-change` builds `./cmd/corvint` from the current tree into the worktree's private Git
 evidence directory and runs that binary. Every step publishes its stdout as
 `<git-dir>/corvint/<step>.json` and its stderr as `<git-dir>/corvint/<step>.stderr`, so the refusal
@@ -1588,3 +1613,7 @@ only, so a ticket created after the last committed snapshot is refused as `NOT_O
 checkout, not as nonexistent (CTS-V0-010). A lane reads its own ticket read-only from the primary
 worktree or one of its linked worktrees (`cd PRIMARY_WORKTREE && corvint-tasks ticket show ID`), or
 from the ticket text its charter carries; it never runs Tasks mutations from the clone.
+The journal lives in the common Git directory, which a primary worktree shares with all its linked
+worktrees, so when a lane's linked worktree has no journal, its primary worktree has none either:
+the refusal says so (`TCP-V0-2230`), and the ticket is read from the clone or host that holds the
+journal, through an exported snapshot (`CORVINT_TASKS_SNAPSHOT`, `CTS-V0-680`), or from the charter.
