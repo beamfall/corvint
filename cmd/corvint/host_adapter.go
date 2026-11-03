@@ -400,7 +400,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	reserve, _ := json.Marshal(renderClaudeContext(event, "", guidance))
 	disclosure := promptBoundDisclosure(event, payload) + compactSessionDisclosure(event, normalized)
 	kernel := experimentalKernelContext(ctx, event, root)
-	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel)
+	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel) - adapterContextReserve(ctx)
 	refuse := func() { refuseUndeliveredPacket(root, event, payload) }
 	stagePacket(ctx, refuse, nil)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)

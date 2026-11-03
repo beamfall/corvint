@@ -234,6 +234,12 @@ func (result Result) CanonicalJSON() ([]byte, *Error) {
 // full rows travel in structuredContent (MCPV0-033, proposed).
 const TextSummaryProfile = "corvint-mcp-text-summary/0"
 
+const unsupportedQueryIntent = "UNSUPPORTED_QUERY_INTENT"
+
+// queryIntentAlternative is the text-block-only pointer an UNSUPPORTED_QUERY_INTENT corvint.query
+// abstention carries (MCPV0-630); structuredContent and the abstention object are unchanged.
+var queryIntentAlternative = map[string]any{"tool": ToolContext, "profile": "task-review", "command": "corvint context"}
+
 // TextJSON returns the canonical bytes for the MCP text content block. A
 // receipt carrying a results list is summarized: each row keeps only kind, id
 // and score, and the object names TextSummaryProfile, while every other member,
@@ -262,6 +268,11 @@ func (result Result) TextJSON() ([]byte, *Error) {
 		receipt["results"] = summary
 		object["receipt"] = receipt
 		object["textProfile"] = TextSummaryProfile
+	}
+	if result.Tool == ToolQuery && result.Abstention.Active && result.Abstention.Reason == unsupportedQueryIntent {
+		// MCPV0-630 (V1-3705): the refusal itself names where a code, test or bug task goes,
+		// so an agent that never read the description is not left at a dead end.
+		object["alternative"] = queryIntentAlternative
 	}
 	encoded, encodeErr := gokernel.CanonicalJSON(object)
 	if encodeErr != nil {

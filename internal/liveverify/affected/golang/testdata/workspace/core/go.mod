@@ -1,3 +1,3 @@
 module example.com/workspace/core
 
-go 1.26
+go 1.26.10

@@ -5,9 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/observations"
 )
 
 // AHI-804 (V1-0401): a SubagentStart payload gets the user-prompt packet for its agent_prompt under
@@ -87,6 +92,43 @@ func TestAHI804DocumentedSubagentStartPayloadAbstainsSilently(t *testing.T) {
 		}
 		if strings.TrimSpace(stdout.String()) != "{}" {
 			t.Fatalf("documented SubagentStart payload must abstain silently: %s", &stdout)
+		}
+	}
+}
+
+// AHI-630 (V1-0401): the live Claude Code 2.1.316 SubagentStart payload, which carries no task
+// text, abstains with {} and lands its missing-prompt row in the self-observation ledger; every
+// opt-in event is an admitted ledger event, so none of its rows is refused and lost.
+func TestAHI630OptInAbstentionReachesTheLedger(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command("git", "init", "-q", root).CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, output)
+	}
+	live := map[string]any{
+		"agent_id": "a1", "agent_type": "general-purpose", "cwd": root, "hook_event_name": "SubagentStart",
+		"prompt_id": "p1", "scratchpad_dir": t.TempDir(), "session_id": "s1", "transcript_path": filepath.Join(root, "t.jsonl"),
+	}
+	raw, err := json.Marshal(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	ctx := adapterEnvContext(lifecycleDeadlineContext(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	if status := runHostAdapter(ctx, []string{"claude-code", "subagent-start"}, bytes.NewReader(raw), &stdout); status != 0 || strings.TrimSpace(stdout.String()) != "{}" {
+		t.Fatalf("status=%d output=%s, want a silent {}", status, &stdout)
+	}
+	ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
+	if err != nil || !bytes.Contains(ledger, []byte(`"event":"subagent-start","host":"claude-code","adapterCodes":["missing-prompt"]`)) || bytes.Contains(ledger, []byte("general-purpose")) {
+		t.Fatalf("subagent-start ledger=%s err=%v", ledger, err)
+	}
+	for _, event := range []string{"pre-tool", "stop-done-list", "subagent-start"} {
+		row := observations.AdapterDegradationEvent("claude-code", event, "adapter-host-kill-deadline", "1.0.0", time.Now())
+		if err := observations.Append(root, row); err != nil {
+			t.Fatalf("%s row refused: %v", event, err)
 		}
 	}
 }

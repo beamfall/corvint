@@ -340,9 +340,19 @@ spec-requirements: ## Regenerate docs/specs/REQUIREMENTS.tsv from the staged spe
 	@u=$$(git diff --name-only --diff-filter=U -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md; \
 	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md 2>/dev/null); \
 	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
-	@script/gen-spec-requirements.sh --write
-	@test -d internal/lrfrepo || exit 0; out=$$($(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
+	@SPEC_REQUIREMENTS_BASE="$(if $(filter command line environment environment override,$(origin BASE)),$(BASE),)" SPEC_CAPACITY_MARGIN="$(SPEC_CAPACITY_MARGIN)" script/gen-spec-requirements.sh --write
+	@test -d internal/lrfrepo || exit 0; out=$$(script/heavy.sh $(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
 	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: the SRG-V0-900 obligation-bound check failed (output above): when it names a spec, its ## Requirements section exceeds the 256-obligation OCM bound; define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
+
+# SRG-V0-744: check staged specs before lane closeout and batch integration.
+SPEC_CAPACITY_MARGIN ?= 8
+.PHONY: spec-capacity-check
+spec-capacity-check: ## Check staged spec capacity; SPEC_CAPACITY_MARGIN=8, optional BASE=<rev>
+	@SPEC_REQUIREMENTS_BASE="$(if $(filter command line environment environment override,$(origin BASE)),$(BASE),)" SPEC_CAPACITY_MARGIN="$(SPEC_CAPACITY_MARGIN)" script/gen-spec-requirements.sh --capacity
+
+.PHONY: spec-readme-check
+spec-readme-check: ## Reject duplicate or missing unanchored spec README rows
+	@script/check-spec-readme.sh
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
@@ -362,7 +372,7 @@ repin: ## Apply the mechanical repins an output-neutral edit needs
 # ASD-V0-615 (V1-3841): it also runs the internal/lrfrepo spec enumeration pins, so a lane's doc
 # gates, not only batch-precheck's drift tests, catch a requirement edit that drifts a pin.
 .PHONY: spec-requirements-check
-spec-requirements-check:
+spec-requirements-check: spec-readme-check
 	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
@@ -1154,6 +1164,7 @@ doc-gates: ## Run the documentation gates
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
+	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)"
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 	@$(MAKE) --no-print-directory dogfood-finish

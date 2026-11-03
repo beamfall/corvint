@@ -397,6 +397,10 @@ AHI-805	docs/specs/agent-harness-integration-v0.md	(experimental under the stand
 AHI-806	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0878) A plan-	standing	2026-11-01; V1-0878
 AHI-807	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-2514; amends	standing	2026-11-01; V1-2514
 AHI-808	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3543)	standing	2026-11-01; V1-3543
+AHI-630	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0401) The	standing	2026-11-01; V1-0401
+AHI-631	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3894) The Cla	standing	2026-11-01; V1-3894
+AHI-632	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0878) For a	standing	2026-11-01; V1-0878
+AHI-633	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-2929) Every	standing	2026-11-01; V1-2929
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
 AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
@@ -2276,6 +2280,8 @@ ASD-V0-815	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-1970	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4326) Case 1b	standing	2026-10-11; V1-4326
 ASD-V0-1971	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4327; refines	standing	2026-10-11; V1-4327
 ASD-V0-1972	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4328) Before l	standing	2026-10-11; V1-4328
+ASD-V0-2010	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
+ASD-V0-2011	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4332)	standing	2026-11-02; V1-4332
 ASD-V0-1990	docs/specs/corvint-self-development-v0.md	(accepted, owner-delegated V1-4329 lane charter, 2026-11-02; amends `ASD-V0-944`	owner	V1-4329; 2026-11-02
 ASD-V0-1991	docs/specs/corvint-self-development-v0.md	(accepted, owner-requested V1-4329 independent-review fixes, 2026-11-02; amends	owner	V1-4329; 2026-11-02; V0-1990
 ASD-V0-1992	docs/specs/corvint-self-development-v0.md	(accepted, owner-requested V1-4329 independent-review fixes, 2026-11-02; extends	owner	V1-4329; 2026-11-02; V0-1990
@@ -2808,6 +2814,16 @@ TCX-V0-847	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The CLI's pre-muta
 TCX-V0-848	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Derived-state argument and measurement. The index is derived, rebuildable state	unrecorded	-
 TCX-V0-849	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(experimental under the standing lane auto-accept; V1-4229, round 3) The index	standing	V1-4229
 TCX-V0-850	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(experimental under the standing lane auto-accept; V1-1148) `tasks-scale gen`	standing	V1-1148
+TCX-V0-970	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) `SUBMIT`, `GATE_RUN` and `COMPLETE` MUST be served by the	unrecorded	-
+TCX-V0-971	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The lease writer route MUST give the model the index's	unrecorded	-
+TCX-V0-972	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) A gated `ticket batch-close` that will write at least one ro	unrecorded	-
+TCX-V0-973	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The gate run's pre-read, from which it decides runnability,	unrecorded	-
+TCX-V0-974	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The intent-tree capture (`intent.TreeDigest`, its stat pass	unrecorded	-
+TCX-V0-975	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The claim's know-how delivery read MUST load the inventory a	unrecorded	-
+TCX-V0-976	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The manifest entry cost (`archive.EntryCost`), which depends	unrecorded	-
+TCX-V0-977	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
+TCX-V0-978	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
+TCX-V0-979	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--ski	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -5669,6 +5685,7 @@ MCPV0-861	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standin
 MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impac	owner	2026-10-24; V1-1003
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MCPV0-650	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3705) The `corvint.query`	standing	V1-3705
+MCPV0-630	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3705) A	standing	2026-11-01; V1-3705
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	Receipt location contract. The only receipt source MUST be the caller's `receipt	unrecorded	-
@@ -6987,8 +7004,10 @@ SRG-V0-790	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-791	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3793) Every	standing	2026-11-01; V1-3793
 SRG-V0-979	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3797; refines	standing	2026-11-01; V1-3797
 SRG-V0-820	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4068; amends	standing	2026-11-01; V1-4068
-SRG-V0-740	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines	standing	2026-11-01; V1-3769
+SRG-V0-740	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); amended under th	standing	2026-11-01; 2026-11-02; V1-3769; V1-4331
 SRG-V0-743	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The	standing	2026-11-01; V1-3388
+SRG-V0-744	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
+SRG-V0-745	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-

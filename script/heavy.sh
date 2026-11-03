@@ -2105,21 +2105,27 @@ main() {
 # routed to first and why, including where HEAVY_REMOTE_HOST came from (the environment or the config
 # file) or that neither set it; a later fallback (unavailable, CI busy) prints its own line.
 host_choice() {
-  local cfg=${config_file:-(none)} host=local why
+  local cfg=${config_file:-(none)} host=local why target=${HEAVY_REMOTE_HOST-} src="HEAVY_REMOTE_HOST from $host_src"
   [[ $cfg != '(none)' && ! -r $cfg ]] && cfg="$cfg (absent)"
+  # V1-3518: with several hosts the load probe picks the first one tried, so name the whole list
+  # rather than the configured first host, which the probe may not try first.
+  if ((${#remote_hosts[@]} > 1)); then
+    target=$(IFS=,; printf '%s' "${remote_hosts[*]}")
+    src="HEAVY_REMOTE_HOSTS from $host_src, ordered by the load probe"
+  fi
   if [[ -z ${HEAVY_REMOTE_HOST-} ]]; then
     why="HEAVY_REMOTE_HOST unset in the environment and in config $cfg"
   elif ! offloadable "$@"; then
     why="not an offloadable command"
     if [[ ${HEAVY_REMOTE:-1} != 0 && ${HEAVY_BUILD_OFFLOAD:-1} != 0 ]] && buildable "$@"; then
-      host=$HEAVY_REMOTE_HOST why="build offload, HEAVY_REMOTE_HOST from $host_src"
+      host=$target why="build offload, $src"
     fi
   elif [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
     why="HEAVY_REMOTE=0"
   elif writes_files "$@" "GOFLAGS=${GOFLAGS-}"; then
     why="file-writing flag"
   else
-    host=$HEAVY_REMOTE_HOST why="offloadable command, HEAVY_REMOTE_HOST from $host_src"
+    host=$target why="offloadable command, $src"
   fi
   printf 'heavy.sh: host=%s why=%s\n' "$host" "$why" >&2
 }

@@ -4,6 +4,7 @@ package intent
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -13,7 +14,7 @@ import (
 // that grew since the stat pass, followed by indexed entries that are not
 // read, still refuses a tree over the bound with LIMIT_EXCEEDED (TCX-V0-981).
 func TestTCXV0_CachedEntriesCountTowardTreeBound(t *testing.T) {
-	read := func(string, string, int) ([]byte, error) { return []byte("x"), nil }
+	read := func(string, string, int, *os.FileInfo) ([]byte, error) { return []byte("x"), nil }
 	plan := []plannedFile{
 		{path: "tickets/OPEN.json", max: wire.MaxIntentTreeBytes},
 		{path: "tickets/CLOSED.json", known: &ClosedEntry{Size: int64(wire.MaxIntentTreeBytes)}},
