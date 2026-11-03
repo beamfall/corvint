@@ -408,6 +408,10 @@ jobs:
       fail-fast: false
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    # LPCV-V0-959: actions read lets the line-level shadow download the linecov-index artifact.
+    permissions:
+      contents: read
+      actions: read
     # AFP-V0-170 (V1-3051): one output per shard, set to FULL only by that shard and only when
     # its tests step passed without a NARROWED narrowing gate, the one route to a narrowed shard.
     # The gate's output is fixed before any repository test runs, and no tests-step output is
@@ -1024,6 +1028,10 @@ jobs:
             '{profile: "corvint-pr-coverage/0", runId: $runId, runAttempt: $runAttempt, shard: ($shard | tonumber), shards: ($shards | tonumber),
               placement: $placement, selected: [$selected | split("\n")[] | select(length > 0)]}' \
             > "$RUNNER_TEMP/ci-coverage/coverage.json"
+          # LPCV-V0-959: the report-only line-level shadow below reads the lists this shard runs.
+          # shellcheck disable=SC2086 # one package per line
+          { mkdir -p "$RUNNER_TEMP/linecov-shadow" && printf '%s\n' $packages > "$RUNNER_TEMP/linecov-shadow/packages" &&
+            printf '%s\n' "$slices" | sed '/^$/d' > "$RUNNER_TEMP/linecov-shadow/slices"; } || true
           if [ -z "$packages" ] && [ -z "$slices" ]; then
             echo "Complete-universe shard $SHARD has no packages."
             exit 0
@@ -1181,6 +1189,52 @@ jobs:
           name: ci-coverage-${{ strategy.job-index }}
           path: ${{ runner.temp }}/ci-coverage/coverage.json
           if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+      - name: Line-level selection shadow (LPCV-V0-959, report only)
+        # LPCV-V0-959 stays report-only until shadow qualification: this step plans what the
+        # linecov index of main would keep of this shard's lists and narrows nothing. It builds
+        # linecov from the trusted tool commit, never from the tested checkout, and any failure
+        # (no index yet, an index older than the merge base, another runner) only reports.
+        id: linecov-shadow
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.tests.outcome != 'skipped' && steps.pin-tool-build.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTED_MERGE: ${{ github.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          SHARD: ${{ strategy.job-index }}
+        run: |
+          shadow=$RUNNER_TEMP/linecov-shadow
+          if [ ! -d "$GITHUB_WORKSPACE/trusted-tools/tools/linecov" ] || [ ! -f "$shadow/packages" ]; then
+            echo "LPCV-V0-959 shadow: no trusted linecov or no shard lists; nothing to report" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          (cd "$GITHUB_WORKSPACE/trusted-tools" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov)
+          run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow linecov-index.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run" ]; then
+            echo "LPCV-V0-959 shadow: no successful linecov-index run on main yet" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh run download "$run" -R "$GITHUB_REPOSITORY" -n linecov-index -D "$RUNNER_TEMP/linecov-index"
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then base=$QUEUE_BASE; else base=$(git rev-parse --verify "$TESTED_MERGE^1"); fi
+          GOFLAGS=-race "$RUNNER_TEMP/linecov" ci -root . -index "$RUNNER_TEMP/linecov-index/linecov.idx" -base "$base" \
+            -packages "$shadow/packages" -slices "$shadow/slices" -out "$shadow/out"
+          count() { sed '/^$/d' "$1" | wc -l | tr -d ' '; }
+          reason=$(jq -r '.Reason // empty' "$shadow/out/plan.json")
+          echo "LPCV-V0-959 shadow shard $SHARD (index run $run, base $base): packages $(count "$shadow/packages") -> $(count "$shadow/out/packages"), slices $(count "$shadow/slices") -> $(count "$shadow/out/slices")${reason:+, kept whole: $reason}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Retain the line-level selection shadow
+        # Feeds the LPCV-V0-959 shadow qualification and the LPCV-V0-020 miss detector.
+        if: always() && steps.linecov-shadow.outcome != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linecov-shadow-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/linecov-shadow/
+          if-no-files-found: ignore
           overwrite: true
           retention-days: 14
       - name: Retain package outcomes for the advisory cost-drift report
