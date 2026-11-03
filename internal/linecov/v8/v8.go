@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package v8 converts JavaScript coverage into the line-granular profile
 // lines the linecov index reads (LPCV-V0-965): V8 precise coverage, as
 // NODE_V8_COVERAGE or the inspector's Profiler.takePreciseCoverage writes it,
@@ -17,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -241,7 +244,7 @@ func ReadSourceMap(abs string, src []byte) (*SourceMap, string, error) {
 		ref = ref[:j]
 	}
 	var raw []byte
-	mapURL := "file://" + filepath.ToSlash(abs)
+	mapURL := fileURL(abs)
 	if rest, ok := strings.CutPrefix(ref, "data:"); ok {
 		comma := strings.IndexByte(rest, ',')
 		if comma < 0 || !strings.HasSuffix(rest[:comma], ";base64") {
@@ -262,7 +265,7 @@ func ReadSourceMap(abs string, src []byte) (*SourceMap, string, error) {
 		if err != nil {
 			return nil, "", nil // a dangling comment: count the script itself
 		}
-		raw, mapURL = b, "file://"+filepath.ToSlash(file)
+		raw, mapURL = b, fileURL(file)
 	}
 	var sm SourceMap
 	if err := json.Unmarshal(raw, &sm); err != nil {
@@ -306,7 +309,9 @@ func resolveSource(mapURL, root, source string) (string, bool) {
 	return filePath(base.ResolveReference(ref).String())
 }
 
-// filePath is the local path of a file: URL or an absolute path.
+// filePath is the local path of a file: URL or an absolute path. A drive
+// letter loses the URL's leading slash, file:///C:/a.js, and a host other
+// than localhost names a Windows UNC share, which no other system has.
 func filePath(u string) (string, bool) {
 	if filepath.IsAbs(u) {
 		return filepath.Clean(u), true
@@ -315,7 +320,29 @@ func filePath(u string) (string, bool) {
 	if err != nil || p.Scheme != "file" {
 		return "", false
 	}
-	return filepath.Clean(filepath.FromSlash(p.Path)), true
+	path := p.Path
+	if p.Host != "" && p.Host != "localhost" {
+		if runtime.GOOS != "windows" {
+			return "", false
+		}
+		path = "//" + p.Host + path
+	}
+	if len(path) > 2 && path[0] == '/' && path[2] == ':' && isDrive(path[1]) {
+		path = path[1:]
+	}
+	return filepath.Clean(filepath.FromSlash(path)), true
+}
+
+func isDrive(c byte) bool { return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' }
+
+// fileURL is the file: URL of an absolute path, file:///C:/a.js for a drive
+// path.
+func fileURL(abs string) string {
+	p := filepath.ToSlash(abs)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return (&url.URL{Scheme: "file", Path: p}).String()
 }
 
 // executed answers, per UTF-16 offset, whether the innermost range holding it

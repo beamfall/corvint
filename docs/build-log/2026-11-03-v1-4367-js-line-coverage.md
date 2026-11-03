@@ -35,6 +35,17 @@ are fixed with tests:
 
 Node's cached map URL now resolves the map's sources.
 
+The PR review found four more issues, all fixed with tests:
+
+- A comment between `)` and `{` hid a function body from the scanner. The scanner now remembers the
+  last token across comments.
+- `file:///C:/...` became `/C:/...`. Drive letters and UNC hosts now map to local paths.
+- Isolation now filters on the full title, so tests in two suites that share a leaf title each get a
+  record instead of diverging. Vitest's `-t` joins suites with ` > ` while its report uses spaces, so
+  that pattern accepts either separator inside the suites. A pattern that also matches another test
+  diverges rather than narrowing.
+- Run scratch directories are now emptied before each run and removed after it.
+
 ## Evidence
 
 - `go test ./internal/jslinecov` passes for all eight runners against `testdata/repo`, which uses
