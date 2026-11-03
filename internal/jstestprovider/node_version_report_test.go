@@ -18,6 +18,9 @@ func TestPWPV0961ReportedNodeVersionFallback(t *testing.T) {
 	none := browserlessTest("api", BrowserlessProject, browserless, StatePassed)
 	missing := browserlessTest("page missing", "chromium", `{"corvintBrowser":{}}`, StatePassed)
 	unknown := browserlessTest("page unknown", "", `null`, StatePassed)
+	forged := browserlessTest("forged", BrowserlessProject, `{"corvintBrowserless":"no-browser-use","corvintBrowser":{"nodeVersion":"v24.11.1"}}`, StatePassed)
+	attemptless := none
+	attemptless.Attempts = nil
 	reported := func(v string) *string { return &v }
 	cases := []struct {
 		name     string
@@ -39,9 +42,13 @@ func TestPWPV0961ReportedNodeVersionFallback(t *testing.T) {
 		{"all browserless, no report member", []TestOutcome{none}, nil, ""},
 		{"earlier rule without a report member", []TestOutcome{withNode("v22.23.2"), withNode("v22.23.2")}, nil, "v22.23.2"},
 		{"no source", nil, nil, ""},
+		// A browser "none" record outside the closed browserless shape is not skipped, so its own
+		// conflicting or missing version keeps the version unobserved.
+		{"forged browserless with a conflicting version", []TestOutcome{none, forged}, reported("v22.23.2"), ""},
+		{"browserless with no attempts", []TestOutcome{none, attemptless}, reported("v22.23.2"), ""},
 	}
 	for _, c := range cases {
-		if got := recordedNodeVersion(c.tests, c.reported); got != c.want {
+		if got := recordedNodeVersion("1.64.0", c.tests, c.reported); got != c.want {
 			t.Errorf("%s = %q, want %q", c.name, got, c.want)
 		}
 	}
@@ -77,7 +84,7 @@ func TestPWPV0961BrowserlessNpxRunTupleCandidate(t *testing.T) {
 			browserlessTest("skipped", BrowserlessProject, `{"corvintBrowserless":"not-run"}`, StateSkipped))
 		r.Identity.NodeVersion = "" // bare npx: neither argv[0] nor npm_node_execpath named node
 		report.NodeVersion = reported
-		r.Identity.NodeVersion = recordedNodeVersion(r.Tests, report.NodeVersion)
+		fillRecordedNodeVersion(&r, report)
 		if err := bindQualifiedReport(&r, report); err != nil {
 			t.Fatalf("browserless run refused: %v", err)
 		}
@@ -107,6 +114,17 @@ func TestPWPV0961BrowserlessNpxRunTupleCandidate(t *testing.T) {
 	unadmitted := "v22.23.3"
 	if r := run(&unadmitted); ReceiptRuntimeTuple(r) != RuntimeTupleUnqualified || !qualifiedPrerequisitesUnknown(r, r.Tests[0]) {
 		t.Fatalf("unadmitted node tuple = %s", ReceiptRuntimeTuple(r))
+	}
+	// A runner outside 1.63.0 and 1.64.0 records no browserless test (PWP-V3-014), so none is skipped.
+	if got := recordedNodeVersion("1.60.0", after.Tests, &admitted); got != "" {
+		t.Fatalf("1.60.0 browserless run recorded %q", got)
+	}
+	// A version an executable source observed is never replaced by the reported one.
+	observed, report := browserlessReport(t, browserlessTest("api", BrowserlessProject, noBrowserUse, StatePassed))
+	observed.Identity.NodeVersion = "v24.11.1"
+	report.NodeVersion = &admitted
+	if fillRecordedNodeVersion(&observed, report); observed.Identity.NodeVersion != "v24.11.1" {
+		t.Fatalf("observed version replaced by %q", observed.Identity.NodeVersion)
 	}
 	// The receipt round-trips the recorded version.
 	data, err := json.Marshal(after.Identity)
