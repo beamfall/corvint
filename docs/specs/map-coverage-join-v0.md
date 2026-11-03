@@ -100,7 +100,10 @@ line selection: it never dedupes repeated steps and never tells the map which te
   shadow runs the full fallback; a **fallback miss** is a test the fallback ran that failed while
   the proposed linked set omitted it. Replacement is allowed only after zero fallback misses over
   at least 1,000 CI changes that took the fallback, plus the MCJ-V0-014 fault injection; a fallback
-  miss is handled as MCJ-V0-018 describes, with the omitted test and the unit in the ticket.
+  miss is handled as MCJ-V0-018 describes, with the omitted test and the unit in the ticket. A
+  changed block keeps the fallback, with its reason, when no unit links it (`unlinked`), only an
+  observed code set reaches it (`observed-only`), or declared and static code sets hold only part
+  of it (`partially-linked`, one entry per unheld part).
 - `MCJ-V0-023`: A change to a unit's test-side surface selects that unit's affected tests even when
   no product block changed. Test-side surfaces are a page-object method, a selector binding, a step
   helper, a setup record or a flow declaration. The affected tests are the tests whose steps call
