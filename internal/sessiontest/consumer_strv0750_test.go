@@ -6,13 +6,12 @@ import (
 	"testing"
 )
 
-// STR-V0-750 (V1-4008): on the local runner profile a well-formed
+// STR-V0-750 (V1-4008, V1-4361): on every runner profile a well-formed
 // UNSELECTED_BINARY_CONSUMER entry, a file such as a Node e2e script that runs
 // the built binary of a Go command the change reaches, keeps the run NARROWED
 // and is named once as a check still required and not run; no Go run, narrowed
-// or FULL, runs it. The ci profile keeps the AFP-V0-028 allowlist and goes FULL,
-// and a malformed detail goes FULL on either profile.
-func TestBinaryConsumerIsANamedCheckOnTheLocalProfile_STRV0750(t *testing.T) {
+// or FULL, runs it. A malformed detail goes FULL on either profile.
+func TestBinaryConsumerIsANamedCheck_STRV0750(t *testing.T) {
 	consumer := func(detail string) Unknown { return Unknown{Reason: "UNSELECTED_BINARY_CONSUMER", Detail: detail} }
 	e2e, navigation := "web/test/e2e.mjs", "web/test/navigation-e2e.mjs"
 	for _, tc := range []struct {
@@ -26,8 +25,10 @@ func TestBinaryConsumerIsANamedCheckOnTheLocalProfile_STRV0750(t *testing.T) {
 		{"local: two consumers beside a frontier", ProfileLocal,
 			[]Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "shell:foreign-invocation-unmodelled"}, consumer(e2e), consumer(navigation), consumer(e2e)},
 			ScopeNarrowed, "", []string{"make go-vet", BinaryConsumerCheck(e2e), BinaryConsumerCheck(navigation)}},
-		{"ci: the allowlist does not admit it", ProfileCI, []Unknown{consumer(e2e)},
-			ScopeFull, "plan.unknown entry outside the AFP-V0-028 allowlist: UNSELECTED_BINARY_CONSUMER " + e2e, []string{"make go-vet"}},
+		{"ci: a consumer is named, not widened for", ProfileCI, []Unknown{consumer(e2e)},
+			ScopeNarrowed, "", []string{"make go-vet", BinaryConsumerCheck(e2e)}},
+		{"ci: an escaping detail", ProfileCI, []Unknown{consumer("../e2e.mjs")},
+			ScopeFull, "plan.unknown entry outside the AFP-V0-028 allowlist: UNSELECTED_BINARY_CONSUMER ../e2e.mjs", []string{"make go-vet"}},
 		{"local: an absolute detail", ProfileLocal, []Unknown{consumer("/tmp/e2e.mjs")},
 			ScopeFull, "plan.unknown entry outside the AFP-V0-028 allowlist: UNSELECTED_BINARY_CONSUMER /tmp/e2e.mjs", []string{"make go-vet"}},
 		{"local: an escaping detail", ProfileLocal, []Unknown{consumer("../e2e.mjs")},
