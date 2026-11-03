@@ -4447,7 +4447,7 @@
     "title": "Map Coverage Join V0",
     "reqPrefix": "MCJ-V0",
     "intent": "accepted",
-    "delivery": "not-started",
+    "delivery": "partial",
     "claim": "Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.",
     "dependsOn": [
       "docs/specs/application-map-v0.md",
