@@ -1345,8 +1345,8 @@ and container qualification; full fallback remains available.
   the main SHA. A pull request MAY narrow only when the newest such artifact by `created_at`
   (a) came from a `schedule` or `workflow_dispatch` run of that workflow path on `main` of this
   repository, not a fork, (b) says `MET` with a clear kill switch, (c) was created at most 7 days
-  ago and has not expired, and (d) names the current forward epoch; and the newest 25 pages of
-  forward-row names still show no `MISS` of the epoch and a clear kill switch. Those pages SHALL
+  ago and has not expired, and (d) names the current forward epoch; and the newest 25 pages (60 as `ci.yml` sets `KILL_PAGES`,
+  V1-4360) of forward-row names still show no `MISS` of the epoch and a clear kill switch. Those pages SHALL
   either end the listing or reach back to the verdict artifact's `created_at` and hold the latest
   20 rows of the epoch or its start; a read that stops at the page budget without that coverage
   cannot exclude a `MISS` beyond it. Anything else, including an unreadable listing, run or
@@ -1359,7 +1359,21 @@ and container qualification; full fallback remains available.
   Failure modes: a stale verdict up to 7 days old is bounded by the live 5-page kill-switch read;
   a verdict whose listing did not reach the epoch's start is `NOT ESTABLISHED`; an epoch advance
   leaves no verdict for the new epoch, so every PR runs full until the schedule computes one.
-  Rollback: unset `CORVINT_PR_NARROWING`, or revert the change.
+  Rollback: unset `CORVINT_PR_NARROWING`, or revert the change. (Amended by the orchestrator under
+  owner delegation (owner chat, 2026-11-02; V1-4360) on the owner report that the merge queue ran
+  every test: the workflow SHALL run hourly and `ci.yml` SHALL pass `KILL_PAGES` 60 to accept.sh.
+  At the 2026-11-02 rate 25 pages held about 3.4 hours of artifacts while the 6-hourly schedule ran
+  8-9 hours apart, so every run after the first hours of a cycle was FULL. Rollback: restore the
+  6-hourly cron and drop `KILL_PAGES`.)
+- **AFP-V0-2185:** (decided by the orchestrator under owner delegation (owner chat, 2026-11-02, "you
+  have my permission to fix the caching"); V1-4360) Cache prune. `.github/workflows/cache-prune.yml`
+  SHALL run hourly and on `workflow_dispatch`, only on `refs/heads/main`, with workflow permissions
+  `contents: read` and job permissions `actions: write` alone, and SHALL delete every
+  `codeql-overlay-base-database-*` cache entry except the newest per key prefix (the key less its
+  trailing commit SHA). Non-goals: no other cache keys; no write permission in `ci-forward-bar.yml`.
+  Failure modes: a failed delete warns and leaves the entry for the next run; a key format change
+  leaves every entry its own prefix, so nothing is deleted. Rollback: delete the workflow and its
+  least-privilege exception row.
 - **AFP-V0-098:** (decided by the orchestrator under owner delegation (owner chat, 2026-10-20;
   V1-0812)) Selector identity. A pull-request Go shard SHALL narrow only when the driver's
   selection (`corvint-pr-tests --mode plan`, which executes nothing) is a superset of the
@@ -6285,6 +6299,7 @@ traceability table.
 | AFP-V0-095 | `affected.Select` reached unchanged through `compileAffectedGraph` | `TestAFPV0094PathListSelectsTwoHopImportersAtHead` (leaf selected through an untested mid with witness core, mid, leaf), `TestAFPV0095PathListKeepsUnknownScope` (an unowned listed path keeps `UNKNOWN` with `UNOWNED_DIRTY_PATH`) |
 | AFP-V0-096 | `impactHelp` and `affectedHelp` in `cmd/corvint/help.go`; `docs/CAPABILITIES.md` `impact` and `affected` rows | `TestAFPV0096HelpStatesImpactClosureDepth` |
 | AFP-V0-097 | `.github/workflows/ci-forward-bar.yml`; `.github/forward-rows/verdict.sh`, `accept.sh`, `names.sh`; the `--arg format json` output of `bar.jq`; the `narrowing-verdict` job in `.github/workflows/ci.yml` | `TestAFPV0097VerdictWrittenOnMain` (refused off main; MET, epoch start, narrowed count; NOT MET with a MISS); `TestAFPV0097VerdictAcceptance` (MET; each of (a) to (d) failing, no artifact, newest by `created_at`, unparseable, another run, failed download, live MISS, a page budget that ends with no row, a MISS beyond the scanned pages, scanned pages under 20 rows give FULL; scanned pages that reach the verdict with 20 rows give MET); `TestAFPV0097WorkflowBindings` (equal epochs, triggers, read-only permissions, guards; the tests step runs no driver and no qualification pin remains); hosted run `NOT_OBSERVED` |
+| AFP-V0-2185 | `.github/workflows/cache-prune.yml`; its `script/ci-least-privilege-exceptions.tsv` row | `TestAFPV02185CachePruneKeepsNewestOverlay` in `tools/ci-forward-row/narrowing_test.go` (main-only, read-only workflow, `actions: write` job; the step's own selection keeps the newest entry per prefix); `script/check-ci-least-privilege.sh` |
 | AFP-V0-098 | `--mode plan` (`planOnly`) in `tools/corvint-pr-tests/main.go`; `.github/forward-rows/narrow.sh`, `narrow.jq`; the narrowing gate and the tests-step filter of `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0098PlanModeExecutesNothing`; `TestAFPV0098SupersetGuard` (superset narrows the shard to its intersection; an omitted shadow package and every other FULL reason run the whole shard); `TestAFPV0098SupersetGuardFilter` (the ci.yml filter narrows only a retained NARROWED record equal to its sidecar; an empty mode, FULL, unretained, merge-queue, missing, unreadable, empty or disagreeing sidecar or record runs the whole shard; a verified empty list runs none); `TestAFPV0098SupersetGuardSidecar` (narrow.sh writes the sidecar equal to the record; an unwritable sidecar is FULL with no record); hosted run `NOT_OBSERVED` |
 | AFP-V0-800 | `effectivePRBase` in `tools/corvint-pr-tests/main.go`; `.github/forward-rows/pr-base.sh` | `TestAFPV0800StaleEventBase` (missing and invalid base/head/target OIDs, unreadable parents, parent count, head mismatch and ancestry refuse with named reasons and full packages); `TestAFPV0800ShadowBase` (missing/invalid OIDs, HEAD drift, parent count, head mismatch and ancestry); hosted run `NOT_OBSERVED` |
 | AFP-V0-801 | The driver identity guard and effective-base consumers in `.github/forward-rows/narrow.sh` | `TestAFPV0098SupersetGuardSidecar` (missing EventBase, mismatched EventBase/Head/Target and nonempty Reason produce FULL with no effective base; named driver refusals survive; stale event base and PR-owned `.github/` changes); `TestAFPV0800StaleEventBase` (planner range); hosted run `NOT_OBSERVED` |
