@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
+	"github.com/Beamfall/corvint/internal/langplugin/dialect"
 )
 
 // NonGoImpactLanguage names the bounded syntax profiles, never runtime
@@ -13,10 +14,6 @@ import (
 func NonGoImpactLanguage(name string) string {
 	return decl.DialectFor(decl.ImpactDialect, name)
 }
-
-// impactDialects are the implemented impact syntax profiles: Ruby, and the
-// web profile JavaScript and TypeScript share (LGP-V0-016).
-var impactDialects = []string{"ruby", "javascript", "typescript"}
 
 // MCPImpactPathAdmitted is the closed language set shared by MCP validation and
 // range admission. Positional CLI impact retains its wider indexed suffix set.
@@ -33,28 +30,30 @@ func hasNonGoImpactSource(index *Index) bool {
 	return false
 }
 
-var impactReflection = regexp.MustCompile(`\b(?:send|public_send|__send__|define_method|define_singleton_method|method_missing|class_eval|module_eval|eval|constantize|const_get)\b`)
-var impactComputedCall = regexp.MustCompile(`\]\s*(?:\?\.)?\s*\(`)
-var impactDynamicLoad = regexp.MustCompile(`\b(?:import|require)\s*\(`)
-var impactRubyLoad = regexp.MustCompile(`\b(?:require_relative|require|load)\b`)
-var impactAutoload = regexp.MustCompile(`\bautoload\b`)
+// webImpact is the bounded syntax profile of every impact dialect whose rule
+// reads ECMAScript module imports. Core registers it because the web lexer it
+// masks with is shared with core's registry, setup and evaluation readings
+// (LGP-V0-027); moving it to the TypeScript plugin is a recorded follow-up.
+var webImpact = dialect.Impact{
+	CodeLines: func(text string) []string { return strings.Split(flowWebMask(text), "\n") },
+	Probes: []dialect.Probe{
+		{Code: "observed-reflective-dispatch", Pattern: dialect.Reflection},
+		{Code: "observed-computed-dispatch", Pattern: regexp.MustCompile(`\]\s*(?:\?\.)?\s*\(`)},
+	},
+	Loads:      regexp.MustCompile(`\b(?:import|require)\s*\(`),
+	StaticLoad: staticWebLoadArgument,
+}
 
-// staticImpactLoadArgument recognizes only a complete quoted argument. A
-// quote-first expression can still concatenate or interpolate a dynamic name.
-func staticImpactLoadArgument(tail, language string) bool {
+// staticWebLoadArgument recognizes only a complete quoted argument inside the
+// call's parentheses. A quote-first expression can still concatenate a dynamic
+// name.
+func staticWebLoadArgument(tail string) bool {
 	tail = strings.TrimSpace(tail)
-	parenthesized := language != "ruby" || strings.HasPrefix(tail, "(")
-	if language == "ruby" && parenthesized {
-		tail = strings.TrimSpace(tail[1:])
-	}
 	if len(tail) < 2 || (tail[0] != '\'' && tail[0] != '"') {
 		return false
 	}
 	quote := tail[0]
 	for i := 1; i < len(tail); i++ {
-		if language == "ruby" && quote == '"' && strings.HasPrefix(tail[i:], "#{") {
-			return false
-		}
 		if tail[i] == '\\' {
 			i++
 			continue
@@ -62,11 +61,7 @@ func staticImpactLoadArgument(tail, language string) bool {
 		if tail[i] != quote {
 			continue
 		}
-		rest := strings.TrimSpace(tail[i+1:])
-		if parenthesized {
-			return strings.HasPrefix(rest, ")")
-		}
-		return rest == "" || strings.HasPrefix(rest, "#") || strings.HasPrefix(rest, ";")
+		return strings.HasPrefix(strings.TrimSpace(tail[i+1:]), ")")
 	}
 	return false
 }
@@ -103,41 +98,37 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, ex
 			rows = append(rows, row)
 		}
 		add("dynamic-dispatch-unresolved", 0)
-		if language == "ruby" && !ruby.mapped(name) {
+		rule := decl.RuleOf(decl.ImpactDialect, language)
+		if rule == decl.ConstantReferences && !ruby.mapped(name) {
 			add("reverse-import-rule-unavailable", 0)
 		}
-		if language != "ruby" && unresolvedImports != 0 && !isTestPath(name) {
+		if rule == decl.ModuleImports && unresolvedImports != 0 && !isTestPath(name) {
 			add("bare-import-unresolved", 0)
 			seen["bare-import-unresolved"]["count"] = unresolvedImports
 		}
+		// A declared dialect whose plugin registered no profile cannot be
+		// read, so it fails closed exactly as unreadable bytes do (LGP-V0-026).
+		profile, registered := dialect.LookupImpact(language)
 		source, exists := index.Sources[name]
 		text, valid, loaded := source.Text()
-		if !exists || !valid || !loaded {
+		if !registered || !exists || !valid || !loaded {
 			add("source-analysis-unavailable", 0)
 			rows = append(rows, extra[name]...)
 			continue
 		}
-		masked := FlowCodeLines(language, text)
+		masked := profile.CodeLines(text)
 		raw := strings.Split(text, "\n")
 		for i, code := range masked {
-			if impactReflection.MatchString(code) {
-				add("observed-reflective-dispatch", i+1)
+			for _, probe := range profile.Probes {
+				if probe.Pattern.MatchString(code) {
+					add(probe.Code, i+1)
+				}
 			}
-			if language != "ruby" && impactComputedCall.MatchString(code) {
-				add("observed-computed-dispatch", i+1)
-			}
-			if language == "ruby" && impactAutoload.MatchString(code) {
-				add("autoload-unresolved", i+1)
-			}
-			loads := impactDynamicLoad
-			if language == "ruby" {
-				loads = impactRubyLoad
-			}
-			for _, loc := range loads.FindAllStringIndex(code, -1) {
+			for _, loc := range profile.Loads.FindAllStringIndex(code, -1) {
 				// The shared mask preserves columns, so quoted literal loads
 				// can be distinguished without returning any literal body.
 				tail := strings.TrimSpace(raw[i][loc[1]:])
-				if !staticImpactLoadArgument(tail, language) {
+				if !profile.StaticLoad(tail) {
 					add("dynamic-load-unresolved", i+1)
 					break
 				}
@@ -164,4 +155,16 @@ func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []stri
 	coverage := result["coverage"].(map[string]any)
 	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), "non-Go syntax impact does not establish dynamic dispatch or test closure")
 	return stabilizePacketBytes(result)
+}
+
+// constantReferencePath reports whether name's impact dialect runs the
+// constant-reference rule (LGP-V0-024).
+func constantReferencePath(name string) bool {
+	return decl.RuleFor(decl.ImpactDialect, name) == decl.ConstantReferences
+}
+
+// moduleImportPath reports whether name's impact dialect runs the ECMAScript
+// module-import rule (LGP-V0-024).
+func moduleImportPath(name string) bool {
+	return decl.RuleFor(decl.ImpactDialect, name) == decl.ModuleImports
 }

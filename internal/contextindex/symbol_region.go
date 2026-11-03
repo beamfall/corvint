@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
+	"github.com/Beamfall/corvint/internal/langplugin/dialect"
 )
 
 // NormalizedLine is one source line in the comment- and whitespace-insensitive
@@ -26,12 +27,6 @@ func SymbolRegionLanguage(name string) string {
 	return decl.DialectFor(decl.RegionDialect, name)
 }
 
-// regionNormalizers are the implemented region dialects (LGP-V0-016).
-var regionNormalizers = map[string]func(string) ([]NormalizedLine, bool){
-	"ruby": func(text string) ([]NormalizedLine, bool) { return rubyNormalizedLines(text), true },
-	"web":  webNormalizedLines,
-}
-
 // NormalizedCodeLines returns a source's code lines with comments removed,
 // indentation and trailing space dropped, and every other run of whitespace
 // outside a literal collapsed to one space. Literal and heredoc text is kept
@@ -45,79 +40,22 @@ func NormalizedCodeLines(name string, data []byte) ([]NormalizedLine, bool) {
 		return nil, false
 	}
 	text := normalizeLineEndings(string(data))
-	if normalize, ok := regionNormalizers[SymbolRegionLanguage(name)]; ok {
-		return normalize(text)
+	region, ok := dialect.LookupRegion(SymbolRegionLanguage(name))
+	if !ok {
+		return nil, false
 	}
-	return nil, false
+	lines, ok := region.Normalize(text)
+	if !ok {
+		return nil, false
+	}
+	out := make([]NormalizedLine, len(lines))
+	for i, line := range lines {
+		out[i] = NormalizedLine(line)
+	}
+	return out, true
 }
 
-func rubyNormalizedLines(text string) []NormalizedLine {
-	var out []NormalizedLine
-	scanner := rubyScanner{}
-	for offset, line := range strings.Split(text, "\n") {
-		heredoc := len(scanner.heredocs) > 0
-		continued := scanner.literal != nil
-		block := scanner.inBlockComment
-		var spans [][2]int
-		scanner.spans, scanner.comment = &spans, -1
-		scanner.scanLine(line)
-		scanner.spans = nil
-		switch {
-		case heredoc:
-			out = append(out, NormalizedLine{Line: offset + 1, Text: line})
-			continue
-		case block || scanner.inBlockComment:
-			continue
-		}
-		cut := len(line)
-		if scanner.comment >= 0 {
-			cut = scanner.comment
-		}
-		normalized := collapseOutside(line[:cut], spans)
-		if normalized != "" || continued {
-			out = append(out, NormalizedLine{Line: offset + 1, Text: normalized})
-		}
-	}
-	return out
-}
-
-// collapseOutside keeps the bytes inside the literal spans verbatim and
-// collapses every whitespace run outside them to one space, dropping the runs
-// at either end of the line.
-func collapseOutside(line string, spans [][2]int) string {
-	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
-	var b strings.Builder
-	pending := false
-	emit := func(text string) {
-		if pending && b.Len() > 0 {
-			b.WriteByte(' ')
-		}
-		pending = false
-		b.WriteString(text)
-	}
-	next := 0
-	for index := 0; index < len(line); {
-		for next < len(spans) && spans[next][1] <= index {
-			next++
-		}
-		if next < len(spans) && spans[next][0] <= index {
-			end := min(spans[next][1], len(line))
-			emit(line[index:end])
-			index = end
-			continue
-		}
-		switch line[index] {
-		case ' ', '\t', '\r', '\f', '\v':
-			pending = true
-		default:
-			emit(line[index : index+1])
-		}
-		index++
-	}
-	return b.String()
-}
-
-func webNormalizedLines(text string) ([]NormalizedLine, bool) {
+func webNormalizedLines(text string) ([]dialect.Line, bool) {
 	starts := []int{0}
 	for index := 0; index < len(text); index++ {
 		if text[index] == '\n' {
@@ -155,10 +93,10 @@ func webNormalizedLines(text string) ([]NormalizedLine, bool) {
 	if lexer.unterminated != "" {
 		return nil, false
 	}
-	var out []NormalizedLine
+	var out []dialect.Line
 	for index := range lines {
 		if lines[index].Len() > 0 {
-			out = append(out, NormalizedLine{Line: index + 1, Text: lines[index].String()})
+			out = append(out, dialect.Line{Line: index + 1, Text: lines[index].String()})
 		}
 	}
 	return out, true
@@ -171,15 +109,15 @@ func ImplementedDialects(kind decl.DialectKind) []string {
 	var out []string
 	switch kind {
 	case decl.ImpactDialect:
-		out = append(out, impactDialects...)
+		out = dialect.ImpactNames()
 	case decl.ModuleDialect:
-		for _, item := range moduleDisclosures {
-			out = append(out, item.language)
+		for _, name := range decl.Dialects(decl.ModuleDialect) {
+			if _, ok := moduleDisclosures[decl.RuleOf(decl.ModuleDialect, name)]; ok {
+				out = append(out, name)
+			}
 		}
 	case decl.RegionDialect:
-		for name := range regionNormalizers {
-			out = append(out, name)
-		}
+		out = dialect.RegionNames()
 	}
 	sort.Strings(out)
 	return out

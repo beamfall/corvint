@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/rubyautoload"
+	"github.com/Beamfall/corvint/internal/rubydialect"
 )
 
 // Ruby autoload-convention reverse references (NGI-V0-016 to NGI-V0-021,
@@ -157,7 +158,7 @@ type rubyAutoload struct {
 func loadRubyAutoload(index *Index) *rubyAutoload {
 	autoload := &rubyAutoload{sources: map[string]*rubyConstantSource{}, sites: map[string][]rubyReferenceSite{}}
 	for name := range index.Sources {
-		if NonGoImpactLanguage(name) == "ruby" {
+		if constantReferencePath(name) {
 			autoload.paths = append(autoload.paths, name)
 		}
 	}
@@ -168,7 +169,7 @@ func loadRubyAutoload(index *Index) *rubyAutoload {
 			if !valid || !loaded {
 				return nil, nil, false
 			}
-			return strings.Split(text, "\n"), FlowCodeLines("ruby", text), true
+			return strings.Split(text, "\n"), rubydialect.CodeLines(text), true
 		}}
 	repository.DeclarationPresent, repository.DeclarationReadable, repository.DeclarationText = rubyAutoloadDeclaration(index)
 	autoload.mapper = rubyautoload.New(repository)
@@ -283,7 +284,7 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 	}
 	opened := map[string]bool{}
 	raw := strings.Split(text, "\n")
-	masked := FlowCodeLines("ruby", text)
+	masked := rubydialect.CodeLines(text)
 	for lineIndex, code := range masked {
 		line := lineIndex + 1
 		if strings.HasPrefix(raw[lineIndex], "__END__") && strings.TrimSpace(raw[lineIndex]) == "__END__" {
@@ -301,11 +302,11 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 		loopHeader := false
 		for i := 0; i < len(code); i++ {
 			c := code[i]
-			if rubyKeywordStart(code, i) {
-				word, after := rubyWord(code, i)
+			if rubydialect.KeywordStart(code, i) {
+				word, after := rubydialect.Word(code, i)
 				switch word {
 				case "module", "class":
-					cursor, _ := rubySkipSpaces(code, after)
+					cursor, _ := rubydialect.SkipSpaces(code, after)
 					rooted := strings.HasPrefix(code[cursor:], "::")
 					if rooted {
 						cursor += 2
@@ -324,9 +325,9 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 					result.references = append(result.references, rubyReference{line: line, name: name, stack: namespaces(),
 						rooted: rooted, defined: true, constant: full})
 					// A superclass is resolved in the enclosing scope.
-					next, _ := rubySkipSpaces(code, end)
+					next, _ := rubydialect.SkipSpaces(code, end)
 					if word == "class" && next < len(code) && code[next] == '<' && !strings.HasPrefix(code[next:], "<<") {
-						superStart, _ := rubySkipSpaces(code, next+1)
+						superStart, _ := rubydialect.SkipSpaces(code, next+1)
 						superRooted := strings.HasPrefix(code[superStart:], "::")
 						if superRooted {
 							superStart += 2
@@ -374,7 +375,7 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 				i = after - 1
 				continue
 			}
-			if rubyUpperByte(c) && rubyConstantStart(code, i) {
+			if rubydialect.UpperByte(c) && rubyConstantStart(code, i) {
 				rooted := i >= 2 && code[i-1] == ':' && code[i-2] == ':'
 				name, end := rubyReferenceAt(code, i)
 				switch {
@@ -451,7 +452,7 @@ func rubyDefinedConstant(name string, lexical []string, known func(string) bool,
 // and ancestors and keeps an existing (autoloaded) constant, so it stays a
 // reference (V1-1714).
 func rubyAssignsConstant(code string, end int) bool {
-	cursor, _ := rubySkipSpaces(code, end)
+	cursor, _ := rubydialect.SkipSpaces(code, end)
 	return cursor < len(code) && code[cursor] == '=' &&
 		(cursor+1 >= len(code) || (code[cursor+1] != '=' && code[cursor+1] != '~' && code[cursor+1] != '>'))
 }
@@ -464,21 +465,21 @@ func rubyConstantStart(code string, index int) bool {
 	}
 	previous := code[index-1]
 	if previous == ':' {
-		return index >= 2 && code[index-2] == ':' && (index < 3 || !rubyWordByte(code[index-3]) && code[index-3] != ')' && code[index-3] != ']')
+		return index >= 2 && code[index-2] == ':' && (index < 3 || !rubydialect.WordByte(code[index-3]) && code[index-3] != ')' && code[index-3] != ']')
 	}
-	return !rubyWordByte(previous) && previous != '.' && previous != '@' && previous != '$'
+	return !rubydialect.WordByte(previous) && previous != '.' && previous != '@' && previous != '$'
 }
 
 // rubyReferenceAt reads `Foo` or `Foo::Bar` (each segment upper-case first).
 func rubyReferenceAt(code string, index int) (string, int) {
-	if index >= len(code) || !rubyUpperByte(code[index]) {
+	if index >= len(code) || !rubydialect.UpperByte(code[index]) {
 		return "", index
 	}
 	cursor := index
 	for {
-		_, after := rubyWord(code, cursor)
+		_, after := rubydialect.Word(code, cursor)
 		cursor = after
-		if cursor+2 < len(code) && code[cursor] == ':' && code[cursor+1] == ':' && rubyUpperByte(code[cursor+2]) {
+		if cursor+2 < len(code) && code[cursor] == ':' && code[cursor+1] == ':' && rubydialect.UpperByte(code[cursor+2]) {
 			cursor += 2
 			continue
 		}
@@ -517,13 +518,13 @@ func rubyStatementStart(code string, index int) bool {
 // rubyEndlessDef reports Ruby 3's `def name(args) = expression`, which needs
 // no `end`.
 func rubyEndlessDef(code string, index int) bool {
-	cursor, _ := rubySkipSpaces(code, index)
-	receiver := rubySkipSigil(code, cursor)
-	if word, after := rubyWord(code, receiver); word != "" && after < len(code) && code[after] == '.' {
+	cursor, _ := rubydialect.SkipSpaces(code, index)
+	receiver := rubydialect.SkipSigil(code, cursor)
+	if word, after := rubydialect.Word(code, receiver); word != "" && after < len(code) && code[after] == '.' {
 		cursor = after + 1
 	}
 	matched := false
-	for _, operator := range rubyOperatorMethods {
+	for _, operator := range rubydialect.OperatorMethods {
 		if strings.HasPrefix(code[cursor:], operator) {
 			cursor += len(operator)
 			matched = true
@@ -531,7 +532,7 @@ func rubyEndlessDef(code string, index int) bool {
 		}
 	}
 	if !matched {
-		word, after := rubyWord(code, cursor)
+		word, after := rubydialect.Word(code, cursor)
 		if word == "" {
 			return false
 		}
@@ -556,7 +557,7 @@ func rubyEndlessDef(code string, index int) bool {
 			}
 		}
 	}
-	cursor, _ = rubySkipSpaces(code, cursor)
+	cursor, _ = rubydialect.SkipSpaces(code, cursor)
 	return cursor < len(code) && code[cursor] == '=' &&
 		(cursor+1 >= len(code) || (code[cursor+1] != '=' && code[cursor+1] != '~' && code[cursor+1] != '>'))
 }
@@ -612,7 +613,7 @@ func rubyNamesConstant(resolved, constant string) bool {
 // NGI-V0-033 to NGI-V0-035).
 func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]rankedResult, []any) {
 	row := func(code string, count int) any {
-		return map[string]any{"path": changedPath, "language": "ruby", "code": code, "line": 0, "count": count}
+		return map[string]any{"path": changedPath, "language": NonGoImpactLanguage(changedPath), "code": code, "line": 0, "count": count}
 	}
 	unknowns := []any{}
 	if autoload.mapper.DeclarationInvalid() {
@@ -917,7 +918,7 @@ func (index *Index) withRubyMapped(paths []string, autoload *rubyAutoload) *Inde
 
 func rubyImpactRequested(paths []string) bool {
 	for _, name := range paths {
-		if NonGoImpactLanguage(name) == "ruby" {
+		if constantReferencePath(name) {
 			return true
 		}
 	}

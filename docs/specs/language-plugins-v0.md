@@ -14,7 +14,7 @@ the plugins); tickets V1-4404 and V1-4405 (owner, 2026-11-03: the other language
 - Claim: One in-process manifest per language declares its paths, tools and dialects, which core reads instead of naming languages; each plugin tests apart.
 - Status: accepted / experimental
 - Exists: `internal/langplugin` (manifest, `Validate`, `Providers`), the table-driven `internal/testrunner/registry`, and the conformance and core-name ratchet tests.
-- Blocked on: nothing. Moving dialect algorithm bodies out of core and adding non-Go coverage collectors are later slices.
+- Blocked on: nothing. Ruby dialect bodies live in `internal/rubydialect` behind `internal/langplugin/dialect` hooks; moving the web lexer and adding non-Go coverage collectors are later slices.
 - Read next: Requirements; Failure modes; Boundaries and rollback.
 
 ## User job and verified baseline
@@ -166,6 +166,41 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 - `LGP-V0-022`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) Behavior is
   unchanged by LGP-V0-015 to LGP-V0-021: every existing test passes unchanged.
 
+- `LGP-V0-023`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) `internal/langplugin/dialect`
+  is the hook registry through which a plugin hands its dialect algorithm bodies to core. It imports
+  only the standard library. A plugin registers an `Impact` profile (code-line mask, probes, load
+  pattern, static-load judgement, optional verification command) or a `Region` (normalizer,
+  optional symbol extractor) under a dialect name its declaration carries; a duplicate, empty or
+  incomplete registration panics at link time. Core looks hooks up by the declared dialect name and
+  never by a language name of its own. A plugin package may import `internal/langplugin/decl` and
+  `internal/langplugin/dialect`, which are provider-free leaves, and still no core package
+  (LGP-V0-020).
+- `LGP-V0-024`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) An impact or module dialect
+  declares the reverse-reference `Rule` core runs for it: `constant-references`, `module-imports`,
+  `namespace-using`, `package-imports` or `target-modules`; a region dialect declares none.
+  `Validate` refuses an impact or module dialect without a rule and a region dialect with one.
+  Core reads `decl.RuleFor(kind, path)` and `decl.RuleOf(kind, dialect)` and switches on the rule,
+  so a second language sharing a rule needs no core edit.
+- `LGP-V0-025`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) The Ruby plugin's package
+  `internal/rubydialect` owns the Ruby lexical scanner (comments, strings, percent literals,
+  heredocs), the Ruby impact profile, the Ruby symbol-region normalizer and declaration extractor,
+  and the Ruby verification command, which reads the plugin's `Dependencies` (LGP-V0-017). Its
+  `init` registers a hook for every dialect the Ruby declaration names. `internal/contextindex`
+  links it with a blank import and keeps no Ruby algorithm body except the constant-reference rule,
+  which reads the scanner's word helpers.
+- `LGP-V0-026`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) A missing hook fails closed. A
+  declared impact dialect with no registered profile reports `source-analysis-unavailable`; a
+  region dialect with no extractor yields the extraction note "no symbol extractor registered for
+  this dialect; file not scanned". `contextindex.ImplementedDialects` reads the registry for the
+  impact and region kinds, so the LGP-V0-016 conformance test fails when a plugin's hooks are not
+  linked.
+- `LGP-V0-027`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) The web lexer stays in
+  `internal/contextindex`, because the flow, setup and registry readers there share it; core
+  registers it under the TypeScript plugin's declared `module-imports` impact dialects and their
+  region dialects, by rule rather than by name. The contextindex ratchet entries for `kotlin`,
+  `swift`, `ruby`, `typescript`, `rspec` and `minitest` are removed. Behavior is unchanged and every
+  existing test passes unchanged.
+
 ## Failure modes
 
 | Failure | Detection | Outcome |
@@ -181,6 +216,9 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 | A dependency maps to a runner its plugin does not declare | `Validate` (LGP-V0-017) | test fails naming plugin and package |
 | A plugin package starts importing a core package | isolation test (LGP-V0-020) | test fails naming the plugin and import chain |
 | A remaining core literal has no recorded reason | ratchet (LGP-V0-019) | test fails naming the entry |
+| Two plugins register the same dialect hook, or one registers an incomplete hook | `dialect.Register*` (LGP-V0-023) | panic at init naming the dialect |
+| An impact or module dialect declares no rule | `Validate` (LGP-V0-024) | test fails naming plugin and dialect |
+| A declared dialect's plugin hooks are not linked | `ImplementedDialects` (LGP-V0-026) | `source-analysis-unavailable` or an extraction note; conformance test fails |
 
 The ratchet compares exact string literals only, so a name built by concatenation or held in a
 longer literal (`"ruby:rspec:"`) is not counted; it bounds growth, it does not prove absence. A new runner whose name already
@@ -192,8 +230,9 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 - Loading plugins at run time (Go `plugin`, shared objects, a plugin daemon or network discovery):
   registration stays compiled in, keeping the single native-Go binary (invariant 7).
 - Changing the `analyzercap` protocol, any wire format, selection, or runner argv.
-- Moving the dialect algorithm bodies (the Ruby autoload and impact scanners, the web lexer) out of
-  `internal/contextindex` and `internal/testsource`; their remaining literals carry recorded reasons.
+- Moving the web lexer and the Ruby constant-reference rule out of `internal/contextindex`, or the
+  runner readings out of `internal/testsource` (LGP-V0-027); their remaining literals carry
+  recorded reasons.
 - Splitting the multi-language runner family packages (`dynamic`, `native`, `platform`).
 
 ## Acceptance evidence
@@ -209,6 +248,9 @@ appears as a core literal fails the ratchet when it is registered, and the basel
   subtests in `langplugin_test.go`; `TestPluginDialectsImplemented_LGPV0016` in
   `internal/contextindex`; `make plugin-test PLUGIN=ruby` (LGP-V0-021); existing tests passing
   unchanged (LGP-V0-022).
+- `internal/rubydialect/rubydialect_test.go` (`_LGPV0025` tests); `TestManifestsValidate_LGPV0007`
+  and `TestPluginDialectsImplemented_LGPV0016` over the rules and registry (LGP-V0-024, 026); the
+  lowered ratchet (LGP-V0-027); `make plugin-test PLUGIN=ruby` and `PLUGIN=typescript`.
 
 ## Traceability
 
@@ -226,6 +268,11 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-019 | ratchet in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
 | LGP-V0-020, 021 | `langplugin.Dirs`, `tools/plugin-dirs`, `make plugin-test` | `TestPluginIsolation_LGPV0020`, per-plugin subtests |
 | LGP-V0-022 | unchanged behavior | existing tests |
+| LGP-V0-023 | `internal/langplugin/dialect` | `TestPluginIsolation_LGPV0020`, `TestRegistersDeclaredDialects_LGPV0025` |
+| LGP-V0-024 | `decl.Rule`, `langplugin.Validate`, rule switches in `internal/contextindex` | `TestManifestsValidate_LGPV0007`, existing impact tests |
+| LGP-V0-025 | `internal/rubydialect` | `rubydialect_test.go`, existing Ruby impact and symbol tests |
+| LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` |
+| LGP-V0-027 | `contextindex/dialect_hooks.go`, ratchet | `TestCoreNameLiterals_LGPV0009`, existing tests |
 
 ## Boundaries and rollback
 
@@ -240,7 +287,7 @@ it for runners, analyzers and providers.
 
 ## Promotion and later slices
 
-- Move the dialect algorithm bodies into their plugins' packages behind the LGP-V0-016 hooks,
-  lowering the ratchet baseline each time.
+- Move the web lexer into the TypeScript plugin behind the LGP-V0-023 hooks, and the JavaScript and
+  RSpec runner readings out of `internal/testsource`, lowering the ratchet baseline each time.
 - Register the MCJ-V0 Ruby and TypeScript collectors as `coverage` sub-plugins (LGP-V0-013).
 - Promotion to `implemented` needs the slice's tests green in CI; there is no external gate.
