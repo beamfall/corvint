@@ -22,8 +22,24 @@ const root = "../.."
 
 func isDir(t *testing.T, rel string) bool {
 	t.Helper()
+	if strings.TrimSpace(rel) == "" || strings.TrimSpace(rel) != rel {
+		return false // a blank path would resolve to the repository root
+	}
 	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
 	return err == nil && info.IsDir()
+}
+
+// TestIsDirRefusesBlankPaths_LGPV0007 keeps the conformance check from
+// accepting a blank path, which would resolve to the repository root.
+func TestIsDirRefusesBlankPaths_LGPV0007(t *testing.T) {
+	for _, rel := range []string{"", " ", "\t", " internal"} {
+		if isDir(t, rel) {
+			t.Errorf("isDir(%q) = true, want false", rel)
+		}
+	}
+	if !isDir(t, "internal") {
+		t.Error(`isDir("internal") = false, want true`)
+	}
 }
 
 // TestManifestsValidate_LGPV0007 checks every registered manifest's own
@@ -74,6 +90,10 @@ func TestValidateRefusesAnUndeclaredPiece_LGPV0007(t *testing.T) {
 		"unknown piece":                               func(m *langplugin.Manifest) { m.Absent["linter"] = "x" },
 		"owns no path":                                func(m *langplugin.Manifest) { m.Paths = nil },
 		"names no path":                               func(m *langplugin.Manifest) { m.Analyzers[0].Paths = nil },
+		`owned path "" is empty or padded`:            func(m *langplugin.Manifest) { m.Paths = []string{""} },
+		`owned path " " is empty or padded`:           func(m *langplugin.Manifest) { m.Paths = append(m.Paths, " ") },
+		`path "" is empty or padded`:                  func(m *langplugin.Manifest) { m.Analyzers[0].Paths = []string{""} },
+		`path " internal/demo" is empty or padded`:    func(m *langplugin.Manifest) { m.Analyzers[0].Paths = []string{" internal/demo"} },
 		"is empty or padded":                          func(m *langplugin.Manifest) { m.Name = " demo" },
 		"empty runner name":                           func(m *langplugin.Manifest) { m.Runners = append(m.Runners, "") },
 		"unknown dialect kind": func(m *langplugin.Manifest) {
