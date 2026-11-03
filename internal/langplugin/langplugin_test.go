@@ -517,3 +517,20 @@ func TestDeclNamesRegisteredPlugins_LGPV0015(t *testing.T) {
 		}
 	}
 }
+
+// TestDeclDirsMatchManifests_LGPV0021 keeps the provider-free directory table
+// that make plugin-test reads equal to the manifests.
+func TestDeclDirsMatchManifests_LGPV0021(t *testing.T) {
+	var names []string
+	for _, m := range langplugin.All() {
+		names = append(names, m.Name)
+		want, _ := langplugin.Dirs(m.Name)
+		got, ok := decl.Dirs(m.Name)
+		if !ok || strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("%s: decl.Dirs = %v, manifest Dirs = %v", m.Name, got, want)
+		}
+	}
+	if got := strings.Join(decl.Names(), ","); got != strings.Join(names, ",") {
+		t.Errorf("decl.Names = %s, manifests = %s", got, strings.Join(names, ","))
+	}
+}

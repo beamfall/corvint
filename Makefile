@@ -1354,8 +1354,10 @@ test-shard: go-version
 	  HEAVY_WHOLE_REASON='make test-shard $(SHARD) of $(SHARDS) $(PKG)' script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) $(TEST_SHARD_FLAGS) "$$flag" "$$pattern" '$(PKG)'
 
 # plugin-test tests one language plugin and its tooling apart from the rest of Corvint (LGP-V0-021):
-# `go test` over each directory tools/plugin-dirs prints for PLUGIN, then that plugin's langplugin
-# manifest, conformance, dialect and isolation subtests. Example: make plugin-test PLUGIN=ruby.
+# `go test` over each directory tools/plugin-dirs prints for PLUGIN, which reads the provider-free
+# langplugin/decl table and so compiles no other language, then that plugin's langplugin manifest,
+# conformance, dialect and isolation subtests. Only that last step builds the shared registry, and
+# with it every provider. Example: make plugin-test PLUGIN=ruby.
 .PHONY: plugin-test
 plugin-test: go-version
 	@test -n "$(PLUGIN)" || { echo "usage: make plugin-test PLUGIN=ruby" >&2; exit 2; }

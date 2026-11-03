@@ -160,7 +160,9 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   PLUGIN=<name>` tests one language and its tooling apart from the rest of Corvint: it runs
   `go test` over `langplugin.Dirs(name)` only (printed by `go run ./tools/plugin-dirs <name>`, which
   refuses an unknown name) and the langplugin manifest, conformance and isolation subtests for that
-  plugin, each named by the plugin.
+  plugin, each named by the plugin. `tools/plugin-dirs` reads `decl.Dirs`, a provider-free copy of
+  `langplugin.Dirs` that a test keeps equal, so the directory tests compile no other language's
+  provider; only the closing registry subtests build `internal/langplugin` and every provider.
 - `LGP-V0-022`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) Behavior is
   unchanged by LGP-V0-015 to LGP-V0-021: every existing test passes unchanged.
 

@@ -72,6 +72,52 @@ var languages = []Language{
 	},
 }
 
+// pluginDirs lists every registered plugin, in registration order, with its
+// directories: its owned paths and every sub-plugin path, sorted. It repeats
+// langplugin.Dirs so the per-plugin test entry point reads it without
+// compiling any provider (LGP-V0-021); TestDeclDirsMatchManifests_LGPV0021
+// keeps the two equal.
+var pluginDirs = []struct {
+	name string
+	dirs []string
+}{
+	{"cfamily", []string{"cmd/corvint-analyzer-c-jni", "cmd/corvint-analyzer-objective-c", "internal/analyzernativebridge", "internal/liveverify/affected/cfamily"}},
+	{"dotnet", []string{"cmd/corvint-analyzer-dotnet", "internal/analyzerdotnet", "internal/liveverify/affected/dotnet"}},
+	{"go", []string{"cmd/corvint-analyzer-go", "cmd/corvint-go-test-provider", "internal/analyzergo", "internal/gotestrun", "internal/linecov", "internal/liveverify/affected/golang", "internal/liveverify/godiscovery", "internal/liveverify/gorunner", "internal/liveverify/gotest", "internal/liveverify/mutate"}},
+	{"java", []string{"cmd/corvint-analyzer-java", "internal/analyzernativebridge", "internal/liveverify/affected/java"}},
+	{"kotlin", []string{"cmd/corvint-analyzer-kotlin-android", "internal/analyzerkotlinandroid", "internal/liveverify/affected/kotlin"}},
+	{"python", []string{"cmd/corvint-analyzer-python", "internal/analyzerpython", "internal/liveverify/affected/python", "internal/liveverify/pymutate", "internal/liveverify/pyresolve", "internal/pythongrammar", "internal/pythonsyntax"}},
+	{"ruby", []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby", "internal/extmutate", "internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubyprofile", "internal/rubytestprovider"}},
+	{"rust", []string{"cmd/corvint-analyzer-rust", "internal/analyzerrust", "internal/liveverify/affected/rust"}},
+	{"shell", []string{"cmd/corvint-analyzer-shell", "internal/analyzershell", "internal/liveverify/affected/shell"}},
+	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/swiftimpact"}},
+	{"typescript", []string{"cmd/corvint-analyzer-js", "cmd/corvint-js-test-provider", "internal/analyzerjs", "internal/extmutate", "internal/jstestprovider", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve"}},
+	{"sql", []string{"cmd/corvint-analyzer-sql-native"}},
+	{"shader", []string{"cmd/corvint-analyzer-shader", "internal/analyzershader"}},
+	{"html-css", []string{"cmd/corvint-analyzer-html-css", "internal/analyzerhtmlcss"}},
+	{"structured-data", []string{"cmd/corvint-analyzer-structured-data", "internal/analyzerstructured"}},
+}
+
+// Names returns every registered plugin name, in registration order.
+func Names() []string {
+	out := make([]string, 0, len(pluginDirs))
+	for _, p := range pluginDirs {
+		out = append(out, p.name)
+	}
+	return out
+}
+
+// Dirs returns the directories of the plugin named name, and false for an
+// unknown name (LGP-V0-020).
+func Dirs(name string) ([]string, bool) {
+	for _, p := range pluginDirs {
+		if p.name == name {
+			return append([]string(nil), p.dirs...), true
+		}
+	}
+	return nil, false
+}
+
 // Languages returns every declaration, in registration order.
 func Languages() []Language { return append([]Language(nil), languages...) }
 
