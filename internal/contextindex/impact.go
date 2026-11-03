@@ -169,7 +169,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				registryUnknowns[changedPath] = unknowns
 			}
 		}
-		if syntaxFrontier && NonGoImpactLanguage(changedPath) == "ruby" {
+		if syntaxFrontier && constantReferencePath(changedPath) {
 			if rubyConstants == nil {
 				rubyConstants = loadRubyAutoload(index)
 			}

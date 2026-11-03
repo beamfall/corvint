@@ -2,84 +2,43 @@ package contextindex
 
 import (
 	"context"
-	"regexp"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
+	"github.com/Beamfall/corvint/internal/langplugin/dialect"
 )
-
-// rubyPlugin is the language plugin whose dependencies prove a Ruby runner.
-const rubyPlugin = "ruby"
 
 // rubyManifestBound (analyzer_bounds.go) bounds each committed Gemfile,
 // Gemfile.lock or Rakefile read for the Ruby verification command. A larger
 // blob is treated as unreadable: it proves nothing, so the command is withheld
 // unless the other, readable manifest proves it alone (NGI-V0-052, TSA-V0-461).
 
-var (
-	gemfileGemPattern = regexp.MustCompile(`(?m)^[ \t]*gem[ \t(]+['"]([A-Za-z0-9_][A-Za-z0-9_.-]*)['"]`)
-	// A lockfile names a gem as a two-space DEPENDENCIES entry or a four-space
-	// specs entry; deeper lines are a spec's own requirements.
-	gemfileLockGemPattern = regexp.MustCompile(`(?m)^(?:  |    )([A-Za-z0-9_][A-Za-z0-9_.-]*)(?: \([^)\n]*\))?!?\r?$`)
-)
-
-// rubyVerificationCommand names the one repository-wide command that runs a
-// Ruby repository's tests, or "" when the committed tree does not prove one.
-// Every rule needs a tracked root Gemfile, so `bundle exec` never runs where
-// Bundler has nothing to resolve (NGI-V0-027). RSpec additionally needs an
-// rspec gem declared in the root Gemfile or Gemfile.lock (NGI-V0-052); a
-// Minitest repository gets `bin/rails test` or `bundle exec rake test` only
-// when that runner is itself proved (NGI-V0-053). It reads at most three
-// bounded committed blobs and only when the caller has a Ruby path.
-// declaredRunner reports whether gems names a package the Ruby plugin maps to
-// runner (LGP-V0-017).
-func declaredRunner(gems map[string]bool, runner string) bool {
-	for gem, bringsRunner := range decl.DependencyRunners(rubyPlugin) {
-		if bringsRunner == runner && gems[gem] {
-			return true
-		}
-	}
-	return false
-}
-
+// rubyVerificationCommand names the one repository-wide command that runs the
+// tests of the constant-reference impact dialect, or "" when the committed tree
+// does not prove one. The rules live in the dialect's plugin (LGP-V0-025);
+// core supplies only the bounded read-only view of the committed tree. It is
+// called only when the caller has a path of that dialect.
 func rubyVerificationCommand(index *Index) string {
-	if !indexTracks(index, "Gemfile") {
-		return ""
-	}
-	gems := declaredGems(index)
-	switch {
-	case declaredRunner(gems, "rspec") &&
-		(indexTracks(index, ".rspec") || indexTracksUnder(index, "spec/")):
-		return "bundle exec rspec"
-	case (gems["rails"] || gems["railties"]) && indexTracks(index, "bin/rails") && indexTracksUnder(index, "test/"):
-		return "bin/rails test"
-	case declaredRunner(gems, "minitest") && indexTracksUnder(index, "test/") && rakefileDeclaresTestTask(index):
-		return "bundle exec rake test"
+	for _, name := range decl.Dialects(decl.ImpactDialect) {
+		if decl.RuleOf(decl.ImpactDialect, name) != decl.ConstantReferences {
+			continue
+		}
+		if hook, ok := dialect.LookupImpact(name); ok && hook.Verification != nil {
+			return hook.Verification(indexTree{index})
+		}
 	}
 	return ""
 }
 
-// declaredGems is the union of gem names the root Gemfile and Gemfile.lock
-// declare. A manifest that is absent, oversized or unreadable contributes
-// nothing, which can only withhold a command, never invent one.
-func declaredGems(index *Index) map[string]bool {
-	gems := map[string]bool{}
-	if text, ok := committedRootText(index, "Gemfile"); ok {
-		for _, match := range gemfileGemPattern.FindAllStringSubmatch(text, -1) {
-			gems[match[1]] = true
-		}
-	}
-	if text, ok := committedRootText(index, "Gemfile.lock"); ok {
-		for _, match := range gemfileLockGemPattern.FindAllStringSubmatch(text, -1) {
-			gems[match[1]] = true
-		}
-	}
-	return gems
-}
+// indexTree is the dialect.Tree view of an index's committed tree.
+type indexTree struct{ index *Index }
 
-func rakefileDeclaresTestTask(index *Index) bool {
-	text, ok := committedRootText(index, "Rakefile")
-	return ok && (strings.Contains(text, "Rake::TestTask") || strings.Contains(text, "Minitest::TestTask"))
+func (tree indexTree) Tracks(name string) bool { return indexTracks(tree.index, name) }
+
+func (tree indexTree) TracksUnder(prefix string) bool { return indexTracksUnder(tree.index, prefix) }
+
+func (tree indexTree) RootText(name string) (string, bool) {
+	return committedRootText(tree.index, name)
 }
 
 // committedRootText reads a tracked repository-root file's committed bytes at

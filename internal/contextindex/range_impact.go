@@ -1276,7 +1276,7 @@ func rangeRubyAutoload(index *Index, admittedPaths []string, rawResults []map[st
 	unknowns := map[string][]any{}
 	ranked := []rankedResult{}
 	for _, changedPath := range admittedPaths {
-		if NonGoImpactLanguage(changedPath) != "ruby" {
+		if !constantReferencePath(changedPath) {
 			continue
 		}
 		rows, pathUnknowns := autoload.impact(index, changedPath)
