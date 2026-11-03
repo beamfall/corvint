@@ -138,11 +138,11 @@ func TestSpecCapacityCombinedLanes(t *testing.T) {
 		added      string
 	}{
 		{
-			name:       "four-digit ID is indexed but is not an OCM obligation",
+			name:       "four-digit ID is an OCM obligation (OCM-V0-952)",
 			data:       append(bytes.Clone(full), []byte("- `CAPACITY-V0-1000`: (proposed) Four digits.\n")...),
-			count:      256,
+			count:      257,
 			generateOK: false,
-			added:      "(none)",
+			added:      "CAPACITY-V0-1000",
 		},
 		{
 			name: "fenced definitions count and fenced headings do not end the section",

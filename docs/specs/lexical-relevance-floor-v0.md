@@ -387,7 +387,7 @@ condition checked there, which is the whole of what the row asserts.
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `invalid-lrf-request` | `internal/lrf/types.go:126@4a84b6d6` | the `invalid(message)` constructor, returned by request and limit validation in `validate.go` and `evaluate.go` with the failing check as its message (for example "LRF limits must be positive and cannot exceed profile defaults", "obligation identities must be unique", "target revision is invalid") |
-| `invalid-requirement-prefix` | `internal/lrf/terms.go:13@62506c9c` | "requirement line prefix is invalid" when an obligation statement does not begin with ``- `ID`: `` for its own id; validation returns it, while term extraction at the deleted lrf/0 evaluator (V1-2665) treats it as term overflow |
+| `invalid-requirement-prefix` | `internal/lrf/terms.go:15@62506c9c` | "requirement line prefix is invalid" when an obligation statement does not begin with ``- `ID`: `` for its own id; validation returns it, while term extraction at the deleted lrf/0 evaluator (V1-2665) treats it as term overflow |
 | `lrf-operational-failure` | `cmd/corvint/lrf.go:61` | "LRF evaluation was interrupted" when the context is done after `lrfrepo.Evaluate` returns; `emitLRFError` also uses this code for an error that carries none, writing `{"code", "error", "ok": false}` to stderr with exit 2 |
 
 ## Simpler baseline and YAGNI cuts
