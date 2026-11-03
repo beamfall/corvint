@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -45,8 +46,10 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	if o.Parallel < 1 {
 		o.Parallel = 1
 	}
-	flags := "-cover -covermode=atomic -coverpkg=" + o.Module + "/..."
-	env := append(os.Environ(), "GOFLAGS="+flags)
+	// The caller's GOFLAGS (build tags among them) still apply.
+	flags := strings.TrimSpace(os.Getenv("GOFLAGS") + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
+	// Clipped, so each worker's append below copies instead of sharing storage.
+	env := slices.Clip(append(os.Environ(), "GOFLAGS="+flags))
 	type job struct{ pkg, name, bin, dir string }
 	var jobs []job
 	for i, pkg := range o.Packages {

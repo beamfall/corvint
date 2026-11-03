@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"go/ast"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,6 +66,7 @@ func TestDouble(t *testing.T) {
 	"cmd/tool/main.go": `package main
 
 import (
+	"go/ast"
 	"fmt"
 
 	"example.com/m/calc"
@@ -77,6 +79,7 @@ func main() {
 	"e2e/e2e_test.go": `package e2e
 
 import (
+	"go/ast"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -362,21 +365,68 @@ func TestParseDiff(t *testing.T) {
 // A package whose in-order suite run did not pass has unknown order-only
 // blocks, so a change reaching any of its tests keeps it whole (LPCV-V0-962).
 func TestUnorderedPackageRunsWhole(t *testing.T) {
+	// q's suite run did not pass, so a block only its suite order reaches may
+	// have no isolated owner: the change selects nothing of q, yet q runs whole.
 	src := "package p\n\nfunc F() int {\n\tx := 1\n\treturn x\n}\n"
-	rec := Record{Package: "p", Name: "TestF", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:3.14,6.2 2 1\n")}
+	recs := []Record{
+		{Package: "p", Name: "TestF", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:4.2,5.10 2 1\n")},
+		{Package: "q", Name: "TestQ", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:4.2,5.10 2 0\n")},
+	}
 	diff := []FileDiff{{Path: "p/p.go", OldOID: "x", NewOID: "y", Hunks: []Hunk{{4, 4}}}}
 	read := func(string) ([]byte, error) { return []byte(src), nil }
+	heads := map[string][]string{"p": {"TestF"}, "q": {"TestQ", "TestR"}}
 	for _, unordered := range []bool{false, true} {
-		ix, err := Build("example.com/m", "c0", "go test", map[string]string{"p/p.go": "x"}, []Record{rec})
+		ix, err := Build("example.com/m", "c0", "go test", map[string]string{"p/p.go": "x"}, recs)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if unordered {
-			ix.Unordered = []string{"p"}
+			ix.Unordered = []string{"q"}
 		}
-		e := ix.Analyze(diff, read)
-		if e.Fallback != "" || len(e.Tests) != 1 || e.Whole["p"] != unordered {
-			t.Errorf("unordered=%v: effect %+v", unordered, e)
+		plans, reason := ix.Narrow([]string{"p", "q"}, heads, Effect{}, ix.Analyze(diff, read))
+		want := Exclude
+		if unordered {
+			want = Whole
+		}
+		if reason != "" || plans["p"].Mode != Whole || plans["q"].Mode != want {
+			t.Errorf("unordered=%v: plans %+v reason %q", unordered, plans, reason)
+		}
+	}
+}
+
+func TestSameLineCaseConditionKeepsFunction(t *testing.T) {
+	// The case condition shares line 5 with its body's block but lies outside
+	// it: editing it can change the result of every test reaching the switch.
+	src := "package p\n\nfunc F(n int) string {\n\tswitch {\n\tcase n < 0: return \"neg\"\n\t}\n\treturn \"pos\"\n}\n"
+	profile := func(neg bool) []byte {
+		n := "0"
+		if neg {
+			n = "1"
+		}
+		return []byte("mode: atomic\nexample.com/m/p/p.go:4.2,4.9 1 1\nexample.com/m/p/p.go:5.14,5.26 1 " + n + "\nexample.com/m/p/p.go:7.2,7.14 1 1\n")
+	}
+	recs := []Record{{Package: "p", Name: "TestNeg", Profile: profile(true)}, {Package: "p", Name: "TestZero", Profile: profile(false)}}
+	ix, err := Build("example.com/m", "c0", "go test", map[string]string{"p/p.go": "x"}, recs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(string) ([]byte, error) { return []byte(src), nil }
+	e := ix.Analyze([]FileDiff{{Path: "p/p.go", OldOID: "x", NewOID: "y", Hunks: []Hunk{{5, 5}}}}, read)
+	if e.Fallback != "" || len(e.Tests) != 2 {
+		t.Fatalf("case line: effect %+v, want both tests", e)
+	}
+	// A comment after the return is no code: line 7 keeps only its block's tests,
+	// which both are; the distinct columns keep the two line-5 tests apart.
+	if got := ix.Files[0].Blocks; len(got) != 3 || got[1].StartCol != 14 || len(got[1].Tests) != 1 {
+		t.Fatalf("blocks %+v", got)
+	}
+}
+
+func TestHelperNamedLikeATestIsAHelper(t *testing.T) {
+	for name, want := range map[string]bool{"TestX": true, "Test_x": true, "Test": true, "Testhelper": false, "Examplefoo": false, "FuzzY": true, "TestMain": false} {
+		fn := &ast.FuncDecl{Name: ast.NewIdent(name)}
+		if _, ok := topLevelTest(fn); ok != want {
+			t.Errorf("%s: top-level %v, want %v", name, ok, want)
 		}
 	}
 }

@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"path"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Hunk is the base-side line span one diff hunk replaces. A pure insertion
@@ -75,6 +78,10 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 		if err != nil {
 			return fail("unparsable %s", d.Path)
 		}
+		var code []span
+		if !test {
+			code = codeTokens(src)
+		}
 		for _, h := range d.Hunks {
 			lo, hi := h.Start, h.End
 			insert := hi < lo
@@ -97,28 +104,50 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 					e.Whole[pkg] = true // TestMain, init or a helper
 				}
 			default:
-				ix.selectLines(file, fset, fn, lo, hi, e.Tests)
+				ix.selectLines(file, code, fset, fn, lo, hi, e.Tests)
 			}
 		}
 	}
-	unordered := map[string]bool{}
-	for _, pkg := range ix.Unordered {
-		unordered[pkg] = true
-	}
 	for id := range e.Tests {
-		if t := ix.Tests[id]; t.Name == InOrder || unordered[t.Package] {
+		if t := ix.Tests[id]; t.Name == InOrder {
 			e.Whole[t.Package] = true
 		}
 	}
 	return e
 }
 
-// selectLines adds the tests that executed a block touching [lo, hi]. A line
-// of the span inside no block (a case expression, an else-if condition, a
-// comment) adds every test that executed a block of the enclosing function,
-// since running that line requires entering the function.
-func (ix *Index) selectLines(f *File, fset *token.FileSet, fn *ast.FuncDecl, lo, hi int, out map[int32]bool) {
-	covered := make([]bool, hi-lo+1)
+// span is one source token: where it starts and the line it ends on.
+type span struct{ line, col, endLine int32 }
+
+// codeTokens lists src's tokens that are code: not a comment, brace or
+// semicolon, which no coverage block needs to hold.
+func codeTokens(src []byte) []span {
+	fset := token.NewFileSet()
+	tf := fset.AddFile("", -1, len(src))
+	var sc scanner.Scanner
+	sc.Init(tf, src, nil, scanner.ScanComments)
+	var out []span
+	for {
+		pos, tok, lit := sc.Scan()
+		if tok == token.EOF {
+			return out
+		}
+		switch tok {
+		case token.COMMENT, token.LBRACE, token.RBRACE, token.SEMICOLON:
+			continue
+		}
+		p := tf.Position(pos)
+		out = append(out, span{int32(p.Line), int32(p.Column), int32(p.Line + strings.Count(lit, "\n"))})
+	}
+}
+
+// selectLines adds the tests that executed a block touching [lo, hi]. A code
+// token of the span inside no block (a case expression, an else, a
+// declaration a block does not hold) adds every test that executed a block of
+// the enclosing function, since running it requires entering the function.
+// The check is by column: a block sharing a line with such a token does not
+// cover it (LPCV-V0-952).
+func (ix *Index) selectLines(f *File, code []span, fset *token.FileSet, fn *ast.FuncDecl, lo, hi int, out map[int32]bool) {
 	for _, b := range f.Blocks {
 		if int(b.Start) > hi {
 			break
@@ -129,12 +158,9 @@ func (ix *Index) selectLines(f *File, fset *token.FileSet, fn *ast.FuncDecl, lo,
 		for _, t := range b.Tests {
 			out[t] = true
 		}
-		for l := max(lo, int(b.Start)); l <= min(hi, int(b.End)); l++ {
-			covered[l-lo] = true
-		}
 	}
-	for _, c := range covered {
-		if c {
+	for _, c := range code {
+		if int(c.endLine) < lo || int(c.line) > hi || f.covers(c.line, c.col) {
 			continue
 		}
 		first, last := fset.Position(fn.Pos()).Line, fset.Position(fn.End()).Line
@@ -147,6 +173,21 @@ func (ix *Index) selectLines(f *File, fset *token.FileSet, fn *ast.FuncDecl, lo,
 		}
 		return
 	}
+}
+
+// covers reports whether a block holds the byte at line, col.
+func (f *File) covers(line, col int32) bool {
+	for _, b := range f.Blocks {
+		if b.Start > line {
+			return false
+		}
+		after := line > b.Start || col >= b.StartCol
+		before := line < b.End || line == b.End && col < b.EndCol
+		if after && before {
+			return true
+		}
+	}
+	return false
 }
 
 // enclosingFunc returns the function whose body strictly contains [lo, hi]; a
@@ -180,9 +221,13 @@ func topLevelTest(fn *ast.FuncDecl) (string, bool) {
 		return "", false
 	}
 	for _, prefix := range []string{"Test", "Example", "Fuzz"} {
-		if strings.HasPrefix(name, prefix) {
-			return name, true
+		rest, ok := strings.CutPrefix(name, prefix)
+		if !ok {
+			continue
 		}
+		// As go test: TestX and Test_x run, Testhelper does not.
+		r, _ := utf8.DecodeRuneInString(rest)
+		return name, rest == "" || !unicode.IsLower(r)
 	}
 	return "", false
 }
@@ -217,8 +262,14 @@ func (ix *Index) Narrow(static []string, headTests map[string][]string, drift, c
 	} else {
 		reason = change.Fallback
 	}
+	unordered := map[string]bool{}
+	for _, pkg := range ix.Unordered {
+		unordered[pkg] = true
+	}
 	for _, pkg := range static {
-		if reason != "" || drift.Whole[pkg] || change.Whole[pkg] {
+		// An unordered package's order-only blocks may have no isolated owner,
+		// so no selected test reveals that a change reaches them (LPCV-V0-962).
+		if reason != "" || drift.Whole[pkg] || change.Whole[pkg] || unordered[pkg] {
 			plans[pkg] = PackagePlan{Mode: Whole}
 			continue
 		}

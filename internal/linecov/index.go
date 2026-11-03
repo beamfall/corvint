@@ -19,7 +19,7 @@ import (
 )
 
 // Format names the index encoding; a reader refuses any other (LPCV-V0-951).
-const Format = "linecov-index/1"
+const Format = "linecov-index/2"
 
 // Index is the immutable union of per-test records collected at one commit
 // (LPCV-V0-950, LPCV-V0-956, LPCV-V0-958).
@@ -52,13 +52,16 @@ type Test struct {
 type File struct {
 	Path   string // module-relative, slash-separated
 	OID    string
-	Blocks []Block // sorted by Start, End
+	Blocks []Block // sorted by Start, StartCol, End, EndCol
 }
 
-// Block is one coverage block's line span and the tests that executed it.
+// Block is one coverage block's span and the tests that executed it. Columns
+// are 1-based byte offsets; EndCol is exclusive, as in a cover profile, so two
+// blocks sharing a line stay distinct and a line part outside every block is
+// visible (LPCV-V0-952).
 type Block struct {
-	Start, End int32
-	Tests      []int32 // indexes into Index.Tests, ascending
+	Start, StartCol, End, EndCol int32
+	Tests                        []int32 // indexes into Index.Tests, ascending
 }
 
 // Record is one passing run of one top-level test: its `go tool covdata
@@ -76,13 +79,13 @@ type Record struct {
 // (LPCV-V0-962).
 const InOrder = "(in-order)"
 
-var profileLine = regexp.MustCompile(`^(.+\.go):(\d+)\.\d+,(\d+)\.\d+ \d+ (\d+)$`)
+var profileLine = regexp.MustCompile(`^(.+\.go):(\d+)\.(\d+),(\d+)\.(\d+) \d+ (\d+)$`)
 
 // Build unions records into an index. oids maps every module-relative path at
 // commit to its blob OID; a profiled file absent from it refuses the build,
 // since its blocks could not be bound to immutable content.
 func Build(module, commit, runner string, oids map[string]string, records []Record) (*Index, error) {
-	type key struct{ start, end int32 }
+	type key struct{ start, startCol, end, endCol int32 }
 	type hit struct {
 		path string
 		k    key
@@ -106,12 +109,15 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			if path == m[1] {
 				continue // outside the module: not instrumented here
 			}
-			s, err1 := strconv.Atoi(m[2])
-			e, err2 := strconv.Atoi(m[3])
-			if err1 != nil || err2 != nil {
-				return nil, fmt.Errorf("linecov: malformed block %q", line)
+			var span [4]int32
+			for j := range span {
+				n, err := strconv.Atoi(m[2+j])
+				if err != nil {
+					return nil, fmt.Errorf("linecov: malformed block %q", line)
+				}
+				span[j] = int32(n)
 			}
-			h := hit{path, key{int32(s), int32(e)}, m[4] != "0"}
+			h := hit{path, key{span[0], span[1], span[2], span[3]}, m[6] != "0"}
 			hits[i] = append(hits[i], h)
 			if h.ran && r.Name != InOrder {
 				if isolated[r.Package] == nil {
@@ -176,7 +182,7 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 		}
 		f := File{Path: p, OID: oid}
 		for k, set := range files[p] {
-			b := Block{Start: k.start, End: k.end}
+			b := Block{Start: k.start, StartCol: k.startCol, End: k.end, EndCol: k.endCol}
 			for n := range set {
 				b.Tests = append(b.Tests, ids[n])
 			}
@@ -185,7 +191,16 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 		}
 		sort.Slice(f.Blocks, func(i, j int) bool {
 			a, b := f.Blocks[i], f.Blocks[j]
-			return a.Start < b.Start || a.Start == b.Start && a.End < b.End
+			if a.Start != b.Start {
+				return a.Start < b.Start
+			}
+			if a.StartCol != b.StartCol {
+				return a.StartCol < b.StartCol
+			}
+			if a.End != b.End {
+				return a.End < b.End
+			}
+			return a.EndCol < b.EndCol
 		})
 		ix.Files = append(ix.Files, f)
 	}

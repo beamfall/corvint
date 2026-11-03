@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -60,7 +59,8 @@ type Source struct {
 
 var requirementID = regexp.MustCompile(`\b[A-Z][A-Z0-9]*-V\d+-\d+\b`)
 
-// TestSources reads every top-level test declared in dir under root.
+// TestSources reads every top-level test declared in dir under root, under
+// any build constraint, as HeadTests lists them.
 func TestSources(root, dir string) (map[string]Source, error) {
 	full := filepath.Join(root, filepath.FromSlash(dir))
 	entries, err := os.ReadDir(full)
@@ -71,9 +71,6 @@ func TestSources(root, dir string) (map[string]Source, error) {
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		if ok, err := build.Default.MatchFile(full, name); err != nil || !ok {
 			continue
 		}
 		fset := token.NewFileSet()
