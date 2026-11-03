@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"path"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/langplugin"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/liveverify/pymutate"
 	"github.com/Beamfall/corvint/internal/liveverify/rbmutate"
@@ -17,18 +17,10 @@ func mutationTestPath(test string) bool {
 	return strings.HasSuffix(test, "_test.go") || pymutate.TestFile(test) || rbmutate.TestFile(test)
 }
 
-// mutationLanguage names the runner a path belongs to, by suffix; a path
-// neither runner mutates has no language.
+// mutationLanguage names the plugin whose mutation engine mutates a path, by
+// suffix (LGP-V0-018); a path no engine mutates has no language.
 func mutationLanguage(relative string) string {
-	switch path.Ext(relative) {
-	case ".go":
-		return "go"
-	case ".py":
-		return "python"
-	case ".rb":
-		return "ruby"
-	}
-	return ""
+	return langplugin.MutationLanguage(relative)
 }
 
 // mutationClaim reports whether test may claim to cover changed under

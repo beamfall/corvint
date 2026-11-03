@@ -451,6 +451,7 @@
     ],
     "internal/langplugin": [
       "cmd/",
+      "go.mod",
       "internal/"
     ],
     "internal/liveverify/affected/cfamily": [],

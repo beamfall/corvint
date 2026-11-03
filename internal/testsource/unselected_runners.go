@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/langplugin"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 )
 
@@ -66,6 +67,23 @@ type SelectionRunner struct {
 	excludeHidden []func(string) bool
 }
 
+func splitRunnerPackages(deps map[string]string, undeclared ...string) (map[string]string, map[string]bool) {
+	modelled := map[string]string{}
+	unmodelled := map[string]bool{}
+	for pkg, runner := range deps {
+		switch runner {
+		case RunnerJest, RunnerVitest, RunnerPlaywright, RunnerMocha:
+			modelled[pkg] = runner
+		default:
+			unmodelled[pkg] = true
+		}
+	}
+	for _, pkg := range undeclared {
+		unmodelled[pkg] = true
+	}
+	return modelled, unmodelled
+}
+
 // SelectionProject is one Playwright project's selection: its directory and the include and
 // exclude patterns it applies (TSA-V0-653).
 type SelectionProject struct {
@@ -75,10 +93,13 @@ type SelectionProject struct {
 }
 
 var (
-	runnerPackages = map[string]string{"jest": RunnerJest, "vitest": RunnerVitest, "@playwright/test": RunnerPlaywright, "mocha": RunnerMocha}
-	// unmodelledRunnerPackages are runners whose selection this reading does not model.
-	unmodelledRunnerPackages = map[string]bool{"cypress": true, "karma": true, "jasmine": true, "ava": true, "@web/test-runner": true,
-		"@wdio/cli": true, "tap": true, "uvu": true, "@japa/runner": true, "@storybook/test-runner": true, "testcafe": true}
+	// runnerPackages and unmodelledRunnerPackages split the npm packages the
+	// TypeScript plugin maps to a runner (LGP-V0-017): the modelled runners, and
+	// those whose selection this reading does not model, plus packages of
+	// runners no plugin declares.
+	runnerPackages, unmodelledRunnerPackages = splitRunnerPackages(
+		langplugin.DependencyRunners(typescript.Language{}.Name()),
+		"karma", "@web/test-runner", "tap", "uvu", "@japa/runner")
 	unmodelledConfigStems = map[string]bool{"cypress.config": true, "karma.conf": true, "wdio.conf": true, "ava.config": true,
 		"web-test-runner.config": true, "vitest.workspace": true, "vitest.projects": true, ".testcaferc": true}
 	configExtensions = map[string]bool{".js": true, ".ts": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true, ".json": true}

@@ -4,7 +4,12 @@ import (
 	"context"
 	"regexp"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/langplugin"
 )
+
+// rubyPlugin is the language plugin whose dependencies prove a Ruby runner.
+const rubyPlugin = "ruby"
 
 // rubyManifestBound (analyzer_bounds.go) bounds each committed Gemfile,
 // Gemfile.lock or Rakefile read for the Ruby verification command. A larger
@@ -26,18 +31,29 @@ var (
 // Minitest repository gets `bin/rails test` or `bundle exec rake test` only
 // when that runner is itself proved (NGI-V0-053). It reads at most three
 // bounded committed blobs and only when the caller has a Ruby path.
+// declaredRunner reports whether gems names a package the Ruby plugin maps to
+// runner (LGP-V0-017).
+func declaredRunner(gems map[string]bool, runner string) bool {
+	for gem, bringsRunner := range langplugin.DependencyRunners(rubyPlugin) {
+		if bringsRunner == runner && gems[gem] {
+			return true
+		}
+	}
+	return false
+}
+
 func rubyVerificationCommand(index *Index) string {
 	if !indexTracks(index, "Gemfile") {
 		return ""
 	}
 	gems := declaredGems(index)
 	switch {
-	case (gems["rspec"] || gems["rspec-core"] || gems["rspec-rails"]) &&
+	case declaredRunner(gems, "rspec") &&
 		(indexTracks(index, ".rspec") || indexTracksUnder(index, "spec/")):
 		return "bundle exec rspec"
 	case (gems["rails"] || gems["railties"]) && indexTracks(index, "bin/rails") && indexTracksUnder(index, "test/"):
 		return "bin/rails test"
-	case gems["minitest"] && indexTracksUnder(index, "test/") && rakefileDeclaresTestTask(index):
+	case declaredRunner(gems, "minitest") && indexTracksUnder(index, "test/") && rakefileDeclaresTestTask(index):
 		return "bundle exec rake test"
 	}
 	return ""
