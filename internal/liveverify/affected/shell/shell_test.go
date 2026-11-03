@@ -20,10 +20,46 @@ func TestOwnsOnlyShellSuffixes_NSAV0006(t *testing.T) {
 			t.Fatalf("%s should be owned", relative)
 		}
 	}
-	for _, relative := range []string{"script/release", "a.shx", "a.py", "a.fish", "Makefile", "a.sh.txt"} {
+	// An extensionless file directly under bin/, script/ or scripts/ is owned
+	// since AFP-V0-2205 (amending NSA-V0-006); one anywhere else, one nested
+	// deeper and a dotted name are not.
+	for _, relative := range []string{"script/release", "bin/tool", "scripts/run"} {
+		if !language.Owns(relative) {
+			t.Fatalf("%s should be owned (AFP-V0-2205)", relative)
+		}
+	}
+	for _, relative := range []string{"lib/release", "script/sub/release", "script/a.py", "a.shx", "a.py", "a.fish", "Makefile", "a.sh.txt"} {
 		if language.Owns(relative) {
 			t.Fatalf("%s must not be owned", relative)
 		}
+	}
+}
+
+// AFP-V0-2205 (V1-4278): an extensionless script/ executable whose first line
+// is a shell shebang is a unit, so its callers link to it and its test is
+// selected by edge; one with another interpreter gets no unit and stays an
+// owned, unindexed path.
+func TestExtensionlessShellExecutablesAreUnits_AFPV02205(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "script/gate", "#!/usr/bin/env bash\nset -eu\necho gate\n")
+	write(t, root, "script/plain", "#!/bin/sh\necho plain\n")
+	write(t, root, "script/tool", "#!/usr/bin/env python3\nprint(1)\n")
+	write(t, root, "script/gate_test.sh", "#!/usr/bin/env bash\nbash script/gate\n")
+	got := units(t, root)
+	ids := map[string]affected.Unit{}
+	for _, unit := range got.Units {
+		ids[unit.ID] = unit
+	}
+	for _, id := range []string{"shell:script/gate", "shell:script/plain", "shell:script/gate_test.sh"} {
+		if _, ok := ids[id]; !ok {
+			t.Fatalf("%s is no unit; units %v", id, got.Units)
+		}
+	}
+	if _, ok := ids["shell:script/tool"]; ok {
+		t.Fatal("a python3 script is a shell unit")
+	}
+	if test := ids["shell:script/gate_test.sh"]; !slices.Contains(test.Imports, "shell:script/gate") {
+		t.Fatalf("gate_test.sh imports %v, want shell:script/gate", test.Imports)
 	}
 }
 
@@ -315,7 +351,9 @@ func TestWriteOnlyWordsAreNoPathTokens_NSAV0016(t *testing.T) {
 	}
 	write(t, root, "lib/narrow_test.sh", strings.Join([]string{
 		"#!/usr/bin/env bash",
-		"h=$(mktemp -d)",
+		// h is handed in, not made by mktemp, so its literal paths stay
+		// tokens (a mktemp root drops them, AFP-V0-2204).
+		"h=${OUT_DIR:?}",
 		"mkdir -p \"$h/script\" \"$h/out\"",
 		"cp \"$(git rev-parse --show-toplevel)/script/a.sh\" \"$h/script/\"",
 		"mv \"$h/script/a.sh\" \"$h/renamed.sh\"",
@@ -738,6 +776,43 @@ func TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004(t *testing.T) {
 	for name := range negatives {
 		if unit := unitOf(t, result, name); unit.UnboundedReads != UnboundedDynamicSource || !unit.LocatesRoot {
 			t.Errorf("%s is not a dynamic source: %+v", name, unit)
+		}
+	}
+}
+
+// AFP-V0-2204 (V1-4173): a literal path below a once-assigned mktemp root
+// names no repository file, so it adds no token; a file that can fill such a
+// directory with repository files a token does not name (a recursive copy,
+// an archive, a worktree, a link) keeps every token, and so does a root whose
+// assignment is conditional or follows a use that could read the
+// environment's value.
+func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
+	root := t.TempDir()
+	cases := []struct {
+		name, body string
+		kept       bool
+	}{
+		{"plain", "tmp=$(mktemp -d)\nrepo=\"$tmp/repo\"\ncat \"$repo/internal/x/y.json\"\n", false},
+		{"recursive", "tmp=$(mktemp -d)\ncp -r internal \"$tmp/\"\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"tree", "tmp=$(mktemp -d)\ncp -R . \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"archive", "tmp=$(mktemp -d)\ngit archive HEAD | tar -x -C \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"worktree", "tmp=$(mktemp -d)\ngit worktree add \"$tmp/wt\" HEAD\ncat \"$tmp/wt/internal/x/y.json\"\n", true},
+		{"link", "tmp=$(mktemp -d)\nln -s \"$PWD\" \"$tmp/r\"\ncat \"$tmp/r/internal/x/y.json\"\n", true},
+		{"conditional", "[ -n \"${tmp-}\" ] || tmp=$(mktemp -d)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"used first", "cat \"$tmp/internal/x/y.json\"\ntmp=$(mktemp -d)\n", true},
+	}
+	for _, tc := range cases {
+		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)
+	}
+	got := units(t, root)
+	for _, tc := range cases {
+		unit := unitOf(t, got, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh")
+		kept := false
+		for _, token := range unit.PathTokens {
+			kept = kept || strings.HasSuffix(token, "internal/x/y.json")
+		}
+		if kept != tc.kept {
+			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
 		}
 	}
 }

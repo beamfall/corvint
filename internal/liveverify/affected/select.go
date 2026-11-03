@@ -136,12 +136,18 @@ type Unknown struct {
 // Plan is the selection result: what to verify, what was deliberately left out
 // and why, and what could not be justified at all.
 type Plan struct {
-	GraphDigest string      `json:"graphDigest"`
-	Dirty       []string    `json:"dirty"`
-	Scope       string      `json:"scope"`
-	Selected    []Selection `json:"selected"`
-	Excluded    []Exclusion `json:"excluded"`
-	Unknown     []Unknown   `json:"unknown"`
+	GraphDigest string   `json:"graphDigest"`
+	Dirty       []string `json:"dirty"`
+	// Deleted names, in Dirty order, each dirty path absent from the tree
+	// the graph was observed from: a file the change deletes or renames
+	// away (AFP-V0-2206). The caller fills it; it is omitted when no dirty
+	// path is absent and in a sparse checkout, where an absent path may lie
+	// outside the cone (AFP-V0-821).
+	Deleted  []string    `json:"deleted,omitempty"`
+	Scope    string      `json:"scope"`
+	Selected []Selection `json:"selected"`
+	Excluded []Exclusion `json:"excluded"`
+	Unknown  []Unknown   `json:"unknown"`
 	// NonSource names the dirty paths classified as task state (AFP-V0-088),
 	// declared documentation (AFP-V0-160) or declared runtime-readers data
 	// (AFP-V0-602), not source: the TASK_STORE_PROJECTION group first, then
@@ -394,6 +400,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	mergeWitnesses(reached, enclosing)
 	graph.execUsersOf(reached, built)
+	graph.importGraphReadersOf(reached, normalized)
 	narrowed, reads = graph.readers(reached, normalized)
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
 	graph.unboundedReadersOf(reached, unbounded)
@@ -968,14 +975,14 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 
 // terminalWitness reports whether a reached unit is a selection the traversal
 // does not continue from (AFP-V0-560): a literal or glob reader (AFP-V0-021,
-// AFP-V0-401), a declared read scope (AFP-V0-023) or a binary-exec runner
-// (AFP-V0-037). The caller still counts one that testlessReaderUsers traversed
+// AFP-V0-401), a declared read scope (AFP-V0-023), a binary-exec runner
+// (AFP-V0-037) or an import-graph reader (AFP-V0-2201). The caller still counts one that testlessReaderUsers traversed
 // (AFP-V0-495). An unbounded reader is no terminal selection: the unbounded set
 // is the traversal closure of the root locators (unboundedReaders), so a hidden
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader:
 		return true
 	}
 	return false
