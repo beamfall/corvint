@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -1397,7 +1398,7 @@ if [ "$2" = "-X" ]; then echo "$4" >> "$FAKE/deleted"; exit 0; fi
 while [ $# -gt 0 ]; do [ "$1" = "--jq" ] && { jq -r "$2" "$FAKE/caches.json"; exit; }; shift; done
 exit 1
 `
-	if err := os.WriteFile(filepath.Join(dir, "gh"), []byte(gh), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "gh"), []byte(gh), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command("sh", "-ec", step)
