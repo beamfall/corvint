@@ -5,12 +5,16 @@
 //	linecov select  -root R -index INDEX -base SHA [-static a,b]
 //	linecov qualify -root R -index INDEX -packages a,b [-mutants N] [-seed S]
 //	linecov redundancy -root R -index INDEX [-packages a,b] [-low-unique N]
+//	linecov merge -out INDEX PART...
+//	linecov ci -root R -index INDEX -base SHA -packages FILE -slices FILE -out DIR
 //
 // collect needs a clean checkout; the index is bound to its HEAD. select reads
 // the change base..HEAD of a checkout at the change head and prints one JSON
 // plan: a non-empty reason means every static package runs whole. redundancy
 // reads a checkout at the index commit and prints the tests whose coverage
-// other tests repeat, as candidates for review (LPCV-V0-964).
+// other tests repeat, as candidates for review (LPCV-V0-964). merge unions
+// indexes a sharded collection wrote. ci narrows one CI shard's whole packages
+// to the tests the change can reach and leaves its slices as they are.
 package main
 
 import (
@@ -38,7 +42,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: linecov collect|select|qualify|redundancy [flags]")
+		fmt.Fprintln(os.Stderr, "usage: linecov collect|select|qualify|redundancy|merge|ci [flags]")
 		os.Exit(2)
 	}
 	var err error
@@ -51,6 +55,10 @@ func main() {
 		err = qualify(os.Args[2:])
 	case "redundancy":
 		err = redundancy(os.Args[2:])
+	case "merge":
+		err = merge(os.Args[2:])
+	case "ci":
+		err = ci(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
@@ -751,4 +759,170 @@ func knownRequirements(file string) (map[string]bool, error) {
 		}
 	}
 	return known, nil
+}
+
+func readIndex(file string) (*linecov.Index, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return linecov.Decode(f)
+}
+
+func writeIndex(file string, ix *linecov.Index) error {
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	if err = ix.Encode(f); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// merge unions the indexes a sharded collection wrote at one commit.
+func merge(args []string) error {
+	fs := flag.NewFlagSet("merge", flag.ExitOnError)
+	out := fs.String("out", "", "index file to write")
+	fs.Parse(args)
+	if *out == "" || fs.NArg() == 0 {
+		return errors.New("merge: -out and at least one part are required")
+	}
+	var parts []*linecov.Index
+	for _, file := range fs.Args() {
+		ix, err := readIndex(file)
+		if err != nil {
+			return fmt.Errorf("merge: %s: %w", file, err)
+		}
+		parts = append(parts, ix)
+	}
+	ix, err := linecov.Merge(parts...)
+	if err != nil {
+		return err
+	}
+	return writeIndex(*out, ix)
+}
+
+// ci narrows one CI shard. packages lists the import paths it runs whole and
+// slices its "FLAG PATTERN IMPORTPATH" invocations of split packages. Each
+// whole package becomes whole, a -run slice of the tests the change can
+// reach, a "-run ^$" compile-only slice, or nothing; slices pass through, so
+// a split package keeps its slice. A plan with a reason writes both lists
+// unchanged. out receives packages, slices and plan.json.
+func ci(args []string) error {
+	fs := flag.NewFlagSet("ci", flag.ExitOnError)
+	root := fs.String("root", ".", "checkout at the tested commit")
+	index := fs.String("index", "", "index file")
+	base := fs.String("base", "", "change base commit")
+	pkgFile := fs.String("packages", "", "file of whole-package import paths")
+	sliceFile := fs.String("slices", "", "file of FLAG PATTERN IMPORTPATH slices")
+	out := fs.String("out", "", "output directory")
+	fs.Parse(args)
+	if *index == "" || *base == "" || *pkgFile == "" || *sliceFile == "" || *out == "" {
+		return errors.New("ci: -index, -base, -packages, -slices and -out are required")
+	}
+	whole, err := lines(*pkgFile)
+	if err != nil {
+		return err
+	}
+	slices, err := lines(*sliceFile)
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	ix, err := readIndex(*index)
+	if err != nil {
+		return err
+	}
+	module, err := modulePath(*root)
+	if err != nil {
+		return err
+	}
+	split := map[string]bool{}
+	for _, s := range slices {
+		if f := strings.Fields(s); len(f) == 3 {
+			split[f[2]] = true
+		} else {
+			return fmt.Errorf("ci: malformed slice %q", s)
+		}
+	}
+	var dirs []string
+	for _, p := range whole {
+		switch {
+		case split[p]:
+		case p == module:
+			dirs = append(dirs, ".")
+		case strings.HasPrefix(p, module+"/"):
+			dirs = append(dirs, strings.TrimPrefix(p, module+"/"))
+		}
+	}
+	if dirs == nil {
+		dirs = []string{} // an empty static plan, not every package
+	}
+	p, err := decide(context.Background(), *root, ix, *base, dirs)
+	if err != nil {
+		return err
+	}
+	p.ElapsedMS = time.Since(start).Milliseconds()
+	keepWhole, keepSlices := whole, slices
+	if p.Reason == "" {
+		keepWhole, keepSlices = nil, nil
+		for _, pkg := range whole {
+			d := strings.TrimPrefix(strings.TrimPrefix(pkg, module), "/")
+			if d == "" {
+				d = "."
+			}
+			pp, ok := p.Packages[d]
+			switch {
+			case split[pkg] || !ok || pp.Mode == linecov.Whole:
+				keepWhole = append(keepWhole, pkg)
+			case pp.Mode == linecov.Tests:
+				keepSlices = append(keepSlices, "-run ^("+strings.Join(pp.Tests, "|")+")$ "+pkg)
+			case pp.Mode == linecov.Compile:
+				keepSlices = append(keepSlices, "-run ^$ "+pkg)
+			}
+		}
+		keepSlices = append(keepSlices, slices...)
+	}
+	if err := os.MkdirAll(*out, 0o755); err != nil {
+		return err
+	}
+	plan, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return err
+	}
+	for name, body := range map[string]string{
+		"packages":  joinLines(keepWhole),
+		"slices":    joinLines(keepSlices),
+		"plan.json": string(plan) + "\n",
+	} {
+		if err := os.WriteFile(filepath.Join(*out, name), []byte(body), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// lines reads file's non-empty lines.
+func lines(file string) ([]string, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, l := range strings.Split(string(data), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+		}
+	}
+	return out, nil
+}
+
+func joinLines(list []string) string {
+	if len(list) == 0 {
+		return ""
+	}
+	return strings.Join(list, "\n") + "\n"
 }
