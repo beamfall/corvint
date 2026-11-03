@@ -5923,6 +5923,7 @@ OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane au
 OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)	standing	V1-2083
 OCM-V0-950	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3455;	standing	2026-11-01; V1-3455
 OCM-V0-951	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-0585)	standing	2026-11-01; V1-0585
+OCM-V0-952	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-03); V1-4347;	standing	2026-11-03; V1-4347
 OCM-V0-940	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-0585) `ocm link` has an	standing	V1-0585
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-

@@ -32,7 +32,9 @@ const (
 )
 
 var (
-	requirementID = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}$`)
+	// requirementID is the OCM-V0-001 ID grammar; OCM-V0-952 widens the number
+	// to three or more digits, as script/gen-spec-requirements.sh defines IDs.
+	requirementID = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}$`)
 	claimID       = regexp.MustCompile(`^claim:sha256:[0-9a-f]{64}$`)
 	hunkID        = regexp.MustCompile(`^hunk:sha256:[0-9a-f]{64}$`)
 	unknownReason = map[string]bool{
