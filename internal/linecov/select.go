@@ -33,6 +33,10 @@ type Effect struct {
 	Tests    map[int32]bool
 	Whole    map[string]bool // package directories every test of which runs
 	Touched  map[string]bool // package directories with a changed Go file
+	// Blocks holds every block whose tests Tests gained by line, the join's
+	// input (MCJ-V0-004). Direct holds the tests whose own source changed.
+	Blocks map[BlockRef]bool
+	Direct map[int32]bool
 }
 
 // Analyze maps a diff to its effect. read returns a file's content on the
@@ -40,7 +44,7 @@ type Effect struct {
 // file whose old blob the index recorded is mapped by line; anything else is
 // a fallback or, for a test file, the whole package.
 func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error)) Effect {
-	e := Effect{Tests: map[int32]bool{}, Whole: map[string]bool{}, Touched: map[string]bool{}}
+	e := Effect{Tests: map[int32]bool{}, Whole: map[string]bool{}, Touched: map[string]bool{}, Blocks: map[BlockRef]bool{}, Direct: map[int32]bool{}}
 	fail := func(format string, args ...any) Effect {
 		return Effect{Fallback: fmt.Sprintf(format, args...)}
 	}
@@ -59,12 +63,13 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 			return fail("added or deleted file %s", d.Path)
 		}
 		var file *File
+		fileIdx := -1
 		if !test {
 			i, ok := ix.byPath[d.Path]
 			if !ok {
 				return fail("uninstrumented file %s", d.Path)
 			}
-			file = &ix.Files[i]
+			file, fileIdx = &ix.Files[i], i
 			if file.OID != d.OldOID {
 				return fail("index records %s at another blob", d.Path)
 			}
@@ -98,13 +103,14 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 				if name, ok := topLevelTest(fn); ok {
 					if id, ok := ix.byName[pkg+"\x00"+name]; ok {
 						e.Tests[id] = true
+						e.Direct[id] = true
 					}
 					// An unrecorded test is kept by Narrow anyway.
 				} else {
 					e.Whole[pkg] = true // TestMain, init or a helper
 				}
 			default:
-				ix.selectLines(file, code, fset, fn, lo, hi, e.Tests)
+				ix.selectLines(int32(fileIdx), file, code, fset, fn, lo, hi, e)
 			}
 		}
 	}
@@ -147,16 +153,17 @@ func codeTokens(src []byte) []span {
 // the enclosing function, since running it requires entering the function.
 // The check is by column: a block sharing a line with such a token does not
 // cover it (LPCV-V0-952).
-func (ix *Index) selectLines(f *File, code []span, fset *token.FileSet, fn *ast.FuncDecl, lo, hi int, out map[int32]bool) {
-	for _, b := range f.Blocks {
+func (ix *Index) selectLines(fi int32, f *File, code []span, fset *token.FileSet, fn *ast.FuncDecl, lo, hi int, e Effect) {
+	for bi, b := range f.Blocks {
 		if int(b.Start) > hi {
 			break
 		}
 		if int(b.End) < lo {
 			continue
 		}
+		e.Blocks[BlockRef{fi, int32(bi)}] = true
 		for _, t := range b.Tests {
-			out[t] = true
+			e.Tests[t] = true
 		}
 	}
 	for _, c := range code {
@@ -164,10 +171,11 @@ func (ix *Index) selectLines(f *File, code []span, fset *token.FileSet, fn *ast.
 			continue
 		}
 		first, last := fset.Position(fn.Pos()).Line, fset.Position(fn.End()).Line
-		for _, b := range f.Blocks {
+		for bi, b := range f.Blocks {
 			if int(b.Start) >= first && int(b.End) <= last {
+				e.Blocks[BlockRef{fi, int32(bi)}] = true
 				for _, t := range b.Tests {
-					out[t] = true
+					e.Tests[t] = true
 				}
 			}
 		}
