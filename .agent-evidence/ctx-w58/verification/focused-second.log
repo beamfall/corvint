@@ -1,0 +1,15 @@
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/contextindex/index_stat_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=unknown dirty=unknown
+heavy.sh: low disk here: /tmp free=2G floor=3G
+heavy.sh: low disk here: /tmp/ctx-w58-go-cache free=2G floor=3G
+heavy.sh: to free space: make go-cache-trim (dry run, then APPLY=1) and make scratch-sweep (docs/LANE-ORCHESTRATION.md section 6); on a tmpfs /tmp point TMPDIR and CORVINT_GOCACHE at /home/russell/.cache
+heavy.sh: slot 1/8 after 0s
+--- FAIL: TestContextExactHitFallback_TCPV02220 (0.02s)
+    context_packet_experiments_test.go:21: one-line fallback: []contextindex.contextSpan{contextindex.contextSpan{role:"core", path:"pkg/work/work.go", symbol:"MediumWork", reason:"defines `MediumWork`, which the task names", confidence:"high", authority:"syntax", start:10, end:10, hitStart:10, hitEnd:10, slots:[]string{"definition", "lexical"}, note:"; the expansion would overrun the remaining line budget, so the hit range is returned", parts:[]contextindex.contextSpan(nil)}} omitted 1
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/contextindex	0.441s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=8.8s rc=1
+heavy.sh: exit rc=1 cause=command cmd=env

@@ -11,6 +11,7 @@ import (
 // EEP-V0-771: the test repository identity ignores info/grafts, so a graft cannot rename its root
 // commit; a shallow boundary is named as the root, a real commit of this history.
 func TestObserveTestRepositoryIgnoresGrafts_EEPV0771(t *testing.T) {
+	skipWindowsProcessRefusal(t) // Git observation runs through procgroup (ASD-V0-2234).
 	git, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatal(err)

@@ -1954,15 +1954,15 @@ CEP-V0-010	docs/specs/context-evolution-program-v0.md	(accepted 2026-10-28, stan
 CRK-V0-001	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3273) `countTerms` and `scanWords` MUST	unrecorded	-
 CRK-V0-002	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3273) `matchTerms(text, wanted)` MUST	unrecorded	-
 CRK-V0-003	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3273) Benchmarks	unrecorded	-
-CRK-V0-004	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0219) With `CORVINT_CONTEXT_RRF=on` the	unrecorded	-
+CRK-V0-004	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-005	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3710) With `CORVINT_CONTEXT_ADDITIVE=on`	unrecorded	-
 CRK-V0-006	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3710) With	unrecorded	-
 CRK-V0-007	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0219, V1-3710) Each flag MUST be read	unrecorded	-
 CRK-V0-008	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0219, V1-3710) Each ordering MUST be	unrecorded	-
-CRK-V0-009	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0114) With `CORVINT_CONTEXT_SPANS=hits`	unrecorded	-
-CRK-V0-010	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0114) Under `hits` and `merged`, a	unrecorded	-
-CRK-V0-011	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0116) Under `merged`, a candidate span	unrecorded	-
-CRK-V0-012	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0114, V1-0116) Each span mode MUST be rea	unrecorded	-
+CRK-V0-009	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
+CRK-V0-010	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
+CRK-V0-011	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
+CRK-V0-012	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
@@ -5224,6 +5224,13 @@ KAT-V0-009	docs/specs/kotlin-jvm-affected-test-v0.md	Only a Gradle manifest that
 KAT-V0-761	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)	standing	2026-10-11; V1-2054
 KAT-V0-763	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2055)	standing	2026-10-11; V1-2055
 KAT-V0-762	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)	standing	2026-10-11; V1-2054
+ASD-V0-2190	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The Bash	standing	2026-11-03; V1-4333
+ASD-V0-2191	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The lane	standing	2026-11-03; V1-4333
+ASD-V0-2192	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SC	standing	2026-11-03; V1-4334
+ASD-V0-2193	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) Lane-she	standing	2026-11-03; V1-4334
+ASD-V0-2194	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4319) `script/	standing	2026-11-03; V1-4319
+ASD-V0-2120	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2691) Before a	standing	2026-10-11; V1-2691
+ASD-V0-2121	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4335, V1-2691)	standing	2026-10-11; V1-4335; V1-2691
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the	unrecorded	-
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	Before either scored arm runs, the evaluation MUST fail closed when any frozen	unrecorded	-
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp	unrecorded	-
@@ -7143,9 +7150,9 @@ TCP-V0-031	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accept
 TCP-V0-032	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`	unrecorded	-
 TCP-V0-033	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is	unrecorded	-
 TCP-V0-034	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an	unrecorded	-
-TCP-V0-025	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0366) With	unrecorded	-
+TCP-V0-025	docs/specs/task-context-packet-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; V1-01	standing	2026-10-11; V0-2220; V1-0114
 TCP-V0-026	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core	unrecorded	-
-TCP-V0-027	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared	unrecorded	-
+TCP-V0-027	docs/specs/task-context-packet-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; V1-01	standing	2026-10-11; V0-2220; V1-0114
 TCP-V0-028	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag	unrecorded	-
 TCP-V0-029	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation	unrecorded	-
 TCP-V0-043	docs/specs/task-context-packet-v0.md	(proposed 2026-09-23, not accepted; experimental; decision 0371) With	unrecorded	-
@@ -7153,9 +7160,9 @@ TCP-V0-044	docs/specs/task-context-packet-v0.md	The `external` member is separat
 TCP-V0-045	docs/specs/task-context-packet-v0.md	When gopls is absent, the task names no usable Go seed, the session fails or	unrecorded	-
 TCP-V0-046	docs/specs/task-context-packet-v0.md	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run	unrecorded	-
 TCP-V0-047	docs/specs/task-context-packet-v0.md	When governing rows exist (TCP-V0-008), each governing file's text is split into	unrecorded	-
-TCP-V0-048	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01	unrecorded	-
-TCP-V0-049	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01	unrecorded	-
-TCP-V0-050	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; decision 0377; reading (a) recorded 2026-11-	unrecorded	-
+TCP-V0-048	docs/specs/task-context-packet-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2222; V1-02	standing	2026-10-11; V0-2222; V1-0219
+TCP-V0-049	docs/specs/task-context-packet-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2222; V1-02	standing	2026-10-11; V0-2222; V1-0219
+TCP-V0-050	docs/specs/task-context-packet-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2222; TCP-V	standing	2026-10-11; V0-2222; V0-2223; V1-0219; decision 0377
 TCP-V0-051	docs/specs/task-context-packet-v0.md	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)	unrecorded	-
 TCP-V0-052	docs/specs/task-context-packet-v0.md	CLI and the explicit MCP descendant use one shared attachment. Before and after	unrecorded	-
 TCP-V0-053	docs/specs/task-context-packet-v0.md	Required live qualification fails when gopls is missing. Compiled CLI and MCP	unrecorded	-
@@ -7197,6 +7204,10 @@ TCP-V0-275	docs/specs/task-context-packet-v0.md	(experimental under the owner's 
 TCP-V0-650	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-01; V1-3711)	standing	2026-11-01; V1-3711
 TCP-V0-651	docs/specs/task-context-packet-v0.md	(experimental, same acceptance; V1-3711) Under the same flag a path token of	unrecorded	-
 TCP-V0-652	docs/specs/task-context-packet-v0.md	(experimental, same acceptance; V1-3711) Under the same flag the task words	unrecorded	-
+TCP-V0-2220	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0114)	standing	2026-10-11; V1-0114
+TCP-V0-2221	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0116)	standing	2026-10-11; V1-0116
+TCP-V0-2222	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0219)	standing	2026-10-11; V1-0219
+TCP-V0-2223	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0114; V1-0116;	standing	2026-10-11; V1-0114; V1-0116; V1-0219
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-
@@ -8088,6 +8099,15 @@ VSC-V0-076	docs/specs/vscode-extension-v0.md	Only after trust and explicit enabl
 VSC-V0-077	docs/specs/vscode-extension-v0.md	(accepted, decision 0503; V1-0439) Process failures	owner	decision 0503; V1-0439
 VSC-V0-078	docs/specs/vscode-extension-v0.md	(accepted, decision 0503; V1-0440) Evidence diagnostics	owner	decision 0503; V1-0440
 VSC-V0-080	docs/specs/vscode-extension-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0437) The	standing	2026-10-11; V1-0437
+ASD-V0-2230	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2491) Tests	standing	2026-10-11; V1-2491
+ASD-V0-2231	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2492) The	standing	2026-10-11; V1-2492
+ASD-V0-2232	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2492) The	standing	2026-10-11; V1-2492
+ASD-V0-2233	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2234	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2235	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2236	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2237	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2238	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
 WQO-V0-001	docs/specs/work-queue-observation-v0.md	Every V0 document and nested record MUST implement the exact closed registry in	unrecorded	-
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv	unrecorded	-
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	The only authority root is target-tree regular `100644` blob	unrecorded	-
