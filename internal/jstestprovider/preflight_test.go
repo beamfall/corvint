@@ -138,13 +138,16 @@ func TestPWPV0091PreflightProbesRunInOrderAndStopAtFirstFailure(t *testing.T) {
 		}
 		return runPreflight(context.Background(), &Preflight{File: "/decl.json", Digest: strings.Repeat("a", 64), Declaration: d}, dir)
 	}
-	receipt, failure := run(20000, probes())
-	if failure != nil || receipt.Outcome != PreflightPassed || len(receipt.Probes) != 3 {
-		t.Fatalf("passing preflight: %+v %+v", receipt, failure)
-	}
-	if receipt.Probes[0].Artefact != server.URL+"/healthz" || receipt.Probes[2].Artefact != "auth/admin.json" || len(receipt.Probes[2].ArtefactDigest) != 64 {
-		t.Fatalf("artefacts: %+v", receipt.Probes)
-	}
+	t.Run("passing", func(t *testing.T) {
+		skipWindowsProcessRefusal(t) // the passing list runs the seed command probe through procgroup (ASD-V0-2234).
+		receipt, failure := run(20000, probes())
+		if failure != nil || receipt.Outcome != PreflightPassed || len(receipt.Probes) != 3 {
+			t.Fatalf("passing preflight: %+v %+v", receipt, failure)
+		}
+		if receipt.Probes[0].Artefact != server.URL+"/healthz" || receipt.Probes[2].Artefact != "auth/admin.json" || len(receipt.Probes[2].ArtefactDigest) != 64 {
+			t.Fatalf("artefacts: %+v", receipt.Probes)
+		}
+	})
 	for _, c := range []struct {
 		name, reason, observed string
 		probe                  PreflightProbe
@@ -162,6 +165,10 @@ func TestPWPV0091PreflightProbesRunInOrderAndStopAtFirstFailure(t *testing.T) {
 		{"state-expiring", "storage-state-cookie-expiring", "cookie session", PreflightProbe{Name: "expiring", Kind: PreflightStorageState, File: "auth/admin.json", RequireCookies: []string{"session"}, MinValidSeconds: 7200, TimeoutMS: 100}, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			if c.probe.Kind == PreflightCommand || c.reason == "" {
+				// A command case, or a passing case that reaches the seed command, runs through procgroup (ASD-V0-2234).
+				skipWindowsProcessRefusal(t)
+			}
 			list := probes()
 			list = append([]PreflightProbe{list[0], c.probe}, list[1:]...)
 			receipt, failure := run(20000, list)
@@ -189,7 +196,7 @@ func TestPWPV0091PreflightProbesRunInOrderAndStopAtFirstFailure(t *testing.T) {
 		})
 	}
 	// A total budget smaller than the probes leaves the interrupted probe not-run as preflight-timeout.
-	receipt, failure = run(100, []PreflightProbe{{Name: "never", Kind: PreflightHTTP, Path: "/seeded", TimeoutMS: 5000}, {Name: "after", Kind: PreflightHTTP, Path: "/healthz", TimeoutMS: 100}})
+	receipt, failure := run(100, []PreflightProbe{{Name: "never", Kind: PreflightHTTP, Path: "/seeded", TimeoutMS: 5000}, {Name: "after", Kind: PreflightHTTP, Path: "/healthz", TimeoutMS: 100}})
 	if failure == nil || receipt.Probes[0].State != PreflightNotRun || receipt.Probes[0].Reason != "preflight-timeout" || receipt.Probes[1].Reason != "earlier-probe-failed" {
 		t.Fatalf("total timeout: %+v %+v", receipt, failure)
 	}

@@ -149,7 +149,9 @@ func TestPTFV0ObservedCurrency(t *testing.T) {
 			r := freshFixture(t)
 			row.mutate(&r)
 			got := ReceiptTestProjection(r, r.Tests[0])
-			if got.Freshness.State != row.want {
+			if row.want == testvalidity.FreshnessCurrent {
+				requireFreshCurrent(t, got.Freshness.State, name)
+			} else if got.Freshness.State != row.want {
 				t.Fatalf("got %+v want %s", got, row.want)
 			}
 			if got.Strength.State == testvalidity.StrengthKilled {
@@ -178,6 +180,9 @@ func TestPTFV0ClosedCodec(t *testing.T) {
 		"wrong profile": bytes.Replace(data, []byte(FreshnessProfile), []byte(AttestedExternalProfile), 1),
 	} {
 		t.Run(name, func(t *testing.T) {
+			if name == "projection" && runtime.GOOS == "windows" {
+				t.Skip("no CURRENT projection to contradict: native Windows freshness fails closed (decision 0559); TestASDV02235FreshnessFailsClosedOnWindows covers it")
+			}
 			if _, err := DecodeFreshness(mutated); err == nil {
 				t.Fatal("accepted altered envelope")
 			}
@@ -321,9 +326,7 @@ func TestV10689BoundedWitnessFreshnessCodec(t *testing.T) {
 			}
 			got := ReceiptTestProjection(decoded, decoded.Tests[0]).Freshness.State
 			if state == "legacy" || state == "sampled" {
-				if got != testvalidity.FreshnessCurrent {
-					t.Fatalf("valid observation refused: %s", got)
-				}
+				requireFreshCurrent(t, got, "valid observation")
 			} else if got == testvalidity.FreshnessCurrent {
 				t.Fatal("unresolved cleanup promoted currency")
 			}

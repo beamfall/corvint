@@ -73,6 +73,57 @@ are explicitly prohibited. Independent review and native ticket completion remai
 Corvint affected/context/query receipts retain their actual uncertainty; later successful context
 reads do not replace the missing pre-change binding.
 
+## W5 native failure repair (ASD-V0-2233..2236)
+
+The operator's native run (go1.27.3, Windows 11, `C:\cv`) passed W1-W4. W5, the package-wide run of
+the touched packages, failed in `cmd/corvint-corpus-mcp` and `internal/jstestprovider`. In the
+second package, a panic in `TestKeepReportersQualificationRecordClosed` aborted every later test
+file. Native Windows execution is unavailable to this lane: WSL interop is refused. Each cause
+below is therefore inferred from code and the retained W5 output.
+
+- Host path rules (ASD-V0-2233). Production checks receipt-reported paths with `filepath.IsAbs`:
+  the config file, keep-reporters config inputs and the bundled headless-shell path. The fixtures
+  used POSIX `/repo/...` and `/portable/...` literals. Those are not absolute on Windows, so
+  qualified projections abstained and keep-reporters runs read as incomplete. That explains
+  `TestQualifiedReceiptProjection`, the Playwright 1.63/1.64 tuple tests,
+  `TestProfileAttemptEmptyProject`, `TestQualifiedReceiptBinding...` and the
+  `TestQualifyKeepReporters*` failures. A not-run record has no entries, so
+  `q.Entries[1]` panicked. `browserless_test.go` already used a real temp-dir config and passed
+  natively, which supports this attribution. The fixtures now use `hostAbs`/`hostBundledUse`,
+  which leave the POSIX bytes unchanged off Windows. The record test fails on an unqualified base
+  record before mutating it. Production path rules are unchanged: a real Windows receipt carries
+  native paths, and decision 0559 refuses Windows receipt reads.
+- procgroup refusal (ASD-V0-2234). The attestation provider's `observe` and the Git test-repository
+  observer run through `procgroup.Run`, which returns the listed `process-platform-unsupported`
+  refusal on Windows. Those tests now skip only on that exact refusal, after the checks that do
+  not need a subprocess. The grafts test and the preflight command-probe test have the same latent
+  cause behind the panic and got the same treatment.
+- Freshness on Windows (ASD-V0-2235). `freshManifestComplete` requires files below
+  `root+"/"`, and a Windows path that `filepath.Clean` leaves unchanged has no `/` separator.
+  No manifest can be complete there, so the complete fixture cannot be `CURRENT`. Dependency
+  observation also refuses (ASD-V0-2232). On Windows the `CURRENT` assertions now require the
+  projection to fail closed, and a Windows-only test pins that. The codec's
+  contradictory-projection case skips there because there is no `CURRENT` to contradict.
+- Corpus bridge (ASD-V0-2236). `TestDCPV1145BatchFitsOneFrame` builds its own corpus.
+  `corpusbridge.New` folds the decision 0559 reader refusal into `corpus-unavailable`. The test
+  now probes `doccorpus.ReadCorpusFile` and skips only on the listed refusal.
+
+An independent subagent review found no blocking defect. It found that the preflight skip was
+broader than the procgroup boundary; it now covers only the subtests that reach a command. It also
+found two reporter tests behind the panic that compared raw native paths in JSON or the generated
+config; they now JSON-quote host-absolute paths. A Windows host that refuses symlink creation now
+logs only that case as NOT_RUN.
+
+Findings for the orchestrator are not fixed here, because production is out of scope. The corpus
+bridge, and so the MCP server, reports a native Windows read refusal as
+`corpus-unavailable`/"repository unavailable" rather than `corpus-platform-unsupported`. This
+may fall under rule 2 of decision 0559. Freshness and qualified-receipt projections abstain on
+Windows without a typed platform reason. That is fail-closed, and receipt reads are refused
+upstream. Linux full-package runs of all four touched packages passed, as did targeted
+`GOOS=windows go vet` and `make windows-vet`. Native W5 remains to be rerun. Tests behind the former
+panic stay NOT_OBSERVED, including possible `os.Symlink` privilege failures. Full commands and
+results: `win-w59.fix-handback.md`.
+
 ## Rollback
 
 Revert the task's test changes and the companion/index rows. Keep the pre-existing production

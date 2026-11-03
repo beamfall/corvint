@@ -18,6 +18,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func corpusServerFixture(t *testing.T, text string) (string, *doccorpus.Artifact) {
@@ -252,6 +253,13 @@ func TestDCPV1145BatchFitsOneFrame(t *testing.T) {
 		t.Fatal(e)
 	}
 	if e = os.WriteFile(filepath.Join(root, "corpus.json"), data, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	// The bridge folds a reader refusal into corpus-unavailable; probe the reader so native
+	// Windows skips only on its listed decision 0559 refusal (ASD-V0-2236), which
+	// TestASDV02231CorpusWindowsRefusal asserts.
+	if _, e = doccorpus.ReadCorpusFile(root, "corpus.json"); e != nil {
+		testplatform.SkipWindowsRefusal(t, e)
 		t.Fatal(e)
 	}
 	registry, failure := corpusbridge.New(root, "corpus.json")
