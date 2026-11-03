@@ -28,7 +28,7 @@
 # with --act RECONCILE_APPLY passes through. Status 1 (debt or proposals) or 2 (refused) also
 # appends `TIMESTAMP pr=PR reconcile=closeout-debt|refused log=FILE` to the alerts file, so the
 # backlog cannot drift from main unseen. A refused pass stays retryable. MERGED still exits 0.
-# --no-reconcile skips it.
+# --no-reconcile retains a SKIPPED report and alert instead of running it.
 #
 # Example: script/pr-landing-watch.sh --act --repo beamfall/corvint 42
 set -uo pipefail
@@ -102,7 +102,13 @@ view=$("$gh" pr view "$pr" ${repo_args[@]+"${repo_args[@]}"} --json state,autoMe
 IFS=$'\t' read -r pr_state armed head merged <<< "$view"
 # reconcile_merged runs the post-merge Tasks reconcile once per merged PR (ASD-V0-1922, V1-3496).
 reconcile_merged() {
-  ((reconcile)) || return 0
+  if (( ! reconcile )); then
+    local skipped=$state/reconcile-$pr-skipped.log
+    printf 'SKIPPED post-merge Tasks reconcile for PR %s (--no-reconcile); run make tasks-reconcile before closeout\n' "$pr" > "$skipped" || die "cannot retain skipped reconcile report $skipped; fix: choose a writable --state-dir and retry"
+    printf 'RECONCILE status=SKIPPED log=%s\n' "$skipped"
+    printf '%s pr=%s reconcile=skipped log=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$pr" "$skipped" >> "$alerts" || die "cannot retain skipped reconcile alert $alerts; fix: create a writable parent for --alerts and retry"
+    return 0
+  fi
   [[ -z $(get reconciled) ]] || return 0
   local log=$state/reconcile-$pr.log status=0 apply=${RECONCILE_APPLY:-} kind
   ((act)) || apply=''

@@ -1031,11 +1031,16 @@ axgit add -A && axgit commit -qm base || fail "analyzer fixture commit"
 axbase=$(axgit rev-parse HEAD)
 printf '// changed facts\n' >> "$ax/internal/contextindex/receipt.go"
 axgit commit -qam 'input edit'
-# ASD-V0-903: an empty plan is refused as missing before this check, so the plan has one row.
-printf '1\tunknown\tinsufficient-evidence\tx\n' > "$ax/plan.tsv"
 axfinish() { (cd "$ax" && env -u CORVINT_BIN CORVINT_ANALYZER_OUTPUT_COMMAND="printf 'analyzer output SHA256=%064d\nanalyzer shard SHA256=%064d\n' $1 0" script/dogfood-finish.sh "$axbase" plan.tsv 2>&1); }
+# ASD-V0-2130 (V1-3776): show the earlier empty-plan refusal, then give the analyzer
+# fixture a real row so its drift check cannot pass by stopping at ASD-V0-903 instead.
+: > "$ax/plan.tsv"
 out=$(axfinish 1)
-[[ $? == 2 && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
+[[ $? == 2 && $out == *'REFUSE missing-inputs CITATIONS:empty'* && $out != *'REFUSE analyzer-schema-stale'* ]] ||
+  fail "finish empty-plan control did not stop before the analyzer check: $out"
+printf '1\tunknown\tinsufficient-evidence\tanalyzer fixture has no historical citation\n' > "$ax/plan.tsv"
+out=$(axfinish 1)
+[[ $? == 2 && $out != *CITATIONS:empty* && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
   fail "finish did not refuse a drifted analyzer output before the bind: $out"
 out=$(axfinish 0)
 [[ $out != *analyzer-schema-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused a matching analyzer output: $out"
@@ -2191,10 +2196,11 @@ GO=/bin/false binary_refusal build-failed --rebuild --corvint "$lb/bin/corvint" 
 out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
 [[ $? == 0 && $out == *'STALE'*'INSTALLED'*"FRESH corvint build 3 (commit ${c3:0:12}) for build 3"* && -f $lb/bin/corvint.corvint-prev-1 ]] ||
   fail "lane-binary rebuild: $out"
-# lane-setup.sh names a stale installed corvint (on PATH) and exits 1 after creating the lane.
+# ASD-V0-2203: lane-setup judges origin/main before creating a pinned lane.
+git -C "$lb/repo" update-ref refs/remotes/origin/main "$c3" || fail "lane-binary origin/main"
 fake_corvint 1 "$c1"
 out=$(PATH=$lb/bin:$PATH "$script/lane-setup.sh" --repo "$lb/repo" --dir "$lb/lane" --branch claude/lb --base HEAD 2>&1)
-[[ $? == 1 && -d $lb/lane && $out == *'STALE corvint build 1'*'for build 3'*'installed corvint does not match its base'* ]] ||
+[[ $? == 2 && ! -d $lb/lane && $out == *'STALE corvint build 1'*'for build 3'*'host-binary-not-current'* ]] ||
   fail "lane-setup with a stale corvint: $out"
 ok
 
@@ -2388,7 +2394,11 @@ grep -q "pr=16 reconcile=closeout-debt log=$lw/state/reconcile-16.log" "$lw/stat
 out=$(LW_RECONCILE_RC=2 RECONCILE_APPLY=manual lwr 17)
 [[ $out == *'RECONCILE status=2 '* && $(tail -1 "$lw/s/reconciles") == apply= ]] || fail "refused or dry reconcile: $out"
 grep -q 'pr=17 reconcile=refused' "$lw/state/alerts.log" || fail "refused reconcile not alerted"
-[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 3 ]] || fail "--no-reconcile still reconciled"
+[[ $(lwr --no-reconcile 18) == *"RECONCILE status=SKIPPED "* && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 3 ]] || fail "--no-reconcile still reconciled"
+grep -q "pr=18 reconcile=skipped" "$lw/state/alerts.log" || fail "skipped reconcile not alerted"
+[[ -s $lw/state/reconcile-18-skipped.log ]] || fail "skipped reconcile has no retained report"
+lwr --no-reconcile --alerts "$lw/missing/alerts.log" 20 > /dev/null
+[[ $? == 2 ]] || fail "unretained skip alert succeeded"
 /bin/rm -f "$lw/state/alerts.log"
 printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
 [[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
