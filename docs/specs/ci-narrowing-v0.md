@@ -12,9 +12,9 @@ Requirements section is at the 256-obligation OCM limit (`maxObligations`), so t
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
 
 ## Agent digest
-- Claim: CI narrowing restarts its epoch per producing run, fails loudly on a dead pin, lists only needed rows, skips idle shards and tests tools/local-authority.
+- Claim: CI narrowing isolates producing epochs and provides an operator alarm for missing forward rows independent of selection documents.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change; delivery experimental.
-- Exists: `.github/workflows/ci.yml`, `.github/workflows/ci-forward-bar.yml`, `.github/workflows/ci-control-plane.yml`, `.github/forward-rows/{names.sh,bar.jq,verdict.sh,accept.sh,selection.jq,collect.sh}`, `Decide` in `tools/ci-reuse-plan/main.go`; tests named for each requirement.
+- Exists: `.github/workflows/ci.yml`, `.github/workflows/ci-forward-bar.yml`, `.github/workflows/ci-control-plane.yml`, `.github/forward-rows/{names.sh,bar.jq,verdict.sh,accept.sh,selection.jq,collect.sh}`, `Decide` in `tools/ci-reuse-plan/main.go`; `tools/ci-forward-row/absence-alarm.py` (standalone developer alarm, hosted scheduling pending); tests named for each requirement.
 - Blocked on: the `CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE` repin (PR #11) for any forward row; the live V1-3158 measurement after merge.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -164,6 +164,49 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   self-contained `bar.jq` fixtures that pass their own epoch) stay literal, since they do not move
   with the live epoch.
 
+- `CIN-V0-2140`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3332)
+  The standalone developer alarm `tools/ci-forward-row/absence-alarm.py OWNER/REPO EPOCH`
+  SHALL alarm at three eligible completed PR CI runs without a forward row among its latest
+  20 eligible runs, ordered by completion within GitHub's bounded sample of 100 latest-created
+  completed PR CI runs. Eligibility SHALL NOT depend on a selection document: both FULL and
+  NARROWED runs with retained `corvint-ci-outcomes/0` documents qualify. Runs completed less than
+  one hour ago wait for asynchronous collection. The alarm SHALL emit JSON, an `::error`
+  annotation and exit 1 at the threshold; below it, emit clear and exit 0. Repeated listings of
+  the same run and attempt count once. This reporting-liveness alarm is separate from the
+  AFP-V0-029 bar and AFP-V0-030 row classifier: a genuine NARROWED row proves reporting is alive
+  without qualifying the selection. No repository variable or narrowing authority is written.
+- `CIN-V0-2141`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3332)
+  The alarm SHALL derive a candidate's epoch from `.github/workflows/ci.yml` at its immutable
+  tested merge, independently of selection documents and the collector epoch. Outcome documents
+  SHALL bind that merge to the completed CI run ID, attempt and PR head; GitHub SHALL prove the
+  merge's two parents, the second equal to the PR head, the first descending from the declared
+  PR base and belonging to main. Both PR-head and tested-merge comparisons SHALL exclude
+  `.github/` changes (including renames) and change sets of 300 or more files. Only same-repository
+  PRs based on main with retained outcomes and a `success` or `failure` conclusion (the only
+  conclusions the `forward-rows` collector runs on) qualify; DOCS, REUSE, skipped, fork, queue and
+  push runs, and cancelled, timed-out or otherwise concluded runs that retain outcomes, stay
+  outside this alarm. A proven different epoch SHALL take no window place and never count
+  as absence, including an epoch-1 run with no selection document. Missing or ambiguous workflow
+  epoch is uncertainty, not proof of current-epoch absence.
+- `CIN-V0-2142`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3332)
+  Only unexpired forward artifacts uploaded by same-repository runs on main SHALL discharge
+  absence. A matching name SHALL name the candidate's PR, tested commit and epoch, have creation
+  time at or after completion, and its downloaded `row.json` SHALL bind profile, kind, class,
+  PR, SHA, epoch, run ID, selection run ID and outcomes run ID to that candidate. Every matching
+  body SHALL first be validated (profile, kind `pr`, integer PR, epoch and run IDs, and class, PR,
+  SHA and epoch equal to its own artifact name); a malformed or self-contradicting body is
+  UNKNOWN, not absence. A well-formed row of another run (a delayed row) SHALL NOT discharge absence. Because the current forward-row wire has no attempt,
+  an eligible current-epoch rerun SHALL report UNKNOWN rather than claim a row covers its attempt.
+  Unreadable or malformed evidence, failed GitHub calls (60-second timeout per call), more than
+  20 artifact pages of 100 without reaching the oldest sampled completion, a full 100-run sample without 20 eligible runs, a full per-run artifact
+  page of 100, or excessive downloads SHALL report UNKNOWN, an error annotation and exit 2.
+  Before any transfer, listing metadata SHALL bound each download set to at most 32 artifacts and
+  each archive to 4 MiB plus 64 KiB; the transfer SHALL stop past that size. Each archive SHALL be
+  read in memory, never extracted, and hold exactly one entry, the expected document, of at most
+  4 MiB checked before and during decompression, with no execution of downloaded content. Hosted activation requires a trusted caller to schedule this
+  alarm and surface its nonzero exit; this lane SHALL document that wiring without editing
+  `.github/`. A local replay does not claim hosted activation or ticket completion.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -182,7 +225,9 @@ created during the verdict's own listing could be missed by the incremental acce
 hour of overlap before `listedAt` covers it. (3) A run with no retained selection document
 (no shadow, a dead shadow pin, or a failed artifact download) writes no row under CIN-V0-001, so
 a sustained shadow outage no longer counts `INCOMPLETE` toward the kill switch; the bar still
-needs 8 complete epoch-2 rows, so narrowing stays FULL through it. CIN-V0-861 makes such a run a
+needs 8 complete epoch-2 rows, but an already-established verdict can keep narrowing enabled
+without fresh rows. CIN-V0-2140..2142 provide a separate operator alarm independent of selection
+documents; hosted scheduling remains pending. CIN-V0-861 makes such a run a
 `NOROW` marker that the kill switch counts; a collector that does not run at all (the
 `ci-control-plane` workflow disabled or failing before `collect.sh`) still leaves no name, and only
 the verdict's own staleness shows it. A queue row takes the epoch
@@ -221,7 +266,19 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-960 | `forwardEpoch`, `forwardEpochSites`, `forwardEpochSinceProblem`, `epochSinces` (`tools/ci-forward-row/epoch_test.go`) | `TestCINV0960WorkflowsAgreeOnTheForwardEpoch`, `TestCINV0960SynchronizedAdvancePasses`, `TestCINV0003VerdictListsBackToTheEpochSince`; `TestCINV0861RowAbsenceTripsTheKillSwitch` and `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind` read the live epoch from `ci.yml` |
 | CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
+| CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
+| CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
+| CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
+
 ## Rollback
+
+CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
+no persisted state. Hosted wiring is pending; no existing workflow rollback is required. Its
+100-run candidate sample cannot claim globally latest completion order (an older-created run
+may complete or rerun later), and it cannot detect an outage that also removes every outcome
+artifact; those remain explicit coverage limits. A trusted scheduled caller needs `actions: read`,
+`contents: read`, Python 3 and authenticated `gh`, and must fail or notify on both exit 1 and exit 2.
+
 
 R1: revert the lane's `.github` commits and their test commits; the epoch returns to 1 only by an
 owner decision, since epoch-1 rows hold the dead-pin `INCOMPLETE` rows. No stored state depends on
