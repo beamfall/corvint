@@ -128,6 +128,8 @@ GATE_STEPS = \
   scratch-sweep-test \
   spec-requirements-check \
   spec-requirements-test \
+  stray-backups-check \
+  stray-backups-test \
   test-commands-check \
   test-exec-writes-check \
   test-read-scopes-check \
@@ -696,6 +698,16 @@ mkfifo-build-tags-check:
 fixed-tmp-paths-check:
 	@script/check-fixed-tmp-paths.sh
 
+# ASD-V0-2370 (V1-4352): no tracked .bak or .orig leftover. A doc gate, so CI and batch-precheck
+# both run it, and a static fail-fast gate of batch-precheck.
+.PHONY: stray-backups-check
+stray-backups-check:
+	@script/check-stray-backups.sh
+
+.PHONY: stray-backups-test
+stray-backups-test:
+	@script/check-stray-backups_test.sh
+
 # ASD-V0-929 (V1-2587): a test file must write an executable it runs through execfile.WriteFile
 # (Tasks: fixture.WriteExecutable), never os.WriteFile, which a forking parallel test can hold open.
 .PHONY: test-exec-writes-check
@@ -1125,7 +1137,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
@@ -1374,6 +1386,7 @@ shell-test: \
   runtime-environment-test \
   scratch-sweep-test \
   spec-requirements-test \
+  stray-backups-test \
   test-run-pattern-test \
   traceability-tests-test \
   # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
