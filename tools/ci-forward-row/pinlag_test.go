@@ -165,3 +165,92 @@ func TestCINV0010PinLagRefusesNarrowing(t *testing.T) {
 		t.Fatal("the narrowing gate's failure no longer leaves the shard FULL")
 	}
 }
+
+// TestCINV0011ToolsBuildFromComparedMain pins CIN-V0-011 (V1-4354): the pin-main step resolves
+// the commit of main the CIN-V0-010 gate compares against, the tested merge's first parent or the
+// queue base (its newest main ancestor when it is an unmerged entry), and the trusted tools build
+// from it whenever it descends from the pin; otherwise the pin stays the floor. Every step that
+// fetches, builds, records or checks the tools reads the same resolved commit.
+func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the pin-main step is a shell script")
+	b, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ci := string(b)
+	m := regexp.MustCompile(`(?ms)^        id: pin-main\n.*?^        run: \|\n(.*?)^      - name: Capture trusted tool source outside tested checkout\n`).FindStringSubmatch(ci)
+	if m == nil {
+		t.Fatal("ci.yml lacks the pin-main step before the tool capture")
+	}
+	body := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[1], "")
+	tool, shadow := "${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}", "${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}"
+	for _, want := range []struct {
+		text string
+		n    int
+	}{{"          ref: " + tool + "\n", 1}, {"          ref: " + shadow + "\n", 1}, {"          TOOL_SOURCE: " + tool + "\n", 1},
+		{"          CORVINT_PR_TOOL_SOURCE: " + tool + "\n", 3}, {"          CORVINT_TEST_SHADOW_SOURCE: " + shadow + "\n", 4},
+		{"env.CORVINT_PR_TOOL_SOURCE }}\n", 5}, {"env.CORVINT_TEST_SHADOW_SOURCE }}\n", 5}} {
+		if got := strings.Count(ci, want.text); got != want.n {
+			t.Fatalf("%d bindings of %q, want %d", got, want.text, want.n)
+		}
+	}
+
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repo
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.org", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.org")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q", "-b", "main")
+	commit := func(msg string, parents ...string) string {
+		args := []string{"commit-tree", "-m", msg}
+		for _, p := range parents {
+			args = append(args, "-p", p)
+		}
+		return git(append(args, git("write-tree"))...)
+	}
+	old := commit("before the pin")
+	pin := commit("pin", old)
+	tip := commit("main moved", pin)
+	git("update-ref", "refs/remotes/origin/main", tip)
+	pr := commit("pr", pin)
+	side := commit("off main", pin)
+	entry := commit("queued entry", tip, pr)
+	run := func(event, merge, base, floor string) string {
+		t.Helper()
+		out := filepath.Join(t.TempDir(), "out")
+		cmd := exec.Command("bash", "-e", "-c", body)
+		cmd.Dir = repo
+		cmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+out, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge, "QUEUE_BASE="+base,
+			"CORVINT_PR_TOOL_SOURCE="+floor, "CORVINT_TEST_SHADOW_SOURCE="+floor)
+		if log, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("pin-main: %v\n%s", err, log)
+		}
+		got, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(got)
+	}
+	want := func(c string) string { return "tool=" + c + "\nshadow=" + c + "\n" }
+	for _, tc := range []struct{ name, event, merge, base, floor, want string }{
+		{"pull request on moved main", "pull_request", commit("merge", tip, pr), "", pin, want(tip)},
+		{"pull request whose first parent is off main", "pull_request", commit("merge", side, pr), "", pin, want(pin)},
+		{"pull request on main older than the pin", "pull_request", commit("merge", old, pr), "", pin, want(pin)},
+		{"merge-queue entry on main", "merge_group", "", tip, pin, want(tip)},
+		{"merge-queue entry behind an unmerged entry", "merge_group", "", entry, pin, want(tip)},
+		{"merge-queue entry with no main ancestor", "merge_group", "", commit("orphan"), pin, want(pin)},
+		{"empty floor", "pull_request", commit("merge", tip, pr), "", "", want("")},
+	} {
+		if got := run(tc.event, tc.merge, tc.base, tc.floor); got != tc.want {
+			t.Fatalf("%s: outputs %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
