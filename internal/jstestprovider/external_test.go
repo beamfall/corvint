@@ -341,7 +341,7 @@ func TestExternalReadiness(t *testing.T) {
 
 func qualifiedFixture(t *testing.T) Receipt {
 	t.Helper()
-	r := Receipt{Profile: ExternalProfile, Kind: "e2e", Identity: Identity{ConfigFile: "/repo/config.cjs", ConfigDigest: "config", TestFileDigests: map[string]string{"/repo/test.cjs": "test"}, Argv: []string{"npx", "playwright", "--config=/tmp/a/config.cjs", "--project=one"}, NodeVersion: "v22", RunnerVersion: "1.60.0"}, External: &ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ReadyAtStart: true, ReadyAtPublish: true, RunnerDescendantsGone: true, InputsUnchanged: true}}
+	r := Receipt{Profile: ExternalProfile, Kind: "e2e", Identity: Identity{ConfigFile: hostAbs("/repo/config.cjs"), ConfigDigest: "config", TestFileDigests: map[string]string{"/repo/test.cjs": "test"}, Argv: []string{"npx", "playwright", "--config=/tmp/a/config.cjs", "--project=one"}, NodeVersion: "v22", RunnerVersion: "1.60.0"}, External: &ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ReadyAtStart: true, ReadyAtPublish: true, RunnerDescendantsGone: true, InputsUnchanged: true}}
 	r.Identity.RunnerName = "playwright"
 	r.External.ReadyURL = "http://127.0.0.1:3002"
 	r.External.DeclaredAppIdentity = "fixture"
@@ -429,7 +429,7 @@ func TestPlaywright163BundledBrowserTupleAbstainsOnDrift(t *testing.T) {
 	r := qualifiedFixture(t)
 	r.Identity.RunnerVersion = "1.63.0"
 	r.Identity.NodeVersion = "v22.23.2"
-	r.Tests[0].Project.Use = json.RawMessage(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
+	r.Tests[0].Project.Use = json.RawMessage(hostBundledUse(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`))
 	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
 	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 		t.Fatal("qualified bundled Playwright 1.63 browser tuple abstained")
@@ -722,7 +722,7 @@ func TestProfileAttemptEmptyProject(t *testing.T) {
 	r.Profile = AttemptExternalProfile
 	r.Identity.RunnerVersion = "1.63.0"
 	r.Identity.NodeVersion = "v22.23.2"
-	r.Tests[0].Project.Use = json.RawMessage(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
+	r.Tests[0].Project.Use = json.RawMessage(hostBundledUse(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`))
 	r.Tests[0].Project.Name = ""
 	r.Tests[0].AttemptDetails = []AttemptDetail{{State: StatePassed, Anchor: r.Tests[0].Anchor}}
 	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
@@ -747,7 +747,7 @@ func TestProfileAttemptEmptyProject(t *testing.T) {
 // headless-shell tuple only; neighbouring releases, the system-browser tuple
 // and the other external profiles keep abstaining.
 func TestPlaywright163Node24TupleAdmissionIsExact(t *testing.T) {
-	bundled := `{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`
+	bundled := hostBundledUse(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
 	system := `{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome 153.0.8010.48","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`
 	receipt := func(use, identityNode, browserNode string) Receipt {
 		r := qualifiedFixture(t)
@@ -826,7 +826,7 @@ func playwrightTupleReceipt(t *testing.T, profile, runner, node, use string) Rec
 	r.Profile = profile
 	r.Identity.RunnerVersion = runner
 	r.Identity.NodeVersion = node
-	r.Tests[0].Project.Use = json.RawMessage(strings.ReplaceAll(use, "NODE", node))
+	r.Tests[0].Project.Use = json.RawMessage(hostBundledUse(strings.ReplaceAll(use, "NODE", node)))
 	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
 	return r
 }
@@ -930,7 +930,7 @@ func TestPWPV0036Playwright164Node24TupleIsExact(t *testing.T) {
 		t.Fatal("admitted 1.64.0 Node v24.11.1 /3 tuple abstained")
 	}
 	drift := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled)
-	drift.Tests[0].Project.Use = json.RawMessage(strings.ReplaceAll(playwright164Bundled, "NODE", "v22.23.2"))
+	drift.Tests[0].Project.Use = json.RawMessage(hostBundledUse(strings.ReplaceAll(playwright164Bundled, "NODE", "v22.23.2")))
 	drift.Tests[0].ID = qualifiedTestID(drift.Identity, drift.Tests[0])
 	for name, r := range map[string]Receipt{
 		"neighbouring-patch": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.0", playwright164Bundled),

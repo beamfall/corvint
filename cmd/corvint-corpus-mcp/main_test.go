@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -17,10 +18,14 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func corpusServerFixture(t *testing.T, text string) (string, *doccorpus.Artifact) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("docs corpus reads require the qualified POSIX reader (decision 0559); TestASDV02231CorpusWindowsRefusal covers native Windows refusal")
+	}
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "source.md"), []byte(text), 0600); err != nil {
 		t.Fatal(err)
@@ -64,33 +69,10 @@ func TestCorpusMCPTransport(t *testing.T) {
 func corpusMCPTransport(t *testing.T, version string) {
 	t.Run("DCP-V1-016 transport", func(t *testing.T) {
 		root, a := corpusServerFixture(t, "# Evidence\n\nOriginal source.\n")
-		serverInput, clientInput := io.Pipe()
-		clientOutput, serverOutput := io.Pipe()
-		ctx, cancel := context.WithCancel(context.Background())
-		done := make(chan int, 1)
 		var stderr bytes.Buffer
-		go func() {
-			code := run(ctx, []string{"--root", root, "--artifact", "corpus.json", "--protocol-version", version}, serverInput, serverOutput, &stderr)
-			// A server that returns early (for example "repository unavailable"
-			// on native Windows) no longer reads its input: the client's next
-			// pipe write or decode then fails with the exit instead of
-			// blocking until the package timeout (V1-2492).
-			exited := fmt.Errorf("server exited %d: %q", code, stderr.String())
-			_ = serverInput.CloseWithError(exited)
-			_ = serverOutput.CloseWithError(exited)
-			done <- code
-		}()
-		t.Cleanup(func() {
-			cancel()
-			_ = clientInput.Close()
-			_ = clientOutput.Close()
-			_ = serverInput.Close()
-			_ = serverOutput.Close()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
-				t.Error("MCP cancellation left server running")
-			}
+		clientInput, clientOutput := boundedCorpusTransport(t, 30*time.Second, func(ctx context.Context, input io.Reader, output io.Writer) error {
+			code := run(ctx, []string{"--root", root, "--artifact", "corpus.json", "--protocol-version", version}, input, output, &stderr)
+			return fmt.Errorf("server exited %d: %q", code, stderr.String())
 		})
 		send := func(id int, method string, params map[string]any) map[string]any {
 			t.Helper()
@@ -271,6 +253,13 @@ func TestDCPV1145BatchFitsOneFrame(t *testing.T) {
 		t.Fatal(e)
 	}
 	if e = os.WriteFile(filepath.Join(root, "corpus.json"), data, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	// The bridge folds a reader refusal into corpus-unavailable; probe the reader so native
+	// Windows skips only on its listed decision 0559 refusal (ASD-V0-2236), which
+	// TestASDV02231CorpusWindowsRefusal asserts.
+	if _, e = doccorpus.ReadCorpusFile(root, "corpus.json"); e != nil {
+		testplatform.SkipWindowsRefusal(t, e)
 		t.Fatal(e)
 	}
 	registry, failure := corpusbridge.New(root, "corpus.json")
