@@ -54,6 +54,13 @@ failed=0
 if [[ -n $apply ]]; then
   # Each proposal's batch-close over the retained exports (the command's RUNS placeholder).
   for pr in $(jq -r '.items[0].proposals[]?.pr' "$dir/report.json"); do
+    # A proposal is advisory until its immutable delivery evidence is on origin/main.
+    evidence=$(jq -r --arg pr "$pr" '.items[0].proposals[] | select(.pr == $pr) | .mergeCommit' "$dir/report.json")
+    if ! git merge-base --is-ancestor "$evidence" refs/remotes/origin/main; then
+      echo "tasks-reconcile: proposal #$pr evidence $evidence is not on origin/main; nothing closed for this proposal" >&2
+      failed=1
+      continue
+    fi
     argv=("$tasks" ticket batch-close --pr "$pr" --prs "$dir/prs.json" --runs "$dir/runs.json")
     case $apply in
       dry-run) argv+=(--dry-run --manual) ;;
@@ -64,4 +71,13 @@ if [[ -n $apply ]]; then
   done
 fi
 [[ $failed -eq 0 ]] || { echo "tasks-reconcile: a batch-close failed; outputs in $dir" >&2; exit 1; }
+if [[ -n $apply && $apply != dry-run ]]; then
+  # Retain the original proposal report and report remaining debt after successful applications.
+  set +e
+  "$tasks" ticket closeout-debt --ref "$ref" --prs "$dir/prs.json" < /dev/null > "$dir/after.json"
+  status=$?
+  set -e
+  jq -e '.items[0].profile == "taskman-closeout-debt/0"' "$dir/after.json" > /dev/null 2>&1 ||
+    die "post-apply closeout-debt exit $status without a report ($dir/after.json)"
+fi
 exit "$status"

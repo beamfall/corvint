@@ -75,6 +75,36 @@ settled-barrier contract, including its exclusion of hostile editors, is unchang
   behave exactly as before. A shell test or qualification harness can export it to fence the live
   store. Rollback: remove `refuseForbiddenStore` from `acquireLock`; no stored format changes.
 
+- `PUR-V0-2210`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4261) Policy optionally declares `barrierWarningSeconds`,
+  a canonical decimal Count string 1..604800; absent means 3600 seconds. A live barrier strictly
+  older than that limit produces an advisory `STALE_BARRIER` warning in `queue status` (including
+  compact summaries) and the Claude/Codex session-start adapter. It names age in seconds, limit,
+  since timestamp and the PAUSE request ID from the receipt at `sinceSeq` whose barrier post digest
+  matches the observed bytes. An unavailable or mismatched receipt names the request `NOT_OBSERVED`;
+  an unreadable hook snapshot or policy reports uncertainty. These bounded reads never lock, repair,
+  expire or unpause. The non-null status barrier includes `warningPolicySeconds`. The hook consumes
+  only the read-only companion wire (`queue status --fields barrier`, 64 KiB output cap and 500 ms
+  deadline); unavailable, invalid, over-budget and older-companion observations stay `NOT_OBSERVED`.
+  The companion deadline is derived from the hook's own context: it is the earlier of 500 ms and
+  the hook deadline less a 100 ms cleanup reserve, so the child is killed and reaped and its pipe
+  settled (50 ms `WaitDelay`) before the hook deadline; an exhausted hook deadline starts no
+  companion and reports `NOT_OBSERVED`. A null barrier is observed absence only when the response
+  carries a live journal envelope snapshot (`snapshot.headSeq`); a journal-absent or
+  `CORVINT_TASKS_SNAPSHOT` read (OK, null snapshot, null barrier) stays `NOT_OBSERVED` and keeps the
+  companion's own warnings. A checkout with no Tasks projection is outside this optional
+  integration. Tests: `TestPURV02210_BarrierAgePolicy`, `TestPURV02210_QueueStatusWarnsStaleBarrier`,
+  `TestPURV02210_SessionStartWarnsStaleBarrier`, `TestPURV02210_CompanionWireFailuresStayUnknown`,
+  `TestPURV02210_NullBarrierWithoutLiveSnapshotStaysUnknown`,
+  `TestPURV02210_CompanionHonoursHookDeadline`.
+- `PUR-V0-2211`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4261) A qualification child inheriting
+  the forbidden common directory and started in a linked lane refuses pause and unpause before
+  touching the fixture primary store. The guard remains common-directory based, so changing cwd to a
+  lane does not bypass it. Tests exercise disposable fixture primaries only
+  (`TestPURV02211_LanePauseRefusesPrimary`). Shell qualification harnesses invoking writers must
+  export `CORVINT_TASKS_FORBID_COMMON_DIR` to the source checkout's common directory before entering
+  their fixtures. Non-goals: authorization against a caller stripping that environment, and
+  retroactive certainty about the 2026-10-30 incident; the operator note retains record gaps.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is the prior contract: a pending UNPAUSE stays unsupported. It was rejected
@@ -104,6 +134,8 @@ Focused `internal/tasks/store` and `internal/tasks/journal` tests, once with `-r
 kill, power loss and hostile-editor runs are `NOT_RUN`.
 
 ## Rollback
+
+For the warning extension, remove `barrierWarningSeconds` from policy before reverting the reader and hook changes; old readers refuse that optional key. Stored barriers and receipts do not change.
 
 Revert the V1-0309 commits. Stores written under this amendment use no new format; a store with a
 pending UNPAUSE returns to the prior unsupported state.
