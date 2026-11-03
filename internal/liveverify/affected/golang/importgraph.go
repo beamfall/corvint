@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"path"
 	"regexp"
 	"slices"
@@ -84,14 +85,17 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 	}
 	constants := stringConstants(file)
 	var functions []ast.Node
+	signatures := map[ast.Node]*ast.FuncType{}
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch node := node.(type) {
 		case *ast.FuncDecl:
 			if node.Body != nil {
 				functions = append(functions, node.Body)
+				signatures[node.Body] = node.Type
 			}
 		case *ast.FuncLit:
 			functions = append(functions, node.Body)
+			signatures[node.Body] = node.Type
 		}
 		return true
 	})
@@ -153,7 +157,12 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 		result.reader = true
 		targets, all, proven := goListArguments(elements[1:], constants, directory, owner)
 		if bodies := enclosingBodies(functions, call); proven && len(bodies) != 0 {
-			proven = isolatedList(bodies[len(bodies)-1], exec, call)
+			outer := bodies[len(bodies)-1]
+			tests := map[string]bool{}
+			for _, body := range bodies {
+				maps.Copy(tests, testingParameters(signatures[body], names))
+			}
+			proven = isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
 			result.all = true
@@ -232,6 +241,209 @@ func isolatedList(body ast.Node, exec string, list *ast.CallExpr) bool {
 		return true
 	})
 	return isolated
+}
+
+// escapes reports that the `go list` call list, the command it builds, its
+// output or a value derived from them can leave body, the outermost function
+// holding the call, where a caller or helper could build or run the listed
+// packages: returned, sent on a channel, stored anywhere but a local of body,
+// or passed to a call this scan does not prove harmless. A harmless call is a
+// builtin or conversion, a function of a standard-library import, or a method
+// of a derived value or of a *testing.T, B or F parameter of the function;
+// a value such a call reaches through an address argument becomes derived. A
+// package helper, a function literal, a non-standard import or any other
+// method escapes. Names are matched without object resolution, so a shadowed
+// name can only add derived values.
+func escapes(body ast.Node, list *ast.CallExpr, imports map[string]string, testing map[string]bool) bool {
+	local := map[string]bool{}
+	ast.Inspect(body, func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.AssignStmt:
+			if node.Tok == token.DEFINE {
+				for _, target := range node.Lhs {
+					if ident, ok := target.(*ast.Ident); ok {
+						local[ident.Name] = true
+					}
+				}
+			}
+		case *ast.ValueSpec:
+			for _, name := range node.Names {
+				local[name.Name] = true
+			}
+		case *ast.RangeStmt:
+			if node.Tok == token.DEFINE {
+				for _, target := range []ast.Expr{node.Key, node.Value} {
+					if ident, ok := target.(*ast.Ident); ok {
+						local[ident.Name] = true
+					}
+				}
+			}
+		case *ast.FuncLit:
+			for _, field := range node.Type.Params.List {
+				for _, name := range field.Names {
+					local[name.Name] = true
+				}
+			}
+		}
+		return true
+	})
+	derived := map[string]bool{}
+	holds := func(expression ast.Node) bool {
+		found := false
+		ast.Inspect(expression, func(node ast.Node) bool {
+			if node == list {
+				found = true
+			} else if ident, ok := node.(*ast.Ident); ok && derived[ident.Name] {
+				found = true
+			}
+			return !found
+		})
+		return found
+	}
+	escaped := false
+	// derive marks the local that roots target as derived and reports a new
+	// mark; a target rooted anywhere else escapes.
+	derive := func(target ast.Expr) bool {
+		root := target
+		for {
+			if selector, ok := root.(*ast.SelectorExpr); ok {
+				root = selector.X
+			} else if index, ok := root.(*ast.IndexExpr); ok {
+				root = index.X
+			} else if star, ok := root.(*ast.StarExpr); ok {
+				root = star.X
+			} else if paren, ok := root.(*ast.ParenExpr); ok {
+				root = paren.X
+			} else {
+				break
+			}
+		}
+		ident, ok := root.(*ast.Ident)
+		if !ok || ident.Name != "_" && !local[ident.Name] {
+			escaped = true
+			return false
+		}
+		if ident.Name == "_" || derived[ident.Name] {
+			return false
+		}
+		derived[ident.Name] = true
+		return true
+	}
+	harmless := func(call *ast.CallExpr) bool {
+		switch function := call.Fun.(type) {
+		case *ast.Ident:
+			switch function.Name {
+			case "string", "len", "cap", "append", "delete", "min", "max":
+				return true
+			}
+		case *ast.ArrayType, *ast.MapType:
+			return true
+		case *ast.SelectorExpr:
+			if qualifier, ok := function.X.(*ast.Ident); ok {
+				if path, imported := imports[qualifier.Name]; imported {
+					first, _, _ := strings.Cut(path, "/")
+					return !strings.Contains(first, ".")
+				}
+				return derived[qualifier.Name] || testing[qualifier.Name]
+			}
+			return holds(function.X)
+		}
+		return false
+	}
+	for changed := true; changed && !escaped; {
+		changed = false
+		ast.Inspect(body, func(node ast.Node) bool {
+			if escaped {
+				return false
+			}
+			switch node := node.(type) {
+			case *ast.AssignStmt:
+				for index, target := range node.Lhs {
+					value := node.Rhs[0]
+					if len(node.Rhs) == len(node.Lhs) {
+						value = node.Rhs[index]
+					}
+					if holds(value) {
+						changed = derive(target) || changed
+					}
+				}
+			case *ast.ValueSpec:
+				for _, value := range node.Values {
+					if holds(value) {
+						for _, name := range node.Names {
+							changed = derive(name) || changed
+						}
+					}
+				}
+			case *ast.RangeStmt:
+				if holds(node.X) {
+					for _, target := range []ast.Expr{node.Key, node.Value} {
+						if target != nil {
+							changed = derive(target) || changed
+						}
+					}
+				}
+			case *ast.ReturnStmt:
+				for _, result := range node.Results {
+					escaped = escaped || holds(result)
+				}
+			case *ast.SendStmt:
+				escaped = escaped || holds(node.Value)
+			case *ast.CallExpr:
+				if node == list {
+					return true
+				}
+				reached := false
+				for _, argument := range node.Args {
+					reached = reached || holds(argument)
+				}
+				if !reached {
+					return true
+				}
+				if !harmless(node) {
+					escaped = true
+					return false
+				}
+				for _, argument := range node.Args {
+					if address, ok := argument.(*ast.UnaryExpr); ok && address.Op == token.AND {
+						changed = derive(address.X) || changed
+					}
+				}
+			}
+			return !escaped
+		})
+	}
+	return escaped
+}
+
+// testingParameters names the parameters of signature whose type is
+// *testing.T, *testing.B, *testing.F or testing.TB.
+func testingParameters(signature *ast.FuncType, imports map[string]string) map[string]bool {
+	names := map[string]bool{}
+	if signature == nil || signature.Params == nil {
+		return names
+	}
+	for _, field := range signature.Params.List {
+		kind := field.Type
+		if star, ok := kind.(*ast.StarExpr); ok {
+			kind = star.X
+		}
+		selector, ok := kind.(*ast.SelectorExpr)
+		if !ok {
+			continue
+		}
+		qualifier, ok := selector.X.(*ast.Ident)
+		if !ok || imports[qualifier.Name] != "testing" {
+			continue
+		}
+		switch selector.Sel.Name {
+		case "T", "B", "F", "TB":
+			for _, name := range field.Names {
+				names[name.Name] = true
+			}
+		}
+	}
+	return names
 }
 
 // literalEnvironment reports an environment `append(os.Environ(), ...)` or

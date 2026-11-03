@@ -794,6 +794,8 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 	}{
 		{"plain", "tmp=$(mktemp -d)\nrepo=\"$tmp/repo\"\ncat \"$repo/internal/x/y.json\"\n", false},
 		{"recursive", "tmp=$(mktemp -d)\ncp -r internal \"$tmp/\"\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"recursive force", "tmp=$(mktemp -d)\ncp -rf internal \"$tmp/\"\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"force recursive", "tmp=$(mktemp -d)\ncp -fR internal \"$tmp/\"\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"tree", "tmp=$(mktemp -d)\ncp -R . \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"archive", "tmp=$(mktemp -d)\ngit archive HEAD | tar -x -C \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"worktree", "tmp=$(mktemp -d)\ngit worktree add \"$tmp/wt\" HEAD\ncat \"$tmp/wt/internal/x/y.json\"\n", true},
