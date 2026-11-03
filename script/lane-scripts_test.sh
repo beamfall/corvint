@@ -40,7 +40,10 @@ if [[ ${1-} == --heavy-host-env-only ]]; then
   export HEAVY_REMOTE_ENV=$tmp/remote.env HEAVY_REMOTE_SLOTS=1
   mkdir -p "$tmp/bin" "$tmp/remote-bin" "$tmp/home" "$tmp/scratch" "$tmp/tmpfs-cache" "$tmp/disk-cache"
   git clone -q --shared "$root" "$tmp/local"
-  origin=$(git -C "$root" remote get-url origin)
+  # A fixed origin, never contacted (the base commit is already in both clones): copying the root's
+  # origin made the result depend on how the developer's checkout was cloned, and a local-path
+  # origin there fails the remote's same-repository check (ASD-V0-2120 acceptance).
+  origin=https://example.invalid/fixture/corvint.git
   git -C "$tmp/local" remote set-url origin "$origin"
   git -C "$tmp/local" update-ref refs/remotes/origin/main HEAD
   git clone -q --shared "$tmp/local" "$tmp/home/corvint"
@@ -99,7 +102,10 @@ EOF
     [[ $(sed -n 1p "$tmp/observed") == "$cache" && $(sed -n 2p "$tmp/observed") == "$cache" ]] ||
       fail "remote Go/Makefile cache mismatch: $(cat "$tmp/observed")"
     scratch=$(sed -n 3p "$tmp/observed") gotmp=$(sed -n 4p "$tmp/observed")
-    [[ $scratch == "$tmp/home/.cache/corvint-heavy/tmp/run."* && $gotmp == "$scratch" && ! -e $scratch ]] ||
+    # GOTMPDIR is the remote per-run directory. TMPDIR is that directory, or (V1-4319) the
+    # private heavy-run.* directory heavy.sh creates inside it for the command; both are removed.
+    [[ ${gotmp%/*} == "$tmp/home/.cache/corvint-heavy/tmp" && ${gotmp##*/} == run.* && ! -e $gotmp ]] &&
+      [[ $scratch == "$gotmp" || (${scratch%/*} == "$gotmp" && ${scratch##*/} == heavy-run.*) ]] ||
       fail "remote scratch is not per-run and removed with Test* leak: $(cat "$tmp/observed")"
     grep -q '^heavy.sh: running on ' "$tmp/err" || fail "offload fell back locally: $(cat "$tmp/err")"
   }
@@ -493,7 +499,19 @@ for a in "\$@"; do
 done
 GO
 printf '#!/usr/bin/env bash\nshift\nexec "$@"\n' > "$off/bin/timeout"
-chmod +x "$off/bin/ssh" "$off/bin/go" "$off/bin/timeout"
+# ASD-V0-2120: the remote refuses a RAM-backed Go cache, and these fixtures put the remote HOME
+# under this run's TMPDIR, which is tmpfs on some hosts (WSL /tmp). The fake remote's file systems
+# are therefore modelled: the real stat still answers (so its -f -c %T call is exercised), but a
+# RAM-backed answer for a fixture path reads as a disk. The cache decision itself (tmpfs, symlink,
+# refusal) is covered by --heavy-host-env-only.
+real_stat=$(command -v stat) || fail "stat missing"
+cat > "$off/bin/stat" << STAT
+#!/usr/bin/env bash
+[[ \$# == 4 && \$1 == -f && \$2 == -c && \$3 == %T && \$4 == "$off/"* ]] || exec "$real_stat" "\$@"
+fs=\$("$real_stat" "\$@") || exit
+case \$fs in tmpfs | ramfs) echo ext2/ext3 ;; *) printf '%s\\n' "\$fs" ;; esac
+STAT
+chmod +x "$off/bin/ssh" "$off/bin/go" "$off/bin/timeout" "$off/bin/stat"
 /bin/cp -f "$off/bin/go" "$off/bin/make"
 g() { git -c user.name=t -c user.email=t@example.invalid -c init.defaultBranch=main "$@"; }
 g init -q --bare "$off/origin.git"
