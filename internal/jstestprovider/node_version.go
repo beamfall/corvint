@@ -73,11 +73,21 @@ func (c *cappedOutput) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// recordedNodeVersion is the one Node version every reported test's browser identity names
-// (process.version in the runner), or "" when any test omits it or two disagree.
-func recordedNodeVersion(tests []TestOutcome) string {
+// recordedNodeVersion is the one Node version the runner reported (process.version): every test
+// that is not browser "none" must name it in its browser identity, and a present, non-empty
+// report-level version must agree (PWP-V0-961). A browser "none" test names no version, so it
+// constrains nothing when the report names one and leaves the version unknown when it does not.
+// Any disagreement, a missing per-test version, or no source at all is "" (unobserved).
+func recordedNodeVersion(tests []TestOutcome, reported *string) string {
 	version := ""
+	if reported != nil {
+		version = *reported
+	}
+	reportNamed := version != ""
 	for _, t := range tests {
+		if reportNamed && t.Project != nil && t.Project.Browser == BrowserlessProject {
+			continue
+		}
 		var use playwrightUseIdentity
 		if t.Project == nil || json.Unmarshal(t.Project.Use, &use) != nil || use.CorvintBrowser.NodeVersion == nil || *use.CorvintBrowser.NodeVersion == "" {
 			return ""
