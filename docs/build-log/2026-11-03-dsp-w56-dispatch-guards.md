@@ -54,3 +54,24 @@ a direct scan found ASD-V0-2200..2209 free at the base and all 676 open refs.
 
 Rollback: revert the new helper, its dispatch integrations and origin/main precheck together;
 retain the existing HEAD binary check. No persisted screen state or queue migration exists.
+
+## Review fixes
+
+An independent review found two P2 defects; both reproduced against HEAD and are fixed.
+
+- Malformed Markdown declarations (`ASD-V0-2201`): the per-field regexes skipped a recognized
+  field line whose value did not parse, so `Pin: go.mod@bogus` or `ID-block: ASD-V0 nope 2209`
+  left the constraint undeclared and the screen could pass. Every recognized field line
+  (`Tickets:`, `Package:`, `Pin:`, `ID-block:`, `Branch:`, `Host-repo:`, `Status:`) now must parse
+  or the screen refuses with exit 2. Prose without a field prefix is still ignored.
+- Relative host paths (`ASD-V0-2202`): every Git call runs under `-C REPO`, so a relative
+  `--host-repo` or charter `Host-repo:` path resolved beneath the source repository. A fixture
+  with a decoy bare repository under `--repo` showed publication to the decoy and a passing
+  verification against it. Filesystem host paths are now made absolute against the invocation
+  directory first. URLs (`scheme://`), scp-like `HOST:PATH` and slash-free configured remote
+  names of `--repo` pass through unchanged, and the resolved host is what `HOST_REF` lines report.
+
+Evidence: `script/lane-screen_test.pl` has 78 assertions, all passing. 17 of them fail with the
+HEAD script: 14 Markdown refusals, plus the resolved host name, the invocation-relative host's
+refs and the empty decoy. Limit: Git `url.*.insteadOf` rewrites of a bare path and
+Windows drive-letter paths are not modelled.

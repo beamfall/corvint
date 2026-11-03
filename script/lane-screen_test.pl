@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Test::More;
 use File::Temp qw(tempdir);
-use File::Path qw(make_path);
+use File::Path qw(make_path remove_tree);
 use Cwd qw(abs_path);
 use JSON::PP;
 my $script=abs_path('script');
@@ -89,6 +89,13 @@ json($other,{tickets=>[],idBlocks=>[{prefix=>'ASD-V0',start=>2202,end=>2204}]});
 write_file("$tmp/charter.md","Tickets: V1-9998\nPackage: pkg/live\nID-block: ASD-V0 2210 2211\n");
 ($rc,$out)=run('bash',"$script/lane-dispatch.sh",'screen','--repo',$repo,'--base',$base,'--charter',"$tmp/charter.md");
 is($rc,0,'documented Markdown charter works');
+# Review fix: a recognized Markdown field whose value does not parse refuses (exit 2).
+for my $bad ('Pin: go.mod@bogus','ID-block: ASD-V0 nope 2209','Tickets: none','Package: pkg/a pkg/b',
+             'Branch: two words','- Host-repo:','Status: done') {
+    write_file("$tmp/bad.md","Tickets: V1-9998\n$bad\n");
+    ($rc,$out)=run('bash',"$script/lane-dispatch.sh",'screen','--repo',$repo,'--base',$base,'--charter',"$tmp/bad.md");
+    is($rc,2,"malformed Markdown '$bad' refuses"); like($out,qr/REFUSE .*malformed Markdown/,"names malformed '$bad'");
+}
 json($charter,{tickets=>['V1-9998'],pins=>[{path=>'x',commit=>'bogus'}]});
 ($rc,$out)=screen(); is($rc,2,'malformed pin refuses instead of passing');
 json($charter,{tickets=>['V1-9998'],pins=>[{path=>'missing.go',commit=>$base}]});
@@ -113,6 +120,22 @@ g('branch','-f','lane-other',$old);
 ($rc,$out)=refs(); is($rc,1,'existing wrong host tip refuses');
 ($rc,$out)=refs('--publish'); is($rc,2,'publication never force rewinds a host');
 g('branch','-f','lane-other',g('rev-parse','batch-flight'));
+# Review fix: relative host paths resolve from the invocation directory, never beneath --repo;
+# a configured remote name of --repo still passes as a name. A decoy under --repo must stay empty.
+for ("$tmp/rel-host.git","$repo/rel-host.git") { my ($r,$s)=run('git','init','--bare','-q',$_); $r==0 or die $s }
+json("$tmp/relhost.json",{tickets=>['V1-9998'],branches=>['lane-other','batch-flight']});
+write_file("$tmp/relhost.md","Tickets: V1-9998\nBranch: lane-other\nHost-repo: rel-host.git\n");
+sub refs_in { run('sh','-c','cd "$1" && shift && exec "$@"','sh',$tmp,'bash',"$script/lane-dispatch.sh",'refs','--repo',$repo,'--base',$base,@_) }
+($rc,$out)=refs_in('--charter',"$tmp/relhost.json",'--host-repo','rel-host.git','--publish');
+is($rc,0,'relative --host-repo publishes from the invocation directory');
+like($out,qr/HOST_REF_OK host=\Q$tmp\E\/rel-host\.git branch=lane-other/,'resolved host path named');
+my ($lr,$lo)=run('git','--git-dir',"$tmp/rel-host.git",'show-ref'); like($lo,qr/refs\/heads\/batch-flight/,'invocation-relative host received refs');
+($lr,$lo)=run('git','--git-dir',"$repo/rel-host.git",'show-ref'); is($lo,'','decoy beneath --repo untouched');
+($rc,$out)=refs_in('--charter',"$tmp/relhost.md"); is($rc,0,'relative charter Host-repo verifies from the invocation directory');
+g('remote','add','fixture-host',$hosts[0]);
+($rc,$out)=refs_in('--charter',"$tmp/relhost.json",'--host-repo','fixture-host');
+is($rc,0,'configured remote name still resolves through --repo'); like($out,qr/HOST_REF_OK host=fixture-host /,'remote name retained');
+g('remote','remove','fixture-host'); remove_tree("$repo/rel-host.git");
 
 # Full dispatch path uses only a fixture ticket reader, never the real Tasks runtime.
 my $reader="$tmp/tasks";

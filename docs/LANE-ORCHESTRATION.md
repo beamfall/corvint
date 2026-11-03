@@ -1186,11 +1186,13 @@ V1-3867, V1-3761). Before dispatch, fetch origin on each host and register every
 ```
 
 Host repositories can also be configured Git remote names or SSH URLs, supplied as
-`--host-repo PATH_OR_REMOTE`; paths resolve from the invocation directory. A host branch already
+`--host-repo PATH_OR_REMOTE`; paths, in either place, resolve from the invocation directory, not
+`--repo`. A host branch already
 checked out may refuse a push; use the host's shared clone with a different checked-out branch or a
 bare staging remote. Mark finished charters `"status":"closed"`. Markdown charters use the
 `Tickets:`, `Package:`, `Pin: PATH@SHA`, `ID-block: PREFIX START END`, `Branch:` and `Host-repo:`
-lines documented by `script/lane-dispatch.sh screen --help`.
+lines documented by `script/lane-dispatch.sh screen --help`; a recognized field line whose value
+does not parse refuses with exit 2.
 
 `script/lane-dispatch.sh screen --charter FILE --tickets TICKETS.json --base BASE` reads only
 Git and files. It reports all charter/branch claims, delivered commit-subject references, explicit

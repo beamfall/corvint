@@ -6,6 +6,7 @@ use warnings;
 use JSON::PP;
 use Getopt::Long qw(GetOptionsFromArray);
 use Cwd qw(abs_path);
+use File::Spec;
 
 sub usage {
     print "usage: script/lane-dispatch.sh screen|refs --charter FILE [--repo DIR] [--base REF]\n",
@@ -15,7 +16,8 @@ sub usage {
           "Charter JSON: tickets, packages, pins [{path,commit}], idBlocks [{prefix,start,end}],\n",
           "  branches [branch], hosts [{repo}]; status=closed excludes an open charter.\n",
           "Markdown: Tickets:, Package:, Pin: PATH\@SHA, ID-block: PREFIX START END,\n",
-          "  Branch: NAME and Host-repo: PATH_OR_REMOTE lines. Repeat lines as needed.\n",
+          "  Branch: NAME and Host-repo: PATH_OR_REMOTE lines. Repeat lines as needed; a field\n",
+          "  line whose value does not parse refuses. Host paths resolve from the current directory.\n",
           "Open charters default to REPO/.corvint/lane-charters/*.{json,md}.\n",
           "Findings exit 1; bad/unavailable inputs exit 2. Overrides retain every finding.\n";
 }
@@ -50,14 +52,18 @@ sub read_charter {
         $c=eval { decode_json($s) }; ref($c) eq 'HASH' or refuse("bad charter JSON $path");
     } else {
         $c={};
+        # A recognized field line whose value does not parse is malformed input, never skipped.
         for (split /\n/, $s) {
-            if (/^\s*(?:[-*]\s*)?Tickets?:\s*(.*)$/i) { push @{$c->{tickets}}, $1 =~ /\bV[0-9]+-[0-9]+\b/g }
-            if (/^\s*(?:[-*]\s*)?Package:\s*`?([^\s`]+)`?\s*$/i) { push @{$c->{packages}}, $1 }
-            if (/^\s*(?:[-*]\s*)?Pin:\s*`?([^\s\@`]+)\@([a-f0-9]{7,40})`?\s*$/i) { push @{$c->{pins}}, {path=>$1,commit=>$2} }
-            if (/^\s*(?:[-*]\s*)?ID-block:\s*([A-Z0-9-]+)\s+(\d+)\s+(\d+)\s*$/i) { push @{$c->{idBlocks}}, {prefix=>$1,start=>$2,end=>$3} }
-            if (/^\s*(?:[-*]\s*)?Branch:\s*`?([^\s`]+)`?\s*$/i) { push @{$c->{branches}}, $1 }
-            if (/^\s*(?:[-*]\s*)?Host-repo:\s*(.+?)\s*$/i) { push @{$c->{hosts}}, {repo=>$1} }
-            $c->{status}=lc($1) if /^\s*Status:\s*(open|closed)\s*$/i;
+            /^\s*(?:[-*]\s*)?(Tickets?|Package|Pin|ID-block|Branch|Host-repo|Status):\s*(.*?)\s*$/i or next;
+            my ($k,$v)=(lc $1,$2); my $ok=0;
+            if ($k =~ /^tickets?$/) { my @t=$v =~ /\bV[0-9]+-[0-9]+\b/g; $ok=@t; push @{$c->{tickets}}, @t }
+            elsif ($k eq 'package') { if ($v =~ /^`?([^\s`]+)`?$/) { $ok=1; push @{$c->{packages}}, $1 } }
+            elsif ($k eq 'pin') { if ($v =~ /^`?([^\s\@`]+)\@([a-f0-9]{7,40})`?$/i) { $ok=1; push @{$c->{pins}}, {path=>$1,commit=>$2} } }
+            elsif ($k eq 'id-block') { if ($v =~ /^([A-Z0-9-]+)\s+(\d+)\s+(\d+)$/i) { $ok=1; push @{$c->{idBlocks}}, {prefix=>$1,start=>$2,end=>$3} } }
+            elsif ($k eq 'branch') { if ($v =~ /^`?([^\s`]+)`?$/) { $ok=1; push @{$c->{branches}}, $1 } }
+            elsif ($k eq 'host-repo') { if (length $v) { $ok=1; push @{$c->{hosts}}, {repo=>$v} } }
+            elsif ($v =~ /^(open|closed)$/i) { $ok=1; $c->{status}=lc $1 }
+            $ok or refuse("$path malformed Markdown $k declaration: $v");
         }
     }
     for my $key (qw(tickets packages pins idBlocks branches hosts)) {
@@ -100,9 +106,18 @@ if ($mode eq 'refs') {
         $host !~ /^-/ && scalar_text($host) or refuse('invalid host repository');
         git('push','--', $host, map { "$_->[1]:refs/heads/$_->[0]" } @$refs);
     }
+    # Git runs under -C REPO, so a filesystem host path is made absolute against the invocation
+    # directory first. URLs, scp-like HOST:PATH and configured remote names of REPO pass unchanged.
+    my %remote=map { $_=>1 } split /\n/, git('remote');
+    sub host_location {
+        my ($host,$remote)=@_;
+        return $host if $host =~ m{^[A-Za-z][A-Za-z0-9+.-]*://} || $host =~ m{^[^/]*:} || ($host !~ m{/} && $remote->{$host});
+        return File::Spec->rel2abs($host);
+    }
     my $bad=0;
     for my $host (@hosts) {
         scalar_text($host) && $host !~ /^-/ or refuse('invalid host repository');
+        $host=host_location($host,\%remote);
         publish_refs($host,\@refs) if $publish;
         my $out=git('ls-remote','--refs','--', $host, map { "refs/heads/$_->[0]" } @refs);
         my %found=map { my ($oid,$ref)=split /\s+/; ($ref=>$oid) } grep { length } split /\n/, $out;
