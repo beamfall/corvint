@@ -140,11 +140,15 @@ func writeTree(t *testing.T, dir string, files map[string]string) {
 	}
 }
 
-// failingTests runs the whole fixture suite and returns the failing
+// failingTests runs the fixture's package dirs and returns the failing
 // top-level tests as dir.Name.
-func failingTests(t *testing.T, dir string) map[string]bool {
+func failingTests(t *testing.T, dir string, dirs []string) map[string]bool {
 	t.Helper()
-	cmd := exec.Command("go", "test", "-count=1", "-json", "./...")
+	args := []string{"test", "-count=1", "-json"}
+	for _, d := range dirs {
+		args = append(args, "./"+d)
+	}
+	cmd := exec.Command("go", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOFLAGS=")
 	out, _ := cmd.Output()
@@ -267,7 +271,7 @@ func TestFaultInjection(t *testing.T) {
 					kept[pkg+"."+n] = true
 				}
 			}
-			failed := failingTests(t, dir)
+			failed := failingTests(t, dir, dirs)
 			for f := range failed {
 				if !kept[f] {
 					t.Errorf("MISS: %s fails on the mutant but was not kept (plans %+v)", f, plans)
