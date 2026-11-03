@@ -25,4 +25,7 @@ func signalUsr2(pid int) error { return syscall.Kill(pid, syscall.SIGUSR2) }
 
 func alive(pid int) bool { return syscall.Kill(pid, 0) == nil }
 
+// groupAlive reports whether any process of the group led by pid remains.
+func groupAlive(pid int) bool { return syscall.Kill(-pid, 0) == nil }
+
 const sigTerm, sigKill = syscall.SIGTERM, syscall.SIGKILL

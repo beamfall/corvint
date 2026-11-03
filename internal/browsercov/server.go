@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// serverGrace is how long a stopped server's processes get to exit.
+var serverGrace = 10 * time.Second
+
 // startServer starts the collector's server command with every process
 // instrumented and waits until ServerURL answers. stop asks each process
 // under test to write its coverage, then stops the server; it returns a
@@ -36,9 +39,20 @@ func (c *collector) startServer(ctx context.Context, dir string) (stop func() st
 	stop = func() string {
 		reason := flush(dir)
 		_ = signalGroup(cmd.Process.Pid, sigTerm)
+		// The shell can exit before a child that ignores SIGTERM, so the
+		// group is killed after the grace period whether or not it has.
+		grace := time.After(serverGrace)
 		select {
 		case <-exited:
-		case <-time.After(10 * time.Second):
+			for groupAlive(cmd.Process.Pid) {
+				select {
+				case <-grace:
+					_ = signalGroup(cmd.Process.Pid, sigKill)
+					return reason
+				case <-time.After(50 * time.Millisecond):
+				}
+			}
+		case <-grace:
 			_ = signalGroup(cmd.Process.Pid, sigKill)
 			<-exited
 		}
