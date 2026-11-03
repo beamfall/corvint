@@ -758,7 +758,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   MUST be in the set the selector picks for that one-line change. One test that fails but was not
   selected is a miss that blocks enablement. The qualification retains the sample seed, mutant
   count, kill count, selected-set sizes and every miss, and a negative control proves a mutant on an
-  unexecuted line selects no test and kills none.
+  unexecuted line selects no test and kills none. The sample MUST include lines that coverage blocks
+  can leave uncovered (case expressions, else-if conditions, loop headers, closures); a changed body
+  line inside no block selects every test that executed a block of the enclosing function. Each
+  family is qualified on a pinned real repository: the Beamfall repositories for Go, TypeScript and
+  JavaScript, Rust, C#, Kotlin and the JVM, Swift and Python, and a pinned public Ruby project with
+  minitest and RSpec suites, since Beamfall has no Ruby repository. A family without a passing
+  qualification is reported unqualified and keeps its static plan.
 
 Failure modes for this section:
 
