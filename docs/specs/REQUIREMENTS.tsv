@@ -2284,6 +2284,8 @@ ASD-V0-2191	docs/specs/corvint-self-development-v0.md	(accepted under the owner'
 ASD-V0-2192	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SC	standing	2026-11-03; V1-4334
 ASD-V0-2193	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) Lane-she	standing	2026-11-03; V1-4334
 ASD-V0-2194	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4319) `script/	standing	2026-11-03; V1-4319
+ASD-V0-2120	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2691) Before a	standing	2026-10-11; V1-2691
+ASD-V0-2121	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4335, V1-2691)	standing	2026-10-11; V1-4335; V1-2691
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
