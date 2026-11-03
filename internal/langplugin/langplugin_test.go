@@ -72,6 +72,8 @@ func TestValidateRefusesAnUndeclaredPiece_LGPV0007(t *testing.T) {
 		"unknown piece":                               func(m *langplugin.Manifest) { m.Absent["linter"] = "x" },
 		"owns no path":                                func(m *langplugin.Manifest) { m.Paths = nil },
 		"names no path":                               func(m *langplugin.Manifest) { m.Analyzers[0].Paths = nil },
+		"is empty or padded":                          func(m *langplugin.Manifest) { m.Name = " demo" },
+		"empty runner name":                           func(m *langplugin.Manifest) { m.Runners = append(m.Runners, "") },
 	} {
 		m := complete()
 		edit(&m)
@@ -169,8 +171,19 @@ func TestManifestConformance_LGPV0008(t *testing.T) {
 			t.Errorf("provider %s has no manifest", p.Name())
 		}
 	}
-	if len(got) != 11 {
-		t.Errorf("providers %v, want the 11 affected-selection languages", got)
+	// The order in which providers claim a path is the previous hand-written
+	// languages.All list (LGP-V0-005, LGP-V0-012).
+	want := []string{"cfamily", "dotnet", "go", "java", "kotlin", "python", "ruby", "rust", "shell", "swift", "typescript"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("providers %v, want %v", got, want)
+	}
+	for runner, lang := range map[string]string{"rspec": "ruby", "go-test": "go", "pgtap": "sql", "jest": "typescript"} {
+		if got, ok := langplugin.RunnerLanguage(runner); !ok || got != lang {
+			t.Errorf("RunnerLanguage(%s) = %q, %v; want %s", runner, got, ok, lang)
+		}
+	}
+	if _, ok := langplugin.RunnerLanguage("no-such-runner"); ok {
+		t.Error("RunnerLanguage answered an unknown runner")
 	}
 }
 
