@@ -4171,7 +4171,7 @@
     "reqPrefix": "CIN-V0",
     "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change",
     "delivery": "experimental",
-    "claim": "CI narrowing restarts its epoch per producing run, fails loudly on a dead pin, lists only needed rows, skips idle shards and tests tools/local-authority.",
+    "claim": "CI narrowing isolates producing epochs and provides an operator alarm for missing forward rows independent of selection documents.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
@@ -4394,6 +4394,18 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/dogfood-citation-plan-precheck-v0.md",
+    "title": "Dogfood Citation Plan Precheck V0",
+    "reqPrefix": "DCW-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11)",
+    "delivery": "implemented",
+    "claim": "A citation-plan precheck names every refused row and its CEM reason before binding.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/windows-test-portability-v0.md",
     "title": "Native Windows Test Portability V0",
     "reqPrefix": "ASD-V0",
@@ -4412,6 +4424,22 @@
       "internal/jstestprovider",
       "cmd/corvint-js-test-provider",
       "internal/modelgateway"
+    ]
+  },
+  {
+    "path": "docs/specs/lane-shell-portability-v0.md",
+    "title": "Lane Shell Portability V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Lane shell scripts stay portable to Bash 3.2, BWK awk and Make 3.81, keep offload scratch and caches on disk, and sweep only their own stale temp dirs.",
+    "dependsOn": [
+      "docs/specs/corvint-self-development-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script"
     ]
   }
 ]
