@@ -14,6 +14,7 @@ re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V
 - Claim: Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.
 - Status: accepted / partial
 - Exists: slice 3a as an experimental library, `internal/funclink` (V1-4386): functional units with code and test sets built from AFU-V1 declared links, the AMAP-V0 map and impact join, SKH-V0 page objects, steps and setup records, and an injected observed source; `functionality-link` gap-filling, test-side surface selection, the shadow fallback-replacement record and the gap report. It is not yet called by `corvint affected` or the CI selector, reads no project-config ownership, and has no observed source until the segment join (slices 1 and 3) exists. The rest of this join does not exist. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
+- Exists: slices 1, 4 and 7 as a Go library in `internal/linecov`: the `linecov-index/3` format with optional per-record segments, which reads a `/2` index as one whole-test segment per test; `Index.Join` from changed blocks to segments, tests and opaque functional-unit ids, with uncovered blocks for the gap-filling lane; `Index.Report` reasons and level/reason counts; `Index.Shadow` shared-step equivalence (conditions 1 to 4) with the cheapest representative, shadow only; the `FaultCase` per-kind fault-injection runner, miss detector, divergent-class carry (`linecov collect -prior/-misses`) and promotion check; and the plan-time measurement. Not yet: any segment collector (only the Go collector exists, whose records are unbound whole-test segments, so nothing is excluded in practice), SKH binding, the `select`/`ci` JSON wiring of the join and report, the CI shadow run and its 1,000-change count. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
 - Blocked on: a non-Go collector (LPCV-V0-955) for the observed links and segment requirements. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
 - Read next: Requirements; Functionality links; Shared-step selection; Failure modes; Delivery slices; Owner questions.
 
@@ -66,17 +67,24 @@ line selection: it never dedupes repeated steps and never tells the map which te
 ### Records and join
 
 - `MCJ-V0-001`: A coverage record (LPCV-V0-950) MAY carry an ordered list of segments, each with
-  its segment identity, its reach and its elapsed time. A record without segment boundaries has one
+  its segment identity, its reach and its elapsed time. Segments are disjoint parts of the run: a
+  collector closes one before opening the next. A record without segment boundaries has one
   segment, the whole test, so every existing record stays valid and selects exactly as before.
+  Evidence: `TestSegmentedIndexRoundTripsAndSelectsAsBefore`, `TestBuildRefusesATestRecordedTwice`,
+  `TestDecodeRefusesInconsistentSegments` (`internal/linecov/segments_test.go`).
 - `MCJ-V0-002`: A segment identity binds only when the SKH-V0 model read at the record's commit
   holds that identity at the same anchor blob. Otherwise the segment is `unbound`: it keeps its
   reach for test-level selection and joins no functional unit.
 - `MCJ-V0-003`: Segments are stored in the immutable linecov index as a new format version
   (`linecov-index/3`). A reader of `linecov-index/2` refuses it, and `linecov-index/3` reads a
   `/2` index as one segment per test. The index stays derived state with no database (invariant 7).
+  Evidence: `TestV2IndexReadsAsOneSegmentPerTest`.
 - `MCJ-V0-004`: For a change, the join maps each changed block to the segments whose reach holds
   it, and each segment to its test and functional unit. The plan reports, per test, the segments
   through which the change reaches it.
+  Evidence: `TestJoinMapsChangedBlocksToSegmentsTestsAndUnits`. The join is a library API
+  (`Index.Join`, `Index.BlocksAt`, `Index.BlockSegments`); the `select` and `ci` outputs do not carry
+  it yet.
 
 ### Functionality links
 
@@ -125,6 +133,11 @@ line selection: it never dedupes repeated steps and never tells the map which te
      every check either test makes after the shared step is one the other makes too. A test with
      an assertion, expectation or step the other lacks after the shared step is not equivalent.
   Equivalence is never inferred from names or titles alone.
+  Evidence: `TestSharedStepEquivalence` (equal reach, condition-2 data dependence, condition-3 prior
+  state and setup record, condition-4 different later checks with both tests kept, unbound,
+  incomplete and residual segments) and `TestShadowKeepsWhatSegmentsCannotSee` (a block run more
+  often by the whole test than by its segments, a set-mode segmented record, a changed test helper
+  or order-sensitive package, an incomplete record's units).
 - `MCJ-V0-006`: When every segment through which a change reaches test T has an equivalent segment
   in a selected test R, the plan MAY exclude T as `covered-by-representative`, naming R and the
   segments. In each equivalence class it picks the representative with the smallest recorded
@@ -132,6 +145,8 @@ line selection: it never dedupes repeated steps and never tells the map which te
   T without an equivalent keeps T. A change to T's own test-side code that its representative does
   not share keeps T. Matching the changed segments alone never suffices: T is excluded only when
   condition 4 shows R makes every check T makes after the shared step, otherwise both run.
+  Evidence: `TestSharedStepEquivalence` (cheapest representative, ties by test identity, a reached
+  segment without an equivalent, a direct test-source change, an unselected representative).
 - `MCJ-V0-007`: Each record carries a level. A project-declared level wins: a runner project or
   config (for example a Playwright project), a build tag, or a path rule declared in the
   repository's Corvint configuration. Otherwise the runner family's default applies: browser E2E
@@ -171,24 +186,41 @@ line selection: it never dedupes repeated steps and never tells the map which te
 - `MCJ-V0-014`: A collector qualifies only with a fault-injection fixture per segment kind, on the
   model of LPCV-V0-963. For each kind, a change reaching a non-shared segment must keep its test,
   and a change reaching only an equivalent segment must exclude all but the representative.
+  Evidence: `TestFaultInjectionPerSegmentKind` runs the `FaultCase` matrix over a synthetic segmented
+  index for each of the step, method, setup and whole-test kinds, with negative controls. No
+  collector is qualified yet: each collector still runs this matrix on its own fixture.
 
 ### Safety, evidence and qualification
 
 - `MCJ-V0-015`: A segment record is incomplete when a process it started was not instrumented, a
-  boundary was missing, or a source map did not resolve. Its test then keeps only its test-level
+  boundary was missing, a source map did not resolve, or its segments together count a block more
+  often than the whole run (overlapping segments). Its test then keeps only its test-level
   record and takes part in no equivalence class.
 - `MCJ-V0-016`: Every `covered-by-representative` exclusion in the plan lists the representative,
   the segment identities and the block-set equality, and the plan counts tests by level and by
   reason (extending LPCV-V0-961).
+  Evidence: `TestShadowReportsAndNeverChangesSelection` (`Index.Report`); not yet in the `select` JSON.
 - `MCJ-V0-017`: Shared-step exclusion runs in shadow first: CI computes it, runs every test anyway,
   and records the result. It may exclude tests only after zero misses over at least 1,000 CI changes
   plus the MCJ-V0-014 fault injection, the same bar as LPCV shadow qualification. A **miss** is an
   excluded test that fails while its representative passes.
+  Evidence: `TestShadowReportsAndNeverChangesSelection` (Narrow's plan is unchanged and the exclusion
+  is reported as `WouldSkip`) and `Qualification.Promotable` in `TestMissDetectorMarksClassDivergent`.
+  The CI shadow run and its change count are `NOT_RUN`.
 - `MCJ-V0-018`: A miss marks that equivalence class divergent in the next index until a blob in its
   reach changes, files a `bugs` ticket with the two test identities and the change, and blocks
   promotion until the cause is explained.
+  Evidence: `TestMissDetectorMarksClassDivergent` and `TestDivergenceInputs`
+  (`tools/linecov/collect_test.go`); a miss naming no reach file is refused. The ticket is drafted as
+  data (`Miss.Ticket`); the caller files it.
 - `MCJ-V0-019`: The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 100 ms
   beyond the `git diff` and base-blob reads on the reference host, measured with segments present.
+  Evidence: `TestPlanTimeBudgetWithSegments` and `BenchmarkPlanWithSegments`: index decode, analysis,
+  join, shadow, narrow and report over 2,000 tests with 16,000 bound segments, p95 54 to 58 ms on a
+  4-core development host (`docs/build-log/2026-11-03-mcj-linecov-segments.md`), and p95 25 ms on
+  the 12-core reference host after the decode and reach allocations were cut. Under `-race`, as CI's
+  Go product shards run, the plan is about 11x slower (p95 281 ms on the reference host), so the test
+  scales the budget by 20 there and holds the absolute 100 ms only without `-race`.
 
 
 ## Traceability
