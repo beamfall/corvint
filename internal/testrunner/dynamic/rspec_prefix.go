@@ -25,6 +25,20 @@ const (
 	maxInclusionFrames    = 64
 )
 
+// ExecMemberRunners names the runners of this family that admit a request's
+// ExecPrefix, PathMap and Formatter members; every other runner refuses them
+// (TRE-V0-081). The registry reads it instead of naming rspec itself (LGP-V0-011).
+func ExecMemberRunners() []string { return []string{"rspec"} }
+
+func admitsExecMembers(runner string) bool {
+	for _, name := range ExecMemberRunners() {
+		if name == runner {
+			return true
+		}
+	}
+	return false
+}
+
 // rspecPathMapper admits a request's ExecPrefix, PathMap and Formatter and
 // returns the function that maps an absolute host path to the path the
 // prefix's runtime sees (TRE-V0-081, TRE-V0-082). Without a PathMap the map
