@@ -19,9 +19,10 @@ import (
 // frontier, which both sides read through gateselect.UnobservedModule: the
 // driver admits it, and the shadow runs the module's own suite outside the ci
 // profile. The table holds every reason the planner emits and every Go frontier
-// detail it reports, beside non-Go frontiers. An UNSELECTED_BINARY_CONSUMER is
-// outside both lists; outside the ci profile Build names it as a check
-// instead (STR-V0-750), which this table does not read.
+// detail it reports, beside non-Go frontiers. The other named exception is a
+// well-formed UNSELECTED_BINARY_CONSUMER, which both sides read through
+// gateselect.BinaryConsumer (V1-4361): the driver admits it, and Build names it
+// as a check on every profile (STR-V0-750) rather than through the allowlist.
 func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 	root := t.TempDir()
 	for name, body := range map[string]string{
@@ -67,6 +68,12 @@ func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 		if _, module := moduleDirectory(Unknown{Reason: e.reason, Detail: e.detail}); module {
 			if !driver || shadow {
 				t.Errorf("%s %q: an unobserved-module frontier: driver narrows=%v, shadow allowlist=%v, want true and false", e.reason, e.detail, driver, shadow)
+			}
+			continue
+		}
+		if _, consumer := binaryConsumer(Unknown{Reason: e.reason, Detail: e.detail}); consumer {
+			if !driver || shadow {
+				t.Errorf("%s %q: a binary consumer: driver narrows=%v, shadow allowlist=%v, want true and false", e.reason, e.detail, driver, shadow)
 			}
 			continue
 		}
