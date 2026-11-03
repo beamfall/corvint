@@ -220,8 +220,12 @@ func (ix *Index) Shadow(j Join, selected func(test int32) bool) ShadowReport {
 		r.Classes = append(r.Classes, *c)
 	}
 	sort.Slice(r.Classes, func(a, b int) bool { return r.Classes[a].Key < r.Classes[b].Key })
+	whole := map[string]bool{}
+	for _, p := range j.Whole {
+		whole[p] = true
+	}
 	for _, t := range j.Tests {
-		if t.Direct || len(t.Segments) == 0 || !selected(t.Test) {
+		if t.Direct || len(t.Segments) == 0 || !selected(t.Test) || whole[ix.Tests[t.Test].Package] {
 			continue
 		}
 		ex := Exclusion{Test: t.ID}

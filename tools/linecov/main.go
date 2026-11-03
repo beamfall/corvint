@@ -194,7 +194,9 @@ func collect(args []string) error {
 	}
 	sort.Strings(unordered)
 	ix.Unordered = unordered
-	linecov.CarryDivergent(ix, prior, misses)
+	if err := linecov.CarryDivergent(ix, prior, misses); err != nil {
+		return err
+	}
 	f, err := os.Create(*out)
 	if err != nil {
 		return err

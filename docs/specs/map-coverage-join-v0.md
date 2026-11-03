@@ -130,7 +130,9 @@ line selection: it never dedupes repeated steps and never tells the map which te
   Equivalence is never inferred from names or titles alone.
   Evidence: `TestSharedStepEquivalence` (equal reach, condition-2 data dependence, condition-3 prior
   state and setup record, condition-4 different later checks with both tests kept, unbound,
-  incomplete and residual segments).
+  incomplete and residual segments) and `TestShadowKeepsWhatSegmentsCannotSee` (a block run more
+  often by the whole test than by its segments, a set-mode segmented record, a changed test helper
+  or order-sensitive package, an incomplete record's units).
 - `MCJ-V0-006`: When every segment through which a change reaches test T has an equivalent segment
   in a selected test R, the plan MAY exclude T as `covered-by-representative`, naming R and the
   segments. In each equivalence class it picks the representative with the smallest recorded
@@ -203,11 +205,12 @@ line selection: it never dedupes repeated steps and never tells the map which te
   reach changes, files a `bugs` ticket with the two test identities and the change, and blocks
   promotion until the cause is explained.
   Evidence: `TestMissDetectorMarksClassDivergent` and `TestDivergenceInputs`
-  (`tools/linecov/collect_test.go`). The ticket is drafted as data (`Miss.Ticket`); the caller files it.
+  (`tools/linecov/collect_test.go`); a miss naming no reach file is refused. The ticket is drafted as
+  data (`Miss.Ticket`); the caller files it.
 - `MCJ-V0-019`: The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 100 ms
   beyond the `git diff` and base-blob reads on the reference host, measured with segments present.
   Evidence: `TestPlanTimeBudgetWithSegments` and `BenchmarkPlanWithSegments`: index decode, analysis,
-  join, shadow, narrow and report over 2,000 tests with 16,000 bound segments, p95 55 ms on a
+  join, shadow, narrow and report over 2,000 tests with 16,000 bound segments, p95 54 to 58 ms on a
   4-core development host (`docs/build-log/2026-11-03-mcj-linecov-segments.md`); the reference-host
   run is `NOT_RUN`.
 
