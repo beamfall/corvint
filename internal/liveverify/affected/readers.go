@@ -432,7 +432,7 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 		return false
 	}
 	if unit.PlacesFileNames && !strings.HasPrefix(id, "go:") && len(files) != 0 {
-		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath)
+		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath, false)
 	}
 	if !strings.HasPrefix(id, "go:") || len(files) == 0 {
 		// A unit with no files, such as a dependent nested module
@@ -441,7 +441,7 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 	}
 	directory := relativeDirectory(files[0])
 	if !resolvedEvidence(dirtyPath) {
-		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath)
+		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath, true)
 	}
 	anchored := rootAnchored(unit.PathTokens)
 	parts := strings.Split(dirtyPath, "/")
@@ -470,15 +470,28 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 // Any other way to the repository goes through a root-locating call or a
 // climbing literal, which select the unit as an unbounded reader (rule (d)),
 // or through a root supplied at run time, which no literal index bounds.
-func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string) bool {
+//
+// For a Go unit (module) an anchored token is decided by anchoredWithin
+// instead of the component-run relation (AFP-V0-2203); a non-Go unit's
+// anchored token follows a run-time root and keeps the relation.
+func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, module bool) bool {
 	if directory == "." || strings.HasPrefix(dirtyPath, directory+"/") {
 		return true
 	}
 	parts := strings.Split(dirtyPath, "/")
-	climbs := false
+	climbs, named := false, false
+	// prefixes holds, for each anchored token that does not resolve from a
+	// base, the number of leading path components before a run of it
+	// matches: the run then needs those components placed (AFP-V0-2203).
+	var prefixes []int
 	for _, value := range tokens {
 		if strings.HasPrefix(value, "/") || strings.Contains(value, "..") {
-			if namesPath(value, parts) {
+			if anchored, ok := anchoredWithin(directory, value, dirtyPath); module && ok {
+				if anchored {
+					return true
+				}
+				prefixes = append(prefixes, runOffsets(value, parts)...)
+			} else if namesPath(value, parts) {
 				return true
 			}
 			climbs = climbs || slices.Contains(strings.Split(value, "/"), "..")
@@ -486,6 +499,7 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string) bo
 		}
 		for _, candidate := range componentRuns(value) {
 			if len(candidate.components) < 2 {
+				named = named || candidate.components[0] == parts[len(parts)-1]
 				continue
 			}
 			for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
@@ -495,11 +509,37 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string) bo
 			}
 		}
 	}
+	if !named && len(prefixes) == 0 {
+		return false
+	}
 	vocabulary := make(map[string]bool)
 	for _, value := range tokens {
 		for _, component := range strings.Split(value, "/") {
 			vocabulary[component] = true
 		}
+	}
+	// An anchored token joined to a root assembled at run time from the
+	// unit's literals: every component before the run must be one a literal
+	// could join, from the root or from the module's possible directories.
+	anchorBases := []string{""}
+	for base := directory; base != "."; base = path.Dir(base) {
+		anchorBases = append(anchorBases, base)
+	}
+	for _, offset := range prefixes {
+		before := strings.Join(parts[:offset], "/")
+		for _, base := range anchorBases {
+			rest, under := before, true
+			if base != "" {
+				rest, under = strings.CutPrefix(before+"/", base+"/")
+				rest = strings.TrimSuffix(rest, "/")
+			}
+			if under && (rest == "" || placeable(vocabulary, rest+"/x")) {
+				return true
+			}
+		}
+	}
+	if !named {
+		return false
 	}
 	bases := []string{""}
 	for base := directory; climbs && base != "."; base = path.Dir(base) {
@@ -515,6 +555,87 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string) bo
 		}
 	}
 	return false
+}
+
+// anchoredWithin decides an anchored token (one that starts with "/": a
+// module-path literal the Go plugin anchored at its module's directory, or an
+// absolute path) for a Go unit in directory (AFP-V0-2203). The module's
+// directory is not recorded, but it is the unit's directory or one of its
+// ancestors, so the token names dirtyPath only when, joined to one of those
+// bases, it is dirtyPath or an ancestor of it; the last of two or more
+// components may be a fragment the literal is concatenated with, as in
+// componentRuns. A token that climbs out of the repository from every base
+// names nothing in it, and so does one with no component run (`"/"`, `"/."`),
+// as componentRuns finds none. The Go lexicon splits a literal at a printf
+// verb, so an empty component inside one token is a literal double slash,
+// which the join cleans. ok is false for a token that does not start with
+// "/".
+func anchoredWithin(directory, value, dirtyPath string) (names, ok bool) {
+	if !strings.HasPrefix(value, "/") {
+		return false, false
+	}
+	rest := strings.TrimLeft(value, "/")
+	if len(componentRuns(rest)) == 0 {
+		return false, true
+	}
+	bases := []string{""}
+	for base := directory; base != "." && base != ""; base = path.Dir(base) {
+		bases = append(bases, base)
+	}
+	parts := strings.Split(dirtyPath, "/")
+	for _, base := range bases {
+		resolved := path.Join(base, rest)
+		if resolved == ".." || strings.HasPrefix(resolved, "../") {
+			continue
+		}
+		if resolved == "." {
+			// The token climbs back to its module's directory
+			// (`"/x/.."`): it names every path below that base.
+			if base == "" || strings.HasPrefix(dirtyPath, base+"/") {
+				return true, true
+			}
+			continue
+		}
+		components := strings.Split(resolved, "/")
+		if len(components) > len(parts) {
+			continue
+		}
+		matched := true
+		for position, component := range components {
+			last := position == len(components)-1
+			if last && len(components) >= 2 && !strings.HasSuffix(value, "/") {
+				matched = strings.HasPrefix(parts[position], component)
+			} else {
+				matched = parts[position] == component
+			}
+			if !matched {
+				break
+			}
+		}
+		if matched {
+			return true, true
+		}
+	}
+	return false, true
+}
+
+// runOffsets lists the offsets at which a run of the token matches
+// consecutive components of parts, as namesPath tries them.
+func runOffsets(value string, parts []string) []int {
+	token := newPathToken(value)
+	var offsets []int
+	for _, candidate := range token.runs {
+		first := 0
+		if len(candidate.components) == 1 && token.nameOnly {
+			first = len(parts) - 1
+		}
+		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
+			if candidate.matchesAt(parts[offset:]) {
+				offsets = append(offsets, offset)
+			}
+		}
+	}
+	return offsets
 }
 
 // placeable reports whether every directory component of relative is a whole

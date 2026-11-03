@@ -696,8 +696,10 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 		{".corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go partial/partial_test.go split/split_test.go]"},
 		// V1-0290 keeps the lone `.corvint` of fixture from naming a directory.
 		{".corvint/other.json", "[deep/dir/dir_test.go]"},
-		// A path of the same shape that is not the sidecar is not narrowed.
-		{"docs/.corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
+		// A path of the same shape that is not the sidecar is not narrowed by
+		// the sidecar rule; the anchored token, joined to a root no literal
+		// of its unit can place under docs/, is not a reader (AFP-V0-2203).
+		{"docs/.corvint/change.cem.json", "[deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})
@@ -744,8 +746,9 @@ func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
 // unanchored lone file name, such as a fixture's README.md under t.TempDir(),
 // is a reader only when the path is in its own subtree or every directory
 // component of the path is a whole component of one of its tokens. A token
-// that places a directory (a multi-component run, an anchored token) keeps the
-// component-run relation.
+// that places a directory (a multi-component run) keeps the component-run
+// relation; an anchored token is placed from its module's possible
+// directories the same way (AFP-V0-2203).
 func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -763,13 +766,13 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 	}
 	cases := []struct{ dirty, want string }{
 		// The PR #1134 shape: a spec index edit no longer selects the fixture.
-		{"docs/specs/README.md", "[anchored/anchored_test.go joined/joined_test.go multi/multi_test.go]"},
+		{"docs/specs/README.md", "[joined/joined_test.go multi/multi_test.go]"},
 		// The unit's own subtree, where its tests run, keeps the fixture.
-		{"tempfixture/testdata/README.md", "[anchored/anchored_test.go tempfixture/fixture_test.go]"},
+		{"tempfixture/testdata/README.md", "[tempfixture/fixture_test.go]"},
 		// A root-level file has no directory to place.
 		{"README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
 		// Every directory component is in the vocabulary of joined only.
-		{"docs/README.md", "[anchored/anchored_test.go joined/joined_test.go]"},
+		{"docs/README.md", "[joined/joined_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})

@@ -86,6 +86,10 @@ type Graph struct {
 	// by unit (ADN-V0-002). Like priorReadScopes it is a selection input,
 	// not part of the observed graph or its digest.
 	goAdditive []GoAdditive
+	// importSets holds the golang plugin's import-set comparison
+	// (AFP-V0-2202); nil is unknown. Like priorReadScopes it is a selection
+	// input, not part of the observed graph or its digest.
+	importSets *ImportSetChanges
 	// sparse records that the disk checkout is a sparse checkout, where an
 	// absent directory may lie outside the cone rather than be deleted
 	// (AFP-V0-821). Like priorReadScopes it is a selection input.
@@ -178,6 +182,8 @@ type digestUnit struct {
 	FrontierBears        string   `json:"frontierBears,omitempty"`
 	Callers              []string `json:"callers,omitempty"`
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
+	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
+	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -717,6 +723,8 @@ func projectUnit(unit Unit) digestUnit {
 		FrontierBears:        unit.FrontierBears,
 		Callers:              unit.Callers,
 		ExecConsumers:        unit.ExecConsumers,
+		ImportGraphReads:     unit.ImportGraphReads,
+		ImportGraphReadsAll:  unit.ImportGraphReadsAll,
 	}
 }
 

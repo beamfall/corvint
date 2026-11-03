@@ -2010,7 +2010,9 @@ and container qualification; full fallback remains available.
   any token has a `..` component (`filepath.Join("..", "model.go")`), every ancestor of the unit's
   directory. (2) A token that places a directory SHALL keep the component-run relation: a run of
   two or more components (with its fragment outer components), an anchored token, or a climbing
-  token. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
+  token; for an anchored token of a Go unit, AFP-V0-2203 in
+  [`affected-plan-selection-v0.md`](affected-plan-selection-v0.md) replaces the relation with
+  resolution from the unit's possible module directories and the same placement test. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
   directory is unknown; AFP-V0-400 amends this for a shell unit that certifies placement. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
   unit that (1) keeps out of the plan is still named, so no unknown entry is added or removed and
   the plan's scope is unchanged; rule (d) unbounded readers, declared read scopes (AFP-V0-023),
