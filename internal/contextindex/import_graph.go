@@ -176,7 +176,7 @@ func WalkImportGraph(ctx context.Context, index *Index, kinds map[string]bool, e
 		if language != "" && registries.declared() {
 			_, extra[target] = registries.impact(index, target, importers)
 		}
-		if language == "ruby" {
+		if constantReferencePath(target) {
 			_, rows := ruby.impact(index, target)
 			extra[target] = append(extra[target], rows...)
 			if err := unknown(map[string]any{"path": target, "language": language, "code": "ruby-autoload-not-import"}); err != nil {
@@ -188,7 +188,7 @@ func WalkImportGraph(ctx context.Context, index *Index, kinds map[string]bool, e
 				return err
 			}
 		}
-		if language != "" && language != "ruby" {
+		if language != "" && !constantReferencePath(target) {
 			for _, code := range []string{"framework-resources-unresolved", "string-keyed-di-unresolved"} {
 				if err := unknown(map[string]any{"path": target, "language": language, "code": code}); err != nil {
 					return err

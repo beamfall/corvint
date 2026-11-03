@@ -65,7 +65,7 @@ type SetupSelection struct {
 // in `.setup` or `.seed` (TSA-V0-002).
 func IsSetupFile(name string) bool {
 	extension := path.Ext(name)
-	if language := NonGoImpactLanguage(name); language != "javascript" && language != "typescript" {
+	if !moduleImportPath(name) {
 		return false
 	}
 	stem := strings.TrimSuffix(path.Base(name), extension)
@@ -148,7 +148,7 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 	for _, spec := range cleaned {
 		name := path.Clean(spec)
 		_, indexed := index.Sources[name]
-		if language := NonGoImpactLanguage(name); !indexed || name != spec || (language != "javascript" && language != "typescript") {
+		if !indexed || name != spec || !moduleImportPath(name) {
 			s.reason("missing-path", spec, 0, "not a tracked JavaScript or TypeScript source at the revision")
 			continue
 		}
