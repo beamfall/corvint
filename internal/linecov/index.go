@@ -111,7 +111,7 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			}
 			var span [4]int32
 			for j := range span {
-				n, err := strconv.Atoi(m[2+j])
+				n, err := strconv.ParseInt(m[2+j], 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf("linecov: malformed block %q", line)
 				}
