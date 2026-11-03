@@ -1,0 +1,4 @@
+# frozen_string_literal: true
+
+require_relative '../lib/tool'
+exit(Tool.run ? 0 : 1)
