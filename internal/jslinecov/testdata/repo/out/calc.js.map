@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/calc.ts"],
+  "sourcesContent": ["export function square(n: number): number {\n  const r: number = n * n;\n  return r;\n}\n\nexport function half(n: number): number {\n  return n / 2;\n}\n"],
+  "mappings": ";;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAO,SAAS,OAAO,GAAmB;AACxC,QAAM,IAAY,IAAI;AACtB,SAAO;AACT;AAEO,SAAS,KAAK,GAAmB;AACtC,SAAO,IAAI;AACb;",
+  "names": []
+}

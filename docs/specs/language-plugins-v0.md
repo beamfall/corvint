@@ -104,8 +104,8 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   error for an unknown runner, the same provider list and order, and every existing selection,
   runner and linecov test passing unchanged.
 - `LGP-V0-013`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) A coverage
-  collector is a `coverage` sub-plugin of its language. Today only Go has one (`linecov-go`:
-  `internal/linecov`, `internal/liveverify/gorunner`). A new collector, including the MCJ-V0 Ruby
+  collector is a `coverage` sub-plugin of its language. Go has one (`linecov-go`:
+  `internal/linecov`, `internal/liveverify/gorunner`), and Ruby (`linecov-ruby`: `internal/rubylinecov`). A new collector, including the MCJ-V0 Ruby
   and TypeScript segment collectors, registers in its language's manifest and clears that
   language's `coverage` absence in the same change, rather than adding a separate per-language
   path that core names.
@@ -263,7 +263,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-009 | ratchet baseline in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
 | LGP-V0-010, 011 | `internal/testrunner/registry/registry.go`, `internal/testrunner/dynamic/rspec_prefix.go` | `TestFamiliesAreDisjointAndComplete_LGPV0010`, `TestRSpecOnlyMembersRefusedForOtherRunners` |
 | LGP-V0-012 | unchanged behavior | existing runner, registry and selection tests |
-| LGP-V0-013, 014 | manifest `Coverage` and `Mutation` lists | `TestManifestConformance_LGPV0008` |
+| LGP-V0-013, 014 | manifest `Coverage` and `Mutation` lists; ruby `Coverage` is `linecov-ruby` (`internal/rubylinecov`) | `TestManifestConformance_LGPV0008`, `make plugin-test PLUGIN=ruby` |
 | LGP-V0-015, 017, 018 | manifest `Dialects`, `Dependencies`, `SubPlugin.Suffixes` | `TestDialectsAndDependencies_LGPV0015`, `TestValidateRefusesAnUndeclaredPiece_LGPV0007` |
 | LGP-V0-016 | `contextindex.ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` |
 | LGP-V0-019 | ratchet in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
