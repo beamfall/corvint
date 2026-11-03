@@ -590,6 +590,24 @@ func TestFaultInjectionPerSegmentKind(t *testing.T) {
 	if FaultMatrix(faultCases[:1], results[:1])[KindSetup] {
 		t.Fatal("a kind without a keep case qualified")
 	}
+	// Empty cases and relabelled kinds prove nothing.
+	bad = faultCases[3]
+	bad.Keep = nil
+	if r := ix.Fault(bad, segRead); r.Pass {
+		t.Fatal("a keep case naming no test passed")
+	}
+	bad = faultCases[2]
+	bad.Excluded = nil
+	if r := ix.Fault(bad, segRead); r.Pass {
+		t.Fatal("an exclude case naming no excluded test passed")
+	}
+	for _, i := range []int{2, 3} {
+		bad = faultCases[i]
+		bad.Kind = KindMethod
+		if r := ix.Fault(bad, segRead); r.Pass {
+			t.Fatalf("%s relabelled as a method case passed", bad.Name)
+		}
+	}
 }
 
 // MCJ-V0-018: a miss names both tests and the change, drafts a bugs ticket,
@@ -713,6 +731,24 @@ func TestShadowKeepsWhatSegmentsCannotSee(t *testing.T) {
 		}
 		if !ix.Tests[ix.byName["e2e\x00TestCartA"]].Incomplete {
 			t.Fatal("set-mode record complete")
+		}
+		if _, sh := shadowOf(t, ix, "open"); len(sh.Exclusions) != 0 {
+			t.Fatalf("excluded %v", excluded(sh))
+		}
+	})
+	t.Run("overlapping segments make the record incomplete", func(t *testing.T) {
+		// A method segment nested in the open step counts Open again, so
+		// the segments count it twice in a run that executed it once.
+		nested := cart[0]
+		nested.segs = append(append([]segSpec(nil), nested.segs...), step(KindMethod, "Cart#open", "open"))
+		recs := segRecords([]testSpec{nested, cart[1]}, true)
+		recs[0].Profile = segProfile("login", "open", "checkA")
+		ix, err := Build("example.com/m", "c0", "go test", map[string]string{segPath: "blob1"}, recs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ix.Tests[ix.byName["e2e\x00TestCartA"]].Incomplete {
+			t.Fatal("overlapping record complete")
 		}
 		if _, sh := shadowOf(t, ix, "open"); len(sh.Exclusions) != 0 {
 			t.Fatalf("excluded %v", excluded(sh))

@@ -189,7 +189,9 @@ type FaultResult struct {
 }
 
 // Fault runs one case through Analyze, Join and Shadow with every reached
-// test selected. read is the base-side file reader of Analyze.
+// test selected. read is the base-side file reader of Analyze. A case passes
+// only when it names the tests it proves (Keep, or the representative and
+// Excluded) and each is reached through a segment of the case's kind.
 func (ix *Index) Fault(c FaultCase, read func(string) ([]byte, error)) FaultResult {
 	res := FaultResult{Name: c.Name, Kind: c.Kind}
 	e := ix.Analyze(c.Diffs, read)
@@ -200,8 +202,17 @@ func (ix *Index) Fault(c FaultCase, read func(string) ([]byte, error)) FaultResu
 	j := ix.Join(e)
 	sh := ix.Shadow(j, nil)
 	reached := map[string]bool{}
+	ofKind := map[string]bool{} // reached through a segment of the case's kind
 	for _, t := range j.Tests {
 		reached[t.ID] = true
+		if len(t.Segments) == 0 && c.Kind == KindTest {
+			ofKind[t.ID] = true // an unsegmented index: every test is whole
+		}
+		for _, s := range t.Segments {
+			if ix.Segments[s].Kind == c.Kind {
+				ofKind[t.ID] = true
+			}
+		}
 	}
 	skip := map[string]string{}
 	for _, ex := range sh.Exclusions {
@@ -212,6 +223,23 @@ func (ix *Index) Fault(c FaultCase, read func(string) ([]byte, error)) FaultResu
 		skip[ex.Test] = strings.Join(sortedKeys(reps), ",")
 	}
 	var bad []string
+	// An empty case proves nothing, and a case proves its kind only through
+	// segments of that kind.
+	// An exclude case's Keep entries are extra controls of any kind.
+	proves := c.Keep
+	if c.Representative != "" {
+		proves = append([]string{c.Representative}, c.Excluded...)
+		if len(c.Excluded) == 0 {
+			bad = append(bad, "exclude case names no test to exclude")
+		}
+	} else if len(c.Keep) == 0 {
+		bad = append(bad, "keep case names no test to keep")
+	}
+	for _, t := range proves {
+		if reached[t] && !ofKind[t] {
+			bad = append(bad, fmt.Sprintf("%s not reached through a %s segment", t, c.Kind))
+		}
+	}
 	for _, t := range c.Keep {
 		if !reached[t] {
 			bad = append(bad, t+" not selected")
