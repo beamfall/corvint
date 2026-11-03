@@ -2,8 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-11-03
-Intent status: accepted (owner direction 2026-11-03 to build the slice tickets; owner questions
-decided by the orchestrator under the 2026-11-02 delegation, see Owner questions)
+Intent status: accepted (owner 2026-11-03)
 Delivery status: not-started
 Authoritative inputs: owner request of 2026-11-03 (tie line-level test selection to the site map,
 page objects and the generated documentation across unit, integration and E2E tests, and stop
