@@ -276,6 +276,14 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 			}
 		}
 	}
+	scopes, err := index.readScopes(root)
+	if err != nil {
+		return fallback(fmt.Sprintf("the read-scope declaration is invalid: %q", err.Error()))
+	}
+	var prior map[string][]string
+	if slices.Contains(plan.Plan.Dirty, readScopesPath) {
+		prior = baseReadScopes(plan, root)
+	}
 	dirties := sortedUnique(plan.Plan.Dirty)
 	readers := index.pathReaders(dirties)
 	// The planner's narrowings apply to SelectStructural (`corvint test`)
@@ -304,12 +312,11 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 				lines = append(lines, "data "+dirty)
 				continue
 			}
+			if rule.kind == "reader" {
+				rule.directories = boundedReaders(rule.directories, scopes, prior, dirty)
+			}
 			add(rule.directories, rule.kind, " <- "+dirty)
 		}
-	}
-	scopes, err := index.readScopes(root)
-	if err != nil {
-		return fallback(fmt.Sprintf("the read-scope declaration is invalid: %q", err.Error()))
 	}
 	if withUnresolved {
 		unresolved := index.unresolved()
@@ -318,10 +325,6 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 				add([]string{directory}, "unresolved", fmt.Sprintf(": %q", unresolved[directory]))
 			}
 		}
-	}
-	var prior map[string][]string
-	if slices.Contains(plan.Plan.Dirty, readScopesPath) {
-		prior = baseReadScopes(plan, root)
 	}
 	declared := map[string]bool{}
 	for directory := range scopes {
@@ -354,6 +357,22 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		return append(lines, "NOTHING no dirty or committed path; no Go package to test")
 	}
 	return append(lines, "run "+strings.Join(selected, " "))
+}
+
+// boundedReaders drops from a dirty path's rule (c) readers each declared
+// package whose read scope does not bear on that path (TSP-V0-980, mirroring
+// the planner's AFP-V0-161): `.github/testconfine` confines a declared
+// package's tests to that scope, so a path literal naming anything outside it
+// cannot be read.
+func boundedReaders(directories []string, scopes, prior map[string][]string, dirty string) []string {
+	kept := directories[:0:0]
+	for _, directory := range directories {
+		if _, declared := scopes[directory]; declared && !declaredBears(directory, scopes, prior, dirty) {
+			continue
+		}
+		kept = append(kept, directory)
+	}
+	return kept
 }
 
 // unknownNarrowing is CIN-V0-860's rule for Select, the CI PR tier: a plan
