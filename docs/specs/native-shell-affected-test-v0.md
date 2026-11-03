@@ -69,7 +69,9 @@ runner tuple; runner execution belongs to V1-0593 and V1-0594.
 ### Shell
 
 - `NSA-V0-006`: One plugin with namespace `shell` MUST own names ending `.sh`, `.bash`, `.zsh`, `.ksh`
-  or `.bats`. Extensionless executables are not owned (no shebang sniffing in V0).
+  or `.bats`. Extensionless executables are not owned (no shebang sniffing in V0), except as
+  AFP-V0-2205 ([`affected-plan-selection-v0.md`](affected-plan-selection-v0.md)) amends this for
+  files directly under a top-level `bin/`, `script/` or `scripts/` directory.
 - `NSA-V0-007`: One unit MUST be one file, identity `shell:<path>`. A test is a `.bats` file, or a
   shell file whose stem ends `_test` or `-test` or starts `test_` or `test-`, or a shell file under a
   `test` or `tests` directory that is executable test code rather than a sourced helper (it contains
