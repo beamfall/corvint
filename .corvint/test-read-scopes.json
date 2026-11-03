@@ -477,6 +477,7 @@
     "internal/lrfrepo": [
       "docs/specs/",
       "interop/spec-toolchains/",
+      "script/gen-spec-requirements.sh",
       "script/spec-toolchain-conformance.sh"
     ],
     "internal/lspevidence": [],

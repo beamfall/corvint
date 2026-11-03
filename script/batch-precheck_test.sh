@@ -135,12 +135,89 @@ grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
 
+# 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
+grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(BASE)"' || fail "closeout lost its static checks or lane BASE"
+static_repo=$tmp/static-specs
+mkdir -p "$static_repo/docs/specs" "$static_repo/script"
+cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
+git -C "$static_repo" init -q
+printf '[{"path":"docs/specs/one.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
+printf '# One\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
+static_row='| One | [`one.md`](one.md) ONE-V0-001 | proposed | experimental | One claim. |'
+printf '# Specs\n%s\n%s\n' "$static_row" "$static_row" > "$static_repo/docs/specs/README.md"
+git -C "$static_repo" add docs/specs
+cat > "$tmp/static-repin" <<EOF
+#!/bin/sh
+echo ran > "$tmp/static-slow-ran"
+EOF
+chmod +x "$tmp/static-repin"
+# Seed a valid receipt for HEAD, then prove static failures revoke both receipt files.
+static_tree=$(git -C "$static_repo" write-tree)
+static_head=$(git -C "$static_repo" commit-tree "$static_tree" -m 'static receipt fixture')
+git -C "$static_repo" update-ref HEAD "$static_head"
+static_receipt=$(git -C "$static_repo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+for static_mode in '' --static-check; do
+  printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps 1\npassed 1\nfinished fixture\n' "$static_head" > "$static_receipt"
+  # ASD-V0-1992 refuses a lane-marked receipt, so verify before adding the marker.
+  (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --verify-receipt HEAD) > "$tmp/out" 2>&1 || fail "seeded static receipt does not verify: $(cat "$tmp/out")"
+  printf '%s\n' "$static_head" > "$static_receipt.lane"
+  (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" $static_mode) > "$tmp/out" 2>&1
+  rc=$?
+  [[ $rc == 1 && ! -e $static_receipt && ! -e $static_receipt.lane ]] || fail "static failure $static_mode retained a receipt (exit $rc): $(cat "$tmp/out")"
+  (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --verify-receipt HEAD) > "$tmp/out" 2>&1 && fail "old HEAD receipt still verifies after static failure $static_mode"
+  grep -qF 'no precheck receipt' "$tmp/out" || fail "static failure did not revoke receipt: $(cat "$tmp/out")"
+done
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo BATCH_PRECHECK_REGEN=$tmp/static-repin "$pre") > "$tmp/out" 2>&1
+rc=$?
+[[ $rc == 1 && ! -e $tmp/static-slow-ran ]] || fail "static duplicate did not stop before repins (exit $rc)"
+grep -qF 'fix: docs/specs/README.md: lines 2, 3: duplicate row' "$tmp/out" || fail "duplicate fix did not name both lines: $(cat "$tmp/out")"
+grep -qF "$static_row" "$tmp/out" || fail "duplicate fix did not name the row: $(cat "$tmp/out")"
+printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 || fail "one unanchored row refused: $(cat "$tmp/out")"
+printf '# Specs\n%s\n' "${static_row//](one.md)/](one.md#requirements)}" > "$static_repo/docs/specs/README.md"
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "anchored-only row passed"
+grep -qF '0 unanchored rows, want exactly 1; lines 2 (anchored only)' "$tmp/out" || fail "anchored-only row lacked locator: $(cat "$tmp/out")"
+printf '# Specs\n' > "$static_repo/docs/specs/README.md"
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "missing row passed"
+grep -qF 'lines (missing)' "$tmp/out" || fail "missing row lacked repair: $(cat "$tmp/out")"
+printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
+{ printf '# Untouched\n\n## Requirements\n\n'
+  for ((i=1; i<=256; i++)); do printf -- '- `UNTOUCHED-V0-%03d`: (proposed) Clause.\n' "$i"; done
+} > "$static_repo/docs/specs/untouched.md"
+printf '[{"path":"docs/specs/one.md"},{"path":"docs/specs/untouched.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
+printf '%s\n' '| Untouched | [`untouched.md`](untouched.md) UNTOUCHED-V0-001..256 | proposed | experimental | Full baseline. |' >> "$static_repo/docs/specs/README.md"
+git -C "$static_repo" add docs/specs
+static_tree=$(git -C "$static_repo" write-tree)
+static_base=$(git -C "$static_repo" -c user.name=t -c user.email=t@example.invalid commit-tree "$static_tree" -m 'static fixture base')
+for static_base_env in BATCH_PRECHECK_BASE DOGFOOD_BASE; do
+  (cd "$static_repo" && env "$static_base_env=$static_base" BATCH_PRECHECK_ROOT="$static_repo" LANE=1 "$pre" --static-check) > "$tmp/out" 2>&1 || fail "untouched full spec refused with $static_base_env: $(cat "$tmp/out")"
+  grep -qF 'docs/specs/untouched.md: warning:' "$tmp/out" || fail "untouched full spec lacked warning: $(cat "$tmp/out")"
+  grep -qF "requirement IDs added since BASE=$static_base ($static_base): (none)" "$tmp/out" || fail "untouched spec lost $static_base_env attribution: $(cat "$tmp/out")"
+done
+{ printf '# One\n\n## Requirements\n\n'
+  for ((i=1; i<=256; i++)); do printf -- '- `ONE-V0-%03d`: (proposed) Clause.\n' "$i"; done
+} > "$static_repo/docs/specs/one.md"
+git -C "$static_repo" add docs/specs
+for static_base_env in BATCH_PRECHECK_BASE DOGFOOD_BASE; do
+  (cd "$static_repo" && env "$static_base_env=$static_base" BATCH_PRECHECK_ROOT="$static_repo" LANE=1 BATCH_PRECHECK_REGEN="$tmp/static-repin" "$pre") > "$tmp/out" 2>&1
+  rc=$?
+  [[ $rc == 1 && ! -e $tmp/static-slow-ran ]] || fail "newly filled spec did not stop lane before repins with $static_base_env (exit $rc)"
+  grep -qF '256 obligations; the limit is 256' "$tmp/out" || fail "capacity count missing: $(cat "$tmp/out")"
+  grep -qF "docs/specs/one.md: requirement IDs added since BASE=$static_base" "$tmp/out" || fail "newly filled spec lost $static_base_env attribution: $(cat "$tmp/out")"
+  grep -qF 'ONE-V0-256' "$tmp/out" || fail "newly filled spec lost added ID: $(cat "$tmp/out")"
+  grep -qF 'docs/specs/untouched.md: warning:' "$tmp/out" || fail "untouched full spec failed instead of warning: $(cat "$tmp/out")"
+  grep -qF 'FAIL static spec checks' "$tmp/out" || fail "no fail-fast summary: $(cat "$tmp/out")"
+done
+
 # 1c. DCW-V0-399 (V1-3218): the lane's pre-bind `make doc-gates` reaches ./internal/specindex,
 # whose TestIndexCoversSpecsAndHeaders refuses an Agent digest Status that drifts from the header.
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
 grep -q '\./internal/specindex' "$tmp/out" || fail "doc-gates no longer runs ./internal/specindex"
 grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_test.go" || fail "specindex header/digest check missing"
 grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
+
+# Focused mode for spec-only changes avoids unrelated node/lifecycle fixture groups.
+[[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || finish
 
 # 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
 # docs/specs/pi-workflow-v0.md capability tuple behind. On a copy of the adapter, its spec and the

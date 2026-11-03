@@ -231,7 +231,8 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
 	report.Scope = a.Scope
 	report.Delivery = claimDelivery(repo, a)
-	report.Delivery.KnowHow = claimKnowHow(repo, root, repos, a.TicketID.Raw)
+	report.Delivery.KnowHow = claimKnowHow(repo, root, repos, a.TicketID.Raw, report.intentTree)
+	report.intentTree = nil
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		if root == "" {
 			root = repo.PrimaryWorktree
