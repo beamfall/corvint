@@ -116,6 +116,26 @@ func (y *cypress) cypressRun(ctx context.Context, c *collector, dir string, env 
 	return files, nil
 }
 
+// rootRel names an absolute spec path Cypress reports relative to the root.
+// Cypress resolves specs against its project root, which is the working
+// directory, not the configuration's directory; it may report the root with
+// symbolic links resolved.
+func rootRel(root, abs string) (string, error) {
+	for _, r := range []string{root, ""} {
+		if r == "" {
+			var err error
+			if r, err = filepath.EvalSymlinks(root); err != nil {
+				break
+			}
+		}
+		rel, err := filepath.Rel(r, filepath.FromSlash(abs))
+		if err == nil && filepath.IsAbs(abs) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return filepath.ToSlash(rel), nil
+		}
+	}
+	return "", fmt.Errorf("browsercov: cypress spec %s is outside %s", abs, root)
+}
+
 func anyFailed(files []browserFile) bool {
 	for _, b := range files {
 		for _, t := range b.Tests {
@@ -151,9 +171,10 @@ func (y *cypress) specs(ctx context.Context, c *collector) ([]string, error) {
 	if err := json.Unmarshal(body, &specs); err != nil {
 		return nil, err
 	}
-	cfgDir := filepath.Dir(y.wrapper)
 	for i, s := range specs {
-		specs[i] = filepath.ToSlash(filepath.Join(cfgDir, filepath.FromSlash(s)))
+		if specs[i], err = rootRel(c.Root, s); err != nil {
+			return nil, err
+		}
 	}
 	sort.Strings(specs)
 	return specs, nil
@@ -171,7 +192,11 @@ func (y *cypress) run(ctx context.Context, c *collector, dir, spec string, only 
 	}
 	var out []result
 	for _, b := range files {
-		if got := filepath.ToSlash(filepath.Join(filepath.Dir(y.wrapper), filepath.FromSlash(b.Spec))); got != spec {
+		got, err := rootRel(c.Root, b.Spec)
+		if err != nil {
+			return nil, err
+		}
+		if got != spec {
 			return nil, fmt.Errorf("browsercov: running %s also ran %s", spec, got)
 		}
 		for _, t := range b.Tests {

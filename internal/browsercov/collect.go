@@ -454,12 +454,14 @@ func (c *collector) observe(dir, spec string) ([]Observation, string) {
 		return nil, err.Error()
 	}
 	served := false
+	dumped := map[int]bool{}
 	for _, e := range nodeEntries {
 		m := nodeCoverageFile.FindStringSubmatch(e.Name())
 		if m == nil {
 			continue
 		}
 		pid, _ := strconv.Atoi(m[1])
+		dumped[pid] = true
 		runner := roles[pid] == "runner" || roles[pid] == "worker"
 		body, err := os.ReadFile(filepath.Join(dir, "node", e.Name()))
 		if err != nil {
@@ -487,10 +489,29 @@ func (c *collector) observe(dir, spec string) ([]Observation, string) {
 			obs = append(obs, o...)
 		}
 	}
+	if reason := undumped(roles, dumped); reason != "" {
+		return nil, reason
+	}
 	if (c.Server != "" || c.ad.serves(c)) && !served {
 		return nil, "no coverage from the server under test: it was not started by this run, or ran no tracked file"
 	}
 	return obs, ""
+}
+
+// undumped names a process under test that wrote no coverage: one killed
+// outright (SIGKILL, a crash) loses every line it ran.
+func undumped(roles map[int]string, dumped map[int]bool) string {
+	pids := make([]int, 0, len(roles))
+	for pid, role := range roles {
+		if role == "process" && !dumped[pid] {
+			pids = append(pids, pid)
+		}
+	}
+	if len(pids) == 0 {
+		return ""
+	}
+	sort.Ints(pids)
+	return fmt.Sprintf("process %d under test exited without writing its coverage", pids[0])
 }
 
 // refusals names the runners and platforms this collector declines.
