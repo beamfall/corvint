@@ -3,6 +3,8 @@ package main
 import (
 	"path/filepath"
 	"regexp"
+
+	"github.com/Beamfall/corvint/internal/langplugin"
 )
 
 // The RSpec gem-declaration check of the advisory RSpec command (AFP-V0-066).
@@ -21,11 +23,13 @@ var (
 )
 
 // adviceDeclaresRSpecGem reports whether the working-tree root Gemfile or
-// Gemfile.lock declares rspec, rspec-core or rspec-rails, by the NGI-V0-052
-// check (AFP-V0-066). A manifest that is not a regular file, is larger than
+// Gemfile.lock declares a gem the Ruby plugin maps to the rspec runner
+// (rspec, rspec-core or rspec-rails; LGP-V0-017), by the NGI-V0-052 check
+// (AFP-V0-066). A manifest that is not a regular file, is larger than
 // the bound, or cannot be read declares nothing, which can only withhold the
 // command.
 func adviceDeclaresRSpecGem(root string) bool {
+	gems := langplugin.DependencyRunners("ruby")
 	for _, manifest := range []struct {
 		name    string
 		pattern *regexp.Regexp
@@ -35,7 +39,7 @@ func adviceDeclaresRSpecGem(root string) bool {
 			continue
 		}
 		for _, match := range manifest.pattern.FindAllStringSubmatch(text, -1) {
-			if match[1] == "rspec" || match[1] == "rspec-core" || match[1] == "rspec-rails" {
+			if gems[match[1]] == "rspec" {
 				return true
 			}
 		}
