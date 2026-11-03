@@ -222,7 +222,8 @@ func TestERGV0018_NoPassedAncestorFallsBack(t *testing.T) {
 // `gate history --cursor` command, and that command returns the events the
 // packet did not read (ERG-V0-027).
 func TestERGV0027_HistoryBoundNamesNextCursor(t *testing.T) {
-	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	// Serial: ShrinkReviewPacketHistory writes the package history bound that
+	// every parallel packet test reads.
 	root, id, c1, _ := reviewRounds(t)
 	cli.ShrinkReviewPacketHistory(t, 2, 1)
 	v, x := packetOf(t, root, id, "--commit", "HEAD")

@@ -796,6 +796,26 @@ closeout step is missing.
   Non-goals: checking that a delivery claim matches the code, and the same exclusion in
   `delivery-screen`. Rollback: revert; every citation is a candidate again.
 
+- `TCD-V0-2210`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3496) `make tasks-reconcile` retains its
+  proposal-first default and existing orchestrator merge-path call. Under `--prs`, each direct
+  delivery commit without a delivering PR is also retained in `commitProposals` with `ticketId`,
+  `local`, `commit` and `proposal: COMMIT_DELIVERED`; these require native closeout review and are
+  never automatically applied. An explicit apply of a PR proposal, including manual mode, first
+  proves the proposal's evidence commit is an ancestor of `refs/remotes/origin/main`; a missing ref,
+  missing object or unlanded commit prevents that proposal's close and gives nonzero exit. After
+  successful real applications it retains `after.json` with the new debt scan and returns its
+  status. A fixture merged Delivers-citing commit and PR body leave no delivered ticket OPEN after
+  the explicit reconcile application; unrelated ambiguous and umbrella citations stay review
+  proposals. Evidence: `TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus`,
+  `TestTCDV0871_CloseoutDebtProposesBatchClose`. The existing-debt operator audit is excluded.
+- `TCD-V0-2211`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3496) The landing routine's `--no-reconcile`
+  on a merged PR prints `RECONCILE status=SKIPPED`, retains a reason and recovery command in its
+  state directory and appends a skipped alert; it never consumes a successful reconcile marker.
+  Failed export or scan remains nonzero or a retained alerted report. Evidence: the pr-landing-watch
+  group in `script/lane-scripts_test.sh`. Non-goals: a CI job, automatic acceptance of proposals,
+  and a watcher for merges the orchestrator was never invoked to observe. Rollback: revert these
+  script changes; reports remain advisory.
+
 ## Failure modes
 
 - A gated batch close in a clone that has not fetched the batch merge refuses the whole command

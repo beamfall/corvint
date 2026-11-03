@@ -106,6 +106,8 @@ type CapacityClass struct {
 // Policy is a validated taskman-policy/0. Raw holds the exact file bytes;
 // the policy identity is derived from them.
 type Policy struct {
+	// BarrierWarningSeconds is advisory only; zero uses the one-hour default (PUR-V0-2210).
+	BarrierWarningSeconds      wire.Count
 	Supervision                *SupervisionPolicy
 	Pools                      []Pool
 	PolicyVersion              wire.Size
@@ -409,7 +411,7 @@ var (
 	policyRequiredKeys = []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
 		"cemRequired", "ocmRequired", "runtimes", "environment"}
-	policyOptionalKeys = []string{"pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations", "ciEvidence"}
+	policyOptionalKeys = []string{"barrierWarningSeconds", "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations", "ciEvidence"}
 )
 
 // newerPolicyKeys refuses UNSUPPORTED_VERSION when v holds every required
@@ -660,6 +662,12 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "progressSignal") {
 		p.ProgressSignal = r.Field("progressSignal").Enum(ProgressSignalHandoffEvidence)
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "barrierWarningSeconds") {
+		p.BarrierWarningSeconds = boundCount(r.Field("barrierWarningSeconds"), 1, 604800)
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

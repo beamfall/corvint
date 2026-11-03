@@ -96,3 +96,13 @@ pr1748-a1474b3ddfe7843d134ba295667e20521ea7b7c6 artifact=12602755921
 pr1764-0293cc3e40d5c47a33119b141c80b017e696920e artifact=12603657833
 pr1773-d8c46653d45492267e472f0b81eca3871de39b70 artifact=12607305797
 pr1779-3eab0609628356b7a799b892eecd70b336b3f2c1 artifact=12609282580
+# Epoch-2 keys below (2026-11-03, orchestrator-made under the owner's 2026-11-02 delegation of
+# 1.0 choices): ci-forward-INCOMPLETE rows whose only reasons were selection/outcomes documents
+# covering 8 shards when the collector wanted 16, from runs in flight across the 16-shard matrix
+# change 20705df6a (AFP-V0-2180, V1-4341). They say nothing about the shadow selector; each row
+# was read before listing, and their five INCOMPLETE rows tripped the AFP-V0-030 kill switch.
+pr57-4eb8e54b9c523a6912727f02d4891d0148d12f69 artifact=13194108019
+pr57-af470712c01d8039bc03abda4d5eb903cb1ee5e2 artifact=13196291400
+pr58-96edecf342929cea1416b65fab39d5766ae06721 artifact=13193989358
+pr58-c10607a936eba96d3538ec71ec35597c48af7389 artifact=13196337109
+pr59-375e8d0a29c617dde60fc494dc1720bcf1b57b53 artifact=13194438926

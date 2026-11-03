@@ -760,7 +760,8 @@ class Reporter {
       if (test.state === 'passed' && test.attempts.some(a => a.state !== 'passed')) test.state = 'flaky';
     }
     if (this.hasSensitiveInput) this.errors = this.errors.map(() => redactionMarker);
-    const report = {version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, ...(this.errorLocations ? {errorLocations: this.errorLocations} : {}), schedule: this.schedule, ...(this.sensitiveInputPolicy ? {sensitiveInputPolicy: this.sensitiveInputPolicy} : {}), ...(this.keepReporters && this.projectReporters ? {projectReporters: this.projectReporters} : {})};
+    // PWP-V0-961: the runner's own Node version, a fallback when no test names it.
+    const report = {version: this.version, nodeVersion: process.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, ...(this.errorLocations ? {errorLocations: this.errorLocations} : {}), schedule: this.schedule, ...(this.sensitiveInputPolicy ? {sensitiveInputPolicy: this.sensitiveInputPolicy} : {}), ...(this.keepReporters && this.projectReporters ? {projectReporters: this.projectReporters} : {})};
     fs.writeFileSync(this.path, JSON.stringify(scrubReportRiskFields(report, this.sensitiveValues)));
   }
 }

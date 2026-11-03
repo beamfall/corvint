@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/barrierwarning"
 	"github.com/Beamfall/corvint/internal/tasks/defects"
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -2140,9 +2141,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 	}
 	var item wire.Value
 	var holds []heldHold
+	var barrierWarning string
 	observedAt := time.Now().UTC()
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		st := rc.store
+		barrierWarning = barrierwarning.Message(rc.repo, st.Policy, rc.snap, observedAt)
 		holds = collectHeldHolds(st.Inventory)
 		by := map[string]int{}
 		unknown, blocked := 0, 0
@@ -2198,6 +2201,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 				b := wire.NewObject()
 				b.Set("scope", wire.String(rc.snap.Barrier.Scope))
 				b.Set("reason", wire.String(rc.snap.Barrier.Reason))
+				limit := st.Policy.BarrierWarningSeconds
+				if limit == "" {
+					limit = "3600"
+				}
+				b.Set("warningPolicySeconds", wire.String(string(limit)))
 				o.Set("barrier", wire.ObjectValue(b))
 			}
 			live, err := liveAttempts(rc)
@@ -2281,6 +2289,9 @@ func queueStatus(env Env, args []string) *wire.Result {
 		item.Obj.Set("holdConditions", holdConditionsValue(results))
 	}
 	res := success(cmd, rc)
+	if barrierWarning != "" {
+		res.Warnings = append(res.Warnings, barrierWarning)
+	}
 	res.Items = []wire.Value{item}
 	return res
 }
