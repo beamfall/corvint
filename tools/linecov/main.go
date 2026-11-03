@@ -120,6 +120,7 @@ func collect(args []string) error {
 	only := fs.String("packages", "", "comma-separated module-relative directories (default: every package)")
 	parallel := fs.Int("parallel", runtime.NumCPU(), "concurrent test processes")
 	timeout := fs.Duration("timeout", 10*time.Minute, "per test process")
+	scratch := fs.String("work", "", "scratch directory parent (default the system temp directory)")
 	fs.Parse(args)
 	if *out == "" {
 		return errors.New("collect: -out is required")
@@ -142,7 +143,7 @@ func collect(args []string) error {
 	if *only != "" {
 		dirs = split(*only)
 	}
-	work, err := os.MkdirTemp("", "linecov-")
+	work, err := os.MkdirTemp(*scratch, "linecov-")
 	if err != nil {
 		return err
 	}
