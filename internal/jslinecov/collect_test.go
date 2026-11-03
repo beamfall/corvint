@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package jslinecov
 
 import (
@@ -141,6 +143,46 @@ func TestCollect(t *testing.T) {
 	}
 }
 
+// TestCollectRepeatedTitle covers LPCV-V0-955 for the runners that filter
+// on the full title: tests of two suites sharing a leaf title each run alone.
+func TestCollectRepeatedTitle(t *testing.T) {
+	src := `const assert = require("node:assert");
+describe("a", () => { it("same", () => { assert.ok(true); }); });
+describe("b", () => { it("same", () => { assert.ok(true); }); });
+`
+	for _, c := range []struct{ runner, bin, file, config string }{
+		{"mocha", "mocha", "test/mocha.spec.js", ""},
+		{"jasmine", "jasmine", "test/jasmine.spec.js", ""},
+		{"jest", "jest", "test/jest.test.js", ""},
+		{"vitest", "vitest", "test/vitest.test.js", "vitest.config.mjs"},
+	} {
+		t.Run(c.runner, func(t *testing.T) {
+			root := fixture(t)
+			exe := executable(t, root, c.bin)
+			if err := os.WriteFile(filepath.Join(root, c.file), []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out, err := Collect(context.Background(), root, Options{
+				Module: "m", Runner: c.runner, Executable: exe, Files: []string{c.file}, Config: c.config,
+				Work: t.TempDir(), Parallel: 2, Timeout: 2 * time.Minute, SuiteTimeout: 2 * time.Minute,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, o := range out {
+				if o.Record == nil {
+					t.Fatalf("%s divergent: %s", o.Name, o.Divergent)
+				}
+				got = append(got, o.Name)
+			}
+			if want := linecov.InOrder + ",a same,b same"; strings.Join(got, ",") != want {
+				t.Fatalf("records %v, want %s", got, want)
+			}
+		})
+	}
+}
+
 // TestCollectIsolation covers LPCV-V0-955: a test whose title another test
 // of the file shares has no record, and a failing in-order run leaves the
 // file without records.
@@ -191,24 +233,32 @@ test("bad", () => { throw new Error("x"); });
 	}
 }
 
-// TestFilter covers LPCV-V0-955: each runner's filter anchors the title, and
+// TestFilter covers LPCV-V0-955: each runner's filter anchors the name, and
 // AVA titles its glob cannot match exactly are refused.
 func TestFilter(t *testing.T) {
 	for runner, want := range map[string]string{
-		"mocha":     "--grep (^| )a\\.b$",
-		"jasmine":   "--filter=(^| )a\\.b$",
+		"mocha":     "--grep ^a\\.b$",
+		"jasmine":   "--filter=^a\\.b$",
 		"node-test": "--test-name-pattern=^a\\.b$",
-		"jest":      "-t (^| )a\\.b$",
+		"jest":      "-t ^a\\.b$",
+		"vitest":    "-t ^a\\.b$",
+		"bun-test":  "-t (^| )a\\.b$",
 		"deno-test": "--filter /^a\\.b$/",
 		"ava":       "--match=a.b",
 	} {
-		got, ok := Options{Runner: runner}.filter("a.b")
+		got, ok := Options{Runner: runner}.filter("a.b", "a.b")
 		if !ok || strings.Join(got, " ") != want {
 			t.Errorf("%s: %q", runner, got)
 		}
 	}
+	if got, _ := (Options{Runner: "vitest"}).filter("my suite a.b", "a.b"); strings.Join(got, " ") != "-t ^my(?: | > )suite > a\\.b$" {
+		t.Errorf("vitest suites: %q", got)
+	}
+	if _, ok := (Options{Runner: "vitest"}).filter("xa.b", "a.b"); ok {
+		t.Error("vitest accepted a name its title does not end as a word")
+	}
 	for _, title := range []string{"a*", "!a"} {
-		if _, ok := (Options{Runner: "ava"}).filter(title); ok {
+		if _, ok := (Options{Runner: "ava"}).filter(title, title); ok {
 			t.Errorf("ava accepted %q", title)
 		}
 	}

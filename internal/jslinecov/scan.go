@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package jslinecov
 
 import (
@@ -59,6 +61,8 @@ func bodies(src []byte) ([]body, error) {
 		closed  frame  // the last frame a ')' closed
 		retType bool   // between `):` and the body or `=>`
 		retAt   int    // the stack depth retType was set at
+		codeEnd int    // the index after the last token, skipping space and comments
+		wasCode bool   // the previous step read a token
 	)
 	// inRet reports a return type open at this depth; a ternary's `(x) :`
 	// inside brackets that have since closed is not one.
@@ -99,6 +103,10 @@ func bodies(src []byte) ([]body, error) {
 	}
 	for i := 0; i < len(src); {
 		c := src[i]
+		if wasCode {
+			codeEnd = i
+		}
+		wasCode = false
 		switch {
 		case c == '\n':
 			line++
@@ -130,6 +138,9 @@ func bodies(src []byte) ([]body, error) {
 				i++
 			}
 			continue
+		}
+		wasCode = true
+		switch {
 		case c == '\'' || c == '"':
 			j := i + 1
 			for ; j < len(src) && src[j] != c; j++ {
@@ -214,9 +225,9 @@ func bodies(src []byte) ([]body, error) {
 			switch rt := inRet(); {
 			case prev == tokArrow:
 				f.fn = true
-			case prev == tokClose && src[lastSignificant(src, i)] == ')' && !rt:
+			case prev == tokClose && src[codeEnd-1] == ')' && !rt:
 				f.fn = !blockKeywords[closed.head]
-			case rt && typeBrace(src[lastSignificant(src, i)]):
+			case rt && typeBrace(src[codeEnd-1]):
 				// an object type inside the return type
 			case rt:
 				f.fn = true
@@ -344,19 +355,6 @@ func nextSignificant(src []byte, i int) byte {
 		default:
 			return c
 		}
-	}
-	return 0
-}
-
-// lastSignificant is the index of the last byte before i that is not space;
-// comments between are not expected where it is asked.
-func lastSignificant(src []byte, i int) int {
-	for i--; i > 0; i-- {
-		switch src[i] {
-		case ' ', '\t', '\r', '\n':
-			continue
-		}
-		return i
 	}
 	return 0
 }

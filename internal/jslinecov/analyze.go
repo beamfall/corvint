@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package jslinecov is the JavaScript and TypeScript line-level coverage
 // selection of docs/specs/live-proof-carrying-verification-v0.md
 // (LPCV-V0-965..969): per-test V8 line records from the node runners, kept in

@@ -805,7 +805,8 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   `node_modules` and paths outside the repository are never recorded. Records from several processes
   of one test merge, so a line one process executed stays executed. A line where an Istanbul span that
   ran starts or ends stays executed even if an uncalled function shares it, and an in-scope script a V8
-  report names but nothing can read is an error, never a silent omission.
+  report names but nothing can read is an error, never a silent omission. A `file:` URL with a drive
+  letter (`file:///C:/a.js`) or, on Windows, a UNC host names that local path.
 - `LPCV-V0-966`: (accepted, owner 2026-11-03, V1-4367) JavaScript selection maps a change to tests as
   `LPCV-V0-952` and `LPCV-V0-953` require: an edit inside one function body of a file the index
   recorded at the diff's old blob selects the tests that executed the edited lines, or, for a line no
@@ -818,8 +819,11 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-967`: (accepted, owner 2026-11-03, V1-4367) The node collector (`internal/jslinecov`) serves
   Mocha, Jasmine, `node:test`, Jest, Vitest, AVA, `bun test` and `deno test`. Per test file it runs
   the file once in order (the `LPCV-V0-962` in-order record), then each non-skipped test alone in a
-  fresh process under the runner's own anchored title filter and coverage mode, and records the test
-  only when that run reports exactly one test, passed, with the requested full title. Duplicate or
+  fresh process under the runner's own filter, anchored at the test's full title (at the leaf for
+  bun, whose name is the leaf), and its coverage mode, and records the test only when that run
+  reports exactly one test, passed, with the requested full title, so suites sharing a leaf title
+  each keep their records. Each run reads only a scratch directory it emptied first and removes it
+  once read. Duplicate or
   empty titles, a title the runner's filter cannot match exactly (an AVA glob), any other test in
   the run, and an in-order run that does not pass leave the test without a record
   (`isolation-divergent`). The record identity is `v8-lines/1`, the runner and its version. Bun's
@@ -1052,7 +1056,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-027..031` runtime evidence | not-started | privacy/coverage/runtime-value adversarial vectors |
 | `LPCV-V0-032..036` IDE and agent API | not-started | identical-receipt two-client conformance |
 | `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); not-started; Go prototype measured in decision 0590 | per-collector fixture suite, 1,000-change CI shadow and fault-injection qualification with zero misses, `LPCV-V0-958` latency and size |
-| `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental (V1-4367); collector and selection built, not wired to a command, unqualified | `TestAddV8SourceMapped`, `TestAddV8CacheURL`, `TestAddV8Unreadable`, `TestAddLCOVSourceMap`, `TestAddIstanbul` (965); `TestBodies`, `TestBodiesRefuse`, `TestAnalyze`, `TestAnalyzeInOrder`, `TestAnalyzeSharedTestFile`, `TestAnalyzeNestedEdge` (966); `TestCollect` per runner, `TestCollectIsolation`, `TestFilter` (967); `make plugin-test PLUGIN=typescript` (968); `LPCV-V0-963` qualification outstanding (969) |
+| `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental (V1-4367); collector and selection built, not wired to a command, unqualified | `TestAddV8SourceMapped`, `TestAddV8CacheURL`, `TestAddV8Unreadable`, `TestFilePath`, `TestAddLCOVSourceMap`, `TestAddIstanbul` (965); `TestBodies`, `TestBodiesRefuse`, `TestAnalyze`, `TestAnalyzeInOrder`, `TestAnalyzeSharedTestFile`, `TestAnalyzeNestedEdge` (966); `TestCollect` per runner, `TestCollectRepeatedTitle`, `TestCollectIsolation`, `TestFilter` (967); `make plugin-test PLUGIN=typescript` (968); `LPCV-V0-963` qualification outstanding (969) |
 | `LPCV-V0-970..979` browser E2E collector | experimental (V1-4368); Playwright and Cypress fixture suite passes on Linux; not qualified under `LPCV-V0-956` or `LPCV-V0-963` | `TestE2EPlaywright`, `TestE2ECypress` and the attribution unit tests in `internal/browsercov` |
 | `LPCV-V0-037..042` containment and updates | not-started | process-tree, path, permission, network, and rollback matrix |
 | `LPCV-V0-043..046` language tranche | not-started | Corvint, Beamfall, and independent JS/TS shadow reports |
