@@ -103,3 +103,59 @@ func TestKnownRequirements(t *testing.T) {
 		t.Fatalf("known=%v err=%v", known, err)
 	}
 }
+
+// TestCINarrowsWholePackages collects a two-package module, changes one
+// function, and checks ci turns the changed package into a -run slice of the
+// test that reaches it, drops the untouched package, and keeps given slices.
+func TestCINarrowsWholePackages(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.com/m\n\ngo 1.22\n")
+	write(t, root, "p/p.go", "package p\n\nfunc F() int {\n\treturn 1\n}\n\nfunc G() int {\n\treturn 2\n}\n")
+	write(t, root, "p/p_test.go", "package p\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { F() }\n\nfunc TestB(t *testing.T) { G() }\n")
+	write(t, root, "q/q.go", "package q\n\nfunc H() int { return 3 }\n")
+	write(t, root, "q/q_test.go", "package q\n\nimport \"testing\"\n\nfunc TestQ(t *testing.T) { H() }\n")
+	commit := func() {
+		run(t, root, "git", "add", ".")
+		run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "m")
+	}
+	run(t, root, "git", "init", "-q")
+	commit()
+	base := strings.TrimSpace(gitOut(t, root, "rev-parse", "HEAD"))
+	index := filepath.Join(t.TempDir(), "index")
+	if err := collect([]string{"-root", root, "-out", index, "-parallel", "2"}); err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "p/p.go", "package p\n\nfunc F() int {\n\treturn 10\n}\n\nfunc G() int {\n\treturn 2\n}\n")
+	commit()
+	in := t.TempDir()
+	write(t, in, "packages", "example.com/m/p\nexample.com/m/q\n")
+	write(t, in, "slices", "-run ^TestX$ example.com/m/r\n")
+	out := t.TempDir()
+	if err := ci([]string{"-root", root, "-index", index, "-base", base, "-packages", filepath.Join(in, "packages"), "-slices", filepath.Join(in, "slices"), "-out", out}); err != nil {
+		t.Fatal(err)
+	}
+	read := func(name string) string {
+		data, err := os.ReadFile(filepath.Join(out, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	if got := read("packages"); got != "" {
+		t.Errorf("packages = %q, want none", got)
+	}
+	if got, want := read("slices"), "-run ^(TestA)$ example.com/m/p\n-run ^TestX$ example.com/m/r\n"; got != want {
+		t.Errorf("slices = %q, want %q\nplan: %s", got, want, read("plan.json"))
+	}
+}
+
+func gitOut(t *testing.T, root string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
