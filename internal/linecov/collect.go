@@ -1,0 +1,138 @@
+package linecov
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+)
+
+// CollectOptions configures one collection run (LPCV-V0-950, LPCV-V0-954).
+type CollectOptions struct {
+	Module   string
+	Packages []string // module-relative directories
+	Work     string   // scratch directory for binaries and coverage data
+	Parallel int
+	Timeout  time.Duration // per test process
+	TestArgs []string      // extra -test.* flags, matching how CI runs the suite
+}
+
+// Outcome is one collected test: a Record when the isolated run passed,
+// otherwise the reason it yields none (LPCV-V0-962).
+type Outcome struct {
+	Package, Name string
+	Record        *Record
+	Divergent     string // nonzero exit or timeout when run alone
+}
+
+var listedTest = regexp.MustCompile(`^(Test|Example|Fuzz)\w*$`)
+
+// Collect runs every top-level test of each package alone, in its own
+// process, with coverage over the whole module. GOFLAGS carries the coverage
+// flags, so a binary a test builds and executes also writes its blocks into
+// the same GOCOVERDIR (LPCV-V0-954).
+func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, error) {
+	if o.Parallel < 1 {
+		o.Parallel = 1
+	}
+	flags := "-cover -covermode=atomic -coverpkg=" + o.Module + "/..."
+	env := append(os.Environ(), "GOFLAGS="+flags)
+	type job struct{ pkg, name, bin, dir string }
+	var jobs []job
+	for i, pkg := range o.Packages {
+		bin := filepath.Join(o.Work, fmt.Sprintf("p%d.test", i))
+		dir := filepath.Join(root, filepath.FromSlash(pkg))
+		build := exec.CommandContext(ctx, "go", "test", "-c", "-o", bin, "./"+pkg)
+		build.Dir, build.Env = root, env
+		if out, err := build.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("linecov: build %s: %v: %s", pkg, err, out)
+		}
+		if _, err := os.Stat(bin); err != nil {
+			continue // no test files
+		}
+		list := exec.CommandContext(ctx, bin, "-test.list", ".*")
+		list.Dir, list.Env = dir, env
+		out, err := list.Output()
+		if err != nil {
+			return nil, fmt.Errorf("linecov: list %s: %v", pkg, err)
+		}
+		for _, name := range strings.Fields(string(out)) {
+			if listedTest.MatchString(name) {
+				jobs = append(jobs, job{pkg, name, bin, dir})
+			}
+		}
+	}
+	outcomes := make([]Outcome, len(jobs))
+	var wg sync.WaitGroup
+	next := make(chan int)
+	for w := 0; w < o.Parallel; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range next {
+				j := jobs[i]
+				outcomes[i] = runOne(ctx, o, env, j.pkg, j.name, j.bin, j.dir, filepath.Join(o.Work, fmt.Sprintf("c%d", i)))
+			}
+		}()
+	}
+	for i := range jobs {
+		next <- i
+	}
+	close(next)
+	wg.Wait()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(outcomes, func(i, j int) bool {
+		a, b := outcomes[i], outcomes[j]
+		return a.Package < b.Package || a.Package == b.Package && a.Name < b.Name
+	})
+	return outcomes, nil
+}
+
+func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin, dir, cov string) Outcome {
+	out := Outcome{Package: pkg, Name: name}
+	if err := os.MkdirAll(cov, 0o755); err != nil {
+		out.Divergent = err.Error()
+		return out
+	}
+	runCtx := ctx
+	if o.Timeout > 0 {
+		var cancel context.CancelFunc
+		runCtx, cancel = context.WithTimeout(ctx, o.Timeout)
+		defer cancel()
+	}
+	args := append([]string{"-test.run", "^" + name + "$", "-test.count=1", "-test.gocoverdir=" + cov}, o.TestArgs...)
+	cmd := exec.CommandContext(runCtx, bin, args...)
+	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+cov)
+	var log bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &log, &log
+	if err := cmd.Run(); err != nil {
+		if runCtx.Err() != nil {
+			out.Divergent = "timeout"
+		} else {
+			out.Divergent = err.Error()
+		}
+		return out
+	}
+	profile := filepath.Join(cov, "profile.txt")
+	conv := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+cov, "-o="+profile)
+	if msg, err := conv.CombinedOutput(); err != nil {
+		out.Divergent = fmt.Sprintf("covdata: %v: %s", err, msg)
+		return out
+	}
+	data, err := os.ReadFile(profile)
+	if err != nil {
+		out.Divergent = err.Error()
+		return out
+	}
+	out.Record = &Record{Package: pkg, Name: name, Profile: data}
+	return out
+}
