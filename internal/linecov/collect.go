@@ -105,6 +105,9 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 
 func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin, dir, cov string) Outcome {
 	out := Outcome{Package: pkg, Name: name}
+	// Each process's counters and meta-data are read into the Record and
+	// dropped, so scratch space stays bounded by Parallel, not by test count.
+	defer os.RemoveAll(cov)
 	if err := os.MkdirAll(cov, 0o755); err != nil {
 		out.Divergent = err.Error()
 		return out
@@ -115,13 +118,21 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		runCtx, cancel = context.WithTimeout(ctx, o.Timeout)
 		defer cancel()
 	}
-	args := []string{"-test.count=1", "-test.gocoverdir=" + cov}
+	// The test binary writes its own profile at exit but ignores counters of
+	// binaries it executed, so those go to children, converted only when one
+	// wrote any: most tests then cost no covdata process.
+	profile, children := filepath.Join(cov, "profile.txt"), filepath.Join(cov, "children")
+	if err := os.MkdirAll(children, 0o755); err != nil {
+		out.Divergent = err.Error()
+		return out
+	}
+	args := []string{"-test.count=1", "-test.gocoverdir=" + cov, "-test.coverprofile=" + profile}
 	if name != InOrder {
 		args = append(args, "-test.run", "^"+name+"$")
 	}
 	args = append(args, o.TestArgs...)
 	cmd := exec.CommandContext(runCtx, bin, args...)
-	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+cov)
+	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+children)
 	var log bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &log, &log
 	if err := cmd.Run(); err != nil {
@@ -132,16 +143,24 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		}
 		return out
 	}
-	profile := filepath.Join(cov, "profile.txt")
-	conv := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+cov, "-o="+profile)
-	if msg, err := conv.CombinedOutput(); err != nil {
-		out.Divergent = fmt.Sprintf("covdata: %v: %s", err, msg)
-		return out
-	}
 	data, err := os.ReadFile(profile)
 	if err != nil {
 		out.Divergent = err.Error()
 		return out
+	}
+	if counters, _ := filepath.Glob(filepath.Join(children, "covcounters.*")); len(counters) > 0 {
+		merged := filepath.Join(cov, "children.txt")
+		conv := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+children, "-o="+merged)
+		if msg, err := conv.CombinedOutput(); err != nil {
+			out.Divergent = fmt.Sprintf("covdata: %v: %s", err, msg)
+			return out
+		}
+		more, err := os.ReadFile(merged)
+		if err != nil {
+			out.Divergent = err.Error()
+			return out
+		}
+		data = append(data, more...)
 	}
 	out.Record = &Record{Package: pkg, Name: name, Profile: data}
 	return out
