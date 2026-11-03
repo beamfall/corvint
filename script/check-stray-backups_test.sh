@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # Tests for script/check-stray-backups.sh (ASD-V0-2370, V1-4352) on a fixture repository: a clean
 # index passes; tracked `.bak` and `.orig` files at any depth and in any letter case each fail and
-# are named, whatever the caller's GIT_*_PATHSPECS; names that only contain `bak` or `orig` and untracked leftovers pass; a run outside a
+# are named, whatever the caller's GIT_*_PATHSPECS; names that only contain `bak` or `orig`, a name whose newline
+# follows `.bak`, and untracked leftovers pass; a run outside a
 # Git worktree exits 2.
 set -uo pipefail
 export LC_ALL=C
@@ -18,6 +20,10 @@ repo=$test_root/repo
 mkdir -p "$repo/sub/deep" "$repo/orig" && git -C "$repo" init -q || fail "fixture init"
 for f in bakery.go x.bak.go orig/file.txt sub/original.md notes.backup; do printf 'x\n' > "$repo/$f"; done
 git -C "$repo" add -A || fail "fixture add"
+# A newline inside a name splits nothing: this path ends in `.txt`, not `.bak`.
+printf 'x\n' > "$repo/notes.bak
+keep.txt" && git -C "$repo" add -- "notes.bak
+keep.txt" || fail "fixture add newline name"
 out=$(cd "$repo/sub" && "$check" 2>&1); rc=$?
 [[ $rc == 0 && $out == 'check-stray-backups: no tracked .bak or .orig file' ]] || fail "clean index (rc=$rc): $out"
 
