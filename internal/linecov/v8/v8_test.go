@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package v8
 
 import (
@@ -5,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -201,6 +204,34 @@ func TestRepoScope(t *testing.T) {
 		if got != want || ok != (want != "") {
 			t.Errorf("%s = %q %v, want %q", abs, got, ok, want)
 		}
+	}
+}
+
+// TestFilePath covers LPCV-V0-965 on Windows URLs: a drive path loses the
+// URL's leading slash, a UNC share keeps its host, and fileURL round-trips.
+func TestFilePath(t *testing.T) {
+	unc, uncOK := filepath.FromSlash("//srv/share/a.js"), runtime.GOOS == "windows"
+	if !uncOK {
+		unc = ""
+	}
+	for u, want := range map[string]string{
+		"file:///C:/repo/a.js":        filepath.FromSlash("C:/repo/a.js"),
+		"file://localhost/r/a.js":     filepath.FromSlash("/r/a.js"),
+		"file:///r/a%20b.js":          filepath.FromSlash("/r/a b.js"),
+		"file://srv/share/a.js":       unc,
+		"https://example.test/r/a.js": "",
+	} {
+		got, ok := filePath(u)
+		if got != want || ok != (want != "") {
+			t.Errorf("%s = %q %v, want %q", u, got, ok, want)
+		}
+	}
+	if got := fileURL(filepath.FromSlash("C:/repo/a b.js")); runtime.GOOS == "windows" && got != "file:///C:/repo/a%20b.js" {
+		t.Errorf("fileURL = %q", got)
+	}
+	abs := filepath.Join(t.TempDir(), "a b.js")
+	if got, ok := filePath(fileURL(abs)); !ok || got != abs {
+		t.Errorf("round trip %q = %q %v", abs, got, ok)
 	}
 }
 

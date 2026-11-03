@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package jslinecov
 
 import (
@@ -41,12 +43,24 @@ const e = async (s: string): Promise<void> => {
 if ((x ? f(1) : 2)) {
   g();
 }
+function h() /* a comment */ {
+  run(function () // between
+  {
+    return 1;
+  });
+}
+function k(): string /* typed */ {
+  return "";
+}
+if (x) /* not a body */ {
+  g();
+}
 `
 	got, err := bodies([]byte(src))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []body{{2, 7}, {8, 11}, {13, 15}, {16, 18}, {20, 22}, {23, 25}}
+	want := []body{{2, 7}, {8, 11}, {13, 15}, {16, 18}, {20, 22}, {23, 25}, {29, 34}, {31, 33}, {35, 37}}
 	if !reflect.DeepEqual(sorted(got), want) {
 		t.Fatalf("bodies %v, want %v", sorted(got), want)
 	}
