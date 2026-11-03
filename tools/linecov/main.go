@@ -1,14 +1,18 @@
 // Command linecov collects a per-test Go coverage index at one commit and
 // selects, from it, the tests a change can affect (LPCV-V0-950..963).
 //
-//	linecov collect -root R -out INDEX [-packages a,b] [-parallel N] [-timeout D] [-suite-timeout D]
+//	linecov collect -root R -out INDEX [-packages a,b] [-parallel N] [-timeout D] [-suite-timeout D] [-prior INDEX] [-misses FILE]
 //	linecov select  -root R -index INDEX -base SHA [-static a,b]
 //	linecov qualify -root R -index INDEX -packages a,b [-mutants N] [-seed S]
 //	linecov redundancy -root R -index INDEX [-packages a,b] [-low-unique N]
 //	linecov merge -out INDEX PART...
 //	linecov ci -root R -index INDEX -base SHA -packages FILE -slices FILE -out DIR
 //
-// collect needs a clean checkout; the index is bound to its HEAD. select reads
+// collect needs a clean checkout; the index is bound to its HEAD and written
+// as linecov-index/3 (MCJ-V0-003). -prior carries the previous index's
+// divergent shared-step classes, and -misses (a JSON list of linecov.Miss)
+// adds new ones, each kept while its reach blobs are unchanged (MCJ-V0-018).
+// select reads
 // the change base..HEAD of a checkout at the change head and prints one JSON
 // plan: a non-empty reason means every static package runs whole. redundancy
 // reads a checkout at the index commit and prints the tests whose coverage
@@ -196,9 +200,15 @@ func collect(args []string) error {
 	timeout := fs.Duration("timeout", 10*time.Minute, "per isolated test process")
 	suite := fs.Duration("suite-timeout", time.Hour, "per package in-order suite run")
 	scratch := fs.String("work", "", "scratch directory parent (default the system temp directory)")
+	priorFile := fs.String("prior", "", "previous index whose divergent classes carry forward")
+	missFile := fs.String("misses", "", "JSON list of shadow misses to mark divergent")
 	fs.Parse(args)
 	if *out == "" {
 		return errors.New("collect: -out is required")
+	}
+	prior, misses, err := divergenceInputs(*priorFile, *missFile)
+	if err != nil {
+		return fmt.Errorf("collect: %w", err)
 	}
 	commit, err := output(*root, "git", "rev-parse", "HEAD")
 	if err != nil {
@@ -253,6 +263,9 @@ func collect(args []string) error {
 	}
 	sort.Strings(unordered)
 	ix.Unordered = unordered
+	if err := linecov.CarryDivergent(ix, prior, misses); err != nil {
+		return err
+	}
 	f, err := os.Create(*out)
 	if err != nil {
 		return err
@@ -266,6 +279,35 @@ func collect(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "linecov: %d records (%d divergent), %d files, %s at %s in %s\n", len(records), divergent, len(ix.Files), run, commit, time.Since(start).Round(time.Second))
 	return nil
+}
+
+// divergenceInputs reads the prior index's divergent classes and the new
+// misses; either file may be unnamed.
+func divergenceInputs(priorFile, missFile string) ([]linecov.Divergence, []linecov.Miss, error) {
+	var prior []linecov.Divergence
+	if priorFile != "" {
+		f, err := os.Open(priorFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		ix, err := linecov.Decode(f)
+		f.Close()
+		if err != nil {
+			return nil, nil, fmt.Errorf("prior %s: %w", priorFile, err)
+		}
+		prior = ix.Divergent
+	}
+	var misses []linecov.Miss
+	if missFile != "" {
+		data, err := os.ReadFile(missFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := json.Unmarshal(data, &misses); err != nil {
+			return nil, nil, fmt.Errorf("misses %s: %w", missFile, err)
+		}
+	}
+	return prior, misses, nil
 }
 
 // Plan is the select output: one decision per static package and, for each
