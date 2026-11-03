@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/cfamily"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/dotnet"
@@ -67,29 +68,21 @@ type SubPlugin struct {
 	Suffixes []string
 }
 
-// DialectKind names a core reading a language's sources select by suffix
-// (LGP-V0-015).
-type DialectKind string
+// DialectKind and Dialect are declared in the provider-free decl package
+// (LGP-V0-015), so a core package can read them without linking a provider.
+type (
+	DialectKind = decl.DialectKind
+	Dialect     = decl.Dialect
+)
 
 const (
-	// ImpactDialect is the bounded syntax profile of non-Go impact.
-	ImpactDialect DialectKind = "impact"
-	// ModuleDialect is the module-membership reading of impact.
-	ModuleDialect DialectKind = "module"
-	// RegionDialect is the symbol-region normalizer family.
-	RegionDialect DialectKind = "region"
+	ImpactDialect = decl.ImpactDialect
+	ModuleDialect = decl.ModuleDialect
+	RegionDialect = decl.RegionDialect
 )
 
 // DialectKinds is every dialect kind, in declaration order.
-var DialectKinds = []DialectKind{ImpactDialect, ModuleDialect, RegionDialect}
-
-// Dialect is one core reading a plugin's sources select: its kind, the
-// dialect name the core reading answers, and the suffixes it reads.
-type Dialect struct {
-	Kind     DialectKind
-	Name     string
-	Suffixes []string
-}
+var DialectKinds = decl.DialectKinds
 
 // Manifest is one language plugin (LGP-V0-001).
 type Manifest struct {
@@ -111,10 +104,10 @@ type Manifest struct {
 	// Absent declares each piece the language lacks, with its reason.
 	Absent map[Piece]string
 	// Dialects are the core readings this language's sources select
-	// (LGP-V0-015).
+	// (LGP-V0-015), taken from decl.Of(Name).
 	Dialects []Dialect
 	// Dependencies maps an ecosystem package (a gem, an npm package) to the
-	// plugin runner it brings (LGP-V0-017).
+	// plugin runner it brings (LGP-V0-017), taken from decl.Of(Name).
 	Dependencies map[string]string
 }
 
@@ -141,7 +134,6 @@ var manifests = []Manifest{
 		Analyzers: []SubPlugin{sub("corvint-analyzer-dotnet", "internal/analyzerdotnet")},
 		Runners:   []string{"dotnet-mtp-mstest", "dotnet-mtp-nunit", "dotnet-mtp-xunit", "dotnet-vstest-mstest", "dotnet-vstest-nunit", "dotnet-vstest-xunit"},
 		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
-		Dialects:  []Dialect{{ModuleDialect, "csharp", []string{".cs"}}},
 	},
 	{
 		Name: "go",
@@ -171,8 +163,6 @@ var manifests = []Manifest{
 		// The Android UI runners, Appium included, test Android applications.
 		Runners: []string{"android-junit", "appium", "appium-uiautomator2-wdio", "espresso", "kotest", "kotlin-test", "robolectric", "uiautomator"},
 		Absent:  map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
-		// .kts is a build or script file nothing imports, so it carries no reading.
-		Dialects: []Dialect{{ModuleDialect, "kotlin", []string{".kt"}}},
 	},
 	{
 		Name: "python",
@@ -195,9 +185,7 @@ var manifests = []Manifest{
 		TestProviders: []SubPlugin{sub("corvint-ruby-test-provider", "cmd/corvint-ruby-test-provider", "internal/rubytestprovider")},
 		Mutation: []SubPlugin{{Name: "rbmutate", Paths: []string{"internal/liveverify/rbmutate"}, Suffixes: []string{".rb"}},
 			sub("extmutate", "internal/extmutate")},
-		Absent:       map[Piece]string{Coverage: noCollector},
-		Dialects:     []Dialect{{ImpactDialect, "ruby", []string{".rb"}}, {RegionDialect, "ruby", []string{".rb", ".rake"}}},
-		Dependencies: map[string]string{"rspec": "rspec", "rspec-core": "rspec", "rspec-rails": "rspec", "minitest": "minitest"},
+		Absent: map[Piece]string{Coverage: noCollector},
 	},
 	{
 		Name:      "rust",
@@ -222,7 +210,6 @@ var manifests = []Manifest{
 		Analyzers: []SubPlugin{sub("corvint-analyzer-swift", "internal/analyzerswift")},
 		Runners:   []string{"swift-testing", "swift-xctest", "xcode-xctest"},
 		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
-		Dialects:  []Dialect{{ModuleDialect, "swift", []string{".swift"}}},
 	},
 	{
 		Name: "typescript",
@@ -235,14 +222,6 @@ var manifests = []Manifest{
 		TestProviders: []SubPlugin{sub("corvint-js-test-provider", "cmd/corvint-js-test-provider", "internal/jstestprovider")},
 		Mutation:      []SubPlugin{sub("extmutate", "internal/extmutate")},
 		Absent:        map[Piece]string{Coverage: noCollector},
-		Dialects: []Dialect{
-			{ImpactDialect, "javascript", []string{".js", ".jsx", ".mjs", ".cjs"}},
-			{ImpactDialect, "typescript", []string{".ts", ".tsx"}},
-			{RegionDialect, "web", []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}},
-		},
-		Dependencies: map[string]string{"jest": "jest", "vitest": "vitest", "@playwright/test": "playwright", "mocha": "mocha",
-			"cypress": "cypress", "jasmine": "jasmine", "ava": "ava", "testcafe": "testcafe",
-			"@storybook/test-runner": "storybook-test-runner", "@wdio/cli": "webdriverio"},
 	},
 	{
 		Name:      "sql",
@@ -272,6 +251,13 @@ var manifests = []Manifest{
 		Runners:   []string{"structured-data-behavior"},
 		Absent:    map[Piece]string{Provider: noProvider, TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
 	},
+}
+
+func init() {
+	for i, m := range manifests {
+		d := decl.Of(m.Name)
+		manifests[i].Dialects, manifests[i].Dependencies = d.Dialects, d.Dependencies
+	}
 }
 
 // All returns every registered language plugin, in registration order.
@@ -313,42 +299,14 @@ func RunnerLanguage(runner string) (string, bool) {
 
 // DialectFor returns the dialect of kind whose suffixes include path's
 // extension, or "" when no plugin declares one (LGP-V0-015).
-func DialectFor(kind DialectKind, name string) string {
-	ext := path.Ext(name)
-	for _, m := range manifests {
-		for _, d := range m.Dialects {
-			if d.Kind == kind && contains(d.Suffixes, ext) {
-				return d.Name
-			}
-		}
-	}
-	return ""
-}
+func DialectFor(kind DialectKind, name string) string { return decl.DialectFor(kind, name) }
 
 // Dialects returns every declared dialect name of kind, sorted.
-func Dialects(kind DialectKind) []string {
-	var out []string
-	for _, m := range manifests {
-		for _, d := range m.Dialects {
-			if d.Kind == kind && !contains(out, d.Name) {
-				out = append(out, d.Name)
-			}
-		}
-	}
-	sort.Strings(out)
-	return out
-}
+func Dialects(kind DialectKind) []string { return decl.Dialects(kind) }
 
 // DependencyRunners returns a copy of language's package-to-runner map
 // (LGP-V0-017).
-func DependencyRunners(language string) map[string]string {
-	m, _ := Lookup(language)
-	out := make(map[string]string, len(m.Dependencies))
-	for pkg, runner := range m.Dependencies {
-		out[pkg] = runner
-	}
-	return out
-}
+func DependencyRunners(language string) map[string]string { return decl.DependencyRunners(language) }
 
 // MutationLanguage returns the plugin whose in-process mutation engine
 // mutates path's suffix, or "" (LGP-V0-018).

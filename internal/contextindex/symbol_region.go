@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/langplugin"
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 )
 
 // NormalizedLine is one source line in the comment- and whitespace-insensitive
@@ -23,7 +23,7 @@ type NormalizedLine struct {
 // no region normalizer.
 // The suffixes are the region dialects language plugins declare (LGP-V0-015).
 func SymbolRegionLanguage(name string) string {
-	return langplugin.DialectFor(langplugin.RegionDialect, name)
+	return decl.DialectFor(decl.RegionDialect, name)
 }
 
 // regionNormalizers are the implemented region dialects (LGP-V0-016).
@@ -167,16 +167,16 @@ func webNormalizedLines(text string) ([]NormalizedLine, bool) {
 // ImplementedDialects lists the dialects of kind this package implements,
 // sorted, so a test can fail when a language plugin declares one it does not
 // (LGP-V0-016).
-func ImplementedDialects(kind langplugin.DialectKind) []string {
+func ImplementedDialects(kind decl.DialectKind) []string {
 	var out []string
 	switch kind {
-	case langplugin.ImpactDialect:
+	case decl.ImpactDialect:
 		out = append(out, impactDialects...)
-	case langplugin.ModuleDialect:
+	case decl.ModuleDialect:
 		for _, item := range moduleDisclosures {
 			out = append(out, item.language)
 		}
-	case langplugin.RegionDialect:
+	case decl.RegionDialect:
 		for name := range regionNormalizers {
 			out = append(out, name)
 		}

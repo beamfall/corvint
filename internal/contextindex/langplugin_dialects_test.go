@@ -4,15 +4,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/langplugin"
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 )
 
 // TestPluginDialectsImplemented_LGPV0016 binds the language plugins' declared
 // dialects to the readings this package implements: a plugin may not declare a
 // dialect core lacks, and core may not implement one no plugin declares.
 func TestPluginDialectsImplemented_LGPV0016(t *testing.T) {
-	for _, kind := range langplugin.DialectKinds {
-		declared := strings.Join(langplugin.Dialects(kind), ",")
+	for _, kind := range decl.DialectKinds {
+		declared := strings.Join(decl.Dialects(kind), ",")
 		implemented := strings.Join(ImplementedDialects(kind), ",")
 		if declared != implemented {
 			t.Errorf("%s dialects: plugins declare [%s], contextindex implements [%s]", kind, declared, implemented)

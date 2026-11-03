@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/langplugin"
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/testrunner/registry"
 )
@@ -503,6 +504,16 @@ func TestPluginIsolation_LGPV0020(t *testing.T) {
 	for dir := range isolationExemptions {
 		if !isDir(t, dir) {
 			t.Errorf("exemption %s names no directory", dir)
+		}
+	}
+}
+
+// TestDeclNamesRegisteredPlugins_LGPV0015 keeps the provider-free declarations
+// bound to the manifests: every decl entry names a registered plugin.
+func TestDeclNamesRegisteredPlugins_LGPV0015(t *testing.T) {
+	for _, l := range decl.Languages() {
+		if m, ok := langplugin.Lookup(l.Name); !ok || len(m.Dialects) != len(l.Dialects) {
+			t.Errorf("decl entry %q has no matching manifest", l.Name)
 		}
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/langplugin"
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 )
 
 // rubyPlugin is the language plugin whose dependencies prove a Ruby runner.
@@ -34,7 +34,7 @@ var (
 // declaredRunner reports whether gems names a package the Ruby plugin maps to
 // runner (LGP-V0-017).
 func declaredRunner(gems map[string]bool, runner string) bool {
-	for gem, bringsRunner := range langplugin.DependencyRunners(rubyPlugin) {
+	for gem, bringsRunner := range decl.DependencyRunners(rubyPlugin) {
 		if bringsRunner == runner && gems[gem] {
 			return true
 		}
