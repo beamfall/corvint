@@ -15,7 +15,7 @@
 # script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name Python
 # (GOC-V0-008).
 #
-# Scratch and host independence (ASD-V0-2371..2373, V1-4350, V1-4351):
+# Scratch and host independence (ASD-V0-2371, ASD-V0-2372, V1-4350, V1-4351):
 # - Every scratch path lives under one mktemp root, $tmp, under the caller's TMPDIR. The suite
 #   exports TMPDIR=$tmp/tmpdir, so a fixture that inherits TMPDIR (heavy.sh's private heavy-run.*
 #   directories, the Makefile's corvint-go-build-cache default) never writes into the caller's
