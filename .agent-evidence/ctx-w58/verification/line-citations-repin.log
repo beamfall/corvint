@@ -1,0 +1,19 @@
+docs/specs/core-compatibility-freeze-v1.md:220  `internal/contextindex/taskcontext.go:2845@3f21cab9` -> `internal/contextindex/taskcontext.go:2855@3f21cab9`
+docs/specs/core-compatibility-freeze-v1.md:221  `internal/contextindex/taskcontext.go:2580@9847248b` -> `internal/contextindex/taskcontext.go:2590@9847248b`
+docs/specs/core-compatibility-freeze-v1.md:235  `internal/contextindex/taskcontext.go:3918@c020e4b8` -> `internal/contextindex/taskcontext.go:3928@c020e4b8`
+docs/specs/core-compatibility-freeze-v1.md:252  `internal/contextindex/taskcontext.go:347@73a4650c` -> `internal/contextindex/taskcontext.go:348@73a4650c`
+docs/specs/core-compatibility-freeze-v1.md:252  `internal/contextindex/taskcontext.go:346@4da20476` -> `internal/contextindex/taskcontext.go:347@4da20476`
+docs/specs/core-compatibility-freeze-v1.md:252  `internal/contextindex/taskcontext.go:345@7b32d74a` -> `internal/contextindex/taskcontext.go:346@7b32d74a`
+docs/specs/core-compatibility-freeze-v1.md:252  `internal/contextindex/taskcontext.go:2681@f3806eef` -> `internal/contextindex/taskcontext.go:2691@f3806eef`
+docs/specs/core-compatibility-freeze-v1.md:253  `internal/contextindex/taskcontext.go:347@73a4650c` -> `internal/contextindex/taskcontext.go:348@73a4650c`
+docs/specs/core-compatibility-freeze-v1.md:253  `internal/contextindex/taskcontext.go:346@4da20476` -> `internal/contextindex/taskcontext.go:347@4da20476`
+docs/specs/core-compatibility-freeze-v1.md:253  `internal/contextindex/taskcontext.go:2681@f3806eef` -> `internal/contextindex/taskcontext.go:2691@f3806eef`
+docs/specs/core-compatibility-freeze-v1.md:254  `internal/contextindex/taskcontext.go:347@73a4650c` -> `internal/contextindex/taskcontext.go:348@73a4650c`
+docs/specs/core-compatibility-freeze-v1.md:254  `internal/contextindex/taskcontext.go:346@4da20476` -> `internal/contextindex/taskcontext.go:347@4da20476`
+docs/specs/core-compatibility-freeze-v1.md:254  `internal/contextindex/taskcontext.go:345@7b32d74a` -> `internal/contextindex/taskcontext.go:346@7b32d74a`
+docs/specs/core-compatibility-freeze-v1.md:290  `internal/contextindex/taskcontext.go:2681@f3806eef` -> `internal/contextindex/taskcontext.go:2691@f3806eef`
+line citations: --repin rewrote 14 citation(s) in 1 document(s) and staged them (git add -- docs/specs/core-compatibility-freeze-v1.md)
+line citations: note: skipped 180 citation(s) whose basename is not tracked at repository root (--verbose lists them)
+line citations: --repin pass 2 rereads the staged rewrite
+line citations: --repin rewrote 14 citation(s) across 2 pass(es); this pass found no further move
+line citations: note: skipped 180 citation(s) whose basename is not tracked at repository root (--verbose lists them)

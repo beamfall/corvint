@@ -37,7 +37,7 @@ func (ranker *spanRanker) clipNote(symbol string, lines int) string {
 	if !ranker.hits || lines <= contextSpanMaxLines {
 		return ""
 	}
-	return fmt.Sprintf("; `%s` runs %d lines, so the span keeps its first %d", symbol, lines, contextSpanMaxLines)
+	return fmt.Sprintf("; `%s` runs %d lines, beyond the %d-line cap, so the hit range is returned", symbol, lines, contextSpanMaxLines)
 }
 
 // pastClipNote is the reason, under `hits`, for the hit window returned when
@@ -59,11 +59,18 @@ func (ranker *spanRanker) budgetFallback(span contextSpan, room int) (contextSpa
 	if !ok {
 		return span, false
 	}
-	window := span.hitWindow(len(lines))
+	window := span
+	window.start, window.end = span.hitStart, span.hitEnd
+	for _, part := range span.contributors() {
+		window.start, window.end = min(window.start, part.hitStart), max(window.end, part.hitEnd)
+	}
+	if window.start > len(lines) || window.end > len(lines) {
+		return span, false
+	}
 	if window.lines() >= span.lines() || window.lines() > room {
 		return span, false
 	}
-	window.note = span.note + "; the expansion would overrun the remaining line budget, so the hit window is returned"
+	window.note = span.note + "; the expansion would overrun the remaining line budget, so the hit range is returned"
 	return window, true
 }
 
@@ -88,6 +95,24 @@ func (span contextSpan) contributors() []contextSpan {
 // reports false, and changes nothing, when span touches no selected span or
 // the union would exceed contextSpanMaxLines.
 func mergeSpans(selected []contextSpan, span contextSpan) ([]contextSpan, bool) {
+	return mergeSpansBounded(selected, span, contextSpanMaxLines)
+}
+
+// coalesceSpans is a pure rank-stable normalization, independent of budgets.
+// Only a fresh parts slice is extended; contributor slices in input are immutable.
+func coalesceSpans(candidates []contextSpan) []contextSpan {
+	selected := make([]contextSpan, 0, len(candidates))
+	for _, span := range candidates {
+		if merged, ok := mergeSpansBounded(selected, span, int(^uint(0)>>1)); ok {
+			selected = merged
+		} else {
+			selected = append(selected, span)
+		}
+	}
+	return selected
+}
+
+func mergeSpansBounded(selected []contextSpan, span contextSpan, maxLines int) ([]contextSpan, bool) {
 	start, end := span.start, span.end
 	joined := map[int]bool{}
 	for grew := true; grew; {
@@ -99,7 +124,7 @@ func mergeSpans(selected []contextSpan, span contextSpan) ([]contextSpan, bool) 
 			}
 		}
 	}
-	if len(joined) == 0 || end-start+1 > contextSpanMaxLines {
+	if len(joined) == 0 || end-start+1 > maxLines {
 		return selected, false
 	}
 	merged := make([]contextSpan, 0, len(selected))
@@ -141,19 +166,19 @@ func (ranker *spanRanker) spanHitFields(row map[string]any, span contextSpan) {
 	if span.hitStart > 0 {
 		row["hit_start_line"], row["hit_end_line"] = span.hitStart, span.hitEnd
 	}
+	row["slots"] = span.slots
 	if len(span.parts) < 2 {
 		return
 	}
-	parts := make([]any, 0, len(span.parts)-1)
-	for _, part := range span.parts[1:] {
+	parts := make([]any, 0, len(span.parts))
+	for _, part := range span.parts {
 		entry := map[string]any{
-			"role": part.role, "symbol": part.symbol, "start_line": part.start, "end_line": part.end,
-			"reason": part.reason + part.note,
+			"role": part.role, "slots": part.slots,
 		}
 		if part.hitStart > 0 {
 			entry["hit_start_line"], entry["hit_end_line"] = part.hitStart, part.hitEnd
 		}
 		parts = append(parts, entry)
 	}
-	row["merged_from"] = parts
+	row["contributors"] = parts
 }

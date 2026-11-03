@@ -1,0 +1,8 @@
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 4 darwin-only file(s), first ./cmd/corvint/affected_identity_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=unknown dirty=unknown
+heavy.sh: slot 1/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/contextindex	9.983s
+ok  	github.com/Beamfall/corvint/cmd/corvint	2.209s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=11.0s rc=0

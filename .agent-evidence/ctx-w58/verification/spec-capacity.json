@@ -1,0 +1,14 @@
+[
+  {
+    "path": "docs/specs/task-context-packet-v0.md",
+    "before": 91,
+    "after": 95,
+    "cap": 256
+  },
+  {
+    "path": "docs/specs/context-ranking-v0.md",
+    "before": 12,
+    "after": 12,
+    "cap": 256
+  }
+]

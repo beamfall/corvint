@@ -20,7 +20,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental; TCP-V0-065 and the TCP-V0-006 amendment are accepted, decision 0516 (V1-0315); TCP-V0-055..058 (authority screen, V1-0414) are accepted under the owner's standing auto-accept, recorded 2026-10-16. The bounded top-level `exclusions` member reports corpus gaps without changing ranking.
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371); `internal/contextindex/authority_screen.go` (TCP-V0-055..058 hidden-Unicode and self-modified-authority screen of reserved rows, accepted 2026-10-16 under the standing auto-accept, V1-0414).
-- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0859-orientation-misses.md`). TCP-V0-063 (record-data gate, V1-0859 and V1-0431, 2026-10-08) is proposed on the same development evidence and awaits the same validation (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`).
+- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 are implemented opt-in; TCP-V0-2220..2223 tighten hit fallback, pre-budget merging and membership-preserving RRF. Measurements remain required before promotion. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0859-orientation-misses.md`). TCP-V0-063 (record-data gate, V1-0859 and V1-0431, 2026-10-08) is proposed on the same development evidence and awaits the same validation (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`).
 - Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
 
 Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
@@ -743,7 +743,7 @@ it must read, each with the relation that admitted it, without naming the task's
 
 ### Line-budgeted spans and evidence-set sufficiency (proposed 2026-09-23, decision 0366)
 
-- `TCP-V0-025`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With
+- `TCP-V0-025`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; V1-0114) (proposed 2026-09-23, not accepted; experimental; decision 0366) With
   `CORVINT_CONTEXT_SPANS=on`, the packet gains one top-level `spans` member,
   `{line_budget, lines_used, omitted, rows}`. Each row is `{role, path, start_line, end_line,
   symbol, reason, confidence, blob_hash, authority, trust}`: an explicit 1-based inclusive line
@@ -770,7 +770,7 @@ it must read, each with the relation that admitted it, without naming the task's
   line L; `S` is declared by the core span P:S-E", authority `syntax`, confidence `medium`. A
   call site is a lexical whole-word use, not a resolved call: a same-named symbol in another
   scope is reported as a call site.
-- `TCP-V0-027`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+- `TCP-V0-027`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; V1-0114) (proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
   line budget is 240 lines. Core rows, then call-site rows, are taken in order; a candidate that
   overlaps an already selected row is dropped silently, one that would take `lines_used` past
   `line_budget` is counted in `omitted` and skipped, and no row exceeds 80 lines. The flag changes
@@ -869,7 +869,7 @@ reading that decides between them. Corroboration ranks rows by how many relation
 admitted the path; reciprocal rank fusion also weighs where each relation ranked it. Slot
 admission is not changed.
 
-- `TCP-V0-048`: (proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01 under CRK-V0-004) With
+- `TCP-V0-048`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2222; V1-0219) (proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01 under CRK-V0-004) With
   `CORVINT_CONTEXT_RRF=on`, the step that ranks rows by their number of corroborating relations
   (TCP-V0-004, decision 0027) instead ranks them by the fused score
   `F(p) = sum over r of 1/(60 + rank_r(p))`, taken over the relation that admitted path `p` and
@@ -878,23 +878,19 @@ admission is not changed.
   subject removed, among the positions `take` examined for `r` before its cap stopped it. Those
   are the positions whose already-chosen paths decision 0027 records as corroborating, so both
   orderings read the same relations for every path and differ only in weighting by rank. The
-  constant 60 is fixed before any reading and is not tuned on the evaluation sets. The sort is
-  descending by `F` and stable: rows with equal `F` keep their incoming order, which is slot order,
-  or the LTA-V0-011 slot-weight order when an admitted trace supplies one.
-- `TCP-V0-049`: (proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01 under CRK-V0-004) With the
+  constant 60 is fixed before any reading and is not tuned on the evaluation sets. The ordering and tie-break follow TCP-V0-2222: descending `F`, then admission slot order, then path.
+- `TCP-V0-049`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2222; V1-0219) (proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01 under CRK-V0-004) With the
   flag on, only that ordering changes. Slot admission, caps, relation membership, each row's single
   evidence row, the `score` rise of 50 per corroborating relation, and the `summary` "; also"
   list are the same as with corroboration. The reserved rows (TCP-V0-008, TCP-V0-009, TCP-V0-047)
-  and `graph` rows (TCP-V0-030..034) are placed after this step exactly as they are today. The
-  `--limit` truncation still follows the ordering, as it follows corroboration, so which admitted
-  rows survive the limit can change; that is the effect under measurement. Every ordered row's
+  and `graph` rows (TCP-V0-030..034) are placed after this step exactly as they are today. TCP-V0-2222 freezes the final corroboration-selected membership before RRF orders ordinary rows;
+  `--limit` can no longer change membership between these two arms. Every ordered row's
   `reason` gains `; rrf F (KIND@RANK, ...)`, listing the admitting relation first and then the
   corroborating relations in the order `take` recorded them, with `F` to four decimals. An unset,
   `off` or any other value preserves the existing packet bytes (the recipe golden). On or off,
   `context` stays read-only (TCP-V0-001) and keeps TCP-V0-016's abstention.
-- `TCP-V0-050`: (proposed 2026-09-24, not accepted; decision 0377; reading (a) recorded 2026-11-01 in `docs/build-log/2026-11-01-ctx-u15.md` and lost recall@20, so the flag stays opt-in; reading (b) NOT_RUN without its corpus) Two readings,
-  with the same binary and the flag unset and `on`, decide the flag, and both are recorded in
-  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`. (a) The frozen `tools/retrieval-bench --arms context` run over
+- `TCP-V0-050`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2222; TCP-V0-2223; V1-0219; original gate decision 0377) Two readings,
+  with the same binary and the flag unset and `on`, decide the flag, and both are retained in dated `docs/build-log/` entries with their input identities and limits. (a) The frozen `tools/retrieval-bench --arms context` run over
   `v2_code2test`, `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code`, recording
   recall@5/10/20 and the losing cases. (b) The offline gold-rank reading decision 0027 used: every
   task in `tools/cw-trial/testdata/unseen-corvint-v2` (63 tasks, with the `unseen-corvint-v1`
@@ -1416,6 +1412,40 @@ as withheld. This amendment reserves what the routed spec cites.
   Rollback: delete `context_fuzzy.go`, the `fuzzy` compiler field and lexical-hit member, and
   the `pathNamed` count; the flag then has no effect.
 
+### Bounded retrieval experiments (V1-0114, V1-0116, V1-0219)
+
+- `TCP-V0-2220`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0114)
+  Experimental `hits` and `merged` match a definition line, identifier occurrence or strongest
+  lexical line before expanding to the smallest indexed enclosing declaration in that same file.
+  Each row names the exact hit and returned inclusive line ranges. An unknown enclosure or a
+  declaration beyond the 80-line cap returns the exact hit range with an explicit reason; an
+  expansion beyond the remaining 240-line packet budget likewise falls back to the exact hit
+  range if it fits, otherwise it is counted omitted. `on` and unset retain their legacy bytes.
+- `TCP-V0-2221`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0116)
+  Experimental `merged` coalesces overlapping and adjacent candidates transitively within one
+  path before line-budget selection, retaining the earliest ranked position and other paths'
+  relative order. This is a pure function of ranked candidates, including their contributor
+  records. Every contributor is disclosed with its admitting slot, role and exact hit range;
+  every slot corroborating that contributor is listed too. The union is returned once, with no
+  overlapping returned rows. Provenance is compact and never silently discarded for byte savings.
+- `TCP-V0-2222`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0219)
+  Experimental RRF uses constant k=60 and each relation's first 1-based materialized candidate
+  position, accumulated across its slot calls with the subject removed. Only the admitting and
+  actually corroborating relations contribute. Equal fused scores sort by admission slot order,
+  then path. RRF reorders only the ordinary rows selected by corroboration after reservations,
+  graph placement, counterpart admission and limit selection; reserved and graph positions stay
+  fixed. Slot admission, caps, scores and final packet membership are identical in both arms.
+- `TCP-V0-2223`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0114; V1-0116; V1-0219)
+  Retain reproducible paired readings on the frozen four retrieval subsets at fixed byte budgets (4096, 8192, 16384, 32768 and 65536 bytes; admit the whole actual
+  CLI message or deliver no evidence), with exact sample and binary digests, file recall, gold-span coverage and complete packet bytes.
+  Compare `hits` against `on` and `merged` against `hits`; bytes increasing or recall decreasing
+  fails promotion. Also run corroboration and RRF on exactly the same 63 decision-0027 v2 tasks
+  at their history-backed base commits and report the 34-task v1 subset separately: gold counts
+  at ranks 1-5, 6-10, 11-20, top 20 and absent, including absent-at-base gold separately. Retain
+  failed readings and unavailable inputs explicitly. TCP-V0-050's original promotion gates remain
+  required, plus unchanged final membership; no synthetic substitute admits promotion. Keep every
+  experiment opt-in until all its existing gates and a separate owner promotion decision pass.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -1838,6 +1868,23 @@ The cancellation boundaries (TCP-V0-064) roll back alone: delete `stopped`, `joi
 `ctx`/`cancelled` compiler fields, the boundary checks and `taskcontext_cancel_test.go`. A late
 cancellation then returns its packet again; no state persists and no uncancelled packet changes.
 
+### Retrieval experiment follow-up evidence and limits
+
+TCP-V0-2220..2223 use the existing index, immutable source blobs and opt-in environment settings;
+they create no new default product dependency, storage, slot, flag or authority. A core expansion
+is an indexed syntax boundary, never semantic proof. Supplemental call-site windows keep
+TCP-V0-026's own scope. Compact merged provenance replaces the experimental `merged_from` member
+with `contributors`, listing role, slots and hit ranges for every contributing span, including
+the head. Consumers of the opt-in wire must read that member; default and `on` consumers are unchanged.
+
+The 2026-11-03 lane reading is retained in
+`docs/build-log/2026-11-03-ctx-w58-packet-retrieval.md`: exact-hit fallback loses gold-span coverage,
+and six merged packets grow although total bytes fall. Those are failed promotion evidence,
+not a waiver of TCP-V0-2223 or TCP-V0-029/050. Three frozen releases remain unavailable. Historical
+manifest paths absent at their pinned bases are invocation errors in both arms, never silently
+renamed or excluded. Keep all three experiments opt-in. Rollback selects `on` or unsets
+`CORVINT_CONTEXT_SPANS`, and unsets `CORVINT_CONTEXT_RRF`; no state migration is needed.
+
 ## Traceability
 
 | Requirement | Implementation | Test |
@@ -1876,6 +1923,12 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-041 | `roleReason`, `lexicalRows` | `TestContextRolesExplainAndNeverOutrankAuthority` |
 | TCP-V0-042 | `tools/retrieval-bench` (unchanged); decision 0370 | frozen bench figures in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
+
+| TCP-V0-2220 | `spanRanker.enclosing`, `definitionSpans`, `budgetFallback` | `TestContextExactHitFallback_TCPV02220`, `TestContextSpanFallbacks` |
+| TCP-V0-2221 | `coalesceSpans`, `spanHitFields`, pre-budget `spanRanker.rank` | `TestContextPrebudgetMerge_TCPV02221`, `TestContextMergeBytes_TCPV02221` |
+| TCP-V0-2222 | `fuseSelectedRows`, `recordRelationRanks`, `fuseRanks` | `TestContextRRFMembership_TCPV02222`, `TestContextRRFTieBreak_TCPV02222` |
+| TCP-V0-2223 | `script/measure-context-packet.py`, existing frozen `tools/retrieval-bench` | `script/measure-context-packet_test.py`; `docs/build-log/2026-11-03-ctx-w58-packet-retrieval.md` (frozen reading and retained limits) |
+
 | TCP-V0-025 | `contextSpansEnabled`, `attachSpans`, `newSpanRanker`, `coreSpans`, `rowSpans`, `definitionSpans`, `namedLineSpan`, `termLineSpan`, `extent`, `enclosing`, `spanRanker.packet` (`internal/contextindex/span_rank.go`) | `TestContextSpansDefaultBytes`, `TestContextSpansCoreAndCallSite` |
 | TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |
 | TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
@@ -1887,7 +1940,7 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
 | TCP-V0-048 | `recordRelationRanks`, `orderRows`, `fuseRanks` (`internal/contextindex/context_order.go`, CRK-V0-004) | `TestContextOrderFuseRanks`, `TestContextOrderRecordRelationRanks` |
 | TCP-V0-049 | `configureContextOrder`, `annotateSupport`, `fuseRanks` (`internal/contextindex/context_order.go`) | `TestContextOrderDefaultBytes`, `TestContextOrderAdditive` |
-| TCP-V0-050 | `tools/retrieval-bench` `context` arm; the offline gold-rank reading (NOT_RUN) | reading (a) in `docs/build-log/2026-11-01-ctx-u15.md`; reading (b) NOT_RUN |
+| TCP-V0-050 | `tools/retrieval-bench` `context` arm; `script/measure-context-packet.py` history-backed gold-rank reading | `docs/build-log/2026-11-03-ctx-w58-packet-retrieval.md` (both measured with explicit gaps); prior failed reading retained in `docs/build-log/2026-11-01-ctx-u15.md` |
 | TCP-V0-043 | `attachLSPEvidence`, `lspSeeds`, `committedText` (`cmd/corvint/context_lsp.go`); `compileTaskContext` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestContextDefaultWireIsTheGolden` |
 | TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
 | TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
