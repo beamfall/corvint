@@ -32,6 +32,7 @@ type contextSpan struct {
 	// fallback's reason, and parts a merged row's contributors; all three are
 	// emitted only under CRK-V0-009..011's `hits` and `merged` modes.
 	hitStart, hitEnd int
+	slots            []string
 	note             string
 	parts            []contextSpan
 }
@@ -149,21 +150,23 @@ func (ranker *spanRanker) lines(path string) ([]string, bool) {
 func (ranker *spanRanker) rank(budget int) ([]contextSpan, int) {
 	cores := ranker.coreSpans()
 	candidates := append(append([]contextSpan{}, cores...), ranker.callSites(cores)...)
+	if ranker.merge {
+		// TCP-V0-2221: normalize the entire ranked input before truncation.
+		candidates = coalesceSpans(candidates)
+	}
 	selected := make([]contextSpan, 0, len(candidates))
 	used, omitted := 0, 0
 	for _, span := range candidates {
-		if ranker.merge {
-			if merged, ok := mergeSpans(selected, span); ok {
-				if spanLines(merged) > budget {
-					omitted++
-				} else {
-					selected, used = merged, spanLines(merged)
-				}
-				continue
-			}
-		}
 		if coveredBy(selected, span) {
 			continue
+		}
+		if ranker.merge {
+			capped, ok := capMerged(span)
+			if !ok {
+				omitted++
+				continue
+			}
+			span = capped
 		}
 		if used+span.lines() > budget {
 			window, ok := ranker.budgetFallback(span, budget-used)
@@ -198,7 +201,11 @@ func (ranker *spanRanker) coreSpans() []contextSpan {
 		if instructionReservation(row.kind) {
 			continue
 		}
-		cores = append(cores, ranker.rowSpans(row.path)...)
+		spans := ranker.rowSpans(row.path)
+		for index := range spans {
+			spans[index].slots = append([]string{row.kind}, ranker.compiler.support[row.path]...)
+		}
+		cores = append(cores, spans...)
 	}
 	return cores[:min(len(cores), contextSpanCoreCap)]
 }
@@ -246,6 +253,9 @@ func (ranker *spanRanker) definitionSpans(path string, lines []string) []context
 		}
 		_, full := ranker.fullExtent(path, symbol, len(lines))
 		span.note = ranker.clipNote(symbol.Name, full-start+1)
+		if ranker.hits && full-start+1 > contextSpanMaxLines {
+			span.start, span.end = span.hitStart, span.hitEnd
+		}
 		spans = append(spans, span)
 	}
 	return spans
@@ -320,11 +330,13 @@ func (ranker *spanRanker) fullExtent(path string, symbol Symbol, count int) (int
 	return symbol.Line, end
 }
 
+// nextSymbolLine is the first symbol line after line. The path's symbols are
+// sorted by line, so a binary search keeps enclosure lookup O(n log n) in a
+// file's declarations rather than quadratic (TCP-V0-2220).
 func (ranker *spanRanker) nextSymbolLine(path string, line int) (int, bool) {
-	for _, symbol := range ranker.symbols[path] {
-		if symbol.Line > line {
-			return symbol.Line, true
-		}
+	symbols := ranker.symbols[path]
+	if next := sort.Search(len(symbols), func(index int) bool { return symbols[index].Line > line }); next < len(symbols) {
+		return symbols[next].Line, true
 	}
 	return 0, false
 }
@@ -334,6 +346,30 @@ func (ranker *spanRanker) nextSymbolLine(path string, line int) (int, bool) {
 // a window of contextSpanLineRadius lines either side. Under `hits` a clipped
 // declaration, and a hit past the clip, say so in the reason (CRK-V0-010).
 func (ranker *spanRanker) enclosing(path string, line, count int) contextSpan {
+	if ranker.hits {
+		// TCP-V0-2220: choose the smallest actual enclosing declaration;
+		// a later nested symbol need not enclose the hit.
+		span := contextSpan{role: "core", path: path, start: line, end: line, hitStart: line, hitEnd: line}
+		best := count + 1
+		for _, symbol := range ranker.symbols[path] {
+			if symbol.Line < 1 || symbol.Line > line {
+				continue
+			}
+			start, end := ranker.fullExtent(path, symbol, count)
+			if end < line || end-start+1 >= best {
+				continue
+			}
+			best, span.symbol = end-start+1, symbol.Name
+			span.start, span.end = start, end
+		}
+		if span.symbol == "" {
+			span.note = "; no indexed enclosing declaration, so the hit range is returned"
+		} else if best > contextSpanMaxLines {
+			span.start, span.end = line, line
+			span.note = ranker.clipNote(span.symbol, best)
+		}
+		return span
+	}
 	var owner *Symbol
 	for index := range ranker.symbols[path] {
 		if symbol := ranker.symbols[path][index]; symbol.Line >= 1 && symbol.Line <= line {
@@ -433,10 +469,23 @@ func (ranker *spanRanker) callSite(core contextSpan, candidate string, cores []c
 			continue
 		}
 		line := index + 1
+		if ranker.hits {
+			declaration := false
+			for _, symbol := range ranker.symbols[candidate] {
+				if symbol.Name == core.symbol && symbol.Line == line {
+					declaration = true
+					break
+				}
+			}
+			if declaration {
+				continue
+			}
+		}
 		site := contextSpan{
 			role: "call-site", path: candidate, symbol: core.symbol, confidence: "medium", authority: SyntaxAuthority,
 			start: max(line-contextSpanCallRadius, 1), end: min(line+contextSpanCallRadius, len(lines)),
 			hitStart: line, hitEnd: line,
+			slots:  append([]string(nil), core.slots...),
 			reason: fmt.Sprintf("names `%s` at line %d; `%s` is declared by the core span %s:%d-%d", core.symbol, line, core.symbol, core.path, core.start, core.end),
 		}
 		if !coveredBy(cores, site) {
