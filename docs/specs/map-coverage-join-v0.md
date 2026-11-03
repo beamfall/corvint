@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-11-03
-Intent status: accepted (owner 2026-11-03)
+Intent status: accepted
 Delivery status: not-started
 Authoritative inputs: owner request of 2026-11-03 (tie line-level test selection to the site map,
 page objects and the generated documentation across unit, integration and E2E tests, and stop
