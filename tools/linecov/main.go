@@ -92,6 +92,20 @@ func packages(root string) (module string, dirs []string, err error) {
 	return module, dirs, nil
 }
 
+// modulePath reads the module directive of root's go.mod.
+func modulePath(root string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if f := strings.Fields(line); len(f) == 2 && f[0] == "module" {
+			return strings.Trim(f[1], `"`), nil
+		}
+	}
+	return "", errors.New("go.mod has no module directive")
+}
+
 func split(list string) []string {
 	if list == "" {
 		return nil
@@ -227,12 +241,16 @@ func decide(ctx context.Context, root string, ix *linecov.Index, base string, st
 	if err != nil {
 		return Plan{}, err
 	}
-	module, dirs, err := packages(root)
+	// Listing every package costs most of a select; a caller passing the
+	// static plan needs only the module path.
+	module, dirs := "", static
+	if static == nil {
+		module, dirs, err = packages(root)
+	} else {
+		module, err = modulePath(root)
+	}
 	if err != nil {
 		return Plan{}, err
-	}
-	if static != nil {
-		dirs = static
 	}
 	p := Plan{Index: ix.Commit, Base: base, Head: head}
 	run, err := runner(root)
@@ -361,10 +379,20 @@ func qualify(args []string) error {
 		if err != nil {
 			return err
 		}
+		clauses := map[*ast.BlockStmt]bool{} // switch and select bodies hold clauses, not statements
 		ast.Inspect(parsed, func(n ast.Node) bool {
 			open, close := token.NoPos, token.NoPos
 			switch n := n.(type) {
+			case *ast.SwitchStmt:
+				clauses[n.Body] = true
+			case *ast.TypeSwitchStmt:
+				clauses[n.Body] = true
+			case *ast.SelectStmt:
+				clauses[n.Body] = true
 			case *ast.BlockStmt:
+				if clauses[n] {
+					break
+				}
 				open, close = n.Lbrace, n.Rbrace
 			case *ast.CaseClause:
 				open, close = n.Colon, n.End()
