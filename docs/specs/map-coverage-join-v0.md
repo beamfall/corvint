@@ -2,7 +2,8 @@
 
 Owner: Russell Lewis
 Date: 2026-11-03
-Intent status: proposed
+Intent status: accepted (owner direction 2026-11-03 to build the slice tickets; owner questions
+decided by the orchestrator under the 2026-11-02 delegation, see Owner questions)
 Delivery status: not-started
 Authoritative inputs: owner request of 2026-11-03 (tie line-level test selection to the site map,
 page objects and the generated documentation across unit, integration and E2E tests, and stop
@@ -12,9 +13,9 @@ re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V
 
 ## Agent digest
 - Claim: Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.
-- Status: proposed/not-started
+- Status: accepted/not-started
 - Exists: nothing of this join. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
-- Blocked on: owner acceptance; the owner questions; a non-Go collector (LPCV-V0-955) for the observed links and segment requirements. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
+- Blocked on: a non-Go collector (LPCV-V0-955) for the observed links and segment requirements. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
 - Read next: Requirements; Functionality links; Shared-step selection; Failure modes; Delivery slices; Owner questions.
 
 ## User job and verified baseline
@@ -233,10 +234,15 @@ shadow-only, stop writing `linecov-index/3` (readers fall back to the last `/2` 
 
 ## Owner questions
 
-1. Which Beamfall adopter languages and runners come after Ruby and TypeScript (MCJ-V0-013)?
-2. Is the LPCV shadow bar (zero misses over 1,000 changes) also right for shared-step exclusion
-   (MCJ-V0-017), or should E2E use a higher count?
-3. Should the representative be the cheapest test (MCJ-V0-006) or the one with the most declared
-   flow links, trading CI time for clearer documentation?
-4. Is a project opt-in fixture acceptable for Playwright segment boundaries (MCJ-V0-012), or must
-   boundaries come without any test-source change?
+Decided 2026-11-03 by the orchestrator under the owner's 2026-11-02 delegation; the owner may
+revise any of them.
+
+1. After Ruby and TypeScript (MCJ-V0-013), collectors follow the Beamfall adopter languages in
+   order of their test count, taken from a census of the adopter repositories when slice 6 starts.
+2. Shared-step exclusion (MCJ-V0-017) uses the LPCV bar, zero misses over at least 1,000 changes,
+   counted only over changes that touch at least one segment-covered block, plus the
+   per-segment-kind fault injection of MCJ-V0-014.
+3. The representative is the cheapest test (MCJ-V0-006); CI time is the owner's stated goal, and
+   documentation lists every executing test regardless of which one ran.
+4. Playwright segment boundaries come from `test.step` and page-object calls without any
+   test-source change; a project opt-in fixture is allowed only as a fallback, reported per run.
