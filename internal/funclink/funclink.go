@@ -94,6 +94,44 @@ func (s Span) contains(o Span) bool {
 	return o.Start != 0 && s.Start <= o.Start && o.End <= s.End
 }
 
+// uncoveredParts returns the parts of b that no span of spans holds, in line order: nil when spans
+// hold every line of b, and b itself when b is a whole file and no whole-file span of its path is
+// given.
+func uncoveredParts(b Span, spans []Span) []Span {
+	var ranges [][2]int
+	for _, s := range spans {
+		if s.Path != b.Path {
+			continue
+		}
+		if s.Start == 0 {
+			return nil
+		}
+		ranges = append(ranges, [2]int{s.Start, s.End})
+	}
+	if b.Start == 0 {
+		return []Span{b}
+	}
+	sort.Slice(ranges, func(i, j int) bool { return ranges[i][0] < ranges[j][0] })
+	var out []Span
+	next := b.Start
+	for _, r := range ranges {
+		if r[1] < next {
+			continue
+		}
+		if r[0] > b.End {
+			break
+		}
+		if r[0] > next {
+			out = append(out, Span{b.Path, next, r[0] - 1})
+		}
+		next = r[1] + 1
+		if next > b.End {
+			return out
+		}
+	}
+	return append(out, Span{b.Path, next, b.End})
+}
+
 func lessSpan(a, b Span) bool {
 	if a.Path != b.Path {
 		return a.Path < b.Path
