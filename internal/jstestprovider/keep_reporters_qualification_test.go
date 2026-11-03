@@ -11,12 +11,19 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
+// keepHelperInput and keepReporterModule are host-absolute config inputs: the
+// record binds only absolute input paths under the host's rules (ASD-V0-2233).
+var (
+	keepHelperInput    = hostAbs("/repo/helper.cjs")
+	keepReporterModule = hostAbs("/repo/project-reporter.cjs")
+)
+
 // hexInputs gives a fixture the hex config-input digests a real reporter
 // observes, plus a helper loaded by the config.
 func hexInputs(r *Receipt) {
 	digest := strings.Repeat("a", 64)
 	r.Identity.ConfigDigest = digest
-	r.Identity.ConfigInputDigests = map[string]string{r.Identity.ConfigFile: digest, "/repo/helper.cjs": strings.Repeat("d", 64)}
+	r.Identity.ConfigInputDigests = map[string]string{r.Identity.ConfigFile: digest, keepHelperInput: strings.Repeat("d", 64)}
 	for i := range r.Tests {
 		r.Tests[i].Project.ConfigDigest = digest
 		r.Tests[i].ID = qualifiedTestID(r.Identity, r.Tests[i])
@@ -33,11 +40,11 @@ func keepQualificationPair(t *testing.T) (Receipt, Receipt) {
 	hexInputs(&control)
 	hexInputs(&keep)
 	keep.External.ConfigOverride = "controlled-fixture-config" + keptConfigSuffix
-	keep.Identity.ConfigInputDigests["/repo/project-reporter.cjs"] = strings.Repeat("b", 64)
+	keep.Identity.ConfigInputDigests[keepReporterModule] = strings.Repeat("b", 64)
 	keep.Tests[0].ID = qualifiedTestID(keep.Identity, keep.Tests[0])
 	if err := bindProjectReporters(&keep, []reportedProjectReporter{
 		{Name: "list", Options: "absent"},
-		{Name: "/repo/project-reporter.cjs", Options: "bound", OptionsDigest: strings.Repeat("c", 64)},
+		{Name: keepReporterModule, Options: "bound", OptionsDigest: strings.Repeat("c", 64)},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +59,7 @@ func TestQualifyKeepReportersQualified(t *testing.T) {
 	if q.Verdict != KeepReportersQualified || len(q.Reasons) != 0 || q.Tests != 1 {
 		t.Fatalf("matching runs not qualified: %+v", q)
 	}
-	if !reflect.DeepEqual(q.ConfigInputs, keep.Identity.ConfigInputDigests) || q.ConfigInputs["/repo/helper.cjs"] == "" {
+	if !reflect.DeepEqual(q.ConfigInputs, keep.Identity.ConfigInputDigests) || q.ConfigInputs[keepHelperInput] == "" {
 		t.Fatalf("config inputs %v", q.ConfigInputs)
 	}
 	// A reporter module the original config also imports is a control input
@@ -105,14 +112,14 @@ func TestQualifyKeepReportersReasons(t *testing.T) {
 		}, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-partial":      {func(c, k *run) { k.r.Cancelled = true }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-error":        {func(c, k *run) { k.err = errors.New("keep-reporters-unsupported-mode") }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
-		"unbindable-input":  {func(c, k *run) { k.r.Identity.ConfigInputDigests["/repo/helper.cjs"] = "short" }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
+		"unbindable-input":  {func(c, k *run) { k.r.Identity.ConfigInputDigests[keepHelperInput] = "short" }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"keep-without-mode": {func(c, k *run) { k.r = c.r }, KeepReportersNotRun, "keep-reporters-keep-run-incomplete"},
 		"control-with-mode": {func(c, k *run) { c.r = k.r }, KeepReportersNotRun, "keep-reporters-control-run-incomplete"},
 		"legacy-order":      {func(c, k *run) { k.r.External.ConfigOverride = "controlled-fixture-config" + legacyKeptConfigSuffix }, KeepReportersNotQualified, "keep-reporters-order-unsupported"},
 		"unknown-entry": {func(c, k *run) {
 			k.r.External.ProjectReporters.Entries[1] = ProjectReporter{Name: "/outside/reporter.mjs", Module: "unknown", Options: "unknown"}
 		}, KeepReportersNotQualified, "keep-reporters-entries-unknown"},
-		"inputs-differ":   {func(c, k *run) { k.r.Identity.ConfigInputDigests["/repo/helper.cjs"] = strings.Repeat("f", 64) }, KeepReportersNotQualified, "keep-reporters-inputs-differ"},
+		"inputs-differ":   {func(c, k *run) { k.r.Identity.ConfigInputDigests[keepHelperInput] = strings.Repeat("f", 64) }, KeepReportersNotQualified, "keep-reporters-inputs-differ"},
 		"runner-differs":  {func(c, k *run) { k.r.Identity.RunnerVersion = "1.61.0" }, KeepReportersNotQualified, "keep-reporters-inputs-differ"},
 		"outcome-differs": {func(c, k *run) { k.r.Tests[0].State, k.r.Tests[0].Attempts[0].State = StateFailed, StateFailed }, KeepReportersNotQualified, "keep-reporters-observation-differs"},
 		"retries-differ":  {func(c, k *run) { k.r.Tests[0].Retries = 1 }, KeepReportersNotQualified, "keep-reporters-observation-differs"},
@@ -159,6 +166,11 @@ func contains(values []string, want string) bool {
 func TestKeepReportersQualificationRecordClosed(t *testing.T) {
 	control, keep := keepQualificationPair(t)
 	q := QualifyKeepReporters(control, nil, keep, nil)
+	// The mutations below edit a qualified record's two kept entries; a base
+	// record that did not qualify fails here instead of panicking (ASD-V0-2233).
+	if q.Verdict != KeepReportersQualified || len(q.Entries) != 2 {
+		t.Fatalf("base record not qualified with two kept entries: %+v", q)
+	}
 	encoded, err := EncodeKeepReportersQualification(q)
 	if err != nil {
 		t.Fatal(err)
@@ -184,12 +196,12 @@ func TestKeepReportersQualificationRecordClosed(t *testing.T) {
 		"nil-reasons":               func(q *KeepReportersQualification) { q.Reasons = nil },
 		"nil-inputs":                func(q *KeepReportersQualification) { q.ConfigInputs = nil },
 		"relative-input":            func(q *KeepReportersQualification) { q.ConfigInputs["reporter.cjs"] = strings.Repeat("b", 64) },
-		"input-digest-shape":        func(q *KeepReportersQualification) { q.ConfigInputs["/repo/project-reporter.cjs"] = "short" },
+		"input-digest-shape":        func(q *KeepReportersQualification) { q.ConfigInputs[keepReporterModule] = "short" },
 		"receipt-digest-shape":      func(q *KeepReportersQualification) { q.KeepReceiptSHA256 = "short" },
 		"qualified-without-digest":  func(q *KeepReportersQualification) { q.ControlReceiptSHA256 = "" },
 		"qualified-without-tests":   func(q *KeepReportersQualification) { q.Tests = 0 },
 		"qualified-unknown-entry":   func(q *KeepReportersQualification) { q.Entries[1].Module, q.Entries[1].ModuleDigest = "unknown", "" },
-		"qualified-module-unbound":  func(q *KeepReportersQualification) { delete(q.ConfigInputs, "/repo/project-reporter.cjs") },
+		"qualified-module-unbound":  func(q *KeepReportersQualification) { delete(q.ConfigInputs, keepReporterModule) },
 		"qualified-nil-entries":     func(q *KeepReportersQualification) { q.Entries = nil },
 		"qualified-default-profile": func(q *KeepReportersQualification) { q.ReceiptProfile = "" },
 		"qualified-no-runner":       func(q *KeepReportersQualification) { q.RunnerVersion = "" },
@@ -262,14 +274,14 @@ func TestKeepReportersQualifiedProjection(t *testing.T) {
 			r.External.ProjectReporters.Entries = append(r.External.ProjectReporters.Entries, ProjectReporter{Name: "dot", Module: "builtin", Options: "absent"})
 		},
 		"reporter-input-drift": func(r *Receipt) {
-			r.Identity.ConfigInputDigests["/repo/project-reporter.cjs"] = strings.Repeat("e", 64)
+			r.Identity.ConfigInputDigests[keepReporterModule] = strings.Repeat("e", 64)
 			r.External.ProjectReporters.Entries[1].ModuleDigest = strings.Repeat("e", 64)
 		},
 		"input-missing": func(r *Receipt) {
-			r.External.ProjectReporters.Qualification.ConfigInputs["/repo/other.cjs"] = strings.Repeat("f", 64)
+			r.External.ProjectReporters.Qualification.ConfigInputs[hostAbs("/repo/other.cjs")] = strings.Repeat("f", 64)
 		},
-		"shared-helper-drift": func(r *Receipt) { r.Identity.ConfigInputDigests["/repo/helper.cjs"] = strings.Repeat("e", 64) },
-		"new-input-loaded":    func(r *Receipt) { r.Identity.ConfigInputDigests["/repo/new.cjs"] = strings.Repeat("e", 64) },
+		"shared-helper-drift": func(r *Receipt) { r.Identity.ConfigInputDigests[keepHelperInput] = strings.Repeat("e", 64) },
+		"new-input-loaded":    func(r *Receipt) { r.Identity.ConfigInputDigests[hostAbs("/repo/new.cjs")] = strings.Repeat("e", 64) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := carried(t)

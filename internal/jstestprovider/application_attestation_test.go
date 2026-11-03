@@ -57,6 +57,8 @@ func TestApplicationAttestationCommandProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Preparation stays covered on Windows; running the provider needs procgroup (ASD-V0-2234).
+	skipWindowsProcessRefusal(t)
 	first, failure := provider.observe(context.Background())
 	if failure != "" || first == nil || first.OutputDigest == "" || provider.receipt.Provider.ExecutableDigest == "" || provider.receipt.Provider.ConfigDigest == "" {
 		t.Fatalf("first=%+v failure=%q provider=%+v", first, failure, provider.receipt.Provider)
@@ -162,6 +164,7 @@ func qualifiedAttestedFixture(t *testing.T) Receipt {
 }
 
 func TestObserveTestRepositoryIgnoresAmbientGitRedirects(t *testing.T) {
+	skipWindowsProcessRefusal(t) // Git observation runs through procgroup (ASD-V0-2234).
 	git, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatal(err)
@@ -184,6 +187,7 @@ func TestObserveTestRepositoryIgnoresAmbientGitRedirects(t *testing.T) {
 // LPCVD-V0-005 (V1-1156): the exported start observer names HEAD of the test
 // repository, keeps a dirty worktree's identity, and is nil outside Git.
 func TestObserveTestRepositoryAtStart(t *testing.T) {
+	skipWindowsProcessRefusal(t) // Git observation runs through procgroup (ASD-V0-2234).
 	git, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatal(err)

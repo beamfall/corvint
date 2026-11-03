@@ -2,7 +2,7 @@
 # Run by `make runtime-environment-test`, a gate step (ASD-V0-942).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
-tmp=$(mktemp -d)
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-runtime-environment-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM

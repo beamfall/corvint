@@ -432,7 +432,9 @@ jobs:
     # It narrows nothing alone: AFP-V0-098 also needs a MET verdict and CORVINT_PR_NARROWING=on.
     # CIN-V0-010 (V1-3748): repinned with the shadow to 8daec98ce, a reviewed main commit that
     # carries V1-3354 and V1-3480. The narrowing gate fails, so every shard runs FULL, while
-    # either pin lags main's selection code (pin-lag.sh): repin both after a selection change.
+    # either pin lags main's selection code (pin-lag.sh). CIN-V0-011 (V1-4354): both are now
+    # floors; the pin-main step builds the tools from the commit of main the gate compares
+    # against whenever that commit descends from the pin, so no selection change needs a repin.
     env:
       CORVINT_PR_TOOL_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
       # AFP-V0-047: the reviewed origin/main commit the shadow `corvint test` planner is built
@@ -640,6 +642,35 @@ jobs:
           rm -rf -- "$GOCACHE"
           cp -a -- "$src" "$GOCACHE" || cold "copying $src failed"
           echo "AFP-V0-427: restored $(du -sk -- "$GOCACHE" | cut -f1) KiB from $src"
+      - name: Resolve the trusted tool commit from main (CIN-V0-011)
+        # CIN-V0-011: the trusted tools build from the commit of main that the CIN-V0-010 gate
+        # compares against (the tested merge's first parent for a pull request, the queue base or
+        # its newest main ancestor for a merge-queue entry), so a selection change on main never
+        # leaves them lagging. The pins below stay as the floor: a commit that does not descend
+        # from a pin, or is not on main, builds the pin itself.
+        id: pin-main
+        continue-on-error: true
+        if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_PR_TOOL_SOURCE != ''
+        working-directory: source
+        env:
+          TESTED_MERGE: ${{ github.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            main=$QUEUE_BASE
+            git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null ||
+              main=$(git merge-base "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null) || main=
+          else
+            main=$(git rev-parse --verify -q "$TESTED_MERGE^1") || main=
+            [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
+          fi
+          for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
+            set -- $pair
+            use=${2:-}
+            if [ -n "$main" ] && [ -n "$use" ] && git merge-base --is-ancestor "$use" "$main" 2> /dev/null; then use=$main; fi
+            echo "CIN-V0-011: $1 builds from ${use:-nothing} (floor ${2:-none}, main ${main:-unknown})"
+            echo "$1=$use" >> "$GITHUB_OUTPUT"
+          done
       - name: Capture trusted tool source outside tested checkout
         id: pin-tool-capture
         continue-on-error: true
@@ -647,13 +678,15 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-tools
-          ref: ${{ env.CORVINT_PR_TOOL_SOURCE }}
+          ref: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
           persist-credentials: false
       - name: Build pinned planner, selector, and driver
         id: pin-tool-build
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_PR_TOOL_SOURCE != ''
         working-directory: trusted-tools
+        env:
+          CORVINT_PR_TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
         run: |
           test "$(git rev-parse HEAD)" = "$CORVINT_PR_TOOL_SOURCE"
           mkdir -p "$RUNNER_TEMP/corvint-pr-bin"
@@ -667,7 +700,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-shadow
-          ref: ${{ env.CORVINT_TEST_SHADOW_SOURCE }}
+          ref: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
           persist-credentials: false
       - name: Build the pinned shadow planner
         # AFP-V0-047: only ./cmd/corvint, from the shadow pin, never from the tested checkout.
@@ -676,6 +709,8 @@ jobs:
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         working-directory: trusted-shadow
+        env:
+          CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
         run: |
           test "$(git rev-parse HEAD)" = "$CORVINT_TEST_SHADOW_SOURCE"
           mkdir -p "$RUNNER_TEMP/corvint-shadow-bin"
@@ -763,6 +798,7 @@ jobs:
           TESTED_MERGE: ${{ github.sha }}
           SHARD: ${{ strategy.job-index }}
           SHARDS: ${{ strategy.job-total }}
+          CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
         run: |
           shadow="$RUNNER_TEMP/corvint-shadow-bin/corvint"
           test -x "$shadow"
@@ -825,7 +861,9 @@ jobs:
           TESTED_MERGE: ${{ github.sha }}
           SHARD: ${{ strategy.job-index }}
           SHARDS: ${{ strategy.job-total }}
-          TOOL_SOURCE: ${{ env.CORVINT_PR_TOOL_SOURCE }}
+          TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+          CORVINT_PR_TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+          CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
           VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
           QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
           QUEUE_BASE_REF: ${{ github.event.merge_group.base_ref }}
@@ -1312,6 +1350,8 @@ jobs:
           TOOL_BUILD: ${{ steps.pin-tool-build.outcome }}
           SHADOW_CAPTURE: ${{ steps.pin-shadow-capture.outcome }}
           SHADOW_BUILD: ${{ steps.pin-shadow-build.outcome }}
+          CORVINT_PR_TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+          CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
         run: |
           for s in "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE fetch $TOOL_CAPTURE" "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE build $TOOL_BUILD" \
             "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE fetch $SHADOW_CAPTURE" "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE build $SHADOW_BUILD"; do

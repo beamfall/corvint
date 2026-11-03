@@ -369,6 +369,24 @@ claim, and mutation ordering deltas below.
   not be represented. Non-goals: one invocation over several paths; removing a kept claim (mark the
   obligation and relink). Evidence: `TestOCMV0951LinkKeepsOtherTestPaths` (kept claims and the hunk union over two paths, and a relinked path). Rollback: revert to the
   whole-obligation replacement.
+- `OCM-V0-952`: (experimental under the owner's standing auto-accept (2026-11-03); V1-4347;
+  amends `OCM-V0-001` and the Wire profile requirement-line syntax) The requirement-ID number in an
+  OCM requirement line MUST be three or more ASCII digits (`[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}`), the
+  number grammar `script/gen-spec-requirements.sh` uses for `docs/specs/REQUIREMENTS.tsv`, so a
+  section holding only IDs such as `ASD-V0-2230` is an intent rather than `missing-requirements`.
+  The same grammar applies to the stable LRF obligation projection, the dogfood coverage reader and
+  the console clause display. Every three-digit result, refusal code and bound is unchanged; the
+  frozen conformance bytes hold no four-digit ID. Failure mode: the win-w59 lane seal (2026-11-02)
+  was refused `missing-requirements` for a spec whose IDs all had four digits. Non-goals: the
+  lexical-relevance-floor term-scan ID grammar (decision 0265, mirrored by the portable CEM
+  consumer), the `PREFIX-NNN..NNN` table-range form, the dogfood proposal matchers and the retired
+  `docs/lrf-0.schema.json` `requirementId`, which stay three digits; the test-name tracing forms are
+  built from the ID string and already trace four-digit IDs. Evidence:
+  `TestOCMV0952IntentAcceptsFourDigitRequirementIDs`,
+  `TestOCMV0952ObligationIDsAcceptFourDigits`,
+  `TestOCMV0952CoverageReadsFourDigitRequirementLines`,
+  `TestOCMV0952ChainShowsFourDigitRequirementLines`. Rollback: restore `[0-9]{3}` in the four
+  patterns.
 - `OCM-V0-940`: (experimental under the standing lane auto-accept; V1-0585) `ocm link` has an
   explicit replace-or-accumulate contract for one requirement's claims. Without `--accumulate` a
   link replaces the obligation's claims from `--test-path` and, by `OCM-V0-951`, keeps a `linked`
@@ -401,8 +419,11 @@ does not change this spec's intent or delivery status.
 Frozen requirement-line syntax (inline-code, bold-colon, or bold-period):
 
 ```regex
-^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3})`:[ ]|\*\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3})[.:]\*\*[ ])
+^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})`:[ ]|\*\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})[.:]\*\*[ ])
 ```
+
+`OCM-V0-952` widened the number from the frozen `[0-9]{3}` to `[0-9]{3,}`, which admits only lines
+the frozen form refused.
 
 The experimental profile is `ocm/0.1-experimental`. Its exact shape is:
 
@@ -698,6 +719,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-900 | `internal/dogfoodflow/ocm_coverage.go` (`testsNaming`, `namesCompactRequirement`, `rowRangeNames`) | `internal/dogfoodflow/ocm_coverage_test.go:TestOCMV0900TracesCompactTestSuffixesAndRowRanges` |
 | OCM-V0-950 | `internal/dogfoodflow/ocm_coverage.go` (`rangeNamesRequirement`, `namesRequirementSuffix`, `testsNaming`, `tracedForms`) | `internal/dogfoodflow/check_test.go:TestOCMV0950TracesTestNameSuffixesAndTableRanges` |
 | OCM-V0-951 | `internal/lrfrepo/ocm_write.go` (`linkObligation`, `existingClaimPaths`) | `internal/lrfrepo/ocm_multifile_test.go:TestOCMV0951LinkKeepsOtherTestPaths` |
+| OCM-V0-952 | `internal/lrfrepo/ocm.go` (`requirementID`), `internal/lrf/terms.go` (`obligationIDPattern`), `internal/dogfoodflow/ocm_coverage.go` (`requirementLine`), `internal/console/chain.go` (`requirementLine`) | `internal/lrfrepo/ocm_requirement_digits_test.go:TestOCMV0952IntentAcceptsFourDigitRequirementIDs`, `internal/lrf/obligation_id_test.go:TestOCMV0952ObligationIDsAcceptFourDigits`, `internal/dogfoodflow/ocm_requirement_digits_test.go:TestOCMV0952CoverageReadsFourDigitRequirementLines`, `internal/console/chain_requirement_digits_test.go:TestOCMV0952ChainShowsFourDigitRequirementLines` |
 | OCM-V0-940 | `internal/lrfrepo/ocm_write.go` (`LinkOCM`, `linkObligation`, `existingClaimPaths`), `cmd/corvint/ocm.go` (`parseOCMLinkFlags`), `internal/dogfoodflow/change.go` (`runOCMLinks`) | `internal/lrfrepo/ocm_accumulate_test.go:TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
 | OCM-V0-880 | `internal/dogfoodflow/ocm_coverage.go` (`parseRequirements`, `changeCoverage`, `outsideNote`) | `internal/dogfoodflow/ocm_outside_test.go:TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection` |
