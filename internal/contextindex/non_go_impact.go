@@ -4,14 +4,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/langplugin"
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 )
 
 // NonGoImpactLanguage names the bounded syntax profiles, never runtime
 // closure: the impact dialect a language plugin declares for the path's
 // suffix (LGP-V0-015).
 func NonGoImpactLanguage(name string) string {
-	return langplugin.DialectFor(langplugin.ImpactDialect, name)
+	return decl.DialectFor(decl.ImpactDialect, name)
 }
 
 // impactDialects are the implemented impact syntax profiles: Ruby, and the

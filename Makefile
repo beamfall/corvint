@@ -1359,11 +1359,11 @@ test-shard: go-version
 .PHONY: plugin-test
 plugin-test: go-version
 	@test -n "$(PLUGIN)" || { echo "usage: make plugin-test PLUGIN=ruby" >&2; exit 2; }
-	@dirs=$$(GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/plugin-dirs '$(PLUGIN)') || exit 2; \
+	@dirs=$$(GOCACHE='$(CORVINT_GOCACHE)' GOTOOLCHAIN=local go run ./tools/plugin-dirs '$(PLUGIN)') || exit 2; \
 	for dir in $$dirs; do \
-	  HEAVY_WHOLE_REASON='make plugin-test $(PLUGIN) '"$$dir" script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) "./$$dir/..." || exit 1; \
+	  HEAVY_WHOLE_REASON='make plugin-test $(PLUGIN) '"$$dir" script/heavy.sh env GOCACHE='$(CORVINT_GOCACHE)' GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) "./$$dir/..." || exit 1; \
 	done; \
-	HEAVY_WHOLE_REASON='make plugin-test $(PLUGIN) langplugin subtests' script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) -run '/^$(PLUGIN)$$' ./internal/langplugin
+	HEAVY_WHOLE_REASON='make plugin-test $(PLUGIN) langplugin subtests' script/heavy.sh env GOCACHE='$(CORVINT_GOCACHE)' GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) -run '/^$(PLUGIN)$$' ./internal/langplugin
 
 # shell-test is the shell full command .github/cishards/test-commands.json declares (STR-V0-004):
 # exactly the GATE_STEPS steps whose recipe runs a script/*_test.sh, so it runs the shell suites

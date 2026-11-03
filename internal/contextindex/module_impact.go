@@ -9,7 +9,7 @@ import (
 	"testing/fstest"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/langplugin"
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 )
 
 // This file holds the module-membership reverse-reference readings of path
@@ -38,7 +38,7 @@ const (
 // nothing imports, so it carries no reading and keeps the profile gap.
 // The suffixes are the module dialects language plugins declare (LGP-V0-015).
 func ModuleRuleLanguage(changedPath string) string {
-	return langplugin.DialectFor(langplugin.ModuleDialect, changedPath)
+	return decl.DialectFor(decl.ModuleDialect, changedPath)
 }
 
 // moduleReading is one impact request's view of the three readings. It parses

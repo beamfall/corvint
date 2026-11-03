@@ -121,7 +121,10 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   functions from the manifests, with the same values as before: `ruby`, `javascript` and
   `typescript` impact dialects; `swift`, `kotlin` and `csharp` module dialects; `ruby` and `web`
   region dialects. `Validate` refuses an unknown kind, an empty dialect name or an empty or padded
-  suffix, and the conformance test refuses a suffix two plugins declare for the same kind.
+  suffix, and the conformance test refuses a suffix two plugins declare for the same kind. The
+  dialect and dependency tables live in the provider-free leaf `internal/langplugin/decl`, which
+  the manifests read, so `contextindex` reads them without linking a provider into `corvint-tasks`
+  (NGI-V0-988).
 - `LGP-V0-016`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) The core
   package that implements a hook kind lists the dialects it implements, and a test in that package
   fails when a manifest declares a dialect the core does not implement, or the core implements one
