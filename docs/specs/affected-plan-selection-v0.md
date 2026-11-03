@@ -140,7 +140,12 @@ measure. None of them drops a unit the change can reach.
   The outermost function holding the call must also assign no `Args` field, assign an `Env`
   field only `append(os.Environ(), ...)` or `[]string{...}` of string literals none of which sets
   `GOFLAGS` or `GOENV`, and make every other `os/exec` call with string-literal arguments only, so
-  no listed name feeds another command; and no file of the unit may name `GOFLAGS` or `GOENV`. Each literal pattern of a proven call names the directory it
+  no listed name feeds another command; the call, its command, its output and every value derived
+  from them must stay in that function: none is returned, sent on a channel, stored anywhere but a
+  local of the function, or passed to a call other than a builtin or conversion, a function of a
+  standard-library import, or a method of a derived value or of a `*testing.T`, `*testing.B`,
+  `*testing.F` or `testing.TB` parameter of a function enclosing the call, so no helper or caller
+  can build or run what it lists; and no file of the unit may name `GOFLAGS` or `GOENV`. Each literal pattern of a proven call names the directory it
   resolves to as `commandDirectory` resolves a command literal (AFP-V0-402); a pattern with
   `...`, the `all` pattern, a computed pattern or a directory that holds no observed package
   makes the unit a reader of the whole module (`Unit.ImportGraphReadsAll`), and `std` and `cmd`
@@ -212,7 +217,8 @@ measure. None of them drops a unit the change can reach.
   top level, not after `&&` or `||` and not in a pipeline or the background, and no expansion of
   the name precedes it, so no value from the environment stands in. A file that defines or aliases
   `mktemp` has no temp root, nor does one that can fill a directory with repository files no token
-  names: a recursive, archive or `--parents` `cp`, `rsync`, `tar`, `cpio`, `pax`, `unzip`,
+  names: a recursive (`r`, `R` or `a` anywhere in a short option group, as in `cp -rf`), archive
+  or `--parents` `cp`, `rsync`, `tar`, `cpio`, `pax`, `unzip`,
   `ditto`, `ln`, `mv`, `xargs`, or a `git` `clone`, `worktree`, `archive`, `checkout-index` or
   `--work-tree`. One that assigns `PATH` before the variable must call `command -p mktemp`. A temp
   root's directory is new when created, so a path below it is what the script itself put there;
