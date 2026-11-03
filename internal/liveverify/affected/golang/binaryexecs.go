@@ -104,8 +104,9 @@ func validExecEntries(member map[string][]string) error {
 // unreadable or invalid, which widens every plan instead.
 func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories []string, owners map[string]module, commands map[string]string, frontier map[string]bool) {
 	edges := make([]map[string]bool, len(units))
+	listed := goListUnits(root, units, directories, owners)
 	for index := range units {
-		edges[index] = literalExecs(root, units[index], directories[index], owners[directories[index]], commands)
+		edges[index] = literalExecs(root, units[index], directories[index], owners[directories[index]], commands, listed[index])
 	}
 	declared, err := readBinaryExecs(root)
 	var declaredEdges map[int][]string
@@ -161,8 +162,11 @@ func matchBinaryConsumers(consumers map[string][]string, commands map[string]str
 // literalExecs names the commands, other than the unit itself, whose directory
 // one of the unit's path tokens names exactly, in a literal that some file of
 // the unit uses in a position that can reach a build or a process
-// (AFP-V0-402). Only files that name a command are parsed in full.
-func literalExecs(root *affected.Source, unit affected.Unit, directory string, owner module, commands map[string]string) map[string]bool {
+// (AFP-V0-402). A literal that is only an argument of a proven `go list`
+// call, which listed holds by file, lists the command's import graph and
+// runs no binary: it adds no edge here (AFP-V0-2200). Only files that name a
+// command are parsed in full.
+func literalExecs(root *affected.Source, unit affected.Unit, directory string, owner module, commands map[string]string, listed map[string]goListFile) map[string]bool {
 	candidates := map[string]string{}
 	for _, value := range unit.PathTokens {
 		target, ok := commandDirectory(value, directory, owner.dir)
@@ -178,7 +182,7 @@ func literalExecs(root *affected.Source, unit affected.Unit, directory string, o
 		return edges
 	}
 	for _, relative := range slices.Concat(unit.Sources, unit.Tests) {
-		for target := range usedCommandLiterals(root, relative, directory, owner, candidates) {
+		for target := range usedCommandLiterals(root, relative, directory, owner, candidates, listed[relative].listed) {
 			edges[candidates[target]] = true
 			delete(candidates, target)
 		}
@@ -193,7 +197,7 @@ func literalExecs(root *affected.Source, unit affected.Unit, directory string, o
 // literal of one file names outside a data-only position (dataOnly). A file
 // that cannot be read or parsed in full names every candidate, so no edge is
 // lost to an unparsed file.
-func usedCommandLiterals(root *affected.Source, relative, directory string, owner module, candidates map[string]string) map[string]bool {
+func usedCommandLiterals(root *affected.Source, relative, directory string, owner module, candidates map[string]string, listed map[token.Pos]bool) map[string]bool {
 	used := map[string]bool{}
 	body, err := root.Read(relative)
 	var file *ast.File
@@ -213,7 +217,7 @@ func usedCommandLiterals(root *affected.Source, relative, directory string, owne
 			parents = parents[:len(parents)-1]
 			return false
 		}
-		if literal, ok := node.(*ast.BasicLit); ok && literal.Kind == token.STRING && !dataOnly(parents, literal, names) {
+		if literal, ok := node.(*ast.BasicLit); ok && literal.Kind == token.STRING && !listed[literal.Pos()] && !dataOnly(parents, literal, names) {
 			if value, err := strconv.Unquote(literal.Value); err == nil {
 				for _, name := range literalTokens(value, owner.path) {
 					if target, ok := commandDirectory(name, directory, owner.dir); ok && candidates[target] != "" {

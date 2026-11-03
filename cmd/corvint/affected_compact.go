@@ -49,6 +49,7 @@ type affectedCompactReceipt struct {
 type affectedCompactPlan struct {
 	GraphDigest string                     `json:"graphDigest"`
 	Dirty       []string                   `json:"dirty"`
+	Deleted     []string                   `json:"deleted,omitempty"`
 	Scope       string                     `json:"scope"`
 	Selected    []affectedCompactSelection `json:"selected"`
 	Excluded    affectedExcludedSummary    `json:"excluded"`
@@ -162,6 +163,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Plan: affectedCompactPlan{
 			GraphDigest:        full.Plan.GraphDigest,
 			Dirty:              full.Plan.Dirty,
+			Deleted:            full.Plan.Deleted,
 			Scope:              full.Plan.Scope,
 			Selected:           selected,
 			Excluded:           excluded,

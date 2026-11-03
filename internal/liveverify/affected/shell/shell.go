@@ -93,7 +93,48 @@ func New() Language { return Language{} }
 func (Language) Name() string { return "shell" }
 
 // Owns reports whether a path is shell source text by its suffix.
-func (Language) Owns(relative string) bool { return hasAnySuffix(relative, Suffixes) }
+func (Language) Owns(relative string) bool {
+	return hasAnySuffix(relative, Suffixes) || ExtensionlessScript(relative)
+}
+
+// ExtensionlessRoots are the top-level directories whose extensionless files
+// the plugin owns as executables (AFP-V0-2205): `script/release-checklist`
+// and its kind are run by path like any `.sh` file.
+var ExtensionlessRoots = []string{"bin", "script", "scripts"}
+
+// ExtensionlessScript reports a file directly under an ExtensionlessRoots
+// directory whose name has no dot. The plugin builds a unit for one whose
+// first line is a shell shebang (shellShebang); any other such file stays
+// owned with no unit, so an edit to it is UNINDEXED_SOURCE_PATH.
+func ExtensionlessScript(relative string) bool {
+	return slices.Contains(ExtensionlessRoots, path.Dir(relative)) && !strings.Contains(path.Base(relative), ".")
+}
+
+// shellShebang reports a body whose first line runs sh, bash, dash, zsh or
+// ksh, directly or through env.
+func shellShebang(body []byte) bool {
+	line, _, _ := strings.Cut(string(body[:min(len(body), 256)]), "\n")
+	fields := strings.Fields(strings.TrimPrefix(line, "#!"))
+	if !strings.HasPrefix(line, "#!") || len(fields) == 0 {
+		return false
+	}
+	program := path.Base(fields[0])
+	if program == "env" {
+		rest := fields[1:]
+		for len(rest) != 0 && strings.HasPrefix(rest[0], "-") {
+			rest = rest[1:]
+		}
+		if len(rest) == 0 {
+			return false
+		}
+		program = path.Base(rest[0])
+	}
+	switch program {
+	case "sh", "bash", "dash", "zsh", "ksh":
+		return true
+	}
+	return false
+}
 
 // Units observes every shell file in the repository rooted at root.
 func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
@@ -102,7 +143,13 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(func(_, name string) bool { return hasAnySuffix(name, Suffixes) })
+	files, err := root.Files(func(relative, name string) bool {
+		return hasAnySuffix(name, Suffixes) || ExtensionlessScript(relative)
+	})
+	if err != nil {
+		return affected.Result{}, err
+	}
+	files, err = shellExecutables(root, files)
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -147,6 +194,25 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	applyForeignCallers(root, units, built, frontier)
 	applyShellReadScopes(root, units, toolchainOnly, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// shellExecutables drops each extensionless file whose first line is not a
+// shell shebang (AFP-V0-2205); a file it cannot read is kept, so the loop
+// below records it as unreadable as it does any shell file.
+func shellExecutables(root *affected.Source, files []string) ([]string, error) {
+	kept := files[:0]
+	for _, relative := range files {
+		if hasAnySuffix(relative, Suffixes) {
+			kept = append(kept, relative)
+			continue
+		}
+		body, err := root.Read(relative)
+		if err == nil && !shellShebang(body) {
+			continue
+		}
+		kept = append(kept, relative)
+	}
+	return kept, root.Err()
 }
 
 // hiddenFiles lists the shell files under each HiddenRoots directory through
@@ -263,7 +329,7 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		unit.LocatesRoot = !test
 	}
 	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
-	tokens := pathTokens(parsed)
+	tokens := pathTokens(parsed, tempRoots(resolve, parsed, text))
 	if len(tokens) > maxPathTokens {
 		unit.PathTokensBounded = true
 	} else {
@@ -971,9 +1037,172 @@ var (
 	pathToken = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
 )
 
-func pathTokens(parsed script) map[string]bool {
+// tempExpansion is a plain or braced expansion of a name and the literal path
+// that follows it.
+var tempExpansion = regexp.MustCompile(`\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))(/[A-Za-z0-9._~@+/-]*)?`)
+
+// tempRoots names the variables whose value is a directory the file itself
+// creates with mktemp (AFP-V0-2204): the name is assigned exactly once in
+// the file, every other occurrence is an expansion that cannot assign or
+// part of a path (assignedOnce), and the value is one `$(mktemp -d ...)` substitution
+// (makesDirectory) or another such name followed only by a literal path
+// without `..` (`rp=$tmp/review`). The assignment is a command of its own at
+// the file's top level, run unconditionally (not after `&&` or `||`, not in a
+// pipeline or the background), and no expansion of the name comes before it
+// in the text, so no value from the environment can stand in. A file that
+// defines or aliases mktemp has none; one that assigns PATH before the name's
+// assignment must call `command -p mktemp`, as makesDirectory requires when
+// the path is overridden. A file that can fill a directory with repository
+// files without naming each one (populates) has none either: a path below
+// such a copy reads a repository file no token names.
+func tempRoots(r *resolver, parsed script, text string) map[string]bool {
+	if strings.Contains(text, "mktemp()") || strings.Contains(text, "mktemp ()") || strings.Contains(text, "function mktemp") || strings.Contains(text, "alias mktemp") || populates.MatchString(text) {
+		return nil
+	}
+	firstPath := firstAssignment(text, "PATH")
+	roots := map[string]bool{}
+	for changed := true; changed; {
+		changed = false
+		for name, value := range r.values {
+			if roots[name] || !assignedOnce(text, name) || !unconditionalAssignment(r, parsed, text, name) {
+				continue
+			}
+			pathOverridden := firstPath >= 0 && firstPath < firstAssignment(text, name)
+			if makesDirectory(value, pathOverridden) || underTempRoot(value, roots) {
+				roots[name] = true
+				changed = true
+			}
+		}
+	}
+	return roots
+}
+
+// populates matches a command that can copy repository files into a
+// directory without a path token naming each file: a recursive, archive or
+// parents copy, rsync, an archive extractor, a link, a move, xargs, or a Git
+// command that checks out, clones or archives a tree.
+var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A-Za-z]*[rRa]|--recursive|--archive|--parents)|rsync|tar|cpio|pax|unzip|ditto|ln|mv|xargs)([ \t]|$)|git[^\n;|&]*[ \t](clone|worktree|archive|checkout-index|--work-tree)([ \t=]|$)`)
+
+// unconditionalAssignment reports that name's one assignment is a command of
+// its own at the file's top level, not after `&&` or `||` and not in a
+// pipeline or the background, and that no expansion of the name precedes it.
+func unconditionalAssignment(r *resolver, parsed script, text, name string) bool {
+	at, plain := r.plainAt[name]
+	if !plain || at >= len(parsed.commands) {
+		return false
+	}
+	command := parsed.commands[at]
+	if command.substituted || command.inFunction || command.block != 0 {
+		return false
+	}
+	switch command.lead {
+	case "&&", "||", "|", "&":
+		return false
+	}
+	switch command.trail {
+	case "&&", "||", "|", "&":
+		return false
+	}
+	assigned := firstAssignment(text, name)
+	if assigned < 0 {
+		return false
+	}
+	for _, expansion := range []string{"$" + name, "${" + name} {
+		for from := 0; ; {
+			offset := strings.Index(text[from:], expansion)
+			if offset < 0 {
+				break
+			}
+			at := from + offset
+			end := at + len(expansion)
+			from = end
+			if expansion[1] != '{' && end < len(text) && nameByte(text[end]) {
+				continue
+			}
+			if at < assigned {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// firstAssignment is the text offset of the first whole-word `name=`, or -1.
+func firstAssignment(text, name string) int {
+	for from := 0; ; {
+		offset := strings.Index(text[from:], name+"=")
+		if offset < 0 {
+			return -1
+		}
+		at := from + offset
+		from = at + len(name)
+		if at == 0 || !nameByte(text[at-1]) && text[at-1] != '$' && text[at-1] != '{' {
+			return at
+		}
+	}
+}
+
+// assignedOnce is onlyExpanded with one more inert occurrence: the name
+// joined to a `/`, `.` or `-` on either side is part of a word such as the
+// `/tmp` of a `${TMPDIR:-/tmp}` template, which no assignment can spell.
+// A bare word occurrence (an argument of `read`, `for`, `local`, or prose
+// in a comment) still refuses.
+func assignedOnce(text, name string) bool {
+	assignments := 0
+	for from := 0; ; {
+		offset := strings.Index(text[from:], name)
+		if offset < 0 {
+			return assignments == 1
+		}
+		at := from + offset
+		end := at + len(name)
+		from = end
+		if at > 0 && nameByte(text[at-1]) || end < len(text) && nameByte(text[end]) {
+			continue
+		}
+		after := text[end:]
+		switch {
+		case at >= 2 && text[at-2:at] == "${":
+			if strings.HasPrefix(after, "=") || strings.HasPrefix(after, ":=") {
+				return false
+			}
+		case at >= 1 && text[at-1] == '$':
+		case strings.HasPrefix(after, "=") && (at == 0 || strings.IndexByte(" \t\n;", text[at-1]) >= 0):
+			assignments++
+		case at > 0 && strings.IndexByte("/.-", text[at-1]) >= 0, end < len(text) && strings.IndexByte("/.-", text[end]) >= 0:
+		default:
+			return false
+		}
+	}
+}
+
+// underTempRoot reports a value that is a temp root's expansion alone or
+// followed by a literal path without `..`.
+func underTempRoot(value string, roots map[string]bool) bool {
+	match := tempExpansion.FindStringSubmatchIndex(value)
+	if match == nil || match[0] != 0 || match[1] != len(value) {
+		return false
+	}
+	groups := tempExpansion.FindStringSubmatch(value)
+	return roots[groups[1]+groups[2]] && !slices.Contains(strings.Split(groups[3], "/"), "..")
+}
+
+// pathTokens lists a file's AFP-V0-012 path tokens. A literal path that
+// follows the expansion of a temp root (tempRoots) names a file below a
+// directory the script created, never a repository path, so it adds no
+// token (AFP-V0-2204); a path with `..` after the root keeps its tokens.
+func pathTokens(parsed script, temp map[string]bool) map[string]bool {
 	tokens := map[string]bool{}
 	add := func(text string) {
+		if len(temp) != 0 {
+			text = tempExpansion.ReplaceAllStringFunc(text, func(match string) string {
+				groups := tempExpansion.FindStringSubmatch(match)
+				if !temp[groups[1]+groups[2]] || slices.Contains(strings.Split(groups[3], "/"), "..") {
+					return match
+				}
+				return " "
+			})
+		}
 		for _, token := range pathToken.FindAllString(expansion.ReplaceAllString(text, " "), -1) {
 			if pathShaped(token) {
 				tokens[token] = true
