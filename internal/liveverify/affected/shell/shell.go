@@ -1079,9 +1079,10 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 
 // populates matches a command that can copy repository files into a
 // directory without a path token naming each file: a recursive, archive or
-// parents copy, rsync, an archive extractor, a link, a move, xargs, or a Git
+// parents copy (a recursive letter anywhere in a short option group, as in
+// cp -rf), rsync, an archive extractor, a link, a move, xargs, or a Git
 // command that checks out, clones or archives a tree.
-var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A-Za-z]*[rRa]|--recursive|--archive|--parents)|rsync|tar|cpio|pax|unzip|ditto|ln|mv|xargs)([ \t]|$)|git[^\n;|&]*[ \t](clone|worktree|archive|checkout-index|--work-tree)([ \t=]|$)`)
+var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A-Za-z]*[rRa][A-Za-z]*|--recursive|--archive|--parents)|rsync|tar|cpio|pax|unzip|ditto|ln|mv|xargs)([ \t]|$)|git[^\n;|&]*[ \t](clone|worktree|archive|checkout-index|--work-tree)([ \t=]|$)`)
 
 // unconditionalAssignment reports that name's one assignment is a command of
 // its own at the file's top level, not after `&&` or `||` and not in a
