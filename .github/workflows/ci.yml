@@ -345,7 +345,8 @@ jobs:
     # while CORVINT_MQ_NARROWING is `on` (unset by default); the verdict is the same one.
     if: (github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'main') || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # V1-4360: room for the 60-page KILL_PAGES budget, with page retries, before the job is killed.
+    timeout-minutes: 12
     permissions:
       actions: read
       contents: read
