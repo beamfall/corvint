@@ -722,7 +722,7 @@ jobs:
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
           cd "$d"
@@ -871,6 +871,9 @@ jobs:
           QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
           # AFP-V0-812: docs-plan's delta candidate; mq-narrow.sh verifies it or ignores it.
           MQ_DELTA: ${{ needs.docs-plan.outputs.mqDelta }}
+          # AFP-V0-2181: ci-shards places by the shard's go test -p; the same value as the
+          # tests step, so the pinned narrow.sh placement equals the one it recomputes.
+          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
             # AFP-V0-731: the scripts come from a commit of main, never an entry: the queue base, or
@@ -1557,7 +1560,7 @@ jobs:
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
           t="$RUNNER_TEMP/test-confine-source"
