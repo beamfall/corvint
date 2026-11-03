@@ -122,6 +122,8 @@ func TestAFPMeasuredCostsBalanceAndUnknownPackages(t *testing.T) {
 
 func TestAFPIsolatedBuildIgnoresModuleRedirection(t *testing.T) {
 	t.Run("AFP-V0-022", func(t *testing.T) {
+		// The checks below without --parallel expect the parallel-1 placement.
+		t.Setenv("SHARD_TEST_P", "")
 		source := t.TempDir()
 		isolated := filepath.Join(source, "protected-helper")
 		if err := os.MkdirAll(filepath.Join(isolated, "cmd"), 0700); err != nil {
@@ -230,6 +232,63 @@ func TestAFPIsolatedBuildIgnoresModuleRedirection(t *testing.T) {
 				if got := run("--slices"); !reflect.DeepEqual(got, wantSlices) {
 					t.Fatalf("--select shard %d slices %v, want %v", i, got, wantSlices)
 				}
+			}
+		}
+		// AFP-V0-2181: --parallel, by default $SHARD_TEST_P, places as PlanParallel and
+		// SelectParallel do; a set but unusable value exits 2 instead of planning for 1.
+		file := filepath.Join(source, "selected")
+		if err := os.WriteFile(file, []byte(strings.Join(universe[1:], "\n")), 0600); err != nil {
+			t.Fatal(err)
+		}
+		helper := func(env string, args ...string) ([]string, error) {
+			cmd := exec.Command(filepath.Join(isolated, "helper"), args...)
+			cmd.Env = append(os.Environ(), "SHARD_TEST_P="+env)
+			cmd.Stdin = strings.NewReader(strings.Join(universe, "\n") + "\n")
+			out, err := cmd.Output()
+			return strings.Fields(string(out)), err
+		}
+		full, err := PlanParallel(universe, 6, 4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		narrowed, err := SelectParallel(universe, universe[1:], 6, 4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range []struct {
+			env  string
+			args []string
+		}{{"", []string{"--parallel", "4"}}, {"4", nil}, {"1", []string{"--parallel", "4"}}} {
+			for _, sel := range []bool{false, true} {
+				plan, extra := full, []string{}
+				if sel {
+					plan, extra = narrowed, []string{"--select", file}
+				}
+				for i, want := range plan {
+					args := append(append([]string{"--shard", strconv.Itoa(i), "--shards", "6"}, extra...), c.args...)
+					wantSlices := []string{}
+					for _, s := range want.Slices {
+						wantSlices = append(wantSlices, s.Flag, s.Pattern, s.Package)
+					}
+					got, err := helper(c.env, args...)
+					if err != nil || !reflect.DeepEqual(got, append([]string{}, want.Packages...)) {
+						t.Fatalf("-p 4 %v shard %d packages %v %v, want %v", c, i, got, err, want.Packages)
+					}
+					got, err = helper(c.env, append(args, "--slices")...)
+					if err != nil || !reflect.DeepEqual(got, wantSlices) {
+						t.Fatalf("-p 4 %v shard %d slices %v %v, want %v", c, i, got, err, wantSlices)
+					}
+				}
+			}
+		}
+		for _, c := range [][2]string{{"0", ""}, {"65", ""}, {"x", ""}, {"", "0"}, {"", "-1"}, {"4", "65"}} {
+			args := []string{"--shard", "0", "--shards", "6"}
+			if c[1] != "" {
+				args = append(args, "--parallel", c[1])
+			}
+			_, err := helper(c[0], args...)
+			if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 2 {
+				t.Fatalf("SHARD_TEST_P=%q --parallel %q: %v, want exit 2", c[0], c[1], err)
 			}
 		}
 	})

@@ -275,7 +275,7 @@ AFP-V0-560	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-580	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2896)	standing	2026-10-11; V1-2896
 AFP-V0-581	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2897)	standing	2026-10-11; V1-2897
 AFP-V0-582	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2782)	standing	2026-10-11; V1-2782
-AFP-V0-590	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942;	standing	2026-10-11; V1-2942; 2026-11-02; V0-2180
+AFP-V0-590	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942;	standing	2026-10-11; V1-2942; 2026-11-02; V0-2180; V0-2181; V1-4355
 AFP-V0-591	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942)	standing	2026-10-11; V1-2942
 AFP-V0-600	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2941)	standing	2026-10-11; V1-2941
 AFP-V0-601	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2941)	standing	2026-10-11; V1-2941
@@ -351,6 +351,7 @@ AFP-V0-983	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-984	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3751;	standing	2026-10-11; V1-3751
 AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)	standing	2026-10-11; V1-3600
 AFP-V0-2180	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); owner direction 2	standing	2026-10-11; 2026-11-02
+AFP-V0-2181	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-

@@ -213,16 +213,43 @@ func Splits(packages []string, total int) bool {
 	return len(SplitPackages(packages, total, defaultAllow, defaultSlices)) != 0
 }
 
+// MaxParallel bounds the `go test -p` value a shard is planned for (AFP-V0-2181).
+const MaxParallel = 64
+
+// Wall is the AFP-V0-2181 predicted wall time of one shard whose units cost sum
+// milliseconds in all, the longest of them longest, when the shard runs up to
+// parallel of them at once: the longest unit, or the whole sum spread over
+// parallel, whichever is later. It is scaled by parallel so that it stays an
+// exact integer; with parallel 1 it is the sum.
+func Wall(sum, longest int64, parallel int) int64 {
+	return max(longest*int64(parallel), sum)
+}
+
 // Plan places every package of the universe, whole or as test slices, in exactly
 // one shard. Without a split package it equals Partition.
 func Plan(packages []string, total int) ([]Shard, error) {
-	return PlanFrom(packages, total, defaultCosts, defaultAllow, defaultSlices)
+	return PlanParallel(packages, total, 1)
+}
+
+// PlanParallel is Plan for shards that each run up to parallel units at once
+// (AFP-V0-2181): the placement minimizes the predicted Wall of each shard
+// instead of its summed cost. With parallel 1 it equals Plan.
+func PlanParallel(packages []string, total, parallel int) ([]Shard, error) {
+	return PlanFromParallel(packages, total, parallel, defaultCosts, defaultAllow, defaultSlices)
 }
 
 // PlanFrom is Plan over explicit cost, allow-list and slice files.
 func PlanFrom(packages []string, total int, costs, allowRaw, slicesRaw []byte) ([]Shard, error) {
+	return PlanFromParallel(packages, total, 1, costs, allowRaw, slicesRaw)
+}
+
+// PlanFromParallel is PlanParallel over explicit cost, allow-list and slice files.
+func PlanFromParallel(packages []string, total, parallel int, costs, allowRaw, slicesRaw []byte) ([]Shard, error) {
 	if total < 1 || total > MaxShards {
 		return nil, errors.New("invalid shard count")
+	}
+	if parallel < 1 || parallel > MaxParallel {
+		return nil, errors.New("invalid shard parallelism")
 	}
 	universe, err := validate(packages)
 	if err != nil {
@@ -268,17 +295,21 @@ func PlanFrom(packages []string, total int, costs, allowRaw, slicesRaw []byte) (
 		return a.index < b.index
 	})
 	loads := make([]int64, total)
+	longest := make([]int64, total)
 	holds := make([]map[string]bool, total)
 	for _, u := range units {
-		// Longest unit first into the least-loaded shard (lowest index on ties). A
+		// AFP-V0-2181: longest unit first into the shard whose predicted Wall after
+		// it is lowest, then the least-loaded, then the lowest index. With parallel
+		// 1 the Wall is the load, so this is the AFP-V0-022 least-loaded rule. A
 		// slice avoids shards that already hold a sibling: it would only queue there.
-		bin := -1
+		bin, binWall := -1, int64(0)
 		for i := 0; i < total; i++ {
 			if u.index >= 0 && holds[i][u.pkg] {
 				continue
 			}
-			if bin < 0 || loads[i] < loads[bin] {
-				bin = i
+			wall := Wall(loads[i]+u.cost, max(longest[i], u.cost), parallel)
+			if bin < 0 || wall < binWall || (wall == binWall && loads[i] < loads[bin]) {
+				bin, binWall = i, wall
 			}
 		}
 		if u.index < 0 {
@@ -291,6 +322,7 @@ func PlanFrom(packages []string, total int, costs, allowRaw, slicesRaw []byte) (
 			shards[bin].Slices = append(shards[bin].Slices, split[u.pkg][u.index])
 		}
 		loads[bin] += u.cost
+		longest[bin] = max(longest[bin], u.cost)
 	}
 	for _, s := range shards {
 		sort.Strings(s.Packages)
@@ -312,20 +344,33 @@ func PlanFrom(packages []string, total int, costs, allowRaw, slicesRaw []byte) (
 // intersection drops it, and an empty selection leaves every shard empty.
 // "./..." selects the universe, so Select equals Plan.
 func Select(universe, selected []string, total int) ([]Shard, error) {
-	return SelectFrom(universe, selected, total, defaultCosts, defaultAllow, defaultSlices)
+	return SelectParallel(universe, selected, total, 1)
+}
+
+// SelectParallel is Select with the AFP-V0-2181 placement of PlanParallel.
+func SelectParallel(universe, selected []string, total, parallel int) ([]Shard, error) {
+	return SelectFromParallel(universe, selected, total, parallel, defaultCosts, defaultAllow, defaultSlices)
 }
 
 // SelectFrom is Select over explicit cost, allow-list and slice files.
 func SelectFrom(universe, selected []string, total int, costs, allowRaw, slicesRaw []byte) ([]Shard, error) {
+	return SelectFromParallel(universe, selected, total, 1, costs, allowRaw, slicesRaw)
+}
+
+// SelectFromParallel is SelectParallel over explicit cost, allow-list and slice files.
+func SelectFromParallel(universe, selected []string, total, parallel int, costs, allowRaw, slicesRaw []byte) ([]Shard, error) {
 	if total < 1 || total > MaxShards {
 		return nil, errors.New("invalid shard count")
+	}
+	if parallel < 1 || parallel > MaxParallel {
+		return nil, errors.New("invalid shard parallelism")
 	}
 	all, err := validate(universe)
 	if err != nil {
 		return nil, err
 	}
 	if len(selected) == 1 && selected[0] == "./..." {
-		return PlanFrom(all, total, costs, allowRaw, slicesRaw)
+		return PlanFromParallel(all, total, parallel, costs, allowRaw, slicesRaw)
 	}
 	if len(selected) > MaxPackages {
 		return nil, errors.New("invalid selection size")
@@ -345,5 +390,5 @@ func SelectFrom(universe, selected []string, total int, costs, allowRaw, slicesR
 	if len(subset) == 0 {
 		return make([]Shard, total), nil
 	}
-	return PlanFrom(subset, total, costs, allowRaw, slicesRaw)
+	return PlanFromParallel(subset, total, parallel, costs, allowRaw, slicesRaw)
 }

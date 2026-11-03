@@ -4176,9 +4176,9 @@ run is advisory to the merge queue, which runs the full suite before any merge, 
 is the one to cut, without changing the merge queue's deciding run or the AFP-V0-014 profile.
 
 - **AFP-V0-540:** (accepted by the owner (owner chat, 2026-10-27: "I approve the ci.yml change for that scope, keep -race and leave the AFP-V0-014 qualification argv as-is"); V1-2890)
-  The `go-product-shard` Go tests step SHALL take its `go test -p` value from `SHARD_TEST_P`,
-  which is `4` only when the event is `pull_request` and the runner environment is `self-hosted`,
-  and `1` on every other run. There are five parts.
+  The `go-product-shard` Go tests step SHALL take its `go test -p` value from `SHARD_TEST_P`
+  (set identically in the narrowing gate step, `AFP-V0-2181`), which is `4` only when the event
+  is `pull_request` and the runner environment is `self-hosted`, and `1` on every other run. There are five parts.
   - (1) The whole-package, slice and AFP-V0-047 rerun invocations all take `-p "$SHARD_TEST_P"`
     and otherwise keep `-exec "$RUNNER_TEMP/test-confine" -json -count=1 -race -timeout 50m`,
     the AFP-V0-023 confinement and the job environment. `-race` and `-count=1` never change.
@@ -4382,12 +4382,12 @@ while the other seven finished empty. The selection is now placed across the six
 the same measured costs, and go-product refuses any run in which that placement could leave a
 selected package unrun. The full fallback is unchanged.
 
-- **AFP-V0-590:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942; amended under the owner's standing approval (2026-11-02); AFP-V0-2180)
+- **AFP-V0-590:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942; amended under the owner's standing approval (2026-11-02); AFP-V0-2180; amended by AFP-V0-2181 (V1-4355))
   Amending `AFP-V0-028` and `AFP-V0-098`, a `NARROWED` shard SHALL run its part of the
   cost-balanced placement of the driver selection. There are four parts.
   - (1) `cishards.Select` (`SelectFrom`) keeps the selected packages that are in the complete
     universe, once each, and places only them with `PlanFrom`: the same longest-processing-time
-    placement, the median of the whole cost table for an unpriced package, and the same
+    placement (by predicted wall time, `AFP-V0-2181`), the median of the whole cost table for an unpriced package, and the same
     `AFP-V0-041` slices for a split package. Every selected package of the universe lands on exactly
     one shard (whole or as all of its slices), none is omitted, a package outside the universe is
     dropped, an empty selection leaves every shard empty, and selecting the whole universe or `./...`
@@ -6095,6 +6095,56 @@ refuse the file and fall back from narrowing, and nothing warned when the member
   `NOT_OBSERVED` until a complete new run. Rollback: revert this change, restoring every count
   to eight and the old package-cost and slice tables together. No test-selection authority changes.
 
+### Wall-time shard placement (V1-4355)
+
+Intent (V1-4355): run `41568676566` (source `32e93e84d7b2bfc4deeff935b6ffa9c2c84239fe`) spread its
+sixteen FULL shards from 491.6 s to 884.8 s (max/min 1.80) against a 664.1 s ideal share. Replaying
+the committed tables reproduces most of that spread (834.0 s / 491.6 s), so the measured cause is
+cost and slice tables gone stale since run `41429718453`. A shard running `go test -p p` also does
+not finish at its summed cost: its wall time is bounded below by its longest unit. Placement now
+minimizes that predicted wall time, and the tables are refreshed from the run.
+
+- `AFP-V0-2181`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355)
+  Amending the `AFP-V0-022` least-loaded placement used by `Plan`/`PlanFrom` and, through
+  `AFP-V0-590`, `Select`/`SelectFrom`, `cishards` SHALL place units to minimize the predicted shard
+  wall time for the shard's test parallelism `p`. There are six parts.
+  - (1) The wall model of a shard is `Wall(sum, longest, p) = max(longest*p, sum)`, in
+    milliseconds scaled by `p` (the wall time is `Wall/p`), where `sum` is the shard's summed unit
+    cost and `longest` its costliest unit. `MaxParallel` is 64.
+  - (2) Units are taken in the existing `AFP-V0-022` order (cost descending, then package and
+    slice index) and each goes to the shard with the lowest resulting `Wall`, ties broken by the
+    lower summed load and then the lower shard index; a slice still avoids a shard holding a
+    sibling slice of its package. The placement is deterministic, and the lexical fallback for an
+    invalid cost table is unchanged.
+  - (3) At `p = 1`, `Wall` equals the summed load, so `PlanParallel`/`SelectParallel` at 1 and the
+    unchanged `Plan`, `PlanFrom`, `Select` and `SelectFrom` give exactly the old least-loaded
+    placement.
+  - (4) A parallelism outside 1 to `MaxParallel` is refused (`invalid shard parallelism`). The
+    isolated `ci-shards` helper takes `--parallel`, defaulting to `SHARD_TEST_P` (empty means 1),
+    and exits 2 on a non-integer or out-of-range value, for both the full plan and `--select`.
+  - (5) Amending `AFP-V0-540`'s single setting, the `go-product-shard` narrowing gate step SHALL
+    set `SHARD_TEST_P` to the same expression as the Go tests step (the `runner` context is not
+    available to job-level `env`), so the placement `narrow.sh` pins equals the one the tests step
+    recomputes.
+  - (6) `.github/cishards/package-costs.json` is refreshed with `ci-shard-costs refresh` from run
+    `41568676566` (426 packages, 10626.3 s), and `test-slices.json` is regenerated from it for
+    sixteen shards with the `AFP-V0-060` 350 s target and 400 s slice bound; the split allow-list
+    is unchanged.
+  Non-goals: changing the split allow-list, the shard count, the merge-queue argv (`-p 1`) or any
+  test-selection authority; modelling background slices or per-invocation build overhead at
+  `p > 1`. Failure modes: the wall model is a lower bound, so a `p > 1` shard can still run longer
+  than predicted; the tables go stale again as tests change; the unsplit
+  `internal/liveverify/affected` (532.4 s in this run) bounds the `p = 4` wall and any narrowed
+  selection containing it, so max/min there cannot reach 1.25 without an owner allow-list entry.
+  Acceptance: `.github/cishards/walltime_test.go` (the wall model, `p = 1` oracle equality, Plan
+  and Select balance, and the frozen run `41568676566` replay: FULL predicted 663.3 s to 664.3 s,
+  max/min 1.001, and the heaviest-40 subset 1.113, at `p = 1`); the `--parallel` cases of
+  `TestAFPIsolatedBuildIgnoresModuleRedirection`; `TestAFPV0540PullRequestParallelismBinding`;
+  `docs/build-log/2026-11-03-shard-walltime-placement.md`. Hosted wall-time balance stays
+  `NOT_OBSERVED` until a complete new run. Rollback: revert the V1-4355 change; at `p = 1`, which
+  every hosted shard and the merge queue run today, placement is identical either way, so the
+  refreshed tables may be kept or reverted with it.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -6236,6 +6286,7 @@ traceability table.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-2180 | `.github/workflows/{ci,ci-control-plane,pr-tests-qualification}.yml`, `.github/cishards/{package-costs,test-slices}.json`, `tools/ci-test-slices` | `TestAFPV0024WorkflowShardCountsAgree`, `TestAFPV02180RebalanceSourceAndOutputShardCounts`, `TestAFPV0591CoverageGuard`, `TestAFPV0041CommittedSlicesAreAdmitted`; replay predictions and limits in `docs/build-log/2026-11-02-ci16-w54-sixteen-shards.md` |
+| AFP-V0-2181 | `Wall`, `MaxParallel`, `PlanParallel`, `PlanFromParallel`, `SelectParallel` and `SelectFromParallel` in `.github/cishards/slices.go`; `--parallel` in `.github/cishards/cmd/main.go`; `SHARD_TEST_P` in the narrowing gate step and the `walltime_test.go` copies in `.github/workflows/ci.yml`; `.github/cishards/{package-costs,test-slices}.json` | `TestAFPV02181WallModel`, `TestAFPV02181ParallelOnePlacementIsLeastLoaded`, `TestAFPV02181PlanAndSelectBalanceWallTime`, `TestAFPV02181Run41568676566Replay` in `.github/cishards/walltime_test.go`; the `--parallel` cases of `TestAFPIsolatedBuildIgnoresModuleRedirection`; `TestAFPV0540PullRequestParallelismBinding`; replay predictions and limits in `docs/build-log/2026-11-03-shard-walltime-placement.md`; hosted balance `NOT_OBSERVED` |
 | AFP-V0-001 | `cmd/corvint/affected.go` `compileAffected` | `TestAffectedCleanTreeSelectsNothingAndWritesNothing` compares `git status --porcelain --ignored` before and after |
 | AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestDirtyNonUTF8PathIsDisclosedNotRefused`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |
@@ -6386,7 +6437,7 @@ traceability table.
 | AFP-V0-530 | `.github/workflows/flake-report.yml`; `.github/flake-report/report.sh`; `selectArtifacts`, `readRecord` and `report` in `tools/ci-flake-report/main.go`; the `job:report` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0530SelectKeepsOnlyTheWindowsFlakyRecords` (window edges, a duplicate id across pages, expired, oversize and foreign names, an unreadable listing exits 1), `TestAFPV0530ReportAggregatesPerTestAndNamesUnreadRecords` (per-test rows most frequent first, per-event counts, a missing archive and a non-FLAKY record under `Not read`), `TestAFPV0530EmptyWindowSaysSo`, `TestAFPV0530ReportScriptUpdatesOneIssueInPlace` (a fake `gh`: exact-name listings, archive downloads, the oldest open non-PR issue edited in place, a lost download warned and named), `TestAFPV0530ReportScriptOpensThePinnedIssueOnce` (create then pin; a refused pin is reported), `TestAFPV0530WorkflowBinding` (schedule and dispatch only, main only, `contents: read` at the workflow and the declared job set, pinned checkout and setup-go, the build and the script step); the first scheduled run and the pinned issue `NOT_OBSERVED` |
 | AFP-V0-531 | the `failed.sh` line of the Go tests step of `go-product-shard` in `.github/workflows/ci.yml`; `.github/forward-rows/failed.sh` and `failed.jq` | `TestAFPV0531FailedShardNamesTypedReasons` (the recorded failing shard names its failed tests and FAIL lines; synthesized streams: build failed, a `build-fail` event, timeout, panic, signal, no failure report with an unfinished package; a missing stream is advisory), `TestAFPV0531WorkflowBinding` (called once, after the FLAKY decision and before the exit, under `|| true`), `TestAFPV0441WorkflowBindings` (the FLAKY order is unchanged); a hosted failed shard `NOT_OBSERVED` |
 
-| AFP-V0-540 | `SHARD_TEST_P` in the `go-product-shard` Go tests step of `.github/workflows/ci.yml` and the `-p "$SHARD_TEST_P"` of its whole, slice (`run_slice`) and rerun (`rerun_invocations`) invocations | `TestAFPV0540PullRequestParallelismBinding` (the exact expression, set once, three invocations); `internal/sessiontest/ciconstants_test.go` TestSTRV0012CIConstantsMatchFullBranch (`ciGoFlags` `-p 1` equals the non-PR value; every invocation keeps confinement, `-json`, `-count=1`, `-race`, `-timeout 50m`); `actionlint`; local measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-pr-shard-parallelism.md`; the 40 percent PR wall cut on the box `NOT_RUN` until a batch PR runs |
+| AFP-V0-540 | `SHARD_TEST_P` in the `go-product-shard` Go tests step of `.github/workflows/ci.yml` and the `-p "$SHARD_TEST_P"` of its whole, slice (`run_slice`) and rerun (`rerun_invocations`) invocations | `TestAFPV0540PullRequestParallelismBinding` (the exact expression, set in the narrowing gate and tests steps (`AFP-V0-2181`), three invocations); `internal/sessiontest/ciconstants_test.go` TestSTRV0012CIConstantsMatchFullBranch (`ciGoFlags` `-p 1` equals the non-PR value; every invocation keeps confinement, `-json`, `-count=1`, `-race`, `-timeout 50m`); `actionlint`; local measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-pr-shard-parallelism.md`; the 40 percent PR wall cut on the box `NOT_RUN` until a batch PR runs |
 | AFP-V0-541 | `run_slice` and `run_tests` in the `go-product-shard` Go tests step of `.github/workflows/ci.yml` | `TestAFPV0541ParallelSlicesKeepTheCaptureLayout` (with `-p 4` both slices start before the whole packages end, yet the capture holds whole packages then slices in order, the failed slice is named once, `whole-failed` stays absent and slice stderr is replayed; with `-p 1` no slice starts before the whole packages end); `TestAFPV0441WorkflowBindings` |
 | AFP-V0-560 | `participants`, `terminalWitness`, `frontierUnknowns`, `Plan.FrontierExcluded`, `FrontierExclusion`, `FrontierExclusionReason` in `internal/liveverify/affected/select.go`; the `carried` set returned by `testlessReaderUsers` in `readers.go`; `affectedCompactPlan.FrontierExcluded` in `cmd/corvint/affected_compact.go` | `internal/liveverify/affected/frontier_scope_test.go` TestUnrelatedDynamicImportDoesNotWidenAnotherLanguagesChange_AFP_V0_560 (a change of another plugin reaching only a reader is `BOUNDED` with the same selection and one recorded exclusion; an empty record is omitted), TestChangeTheDynamicImportCanReachStaysUnknown_AFP_V0_560 (the loader, a reader source, an unowned path and an unindexed source of the plugin keep the frontier), TestChangeInTheFrontierPluginsParticipantSetStaysUnknown_AFP_V0_560 (a cross-language import, a reader's unit frontier and a path-reading plugin keep it), TestTraversedTestlessReaderKeepsItsPluginsFrontier_AFP_V0_560 (a test-less reader of a documentation path is traversed and keeps it), TestUnboundedReaderClosureKeepsItsPluginsFrontier_AFP_V0_560 (a root locator and an importer of one, reached as unbounded readers, keep it); `taskstate_test.go` TestTaskStoreProjectionFragmentLiteralDoesNotNameARecord_AFPV0088 (amended: a fragment-literal reader of task state records its exclusion) and TestTaskStoreProjectionReaderIsSelectedAndKeepsItUnknown_AFPV0088 (an unbounded reader keeps its plugin's frontier and records none); `cmd/corvint/affected_test.go` TestAFPV0560CompactPlanKeepsFrontierExcluded; `TestUnownedPathKeepsTerminalReadersPluginWholeFrontier_AFP_V0_560_AFP_V0_511` (an unowned path turns the terminal rule off); replay in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-frontier-change-scoping.md` |
 | AFP-V0-580 | `observeDirectory` and `hasPlatformSuffix` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierBearsOnOwnFiles_TSP_V0_001` (as amended by TSP-V0-001: a dirty variant and a dirty plain file the variant calls bear; a dirty imported package, a named data path and an unrelated package do not) and `TestPlatformSuffixMatchesGoBuild_AFP_V0_580` (`golang/golang_test.go`) |
