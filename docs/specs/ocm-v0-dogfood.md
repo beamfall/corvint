@@ -415,12 +415,14 @@ Wire freeze: `ocm/0.1-experimental` is frozen as of 2026-09-22 by `conformance/o
 (`OCM-V0-014`, `OCM-V0-015`, decisions 0343 and 0357). The freeze fixes the conformance bytes; it
 does not change this spec's intent or delivery status.
 
-Requirement-line syntax (inline-code, bold-colon, or bold-period); `OCM-V0-952` widened the frozen
-`[0-9]{3}` number to `[0-9]{3,}`, which admits only lines the frozen form refused:
+Frozen requirement-line syntax (inline-code, bold-colon, or bold-period):
 
 ```regex
 ^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})`:[ ]|\*\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})[.:]\*\*[ ])
 ```
+
+`OCM-V0-952` widened the number from the frozen `[0-9]{3}` to `[0-9]{3,}`, which admits only lines
+the frozen form refused.
 
 The experimental profile is `ocm/0.1-experimental`. Its exact shape is:
 
