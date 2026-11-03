@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../lib.ts"],
+  "sourcesContent": ["// lib\nexport function add(a: number, b: number): number {\n  const s = a + b;\n  if (s > 100) {\n    return 100;\n  }\n  return s;\n}\nexport function mul(a: number, b: number): number {\n  return a * b;\n}\n"],
+  "mappings": ";;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AACO,SAAS,IAAI,GAAW,GAAmB;AAChD,QAAM,IAAI,IAAI;AACd,MAAI,IAAI,KAAK;AACX,WAAO;AAAA,EACT;AACA,SAAO;AACT;AACO,SAAS,IAAI,GAAW,GAAmB;AAChD,SAAO,IAAI;AACb;",
+  "names": []
+}
