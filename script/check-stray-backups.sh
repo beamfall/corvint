@@ -11,13 +11,18 @@ set -uo pipefail
 export LC_ALL=C
 top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || { printf 'check-stray-backups: not in a Git worktree\n' >&2; exit 2; }
 
-listing=$(git -c core.quotePath=false ls-files -z -- ':(icase)*.bak' ':(icase)*.orig' | tr '\0' '\n') ||
+# No pathspec: GIT_GLOB_PATHSPECS or GIT_LITERAL_PATHSPECS in the caller's environment would change
+# what one matches. The whole index is listed and each path's lower-cased last component tested.
+# pipefail makes a git ls-files failure the listing's status. One awk pass then tests every path.
+listing=$(git -c core.quotePath=false ls-files -z | tr '\0' '\n') ||
   { printf 'check-stray-backups: cannot read the index\n' >&2; exit 2; }
-failed=0
-while IFS= read -r path; do
-  [[ -n $path ]] || continue
-  printf 'check-stray-backups: FAIL stray-backup %s: a .bak or .orig file is an editor, merge or patch leftover; git rm --cached it (and delete it), or rename a deliberate fixture\n' "$path"
-  failed=1
-done <<< "$listing"
+awk '
+  { base = tolower($0); sub(/.*\//, "", base) }
+  base ~ /\.(bak|orig)$/ {
+    printf "check-stray-backups: FAIL stray-backup %s: a .bak or .orig file is an editor, merge or patch leftover; git rm --cached it (and delete it), or rename a deliberate fixture\n", $0
+    failed = 1
+  }
+  END { exit failed }' <<< "$listing"
+failed=$?
 ((failed)) && exit 1
 printf 'check-stray-backups: no tracked .bak or .orig file\n'

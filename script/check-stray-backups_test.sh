@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests for script/check-stray-backups.sh (ASD-V0-2370, V1-4352) on a fixture repository: a clean
 # index passes; tracked `.bak` and `.orig` files at any depth and in any letter case each fail and
-# are named; names that only contain `bak` or `orig` and untracked leftovers pass; a run outside a
+# are named, whatever the caller's GIT_*_PATHSPECS; names that only contain `bak` or `orig` and untracked leftovers pass; a run outside a
 # Git worktree exits 2.
 set -uo pipefail
 export LC_ALL=C
@@ -30,6 +30,11 @@ for f in sub/deep/node_identity_test.go.bak top.orig sub/MERGED.ORIG odd.Bak; do
 git -C "$repo" add -- sub/deep/node_identity_test.go.bak top.orig sub/MERGED.ORIG odd.Bak || fail "fixture add leftovers"
 out=$(cd "$repo" && "$check" 2>&1); rc=$?
 ((rc == 1)) || fail "tracked leftovers did not exit 1 (rc=$rc): $out"
+# Pathspec settings in the caller's environment change nothing.
+for v in GIT_GLOB_PATHSPECS GIT_LITERAL_PATHSPECS GIT_ICASE_PATHSPECS; do
+  o=$(cd "$repo" && env "$v=1" "$check" 2>&1)
+  [[ $o == "$out" ]] || fail "$v=1 changed the result: $o"
+done
 want=$(printf '%s\n' odd.Bak sub/MERGED.ORIG sub/deep/node_identity_test.go.bak top.orig)
 got=$(sed -n 's/^check-stray-backups: FAIL stray-backup \([^:]*\): .* git rm --cached it .*/\1/p' <<< "$out")
 [[ $got == "$want" ]] || fail "named leftovers: want [$want] got [$got] from: $out"
