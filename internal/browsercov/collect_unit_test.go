@@ -87,3 +87,50 @@ func TestServerStopKillsLeftovers(t *testing.T) {
 		t.Fatalf("child %d survived stop", pid)
 	}
 }
+
+func TestPickSuffix(t *testing.T) {
+	two := []string{"a/util.js", "b/util.js"}
+	for _, c := range []struct {
+		ps   []string
+		src  string
+		want string
+	}{
+		{[]string{"a/util.js"}, "webpack:///virtual/x.js", "a/util.js"},
+		{two, "webpack:///b/util.js", "b/util.js"},
+		{two, "webpack:///util.js", ""},
+		{two, "webpack:///virtual/x.js", ""},
+	} {
+		if got := pickSuffix(c.ps, c.src); got != c.want {
+			t.Errorf("pickSuffix(%v, %q) = %q, want %q", c.ps, c.src, got, c.want)
+		}
+	}
+}
+
+func TestUndumped(t *testing.T) {
+	roles := map[int]string{10: "runner", 20: "process", 30: "process"}
+	if got := undumped(roles, map[int]bool{20: true, 30: true}); got != "" {
+		t.Errorf("all dumped: %q", got)
+	}
+	if got := undumped(roles, map[int]bool{20: true}); !strings.Contains(got, "process 30 ") {
+		t.Errorf("killed child: %q", got)
+	}
+}
+
+func TestRootRel(t *testing.T) {
+	root := t.TempDir()
+	got, err := rootRel(root, filepath.Join(root, "cypress", "e2e", "app.cy.js"))
+	if err != nil || got != "cypress/e2e/app.cy.js" {
+		t.Errorf("rootRel = %q, %v", got, err)
+	}
+	if real, err := filepath.EvalSymlinks(root); err == nil && real != root {
+		if got, err := rootRel(root, filepath.Join(real, "a.cy.js")); err != nil || got != "a.cy.js" {
+			t.Errorf("rootRel(resolved) = %q, %v", got, err)
+		}
+	}
+	if _, err := rootRel(root, filepath.Join(filepath.Dir(root), "x.cy.js")); err == nil {
+		t.Error("a spec outside the root was accepted")
+	}
+	if _, err := rootRel(root, "cypress/e2e/app.cy.js"); err == nil {
+		t.Error("a relative spec was accepted")
+	}
+}

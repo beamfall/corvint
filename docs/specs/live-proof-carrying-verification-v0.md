@@ -857,7 +857,8 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   WebKit projects have no precise coverage and are refused.
 - `LPCV-V0-972`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) A browser script binds to a tracked file by, in order: a
   `file:` URL inside the repository, a source equal to a tracked blob, a source map whose
-  `sourcesContent` is a tracked blob, or an inline script of a tracked HTML page. Scripts from a
+  `sourcesContent` is a tracked blob, or an inline script of a tracked HTML page. Content that
+  several tracked files share binds to the one copy the source path names, or refuses the record. Scripts from a
   non-loopback origin, the runners' own routes (`/__cypress*`, `/__/`), V8 pseudo-URLs
   (`<embedded>`, `debugger:`, `evalmachine.`) and the script Cypress injects into the page are not
   repository code and are skipped. Any other loopback or in-repository script that binds to no tracked
@@ -867,20 +868,20 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   inside the root. Node's offsets start after a byte-order mark. Limits: an `eval`'d or
   `new Function` script has no URL and is not recorded; a build output's own source map on disk is
   not read. Evidence: `TestAttributeRefusals`, `TestAttributeSourceMap`, `TestAttributeMapSourceRoot`,
-  `TestAttributeFileBOM`, `TestAttributeInlineHTML`.
+  `TestAttributeFileBOM`, `TestAttributeInlineHTML`, `TestPickSuffix`.
 - `LPCV-V0-973`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) A record's blocks are the same spans for every run of a
   file, split where V8 counts change and trimmed at line ends, so `linecov.Build` unions runs and a
   line no run executed selects no test. Evidence: `TestRecordsShareBlocksAcrossRuns`,
   `TestPaintInnermostWins`.
 - `LPCV-V0-974`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Before a server under test is stopped, each of its Node
   processes is sent SIGUSR2 and answers with `v8.takeCoverage()`; a process that does not answer
-  within 10 seconds, or a run with a declared server that recorded no tracked server file, makes
-  the record incomplete. The runner and its workers run test code the runner transpiles, so their
+  within 10 seconds, a process under test that wrote no coverage (one killed outright or crashed),
+  or a run with a declared server that recorded no tracked server file, makes the record incomplete. The runner and its workers run test code the runner transpiles, so their
   coverage is never part of a record; when they ran repository code other than the spec being run
   and the runners' configuration files (a helper or application module a test imports), the record
   is incomplete, since its V8 offsets are not offsets into the file. A server's process group is
   sent SIGTERM and, 10 seconds later, killed if any process remains, including after its shell has
-  exited. Evidence: `TestRunnerConfig`, `TestServerStopKillsLeftovers`.
+  exited. Evidence: `TestRunnerConfig`, `TestServerStopKillsLeftovers`, `TestUndumped`.
 - `LPCV-V0-975`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Cypress: the collector writes a wrapper configuration and
   support file beside the project's JavaScript configuration, removed when it ends, and requires a
   Chromium-family `--browser` and a server command, since Cypress starts neither the DevTools port
@@ -890,8 +891,10 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   that may run repository code makes the record incomplete. Limit: a renderer swap (a cross-origin
   navigation to another loopback origin) starts a new target whose earlier scripts are recorded only
   from attach.
+  Spec paths are Cypress's absolute paths taken relative to the root, which is Cypress's working
+  directory, so a configuration in a subdirectory names the same files.
   A TypeScript Cypress configuration is refused, and a non-zero `cypress run` exit with no failed
-  test fails the collection. Evidence: `TestAnyFailed`.
+  test fails the collection. Evidence: `TestAnyFailed`, `TestRootRel`.
 - `LPCV-V0-976`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) The hook runs only in a process's main thread, records each
   process's role (runner, worker or process under test), and fetches an external source map only
   for a script that may be repository code, so it never sends the server under test a request of

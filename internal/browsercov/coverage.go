@@ -364,7 +364,10 @@ func (r *Repo) attributeMapped(s Script) ([]Observation, string, bool) {
 func (r *Repo) bindSource(src string, content *string) (string, string) {
 	if content != nil {
 		if ps := r.paths[r.blobOID([]byte(*content))]; len(ps) > 0 {
-			return pickSuffix(ps, src), ""
+			if p := pickSuffix(ps, src); p != "" {
+				return p, ""
+			}
+			return "", fmt.Sprintf("source %s matches %d tracked files and its path names none of them", src, len(ps))
 		}
 	}
 	var hits []string
@@ -456,14 +459,23 @@ func absSource(src string) (string, bool) {
 	return "", false
 }
 
+// pickSuffix chooses the one tracked copy of a source's content that its
+// path names, or the only copy; "" when the copies are ambiguous.
 func pickSuffix(ps []string, src string) string {
+	if len(ps) == 1 {
+		return ps[0]
+	}
 	clean := sourcePath(src)
+	var named []string
 	for _, p := range ps {
 		if p == clean || strings.HasSuffix(p, "/"+clean) || strings.HasSuffix(clean, "/"+p) {
-			return p
+			named = append(named, p)
 		}
 	}
-	return ps[0]
+	if len(named) == 1 {
+		return named[0]
+	}
+	return ""
 }
 
 // attributeInline binds an inline <script> by finding its text in exactly one

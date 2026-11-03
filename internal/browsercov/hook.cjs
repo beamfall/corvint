@@ -440,7 +440,7 @@ function cypressConfig(user, supportPath) {
       return launchOptions;
     });
     on("before:run", async (details) => {
-      fs.writeFileSync(path.join(dir, "specs.json"), JSON.stringify((details.specs || []).map((s) => s.relative)));
+      fs.writeFileSync(path.join(dir, "specs.json"), JSON.stringify((details.specs || []).map((s) => s.absolute)));
       if (handlers["before:run"]) return handlers["before:run"](details);
     });
     on("after:spec", async (spec, results) => {
@@ -457,7 +457,7 @@ function cypressConfig(user, supportPath) {
       }
       const entries = taken;
       taken = [];
-      await writeBrowser(browser, entries, { spec: spec.relative, tests });
+      await writeBrowser(browser, entries, { spec: spec.absolute, tests });
       if (handlers["after:spec"]) return handlers["after:spec"](spec, results);
     });
     return result;
