@@ -98,9 +98,11 @@ type Record struct {
 	Profile       []byte
 	Elapsed       time.Duration
 	Level         string
-	// Segments, when present, bound the run (MCJ-V0-001). Blocks Profile
-	// executed outside every segment form one trailing unbound segment, so a
-	// change reaching them keeps the test.
+	// Segments, when present, bound the run (MCJ-V0-001). They are disjoint:
+	// a collector closes one before opening the next and reports a method
+	// called inside a step as part of that step. Blocks Profile executed
+	// outside every segment form one trailing unbound segment, so a change
+	// reaching them keeps the test.
 	Segments   []SegmentRecord
 	Incomplete bool // MCJ-V0-015
 }
@@ -222,6 +224,15 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			}
 			if len(rest) > 0 {
 				segRan[i] = append(segRan[i], rest)
+			}
+			// Segments are disjoint parts of the run. Segments counting a
+			// block more often than the whole run overlap, so a later run
+			// of that block can hide in the overlap: incomplete.
+			for bk, n := range inSeg {
+				if n > whole[bk] {
+					incomplete[i] = true
+					break
+				}
 			}
 			// Without counts, code run both inside and outside a segment is
 			// invisible, so the record is incomplete (MCJ-V0-015).

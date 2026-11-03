@@ -66,7 +66,8 @@ line selection: it never dedupes repeated steps and never tells the map which te
 ### Records and join
 
 - `MCJ-V0-001`: A coverage record (LPCV-V0-950) MAY carry an ordered list of segments, each with
-  its segment identity, its reach and its elapsed time. A record without segment boundaries has one
+  its segment identity, its reach and its elapsed time. Segments are disjoint parts of the run: a
+  collector closes one before opening the next. A record without segment boundaries has one
   segment, the whole test, so every existing record stays valid and selects exactly as before.
   Evidence: `TestSegmentedIndexRoundTripsAndSelectsAsBefore`, `TestBuildRefusesATestRecordedTwice`,
   `TestDecodeRefusesInconsistentSegments` (`internal/linecov/segments_test.go`).
@@ -188,7 +189,8 @@ line selection: it never dedupes repeated steps and never tells the map which te
 ### Safety, evidence and qualification
 
 - `MCJ-V0-015`: A segment record is incomplete when a process it started was not instrumented, a
-  boundary was missing, or a source map did not resolve. Its test then keeps only its test-level
+  boundary was missing, a source map did not resolve, or its segments together count a block more
+  often than the whole run (overlapping segments). Its test then keeps only its test-level
   record and takes part in no equivalence class.
 - `MCJ-V0-016`: Every `covered-by-representative` exclusion in the plan lists the representative,
   the segment identities and the block-set equality, and the plan counts tests by level and by
