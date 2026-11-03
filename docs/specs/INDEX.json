@@ -4392,5 +4392,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/dogfood-citation-plan-precheck-v0.md",
+    "title": "Dogfood Citation Plan Precheck V0",
+    "reqPrefix": "DCW-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11)",
+    "delivery": "implemented",
+    "claim": "A citation-plan precheck names every refused row and its CEM reason before binding.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
