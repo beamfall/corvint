@@ -77,10 +77,11 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 		}
 		for _, h := range d.Hunks {
 			lo, hi := h.Start, h.End
-			if hi < lo { // insertion: either neighbouring line may run it
+			insert := hi < lo
+			if insert { // either neighbouring line may run it
 				hi = lo + 1
 			}
-			fn := enclosingFunc(fset, parsed, lo, hi, test)
+			fn := enclosingFunc(fset, parsed, lo, hi, insert, test)
 			switch {
 			case fn == nil && test:
 				e.Whole[pkg] = true
@@ -145,17 +146,20 @@ func (ix *Index) selectLines(f *File, fset *token.FileSet, fn *ast.FuncDecl, lo,
 }
 
 // enclosingFunc returns the function whose body strictly contains [lo, hi]; a
-// span touching a signature or brace, or outside every body, is nil. With
+// span touching a signature or brace, or outside every body, is nil. An
+// insertion between lo and hi = lo+1 is inside a body whose braces lie on or
+// outside those lines: it runs only once the function is entered. With
 // whole, the span may cover the declaration's own lines: a test function's
 // signature or one-line body changes only that test, and a renamed test is
 // unrecorded at the head and kept by Narrow.
-func enclosingFunc(fset *token.FileSet, f *ast.File, lo, hi int, whole bool) *ast.FuncDecl {
+func enclosingFunc(fset *token.FileSet, f *ast.File, lo, hi int, insert, whole bool) *ast.FuncDecl {
 	for _, d := range f.Decls {
 		fn, ok := d.(*ast.FuncDecl)
 		if !ok || fn.Body == nil {
 			continue
 		}
-		if lo > fset.Position(fn.Body.Lbrace).Line && hi < fset.Position(fn.Body.Rbrace).Line {
+		open, close := fset.Position(fn.Body.Lbrace).Line, fset.Position(fn.Body.Rbrace).Line
+		if lo > open && hi < close || insert && lo >= open && hi <= close {
 			return fn
 		}
 		if whole && lo >= fset.Position(fn.Pos()).Line && hi <= fset.Position(fn.End()).Line {

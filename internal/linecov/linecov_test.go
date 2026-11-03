@@ -226,6 +226,8 @@ func TestFaultInjection(t *testing.T) {
 		{name: "package-level initializer", file: "calc/calc.go", old: "var Base = 10", new: "var Base = 11", fallback: true, failsSome: true},
 		{name: "test function", file: "calc/calc_test.go", old: `Classify(0), "zero"`, new: `Classify(0), "pos"`, kept: []string{"calc.TestZero"}, failsSome: true},
 		{name: "path taken only in ordinary order", file: "ord/ord.go", old: `return "again"`, new: `panic("again")`, kept: []string{"ord.TestA", "ord.TestB"}, failsSome: true},
+		{name: "statement inserted at function entry", file: "calc/calc.go", old: "func Double(n int) int {", new: "func Double(n int) int {\n\tpanic(\"entry\")", kept: []string{"calc.TestDouble", "e2e.TestTool"}, failsSome: true},
+		{name: "negative control: insertion at unexecuted entry", file: "calc/calc.go", old: "func Unused() int {", new: "func Unused() int {\n\tpanic(\"entry\")", kept: nil},
 		{name: "test helper", file: "calc/calc_test.go", old: "if got != exp {", new: "if got == exp {", kept: []string{"calc.TestDouble", "calc.TestNeg", "calc.TestZero"}, failsSome: true},
 	}
 	for _, c := range cases {
