@@ -217,8 +217,10 @@ line selection: it never dedupes repeated steps and never tells the map which te
   beyond the `git diff` and base-blob reads on the reference host, measured with segments present.
   Evidence: `TestPlanTimeBudgetWithSegments` and `BenchmarkPlanWithSegments`: index decode, analysis,
   join, shadow, narrow and report over 2,000 tests with 16,000 bound segments, p95 54 to 58 ms on a
-  4-core development host (`docs/build-log/2026-11-03-mcj-linecov-segments.md`); the reference-host
-  run is `NOT_RUN`.
+  4-core development host (`docs/build-log/2026-11-03-mcj-linecov-segments.md`), and p95 25 ms on
+  the 12-core reference host after the decode and reach allocations were cut. Under `-race`, as CI's
+  Go product shards run, the plan is about 11x slower (p95 281 ms on the reference host), so the test
+  scales the budget by 20 there and holds the absolute 100 ms only without `-race`.
 
 
 ## Traceability

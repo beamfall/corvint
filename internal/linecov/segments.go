@@ -84,6 +84,8 @@ func (ix *Index) checkSegments() error {
 	if len(ix.Segments) > 0 && int(prev) != len(ix.Tests)-1 {
 		return errors.New("linecov: a test has no segment")
 	}
+	owner := make([]int32, len(ix.Tests))
+	gen := int32(0)
 	for _, f := range ix.Files {
 		for _, b := range f.Blocks {
 			for _, t := range b.Tests {
@@ -100,18 +102,24 @@ func (ix *Index) checkSegments() error {
 			if len(b.Tests) > 0 && len(b.Segs) == 0 {
 				return errors.New("linecov: executed block names no segment")
 			}
-			owners := map[int32]bool{}
+			// owner[t] == gen marks t as an owner of this block's segments; a
+			// stamp per block avoids a map allocation on every decode.
+			gen++
+			owners := 0
 			for i, s := range b.Segs {
 				if s < 0 || int(s) >= len(ix.Segments) || i > 0 && s <= b.Segs[i-1] {
 					return errors.New("linecov: block names an absent segment")
 				}
-				owners[ix.Segments[s].Test] = true
+				if t := ix.Segments[s].Test; owner[t] != gen {
+					owner[t] = gen
+					owners++
+				}
 			}
-			if len(owners) != len(b.Tests) {
+			if owners != len(b.Tests) {
 				return errors.New("linecov: block segments and tests disagree")
 			}
 			for _, t := range b.Tests {
-				if !owners[t] {
+				if owner[t] != gen {
 					return errors.New("linecov: block segments and tests disagree")
 				}
 			}

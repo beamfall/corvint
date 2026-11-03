@@ -129,7 +129,8 @@ func ptInputs(tb testing.TB) ([]byte, []FileDiff, func(string) ([]byte, error), 
 
 // MCJ-V0-019: the plan stays within p95 <= 100 ms beyond git diff and blob
 // reads with segments present. LINECOV_PLAN_P95_BUDGET overrides the budget
-// on a host that is not the reference host; the measured p95 is logged.
+// on a host that is not the reference host, and -race scales it by raceScale;
+// the measured p95 and the budget applied are logged.
 func TestPlanTimeBudgetWithSegments(t *testing.T) {
 	encoded, diffs, read, heads := ptInputs(t)
 	r := planOnce(t, encoded, diffs, read, heads)
@@ -145,7 +146,7 @@ func TestPlanTimeBudgetWithSegments(t *testing.T) {
 	}
 	sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
 	p50, p95 := times[runs/2], times[runs*95/100]
-	budget := 100 * time.Millisecond
+	budget := raceScale * 100 * time.Millisecond
 	if v := os.Getenv("LINECOV_PLAN_P95_BUDGET"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {

@@ -3,8 +3,8 @@ package linecov
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -66,12 +66,33 @@ type segReach struct {
 
 func (ix *Index) reachOf(s int32) []BlockRef {
 	ix.reach.once.Do(func() {
-		ix.reach.blocks = make([][]BlockRef, len(ix.segs))
+		// Two passes fill one backing array: a per-segment append would
+		// allocate for each of the index's segments on every plan.
+		start := make([]int32, len(ix.segs)+1)
 		for fi := range ix.Files {
 			for bi := range ix.Files[fi].Blocks {
 				for _, seg := range ix.blockSegs(&ix.Files[fi].Blocks[bi]) {
-					ix.reach.blocks[seg] = append(ix.reach.blocks[seg], BlockRef{int32(fi), int32(bi)})
+					start[seg+1]++
 				}
+			}
+		}
+		for i := 1; i < len(start); i++ {
+			start[i] += start[i-1]
+		}
+		flat := make([]BlockRef, start[len(ix.segs)])
+		next := append([]int32(nil), start[:len(ix.segs)]...)
+		for fi := range ix.Files {
+			for bi := range ix.Files[fi].Blocks {
+				for _, seg := range ix.blockSegs(&ix.Files[fi].Blocks[bi]) {
+					flat[next[seg]] = BlockRef{int32(fi), int32(bi)}
+					next[seg]++
+				}
+			}
+		}
+		ix.reach.blocks = make([][]BlockRef, len(ix.segs))
+		for i := range ix.reach.blocks {
+			if start[i] < start[i+1] {
+				ix.reach.blocks[i] = flat[start[i]:start[i+1]:start[i+1]]
 			}
 		}
 	})
@@ -120,10 +141,17 @@ func (ix *Index) classKey(s int32) (key, reach string, blocks int) {
 		return "", "", 0 // reached nothing: no block set to compare
 	}
 	h := sha256.New()
+	var line []byte
 	for _, r := range rs {
 		f := ix.Files[r.File]
 		b := f.Blocks[r.Block]
-		fmt.Fprintf(h, "%s:%d.%d,%d.%d\n", f.Path, b.Start, b.StartCol, b.End, b.EndCol)
+		// path:start.col,end.col, appended without fmt.
+		line = append(append(line[:0], f.Path...), ':')
+		line = append(strconv.AppendInt(line, int64(b.Start), 10), '.')
+		line = append(strconv.AppendInt(line, int64(b.StartCol), 10), ',')
+		line = append(strconv.AppendInt(line, int64(b.End), 10), '.')
+		line = append(strconv.AppendInt(line, int64(b.EndCol), 10), '\n')
+		h.Write(line)
 	}
 	reach = hex.EncodeToString(h.Sum(nil))
 	k := sha256.Sum256([]byte(seg.ID + "\x00\x01" + prior + "\x01" + after + "\x01" + reach))
