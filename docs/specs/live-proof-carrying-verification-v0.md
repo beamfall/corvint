@@ -693,8 +693,9 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   is stale. Because a package-level initializer, constant or type is not a coverage block, the
   drift between the record's commit and the change base is itself analysed by `LPCV-V0-952` and
   `LPCV-V0-953`: a drift that `LPCV-V0-953` keeps on the static plan makes every record stale, and
-  a body-only drift makes stale each test it would select. A stale, missing or uninstrumented record, or one from a different runner version or
-  instrumentation mode, decides nothing; `LPCV-V0-016` keeps that test under the static plan.
+  a body-only drift makes stale each test it would select. A stale, missing or uninstrumented record, or one from a different runner version,
+  instrumentation mode or build configuration (for Go: GOFLAGS such as `-race` and `-tags`,
+  CGO_ENABLED and GOEXPERIMENT), decides nothing; `LPCV-V0-016` keeps that test under the static plan.
 - `LPCV-V0-952`: (accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be excluded under `LPCV-V0-014` when no changed
   base-side line range of any instrumented file intersects an executed range of that test. A pure
   insertion intersects when either neighbouring base line was executed. The exclusion entry names
