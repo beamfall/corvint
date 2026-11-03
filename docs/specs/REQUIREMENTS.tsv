@@ -5249,6 +5249,14 @@ LGP-V0-011	docs/specs/language-plugins-v0.md	(accepted under the owner's standin
 LGP-V0-012	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Behavior	standing	2026-11-03; V1-4404
 LGP-V0-013	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) A covera	standing	2026-11-03; V1-4404
 LGP-V0-014	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) A mutati	standing	2026-11-03; V1-4404
+LGP-V0-015	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A manife	standing	2026-11-03; V1-4405
+LGP-V0-016	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) The core	standing	2026-11-03; V1-4405
+LGP-V0-017	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A manife	standing	2026-11-03; V1-4405
+LGP-V0-018	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A mutati	standing	2026-11-03; V1-4405
+LGP-V0-019	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) The ratc	standing	2026-11-03; V1-4405
+LGP-V0-020	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405)	standing	2026-11-03; V1-4405
+LGP-V0-021	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) `make pl	standing	2026-11-03; V1-4405
+LGP-V0-022	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4405) Behavior	standing	2026-11-03; V1-4405
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the	unrecorded	-
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	Before either scored arm runs, the evaluation MUST fail closed when any frozen	unrecorded	-
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp	unrecorded	-

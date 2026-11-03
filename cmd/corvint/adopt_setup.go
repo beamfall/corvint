@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/langplugin"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -270,8 +271,16 @@ func setupIgnoreTargets(root string) ([]string, string) {
 	return paths, store
 }
 
-// setupImpactLanguages are the declared language names corvint impact has a rule for.
-var setupImpactLanguages = map[string]bool{"go": true, "ruby": true, "javascript": true, "typescript": true}
+// setupImpactLanguages are the declared language names corvint impact has a
+// rule for: Go's reverse-import rule and every impact dialect a language
+// plugin declares (LGP-V0-015).
+var setupImpactLanguages = func() map[string]bool {
+	out := map[string]bool{"go": true}
+	for _, name := range langplugin.Dialects(langplugin.ImpactDialect) {
+		out[name] = true
+	}
+	return out
+}()
 
 // setupTestCommandsCheck reports the project-owned test-command declaration (ADS-V0-802): a gap
 // when it is absent or unreadable, otherwise each declared command and each declared language

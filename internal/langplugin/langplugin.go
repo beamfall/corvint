@@ -1,5 +1,5 @@
 // Package langplugin is the in-process language plugin manifest
-// (docs/specs/language-plugins-v0.md, LGP-V0-001..009). Each language declares
+// (docs/specs/language-plugins-v0.md, LGP-V0-001..022). Each language declares
 // the paths it owns, its affected-selection provider, its analyzercap
 // analyzers and its sub-plugins: test runners, test providers, coverage
 // collectors and mutation tools. A piece a language lacks is declared absent
@@ -13,6 +13,7 @@ package langplugin
 import (
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 
@@ -42,6 +43,14 @@ const (
 	Mutation     Piece = "mutation"
 )
 
+func dialectKindNames() []string {
+	out := make([]string, len(DialectKinds))
+	for i, k := range DialectKinds {
+		out[i] = string(k)
+	}
+	return out
+}
+
 // Pieces is every piece, in declaration order.
 var Pieces = []Piece{Provider, Analyzer, Runners, TestProvider, Coverage, Mutation}
 
@@ -51,6 +60,33 @@ var Pieces = []Piece{Provider, Analyzer, Runners, TestProvider, Coverage, Mutati
 type SubPlugin struct {
 	Name  string
 	Paths []string
+	// Suffixes are the source suffixes an in-process mutation engine
+	// mutates (LGP-V0-018); other sub-plugins leave it empty.
+	Suffixes []string
+}
+
+// DialectKind names a core reading a language's sources select by suffix
+// (LGP-V0-015).
+type DialectKind string
+
+const (
+	// ImpactDialect is the bounded syntax profile of non-Go impact.
+	ImpactDialect DialectKind = "impact"
+	// ModuleDialect is the module-membership reading of impact.
+	ModuleDialect DialectKind = "module"
+	// RegionDialect is the symbol-region normalizer family.
+	RegionDialect DialectKind = "region"
+)
+
+// DialectKinds is every dialect kind, in declaration order.
+var DialectKinds = []DialectKind{ImpactDialect, ModuleDialect, RegionDialect}
+
+// Dialect is one core reading a plugin's sources select: its kind, the
+// dialect name the core reading answers, and the suffixes it reads.
+type Dialect struct {
+	Kind     DialectKind
+	Name     string
+	Suffixes []string
 }
 
 // Manifest is one language plugin (LGP-V0-001).
@@ -72,6 +108,12 @@ type Manifest struct {
 	Mutation      []SubPlugin
 	// Absent declares each piece the language lacks, with its reason.
 	Absent map[Piece]string
+	// Dialects are the core readings this language's sources select
+	// (LGP-V0-015).
+	Dialects []Dialect
+	// Dependencies maps an ecosystem package (a gem, an npm package) to the
+	// plugin runner it brings (LGP-V0-017).
+	Dependencies map[string]string
 }
 
 func sub(name string, paths ...string) SubPlugin { return SubPlugin{Name: name, Paths: paths} }
@@ -97,6 +139,7 @@ var manifests = []Manifest{
 		Analyzers: []SubPlugin{sub("corvint-analyzer-dotnet", "internal/analyzerdotnet")},
 		Runners:   []string{"dotnet-mtp-mstest", "dotnet-mtp-nunit", "dotnet-mtp-xunit", "dotnet-vstest-mstest", "dotnet-vstest-nunit", "dotnet-vstest-xunit"},
 		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Dialects:  []Dialect{{ModuleDialect, "csharp", []string{".cs"}}},
 	},
 	{
 		Name: "go",
@@ -108,7 +151,7 @@ var manifests = []Manifest{
 		Runners:       []string{"ginkgo-v2", "go-test"},
 		TestProviders: []SubPlugin{sub("corvint-go-test-provider", "cmd/corvint-go-test-provider", "internal/liveverify/gotest")},
 		Coverage:      []SubPlugin{sub("linecov-go", "internal/linecov", "internal/liveverify/gorunner")},
-		Mutation:      []SubPlugin{sub("mutate-go", "internal/liveverify/mutate")},
+		Mutation:      []SubPlugin{{Name: "mutate-go", Paths: []string{"internal/liveverify/mutate"}, Suffixes: []string{".go"}}},
 	},
 	{
 		Name:      "java",
@@ -126,6 +169,8 @@ var manifests = []Manifest{
 		// The Android UI runners, Appium included, test Android applications.
 		Runners: []string{"android-junit", "appium", "appium-uiautomator2-wdio", "espresso", "kotest", "kotlin-test", "robolectric", "uiautomator"},
 		Absent:  map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		// .kts is a build or script file nothing imports, so it carries no reading.
+		Dialects: []Dialect{{ModuleDialect, "kotlin", []string{".kt"}}},
 	},
 	{
 		Name: "python",
@@ -134,7 +179,7 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return python.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-python", "internal/analyzerpython")},
 		Runners:   []string{"pytest", "unittest"},
-		Mutation:  []SubPlugin{sub("pymutate", "internal/liveverify/pymutate")},
+		Mutation:  []SubPlugin{{Name: "pymutate", Paths: []string{"internal/liveverify/pymutate"}, Suffixes: []string{".py"}}},
 		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector},
 	},
 	{
@@ -146,8 +191,11 @@ var manifests = []Manifest{
 		Analyzers:     []SubPlugin{sub("corvint-analyzer-ruby", "internal/analyzerruby")},
 		Runners:       []string{"minitest", "rails-test", "rspec", "test-unit"},
 		TestProviders: []SubPlugin{sub("corvint-ruby-test-provider", "cmd/corvint-ruby-test-provider", "internal/rubytestprovider")},
-		Mutation:      []SubPlugin{sub("rbmutate", "internal/liveverify/rbmutate"), sub("extmutate", "internal/extmutate")},
-		Absent:        map[Piece]string{Coverage: noCollector},
+		Mutation: []SubPlugin{{Name: "rbmutate", Paths: []string{"internal/liveverify/rbmutate"}, Suffixes: []string{".rb"}},
+			sub("extmutate", "internal/extmutate")},
+		Absent:       map[Piece]string{Coverage: noCollector},
+		Dialects:     []Dialect{{ImpactDialect, "ruby", []string{".rb"}}, {RegionDialect, "ruby", []string{".rb", ".rake"}}},
+		Dependencies: map[string]string{"rspec": "rspec", "rspec-core": "rspec", "rspec-rails": "rspec", "minitest": "minitest"},
 	},
 	{
 		Name:      "rust",
@@ -172,6 +220,7 @@ var manifests = []Manifest{
 		Analyzers: []SubPlugin{sub("corvint-analyzer-swift", "internal/analyzerswift")},
 		Runners:   []string{"swift-testing", "swift-xctest", "xcode-xctest"},
 		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Dialects:  []Dialect{{ModuleDialect, "swift", []string{".swift"}}},
 	},
 	{
 		Name: "typescript",
@@ -184,6 +233,14 @@ var manifests = []Manifest{
 		TestProviders: []SubPlugin{sub("corvint-js-test-provider", "cmd/corvint-js-test-provider", "internal/jstestprovider")},
 		Mutation:      []SubPlugin{sub("extmutate", "internal/extmutate")},
 		Absent:        map[Piece]string{Coverage: noCollector},
+		Dialects: []Dialect{
+			{ImpactDialect, "javascript", []string{".js", ".jsx", ".mjs", ".cjs"}},
+			{ImpactDialect, "typescript", []string{".ts", ".tsx"}},
+			{RegionDialect, "web", []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}},
+		},
+		Dependencies: map[string]string{"jest": "jest", "vitest": "vitest", "@playwright/test": "playwright", "mocha": "mocha",
+			"cypress": "cypress", "jasmine": "jasmine", "ava": "ava", "testcafe": "testcafe",
+			"@storybook/test-runner": "storybook-test-runner", "@wdio/cli": "webdriverio"},
 	},
 	{
 		Name:      "sql",
@@ -250,6 +307,89 @@ func RunnerLanguage(runner string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// DialectFor returns the dialect of kind whose suffixes include path's
+// extension, or "" when no plugin declares one (LGP-V0-015).
+func DialectFor(kind DialectKind, name string) string {
+	ext := path.Ext(name)
+	for _, m := range manifests {
+		for _, d := range m.Dialects {
+			if d.Kind == kind && contains(d.Suffixes, ext) {
+				return d.Name
+			}
+		}
+	}
+	return ""
+}
+
+// Dialects returns every declared dialect name of kind, sorted.
+func Dialects(kind DialectKind) []string {
+	var out []string
+	for _, m := range manifests {
+		for _, d := range m.Dialects {
+			if d.Kind == kind && !contains(out, d.Name) {
+				out = append(out, d.Name)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// DependencyRunners returns a copy of language's package-to-runner map
+// (LGP-V0-017).
+func DependencyRunners(language string) map[string]string {
+	m, _ := Lookup(language)
+	out := make(map[string]string, len(m.Dependencies))
+	for pkg, runner := range m.Dependencies {
+		out[pkg] = runner
+	}
+	return out
+}
+
+// MutationLanguage returns the plugin whose in-process mutation engine
+// mutates path's suffix, or "" (LGP-V0-018).
+func MutationLanguage(name string) string {
+	ext := path.Ext(name)
+	for _, m := range manifests {
+		for _, s := range m.Mutation {
+			if contains(s.Suffixes, ext) {
+				return m.Name
+			}
+		}
+	}
+	return ""
+}
+
+// Dirs lists the plugin's directories: its owned paths and every
+// sub-plugin path, sorted and without duplicates (LGP-V0-020).
+func Dirs(name string) ([]string, bool) {
+	m, ok := Lookup(name)
+	if !ok {
+		return nil, false
+	}
+	out := append([]string{}, m.Paths...)
+	for _, list := range [][]SubPlugin{m.Analyzers, m.TestProviders, m.Coverage, m.Mutation} {
+		for _, s := range list {
+			for _, p := range s.Paths {
+				if !contains(out, p) {
+					out = append(out, p)
+				}
+			}
+		}
+	}
+	sort.Strings(out)
+	return out, true
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // Names returns every plugin name and every declared runner name, sorted.
@@ -326,6 +466,27 @@ func Validate(m Manifest) error {
 	for _, r := range m.Runners {
 		if r == "" {
 			errs = append(errs, fmt.Errorf("%s: empty runner name", m.Name))
+		}
+	}
+	for _, d := range m.Dialects {
+		if !contains(dialectKindNames(), string(d.Kind)) {
+			errs = append(errs, fmt.Errorf("%s: unknown dialect kind %q", m.Name, d.Kind))
+		}
+		if d.Name == "" || len(d.Suffixes) == 0 {
+			errs = append(errs, fmt.Errorf("%s: %s dialect %q is unnamed or reads no suffix", m.Name, d.Kind, d.Name))
+		}
+		for _, suffix := range d.Suffixes {
+			if len(suffix) < 2 || suffix[0] != '.' || strings.TrimSpace(suffix) != suffix {
+				errs = append(errs, fmt.Errorf("%s: %s dialect %s suffix %q is empty or padded", m.Name, d.Kind, d.Name, suffix))
+			}
+		}
+	}
+	for pkg, runner := range m.Dependencies {
+		if pkg == "" {
+			errs = append(errs, fmt.Errorf("%s: empty dependency name", m.Name))
+		}
+		if !contains(m.Runners, runner) {
+			errs = append(errs, fmt.Errorf("%s: dependency %s names runner %q the plugin does not declare", m.Name, pkg, runner))
 		}
 	}
 	return errors.Join(errs...)

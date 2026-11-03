@@ -1,23 +1,22 @@
 package contextindex
 
 import (
-	"path"
 	"regexp"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/langplugin"
 )
 
-// NonGoImpactLanguage names the bounded syntax profiles, never runtime closure.
+// NonGoImpactLanguage names the bounded syntax profiles, never runtime
+// closure: the impact dialect a language plugin declares for the path's
+// suffix (LGP-V0-015).
 func NonGoImpactLanguage(name string) string {
-	switch path.Ext(name) {
-	case ".rb":
-		return "ruby"
-	case ".js", ".jsx", ".mjs", ".cjs":
-		return "javascript"
-	case ".ts", ".tsx":
-		return "typescript"
-	}
-	return ""
+	return langplugin.DialectFor(langplugin.ImpactDialect, name)
 }
+
+// impactDialects are the implemented impact syntax profiles: Ruby, and the
+// web profile JavaScript and TypeScript share (LGP-V0-016).
+var impactDialects = []string{"ruby", "javascript", "typescript"}
 
 // MCPImpactPathAdmitted is the closed language set shared by MCP validation and
 // range admission. Positional CLI impact retains its wider indexed suffix set.

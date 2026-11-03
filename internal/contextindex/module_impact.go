@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing/fstest"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/langplugin"
 )
 
 // This file holds the module-membership reverse-reference readings of path
@@ -34,16 +36,9 @@ const (
 // suffix, or "" when none applies. Like rule (a) it tests the raw suffix, so
 // the listing reports it case-sensitive. `.kts` is a build or script file that
 // nothing imports, so it carries no reading and keeps the profile gap.
+// The suffixes are the module dialects language plugins declare (LGP-V0-015).
 func ModuleRuleLanguage(changedPath string) string {
-	switch path.Ext(changedPath) {
-	case ".swift":
-		return "swift"
-	case ".kt":
-		return "kotlin"
-	case ".cs":
-		return "csharp"
-	}
-	return ""
+	return langplugin.DialectFor(langplugin.ModuleDialect, changedPath)
 }
 
 // moduleReading is one impact request's view of the three readings. It parses
@@ -484,6 +479,12 @@ func (reading *moduleReading) csharpUsing(changedPath string, namespaces []strin
 	return rankedResult{}, false
 }
 
+// moduleDisclosures are the implemented module readings, in disclosure
+// order, each with its coverage line (LGP-V0-016).
+var moduleDisclosures = []struct{ language, line string }{
+	{"csharp", csharpModuleUncertainty}, {"kotlin", kotlinModuleUncertainty}, {"swift", swiftModuleUncertainty},
+}
+
 // disclosures are the coverage lines for the languages the request named,
 // then the request's observed notes, each in a stable order.
 func (reading *moduleReading) disclosures() []string {
@@ -491,9 +492,7 @@ func (reading *moduleReading) disclosures() []string {
 		return nil
 	}
 	lines := make([]string, 0, 3+len(reading.notes))
-	for _, item := range []struct{ language, line string }{
-		{"csharp", csharpModuleUncertainty}, {"kotlin", kotlinModuleUncertainty}, {"swift", swiftModuleUncertainty},
-	} {
+	for _, item := range moduleDisclosures {
 		if reading.requested[item.language] {
 			lines = append(lines, item.line)
 		}
