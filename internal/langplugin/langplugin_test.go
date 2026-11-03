@@ -106,6 +106,18 @@ func TestValidateRefusesAnUndeclaredPiece_LGPV0007(t *testing.T) {
 		"suffix \"d\" is empty or padded": func(m *langplugin.Manifest) {
 			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ImpactDialect, Name: "demo", Suffixes: []string{"d"}}}
 		},
+		`impact dialect "demo" declares rule ""`: func(m *langplugin.Manifest) {
+			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ImpactDialect, Name: "demo", Suffixes: []string{".d"}}}
+		},
+		`module dialect "demo" declares rule "constant-references", which core does not implement`: func(m *langplugin.Manifest) {
+			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ModuleDialect, Name: "demo", Suffixes: []string{".d"}, Rule: decl.ConstantReferences}}
+		},
+		`impact dialect "demo" declares rule "module-import", which core does not implement`: func(m *langplugin.Manifest) {
+			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ImpactDialect, Name: "demo", Suffixes: []string{".d"}, Rule: "module-import"}}
+		},
+		`region dialect "demo" declares rule "module-imports"`: func(m *langplugin.Manifest) {
+			m.Dialects = []langplugin.Dialect{{Kind: langplugin.RegionDialect, Name: "demo", Suffixes: []string{".d"}, Rule: decl.ModuleImports}}
+		},
 		"empty dependency name": func(m *langplugin.Manifest) { m.Dependencies = map[string]string{"": "demo-test"} },
 		"names runner \"other\" the plugin does not declare": func(m *langplugin.Manifest) {
 			m.Dependencies = map[string]string{"demo-pkg": "other"}
@@ -257,14 +269,8 @@ var coreNameLiterals = map[string]map[string]coreLiteral{
 		"rspec":  {1, "runner the dependency map is read for (LGP-V0-017)"},
 	},
 	"internal/contextindex": {
-		"go":         {2, "Go module unknown code and a source-suffix table key"},
-		"java":       {1, "source-suffix table key of context anchors"},
-		"kotlin":     {4, "dialect algorithm body compares the declared dialect name it implements (LGP-V0-016); moving the bodies into plugins is a follow-up"},
-		"swift":      {3, "dialect algorithm body compares the declared dialect name it implements (LGP-V0-016); moving the bodies into plugins is a follow-up"},
-		"ruby":       {22, "dialect algorithm body compares the declared dialect name it implements (LGP-V0-016); moving the bodies into plugins is a follow-up"},
-		"typescript": {8, "dialect algorithm body compares the declared dialect name it implements (LGP-V0-016); moving the bodies into plugins is a follow-up"},
-		"rspec":      {1, "runner the Ruby dependency map is read for (LGP-V0-017)"},
-		"minitest":   {1, "runner the Ruby dependency map is read for (LGP-V0-017)"},
+		"go":   {2, "Go module unknown code and a source-suffix table key"},
+		"java": {1, "source-suffix table key of context anchors"},
 	},
 	"internal/testsource": {
 		"jest":       {8, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},

@@ -30,12 +30,49 @@ const (
 // DialectKinds is every dialect kind, in declaration order.
 var DialectKinds = []DialectKind{ImpactDialect, ModuleDialect, RegionDialect}
 
+// Rule names the reverse-reference algorithm core runs for a dialect
+// (LGP-V0-024). Core dispatches on the rule a plugin declares, never on the
+// plugin's or dialect's name, so a second language sharing a rule needs no
+// core edit.
+type Rule string
+
+const (
+	// ConstantReferences resolves a changed path to the constants its
+	// autoload map names and reads their references (an impact rule).
+	ConstantReferences Rule = "constant-references"
+	// ModuleImports reads ECMAScript import and require specifiers (an
+	// impact rule).
+	ModuleImports Rule = "module-imports"
+	// NamespaceUsing reads namespace declarations and using directives (a
+	// module rule).
+	NamespaceUsing Rule = "namespace-using"
+	// PackageImports reads package declarations and imports (a module rule).
+	PackageImports Rule = "package-imports"
+	// TargetModules reads build-target membership and module imports (a
+	// module rule).
+	TargetModules Rule = "target-modules"
+)
+
+// RuleKind returns the dialect kind rule belongs to, or "" for a rule core
+// does not implement (LGP-V0-024).
+func RuleKind(rule Rule) DialectKind {
+	switch rule {
+	case ConstantReferences, ModuleImports:
+		return ImpactDialect
+	case NamespaceUsing, PackageImports, TargetModules:
+		return ModuleDialect
+	}
+	return ""
+}
+
 // Dialect is one core reading a plugin's sources select: its kind, the
-// dialect name the core reading answers, and the suffixes it reads.
+// dialect name the core reading answers, the suffixes it reads and, for an
+// impact or module dialect, the reverse-reference rule core runs for it.
 type Dialect struct {
 	Kind     DialectKind
 	Name     string
 	Suffixes []string
+	Rule     Rule
 }
 
 // Language is the provider-free declaration of one language plugin.
@@ -50,21 +87,21 @@ type Language struct {
 }
 
 var languages = []Language{
-	{Name: "dotnet", Dialects: []Dialect{{ModuleDialect, "csharp", []string{".cs"}}}},
+	{Name: "dotnet", Dialects: []Dialect{{ModuleDialect, "csharp", []string{".cs"}, NamespaceUsing}}},
 	// .kts is a build or script file nothing imports, so it carries no reading.
-	{Name: "kotlin", Dialects: []Dialect{{ModuleDialect, "kotlin", []string{".kt"}}}},
+	{Name: "kotlin", Dialects: []Dialect{{ModuleDialect, "kotlin", []string{".kt"}, PackageImports}}},
 	{
 		Name:         "ruby",
-		Dialects:     []Dialect{{ImpactDialect, "ruby", []string{".rb"}}, {RegionDialect, "ruby", []string{".rb", ".rake"}}},
+		Dialects:     []Dialect{{ImpactDialect, "ruby", []string{".rb"}, ConstantReferences}, {RegionDialect, "ruby", []string{".rb", ".rake"}, ""}},
 		Dependencies: map[string]string{"rspec": "rspec", "rspec-core": "rspec", "rspec-rails": "rspec", "minitest": "minitest"},
 	},
-	{Name: "swift", Dialects: []Dialect{{ModuleDialect, "swift", []string{".swift"}}}},
+	{Name: "swift", Dialects: []Dialect{{ModuleDialect, "swift", []string{".swift"}, TargetModules}}},
 	{
 		Name: "typescript",
 		Dialects: []Dialect{
-			{ImpactDialect, "javascript", []string{".js", ".jsx", ".mjs", ".cjs"}},
-			{ImpactDialect, "typescript", []string{".ts", ".tsx"}},
-			{RegionDialect, "web", []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}},
+			{ImpactDialect, "javascript", []string{".js", ".jsx", ".mjs", ".cjs"}, ModuleImports},
+			{ImpactDialect, "typescript", []string{".ts", ".tsx"}, ModuleImports},
+			{RegionDialect, "web", []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}, ""},
 		},
 		Dependencies: map[string]string{"jest": "jest", "vitest": "vitest", "@playwright/test": "playwright", "mocha": "mocha",
 			"cypress": "cypress", "jasmine": "jasmine", "ava": "ava", "testcafe": "testcafe",
@@ -87,7 +124,7 @@ var pluginDirs = []struct {
 	{"java", []string{"cmd/corvint-analyzer-java", "internal/analyzernativebridge", "internal/liveverify/affected/java"}},
 	{"kotlin", []string{"cmd/corvint-analyzer-kotlin-android", "internal/analyzerkotlinandroid", "internal/liveverify/affected/kotlin"}},
 	{"python", []string{"cmd/corvint-analyzer-python", "internal/analyzerpython", "internal/liveverify/affected/python", "internal/liveverify/pymutate", "internal/liveverify/pyresolve", "internal/pythongrammar", "internal/pythonsyntax"}},
-	{"ruby", []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby", "internal/extmutate", "internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubylinecov", "internal/rubyprofile", "internal/rubytestprovider"}},
+	{"ruby", []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby", "internal/extmutate", "internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubydialect", "internal/rubylinecov", "internal/rubyprofile", "internal/rubytestprovider"}},
 	{"rust", []string{"cmd/corvint-analyzer-rust", "internal/analyzerrust", "internal/liveverify/affected/rust"}},
 	{"shell", []string{"cmd/corvint-analyzer-shell", "internal/analyzershell", "internal/liveverify/affected/shell"}},
 	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/swiftimpact"}},
@@ -140,6 +177,32 @@ func DialectFor(kind DialectKind, name string) string {
 		for _, d := range l.Dialects {
 			if d.Kind == kind && contains(d.Suffixes, ext) {
 				return d.Name
+			}
+		}
+	}
+	return ""
+}
+
+// RuleFor returns the rule of the dialect of kind whose suffixes include
+// name's extension, or "" when no plugin declares one (LGP-V0-024).
+func RuleFor(kind DialectKind, name string) Rule {
+	ext := path.Ext(name)
+	for _, l := range languages {
+		for _, d := range l.Dialects {
+			if d.Kind == kind && contains(d.Suffixes, ext) {
+				return d.Rule
+			}
+		}
+	}
+	return ""
+}
+
+// RuleOf returns the rule of the dialect of kind named dialect, or "".
+func RuleOf(kind DialectKind, dialect string) Rule {
+	for _, l := range languages {
+		for _, d := range l.Dialects {
+			if d.Kind == kind && d.Name == dialect {
+				return d.Rule
 			}
 		}
 	}
