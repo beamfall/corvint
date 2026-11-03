@@ -1132,6 +1132,10 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 		strings.Contains(on, "push") || strings.Contains(on, "workflow_run") {
 		t.Fatalf("ci-forward-bar.yml triggers:\n%s", on)
 	}
+	// V1-4360: hourly, so accept.sh's page budget reaches back past the verdict's listing.
+	if !strings.Contains(on, `cron: "17 * * * *"`) {
+		t.Fatalf("ci-forward-bar.yml is not hourly:\n%s", on)
+	}
 	for _, want := range []string{"if: github.ref == 'refs/heads/main'", "run: sh trusted/.github/forward-rows/verdict.sh",
 		"sparse-checkout: .github/forward-rows", "ref: ${{ github.sha }}"} {
 		if !strings.Contains(bar, want) {
@@ -1149,7 +1153,9 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 		"github.event.pull_request.base.ref == 'main'", "ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}",
 		// AFP-V0-730: a merge-queue entry only on main and only while its own variable is on.
 		"(github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')",
-		"VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml", "run: sh trusted/.github/forward-rows/accept.sh"} {
+		"VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml", "run: sh trusted/.github/forward-rows/accept.sh",
+		// V1-4360: the page budget reaches an hourly verdict's listing through a delayed schedule.
+		`KILL_PAGES: "60"`} {
 		if !strings.Contains(verdictJob, want) {
 			t.Fatalf("narrowing-verdict lacks %q", want)
 		}
@@ -1346,5 +1352,43 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 		"DOCS_MODE=FULL", "SHARDS=" + strconv.Itoa(shards), "GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "::error::AFP-V0-591: the shard coverage markers are unreadable. Re-run all jobs.") {
 		t.Fatalf("unreadable markers: err=%v output:\n%s", err, out)
+	}
+}
+
+// AFP-V0-2185 (V1-4360): the cache-prune workflow alone holds actions: write, runs only on main,
+// and deletes every CodeQL overlay entry but the newest per language prefix.
+func TestAFPV02185CachePruneKeepsNewestOverlay(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the cache-prune step runs under sh")
+	b, err := os.ReadFile("../../.github/workflows/cache-prune.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wf := string(b)
+	for _, want := range []string{"if: github.ref == 'refs/heads/main'", "permissions:\n  contents: read",
+		"    permissions:\n      actions: write", "key=codeql-overlay-base-database-"} {
+		if !strings.Contains(wf, want) {
+			t.Fatalf("cache-prune.yml lacks %q", want)
+		}
+	}
+	m := regexp.MustCompile(`(?m)^ +(sort .*superseded")$`).FindStringSubmatch(wf)
+	if m == nil {
+		t.Fatal("cache-prune.yml has no sort/awk selection")
+	}
+	dir := t.TempDir()
+	in := "1\t2026-11-01T00:00:00Z\tcodeql-overlay-base-database-go\n" +
+		"2\t2026-11-02T00:00:00Z\tcodeql-overlay-base-database-go\n" +
+		"3\t2026-10-30T00:00:00Z\tcodeql-overlay-base-database-actions\n" +
+		"4\t2026-10-31T00:00:00Z\tcodeql-overlay-base-database-go\n"
+	if err := os.WriteFile(filepath.Join(dir, "overlay"), []byte(in), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", "-c", m[1])
+	cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, "superseded"))
+	if string(got) != "1\n4\n" {
+		t.Fatalf("superseded = %q, want the two older go entries", got)
 	}
 }

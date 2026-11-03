@@ -1,0 +1,40 @@
+name: Cache prune
+
+# V1-4360: CodeQL default setup saves a codeql-overlay-base-database-* cache entry per language on
+# every main push (the Go one about 425 MB) and restores only the newest. Left alone they filled
+# the 10 GB repository cache and evicted the go-build entries the merge queue restores. This is the
+# only workflow with actions: write; ci-forward-bar.yml, whose verdict gates narrowing, stays
+# read-only.
+
+on:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cache-prune
+  cancel-in-progress: false
+
+jobs:
+  cache-prune:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Delete superseded CodeQL overlay cache entries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api --paginate "repos/$REPO/actions/caches?key=codeql-overlay-base-database-&per_page=100" \
+            --jq '.actions_caches[] | [.id, .created_at, (.key | sub("-[0-9a-f]{40}.*$"; ""))] | @tsv' > "$RUNNER_TEMP/overlay"
+          sort -t "$(printf '\t')" -k3,3 -k2,2r "$RUNNER_TEMP/overlay" | awk -F '\t' 'seen[$3]++ { print $1 }' > "$RUNNER_TEMP/superseded"
+          echo "V1-4360: $(wc -l < "$RUNNER_TEMP/overlay") overlay entries, deleting $(wc -l < "$RUNNER_TEMP/superseded") superseded"
+          while read -r id; do
+            gh api -X DELETE "repos/$REPO/actions/caches/$id" > /dev/null || echo "::warning::cache $id could not be deleted"
+          done < "$RUNNER_TEMP/superseded"

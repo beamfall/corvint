@@ -369,6 +369,10 @@ jobs:
           # Must equal CORVINT_PR_FORWARD_EPOCH below and FORWARD_EPOCH in ci-forward-bar.yml.
           FORWARD_EPOCH: "2"
           VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml
+          # V1-4360: 60 pages of 100 (about 8 hours at the 2026-11-02 rate) reach back past an hour
+          # before an hourly verdict's listing even when GitHub delays the schedule; the listing
+          # stops at that point, so a fresh verdict still reads only a few pages.
+          KILL_PAGES: "60"
         run: sh trusted/.github/forward-rows/accept.sh
 
   go-product-shard:
