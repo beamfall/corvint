@@ -20,7 +20,8 @@ remainder named there and in V1-1002 was "Linux ... and the `qualify-keep-report
 
 The fixture is the one in `TestPWPV0010KeepReportersLive`. It keeps the reporters list, html,
 json, junit and a local `shape-reporter.cjs`. It has one passing and one failing test, and neither
-test requests a browser fixture. So both tests are recorded as `browser: "none"`, reason
+test requests a browser fixture. On Linux the reporter resolves no qualified launch identity,
+because that identity requires darwin/arm64. So both tests are recorded as `browser: "none"`, reason
 `no-browser-use` (`PWP-V3-014`), and the headless shell is installed but never launched by the
 fixture. The browserless tests qualify on the runner/Node tuple alone (`PWP-V3-015`), which has no
 OS field. So this run qualifies non-interference on Linux. It does **not** admit a Linux browser
@@ -37,21 +38,23 @@ includes `TestQualifiedPlaywright*Live*` and `TestPWPV0035SensitiveProfileLive`.
 a false pass. The run failed closed as `MTV-V0-950` requires.
 
 Fix: `internal/jstestprovider/externallive/loopback_test.go` imports the client. It adds
-`TestExternalLiveLinksLoopbackClient`, which needs no Playwright and runs in the ordinary gate. It
-runs an external-server e2e against a live `httptest` server and fails on the unlinked-client
-refusal. It passes with the import and fails with the import commented out (both observed).
+`TestExternalLiveLinksLoopbackClient`, which starts no process and runs in the ordinary gate. It
+runs an external-server e2e against an `httptest` server that answers 503, with a 200 ms readiness
+limit. It requires `server-not-ready` with the probe actually reached, and fails on the
+unlinked-client detail. It passes with the import and fails with the import commented out (both observed).
 
-## Finding 2: an all-browserless suite launched by bare `npx` leaves Node unobserved (not fixed)
+## Finding 2: a browserless test under a bare `npx` launch leaves Node unobserved (not fixed)
 
 With the fix, the bare in-process run reaches Playwright. The kept-reporter subtests pass, but the
 qualification is `not-qualified` with reasons `keep-reporters-control-unqualified` and
 `keep-reporters-keep-unqualified`, and `nodeVersion: ""`. Cause: `nodeVersionFor` observes Node only
 from an absolute node `argv[0]` or `npm_node_execpath`. The fallback `recordedNodeVersion` reads
-only `use.corvintBrowser.nodeVersion`, which a `browser: "none"` test does not carry. So the
+only `use.corvintBrowser.nodeVersion`, which a `browser: "none"` test does not carry; it returns "" as soon as any one test lacks it. So the
 runtime tuple is `unobserved` and no outcome can pass. This is the correct abstention for missing
-evidence, not a Linux defect. It holds on any OS whenever every test is browserless and the
-provider is not started under npm. It is also why the macOS V1-1002 run, whose tests carried
-browser identity, qualified with this fixture. Closing it means a report-level Node version from
+evidence, not a Linux defect. It holds on any OS whenever any test is browserless and the
+provider is not started under npm. It is also why the macOS V1-1002 run qualified with this fixture. On darwin/arm64 the reporter
+resolves a qualified bundled identity from the config whether or not a test uses a browser, so
+those tests carried a Node version. Closing it means a report-level Node version from
 the reporter. That changes the reporter-to-provider report, so it needs its own requirement. It
 is left for a follow-up ticket and is not changed here.
 
@@ -119,7 +122,7 @@ absolute paths, so they are not committed. The digests above identify them.
 | PWP-V0-014 provider-first order | PASS (observed `FullConfig.reporter`) |
 | PWP-V0-015 `qualify-keep-reporters` CLI | PASS under an npm launch (step B). The bare launch abstains (finding 2) |
 | PWP-V0-016 carried record projects exactly | PASS (step C). Abstains with no record (D) or unobserved Node (E) |
-| PWP-V0-017 closed record | Records decoded by `e2e` in steps C and E; no separate decode probe |
+| PWP-V0-017 closed record | Records decoded by `e2e` in steps C and E; no separate decode probe, so a closed-shape probe on Linux is `NOT_RUN` |
 | PWP-V0-018 missing evidence never qualifies | PASS: Node unobserved gives `not-qualified`, never `qualified` |
 | PWP-V0-055 scratch files not inputs | PASS on a non-symlinked `/tmp` only |
 

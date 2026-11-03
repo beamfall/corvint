@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,9 +21,10 @@ import (
 	_ "github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 )
 
-// TestExternalLiveLinksLoopbackClient runs no Playwright: an external-server
-// run whose readiness URL is up must get past the readiness probe, so it can
-// never fail with the unlinked-client refusal.
+// TestExternalLiveLinksLoopbackClient runs no Playwright and starts no
+// process: the readiness URL answers 503, so a linked client probes it until
+// the short readiness limit and fails with the deadline. An unlinked client
+// would refuse at once with the unlinked-client detail instead.
 func TestExternalLiveLinksLoopbackClient(t *testing.T) {
 	root := t.TempDir()
 	config := filepath.Join(root, "playwright.config.cjs")
@@ -32,8 +34,10 @@ func TestExternalLiveLinksLoopbackClient(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	var probes atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("ok"))
+		probes.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer server.Close()
 	receipt, err := jstestprovider.RunE2E(context.Background(), jstestprovider.E2EConfig{
@@ -42,12 +46,18 @@ func TestExternalLiveLinksLoopbackClient(t *testing.T) {
 			RunnerName: "playwright", RunnerVersion: "1.64.0", Timeout: 10 * time.Second,
 		},
 		ExternalServer: true, AppIdentity: "loopback-link", ServerReadyURL: server.URL,
-		TestArgv: []string{"a.spec.cjs"},
+		ServerReadyLimit: 200 * time.Millisecond, TestArgv: []string{"a.spec.cjs"},
 	})
-	if receipt.Infrastructure != nil && strings.Contains(receipt.Infrastructure.Detail, "no loopback HTTP client") {
+	if err != nil {
+		t.Fatalf("RunE2E refused before the readiness probe: %v", err)
+	}
+	if receipt.Infrastructure == nil || receipt.Infrastructure.Reason != "server-not-ready" {
+		t.Fatalf("want server-not-ready from the 503 readiness URL, got %+v", receipt.Infrastructure)
+	}
+	if strings.Contains(receipt.Infrastructure.Detail, "no loopback HTTP client") {
 		t.Fatalf("externallive links no loopback client: %+v", receipt.Infrastructure)
 	}
-	if err != nil && strings.Contains(err.Error(), "no loopback HTTP client") {
-		t.Fatalf("externallive links no loopback client: %v", err)
+	if probes.Load() == 0 {
+		t.Fatal("the readiness URL was never probed")
 	}
 }
