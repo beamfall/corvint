@@ -4446,8 +4446,8 @@
     "path": "docs/specs/map-coverage-join-v0.md",
     "title": "Map Coverage Join V0",
     "reqPrefix": "MCJ-V0",
-    "intent": "accepted (owner 2026-11-03)",
-    "delivery": "partial; slice 3a (MCJ-V0-020, 021, 023, 024, and MCJ-V0-022 in shadow) experimental in `internal/funclink` (V1-4386), not yet wired into the plan or CLI",
+    "intent": "accepted",
+    "delivery": "partial",
     "claim": "Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.",
     "dependsOn": [
       "docs/specs/application-map-v0.md",

@@ -2,8 +2,8 @@
 
 Owner: Russell Lewis
 Date: 2026-11-03
-Intent status: accepted (owner 2026-11-03)
-Delivery status: partial; slice 3a (MCJ-V0-020, 021, 023, 024, and MCJ-V0-022 in shadow) experimental in `internal/funclink` (V1-4386), not yet wired into the plan or CLI
+Intent status: accepted
+Delivery status: partial
 Authoritative inputs: owner request of 2026-11-03 (tie line-level test selection to the site map,
 page objects and the generated documentation across unit, integration and E2E tests, and stop
 re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V0-950..963);
@@ -12,7 +12,7 @@ re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V
 
 ## Agent digest
 - Claim: Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.
-- Status: accepted/partial (slice 3a experimental)
+- Status: accepted / partial
 - Exists: slice 3a as an experimental library, `internal/funclink` (V1-4386): functional units with code and test sets built from AFU-V1 declared links, the AMAP-V0 map and impact join, SKH-V0 page objects, steps and setup records, and an injected observed source; `functionality-link` gap-filling, test-side surface selection, the shadow fallback-replacement record and the gap report. It is not yet called by `corvint affected` or the CI selector, reads no project-config ownership, and has no observed source until the segment join (slices 1 and 3) exists. The rest of this join does not exist. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
 - Blocked on: a non-Go collector (LPCV-V0-955) for the observed links and segment requirements. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
 - Read next: Requirements; Functionality links; Shared-step selection; Failure modes; Delivery slices; Owner questions.
