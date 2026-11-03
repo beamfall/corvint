@@ -58,3 +58,37 @@ func TestSelectPackagesHonorsDeclaredReadScopes(t *testing.T) {
 		})
 	}
 }
+
+// TestSelectBoundsDeclaredPathReaders covers TSP-V0-980: a declared package
+// whose test names a path is no rule (c) reader of a dirty path outside its
+// read scope, while an undeclared package naming the same path still is, and
+// a dirty path inside the scope still selects the declared package.
+func TestSelectBoundsDeclaredPathReaders(t *testing.T) {
+	files := map[string]string{
+		"bounded/bounded_test.go": "package bounded\n\nvar _ = []string{\"notes/\", \"docs/\"}\n",
+		"open/open_test.go":       "package open\n\nvar _ = \"notes/\"\n",
+		readScopesPath:            `{"profile":"corvint-test-read-scopes/0","packages":{"bounded":["docs/"]}}`,
+	}
+	root := writeFixture(t, files)
+	cases := []struct{ dirty, verdict, line, absent string }{
+		{"notes/x.md", "run example.com/fixture/open", "reader example.com/fixture/open <- notes/x.md", "example.com/fixture/bounded"},
+		{"docs/a.md", "run example.com/fixture/bounded", "example.com/fixture/bounded <- docs/a.md", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.dirty, func(t *testing.T) {
+			var plan Receipt
+			plan.Provider.Go.State = "RUNNABLE"
+			plan.Plan.Dirty = []string{tc.dirty}
+			output := strings.Join(selectPackages(plan, fixtureModule, root, true), "\n")
+			if !strings.HasSuffix(output, "\n"+tc.verdict) {
+				t.Fatalf("verdict is not %q:\n%s", tc.verdict, output)
+			}
+			if !strings.Contains(output+"\n", tc.line+"\n") {
+				t.Fatalf("output lacks %q:\n%s", tc.line, output)
+			}
+			if tc.absent != "" && strings.Contains(output, tc.absent) {
+				t.Fatalf("output names %q:\n%s", tc.absent, output)
+			}
+		})
+	}
+}
