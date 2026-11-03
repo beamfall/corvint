@@ -4446,7 +4446,7 @@
     "path": "docs/specs/map-coverage-join-v0.md",
     "title": "Map Coverage Join V0",
     "reqPrefix": "MCJ-V0",
-    "intent": "accepted (owner 2026-11-03)",
+    "intent": "accepted",
     "delivery": "experimental (slices 1, 4 and 7 in `internal/linecov`); other slices not-started",
     "claim": "Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.",
     "dependsOn": [
