@@ -16,7 +16,8 @@
 # coverage under that test at exit.
 #
 # A process that replaces itself through exec (bundle exec, a wrapper script)
-# writes its dump first, since exec skips at_exit.
+# writes its dump first, since exec skips at_exit. An exec that fails (a
+# missing command) drops the dump's closing lines and keeps collecting.
 #
 # It writes JSON lines by hand rather than requiring json, so it never
 # activates a gem version the project's bundle pins differently.
@@ -37,6 +38,7 @@ module CorvintLinecov
   @current = nil
   @framework = nil
   @hook = nil
+  @forked = false
 
   class << self
     attr_reader :framework
@@ -139,23 +141,40 @@ module CorvintLinecov
       nil
     end
 
-    def finish
+    # finish writes the closing dump and returns the offset where its closing
+    # lines begin, or nil when there is nothing to write.
+    def finish(keep_open: false)
       return unless @out
 
       if Process.pid != @pid # a fork: dump under the test running at fork
         @out = File.open(File.join(DIR, "child-#{Process.pid}-#{rand(1 << 32)}.jsonl"), 'w')
+        @out.sync = true
+        @pid = Process.pid
+        @forked = true
         emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'])
       end
-      if SUITE && Process.pid == @pid
+      if SUITE && !@forked
         take('load')
         emit('kind' => 'framework', 'name' => @framework&.first, 'version' => @framework && version)
       else
         take('child', 'test' => ENV['CORVINT_LINECOV_TEST'])
       end
+      mark = @out.pos
       emit('kind' => 'files', 'files' => @files.transform_values { |l, m| { 'lines' => l, 'methods' => m } })
       emit('kind' => 'done')
+      return mark if keep_open
+
       @out.close
       @out = nil
+    end
+
+    # resume reopens a dump whose exec failed: the coverage taken before it
+    # stays, and the closing lines from mark on are dropped.
+    def resume(mark)
+      return unless mark && @out
+
+      @out.truncate(mark)
+      @out.seek(mark)
     end
 
     def emit(value)
@@ -182,8 +201,10 @@ module CorvintLinecov
 
   module ExecHook
     def exec(*args)
-      CorvintLinecov.finish
+      mark = CorvintLinecov.finish(keep_open: true)
       super
+    ensure # reached only when exec failed
+      CorvintLinecov.resume(mark)
     end
   end
 

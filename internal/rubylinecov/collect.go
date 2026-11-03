@@ -131,6 +131,12 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 	if len(bytes.TrimSpace(status)) != 0 {
 		return nil, errors.New("rubylinecov: the checkout has modified tracked files")
 	}
+	// The suite runs in Root, so a relative Work must not resolve against it.
+	work, err := filepath.Abs(o.Work)
+	if err != nil {
+		return nil, err
+	}
+	o.Work = work
 	pathIn := o.PathIn
 	if pathIn == nil {
 		pathIn = func(p string) string { return p }
