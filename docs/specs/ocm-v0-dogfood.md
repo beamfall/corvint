@@ -379,8 +379,9 @@ claim, and mutation ordering deltas below.
   frozen conformance bytes hold no four-digit ID. Failure mode: the win-w59 lane seal (2026-11-02)
   was refused `missing-requirements` for a spec whose IDs all had four digits. Non-goals: the
   lexical-relevance-floor term-scan ID grammar (decision 0265, mirrored by the portable CEM
-  consumer), the `PREFIX-NNN..NNN` range and test-name tracing forms, and the dogfood proposal
-  matchers, which stay three digits. Evidence:
+  consumer), the `PREFIX-NNN..NNN` table-range form, the dogfood proposal matchers and the retired
+  `docs/lrf-0.schema.json` `requirementId`, which stay three digits; the test-name tracing forms are
+  built from the ID string and already trace four-digit IDs. Evidence:
   `TestOCMV0952IntentAcceptsFourDigitRequirementIDs`,
   `TestOCMV0952ObligationIDsAcceptFourDigits`,
   `TestOCMV0952CoverageReadsFourDigitRequirementLines`,

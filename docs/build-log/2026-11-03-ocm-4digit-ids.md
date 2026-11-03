@@ -25,9 +25,10 @@ covers each consumer of an OCM obligation ID, so a four-digit intent is not refu
 | `internal/dogfoodflow/ocm_coverage.go` `requirementLine` | yes | the coverage reader mirrors `OCM-V0-001`'s line syntax and would otherwise report a four-digit intent as having no requirements |
 | `internal/console/chain.go` `requirementLine` | yes | the clause display mirrors the same syntax |
 | `internal/cem/verify/support.go` `supportRequirementID` | no | the frozen lexical-relevance-floor term-scan grammar (decision 0265), which the portable CEM consumer mirrors byte for byte; changing it changes CEM verdict terms |
-| `internal/dogfoodflow/ocm_coverage.go` `requirementRange` | no | the `OCM-V0-900`/`OCM-V0-950` range-tracing form; four-digit ranges are a separate amendment (follow-up) |
+| `internal/dogfoodflow/ocm_coverage.go` `requirementRange` | no | the `OCM-V0-900`/`OCM-V0-950` table-range form (the test-name forms are built from the ID string and already trace four-digit IDs); four-digit ranges are a separate amendment (follow-up) |
 | `internal/dogfoodflow/propose*.go` (`requirementToken`, `requirementDefinition`, `changeRequirementID`) | no | the dogfood proposal heuristics, outside the OCM admission path; widening them changes proposal ranking (follow-up) |
 | `internal/contextindex/taskcontext.go` (`contextClauseLine`, `contextRequirementID`) | no | these mirror `script/check-requirement-definitions.sh`, which is still three digits; changing only one side would make them drift (follow-up) |
+| `docs/lrf-0.schema.json` `requirementId` | no | the schema of the retired `lrf/0` projection (`CEM-V1-055`); it is frozen and has no live producer |
 | `internal/capcatalog/guide.go` `requirementPattern` | no | capability-catalog cross-references, outside OCM |
 | `internal/lrfrepo/ocm_toolchain_forms.go` spec-kit patterns | no | already `[0-9]{3,}` |
 
