@@ -699,7 +699,10 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   base-side line range of any instrumented file intersects an executed range of that test. A pure
   insertion intersects when either neighbouring base line was executed. The exclusion entry names
   the record digest, the changed ranges, and the invalidation condition "any recorded blob OID
-  changes". This is the only exclusion this section permits.
+  changes". This is the only exclusion this section permits. Executed ranges keep their columns: a
+  changed line holding code outside every coverage block (a case expression, an `else`) intersects
+  every executed range of its enclosing function. Head test names are read under every build
+  constraint, since CI may build with tags such as `-race`; a name no record holds is kept.
 - `LPCV-V0-953`: (accepted, decision 0590 (owner 2026-11-03)) The following edits never use line intersection and fall back to the static plan
   (package, import closure, declared readers, or `UNKNOWN_SCOPE`): a change outside every executable
   body (imports, type, constant, variable and package-level declarations, initialisers, signatures,
