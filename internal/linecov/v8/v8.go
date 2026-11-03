@@ -126,9 +126,10 @@ type Range struct {
 	Count int `json:"count"`
 }
 
-// CachedMap is Node's source-map-cache entry: the generated script's line
-// lengths in UTF-16 units and its source map.
+// CachedMap is Node's source-map-cache entry: the URL of the map, the
+// generated script's line lengths in UTF-16 units and its source map.
 type CachedMap struct {
+	URL         string    `json:"url"`
 	LineLengths []int     `json:"lineLengths"`
 	Data        SourceMap `json:"data"`
 }
@@ -177,6 +178,9 @@ func (l Lines) AddV8(data []byte, o Options) error {
 		mapURL := s.URL
 		if cached, ok := r.SourceMapCache[s.URL]; ok {
 			sm = &cached.Data
+			if strings.HasPrefix(cached.URL, "file://") {
+				mapURL = cached.URL // sources resolve against the map, not the script
+			}
 			if cached.LineLengths != nil {
 				starts = lineStartsFromLengths(cached.LineLengths)
 			}
@@ -184,7 +188,10 @@ func (l Lines) AddV8(data []byte, o Options) error {
 		if starts == nil {
 			b, err := read(abs)
 			if err != nil {
-				continue // a script gone since the run: nothing to bind
+				if _, keep := o.Scope(abs); keep {
+					return fmt.Errorf("v8: %s: %w", s.URL, err) // its lines would go unrecorded
+				}
+				continue // an out-of-scope script gone since the run
 			}
 			src, starts = b, lineStarts(b)
 		}
@@ -322,7 +329,7 @@ func (e executed) at(off int) bool {
 	return off >= 0 && off < len(e.ran) && e.ran[off]
 }
 
-// line reports whether any non-space unit of generated line i ran.
+// line reports whether any unit of generated line i ran.
 func (e executed) line(i int) bool {
 	end := len(e.ran)
 	if i+1 < len(e.starts) {
@@ -502,7 +509,9 @@ type istanbulSpan struct {
 
 // AddIstanbul adds a coverage-final.json report. Spans are laid from widest
 // to narrowest, so a line inside a function that never ran is unexecuted even
-// though the statement declaring the function ran.
+// though the statement declaring the function ran. A span that ran keeps its
+// first and last lines executed, since an uncalled function sharing them
+// cannot undo that the line ran.
 func (l Lines) AddIstanbul(data []byte, scope Scope) error {
 	var r Istanbul
 	if err := json.Unmarshal(data, &r); err != nil {
@@ -525,11 +534,21 @@ func (l Lines) AddIstanbul(data []byte, scope Scope) error {
 		for id, fn := range f.FnMap {
 			spans = append(spans, span{fn.Loc.Start.Line, fn.Loc.End.Line, f.F[id]})
 		}
-		sort.SliceStable(spans, func(i, j int) bool { return spans[i].hi-spans[i].lo > spans[j].hi-spans[j].lo })
+		sort.SliceStable(spans, func(i, j int) bool {
+			if wi, wj := spans[i].hi-spans[i].lo, spans[j].hi-spans[j].lo; wi != wj {
+				return wi > wj
+			}
+			return spans[i].n > 0 && spans[j].n == 0 // an uncalled body paints over its ran statement
+		})
 		lines := map[int]bool{}
 		for _, s := range spans {
 			for line := s.lo; line <= s.hi; line++ {
 				lines[line] = s.n > 0
+			}
+		}
+		for _, s := range spans {
+			if s.n > 0 {
+				lines[s.lo], lines[s.hi] = true, true
 			}
 		}
 		for line, ran := range lines {

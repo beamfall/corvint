@@ -22,6 +22,19 @@ Selection (LPCV-V0-966) uses a lexical body scanner, not a parser. It refuses in
 read, such as JSX, unbalanced braces or unterminated literals, and refusal falls back to the static
 plan, so the scanner can only lose precision, never soundness.
 
+An independent review found four ways the first cut could narrow selection unsoundly, and all four
+are fixed with tests:
+
+- An Istanbul tie between a ran statement and an uncalled callback on one line could mark the line
+  unexecuted. Ties now paint the uncalled body last, and the first and last lines of a span that ran
+  stay executed.
+- A changed test file that other files' tests load reran only its own tests. It now falls back.
+- The brace lines of a nested callback carry the callback's count. An edit there now selects the whole
+  enclosing body's tests.
+- V8 reports skipped an in-scope script they could not read. That is now an error.
+
+Node's cached map URL now resolves the map's sources.
+
 ## Evidence
 
 - `go test ./internal/jslinecov` passes for all eight runners against `testdata/repo`, which uses

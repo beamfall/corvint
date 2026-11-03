@@ -215,3 +215,55 @@ func TestAnalyzeInOrder(t *testing.T) {
 		t.Fatalf("effect %+v", e)
 	}
 }
+
+// TestAnalyzeSharedTestFile covers LPCV-V0-966: a changed test file whose
+// lines another file's tests executed falls back, since those tests load it.
+func TestAnalyzeSharedTestFile(t *testing.T) {
+	ix, err := linecov.Build("m", "c", "r", map[string]string{"shared.test.js": "s1"}, []linecov.Record{
+		{Package: "a.test.js", Name: "uses", Profile: []byte("mode: set\nm/shared.test.js:1.1,2.1 1 1\n")},
+		{Package: "shared.test.js", Name: "own", Profile: []byte("mode: set\nm/shared.test.js:1.1,2.1 1 1\n")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := Analyze(ix, []linecov.FileDiff{{Path: "shared.test.js", OldOID: "s1", NewOID: "s2", Hunks: []linecov.Hunk{{Start: 1, End: 1}}}}, nil)
+	if e.Fallback == "" {
+		t.Fatalf("effect %+v", e)
+	}
+}
+
+// TestAnalyzeNestedEdge covers LPCV-V0-966: the closing line of a nested
+// callback carries the callback's count, so an edit there selects every test
+// that entered the enclosing body.
+func TestAnalyzeNestedEdge(t *testing.T) {
+	src := "function outer(xs) {\n  const k = 2;\n  return xs.map((x) => {\n    return x * k;\n  });\n}\nmodule.exports = { outer };\n"
+	prof := func(ran ...int) []byte {
+		hit := map[int]bool{}
+		for _, l := range ran {
+			hit[l] = true
+		}
+		out := "mode: set\n"
+		for l := 1; l <= 5; l++ {
+			n := "0"
+			if hit[l] {
+				n = "1"
+			}
+			out += "m/lib.js:" + itoa(l) + ".1," + itoa(l+1) + ".1 1 " + n + "\n"
+		}
+		return []byte(out)
+	}
+	ix, err := linecov.Build("m", "c", "r", map[string]string{"lib.js": "o1"}, []linecov.Record{
+		{Package: "a.test.js", Name: "empty", Profile: prof(1, 2, 3)},
+		{Package: "a.test.js", Name: "full", Profile: prof(1, 2, 3, 4, 5)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(string) ([]byte, error) { return []byte(src), nil }
+	for line, want := range map[int][]string{4: {"full"}, 5: {"empty", "full"}} {
+		e := Analyze(ix, []linecov.FileDiff{{Path: "lib.js", OldOID: "o1", NewOID: "o2", Hunks: []linecov.Hunk{{Start: line, End: line}}}}, read)
+		if got := names(ix, e); e.Fallback != "" || !reflect.DeepEqual(got, want) {
+			t.Errorf("line %d: tests %v (fallback %q), want %v", line, got, e.Fallback, want)
+		}
+	}
+}

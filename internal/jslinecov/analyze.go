@@ -65,6 +65,9 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, read func(string) ([]b
 		}
 		e.Touched[d.Path] = true
 		if recorded[d.Path] || IsTestFile(d.Path) && d.OldOID == "" {
+			if f, ok := files[d.Path]; ok && loadedElsewhere(ix, f) {
+				return fail("test file %s runs under other test files", d.Path)
+			}
 			e.Whole[d.Path] = true
 			continue
 		}
@@ -97,7 +100,7 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, read func(string) ([]b
 			if !ok {
 				return fail("declaration-level edit %s:%d", d.Path, h.Start)
 			}
-			if !selectLines(lines, b, lo, hi, e.Tests) {
+			if !selectLines(lines, bs, b, lo, hi, e.Tests) {
 				return fail("function body without instrumented line %s:%d", d.Path, b.open)
 			}
 		}
@@ -108,6 +111,20 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, read func(string) ([]b
 		}
 	}
 	return e
+}
+
+// loadedElsewhere reports whether a test of another file executed a line of
+// test file f, which then is a module those tests load: rerunning f's own
+// tests would miss them.
+func loadedElsewhere(ix *linecov.Index, f *linecov.File) bool {
+	for _, b := range f.Blocks {
+		for _, id := range b.Tests {
+			if int(id) < len(ix.Tests) && ix.Tests[id].Package != f.Path {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // lineTests maps each instrumented line of f to the tests that executed it.
@@ -141,14 +158,22 @@ func innermost(bs []body, lo, hi int, insert bool) (body, bool) {
 
 // selectLines adds the tests that executed a line of [lo, hi]. A line no
 // block holds (blank, a comment, a brace, a type) adds every test that
-// executed a line of body b, since running code there requires entering b. It
+// executed a line of body b, since running code there requires entering b.
+// So does the opening or closing line of a body nested in b: its count is
+// the inner function's, while code edited there may run as part of b. It
 // reports false when b holds no instrumented line, so nothing proves which
 // tests enter it.
-func selectLines(lines map[int][]int32, b body, lo, hi int, out map[int32]bool) bool {
+func selectLines(lines map[int][]int32, bs []body, b body, lo, hi int, out map[int32]bool) bool {
+	edge := map[int]bool{}
+	for _, n := range bs {
+		if b.open <= n.open && n.close <= b.close && n != b {
+			edge[n.open], edge[n.close] = true, true
+		}
+	}
 	whole := false
 	for l := lo; l <= hi; l++ {
 		ts, ok := lines[l]
-		if !ok {
+		if !ok || edge[l] {
 			whole = true
 		}
 		for _, t := range ts {
