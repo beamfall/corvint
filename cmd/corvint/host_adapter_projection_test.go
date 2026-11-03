@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -83,7 +84,7 @@ func TestAHI046SilentProjectionRendersNothing(t *testing.T) {
 	t.Parallel()
 	result := map[string]any{"degradations": []any{"frontier-authority-unavailable"}, "context": map[string]any{}}
 	for _, host := range []string{"claude-code", "codex"} {
-		output := renderAdapterResult(host, "UserPromptSubmit", "user-prompt", "/repo", map[string]any{"sessionIdSha256": strings.Repeat("a", 64)}, result, false)
+		output := renderAdapterResult(context.Background(), host, "UserPromptSubmit", "user-prompt", "/repo", map[string]any{"sessionIdSha256": strings.Repeat("a", 64)}, result, false)
 		if !emptyHookOutput(output, "UserPromptSubmit") || !emptyHookSuccess(output) {
 			t.Fatalf("%s rendered a silent projection: %v", host, output)
 		}
@@ -207,7 +208,7 @@ func TestAHI216ClaudeHostLoadedGovernanceIsNotRepeated(t *testing.T) {
 	result := map[string]any{"degradations": []any{"frontier-authority-unavailable"}, "context": map[string]any{"governance": []any{agents}}}
 	input := map[string]any{"sessionIdSha256": "k"}
 	text := func(host string) string {
-		output := renderAdapterResult(host, "SessionStart", "session-start", root, input, result, false)
+		output := renderAdapterResult(context.Background(), host, "SessionStart", "session-start", root, input, result, false)
 		hook, _ := output["hookSpecificOutput"].(map[string]any)
 		context, _ := hook["additionalContext"].(string)
 		return context
@@ -301,15 +302,24 @@ func TestPURV02210_SessionStartWarnsStaleBarrier(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	result := map[string]any{"degradations": []any{}}
 	for _, host := range []string{"claude-code", "codex"} {
-		output := renderAdapterResult(host, "SessionStart", "session-start", root, map[string]any{"sessionIdSha256": "k"}, result, false)
+		output := renderAdapterResult(context.Background(), host, "SessionStart", "session-start", root, map[string]any{"sessionIdSha256": "k"}, result, false)
 		raw, _ := json.Marshal(output)
 		if !strings.Contains(string(raw), "STALE_BARRIER: pause request hook-pause-request, age 7200s") {
 			t.Fatalf("%s: %s", host, raw)
 		}
 	}
-	output := renderAdapterResult("claude-code", "UserPromptSubmit", "user-prompt", root, map[string]any{}, result, false)
+	output := renderAdapterResult(context.Background(), "claude-code", "UserPromptSubmit", "user-prompt", root, map[string]any{}, result, false)
 	raw, _ := json.Marshal(output)
 	if strings.Contains(string(raw), "STALE_BARRIER") {
 		t.Fatalf("warning outside session start: %s", raw)
+	}
+	// The hook's own context bounds the companion: an exhausted hook deadline
+	// spawns nothing and reports the observation as unknown.
+	spent, cancel := context.WithCancel(context.Background())
+	cancel()
+	output = renderAdapterResult(spent, "codex", "SessionStart", "session-start", root, map[string]any{"sessionIdSha256": "k"}, result, false)
+	raw, _ = json.Marshal(output)
+	if strings.Contains(string(raw), "STALE_BARRIER") || !strings.Contains(string(raw), "hook deadline leaves no companion budget") {
+		t.Fatalf("hook context not honoured: %s", raw)
 	}
 }

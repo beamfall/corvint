@@ -74,3 +74,28 @@ repository-wide gate and Darwin qualification are NOT_RUN for this scoped Linux 
 Revert the code and scripts; remove `barrierWarningSeconds` from policy before using the old reader.
 Barriers and receipts keep their stored formats. Reconcile reports remain advisory and existing
 native completion receipts are never rolled back by deleting reports.
+
+## Review fixes
+
+An independent review of the lane commit reported two P2 findings in `internal/taskbarrier`; both
+were reproduced against the committed logic and fixed under the existing PUR-V0-2210 text.
+
+- The companion deadline ignored the hook's context (`context.Background()` plus 500 ms), so a
+  session-start whose context collection finished near the work deadline could overrun the
+  adapter watchdog and lose its whole context to an `adapter-host-kill-deadline` degradation.
+  `Observe` now takes the hook context; `renderAdapterResult` carries it from both native adapters.
+  The companion budget is the earlier of 500 ms and the hook deadline less a 100 ms reserve
+  (twice the 50 ms `WaitDelay`), so `cmd.Run` has killed, reaped and settled the child before the
+  hook deadline. An exhausted deadline starts no companion. A grandchild that ignores the kill
+  can outlive the hook once its pipes are closed; it is read-only and bounded by its own command.
+- A journal-absent or `CORVINT_TASKS_SNAPSHOT` read answers OK with a null envelope snapshot, a
+  null barrier and an explicit journal/liveness `NOT_OBSERVED` warning; the consumer had returned
+  silence. A null barrier now counts as observed absence only with a live envelope snapshot
+  (`snapshot.headSeq`); otherwise the hook reports `NOT_OBSERVED` and carries the companion's
+  warnings. A `STALE_BARRIER` warning still wins, since only a live snapshot can produce it.
+
+Regressions `TestPURV02210_NullBarrierWithoutLiveSnapshotStaysUnknown` and
+`TestPURV02210_CompanionHonoursHookDeadline` (and the exhausted-context case added to
+`TestPURV02210_SessionStartWarnsStaleBarrier`) fail against the committed logic and pass after the
+fix. The deadline test asserts wall-clock return before a 300 ms hook deadline, so a severely
+overloaded host could make it flaky; installed-host behaviour remains NOT_OBSERVED.

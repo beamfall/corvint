@@ -16,9 +16,19 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// observeBudget is the longest the companion may run; observeCleanupReserve is
+// kept before the caller's deadline so the kill and pipe settlement (WaitDelay)
+// finish, and the child is reaped, before that deadline (PUR-V0-2210).
+const (
+	observeBudget         = 500 * time.Millisecond
+	observeWaitDelay      = 50 * time.Millisecond
+	observeCleanupReserve = 2 * observeWaitDelay
+)
+
 // Observe asks the optional companion for its advisory warnings. It has no Tasks
-// implementation imports, no writer argv, bounded output and a short deadline.
-func Observe(root string) string {
+// implementation imports, no writer argv, bounded output and a short deadline
+// derived from ctx, so it never outlives the hook that calls it.
+func Observe(ctx context.Context, root string) string {
 	// No Tasks projection means no Tasks hook integration in this checkout.
 	if _, err := os.Stat(filepath.Join(root, ".taskman", "queue.json")); err != nil {
 		if os.IsNotExist(err) {
@@ -30,12 +40,20 @@ func Observe(root string) string {
 	if err != nil {
 		return "Tasks barrier warning NOT_OBSERVED: companion unavailable"
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	budget := observeBudget
+	if deadline, ok := ctx.Deadline(); ok {
+		budget = min(budget, time.Until(deadline)-observeCleanupReserve)
+	}
+	if budget <= 0 || ctx.Err() != nil {
+		return "Tasks barrier warning NOT_OBSERVED: hook deadline leaves no companion budget"
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, "queue", "status", "--fields", "barrier")
 	cmd.Dir = root
-
-	cmd.WaitDelay = 50 * time.Millisecond
+	// Run returns only after the child is reaped and its pipe settled, at most
+	// WaitDelay after the derived deadline.
+	cmd.WaitDelay = observeWaitDelay
 	var out boundedOutput
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil || out.overflow {
@@ -50,6 +68,16 @@ func Observe(root string) string {
 		if strings.HasPrefix(warning, "STALE_BARRIER:") {
 			return warning
 		}
+	}
+	// A journal-absent or CORVINT_TASKS_SNAPSHOT read is OK with no envelope
+	// snapshot and a null barrier; only a live journal snapshot makes a null
+	// barrier observed absence. The companion's own uncertainty is kept.
+	if res.Snapshot == nil || res.Snapshot.HeadSeq == nil {
+		why := "no live journal snapshot"
+		if len(res.Warnings) > 0 {
+			why += "; companion: " + strings.Join(res.Warnings, "; ")
+		}
+		return "Tasks barrier warning NOT_OBSERVED: " + why
 	}
 
 	if len(res.Items) != 1 {
