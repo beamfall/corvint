@@ -53,6 +53,18 @@ const (
 	TargetModules Rule = "target-modules"
 )
 
+// RuleKind returns the dialect kind rule belongs to, or "" for a rule core
+// does not implement (LGP-V0-024).
+func RuleKind(rule Rule) DialectKind {
+	switch rule {
+	case ConstantReferences, ModuleImports:
+		return ImpactDialect
+	case NamespaceUsing, PackageImports, TargetModules:
+		return ModuleDialect
+	}
+	return ""
+}
+
 // Dialect is one core reading a plugin's sources select: its kind, the
 // dialect name the core reading answers, the suffixes it reads and, for an
 // impact or module dialect, the reverse-reference rule core runs for it.

@@ -171,14 +171,15 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   only the standard library. A plugin registers an `Impact` profile (code-line mask, probes, load
   pattern, static-load judgement, optional verification command) or a `Region` (normalizer,
   optional symbol extractor) under a dialect name its declaration carries; a duplicate, empty or
-  incomplete registration panics at link time. Core looks hooks up by the declared dialect name and
+  incomplete registration, including a probe without a code or pattern, panics at link time. Core looks hooks up by the declared dialect name and
   never by a language name of its own. A plugin package may import `internal/langplugin/decl` and
   `internal/langplugin/dialect`, which are provider-free leaves, and still no core package
   (LGP-V0-020).
 - `LGP-V0-024`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) An impact or module dialect
   declares the reverse-reference `Rule` core runs for it: `constant-references`, `module-imports`,
   `namespace-using`, `package-imports` or `target-modules`; a region dialect declares none.
-  `Validate` refuses an impact or module dialect without a rule and a region dialect with one.
+  `Validate` refuses an impact or module dialect without a rule, a region dialect with one, and a
+  rule core does not implement for the dialect's kind (`decl.RuleKind`).
   Core reads `decl.RuleFor(kind, path)` and `decl.RuleOf(kind, dialect)` and switches on the rule,
   so a second language sharing a rule needs no core edit.
 - `LGP-V0-025`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4408) The Ruby plugin's package
@@ -217,7 +218,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 | A plugin package starts importing a core package | isolation test (LGP-V0-020) | test fails naming the plugin and import chain |
 | A remaining core literal has no recorded reason | ratchet (LGP-V0-019) | test fails naming the entry |
 | Two plugins register the same dialect hook, or one registers an incomplete hook | `dialect.Register*` (LGP-V0-023) | panic at init naming the dialect |
-| An impact or module dialect declares no rule | `Validate` (LGP-V0-024) | test fails naming plugin and dialect |
+| An impact or module dialect declares no rule, or a rule core does not implement for its kind | `Validate` (LGP-V0-024) | test fails naming plugin and dialect |
 | A declared dialect's plugin hooks are not linked | `ImplementedDialects` (LGP-V0-026) | `source-analysis-unavailable` or an extraction note; conformance test fails |
 
 The ratchet compares exact string literals only, so a name built by concatenation or held in a
@@ -268,7 +269,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-019 | ratchet in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
 | LGP-V0-020, 021 | `langplugin.Dirs`, `tools/plugin-dirs`, `make plugin-test` | `TestPluginIsolation_LGPV0020`, per-plugin subtests |
 | LGP-V0-022 | unchanged behavior | existing tests |
-| LGP-V0-023 | `internal/langplugin/dialect` | `TestPluginIsolation_LGPV0020`, `TestRegistersDeclaredDialects_LGPV0025` |
+| LGP-V0-023 | `internal/langplugin/dialect` | `TestPluginIsolation_LGPV0020`, `TestRegistersDeclaredDialects_LGPV0025`, `TestRegisterRefusesIncompleteHooks_LGPV0023` |
 | LGP-V0-024 | `decl.Rule`, `langplugin.Validate`, rule switches in `internal/contextindex` | `TestManifestsValidate_LGPV0007`, existing impact tests |
 | LGP-V0-025 | `internal/rubydialect` | `rubydialect_test.go`, existing Ruby impact and symbol tests |
 | LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` |
