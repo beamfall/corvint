@@ -14,6 +14,18 @@
 # lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
 # script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name Python
 # (GOC-V0-008).
+#
+# Scratch and host independence (ASD-V0-2371, ASD-V0-2372, V1-4350, V1-4351):
+# - Every scratch path lives under one mktemp root, $tmp, under the caller's TMPDIR. The suite
+#   exports TMPDIR=$tmp/tmpdir, so a fixture that inherits TMPDIR (heavy.sh's private heavy-run.*
+#   directories, the Makefile's corvint-go-build-cache default) never writes into the caller's
+#   TMPDIR. $tmp is removed on EXIT, and INT, TERM and HUP exit through that trap. A full run leaves
+#   the caller's TMPDIR exactly as it found it.
+# - Whether /tmp (or TMPDIR) is a tmpfs never decides a result. HEAVY_TMP_FSTYPE=disk pins heavy.sh's
+#   file-system probe for every group, and group ASD-V0-2372 runs both probe branches on every
+#   invocation through a fake `stat` (answering `stat -f -c %T /tmp` with tmpfs, then ext2/ext3) and
+#   a fake `uname -s` (Linux, so a macOS host takes the same path), the way other groups stub `go`,
+#   `ssh`, `sysctl` and `git` for their fixture paths.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -29,8 +41,13 @@ script=$(cd "$(dirname "$0")" && pwd)
 tmp=${TMPDIR:-/tmp}
 tmp=$(mktemp -d "${tmp%/}/corvint-lane-scripts-test.XXXXXX") || exit 1
 trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 # ASD-V0-2191: all fixtures start from the same private environment, independent of the caller.
-export TMPDIR=$tmp XDG_CACHE_HOME=$tmp/xdg
+# ASD-V0-2371 (V1-4350): fixtures that inherit TMPDIR write under $tmp, never the caller's TMPDIR.
+mkdir "$tmp/tmpdir" || exit 1
+export TMPDIR=$tmp/tmpdir XDG_CACHE_HOME=$tmp/xdg
 unset CORVINT_GOCACHE GOCACHE GOTMPDIR
 # Shared fixture helpers are available even when their former first test is not selected.
 g() { git -c user.name=t -c user.email=t@example.invalid -c init.defaultBranch=main "$@"; }
@@ -1881,6 +1898,39 @@ wp_refused "$rc"
 [[ $(HEAVY_LOCK_DIR="$wp/missing/locks" "$heavy" --print-lock-dir) == "$wp/missing/locks" && ! -e $wp/missing ]] || fail "heavy.sh --print-lock-dir wrote a directory"
 wprun && [[ -e $wp/ran ]] || fail "heavy.sh refused writable overrides: $(cat "$wp/out" "$wp/err")"
 [[ -z $(find "$wp" -name '.heavy-write.*' -print) ]] || fail "heavy.sh left write-probe files"
+# ASD-V0-2372 (V1-4351): both branches of heavy.sh's /tmp file-system probe run on every invocation,
+# whatever the host's /tmp or TMPDIR is. With HEAVY_TMP_FSTYPE unset, a fake `stat` answers the probe
+# (`stat -f -c %T /tmp`) with tmpfs, then ext2/ext3, and passes any other call to the real stat; a
+# fake `uname` answers `-s` with Linux, so a macOS host probes too. The caller keeps TMPDIR and sets
+# no Go cache: the tmpfs answer moves only the Go cache to the home disk, the disk answer keeps it
+# under TMPDIR, and each run must have asked the fake stat about /tmp.
+fs=$tmp/fstype
+mkdir -p "$fs/bin" "$fs/disk" || fail "fstype fixture"
+real_stat=$(command -v stat) real_uname=$(command -v uname)
+cat > "$fs/bin/stat" << FAKESTAT || fail "fake stat"
+#!/bin/sh
+printf 'stat %s\n' "\$*" >> "$fs/probe.log"
+if [ "\$#" = 4 ] && [ "\$1" = -f ] && [ "\$2" = -c ] && [ "\$3" = %T ] && [ "\$4" = /tmp ]; then printf '%s\n' "\$LANE_TEST_FSTYPE"; exit 0; fi
+exec "$real_stat" "\$@"
+FAKESTAT
+cat > "$fs/bin/uname" << FAKEUNAME || fail "fake uname"
+#!/bin/sh
+[ "\$*" = -s ] && { echo Linux; exit 0; }
+exec "$real_uname" "\$@"
+FAKEUNAME
+chmod +x "$fs/bin/stat" "$fs/bin/uname" || fail "fstype stubs"
+fsv() { tfv env -u HEAVY_TMP_FSTYPE PATH="$fs/bin:$tf/bin:$to/bin:$PATH" LANE_TEST_FSTYPE="$1" TMPDIR="$fs/disk"; }
+: > "$fs/probe.log"
+out=$(fsv tmpfs)
+[[ $out == "tmp=$fs/disk cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" ]] &&
+  grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache" "$tf/err" &&
+  grep -qxF 'stat -f -c %T /tmp' "$fs/probe.log" ||
+  fail "heavy.sh tmpfs probe branch: $out $(cat "$tf/err" "$fs/probe.log")"
+: > "$fs/probe.log"
+out=$(fsv ext2/ext3)
+[[ $out == "tmp=$fs/disk cache=$fs/disk/corvint-go-build-cache corvint=$fs/disk/corvint-go-build-cache" ]] &&
+  ! grep -q 'is a tmpfs' "$tf/err" && grep -qxF 'stat -f -c %T /tmp' "$fs/probe.log" ||
+  fail "heavy.sh disk probe branch: $out $(cat "$tf/err" "$fs/probe.log")"
 ok
 fi
 if selected admission 32; then
