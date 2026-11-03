@@ -71,14 +71,16 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 // Core dependency closure of the explicit CAL-V0-022 pack adapter and the
 // dispatcher's process-group Owner. internal/taskprojection joins it because
 // internal/contextindex classifies Tasks store projection paths with it (V1-2068);
-// internal/clitree because internal/tasks/cli builds its command tree with it (V1-2685).
+// internal/clitree because internal/tasks/cli builds its command tree with it (V1-2685);
+// internal/langplugin/decl because internal/contextindex reads its language
+// dialects from it (LGP-V0-015).
 var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
 
 var tasksExportPrefixes = []string{
 	"cmd/corvint-tasks/", "internal/tasks/",
 	"internal/cem/cemcode/", "internal/cem/gitrun/", "internal/clitree/",
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
-	"internal/projectprofile/", "internal/pythongrammar/", "internal/pythonsyntax/",
+	"internal/langplugin/decl/", "internal/projectprofile/", "internal/pythongrammar/", "internal/pythonsyntax/",
 	"internal/rubyautoload/", "internal/runtimeenv/", "internal/secretscreen/", "internal/taskprojection/",
 	"internal/untrackedallowance/",
 }

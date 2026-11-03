@@ -1,11 +1,12 @@
 package contextindex
 
 import (
-	"path"
 	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/langplugin/decl"
 )
 
 // NormalizedLine is one source line in the comment- and whitespace-insensitive
@@ -20,14 +21,15 @@ type NormalizedLine struct {
 // Ruby source (`.rb`, or a `.rake` task file, IDX-SNAP-V0-109), "web" for a
 // TypeScript or JavaScript source, and "" for every other language, which has
 // no region normalizer.
+// The suffixes are the region dialects language plugins declare (LGP-V0-015).
 func SymbolRegionLanguage(name string) string {
-	switch path.Ext(name) {
-	case ".rb", ".rake":
-		return "ruby"
-	case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs":
-		return "web"
-	}
-	return ""
+	return decl.DialectFor(decl.RegionDialect, name)
+}
+
+// regionNormalizers are the implemented region dialects (LGP-V0-016).
+var regionNormalizers = map[string]func(string) ([]NormalizedLine, bool){
+	"ruby": func(text string) ([]NormalizedLine, bool) { return rubyNormalizedLines(text), true },
+	"web":  webNormalizedLines,
 }
 
 // NormalizedCodeLines returns a source's code lines with comments removed,
@@ -43,11 +45,8 @@ func NormalizedCodeLines(name string, data []byte) ([]NormalizedLine, bool) {
 		return nil, false
 	}
 	text := normalizeLineEndings(string(data))
-	switch SymbolRegionLanguage(name) {
-	case "ruby":
-		return rubyNormalizedLines(text), true
-	case "web":
-		return webNormalizedLines(text)
+	if normalize, ok := regionNormalizers[SymbolRegionLanguage(name)]; ok {
+		return normalize(text)
 	}
 	return nil, false
 }
@@ -163,4 +162,25 @@ func webNormalizedLines(text string) ([]NormalizedLine, bool) {
 		}
 	}
 	return out, true
+}
+
+// ImplementedDialects lists the dialects of kind this package implements,
+// sorted, so a test can fail when a language plugin declares one it does not
+// (LGP-V0-016).
+func ImplementedDialects(kind decl.DialectKind) []string {
+	var out []string
+	switch kind {
+	case decl.ImpactDialect:
+		out = append(out, impactDialects...)
+	case decl.ModuleDialect:
+		for _, item := range moduleDisclosures {
+			out = append(out, item.language)
+		}
+	case decl.RegionDialect:
+		for name := range regionNormalizers {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

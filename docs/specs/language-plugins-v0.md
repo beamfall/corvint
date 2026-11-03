@@ -6,15 +6,15 @@ Intent status: accepted
 Delivery status: experimental
 Authoritative inputs: owner request of 2026-11-03 (each language acts as a plugin, each testing and
 coverage tool as a plugin of that language, so Corvint core stays language-agnostic and only uses
-the plugins); ticket V1-4404; `affected-plan-v0.md` (the `affected.Language` seam);
+the plugins); tickets V1-4404 and V1-4405 (owner, 2026-11-03: the other language-specific interactions belong in the plugins too, and a language and its tooling should be testable apart from the rest of Corvint); `affected-plan-v0.md` (the `affected.Language` seam);
 `test-runner-execution-v0.md` (TRE-V0-081); `map-coverage-join-v0.md`;
 `live-proof-carrying-verification-v0.md` (LPCV-V0-950..963); `AGENTS.md` invariant 7.
 
 ## Agent digest
-- Claim: One in-process manifest per language declares its paths, provider, analyzers, runners, coverage and mutation tools; a missing piece fails a test.
+- Claim: One in-process manifest per language declares its paths, tools and dialects, which core reads instead of naming languages; each plugin tests apart.
 - Status: accepted / experimental
 - Exists: `internal/langplugin` (manifest, `Validate`, `Providers`), the table-driven `internal/testrunner/registry`, and the conformance and core-name ratchet tests.
-- Blocked on: nothing. Migrating the core packages' remaining name literals and adding non-Go coverage collectors are later slices.
+- Blocked on: nothing. Moving dialect algorithm bodies out of core and adding non-Go coverage collectors are later slices.
 - Read next: Requirements; Failure modes; Boundaries and rollback.
 
 ## User job and verified baseline
@@ -113,6 +113,59 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   tool is a `mutation` sub-plugin: `mutate-go`, `pymutate`, `rbmutate`, and `extmutate` (shared by
   Ruby and TypeScript). A new test provider likewise registers as a `test-provider` sub-plugin.
 
+- `LGP-V0-015`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A manifest
+  declares the core readings that apply to its sources as `Dialects`, each a kind, a dialect name
+  and the path suffixes it reads. The kinds are `impact` (the bounded syntax profile of
+  `contextindex.NonGoImpactLanguage`), `module` (`contextindex.ModuleRuleLanguage`) and `region`
+  (`contextindex.SymbolRegionLanguage`). `langplugin.DialectFor(kind, path)` answers each of those
+  functions from the manifests, with the same values as before: `ruby`, `javascript` and
+  `typescript` impact dialects; `swift`, `kotlin` and `csharp` module dialects; `ruby` and `web`
+  region dialects. `Validate` refuses an unknown kind, an empty dialect name or an empty or padded
+  suffix, and the conformance test refuses a suffix two plugins declare for the same kind. The
+  dialect and dependency tables live in the provider-free leaf `internal/langplugin/decl`, which
+  the manifests read, so `contextindex` reads them without linking a provider into `corvint-tasks`
+  (NGI-V0-988).
+- `LGP-V0-016`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) The core
+  package that implements a hook kind lists the dialects it implements, and a test in that package
+  fails when a manifest declares a dialect the core does not implement, or the core implements one
+  no manifest declares. `contextindex.ImplementedDialects(kind)` is that list for the three kinds
+  above.
+- `LGP-V0-017`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A manifest
+  declares `Dependencies`: an ecosystem package name (a gem, an npm package) mapped to one of the
+  plugin's own runners. `Validate` refuses a dependency whose runner the plugin does not declare,
+  or an empty package name. `langplugin.DependencyRunners(language)` returns the map. Ruby declares
+  `rspec`, `rspec-core` and `rspec-rails` (runner `rspec`) and `minitest`; TypeScript declares the
+  npm packages of its runners. The RSpec gem advice in `cmd/corvint`, the Ruby verification command
+  reading in `internal/contextindex` and the JS runner discovery of `corvint tests unselected`
+  (TSA-V0-141) read these maps instead of naming the packages, with unchanged results.
+- `LGP-V0-018`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A mutation
+  sub-plugin that Corvint runs in process declares the source `Suffixes` it mutates
+  (`mutate-go` `.go`, `pymutate` `.py`, `rbmutate` `.rb`); `extmutate` declares none.
+  `langplugin.MutationLanguage(path)` returns the plugin whose engine mutates the path's suffix, and
+  `corvint prove` reads it instead of its own suffix switch.
+- `LGP-V0-019`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) The ratchet
+  (LGP-V0-009) reads every non-test Go file under each checked directory, subpackages included and
+  `testdata` excluded. Each non-zero baseline entry carries a recorded reason, and an entry without
+  one fails the test. The baselines fall to the literals this change could not move, each with its
+  reason (a wire field or output value, a language-syntax token, a toolchain argv word, or a
+  dialect's own algorithm body).
+- `LGP-V0-020`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405)
+  `langplugin.Dirs(name)` lists a plugin's directories: its owned paths and every sub-plugin path,
+  sorted and without duplicates. A test fails, per plugin, when a non-test Go file in those
+  directories reaches `cmd/corvint`, `internal/contextindex`, `internal/testsource` or
+  `internal/langplugin` through module-internal imports, so a plugin can be built and tested apart
+  from the core. The one exemption is `internal/swiftimpact`, the Swift adapter that registers into
+  `contextindex.RegisterSwiftPMReader`; the test records its reason and fails if it goes stale.
+- `LGP-V0-021`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) `make plugin-test
+  PLUGIN=<name>` tests one language and its tooling apart from the rest of Corvint: it runs
+  `go test` over `langplugin.Dirs(name)` only (printed by `go run ./tools/plugin-dirs <name>`, which
+  refuses an unknown name) and the langplugin manifest, conformance and isolation subtests for that
+  plugin, each named by the plugin. `tools/plugin-dirs` reads `decl.Dirs`, a provider-free copy of
+  `langplugin.Dirs` that a test keeps equal, so the directory tests compile no other language's
+  provider; only the closing registry subtests build `internal/langplugin` and every provider.
+- `LGP-V0-022`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) Behavior is
+  unchanged by LGP-V0-015 to LGP-V0-021: every existing test passes unchanged.
+
 ## Failure modes
 
 | Failure | Detection | Outcome |
@@ -124,10 +177,13 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 | Core code adds a language or runner name literal | ratchet (LGP-V0-009) | test fails naming the package and literal |
 | A core name literal is removed but the baseline is not lowered | ratchet | test fails asking to lower the baseline |
 | An unknown runner reaches `Build` or `Parse` | registry | `unsupported runner`, unchanged (fail closed) |
+| A manifest declares a dialect the core does not implement, or the reverse | dialect conformance test (LGP-V0-016) | test fails naming kind and dialect |
+| A dependency maps to a runner its plugin does not declare | `Validate` (LGP-V0-017) | test fails naming plugin and package |
+| A plugin package starts importing a core package | isolation test (LGP-V0-020) | test fails naming the plugin and import chain |
+| A remaining core literal has no recorded reason | ratchet (LGP-V0-019) | test fails naming the entry |
 
 The ratchet compares exact string literals only, so a name built by concatenation or held in a
-longer literal (`"ruby:rspec:"`) is not counted, and only each listed directory's own files are read,
-not its subpackages; it bounds growth, it does not prove absence. A new runner whose name already
+longer literal (`"ruby:rspec:"`) is not counted; it bounds growth, it does not prove absence. A new runner whose name already
 appears as a core literal fails the ratchet when it is registered, and the baseline is raised then.
 
 ## Non-goals
@@ -136,7 +192,8 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 - Loading plugins at run time (Go `plugin`, shared objects, a plugin daemon or network discovery):
   registration stays compiled in, keeping the single native-Go binary (invariant 7).
 - Changing the `analyzercap` protocol, any wire format, selection, or runner argv.
-- Migrating the existing core name literals in this slice; the ratchet stops their growth.
+- Moving the dialect algorithm bodies (the Ruby autoload and impact scanners, the web lexer) out of
+  `internal/contextindex` and `internal/testsource`; their remaining literals carry recorded reasons.
 - Splitting the multi-language runner family packages (`dynamic`, `native`, `platform`).
 
 ## Acceptance evidence
@@ -148,6 +205,10 @@ appears as a core literal fails the ratchet when it is registered, and the basel
   `rspec_prefix_test.go` (`TestRSpecOnlyMembersRefusedForOtherRunners`, unchanged) for LGP-V0-011.
 - Existing `internal/testrunner/...`, `internal/liveverify/affected/languages` and affected
   selection tests passing unchanged (LGP-V0-012).
+- `TestDialectsAndDependencies_LGPV0015`, `TestPluginIsolation_LGPV0020` and the per-plugin
+  subtests in `langplugin_test.go`; `TestPluginDialectsImplemented_LGPV0016` in
+  `internal/contextindex`; `make plugin-test PLUGIN=ruby` (LGP-V0-021); existing tests passing
+  unchanged (LGP-V0-022).
 
 ## Traceability
 
@@ -160,6 +221,11 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-010, 011 | `internal/testrunner/registry/registry.go`, `internal/testrunner/dynamic/rspec_prefix.go` | `TestFamiliesAreDisjointAndComplete_LGPV0010`, `TestRSpecOnlyMembersRefusedForOtherRunners` |
 | LGP-V0-012 | unchanged behavior | existing runner, registry and selection tests |
 | LGP-V0-013, 014 | manifest `Coverage` and `Mutation` lists | `TestManifestConformance_LGPV0008` |
+| LGP-V0-015, 017, 018 | manifest `Dialects`, `Dependencies`, `SubPlugin.Suffixes` | `TestDialectsAndDependencies_LGPV0015`, `TestValidateRefusesAnUndeclaredPiece_LGPV0007` |
+| LGP-V0-016 | `contextindex.ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` |
+| LGP-V0-019 | ratchet in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
+| LGP-V0-020, 021 | `langplugin.Dirs`, `tools/plugin-dirs`, `make plugin-test` | `TestPluginIsolation_LGPV0020`, per-plugin subtests |
+| LGP-V0-022 | unchanged behavior | existing tests |
 
 ## Boundaries and rollback
 
@@ -174,7 +240,7 @@ it for runners, analyzers and providers.
 
 ## Promotion and later slices
 
-- Migrate the `cmd/corvint`, `internal/contextindex` and `internal/testsource` name literals onto
-  `langplugin` and the registry, lowering the ratchet baseline each time.
+- Move the dialect algorithm bodies into their plugins' packages behind the LGP-V0-016 hooks,
+  lowering the ratchet baseline each time.
 - Register the MCJ-V0 Ruby and TypeScript collectors as `coverage` sub-plugins (LGP-V0-013).
 - Promotion to `implemented` needs the slice's tests green in CI; there is no external gate.
