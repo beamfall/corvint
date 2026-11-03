@@ -305,7 +305,10 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   partial-component matches above. A root-climbing or compatible root-anchored token in the same
   package MAY establish the root for a separate naming fragment because the literal-only index
   cannot prove whether the expressions compose; a `.corvint` or `change.cem.json` token joined only
-  to a fixture root selects nothing, and rules (a), (b), and (d) are unchanged;
+  to a fixture root selects nothing, and rules (a), (b), and (d) are unchanged. For every other
+  path, AFP-V0-2240 and AFP-V0-2241 in [`affected-plan-selection-v0.md`](affected-plan-selection-v0.md)
+  replace the component-run relation with the planner's Go-unit relation (AFP-V0-2203, V1-0290,
+  AFP-V0-072);
   (d) whenever `plan.dirty` is non-empty (`unresolved`), every package whose reads no literal bounds
   and that no valid AFP-V0-023 declaration names; a declared one is selected by its scope instead.
   Such a package calls `os.Getwd`, carries the literal `--show-toplevel` in any

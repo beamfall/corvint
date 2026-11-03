@@ -4375,7 +4375,7 @@
     "reqPrefix": "AFP-V0",
     "intent": "per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)",
     "delivery": "experimental",
-    "claim": "`corvint affected` names Git timeouts, marks TestMain changes whole, narrows fixture, anchored, temp-root and `go list` reads, and marks deletions.",
+    "claim": "`corvint affected` narrows fixture, anchored, temp-root and `go list` reads, marks deletions, and the CI selector follows its Go naming relation.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
