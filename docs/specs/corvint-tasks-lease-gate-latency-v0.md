@@ -202,6 +202,15 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   manifest's; and it MUST NOT be used when that write's verify (JSG-V0-003) refuted the bound
   checkpoint. The next pool acquire or release then still resumes from the sealed base (LGL-V0-009).
   No store format changes and no process stays resident.
+- `LGL-V0-2150`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2621)
+  On a segmented store satisfying JSG-V0-780's capture and writer-bound conditions, a complete-route
+  write MUST recover a checkpoint with `FullSeq` S even when the previous checkpoint is missing or
+  invalidated. A subsequent pool release MUST resume once with zero complete preparation audits
+  and produce the complete route's report and store bytes on the same pre-state, excluding the
+  derived writer checkpoint and its base. Acceptance MUST cover complete-route widen, reap and
+  Mutate writes, with both missing and invalidated checkpoints, without a store-format change or
+  resident process. This extends LGL-V0-891's bound-base case using the complete walk's own capture
+  at S (JSG-V0-780); it does not permit reuse of a refuted checkpoint.
 - `LGL-V0-885`: (proposed; V1-3950; experimental under the standing lane auto-accept) `gate run` on
   a policy gate that declares `sharedResource` MUST hold an exclusive, non-blocking lock named by
   that resource's class and key for the whole run, so at most one gate run per resource executes on
@@ -484,11 +493,11 @@ for a liveness session reaches LGL-V0-008, and `TestLGLV0005_SkippedStagingSyncK
 fails first. With LGL-V0-009 a sealed segment or manifest rewritten in place with its stamps
 restored is caught by the precheck or held re-hash and declines; a manifest rewritten before the
 command fails the head guards first, which retry as `SNAPSHOT_MOVED` rather than refusing as
-corruption (pre-existing behaviour). A store whose last write took the complete route has
-`FullSeq` past S, so LGL-V0-010 finds no sealed base and the pool verb pays the complete audit, as
-before; the first resumed acquire restores the fast path only after a write rebased the checkpoint
-to S. A base blob that a walked tail receipt removed is not re-hashed under the lock; the walk
-itself checks that it is absent. With LGL-V0-013 a crash or stop after `PrepareAll` and before the
+corruption (pre-existing behaviour). Under JSG-V0-780 and LGL-V0-2150 a complete-route write
+recovers `FullSeq` S from its own walk even after checkpoint loss or invalidation. A capture that
+cannot be bound, a changed primary worktree, or a tail beyond the writer bound keeps the plain
+checkpoint and the next pool verb pays the complete audit. A base blob that a walked tail receipt
+removed is not re-hashed under the lock; the walk itself checks that it is absent. With LGL-V0-013 a crash or stop after `PrepareAll` and before the
 receipt link leaves only unpublished slots, the orphan a killed writer already leaves (CAL-V0-019,
 CTS-V0-026); a stop after the receipt link leaves the committed receipt for redo, as before. A
 writer killed during the concurrent syncs leaves the same kind of slots. The gain depends on the
@@ -668,8 +677,15 @@ runs an acquire and a release on a sealed base, each resumed with no complete au
 kept at S, and compares the release with the complete route on a copy of the same pre-state
 without the checkpoint: the reports are equal and every store file is byte-equal except the writer
 checkpoint; with the gate forced off it fails (resumed 0, audits 1).
+`TestLGLV02150_CompleteRouteWriteThenPoolRelease`
+(`internal/tasks/store/lease_complete_pool_release_test.go`) interleaves a complete-route widen,
+reap or Mutate after an acquire, once with no checkpoint and once after explicit invalidation.
+Each write recovers `FullSeq` S; each following release resumes once with zero complete audits.
+Restoring the same pre-release state and removing its checkpoint forces the complete oracle:
+reports and every store file except the derived writer checkpoint/base must match, and a final
+complete journal audit must pass. The 47k LGL-V0-011 latency harness remains a separate gate.
 `TestLGLV0009_SealedBaseDeclinesRewrittenSegment` and `TestLGLV0009_SealedBaseDeclinesChangedState`
-(same file) rewrite a segment or the manifest before the command, after the precheck or under the
+(`internal/tasks/store/lease_sealed_base_test.go`) rewrite a segment or the manifest before the command, after the precheck or under the
 writer lock, add a stray request file, rewrite a tail receipt or invalidate the checkpoint: each
 declines, never commits over the change, and reports the complete route's decision.
 `TestLGLV0010_SealedBaseGate` (same file) admits exactly the acquire, release, widen and reap verbs
@@ -860,3 +876,15 @@ ordinary one that any binary reads or ignores. Reverting LGL-V0-811 (constructin
 `SetSegmentPrefetchForTest(false)`) returns a sealed walk to sequential reads with equal results.
 Reverting LGL-V0-814 (`sealWorkers` 1) returns the seal to one file at a time and writes the same
 bytes. Reverting LGL-V0-815 runs the closing audit again.
+
+## V1-2621 checkpoint recovery traceability
+
+| Requirement | Implementation | Executable evidence |
+|---|---|---|
+| LGL-V0-2150 | `internal/tasks/journal/sealed_base.go`, `internal/tasks/store/lease_write.go`, `internal/tasks/store/mutate.go` (existing JSG-V0-780 derivation) | `TestLGLV02150_CompleteRouteWriteThenPoolRelease` in `internal/tasks/store/lease_complete_pool_release_test.go` |
+
+The rollback remains the complete audit when a captured base cannot be derived or bound. Removing
+this acceptance test changes no stored state; reverting the existing JSG-V0-780 derivation returns
+writes to the plain checkpoint and the following pool verb to the complete audit. No format or
+resident-process migration is involved. The lane's focused evidence is retained in
+[the V1-2621 build log](../build-log/2026-11-02-tck-w52.md); it makes no new latency claim.

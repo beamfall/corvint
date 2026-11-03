@@ -489,7 +489,7 @@ func nullableCount(c *wire.Count) wire.Value {
 // submitMutation composes the envelope around an already-read payload and
 // commits it through the §5.2 writer; mutateCommand and `ticket note` share it.
 func submitMutation(env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
-	return submitMutationContext(writerContext(), env, cmd, operation, actor, flags, payload)
+	return submitMutationContext(env.writerContext(), env, cmd, operation, actor, flags, payload)
 }
 
 // submitMutationContext is submitMutation under a caller's writer context,
@@ -506,10 +506,6 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 	// match its index entry is held as the summary and decoded from those
 	// bytes on demand (TCX-V0-847). A held record that cannot be decoded is
 	// the command's error, as on the read path.
-	var index *intent.ClosedIndex
-	if useClosedIndex {
-		index = intent.ReadClosedIndex(repo.StateDir)
-	}
 	defer func() {
 		if r := recover(); r != nil {
 			me, ok := r.(ticket.MaterializeError)
@@ -519,7 +515,7 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 			res = errorResult(cmd, me.Err)
 		}
 	}()
-	store0, err := intent.LoadSummarized(repo.IntentRoot(), index)
+	store0, err := store.LoadBatchIntent(ctx, repo, useClosedIndex)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

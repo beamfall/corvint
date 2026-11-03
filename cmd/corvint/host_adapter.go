@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/taskbarrier"
 	"io"
 	"io/fs"
 	"maps"
@@ -335,7 +336,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	if reason != "" {
 		return withCauseRemediation(root, reason, withDeadlineRemediation(ctx, root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))))
 	}
-	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
+	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult(ctx, "codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
 }
 
 // adapterEnvKey carries a per-invocation replacement for os.LookupEnv on the Claude adapter's
@@ -400,7 +401,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	reserve, _ := json.Marshal(renderClaudeContext(event, "", guidance))
 	disclosure := promptBoundDisclosure(event, payload) + compactSessionDisclosure(event, normalized)
 	kernel := experimentalKernelContext(ctx, event, root)
-	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel)
+	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel) - adapterContextReserve(ctx)
 	refuse := func() { refuseUndeliveredPacket(root, event, payload) }
 	stagePacket(ctx, refuse, nil)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
@@ -409,7 +410,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		notice := withCauseRemediation(root, reason, withDeadlineRemediation(ctx, root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))))
 		return withReducedPacket(ctx, root, event, reason, normalized, disclosure+guidance, notice)
 	}
-	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result, subagent)
+	output := renderAdapterResult(ctx, "claude-code", claudeEventName(event), event, root, normalized, result, subagent)
 	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
 	return withHookContextSuffix(withPromptBoundDisclosure(output, disclosure), claudeEventName(event), kernel)
 }
@@ -672,7 +673,7 @@ func invokeDogfoodEvent(ctx context.Context, root, host, event string, input map
 // renderAdapterResult renders a dogfood-event receipt as native hook output. A context event
 // injects the hookContextProjection, or nothing when it carries nothing actionable (AHI-045,
 // AHI-046); subagent marks a Claude Code subagent SessionStart, which gets the prompt rule.
-func renderAdapterResult(host, eventName, event, root string, input, result map[string]any, subagent bool) map[string]any {
+func renderAdapterResult(ctx context.Context, host, eventName, event, root string, input, result map[string]any, subagent bool) map[string]any {
 	if event == "stop" {
 		completion, _ := result["completion"].(map[string]any)
 		if completion["decision"] == "block" {
@@ -697,6 +698,14 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		return codexDegraded(eventName, "corvint-degradations-unrecognised")
 	}
 	projection := hookContextProjection(event, result, event == "session-start" && !subagent)
+	if event == "session-start" {
+		if warning := taskbarrier.Observe(ctx, root); warning != "" {
+			if projection == nil {
+				projection = map[string]any{}
+			}
+			projection["tasksBarrierWarning"] = warning
+		}
+	}
 	if projection == nil {
 		// AHI-910: a successful hook with nothing to inject names its event, so it is not
 		// mistaken for a fault or a killed hook.

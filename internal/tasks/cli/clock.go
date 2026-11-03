@@ -12,3 +12,10 @@ import (
 func writerContext() context.Context {
 	return store.WithClock(context.Background(), store.WallClock)
 }
+
+func (env Env) writerContext() context.Context {
+	if env.batchWriteContext != nil {
+		return env.batchWriteContext
+	}
+	return writerContext()
+}

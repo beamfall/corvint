@@ -271,8 +271,8 @@ func TestAFPV0463ReclassifiedRowsAreInfra(t *testing.T) {
 		}
 		keys++
 	}
-	if keys != 92 {
-		t.Fatalf("AFP-V0-463 lists %d keys, want the 92 reviewed head-null rows", keys)
+	if keys != 97 {
+		t.Fatalf("AFP-V0-463 lists %d keys, want the 92 reviewed head-null rows and the 5 sixteen-shard transition rows", keys)
 	}
 }
 

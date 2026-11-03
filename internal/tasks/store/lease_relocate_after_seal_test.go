@@ -14,7 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 )
 
-// JSG-V0-780, V1-3665: the primary-worktree guard. A RELOCATE after the
+// JSG-V0-780, JSG-V0-2161, V1-3665: the primary-worktree guard. A RELOCATE after the
 // sealed sequence S leaves a head whose primary worktree differs from the
 // chain's at S. A complete-route write then keeps the base-free checkpoint at
 // head: a base derived at S would name the new primary, which the chain did
@@ -67,6 +67,9 @@ func TestJSGV0780_RelocateAfterSealKeepsPlainCheckpoint(t *testing.T) {
 	wc := readWriterCheckpoint(&moved)
 	if wc == nil || wc.Seq.Uint64() != head-1 || wc.FullSeq != wc.Seq.Uint64() || wc.FullSeq <= through {
 		t.Fatalf("complete route after a RELOCATE past S=%d retained %+v, want the base-free checkpoint at the RELOCATE, %d", through, wc, head-1)
+	}
+	if wc.PrimaryWorktree != moved.PrimaryWorktree || wc.PrimaryWorktree == from {
+		t.Fatalf("checkpoint primary %q, want relocated primary %q", wc.PrimaryWorktree, moved.PrimaryWorktree)
 	}
 	mustSegmentAudit(t, &moved, head)
 }
