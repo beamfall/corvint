@@ -96,7 +96,11 @@ line selection: it never dedupes repeated steps and never tells the map which te
   it never removes a test that another rule keeps.
 - `MCJ-V0-022`: Using a `functionality-link` set in place of a broader static fallback (for example
   a FULL run forced by an E2E consumer of a built binary) narrows the plan. It runs in shadow first
-  under the MCJ-V0-017 bar, and a unit whose code set is only observed never replaces a fallback.
+  under its own bar, and a unit whose code set is only observed never replaces a fallback. The
+  shadow runs the full fallback; a **fallback miss** is a test the fallback ran that failed while
+  the proposed linked set omitted it. Replacement is allowed only after zero fallback misses over
+  at least 1,000 CI changes that took the fallback, plus the MCJ-V0-014 fault injection; a fallback
+  miss is handled as MCJ-V0-018 describes, with the omitted test and the unit in the ticket.
 - `MCJ-V0-023`: A change to a unit's test-side surface selects that unit's affected tests even when
   no product block changed. Test-side surfaces are a page-object method, a selector binding, a step
   helper, a setup record or a flow declaration. The affected tests are the tests whose steps call
@@ -113,14 +117,18 @@ line selection: it never dedupes repeated steps and never tells the map which te
   1. their identities are equal and bound (MCJ-V0-002);
   2. their reaches are the same block set;
   3. the segments before them in each test have equal identities, or both start from the same
-     bound setup record, so they run from the same state.
+     bound setup record, so they run from the same state;
+  4. the segments after them in each test have equal identities through the end of the test, so
+     every check either test makes after the shared step is one the other makes too. A test with
+     an assertion, expectation or step the other lacks after the shared step is not equivalent.
   Equivalence is never inferred from names or titles alone.
 - `MCJ-V0-006`: When every segment through which a change reaches test T has an equivalent segment
   in a selected test R, the plan MAY exclude T as `covered-by-representative`, naming R and the
   segments. In each equivalence class it picks the representative with the smallest recorded
   elapsed time, breaking ties by test identity (LPCV-V0-022). A change that reaches any segment of
   T without an equivalent keeps T. A change to T's own test-side code that its representative does
-  not share keeps T.
+  not share keeps T. Matching the changed segments alone never suffices: T is excluded only when
+  condition 4 shows R makes every check T makes after the shared step, otherwise both run.
 - `MCJ-V0-007`: Each record carries a level. A project-declared level wins: a runner project or
   config (for example a Playwright project), a build tag, or a path rule declared in the
   repository's Corvint configuration. Otherwise the runner family's default applies: browser E2E
@@ -185,6 +193,8 @@ line selection: it never dedupes repeated steps and never tells the map which te
 |---|---|
 | SKH model unavailable or stale at the record commit | segments `unbound` (MCJ-V0-002); test-level selection only |
 | Data-dependent step (same identity, different block sets) | not equivalent (MCJ-V0-005 condition 2); both tests kept |
+| Same shared step, different later checks | not equivalent (MCJ-V0-005 condition 4); both tests kept |
+| Linked set omits a test the fallback run fails | fallback miss; replacement stays in shadow (MCJ-V0-022) |
 | Same step from a different prior state | not equivalent (condition 3); both tests kept |
 | Uninstrumented browser, server or child process | record incomplete (MCJ-V0-015); test kept |
 | Shadow miss | class divergent, ticket filed, promotion blocked (MCJ-V0-018) |
