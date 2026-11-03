@@ -5641,6 +5641,30 @@ LWB-V0-007	docs/specs/lsp-wrapped-backends-v0.md	A flag that names a suffix outs
 LWB-V0-008	docs/specs/lsp-wrapped-backends-v0.md	When a wrapped server exits, or a forward or request transport to it fails, the	unrecorded	-
 LWB-V0-009	docs/specs/lsp-wrapped-backends-v0.md	`corvint/context` MUST accept an open, routed TS/JS or Ruby document and return	unrecorded	-
 LWB-V0-010	docs/specs/lsp-wrapped-backends-v0.md	`corvint-lsp --help` and the usage line MUST list `--tsserver`, `--ruby-lsp` and	unrecorded	-
+MCJ-V0-001	docs/specs/map-coverage-join-v0.md	A coverage record (LPCV-V0-950) MAY carry an ordered list of segments, each with	unrecorded	-
+MCJ-V0-002	docs/specs/map-coverage-join-v0.md	A segment identity binds only when the SKH-V0 model read at the record's commit	unrecorded	-
+MCJ-V0-003	docs/specs/map-coverage-join-v0.md	Segments are stored in the immutable linecov index as a new format version	unrecorded	-
+MCJ-V0-004	docs/specs/map-coverage-join-v0.md	For a change, the join maps each changed block to the segments whose reach holds	unrecorded	-
+MCJ-V0-020	docs/specs/map-coverage-join-v0.md	Each functional unit has a **code set** and a **test set**, every entry carrying	unrecorded	-
+MCJ-V0-021	docs/specs/map-coverage-join-v0.md	When a changed block has no fresh record that covers it, the plan MUST add the t	unrecorded	-
+MCJ-V0-022	docs/specs/map-coverage-join-v0.md	Using a `functionality-link` set in place of a broader static fallback (for exam	unrecorded	-
+MCJ-V0-023	docs/specs/map-coverage-join-v0.md	A change to a unit's test-side surface selects that unit's affected tests even w	unrecorded	-
+MCJ-V0-024	docs/specs/map-coverage-join-v0.md	The plan and the documentation list the gaps. **Untested functionality** is a un	unrecorded	-
+MCJ-V0-005	docs/specs/map-coverage-join-v0.md	Two segments of different tests are **equivalent** only when all of these hold a	unrecorded	-
+MCJ-V0-006	docs/specs/map-coverage-join-v0.md	When every segment through which a change reaches test T has an equivalent segme	unrecorded	-
+MCJ-V0-007	docs/specs/map-coverage-join-v0.md	Each record carries a level. A project-declared level wins: a runner project or	unrecorded	-
+MCJ-V0-008	docs/specs/map-coverage-join-v0.md	Corvint MUST NOT skip, stub or reorder a step inside a running test to save time	unrecorded	-
+MCJ-V0-009	docs/specs/map-coverage-join-v0.md	The AMAP-V0 overlay seam gains one fact kind, `coverage-reach`. For each functio	unrecorded	-
+MCJ-V0-010	docs/specs/map-coverage-join-v0.md	The DCP-V1 corpus, `corvint.map_knowledge` and how-to answers (SKH-V0) MUST show	unrecorded	-
+MCJ-V0-011	docs/specs/map-coverage-join-v0.md	For a change, the plan names the functional units it reaches ("affected	unrecorded	-
+MCJ-V0-012	docs/specs/map-coverage-join-v0.md	Playwright is the first segment collector. It bounds `test.step` and page-object	unrecorded	-
+MCJ-V0-013	docs/specs/map-coverage-join-v0.md	Ruby (RSpec, Capybara, SitePrism, which SKH-V0 already reads) and TypeScript uni	unrecorded	-
+MCJ-V0-014	docs/specs/map-coverage-join-v0.md	A collector qualifies only with a fault-injection fixture per segment kind, on t	unrecorded	-
+MCJ-V0-015	docs/specs/map-coverage-join-v0.md	A segment record is incomplete when a process it started was not instrumented, a	unrecorded	-
+MCJ-V0-016	docs/specs/map-coverage-join-v0.md	Every `covered-by-representative` exclusion in the plan lists the representative	unrecorded	-
+MCJ-V0-017	docs/specs/map-coverage-join-v0.md	Shared-step exclusion runs in shadow first: CI computes it, runs every test anyw	unrecorded	-
+MCJ-V0-018	docs/specs/map-coverage-join-v0.md	A miss marks that equivalence class divergent in the next index until a blob in	unrecorded	-
+MCJ-V0-019	docs/specs/map-coverage-join-v0.md	The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 10	unrecorded	-
 MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept	owner	decision 0441; V1-0938
 MMR-V0-002	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) An alias MUST match	owner	decision 0441; V1-0938
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every declared root MUST be validated	owner	decision 0441; V1-0938
