@@ -20,8 +20,10 @@ type CollectOptions struct {
 	Packages []string // module-relative directories
 	Work     string   // scratch directory for binaries and coverage data
 	Parallel int
-	Timeout  time.Duration // per test process
-	TestArgs []string      // extra -test.* flags, matching how CI runs the suite
+	Timeout  time.Duration // per isolated test process
+	// SuiteTimeout bounds each package's in-order run of its whole suite.
+	SuiteTimeout time.Duration
+	TestArgs     []string // extra -test.* flags, matching how CI runs the suite
 }
 
 // Outcome is one collected test: a Record when the isolated run passed,
@@ -112,10 +114,13 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		out.Divergent = err.Error()
 		return out
 	}
-	runCtx := ctx
-	if o.Timeout > 0 {
+	runCtx, limit := ctx, o.Timeout
+	if name == InOrder {
+		limit = o.SuiteTimeout
+	}
+	if limit > 0 {
 		var cancel context.CancelFunc
-		runCtx, cancel = context.WithTimeout(ctx, o.Timeout)
+		runCtx, cancel = context.WithTimeout(ctx, limit)
 		defer cancel()
 	}
 	// The test binary writes its own profile at exit but ignores counters of
@@ -135,6 +140,7 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+children)
 	var log bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &log, &log
+	began := time.Now()
 	if err := cmd.Run(); err != nil {
 		if runCtx.Err() != nil {
 			out.Divergent = "timeout"
@@ -162,6 +168,6 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		}
 		data = append(data, more...)
 	}
-	out.Record = &Record{Package: pkg, Name: name, Profile: data}
+	out.Record = &Record{Package: pkg, Name: name, Profile: data, Elapsed: time.Since(began)}
 	return out
 }

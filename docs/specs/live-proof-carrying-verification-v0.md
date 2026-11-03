@@ -766,7 +766,9 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   test's record is the union of its isolated and in-order coverage (`LPCV-V0-956`). Where per-test
   attribution in order is unavailable, a block the in-order run executes that no isolated record of
   that package contains marks the package order-sensitive, and a change reaching any block that run
-  executed keeps every test of the package. `LPCV-V0-963` includes a fixture whose tests pass both
+  executed keeps every test of the package. An in-order run that fails or times out leaves those
+  blocks unknown, so the package is recorded as unordered and a change reaching any of its tests
+  keeps every test of the package. `LPCV-V0-963` includes a fixture whose tests pass both
   ways but take different branches in order and alone.
 - `LPCV-V0-963`: (accepted, decision 0590 (owner 2026-11-03)) Each collector and the selector MUST be qualified by fault injection before coverage
   exclusion is enabled for that runner family, and requalified on a collector, runner or selector
@@ -782,6 +784,15 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   JavaScript, Rust, C#, Kotlin and the JVM, Swift and Python, and a pinned public Ruby project with
   minitest and RSpec suites, since Beamfall has no Ruby repository. A family without a passing
   qualification is reported unqualified and keeps its static plan.
+- `LPCV-V0-964`: (accepted, owner 2026-11-03, V1-4378) A read-only redundancy report over an index lists, per
+  package, the tests whose executed blocks other tests of the package also execute: equal block sets,
+  a strict subset of one other test (naming the tightest superset), blocks all executed by some other
+  test, and at most a threshold of blocks of their own, plus tests that executed no instrumented
+  block. Coverage does not observe assertions, so every row is a candidate for review, never a
+  verdict: each row carries the requirement IDs its source cites, and an equal-coverage row says
+  which peers have an identical test body. In-order records are never candidates or supersets, and
+  declared tests absent from the index are listed apart. The report reads a clean checkout at the
+  index commit, writes nothing, and removes no test.
 
 Failure modes for this section:
 

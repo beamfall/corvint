@@ -1,13 +1,16 @@
 // Command linecov collects a per-test Go coverage index at one commit and
 // selects, from it, the tests a change can affect (LPCV-V0-950..963).
 //
-//	linecov collect -root R -out INDEX [-packages a,b] [-parallel N] [-timeout D]
+//	linecov collect -root R -out INDEX [-packages a,b] [-parallel N] [-timeout D] [-suite-timeout D]
 //	linecov select  -root R -index INDEX -base SHA [-static a,b]
 //	linecov qualify -root R -index INDEX -packages a,b [-mutants N] [-seed S]
+//	linecov redundancy -root R -index INDEX [-packages a,b] [-low-unique N]
 //
 // collect needs a clean checkout; the index is bound to its HEAD. select reads
 // the change base..HEAD of a checkout at the change head and prints one JSON
-// plan: a non-empty reason means every static package runs whole.
+// plan: a non-empty reason means every static package runs whole. redundancy
+// reads a checkout at the index commit and prints the tests whose coverage
+// other tests repeat, as candidates for review (LPCV-V0-964).
 package main
 
 import (
@@ -34,7 +37,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: linecov collect|select [flags]")
+		fmt.Fprintln(os.Stderr, "usage: linecov collect|select|qualify|redundancy [flags]")
 		os.Exit(2)
 	}
 	var err error
@@ -45,6 +48,8 @@ func main() {
 		err = selectTests(os.Args[2:])
 	case "qualify":
 		err = qualify(os.Args[2:])
+	case "redundancy":
+		err = redundancy(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
@@ -119,7 +124,8 @@ func collect(args []string) error {
 	out := fs.String("out", "", "index file to write")
 	only := fs.String("packages", "", "comma-separated module-relative directories (default: every package)")
 	parallel := fs.Int("parallel", runtime.NumCPU(), "concurrent test processes")
-	timeout := fs.Duration("timeout", 10*time.Minute, "per test process")
+	timeout := fs.Duration("timeout", 10*time.Minute, "per isolated test process")
+	suite := fs.Duration("suite-timeout", time.Hour, "per package in-order suite run")
 	scratch := fs.String("work", "", "scratch directory parent (default the system temp directory)")
 	fs.Parse(args)
 	if *out == "" {
@@ -150,16 +156,20 @@ func collect(args []string) error {
 	defer os.RemoveAll(work)
 	ctx := context.Background()
 	start := time.Now()
-	outcomes, err := linecov.Collect(ctx, *root, linecov.CollectOptions{Module: module, Packages: dirs, Work: work, Parallel: *parallel, Timeout: *timeout})
+	outcomes, err := linecov.Collect(ctx, *root, linecov.CollectOptions{Module: module, Packages: dirs, Work: work, Parallel: *parallel, Timeout: *timeout, SuiteTimeout: *suite})
 	if err != nil {
 		return err
 	}
 	var records []linecov.Record
+	var unordered []string
 	divergent := 0
 	for _, o := range outcomes {
 		if o.Record == nil {
 			divergent++
 			fmt.Fprintf(os.Stderr, "linecov: isolation-divergent %s.%s: %s\n", o.Package, o.Name, o.Divergent)
+			if o.Name == linecov.InOrder {
+				unordered = append(unordered, o.Package)
+			}
 			continue
 		}
 		records = append(records, *o.Record)
@@ -172,6 +182,8 @@ func collect(args []string) error {
 	if err != nil {
 		return err
 	}
+	sort.Strings(unordered)
+	ix.Unordered = unordered
 	f, err := os.Create(*out)
 	if err != nil {
 		return err
@@ -517,4 +529,134 @@ func failingTests(root, module string, dirs []string) (map[string]bool, bool) {
 		failed[dir+"."+ev.Test] = true
 	}
 	return failed, pkgFail
+}
+
+// Report is the redundancy output.
+type Report struct {
+	Index    string
+	Summary  Summary
+	Packages []linecov.PackageReport
+}
+
+// Summary totals the report. Elapsed figures are zero, and ElapsedObserved
+// false, for an index collected before run times were recorded.
+type Summary struct {
+	Packages, Tests, Candidates, Unindexed, InOrderExcluded int
+	ByKind                                                  map[linecov.Kind]int
+	ElapsedObserved                                         bool
+	TotalElapsed, CandidateElapsed                          time.Duration
+	TopPackages                                             []PackageTime // by candidate time, then count
+}
+
+// PackageTime is one package's candidate count and isolated run time.
+type PackageTime struct {
+	Package    string
+	Candidates int
+	Elapsed    time.Duration
+}
+
+func redundancy(args []string) error {
+	fs := flag.NewFlagSet("redundancy", flag.ExitOnError)
+	root := fs.String("root", ".", "clean checkout at the index commit")
+	index := fs.String("index", "", "index file")
+	only := fs.String("packages", "", "comma-separated module-relative directories (default: every indexed package)")
+	low := fs.Int("low-unique", 1, "list a test with at most this many blocks no other test of its package executes")
+	top := fs.Int("top", 20, "packages listed in Summary.TopPackages")
+	fs.Parse(args)
+	if *index == "" {
+		return errors.New("redundancy: -index is required")
+	}
+	f, err := os.Open(*index)
+	if err != nil {
+		return err
+	}
+	ix, err := linecov.Decode(f)
+	f.Close()
+	if err != nil {
+		return err
+	}
+	// Declarations are read from the tree, so it must be the indexed one.
+	head, err := output(*root, "git", "rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	if head != ix.Commit {
+		return fmt.Errorf("redundancy: checkout is at %s, index at %s", head, ix.Commit)
+	}
+	if dirty, err := output(*root, "git", "status", "--porcelain", "--untracked-files=no"); err != nil || dirty != "" {
+		return fmt.Errorf("redundancy: checkout must be clean (%v)", err)
+	}
+	dirs := split(*only)
+	if dirs == nil {
+		seen := map[string]bool{}
+		for _, t := range ix.Tests {
+			if !seen[t.Package] {
+				seen[t.Package] = true
+				dirs = append(dirs, t.Package)
+			}
+		}
+	}
+	declared, err := linecov.HeadTests(*root, dirs)
+	if err != nil {
+		return err
+	}
+	sources := map[string]map[string]linecov.Source{}
+	for _, d := range dirs {
+		if sources[d], err = linecov.TestSources(*root, d); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	want := map[string]bool{}
+	for _, d := range dirs {
+		want[d] = true
+	}
+	r := Report{Index: ix.Commit, Summary: Summary{ByKind: map[linecov.Kind]int{}}}
+	for _, t := range ix.Tests {
+		if want[t.Package] && t.Name != linecov.InOrder {
+			r.Summary.Tests++
+			r.Summary.TotalElapsed += t.Elapsed
+			if t.Elapsed > 0 {
+				r.Summary.ElapsedObserved = true
+			}
+		}
+	}
+	var times []PackageTime
+	for _, p := range ix.Redundancy(declared, sources, *low) {
+		if !want[p.Package] {
+			continue
+		}
+		r.Packages = append(r.Packages, p)
+		pt := PackageTime{Package: p.Package, Candidates: len(p.Candidates)}
+		for _, c := range p.Candidates {
+			r.Summary.ByKind[c.Kind]++
+			pt.Elapsed += c.Elapsed
+		}
+		r.Summary.Candidates += pt.Candidates
+		r.Summary.CandidateElapsed += pt.Elapsed
+		r.Summary.Unindexed += len(p.Unindexed)
+		if p.InOrder {
+			r.Summary.InOrderExcluded++
+		}
+		if pt.Candidates > 0 {
+			times = append(times, pt)
+		}
+	}
+	r.Summary.Packages = len(dirs)
+	sort.Slice(times, func(i, j int) bool {
+		a, b := times[i], times[j]
+		if a.Elapsed != b.Elapsed {
+			return a.Elapsed > b.Elapsed
+		}
+		if a.Candidates != b.Candidates {
+			return a.Candidates > b.Candidates
+		}
+		return a.Package < b.Package
+	})
+	if len(times) > *top {
+		times = times[:*top]
+	}
+	r.Summary.TopPackages = times
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(r)
 }
