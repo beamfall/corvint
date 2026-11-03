@@ -730,9 +730,15 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   nondeterministic path observed once remains a selection edge. A record is replaced only by a newer
   run of the same test, and only for the files whose blob OID changed.
 - `LPCV-V0-957`: (accepted, decision 0590 (owner 2026-11-03)) Every test the coverage plan selects refreshes its record when it runs. Full runs on
-  the default branch refresh every record and act as the miss detector: a test that fails in a full
-  run although a coverage exclusion skipped it for a change in the same window is a confirmed miss
-  under `LPCV-V0-020` and disables coverage exclusion for that runner family until repaired.
+  the default branch refresh every record and act as the miss detector. A test that fails in the
+  full run at a merged commit, after a coverage exclusion skipped it for the change that commit
+  merged, is a **suspected miss** and is filed with the compared base, the merged commit and the
+  runner identity. It becomes a **confirmed miss** under `LPCV-V0-020` only when, with the same runner
+  identity and inputs, the test passes at the compared base, fails again on a rerun at the merged
+  commit, and the coverage plan for exactly that base-to-merge diff excluded it. A failure at the
+  base, a pass on rerun, or a failure only after a later commit is not a miss of that exclusion. A
+  confirmed miss disables coverage exclusion for that runner family until repaired; a suspected miss
+  keeps it enabled and is resolved by that reproduction.
 - `LPCV-V0-958`: (accepted, decision 0590 (owner 2026-11-03)) Records are stored as a compact immutable index keyed by commit, derived state that
   is rebuildable from repository content by running the collectors, and never authority
   (`LPCV-V0-012`, product invariant 7). Loading the index and selecting for a change of up to 50 files
@@ -753,7 +759,15 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-962`: (accepted, decision 0590 (owner 2026-11-03)) A record comes only from a run that completed with the test's terminal status;
   a cancelled, timed-out, crashed or partially decoded run publishes no record (`LPCV-V0-009`). A test
   whose isolated collector run fails while its ordinary run passes (or the reverse) is
-  order-dependent: its record is incomplete and the plan names it `isolation-divergent`.
+  order-dependent: its record is incomplete and the plan names it `isolation-divergent`. Because a
+  test can also pass in both orders while taking a different path (an earlier test set shared
+  state), the collector also runs each package's tests together in their ordinary order and
+  attributes coverage to each top-level test by a counter dump and reset at each test's end; a
+  test's record is the union of its isolated and in-order coverage (`LPCV-V0-956`). Where per-test
+  attribution in order is unavailable, a block the in-order run executes that no isolated record of
+  that package contains marks the package order-sensitive, and a change reaching any block that run
+  executed keeps every test of the package. `LPCV-V0-963` includes a fixture whose tests pass both
+  ways but take different branches in order and alone.
 - `LPCV-V0-963`: (accepted, decision 0590 (owner 2026-11-03)) Each collector and the selector MUST be qualified by fault injection before coverage
   exclusion is enabled for that runner family, and requalified on a collector, runner or selector
   change. A seeded sample of executable lines in covered bodies is each mutated (statement deletion,
