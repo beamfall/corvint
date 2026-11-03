@@ -101,8 +101,12 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 			}
 		}
 	}
+	unordered := map[string]bool{}
+	for _, pkg := range ix.Unordered {
+		unordered[pkg] = true
+	}
 	for id := range e.Tests {
-		if t := ix.Tests[id]; t.Name == InOrder {
+		if t := ix.Tests[id]; t.Name == InOrder || unordered[t.Package] {
 			e.Whole[t.Package] = true
 		}
 	}

@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Format names the index encoding; a reader refuses any other (LPCV-V0-951).
@@ -29,15 +30,21 @@ type Index struct {
 	Runner string // Go version and coverage mode; a different runner decides nothing
 	Tests  []Test // sorted by Package, Name
 	Files  []File // every instrumented file, sorted by Path
+	// Unordered lists, sorted, the packages whose in-order suite run did not
+	// pass, so which blocks only that order reaches is unknown: a change
+	// reaching any of their tests keeps the whole package (LPCV-V0-962).
+	Unordered []string
 
 	byName map[string]int32
 	byPath map[string]int
 }
 
 // Test is one top-level test with a passing record. Package is the
-// module-relative directory ("." for the module root).
+// module-relative directory ("." for the module root). Elapsed is its isolated
+// run time, zero in an index collected before it was recorded.
 type Test struct {
 	Package, Name string
+	Elapsed       time.Duration
 }
 
 // File is one instrumented file at the index commit: its blob OID and every
@@ -59,6 +66,7 @@ type Block struct {
 type Record struct {
 	Package, Name string
 	Profile       []byte
+	Elapsed       time.Duration
 }
 
 // InOrder is the Name of a package's record from one run of its whole suite in
@@ -132,7 +140,7 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			}
 		}
 		name := r.Package + "\x00" + r.Name
-		tests[name] = Test{r.Package, r.Name}
+		tests[name] = Test{Package: r.Package, Name: r.Name, Elapsed: r.Elapsed}
 		for _, h := range hits[i] {
 			if files[h.path] == nil {
 				files[h.path] = map[key]map[string]bool{}

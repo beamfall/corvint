@@ -295,7 +295,7 @@ func TestFaultInjection(t *testing.T) {
 }
 
 func TestNarrowKeepsUnrecordedAndStale(t *testing.T) {
-	ix := &Index{Tests: []Test{{"p", "TestA"}, {"p", "TestB"}, {"p", "TestC"}}}
+	ix := &Index{Tests: []Test{{Package: "p", Name: "TestA"}, {Package: "p", Name: "TestB"}, {Package: "p", Name: "TestC"}}}
 	ix.reindex()
 	heads := map[string][]string{"p": {"TestA", "TestB", "TestC", "TestNew"}, "q": {"TestQ"}}
 	change := Effect{Tests: map[int32]bool{0: true}, Touched: map[string]bool{"r": true}}
@@ -352,5 +352,27 @@ func TestParseDiff(t *testing.T) {
 	}
 	if !reflect.DeepEqual(diffs, want) {
 		t.Fatalf("got %+v\nwant %+v", diffs, want)
+	}
+}
+
+// A package whose in-order suite run did not pass has unknown order-only
+// blocks, so a change reaching any of its tests keeps it whole (LPCV-V0-962).
+func TestUnorderedPackageRunsWhole(t *testing.T) {
+	src := "package p\n\nfunc F() int {\n\tx := 1\n\treturn x\n}\n"
+	rec := Record{Package: "p", Name: "TestF", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:3.14,6.2 2 1\n")}
+	diff := []FileDiff{{Path: "p/p.go", OldOID: "x", NewOID: "y", Hunks: []Hunk{{4, 4}}}}
+	read := func(string) ([]byte, error) { return []byte(src), nil }
+	for _, unordered := range []bool{false, true} {
+		ix, err := Build("example.com/m", "c0", "go test", map[string]string{"p/p.go": "x"}, []Record{rec})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if unordered {
+			ix.Unordered = []string{"p"}
+		}
+		e := ix.Analyze(diff, read)
+		if e.Fallback != "" || len(e.Tests) != 1 || e.Whole["p"] != unordered {
+			t.Errorf("unordered=%v: effect %+v", unordered, e)
+		}
 	}
 }
