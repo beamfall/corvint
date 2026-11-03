@@ -8,13 +8,15 @@ name: CI forward bar
 # pull-request side (accept.sh in ci.yml's narrowing-verdict job) takes the newest such artifact
 # and narrows only when it came from this workflow on main, says MET, is at most 7 days old and
 # names the current epoch; anything else runs full CI. A main push does not trigger it: listing
-# the whole epoch costs up to 400 artifact-API pages, and the 6-hour schedule keeps a verdict
-# fresh well inside the 7-day bound. Narrowing stays off unless the repository variable
-# CORVINT_PR_NARROWING is `on`.
+# the whole epoch costs up to 400 artifact-API pages. AFP-V0-097 (V1-4360): the schedule is hourly,
+# because accept.sh must list every artifact since an hour before the verdict's listing: at the
+# 2026-11-02 rate 25 pages held about 3.4 hours, and a 6-hour schedule that GitHub ran 8-9 hours
+# apart left every pull request and merge-queue entry FULL for most of each cycle. Narrowing stays
+# off unless the repository variable CORVINT_PR_NARROWING is `on`.
 
 on:
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
