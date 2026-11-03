@@ -66,7 +66,6 @@ func TestDouble(t *testing.T) {
 	"cmd/tool/main.go": `package main
 
 import (
-	"go/ast"
 	"fmt"
 
 	"example.com/m/calc"
@@ -79,7 +78,6 @@ func main() {
 	"e2e/e2e_test.go": `package e2e
 
 import (
-	"go/ast"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -374,7 +372,7 @@ func TestUnorderedPackageRunsWhole(t *testing.T) {
 	}
 	diff := []FileDiff{{Path: "p/p.go", OldOID: "x", NewOID: "y", Hunks: []Hunk{{4, 4}}}}
 	read := func(string) ([]byte, error) { return []byte(src), nil }
-	heads := map[string][]string{"p": {"TestF"}, "q": {"TestQ", "TestR"}}
+	heads := map[string][]string{"p": {"TestF"}, "q": {"TestQ"}}
 	for _, unordered := range []bool{false, true} {
 		ix, err := Build("example.com/m", "c0", "go test", map[string]string{"p/p.go": "x"}, recs)
 		if err != nil {
