@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // AHI-045, AHI-046: the projection keeps actionable rows only, and a non-SessionStart event with
@@ -296,7 +298,7 @@ func TestPURV02210_SessionStartWarnsStaleBarrier(t *testing.T) {
 	}
 	response = string(canonical) + "\n"
 	script := "#!/bin/sh\n[ \"$*\" = 'queue status --fields barrier' ] || exit 9\nprintf '%s' '" + response + "'\n"
-	if err := os.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -32,7 +33,7 @@ func TestPURV02210_CompanionWireFailuresStayUnknown(t *testing.T) {
 	run := func(raw string) string {
 		t.Helper()
 		script := "#!/bin/sh\n[ \"$*\" = 'queue status --fields barrier' ] || exit 9\nprintf '%s' '" + raw + "'\n"
-		if err := os.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
 			t.Fatal(err)
 		}
 		return Observe(context.Background(), root)
@@ -146,7 +147,7 @@ func companionRoot(t *testing.T) (root, bin string) {
 func writeCompanion(t *testing.T, bin, body string) {
 	t.Helper()
 	script := "#!/bin/sh\n[ \"$*\" = 'queue status --fields barrier' ] || exit 9\n" + body + "\n"
-	if err := os.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 }
