@@ -55,6 +55,20 @@ func TestCleanRefusesEditsAndUntrackedGo(t *testing.T) {
 		t.Fatalf("untracked test file accepted: %v", err)
 	}
 	os.Remove(filepath.Join(root, "p", "extra_test.go"))
+	// An untracked file in a module package the collected tests depend on
+	// can run at init and change which blocks they reach.
+	write(t, root, "d/d.go", "package d\n\nfunc G() int { return 1 }\n")
+	write(t, root, "p/dep_test.go", "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.com/m/d\"\n)\n\nfunc TestDep(t *testing.T) { d.G() }\n")
+	run(t, root, "git", "add", ".")
+	run(t, root, "git", "-c", "user.name=t", "-c", "user.email=t@invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "dep")
+	if err := clean(root, []string{"p"}); err != nil {
+		t.Fatalf("clean checkout with a dependency refused: %v", err)
+	}
+	write(t, root, "d/init.go", "package d\n\nvar _ = G()\n")
+	if err := clean(root, []string{"p"}); err == nil || !strings.Contains(err.Error(), "d/init.go") {
+		t.Fatalf("untracked file in a dependency accepted: %v", err)
+	}
+	os.Remove(filepath.Join(root, "d", "init.go"))
 	write(t, root, "p/p.go", "package p\n\nfunc F() int { return 2 }\n")
 	if err := clean(root, []string{"p"}); err == nil {
 		t.Fatal("tracked edit accepted")
@@ -77,18 +91,30 @@ func TestFailingTestsNeedsAResultPerPackage(t *testing.T) {
 
 func TestRunnerBindsBuildSettings(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("GOENV", filepath.Join(root, "goenv"))
 	t.Setenv("GOFLAGS", "")
-	plain, err := runner(root)
+	plain, _, err := runner(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("GOFLAGS", "-tags=linecovtest")
-	tagged, err := runner(root)
+	tagged, flags, err := runner(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plain == tagged || !strings.Contains(tagged, "linecovtest") {
-		t.Fatalf("runner ignores GOFLAGS: %q vs %q", plain, tagged)
+	if plain == tagged || !strings.Contains(tagged, "linecovtest") || flags != "-tags=linecovtest" {
+		t.Fatalf("runner ignores GOFLAGS: %q vs %q (%q)", plain, tagged, flags)
+	}
+	// Flags saved with `go env -w` are effective without the variable, so the
+	// flags collection builds under must carry them too.
+	t.Setenv("GOFLAGS", "")
+	run(t, root, "go", "env", "-w", "GOFLAGS=-tags=savedtag")
+	saved, flags, err := runner(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(saved, "savedtag") || flags != "-tags=savedtag" {
+		t.Fatalf("runner ignores saved GOFLAGS: %q (%q)", saved, flags)
 	}
 }
 
