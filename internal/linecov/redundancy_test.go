@@ -105,3 +105,11 @@ func TestRedundancy(t *testing.T) {
 		t.Fatalf("report:\n got %+v\nwant %+v", got, want)
 	}
 }
+
+func TestRequirementIDGrammar(t *testing.T) {
+	got := requirementID.FindAllString("cites AHI-004, LPCV-V0-964 and ARTIFACT-GO-V0-001; not v1-2 or X-", -1)
+	want := []string{"AHI-004", "LPCV-V0-964", "ARTIFACT-GO-V0-001"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
