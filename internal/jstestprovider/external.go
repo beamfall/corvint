@@ -115,10 +115,13 @@ type qualifiedReport struct {
 	Schedule    *ExecutionSchedule `json:"schedule,omitempty"`
 	ConfigFiles map[string]string  `json:"configFiles"`
 	Version     string             `json:"version"`
-	Files       map[string]string  `json:"files"`
-	Status      string             `json:"status"`
-	Tests       []TestOutcome      `json:"tests"`
-	Errors      []string           `json:"errors"`
+	// NodeVersion is the runner's own process.version (PWP-V0-961); nil when an earlier reporter
+	// wrote the report.
+	NodeVersion *string           `json:"nodeVersion,omitempty"`
+	Files       map[string]string `json:"files"`
+	Status      string            `json:"status"`
+	Tests       []TestOutcome     `json:"tests"`
+	Errors      []string          `json:"errors"`
 	// ErrorLocations is emitted only by a `/3` run with run-level errors: one reported location,
 	// or null, per error (PWP-V3-009).
 	ErrorLocations       []*Anchor             `json:"errorLocations,omitempty"`
@@ -331,9 +334,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		r.Tests = report.Tests
 		externalHygiene(r.Tests)
 	}
-	if r.Identity.NodeVersion == "" {
-		r.Identity.NodeVersion = recordedNodeVersion(r.Tests)
-	}
+	fillRecordedNodeVersion(&r, report)
 	if err := bindQualifiedReport(&r, report); err != nil {
 		r.Infrastructure = externalReportFailure(profile, "report-identity-unknown", err.Error())
 	}
