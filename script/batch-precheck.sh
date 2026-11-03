@@ -11,8 +11,9 @@
 #                                                   worktree of REV and exit 1 only for failures REV
 #                                                   does not already show
 #   script/batch-precheck.sh --static [--base REV]  only the static fail-fast phase (ASD-V0-1923):
-#                                                   flow-guide, bash32 (untracked too), test-exec-writes
-#                                                   and host-package-versions checks, then go build and
+#                                                   flow-guide, bash32 (untracked too), test-exec-writes,
+#                                                   host-package-versions and stray-backups (ASD-V0-2370)
+#                                                   checks, then go build and
 #                                                   vet of the packages changed since REV; the first
 #                                                   failure prints `FAIL static GATE` and `fix:`. A full
 #                                                   run starts with it and its later rows REUSE it
@@ -854,9 +855,10 @@ doc_gate_rows() {
 
 # ASD-V0-1923 (V1-4317): the static fail-fast phase. These doc gates read no Go test result, take
 # seconds, and catch what most often fails a lane late (an unhinted refusal, a Bash 4 construct, a
-# test that writes an executable with os.WriteFile, an unbumped host package); with go build and go
+# test that writes an executable with os.WriteFile, an unbumped host package, a tracked .bak or .orig
+# leftover, ASD-V0-2370); with go build and go
 # vet of the changed packages they run first, one at a time, and the first failure ends the run.
-STATIC_GATES=(flow-guide-check bash32-check test-exec-writes-check host-package-versions-check)
+STATIC_GATES=(flow-guide-check bash32-check test-exec-writes-check host-package-versions-check stray-backups-check)
 
 # static_fix GATE prints the recovery printed after `FAIL static GATE`.
 static_fix() {
@@ -865,6 +867,7 @@ static_fix() {
     'make bash32-check') printf '%s' 'rewrite each Bash 4+ construct named above for Bash 3.2, or end a deliberate fixture line with `# bash32: allow`; untracked scripts are scanned too; then rerun script/batch-precheck.sh --static' ;;
     'make test-exec-writes-check') printf '%s' 'write each executable a test runs with execfile.WriteFile (Tasks: fixture.WriteExecutable), never os.WriteFile; then rerun script/batch-precheck.sh --static' ;;
     'make host-package-versions-check') printf '%s' 'bump the named host package so every version location agrees (make host-package-version-bump), or restore the changed shipped file; then rerun script/batch-precheck.sh --static' ;;
+    'make stray-backups-check') printf '%s' 'git rm --cached (and delete) each .bak or .orig file named above, or rename a deliberate fixture; then rerun script/batch-precheck.sh --static' ;;
     go-build-vet*) printf '%s' 'fix the go build or go vet finding named above at its file:line; then rerun script/batch-precheck.sh --static' ;;
     *) printf '%s' 'read the output above; then rerun script/batch-precheck.sh --static' ;;
   esac
