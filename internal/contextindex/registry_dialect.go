@@ -52,10 +52,9 @@ func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
 		if declaration.Dialect != RegistryDialect {
 			return fmt.Errorf("registry %s: unsupported dialect %s", declaration.Path, declaration.Dialect)
 		}
-		language := NonGoImpactLanguage(declaration.Path)
 		first, _, _ := strings.Cut(declaration.Path, "/")
 		if path.Clean(declaration.Path) != declaration.Path || path.IsAbs(declaration.Path) || strings.HasPrefix(declaration.Path, "../") ||
-			strings.Contains(declaration.Path, "\\") || strings.EqualFold(first, ".git") || (language != "javascript" && language != "typescript") {
+			strings.Contains(declaration.Path, "\\") || strings.EqualFold(first, ".git") || !moduleImportPath(declaration.Path) {
 			return fmt.Errorf("registry path %q is not a repository-relative JavaScript or TypeScript path", declaration.Path)
 		}
 		if !registryIdentifier.MatchString(declaration.Export) {
@@ -740,7 +739,7 @@ var registryDefinitionPrefix = map[string]bool{
 func registryCallSites(index *Index, accessors map[string]bool) ([]registrySite, int) {
 	names := make([]string, 0)
 	for name := range index.Sources {
-		if language := NonGoImpactLanguage(name); language == "javascript" || language == "typescript" {
+		if moduleImportPath(name) {
 			names = append(names, name)
 		}
 	}
@@ -964,7 +963,7 @@ func registryWrites(index *Index, registries []registryFacts) map[string]string 
 	names := make([]string, 0)
 	consulted := map[string]string{}
 	for name := range index.Sources {
-		if language := NonGoImpactLanguage(name); language == "javascript" || language == "typescript" {
+		if moduleImportPath(name) {
 			names = append(names, name)
 		}
 	}
@@ -1194,7 +1193,7 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 		// map a key to any JS/TS path, so it applies to every JS/TS changed
 		// path, widened (NGI-V0-010, NGI-V0-012, NGI-V0-066), and to no other
 		// language's path (V1-1479).
-		webPath := language == "javascript" || language == "typescript"
+		webPath := moduleImportPath(changedPath)
 		openEntry := (registry.unresolved != 0 || registry.missing || registry.written != 0) && webPath
 		// An eager `new X(args)` entry whose arguments may reach another
 		// module may reach any JS/TS path through its key (NGI-V0-067).

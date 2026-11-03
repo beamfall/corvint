@@ -89,8 +89,7 @@ func writeGraphEdge(write func(ImportGraphRecord) error, kinds map[string]bool, 
 func buildGraphExtras(index *Index, ruby *rubyAutoload) *graphExtras {
 	extras := &graphExtras{edges: map[string][]importGraphEdge{}, unknowns: map[string][]map[string]any{}}
 	for _, name := range sortedSourcePaths(index) {
-		switch NonGoImpactLanguage(name) {
-		case "javascript", "typescript":
+		if moduleImportPath(name) {
 			angularResourceEdges(index, name, extras)
 		}
 	}
@@ -500,7 +499,7 @@ func rubyConstantEdges(index *Index, ruby *rubyAutoload, extras *graphExtras) {
 				row.count++
 				continue
 			}
-			rows[key] = &pending{row: map[string]any{"path": name, "language": "ruby", "code": code, "line": reference.line,
+			rows[key] = &pending{row: map[string]any{"path": name, "language": NonGoImpactLanguage(name), "code": code, "line": reference.line,
 				"constants": constants, "candidates": candidates}, count: 1}
 			order = append(order, key)
 		}

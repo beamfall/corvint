@@ -48,7 +48,7 @@ type moduleReading struct {
 	index     *Index
 	files     map[string]*moduleFile
 	swift     *swiftTargetMap
-	requested map[string]bool
+	requested map[decl.Rule]bool
 	mapped    map[string]struct{}
 	notes     map[string]struct{}
 }
@@ -69,7 +69,7 @@ type moduleImport struct {
 }
 
 func newModuleReading(index *Index) *moduleReading {
-	return &moduleReading{index: index, files: map[string]*moduleFile{}, requested: map[string]bool{},
+	return &moduleReading{index: index, files: map[string]*moduleFile{}, requested: map[decl.Rule]bool{},
 		mapped: map[string]struct{}{}, notes: map[string]struct{}{}}
 }
 
@@ -119,8 +119,8 @@ func (reading *moduleReading) file(name string) *moduleFile {
 	directive := func(match []int) {
 		copy(body[match[0]:match[1]], blankedBytes(code[match[0]:match[1]]))
 	}
-	switch ModuleRuleLanguage(name) {
-	case "kotlin":
+	switch decl.RuleFor(decl.ModuleDialect, name) {
+	case decl.PackageImports:
 		if match := kotlinPackagePattern.FindStringSubmatchIndex(code); match != nil {
 			parsed.pkg = code[match[2]:match[3]]
 			directive(match)
@@ -129,7 +129,7 @@ func (reading *moduleReading) file(name string) *moduleFile {
 			parsed.imports = append(parsed.imports, moduleImport{name: code[match[2]:match[3]], line: lineOf(code, match[2]), star: match[4] >= 0})
 			directive(match)
 		}
-	case "csharp":
+	case decl.NamespaceUsing:
 		for _, match := range csharpNamespace.FindAllStringSubmatchIndex(code, -1) {
 			parsed.namespaces = append(parsed.namespaces, code[match[2]:match[3]])
 			directive(match)
@@ -227,24 +227,27 @@ func references(name string, parsed *moduleFile, words []string) packageReferenc
 // impact returns the reading's rows for one changed non-test path and records
 // whether the path's module was resolved (NGI-V0-984).
 func (reading *moduleReading) impact(changedPath string) []rankedResult {
-	language := ModuleRuleLanguage(changedPath)
-	if language == "" || reading.index.isTest(changedPath) {
+	rule := decl.RuleFor(decl.ModuleDialect, changedPath)
+	if rule == "" || reading.index.isTest(changedPath) {
 		return nil
 	}
-	reading.requested[language] = true
-	switch language {
-	case "swift":
+	reading.requested[rule] = true
+	switch rule {
+	case decl.TargetModules:
 		return reading.swiftImpact(changedPath)
-	case "kotlin":
+	case decl.PackageImports:
 		return reading.kotlinImpact(changedPath)
+	case decl.NamespaceUsing:
+		return reading.csharpImpact(changedPath)
 	}
-	return reading.csharpImpact(changedPath)
+	return nil
 }
 
-func (reading *moduleReading) sortedSources(language string) []string {
+// sortedSources lists the sources whose module dialect runs rule, sorted.
+func (reading *moduleReading) sortedSources(rule decl.Rule) []string {
 	names := make([]string, 0)
 	for name := range reading.index.Sources {
-		if ModuleRuleLanguage(name) == language {
+		if decl.RuleFor(decl.ModuleDialect, name) == rule {
 			names = append(names, name)
 		}
 	}
@@ -314,7 +317,7 @@ func (reading *moduleReading) swiftImpact(changedPath string) []rankedResult {
 			rows = append(rows, reading.referenceRow(changedPath, reference, "target"))
 		}
 	}
-	for _, name := range reading.sortedSources("swift") {
+	for _, name := range reading.sortedSources(decl.TargetModules) {
 		if members[name] || path.Base(name) == "Package.swift" {
 			continue
 		}
@@ -341,7 +344,7 @@ func (reading *moduleReading) kotlinImpact(changedPath string) []rankedResult {
 	reading.mapped[changedPath] = struct{}{}
 	all, words := reading.declaredNames(changedPath)
 	rows := make([]rankedResult, 0)
-	for _, name := range reading.sortedSources("kotlin") {
+	for _, name := range reading.sortedSources(decl.PackageImports) {
 		if name == changedPath {
 			continue
 		}
@@ -402,7 +405,7 @@ func (reading *moduleReading) csharpImpact(changedPath string) []rankedResult {
 	}
 	all, words := reading.declaredNames(changedPath)
 	rows := make([]rankedResult, 0)
-	for _, name := range reading.sortedSources("csharp") {
+	for _, name := range reading.sortedSources(decl.NamespaceUsing) {
 		if name == changedPath {
 			continue
 		}
@@ -479,10 +482,12 @@ func (reading *moduleReading) csharpUsing(changedPath string, namespaces []strin
 	return rankedResult{}, false
 }
 
-// moduleDisclosures are the implemented module readings, in disclosure
-// order, each with its coverage line (LGP-V0-016).
-var moduleDisclosures = []struct{ language, line string }{
-	{"csharp", csharpModuleUncertainty}, {"kotlin", kotlinModuleUncertainty}, {"swift", swiftModuleUncertainty},
+// moduleDisclosureOrder is the order the implemented module rules disclose
+// in, and moduleDisclosures each rule's coverage line (LGP-V0-016, LGP-V0-024).
+var moduleDisclosureOrder = []decl.Rule{decl.NamespaceUsing, decl.PackageImports, decl.TargetModules}
+
+var moduleDisclosures = map[decl.Rule]string{
+	decl.NamespaceUsing: csharpModuleUncertainty, decl.PackageImports: kotlinModuleUncertainty, decl.TargetModules: swiftModuleUncertainty,
 }
 
 // disclosures are the coverage lines for the languages the request named,
@@ -492,9 +497,9 @@ func (reading *moduleReading) disclosures() []string {
 		return nil
 	}
 	lines := make([]string, 0, 3+len(reading.notes))
-	for _, item := range moduleDisclosures {
-		if reading.requested[item.language] {
-			lines = append(lines, item.line)
+	for _, rule := range moduleDisclosureOrder {
+		if reading.requested[rule] {
+			lines = append(lines, moduleDisclosures[rule])
 		}
 	}
 	if reading.swift != nil && reading.swift.failed {
