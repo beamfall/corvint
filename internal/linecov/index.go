@@ -61,6 +61,13 @@ type Record struct {
 	Profile       []byte
 }
 
+// InOrder is the Name of a package's record from one run of its whole suite in
+// ordinary order. Build keeps it only when that run executed a block no
+// isolated record of the package did; a change reaching such a block then
+// keeps the whole package, since which test took that path depends on order
+// (LPCV-V0-962).
+const InOrder = "(in-order)"
+
 var profileLine = regexp.MustCompile(`^(.+\.go):(\d+)\.\d+,(\d+)\.\d+ \d+ (\d+)$`)
 
 // Build unions records into an index. oids maps every module-relative path at
@@ -68,11 +75,14 @@ var profileLine = regexp.MustCompile(`^(.+\.go):(\d+)\.\d+,(\d+)\.\d+ \d+ (\d+)$
 // since its blocks could not be bound to immutable content.
 func Build(module, commit, runner string, oids map[string]string, records []Record) (*Index, error) {
 	type key struct{ start, end int32 }
-	files := map[string]map[key]map[string]bool{}
-	tests := map[string]Test{}
-	for _, r := range records {
-		name := r.Package + "\x00" + r.Name
-		tests[name] = Test{r.Package, r.Name}
+	type hit struct {
+		path string
+		k    key
+		ran  bool
+	}
+	hits := make([][]hit, len(records))
+	isolated := map[string]map[hit]bool{} // package -> executed blocks
+	for i, r := range records {
 		sc := bufio.NewScanner(bytes.NewReader(r.Profile))
 		sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
 		for sc.Scan() {
@@ -93,19 +103,46 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			if err1 != nil || err2 != nil {
 				return nil, fmt.Errorf("linecov: malformed block %q", line)
 			}
-			k := key{int32(s), int32(e)}
-			if files[path] == nil {
-				files[path] = map[key]map[string]bool{}
-			}
-			if files[path][k] == nil {
-				files[path][k] = map[string]bool{}
-			}
-			if m[4] != "0" {
-				files[path][k][name] = true
+			h := hit{path, key{int32(s), int32(e)}, m[4] != "0"}
+			hits[i] = append(hits[i], h)
+			if h.ran && r.Name != InOrder {
+				if isolated[r.Package] == nil {
+					isolated[r.Package] = map[hit]bool{}
+				}
+				isolated[r.Package][h] = true
 			}
 		}
 		if err := sc.Err(); err != nil {
 			return nil, err
+		}
+	}
+	files := map[string]map[key]map[string]bool{}
+	tests := map[string]Test{}
+	for i, r := range records {
+		if r.Name == InOrder {
+			sensitive := false
+			for _, h := range hits[i] {
+				if h.ran && !isolated[r.Package][h] {
+					sensitive = true
+					break
+				}
+			}
+			if !sensitive {
+				continue
+			}
+		}
+		name := r.Package + "\x00" + r.Name
+		tests[name] = Test{r.Package, r.Name}
+		for _, h := range hits[i] {
+			if files[h.path] == nil {
+				files[h.path] = map[key]map[string]bool{}
+			}
+			if files[h.path][h.k] == nil {
+				files[h.path][h.k] = map[string]bool{}
+			}
+			if h.ran {
+				files[h.path][h.k][name] = true
+			}
 		}
 	}
 	names := make([]string, 0, len(tests))

@@ -94,6 +94,27 @@ func TestTool(t *testing.T) {
 	}
 }
 `,
+	// ord passes alone and in order, but only in order does TestB reach the
+	// second branch of Step: no isolated record holds it.
+	"ord/ord.go": `package ord
+
+var calls int
+
+func Step() string {
+	calls++
+	if calls > 1 {
+		return "again"
+	}
+	return "first"
+}
+`,
+	"ord/ord_test.go": `package ord
+
+import "testing"
+
+func TestA(t *testing.T) { Step() }
+func TestB(t *testing.T) { Step() }
+`,
 }
 
 func git(t *testing.T, dir string, args ...string) string {
@@ -164,7 +185,7 @@ func TestFaultInjection(t *testing.T) {
 	git(t, dir, "commit", "-qm", "base")
 	base := git(t, dir, "rev-parse", "HEAD")
 
-	dirs := []string{"calc", "cmd/tool", "e2e"}
+	dirs := []string{"calc", "cmd/tool", "e2e", "ord"}
 	outcomes, err := Collect(ctx, dir, CollectOptions{Module: "example.com/m", Packages: dirs, Work: t.TempDir(), Parallel: 4, Timeout: 5 * time.Minute})
 	if err != nil {
 		t.Fatal(err)
@@ -204,6 +225,7 @@ func TestFaultInjection(t *testing.T) {
 		{name: "negative control: unexecuted body", file: "calc/calc.go", old: "return 1", new: "return 2", kept: nil},
 		{name: "package-level initializer", file: "calc/calc.go", old: "var Base = 10", new: "var Base = 11", fallback: true, failsSome: true},
 		{name: "test function", file: "calc/calc_test.go", old: `Classify(0), "zero"`, new: `Classify(0), "pos"`, kept: []string{"calc.TestZero"}, failsSome: true},
+		{name: "path taken only in ordinary order", file: "ord/ord.go", old: `return "again"`, new: `panic("again")`, kept: []string{"ord.TestA", "ord.TestB"}, failsSome: true},
 		{name: "test helper", file: "calc/calc_test.go", old: "if got != exp {", new: "if got == exp {", kept: []string{"calc.TestDouble", "calc.TestNeg", "calc.TestZero"}, failsSome: true},
 	}
 	for _, c := range cases {
