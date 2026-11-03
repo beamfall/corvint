@@ -68,7 +68,9 @@ issues, both fixed with regressions: the pending check honoured `core.excludesFi
 recorder does not, so a `.corvint/` file hidden only by a personal excludes file could be reported
 PENDING (`TestChangeDCWV02143PendingOnlyForTheUncommittedSidecar`); and the static pre-check probed
 a relative `CORVINT_BIN` from the caller's directory but ran it from the repository root
-(`script/lane-scripts_test.sh` group 33). No other findings in the requested areas.
+(`script/lane-scripts_test.sh` group 33). A re-review of `8d0916e32` found the same gap for a
+PATH-only name found through a relative PATH entry; fixed by absolutizing after the lookup, with a
+group 33 regression. No other findings in the requested areas.
 
 Limits: the whole `cmd/corvint` package and `make gate` were not run (focused tests per the
 charter). Lane time saved is NOT_OBSERVED.
