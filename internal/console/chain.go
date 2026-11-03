@@ -49,9 +49,9 @@ var (
 	objectIDPattern = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 	ocmFileName     = regexp.MustCompile(`^change\.ocm(?:\.[0-9]{3})?\.json$`)
 	// requirementLine is the frozen OCM requirement-line syntax
-	// (docs/specs/ocm-v0-dogfood.md, Wire profile). It is used only to show
+	// (docs/specs/ocm-v0-dogfood.md, Wire profile; OCM-V0-952 number). It is used only to show
 	// the clause an obligation already names, never to find a requirement.
-	requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3})[.:]\\*\\*[ ])")
+	requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})[.:]\\*\\*[ ])")
 	cemProfiles     = map[string]bool{wire.StableSpec: true}
 )
 

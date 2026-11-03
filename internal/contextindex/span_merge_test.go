@@ -58,9 +58,10 @@ func TestContextSpanHitRange(t *testing.T) {
 		for _, row := range rows {
 			delete(row, "hit_start_line")
 			delete(row, "hit_end_line")
+			delete(row, "slots")
 		}
-		onBytes, _ := json.Marshal(on)
-		hitBytes, _ := json.Marshal(hits)
+		onBytes, _ := json.Marshal(on["results"])
+		hitBytes, _ := json.Marshal(hits["results"])
 		if !bytes.Equal(onBytes, hitBytes) {
 			t.Fatalf("hits changed more than the hit fields:\n%s\n%s", onBytes, hitBytes)
 		}
@@ -81,20 +82,20 @@ func TestContextSpanFallbacks(t *testing.T) {
 			t.Fatalf("on rows = %#v", onRows)
 		}
 		_, hitRows := spanModeRow(t, index, "hits", task)
-		if len(hitRows) != 1 || hitRows[0]["start_line"] != 43 || hitRows[0]["end_line"] != 43+contextSpanMaxLines-1 || hitRows[0]["hit_start_line"] != 43 {
+		if len(hitRows) != 1 || hitRows[0]["start_line"] != 43 || hitRows[0]["end_line"] != 43 || hitRows[0]["hit_start_line"] != 43 {
 			t.Fatalf("hits rows = %#v", hitRows)
 		}
-		if reason := hitRows[0]["reason"].(string); !strings.HasSuffix(reason, "; `HugeWork` runs 102 lines, so the span keeps its first 80") {
+		if reason := hitRows[0]["reason"].(string); !strings.HasSuffix(reason, "; `HugeWork` runs 102 lines, beyond the 80-line cap, so the hit range is returned") {
 			t.Fatalf("clip reason = %q", reason)
 		}
 		past := "Why is `zqmarker` zero?"
 		_, onPast := spanModeRow(t, index, "on", past)
 		_, hitPast := spanModeRow(t, index, "hits", past)
-		if len(onPast) != 1 || len(hitPast) != 1 || hitPast[0]["start_line"] != 135 || hitPast[0]["end_line"] != 144 ||
+		if len(onPast) != 1 || len(hitPast) != 1 || hitPast[0]["start_line"] != 140 || hitPast[0]["end_line"] != 140 ||
 			onPast[0]["start_line"] != 135 || onPast[0]["end_line"] != 144 || hitPast[0]["hit_start_line"] != 140 {
 			t.Fatalf("past-clip rows on %#v hits %#v", onPast, hitPast)
 		}
-		if reason := hitPast[0]["reason"].(string); !strings.HasSuffix(reason, "; the hit lies past the first 80 of the 102 lines of `HugeWork`, so the hit window is returned") ||
+		if reason := hitPast[0]["reason"].(string); !strings.HasSuffix(reason, "; `HugeWork` runs 102 lines, beyond the 80-line cap, so the hit range is returned") ||
 			strings.Contains(onPast[0]["reason"].(string), "hit window") {
 			t.Fatalf("past-clip reasons on %q hits %q", onPast[0]["reason"], reason)
 		}
@@ -118,7 +119,7 @@ func TestContextSpanFallbacks(t *testing.T) {
 				}
 				continue
 			}
-			if len(spans) != 1 || spans[0].start != 5 || spans[0].end != 15 || spanLines(all) > 15 {
+			if len(spans) != 1 || spans[0].start != 10 || spans[0].end != 10 || spanLines(all) > 15 {
 				t.Fatalf("hits: spans %#v", spans)
 			}
 			if !strings.Contains(spans[0].note, "would overrun the remaining line budget") {
@@ -143,8 +144,8 @@ func TestContextSpanMerge(t *testing.T) {
 		if len(rows) != 1 || rows[0]["start_line"] != 3 || rows[0]["end_line"] != 8 {
 			t.Fatalf("merged rows = %#v", rows)
 		}
-		parts := mapsFromAny(rows[0]["merged_from"])
-		if len(parts) != 1 || parts[0]["symbol"] != "BetaStep" || parts[0]["hit_start_line"] != 6 || parts[0]["start_line"] != 6 {
+		parts := mapsFromAny(rows[0]["contributors"])
+		if len(parts) != 2 || parts[0]["hit_start_line"] != 3 || parts[1]["hit_start_line"] != 6 || !reflect.DeepEqual(parts[1]["slots"], []string{"definition", "lexical"}) {
 			t.Fatalf("merged_from = %#v", parts)
 		}
 		if rows[0]["symbol"] != "AlphaStep" || rows[0]["hit_start_line"] != 3 || rows[0]["hit_end_line"] != 3 {

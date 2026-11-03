@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -176,9 +177,17 @@ func TestLMGV0007GoTestNoiseAndWindows(t *testing.T) {
 	}
 	info, _ := os.Stat(path)
 	dir, _ := os.Stat(archive)
-	if info.Mode().Perm() != 0o600 || dir.Mode().Perm() != 0o700 || filepath.Dir(path) != archive {
-		t.Fatalf("archive modes %v %v", info.Mode(), dir.Mode())
+	if filepath.Dir(path) != archive {
+		t.Fatalf("archive path %s escaped %s", path, archive)
 	}
+	t.Run("POSIX_private_modes", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows file modes cannot assert POSIX 0600/0700 privacy (ASD-V0-2230; V1-2491)")
+		}
+		if info.Mode().Perm() != 0o600 || dir.Mode().Perm() != 0o700 {
+			t.Fatalf("archive modes %v %v", info.Mode(), dir.Mode())
+		}
+	})
 }
 
 func TestLMGV0007LongLineCutOnRuneBoundary(t *testing.T) {
@@ -203,9 +212,17 @@ func TestLMGV0008ArchiveReplacesStaleEntry(t *testing.T) {
 	}
 	saved, _ := os.ReadFile(path)
 	info, _ := os.Stat(path)
-	if string(saved) != text || info.Mode().Perm() != 0o600 {
+	if string(saved) != text {
 		t.Fatalf("stale archive entry kept: %d bytes, mode %v", len(saved), info.Mode())
 	}
+	t.Run("POSIX_private_mode", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows file modes cannot assert POSIX 0600 privacy (ASD-V0-2230; V1-2491)")
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("archive mode %v", info.Mode())
+		}
+	})
 	other := strings.Repeat("blocked\n", 2000)
 	sum = sha256.Sum256([]byte(other))
 	if err := os.MkdirAll(filepath.Join(archive, hex.EncodeToString(sum[:])+".txt", "x"), 0o700); err != nil {

@@ -726,6 +726,23 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   trimmed entry is only a later cache miss. When the free share of
   `/tmp` stays under 20% after the trim it prints `WARN low-disk free-pct=N min-free-pct=20`: the
   caches are not what fills the disk, so look at checkouts and scratch next.
+- Old Corvint test scratch can be inspected on an idle lane host with
+  `script/lane-tmp-sweep.sh --root "${TMPDIR:-/tmp}"`. This is a dry run. Review every
+  `WOULD-REMOVE` path, then use the same command with `--apply` to remove it (`ASD-V0-2194`).
+  Only current-user `corvint-<name>-test.<six letters/digits/underscores>` and `heavy-run.<six letters/digits/underscores>`
+  immediate directories whose entire contents are older than 24 hours qualify. Other `/tmp`
+  content, caches, lock directories, symlinks and fresh content are kept. Failed `ps`/`lsof`
+  inspection keeps everything; argv, open files and working directories are checked again
+  before removal. A process starting after that final check remains a race, so run the sweep
+  while lanes are idle. This is an operator action, never an automatic precheck cleanup.
+- Focus the shell suite with `LANE_SCRIPTS_GROUPS='admission portability sweep' bash
+  script/lane-scripts_test.sh` (`ASD-V0-2192`). Available names are `core` (1–7), `offload`
+  (8–19), `workflow` (20–26), `policy` (27–28), `admission` (29–33), `guard` (34–35), `install`
+  (36–38), `tools` (39–56), `reap` (57, available-slot audit), `merge` (58),
+  `portability-probe` (59), `portability` (60) and `sweep` (61). Empty/unset selects all;
+  related fixtures share a name, and numeric failure IDs stay stable. Each name passes alone; a run
+  whose scratch directory vanished refuses with exit 2 instead of reporting a pass.
+
 - Closed-session scratch (ASD-V0-022, V1-1978): after each batch merge, run
   `make scratch-sweep SCRATCH_SWEEP_ARGS='--root <session-scratch-root> --root <lanes-root>
   --repo <shared> --keep <active-lane-or-session>... --archive <archive-dir>'` (dry run), review

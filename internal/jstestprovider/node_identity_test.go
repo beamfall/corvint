@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
@@ -12,6 +13,9 @@ import (
 // CCE-V0-140 (V1-2644): the receipt binds the version of the node executable that runs the runner
 // when argv[0] is an absolute node path, not the node found on PATH.
 func TestNodeVersionBindsRunnerExecutable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake node executables are POSIX shell scripts (ASD-V0-2230; V1-2491)")
+	}
 	dir := t.TempDir()
 	fake := func(sub, version string) string {
 		bin := filepath.Join(dir, sub)

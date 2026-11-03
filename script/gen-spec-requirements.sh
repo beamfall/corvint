@@ -341,8 +341,8 @@ my @noted_definitions;
 
 # The same reader supplies staged counts and immutable-base ID differences for each mode.
 # Capacity mirrors scanRequirements in internal/lrfrepo/ocm.go: fences hide headings, but
-# not definition lines; IDs have exactly three digits and a bounded prefix. Generation
-# retains its pre-capacity rule (three or more digits, unfenced definitions only).
+# not definition lines; IDs have three or more digits (OCM-V0-952) and a bounded prefix. Generation
+# retains its pre-capacity rule (any prefix, unfenced definitions only).
 sub section_obligation_ids {
     my ($blob) = @_;
     my $ocm = $mode eq 'capacity';
@@ -366,7 +366,7 @@ sub section_obligation_ids {
         }
         next unless $inside && ($ocm || !$fenced);
         my $id = $line =~ /^- (?:`([^`]+)`: |\*\*(.+?)[:.]\*\* )/ ? ($1 // $2) : '';
-        next unless $ocm ? $id =~ /\A[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\z/
+        next unless $ocm ? $id =~ /\A[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}\z/
                         : $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3,}\z/;
         $ids{$id} = 1;
     }

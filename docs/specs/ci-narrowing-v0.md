@@ -6,7 +6,7 @@ Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
-V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332; CIN-V0-010: V1-3748; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
+V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
@@ -150,6 +150,17 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   annotation per such pin naming it and the count and the first 10 selection-path commits since
   it. It SHALL exit 2 on a malformed or unreadable pin or MAIN. On any nonzero exit, or when the
   script cannot be read, the gate SHALL fail without setting `mode`, so the shard runs FULL.
+- **CIN-V0-011:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4354;
+  effective only after the owner's `ci-control-plane` review of the `.github` change it needs)
+  The two pins of CIN-V0-010 SHALL be floors. Before the tools are fetched, a `pin-main` step of
+  each `go-product-shard` SHALL resolve the `main` commit the CIN-V0-010 gate compares against:
+  the tested merge's first parent when it is in `origin/main`'s history, for a pull request; the
+  queue base when it is in that history, otherwise its merge base with `origin/main`, for a
+  merge-queue entry. For each pin it SHALL output that commit when the pin is in its history, and
+  the pin otherwise, or when no commit resolves. The tool and shadow checkouts, their build checks,
+  the shadow record's `toolSource`, the narrowing gate (its `TOOL_SOURCE` and both `pin-lag.sh`
+  arguments) and the CIN-V0-002 failure step SHALL read those outputs, falling back to the pins
+  when the step did not run, so a selection change merged to `main` no longer needs a repin.
 - **CIN-V0-960:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3330)
   The live forward epoch has one source for the tests: `CORVINT_PR_FORWARD_EPOCH` in
   `.github/workflows/ci.yml`. A `tools/ci-forward-row` test that needs the live epoch SHALL read it
@@ -243,8 +254,9 @@ loudly rather than skipping the module. (7) CIN-V0-860: rule (d) is only as comp
 (AFP-V0-012 failure modes): a Go test that reads an unowned path by a computed name without being
 an unbounded reader would be missed, as it already could be under BOUNDED plans. A non-Go reader of
 an unowned path is not a Go shard and runs in its own full job. (8) CIN-V0-010: every selection
-change merged to `main` makes every Go shard FULL until both pins are repinned past it. That costs
-latency, not soundness. The path list is declared, not derived: a selection rule moved outside it
+change merged to `main` made every Go shard FULL until both pins were repinned past it; CIN-V0-011
+now builds the tools from the compared commit, so only a run whose compared commit predates a pin or
+is off `main` builds the pin and can still lag. That costs latency, not soundness. The path list is declared, not derived: a selection rule moved outside it
 would go unnoticed until the list follows it. A `main` change to `package-costs.json` moves shard
 costs only, so it does not count as lag.
 ## Acceptance evidence and traceability
@@ -267,6 +279,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 | CIN-V0-860 | `unknownNarrowing` and `deletedGoSource` and their calls in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers, an unowned path alone or beside frontiers, no selectable test and a deleted source of an existing package run, the deleted package and its importer selected; a module-level frontier, an unindexed existing source, a deleted source of a removed package, a malformed or empty reason, an UNKNOWN plan naming none and another reason fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | CIN-V0-010 | `CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE` and the `pin-lag.sh` call in the narrowing gate of `ci.yml`; `.github/forward-rows/pin-lag.sh` | `TestCINV0010PinLagRefusesNarrowing` in `tools/ci-forward-row/pinlag_test.go` (a pin at MAIN passes; a selection change, a `cmd/corvint/test*.go` change and a `narrow.jq` change after a pin fail; a test, testdata, `package-costs.json` or unrelated change does not; a pin outside MAIN's history fails; malformed and unknown pins exit 2; the committed pins are one equal full commit id each; the gate calls the script from the compared `main` commit in both branches before `narrow.sh` and `mq-narrow.sh`) |
+| CIN-V0-011 | the `pin-main` step of `ci.yml` and every `steps.pin-main.outputs` binding | `TestCINV0011ToolsBuildFromComparedMain` in `tools/ci-forward-row/pinlag_test.go` (the step's own script, run on a fixture repository: a pull request on a moved `main` and a merge-queue entry on `main` or behind an unmerged entry build `main`; a first parent off `main`, a `main` older than the pin, or a queue base with no `main` ancestor keeps the pin; every fetch, build, record, gate and failure binding reads the outputs) |
 | CIN-V0-960 | `forwardEpoch`, `forwardEpochSites`, `forwardEpochSinceProblem`, `epochSinces` (`tools/ci-forward-row/epoch_test.go`) | `TestCINV0960WorkflowsAgreeOnTheForwardEpoch`, `TestCINV0960SynchronizedAdvancePasses`, `TestCINV0003VerdictListsBackToTheEpochSince`; `TestCINV0861RowAbsenceTripsTheKillSwitch` and `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind` read the live epoch from `ci.yml` |
 | CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
@@ -289,4 +302,5 @@ owner decision, since epoch-1 rows hold the dead-pin `INCOMPLETE` rows. No store
 these requirements; verdict artifacts without `listedAt` keep the whole listing. CIN-V0-860: remove the `unknownNarrowing` call in `selectPackages`; Select then
 runs every RUNNABLE plan without a module-level frontier narrowed, as before. CIN-V0-861: drop the `absence.jq`
 call in `verdict.sh`; the markers are then ignored names. CIN-V0-010: drop the two `pin-lag.sh` calls
-in the narrowing gate; the pins then may lag again silently. Repinning back restores the older selection rules.
+in the narrowing gate; the pins then may lag again silently. CIN-V0-011: drop the `pin-main` step;
+every `steps.pin-main.outputs` reference then falls back to the committed pins. Repinning back restores the older selection rules.

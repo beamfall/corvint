@@ -1,0 +1,13 @@
+test_byte_budget_counts_complete_message (__main__.PairedReadingControls.test_byte_budget_counts_complete_message) ... ok
+test_capture_digest_is_checked (__main__.PairedReadingControls.test_capture_digest_is_checked) ... ok
+test_missing_history_is_not_a_zero_recall_measurement (__main__.PairedReadingControls.test_missing_history_is_not_a_zero_recall_measurement) ... ok
+test_missing_retrieval_data_keeps_metrics_absent (__main__.PairedReadingControls.test_missing_retrieval_data_keeps_metrics_absent) ... ok
+test_no_inherited_experiments (__main__.PairedReadingControls.test_no_inherited_experiments) ... ok
+test_rank_buckets_count_gold_once_at_boundaries (__main__.PairedReadingControls.test_rank_buckets_count_gold_once_at_boundaries) ... ok
+test_rescore_reads_release_top_level_gold_spans_and_checks_arm (__main__.PairedReadingControls.test_rescore_reads_release_top_level_gold_spans_and_checks_arm) ... ok
+test_span_score_deduplicates_gold_and_prediction (__main__.PairedReadingControls.test_span_score_deduplicates_gold_and_prediction) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.015s
+
+OK

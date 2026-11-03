@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -17,6 +18,9 @@ import (
 // browser) and an httptest server that is always ready.
 func fakeExternalRun(t *testing.T, script string, mutate func(*E2EConfig)) Receipt {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake npx runner needs a POSIX shell, signals and /dev/zero (ASD-V0-2230; V1-2491)")
+	}
 	bin, repo := t.TempDir(), t.TempDir()
 	writeFile(t, filepath.Join(bin, "npx"), "#!/bin/sh\n"+script+"\n")
 	if err := os.Chmod(filepath.Join(bin, "npx"), 0o755); err != nil {

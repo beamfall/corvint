@@ -1,0 +1,12 @@
+{
+  "outcome": "failed",
+  "scope": "experimental promotion gates",
+  "focused_verification": "passed",
+  "frozen_retrieval": "PARTIAL_MEASURED",
+  "history": "MEASURED_WITH_ERRORS",
+  "promotion": "KEEP_OPT_IN",
+  "native_outcome_recording": "NOT_PRODUCED",
+  "native_ticket_completion": "NOT_PRODUCED",
+  "independent_review": "NOT_PRODUCED",
+  "final_cem": "NOT_PRODUCED"
+}

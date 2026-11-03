@@ -316,6 +316,7 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 
 ## Non-goals and trust boundary
 
+
 No feature-count target, universal runner, strict LCP schema change, new ledger/database, service,
 protected principal, signing key or automatic command fanout. No sealed evaluation input, transcript
 collection, silent trace migration, fabricated provider attachment, authority promotion or guaranteed
