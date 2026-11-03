@@ -183,7 +183,8 @@ func TestAFPV0541ParallelSlicesKeepTheCaptureLayout(t *testing.T) {
 }
 
 // TestAFPV0540PullRequestParallelismBinding: only a self-hosted pull-request shard runs above
-// -p 1; the whole, slice and rerun invocations all take SHARD_TEST_P, and run_tests runs slices
+// -p 1; the narrowing gate and tests steps set SHARD_TEST_P identically (AFP-V0-2181), the
+// whole, slice and rerun invocations all take it, and run_tests runs slices
 // in the background only when it is above 1 and their packages are distinct.
 func TestAFPV0540PullRequestParallelismBinding(t *testing.T) {
 	b, err := os.ReadFile("../../.github/workflows/ci.yml")
@@ -192,8 +193,10 @@ func TestAFPV0540PullRequestParallelismBinding(t *testing.T) {
 	}
 	ci := string(b)
 	const env = "          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}\n"
-	if strings.Count(ci, env) != 1 || strings.Count(ci, "SHARD_TEST_P:") != 1 {
-		t.Fatalf("ci.yml must set SHARD_TEST_P once, as %q", env)
+	// AFP-V0-2181: the narrowing gate step sets the same value as the tests step, so ci-shards
+	// places the pinned narrowed set by the -p the shard then runs it at.
+	if strings.Count(ci, env) != 2 || strings.Count(ci, "SHARD_TEST_P:") != 2 {
+		t.Fatalf("ci.yml must set SHARD_TEST_P in the narrowing gate and tests steps, both as %q", env)
 	}
 	if n := len(regexp.MustCompile(`go test -exec "\$RUNNER_TEMP/test-confine" -json -p "\$SHARD_TEST_P" -count=1 -race -timeout 50m `).FindAllString(ci, -1)); n != 3 {
 		t.Fatalf("ci.yml has %d go test invocations with -p \"$SHARD_TEST_P\", want the whole, slice and rerun ones", n)

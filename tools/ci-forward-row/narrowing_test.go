@@ -1355,9 +1355,9 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	}
 }
 
-// AFP-V0-2185 (V1-4360): the cache-prune workflow alone holds actions: write, runs only on main,
+// AFP-V0-097 (V1-4360): the cache-prune workflow alone holds actions: write, runs only on main,
 // and deletes every CodeQL overlay entry but the newest per language prefix.
-func TestAFPV02185CachePruneKeepsNewestOverlay(t *testing.T) {
+func TestAFPV0097CachePruneKeepsNewestOverlay(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the cache-prune step runs under sh")
 	b, err := os.ReadFile("../../.github/workflows/cache-prune.yml")
 	if err != nil {
