@@ -100,6 +100,11 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 			}
 		}
 	}
+	for id := range e.Tests {
+		if t := ix.Tests[id]; t.Name == InOrder {
+			e.Whole[t.Package] = true
+		}
+	}
 	return e
 }
 

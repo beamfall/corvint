@@ -35,7 +35,8 @@ type Outcome struct {
 var listedTest = regexp.MustCompile(`^(Test|Example|Fuzz)\w*$`)
 
 // Collect runs every top-level test of each package alone, in its own
-// process, with coverage over the whole module. GOFLAGS carries the coverage
+// process, with coverage over the whole module, and each package's whole
+// suite once in ordinary order as its InOrder record. GOFLAGS carries the coverage
 // flags, so a binary a test builds and executes also writes its blocks into
 // the same GOCOVERDIR (LPCV-V0-954).
 func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, error) {
@@ -63,10 +64,15 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 		if err != nil {
 			return nil, fmt.Errorf("linecov: list %s: %v", pkg, err)
 		}
+		listed := false
 		for _, name := range strings.Fields(string(out)) {
 			if listedTest.MatchString(name) {
 				jobs = append(jobs, job{pkg, name, bin, dir})
+				listed = true
 			}
+		}
+		if listed {
+			jobs = append(jobs, job{pkg, InOrder, bin, dir})
 		}
 	}
 	outcomes := make([]Outcome, len(jobs))
@@ -109,7 +115,11 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		runCtx, cancel = context.WithTimeout(ctx, o.Timeout)
 		defer cancel()
 	}
-	args := append([]string{"-test.run", "^" + name + "$", "-test.count=1", "-test.gocoverdir=" + cov}, o.TestArgs...)
+	args := []string{"-test.count=1", "-test.gocoverdir=" + cov}
+	if name != InOrder {
+		args = append(args, "-test.run", "^"+name+"$")
+	}
+	args = append(args, o.TestArgs...)
 	cmd := exec.CommandContext(runCtx, bin, args...)
 	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+cov)
 	var log bytes.Buffer
