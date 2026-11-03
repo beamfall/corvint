@@ -207,3 +207,36 @@ Terminal result: `LANE_SCRIPTS_GROUPS=all bash script/lane-scripts_test.sh` **PA
 All final reviewer findings are closed by code and passing checks; the reviewer performed only
 read-only review. Final Bash syntax/lint and whitespace checks pass. No task commit or native
 completion is claimed.
+
+## Review fixes
+
+An independent Codex review of the lane commit reported two findings. Both reproduced, and both are
+fixed in place under the lane's existing requirement IDs.
+
+- P1, `ASD-V0-2190`: the new `portable_test` path filter wrote `[^/]` inside a regex literal. BWK
+  awk (macOS `/usr/bin/awk`) ends a regex literal at the first unescaped slash, even inside a
+  bracket expression, so the whole scanner fails with "nonterminated character class" and
+  `make bash32-check` cannot run on a Mac. POSIX awk lexing likewise requires `\/` inside an ERE
+  token. The filter is now `[^\/]`. This host has no BWK awk (only gawk 5.3.2 and mawk 1.3.4), so
+  the macOS failure was not executed here. Instead, `script/check-bash32_test.sh` now lexes the
+  scanner program as BWK does and refuses any literal that leaves a bracket open. It reads all 28
+  literals; an independent count of `~ /`, `( /` and `, /` openings also gives 28. It flags the
+  HEAD form at line 47 of the program and passes the fixed one. A nested
+  `script/sub/*_test.sh` fixture shows that the escaped form keeps its meaning. The test passes
+  under gawk and under mawk (through a PATH shim).
+- P2, `ASD-V0-2192`: selecting `workflow` alone failed group 20. `hv`, `conns`, the stub repos and
+  the `gh` stub were defined only inside offload groups 8, 17 and 18. Without the `gh` stub, a
+  standalone build ran the caller's real `gh` and logged `runs=2` from live CI, which breaks the
+  no-real-CI rule of `ASD-V0-040`. Group 20's clean-index assertion also depended on group 17's wip
+  commit. Selecting `tools` alone hit the unset `$d` and `$h` in group 55, which were defined only
+  in policy group 27. A Bash pipeline subshell that dies on nounset runs the parent's EXIT trap,
+  which deleted `$tmp` and its failure ledger, so the run reported "18 groups passed" with exit 0.
+  Fixes:
+  - The offload fixture now runs in one shared block for `all|offload|workflow`: stubs, checkout,
+    `hv`, `conns` and `gh`.
+  - The log regexes are shared constants `stamp_re` and `tail_re`, renamed because offload loops
+    reuse `h`.
+  - Group 20 compares the tracked status before and after its builds.
+  - `summary` refuses with exit 2 when the ledger is missing. The new `--ledger-self-test` is
+    checked at startup: it gives exit 0 without the change and exit 2 with it.
+- Every advertised selector now passes alone, and so does the complete suite (61 groups).

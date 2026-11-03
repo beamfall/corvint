@@ -89,7 +89,7 @@ function nounset(raw,   s, m) {
 # ASD-V0-2190: these raw-line rules also see quoted commands passed to sh -c; comments and
 # deliberate negative fixtures use the same explicit bash32 allow marker as the syntax rules.
 function portable_test(raw,   text) {
-  if (f !~ /^script\/[^/]*_test\.sh$/ || raw ~ /^[[:space:]]*#/ || raw ~ /# bash32: allow$/) return
+  if (f !~ /^script\/[^\/]*_test\.sh$/ || raw ~ /^[[:space:]]*#/ || raw ~ /# bash32: allow$/) return
   text = raw
   sub(/[[:space:]]+#.*/, "", text)
   if (text ~ /(^|[^A-Za-z0-9_-])mktemp[[:space:]]+-d([[:space:]]*([0-9]*[<>]|[);|&]|$)|["\047])/) portability("mktemp-template", "mktemp -d needs an explicit TMPDIR template")

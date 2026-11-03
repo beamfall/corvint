@@ -736,7 +736,8 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   (8–19), `workflow` (20–26), `policy` (27–28), `admission` (29–33), `guard` (34–35), `install`
   (36–38), `tools` (39–56), `reap` (57, available-slot audit), `merge` (58),
   `portability-probe` (59), `portability` (60) and `sweep` (61). Empty/unset selects all;
-  related fixtures share a name, and numeric failure IDs stay stable.
+  related fixtures share a name, and numeric failure IDs stay stable. Each name passes alone; a run
+  whose scratch directory vanished refuses with exit 2 instead of reporting a pass.
 
 - Closed-session scratch (ASD-V0-022, V1-1978): after each batch merge, run
   `make scratch-sweep SCRATCH_SWEEP_ARGS='--root <session-scratch-root> --root <lanes-root>
