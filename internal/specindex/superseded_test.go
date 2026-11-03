@@ -61,6 +61,13 @@ func TestSRGV0979SupersededSpecRegeneratesToACheckedIndex(t *testing.T) {
 	for _, projection := range []struct{ mode, file string }{{"--index", "INDEX.json"}, {"--readme", "README.md"}} {
 		cmd := exec.Command("sh", "script/gen-spec-requirements.sh", projection.mode)
 		cmd.Dir = root
+		// A lane closeout can export a BASE that exists only in its own repo.
+		for _, variable := range os.Environ() {
+			if !strings.HasPrefix(variable, "BASE=") && !strings.HasPrefix(variable, "SPEC_REQUIREMENTS_BASE=") {
+				cmd.Env = append(cmd.Env, variable)
+			}
+		}
+		cmd.Env = append(cmd.Env, "BASE=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		out, err := cmd.Output()
 		if ee, ok := err.(*exec.ExitError); ok {
 			t.Logf("stderr: %s", ee.Stderr)

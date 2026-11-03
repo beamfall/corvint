@@ -477,6 +477,26 @@ test('PWP-V3-014 a test that used no browser records browser none with a closed 
   assert.equal(legacy.api.browser, '');
 });
 
+test('PWP-V0-961 the report names the runner process.version', () => {
+  const Reporter = loadReporterWithBrowser(false);
+  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-node-version-')), 'report.json');
+  const reporter = new Reporter({output});
+  reporter.version = '1.64.0';
+  const api = [{category: 'pw:api', title: 'GET'}];
+  reporter.onTestEnd(fixtureTest('api', ['request'], []), {retry: 0, workerIndex: 0, duration: 1, errors: [], attachments: [], status: 'passed', steps: api});
+  reporter.onEnd({status: 'passed'});
+  const report = JSON.parse(fs.readFileSync(output, 'utf8'));
+  assert.equal(report.nodeVersion, process.version);
+  // The browserless test itself still carries no Node version (PWP-V3-014).
+  assert.deepEqual(report.tests[0].project.use, {corvintBrowserless: 'no-browser-use'});
+  // A run with no tests still names it.
+  const empty = path.join(path.dirname(output), 'empty.json');
+  const none = new Reporter({output: empty});
+  none.version = '1.64.0';
+  none.onEnd({status: 'passed'});
+  assert.equal(JSON.parse(fs.readFileSync(empty, 'utf8')).nodeVersion, process.version);
+});
+
 test('PWP-V3-013 a project fixture with a custom title is unknown, so a retitled launch cannot pass as the browser fixture', () => {
   const Reporter = loadReporterWithBrowser(true);
   const firefox = [{category: 'hook', title: 'Before Hooks', steps: [

@@ -114,6 +114,14 @@ func LoadSummarized(primaryWorktree string, idx *ClosedIndex) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	return LoadSummarizedTree(primaryWorktree, tree, idx)
+}
+
+// LoadSummarizedTree is LoadSummarized over a tree the caller captured with
+// TreeDigest (every file's bytes in hand), so a caller that already holds
+// the capture (the claim's know-how read, TCX-V0-975) does not read the
+// store again.
+func LoadSummarizedTree(primaryWorktree string, tree Tree, idx *ClosedIndex) (*Store, error) {
 	if idx == nil || !idx.governs(tree) {
 		return LoadTree(primaryWorktree, tree, "")
 	}

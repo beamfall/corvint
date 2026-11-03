@@ -578,6 +578,10 @@ pool has its own slots (`HEAVY_LIGHT_SLOTS`) and a hard runtime cap (`HEAVY_LIGH
 still applies the load gate, so these checks never queue behind a long test run. A run stopped at
 the cap exits 124 and names its rerun as heavy, `HEAVY_CLASS=heavy make TARGET` (`ASD-V0-731`,
 `ASD-V0-732`).
+The prepare check uses `cem cite` itself and names every refused cite row in one pass, up to the
+existing 256-row plan limit, including `cite-span-not-stable` and `cite-self-modified-authority`.
+Each diagnostic names the row, path, BASE span and reason; valid rows are omitted. Fix the whole
+list before binding (`DCW-V0-2130`, [citation-plan precheck](specs/dogfood-citation-plan-precheck-v0.md)).
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
 worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before any build
 it runs the requirement-definitions check, and the test read-scopes check when a `*_test.go` file or

@@ -91,7 +91,7 @@ func TestDogfoodEventStopLifecycle(t *testing.T) {
 			t.Fatalf("other session outside Stop: %#v", got)
 		}
 		forged := map[string]any{"completion": map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": "../" + owner}}
-		if got := renderAdapterResult("claude-code", "Stop", "stop", "/repo", map[string]any{}, forged, false); len(got) != 0 {
+		if got := renderAdapterResult(context.Background(), "claude-code", "Stop", "stop", "/repo", map[string]any{}, forged, false); len(got) != 0 {
 			t.Fatalf("invalid owner key rendered: %#v", got)
 		}
 	})
@@ -404,7 +404,7 @@ func TestDogfoodEventGoPythonWireAndSession(t *testing.T) {
 		if got := hashAdapterSession("corvint-local-completion-session/0", "native-session-é"); got != session {
 			t.Fatalf("adapter session digest=%s want=%s", got, session)
 		}
-		host := renderAdapterResult("codex", "Stop", "stop", "", input, result, false)
+		host := renderAdapterResult(context.Background(), "codex", "Stop", "stop", "", input, result, false)
 		if host["decision"] != "block" || !strings.Contains(host["reason"].(string), "Frontier authority remains unavailable") {
 			t.Fatalf("native Stop output=%v", host)
 		}
@@ -548,7 +548,7 @@ func TestDogfoodEventReadOnlyEnrolledStopAndPrompt(t *testing.T) {
 		if want := map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": key}; !reflect.DeepEqual(result["completion"], want) {
 			t.Fatalf("completion=%v", result["completion"])
 		}
-		notice := renderAdapterResult("claude-code", "Stop", "stop", root, map[string]any{"sessionIdSha256": other}, result, false)
+		notice := renderAdapterResult(context.Background(), "claude-code", "Stop", "stop", root, map[string]any{"sessionIdSha256": other}, result, false)
 		message, _ := notice["systemMessage"].(string)
 		if len(notice) != 1 || !strings.HasPrefix(message, otherSessionMsg) || !strings.Contains(message, `"--session-key","`+key+`"`) {
 			t.Fatalf("notice=%v", notice)
@@ -588,7 +588,7 @@ func dogfoodNativeValidate(t *testing.T, event, input string, output []byte) {
 		t.Fatal(err)
 	}
 	names := map[string]string{"user-prompt": "UserPromptSubmit", "session-start": "SessionStart", "stop": "Stop"}
-	native := renderAdapterResult("codex", names[event], event, "", normalized, result, false)
+	native := renderAdapterResult(context.Background(), "codex", names[event], event, "", normalized, result, false)
 	encoded, err := json.Marshal(native)
 	if err != nil || len(encoded)+1 > adapterOutputLimit {
 		t.Fatalf("native %s response: %v %d", event, err, len(encoded)+1)

@@ -382,7 +382,7 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	}
 	var report *store.Report
 	if name == "health" || name == "pool cleanup" {
-		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(env.writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		kind := "health"
 		if name == "pool cleanup" {
@@ -392,13 +392,13 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	} else if name == "pool operate" {
 		// PSR-V0-166: an interrupt kills the operation's process group and
 		// records the INTERRUPTED observation.
-		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(env.writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.PoolOperate(ctx, repo, actor, choice)
 	} else if name == "gate run" {
 		// An interrupt or hangup kills the gate's process group; a run that
 		// started is still recorded with its partial output (CAL-V0-319).
-		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		ctx, stop := signal.NotifyContext(env.writerContext(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 		defer stop()
 		if hasCIRun {
 			var ciRaw []byte
@@ -409,7 +409,7 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 			report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
 		}
 	} else {
-		base := writerContext()
+		base := env.writerContext()
 		if env.leaseInterrupted != nil {
 			base = store.WithClock(env.leaseInterrupted, store.WallClock)
 		}

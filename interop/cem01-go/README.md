@@ -55,7 +55,8 @@ This interoperability implementation is licensed under plain Apache-2.0 as liste
 
 The additive `verify-candidate` command implements the public
 [`protocol/cem-1.0/ALGORITHMS.md`](../../protocol/cem-1.0/ALGORITHMS.md)
-contract. Building requires Go 1.24 or later for rooted artifact reads; the consumer
+contract. Building requires Go 1.26.10 or later (the `go.mod` floor, which carries the
+CVE-2026-111943 crypto/x509 fix; Go 1.24 was the earlier floor for rooted artifact reads); the consumer
 remains standard-library-only.
 
 ```

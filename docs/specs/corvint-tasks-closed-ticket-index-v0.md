@@ -166,6 +166,162 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
   `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; the chunk
   times are in the build log.
 
+### V1-4315 gated batch-close write path
+
+Status: proposed (V1-4315; store-performance lane bcp-w40, 2026-11-02); implemented with focused
+tests and a paired measurement on the WSL2 benchmark host, live qualification on the owner's store
+NOT_RUN. Human-owned input: native ticket V1-4315. `ticket batch-close` paid one complete
+administrative write for every gated step of every row: claim, submit, gate run and complete each
+took the complete lease route, which audited the whole journal, built the complete inventory and
+decoded every ticket record, so closing 58 tickets on a 4,332-ticket, 19,197-receipt store took
+more than 30 minutes (about 6.4 s per receipt). Intent: a gated step costs what the other
+writer-route verbs cost, with the same admission decision and the same bytes, and a row's cost
+stops growing with the receipt history and with the decode of the whole ticket inventory. These
+requirements live here, beside the write-path summaries above, because the agent-leases spec's
+Requirements section is at the OCM obligation bound (SRG-V0-740); `CAL-V0-116` is amended by
+`TCX-V0-970` as `CAL-V0-205` amended it.
+
+- `TCX-V0-970`: (proposed; V1-4315) `SUBMIT`, `GATE_RUN` and `COMPLETE` MUST be served by the
+  `CAL-V0-116` writer route under that route's rules: it observes, models and commits under one
+  writer lock, rechecks the head, the intent tree and the primary branch before effects, replays a
+  retained request and reports a model result that plans no transaction without a write
+  (`CAL-V0-190`). While the store holds a bound writer checkpoint whose tail the route accepts,
+  the three verbs MUST NOT run the complete-history audit. Every decline of that route, including
+  a model that read an elided path, MUST hand the request to the complete route unchanged, with
+  nothing written. A committed write MUST write the same bytes and report as the complete route,
+  and a refused one MUST be answered as the complete route answers it. This amends the
+  `CAL-V0-116` lease-verb scope to include the three verbs and extends that route's accepted
+  guarantee change (a prefix rewrite is not detected by a fast writer) to them.
+- `TCX-V0-971`: (proposed; V1-4315) The lease writer route MUST give the model the index's
+  entries exactly as `TCX-V0-846` gives them to the native mutation writer: only when the index
+  governs the audited queue and policy; a ticket is held as its entry's summary only for canonical
+  bytes whose SHA-256 and length equal the entry's; every projection check and refusal of the
+  decoding route is kept; a lazy decode that fails refuses `MALFORMED`. A liveness lease, which
+  reads no ticket, is given none. The index is never authority: a store without an index, or whose
+  index does not govern, decodes every record as before, and a committed lease write writes the
+  same bytes and report with and without the index.
+- `TCX-V0-972`: (proposed; V1-4315) A gated `ticket batch-close` that will write at least one row
+  rewrites the index, as the post-command refresh does (`TCX-V0-984`), before its first row, so
+  every row's lease writes hold the unchanged tickets as summaries instead of decoding the whole
+  inventory at every step. The rewrite is best effort and the index file is its only write; a
+  `--dry-run` writes none (`TCL-V0-821` unchanged), and a manual close writes none before its rows.
+- `TCX-V0-973`: (proposed; V1-4315) The gate run's pre-read, from which it decides runnability,
+  the candidate, the gate definition and a reusable result before the program starts, MAY resume
+  the read-side journal audit from the retained read checkpoint (`CAL-V0-059`), else from the
+  bound writer checkpoint (`LGL-V0-807`), bound to the head it observed, with one capture of the
+  intent tree handed to the audit as the outer snapshot (`TM-V0-008`). A pre-read that fails, is
+  pending, finds staging present or observes a head that moved MUST fall back to the complete read
+  audit, so every refusal is the complete audit's. Nothing is decided from it finally: the lease
+  write that records the run audits again on its own route and rechecks under the lock.
+- `TCX-V0-974`: (proposed; V1-4315) The intent-tree capture (`intent.TreeDigest`, its stat pass
+  and the journal audit's directory listing) MAY read, stat and hash entries concurrently on at
+  most min(GOMAXPROCS, 8) workers, provided the tree, its total bytes and digest, and every
+  refusal, in listing order, are exactly those of the serial walk. The lease writer route MUST
+  capture the intent tree itself, under the writer lock, and hand it to its audit as the outer
+  snapshot exactly as the mutation writer takes the CLI's preload (`LGL-V0-845`): the audit takes
+  a file's bytes from the capture while the file still has that size and lists the rest, and the
+  pre-effect recheck validates every current entry again (reading and hashing every file unless
+  `TCX-V0-977` admits process-local reuse), so the capture is never the
+  evidence that the modeled bytes are current. A liveness write captures nothing (`JSG-V0-001`).
+  The route hands a committed claim's capture to the claim's know-how delivery read
+  (`TCX-V0-975`), since a claim changes no touch path and no note.
+- `TCX-V0-975`: (proposed; V1-4315) The claim's know-how delivery read MUST load the inventory as
+  the CLI preload loads it (`TCX-V0-847`: a record the index vouches for by digest and length is
+  held undecoded; every other record is decoded and checked as the full load checks it, so an
+  unreadable inventory still delivers `UNAVAILABLE` with the load's code, `KHN-V0-014`), over the
+  tree the writer route captured for the claim when it served it, and MUST materialize only the
+  claimed ticket and the records whose canonical bytes carry the `knowHow` key: a canonical record
+  with know-how always carries it, so the selection never drops a note, and a record selected by a
+  look-alike byte sequence decodes as before. The notes delivered, their order and their freshness
+  resolution are those the selection over every record delivers.
+- `TCX-V0-976`: (proposed; V1-4315) The manifest entry cost (`archive.EntryCost`), which depends
+  on the entry's path and size alone, MAY be memoized by them in the process; a refusal is never
+  memoized and a full memo is dropped whole. The inventory's capacity measure and its refusals are
+  unchanged.
+
+- `TCX-V0-977`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4315)
+  One sequential gated batch-close command MAY retain one bounded native intent capture in
+  memory, shared also with the mutation CLI preload while preserving its validation and warnings.
+  Each capture, including the pre-effect binding and the gate pre-read, MUST freshly list
+  the closed layout and stat every entry through root-confined, no-follow descriptors, enforcing
+  all existing layout, count, type and byte bounds. Only planning/modeling captures before
+  binding MAY reuse an entry's immutable bytes and SHA-256. Retention MUST associate bytes
+  with metadata from the file descriptor actually read in phase 2, require that metadata to
+  match the phase-1 key, and require unchanged phase-1 directory identities; a directory or
+  child inode swapped between phases MUST NOT poison later captures. Reuse of bytes and
+  SHA-256 requires equal device/inode, mode, size, nanosecond mtime AND kernel-controlled ctime;
+  the ctime MUST predate the retained capture's START by more than two seconds and have
+  nonzero nanoseconds to exclude racy or coarse timestamps. A changed, recent or unverifiable entry MUST be read and content-hashed;
+  unsupported platforms MUST read and hash all entries. These stat keys are only planning hints:
+  shared writable mappings can change content without changing mtime or ctime, even when
+  those timestamps are old. This is a native Linux filesystem optimization. Restoring
+  mtime alone, replacing an inode, adding, removing or renaming a file MUST NOT hide a change.
+  Failed captures MUST discard retained entries. Only a capture made under the continuously held
+  writer lock may also supply that audit's intent listing and inventory metadata; external
+  preloads and unlocked read audits MUST retain independent listings. A batch gate pre-read MAY
+  retain that native capture's raw projection bytes only if, after its audit and before any gate
+  decision/program uses them, it reads and hashes every live file under the bound directory
+  without reusing any stat-keyed capture or index digest, and re-reads the current head,
+  requiring both digests to equal the audit. Any mismatch/read failure MUST fall back to the
+  complete pre-read; an external preload's claimed digest MUST NOT qualify. This preserves
+  TCX-V0-973 while removing its redundant projection opens/hashes. Immediately before effects
+  the writer MUST rebind the current head and tree by reading and hashing every live file under
+  the bound directory and compare their digests to the audit, without releasing the lock.
+  This pre-effect binding MUST NEVER reuse a stat-keyed capture or index digest, irrespective
+  of matching timestamps or their age. Thus CAL-V0-116, LGL-V0-845 and
+  CAL-V0-070 retain content validation and confinement; the persisted read index's mtime key
+  (`TCX-V0-981`) MUST NOT serve writes. This retains TCX-V0-974's independent pre-effect
+  current-content read and hash.
+- `TCX-V0-978`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4315)
+  The native mutation and lease writers MAY carry the SHA-256 already computed by their
+  audit alongside the exact immutable canonical ticket bytes into the pure model, in matching
+  order. The model MAY use
+  it in place of hashing those same bytes again for index lookup and projection binding. An external
+  preload's claimed digest MUST NOT qualify: mutation borrowing requires the route's own native
+  capture under its held lock; ordinary external preloads MUST still hash their raw bytes. All
+  length, target exclusion, canonical-set and physical projection checks MUST remain; an
+  absent or incomplete digest vector MUST use content hashing. Digests are caller-supplied
+  observations, never taken from the index as authority over canonical bytes. A command MAY retain
+  an admitted immutable index and its queue/policy-scoped digest map across writes: only exact
+  audited digest/length matches remain eligible, changed tickets decode normally, and a different
+  store or governing queue/policy MUST invalidate or rebuild the scoped map. Indexed and
+  decoding routes MUST retain the same plans, capacity checks and refusals. Neither audit-digest
+  borrowing nor the retained index/map may replace the independent live-byte binding of TCX-V0-977.
+- `TCX-V0-979`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4315)
+  Within that serialized command the writer MAY update an owned summarized inventory by
+  comparing every freshly audited entry and validating and charging only changed entries,
+  undoing updates on failure. Previous model/plan users MUST be finished before reuse. Reuse
+  requires the same store, immutable audited checkpoint prefix, elided counts/costs and state
+  directory set; otherwise it MUST rebuild with NewSummarizedInventory. Duplicate, unknown,
+  malformed, over-bound, missing-parent and overlapping elided entries MUST refuse as a rebuild
+  does. Every capacity prefix and receipt/plan MUST equal the fresh-inventory result. The cache
+  MUST be process-local, bounded by the inventory limits, discarded on failure, and excluded
+  from journal authority and persistent formats. Summarized inventory reuse is confined to
+  planning/modeling and MUST NOT replace TCX-V0-977's live-byte pre-effect binding.
+
+Non-goals of this slice: the other lease verbs keep their routes; no change to the three verbs'
+models, refusals or wire results; no collapse of a row's steps into fewer receipts (receipts and
+journal semantics stay byte-compatible); no faster complete route when no bound checkpoint
+exists; no use of the persisted read index's stat key on the write path (`TCX-V0-981` stays a read-path rule).
+
+Failure modes of this slice: without a bound writer checkpoint (a new store, a head below the
+checkpoint minimum, a tail beyond the route's bound, an unsettled journal) the three verbs run
+the complete audit as every lease verb does, outside the preparation gate (`CAL-V0-263`). A
+ticket projection rewritten outside the journal (stale or tampered) is refused by the writer
+audit's projection comparison or by the model's projection check, with or without an index, and
+the complete route refuses it alike; nothing is written. A store without an index decodes every
+ticket per step until `TCX-V0-972` refreshes it. Every write still validates the current layout,
+file identities and freshly hashed live content before effects; unchanged old entries may retain
+their content capture for planning/modeling only under TCX-V0-977. The measured growth from
+4,000 to 8,000 tickets is recorded in
+`docs/build-log/2026-11-02-bcp-w40.md`, not hidden.
+
+Rollback of this slice: remove the three verbs from `writerLeaseVerb`, the index and the preload
+from `leaseWriter`, the checkpointed pre-read, the batch-close refresh, the selective know-how
+load, the entry-cost memo and the command-scoped capture/inventory reuse, and revert the tests
+and this section. Removing WithBatchWrites restores full content reads and inventory rebuilds. Stores are unchanged: both
+routes write the same bytes, and the index is derived state.
+
 ## Non-goals
 
 - No change to the projection, the journal, receipts or any wire output.
@@ -218,3 +374,14 @@ with no effect on stores.
 | `TCX-V0-848` | `TestTCXV0848JournalByteIdenticalWithIndex`; before and after numbers in `docs/build-log/2026-11-02-msc-u34-tasks-write-path.md` |
 | `TCX-V0-849` | `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`, `TestTCXV0849SameStatRewriteReparsed` |
 | `TCX-V0-850` | `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; chunk times in the build log |
+| `TCX-V0-970` | `TestTCXV0970_GateVerbsTakeWriterRoute`, `TestTCXV0970_TamperedProjectionRefusesGateWrite` (`internal/tasks/store`); `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit`, the batch-close tests (`internal/tasks/cli`) |
+| `TCX-V0-971` | `TestTCXV0971_LeaseWriterIndexParity` (`internal/tasks/store`); `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets` |
+| `TCX-V0-972` | `TestTCXV0972_BatchCloseRefreshesIndexBeforeFirstRow` (`internal/tasks/cli`) |
+| `TCX-V0-973` | `TestTCXV0973_CheckpointedPreReadMatchesCompleteAudit` (`internal/tasks/store`) |
+| `TCX-V0-974` | `TestTCXV0974_ParallelCaptureMatchesSerial` (`internal/tasks/intent`); `TestTCXV0970_GateVerbsTakeWriterRoute`, `TestCALV0116_WriterRouteParity` (`internal/tasks/store`); the `intent` and `journal` packages whole |
+| `TCX-V0-975` | `TestTCXV0975_KnowHowSelectionAmongCandidatesMatchesFull` (`internal/tasks/store`); `TestTCXV0975_LoadSummarizedTreeMatchesLoadSummarized` (`internal/tasks/intent`); `TestKHNV0014_UnreadableInventoryDeliversUnavailable` and the know-how claim tests (`internal/tasks/cli`, `internal/tasks/store`) |
+| `TCX-V0-976` | `TestTCXV0976_EntryCostMemoMatchesUncached` (`internal/tasks/archive`) |
+| V1-4315 measurement | `TestV14315_BatchCloseProfile` (opt-in, `internal/tasks/store`); paired numbers in `docs/build-log/2026-11-02-bcp-w40.md` |
+| `TCX-V0-977` | `TestTCXV0977_ConcurrentTamperBetweenWritesRefused`, `TestTCXV0977_PreEffectTamperRefused`, `TestTCXV0977_CaptureLayoutChanges`, `TestTCXV0977_CaptureReusesOnlyStableContent`, `TestTCXV0977_InventoryFingerprintEncodingParity`, `TestTCXV0977_GatePreReadRebindsCapturedBytes`, `TestTCXV0977_BindingRefusesMappedWriteWithoutTimestampChange` (`internal/tasks/store`); `TestTCXV0977_CaptureDirectorySwapDoesNotPoisonRetention`, `TestTCXV0977_CaptureFileSwapDoesNotPoisonRetention` (`internal/tasks/intent`, Linux) |
+| `TCX-V0-978` | `TestTCXV0978_AuditedDigestAndBatchInventoryParity`, `TestTCXV0978_AuditDigestsPreservePlansAndRefusals`, `TestTCXV0978_ExternalPreloadCannotForgeAuditedDigest`, `TestTCXV0978_RetainedIndexScope`, existing TCX-V0-971 indexed/decoding parity (`internal/tasks/store`) |
+| `TCX-V0-979` | `TestTCXV0979_IncrementalInventoryMatchesRebuild` (`internal/tasks/store`); paired 4k/8k `TestV14315_BatchCloseProfile` evidence in the lane build log |

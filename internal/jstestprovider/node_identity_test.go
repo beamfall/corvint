@@ -67,7 +67,7 @@ func TestRecordedNodeVersion(t *testing.T) {
 		o.Project.Use = []byte(`{"corvintBrowser":{"nodeVersion":"` + v + `"}}`)
 		return o
 	}
-	if got := recordedNodeVersion([]TestOutcome{outcome("v22.23.2"), outcome("v22.23.2")}); got != "v22.23.2" {
+	if got := recordedNodeVersion("1.64.0", []TestOutcome{outcome("v22.23.2"), outcome("v22.23.2")}, nil); got != "v22.23.2" {
 		t.Fatalf("agreeing = %q", got)
 	}
 	for name, tests := range map[string][]TestOutcome{
@@ -75,7 +75,7 @@ func TestRecordedNodeVersion(t *testing.T) {
 		"missing":  {outcome("v22.23.2"), {}},
 		"none":     nil,
 	} {
-		if got := recordedNodeVersion(tests); got != "" {
+		if got := recordedNodeVersion("1.64.0", tests, nil); got != "" {
 			t.Fatalf("%s = %q, want unknown", name, got)
 		}
 	}
