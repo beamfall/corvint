@@ -6,11 +6,11 @@
 // file per shard job, as raw completed JSON streams (AFP-V0-043). Logs printed by
 // `gh run view --log` (prefixed lines) are refused; use the raw shard artifacts:
 //
-//	ci-shard-costs refresh --shards 8 --revision SHA --run-url URL shard0.log ... shard7.log
-//	ci-shard-costs check --shards 8 shard0.log ... shard7.log
+//	ci-shard-costs refresh --shards 16 --revision SHA --run-url URL shard0.log ... shard15.log
+//	ci-shard-costs check --shards 16 shard0.log ... shard15.log
 //
-// --shards declares the CI shard count, the go-product-shard matrix size, and
-// every mode needs exactly one log per shard. refresh rewrites the table from the
+// --shards declares the source run shard count (currently 16 in the
+// go-product-shard matrix); every mode needs exactly one log per source shard. refresh rewrites the table from the
 // observed terminal package outcomes and records the source run; it refuses logs
 // that lack a package the current table lists unless --allow-removed is given. A
 // package that the committed allow-list and slice file split (AFP-V0-041) must end
@@ -30,7 +30,7 @@
 // default 5) by name; no other file of DIR is touched. `corvint test shards
 // --durations` reads the retained files directly, oldest first in name order.
 //
-//	ci-shard-costs check --advisory --shards 8 [--share 10] [--summary FILE] shard0.json ... shard7.json
+//	ci-shard-costs check --advisory --shards 16 [--share 10] [--summary FILE] shard0.json ... shard15.json
 //
 // The advisory form (AFP-V0-040) is the CI report: it needs exactly one raw
 // `go test -json` stream per shard, each well formed and finished, appends a

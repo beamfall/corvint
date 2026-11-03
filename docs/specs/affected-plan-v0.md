@@ -600,7 +600,7 @@ and container qualification; full fallback remains available.
   no selection or skip authority here and needs no AFP-V0-014 qualification. Rollback removes
   `--order` from the workflow.
 
-- **AFP-V0-041:** (accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
+- **AFP-V0-041:** (accepted by decision 0488, 2026-10-10; V1-1096; amended under the owner's standing approval (2026-11-02); AFP-V0-2180) Full
   CI MAY run an owner-allowed package as test slices in several shards, so that no single package
   sets a floor under the slowest shard. The AFP-V0-022 complete-universe guarantee is unchanged:
   every unsplit package, and every top-level test of a split package, runs in exactly one shard.
@@ -630,8 +630,9 @@ and container qualification; full fallback remains available.
   holds a sibling. With no split package the plan SHALL equal the AFP-V0-022 partition. Costs move
   units between shards and never change membership.
   (5) `tools/ci-test-slices generate` SHALL write the slice file from one complete, passing hosted
-  run. `generate` and `replay` SHALL take exactly one log per shard of the declared `--shards N`
-  (default 8, the go-product-shard matrix; amended from 6 by decision 0500, V1-1094), each with at least one
+  run. `generate` and `replay` SHALL take exactly one log per source shard of the declared
+  `--log-shards N` (default: output `--shards`, now sixteen under `AFP-V0-2180`; historically
+  eight under decision 0500, V1-1094), each with at least one
   terminal package outcome, and SHALL refuse any other count ("K of N shard logs present") or an
   empty log before any work, so a partial run never sets the split target or the predicted sums.
   In each shard log, every package that appears SHALL run one lifecycle: its start record first,
@@ -682,7 +683,7 @@ and container qualification; full fallback remains available.
   Every invocation SHALL run inside the one AFP-V0-040 capture, so the retained stream holds the
   whole packages and the slices of that shard.
   (8) `tools/ci-shard-costs` `refresh`, `check` and `check --advisory` SHALL take the CI shard
-  count as a declared `--shards N`, the go-product-shard matrix size, and SHALL refuse unless
+  count as a declared `--shards N`, the source run's go-product-shard matrix size, and SHALL refuse unless
   exactly N logs, one per shard, are given. They SHALL derive the split set from the committed
   allow-list and slice file (`--allow`, `--slices`) with the same `SplitPackages` call as the
   partition, over the packages the logs name and with N, never the number of logs supplied, as
@@ -1620,13 +1621,14 @@ and container qualification; full fallback remains available.
   of whole packages and slices differs from the full path's for the same universe and shard
   count, or a top-level test of a selected split package with zero or two terminal outcomes over
   the shards. Rollback: revert the change, which restores the AFP-V0-041 (6) refusal.
-- **AFP-V0-049:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1371)
+- **AFP-V0-049:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1371; amended under the owner's standing approval (2026-11-02); AFP-V0-2180)
   `tools/ci-test-slices generate` and `replay` SHALL combine the per-slice terminal outcomes of a
   split package as AFP-V0-041 (8) does for `tools/ci-shard-costs refresh`, so a complete, passing
   sliced run can regenerate the slice file and be replayed. The split set SHALL be the one the
   tested tree ran with: `generate` reads the allow-list and slice file of the `--revision`
   checkout and `replay` those of `--root`, through the same `SplitPackages` call over the
-  packages the logs name and the declared `--shards N`; `replay --slices` chooses only the
+  packages the logs name and the source `--log-shards N`; output `--shards` controls the new
+  partition only (`AFP-V0-2180`). `replay --slices` chooses only the
   placement it predicts.
   (1) A package the files split into K slices SHALL have exactly K terminal outcomes across the
   logs. Its time is the sum of those outcomes and its top-level test times the union of theirs.
@@ -1653,15 +1655,15 @@ and container qualification; full fallback remains available.
   a slice runs twice, or a package the files do not split ends twice. Rollback: revert `combine`
   and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` then refuse a sliced
   run as before, and the committed slice file stays valid.
-- **AFP-V0-060:** (accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016
+- **AFP-V0-060:** (amended under the owner's standing approval (2026-11-02); AFP-V0-2180; accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016
   consent for the `.github/` edits of V1-1096 and V1-0812 only and accepted the V1-1096 amendment
   of AFP-V0-022 that AFP-V0-041 states; V1-1096; no GitHub issue) Production test-name slices of
   the oversized allowed packages. (1) The committed `.github/cishards/test-slices.json` SHALL split
   both allowed packages, `cmd/corvint` and `internal/tasks/store`, and SHALL be regenerated by
   `tools/ci-test-slices generate --target` of at most 350s from one complete, passing hosted run
-  of the full go-product-shard matrix, with `package-costs.json` refreshed by
+  of the full source go-product-shard matrix (eight source shards for `AFP-V0-2180`), with `package-costs.json` refreshed by
   `tools/ci-shard-costs refresh` from the same run, so both files record one revision and run.
-  (2) Over the committed cost table's package universe and the 8-shard matrix, every planned slice
+  (2) Over the committed cost table's package universe and the sixteen-shard matrix, every planned slice
   of a split package SHALL carry at most 400,000 ms, the plan SHALL place every unsplit package
   and every slice exactly once, and sibling slices SHALL land in different shards. (3) Every test
   name the slice file records SHALL be selected by exactly one slice of its package; a name added
@@ -4376,11 +4378,11 @@ way the condition cannot affect no longer inherits it.
 Intent (V1-2942, owner: "ensure we are only running the tests we need, split intelligently across
 shards"): a narrowed pull-request run intersected the selection with the full-universe partition
 (`AFP-V0-028`), so a selection that fell mostly into one shard's partition ran on that shard alone
-while the other seven finished empty. The selection is now placed across the fixed eight shards by
+while the other seven finished empty. The selection is now placed across the sixteen shards (`AFP-V0-2180`) by
 the same measured costs, and go-product refuses any run in which that placement could leave a
 selected package unrun. The full fallback is unchanged.
 
-- **AFP-V0-590:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942)
+- **AFP-V0-590:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942; amended under the owner's standing approval (2026-11-02); AFP-V0-2180)
   Amending `AFP-V0-028` and `AFP-V0-098`, a `NARROWED` shard SHALL run its part of the
   cost-balanced placement of the driver selection. There are four parts.
   - (1) `cishards.Select` (`SelectFrom`) keeps the selected packages that are in the complete
@@ -4406,10 +4408,11 @@ selected package unrun. The full fallback is unchanged.
     recomputed, or the record has no valid `selected`, the shard runs whole as a `PARTITION`
     shard. A record without `placement` (an earlier `narrow.jq`) keeps the `AFP-V0-098`
     intersection.
-  - (4) The matrix stays eight shards; a shard with no placed package runs no Go test and ends
+  - (4) The matrix uses sixteen shards (`AFP-V0-2180`); a shard with no placed package runs no Go test and ends
     in seconds, as an `AFP-V0-028` empty intersection does.
-  Non-goals: changing the full, `merge_group` or `main` push partition; changing the matrix
-  size; measuring costs anew. Failure modes: an outdated cost table unbalances the placement
+  Non-goals of balanced narrowing: changing the full, `merge_group` or `main` push partition
+  independently of `AFP-V0-2180`; changing the sixteen-shard matrix size or measuring costs
+  anew outside that explicit refresh. Failure modes: an outdated cost table unbalances the placement
   (advisory `AFP-V0-040` drift report); a re-pinned `CORVINT_PR_TOOL_SOURCE` is needed before a
   record says `BALANCED`. Rollback: revert the `narrow.sh` and `narrow.jq` change and its pin,
   which restores `PARTITION` records; the ci.yml path and guard then pass unchanged.
@@ -6066,6 +6069,32 @@ refuse the file and fall back from narrowing, and nothing warned when the member
   modelled beyond "absent at the pin". Rollback: remove the target from `DOC_GATE_TARGETS` and
   delete the tool.
 
+### Sixteen-shard CI rebalance (owner direction, 2026-11-02)
+
+- `AFP-V0-2180`: (accepted under the owner's standing auto-accept (2026-10-11); owner direction 2026-11-02)
+  The pull-request, merge-queue and main Go test matrix SHALL use sixteen shards, with every
+  matrix-dependent reuse, coverage, record, qualification, drift and forward-row count equal
+  to sixteen. Refresh package costs mechanically from all eight successful FULL-run artifacts
+  of run `41429718453`, binding source revision `f216f4cb3056c6e46d69cc4fe402c6c76c1cf9f3`
+  (the tested merge has the same tree), and regenerate test slices for sixteen shards using
+  the `AFP-V0-060` target of at most 350 seconds and slice bound of 400 seconds, below this run's
+  sixteen-shard ideal share. Every measured package above that share SHALL split using the
+  existing owner allow-list;
+  any additional allow-list entry requires a package-isolation justification. The slice tool SHALL
+  distinguish output `--shards` (default sixteen) from complete source `--log-shards` (default
+  the output count), validating exactly one complete successful log per source shard and using
+  the source tree's slices to combine observations. Replay SHALL retain that source binding
+  while placing candidate slices, and report before/after per-shard predictions with the old
+  eight-shard files and new sixteen-shard files, explicitly as predictions rather than hosted
+  measurements. Rationale: the old cost table understates current work and the slowest shard
+  delays required CI. Failure modes: approximately 26 jobs per run increase Actions concurrent-job
+  pressure; the cache key includes job-total, causing one cold race build cache per shard;
+  more shards duplicate race compile minutes. Acceptance: count-agreement and source/output-count
+  tests, isolated cishards tests, spec and documentation checks, and retained replay sums in
+  `docs/build-log/2026-11-02-ci16-w54-sixteen-shards.md`. Hosted latency improvement stays
+  `NOT_OBSERVED` until a complete new run. Rollback: revert this change, restoring every count
+  to eight and the old package-cost and slice tables together. No test-selection authority changes.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -6206,6 +6235,7 @@ traceability table.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-2180 | `.github/workflows/{ci,ci-control-plane,pr-tests-qualification}.yml`, `.github/cishards/{package-costs,test-slices}.json`, `tools/ci-test-slices` | `TestAFPV0024WorkflowShardCountsAgree`, `TestAFPV02180RebalanceSourceAndOutputShardCounts`, `TestAFPV0591CoverageGuard`, `TestAFPV0041CommittedSlicesAreAdmitted`; replay predictions and limits in `docs/build-log/2026-11-02-ci16-w54-sixteen-shards.md` |
 | AFP-V0-001 | `cmd/corvint/affected.go` `compileAffected` | `TestAffectedCleanTreeSelectsNothingAndWritesNothing` compares `git status --porcelain --ignored` before and after |
 | AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestDirtyNonUTF8PathIsDisclosedNotRefused`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |

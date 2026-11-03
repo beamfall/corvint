@@ -1203,6 +1203,8 @@ func jsonUnmarshal(s string, v *doc) error { return json.Unmarshal([]byte(s), v)
 // or a mix fails, since a shard that ran only its partition may leave another shard's selected
 // package unrun. DOCS and REUSE runs, whose shards run no tests step, need no marker.
 func TestAFPV0591CoverageGuard(t *testing.T) {
+	// AFP-V0-2180: exercise the active sixteen-shard workflow; historical row fixtures stay eight.
+	const shards = 16
 	testplatform.SkipPOSIXShell(t, "the ci.yml coverage guard runs under bash")
 	workflow, err := os.ReadFile("../../.github/workflows/ci.yml")
 	if err != nil {
@@ -1212,7 +1214,7 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	if len(m) != 1 || !strings.Contains(m[0][1], "AFP-V0-591") {
 		t.Fatalf("%d go-product checks with the coverage guard in ci.yml, want 1", len(m))
 	}
-	if !strings.Contains(m[0][0], "          SHARDS: \"8\"\n") || !strings.Contains(m[0][0], "          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}\n") {
+	if !strings.Contains(m[0][0], "          SHARDS: \"16\"\n") || !strings.Contains(m[0][0], "          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}\n") {
 		t.Fatal("the go-product check does not read the shard count and the docs-plan mode")
 	}
 	if !strings.Contains(string(workflow), "      - name: Fetch the shard coverage markers (AFP-V0-591)\n"+
@@ -1262,8 +1264,8 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 		markers    []doc
 		pass       bool
 	}{
-		{"every shard ran its partition", "all 8 shards ran their partition", all("PARTITION"), true},
-		{"every shard ran one balanced placement", "all 8 shards ran their part of one balanced placement of 2 selected package(s)", all("BALANCED"), true},
+		{"every shard ran its partition", "all 16 shards ran their partition", all("PARTITION"), true},
+		{"every shard ran one balanced placement", "all 16 shards ran their part of one balanced placement of 2 selected package(s)", all("BALANCED"), true},
 		// Each shard keeps the latest marker it uploaded, so a re-run of some shards mixes attempts.
 		{"a re-run shard agrees with an earlier attempt", "one balanced placement", edit("BALANCED", func(ms []doc) []doc {
 			ms[4]["runAttempt"] = "2"
@@ -1274,12 +1276,13 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 			ms[5] = marker(5, "PARTITION")
 			return ms
 		}), false},
-		{"a balanced shard left no marker", "the markers name shards 0,1,2,3,4,5,6, want 0 to 7", edit("BALANCED", func(ms []doc) []doc { return ms[:7] }), false},
-		{"a partition shard left no marker", "want 0 to 7", edit("PARTITION", func(ms []doc) []doc { return ms[1:] }), false},
-		{"an extra marker", "want 0 to 7", append(all("PARTITION"), marker(8, "PARTITION")), false},
-		{"a shard is named twice", "want 0 to 7", edit("BALANCED", func(ms []doc) []doc { ms[7]["shard"] = 6; return ms }), false},
-		{"the shard counts disagree", "a marker names another shard count than 8", edit("BALANCED", func(ms []doc) []doc { ms[2]["shards"] = 4; return ms }), false},
-		{"every marker names another shard count", "a marker names another shard count than 8", edit("PARTITION", func(ms []doc) []doc {
+		{"a balanced shard left no marker", "the markers name shards 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14, want 0 to 15", edit("BALANCED", func(ms []doc) []doc { return ms[:15] }), false},
+		{"only the old eight shards left markers", "want 0 to 15", all("PARTITION")[:8], false},
+		{"a partition shard left no marker", "want 0 to 15", edit("PARTITION", func(ms []doc) []doc { return ms[1:] }), false},
+		{"an extra marker", "want 0 to 15", append(all("PARTITION"), marker(16, "PARTITION")), false},
+		{"a shard is named twice", "want 0 to 15", edit("BALANCED", func(ms []doc) []doc { ms[15]["shard"] = 14; return ms }), false},
+		{"the shard counts disagree", "a marker names another shard count than 16", edit("BALANCED", func(ms []doc) []doc { ms[2]["shards"] = 4; return ms }), false},
+		{"every marker names another shard count", "a marker names another shard count than 16", edit("PARTITION", func(ms []doc) []doc {
 			for _, m := range ms {
 				m["shards"] = 4
 			}
@@ -1309,7 +1312,7 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 			ms[2]["placement"], ms[2]["selected"] = "PARTITION", []string{}
 			return ms
 		}), false},
-		{"a merge-queue run of one balanced placement passes", "AFP-V0-591: covered; all 8 shards ran their part", all("BALANCED"), true},
+		{"a merge-queue run of one balanced placement passes", "AFP-V0-591: covered; all 16 shards ran their part", all("BALANCED"), true},
 		{"a push run reads no marker", "", nil, true},
 	}
 	for _, c := range cases {

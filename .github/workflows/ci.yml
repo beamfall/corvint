@@ -219,7 +219,7 @@ jobs:
         working-directory: trusted-docs
         env:
           GH_TOKEN: ${{ github.token }}
-          REUSE_SHARDS: "8"
+          REUSE_SHARDS: "16"
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           src="$GITHUB_WORKSPACE/source"
@@ -402,7 +402,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     # AFP-V0-170 (V1-3051): one output per shard, set to FULL only by that shard and only when
     # its tests step passed without a NARROWED narrowing gate, the one route to a narrowed shard.
     # The gate's output is fixed before any repository test runs, and no tests-step output is
@@ -417,6 +417,14 @@ jobs:
       full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
       full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
       full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
     # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
     # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
     # V1-2707 (owner ci-control-plane OK 2026-10-25): the reviewed origin/main commit the
@@ -1327,12 +1335,12 @@ jobs:
     # which is part of the tree a reusing commit must equal, changes what it prints. Any
     # mismatch prints no record, and the reusing run runs FULL; this job never fails CI.
     needs: [docs-plan, narrowing-verdict, go-product-shard]
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
       # Must equal the go-product-shard matrix length and REUSE_SHARDS.
-      SHARDS: "8"
+      SHARDS: "16"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -1367,12 +1375,12 @@ jobs:
     # and first parent equal the record's (tools/ci-reuse-plan), so the selection covered the
     # same range; a main push never reuses it. Any mismatch prints no record; it never fails CI.
     needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.go-product.result == 'success' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.go-product.result == 'success' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
       # Must equal the go-product-shard matrix length and REUSE_SHARDS.
-      SHARDS: "8"
+      SHARDS: "16"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -1569,7 +1577,7 @@ jobs:
           DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}
           BATCHED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
           # AFP-V0-591: must equal the go-product-shard matrix length.
-          SHARDS: "8"
+          SHARDS: "16"
         run: |
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
           # this check passes with a notice instead of failing, so a lane PR is not red. It still
@@ -1654,7 +1662,7 @@ jobs:
     timeout-minutes: 20
     env:
       # Must equal the go-product-shard matrix, or every run abstains.
-      SHARDS: "8"
+      SHARDS: "16"
       GOTOOLCHAIN: local
       GOPROXY: "off"
       GOSUMDB: "off"
