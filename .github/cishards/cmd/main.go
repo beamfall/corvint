@@ -1,7 +1,9 @@
 // Command ci-shards emits one complete-universe shard of typed Go packages, or
 // with --slices the test slices of split packages in that shard (AFP-V0-041).
 // With --select it places only the listed packages of the universe across the
-// shards by the same measured costs (AFP-V0-590).
+// shards by the same measured costs (AFP-V0-590). Both place by each shard's
+// predicted wall time at its `go test -p` value (AFP-V0-2181): --parallel, by
+// default the SHARD_TEST_P the CI tests step runs with, else 1.
 package main
 
 import (
@@ -11,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/.github/cishards"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -22,10 +25,22 @@ func main() {
 	share := flag.String("share", "", "advisory affected-plan/1 (or /0) file; print its selected share of the universe's estimated time")
 	slices := flag.Bool("slices", false, "print the shard's test slices (AFP-V0-041), one invocation per line: FLAG PATTERN PACKAGE")
 	selection := flag.String("select", "", "file of selected packages, one per line; place only those of the universe across the shards (AFP-V0-590)")
+	parallel := flag.String("parallel", os.Getenv("SHARD_TEST_P"), "the shard's go test -p value the placement balances wall time for (AFP-V0-2181; default $SHARD_TEST_P, else 1)")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected arguments")
 		os.Exit(2)
+	}
+	p := 1
+	if *parallel != "" {
+		// A set but unusable value is refused, never read as 1: the tests step and the
+		// narrowing gate must place by the same parallelism or their lists disagree.
+		n, err := strconv.Atoi(*parallel)
+		if err != nil || n < 1 || n > cishards.MaxParallel {
+			fmt.Fprintln(os.Stderr, "invalid --parallel")
+			os.Exit(2)
+		}
+		p = n
 	}
 	if *profile {
 		fmt.Println(cishards.ProfileDigest())
@@ -44,10 +59,10 @@ func main() {
 	if err == nil && *selection != "" {
 		var selected []string
 		if selected, err = selectedPackages(*selection); err == nil {
-			plan, err = cishards.Select(packages, selected, *total)
+			plan, err = cishards.SelectParallel(packages, selected, *total, p)
 		}
 	} else if err == nil {
-		plan, err = cishards.Plan(packages, *total)
+		plan, err = cishards.PlanParallel(packages, *total, p)
 	}
 	if err == nil && (*shard < 0 || *shard >= *total) {
 		err = fmt.Errorf("invalid shard index")

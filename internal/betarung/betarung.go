@@ -2,7 +2,7 @@
 // label BETA, the per-command/per-surface admission record that decides it, and
 // the disclosure obligation that makes an admission valid.
 //
-// The clause is deliberately narrow and so is this package. It decides one
+// The clause is deliberately narrow, and so is this package. It decides one
 // thing — which label a (command, surface) pair carries — from a checked-in
 // record, and it refuses to mint BETA from anything weaker than the three named
 // evidence sources. It grants no authority toward installing the candidate as

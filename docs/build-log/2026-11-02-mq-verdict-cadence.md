@@ -16,12 +16,12 @@ Decision (orchestrator, under owner delegation):
 - `ci.yml` passes `KILL_PAGES` 60 (about 8 hours) to accept.sh, so a delayed schedule still
   covers its listing. A fresh verdict still stops after a few pages.
 - accept.sh keeps its pinned default of 25.
-- A new `cache-prune.yml` (AFP-V0-2185) holds the only `actions: write` grant. It deletes superseded
+- A new `cache-prune.yml` (AFP-V0-097 amendment) holds the only `actions: write` grant. It deletes superseded
   overlay entries hourly, which keeps ci-forward-bar read-only.
 - I deleted the 52 superseded overlay entries by hand with the owner's permission ("you have my
   permission to fix the caching").
 
-Evidence: `TestAFPV0097WorkflowBindings` and `TestAFPV02185CachePruneKeepsNewestOverlay` pass. The
+Evidence: `TestAFPV0097WorkflowBindings` and `TestAFPV0097CachePruneKeepsNewestOverlay` pass. The
 least-privilege check and actionlint are clean. Hosted narrowing after merge is `NOT_OBSERVED` until
 a dispatched verdict and a later queue run show NARROWED shards.
 
