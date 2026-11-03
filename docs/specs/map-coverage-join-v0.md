@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-11-03
 Intent status: accepted
-Delivery status: experimental (slices 1, 4 and 7 in `internal/linecov`); other slices not-started
+Delivery status: experimental (slices 1, 4 and 7 in `internal/linecov`; slice 6 levels and the Ruby collector in `internal/linecov` and `internal/rubytestprovider`, its TypeScript collector not-started); other slices not-started
 Authoritative inputs: owner request of 2026-11-03 (tie line-level test selection to the site map,
 page objects and the generated documentation across unit, integration and E2E tests, and stop
 re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V0-950..963);
@@ -12,9 +12,9 @@ re-testing repeated E2E steps); `live-proof-carrying-verification-v0.md` (LPCV-V
 
 ## Agent digest
 - Claim: Functionality links to its code and tests, so a change selects its feature's tests where line coverage is silent and shared E2E steps run once.
-- Status: accepted/experimental (slices 1, 4 and 7 in `internal/linecov`); other slices not-started
-- Exists: slices 1, 4 and 7 as a Go library in `internal/linecov`: the `linecov-index/3` format with optional per-record segments, which reads a `/2` index as one whole-test segment per test; `Index.Join` from changed blocks to segments, tests and opaque functional-unit ids, with uncovered blocks for the gap-filling lane; `Index.Report` reasons and level/reason counts; `Index.Shadow` shared-step equivalence (conditions 1 to 4) with the cheapest representative, shadow only; the `FaultCase` per-kind fault-injection runner, miss detector, divergent-class carry (`linecov collect -prior/-misses`) and promotion check; and the plan-time measurement. Not yet: any segment collector (only the Go collector exists, whose records are unbound whole-test segments, so nothing is excluded in practice), SKH binding, the `select`/`ci` JSON wiring of the join and report, the CI shadow run and its 1,000-change count. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
-- Blocked on: a non-Go collector (LPCV-V0-955) for the observed links and segment requirements. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
+- Status: accepted/experimental (slices 1, 4 and 7 in `internal/linecov`; slice 6 levels and the Ruby collector in `internal/linecov` and `internal/rubytestprovider`, its TypeScript collector not-started); other slices not-started
+- Exists: slices 1, 4 and 7 as a Go library in `internal/linecov`: the `linecov-index/3` format with optional per-record segments, which reads a `/2` index as one whole-test segment per test; `Index.Join` from changed blocks to segments, tests and opaque functional-unit ids, with uncovered blocks for the gap-filling lane; `Index.Report` reasons and level/reason counts; `Index.Shadow` shared-step equivalence (conditions 1 to 4) with the cheapest representative, shadow only; the `FaultCase` per-kind fault-injection runner, miss detector, divergent-class carry (`linecov collect -prior/-misses`) and promotion check; and the plan-time measurement. Slice 6 in part: `linecov.ResolveLevel` level tagging (MCJ-V0-007, MCJ-V0-040) and the Ruby segment collector `corvint-ruby-segments/0` for RSpec, Capybara and SitePrism in `internal/rubytestprovider` (setup, page-object method, step and whole-test segments from Ruby line `Coverage`, anchor-bound until SKH binding exists), qualified per segment kind by the MCJ-V0-014 matrix on its committed fixture and a live run (MCJ-V0-041..044); other Ruby families keep `coverage-collector-missing`. Not yet: the TypeScript and Playwright collectors, a companion subcommand that runs the Ruby collector, SKH binding, the `select`/`ci` JSON wiring of the join and report, the CI shadow run and its 1,000-change count. Its inputs exist separately: the Go-only per-test `linecov` index (LPCV-V0-950..963, `internal/linecov`), the AMAP-V0 screen graph and overlay seam, the SKH-V0 page objects, method IDs and deduplicated step records (`SKRecord`, SKH-V0-022), RVN-V0 receipt verification and CCE-V0 obligations.
+- Blocked on: a browser E2E collector (MCJ-V0-012) for browser and server reach; the Ruby collector covers RSpec, Capybara and SitePrism suites that run in-process under `rack_test`. Declared and static functionality links (MCJ-V0-020..024) need none. Tickets V1-4383..V1-4391.
 - Read next: Requirements; Functionality links; Shared-step selection; Failure modes; Delivery slices; Owner questions.
 
 ## User job and verified baseline
@@ -320,7 +320,8 @@ line selection: it never dedupes repeated steps and never tells the map which te
 4. Shared-step equivalence and representative selection, shadow only (MCJ-V0-005, 006, 017).
 5. Documentation and how-to `executed` / `proven` projection, and affected functionality for CCE
    and review (MCJ-V0-010, 011).
-6. Level tagging plus the Ruby and TypeScript collectors (MCJ-V0-007, 013).
+6. Level tagging plus the Ruby and TypeScript collectors (MCJ-V0-007, 013); levels and the Ruby
+   collector are delivered (MCJ-V0-040..044), the TypeScript collector is not started.
 7. Fault-injection qualification, miss detector and plan-time measurement (MCJ-V0-014, 018, 019).
 8. Setup substitution suggestions (MCJ-V0-008).
 
