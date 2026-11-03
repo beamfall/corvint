@@ -7,6 +7,9 @@
 # Git worktree exits 2.
 set -uo pipefail
 export LC_ALL=C
+# A caller's repository environment (GIT_DIR, GIT_INDEX_FILE..., as a Git hook exports) would point
+# the fixture's `git add` at the caller's index.
+unset $(git rev-parse --local-env-vars)
 source_root=$(cd "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-stray-backups-test.XXXXXX") || exit 1
 trap '/bin/rm -rf "$test_root"' EXIT

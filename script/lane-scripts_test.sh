@@ -1910,7 +1910,7 @@ real_stat=$(command -v stat) real_uname=$(command -v uname)
 cat > "$fs/bin/stat" << FAKESTAT || fail "fake stat"
 #!/bin/sh
 printf 'stat %s\n' "\$*" >> "$fs/probe.log"
-if [ "\$#" = 4 ] && [ "\$1" = -f ] && [ "\$2" = -c ] && [ "\$3" = %T ]; then printf '%s\n' "\$LANE_TEST_FSTYPE"; exit 0; fi
+if [ "\$#" = 4 ] && [ "\$1" = -f ] && [ "\$2" = -c ] && [ "\$3" = %T ] && [ "\$4" = /tmp ]; then printf '%s\n' "\$LANE_TEST_FSTYPE"; exit 0; fi
 exec "$real_stat" "\$@"
 FAKESTAT
 cat > "$fs/bin/uname" << FAKEUNAME || fail "fake uname"
