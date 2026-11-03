@@ -1024,6 +1024,16 @@ case $big_err in *'256 obligations; the limit is 256'*'requirement IDs added sin
 capacity_full=$(capacity_base)
 big_err=$(BASE=$capacity_full run --capacity 2>&1) || fail "unchanged full spec refused: $big_err"
 case $big_err in *'warning: its ## Requirements section holds 256 of the 256 obligations'*'companion spec'*'requirement IDs added since BASE='*'(none)'*) ;; *) fail "unchanged full spec lacked warning/attribution: $big_err" ;; esac
+# DCW-V0-2145 (V1-4401): generation names a near-cap spec only when the change adds a section ID to
+# it since BASE (else HEAD); an untouched one is counted on one NOTE line, which capacity never uses.
+big_err=$(BASE=$capacity_full run 2>&1 > /dev/null) || fail "generation refused an unchanged full spec: $big_err"
+case $big_err in *'warning: its ## Requirements'*) fail "generation listed a spec the change does not touch: $big_err" ;; esac
+case $big_err in *'spec-requirements: NOTE 1 spec(s) within margin=8 of the 256-obligation limit gain no requirement since BASE='"$capacity_full"*'make spec-capacity-check lists every one'*) ;;
+  *) fail "generation lost the untouched-spec summary: $big_err" ;; esac
+big_err=$(BASE=$capacity_before run 2>&1 > /dev/null) || fail "generation refused a newly filled spec: $big_err"
+case $big_err in *'docs/specs/big.md: warning: its ## Requirements section holds 256 of the 256 obligations'*) ;;
+  *) fail "generation hid the spec the change fills: $big_err" ;; esac
+case $big_err in *'NOTE 1 spec(s)'*) fail "generation counted a touched spec as untouched: $big_err" ;; esac
 for base_name in BASE SPEC_REQUIREMENTS_BASE; do
   big_err=$(env "$base_name=$missing_base" "$test_root/script/gen-spec-requirements.sh" --capacity 2>&1) &&
     fail "capacity ignored unavailable $base_name"

@@ -86,7 +86,7 @@ func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 	none := func(int) []string { return nil }
 
 	for i, result := range run.concurrently(t, lanes, inputs, "dogfood", "change", base) {
-		if result.code != 1 || !strings.Contains(result.stderr, "local-outcome: record-index-failed") {
+		if result.code != 3 || !strings.Contains(result.stderr, "local-outcome: record-index-failed") {
 			t.Fatalf("lane %d first pass exit=%d stderr=%s", i, result.code, result.stderr)
 		}
 	}

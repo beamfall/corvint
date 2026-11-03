@@ -54,7 +54,7 @@ func (l *finishLane) refreshMovedPlan() {
 	var stdout, notes bytes.Buffer
 	run := &proposal{
 		flow:    flow{ctx: l.ctx, prefix: "dogfood-propose-citations", root: l.root, stderr: &notes},
-		options: ProposeOptions{Root: l.root, Base: l.base, Refresh: plan}, stdout: &stdout,
+		options: ProposeOptions{Root: l.root, Base: l.base, Refresh: plan, CarryOnly: true}, stdout: &stdout,
 		blobs: map[string][]byte{}, lines: map[string][][]byte{},
 	}
 	code, err := boundary(l.ctx, run.run, func() {})

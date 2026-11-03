@@ -199,14 +199,21 @@ func TestDogfoodFlowRefusesStaleBinary(t *testing.T) {
 	commitSelfBinaryFiles(t, root, map[string]string{"self.go": "package self\n\nfunc Self() int { return 2 }\n"})
 	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
-	for _, args := range [][]string{{"change", built}, {"finish-lane", "--base", built}, {"inputs-check", "--base", built}, {"check", built}, {"seal", built}, {"batch-check", built}} {
-		var stdout, stderr bytes.Buffer
-		code := runDogfoodFlow(ctx, root, args, &stdout, &stderr)
-		want := "dogfood-" + args[0] + ": REFUSE self-binary-stale "
-		if code != 2 || !strings.HasPrefix(stderr.String(), want) || !strings.Contains(stderr.String(), "unset CORVINT_BIN") {
-			t.Fatalf("%s: exit %d, stderr %q", args[0], code, stderr.String())
+	// DCW-V0-2140 (V1-4406): the recovery names a current-tree CORVINT_BIN,
+	// and unsetting CORVINT_BIN only when it is set.
+	for _, corvintBin := range []string{"", "/set/corvint"} {
+		t.Setenv("CORVINT_BIN", corvintBin)
+		for _, args := range [][]string{{"change", built}, {"finish-lane", "--base", built}, {"inputs-check", "--base", built}, {"check", built}, {"seal", built}, {"batch-check", built}} {
+			var stdout, stderr bytes.Buffer
+			code := runDogfoodFlow(ctx, root, args, &stdout, &stderr)
+			want := "dogfood-" + args[0] + ": REFUSE self-binary-stale "
+			if code != 2 || !strings.HasPrefix(stderr.String(), want) || !strings.Contains(stderr.String(), "set CORVINT_BIN to a build of this tree (go build -o PATH ./cmd/corvint)") ||
+				strings.Contains(stderr.String(), "unset CORVINT_BIN") != (corvintBin != "") {
+				t.Fatalf("%s CORVINT_BIN=%q: exit %d, stderr %q", args[0], corvintBin, code, stderr.String())
+			}
 		}
 	}
+	t.Setenv("CORVINT_BIN", "")
 	for _, action := range []string{"propose-citations", "record-claims"} {
 		var stdout, stderr bytes.Buffer
 		runDogfoodFlow(ctx, root, []string{action, built}, &stdout, &stderr)
@@ -244,5 +251,20 @@ func TestDogfoodFlowRefusesStaleBinary(t *testing.T) {
 	refusal, notes := dogfoodStaleBinary(ctx, root, "/self", map[string]string{"--corvint-bin": "/unverified"})
 	if refusal != "" || len(notes) != 1 || !strings.HasPrefix(notes[0], "self-binary-unverified --corvint-bin /unverified: ") {
 		t.Errorf("an unverified binary must be a note: %q %v", refusal, notes)
+	}
+}
+
+// DCW-V0-2140 (V1-4406): the static pre-check's stale refusal also names
+// DOGFOOD_STATIC_PRECHECK=0; the full run does not.
+func TestStaleBinaryRecoveryNamesTheRealEscape(t *testing.T) {
+	for _, c := range []struct {
+		set, static     bool
+		unset, precheck bool
+	}{{false, false, false, false}, {true, false, true, false}, {false, true, false, true}, {true, true, true, true}} {
+		got := staleBinaryRecovery(c.set, c.static)
+		if !strings.Contains(got, "set CORVINT_BIN to a build of this tree") || strings.Contains(got, "unset CORVINT_BIN") != c.unset ||
+			strings.Contains(got, "DOGFOOD_STATIC_PRECHECK=0") != c.precheck {
+			t.Errorf("set=%v static=%v: %q", c.set, c.static, got)
+		}
 	}
 }

@@ -37,6 +37,10 @@ type ProposeOptions struct {
 	// IntentsDraft names a file to write the change's draft
 	// DOGFOOD_INTENTS_FILE to (DCW-V0-711).
 	IntentsDraft string
+	// CarryOnly keeps a refresh to the carried rows: finish-lane's automatic
+	// re-key of a moved plan sets it, so only an operator's explicit
+	// --refresh adds the anchoring row a reviewed hunk lost (DCW-V0-2141).
+	CarryOnly bool
 }
 
 // proposal drafts a per-hunk citation plan from the prepared map (DCW-V0-150).
@@ -89,6 +93,9 @@ type proposal struct {
 	// finish-lane auto-refresh reads (DCW-V0-947).
 	staleIDs  int
 	redrafted []proposedHunk
+	// anchorsRestored counts the anchoring rows an explicit refresh drafted
+	// beside carried rows that anchor nothing (DCW-V0-2141).
+	anchorsRestored int
 	// oversized holds each PATH:LINE:LINE candidate whose BASE line is longer
 	// than cem cite's evidence span bound, with its byte length; the draft
 	// never cites one and names each it skipped (DCW-V0-920).
@@ -432,9 +439,14 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	complete, patched := p.parseAnchors()
 	used := map[string]bool{}
 	p.carry(owed, used)
-	// The anchor search and the governing specs serve only drafted hunks, so
-	// a refresh that carries every owed hunk skips both (CKC-V0-014).
-	skip := allCarried(p, owed)
+	// DCW-V0-2141 (V1-4441): a carried hunk whose cite rows anchor nothing,
+	// such as one a reviewer cited to the requirement it implements only,
+	// gets its drafted anchoring row back beside them.
+	restore := p.unanchoredCarried(owed)
+	// The anchor search and the governing specs serve only drafted hunks and
+	// restored anchors, so a refresh that carries every owed hunk with an
+	// anchor skips both (CKC-V0-014).
+	skip := allCarried(p, owed) && len(restore) == 0
 	if !skip {
 		p.searchAnchors(owed, complete, patched)
 	}
@@ -454,6 +466,15 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		if carried, ok := p.carriedRows(hunk); ok {
 			rows = append(rows, carried...)
 			uniform = false
+			if restore[hunk.id] {
+				key, _, _ := strings.Cut(carried[0], "\t")
+				if row, cite, _ := p.anchoredProposal(hunk, key, edited, used); row != "" {
+					used[cite] = true
+					rows = append(rows, row)
+					p.anchorsRestored++
+					notes = append(notes, fmt.Sprintf("hunk %s of %s: its carried rows anchor nothing (CEM-V1-081), so the drafted anchoring row %s is kept beside them; keep both rows (DCW-V0-2141)", hunk.id, hunk.path, strings.ReplaceAll(row, "\t", " ")))
+				}
+			}
 			continue
 		}
 		// A seal no change is stacked on is replaced by the next bind, not
@@ -878,6 +899,48 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	complete, patched := p.parseAnchors()
 	return p.searchAnchors(owed, complete, patched)
+}
+
+// unanchoredCarried returns the carried hunks whose rows cite at least one
+// BASE span and none of whose spans earns a CEM-V1-081 anchor, so an explicit
+// --refresh drafts their anchoring row again (DCW-V0-2141). A row whose span
+// cannot be read is treated as anchoring, so nothing is added on a guess.
+func (p *proposal) unanchoredCarried(owed []proposedHunk) map[string]bool {
+	if p.options.CarryOnly || p.claims != nil || p.carried == nil {
+		return nil
+	}
+	restore := map[string]bool{}
+	for _, hunk := range owed {
+		carried, ok := p.carriedRows(hunk)
+		derived := p.derivedHunk(hunk)
+		if !ok || derived == nil {
+			continue
+		}
+		cites, anchored := 0, false
+		for _, row := range carried {
+			fields := strings.Split(row, "\t")
+			if len(fields) != 4 || fields[1] == "unknown" {
+				continue
+			}
+			cites++
+			first, last, found := strings.Cut(fields[2], ":")
+			start, startErr := strconv.Atoi(first)
+			end, endErr := strconv.Atoi(last)
+			lines := p.baseLines(fields[1])
+			if !found || startErr != nil || endErr != nil || start < 1 || start > end || end > len(lines) {
+				anchored = true
+				break
+			}
+			if kinds, _ := verify.SpanAnchors(derived, bytes.Join(lines[start-1:end], []byte("\n"))); len(kinds) > 0 {
+				anchored = true
+				break
+			}
+		}
+		if cites > 0 && !anchored {
+			restore[hunk.id] = true
+		}
+	}
+	return restore
 }
 
 // allCarried reports whether a refresh carries rows for every owed hunk, so

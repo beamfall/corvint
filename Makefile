@@ -1058,9 +1058,12 @@ DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the M
 
 .PHONY: dogfood-change
 # With TASK= and PATHS= it first records the agent pre-change receipts, as dogfood-prechange does (DCW-V0-621).
+# A pass that only awaits the commit of its own sidecar prints PENDING and exits 3; make reports
+# that expected step as success (DCW-V0-2143).
 dogfood-change: ## Collect dogfood pre-change context (needs BASE=<full sha>)
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(if $(PATHS),DOGFOOD_TASK="$(TASK)" DOGFOOD_PRECHANGE_PATHS="$(PATHS)") $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(if $(PATHS),DOGFOOD_TASK="$(TASK)" DOGFOOD_PRECHANGE_PATHS="$(PATHS)") $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"; \
+	  rc=$$?; test "$$rc" -ne 3 || exit 0; exit "$$rc"
 
 # Record the agent pre-change receipts at BASE before the first edit (DCW-V0-880): TASK is the task
 # text, PATHS the tracked files the change intends to touch.
@@ -1074,6 +1077,12 @@ dogfood-prechange:
 .PHONY: dogfood-check
 dogfood-check: ## Check the bound CEM (needs BASE=<full sha>)
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-check.sh $(if $(DOGFOOD_BASE),"$(DOGFOOD_BASE)",--bound-base)
+
+# DCW-V0-2142 (V1-4442): the one rebind step after a reset dropped an unpushed bind or seal commit:
+# quarantine the stranded traces `make dogfood-inputs-check` notes, with this tree's build.
+.PHONY: dogfood-retire-traces
+dogfood-retire-traces: ## Quarantine traces of commits HEAD no longer reaches (after a reset)
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-retire-traces.sh
 
 .PHONY: dogfood-seal
 dogfood-seal: ## Seal the checked CEM (needs BASE=<full sha>)
