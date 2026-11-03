@@ -840,10 +840,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   browser's precise V8 block coverage with the coverage of the server under test into one
   `LPCV-V0-950` record per test in the `internal/linecov` profile and index format. Every record of a
   collection names one runner identity: collector version, runner and version, browser version,
-  Node version and `v8-precise`. Evidence: `TestE2EPlaywright`, `TestE2ECypress`.
+  Node version and `v8-precise`. A test whose name another test in its file shares, or whose
+  run alone did not run exactly one test, gets an incomplete record. Evidence: `TestE2EPlaywright`,
+  `TestE2ECypress`, `TestAloneOneTest`, `TestDuplicateNames`.
 - `LPCV-V0-971`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Playwright (`@playwright/test`): the hook instruments each
   worker process and attaches a CDP session to every page of every Chromium browser context, taking
-  coverage when the context closes; a page opened without a session, a dedicated or service worker
+  coverage when the context closes; a page opened without a session, a page closed other than by
+  `page.close()` or its context (`window.close`, a crash), a dedicated or service worker
   that may run repository code, or a context still open when the worker exits makes the record
   incomplete. A configured `webServer` is the server under test; the worker flushes it again as it
   exits, and the collector kills any of its processes left alive after the runner ends. Firefox and
@@ -871,7 +874,9 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   the record incomplete. The runner and its workers run test code the runner transpiles, so their
   coverage is never part of a record; when they ran repository code other than the spec being run
   and the runners' configuration files (a helper or application module a test imports), the record
-  is incomplete, since its V8 offsets are not offsets into the file. Evidence: `TestRunnerConfig`.
+  is incomplete, since its V8 offsets are not offsets into the file. A server's process group is
+  sent SIGTERM and, 10 seconds later, killed if any process remains, including after its shell has
+  exited. Evidence: `TestRunnerConfig`, `TestServerStopKillsLeftovers`.
 - `LPCV-V0-975`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Cypress: the collector writes a wrapper configuration and
   support file beside the project's JavaScript configuration, removed when it ends, and requires a
   Chromium-family `--browser` and a server command, since Cypress starts neither the DevTools port
@@ -881,7 +886,8 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   that may run repository code makes the record incomplete. Limit: a renderer swap (a cross-origin
   navigation to another loopback origin) starts a new target whose earlier scripts are recorded only
   from attach.
-  A TypeScript Cypress configuration is refused.
+  A TypeScript Cypress configuration is refused, and a non-zero `cypress run` exit with no failed
+  test fails the collection. Evidence: `TestAnyFailed`.
 - `LPCV-V0-976`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) The hook runs only in a process's main thread, records each
   process's role (runner, worker or process under test), and fetches an external source map only
   for a script that may be repository code, so it never sends the server under test a request of

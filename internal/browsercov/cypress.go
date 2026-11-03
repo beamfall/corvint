@@ -108,7 +108,23 @@ func (y *cypress) cypressRun(ctx context.Context, c *collector, dir string, env 
 	if len(files) == 0 {
 		return nil, fmt.Errorf("browsercov: cypress ran no spec (%v): %s", runErr, tail(out.Bytes()))
 	}
+	// A failing test explains a non-zero exit; anything else (a throwing
+	// after:spec handler, a crashed renderer) fails the run.
+	if runErr != nil && !anyFailed(files) {
+		return nil, fmt.Errorf("browsercov: cypress failed though no test did (%v): %s", runErr, tail(out.Bytes()))
+	}
 	return files, nil
+}
+
+func anyFailed(files []browserFile) bool {
+	for _, b := range files {
+		for _, t := range b.Tests {
+			if t.State == "failed" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (y *cypress) specs(ctx context.Context, c *collector) ([]string, error) {

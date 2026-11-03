@@ -26,4 +26,6 @@ func signalUsr2(int) error { return errors.ErrUnsupported }
 
 func alive(int) bool { return false }
 
+func groupAlive(int) bool { return false }
+
 const sigTerm, sigKill = syscall.Signal(15), syscall.Signal(9)

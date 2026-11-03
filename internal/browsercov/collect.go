@@ -178,8 +178,17 @@ func Collect(ctx context.Context, o Options) ([]Outcome, string, error) {
 		o.Log("browsercov: %s in order", spec)
 		obs, tests, elapsed, reason := c.once(ctx, spec, nil)
 		add(spec, linecov.InOrder, obs, elapsed, reason)
+		dup := duplicates(tests)
+		reported := map[string]bool{}
 		for i := range tests {
 			t := tests[i]
+			if dup[t.Name] {
+				if !reported[t.Name] {
+					reported[t.Name] = true
+					add(spec, t.Name, nil, 0, "another test in the file has the same name")
+				}
+				continue
+			}
 			if t.State == "skipped" {
 				continue
 			}
@@ -206,14 +215,14 @@ func Collect(ctx context.Context, o Options) ([]Outcome, string, error) {
 // alone checks that an isolated run ran exactly the one test and it passed.
 func alone(ran []result, name string) string {
 	var others []string
-	passed := false
+	passed := 0
 	for _, r := range ran {
 		switch {
 		case r.State == "skipped":
 		case r.Name != name:
 			others = append(others, r.Name)
 		case r.State == "passed":
-			passed = true
+			passed++
 		default:
 			return "failed when run alone"
 		}
@@ -221,10 +230,29 @@ func alone(ran []result, name string) string {
 	if len(others) > 0 {
 		return fmt.Sprintf("running it alone also ran %q", others)
 	}
-	if !passed {
+	if passed > 1 {
+		return fmt.Sprintf("running it alone ran %d tests of that name", passed)
+	}
+	if passed == 0 {
 		return "did not run when run alone"
 	}
 	return ""
+}
+
+// duplicates returns the names that more than one test of a file shares;
+// a runner's filter cannot run one of them alone, so none gets a record.
+func duplicates(tests []result) map[string]bool {
+	seen := map[string]int{}
+	for _, t := range tests {
+		seen[t.Name]++
+	}
+	dup := map[string]bool{}
+	for name, n := range seen {
+		if n > 1 {
+			dup[name] = true
+		}
+	}
+	return dup
 }
 
 // once runs one runner invocation with every process instrumented and reads

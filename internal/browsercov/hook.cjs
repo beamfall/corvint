@@ -203,6 +203,12 @@ function instrumentPlaywright() {
     started.add(page);
     watched.add(page);
     live.add(page.context());
+    // A page the app or browser closes (window.close, a crash) loses its
+    // coverage: only page.close() and the context close reach stop().
+    page.on("close", () => {
+      if (!started.delete(page)) return;
+      note("closed-page", `${page.url()} closed before its coverage was taken`);
+    });
     const close = page.close.bind(page);
     page.close = async (...args) => {
       await stop(page);
