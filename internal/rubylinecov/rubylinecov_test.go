@@ -194,12 +194,14 @@ func sorted(names ...string) string {
 
 // LPCV-V0-950, LPCV-V0-952, LPCV-V0-955: one Minitest process records each
 // test's own lines, joins a subprocess's coverage to the test that started
-// it, and gives a failing test no record.
+// it, keeps collecting after an exec that fails, and gives a failing test no
+// record. Work is relative to a directory other than Root.
 func TestLPCVV0955LiveMinitestPerTest(t *testing.T) {
 	requireRuby(t, "minitest")
 	root := t.TempDir()
 	head := project(t, root, "minitest")
-	run, ix := collect(t, root, head, Options{Argv: []string{"ruby", "-Itest", "test/calc_test.rb"}})
+	t.Chdir(t.TempDir())
+	run, ix := collect(t, root, head, Options{Work: "work", Argv: []string{"ruby", "-Itest", "test/calc_test.rb"}})
 	if run.ExitCode() == 0 {
 		t.Fatal("the failing test should fail the suite")
 	}
@@ -210,7 +212,8 @@ func TestLPCVV0955LiveMinitestPerTest(t *testing.T) {
 	for _, o := range run.Outcomes {
 		recorded[o.Name] = o.Recorded
 	}
-	if len(recorded) != 5 || recorded["CalcTest#test_fails"] || !recorded["CalcTest#test_add"] || !recorded["CalcTest#test_tool"] {
+	if len(recorded) != 6 || recorded["CalcTest#test_fails"] || !recorded["CalcTest#test_add"] || !recorded["CalcTest#test_tool"] ||
+		!recorded["CalcTest#test_failed_exec"] {
 		t.Fatalf("outcomes %+v", run.Outcomes)
 	}
 	if strings.Join(ix.Unordered, ",") != "test/calc_test.rb" {

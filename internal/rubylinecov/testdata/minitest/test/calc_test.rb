@@ -21,6 +21,10 @@ class CalcTest < Minitest::Test
     assert system(RbConfig.ruby, 'bin/tool')
   end
 
+  def test_failed_exec
+    assert_raises(SystemCallError) { exec('/nonexistent/corvint-linecov-command') }
+  end
+
   def test_fails
     assert_equal 1, 2
   end
