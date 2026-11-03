@@ -15,6 +15,31 @@ measure = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(measure)
 
 
+def sealed_capture(registration, packets, status="COMPLETE"):
+    """A capture shaped like tools/retrieval-bench's: header, records, footer."""
+    invocations = [{"sample_ordinal": i, "sample_id": sid, "repo": "r", "base_commit": "c",
+                    "invocation_ordinal": i, "phase": "ordinary", "task_bytes": 1, "task_sha256": "t"}
+                   for i, sid in enumerate(registration["sample_ids"])]
+    body = json.dumps({"type": "header", "profile": measure.CAPTURE_PROFILE,
+                       "registration": registration, "invocations": invocations}).encode() + b"\n"
+    for descriptor, raw in zip(invocations, packets):
+        body += json.dumps({"type": "invocation", "invocation": descriptor, "stdout": {
+            "status": "COMPLETE", "base64": base64.b64encode(raw).decode(), "bytes": len(raw),
+            "sha256": measure.hashlib.sha256(raw).hexdigest()}, "parse_status": "PARSED"}).encode() + b"\n"
+    footer = {"type": "footer", "status": status, "invocations": len(invocations), "total_bytes": 0,
+              "prior_sha256": measure.hashlib.sha256(body).hexdigest()}
+    while footer["total_bytes"] != len(body) + len(json.dumps(footer)) + 1:
+        footer["total_bytes"] = len(body) + len(json.dumps(footer)) + 1
+    return body + json.dumps(footer).encode() + b"\n"
+
+
+def registration_for(mode, binary, bench):
+    return {"bench_sha256": measure.digest(bench), "corvint_sha256": measure.digest(binary), "limit": 20,
+            "sample_ids": ["s"], "environment": [
+                "CORVINT_CONTEXT_RRF=" + ("on" if mode == "rrf" else ""),
+                "CORVINT_CONTEXT_SPANS=" + ("" if mode in ("rrf", "corroboration") else mode)]}
+
+
 class PairedReadingControls(unittest.TestCase):
     def test_rank_buckets_count_gold_once_at_boundaries(self):
         ranked = [str(i) for i in range(1, 21)]
@@ -60,10 +85,36 @@ class PairedReadingControls(unittest.TestCase):
     def test_capture_digest_is_checked(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "capture.jsonl"
-            path.write_text(json.dumps({"invocation": {"sample_id": "x"}, "stdout": {
-                "base64": base64.b64encode(b"{}").decode(), "sha256": "bad"}}) + "\n")
-            with self.assertRaisesRegex(ValueError, "digest mismatch"):
-                measure.captures(path)
+            registration = {"sample_ids": ["x"]}
+            path.write_bytes(sealed_capture(registration, [b"{}"]).replace(
+                measure.hashlib.sha256(b"{}").hexdigest().encode(), b"0" * 64))
+            with self.assertRaisesRegex(ValueError, "digest mismatch|footer"):
+                measure.captures(path, registration)
+
+    def test_capture_must_be_sealed_and_bound_to_its_report(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            binary, other, bench = root / "binary", root / "other", root / "bench"
+            binary.write_bytes(b"binary")
+            other.write_bytes(b"other binary")
+            bench.write_bytes(b"bench")
+            report = registration_for("hits", binary, bench)
+            path = root / "capture.jsonl"
+            path.write_bytes(sealed_capture(report, [b"{}"]))
+            self.assertEqual(list(measure.captures(path, report)), ["s"])
+            cases = {
+                "wrong binary": (sealed_capture(registration_for("hits", other, bench), [b"{}"]), "registration"),
+                "wrong arm": (sealed_capture(registration_for("merged", binary, bench), [b"{}"]), "registration"),
+                "partial footer": (sealed_capture(report, [b"{}"], status="PARTIAL"), "footer"),
+                "no footer": (sealed_capture(report, [b"{}"]).rsplit(b"\n", 2)[0] + b"\n", "footer|header"),
+                "no header": (sealed_capture(report, [b"{}"]).split(b"\n", 1)[1], "header"),
+                "tampered record": (sealed_capture(report, [b"{}"]).replace(b'"repo": "r"', b'"repo": "q"'), "footer"),
+            }
+            for name, (data, message) in cases.items():
+                with self.subTest(name):
+                    path.write_bytes(data)
+                    with self.assertRaisesRegex(ValueError, message):
+                        measure.captures(path, report)
 
     def test_missing_retrieval_data_keeps_metrics_absent(self):
         result = measure.retrieval_reading(None, None, Path("/absent-corpus"), Path("/unused"))
@@ -87,13 +138,9 @@ class PairedReadingControls(unittest.TestCase):
                 stem = root / ("trace2code-" + mode)
                 Path(str(stem) + ".json").write_text(json.dumps({"samples_sha256": measure.digest(samples),
                     "corvint": {"sha256": measure.digest(binary)}, "limit": 20, "arms": {},
-                    "registration": {"bench_sha256": measure.digest(bench), "environment": [
-                        "CORVINT_CONTEXT_RRF=" + ("on" if mode == "rrf" else ""),
-                        "CORVINT_CONTEXT_SPANS=" + ("" if mode in ("rrf", "corroboration") else mode)]},
+                    "registration": registration_for(mode, binary, bench),
                     "details": [{"id": "s", "gold": ["f"]}]}))
-                Path(str(stem) + ".jsonl").write_text(json.dumps({"invocation": {"sample_id": "s"},
-                    "stdout": {"base64": base64.b64encode(packet).decode(),
-                               "sha256": measure.hashlib.sha256(packet).hexdigest()}}) + "\n")
+                Path(str(stem) + ".jsonl").write_bytes(sealed_capture(registration_for(mode, binary, bench), [packet]))
             with patch.object(measure, "invoke", side_effect=AssertionError("rescore invoked an engine")):
                 result = measure.retrieval_reading(binary, bench, root, root, reuse=True)
             score = result["readings"]["trace2code"]["arms"]["hits"]["s"]["budget"]["4096"]
@@ -103,6 +150,11 @@ class PairedReadingControls(unittest.TestCase):
             contents["registration"]["environment"] = []
             wrong.write_text(json.dumps(contents))
             with self.assertRaisesRegex(ValueError, "arm identity mismatch"):
+                measure.retrieval_reading(binary, bench, root, root, reuse=True)
+            # A capture from another arm, under a report naming this arm, is refused.
+            wrong.write_text(json.dumps(dict(contents, registration=registration_for("hits", binary, bench))))
+            (root / "trace2code-hits.jsonl").write_bytes(sealed_capture(registration_for("merged", binary, bench), [packet]))
+            with self.assertRaisesRegex(ValueError, "registration differs"):
                 measure.retrieval_reading(binary, bench, root, root, reuse=True)
 
 

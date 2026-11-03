@@ -125,16 +125,47 @@ def history_reading(binary, history, tasks, subset):
             "totals": totals, "records": records}
 
 
-def captures(path):
-    records = [json.loads(line) for line in path.read_text().splitlines()]
+CAPTURE_PROFILE = "corvint-retrieval-context-capture-v0"
+
+
+def captures(path, registration):
+    """Score only a sealed capture bound to its report (RBD-V0-003..007).
+
+    The header must carry the report's exact registration (binary, engine,
+    arm environment and samples) and ordered invocation identities; every
+    record must match them in order with COMPLETE stdout; and the footer must
+    be COMPLETE with the true count, byte total and prior-bytes digest.
+    """
+    data = path.read_bytes()
+    lines = data.splitlines(keepends=True)
+    if len(lines) < 2 or not data.endswith(b"\n"):
+        raise ValueError("capture lacks header or footer")
+    header, footer = json.loads(lines[0]), json.loads(lines[-1])
+    if header.get("type") != "header" or header.get("profile") != CAPTURE_PROFILE:
+        raise ValueError("capture header missing or wrong profile")
+    if header.get("registration") != registration:
+        raise ValueError("capture registration differs from its report")
+    expected = header.get("invocations")
+    if not isinstance(expected, list) or [d.get("sample_id") for d in expected] != registration.get("sample_ids") \
+            or any(d.get("phase") != "ordinary" for d in expected):
+        raise ValueError("capture invocations differ from registered samples")
+    prior = data[:len(data) - len(lines[-1])]
+    if footer.get("type") != "footer" or footer.get("status") != "COMPLETE" \
+            or footer.get("invocations") != len(expected) or len(lines) != len(expected) + 2 \
+            or footer.get("total_bytes") != len(data) \
+            or footer.get("prior_sha256") != hashlib.sha256(prior).hexdigest():
+        raise ValueError("capture footer is not a complete seal")
     found = {}
-    for record in records:
-        if "invocation" not in record:
-            continue
+    for descriptor, line in zip(expected, lines[1:-1]):
+        record = json.loads(line)
+        if record.get("type") != "invocation" or record.get("invocation") != descriptor:
+            raise ValueError("capture invocation identity mismatch")
+        if record["stdout"].get("status") != "COMPLETE":
+            raise ValueError("capture stdout not complete: " + descriptor["sample_id"])
         raw = base64.b64decode(record["stdout"]["base64"], validate=True)
-        if hashlib.sha256(raw).hexdigest() != record["stdout"]["sha256"]:
+        if hashlib.sha256(raw).hexdigest() != record["stdout"]["sha256"] or len(raw) != record["stdout"]["bytes"]:
             raise ValueError("capture stdout digest mismatch")
-        key = record["invocation"]["sample_id"]
+        key = descriptor["sample_id"]
         if key in found:
             raise ValueError("duplicate capture sample: " + key)
         found[key] = (raw, json.loads(raw))
@@ -199,7 +230,9 @@ def retrieval_reading(binary, bench, data, output, reuse=False):
                 raise ValueError("report input identity mismatch: " + name)
             expected_env = ["CORVINT_CONTEXT_RRF=" + ("on" if mode == "rrf" else ""),
                             "CORVINT_CONTEXT_SPANS=" + ("" if mode in ("rrf", "corroboration") else mode)]
-            if parsed["registration"]["bench_sha256"] != digest(bench) or sorted(parsed["registration"]["environment"]) != sorted(expected_env):
+            registration = parsed["registration"]
+            if registration["bench_sha256"] != digest(bench) or sorted(registration["environment"]) != sorted(expected_env) \
+                    or registration.get("corvint_sha256") != digest(binary) or registration.get("limit") != 20:
                 raise ValueError("report engine/arm identity mismatch: " + name)
             readings[release]["runner_metrics"][mode] = parsed["arms"]
             # Keep the runner's entire scored report and registration beside
@@ -207,7 +240,7 @@ def retrieval_reading(binary, bench, data, output, reuse=False):
             detail = {}
             for sample in parsed["details"]:
                 detail[sample["id"]] = sample
-            packets = captures(capture)
+            packets = captures(capture, parsed["registration"])
             if set(packets) != set(detail):
                 raise ValueError("capture/scorer sample mismatch: " + name)
             per_sample = {}

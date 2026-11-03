@@ -59,18 +59,47 @@ func (ranker *spanRanker) budgetFallback(span contextSpan, room int) (contextSpa
 	if !ok {
 		return span, false
 	}
-	window := span
-	window.start, window.end = span.hitStart, span.hitEnd
-	for _, part := range span.contributors() {
-		window.start, window.end = min(window.start, part.hitStart), max(window.end, part.hitEnd)
-	}
-	if window.start > len(lines) || window.end > len(lines) {
+	window, found := span.hitRange()
+	if !found || window.end > len(lines) {
 		return span, false
 	}
 	if window.lines() >= span.lines() || window.lines() > room {
 		return span, false
 	}
 	window.note = span.note + "; the expansion would overrun the remaining line budget, so the hit range is returned"
+	return window, true
+}
+
+// hitRange is the span with its range narrowed to the union of its
+// contributors' hit ranges; false when any contributor lacks a hit.
+func (span contextSpan) hitRange() (contextSpan, bool) {
+	window := span
+	window.start, window.end = 0, 0
+	for _, part := range span.contributors() {
+		if part.hitStart < 1 || part.hitEnd < part.hitStart {
+			return span, false
+		}
+		if window.start == 0 {
+			window.start, window.end = part.hitStart, part.hitEnd
+			continue
+		}
+		window.start, window.end = min(window.start, part.hitStart), max(window.end, part.hitEnd)
+	}
+	return window, window.start > 0
+}
+
+// capMerged bounds a coalesced row by the per-span cap (TCP-V0-2221): a union
+// past contextSpanMaxLines returns its contributors' hit range with a reason
+// when that fits the cap, else it reports false and the row is omitted.
+func capMerged(span contextSpan) (contextSpan, bool) {
+	if span.lines() <= contextSpanMaxLines {
+		return span, true
+	}
+	window, found := span.hitRange()
+	if !found || window.lines() > contextSpanMaxLines {
+		return span, false
+	}
+	window.note = span.note + fmt.Sprintf("; the merged union runs %d lines, beyond the %d-line cap, so the hit range is returned", span.lines(), contextSpanMaxLines)
 	return window, true
 }
 
@@ -99,6 +128,7 @@ func mergeSpans(selected []contextSpan, span contextSpan) ([]contextSpan, bool) 
 }
 
 // coalesceSpans is a pure rank-stable normalization, independent of budgets.
+// Its unions are unbounded; rank applies capMerged to each before selection.
 // Only a fresh parts slice is extended; contributor slices in input are immutable.
 func coalesceSpans(candidates []contextSpan) []contextSpan {
 	selected := make([]contextSpan, 0, len(candidates))

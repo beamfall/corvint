@@ -160,6 +160,14 @@ func (ranker *spanRanker) rank(budget int) ([]contextSpan, int) {
 		if coveredBy(selected, span) {
 			continue
 		}
+		if ranker.merge {
+			capped, ok := capMerged(span)
+			if !ok {
+				omitted++
+				continue
+			}
+			span = capped
+		}
 		if used+span.lines() > budget {
 			window, ok := ranker.budgetFallback(span, budget-used)
 			if !ok {
@@ -322,11 +330,13 @@ func (ranker *spanRanker) fullExtent(path string, symbol Symbol, count int) (int
 	return symbol.Line, end
 }
 
+// nextSymbolLine is the first symbol line after line. The path's symbols are
+// sorted by line, so a binary search keeps enclosure lookup O(n log n) in a
+// file's declarations rather than quadratic (TCP-V0-2220).
 func (ranker *spanRanker) nextSymbolLine(path string, line int) (int, bool) {
-	for _, symbol := range ranker.symbols[path] {
-		if symbol.Line > line {
-			return symbol.Line, true
-		}
+	symbols := ranker.symbols[path]
+	if next := sort.Search(len(symbols), func(index int) bool { return symbols[index].Line > line }); next < len(symbols) {
+		return symbols[next].Line, true
 	}
 	return 0, false
 }

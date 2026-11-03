@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TCP-V0-2220: hit-only fallback fits even one remaining line, without
@@ -132,5 +134,71 @@ func TestContextRRFTieBreak_TCPV02222(t *testing.T) {
 	rows := compiler.fuseRanks([]contextRow{{path: "z", kind: "definition"}, {path: "a", kind: "lexical"}, {path: "b", kind: "definition"}})
 	if rows[0].path != "b" || rows[1].path != "z" || rows[2].path != "a" {
 		t.Fatalf("slot then path tie-break: %#v", rows)
+	}
+}
+
+// TCP-V0-2221: pre-budget coalescing never returns a row past the 80-line
+// per-span cap. Two adjacent 50-line declarations fold into a 100-line union,
+// which falls back to its contributors' hit range with a reason; a union whose
+// hit range is itself past the cap is omitted.
+func TestContextMergedRowCap_TCPV02221(t *testing.T) {
+	body := func(name string) string {
+		return "func " + name + "() int {\n" + strings.Repeat("\t_ = 0\n", 47) + "\treturn 0\n}\n"
+	}
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":           "module example.test/work\n\ngo 1.27.0\n",
+		"pkg/work/work.go": "package work\n\n" + body("AlphaLong") + body("BetaLong"),
+	})
+	index, err := Build(t.Context(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CORVINT_CONTEXT_SPANS", "merged")
+	compiler := newTaskContextCompiler(index, "Why do `AlphaLong` and `BetaLong` disagree?", "")
+	ranker := newSpanRanker(compiler, compiler.compile(20))
+	rows, _ := ranker.rank(contextSpanLineBudget)
+	var work *contextSpan
+	for index := range rows {
+		if rows[index].lines() > contextSpanMaxLines {
+			t.Fatalf("merged row past the cap: %#v", rows[index])
+		}
+		if rows[index].path == "pkg/work/work.go" {
+			work = &rows[index]
+		}
+	}
+	if work == nil || work.start != 3 || work.end != 53 || len(work.parts) != 2 ||
+		!strings.Contains(work.note, "the merged union runs 100 lines, beyond the 80-line cap, so the hit range is returned") {
+		t.Fatalf("capped merged row: %#v", work)
+	}
+	wide := contextSpan{path: "f", start: 1, end: 120, parts: []contextSpan{
+		{path: "f", start: 1, end: 60, hitStart: 1, hitEnd: 1},
+		{path: "f", start: 61, end: 120, hitStart: 100, hitEnd: 100},
+	}}
+	if _, ok := capMerged(wide); ok {
+		t.Fatal("a union whose hit range exceeds the cap was kept")
+	}
+}
+
+// TCP-V0-2220: enclosure lookup over many declarations without EndLine (Go)
+// stays near-linear; the earlier per-symbol rescan visited ~n²/2 symbols.
+func TestContextEnclosingManySymbols_TCPV02220(t *testing.T) {
+	const count = 200000
+	path := "big.go"
+	symbols := make([]Symbol, count)
+	lines := make([]string, count)
+	for index := range symbols {
+		symbols[index] = Symbol{Name: "f" + strconv.Itoa(index), Path: path, Line: index + 1}
+		lines[index] = "x"
+	}
+	ranker := &spanRanker{hits: true, symbols: map[string][]Symbol{path: symbols}, split: map[string][]string{path: lines}}
+	done := make(chan contextSpan, 1)
+	go func() { done <- ranker.enclosing(path, count, count) }()
+	select {
+	case span := <-done:
+		if span.symbol != "f"+strconv.Itoa(count-1) || span.start != count || span.end != count {
+			t.Fatalf("enclosing = %#v", span)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("enclosure lookup over 200000 declarations took over 10s")
 	}
 }

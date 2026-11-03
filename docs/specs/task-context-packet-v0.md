@@ -1421,6 +1421,8 @@ as withheld. This amendment reserves what the routed spec cites.
   declaration beyond the 80-line cap returns the exact hit range with an explicit reason; an
   expansion beyond the remaining 240-line packet budget likewise falls back to the exact hit
   range if it fits, otherwise it is counted omitted. `on` and unset retain their legacy bytes.
+  Locating the smallest enclosure stays O(n log n) in the file's indexed declarations: the
+  next-declaration bound for symbols without an end line is found by binary search, never rescanned.
 - `TCP-V0-2221`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0116)
   Experimental `merged` coalesces overlapping and adjacent candidates transitively within one
   path before line-budget selection, retaining the earliest ranked position and other paths'
@@ -1428,6 +1430,9 @@ as withheld. This amendment reserves what the routed spec cites.
   records. Every contributor is disclosed with its admitting slot, role and exact hit range;
   every slot corroborating that contributor is listed too. The union is returned once, with no
   overlapping returned rows. Provenance is compact and never silently discarded for byte savings.
+  Coalescing never lifts the 80-line row cap: a union past it returns the union of its
+  contributors' hit ranges, with every contributor and an explicit reason, when that fits the cap;
+  otherwise the row is counted omitted.
 - `TCP-V0-2222`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0219)
   Experimental RRF uses constant k=60 and each relation's first 1-based materialized candidate
   position, accumulated across its slot calls with the subject removed. Only the admitting and
@@ -1438,6 +1443,10 @@ as withheld. This amendment reserves what the routed spec cites.
 - `TCP-V0-2223`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0114; V1-0116; V1-0219)
   Retain reproducible paired readings on the frozen four retrieval subsets at fixed byte budgets (4096, 8192, 16384, 32768 and 65536 bytes; admit the whole actual
   CLI message or deliver no evidence), with exact sample and binary digests, file recall, gold-span coverage and complete packet bytes.
+  A rescored capture counts only when its header carries its report's exact registration (binary,
+  engine, arm environment, limit and sample IDs), its records match the registered invocation
+  identities in order with complete stdout, and its footer is `COMPLETE` with the true invocation
+  count, byte total and prior-bytes SHA-256; any other capture is refused, never scored.
   Compare `hits` against `on` and `merged` against `hits`; bytes increasing or recall decreasing
   fails promotion. Also run corroboration and RRF on exactly the same 63 decision-0027 v2 tasks
   at their history-backed base commits and report the 34-task v1 subset separately: gold counts
@@ -1924,10 +1933,10 @@ renamed or excluded. Keep all three experiments opt-in. Rollback selects `on` or
 | TCP-V0-042 | `tools/retrieval-bench` (unchanged); decision 0370 | frozen bench figures in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
 
-| TCP-V0-2220 | `spanRanker.enclosing`, `definitionSpans`, `budgetFallback` | `TestContextExactHitFallback_TCPV02220`, `TestContextSpanFallbacks` |
-| TCP-V0-2221 | `coalesceSpans`, `spanHitFields`, pre-budget `spanRanker.rank` | `TestContextPrebudgetMerge_TCPV02221`, `TestContextMergeBytes_TCPV02221` |
+| TCP-V0-2220 | `spanRanker.enclosing`, `definitionSpans`, `budgetFallback`, `nextSymbolLine` | `TestContextExactHitFallback_TCPV02220`, `TestContextSpanFallbacks`, `TestContextEnclosingManySymbols_TCPV02220` |
+| TCP-V0-2221 | `coalesceSpans`, `capMerged`, `spanHitFields`, pre-budget `spanRanker.rank` | `TestContextPrebudgetMerge_TCPV02221`, `TestContextMergeBytes_TCPV02221`, `TestContextMergedRowCap_TCPV02221` |
 | TCP-V0-2222 | `fuseSelectedRows`, `recordRelationRanks`, `fuseRanks` | `TestContextRRFMembership_TCPV02222`, `TestContextRRFTieBreak_TCPV02222` |
-| TCP-V0-2223 | `script/measure-context-packet.py`, existing frozen `tools/retrieval-bench` | `script/measure-context-packet_test.py`; `docs/build-log/2026-11-03-ctx-w58-packet-retrieval.md` (frozen reading and retained limits) |
+| TCP-V0-2223 | `script/measure-context-packet.py` (`captures` seal/registration binding), existing frozen `tools/retrieval-bench` | `script/measure-context-packet_test.py`; `docs/build-log/2026-11-03-ctx-w58-packet-retrieval.md` (frozen reading and retained limits) |
 
 | TCP-V0-025 | `contextSpansEnabled`, `attachSpans`, `newSpanRanker`, `coreSpans`, `rowSpans`, `definitionSpans`, `namedLineSpan`, `termLineSpan`, `extent`, `enclosing`, `spanRanker.packet` (`internal/contextindex/span_rank.go`) | `TestContextSpansDefaultBytes`, `TestContextSpansCoreAndCallSite` |
 | TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |

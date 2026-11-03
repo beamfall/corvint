@@ -118,3 +118,41 @@ records experimental implementation and measurements, not completed tickets, own
 external outcome validation or agent-time savings.
 
 The raw frozen-evaluation outputs under .agent-evidence/ctx-w58/frozen/ (17 MB) are not committed; their digests stay in .agent-evidence/ctx-w58/SHA256SUMS and the E2 command above regenerates them.
+
+## Review fixes
+
+An independent Codex review of `83f066e38` raised three P2 findings. All three were confirmed and fixed.
+The fixes are uncommitted on top of that commit.
+
+- **Merged rows could exceed the 80-line cap (TCP-V0-2221).** `coalesceSpans` merged with no
+  limit, so `rank` could emit a union longer than the per-span cap. In a fixture, two adjacent
+  50-line declarations produced a 100-line row (lines 3–102). Now, under `merged`, `capMerged`
+  checks each coalesced row before budget selection. If the row is past the cap, it falls back to
+  the union of its contributors' hit ranges and states the reason. If that hit range also exceeds
+  the cap, the row is counted as omitted. Every contributor is still listed. The modes `on`,
+  `hits` and unset are unchanged. Test: `TestContextMergedRowCap_TCPV02221`.
+- **Enclosure lookup was quadratic (TCP-V0-2220).** For symbols without an end line, such as Go
+  declarations, `nextSymbolLine` rescanned the file's symbols from the start each time. It now
+  uses a binary search over the symbols, which are already sorted by line. Test:
+  `TestContextEnclosingManySymbols_TCPV02220`, which uses 200,000 declarations. It takes 0.04 s
+  with the fix and still had not finished after 10 s without it.
+- **The scorer ignored capture headers and footers (TCP-V0-2223).** `captures` now checks five
+  things before scoring a capture:
+  - the header profile;
+  - that the header registration equals the report's registration exactly;
+  - that the invocation identities match the registered sample IDs in order;
+  - that each record has `COMPLETE` stdout with a matching byte count and digest;
+  - that the footer is `COMPLETE`, with the true invocation count, `total_bytes` and prior-bytes
+    SHA-256.
+
+  The report check now also binds `registration.corvint_sha256` and `limit`. The new control
+  rejects six bad captures: wrong binary, wrong arm, `PARTIAL` footer, missing footer, missing
+  header and a tampered record. The old scorer accepted all six. All five retained trace2code
+  captures still pass the new check (101 samples each), and a cross-arm capture is refused.
+
+**Retained limit.** The frozen `merged` reading above came from the defective binary. Exactly one
+retained `merged` packet has a row past the cap: sample `30a18c73cca02d3672705be7`,
+`tokio/tests/sync_mpsc.rs`, lines 50–130 (81 lines). No `on` or `hits` packet has one. The
+frozen arms were **not re-measured** after the fix, so the `merged` byte and coverage numbers
+above describe the uncapped implementation. The decision is unchanged: every span mode stays
+opt-in.
