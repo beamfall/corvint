@@ -89,6 +89,19 @@ func TestSelectBoundsDeclaredPathReaders(t *testing.T) {
 			if tc.absent != "" && strings.Contains(output, tc.absent) {
 				t.Fatalf("output names %q:\n%s", tc.absent, output)
 			}
+			// The bounds gate-ledger hashes agree with selection: a path that
+			// selects no declared package is no bound of it.
+			lines, err := packageBounds(fixtureModule, root, []string{tc.dirty})
+			if err != nil {
+				t.Fatal(err)
+			}
+			bounds := strings.Join(lines, "")
+			if tc.absent != "" && strings.Contains(bounds, "bound "+tc.absent+" ") {
+				t.Fatalf("bounds name %q:\n%s", tc.absent, bounds)
+			}
+			if pkg := strings.Fields(tc.verdict)[1]; !strings.Contains(bounds, "bound "+pkg+" ") {
+				t.Fatalf("bounds lack %q:\n%s", pkg, bounds)
+			}
 		})
 	}
 }
