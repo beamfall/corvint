@@ -113,8 +113,10 @@ const maxAdapterCodes = 8
 var admittedAdapterHosts = codeSet("claude-code", "codex", "opencode")
 
 // unrecognised labels a Codex hook event the adapter does not handle (V1-0746); the host's
-// event name itself is never recorded.
-var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", "pre-compact", "session-end", "session-start", "stop", "unrecognised", "user-prompt")
+// event name itself is never recorded. pre-tool, stop-done-list and subagent-start are the
+// Claude Code opt-in events (AHI-804, AHI-805, AHI-807); without them their abstention rows
+// were refused as prohibited content and silently lost (AHI-630, V1-0401).
+var admittedAdapterEvents = codeSet("file-change", "post-compact", "post-tool", "pre-compact", "pre-tool", "session-end", "session-start", "stop", "stop-done-list", "subagent-start", "unrecognised", "user-prompt")
 
 // admittedAdapterCodes is the closed set of degradation reasons the codex and claude-code adapters
 // return after resolving the project root, of the silent abstentions they record without changing

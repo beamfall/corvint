@@ -48,6 +48,7 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
+	batchWriteContext context.Context
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
 	// leaseProgress receives a detached lease command's timing after each
@@ -65,6 +66,12 @@ type Env struct {
 	// items of their tickets (TCL-V0-862); only compactRead's wide rerun
 	// for a --fields key the list item lacks sets it.
 	showItems bool
+
+	// readPatience is the snapshot.Reader Patience of this run's store
+	// reads; zero keeps snapshot.DefaultPatience. Only tests set it, so a
+	// parallel test can read with production patience without writing the
+	// package variable (CTS-V0-006).
+	readPatience time.Duration
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
@@ -747,7 +754,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	// s.IntentTree; body decodes those bytes instead of reading the tree a
 	// third time, and the second probe still reads it fresh (TM-V0-008).
 	var probed *intent.Tree
-	rd := snapshot.Reader{StateDir: repo.StateDir, IntentTree: func() (wire.Digest, error) {
+	rd := snapshot.Reader{StateDir: repo.StateDir, Patience: env.readPatience, IntentTree: func() (wire.Digest, error) {
 		probed = nil
 		t, err := intent.TreeDigestIndexed(repo.IntentRoot(), idx)
 		if err != nil {
