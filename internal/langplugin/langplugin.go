@@ -177,15 +177,15 @@ var manifests = []Manifest{
 	{
 		Name: "ruby",
 		Paths: []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby",
-			"internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubydialect", "internal/rubyprofile",
-			"internal/rubytestprovider"},
+			"internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubydialect", "internal/rubylinecov",
+			"internal/rubyprofile", "internal/rubytestprovider"},
 		Provider:      func() affected.Language { return ruby.New() },
 		Analyzers:     []SubPlugin{sub("corvint-analyzer-ruby", "internal/analyzerruby")},
 		Runners:       []string{"minitest", "rails-test", "rspec", "test-unit"},
 		TestProviders: []SubPlugin{sub("corvint-ruby-test-provider", "cmd/corvint-ruby-test-provider", "internal/rubytestprovider")},
 		Mutation: []SubPlugin{{Name: "rbmutate", Paths: []string{"internal/liveverify/rbmutate"}, Suffixes: []string{".rb"}},
 			sub("extmutate", "internal/extmutate")},
-		Absent: map[Piece]string{Coverage: noCollector},
+		Coverage: []SubPlugin{sub("linecov-ruby", "internal/rubylinecov")},
 	},
 	{
 		Name:      "rust",

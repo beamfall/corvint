@@ -124,7 +124,7 @@ var pluginDirs = []struct {
 	{"java", []string{"cmd/corvint-analyzer-java", "internal/analyzernativebridge", "internal/liveverify/affected/java"}},
 	{"kotlin", []string{"cmd/corvint-analyzer-kotlin-android", "internal/analyzerkotlinandroid", "internal/liveverify/affected/kotlin"}},
 	{"python", []string{"cmd/corvint-analyzer-python", "internal/analyzerpython", "internal/liveverify/affected/python", "internal/liveverify/pymutate", "internal/liveverify/pyresolve", "internal/pythongrammar", "internal/pythonsyntax"}},
-	{"ruby", []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby", "internal/extmutate", "internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubydialect", "internal/rubyprofile", "internal/rubytestprovider"}},
+	{"ruby", []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby", "internal/extmutate", "internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubydialect", "internal/rubylinecov", "internal/rubyprofile", "internal/rubytestprovider"}},
 	{"rust", []string{"cmd/corvint-analyzer-rust", "internal/analyzerrust", "internal/liveverify/affected/rust"}},
 	{"shell", []string{"cmd/corvint-analyzer-shell", "internal/analyzershell", "internal/liveverify/affected/shell"}},
 	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/swiftimpact"}},
