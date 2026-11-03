@@ -148,7 +148,9 @@ repository policy may consume a complete receipt, but Corvint does not invent or
   load/import edges, coverage edges, test-claim edges, generated-code/configuration edges, and
   inferred edges. Each edge carries source, revision/WEI, provider, freshness, and confidence class.
 - `LPCV-V0-008`: A runtime trace or coverage hit proves an observed execution edge only. It MUST NOT
-  prove that an unobserved edge, path, test, platform, or behavior is absent.
+  prove that an unobserved edge, path, test, platform, or behavior is absent. The one exception is
+  a fresh per-test line coverage record under `LPCV-V0-950..963`, which MAY justify excluding a test
+  whose recorded execution does not reach a changed line; it still proves nothing else absent.
 - `LPCV-V0-009`: Graph updates MUST be transactional per completed run. Cancelled, timed-out,
   crashed, stale, or partially decoded runs cannot publish a complete edge set.
 - `LPCV-V0-010`: Deletion, rename, generator/configuration change, dynamic loading, reflection,
@@ -208,7 +210,8 @@ repository policy may consume a complete receipt, but Corvint does not invent or
 
 - `LPCV-V0-027`: Coverage MUST be represented as a WEI-bound observation with provider,
   instrumentation mode, test set, and completeness frontier. Line or branch coverage is not a test
-  claim, behavioral proof, or verified absence certificate.
+  claim or behavioral proof, and it is not a verified absence certificate except as a fresh
+  per-test record used for a line-level exclusion under `LPCV-V0-950..963`.
 - `LPCV-V0-028`: Failure evidence MUST preserve the raw provider status and normalized failure class.
   Product failure, assertion failure, discovery failure, infrastructure failure, timeout, cancellation,
   crash, and stale execution MUST remain distinguishable.
@@ -668,6 +671,140 @@ outside this Requirements section, so these two live here):
   exits 2 without one, writes more than 4 MiB of output, writes a document that does not decode, or
   writes a document naming a different test identity than the one requested.
 
+### Line-level coverage selection (decision 0590; 2026-11-03)
+
+Owner intent (2026-11-03): when a line of code changes, only the tests that line can affect run, E2E
+tests included, in every supported language and test runner, and the selection is fast enough to
+rerun impacted tests on each edit (the Wallaby-style experience) and to pick CI shards. Static
+package or path rules stay the sound fallback; this section adds a per-test, per-line coverage
+record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V0-016` or
+`LPCV-V0-020`.
+
+- `LPCV-V0-950`: (accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** names one test identity (`LPCV-V0-022`), the runner
+  and its exact version, the instrumentation mode, the commit and the Git blob OID of every source
+  file the instrumented process tree could report, and per such file the executed line ranges with a
+  nonzero hit count. A file the instrumentation covered but the test did not execute is recorded as
+  covered-and-unexecuted, distinct from a file outside the instrumented set.
+- `LPCV-V0-951`: (accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a test and a
+  change when every file in the record, and every file the change touches, is inside the record's
+  instrumented set and has the recorded blob OID on the change's base side. A record built at an
+  older commit therefore stays usable for a test whose recorded files did not move, and a test whose
+  recorded file changed since the record (which may now reach the changed line through a new path)
+  is stale. Because a package-level initializer, constant or type is not a coverage block, the
+  drift between the record's commit and the change base is itself analysed by `LPCV-V0-952` and
+  `LPCV-V0-953`: a drift that `LPCV-V0-953` keeps on the static plan makes every record stale, and
+  a body-only drift makes stale each test it would select. A stale, missing or uninstrumented record, or one from a different runner version or
+  instrumentation mode, decides nothing; `LPCV-V0-016` keeps that test under the static plan.
+- `LPCV-V0-952`: (accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be excluded under `LPCV-V0-014` when no changed
+  base-side line range of any instrumented file intersects an executed range of that test. A pure
+  insertion intersects when either neighbouring base line was executed. The exclusion entry names
+  the record digest, the changed ranges, and the invalidation condition "any recorded blob OID
+  changes". This is the only exclusion this section permits.
+- `LPCV-V0-953`: (accepted, decision 0590 (owner 2026-11-03)) The following edits never use line intersection and fall back to the static plan
+  (package, import closure, declared readers, or `UNKNOWN_SCOPE`): a change outside every executable
+  body (imports, type, constant, variable and package-level declarations, initialisers, signatures,
+  annotations, decorators, macros, build tags); a new, deleted or renamed source file; a changed
+  test helper, fixture, configuration, generated file, data file read at run time, or build/test
+  manifest; and a language whose runner has no qualified collector. A changed test function selects
+  that test, and a test new on the head side selects itself. A declaration-level edit MAY narrow to
+  the tests whose records execute a body referencing the changed symbol once a symbol-reference
+  index for that language is qualified; until then it uses the static plan.
+- `LPCV-V0-954`: (accepted, decision 0590 (owner 2026-11-03)) An E2E or subprocess test's record MUST include the coverage of every instrumented
+  process it starts, including built binaries, servers and browsers, by propagating the runner's
+  coverage environment (for example `GOCOVERDIR` with `-cover` builds, `NODE_V8_COVERAGE`,
+  `COVERAGE_PROCESS_START`, `JAVA_TOOL_OPTIONS` with a JaCoCo agent, `LLVM_PROFILE_FILE`) or a
+  browser coverage protocol. A process the collector cannot instrument makes that test's record
+  incomplete; an incomplete record never excludes the test.
+- `LPCV-V0-955`: (accepted, decision 0590 (owner 2026-11-03)) Each supported runner family has a **collector** that produces `LPCV-V0-950`
+  records by isolating tests (one process per test, or a per-test counter reset and dump in one
+  process): Go (`go test`, Ginkgo); JavaScript and TypeScript (Mocha, Jasmine, `node:test`, Jest,
+  Vitest, AVA, `bun test`, `deno test`) with source maps; browser E2E (Playwright, Cypress,
+  WebdriverIO, TestCafe, Nightwatch, Storybook, Detox) joining browser and server coverage; Python
+  (pytest, unittest); Ruby (RSpec, Minitest, test-unit, Rails); JVM (JUnit Platform, JUnit 4,
+  TestNG, Kotest, Gradle, Maven Surefire, Robolectric); .NET (NUnit, xUnit, MSTest through MTP or
+  VSTest); Rust (cargo test, nextest); C and C++ (CTest, GoogleTest, Catch2, Boost.Test, cmocka);
+  Swift (XCTest, Swift Testing, Xcode); shell (Bats, ShellSpec). A family without a qualified
+  collector, including Android instrumentation and SQL runners until qualified, uses the static
+  plan; the plan names that family as `coverage-collector-missing`.
+- `LPCV-V0-956`: (accepted, decision 0590 (owner 2026-11-03)) Records are unioned across runs of the same test on the same blob OIDs, so a
+  nondeterministic path observed once remains a selection edge. A record is replaced only by a newer
+  run of the same test, and only for the files whose blob OID changed.
+- `LPCV-V0-957`: (accepted, decision 0590 (owner 2026-11-03)) Every test the coverage plan selects refreshes its record when it runs. Full runs on
+  the default branch refresh every record and act as the miss detector. A test that fails in the
+  full run at a merged commit, after a coverage exclusion skipped it for the change that commit
+  merged, is a **suspected miss** and is filed with the compared base, the merged commit and the
+  runner identity. It becomes a **confirmed miss** under `LPCV-V0-020` only when, with the same runner
+  identity and inputs, the test passes at the compared base, fails again on a rerun at the merged
+  commit, and the coverage plan for exactly that base-to-merge diff excluded it. A failure at the
+  base, a pass on rerun, or a failure only after a later commit is not a miss of that exclusion. A
+  confirmed miss disables coverage exclusion for that runner family until repaired; a suspected miss
+  keeps it enabled and is resolved by that reproduction.
+- `LPCV-V0-958`: (accepted, decision 0590 (owner 2026-11-03)) Records are stored as a compact immutable index keyed by commit, derived state that
+  is rebuildable from repository content by running the collectors, and never authority
+  (`LPCV-V0-012`, product invariant 7). Loading the index and selecting for a change of up to 50 files
+  MUST take p95 ≤ 100 ms beyond the `git diff` and base-blob reads on the reference host
+  (`P3`), and the index MUST stay below 1% of the repository's packed size or 64 MiB, whichever is
+  larger.
+- `LPCV-V0-959`: (accepted, decision 0590 (owner 2026-11-03)) CI test selection (merge queue and pull request) MUST consume the same index and
+  rule. A shard whose every test is excluded by a fresh record is skipped with its exclusion entries
+  in the plan; a shard that keeps any selected test runs only the selected tests through the runner's
+  native filter. A missing, stale or unverifiable index for the compared base falls back to the
+  existing static plan for the affected packages only, never to a silent pass.
+- `LPCV-V0-960`: (accepted, decision 0590 (owner 2026-11-03)) The local watch loop MUST apply the same rule to the working tree against the last
+  recorded commit, rerun the selected tests on save, and stream results under `LPCV-V0-023`. A watch
+  result is user-scoped (`LPCV-V0-018`) and does not close a CI gate.
+- `LPCV-V0-961`: (accepted, decision 0590 (owner 2026-11-03)) The plan reports, for each change, the tests selected by coverage, by static
+  fallback (with the `LPCV-V0-953` category), and excluded, with counts and the time spent loading
+  and selecting, so over-selection is measurable.
+- `LPCV-V0-962`: (accepted, decision 0590 (owner 2026-11-03)) A record comes only from a run that completed with the test's terminal status;
+  a cancelled, timed-out, crashed or partially decoded run publishes no record (`LPCV-V0-009`). A test
+  whose isolated collector run fails while its ordinary run passes (or the reverse) is
+  order-dependent: its record is incomplete and the plan names it `isolation-divergent`. Because a
+  test can also pass in both orders while taking a different path (an earlier test set shared
+  state), the collector also runs each package's tests together in their ordinary order and
+  attributes coverage to each top-level test by a counter dump and reset at each test's end; a
+  test's record is the union of its isolated and in-order coverage (`LPCV-V0-956`). Where per-test
+  attribution in order is unavailable, a block the in-order run executes that no isolated record of
+  that package contains marks the package order-sensitive, and a change reaching any block that run
+  executed keeps every test of the package. `LPCV-V0-963` includes a fixture whose tests pass both
+  ways but take different branches in order and alone.
+- `LPCV-V0-963`: (accepted, decision 0590 (owner 2026-11-03)) Each collector and the selector MUST be qualified by fault injection before coverage
+  exclusion is enabled for that runner family, and requalified on a collector, runner or selector
+  change. A seeded sample of executable lines in covered bodies is each mutated (statement deletion,
+  condition negation, constant change) and the full suite is run; every test that fails on a mutant
+  MUST be in the set the selector picks for that one-line change. One test that fails but was not
+  selected is a miss that blocks enablement. The qualification retains the sample seed, mutant
+  count, kill count, selected-set sizes and every miss, and a negative control proves a mutant on an
+  unexecuted line selects no test and kills none. The sample MUST include lines that coverage blocks
+  can leave uncovered (case expressions, else-if conditions, loop headers, closures); a changed body
+  line inside no block selects every test that executed a block of the enclosing function. Each
+  family is qualified on a pinned real repository: the Beamfall repositories for Go, TypeScript and
+  JavaScript, Rust, C#, Kotlin and the JVM, Swift and Python, and a pinned public Ruby project with
+  minitest and RSpec suites, since Beamfall has no Ruby repository. A family without a passing
+  qualification is reported unqualified and keeps its static plan.
+
+Failure modes for this section:
+
+| Failure | Required behavior |
+|---|---|
+| A record misses a path a later run takes | `LPCV-V0-956` union keeps both; a resulting miss trips `LPCV-V0-957` |
+| An E2E process is not instrumented | record incomplete; the test is never excluded (`LPCV-V0-954`) |
+| A changed declaration alters behavior of unchanged bodies | static fallback (`LPCV-V0-953`) |
+| Index missing or built at another commit | static plan for the affected scope (`LPCV-V0-951`, `LPCV-V0-959`) |
+| Collector or runner version drift | records stale; static plan |
+| A test passes alone but fails in the suite, or the reverse | record incomplete, `isolation-divergent` (`LPCV-V0-962`) |
+| The selector drops a test that a seeded fault in the changed line fails | enablement blocked (`LPCV-V0-963`) |
+
+Acceptance evidence: per collector, a fixture repository where a changed line in a body covered by
+exactly one test selects that test alone, an unexecuted-line change selects none, a declaration
+change takes the static plan, and an E2E test that only reaches the change through a started binary
+or server is selected; a CI shadow comparing coverage selection with full runs on 1,000 merged
+changes with zero confirmed misses; the `LPCV-V0-963` fault-injection qualification per runner
+family with zero misses; and the `LPCV-V0-958` latency and size measurements.
+
+Rollback: disable coverage exclusion through the `LPCV-V0-020` kill switch; selection returns to the
+static plan and the index is deleted without loss of source truth.
+
 ## Promotion experiments
 
 All promotion corpora, changes, defects, splits, metrics, exclusions, and stopping rules MUST be
@@ -739,6 +876,7 @@ Corvint selection and transport overhead.
 | Provider crash, hang, or malformed event | terminate owned tree; incomplete scope unknown | restart pinned provider or show full-command fallback |
 | Selection miss against full CI | disable autonomous narrowing for tuple/profile | shadow-only until cause repair and full replay pass |
 | Coverage/instrumentation mismatch | discard coverage evidence, not test result | rerun qualified instrumentation or expose absence |
+| Per-test coverage record stale, incomplete, or missing | static plan for the tests it would decide (`LPCV-V0-951`, `LPCV-V0-954`) | rerun the collector; records rebuild from repository content |
 | Secret-screening/policy failure | do not persist raw observation | revoke handle and retain only bounded failure receipt |
 | Upgrade/conformance failure | do not activate candidate | restore last qualified binary/configuration atomically |
 | Coordinator corruption | stop serving current evidence | delete rebuildable state and reconstruct from authority |
@@ -774,6 +912,8 @@ availability, legal, and failure-mode review before implementation.
 - Cloud execution, cross-tenant data, telemetry by default, a hosted dashboard, or required account
   connectivity.
 - A security-sandbox claim, arbitrary untrusted-code execution service, or secret-management system.
+- Coverage-based omission from a stale, incomplete, or uninstrumented record, or for an edit
+  outside every executable body (`LPCV-V0-953`).
 - Learning-based test omission before a separately accepted, outcome-attested, fail-closed profile
   satisfies the conservative plan.
 - Implementing licensing, entitlement, payment, account, or update-policy machinery in the portable
@@ -789,6 +929,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-021..026` provider protocol | not-started | two independent provider implementations and conformance suite |
 | `LPCV-V0-027..031` runtime evidence | not-started | privacy/coverage/runtime-value adversarial vectors |
 | `LPCV-V0-032..036` IDE and agent API | not-started | identical-receipt two-client conformance |
+| `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); not-started; Go prototype measured in decision 0590 | per-collector fixture suite, 1,000-change CI shadow and fault-injection qualification with zero misses, `LPCV-V0-958` latency and size |
 | `LPCV-V0-037..042` containment and updates | not-started | process-tree, path, permission, network, and rollback matrix |
 | `LPCV-V0-043..046` language tranche | not-started | Corvint, Beamfall, and independent JS/TS shadow reports |
 | `LPCV-V0-047` five-axis projection on every presenting client | delivered for the experimental CLI and VS Code; MCP V0 out of scope (decision 0103); experimental descendant MCP profile `MTV-V0-001..009` (decision 0147) | `TestTestValidityProjectsReceiptWithoutTrustingCarriedProjections` exercises the CLI projection; `TestTestProjections` and `extensions/vscode/test/liveTestProtocol.test.ts` exercise the Go-session projection consumed by VS Code. MCP 2026-07-28 V0 presents no test-level result (`MCPV0-008`), and the descendant projection is the experimental `corvint-test-validity-mcp` profile (`MTV-V0-001..009`, decision 0147) rather than MCP V0. |

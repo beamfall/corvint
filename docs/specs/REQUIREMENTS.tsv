@@ -5346,6 +5346,20 @@ LPCV-V0-291	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A	standing	2026-10-11; V1-2091
 LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
 LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
+LPCV-V0-950	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** name	owner	decision 0590; 2026-11-03
+LPCV-V0-951	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a test an	owner	decision 0590; 2026-11-03
+LPCV-V0-952	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be	owner	decision 0590; 2026-11-03
+LPCV-V0-953	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) The following edits never use line	owner	decision 0590; 2026-11-03
+LPCV-V0-954	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) An E2E or subprocess test's record	owner	decision 0590; 2026-11-03
+LPCV-V0-955	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) Each supported runner family has a	owner	decision 0590; 2026-11-03
+LPCV-V0-956	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) Records are unioned across runs of	owner	decision 0590; 2026-11-03
+LPCV-V0-957	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) Every test the coverage plan select	owner	decision 0590; 2026-11-03
+LPCV-V0-958	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) Records are stored as a compact imm	owner	decision 0590; 2026-11-03
+LPCV-V0-959	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) CI test selection (merge queue and	owner	decision 0590; 2026-11-03
+LPCV-V0-960	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) The local watch loop MUST apply the	owner	decision 0590; 2026-11-03
+LPCV-V0-961	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) The plan reports, for each change,	owner	decision 0590; 2026-11-03
+LPCV-V0-962	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A record comes only from a run that	owner	decision 0590; 2026-11-03
+LPCV-V0-963	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) Each collector and the selector MUS	owner	decision 0590; 2026-11-03
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
