@@ -147,7 +147,10 @@ line selection: it never dedupes repeated steps and never tells the map which te
   config (for example a Playwright project), a build tag, or a path rule declared in the
   repository's Corvint configuration. Otherwise the runner family's default applies: browser E2E
   families (LPCV-V0-955) are `e2e`, and everything else is `unknown`. Level groups the plan report
-  and the documentation; it never changes selection.
+  and the documentation; it never changes selection. MCJ-V0-040 orders the rules and names the
+  runner and path conventions.
+  Evidence: `TestMCJV0040ResolveLevel` (`internal/linecov/level_test.go`) and the levels of
+  `TestMCJV0041SegmentReportBuildsIndex`.
 - `MCJ-V0-008`: Corvint MUST NOT skip, stub or reorder a step inside a running test to save time. It
   removes whole tests only. A setup substitution (replacing repeated navigation with a saved or
   API-made state) is emitted only as a reviewable suggestion naming the SKH setup record that proves
@@ -179,6 +182,11 @@ line selection: it never dedupes repeated steps and never tells the map which te
   runners follow, then the Beamfall adopter languages the owner names. Each collector is qualified
   separately, and a family without a qualified collector keeps the static plan
   (`coverage-collector-missing`, LPCV-V0-955).
+  Ruby: the RSpec segment collector `corvint-ruby-segments/0` (MCJ-V0-041..044) serves RSpec and
+  the Capybara and SitePrism suites that run under it; Minitest, test-unit and every other Ruby
+  family keep `coverage-collector-missing`.
+  Evidence: `TestMCJV0013CollectorStatus` and the LIVE run `TestMCJV0013LiveRubySegments`
+  (`internal/rubytestprovider/segments_test.go`).
 - `MCJ-V0-014`: A collector qualifies only with a fault-injection fixture per segment kind, on the
   model of LPCV-V0-963. For each kind, a change reaching a non-shared segment must keep its test,
   and a change reaching only an equivalent segment must exclude all but the representative.
@@ -216,6 +224,65 @@ line selection: it never dedupes repeated steps and never tells the map which te
   4-core development host (`docs/build-log/2026-11-03-mcj-linecov-segments.md`); the reference-host
   run is `NOT_RUN`.
 
+### Levels and the Ruby collector (slice 6)
+
+- `MCJ-V0-040`: `linecov.ResolveLevel` assigns MCJ-V0-007 levels in this order, naming the rule that
+  applied as the level source: `declared` (a runner config such as RSpec `corvint_level` metadata or
+  a Playwright project, or a build tag), `path-rule` (the longest declared repository path prefix),
+  `runner` (a browser E2E family, or an RSpec `type` of `feature` or `system` as `e2e` and `request`
+  or `integration` as `integration`), `path` (an RSpec file under `spec/features/` or `spec/system/`
+  as `e2e`, `spec/requests/` or `spec/integration/` as `integration`, at any depth, when the example
+  has no `type`), else `default` with level `unknown`. A declared level or path rule that is not
+  `unit`, `integration`, `e2e` or `unknown` refuses, so a typo never reads as a level.
+  Evidence: `TestMCJV0040ResolveLevel`.
+- `MCJ-V0-041`: The Ruby collector runs inside the external provider companion
+  (`internal/rubytestprovider`, never the core binary). The provider writes its Ruby source under
+  `.corvint/rspec` for one run, loads it with `rspec -r` so Ruby line `Coverage` starts before any
+  project file, and removes it afterwards. At every boundary it reads and clears the counters, so
+  segments are disjoint by construction. Within one example it bounds: `setup`, one project-defined
+  `before(:example)` hook; `method`, one outermost call of a project-defined `SitePrism::Page` or
+  `SitePrism::Section` instance method; `step`, one outermost call of a method defined under a step
+  directory (default `spec/support/steps`), one project-defined `after(:example)` hook, or one piece
+  of the example body between those calls (`it@<file>:<line>#<n>`); and `test`, an example body with
+  no finer boundary. A boundary nested in an open segment belongs to it. Lines run inside the
+  example outside every segment form one trailing unbound segment, so a change reaching them keeps
+  the test. Only project files count: paths under the project directory outside `vendor/`,
+  `.bundle/`, `.corvint/`, `.git/` and `node_modules/`. The report (`corvint-ruby-segments/0`) is
+  refused when its format, a segment kind, an identity, a path or a line is invalid.
+  Evidence: `TestMCJV0041SegmentReportBuildsIndex`, `TestMCJV0041ParseRefusesDamagedReports`.
+- `MCJ-V0-042`: `BuildSegmentIndex` turns a report into a `linecov-index/3` index in which a test is
+  `<spec file>` plus its RSpec scoped id and each block is one executable source line. Only passing
+  examples are recorded (LPCV-V0-962). An executed file without a blob at the commit, or whose
+  worktree content differs from it, refuses the build. A project file first loaded during an
+  example ran its load-time lines (`def`, class bodies) inside it, so which tests depend on them is
+  unknown: the file is left out of the index and a change to it keeps the static plan. Until the SKH-V0 binding of MCJ-V0-002
+  exists, a Ruby segment identity is the step-title-and-anchor form of the Definitions: it binds
+  only when its anchor file is committed, unchanged in the worktree, and holds the anchor as an
+  executable line; otherwise it is `unbound`.
+  Evidence: `TestMCJV0042BindingAndRefusals`.
+- `MCJ-V0-043`: A Ruby record is incomplete (MCJ-V0-015) with reason `ruby-subprocess-uninstrumented`
+  when the example spawns a child process (`Process.spawn`, `system`, `exec`, backticks,
+  `IO.popen`); `ruby-driver-out-of-process` when a Capybara driver other than `rack_test` is current
+  at a boundary, since a browser driver serves the app from another thread or process;
+  `ruby-boundary-missing` when a segment is still open at the end of the example; and
+  `ruby-coverage-stopped` when another tool stopped `Coverage`. A reason outside this list refuses
+  the build.
+  Evidence: the incomplete-record checks of `TestMCJV0013LiveRubySegments`;
+  `TestMCJV0042BindingAndRefusals` for an unnamed reason.
+- `MCJ-V0-044`: `SegmentEffect` maps a diff to a Ruby index by line, since `Index.Analyze` reads Go
+  only. A changed line maps only when it is an executable line a recorded example ran; an added or
+  deleted file, a file not recorded at the diff's old blob, and a line no example ran (a
+  declaration, comment or load-time line) keep the static plan. `SegmentFault` runs MCJ-V0-014
+  cases with the verdict rules of `Index.Fault`. The collector qualifies on its own output: per
+  kind, a keep case and an exclude case over the committed fixture
+  (`internal/rubytestprovider/testdata/segments`), with negative controls (a wrong representative,
+  a test whose later checks differ, an unreached keep, relabelled kinds, an empty case, an
+  incomplete record, an unbound segment, a residual segment and the fallbacks).
+  Evidence: `TestMCJV0044FaultMatrixOnCollectorOutput` on the recorded report and the same matrix in
+  the LIVE run of `TestMCJV0013LiveRubySegments` (Ruby 3.3.6, RSpec 3.13.6, Bundler). No
+  companion subcommand runs the collector yet (`NOT_PRODUCED`: it needs its own help, command-tree
+  snapshot and capability row), and the MCJ-V0-017 shadow bar is `NOT_RUN`.
+
 ## Failure modes
 
 | Failure | Behaviour |
@@ -230,6 +297,8 @@ line selection: it never dedupes repeated steps and never tells the map which te
 | Declared link contradicts coverage | declared link wins; both shown (MCJ-V0-011) |
 | Changed code in no unit and no record | static plan unchanged; reported as unlinked code (MCJ-V0-024) |
 | `linecov-index/3` read by an older reader | refused; CI runs its unnarrowed lists (LPCV-V0-951) |
+| Ruby example spawns a process or drives a browser | record incomplete (MCJ-V0-043); test kept |
+| Ruby change outside every recorded example line | static plan (MCJ-V0-044) |
 
 ## Non-goals
 

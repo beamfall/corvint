@@ -5665,6 +5665,11 @@ MCJ-V0-016	docs/specs/map-coverage-join-v0.md	Every `covered-by-representative` 
 MCJ-V0-017	docs/specs/map-coverage-join-v0.md	Shared-step exclusion runs in shadow first: CI computes it, runs every test anyw	unrecorded	-
 MCJ-V0-018	docs/specs/map-coverage-join-v0.md	A miss marks that equivalence class divergent in the next index until a blob in	unrecorded	-
 MCJ-V0-019	docs/specs/map-coverage-join-v0.md	The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 10	unrecorded	-
+MCJ-V0-040	docs/specs/map-coverage-join-v0.md	`linecov.ResolveLevel` assigns MCJ-V0-007 levels in this order, naming the rule	unrecorded	-
+MCJ-V0-041	docs/specs/map-coverage-join-v0.md	The Ruby collector runs inside the external provider companion	unrecorded	-
+MCJ-V0-042	docs/specs/map-coverage-join-v0.md	`BuildSegmentIndex` turns a report into a `linecov-index/3` index in which a tes	unrecorded	-
+MCJ-V0-043	docs/specs/map-coverage-join-v0.md	A Ruby record is incomplete (MCJ-V0-015) with reason `ruby-subprocess-uninstrume	unrecorded	-
+MCJ-V0-044	docs/specs/map-coverage-join-v0.md	`SegmentEffect` maps a diff to a Ruby index by line, since `Index.Analyze` reads	unrecorded	-
 MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept	owner	decision 0441; V1-0938
 MMR-V0-002	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) An alias MUST match	owner	decision 0441; V1-0938
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every declared root MUST be validated	owner	decision 0441; V1-0938
