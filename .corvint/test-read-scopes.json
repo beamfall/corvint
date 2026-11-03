@@ -440,6 +440,7 @@
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
+    "internal/jslinecov": [],
     "internal/jstestprovider": [
       "go.mod",
       "go.sum",
