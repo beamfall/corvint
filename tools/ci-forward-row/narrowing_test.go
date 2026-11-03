@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -1132,6 +1133,10 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 		strings.Contains(on, "push") || strings.Contains(on, "workflow_run") {
 		t.Fatalf("ci-forward-bar.yml triggers:\n%s", on)
 	}
+	// V1-4360: hourly, so accept.sh's page budget reaches back past the verdict's listing.
+	if !strings.Contains(on, `cron: "17 * * * *"`) {
+		t.Fatalf("ci-forward-bar.yml is not hourly:\n%s", on)
+	}
 	for _, want := range []string{"if: github.ref == 'refs/heads/main'", "run: sh trusted/.github/forward-rows/verdict.sh",
 		"sparse-checkout: .github/forward-rows", "ref: ${{ github.sha }}"} {
 		if !strings.Contains(bar, want) {
@@ -1149,7 +1154,9 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 		"github.event.pull_request.base.ref == 'main'", "ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}",
 		// AFP-V0-730: a merge-queue entry only on main and only while its own variable is on.
 		"(github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')",
-		"VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml", "run: sh trusted/.github/forward-rows/accept.sh"} {
+		"VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml", "run: sh trusted/.github/forward-rows/accept.sh",
+		// V1-4360: the page budget reaches an hourly verdict's listing through a delayed schedule.
+		`KILL_PAGES: "60"`, "timeout-minutes: 12"} {
 		if !strings.Contains(verdictJob, want) {
 			t.Fatalf("narrowing-verdict lacks %q", want)
 		}
@@ -1346,5 +1353,64 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 		"DOCS_MODE=FULL", "SHARDS=" + strconv.Itoa(shards), "GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "::error::AFP-V0-591: the shard coverage markers are unreadable. Re-run all jobs.") {
 		t.Fatalf("unreadable markers: err=%v output:\n%s", err, out)
+	}
+}
+
+// AFP-V0-097 (V1-4360): the cache-prune workflow alone holds actions: write, runs only on main,
+// and deletes every CodeQL overlay entry but the newest per language prefix. The whole step runs
+// against raw cache records through a stand-in gh that applies the step's own --jq expression.
+func TestAFPV0097CachePruneKeepsNewestOverlay(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the cache-prune step runs under sh")
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Skip("jq is not installed")
+	}
+	b, err := os.ReadFile("../../.github/workflows/cache-prune.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wf := string(b)
+	for _, want := range []string{"if: github.ref == 'refs/heads/main'", "permissions:\n  contents: read",
+		"    permissions:\n      actions: write", "key=codeql-overlay-base-database-"} {
+		if !strings.Contains(wf, want) {
+			t.Fatalf("cache-prune.yml lacks %q", want)
+		}
+	}
+	m := regexp.MustCompile(`(?s)        run: \|\n(.*)$`).FindStringSubmatch(wf)
+	if m == nil {
+		t.Fatal("cache-prune.yml has no run step")
+	}
+	step := regexp.MustCompile(`(?m)^ {10}`).ReplaceAllString(m[1], "")
+	dir := t.TempDir()
+	const sha1, sha2, sha3 = "1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222",
+		"3333333333333333333333333333333333333333"
+	caches := `{"actions_caches":[` +
+		`{"id":1,"created_at":"2026-11-01T00:00:00Z","key":"codeql-overlay-base-database-go-` + sha1 + `-abc"},` +
+		`{"id":2,"created_at":"2026-11-02T00:00:00Z","key":"codeql-overlay-base-database-go-` + sha2 + `-def"},` +
+		`{"id":3,"created_at":"2026-10-30T00:00:00Z","key":"codeql-overlay-base-database-actions-` + sha1 + `"},` +
+		`{"id":4,"created_at":"2026-10-31T00:00:00Z","key":"codeql-overlay-base-database-go-` + sha3 + `"},` +
+		`{"id":5,"created_at":"2026-10-29T00:00:00Z","key":"codeql-overlay-base-database-python-v2"},` +
+		`{"id":6,"created_at":"2026-10-28T00:00:00Z","key":"codeql-overlay-base-database-python-v1"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "caches.json"), []byte(caches), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gh := `#!/bin/sh
+if [ "$2" = "-X" ]; then echo "$4" >> "$FAKE/deleted"; exit 0; fi
+while [ $# -gt 0 ]; do [ "$1" = "--jq" ] && { jq -r "$2" "$FAKE/caches.json"; exit; }; shift; done
+exit 1
+`
+	if err := execfile.WriteFile(filepath.Join(dir, "gh"), []byte(gh), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", "-ec", step)
+	cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"FAKE="+dir, "RUNNER_TEMP="+dir, "REPO=o/r", "GH_TOKEN=x")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, "deleted"))
+	// The two older go entries go; actions keeps its only entry; python keys carry no commit SHA,
+	// so each stays its own prefix and neither is deleted.
+	if want := "repos/o/r/actions/caches/1\nrepos/o/r/actions/caches/4\n"; string(got) != want {
+		t.Fatalf("deleted = %q, want %q", got, want)
 	}
 }
