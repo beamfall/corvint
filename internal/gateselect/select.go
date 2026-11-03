@@ -739,7 +739,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 			bind(rule.directories, rule.kind, p)
 		}
 		if resolvedEvidence(p) {
-			bind(index.resolvingReaders(p), "reader", p)
+			bind(boundedReaders(index.resolvingReaders(p), scopes, nil, p), "reader", p)
 		}
 	}
 	// A declared package (AFP-V0-023, GL-V0-050) is bound by what its
@@ -753,12 +753,13 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 		}
 	}
 	// Rule (c) over every path at once: the same namesPath relation readers()
-	// applies per dirty path, evaluated token by token.
+	// applies per dirty path, evaluated token by token, and bounded by the
+	// read-scope declaration as selection bounds it (TSP-V0-980).
 	matcher := newPathMatcher(paths)
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
 			if !resolvedEvidence(paths[i]) {
-				bind(directories, "reader", paths[i])
+				bind(boundedReaders(directories, scopes, nil, paths[i]), "reader", paths[i])
 			}
 		}
 	}
