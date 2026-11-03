@@ -685,11 +685,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   file the instrumented process tree could report, and per such file the executed line ranges with a
   nonzero hit count. A file the instrumentation covered but the test did not execute is recorded as
   covered-and-unexecuted, distinct from a file outside the instrumented set.
-- `LPCV-V0-951`: (accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a change when every file the change touches is inside the
-  record's instrumented set and still has the recorded blob OID on the change's base side. A record
-  for a changed file whose base blob OID differs, an uninstrumented file, a missing record, or a
-  record from a different runner version or instrumentation mode is stale; `LPCV-V0-016` widens to
-  the static plan for every test that record would decide.
+- `LPCV-V0-951`: (accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a test and a
+  change when every file in the record, and every file the change touches, is inside the record's
+  instrumented set and has the recorded blob OID on the change's base side. A record built at an
+  older commit therefore stays usable for a test whose recorded files did not move, and a test whose
+  recorded file changed since the record (which may now reach the changed line through a new path)
+  is stale. A stale, missing or uninstrumented record, or one from a different runner version or
+  instrumentation mode, decides nothing; `LPCV-V0-016` keeps that test under the static plan.
 - `LPCV-V0-952`: (accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be excluded under `LPCV-V0-014` when no changed
   base-side line range of any instrumented file intersects an executed range of that test. A pure
   insertion intersects when either neighbouring base line was executed. The exclusion entry names
