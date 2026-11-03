@@ -5347,7 +5347,7 @@ LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
 LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
 LPCV-V0-950	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** name	owner	decision 0590; 2026-11-03
-LPCV-V0-951	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a change	owner	decision 0590; 2026-11-03
+LPCV-V0-951	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a test an	owner	decision 0590; 2026-11-03
 LPCV-V0-952	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be	owner	decision 0590; 2026-11-03
 LPCV-V0-953	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) The following edits never use line	owner	decision 0590; 2026-11-03
 LPCV-V0-954	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) An E2E or subprocess test's record	owner	decision 0590; 2026-11-03
