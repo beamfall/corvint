@@ -82,6 +82,34 @@ class PairedReadingControls(unittest.TestCase):
         self.assertTrue(result["missing_base_commits"])
         self.assertTrue(all(c.args[0][0] == "git" for c in call.call_args_list))
 
+    def test_failed_history_task_keeps_completed_records(self):
+        root = Path(__file__).resolve().parents[1]
+        binary, bad, good = Path("/fake-corvint"), b"{not json", json.dumps({"results": []}).encode()
+        outcomes = [subprocess.TimeoutExpired(["corvint"], 1800, output=None, stderr=None), bad]
+
+        def fake(argv, env=None):
+            if argv[0] == "git":
+                return b"7" if "rev-list" in argv else b""
+            if outcomes:
+                outcome = outcomes.pop(0)
+                if isinstance(outcome, Exception):
+                    raise outcome
+                return outcome
+            return good
+
+        with patch.object(measure, "invoke", side_effect=fake):
+            result = measure.history_reading(binary, Path("/history"),
+                root / "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json",
+                root / "tools/cw-trial/testdata/unseen-corvint-v1/tasks.json")
+        self.assertEqual(result["state"], "MEASURED")
+        self.assertEqual(len(result["records"]), 63)
+        first = result["records"][0]["arms"]
+        self.assertEqual(first["corroboration"]["error"], "TimeoutExpired")
+        self.assertTrue(first["rrf"]["error"].startswith("JSONDecodeError"))
+        self.assertEqual(first["rrf"]["packet_bytes"], len(bad))
+        self.assertEqual(result["totals"]["v2"]["corroboration"]["errors"], 1)
+        self.assertEqual(result["totals"]["v2"]["rrf"]["errors"], 1)
+
     def test_capture_digest_is_checked(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "capture.jsonl"

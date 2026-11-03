@@ -95,16 +95,20 @@ def history_reading(binary, history, tasks, subset):
                       "history_commits": count, "gold_at_base": present, "gold_absent_at_base": absent,
                       "v1": task["id"] in {t["id"] for t in v1}, "arms": {}}
             for rrf in (False, True):
+                raw, ranked, error = b"", [], ""
                 try:
                     raw = invoke([binary, "--root", root, "context", "--task", task["text"],
                                   "--subject", task["changed_file"], "--limit", "20"], environment(rrf=rrf))
-                    packet = json.loads(raw)
-                    ranked, error = paths(packet), ""
-                except subprocess.CalledProcessError as failure:
+                    ranked = paths(json.loads(raw))
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as failure:
                     # An unavailable subject is a failed invocation, never an
                     # abstention, renamed path, skipped task or invented rank.
-                    raw, ranked = failure.stdout, []
-                    error = failure.stderr[-65536:].decode(errors="replace")
+                    # It fails this arm only; completed tasks stay recorded.
+                    raw = failure.stdout or b""
+                    error = (failure.stderr or b"")[-65536:].decode(errors="replace") or type(failure).__name__
+                except (ValueError, KeyError, TypeError) as failure:
+                    # An unreadable packet keeps its bytes and scores no rank.
+                    ranked, error = [], type(failure).__name__ + ": " + str(failure)
                 record["arms"]["rrf" if rrf else "corroboration"] = {
                     "ranked": ranked, "gold_buckets": buckets(ranked, gold),
                     "gold_at_base_buckets": buckets(ranked, present), "packet_bytes": len(raw),
