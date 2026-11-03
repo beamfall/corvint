@@ -212,14 +212,18 @@ for my $p (@{$c->{pins}//[]}) {
     my ($ok,$out)=git_try('diff','--name-only', $p->{commit}, $sha,'--',$p->{path});
     finding('STALE_PIN',$owner,"path=$p->{path} pin=$p->{commit} base=$sha",1) if !$pin_exists || !$base_exists || !$ok || length($out);
 }
-my $index='';
-if (@{$c->{idBlocks}//[]}) { $index=git('show',"$sha:docs/specs/REQUIREMENTS.tsv") }
+# Requirement IDs used at the selected base or on current origin/main both collide: an older
+# --base must not hide IDs merged since, which the unmerged-branch check below never reads.
+my %index;
+if (@{$c->{idBlocks}//[]}) { $index{$_}//=git('show',"$_:docs/specs/REQUIREMENTS.tsv") for ($sha,$main) }
 my %requested_id;
 for my $b (@{$c->{idBlocks}//[]}) {
     for my $n ($b->{start}..$b->{end}) {
         my $id=sprintf '%s-%03d',$b->{prefix},$n;
         finding('COLLIDING_ID',$owner,"id=$id overlaps another block in $charter",1) if $requested_id{$id}++;
-        finding('COLLIDING_ID',$owner,"id=$id base=$sha",1) if $index =~ /^\Q$id\E\t/m;
+        for my $at (sort keys %index) {
+            finding('COLLIDING_ID',$owner,"id=$id base=$at",1) if $index{$at} =~ /^\Q$id\E\t/m;
+        }
     }
     for my $o (@others) {
         for my $other (@{$o->[1]{idBlocks}}) {

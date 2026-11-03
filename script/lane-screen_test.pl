@@ -83,6 +83,15 @@ is(g('status','--porcelain','--untracked-files=all').g('show-ref'),$state,'scree
 json($charter,{tickets=>['V1-1534']});
 ($rc,$out)=screen('--base',$old); is($rc,1,'old dispatch pin still screens delivered work on current origin/main');
 like($out,qr/DELIVERED ticket=V1-1534/,'newer main delivery retained');
+# Review fix: an older --base still screens IDs already used on current origin/main.
+write_file("$repo/docs/specs/REQUIREMENTS.tsv","ASD-V0-2209\tfixture.md\toccupied\nASD-V0-2207\tfixture.md\ton main\n");
+my $main_only=commit('docs: claim a requirement on main');
+g('update-ref','refs/remotes/origin/main',$main_only); g('checkout','-q','--detach',$base);
+json($charter,{tickets=>['V1-9998'],idBlocks=>[{prefix=>'ASD-V0',start=>2207,end=>2207}]});
+($rc,$out)=screen('--base',$old); is($rc,1,'old base still refuses an ID used on current origin/main');
+like($out,qr/COLLIDING_ID .*id=ASD-V0-2207 base=$main_only/,'names the origin/main ID evidence');
+($rc,$out)=screen('--base',$old,'--override','V1-9998'); is($rc,1,'ticket override cannot conceal a main ID collision');
+g('update-ref','refs/remotes/origin/main',$base);
 json($charter,{tickets=>['V1-9998'],idBlocks=>[{prefix=>'ASD-V0',start=>2200,end=>2202}]});
 json($other,{tickets=>[],idBlocks=>[{prefix=>'ASD-V0',start=>2202,end=>2204}]});
 ($rc,$out)=screen('--open-charter',$other); like($out,qr/COLLIDING_ID .*charter=/,'open charter block overlaps');

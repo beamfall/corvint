@@ -43,9 +43,9 @@ class Replay:
     def target(n):
         return f"{n + 1000:040x}"
 
-    def row(self, n, epoch="2", created="2020-01-02T00:00:00Z", branch="main", owner=1, kind="CLEAN"):
+    def row(self, n, epoch="2", created="2020-01-02T00:00:00Z", branch="main", owner=1, kind="CLEAN", sha=None):
         self.rows.append({"id": 50000 + len(self.rows), "size_in_bytes": self.size,
-                          "name": f"ci-forward-{kind}-pr{n}-{self.target(n)}-e{epoch}-f0",
+                          "name": f"ci-forward-{kind}-pr{n}-{sha or self.target(n)}-e{epoch}-f0",
                           "expired": False, "created_at": created,
                           "workflow_run": {"head_branch": branch, "repository_id": 1, "head_repository_id": owner, "id": n + 2000}})
 
@@ -286,6 +286,45 @@ class AbsenceAlarmTest(unittest.TestCase):
             replay.rows[-1]["workflow_run"]["id"] += 10
         code, result, _ = self.execute(replay)
         self.assertEqual((code, result["alarm"], result["absentRunIds"]), (1, "TRIPPED", [3, 2, 1]))
+
+    def test_CIN_V0_2142_fallback_incomplete_row_named_by_pr_head_is_unknown(self):
+        # Review P2: classify.sh's fallback INCOMPLETE row carries no tested merge (sha null), so
+        # collect.sh names it with the PR head SHA. That name must reach the alarm as uncertainty;
+        # it never proves coverage, and it never lets three such runs read as absence.
+        fallback = {"profile": "corvint-pr-forward-row/0", "kind": "pr", "class": "INCOMPLETE", "pr": 1,
+                    "sha": None, "incomplete": ["row classification failed: x"], "truncated": False}
+        replay = Replay()
+        for n in range(1, 4):
+            replay.row(n, kind="INCOMPLETE", sha=f"{n:040x}")
+        replay.row_body = fallback
+        code, result, stderr = self.execute(replay)
+        self.assertEqual((code, result["alarm"]), (2, "UNKNOWN"))
+        self.assertIn("pull-request head", result["limit"])
+        self.assertIn("::error::", stderr)
+        # A head-named row is never downloaded as coverage: run 3 has only that row, so it is UNKNOWN.
+        replay = Replay()
+        replay.row(3, kind="INCOMPLETE", sha=f"{3:040x}")
+        replay.row(2)
+        replay.row(1)
+        self.assertEqual(self.execute(replay)[1]["alarm"], "UNKNOWN")
+        # A run whose own tested-merge row is present is covered; a head-named sibling row is moot.
+        replay = Replay()
+        for n in range(1, 4):
+            replay.row(n)
+            replay.row(n, kind="INCOMPLETE", sha=f"{n:040x}")
+        code, result, _ = self.execute(replay)
+        self.assertEqual((code, result["alarm"], result["absentRunIds"]), (0, "clear", []))
+        # Head-named rows of another PR, another epoch or before the run completed stay unrelated.
+        for kwargs in ({"epoch": "1"}, {"created": "2019-01-01T00:00:00Z"}):
+            with self.subTest(**kwargs):
+                replay = Replay()
+                for n in range(1, 4):
+                    replay.row(n, kind="INCOMPLETE", sha=f"{n:040x}", **kwargs)
+                self.assertEqual(self.execute(replay)[1]["alarm"], "TRIPPED")
+        replay = Replay()
+        for n in range(1, 4):
+            replay.row(n + 10, kind="INCOMPLETE", sha=f"{n:040x}")
+        self.assertEqual(self.execute(replay)[1]["alarm"], "TRIPPED")
 
     def test_CIN_V0_2142_download_bounds_apply_before_transfer_and_extraction(self):
         # Review P2: count and size come from listing metadata before any transfer.

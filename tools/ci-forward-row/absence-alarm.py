@@ -253,6 +253,13 @@ def evaluate(repo, epoch, now):
             # Validate every body before any binding counts.
             bound = [row_binds(doc, r, run["id"]) for (r, _), doc in zip(matching, docs)]
             present = any(bound)
+        # A row whose body names no tested merge (classify.sh's fallback INCOMPLETE row) is
+        # named by the PR head instead. It cannot bind a run or prove coverage, but it may be
+        # this run's row, so it is uncertainty rather than absence.
+        if not present and any(r[1:] == (str(pr), run["head_sha"], epoch)
+                               and created >= timestamp(run["updated_at"])
+                               for r, created, _ in rows):
+            raise Unavailable("a forward row is named by the pull-request head, not a tested merge")
         if not present:
             absent.append(run["id"])
         if len(checked) == WINDOW:

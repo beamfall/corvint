@@ -195,7 +195,11 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   PR, SHA, epoch, run ID, selection run ID and outcomes run ID to that candidate. Every matching
   body SHALL first be validated (profile, kind `pr`, integer PR, epoch and run IDs, and class, PR,
   SHA and epoch equal to its own artifact name); a malformed or self-contradicting body is
-  UNKNOWN, not absence. A well-formed row of another run (a delayed row) SHALL NOT discharge absence. Because the current forward-row wire has no attempt,
+  UNKNOWN, not absence. A well-formed row of another run (a delayed row) SHALL NOT discharge absence.
+  A row whose body names no tested merge (the classifier's fallback INCOMPLETE row) is named by the
+  PR head instead: when no tested-commit row discharges a candidate, an unexpired trusted row naming
+  its PR, PR head and epoch, created at or after completion, SHALL report UNKNOWN; it never
+  discharges absence and never counts as absent. Because the current forward-row wire has no attempt,
   an eligible current-epoch rerun SHALL report UNKNOWN rather than claim a row covers its attempt.
   Unreadable or malformed evidence, failed GitHub calls (60-second timeout per call), more than
   20 artifact pages of 100 without reaching the oldest sampled completion, a full 100-run sample without 20 eligible runs, a full per-run artifact
@@ -268,7 +272,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
-| CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
+| CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
 
 ## Rollback
 
