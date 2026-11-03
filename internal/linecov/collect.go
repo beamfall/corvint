@@ -25,6 +25,9 @@ type CollectOptions struct {
 	// SuiteTimeout bounds each package's in-order run of its whole suite.
 	SuiteTimeout time.Duration
 	TestArgs     []string // extra -test.* flags, matching how CI runs the suite
+	// GOFLAGS is the effective `go env GOFLAGS` the index's runner names, so
+	// flags saved with `go env -w` apply to collection as they do to selection.
+	GOFLAGS string
 }
 
 // Outcome is one collected test: a Record when the isolated run passed,
@@ -46,8 +49,8 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	if o.Parallel < 1 {
 		o.Parallel = 1
 	}
-	// The caller's GOFLAGS (build tags among them) still apply.
-	flags := strings.TrimSpace(os.Getenv("GOFLAGS") + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
+	// The runner's GOFLAGS (build tags among them) still apply.
+	flags := strings.TrimSpace(o.GOFLAGS + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
 	// Clipped, so each worker's append below copies instead of sharing storage.
 	env := slices.Clip(append(os.Environ(), "GOFLAGS="+flags))
 	type job struct{ pkg, name, bin, dir string }

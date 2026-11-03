@@ -57,7 +57,10 @@ type Source struct {
 	BodyHash     string // the declaration with its name blanked; equal hashes mean an identical test
 }
 
-var requirementID = regexp.MustCompile(`\b[A-Z][A-Z0-9]*-V\d+-\d+\b`)
+// requirementID is the repository grammar: uppercase segments joined by
+// hyphens and ending in a number, as AHI-004, LPCV-V0-952 or
+// ARTIFACT-GO-V0-001.
+var requirementID = regexp.MustCompile(`\b[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-\d+\b`)
 
 // TestSources reads every top-level test declared in dir under root, under
 // any build constraint, as HeadTests lists them.
