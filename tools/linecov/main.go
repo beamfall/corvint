@@ -26,6 +26,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -68,13 +69,48 @@ func output(root string, name string, args ...string) (string, error) {
 }
 
 // runner names everything that must match between collection and selection:
-// the toolchain, platform and coverage mode.
+// the toolchain, platform, build configuration and coverage mode. Build
+// settings bind only through GOFLAGS (-race, -tags), CGO_ENABLED and
+// GOEXPERIMENT, so a run passing -race on the command line instead is a
+// different runner to no one: pass it in GOFLAGS (LPCV-V0-951).
 func runner(root string) (string, error) {
-	v, err := output(root, "go", "env", "GOVERSION", "GOOS", "GOARCH")
+	v, err := output(root, "go", "env", "-json", "GOVERSION", "GOOS", "GOARCH", "GOFLAGS", "CGO_ENABLED", "GOEXPERIMENT")
 	if err != nil {
 		return "", err
 	}
-	return strings.Join(strings.Fields(v), " ") + " atomic", nil
+	var env map[string]string
+	if err := json.Unmarshal([]byte(v), &env); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s %s %s cgo=%s goflags=%q goexperiment=%q atomic", env["GOVERSION"], env["GOOS"], env["GOARCH"], env["CGO_ENABLED"], env["GOFLAGS"], env["GOEXPERIMENT"]), nil
+}
+
+// clean refuses a checkout with tracked changes, or with an untracked Go file
+// in any of dirs: go test compiles untracked files too, so either makes what
+// runs differ from HEAD.
+func clean(root string, dirs []string) error {
+	dirty, err := output(root, "git", "status", "--porcelain", "--untracked-files=no")
+	if err != nil {
+		return err
+	}
+	if dirty != "" {
+		return errors.New("checkout has uncommitted changes")
+	}
+	if len(dirs) == 0 {
+		return nil
+	}
+	specs := []string{"ls-files", "--others", "--"}
+	for _, d := range dirs {
+		specs = append(specs, ":(glob)"+path.Join(d, "*.go"))
+	}
+	untracked, err := output(root, "git", specs...)
+	if err != nil {
+		return err
+	}
+	if untracked != "" {
+		return fmt.Errorf("untracked Go files: %s", strings.Join(strings.Fields(untracked), ", "))
+	}
+	return nil
 }
 
 // packages lists the module-relative directories of the module's packages.
@@ -131,9 +167,6 @@ func collect(args []string) error {
 	if *out == "" {
 		return errors.New("collect: -out is required")
 	}
-	if dirty, err := output(*root, "git", "status", "--porcelain", "--untracked-files=no"); err != nil || dirty != "" {
-		return fmt.Errorf("collect: checkout must be clean (%v)", err)
-	}
 	commit, err := output(*root, "git", "rev-parse", "HEAD")
 	if err != nil {
 		return err
@@ -148,6 +181,9 @@ func collect(args []string) error {
 	}
 	if *only != "" {
 		dirs = split(*only)
+	}
+	if err := clean(*root, dirs); err != nil {
+		return fmt.Errorf("collect: checkout must be clean: %w", err)
 	}
 	work, err := os.MkdirTemp(*scratch, "linecov-")
 	if err != nil {
@@ -368,6 +404,10 @@ func qualify(args []string) error {
 	if head, err := output(*root, "git", "rev-parse", "HEAD"); err != nil || head != ix.Commit {
 		return fmt.Errorf("qualify: root must be checked out at the index commit %s", ix.Commit)
 	}
+	// Every mutant resets the checkout hard, so local work would be lost.
+	if err := clean(*root, dirs); err != nil {
+		return fmt.Errorf("qualify: checkout must be clean: %w", err)
+	}
 	type site struct {
 		path string
 		line int
@@ -471,7 +511,10 @@ func qualify(args []string) error {
 				kept[d+"."+n] = true
 			}
 		}
-		failed, buildFail := failingTests(*root, ix.Module, dirs)
+		failed, buildFail, err := failingTests(*root, ix.Module, dirs)
+		if err != nil {
+			return err
+		}
 		total++
 		var missed []string
 		for t := range failed {
@@ -502,25 +545,33 @@ func qualify(args []string) error {
 }
 
 // failingTests runs the directories whole and returns failing top-level
-// tests as dir.Name, and whether any package failed outside a test.
-func failingTests(root, module string, dirs []string) (map[string]bool, bool) {
+// tests as dir.Name, and whether any package failed outside a test. A
+// directory with no package result means go test did not run it, which
+// proves nothing, so it is an error.
+func failingTests(root, module string, dirs []string) (map[string]bool, bool, error) {
 	args := []string{"test", "-count=1", "-json"}
 	for _, d := range dirs {
 		args = append(args, "./"+d)
 	}
 	cmd := exec.Command("go", args...)
 	cmd.Dir = root
-	out, _ := cmd.Output()
-	failed := map[string]bool{}
+	out, runErr := cmd.Output()
+	failed, done := map[string]bool{}, map[string]bool{}
 	pkgFail := false
 	for _, line := range bytes.Split(out, []byte("\n")) {
 		var ev struct{ Action, Package, Test string }
-		if json.Unmarshal(line, &ev) != nil || ev.Action != "fail" || strings.Contains(ev.Test, "/") {
+		if json.Unmarshal(line, &ev) != nil || strings.Contains(ev.Test, "/") {
 			continue
 		}
 		dir := strings.TrimPrefix(strings.TrimPrefix(ev.Package, module), "/")
 		if dir == "" {
 			dir = "."
+		}
+		if ev.Test == "" && (ev.Action == "pass" || ev.Action == "fail" || ev.Action == "skip") {
+			done[dir] = true
+		}
+		if ev.Action != "fail" {
+			continue
 		}
 		if ev.Test == "" {
 			pkgFail = true
@@ -528,7 +579,12 @@ func failingTests(root, module string, dirs []string) (map[string]bool, bool) {
 		}
 		failed[dir+"."+ev.Test] = true
 	}
-	return failed, pkgFail
+	for _, d := range dirs {
+		if !done[d] {
+			return nil, false, fmt.Errorf("qualify: go test reported no result for %s (%v)", d, runErr)
+		}
+	}
+	return failed, pkgFail, nil
 }
 
 // Report is the redundancy output.
@@ -562,6 +618,7 @@ func redundancy(args []string) error {
 	only := fs.String("packages", "", "comma-separated module-relative directories (default: every indexed package)")
 	low := fs.Int("low-unique", 1, "list a test with at most this many blocks no other test of its package executes")
 	top := fs.Int("top", 20, "packages listed in Summary.TopPackages")
+	reqs := fs.String("requirements", "docs/specs/REQUIREMENTS.tsv", "root-relative table whose first column lists the known requirement IDs; when present, a cited ID it lacks is dropped")
 	fs.Parse(args)
 	if *index == "" {
 		return errors.New("redundancy: -index is required")
@@ -583,9 +640,6 @@ func redundancy(args []string) error {
 	if head != ix.Commit {
 		return fmt.Errorf("redundancy: checkout is at %s, index at %s", head, ix.Commit)
 	}
-	if dirty, err := output(*root, "git", "status", "--porcelain", "--untracked-files=no"); err != nil || dirty != "" {
-		return fmt.Errorf("redundancy: checkout must be clean (%v)", err)
-	}
 	dirs := split(*only)
 	if dirs == nil {
 		seen := map[string]bool{}
@@ -596,6 +650,9 @@ func redundancy(args []string) error {
 			}
 		}
 	}
+	if err := clean(*root, dirs); err != nil {
+		return fmt.Errorf("redundancy: checkout must be clean: %w", err)
+	}
 	declared, err := linecov.HeadTests(*root, dirs)
 	if err != nil {
 		return err
@@ -604,6 +661,22 @@ func redundancy(args []string) error {
 	for _, d := range dirs {
 		if sources[d], err = linecov.TestSources(*root, d); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
+		}
+	}
+	if known, err := knownRequirements(filepath.Join(*root, filepath.FromSlash(*reqs))); err != nil {
+		return err
+	} else if known != nil {
+		for _, srcs := range sources {
+			for name, src := range srcs {
+				kept := src.Requirements[:0:0]
+				for _, id := range src.Requirements {
+					if known[id] {
+						kept = append(kept, id)
+					}
+				}
+				src.Requirements = kept
+				srcs[name] = src
+			}
 		}
 	}
 	want := map[string]bool{}
@@ -659,4 +732,23 @@ func redundancy(args []string) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(r)
+}
+
+// knownRequirements reads the first column of a requirements table; a missing
+// table is nil, so every cited ID is kept.
+func knownRequirements(file string) (map[string]bool, error) {
+	data, err := os.ReadFile(file)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	known := map[string]bool{}
+	for _, line := range strings.Split(string(data), "\n") {
+		if id, _, _ := strings.Cut(line, "\t"); id != "" {
+			known[id] = true
+		}
+	}
+	return known, nil
 }
