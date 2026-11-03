@@ -13,6 +13,8 @@
 # Last it judges the installed corvint against the new lane's base with script/lane-binary-check.sh
 # (ASD-V0-757, V1-3761): a STALE or UNVERIFIED binary is named with both builds and exits 1 (the
 # lane is still created); --rebuild-corvint rebuilds and installs it from the lane instead.
+# ASD-V0-2203 first checks the host binary against fetched origin/main, before creating the lane;
+# a stale host refuses even if --base pins a revision matching the installed binary.
 # Exit 2 on any refusal. Relative SHARED and DIR resolve against the caller's working directory.
 set -uo pipefail
 export LC_ALL=C
@@ -37,6 +39,11 @@ git -C "$repo" rev-parse --git-dir > /dev/null 2>&1 || refuse "not-a-repository 
 "$here/require-full-history.sh" lane-setup "$repo" || exit 2
 [[ ! -e $dir ]] || refuse "dir-exists $dir"
 sha=$(git -C "$repo" rev-parse --verify -q "$ref^{commit}") || refuse "unknown-base $ref (fetch the shared repository first)"
+# ASD-V0-2203: judge the host's tool against origin/main even when a lane pins an older base.
+# No implicit fetch: the orchestrator refreshes origin/main before dispatch.
+if ! "$here/lane-binary-check.sh" ${rebuild[@]+"${rebuild[@]}"} --against origin/main "$repo"; then
+  refuse 'host-binary-not-current (fix: fetch origin and run lane-binary-check.sh --rebuild in a clean checkout at origin/main)'
+fi
 git -C "$repo" worktree add -q -b "$branch" "$dir" "$sha" || refuse "worktree-add-failed $dir"
 printf 'lane-setup: %s on %s at %s\n' "$dir" "$branch" "$sha"
 if ! git -C "$repo" config extensions.worktreeConfig true || ! git -C "$dir" config --worktree rerere.enabled false; then

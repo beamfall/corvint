@@ -45,7 +45,7 @@ three classes:
 
 The self-observation append happens only when that ledger path is gitignored by the root
 `.gitignore` or `.corvint/.gitignore` together with its `.self-observations.*` temporaries
-(`internal/observations/observations.go:307-309@f504ccce`, `internal/observations/observations.go:731-738@b40a3bba`).
+(`internal/observations/observations.go:309-311@f504ccce`, `internal/observations/observations.go:733-740@b40a3bba`).
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
@@ -53,7 +53,7 @@ storage failure never alters the response (`cmd/corvint/help.go:419-420@3c9a8d56
 
 The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
 while the operator marker `.corvint/unplanned-reads.enabled` exists
-(`cmd/corvint/host_adapter.go:374@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
+(`cmd/corvint/host_adapter.go:375@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
 marker only by `corvint reads` (`cmd/corvint/reads.go:92-96@19937f8b`). None of the commands below writes
 either file.
 
@@ -302,7 +302,7 @@ CEM/OCM artifacts exist (`internal/gokernel/harness.go:444@a4869098`). The harne
 (`internal/gokernel/harness.go:483-489@19864b9a`); this is an abstention, not proof that the change
 is complete. The code is also admitted by the observations ledger and host adapter vocabularies
 (`internal/observations/observations.go:50-57@493847da`,
-`cmd/corvint/host_adapter.go:809-818@c1243f78`). Repeated appearances are not evidence of repeated
+`cmd/corvint/host_adapter.go:818-827@c1243f78`). Repeated appearances are not evidence of repeated
 failures, and adding artifacts does not remove this message.
 
 ### What the artifacts enable, and what remains unavailable
@@ -359,7 +359,7 @@ review queue, the minimum inputs and steps are:
 | Repeated visible notices | Host output policy or installed adapter version can affect presentation. | Compare the installed adapter with [decision 0161](decisions/0161-claude-adapter-quiet-notices-2026-09-12.md). Current Claude routine post-tool receipts use model-visible additionalContext; genuine faults retain a notice. This is not a user suppression setting. |
 
 The Claude routine receipt path preserves the degradation codes in additionalContext
-(`cmd/corvint/host_adapter.go:794-806@78ff0af5`). Presentation differs by host and event; quieting a
+(`cmd/corvint/host_adapter.go:803-815@78ff0af5`). Presentation differs by host and event; quieting a
 notice is not removing the degradation or acquiring authority.
 
 ### Not delivered by this guidance

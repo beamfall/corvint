@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -34,12 +35,32 @@ func setQualifiedVersions(t *testing.T, v []string) {
 	t.Cleanup(func() { testQualified.Delete(t.Name()) })
 }
 
-// testEnv is env with the actor and qualified versions named for t or a test
-// enclosing it.
+// testReadPatience maps a test name to the snapshot read patience
+// setReadPatience named for it.
+var testReadPatience sync.Map
+
+// setReadPatience makes d the read patience of every command t runs through
+// testEnv until the returned restore runs (or t ends), in place of
+// snapshot.DefaultPatience, without a package-variable write, so t may run in
+// parallel.
+func setReadPatience(t *testing.T, d time.Duration) (restore func()) {
+	t.Helper()
+	name := t.Name()
+	testReadPatience.Store(name, d)
+	restore = func() { testReadPatience.Delete(name) }
+	t.Cleanup(restore)
+	return restore
+}
+
+// testEnv is env with the actor, qualified versions and read patience named
+// for t or a test enclosing it.
 func testEnv(t *testing.T, env cli.Env) cli.Env {
 	env.Actor = testActor(t)
 	if v, ok := lookupByTestName(&testQualified, t.Name()); ok {
 		env = cli.WithObligationQualifiedVersions(env, v.([]string))
+	}
+	if v, ok := lookupByTestName(&testReadPatience, t.Name()); ok {
+		env = cli.WithReadPatience(env, v.(time.Duration))
 	}
 	return env
 }
