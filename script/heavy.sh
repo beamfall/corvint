@@ -204,9 +204,10 @@
 # appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
 # set test environment with `env K=V` inside the command, or as leading K=V words, which become
 # `env K=V ...` (ASD-V0-830). GOCACHE/CORVINT_GOCACHE/GOMODCACHE and TMPDIR/GOTMPDIR assignments are
-# dropped remotely, and a command with a file-writing flag (-o, -c, -outputdir, -coverprofile, the
-# profiles, -trace, -test.*), as an argument, in a GOFLAGS= argument or in the exported GOFLAGS,
-# always runs locally, because its files would stay on the remote.
+# dropped remotely in every Make form (=, :=, ::=, :::=, +=, ?=, !=, blanks allowed), and a command
+# with a file-writing flag (-o, -c, -outputdir, -coverprofile, the profiles, -trace, -test.*), as an
+# argument, in a GOFLAGS= argument or in the exported GOFLAGS, always runs locally, because its
+# files would stay on the remote.
 # Checkout files a remote run writes (DCW-V0-359, V1-2858; for example goldens regenerated with
 # -update) are copied back. After the command the remote compares its worktree with the tested tree
 # (non-ignored paths, as the tree identity counts them); when they differ it keeps the written files,
@@ -712,7 +713,7 @@ worktree_slot() {
 # the remote cannot run it (the caller then runs locally).
 # shellcheck disable=SC1090,SC2153 # meta.env (written by offload) defines BASE, HEAD, ORIGIN, CMD...
 serve() {
-  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg
+  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg drop_re
   t0=$(heavy_now)
   infra() {
     printf 'heavy.sh: remote %s: %s\n' "$(command -p hostname)" "$*" >&2
@@ -821,10 +822,13 @@ serve() {
     printf 'heavy.sh: building for %s/%s\n' "$GOOS" "$GOARCH" >&2
   fi
   # Caller cache and scratch paths mean nothing here; keep the host-local setup above, including
-  # Makefile variable assignments (CORVINT_GOCACHE), env words and leading NAME=VALUE words.
+  # Makefile variable assignments (CORVINT_GOCACHE), env words and leading NAME=VALUE words. Make
+  # applies every assignment operator (=, :=, ::=, :::=, +=, ?=, !=, blanks allowed around the name
+  # and operator) over the environment, so each form is dropped (ASD-V0-2120, ASD-V0-2121).
+  drop_re='^[[:space:]]*(GOCACHE|CORVINT_GOCACHE|GOMODCACHE|TMPDIR|GOTMPDIR)[[:space:]]*(:{0,3}|[+?!])='
   for a in ${CMD[@]+"${CMD[@]}"}; do
     [[ -n ${BUILD-} ]] && a=${a//@RT@/$wt}
-    case $a in GOCACHE=* | CORVINT_GOCACHE=* | GOMODCACHE=* | TMPDIR=* | GOTMPDIR=*) ;; *) cmd+=("$a") ;; esac
+    [[ $a =~ $drop_re ]] || cmd+=("$a")
   done
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
   : > "$w/marker" || infra "marker unwritable"

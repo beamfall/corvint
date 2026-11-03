@@ -38,7 +38,7 @@ if [[ ${1-} == --heavy-host-env-only ]]; then
   export HEAVY_CACHE_TRIM_HOURS=0 HEAVY_CI_REPO=off HEAVY_REMOTE_RETRY=0
   export HEAVY_REMOTE_HOST=fixture HEAVY_REMOTE_SHELL='bash -s'
   export HEAVY_REMOTE_ENV=$tmp/remote.env HEAVY_REMOTE_SLOTS=1
-  mkdir -p "$tmp/bin" "$tmp/home" "$tmp/scratch" "$tmp/tmpfs-cache" "$tmp/disk-cache"
+  mkdir -p "$tmp/bin" "$tmp/remote-bin" "$tmp/home" "$tmp/scratch" "$tmp/tmpfs-cache" "$tmp/disk-cache"
   git clone -q --shared "$root" "$tmp/local"
   origin=$(git -C "$root" remote get-url origin)
   git -C "$tmp/local" remote set-url origin "$origin"
@@ -49,8 +49,13 @@ if [[ ${1-} == --heavy-host-env-only ]]; then
 #!/usr/bin/env bash
 while [[ \$1 == -o ]]; do shift 2; done
 shift
-exec env -i PATH="$tmp/bin:$PATH" HOME="$tmp/home" TMPDIR="$tmp/scratch" LC_ALL=C bash -c "\$*"
+exec env -i PATH="$tmp/remote-bin:$tmp/bin:$PATH" HOME="$tmp/home" TMPDIR="$tmp/scratch" LC_ALL=C bash -c "\$*"
 EOF
+  # The simulated remote is Linux on every caller host (review): a Darwin caller's uname would skip
+  # the Linux cache checks, and stock macOS has no timeout(1), which the remote half requires.
+  printf '#!/bin/sh\necho Linux\n' > "$tmp/remote-bin/uname"
+  printf '#!/bin/sh\nshift\nexec "$@"\n' > "$tmp/remote-bin/timeout"
+  chmod +x "$tmp/remote-bin/uname" "$tmp/remote-bin/timeout"
   cat > "$tmp/bin/stat" <<EOF
 #!/usr/bin/env bash
 # Simulate a tmpfs mount and a symlink into it, without needing mount privileges.
@@ -70,6 +75,7 @@ if [[ \$1 == env ]]; then
 fi
 [[ -d \$TMPDIR && -d \$GOTMPDIR ]] || exit 31
 [[ \$TMPDIR == "$tmp/home/.cache/corvint-heavy/tmp/run."* ]] || exit 32
+[[ \$(uname -s) == Linux ]] || exit 33
 printf '%s\n' "\$GOCACHE" "\$CORVINT_GOCACHE" "\$TMPDIR" "\$GOTMPDIR" > "$tmp/observed"
 # Deliberately omit cleanup, including an unwritable Test* subtree: the remote EXIT trap owns it.
 mkdir -p "\$TMPDIR/TestLeakedHelper/locked"
@@ -77,9 +83,11 @@ touch "\$TMPDIR/TestLeakedHelper/locked/file"
 chmod 000 "\$TMPDIR/TestLeakedHelper/locked"
 exit \${FIXTURE_RC:-0}
 EOF
-  cat > "$tmp/bin/make" <<'EOF'
+  cat > "$tmp/bin/make" <<EOF
 #!/usr/bin/env bash
-exec go "$@"
+# Real make applies every NAME=, NAME:=, NAME+=... word over the environment; none may arrive here.
+for a in "\$@"; do [[ \$a != *=* ]] || { printf '%s\n' "\$a" > "$tmp/make-leak"; exit 34; }; done
+exec go "\$@"
 EOF
   chmod +x "$tmp/bin/ssh" "$tmp/bin/stat" "$tmp/bin/go" "$tmp/bin/make"
   export PATH=$tmp/bin:$PATH HEAVY_REMOTE_SSH=$tmp/bin/ssh TMPDIR=$tmp/scratch
@@ -117,6 +125,16 @@ EOF
   check_observed "$tmp/home/.cache/corvint-go-build-cache"
   run_host_env TMPDIR="$missing" GOTMPDIR="$missing/go" make windows-vet
   check_observed "$tmp/home/.cache/corvint-go-build-cache"
+  # Review: Make applies every assignment operator, with blanks around it, over the environment.
+  printf 'export GOCACHE=%q CORVINT_GOCACHE=%q\n' "$tmp/disk-cache" "$tmp/disk-cache" > "$tmp/remote.env"
+  for op in ':=' '::=' ':::=' '+=' '?=' '!=' ' = ' $'\t:= '; do
+    rm -f "$tmp/observed"
+    run_host_env make windows-vet "CORVINT_GOCACHE${op}/tmp/cache" "TMPDIR${op}$missing" \
+      " GOTMPDIR${op}$missing/go" "GOCACHE${op}/tmp/cache" "GOMODCACHE${op}/tmp/mod" ||
+      fail "make assignment $(printf %q "$op"): status $?, leaked $(cat "$tmp/make-leak" 2> /dev/null): $(cat "$tmp/err")"
+    check_observed "$tmp/disk-cache"
+  done
+  : > "$tmp/remote.env"
   if run_host_env env FIXTURE_RC=7 TMPDIR="$missing" go test -run X ./internal/specindex; then
     fail 'remote failure was lost'
   else
@@ -134,7 +152,7 @@ EOF
     # shellcheck disable=SC2329 # invoked by remote_caches from the sourced runner
     infra() { printf '%s\n' "$*" >&2; exit 97; }
     export GOCACHE=$tmp/tmpfs-cache CORVINT_GOCACHE=$tmp/tmpfs-cache HOME=$tmp/home
-    remote_caches
+    PATH=$tmp/remote-bin:$PATH remote_caches
   ) > "$tmp/out" 2> "$tmp/err"; then
     fail 'RAM-backed fallback was admitted'
   else
@@ -142,7 +160,7 @@ EOF
   fi
   grep -q 'fix: set HEAVY_REMOTE_GOCACHE.*HEAVY_REMOTE_ENV' "$tmp/err" ||
     fail "RAM-backed fallback refusal lacks recovery: $(cat "$tmp/err")"
-  printf 'lane-scripts_test: heavy host environment: 8 cases passed (cache, windows-vet, disk, symlink, env/leading TMPDIR, failure cleanup, refusal)\n'
+  printf 'lane-scripts_test: heavy host environment: 9 cases passed (cache, windows-vet, disk, symlink, env/leading TMPDIR, Make assignment operators, failure cleanup, refusal)\n'
   exit 0
 fi
 # DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
@@ -195,6 +213,13 @@ lane-scripts_test: 1 groups passed, 2 failed:
 [[ $self_rc == 1 && $self == "$self_want" ]] || { printf 'lane-scripts_test: FAIL the group runner self-test (exit %s):\n%s\n' "$self_rc" "$self" >&2; exit 1; }
 
 bash "$script/${0##*/}" --heavy-host-env-only || fail 'heavy host environment qualification'
+# Review (ASD-V0-2120): the same qualification from a simulated Darwin caller, whose uname is Darwin
+# and whose timeout(1) is unusable, still exercises the Linux remote's cache checks.
+mkdir -p "$tmp/darwin-caller" && printf '#!/bin/sh\necho Darwin\n' > "$tmp/darwin-caller/uname" &&
+  printf '#!/bin/sh\necho "simulated Darwin caller: no timeout(1)" >&2\nexit 127\n' > "$tmp/darwin-caller/timeout" &&
+  chmod +x "$tmp/darwin-caller/uname" "$tmp/darwin-caller/timeout" || fail 'darwin caller stubs'
+PATH=$tmp/darwin-caller:$PATH bash "$script/${0##*/}" --heavy-host-env-only ||
+  fail 'heavy host environment qualification from a Darwin caller'
 ok
 
 # ASD-V0-014: two concurrent commands with HEAVY_SLOTS=1 never overlap. No caller's heavy.sh
