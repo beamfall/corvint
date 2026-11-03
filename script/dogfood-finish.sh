@@ -123,9 +123,9 @@ if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
     static_override=$CORVINT_BIN
     if [[ $static_override != */* ]]; then
       static_override=$(type -P -- "$static_override") || static_override=
-    elif [[ $static_override != /* ]]; then
-      static_override=$PWD/$static_override
     fi
+    # A relative PATH entry yields a relative path too, so absolutize after the lookup.
+    [[ -z $static_override || $static_override == /* ]] || static_override=$PWD/$static_override
     [[ -n $static_override ]] && static_capable "$static_override" && static_bin=$static_override
   elif installed=$(command -v corvint) && static_capable "$installed"; then
     static_bin=$installed

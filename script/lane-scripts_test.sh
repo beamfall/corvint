@@ -2154,6 +2154,15 @@ rc=$?
 rc=$?
 ((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
   fail "a relative CORVINT_BIN did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
+# Review fix: so does a PATH-only name found through a relative PATH entry.
+mkdir -p "$to/static/rel" && cp "$to/static/cbin" "$to/static/rel/cbin-rel" || fail "relative PATH fixture"
+/bin/rm -f "$to/static/cbin-args"
+(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK PATH="rel:$PATH" DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=cbin-rel \
+  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
+  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
+rc=$?
+((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "a PATH-only CORVINT_BIN on a relative PATH entry did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
 printf '#!/bin/sh\nexit 0\n' > "$to/static/cbin"
 static_make CORVINT_BIN="$to/static/cbin"
 rc=$?
