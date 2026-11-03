@@ -156,13 +156,12 @@ func (b *Builder) FromSiteKnowledge(k *appmap.SKModel, m *appmap.Map) {
 			add(r.Source, t)
 		}
 	}
+	bindingUsers := bindingUsers(k)
 	for _, po := range k.PageObjects {
 		pr := Ref{KindPageObject, po.ID}
 		b.Unit(pr)
-		methods := map[string]bool{}
 		all := map[string]bool{}
 		for _, meth := range po.Methods {
-			methods[meth.ID] = true
 			mr := Ref{KindMethod, meth.ID}
 			kind := SurfaceMethod
 			if isModuleForm(po.Form) {
@@ -174,14 +173,10 @@ func (b *Builder) FromSiteKnowledge(k *appmap.SKModel, m *appmap.Map) {
 				all[t] = true
 			}
 		}
-		for _, bind := range po.Bindings {
-			users := map[string]bool{}
-			for _, t := range k.Tests {
-				for _, s := range t.Steps {
-					if sameSelector(s.Locator, &bind.Locator) && viaAny(s.Via, methods) {
-						users[t.ID] = true
-					}
-				}
+		for i, bind := range po.Bindings {
+			users := bindingUsers[bindingKey{po.ID, i}]
+			for t := range users {
+				all[t] = true
 			}
 			b.AddSurface(SurfaceBinding, po.ID+"#"+bind.Name, pr, anchorSpan(bind.Anchor), sortedSet(users), Static)
 		}
@@ -205,6 +200,57 @@ func (b *Builder) FromSiteKnowledge(k *appmap.SKModel, m *appmap.Map) {
 			}
 		}
 	}
+}
+
+type bindingKey struct {
+	po    string
+	index int
+}
+
+// bindingUsers maps each page-object binding to the tests with a step on its locator. A step whose
+// call chain names a method of a page object holding a binding on that locator belongs to those
+// bindings only. Any other step on the locator, such as a direct `login.email.fill(...)` from a
+// test body or helper, cannot be told apart, so it counts as a user of every binding on that
+// locator: a binding change may select a test too many, never one too few.
+func bindingUsers(k *appmap.SKModel) map[bindingKey]map[string]bool {
+	methods := make([]map[string]bool, len(k.PageObjects))
+	for i, po := range k.PageObjects {
+		methods[i] = map[string]bool{}
+		for _, m := range po.Methods {
+			methods[i][m.ID] = true
+		}
+	}
+	users := map[bindingKey]map[string]bool{}
+	for _, t := range k.Tests {
+		for _, s := range t.Steps {
+			if s.Locator == nil {
+				continue
+			}
+			var matching, owned []bindingKey
+			for i, po := range k.PageObjects {
+				for j := range po.Bindings {
+					if !sameSelector(s.Locator, &po.Bindings[j].Locator) {
+						continue
+					}
+					key := bindingKey{po.ID, j}
+					matching = append(matching, key)
+					if viaAny(s.Via, methods[i]) {
+						owned = append(owned, key)
+					}
+				}
+			}
+			if len(owned) == 0 {
+				owned = matching
+			}
+			for _, key := range owned {
+				if users[key] == nil {
+					users[key] = map[string]bool{}
+				}
+				users[key][t.ID] = true
+			}
+		}
+	}
+	return users
 }
 
 func viaAny(via []string, set map[string]bool) bool {

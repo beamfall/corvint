@@ -476,3 +476,77 @@ func TestMCJV0_024_GapReport(t *testing.T) {
 		t.Fatalf("untested = %v", g.Untested)
 	}
 }
+
+// A direct binding access such as `login.email.fill(...)` has a locator but no page-object method
+// in its call chain. It must still select the test when the binding changes, even when another
+// test reaches the same binding through a method; with two page objects on that locator, both
+// bindings take it, since the step cannot say which one it used.
+func TestMCJV0_023_DirectBindingAccessSelectsItsTest(t *testing.T) {
+	model := fixtureModel()
+	model.Tests = append(model.Tests,
+		appmap.SKTest{ID: "test:e2e/direct.spec.ts#e", Path: "e2e/direct.spec.ts", Complete: true,
+			Steps: []appmap.SKStep{step(appmap.StepClick, &selSubmit)}},
+		appmap.SKTest{ID: "test:e2e/direct.spec.ts#f", Path: "e2e/direct.spec.ts", Complete: true,
+			Steps: []appmap.SKStep{step(appmap.StepFill, &selEmail, "helper:unrelated")}})
+	b := NewBuilder()
+	b.FromSiteKnowledge(model, nil)
+	l := b.Build()
+	if got, want := surfaceTests(l, Span{"e2e/pages/login.ts", 4, 4}), []string{"test:e2e/direct.spec.ts#e", "test:e2e/login.spec.ts#a"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("submit binding selected %v, want %v", got, want)
+	}
+	if got, want := surfaceTests(l, Span{"e2e/pages/login.ts", 3, 3}), []string{"test:e2e/direct.spec.ts#f", "test:e2e/login.spec.ts#a"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("login email binding selected %v, want %v", got, want)
+	}
+	if got, want := surfaceTests(l, Span{"e2e/pages/cart.ts", 2, 2}), []string{"test:e2e/cart.spec.ts#d", "test:e2e/direct.spec.ts#f"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("cart email binding selected %v, want %v", got, want)
+	}
+	// The page object's own span selects its direct users too.
+	if got := surfaceTests(l, Span{"e2e/pages/login.ts", 7, 7}); !slices.Contains(got, "test:e2e/direct.spec.ts#e") {
+		t.Fatalf("class body selected %v", got)
+	}
+}
+
+// A changed block that a code set holds only in part is not fully linked: its tests are still
+// added, but replacement is ineligible and the unheld lines are reported as unlinked.
+func TestMCJV0_022_024_PartialLinkKeepsTheRemainderUnlinked(t *testing.T) {
+	l := fixtureLinks(t, nil)
+	// web/src/pay.ts:5-30 is declared for the checkout flow.
+	changed := []Span{{"web/src/pay.ts", 25, 45}}
+	r := l.ShadowReplace(changed, []string{"e2e/cart.spec.ts::pays", "test:e2e/home.spec.ts#c"})
+	if r.Eligible || !reflect.DeepEqual(r.Ineligible, []Ineligible{{Block: Span{"web/src/pay.ts", 31, 45}, Reason: "partially-linked"}}) ||
+		!reflect.DeepEqual(r.Proposed, []string{"e2e/cart.spec.ts::pays"}) {
+		t.Fatalf("partial report = %+v", r)
+	}
+	if g := l.Gaps(nil, changed); !reflect.DeepEqual(g.Unlinked, []Span{{"web/src/pay.ts", 31, 45}}) {
+		t.Fatalf("gaps unlinked = %v", g.Unlinked)
+	}
+	sel := l.AddUncovered(nil, changed, nil)
+	if !slices.Contains(sel.Tests, "e2e/cart.spec.ts::pays") || !reflect.DeepEqual(sel.Unlinked, []Span{{"web/src/pay.ts", 31, 45}}) {
+		t.Fatalf("add uncovered = %+v", sel)
+	}
+	if r := l.ShadowReplace([]Span{{"web/src/pay.ts", 5, 30}}, nil); !r.Eligible {
+		t.Fatalf("a fully held block is eligible: %+v", r)
+	}
+}
+
+func TestUncoveredParts(t *testing.T) {
+	b := Span{"a.go", 10, 30}
+	for _, c := range []struct {
+		spans []Span
+		want  []Span
+	}{
+		{nil, []Span{b}},
+		{[]Span{{"a.go", 0, 0}}, nil},
+		{[]Span{{"b.go", 0, 0}}, []Span{b}},
+		{[]Span{{"a.go", 5, 40}}, nil},
+		{[]Span{{"a.go", 12, 15}, {"a.go", 14, 20}, {"a.go", 25, 26}}, []Span{{"a.go", 10, 11}, {"a.go", 21, 24}, {"a.go", 27, 30}}},
+		{[]Span{{"a.go", 10, 19}, {"a.go", 20, 30}}, nil},
+	} {
+		if got := uncoveredParts(b, c.spans); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("uncoveredParts(%v, %v) = %v, want %v", b, c.spans, got, c.want)
+		}
+	}
+	if got := uncoveredParts(Span{Path: "a.go"}, []Span{{"a.go", 1, 100}}); !reflect.DeepEqual(got, []Span{{Path: "a.go"}}) {
+		t.Errorf("whole-file block held by a range = %v", got)
+	}
+}

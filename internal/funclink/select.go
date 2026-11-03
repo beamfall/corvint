@@ -28,8 +28,9 @@ type Added struct {
 type Selection struct {
 	Tests []string `json:"tests"`
 	Added []Added  `json:"added"`
-	// Uncovered lists the changed blocks no fresh record covers; Unlinked those of them that no
-	// unit's code set holds, which keep the static plan (MCJ-V0-024).
+	// Uncovered lists the changed blocks no fresh record covers; Unlinked the lines of them that no
+	// unit's code set holds, which keep the static plan (MCJ-V0-024). A block a code set holds only
+	// in part still adds that unit's tests, and its remainder is unlinked.
 	Uncovered []Span `json:"uncovered,omitempty"`
 	Unlinked  []Span `json:"unlinked,omitempty"`
 	// Unresolved lists the changed test-side surfaces whose users SKH-V0 extracted none of: the
@@ -124,24 +125,37 @@ func (l *Links) AddUncovered(keep []string, changed, fresh []Span) Selection {
 			continue
 		}
 		uncovered = append(uncovered, b)
-		linked := false
 		for _, u := range l.Units {
 			auth := codeAuthority(u, b)
 			if auth == 0 {
 				continue
 			}
-			linked = true
 			for _, t := range u.Tests {
 				a.add(t.Test, Reason{Rule: ReasonFunctionalityLink, Unit: Ref{u.Kind, u.ID}, Authority: auth, Block: b})
 			}
 		}
-		if !linked {
-			unlinked = append(unlinked, b)
-		}
+		unlinked = append(unlinked, uncoveredParts(b, l.codeSpans(b, false))...)
 	}
 	sel := a.selection()
 	sel.Uncovered, sel.Unlinked = uncovered, unlinked
 	return sel
+}
+
+// codeSpans returns the code-entry spans of every unit that overlap b; with nonObserved, only
+// entries of units whose code set is not only observed.
+func (l *Links) codeSpans(b Span, nonObserved bool) []Span {
+	var out []Span
+	for _, u := range l.Units {
+		if nonObserved && onlyObserved(u) {
+			continue
+		}
+		for _, c := range u.Code {
+			if c.Span.Overlaps(b) {
+				out = append(out, c.Span)
+			}
+		}
+	}
+	return out
 }
 
 // codeAuthority is the highest authority among the unit's code entries overlapping b, or 0.
@@ -213,8 +227,9 @@ func sortedKeys[V any](m map[string]V) []string {
 // Omitted that failed in that run (FallbackMisses).
 type ShadowReplacement struct {
 	Mode string `json:"mode"` // always "shadow"
-	// Eligible is true when every changed block lies in the code set of a unit with a declared or
-	// static code entry; Ineligible then names each block that kept it false and why.
+	// Eligible is true when the declared or static code entries of units hold every line of every
+	// changed block; otherwise Ineligible names each block, or each unheld part of a block, that
+	// kept it false and why.
 	Eligible   bool         `json:"eligible"`
 	Ineligible []Ineligible `json:"ineligible,omitempty"`
 	Units      []LinkedUnit `json:"units"`
@@ -223,11 +238,11 @@ type ShadowReplacement struct {
 	Omitted    []string     `json:"omitted"`
 }
 
-// Ineligible is one changed block that keeps the fallback: unlinked, or linked only through units
-// whose code set is only observed.
+// Ineligible is one changed block that keeps the fallback: unlinked, linked only through units
+// whose code set is only observed, or the part of a block that no declared or static entry holds.
 type Ineligible struct {
 	Block  Span   `json:"block"`
-	Reason string `json:"reason"` // unlinked or observed-only
+	Reason string `json:"reason"` // unlinked, observed-only or partially-linked
 }
 
 // LinkedUnit is one unit whose test set the proposed linked set holds, and its code authority.
@@ -263,14 +278,19 @@ func (l *Links) ShadowReplace(changed []Span, fallback []string) ShadowReplaceme
 				proposed[t.Test] = true
 			}
 		}
-		if !linked {
-			r.Eligible = false
-			reason := "unlinked"
-			if observedOnly {
-				reason = "observed-only"
+		switch {
+		case !linked && observedOnly:
+			r.Ineligible = append(r.Ineligible, Ineligible{Block: b, Reason: "observed-only"})
+		case !linked:
+			r.Ineligible = append(r.Ineligible, Ineligible{Block: b, Reason: "unlinked"})
+		default:
+			for _, p := range uncoveredParts(b, l.codeSpans(b, true)) {
+				r.Ineligible = append(r.Ineligible, Ineligible{Block: p, Reason: "partially-linked"})
 			}
-			r.Ineligible = append(r.Ineligible, Ineligible{Block: b, Reason: reason})
 		}
+	}
+	if len(r.Ineligible) > 0 {
+		r.Eligible = false
 	}
 	for ref, a := range units {
 		r.Units = append(r.Units, LinkedUnit{Unit: ref, Authority: a})
@@ -330,7 +350,7 @@ type Gaps struct {
 	Untested []Ref `json:"untested"`
 	// Unmapped lists the tests of the given universe that no unit's test set holds.
 	Unmapped []string `json:"unmapped"`
-	// Unlinked lists the changed blocks that no unit's code set holds; they keep the static plan.
+	// Unlinked lists the changed lines that no unit's code set holds; they keep the static plan.
 	Unlinked []Span `json:"unlinked"`
 }
 
@@ -352,16 +372,7 @@ func (l *Links) Gaps(tests []string, changed []Span) Gaps {
 		}
 	}
 	for _, b := range changed {
-		in := false
-		for _, u := range l.Units {
-			if codeAuthority(u, b) != 0 {
-				in = true
-				break
-			}
-		}
-		if !in {
-			g.Unlinked = append(g.Unlinked, b)
-		}
+		g.Unlinked = append(g.Unlinked, uncoveredParts(b, l.codeSpans(b, false))...)
 	}
 	return g
 }
