@@ -739,7 +739,7 @@ func attemptAttach(env Env, args []string) int {
 	if err != nil {
 		return emit(env.Stdout, errorResult(cmd, err))
 	}
-	rd := snapshot.Reader{StateDir: repo.StateDir, Sleep: attachReadSleep}
+	rd := snapshot.Reader{StateDir: repo.StateDir, Patience: env.readPatience, Sleep: attachReadSleep}
 	observed, err := rd.Read(func(*snapshot.Snapshot) error { return nil })
 	if err != nil {
 		return emit(env.Stdout, errorResult(cmd, err))

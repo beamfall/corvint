@@ -186,6 +186,17 @@ or worktree define differently (`ASD-V0-950`); an orchestrator runs the same che
 checkout before it integrates each lane. A collision found at merge is refused by the generator
 (`SRG-V0-547`) and costs a renumber of spec rows, tests and build logs.
 
+Before lane closeout, stage the spec edits and run `make spec-capacity-check BASE=<rev>`
+(`SRG-V0-744/745`, `ASD-V0-2010`). It warns for every spec within 8 obligations of 256;
+`SPEC_CAPACITY_MARGIN=12` changes that margin. Above 256 fails this proactive gate. Exactly 256
+fails only when BASE is given and at least one section ID was added since BASE; an unchanged
+full spec, or a full spec checked without BASE, warns with the companion route.
+Put new requirements in a companion spec file with a new prefix and register it in README.md and
+INDEX.json; do not add rows to a full spec or raise OCM's cap. Generation still admits exactly
+256 but refuses more, and `BASE=<rev>` names the IDs added since the base. Batch-precheck and
+lane closeout forward their batch/lane base to capacity and run cheap README-row checks in their
+static phase before repins or Go work; `script/batch-precheck.sh --static-check` runs just those checks.
+
 `docs/specs/REQUIREMENTS.tsv`, `docs/specs/INDEX.json` and the `docs/specs/README.md` spec table are
 generated. A change edits its spec, stages it, and runs `make spec-requirements`, which regenerates
 the index and projects each header's intent and delivery status and its digest claim onto the two

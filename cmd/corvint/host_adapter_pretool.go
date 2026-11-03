@@ -21,6 +21,19 @@ func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[strin
 	if !ok {
 		return map[string]any{}
 	}
+	// AHI-632 (V1-0878): a plan's named project files get their affected checks, planned
+	// concurrently with the plan's context so both fit the opt-in host kill. The context packet
+	// is compiled with the object's room held back, so appending it never loses the packet.
+	var planAffected func() map[string]any
+	var planPaths []string
+	if payload["tool_name"] == "ExitPlanMode" {
+		if root, err := claudeAdapterRoot(ctx); err == nil {
+			if planPaths = planAffectedPaths(root, text); len(planPaths) != 0 {
+				planAffected = startPlanAffected(ctx, root, planPaths)
+				ctx = withAdapterContextReserve(ctx, planAffectedContextReserve(planPaths))
+			}
+		}
+	}
 	prompt := maps.Clone(payload)
 	prompt["prompt"] = text
 	prompt["hook_event_name"] = "UserPromptSubmit"
@@ -29,17 +42,33 @@ func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[strin
 		delete(output, member)
 	}
 	hook, isHook := output["hookSpecificOutput"].(map[string]any)
-	if !isHook {
-		return output
-	}
 	contextText, _ := hook["additionalContext"].(string)
-	if contextText == "" {
-		delete(output, "hookSpecificOutput")
+	if !isHook && planAffected == nil {
 		return output
 	}
-	// Only the event name and the context are kept: no decision, reason or updated input.
-	output["hookSpecificOutput"] = map[string]any{"hookEventName": "PreToolUse", "additionalContext": contextText}
-	return output
+	answer := func(contextText string) map[string]any {
+		answer := maps.Clone(output)
+		if contextText == "" {
+			delete(answer, "hookSpecificOutput")
+			return answer
+		}
+		// Only the event name and the context are kept: no decision, reason or updated input.
+		answer["hookSpecificOutput"] = map[string]any{"hookEventName": "PreToolUse", "additionalContext": contextText}
+		return answer
+	}
+	if planAffected != nil {
+		// The checks are appended only when the combined answer fits the adapter bound; an
+		// object too large for the held-back room falls back to its compact NOT_PRODUCED form,
+		// and otherwise is dropped, so the context packet is always delivered whole.
+		for _, object := range []map[string]any{planAffected(), planAffectedRefusal(planPaths, "plan-affected-over-budget")} {
+			if checks := renderPlanAffected(object); checks != "" {
+				if combined := answer(strings.TrimSpace(contextText + "\n\n" + checks)); withinAdapterOutputLimit(combined) {
+					return combined
+				}
+			}
+		}
+	}
+	return answer(contextText)
 }
 
 // preToolPrompt is the prompt text a pre-tool call compiles: the backticked target of a Read or

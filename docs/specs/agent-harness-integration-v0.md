@@ -141,7 +141,7 @@ separate exact extension tuple remains governed by AHI-024.
   may be labelled full support. The `host-adapter` translator reports an unrecognised hook event as
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
-  continues (`cmd/corvint/host_adapter.go:41,167,171@f6d595d2`). These are faults under `AHI-021`.
+  continues (`cmd/corvint/host_adapter.go:42,168,172@f6d595d2`). These are faults under `AHI-021`.
   OpenCode and Gemini owned-process-group cleanup on a timeout, a cancellation or a normal leader
   exit, including which signal or probe answers confirm it and the visible degradation
   `corvint-process-cleanup-unconfirmed`, is governed by `AHI-050` (decision 0474), which supersedes
@@ -772,9 +772,12 @@ separate exact extension tuple remains governed by AHI-024.
   the registration in the plugin `hooks.json` and a `compatibility.json` surface record, both held
   until a live host qualification and the `corvint surprise` trial show a benefit (V1-0401
   criterion 3); a user may register the command in their own settings meanwhile. Failure modes:
-  the degradation ledger names the event `user-prompt`; on the documented Claude Code payload the
-  event delivers no packet until the host supplies task text (V1-0401 criterion 1 stays BLOCKED on
-  that). The event runs under the 2 s opt-in adapter host kill (`AHI-017`, `adapterOptInHostKill`).
+  on the documented Claude Code payload the event delivers no packet until the host supplies task
+  text (V1-0401 criterion 1 stays BLOCKED on that). The degradation ledger names the event
+  `subagent-start` (`AHI-630`). Live receipt (Claude Code 2.1.316, 2026-11-01): the host's
+  SubagentStart payload carried `agent_id`, `agent_type`, `cwd`, `prompt_id`, `scratchpad_dir`,
+  `session_id` and `transcript_path` and no task text; the adapter answered `{}` in 77 ms and the
+  spawn ran unchanged, so the registration stays unshipped (`docs/build-log/2026-11-01-hst-m27.md`). The event runs under the 2 s opt-in adapter host kill (`AHI-017`, `adapterOptInHostKill`).
   Evidence:
   `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`,
   `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently` and
@@ -797,7 +800,10 @@ separate exact extension tuple remains governed by AHI-024.
   (WSL, n=30 per tool): Read p95 813 ms, Grep p95 843 ms, under the 2 s hook timeout; a stale
   snapshot answers in about 100 ms with `dogfood-event-index-snapshot-stale`. Non-goals: shipping
   the matcher in the plugin `hooks.json` before a live host qualification and the productivity
-  measure; co-change neighbours beyond what the prompt packet already carries.
+  measure; co-change neighbours beyond what the prompt packet already carries. Live receipt
+  (Claude Code 2.1.316, 2026-11-01, a `--settings` hook registration in a scratch project): the host
+  delivered the packet to the model as a `hook_additional_context` attachment in 151 to 168 ms and
+  ran its own permission flow unchanged (`docs/build-log/2026-11-01-hst-m27.md`).
   Evidence: `TestAHI805PreToolReadNeverDecidesPermission` and
   `TestAHI804OptInEventsRunUnderTheHostKill` (`cmd/corvint`). Rollback: drop the `pre-tool`
   case so the event returns `unsupported-hook-event`.
@@ -809,8 +815,7 @@ separate exact extension tuple remains governed by AHI-024.
   `LCP-V0-013` and `LCP-V0-039` with the usual governance, uncertainty and degradation codes, and
   MUST carry no permission decision under `AHI-805`: it never approves, rejects or
   blocks a plan, and its output is not an input to ranking or learning. Affected checks for the
-  plan's paths are part of this contract but NOT_PRODUCED: they need an affected plan over named
-  paths rather than a diff, which `internal/liveverify/affected` does not offer. Non-goals:
+  plan's named paths are delivered under `AHI-632`. Non-goals:
   plan-revision diffs, scope-violation verdicts. Promotion needs a frozen evaluation that
   plan-time evidence improves plan scope accuracy (V1-0878 criterion 3). Evidence:
   `TestAHI805PreToolReadNeverDecidesPermission` (`cmd/corvint`: an `ExitPlanMode` plan naming a
@@ -822,10 +827,12 @@ separate exact extension tuple remains governed by AHI-024.
   when `CORVINT_STOP_DONE_LIST` is set to `1`, or, only when that variable is unset or empty, when
   the host-exported `CLAUDE_PLUGIN_OPTION_STOP_DONE_LIST` is `true` or `1`. A set environment
   variable keeps precedence, so `CORVINT_STOP_DONE_LIST=0` disables the done-list whatever the
-  option says. The plugin version advances under `AHI-020` (0.3.9). Failure modes: the exported
-  variable name and boolean spelling follow the host's documented `CLAUDE_PLUGIN_OPTION_<KEY>`
-  form and are not yet observed on an installed host; until a live receipt (V1-2514 criterion 3)
-  the env variable stays the documented route. Evidence:
+  option says. The plugin version advances under `AHI-020` (0.3.9). Live receipt (Claude Code
+  2.1.316, 2026-11-01, `--plugin-dir` plus `--settings` `pluginConfigs` in a scratch project): the
+  host exported `CLAUDE_PLUGIN_OPTION_STOP_DONE_LIST=true` for `true` and `false` for `false`, the
+  Stop hook gave the done-list and `{}` respectively, and `CORVINT_STOP_DONE_LIST=0` overrode
+  `true` (V1-2514 criterion 3; `docs/build-log/2026-11-01-hst-m27.md`). Failure modes: a host that
+  stops exporting the option leaves the env variable as the only route. Evidence:
   `TestAHI807StopDoneListPluginOptionAndPrecedence` (`cmd/corvint`). Rollback: drop the
   `userConfig` member and `doneListOptedIn`'s option branch.
 - `AHI-808`: (experimental under the standing lane auto-accept (2026-11-01); V1-3543)
@@ -837,6 +844,65 @@ separate exact extension tuple remains governed by AHI-024.
   new refusal code; Codex's `{}` for an unmapped `hook_event_name` (`AHI-044`) is unchanged.
   Evidence: `TestAHI808AdapterEventsAreDiscoverable` (`cmd/corvint`). Rollback: return the bare
   degradation and the previous help text.
+- `AHI-630`: (experimental under the standing lane auto-accept (2026-11-01); V1-0401) The
+  self-observation ledger's adapter-degradation writer contract MUST admit the opt-in Claude Code
+  events `pre-tool`, `stop-done-list` and `subagent-start` (`AHI-804`, `AHI-805`, `AHI-807`), so a
+  quiet abstention or degradation of those events is ledgered under `SOL-V0-010` with its own event
+  name rather than refused as prohibited content and lost. Failure modes before the fix: a live
+  SubagentStart abstention answered `{}` and wrote no `missing-prompt` row. Evidence:
+  `TestAHI630OptInAbstentionReachesTheLedger` (`cmd/corvint`). Rollback: drop the three names from
+  `admittedAdapterEvents` in `internal/observations`.
+- `AHI-631`: (experimental under the standing lane auto-accept (2026-11-01); V1-3894) The Claude
+  Code plugin MUST keep a maintained smoke test that launches the built binary exactly as the host
+  does from the plugin's `.mcp.json` (`command` resolved on PATH, declared args with
+  `${CLAUDE_PROJECT_DIR}` substituted, declared env) in a Git project and in a non-repository
+  directory, and requires the initialize answer, a `tools/list` equal to `CORVINT_PLUGIN_TOOLS`,
+  and a compatible `corvint.status` for `CORVINT_PLUGIN_VERSION`, so a launch that closes the
+  connection before the handshake fails the test. Non-goals: qualifying a host-side
+  CONNECTION_CLOSED the binary does not reproduce. Evidence:
+  `TestAHI631ClaudePluginMCPLaunchHandshakes` (`cmd/corvint`). Rollback: delete the test.
+- `AHI-632`: (experimental under the standing lane auto-accept (2026-11-01); V1-0878) For a
+  plan-time event (`AHI-806`) the adapter MUST plan affected checks for the plan's named project
+  files: each plan token that, stripped of quotes and trailing punctuation, is a valid relative path
+  naming a regular file inside the project through no symbolic link (a symlinked ancestor never
+  admits an outside file; at most 16, sorted and duplicate-free) is a `--path` of a working-tree
+  affected plan, compiled concurrently with the plan's context. The answer appends one framed
+  `corvint-plan-affected/0` object (repository-data envelope) to the PreToolUse
+  `additionalContext`: `PRODUCED` with the summary line, at most 8 selected unit IDs, the omitted
+  count, the observed HEAD `revision` and the receipt's `ACX-V0-851` worktree `warning` and
+  `degradations` (`worktree-path-plan`: not pinned evidence), or `NOT_PRODUCED` with
+  `plan-affected-refused`, or `plan-affected-deadline` when it does not finish 150 ms before the
+  opt-in host kill (the cutoff is fixed at launch and bounds the plan's own context, so a result
+  finished after it is never `PRODUCED`), or `plan-affected-over-budget` when the object does not
+  fit the room held back from the context packet's budget. The context packet is compiled against
+  the adapter bound less that room, and the object is appended only when the combined answer fits
+  the bound, otherwise it is dropped, so the object never displaces the packet. It carries no
+  permission decision (`AHI-805`) and is not an input to ranking or learning. A plan naming no
+  project file gets no object. Failure modes: under heavy load the plan degrades to
+  `plan-affected-deadline` (WSL, load about 56: 1 of 3 replays PRODUCED;
+  `docs/build-log/2026-11-01-hst-m27.md`). Evidence: `TestAHI805PreToolReadNeverDecidesPermission`
+  (`cmd/corvint`: the plan naming `internal/parser/token.go` carries its object; absent, parent and
+  absolute tokens are not paths) and `TestAHI632PlanAffectedOutcomes` (a dirty fixture edit is
+  `PRODUCED` selecting `go:example.com/fixture/core` with its revision, warning and
+  `worktree-path-plan`; a non-repository root is `plan-affected-refused`; a deadline inside the
+  reserve is `plan-affected-deadline`; the reserve covers the fallback object; a symlinked ancestor
+  is not a path).
+  Rollback: drop the `ExitPlanMode` plan-affected branch of `runClaudePreToolRead` and
+  `cmd/corvint/host_adapter_plan_affected.go`.
+- `AHI-633`: (experimental under the standing lane auto-accept (2026-11-01); V1-2929) Every
+  `SyntaxStyle` the OpenCode TUI plugin constructs MUST name the host renderer's native scene,
+  `ctx.renderer?.nativeScene`, as its resource owner. OpenTUI 0.7 (bundled in OpenCode 2.2.0)
+  refuses an ownerless `SyntaxStyle.fromStyles` at plugin setup, which left the
+  `corvint.inspector.ui` plugin unregistered and the sidebar showing the host's stock panel; the
+  `AHI-620` cause named that frame, and the host log named the refusal. Older OpenTUI ignores the
+  extra argument. Live receipt (Mac, OpenCode v2.2.0, scratch `HOME`, 2026-11-01): before the
+  change `qualify-opencode --inspector` failed `native UI witness missing: sidebar` with the log
+  error `SyntaxStyle requires an explicit resource owner`; after it the dark and light inspector
+  witnesses PASS (46 checks). Non-goals: any change to the witnessed strings or the plugin's
+  panels. Failure mode: a later OpenTUI owner contract would fail setup again, which the
+  inspector witness and `AHI-620` cause report. Evidence: the `AHI-633` case in
+  `integrations/opencode/ui-presentation.test.mjs` (fails without the owner) and the retained
+  live run in `docs/build-log/2026-11-01-hst-m27.md`. Rollback: drop the owner argument.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2727,7 +2793,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1415@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1424@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@167fae0d` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
@@ -2741,8 +2807,8 @@ there, which is the whole of what the row asserts.
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:73` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:378@b2bc66fa` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:762@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
-| `project-root-unavailable` | `cmd/corvint/host_adapter.go:358@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:771@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `project-root-unavailable` | `cmd/corvint/host_adapter.go:359@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `qualification-in-progress` | `internal/opencodequalification/record.go:433` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:179@3a35602c` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
@@ -2912,6 +2978,10 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`), `cmd/corvint/host_adapter.go` (`adapterOptInHostKill`) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`, `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently`, `TestAHI804OptInEventsRunUnderTheHostKill` |
 | `AHI-805` (experimental under the standing lane auto-accept (2026-11-01); V1-0402) | `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`, `preToolReadTarget`) | `TestAHI805PreToolReadNeverDecidesPermission`, `TestAHI804OptInEventsRunUnderTheHostKill` |
 | `AHI-806` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_pretool.go` (`preToolPrompt`) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases) |
+| `AHI-630` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `internal/observations/observations.go` (`admittedAdapterEvents`) | `TestAHI630OptInAbstentionReachesTheLedger` |
+| `AHI-631` (experimental under the standing lane auto-accept (2026-11-01); V1-3894) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI631ClaudePluginMCPLaunchHandshakes` |
+| `AHI-632` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_plan_affected.go` (`planAffectedPaths`, `startPlanAffected`, `planAffectedObject`, `planAffectedContextReserve`); `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`); `cmd/corvint/host_adapter.go` (`runClaudeAdapter` budget) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases); `TestAHI632PlanAffectedOutcomes` |
+| `AHI-633` (experimental under the standing lane auto-accept (2026-11-01); V1-2929) | `integrations/opencode/src/tui.tsx` (`SyntaxStyle.fromStyles` owner) | `integrations/opencode/ui-presentation.test.mjs` (AHI-633 case); live `qualify-opencode --inspector` on OpenCode 2.2.0 |
 | `AHI-807` (experimental under the standing lane auto-accept (2026-11-01); V1-2514) | `cmd/corvint/host_adapter_done_list.go` (`doneListOptedIn`); `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json` (`userConfig.stop_done_list`) | `TestAHI807StopDoneListPluginOptionAndPrecedence` |
 | `AHI-808` (experimental under the standing lane auto-accept (2026-11-01); V1-3543) | `cmd/corvint/host_adapter.go` (`unsupportedHookEvent`, `claudeCodeAdapterEvents`, `codexHookEvents`); `cmd/corvint/help.go` (`adapterHelp`) | `TestAHI808AdapterEventsAreDiscoverable` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |

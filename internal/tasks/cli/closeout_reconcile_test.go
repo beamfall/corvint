@@ -29,7 +29,7 @@ func reconcileRepo(t *testing.T) (root string, l map[string]string, prs, runs st
 		_, l[n] = tcdTicket(t, root, "rc"+n, "")
 	}
 	git(t, root, "checkout", "-q", "-b", "side")
-	tcdCommit(t, root, "lane work")
+	tcdCommit(t, root, "lane work\n\nDelivers "+l["c"])
 	git(t, root, "checkout", "-q", "main")
 	title := "Tasks: OPEN reads skip archived tickets (" + l["a"] + ", " + l["b"] + ")"
 	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "Merge pull request #35 from x/side\n\n"+title, "side")
@@ -110,7 +110,7 @@ func TestTCDV0871_CloseoutDebtProposesBatchClose(t *testing.T) {
 		}
 		proposal[field(c, "local").Str] = p
 	}
-	want := map[string]string{l["a"]: "BATCH_CLOSE#35", l["b"]: "BATCH_CLOSE#35", l["e"]: "COMMIT_DELIVERED", l["f"]: "REVIEW", l["g"]: "REVIEW"}
+	want := map[string]string{l["a"]: "BATCH_CLOSE#35", l["b"]: "BATCH_CLOSE#35", l["c"]: "BATCH_CLOSE#35", l["e"]: "COMMIT_DELIVERED", l["f"]: "REVIEW", l["g"]: "REVIEW"}
 	if len(proposal) != len(want) {
 		t.Fatalf("proposals %v, want %v", proposal, want)
 	}
@@ -118,6 +118,11 @@ func TestTCDV0871_CloseoutDebtProposesBatchClose(t *testing.T) {
 		if proposal[k] != v {
 			t.Fatalf("proposals %v, want %v", proposal, want)
 		}
+	}
+
+	cp := field(item, "commitProposals").Arr
+	if len(cp) != 1 || field(cp[0], "local").Str != l["e"] || field(cp[0], "proposal").Str != "COMMIT_DELIVERED" || field(cp[0], "commit").Str != revParse(t, root, "HEAD~1") {
+		t.Fatalf("direct commit proposals: %s", wire.Encode(field(item, "commitProposals")))
 	}
 	ps := field(item, "proposals").Arr
 	if len(ps) != 1 || field(ps[0], "pr").Str != "35" || field(ps[0], "mergeCommit").Str != revParse(t, root, "HEAD~2") {
@@ -207,6 +212,7 @@ func TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus(t *testing.T) {
 	intentDir, stateDir := filepath.Join(root, ".taskman"), filepath.Join(root, ".git", "taskman")
 	beforeIntent, beforeState := fixture.TreeSnapshot(t, intentDir), fixture.TreeSnapshot(t, stateDir)
 	head := revParse(t, root, "main")
+	git(t, root, "update-ref", "refs/remotes/origin/main", head)
 	dir := filepath.Join(root, ".git", "corvint", "reconcile", head)
 
 	code, out := reconcile("GH=" + stub)
@@ -240,6 +246,30 @@ func TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus(t *testing.T) {
 	}
 	if code, _ = reconcile("GH="+stub, "RECONCILE_APPLY=yes"); code != 2 {
 		t.Fatalf("bad RECONCILE_APPLY: exit %d", code)
+	}
+
+	// TCD-V0-2210: a known merge object outside origin/main cannot close anything.
+	git(t, root, "update-ref", "refs/remotes/origin/main", head+"~3")
+	if c, out := reconcile("GH="+stub, "RECONCILE_APPLY=manual"); c != 1 || !strings.Contains(out, "not on origin/main") {
+		t.Fatalf("unlanded evidence: %d %s", c, out)
+	}
+	for _, n := range []string{"a", "b", "c"} {
+		if st := field(bcShow(t, root, l[n]), "status").Str; st != "OPEN" {
+			t.Fatalf("unlanded %s became %s", l[n], st)
+		}
+	}
+	git(t, root, "update-ref", "refs/remotes/origin/main", head)
+	code, out = reconcile("GH="+stub, "RECONCILE_APPLY=manual")
+	if code != 1 {
+		t.Fatalf("applied reconcile (unrelated review debt remains): %d %s", code, out)
+	}
+	for _, n := range []string{"a", "b", "c"} {
+		if st := field(bcShow(t, root, l[n]), "status").Str; st != "COMPLETED" {
+			t.Fatalf("Delivers ticket %s remains %s after script", l[n], st)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "after.json")); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -1060,3 +1060,7 @@ reads never migrate. A build N process that outlived the swap, such as an attemp
 heartbeating and finishes normally when the sets are equal. Supervised
 Codex, Claude Code and OpenCode programs pin the host runtime in policy `runtimes`, not this
 binary; upgrading that runtime still needs its own drain and policy update.
+
+## Barrier incident and qualification safety
+
+See the [2026-10-30 barrier operator note](TASKS-BARRIER-2026-10-30.md) for the recorded recovery gaps, stale-barrier warnings and fixture-only pause qualification.

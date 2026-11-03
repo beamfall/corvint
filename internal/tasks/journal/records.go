@@ -918,7 +918,8 @@ func (r Reader) projections(o *observation, canonical map[string]latest, checkIn
 // second time unless the caller needs the bytes themselves.
 func (r Reader) projected(o *observation, p string, needRaw bool) (*wire.Digest, []byte, error) {
 	if raw, ok := o.intentRaw[p]; ok {
-		// A writer capture kept the bytes it digested (CAL-V0-189, proposed).
+		// A writer capture, or a gate pre-read that independently rebinds
+		// before using its result, kept these bytes (CAL-V0-189, TCX-V0-977).
 		d := o.intentDigests[p]
 		return &d, raw, nil
 	}

@@ -65,6 +65,13 @@ func TestAHI805PreToolReadNeverDecidesPermission(t *testing.T) {
 	if hook, text := run("ExitPlanMode", map[string]any{"plan": plan}); !strings.Contains(text, "internal/parser/token.go") || !strings.Contains(hook["additionalContext"].(string), untrustedDataPrefix) {
 		t.Fatalf("plan has no evidence: %s", text)
 	}
+	// AHI-632 (V1-0878): the plan's named project file gets its framed affected checks.
+	if hook, text := run("ExitPlanMode", map[string]any{"plan": plan}); !strings.Contains(hook["additionalContext"].(string), `"profile":"corvint-plan-affected/0"`) || !strings.Contains(hook["additionalContext"].(string), `"paths":["internal/parser/token.go"]`) {
+		t.Fatalf("plan has no affected checks: %s", text)
+	}
+	if paths := planAffectedPaths(root, "Edit `internal/parser/token.go`, internal/parser/absent.go, ../x.go and /etc/passwd."); len(paths) != 1 || paths[0] != "internal/parser/token.go" {
+		t.Fatalf("plan paths = %q, want only the existing project file", paths)
+	}
 	if _, text := run("ExitPlanMode", map[string]any{"plan": "  "}); strings.TrimSpace(text) != "{}" {
 		t.Fatalf("an empty plan must get no output: %s", text)
 	}

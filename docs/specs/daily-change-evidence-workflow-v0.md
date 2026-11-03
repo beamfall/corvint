@@ -1307,7 +1307,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   unique recovery widens two lines up and one down, between edited lines: `--lines 2:5`);
   `TestOccurrenceLinesBoundsNamedCopiesV12541`. Rollback: remove
   `occurrenceLines`, `uniqueWidening` and their use in `requireCiteSpanStable`.
-- `DCW-V0-335`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2541; refines V1-1724 and amends `DCW-V0-115`) `dogfood
+- `DCW-V0-335`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2541; refines V1-1724 and amends `DCW-V0-115`; amended under the owner's standing auto-accept (2026-10-11), 2026-11-02, V1-1724) `dogfood
   finish-lane`'s prepare pass MUST, once `cem prepare` produced the map and the plan passes the
   `DCW-V0-019` shape check, cite every non-unknown plan row against that map into a private probe
   output that is removed at once, so the prepared map never changes. When any row is refused
@@ -1315,7 +1315,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `missing-evidence`, `invalid-arguments`), the pass MUST add the row `cem-cite-precheck
   NOT_PRODUCED <first code>`, print on stderr `dogfood-change: FAIL cem-cite-precheck refused
   plan rows=N` and one `row N hunk=H path="P" lines=S:E <code>: <cem cite detail>` line per
-  refused row (at most 32 named), and finish-lane MUST stop at `prepare` before any bind pass.
+  refused row, and finish-lane MUST stop at `prepare` before any bind pass. The former limit of
+  32 named rows is superseded by `DCW-V0-2130` in
+  `dogfood-citation-plan-precheck-v0.md`.
   Design: lanes spent whole finish attempts discovering, at bind, a row the prepared map already
   refuses; the probe is the same `cem cite` the bind runs, against the same map, and its detail
   carries the `DCW-V0-334` recovery span. Non-goals: a separate plan-check verb (plan-shape,
@@ -3593,7 +3595,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   case: the refusal, the recorded receipts and binding, and `OBSERVED bound` without a second
   prechange after the first commit). Rollback: drop the block and the Makefile variables.
 
-- `DCW-V0-690`: (experimental under the standing lane auto-accept, 2026-11-01; V1-1724; refines
+- `DCW-V0-690`: (experimental under the standing lane auto-accept, 2026-11-01; V1-1724; amended under the owner's standing auto-accept (2026-10-11), 2026-11-02, V1-1724; refines
   `DCW-V0-335` and `DCW-V0-114`) `dogfood inputs-check` MUST cite every plan row against the map
   its prepare pass derived and, before any bind, name every refused row in one pass with its own
   code, whatever mix of `cite-self-modified-authority`, `cite-span-not-stable`, `missing-evidence`
@@ -3601,7 +3603,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   a row that cites cleanly MUST NOT be named, and the run MUST leave HEAD, the prepared map and the
   probe outputs as they were. Design: the precheck already probed every row, but only a
   single-row, single-code plan was tested, so a lane could not trust one pre-flight to list a
-  mixed plan's whole repair. Non-goals: changing the cap of 32 named rows; reporting plan-shape
+  mixed plan's whole repair. The former 32-row display cap is superseded by the companion
+  `dogfood-citation-plan-precheck-v0.md` (`DCW-V0-2130`). Non-goals: reporting plan-shape
   or binding refusals, which stay the bind's. Failure modes: a refusal of one code hides a later
   row of another, so the lane rebinds once per code. Evidence:
   `TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass` (four refused rows of three codes and one

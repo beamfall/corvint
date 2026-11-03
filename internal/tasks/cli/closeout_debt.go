@@ -693,6 +693,23 @@ func (p *closeoutPlan) render(item wire.Value, rows []closeoutRow, exported int,
 	if len(p.reviews) != 0 {
 		human = append(human, wire.String("review: "+strings.Join(p.reviews, " ")))
 	}
+
+	// TCD-V0-2210: direct delivery commits without an exported delivering PR
+	// are explicit proposals too. They require operator review and native gates;
+	// the reconcile script never invents a PR or a completion command for them.
+	commits := []wire.Value{}
+	for _, r := range rows {
+		if p.ticket[r.ticketID] != proposeCommit || r.kind != citeDirect || !r.delivers {
+			continue
+		}
+		commits = append(commits, wire.ObjectValue(wire.NewObject().
+			Set("ticketId", wire.String(r.ticketID)).
+			Set("local", wire.String(r.local)).
+			Set("commit", wire.String(r.commit)).
+			Set("proposal", wire.String(proposeCommit))))
+		human = append(human, wire.String("proposal "+proposeCommit+" "+r.local+": evidence "+r.commit+"; review native closeout"))
+	}
+	item.Obj.Set("commitProposals", wire.Array(commits...))
 	item.Obj.Set("prsExported", count(exported))
 	item.Obj.Set("proposals", wire.Array(out...))
 	item.Obj.Set("reviewTickets", wire.Strings(p.reviews))

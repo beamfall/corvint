@@ -55,3 +55,20 @@ test("AHI-042 Empty sections distinguish missing evidence from unavailable and f
   }
   assert.match(changeEmpty(emptyCockpit("unavailable", "Detailed failure"), "proof"), /Detailed failure/)
 })
+
+test("AHI-633 every TUI SyntaxStyle names the host renderer's native scene as its resource owner", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs")
+  const sources = readdirSync(new URL("./src/", import.meta.url)).filter(name => name.endsWith(".tsx"))
+  let calls = 0
+  for (const name of sources) {
+    const text = readFileSync(new URL(`./src/${name}`, import.meta.url), "utf8")
+    for (const match of text.matchAll(/SyntaxStyle\.(fromStyles|fromTheme|create)\(/g)) {
+      calls++
+      let depth = 1, at = match.index + match[0].length
+      for (; depth && at < text.length; at++) depth += text[at] === "(" ? 1 : text[at] === ")" ? -1 : 0
+      const call = text.slice(match.index, at)
+      assert.match(call, /,\s*ctx\.renderer\?\.nativeScene\)$/, `${name}: ${call.slice(0, 80)}`)
+    }
+  }
+  assert.ok(calls > 0, "no SyntaxStyle construction found")
+})

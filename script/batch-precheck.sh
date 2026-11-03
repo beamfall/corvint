@@ -17,6 +17,7 @@
 #                                                   vet of the packages changed since REV; the first
 #                                                   failure prints `FAIL static GATE` and `fix:`. A full
 #                                                   run starts with it and its later rows REUSE it
+#   script/batch-precheck.sh --static-check         check spec capacity and README rows only
 #   script/batch-precheck.sh --sync-check           only verify the step list still mirrors CI
 #   script/batch-precheck.sh --list                 print the steps without running them
 #   script/batch-precheck.sh --list-print-only      print the listed steps that only print a reason
@@ -675,7 +676,8 @@ select_baseline() {
   # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
   if [[ $lane_closeout == 1 ]]; then
     # An opaque aggregate could invoke the target behind our back. Refuse before any step runs.
-    if doc_gates | grep -qx $'make\tdoc-gates'; then
+    # One grep over captured rows: under pipefail grep -q's early exit can SIGPIPE doc_gates.
+    if grep -qx $'make\tdoc-gates' <<< "$(doc_gates)"; then
       expanded=$(doc_gate_expansion)
       [[ -n $expanded && $expanded != drift ]] || {
         printf 'batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates; update doc_gate_expansion before rerunning\n' >&2
@@ -960,7 +962,7 @@ static_phase() {
   printf 'batch-precheck: static phase passed %d steps in %ss (ASD-V0-1923)\n' "$n" $((SECONDS - t0))
 }
 
-base=${BATCH_PRECHECK_BASE:-} static_only=0
+base=${BATCH_PRECHECK_BASE:-${DOGFOOD_BASE:-}} static_only=0
 receipt_path() { git rev-parse --path-format=absolute --git-path batch-precheck-receipt; }
 
 # ASD-V0-1992: either indicator disqualifies a lane receipt as batch evidence.
@@ -1048,7 +1050,26 @@ conflict_comments() {
   return 1
 }
 
+# ASD-V0-2010/2011: always run before repins, planner/builds, receipt reuse and doc gates.
+# Synthetic workflow-only fixtures have neither index file; real spec repositories have both.
+static_checks() {
+  [[ -e docs/specs/README.md || -e docs/specs/INDEX.json ]] || return 0
+  local rc=0
+  "$self_dir/check-spec-readme.sh" || rc=1
+  SPEC_REQUIREMENTS_BASE="$base" SPEC_CAPACITY_MARGIN="${SPEC_CAPACITY_MARGIN:-8}" \
+    script/gen-spec-requirements.sh --capacity || rc=1
+  if ((rc != 0)); then
+    local stale_receipt
+    stale_receipt=$(receipt_path) || return 2
+    /bin/rm -f "$stale_receipt" "$stale_receipt.lane" || return 2
+    printf 'batch-precheck: FAIL static spec checks; stopped before repins and slow doc gates\n' >&2
+    return 1
+  fi
+  printf 'batch-precheck: PASS static spec checks\n'
+}
+
 case ${1:-} in
+  --static-check) static_checks; exit $? ;;
   --sync-check) sync_check; exit $? ;;
   --conflict-comments) conflict_comments "${2:-}"; exit $? ;;
   --list) need_gocache; steps | cut -f1; exit 0 ;;
@@ -1065,8 +1086,9 @@ case ${1:-} in
       base=$3
     fi ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--static [--base REV]|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--static [--base REV]|--static-check|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
+static_checks || exit 1
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
 [[ -z $base ]] || "$self_dir/require-full-history.sh" batch-precheck || exit 2

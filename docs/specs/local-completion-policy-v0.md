@@ -714,6 +714,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   refused as missing on a file an older binary wrote. Rollback: restore the allowlist; the
   tags are inert without the decoder check.
 
+- `LCP-V0-2160`: (accepted under the owner's standing auto-accept (2026-11-02); V1-3665) Local-completion regression coverage MUST create a symlink to a temporary directory and use that unresolved spelling as the repository root, independently of the host TMPDIR. Begin, evaluation and verification through that alias MUST share the real root's canonical private-state directory and enrollment; cancellation through the real root MUST be visible through the alias. This covers root canonicalization, without relaxing refusal of symlinks inside private state or claiming native macOS qualification from a Linux run.
+
 ## Non-goals and simpler baseline
 
 The baseline is the documented agent-driven DOGFOOD loop. This slice removes orchestration gaps and
@@ -931,6 +933,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
 | LCP-V0-800 | none (proposed; implementation waits for acceptance and the `context --task` promotion) | NOT_PRODUCED: a test that a natural-language prompt and a ticket ID each get task evidence follows acceptance |
 | LCP-V0-780 | `TestLCPV0780OptionalTagAdmitsAnAbsentMember`, `TestLCPV0780OmitemptyFieldsAreTaggedOptional` (`internal/localcompletion/optional_tag_test.go`: a tagged absent member decodes; every `omitempty` field of `Plan` and the state is tagged) |
+| LCP-V0-2160 | `TestLCPV02160SymlinkedTempRootSharesEnrollment` (`internal/localcompletion/symlinked_tmpdir_unix_test.go`); existing `TestLCPV0884SymlinkedTMPDIRPathsAreAdmitted` covers caller plan/export/import paths separately |
 
 ## Rollout, rollback and remaining gates
 

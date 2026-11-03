@@ -36,9 +36,16 @@ func fixture(t *testing.T, argv []string) (string, string, Plan) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return fixtureAt(t, root, argv)
+}
+
+// fixtureAt preserves the caller's root spelling, including a symlinked temp
+// ancestor, so path-boundary tests do not silently canonicalize their input.
+func fixtureAt(t *testing.T, root string, argv []string) (string, string, Plan) {
+	t.Helper()
 	localGit(t, root, "init", "-q", "-b", "main")
 	for name, body := range map[string]string{".gitignore": ".corvint/\n", "intent.md": "# Intent\n\n## Requirements\n\n- `FIXTURE-001`: preserve behavior.\n", "source.go": "package fixture\n"} {
-		if err = os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}

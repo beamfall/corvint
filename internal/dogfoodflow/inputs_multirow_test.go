@@ -1,6 +1,7 @@
 package dogfoodflow
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,17 @@ import (
 // (cite-span-not-stable) and a path absent at BASE (missing-evidence). The
 // valid row is not named, and nothing is bound or committed.
 func TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass(t *testing.T) {
+	checkInputsRefusedRows(t, 5)
+}
+
+// DCW-V0-2130 (V1-1724): even a full 256-row plan lists every refusal,
+// including rows after the former 32-row display cap, with cem cite's code.
+func TestDCWV02130InputsCheckNamesEveryRefusedRowAtPlanLimit(t *testing.T) {
+	checkInputsRefusedRows(t, 256)
+}
+
+func checkInputsRefusedRows(t *testing.T, totalRows int) {
+	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -30,20 +42,24 @@ func TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass(t *testing.T) {
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "change")
 	head := testGit(t, root, "rev-parse", "HEAD")
-	plan := writeInput(t, strings.Join([]string{
+	rows := []string{
 		"1\tAGENTS.md\t1:1\timplementation",
 		"2\tpre.go\t10:10\timplementation",
 		"3\tpre.go\t27:27\timplementation",
 		"2\tabsent.go\t1:1\timplementation",
-		"3\tpre.go\t3:3\timplementation",
-	}, "\n")+"\n")
+	}
+	for len(rows) < totalRows-1 {
+		rows = append(rows, rows[len(rows)%4])
+	}
+	rows = append(rows, "3\tpre.go\t3:3\timplementation")
+	plan := writeInput(t, strings.Join(rows, "\n")+"\n")
 	code, stdout, stderr, labels := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan})
 	if code == 0 || !strings.Contains(stdout, "dogfood-inputs-check: prepare FAIL exit=") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	output := stdout + stderr
 	for _, want := range []string{
-		"FAIL cem-cite-precheck refused plan rows=4",
+		fmt.Sprintf("FAIL cem-cite-precheck refused plan rows=%d", totalRows-1),
 		`row 1 hunk=1 path="AGENTS.md" lines=1:1 cite-self-modified-authority`,
 		`row 2 hunk=2 path="pre.go" lines=10:10 cite-span-not-stable`,
 		`row 3 hunk=3 path="pre.go" lines=27:27 cite-span-not-stable`,
@@ -54,8 +70,25 @@ func TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass(t *testing.T) {
 			t.Errorf("output lacks %q:\nstdout=%s\nstderr=%s", want, stdout, stderr)
 		}
 	}
-	if strings.Contains(output, `row 5 hunk=3`) {
-		t.Errorf("the valid row 5 was named as refused:\n%s", output)
+	codes := []string{"cite-self-modified-authority", "cite-span-not-stable", "cite-span-not-stable", "missing-evidence"}
+	previous := -1
+	for index, row := range rows[:totalRows-1] {
+		fields := strings.Split(row, "\t")
+		want := fmt.Sprintf("\n  row %d hunk=%s path=%q lines=%s %s:", index+1, fields[0], fields[1], fields[2], codes[index%4])
+		if strings.Count(output, want) != 1 {
+			t.Errorf("refused row must be named exactly once with its code: %q\n%s", want, output)
+		}
+		position := strings.Index(output, want)
+		if position <= previous {
+			t.Errorf("refused row %d is missing or out of input order", index+1)
+		}
+		previous = position
+	}
+	if strings.Contains(output, fmt.Sprintf("row %d hunk=3", totalRows)) {
+		t.Errorf("the valid row %d was named as refused:\n%s", totalRows, output)
+	}
+	if strings.Contains(output, "\n  (+") {
+		t.Errorf("refusals were elided:\n%s", output)
 	}
 	assertNothingBound(t, root, head, labels)
 }

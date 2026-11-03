@@ -165,6 +165,10 @@ type Input struct {
 	// so a heartbeat or renew binds the set by path without decoding a
 	// record (CAL-V0-233); a caller that leaves it nil decodes the set.
 	CanonicalTicketPaths []string
+	// CanonicalTicketDigests, when supplied, are digests of the corresponding
+	// immutable CanonicalTickets bytes already computed by the native audit
+	// (TCX-V0-978). Like the bytes, their binding is the caller's obligation.
+	CanonicalTicketDigests []wire.Digest
 	// HandoffPolicy is optional structural history from the writer's additional
 	// full audit. It never changes persistent attempt identities or coverage.
 	HandoffPolicy *HandoffPolicyObservation
@@ -1214,7 +1218,7 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 	summaries := make([]*ticket.Summary, bounded)
 	refusals := make([]error, bounded)
 	forEachTicket(bounded, func(i int) {
-		if summaries[i], refusals[i] = indexedTicket(r, in, in.CanonicalTickets[i]); summaries[i] == nil && refusals[i] == nil {
+		if summaries[i], refusals[i] = indexedTicket(r, in, in.CanonicalTickets[i], i); summaries[i] == nil && refusals[i] == nil {
 			records[i], refusals[i] = loadTicket(r, in, in.CanonicalTickets[i])
 		}
 	})
@@ -1226,9 +1230,15 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 	if bounded < len(in.CanonicalTickets) {
 		return nil, limit("canonical inventory bytes")
 	}
-	full := make([]*ticket.Record, 0, bounded)
-	var held []*ticket.Summary
-	raws := map[string][]byte{}
+	heldCount := 0
+	for _, rec := range records {
+		if rec == nil {
+			heldCount++
+		}
+	}
+	full := make([]*ticket.Record, 0, bounded-heldCount)
+	held := make([]*ticket.Summary, 0, heldCount)
+	raws := make(map[string][]byte, heldCount)
 	for i, rec := range records {
 		if rec != nil {
 			full = append(full, rec)
@@ -1262,11 +1272,11 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 // re-encoded to exactly these bytes (TCX-V0-845), so the digest compared here
 // is the FileDigest loadTicket compares. A nil summary and nil error mean
 // raw is decoded instead.
-func indexedTicket(r Request, in Input, raw []byte) (*ticket.Summary, error) {
+func indexedTicket(r Request, in Input, raw []byte, i int) (*ticket.Summary, error) {
 	if in.TicketIndex == nil {
 		return nil, nil
 	}
-	sum := wire.Sum(raw)
+	sum := canonicalTicketDigest(in, i)
 	entry, ok := in.TicketIndex[sum]
 	if !ok || entry.Size != int64(len(raw)) || entry.Summary.TicketID.Raw == r.TargetID {
 		return nil, nil
@@ -1351,7 +1361,7 @@ func bindTicketProjections(in Input) error {
 		total += uint64(len(raw))
 		path := in.CanonicalTicketPaths[i]
 		f, ok := in.Inventory.files[path]
-		if !ok || !strings.HasPrefix(path, "intent/tickets/") || f.Sha256 != wire.Sum(raw) || f.Bytes.Uint64() != uint64(len(raw)) {
+		if !ok || !strings.HasPrefix(path, "intent/tickets/") || f.Sha256 != canonicalTicketDigest(in, i) || f.Bytes.Uint64() != uint64(len(raw)) {
 			return refuseTicketProjection(in, raw)
 		}
 	}
@@ -1854,4 +1864,11 @@ func derivedEventPost(operation string, event []byte, posts map[string][]byte) e
 	}
 	posts["evidence/"+string(wire.Sum(event))] = bytes.Clone(event)
 	return nil
+}
+
+func canonicalTicketDigest(in Input, i int) wire.Digest {
+	if len(in.CanonicalTicketDigests) == len(in.CanonicalTickets) {
+		return in.CanonicalTicketDigests[i]
+	}
+	return wire.Sum(in.CanonicalTickets[i])
 }

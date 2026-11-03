@@ -170,13 +170,13 @@ func TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt(t *testing.T) {
 		// taken before the writer) is skipped over the pending receipt
 		// rather than waiting the patience out: it reports itself not
 		// observed, and the command does not pay the wait.
-		old := snapshot.DefaultPatience
-		snapshot.DefaultPatience = 5 * time.Second
-		defer func() { snapshot.DefaultPatience = old }()
+		// The patience rides on this command's cli.Env, never on
+		// snapshot.DefaultPatience, which parallel tests read.
+		restore := setReadPatience(t, 5*time.Second)
 		start := time.Now()
 		x := atm(t, root, nil, "policy", "update", "--request-id", "policy-2", "--expected-policy-version", "1", "--file", path)
 		elapsed := time.Since(start)
-		snapshot.DefaultPatience = old
+		restore()
 		settledBy(t, root, x, seq, 2)
 		if !bytes.Contains(x.stdout, []byte("handoff fence preview NOT_OBSERVED (REDO_PENDING)")) {
 			t.Fatalf("policy update over a pending receipt claims a fence preview: %s", x.stdout)

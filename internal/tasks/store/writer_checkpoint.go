@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -255,7 +254,7 @@ func (w *writerObservation) tail() uint64 {
 // With resume, the audit resumes from the lease command's own resume base
 // instead of the retained checkpoint (PSR-V0-052, proposed); the
 // invalidation token read before that base's audit must still be current.
-func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats, preload *intent.Tree) (w *writerObservation, decline, terminal error) {
+func observeWriter(ctx context.Context, repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats, preload *intent.Tree) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
@@ -274,10 +273,11 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	}
 	reader := journalReader(repo, headState)
 	// The caller's preload capture is the audit's outer snapshot
-	// (CAL-V0-140): bindObservation hashes the tree again before any
-	// effect, so its bytes are never the evidence the modeled bytes are
-	// current (LGL-V0-845).
+	// (CAL-V0-140): the pre-effect binding independently validates the live
+	// content again, with content-safe batch reuse only under TCX-V0-977.
+	// An external preload remains no evidence of current bytes (LGL-V0-845).
 	reader.IntentTree = preload
+	reader.ShareIntentListing = batchWrites(ctx) != nil && preload != nil
 	var proof *journal.Result
 	var obs journal.PhysicalObservation
 	var err error
@@ -332,7 +332,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	if _, err := os.Lstat(filepath.Join(repo.StateDir, rp)); !errors.Is(err, fs.ErrNotExist) {
 		return nil, errWriterRoute(rp, "request path present or unobservable"), nil
 	}
-	if w.inv, err = writerInventory(repo, proof, obs.Files, wc, preload); err != nil {
+	if w.inv, err = writerInventory(ctx, repo, proof, obs.Files, wc, preload); err != nil {
 		return nil, err, nil
 	}
 	if w.headReceipt, err = headReceipt(repo, w.head); err != nil {
@@ -350,7 +350,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 // from the audit's listing and the bytes it read. Evidence and pinned blobs
 // take their digest from their content-addressed name. A path the route
 // cannot account for without a read it did not make declines the route.
-func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[string]journal.PhysicalFile, wc *journal.WriterCheckpoint, preload *intent.Tree) (*transaction.Inventory, error) {
+func writerInventory(ctx context.Context, repo *intent.Repository, proof *journal.Result, phys map[string]journal.PhysicalFile, wc *journal.WriterCheckpoint, preload *intent.Tree) (*transaction.Inventory, error) {
 	listing := proof.WriterListing()
 	if listing == nil {
 		return nil, errWriterRoute("listing", "absent")
@@ -363,8 +363,8 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 	for _, dir := range scanDirectories {
 		scanned[dir] = true
 	}
-	files := []archive.FileEntry{}
-	dirs := []string{}
+	files := make([]archive.FileEntry, 0, len(listing)+len(phys))
+	dirs := make([]string, 0, 16)
 	for p, l := range listing {
 		if l.Dir {
 			if shard, ok := strings.CutPrefix(p, "requests/"); scanned[p] || (ok && !strings.Contains(shard, "/")) {
@@ -447,15 +447,22 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 		// The capture reads every intent file it does not take from the
 		// preload, so a file absent from its reads was taken from the
 		// preload at that digest (LGL-V0-845).
-		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys, preloadObserved(preload))
+		var intentFiles []archive.FileEntry
+		var err error
+		if batchWrites(ctx) != nil && preload != nil {
+			intentFiles = make([]archive.FileEntry, 0, len(preload.Files))
+			for _, f := range preload.Files {
+				intentFiles = append(intentFiles, archive.FileEntry{Path: "intent/" + f.Path, Sha256: f.Sha256, Bytes: wire.SizeOf(uint64(f.Bytes))})
+			}
+		} else {
+			intentFiles, err = scanIntentWithReader(repo, intent.ReadFile, phys, preloadObserved(preload))
+		}
 		if err != nil {
 			return nil, err
 		}
 		files = append(files, intentFiles...)
 	}
-	sort.Strings(dirs)
-	archive.SortFiles(files)
-	return transaction.NewSummarizedInventory(files, dirs, transaction.Elided{
+	summary := transaction.Elided{
 		Intent:             elidedIntent,
 		Receipts:           wc.Seq.Uint64(),
 		FirstReceiptSha256: proof.Head.InitSha256,
@@ -464,7 +471,11 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 		Requests:           wc.Requests(),
 		HasRequest:         wc.HasRequest,
 		Cost:               wc.Cost,
-	})
+	}
+	if c := batchWrites(ctx); c != nil {
+		return c.inventory.Build(repo.StateDir+string(wc.ReceiptSha256), files, dirs, summary)
+	}
+	return transaction.NewSummarizedInventory(files, dirs, summary)
 }
 
 // observedEntry is the inventory entry of a file the writer audit read.

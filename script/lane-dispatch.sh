@@ -3,6 +3,7 @@
 #                                       [--repo REPO] [--host HOST] TICKET...
 #        script/lane-dispatch.sh check --env DIR/lane.env FILE...
 #        script/lane-dispatch.sh base-check --base SHA [--dir DIR] [--fresh]
+#        script/lane-dispatch.sh screen|refs --help
 #
 # The lane dispatch kit (docs/LANE-ORCHESTRATION.md section 14).
 #
@@ -71,12 +72,15 @@ PERL
 
 inputs() {
   local lane='' ref='' date='' out='' repo=. host='' tickets='' t sha dir rel log
+  local charter='' publish='' screen_args=() screen_tickets=() ticket_files=() host_args=() packet
   while (($#)); do
     case $1 in
-      --lane | --base | --date | --out | --repo | --host)
+      --lane | --base | --date | --out | --repo | --host | --charter | --open-charter | --override | --host-repo)
         [[ $# -ge 2 && -n $2 ]] || refuse "missing-value $1 (usage: $1 VALUE)"
-        case $1 in --lane) lane=$2 ;; --base) ref=$2 ;; --date) date=$2 ;; --out) out=$2 ;; --repo) repo=$2 ;; --host) host=$2 ;; esac
+        case $1 in --lane) lane=$2 ;; --base) ref=$2 ;; --date) date=$2 ;; --out) out=$2 ;; --repo) repo=$2 ;; --host) host=$2 ;;
+          --charter) charter=$2 ;; --open-charter | --override) screen_args+=("$1" "$2") ;; --host-repo) host_args+=("$1" "$2") ;; esac
         shift 2 ;;
+      --publish-refs) publish=1; shift ;;
       -*) usage ;;
       *) [[ $1 =~ ^[A-Z][A-Z0-9-]*-[0-9]+$ ]] || refuse "bad-ticket-id $1 (want an ID such as V1-0001)"
         tickets="${tickets:+$tickets }$1"
@@ -87,6 +91,14 @@ inputs() {
   [[ $lane =~ ^[a-z0-9][a-z0-9.-]*$ ]] || refuse "bad-lane $lane (want lower-case letters, digits, . and -)"
   [[ $date =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || refuse "bad-date $date (want YYYY-MM-DD)"
   sha=$(git -C "$repo" rev-parse --verify -q "$ref^{commit}") || refuse "unknown-base $ref in $repo (fix: run git fetch origin, then retry)"
+  [[ -z $charter ]] || screen_args+=(--charter "$charter")
+  for t in $tickets; do screen_tickets+=(--ticket "$t"); done
+  packet=$(perl "$(dirname "$0")/lane-screen.pl" screen --repo "$repo" --base "$sha" ${screen_args[@]+"${screen_args[@]}"} ${screen_tickets[@]+"${screen_tickets[@]}"}) ||
+    { printf '%s\n' "$packet"; refuse 'screen findings (fix: resolve all findings, or explicitly --override ID for a retained ticket finding)'; }
+  [[ $packet != *OVERRIDDEN* ]] || printf '%s\n' "$packet"
+  if [[ -z $charter && ( -n $publish || ${#host_args[@]} -gt 0 ) ]]; then
+    refuse '--publish-refs and --host-repo need --charter'
+  fi
   [[ ! -e $out/lane.env ]] || refuse "exists $out/lane.env (fix: use a new --out directory; one dispatch per directory)"
   dir=$out/ticket-bodies-$lane
   mkdir -p "$dir" || refuse "out-unwritable $out (fix: use a writable --out directory)"
@@ -95,8 +107,17 @@ inputs() {
       refuse "ticket-show-failed $t (fix: run on the host that owns the Tasks journal, or set CORVINT_TASKS_SNAPSHOT): $(head -c 300 "$dir/$t.err")"
     perl -e "$render_perl" "$dir/$t.json" > "$dir/$t.txt" ||
       refuse "ticket-show-not-ok $t (fix: run on the host that owns the Tasks journal and check the ID): $(head -c 300 "$dir/$t.json")"
+    ticket_files+=(--tickets "$dir/$t.json")
     /bin/rm -f "$dir/$t.err"
   done
+  packet=$(perl "$(dirname "$0")/lane-screen.pl" screen --repo "$repo" --base "$sha" ${screen_args[@]+"${screen_args[@]}"} ${screen_tickets[@]+"${screen_tickets[@]}"} ${ticket_files[@]+"${ticket_files[@]}"}) ||
+    { printf '%s\n' "$packet"; refuse 'ticket screen findings (fix: resolve the retained findings or explicitly --override ID)'; }
+  [[ $packet != *OVERRIDDEN* ]] || printf '%s\n' "$packet"
+  # Publish only after every ticket screens, then verify all declared refs on every host.
+  if [[ -n $charter ]]; then
+    perl "$(dirname "$0")/lane-screen.pl" refs --repo "$repo" --base "$sha" --charter "$charter" ${host_args[@]+"${host_args[@]}"} ${publish:+--publish} ||
+      refuse 'host refs not ready (fix: declare all branches and host repositories and rerun with --publish-refs)'
+  fi
   log=docs/build-log/$date-$lane.md
   rel=$dir
   [[ -z $host ]] || rel="\$HOME/lane-inputs/ticket-bodies-$lane"
@@ -188,6 +209,8 @@ base_check() {
 }
 
 case ${1-} in
+  --help | -h) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; printf '%s\n' 'inputs also accepts --charter FILE, --open-charter FILE, --override ID, --host-repo PATH_OR_REMOTE and --publish-refs.' 'Example: script/lane-dispatch.sh inputs --lane a --base origin/main --date 2026-11-03 --out /tmp/lane-a V1-3494'; exit 0 ;;
+  screen | refs) exec perl "$(dirname "$0")/lane-screen.pl" "$@" ;;
   inputs) shift; inputs "$@" ;;
   check) shift; check "$@" ;;
   base-check) shift; base_check "$@" ;;

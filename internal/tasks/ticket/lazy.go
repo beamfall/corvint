@@ -69,11 +69,12 @@ func NewLazyInventory(queue wire.QueueID, records []*Record, closed []*Summary, 
 	if len(records)+len(closed) > wire.MaxTicketsPerQueue {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, "/", "more than %d tickets in queue", wire.MaxTicketsPerQueue)
 	}
-	inv := &Inventory{QueueID: queue, byID: map[string]*Record{}, sum: map[string]*Summary{}, inCycle: map[string][]string{}}
+	n := len(records) + len(closed)
+	inv := &Inventory{QueueID: queue, byID: make(map[string]*Record, len(records)), sum: make(map[string]*Summary, n), inCycle: map[string][]string{}, ids: make([]string, 0, n)}
 	if len(closed) > 0 {
-		inv.lazy, inv.load = map[string]*lazyRecord{}, load
+		inv.lazy, inv.load = make(map[string]*lazyRecord, len(closed)), load
 	}
-	folded := map[string]string{}
+	folded := make(map[string]string, n)
 	add := func(s *Summary) error {
 		if s.TicketID.QueueID() != queue.Raw {
 			return wire.Errorf(wire.CodeMalformed, "/ticketId", "ticket %s is outside queue %s", s.TicketID.Raw, queue.Raw)
@@ -96,11 +97,12 @@ func NewLazyInventory(queue wire.QueueID, records []*Record, closed []*Summary, 
 		}
 		inv.byID[r.TicketID.Raw] = r
 	}
-	for _, s := range closed {
+	lazyRecords := make([]lazyRecord, len(closed))
+	for i, s := range closed {
 		if err := add(s); err != nil {
 			return nil, err
 		}
-		inv.lazy[s.TicketID.Raw] = &lazyRecord{}
+		inv.lazy[s.TicketID.Raw] = &lazyRecords[i]
 	}
 	sort.Strings(inv.ids)
 	inv.findCycles()

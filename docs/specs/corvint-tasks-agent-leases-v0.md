@@ -58,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:806@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:810@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -7564,6 +7564,18 @@ racer fails `SNAPSHOT_MOVED: head.json: file replaced between stat and open`, th
 release-gates signature.
 
 Rollback: revert the source; a torn guard read again ends the write at once.
+
+### V1-4315 gated batch-close writes on the writer checkpoint (amendment recorded elsewhere)
+
+This section's Requirements are at the OCM obligation bound (SRG-V0-740), so the V1-4315
+amendment is defined in the closed-ticket-index spec: `TCX-V0-970` adds `SUBMIT`, `GATE_RUN` and
+`COMPLETE` to the CAL-V0-116 writer-route lease-verb scope, as CAL-V0-205 added
+`POOL_CONFIRM_SAFE`; `TCX-V0-971` gives that route the derived ticket index under the TCX-V0-846
+rules; `TCX-V0-973` lets the gate run's pre-read resume from the read checkpoint; `TCX-V0-974`
+makes the intent-tree capture concurrent and hands the lease route its own preload as LGL-V0-845
+hands `Mutate` the CLI's; `TCX-V0-975` and `TCX-V0-976` bound the claim's know-how read and the
+manifest entry cost. See [closed-ticket index](corvint-tasks-closed-ticket-index-v0.md) and
+`docs/build-log/2026-11-02-bcp-w40.md`.
 
 ## V1-2531 lease-gate latency amendment
 

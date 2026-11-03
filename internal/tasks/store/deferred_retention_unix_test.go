@@ -21,6 +21,7 @@ import (
 // bounded writer delta is written, the same size at 40 and at 400 tickets.
 // The checkpoints they publish still serve the next writer.
 func TestJSGV0891_WritersRetainCheckpointsOutsideWriterLock(t *testing.T) {
+	t.Parallel() // JSG-V0-2160: independent checkpoint observers may coexist.
 	measure := func(tickets int) map[string]derivedBytes {
 		repo, _ := completeRouteClaim(t, tickets)
 		out := map[string]derivedBytes{}
@@ -69,7 +70,7 @@ func TestJSGV0891_WritersRetainCheckpointsOutsideWriterLock(t *testing.T) {
 			for _, p := range []string{journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir), journal.CheckpointPath(repo.StateDir)} {
 				os.Remove(p)
 			}
-			forgetLeaseAudits()
+			forgetStoreLeaseAudit(repo.StateDir)
 			if r := writerMutate(t, repo, fmt.Sprintf("deferred-c-%d", tickets), nil); !r.completed() || r.fast() {
 				t.Fatalf("complete-route mutate: %v %v", r.err, r.stages)
 			}

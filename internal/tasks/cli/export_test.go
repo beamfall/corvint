@@ -129,6 +129,13 @@ func WithObligationQualifiedVersions(env Env, v []string) Env {
 	return env
 }
 
+// WithReadPatience returns env whose store reads wait up to d for an
+// in-flight writer, in place of snapshot.DefaultPatience, for this run only.
+func WithReadPatience(env Env, d time.Duration) Env {
+	env.readPatience = d
+	return env
+}
+
 // SubmitObligationWitness submits a caller-composed OBLIGATIONS_WITNESS
 // payload as OWNER with the given writer report check (nil for none), so a
 // test can present a payload that differs from the recomputation.

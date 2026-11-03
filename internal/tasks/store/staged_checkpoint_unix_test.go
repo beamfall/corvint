@@ -95,7 +95,7 @@ func completeRouteClaimMoved(t *testing.T, tickets int, move bool) (*intent.Repo
 	for _, p := range []string{journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir), journal.CheckpointPath(repo.StateDir)} {
 		os.Remove(p)
 	}
-	forgetLeaseAudits()
+	forgetStoreLeaseAudit(repo.StateDir)
 	entries, err := os.ReadDir(filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets"))
 	if err != nil {
 		t.Fatal(err)
@@ -143,6 +143,7 @@ func completeRouteClaimMoved(t *testing.T, tickets int, move bool) (*intent.Repo
 // under the lock again (retainCheckpoint or retainWriterCheckpoint in
 // commitLease) makes the locked bytes nonzero and ticket-proportional.
 func TestJSGV0015_LeaseCommitStagesCheckpointsOutsideWriterLock(t *testing.T) {
+	t.Parallel() // JSG-V0-2160: observations belong to this test's stores.
 	small, smallBytes := completeRouteClaim(t, 40)
 	large, largeBytes := completeRouteClaim(t, 400)
 	cpName := filepath.Base(journal.CheckpointPath(small.StateDir))
@@ -213,6 +214,7 @@ func TestJSGV0015_LeaseCommitStagesCheckpointsOutsideWriterLock(t *testing.T) {
 // (CAL-V0-119). It now encodes and writes it after the lock is released
 // (JSG-V0-891), so no read checkpoint byte is written under the lock.
 func TestJSGV0015_MovedClaimResumesOnTheWriterRoute(t *testing.T) {
+	t.Parallel() // JSG-V0-2160
 	_, got, timing := completeRouteClaimMoved(t, 40, true)
 	cp := filepath.Base(journal.CheckpointPath("taskman"))
 	if timing.Rounds != 2 || timing.Resumed != 1 || got.locked[cp] != 0 || got.unlocked[cp] == 0 {
