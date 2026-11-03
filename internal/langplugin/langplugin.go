@@ -449,6 +449,9 @@ func Validate(m Manifest) error {
 		if wantsRule := d.Kind == ImpactDialect || d.Kind == ModuleDialect; wantsRule != (d.Rule != "") {
 			errs = append(errs, fmt.Errorf("%s: %s dialect %q declares rule %q; impact and module dialects name one, region dialects none (LGP-V0-024)", m.Name, d.Kind, d.Name, d.Rule))
 		}
+		if d.Rule != "" && decl.RuleKind(d.Rule) != d.Kind {
+			errs = append(errs, fmt.Errorf("%s: %s dialect %q declares rule %q, which core does not implement for that kind (LGP-V0-024)", m.Name, d.Kind, d.Name, d.Rule))
+		}
 		for _, suffix := range d.Suffixes {
 			if len(suffix) < 2 || suffix[0] != '.' || strings.TrimSpace(suffix) != suffix {
 				errs = append(errs, fmt.Errorf("%s: %s dialect %s suffix %q is empty or padded", m.Name, d.Kind, d.Name, suffix))

@@ -109,6 +109,12 @@ func TestValidateRefusesAnUndeclaredPiece_LGPV0007(t *testing.T) {
 		`impact dialect "demo" declares rule ""`: func(m *langplugin.Manifest) {
 			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ImpactDialect, Name: "demo", Suffixes: []string{".d"}}}
 		},
+		`module dialect "demo" declares rule "constant-references", which core does not implement`: func(m *langplugin.Manifest) {
+			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ModuleDialect, Name: "demo", Suffixes: []string{".d"}, Rule: decl.ConstantReferences}}
+		},
+		`impact dialect "demo" declares rule "module-import", which core does not implement`: func(m *langplugin.Manifest) {
+			m.Dialects = []langplugin.Dialect{{Kind: langplugin.ImpactDialect, Name: "demo", Suffixes: []string{".d"}, Rule: "module-import"}}
+		},
 		`region dialect "demo" declares rule "module-imports"`: func(m *langplugin.Manifest) {
 			m.Dialects = []langplugin.Dialect{{Kind: langplugin.RegionDialect, Name: "demo", Suffixes: []string{".d"}, Rule: decl.ModuleImports}}
 		},

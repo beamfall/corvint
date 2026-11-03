@@ -110,6 +110,11 @@ func RegisterImpact(name string, impact Impact) {
 	if impact.CodeLines == nil || impact.Loads == nil || impact.StaticLoad == nil {
 		panic(fmt.Sprintf("dialect: impact %q lacks CodeLines, Loads or StaticLoad", name))
 	}
+	for _, probe := range impact.Probes {
+		if probe.Code == "" || probe.Pattern == nil {
+			panic(fmt.Sprintf("dialect: impact %q has a probe without a code or pattern", name))
+		}
+	}
 	register(impacts, name, impact)
 }
 
