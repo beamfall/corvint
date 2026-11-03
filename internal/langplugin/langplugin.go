@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package langplugin is the in-process language plugin manifest
 // (docs/specs/language-plugins-v0.md, LGP-V0-001..022). Each language declares
 // the paths it owns, its affected-selection provider, its analyzercap
@@ -424,7 +426,8 @@ func (m Manifest) present(piece Piece) bool {
 
 // Validate checks one manifest's own declaration (LGP-V0-007): a name, every
 // piece either present or absent with a reason and never both, a provider
-// whose namespace is the plugin name, and no empty sub-plugin or path.
+// whose namespace is the plugin name, and no empty sub-plugin or path: a
+// blank or padded path would resolve to the repository root.
 func Validate(m Manifest) error {
 	var errs []error
 	if m.Name == "" || strings.TrimSpace(m.Name) != m.Name {
@@ -432,6 +435,11 @@ func Validate(m Manifest) error {
 	}
 	if len(m.Paths) == 0 {
 		errs = append(errs, fmt.Errorf("%s: owns no path", m.Name))
+	}
+	for _, p := range m.Paths {
+		if blankPath(p) {
+			errs = append(errs, fmt.Errorf("%s: owned path %q is empty or padded", m.Name, p))
+		}
 	}
 	known := map[Piece]bool{}
 	for _, piece := range Pieces {
@@ -460,6 +468,11 @@ func Validate(m Manifest) error {
 		for _, s := range list {
 			if s.Name == "" || len(s.Paths) == 0 {
 				errs = append(errs, fmt.Errorf("%s: sub-plugin %q names no path", m.Name, s.Name))
+			}
+			for _, p := range s.Paths {
+				if blankPath(p) {
+					errs = append(errs, fmt.Errorf("%s: sub-plugin %q path %q is empty or padded", m.Name, s.Name, p))
+				}
 			}
 		}
 	}
@@ -491,3 +504,6 @@ func Validate(m Manifest) error {
 	}
 	return errors.Join(errs...)
 }
+
+// blankPath reports a declared path that is empty, all space or padded.
+func blankPath(p string) bool { return strings.TrimSpace(p) == "" || strings.TrimSpace(p) != p }
