@@ -35,7 +35,7 @@ Baseline at `origin/main` 463f0dd5f, from the code named here:
   `affected/ruby`, `rubytestprovider` and its binary, `rubyprofile`, `rubyautoload`,
   `liveverify/rbmutate`), and nothing records which packages belong to which language or checks
   that a language has every piece.
-- Language and runner names are string literals in core packages, for example 46 in
+- Language and runner names are string literals in core packages, for example 44 in
   `internal/contextindex`, 37 in `internal/testsource` and 13 in `cmd/corvint` (non-test files,
   exact literals equal to a plugin or runner name).
 
@@ -126,7 +126,9 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 | An unknown runner reaches `Build` or `Parse` | registry | `unsupported runner`, unchanged (fail closed) |
 
 The ratchet compares exact string literals only, so a name built by concatenation or held in a
-longer literal (`"ruby:rspec:"`) is not counted; it bounds growth, it does not prove absence.
+longer literal (`"ruby:rspec:"`) is not counted, and only each listed directory's own files are read,
+not its subpackages; it bounds growth, it does not prove absence. A new runner whose name already
+appears as a core literal fails the ratchet when it is registered, and the baseline is raised then.
 
 ## Non-goals
 
