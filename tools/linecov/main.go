@@ -80,22 +80,23 @@ func output(root string, name string, args ...string) (string, error) {
 // the toolchain, platform, build configuration and coverage mode. Build
 // settings bind only through GOFLAGS (-race, -tags), CGO_ENABLED and
 // GOEXPERIMENT, so a run passing -race on the command line instead is a
-// different runner to no one: pass it in GOFLAGS (LPCV-V0-951).
-func runner(root string) (string, error) {
+// different runner to no one: pass it in GOFLAGS (LPCV-V0-951). It also
+// returns the effective GOFLAGS, which collection must build under.
+func runner(root string) (id, goflags string, err error) {
 	v, err := output(root, "go", "env", "-json", "GOVERSION", "GOOS", "GOARCH", "GOFLAGS", "CGO_ENABLED", "GOEXPERIMENT")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	var env map[string]string
 	if err := json.Unmarshal([]byte(v), &env); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return fmt.Sprintf("%s %s %s cgo=%s goflags=%q goexperiment=%q atomic", env["GOVERSION"], env["GOOS"], env["GOARCH"], env["CGO_ENABLED"], env["GOFLAGS"], env["GOEXPERIMENT"]), nil
+	return fmt.Sprintf("%s %s %s cgo=%s goflags=%q goexperiment=%q atomic", env["GOVERSION"], env["GOOS"], env["GOARCH"], env["CGO_ENABLED"], env["GOFLAGS"], env["GOEXPERIMENT"]), env["GOFLAGS"], nil
 }
 
 // clean refuses a checkout with tracked changes, or with an untracked Go file
-// in any of dirs: go test compiles untracked files too, so either makes what
-// runs differ from HEAD.
+// in any of dirs or any module package they or their tests depend on: go test
+// compiles untracked files too, so either makes what runs differ from HEAD.
 func clean(root string, dirs []string) error {
 	dirty, err := output(root, "git", "status", "--porcelain", "--untracked-files=no")
 	if err != nil {
@@ -107,9 +108,33 @@ func clean(root string, dirs []string) error {
 	if len(dirs) == 0 {
 		return nil
 	}
-	specs := []string{"ls-files", "--others", "--"}
+	module, err := output(root, "go", "list", "-m")
+	if err != nil {
+		return err
+	}
+	list := []string{"list", "-deps", "-test", "-f", "{{if .Module}}{{if .Module.Main}}{{.ImportPath}}{{end}}{{end}}"}
 	for _, d := range dirs {
-		specs = append(specs, ":(glob)"+path.Join(d, "*.go"))
+		list = append(list, "./"+d)
+	}
+	deps, err := output(root, "go", list...)
+	if err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	specs := []string{"ls-files", "--others", "--"}
+	for _, p := range strings.Fields(deps) {
+		// -test also lists the test variants "p [p.test]" and "p.test".
+		if strings.HasSuffix(p, ".test") || strings.HasPrefix(p, "[") {
+			continue
+		}
+		d := "."
+		if p != module {
+			d = strings.TrimPrefix(p, module+"/")
+		}
+		if !seen[d] {
+			seen[d] = true
+			specs = append(specs, ":(glob)"+path.Join(d, "*.go"))
+		}
 	}
 	untracked, err := output(root, "git", specs...)
 	if err != nil {
@@ -179,7 +204,7 @@ func collect(args []string) error {
 	if err != nil {
 		return err
 	}
-	run, err := runner(*root)
+	run, goflags, err := runner(*root)
 	if err != nil {
 		return err
 	}
@@ -200,7 +225,7 @@ func collect(args []string) error {
 	defer os.RemoveAll(work)
 	ctx := context.Background()
 	start := time.Now()
-	outcomes, err := linecov.Collect(ctx, *root, linecov.CollectOptions{Module: module, Packages: dirs, Work: work, Parallel: *parallel, Timeout: *timeout, SuiteTimeout: *suite})
+	outcomes, err := linecov.Collect(ctx, *root, linecov.CollectOptions{Module: module, Packages: dirs, Work: work, Parallel: *parallel, Timeout: *timeout, SuiteTimeout: *suite, GOFLAGS: goflags})
 	if err != nil {
 		return err
 	}
@@ -310,7 +335,7 @@ func decide(ctx context.Context, root string, ix *linecov.Index, base string, st
 		return Plan{}, err
 	}
 	p := Plan{Index: ix.Commit, Base: base, Head: head}
-	run, err := runner(root)
+	run, _, err := runner(root)
 	switch {
 	case err != nil:
 		p.Reason = "runner unavailable: " + err.Error()
