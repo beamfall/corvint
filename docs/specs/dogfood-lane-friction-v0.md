@@ -54,10 +54,10 @@ Missing measurement of lane time stays NOT_OBSERVED.
 
 | Requirement | Implementation | Deterministic evidence |
 |---|---|---|
-| `DCW-V0-2140` | `script/dogfood-finish.sh` static pre-check; `staleBinaryRecovery` in `cmd/corvint/dogfood_flow.go` | `script/lane-scripts_test.sh` group 33 (CORVINT_BIN preferred over PATH, no-static SKIP names it); `TestDogfoodFlowRefusesStaleBinary`, `TestStaleBinaryRecoveryNamesTheRealEscape` |
+| `DCW-V0-2140` | `script/dogfood-finish.sh` static pre-check; `staleBinaryRecovery` in `cmd/corvint/dogfood_flow.go` | `script/lane-scripts_test.sh` group 33 (CORVINT_BIN preferred over PATH, a relative one resolved from the caller, no-static SKIP names it); `TestDogfoodFlowRefusesStaleBinary`, `TestStaleBinaryRecoveryNamesTheRealEscape` |
 | `DCW-V0-2141` | `unanchoredCarried` and `draft` in `internal/dogfoodflow/propose.go`; `tierBelowAnchoredFix`; DOGFOOD section 4 step 2 | `TestProposeCitationsDCWV02141RefreshRestoresAnchoringRow` |
 | `DCW-V0-2142` | `script/dogfood-retire-traces.sh`, `make dogfood-retire-traces`, `requireFreshWorktree` note | `script/lane-scripts_test.sh` group 63; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase` note assertions in `internal/dogfoodflow/reused_worktree_reset_test.go` |
-| `DCW-V0-2143` | `pendingSidecarCommit` and `reportFailures` in `internal/dogfoodflow/change.go`; `dogfood-change` Makefile rule | `cmd/corvint` dogfood flow tests asserting exit 3 and `PENDING commit-sidecar` (`dogfood_flow_portable_test.go`, `dogfood_ocm_dcw_test.go`, `dogfood_batch_check_test.go`, `dogfood_worktree_lanes_test.go`, `dogfood_finish_lane_test.go`) |
+| `DCW-V0-2143` | `pendingSidecarCommit` and `reportFailures` in `internal/dogfoodflow/change.go`; `dogfood-change` Makefile rule | `TestChangeDCWV02143PendingOnlyForTheUncommittedSidecar`; `cmd/corvint` dogfood flow tests asserting exit 3 and `PENDING commit-sidecar` (`dogfood_flow_portable_test.go`, `dogfood_ocm_dcw_test.go`, `dogfood_batch_check_test.go`, `dogfood_worktree_lanes_test.go`, `dogfood_finish_lane_test.go`) |
 | `DCW-V0-2144` | `requireCleanChange` in `internal/dogfoodflow/check.go`; DOGFOOD section 4; LANE-ORCHESTRATION section 13 | `TestCheckDCWV0045CleanProbeNeverRunsRepositoryFilters` dirty cases in `internal/dogfoodflow/check_status_test.go` |
 | `DCW-V0-2145` | `script/gen-spec-requirements.sh` obligation block | `script/gen-spec-requirements_test.sh` case 50 |
 | `DCW-V0-2146` | `script/requirement-ids-free.sh`, `script/requirement-id-collisions.sh` | `script/lane-scripts_test.sh` group 45 |

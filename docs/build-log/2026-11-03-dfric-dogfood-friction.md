@@ -63,5 +63,12 @@ Evidence (focused, through `script/heavy.sh` where Go):
 - `script/dogfood-cache_test.sh` fails identically at the base (its closeout case meets
   `spec-capacity-check` refusing the fake BASE first); not caused by this change.
 
+Independent review: `script/codex-review.sh` on the bind-ready head `7381f4d02` found two P2
+issues, both fixed with regressions: the pending check honoured `core.excludesFile` although the
+recorder does not, so a `.corvint/` file hidden only by a personal excludes file could be reported
+PENDING (`TestChangeDCWV02143PendingOnlyForTheUncommittedSidecar`); and the static pre-check probed
+a relative `CORVINT_BIN` from the caller's directory but ran it from the repository root
+(`script/lane-scripts_test.sh` group 33). No other findings in the requested areas.
+
 Limits: the whole `cmd/corvint` package and `make gate` were not run (focused tests per the
 charter). Lane time saved is NOT_OBSERVED.

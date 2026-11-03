@@ -2905,7 +2905,8 @@ func (c *change) pendingSidecarCommit() bool {
 	if status != 0 || !bounded {
 		return false
 	}
-	untracked, status, bounded := c.boundedGit("ls-files", "--others", "--exclude-standard", "-z", "--", ".corvint/")
+	// The recorder ignores core.excludesFile, so this read does too.
+	untracked, status, bounded := c.boundedGit("-c", "core.excludesFile=", "ls-files", "--others", "--exclude-standard", "-z", "--", ".corvint/")
 	if status != 0 || !bounded {
 		return false
 	}

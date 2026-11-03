@@ -2146,6 +2146,14 @@ rc=$?
 ((rc == 2)) && [[ ! -e $to/admitted && ! -e $to/static/args ]] && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" &&
   ! grep -q 'ran the installed' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
   fail "the static pre-check did not prefer CORVINT_BIN (rc=$rc): $(cat "$to/static/err")"
+# Review fix: a relative CORVINT_BIN keeps naming the caller's file after the check moves to the root.
+/bin/rm -f "$to/static/cbin-args"
+(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=./cbin \
+  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
+  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
+rc=$?
+((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "a relative CORVINT_BIN did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
 printf '#!/bin/sh\nexit 0\n' > "$to/static/cbin"
 static_make CORVINT_BIN="$to/static/cbin"
 rc=$?

@@ -118,7 +118,15 @@ if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
     dogfood_corvint_reuse "$git_dir/corvint/corvint" "$key" && static_capable "$git_dir/corvint/corvint"; then
     static_bin=$git_dir/corvint/corvint
   elif [[ -n ${CORVINT_BIN-} ]]; then
-    static_capable "$CORVINT_BIN" && static_bin=$CORVINT_BIN
+    # The check runs from the repository root, so a relative or PATH-only override is resolved here
+    # first, as the admitted run resolves it.
+    static_override=$CORVINT_BIN
+    if [[ $static_override != */* ]]; then
+      static_override=$(type -P -- "$static_override") || static_override=
+    elif [[ $static_override != /* ]]; then
+      static_override=$PWD/$static_override
+    fi
+    [[ -n $static_override ]] && static_capable "$static_override" && static_bin=$static_override
   elif installed=$(command -v corvint) && static_capable "$installed"; then
     static_bin=$installed
   fi
