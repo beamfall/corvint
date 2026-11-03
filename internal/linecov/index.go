@@ -79,7 +79,10 @@ type Record struct {
 // (LPCV-V0-962).
 const InOrder = "(in-order)"
 
-var profileLine = regexp.MustCompile(`^(.+\.go):(\d+)\.(\d+),(\d+)\.(\d+) \d+ (\d+)$`)
+// profileLine is one block of a cover profile. Any file extension is read, so
+// the JavaScript collector's line blocks (internal/linecov/v8) share the index
+// (LPCV-V0-965).
+var profileLine = regexp.MustCompile(`^(.+):(\d+)\.(\d+),(\d+)\.(\d+) \d+ (\d+)$`)
 
 // Build unions records into an index. oids maps every module-relative path at
 // commit to its blob OID; a profiled file absent from it refuses the build,

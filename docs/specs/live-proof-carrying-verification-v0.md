@@ -797,6 +797,40 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   which peers have an identical test body. In-order records are never candidates or supersets, and
   declared tests absent from the index are listed apart. The report reads a clean checkout at the
   index commit, writes nothing, and removes no test.
+- `LPCV-V0-965`: (accepted, owner 2026-11-03, V1-4367) The JavaScript and TypeScript converters turn V8
+  script coverage (`NODE_V8_COVERAGE`), Istanbul `coverage-final.json` and LCOV into `LPCV-V0-950`
+  line records in the shared `internal/linecov` format, one block per line. A generated file with a
+  source map (inline, or a `sourceMappingURL` file beside it, in V8 and LCOV reports alike) is
+  recorded only as its original sources, a line mapping to no original segment is dropped, and
+  `node_modules` and paths outside the repository are never recorded. Records from several processes
+  of one test merge, so a line one process executed stays executed.
+- `LPCV-V0-966`: (accepted, owner 2026-11-03, V1-4367) JavaScript selection maps a change to tests as
+  `LPCV-V0-952` and `LPCV-V0-953` require: an edit inside one function body of a file the index
+  recorded at the diff's old blob selects the tests that executed the edited lines, or, for a line no
+  block holds, every test that executed a line of the innermost body. A declaration-level edit, an
+  added, deleted, unrecorded or non-JavaScript file, a blob mismatch, a body without an instrumented
+  line, and a source the scanner cannot read (unbalanced, unterminated, JSX) fall back to the static
+  plan; a changed recorded test file, an added test file, or a line only the in-order run reached keeps
+  that test file whole.
+- `LPCV-V0-967`: (accepted, owner 2026-11-03, V1-4367) The node collector (`internal/jslinecov`) serves
+  Mocha, Jasmine, `node:test`, Jest, Vitest, AVA, `bun test` and `deno test`. Per test file it runs
+  the file once in order (the `LPCV-V0-962` in-order record), then each non-skipped test alone in a
+  fresh process under the runner's own anchored title filter and coverage mode, and records the test
+  only when that run reports exactly one test, passed, with the requested full title. Duplicate or
+  empty titles, a title the runner's filter cannot match exactly (an AVA glob), any other test in
+  the run, and an in-order run that does not pass leave the test without a record
+  (`isolation-divergent`). The record identity is `v8-lines/1`, the runner and its version. Bun's
+  coverage may mark an uncalled function's last line executed; that over-approximation only widens
+  selection.
+- `LPCV-V0-968`: (accepted, owner 2026-11-03, V1-4367) The collector ships as the typescript plugin's
+  `linecov-js` Coverage sub-plugin (`LGP-V0-020`), so `make plugin-test PLUGIN=typescript` tests it
+  with the plugin, and the plugin no longer reports `coverage-collector-missing`.
+- `LPCV-V0-969`: (accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: no
+  `corvint` command yet builds a JavaScript index or applies `LPCV-V0-966` to a plan, the family is
+  unqualified until its `LPCV-V0-963` fault-injection run passes on a pinned Beamfall repository, and
+  browser E2E coverage is the browser collector's (`LPCV-V0-970..979`). Until then the static plan
+  stands for every JavaScript change. Rollback is removing the sub-plugin entry, which restores
+  `coverage-collector-missing`.
 
 Failure modes for this section:
 
@@ -945,6 +979,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-027..031` runtime evidence | not-started | privacy/coverage/runtime-value adversarial vectors |
 | `LPCV-V0-032..036` IDE and agent API | not-started | identical-receipt two-client conformance |
 | `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); not-started; Go prototype measured in decision 0590 | per-collector fixture suite, 1,000-change CI shadow and fault-injection qualification with zero misses, `LPCV-V0-958` latency and size |
+| `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental (V1-4367); collector and selection built, not wired to a command, unqualified | `TestAddV8SourceMapped`, `TestAddLCOVSourceMap`, `TestAddIstanbul` (965); `TestBodies`, `TestBodiesRefuse`, `TestAnalyze`, `TestAnalyzeInOrder` (966); `TestCollect` per runner, `TestCollectIsolation`, `TestFilter` (967); `make plugin-test PLUGIN=typescript` (968); `LPCV-V0-963` qualification outstanding (969) |
 | `LPCV-V0-037..042` containment and updates | not-started | process-tree, path, permission, network, and rollback matrix |
 | `LPCV-V0-043..046` language tranche | not-started | Corvint, Beamfall, and independent JS/TS shadow reports |
 | `LPCV-V0-047` five-axis projection on every presenting client | delivered for the experimental CLI and VS Code; MCP V0 out of scope (decision 0103); experimental descendant MCP profile `MTV-V0-001..009` (decision 0147) | `TestTestValidityProjectsReceiptWithoutTrustingCarriedProjections` exercises the CLI projection; `TestTestProjections` and `extensions/vscode/test/liveTestProtocol.test.ts` exercise the Go-session projection consumed by VS Code. MCP 2026-07-28 V0 presents no test-level result (`MCPV0-008`), and the descendant projection is the experimental `corvint-test-validity-mcp` profile (`MTV-V0-001..009`, decision 0147) rather than MCP V0. |
