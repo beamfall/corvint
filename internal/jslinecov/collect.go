@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package jslinecov
 
 import (
@@ -185,7 +187,7 @@ func fullName(runner string, t tr.Test) string {
 func (o Options) isolate(ctx context.Context, root string, scope v8.Scope, dir, file string, t tr.Test) (linecov.Outcome, error) {
 	name := fullName(o.Runner, t)
 	out := linecov.Outcome{Package: file, Name: name}
-	filter, ok := o.filter(t.Name)
+	filter, ok := o.filter(name, t.Name)
 	if !ok {
 		out.Divergent = "title the runner's filter cannot select exactly"
 		return out, nil
@@ -219,28 +221,43 @@ func (o Options) isolate(ctx context.Context, root string, scope v8.Scope, dir, 
 	return out, nil
 }
 
-// filter is the runner's own flags selecting the tests whose title is title,
-// matched at the end of the full name, since the runners differ in whether
-// they match it or the leaf.
-func (o Options) filter(title string) ([]string, bool) {
-	pat := `(^| )` + regexp.QuoteMeta(title) + `$`
+// filter is the runner's own flags selecting the test named name, as
+// fullName gives it, whose own title is leaf: the anchored full title, so
+// suites sharing a leaf title stay apart. Vitest joins the suites and title
+// with " > " where its report has spaces, so a space within the suites may be
+// either; bun's name is only the leaf, which ends its full title. A pattern
+// that matches another test too diverges rather than narrowing.
+func (o Options) filter(name, leaf string) ([]string, bool) {
+	exact := `^` + regexp.QuoteMeta(name) + `$`
 	switch o.Runner {
 	case "mocha":
-		return []string{"--grep", pat}, true
+		return []string{"--grep", exact}, true
 	case "jasmine":
-		return []string{"--filter=" + pat}, true
+		return []string{"--filter=" + exact}, true
 	case "node-test":
-		return []string{"--test-name-pattern=" + `^` + regexp.QuoteMeta(title) + `$`}, true
-	case "jest", "vitest", "bun-test":
-		return []string{"-t", pat}, true
-	case "deno-test":
-		return []string{"--filter", "/^" + regexp.QuoteMeta(title) + "$/"}, true
-	case "ava":
-		// --match is a glob whose only wildcard is *; a leading ! negates.
-		if strings.ContainsAny(title, "*") || strings.HasPrefix(title, "!") {
+		return []string{"--test-name-pattern=" + exact}, true
+	case "jest":
+		return []string{"-t", exact}, true
+	case "vitest":
+		suites, ok := strings.CutSuffix(name, leaf)
+		if !ok || suites != "" && !strings.HasSuffix(suites, " ") {
 			return nil, false
 		}
-		return []string{"--match=" + title}, true
+		pat := regexp.QuoteMeta(leaf)
+		if suites != "" {
+			pat = strings.ReplaceAll(regexp.QuoteMeta(suites[:len(suites)-1]), " ", "(?: | > )") + " > " + pat
+		}
+		return []string{"-t", "^" + pat + "$"}, true
+	case "bun-test":
+		return []string{"-t", `(^| )` + regexp.QuoteMeta(name) + `$`}, true
+	case "deno-test":
+		return []string{"--filter", "/" + exact + "/"}, true
+	case "ava":
+		// --match is a glob whose only wildcard is *; a leading ! negates.
+		if strings.ContainsAny(name, "*") || strings.HasPrefix(name, "!") {
+			return nil, false
+		}
+		return []string{"--match=" + name}, true
 	}
 	return nil, false
 }
@@ -274,6 +291,12 @@ func (r result) problem() string {
 // coverage, and reads its report and coverage. An error is a collector fault;
 // a failing run is a result whose why is set.
 func (o Options) run(ctx context.Context, root string, scope v8.Scope, dir, file string, extra []string, timeout time.Duration) (result, error) {
+	// A run reads only what it wrote: the directory starts empty and goes
+	// once the run is read.
+	if err := os.RemoveAll(dir); err != nil {
+		return result{}, err
+	}
+	defer os.RemoveAll(dir)
 	reports := filepath.Join(dir, "reports")
 	cov := filepath.Join(dir, "coverage")
 	for _, d := range []string{reports, cov} {
