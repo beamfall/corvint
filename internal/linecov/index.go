@@ -124,18 +124,32 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 		k    key
 		ran  bool
 	}
-	parse := func(r Record, profile []byte) ([]hit, error) {
-		var out []hit
+	type blockKey struct {
+		path string
+		k    key
+	}
+	// parse reads a profile's blocks and, summed over its lines, the count of
+	// each; counted reports a count or atomic mode, whose counts a segmented
+	// record needs to see code run outside its segments.
+	parse := func(r Record, profile []byte) (out []hit, counts map[blockKey]int64, counted bool, err error) {
+		counts = map[blockKey]int64{}
+		counted = true
 		sc := bufio.NewScanner(bytes.NewReader(profile))
 		sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
 		for sc.Scan() {
 			line := sc.Text()
-			if strings.HasPrefix(line, "mode:") || line == "" {
+			if mode, ok := strings.CutPrefix(line, "mode:"); ok {
+				if strings.TrimSpace(mode) == "set" {
+					counted = false
+				}
+				continue
+			}
+			if line == "" {
 				continue
 			}
 			m := profileLine.FindStringSubmatch(line)
 			if m == nil {
-				return nil, fmt.Errorf("linecov: malformed profile line %q of %s.%s", line, r.Package, r.Name)
+				return nil, nil, false, fmt.Errorf("linecov: malformed profile line %q of %s.%s", line, r.Package, r.Name)
 			}
 			path := strings.TrimPrefix(m[1], module+"/")
 			if path == m[1] {
@@ -145,17 +159,19 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			for j := range span {
 				n, err := strconv.ParseInt(m[2+j], 10, 32)
 				if err != nil {
-					return nil, fmt.Errorf("linecov: malformed block %q", line)
+					return nil, nil, false, fmt.Errorf("linecov: malformed block %q", line)
 				}
 				span[j] = int32(n)
 			}
-			out = append(out, hit{path, key{span[0], span[1], span[2], span[3]}, m[6] != "0"})
+			n, err := strconv.ParseInt(m[6], 10, 64)
+			if err != nil {
+				return nil, nil, false, fmt.Errorf("linecov: malformed count %q", line)
+			}
+			k := key{span[0], span[1], span[2], span[3]}
+			out = append(out, hit{path, k, n != 0})
+			counts[blockKey{path, k}] += n
 		}
-		return out, sc.Err()
-	}
-	type blockKey struct {
-		path string
-		k    key
+		return out, counts, counted, sc.Err()
 	}
 	hits := make([][]hit, len(records))
 	// segRan[i][j] is the blocks segment j of record i executed; a segmented
@@ -164,43 +180,53 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 	isolated := map[string]map[hit]bool{} // package -> executed blocks
 	seen := map[string]bool{}
 	segmented := false
+	incomplete := make([]bool, len(records))
 	for i, r := range records {
 		name := r.Package + "\x00" + r.Name
 		if seen[name] {
 			return nil, fmt.Errorf("linecov: %s.%s recorded twice", r.Package, r.Name)
 		}
 		seen[name] = true
-		h, err := parse(r, r.Profile)
+		h, whole, counted, err := parse(r, r.Profile)
 		if err != nil {
 			return nil, err
 		}
 		hits[i] = h
+		incomplete[i] = r.Incomplete
 		if len(r.Segments) > 0 {
 			segmented = true
-			inSeg := map[blockKey]bool{}
+			inSeg := map[blockKey]int64{}
 			for _, sr := range r.Segments {
-				sh, err := parse(r, sr.Profile)
+				sh, counts, segCounted, err := parse(r, sr.Profile)
 				if err != nil {
 					return nil, err
 				}
+				counted = counted && segCounted
 				hits[i] = append(hits[i], sh...)
 				ran := map[blockKey]bool{}
-				for _, x := range sh {
-					if x.ran {
-						ran[blockKey{x.path, x.k}] = true
-						inSeg[blockKey{x.path, x.k}] = true
+				for bk, n := range counts {
+					if n != 0 {
+						ran[bk] = true
 					}
+					inSeg[bk] += n
 				}
 				segRan[i] = append(segRan[i], ran)
 			}
+			// A block the whole run executed more often than its segments
+			// together also ran outside them, before, between or after.
 			rest := map[blockKey]bool{}
-			for _, x := range h {
-				if x.ran && !inSeg[blockKey{x.path, x.k}] {
-					rest[blockKey{x.path, x.k}] = true
+			for bk, n := range whole {
+				if n > inSeg[bk] {
+					rest[bk] = true
 				}
 			}
 			if len(rest) > 0 {
 				segRan[i] = append(segRan[i], rest)
+			}
+			// Without counts, code run both inside and outside a segment is
+			// invisible, so the record is incomplete (MCJ-V0-015).
+			if !counted {
+				incomplete[i] = true
 			}
 		}
 		for _, x := range hits[i] {
@@ -229,7 +255,7 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			}
 		}
 		name := r.Package + "\x00" + r.Name
-		tests[name] = Test{Package: r.Package, Name: r.Name, Elapsed: r.Elapsed, Level: r.Level, Incomplete: r.Incomplete}
+		tests[name] = Test{Package: r.Package, Name: r.Name, Elapsed: r.Elapsed, Level: r.Level, Incomplete: incomplete[i]}
 		recordOf[name] = i
 		for _, h := range hits[i] {
 			if files[h.path] == nil {

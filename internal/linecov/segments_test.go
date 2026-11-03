@@ -614,7 +614,9 @@ func TestMissDetectorMarksClassDivergent(t *testing.T) {
 	}
 
 	next := buildSeg(t, cart...)
-	CarryDivergent(next, nil, out.Misses)
+	if err := CarryDivergent(next, nil, out.Misses); err != nil {
+		t.Fatal(err)
+	}
 	next = roundTrip(t, next)
 	if len(next.Divergent) != 1 {
 		t.Fatalf("divergent %v", next.Divergent)
@@ -628,7 +630,9 @@ func TestMissDetectorMarksClassDivergent(t *testing.T) {
 	}
 	// Carried while the blob holds, dropped once it changes.
 	again := buildSeg(t, cart...)
-	CarryDivergent(again, next.Divergent, nil)
+	if err := CarryDivergent(again, next.Divergent, nil); err != nil {
+		t.Fatal(err)
+	}
 	if len(again.Divergent) != 1 {
 		t.Fatal("divergence dropped with an unchanged reach")
 	}
@@ -636,9 +640,18 @@ func TestMissDetectorMarksClassDivergent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	CarryDivergent(moved, next.Divergent, nil)
+	if err := CarryDivergent(moved, next.Divergent, nil); err != nil {
+		t.Fatal(err)
+	}
 	if len(moved.Divergent) != 0 {
 		t.Fatal("divergence kept after its reach changed")
+	}
+	// A miss naming no reach file could never be released, nor checked:
+	// refused rather than dropped.
+	noFiles := out.Misses[0]
+	noFiles.Files = nil
+	if err := CarryDivergent(buildSeg(t, cart...), nil, []Miss{noFiles}); err == nil {
+		t.Fatal("a miss without reach files was accepted")
 	}
 
 	q := Qualification{Changes: 1200, Faults: map[SegmentKind]bool{KindStep: true, KindMethod: true, KindSetup: true, KindTest: true}}
@@ -658,4 +671,75 @@ func TestMissDetectorMarksClassDivergent(t *testing.T) {
 			t.Errorf("%s: promotable", name)
 		}
 	}
+}
+
+// Review findings on the shadow path, each a fail-open case:
+// code a test runs outside its segments as well as inside them; a changed
+// test helper or an order-sensitive package; and an incomplete record's
+// units.
+func TestShadowKeepsWhatSegmentsCannotSee(t *testing.T) {
+	t.Run("a block run again after the last segment is a later check", func(t *testing.T) {
+		r := testSpec{name: "TestR", elapsed: time.Second, segs: []segSpec{step(KindStep, "step:open", "open")}}
+		tt := testSpec{name: "TestT", elapsed: 2 * time.Second, segs: []segSpec{step(KindStep, "step:open", "open")}}
+		recs := segRecords([]testSpec{r, tt}, true)
+		// TestT's whole run executed Open twice, its segment once.
+		openLine := fmt.Sprintf(":%d.", segLine("open"))
+		var b strings.Builder
+		for _, l := range strings.SplitAfter(string(recs[1].Profile), "\n") {
+			if strings.Contains(l, openLine) {
+				l = strings.TrimSuffix(l, "1\n") + "2\n"
+			}
+			b.WriteString(l)
+		}
+		recs[1].Profile = []byte(b.String())
+		ix, err := Build("example.com/m", "c0", "go test", map[string]string{segPath: "blob1"}, recs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ix = roundTrip(t, ix)
+		if segs := ix.TestSegments(ix.byName["e2e\x00TestT"]); len(segs) != 2 || ix.Segment(segs[1]).Bound {
+			t.Fatalf("TestT segments %v", segs)
+		}
+		if _, sh := shadowOf(t, ix, "open"); len(sh.Exclusions) != 0 {
+			t.Fatalf("excluded %v", excluded(sh))
+		}
+	})
+	t.Run("a set-mode segmented record is incomplete", func(t *testing.T) {
+		recs := segRecords(cart[:2], true)
+		recs[0].Profile = bytes.Replace(recs[0].Profile, []byte("mode: atomic"), []byte("mode: set"), 1)
+		ix, err := Build("example.com/m", "c0", "go test", map[string]string{segPath: "blob1"}, recs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ix.Tests[ix.byName["e2e\x00TestCartA"]].Incomplete {
+			t.Fatal("set-mode record complete")
+		}
+		if _, sh := shadowOf(t, ix, "open"); len(sh.Exclusions) != 0 {
+			t.Fatalf("excluded %v", excluded(sh))
+		}
+	})
+	t.Run("a changed test helper or an unordered package keeps every test", func(t *testing.T) {
+		ix := buildSeg(t, cart...)
+		e := ix.Analyze(segChange("open"), segRead)
+		e.Whole["e2e"] = true // as a hunk in a helper of e2e/helpers_test.go sets it
+		j := ix.Join(e)
+		if !reflect.DeepEqual(j.Whole, []string{"e2e"}) {
+			t.Fatalf("join whole %v", j.Whole)
+		}
+		if sh := ix.Shadow(j, nil); len(sh.Exclusions) != 0 {
+			t.Fatalf("helper change: excluded %v", excluded(sh))
+		}
+		ix.Unordered = []string{"e2e"}
+		if _, sh := shadowOf(t, ix, "open"); len(sh.Exclusions) != 0 {
+			t.Fatalf("unordered: excluded %v", excluded(sh))
+		}
+	})
+	t.Run("an incomplete record joins no unit", func(t *testing.T) {
+		g := step(KindStep, "step:open", "open")
+		g.units = []string{"screen:cart"}
+		ix := buildSeg(t, testSpec{name: "TestA", incomplete: true, segs: []segSpec{g}})
+		if j := ix.Join(ix.Analyze(segChange("open"), segRead)); len(j.Tests) != 1 || j.Units != nil || j.Tests[0].Units != nil {
+			t.Fatalf("join %+v", j)
+		}
+	})
 }

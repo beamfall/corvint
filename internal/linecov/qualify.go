@@ -91,15 +91,19 @@ func (m Miss) Ticket() TicketDraft {
 
 // CarryDivergent sets next.Divergent to the entries of prev and the new
 // misses whose every reach file still has the same blob in next; one whose
-// file changed or left the index is dropped (MCJ-V0-018).
-func CarryDivergent(next *Index, prev []Divergence, misses []Miss) {
+// file changed or left the index is dropped (MCJ-V0-018). A miss without a
+// class or a reach file is refused: it could never be carried or released.
+func CarryDivergent(next *Index, prev []Divergence, misses []Miss) error {
 	all := append([]Divergence(nil), prev...)
 	for _, m := range misses {
+		if m.Class == "" || len(m.Files) == 0 {
+			return fmt.Errorf("linecov: miss of %s by %s names no class or reach file", m.Excluded, m.Representative)
+		}
 		all = append(all, m.Divergence())
 	}
 	byClass := map[string]Divergence{}
 	for _, d := range all {
-		if _, dup := byClass[d.Class]; dup || len(d.Files) == 0 {
+		if _, dup := byClass[d.Class]; dup {
 			continue
 		}
 		keep := true
@@ -123,6 +127,7 @@ func CarryDivergent(next *Index, prev []Divergence, misses []Miss) {
 		next.Divergent = nil
 	}
 	next.reindex()
+	return nil
 }
 
 // PromotionChanges is the MCJ-V0-017 bar: at least this many CI changes that

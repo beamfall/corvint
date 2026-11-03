@@ -206,6 +206,10 @@ type Join struct {
 	Tests    []TestReach
 	Units    []string   `json:",omitempty"` // affected functional units, sorted
 	Changed  []BlockRef `json:"-"`          // the changed blocks, sorted
+	// Whole lists the packages the change keeps whole: a test helper,
+	// TestMain or init changed, or the suite is order-sensitive. No test of
+	// these is a shared-step exclusion candidate (MCJ-V0-006).
+	Whole []string `json:",omitempty"`
 	// Uncovered lists the changed blocks no recorded test executed: where
 	// functionality links must fill the gap (MCJ-V0-021).
 	Uncovered []BlockRef `json:"-"`
@@ -218,6 +222,14 @@ func (ix *Index) Join(e Effect) Join {
 		return Join{Fallback: e.Fallback}
 	}
 	j := Join{}
+	whole := map[string]bool{}
+	for p, ok := range e.Whole {
+		whole[p] = ok
+	}
+	for _, p := range ix.Unordered {
+		whole[p] = true
+	}
+	j.Whole = sortedKeys(whole)
 	reach := map[int32]map[int32]bool{}
 	for b := range e.Blocks {
 		j.Changed = append(j.Changed, b)
@@ -257,7 +269,7 @@ func (ix *Index) Join(e Effect) Join {
 		for _, s := range r.Segments {
 			seg := ix.segs[s]
 			r.Through = append(r.Through, seg.Label())
-			if seg.Bound {
+			if seg.Bound && !ix.Tests[t].Incomplete { // MCJ-V0-015
 				for _, u := range seg.Units {
 					us[u] = true
 				}

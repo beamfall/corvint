@@ -16,9 +16,13 @@ the `collect` path of `tools/linecov`. The tickets stay open for the orchestrato
   closed. A `/2` reader refuses `/3` through its existing format check. `Block.Tests` is still
   written exactly as before, so `Analyze` and `Narrow` select the same tests with or without
   segments.
-- **Residual segment.** Blocks a segmented record ran outside every segment form one trailing
-  unbound segment. A change reaching them keeps the test. Because condition 4 needs every later
-  segment bound, the residual segment also keeps the test out of every earlier segment's class.
+- **Residual segment.** A block that the whole run executed more often than its segments did
+  together also ran outside them: before, between or after the segments. Such blocks form one
+  trailing unbound segment, and a change reaching them keeps the test. Because condition 4 needs
+  every later segment bound, the residual segment also keeps the test out of every earlier
+  segment's class. Counts are compared, not just ran/not-ran, because test bodies are not
+  instrumented and an unsegmented assertion may call product code a step already ran. A segmented
+  record in `set` mode has no counts, so it is marked incomplete (MCJ-V0-015).
 - **Duplicates.** `Build` now refuses a test recorded twice; before, it kept the last record
   silently. `Merge` (PR #77) keeps its own refusal.
 - **Equivalence key.** A class is a SHA-256 over the identity, the prior state (the bound setup
@@ -48,6 +52,20 @@ the `collect` path of `tools/linecov`. The tickets stay open for the orchestrato
   `Uncovered` blocks no test ran. `Index.BlocksAt(path, oid, lo, hi)` answers false for a file the
   index does not record at that blob, so the caller treats it as having no record (MCJ-V0-021).
 
+## Independent review
+
+One independent review of the code found four defects, all on the shadow path; selection was
+unaffected. All four are fixed, each with a regression test in
+`TestShadowKeepsWhatSegmentsCannotSee` or `TestMissDetectorMarksClassDivergent`:
+
+1. A block that ran both inside and outside a segment was hidden, so a test with extra later checks
+   could be shadow-excluded. Fixed with the count comparison above. With the old rule restored,
+   the regression test fails.
+2. A changed test helper, TestMain or init, or an order-sensitive (`Unordered`) package, did not
+   stop exclusion. `Join.Whole` now carries those packages, and `Shadow` keeps every test in them.
+3. A miss with no reach file was silently dropped by `CarryDivergent`. It is now refused.
+4. An incomplete record's bound segments still contributed functional units. They no longer do.
+
 ## Evidence
 
 - `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/linecov/... ./tools/linecov/...`:
@@ -59,7 +77,7 @@ the `collect` path of `tools/linecov`. The tickets stay open for the orchestrato
   60 blocks, 2,000 E2E tests × 8 bound segments × 12 blocks each, 40 shared step sequences, 2.0 MB
   encoded. A 6-hunk change selects 650 tests, and shadow would skip 637 of them. Each run decodes
   the index, then analyses, joins, runs shadow, narrows and reports. Over 40 runs on a 4-core
-  development container: p50 42 ms, p95 55 ms, within the 100 ms budget. The p95 on the reference
+  development container: p50 40 to 45 ms, p95 54 to 58 ms over two runs, within the 100 ms budget. The p95 on the reference
   host is `NOT_RUN`. `LINECOV_PLAN_P95_BUDGET` overrides the budget on other hosts.
 
 ## Limits
