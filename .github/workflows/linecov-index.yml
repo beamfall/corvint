@@ -1,0 +1,150 @@
+name: Linecov index
+
+# LPCV-V0-950/959 (V1-4366): collect the line-level coverage index of main for CI test
+# selection. Each shard runs `linecov collect` over its part of the packages under the go-product
+# shard's build settings (GOFLAGS=-race, CGO_ENABLED=1), so the index's runner identity equals the
+# one the CI shards select under; the merge job unions the parts into the `linecov-index`
+# artifact. A failed or missing part only leaves its packages unrecorded, which the selection
+# runs whole (LPCV-V0-962). Not a required check; nothing here narrows a shard.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: "off"
+  GOSUMDB: "off"
+  GOWORK: "off"
+  GOFLAGS: ""
+  CGO_ENABLED: "1"
+  SHARDS: "8"
+
+jobs:
+  collect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Provision the host tools the product's fixed PATH resolves
+        # The same provisioning as the ci.yml go-product shard, so a test that passes there
+        # records here.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Build linecov and the protected partition helper
+        working-directory: source
+        run: |
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov
+          d="$RUNNER_TEMP/ci-shards-source"
+          mkdir -p "$d/cmd"
+          cp .github/cishards/partition.go .github/cishards/order.go .github/cishards/slices.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/cmd/main.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+          (cd "$d" && GOENV=off go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd)
+      - name: Collect this shard's packages
+        working-directory: source
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          module=$(go list -m)
+          go list ./... > "$RUNNER_TEMP/universe"
+          # A package is collected exactly once: whole packages by the cost-balanced partition,
+          # and each split package (one the CI shards run as test slices) by its rank modulo
+          # SHARDS, since its slices span shards and Merge refuses a test recorded twice.
+          whole=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" < "$RUNNER_TEMP/universe")
+          split=$(for s in $(seq 0 $((SHARDS - 1))); do
+            "$RUNNER_TEMP/ci-shards" --shard "$s" --shards "$SHARDS" --slices < "$RUNNER_TEMP/universe"
+          done | awk '{ print $3 }' | sort -u | awk -v s="$SHARD" -v n="$SHARDS" '(NR - 1) % n == s')
+          # shellcheck disable=SC2086 # one package per line
+          dirs=$(printf '%s\n' $whole $split | sed '/^$/d' | awk -v m="$module" '!seen[$0]++ {
+            if ($0 == m) print "."; else if (index($0, m "/") == 1) print substr($0, length(m) + 2) }' | paste -sd, -)
+          if [ -z "$dirs" ]; then
+            echo "shard $SHARD has no packages"
+            exit 0
+          fi
+          echo "shard $SHARD collects $(tr , '\n' <<< "$dirs" | wc -l) package(s)"
+          mkdir -p "$RUNNER_TEMP/part"
+          GOFLAGS=-race "$RUNNER_TEMP/linecov" collect -root . -packages "$dirs" -parallel "$(nproc)" \
+            -out "$RUNNER_TEMP/part/part-$SHARD.idx"
+      - name: Retain this shard's part
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linecov-part-${{ matrix.shard }}
+          path: ${{ runner.temp }}/part/
+          if-no-files-found: ignore
+          retention-days: 2
+
+  merge:
+    needs: collect
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: linecov-part-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/parts
+      - name: Merge the parts
+        working-directory: source
+        run: |
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov
+          shopt -s nullglob
+          parts=("$RUNNER_TEMP"/parts/part-*.idx)
+          if [ ${#parts[@]} = 0 ]; then
+            echo "::error::no shard wrote a part"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/index"
+          "$RUNNER_TEMP/linecov" merge -out "$RUNNER_TEMP/index/linecov.idx" "${parts[@]}"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/index/commit"
+          echo "merged ${#parts[@]} of $SHARDS part(s) at $GITHUB_SHA: $(du -h "$RUNNER_TEMP/index/linecov.idx" | cut -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linecov-index
+          path: ${{ runner.temp }}/index/
+          retention-days: 14
