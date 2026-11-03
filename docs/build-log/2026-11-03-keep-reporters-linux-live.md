@@ -131,3 +131,25 @@ Linux (which could not project passing, since no Linux browser tuple is admitted
 digests on the CLI path, a symlinked temporary directory on Linux, and `make gate` (owner
 preference: focused checks only). Rollback: delete `loopback_test.go`. The live tests then fail
 closed again with `server-not-ready`. No receipt, record or projection format changed.
+
+## Verification
+
+- `TestExternalLiveLinksLoopbackClient` passes, and fails with the import removed; `go vet
+  ./internal/jstestprovider/...` and `make windows-vet` pass.
+- The doc gates `line-citations-check`, `spec-requirements-check`,
+  `requirement-definitions-check`, `license-headers-check`, `documentation-paths-check`,
+  `fixed-tmp-paths-check`, `test-read-scopes-check`, `unbounded-readers-check`,
+  `test-exec-writes-check` and `traceability-tests-check` pass.
+- `corvint affected --base 030c7b57` selected 97 units. `corvint test` was stopped by the session's
+  60-minute background limit at 79 of 97 passed, receipt `INCOMPLETE`. The plan also overlapped
+  the second commit (source drift). Every failure it reported is in `cmd/corvint` or its
+  work/corpus tests. A sample also fails on unmodified `origin/main` on this host:
+  - The global `commit.gpgsign=true` with an SSH signer changes fixture commit hashes. The
+    golden and frozen-profile tests pass with `GIT_CONFIG_GLOBAL=/dev/null`.
+  - The tests run as root, so `TestAFPV0438DefaultCacheDegradesToUncached` can write its
+    "unwritable" directory.
+  - A scrubbed `PATH` resolves the system `go1.24.7`, which affects
+    `TestWorkSelfAdapterStandaloneParity`.
+- Not checked: the 18 units with no terminal outcome, and whether every one of the 87 reported
+  failures has one of these host causes. They and `make gate` are `NOT_RUN`. The dogfood CEM
+  bind/check/seal is `NOT_RUN` for this scoped evidence change.
