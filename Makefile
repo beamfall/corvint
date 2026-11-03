@@ -1222,8 +1222,12 @@ dogfood-change-runs:
 
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 .PHONY: lane-scripts-test
-lane-scripts-test:
+lane-scripts-test: lane-screen-test
 	@script/lane-scripts_test.sh
+
+.PHONY: lane-screen-test
+lane-screen-test:
+	@perl script/lane-screen_test.pl
 
 # ASD-V0-788 (NEW-D6): the interrupted-lane marker (docs/LANE-ORCHESTRATION.md section 17).
 .PHONY: lane-interrupted-test

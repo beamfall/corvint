@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR
+# usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] [--against REF] DIR
 #
 # ASD-V0-755 (V1-3761, V1-4044): judges the installed `corvint` (PATH, or --corvint PATH) against
 # the commit checked out in DIR, a Corvint checkout or lane worktree, with the rule the binary uses
@@ -18,16 +18,20 @@
 # record vcs.modified=true), installs it over the PATH binary with script/install-local-bin.sh (one
 # `corvint.corvint-prev-<n>` rollback; `install-local-bin.sh --rollback PATH` restores it) and
 # judges again. Bad arguments or a missing corvint exit 2. GO names the go command (default go).
+# --against REF selects the expected revision instead of HEAD; origin/main is the lane-start
+# host check. --rebuild with that option requires DIR's clean HEAD to be REF.
+# Example: script/lane-binary-check.sh --against origin/main .
 set -uo pipefail
 export LC_ALL=C
 # Keep the recovery beside each reason for the flow-guide check, and print it on its own line.
 refuse() { printf 'lane-binary-check: REFUSE %s\nfix: %s\n' "${1%%; fix:*}" "${1#*; fix: }" >&2; exit 2; }
-rebuild=0 corvint='' dir=''
+rebuild=0 corvint='' dir='' against=HEAD
 while (($#)); do
   case $1 in
     --rebuild) rebuild=1; shift ;;
+    --against) [[ $# -ge 2 && -n $2 ]] || refuse "--against needs a value; fix: pass --against origin/main"; against=$2; shift 2 ;;
     --corvint) [[ $# -ge 2 && -n $2 ]] || refuse "--corvint needs a value; fix: pass --corvint PATH with the path to an executable corvint"; corvint=$2; shift 2 ;;
-    -h | --help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) refuse "unknown-option $1; fix: use script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR" ;;
     *) [[ -z $dir ]] || refuse "usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR; fix: pass exactly one checkout DIR and only the documented options"; dir=$1; shift ;;
   esac
@@ -42,8 +46,8 @@ if [[ -z $corvint ]]; then
   corvint=$(command -v corvint) || refuse "corvint-not-found on PATH; fix: install corvint on PATH or pass --corvint PATH to an installed executable"
 fi
 [[ -x $corvint ]] || refuse "corvint-not-executable $corvint; fix: pass --corvint PATH to an executable corvint, or correct its execute permission"
-head=$(git -C "$dir" rev-parse --verify -q 'HEAD^{commit}') || refuse "no-head $dir; fix: check out a commit in DIR before checking the installed binary"
-expected="build $(git -C "$dir" rev-list --first-parent --count HEAD) (commit ${head:0:12})"
+head=$(git -C "$dir" rev-parse --verify -q "$against^{commit}") || refuse "no-head $dir ref=$against; fix: fetch origin and name an available --against ref"
+expected="build $(git -C "$dir" rev-list --first-parent --count "$head") (commit ${head:0:12})"
 
 # judge prints the verdict line and returns 0 for FRESH, 1 otherwise.
 judge() {
@@ -85,6 +89,7 @@ judge() {
 
 judge && exit 0
 ((rebuild)) || exit 1
+[[ $(git -C "$dir" rev-parse HEAD) == "$head" ]] || refuse "rebuild-ref-not-head $against; fix: run --rebuild in a clean checkout at $against, then retry lane setup"
 [[ -z $(git -C "$dir" status --porcelain --untracked-files=normal) ]] || refuse "dirty-checkout $dir (the build would record vcs.modified=true); fix: commit or move aside the checkout changes, then rerun with --rebuild"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/lane-binary-check.XXXXXX") || refuse "temp-dir-failed; fix: set TMPDIR to a writable directory with free space, then rerun with --rebuild"
 trap '/bin/rm -rf "$tmp"' EXIT INT TERM

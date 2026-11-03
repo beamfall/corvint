@@ -2195,10 +2195,11 @@ GO=/bin/false binary_refusal build-failed --rebuild --corvint "$lb/bin/corvint" 
 out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
 [[ $? == 0 && $out == *'STALE'*'INSTALLED'*"FRESH corvint build 3 (commit ${c3:0:12}) for build 3"* && -f $lb/bin/corvint.corvint-prev-1 ]] ||
   fail "lane-binary rebuild: $out"
-# lane-setup.sh names a stale installed corvint (on PATH) and exits 1 after creating the lane.
+# ASD-V0-2203: lane-setup judges origin/main before creating a pinned lane.
+git -C "$lb/repo" update-ref refs/remotes/origin/main "$c3" || fail "lane-binary origin/main"
 fake_corvint 1 "$c1"
 out=$(PATH=$lb/bin:$PATH "$script/lane-setup.sh" --repo "$lb/repo" --dir "$lb/lane" --branch claude/lb --base HEAD 2>&1)
-[[ $? == 1 && -d $lb/lane && $out == *'STALE corvint build 1'*'for build 3'*'installed corvint does not match its base'* ]] ||
+[[ $? == 2 && ! -d $lb/lane && $out == *'STALE corvint build 1'*'for build 3'*'host-binary-not-current'* ]] ||
   fail "lane-setup with a stale corvint: $out"
 ok
 
