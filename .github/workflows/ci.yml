@@ -1194,10 +1194,11 @@ jobs:
       - name: Line-level selection shadow (LPCV-V0-959, report only)
         # LPCV-V0-959 stays report-only until shadow qualification: this step plans what the
         # linecov index of main would keep of this shard's lists and narrows nothing. It builds
-        # linecov from the trusted tool commit, never from the tested checkout, and any failure
-        # (no index yet, an index older than the merge base, another runner) only reports.
+        # linecov from the change base, which must be on main, never from the tested checkout,
+        # so it runs whether or not the narrowing switches are on. Any failure (no index yet, an
+        # index older than the merge base, another runner) only reports.
         id: linecov-shadow
-        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.tests.outcome != 'skipped' && steps.pin-tool-build.outcome == 'success'
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.tests.outcome != 'skipped'
         continue-on-error: true
         timeout-minutes: 10
         working-directory: source
@@ -1208,18 +1209,27 @@ jobs:
           SHARD: ${{ strategy.job-index }}
         run: |
           shadow=$RUNNER_TEMP/linecov-shadow
-          if [ ! -d "$GITHUB_WORKSPACE/trusted-tools/tools/linecov" ] || [ ! -f "$shadow/packages" ]; then
-            echo "LPCV-V0-959 shadow: no trusted linecov or no shard lists; nothing to report" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then base=$QUEUE_BASE; else base=$(git rev-parse --verify "$TESTED_MERGE^1"); fi
+          if [ ! -f "$shadow/packages" ] || ! git merge-base --is-ancestor "$base" refs/remotes/origin/main 2> /dev/null; then
+            echo "LPCV-V0-959 shadow: no shard lists, or base $base is not on main; nothing to report" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          (cd "$GITHUB_WORKSPACE/trusted-tools" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov)
-          run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow linecov-index.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          git worktree add -q --detach "$RUNNER_TEMP/linecov-src" "$base"
+          if [ ! -d "$RUNNER_TEMP/linecov-src/tools/linecov" ]; then
+            echo "LPCV-V0-959 shadow: base $base has no linecov" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          (cd "$RUNNER_TEMP/linecov-src" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov)
+          git worktree remove --force "$RUNNER_TEMP/linecov-src"
+          # The newest unexpired index published from main, including one a run with a failed
+          # collection shard still merged from its other parts.
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=linecov-index&per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")] | .[0].workflow_run.id // empty')
           if [ -z "$run" ]; then
-            echo "LPCV-V0-959 shadow: no successful linecov-index run on main yet" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "LPCV-V0-959 shadow: no linecov-index published from main yet" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           gh run download "$run" -R "$GITHUB_REPOSITORY" -n linecov-index -D "$RUNNER_TEMP/linecov-index"
-          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then base=$QUEUE_BASE; else base=$(git rev-parse --verify "$TESTED_MERGE^1"); fi
           GOFLAGS=-race "$RUNNER_TEMP/linecov" ci -root . -index "$RUNNER_TEMP/linecov-index/linecov.idx" -base "$base" \
             -packages "$shadow/packages" -slices "$shadow/slices" -out "$shadow/out"
           count() { sed '/^$/d' "$1" | wc -l | tr -d ' '; }
