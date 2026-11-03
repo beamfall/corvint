@@ -272,6 +272,7 @@ lane-scripts_test: 1 groups passed, 2 failed:
 self=$(bash "$script/${0##*/}" --ledger-self-test 2>&1)
 [[ $? == 2 && $self == *'REFUSE the failure ledger'*'vanished'* ]] || { printf 'lane-scripts_test: FAIL the lost-ledger self-test:\n%s\n' "$self" >&2; exit 1; }
 
+if selected offload 62; then
 bash "$script/${0##*/}" --heavy-host-env-only || fail 'heavy host environment qualification'
 # Review (ASD-V0-2120): the same qualification from a simulated Darwin caller, whose uname is Darwin
 # and whose timeout(1) is unusable, still exercises the Linux remote's cache checks.
@@ -281,6 +282,7 @@ mkdir -p "$tmp/darwin-caller" && printf '#!/bin/sh\necho Darwin\n' > "$tmp/darwi
 PATH=$tmp/darwin-caller:$PATH bash "$script/${0##*/}" --heavy-host-env-only ||
   fail 'heavy host environment qualification from a Darwin caller'
 ok
+fi
 
 # ASD-V0-014: two concurrent commands with HEAVY_SLOTS=1 never overlap. No caller's heavy.sh
 # configuration or remote host reaches the fixtures.
