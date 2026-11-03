@@ -4472,5 +4472,29 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-lane-ticket-read-v0.md",
+    "title": "Corvint Tasks Lane Ticket Read V0",
+    "reqPrefix": "TCP-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11)",
+    "delivery": "implemented",
+    "claim": "A journal-absent ticket miss in a linked worktree says that no worktree sharing its `.git` holds a journal.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/dogfood-lane-friction-v0.md",
+    "title": "Dogfood Lane Friction V0",
+    "reqPrefix": "DCW-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11)",
+    "delivery": "implemented",
+    "claim": "The change-evidence closeout and lane tooling name the real recovery for seven observed lane frictions.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

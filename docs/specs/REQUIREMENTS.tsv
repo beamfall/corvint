@@ -3120,6 +3120,7 @@ TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change c
 TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
 TLF-V0-1101	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
 TLF-V0-1102	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
+TCP-V0-2230	docs/specs/corvint-tasks-lane-ticket-read-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4440) A journa	standing	2026-10-11; V1-4440
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
@@ -4477,6 +4478,13 @@ DCR-V1-845	docs/specs/documentation-corpus-verified-reads-v1.md	The `DCP-V1-314`
 DCR-V1-846	docs/specs/documentation-corpus-verified-reads-v1.md	A checkout the stamp does not cover (a linked worktree or submodule gitfile, an	unrecorded	-
 DCR-V1-847	docs/specs/documentation-corpus-verified-reads-v1.md	A stamped directory with more than 1,024 recorded entries describes them in chun	unrecorded	-
 DCW-V0-2130	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1724) For an a	standing	2026-10-11; V1-1724
+DCW-V0-2140	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4406) The stat	standing	2026-10-11; V1-4406
+DCW-V0-2141	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4441) DOGFOOD	standing	2026-10-11; V1-4441
+DCW-V0-2142	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4442) `make do	standing	2026-10-11; V1-4442
+DCW-V0-2143	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4443) A standa	standing	2026-10-11; V1-4443
+DCW-V0-2144	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4444) DOGFOOD	standing	2026-10-11; V1-4444
+DCW-V0-2145	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4401) In gener	standing	2026-10-11; V1-4401
+DCW-V0-2146	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4291) `script/	standing	2026-10-11; V1-4291
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-
