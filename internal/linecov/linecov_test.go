@@ -428,3 +428,49 @@ func TestHelperNamedLikeATestIsAHelper(t *testing.T) {
 		}
 	}
 }
+
+// Merging indexes of disjoint package shards equals one build over every
+// record; parts that disagree on identity, a blob, or a test refuse.
+func TestMergeEqualsWholeBuild(t *testing.T) {
+	recP := Record{Package: "p", Name: "TestP", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:3.2,3.9 1 1\nexample.com/m/p/p.go:4.2,4.9 1 0\n")}
+	recQ := Record{Package: "q", Name: "TestQ", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:4.2,4.9 1 1\nexample.com/m/q/q.go:3.2,3.9 1 1\n")}
+	oids := map[string]string{"p/p.go": "x", "q/q.go": "y"}
+	build := func(recs ...Record) *Index {
+		ix, err := Build("example.com/m", "c0", "go test", oids, recs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ix
+	}
+	encode := func(ix *Index) string {
+		var b bytes.Buffer
+		if err := ix.Encode(&b); err != nil {
+			t.Fatal(err)
+		}
+		return b.String()
+	}
+	p, q := build(recP), build(recQ)
+	q.Unordered = []string{"q"}
+	whole := build(recP, recQ)
+	whole.Unordered = []string{"q"}
+	merged, err := Merge(q, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if encode(merged) != encode(whole) {
+		t.Fatalf("merged %+v\nwhole %+v", merged, whole)
+	}
+	other := build(recQ)
+	other.Runner = "go test -race"
+	if _, err := Merge(p, other); err == nil {
+		t.Error("runner mismatch merged")
+	}
+	if _, err := Merge(p, build(recP)); err == nil {
+		t.Error("a test recorded twice merged")
+	}
+	moved := build(recQ)
+	moved.Files[0].OID = "z"
+	if _, err := Merge(p, moved); err == nil {
+		t.Error("differing blobs merged")
+	}
+}

@@ -189,23 +189,28 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			sort.Slice(b.Tests, func(i, j int) bool { return b.Tests[i] < b.Tests[j] })
 			f.Blocks = append(f.Blocks, b)
 		}
-		sort.Slice(f.Blocks, func(i, j int) bool {
-			a, b := f.Blocks[i], f.Blocks[j]
-			if a.Start != b.Start {
-				return a.Start < b.Start
-			}
-			if a.StartCol != b.StartCol {
-				return a.StartCol < b.StartCol
-			}
-			if a.End != b.End {
-				return a.End < b.End
-			}
-			return a.EndCol < b.EndCol
-		})
+		f.sortBlocks()
 		ix.Files = append(ix.Files, f)
 	}
 	ix.reindex()
 	return ix, nil
+}
+
+// sortBlocks orders f's blocks by Start, StartCol, End, EndCol.
+func (f *File) sortBlocks() {
+	sort.Slice(f.Blocks, func(i, j int) bool {
+		a, b := f.Blocks[i], f.Blocks[j]
+		if a.Start != b.Start {
+			return a.Start < b.Start
+		}
+		if a.StartCol != b.StartCol {
+			return a.StartCol < b.StartCol
+		}
+		if a.End != b.End {
+			return a.End < b.End
+		}
+		return a.EndCol < b.EndCol
+	})
 }
 
 func (ix *Index) reindex() {
@@ -248,4 +253,90 @@ func Decode(r io.Reader) (*Index, error) {
 	}
 	ix.reindex()
 	return &ix, nil
+}
+
+// Merge unions indexes collected at one commit by one runner over disjoint
+// package sets, as sharded collection writes them. A package absent from
+// every part keeps its tests unrecorded, so Narrow runs it whole. Parts that
+// disagree on identity, on a file's blob, or that both record one test
+// refuse the merge.
+func Merge(parts ...*Index) (*Index, error) {
+	if len(parts) == 0 {
+		return nil, errors.New("linecov: merge needs at least one index")
+	}
+	first := parts[0]
+	type key struct{ start, startCol, end, endCol int32 }
+	tests := map[string]Test{}
+	oids := map[string]string{}
+	blocks := map[string]map[key]map[string]bool{}
+	unordered := map[string]bool{}
+	for _, p := range parts {
+		if p.Module != first.Module || p.Commit != first.Commit || p.Runner != first.Runner {
+			return nil, fmt.Errorf("linecov: merge of %s %s %q with %s %s %q", first.Module, first.Commit, first.Runner, p.Module, p.Commit, p.Runner)
+		}
+		for _, t := range p.Tests {
+			name := t.Package + "\x00" + t.Name
+			if _, dup := tests[name]; dup {
+				return nil, fmt.Errorf("linecov: merge: %s.%s recorded twice", t.Package, t.Name)
+			}
+			tests[name] = t
+		}
+		for _, pkg := range p.Unordered {
+			unordered[pkg] = true
+		}
+		for _, f := range p.Files {
+			if oid, ok := oids[f.Path]; ok && oid != f.OID {
+				return nil, fmt.Errorf("linecov: merge: %s at blobs %s and %s", f.Path, oid, f.OID)
+			}
+			oids[f.Path] = f.OID
+			if blocks[f.Path] == nil {
+				blocks[f.Path] = map[key]map[string]bool{}
+			}
+			for _, b := range f.Blocks {
+				k := key{b.Start, b.StartCol, b.End, b.EndCol}
+				if blocks[f.Path][k] == nil {
+					blocks[f.Path][k] = map[string]bool{}
+				}
+				for _, id := range b.Tests {
+					t := p.Tests[id]
+					blocks[f.Path][k][t.Package+"\x00"+t.Name] = true
+				}
+			}
+		}
+	}
+	names := make([]string, 0, len(tests))
+	for n := range tests {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	ix := &Index{Format: Format, Module: first.Module, Commit: first.Commit, Runner: first.Runner}
+	ids := map[string]int32{}
+	for i, n := range names {
+		ids[n] = int32(i)
+		ix.Tests = append(ix.Tests, tests[n])
+	}
+	for pkg := range unordered {
+		ix.Unordered = append(ix.Unordered, pkg)
+	}
+	sort.Strings(ix.Unordered)
+	paths := make([]string, 0, len(blocks))
+	for p := range blocks {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		f := File{Path: p, OID: oids[p]}
+		for k, set := range blocks[p] {
+			b := Block{Start: k.start, StartCol: k.startCol, End: k.end, EndCol: k.endCol}
+			for n := range set {
+				b.Tests = append(b.Tests, ids[n])
+			}
+			sort.Slice(b.Tests, func(i, j int) bool { return b.Tests[i] < b.Tests[j] })
+			f.Blocks = append(f.Blocks, b)
+		}
+		f.sortBlocks()
+		ix.Files = append(ix.Files, f)
+	}
+	ix.reindex()
+	return ix, nil
 }
