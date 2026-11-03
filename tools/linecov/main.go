@@ -17,6 +17,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -351,14 +354,28 @@ func qualify(args []string) error {
 		if err != nil {
 			return err
 		}
-		lines := strings.Split(string(src), "\n")
-		for _, b := range file.Blocks {
-			if b.End > b.Start && int(b.Start) <= len(lines) {
-				if l := strings.TrimRight(lines[b.Start-1], " \t"); strings.HasSuffix(l, "{") || strings.HasSuffix(l, ":") {
-					sites = append(sites, site{file.Path, int(b.Start)})
-				}
-			}
+		// A site is the line opening a statement list that continues on
+		// later lines, so the inserted statement always compiles.
+		fset := token.NewFileSet()
+		parsed, err := parser.ParseFile(fset, file.Path, src, parser.SkipObjectResolution)
+		if err != nil {
+			return err
 		}
+		ast.Inspect(parsed, func(n ast.Node) bool {
+			open, close := token.NoPos, token.NoPos
+			switch n := n.(type) {
+			case *ast.BlockStmt:
+				open, close = n.Lbrace, n.Rbrace
+			case *ast.CaseClause:
+				open, close = n.Colon, n.End()
+			case *ast.CommClause:
+				open, close = n.Colon, n.End()
+			}
+			if open.IsValid() && fset.Position(close).Line > fset.Position(open).Line+1 {
+				sites = append(sites, site{file.Path, fset.Position(open).Line})
+			}
+			return true
+		})
 	}
 	sort.Slice(sites, func(i, j int) bool {
 		return sites[i].path < sites[j].path || sites[i].path == sites[j].path && sites[i].line < sites[j].line
@@ -373,7 +390,7 @@ func qualify(args []string) error {
 		return err
 	}
 	defer git("reset", "-q", "--hard", ix.Commit)
-	total, misses, failing, keptSum := 0, 0, 0, 0
+	total, misses, failing, invalid, keptSum := 0, 0, 0, 0, 0
 	for _, m := range sites {
 		if err := git("reset", "-q", "--hard", ix.Commit); err != nil {
 			return err
@@ -424,6 +441,8 @@ func qualify(args []string) error {
 		sort.Strings(missed)
 		if len(failed) > 0 {
 			failing++
+		} else if buildFail {
+			invalid++ // the mutant did not build: proves nothing
 		}
 		if len(missed) > 0 {
 			misses++
@@ -431,9 +450,12 @@ func qualify(args []string) error {
 		keptSum += len(kept)
 		fmt.Printf("%s:%d fallback=%q kept=%d/%d failed=%d build-fail=%v select=%s MISS=%v\n", m.path, m.line, p.Reason, len(kept), all, len(failed), buildFail, elapsed.Round(time.Millisecond), missed)
 	}
-	fmt.Printf("mutants=%d failing=%d misses=%d mean-kept=%.1f\n", total, failing, misses, float64(keptSum)/float64(max(total, 1)))
+	fmt.Printf("mutants=%d failing=%d invalid=%d misses=%d mean-kept=%.1f\n", total, failing, invalid, misses, float64(keptSum)/float64(max(total, 1)))
 	if misses > 0 {
 		return fmt.Errorf("%d mutants missed a failing test", misses)
+	}
+	if invalid > 0 {
+		return fmt.Errorf("%d mutants did not build", invalid)
 	}
 	return nil
 }
