@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # usage: script/check-stray-backups.sh
 #
 # ASD-V0-2370 (V1-4352): no editor, merge or patch leftover is ever tracked. Over the index of the
@@ -12,17 +13,19 @@ export LC_ALL=C
 top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || { printf 'check-stray-backups: not in a Git worktree\n' >&2; exit 2; }
 
 # No pathspec: GIT_GLOB_PATHSPECS or GIT_LITERAL_PATHSPECS in the caller's environment would change
-# what one matches. The whole index is listed and each path's lower-cased last component tested.
-# pipefail makes a git ls-files failure the listing's status. One awk pass then tests every path.
-listing=$(git -c core.quotePath=false ls-files -z | tr '\0' '\n') ||
-  { printf 'check-stray-backups: cannot read the index\n' >&2; exit 2; }
-awk '
-  { base = tolower($0); sub(/.*\//, "", base) }
-  base ~ /\.(bak|orig)$/ {
-    printf "check-stray-backups: FAIL stray-backup %s: a .bak or .orig file is an editor, merge or patch leftover; git rm --cached it (and delete it), or rename a deliberate fixture\n", $0
-    failed = 1
-  }
-  END { exit failed }' <<< "$listing"
-failed=$?
+# what one matches. The whole index is read as NUL-separated records, so a name holding a newline
+# stays one path. A path ends in `.bak` or `.orig` exactly when its last component does. The listing
+# ends with one empty record, which Git never emits for a path: without it the index was unreadable.
+failed=0 complete=0
+while IFS= read -r -d '' path; do
+  [[ -z $path ]] && { complete=1; continue; }
+  case $path in
+    *.[bB][aA][kK] | *.[oO][rR][iI][gG])
+      printf 'check-stray-backups: FAIL stray-backup %s: a .bak or .orig file is an editor, merge or patch leftover; git rm --cached it (and delete it), or rename a deliberate fixture\n' "$path"
+      failed=1
+      ;;
+  esac
+done < <(git ls-files -z && printf '\0')
+((complete)) || { printf 'check-stray-backups: cannot read the index\n' >&2; exit 2; }
 ((failed)) && exit 1
 printf 'check-stray-backups: no tracked .bak or .orig file\n'
