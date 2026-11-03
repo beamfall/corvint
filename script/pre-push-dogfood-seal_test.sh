@@ -64,11 +64,11 @@ grep -q 'REFUSE dogfood-seal-missing' "$tmp/out3" || { cat "$tmp/out3" >&2; fail
 git -C "$work" rev-parse HEAD > "$work/sealed.txt"
 
 # 4. Uncommitted tracked changes are refused before the check runs.
-runs=$(wc -l < "$work/batch.log")
+runs=$(wc -l < "$work/batch.log" | tr -d '[:space:]')
 echo dirty >> "$work/a.txt"
 if git -C "$work" push origin batch > "$tmp/out4" 2>&1; then fail "dirty push was accepted"; fi
 grep -q 'REFUSE dogfood-seal-not-checked the working tree has uncommitted tracked changes' "$tmp/out4" || { cat "$tmp/out4" >&2; fail "no dirty-tree refusal"; }
-[[ $(wc -l < "$work/batch.log") == "$runs" ]] || fail "the check ran on a dirty tree"
+[[ $(wc -l < "$work/batch.log" | tr -d '[:space:]') == "$runs" ]] || fail "the check ran on a dirty tree"
 q -C "$work" checkout -- a.txt
 
 # 5. A branch that is not the checked-out HEAD is refused, not checked against the wrong tree.
@@ -79,11 +79,11 @@ grep -q 'REFUSE dogfood-seal-not-checked refs/heads/side is not the checked-out 
 
 # 6. The sealed head pushes; a tag, a deletion and a branch with no new commit skip the check.
 git -C "$work" push origin batch > "$tmp/out6" 2>&1 || { cat "$tmp/out6" >&2; fail "resealed push refused"; }
-runs=$(wc -l < "$work/batch.log")
+runs=$(wc -l < "$work/batch.log" | tr -d '[:space:]')
 q -C "$work" tag v1
 git -C "$work" push origin v1 > "$tmp/out7" 2>&1 || { cat "$tmp/out7" >&2; fail "tag push refused"; }
 git -C "$work" push origin "$base:refs/heads/at-base" > "$tmp/out8" 2>&1 || { cat "$tmp/out8" >&2; fail "push of the base refused"; }
 git -C "$work" push origin --delete at-base > "$tmp/out9" 2>&1 || { cat "$tmp/out9" >&2; fail "deletion refused"; }
-[[ $(wc -l < "$work/batch.log") == "$runs" ]] || fail "a tag, base or deletion push ran the check"
+[[ $(wc -l < "$work/batch.log" | tr -d '[:space:]') == "$runs" ]] || fail "a tag, base or deletion push ran the check"
 
 echo "pre-push-dogfood-seal_test: ok"

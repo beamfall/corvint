@@ -206,3 +206,38 @@ absent 'heavy.sh' "$tmp/out"
 /bin/rm -f "$repo/bad.sh" "$repo/loose.sh" "$repo/script/heavy.sh"
 
 echo 'check-bash32_test: PASS'
+
+# ASD-V0-2190 (V1-4333): test-script portability refusals, including quoted sh -c commands.
+# Split the negative spellings so this test never exempts an executable portability mistake.
+mkdir -p "$repo/script"
+for row in \
+  'mktemp-template|d=$(mk''temp -d)' \
+  'mktemp-template|d=$(mk''temp -d 2>/dev/null)' \
+  "mktemp-template|sh -c 'mk""temp -d'" \
+  'wc-equality|[[ $(wc -''l < f) == 1 ]]' \
+  'wc-equality|[[ 1 == $(wc -''l < f) ]]' \
+  'wc-equality|[[ "$(wc -''l < f)" == 1 ]]' \
+  'wc-equality|[ "$(wc -''l < f)" = 1 ]' \
+  'wc-equality|[ 1 = "$(wc -''l < f)" ]' \
+  'wc-equality|test "$(wc -''l < f)" = 1' \
+  'make-3.81-options|make --ev''al="x: ; true"' \
+  'make-3.81-options|make --tr''ace x' \
+  "make-3.81-options|make '--tr""ace' x" \
+  'make-3.81-options|make -''Otarget x' \
+  'make-3.81-options|make -''E "x: ; true"' \
+  'make-3.81-options|make --output-''sync=target x'; do
+  label=${row%%|*} text=${row#*|}
+  printf '#!/bin/bash\n%s\n' "$text" > "$repo/script/portable_test.sh"
+  if run_gate; then fail "portability construct passed: $text"; fi
+  expect "FAIL $label script/portable_test.sh:2:" "$tmp/out"
+done
+printf '#!/bin/bash\n%s\n' \
+  'd=$(mktemp -d "$TMPDIR/fixture.XXXXXX")' \
+  '[[ $(wc -l < f | tr -d "[:space:]") == 1 ]]' \
+  '[[ $(wc -l < f) -eq 1 ]]' \
+  '(( $(wc -l < f) == 4 ))' \
+  'make -f Makefile -f extra.mk x' \
+  '# mk''temp -d; make --ev''al=x; [[ $(wc -''l < f) == 1 ]]' \
+  'mk''temp -d # bash32: allow' > "$repo/script/portable_test.sh"
+run_gate || { cat "$tmp/out" >&2; fail 'portable test forms refused'; }
+echo 'check-bash32_test: portable test rules passed'
