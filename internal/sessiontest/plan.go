@@ -4,12 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/fs"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/gateselect"
@@ -102,19 +100,12 @@ func moduleDirectory(entry Unknown) (string, bool) {
 }
 
 // binaryConsumer returns the file of a well-formed AFP-V0-762
-// UNSELECTED_BINARY_CONSUMER entry, a clean, relative, slash-separated path
-// with no backslash or control character, judged the same on every host: a
-// file that is no Go test and runs the built binary of a Go command the change
-// reaches. No Go run, narrowed or FULL, runs it, so on the local runner
-// profile `corvint test` names it as a check still required and not run
-// instead of widening to FULL for it (STR-V0-750, V1-4008). The ci profile
-// keeps the AFP-V0-028 allowlist, which does not admit it.
+// UNSELECTED_BINARY_CONSUMER entry (gateselect.BinaryConsumer). No Go run,
+// narrowed or FULL, runs it, so on every runner profile `corvint test` names it
+// as a check still required and not run instead of widening to FULL for it
+// (STR-V0-750, V1-4008); the deciding driver admits the same entry (V1-4361).
 func binaryConsumer(entry Unknown) (string, bool) {
-	file := entry.Detail
-	if entry.Reason != "UNSELECTED_BINARY_CONSUMER" || file == "." || !fs.ValidPath(file) || strings.ContainsRune(file, '\\') || strings.ContainsFunc(file, unicode.IsControl) {
-		return "", false
-	}
-	return file, true
+	return gateselect.BinaryConsumer(entry.Reason, entry.Detail)
 }
 
 // BinaryConsumerCheck is the still-required check that names a binary
@@ -259,7 +250,7 @@ func Build(input Input) (Manifest, error) {
 			modules[directory] = true
 			continue
 		}
-		if file, ok := binaryConsumer(entry); ok && input.RunnerProfile != ProfileCI {
+		if file, ok := binaryConsumer(entry); ok {
 			// STR-V0-750: named as a check, not widened for; FULL would not
 			// run it either.
 			if check := BinaryConsumerCheck(file); !slices.Contains(manifest.Checks, check) {

@@ -2,9 +2,11 @@
 package gateselect
 
 import (
+	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 // AllowedUnknown is the one allowlist of plan.unknown entries a narrowed run
@@ -53,4 +55,18 @@ func UnobservedModule(reason, detail string) (string, bool) {
 		return "", false
 	}
 	return found, true
+}
+
+// BinaryConsumer returns the file of a well-formed AFP-V0-762
+// UNSELECTED_BINARY_CONSUMER entry: a clean, relative, slash-separated path
+// with no backslash or control character, judged the same on every host. The
+// file is no Go test; it runs the built binary of a Go command the change
+// reaches, so no Go run, narrowed or FULL, runs it. The driver admits such an
+// entry beside AllowedUnknown, and `corvint test` names it as a check still
+// required on every profile (STR-V0-750); both read it here (AFP-V0-982).
+func BinaryConsumer(reason, file string) (string, bool) {
+	if reason != "UNSELECTED_BINARY_CONSUMER" || file == "." || !fs.ValidPath(file) || strings.ContainsRune(file, '\\') || strings.ContainsFunc(file, unicode.IsControl) {
+		return "", false
+	}
+	return file, true
 }

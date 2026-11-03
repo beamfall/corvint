@@ -379,7 +379,9 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // may still run narrowed while it names unknowns only when each is an entry
 // AllowedUnknown admits, the allowlist the shadow shares (AFP-V0-982), a
 // well-formed unobserved-module frontier (UnobservedModule: the nested module
-// is no root package, and CI runs its own suite outside the shards), or an
+// is no root package, and CI runs its own suite outside the shards), a
+// well-formed binary consumer (BinaryConsumer: no Go shard runs it, narrowed or
+// FULL, and the shadow names it as a check), or an
 // UNINDEXED_SOURCE_PATH that deletedGoSource admits. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
 // package whose reads no literal bounds, so every Go reader of an unowned path
@@ -396,6 +398,8 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) string 
 		case AllowedUnknown(entry.Reason, entry.Detail):
 			continue
 		case entry.Reason == "LANGUAGE_FRONTIER" && unobservedModule(entry.Detail):
+			continue
+		case binaryConsumer(entry.Reason, entry.Detail):
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
@@ -419,6 +423,11 @@ func deletedGoSource(plan Receipt, index *repositoryIndex, root, p string) bool 
 	}
 	_, err := os.Lstat(filepath.Join(root, filepath.FromSlash(p)))
 	return errors.Is(err, fs.ErrNotExist)
+}
+
+func binaryConsumer(reason, detail string) bool {
+	_, ok := BinaryConsumer(reason, detail)
+	return ok
 }
 
 func unobservedModule(detail string) bool {

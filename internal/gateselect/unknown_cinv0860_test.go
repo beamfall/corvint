@@ -13,7 +13,9 @@ import (
 // (attributed to it and its importer by rule (a)); an unindexed existing
 // source, a deleted source of a removed package, another reason, a malformed
 // reason and an UNKNOWN plan naming none fall back. The UNOWNED_DIRTY_PATH and
-// NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480.
+// NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480. A
+// well-formed UNSELECTED_BINARY_CONSUMER narrows too (V1-4361): no Go run,
+// narrowed or FULL, runs it; a malformed one falls back.
 // SelectStructural (`corvint test`) is unchanged.
 func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 	root := writeFixture(t, map[string]string{
@@ -52,6 +54,9 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 		{"an unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "run " + core + " " + user},
 		{"no selectable test", plan("UNKNOWN", unknown{"NO_SELECTABLE_TEST", "go:x"}), "run " + core + " " + user},
 		{"a deleted source of a package that exists", plan("UNKNOWN", unknown{"UNINDEXED_SOURCE_PATH", "core/gone.go"}), "run " + core + " " + user},
+		{"a binary consumer", plan("UNKNOWN", frontier, unknown{"UNSELECTED_BINARY_CONSUMER", "tools/web-flows/test/e2e.mjs"}), "run " + core + " " + user}, //corvint:fixture-path
+		{"an escaping binary consumer", plan("UNKNOWN", unknown{"UNSELECTED_BINARY_CONSUMER", "../e2e.mjs"}), cannot("UNSELECTED_BINARY_CONSUMER")},
+		{"a backslashed binary consumer", plan("UNKNOWN", unknown{"UNSELECTED_BINARY_CONSUMER", `tools\e2e.mjs`}), cannot("UNSELECTED_BINARY_CONSUMER")},
 		{"a module-level frontier", plan("UNKNOWN", unknown{"LANGUAGE_FRONTIER", "go:cgo-frontier"}), "FALLBACK Go frontier is unknown at module level: go:cgo-frontier"},
 		{"an unindexed source that exists", plan("UNKNOWN", unknown{"UNINDEXED_SOURCE_PATH", "core/core.go"}), cannot("UNINDEXED_SOURCE_PATH")},
 		{"a deleted source of a removed package", plan("UNKNOWN", unknown{"UNINDEXED_SOURCE_PATH", "removed/gone.go"}), cannot("UNINDEXED_SOURCE_PATH")},

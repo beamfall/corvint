@@ -459,8 +459,8 @@ two requirements make its version name its content and make each receipt carry i
   stays outside the allowlist and the run is `FULL`; the `ci` profile keeps every such entry
   outside the allowlist, because its confined runner is not qualified for a nested module.
 - `STR-V0-750`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4008;
-  amends the AFP-V0-982 shared allowlist for `corvint test`'s local profile only, as STR-V0-064
-  does) On the local runner profile, each well-formed AFP-V0-762 `UNSELECTED_BINARY_CONSUMER`
+  extended to the `ci` profile by V1-4361 with the AFP-V0-028 amendment) On every runner profile,
+  each well-formed AFP-V0-762 `UNSELECTED_BINARY_CONSUMER`
   entry SHALL keep the run at the scope the rest of the plan earns instead of forcing `FULL`, and
   SHALL be named once, in plan order, as a `checks` entry: `<file> (UNSELECTED_BINARY_CONSUMER:
   it runs the built binary of a Go command this change reaches; run it by its own driver, since
@@ -471,15 +471,16 @@ two requirements make its version name its content and make each receipt carry i
   still left it unrun. A well-formed detail is a clean, relative, slash-separated path that
   `io/fs.ValidPath` accepts, other than `.`, with no backslash or control character, judged the
   same on every host so the manifest stays host-independent. A malformed detail stays outside the
-  allowlist and the run is `FULL`. The `ci` profile keeps the accepted AFP-V0-028 allowlist
-  unchanged, so there the entry still forces `FULL`; admitting it in CI needs a reviewed
-  AFP-V0-028 amendment. Non-goals: running the consumer, which stays its own driver's job
-  (`script/web-flows-gate` for `tools/web-flows/test/*.mjs`); widening
-  `gateselect.AllowedUnknown`, which the deciding CI driver shares. Failure mode: a consumer the
+  allowlist and the run is `FULL`. The `ci` profile names it the same way (V1-4361): the deciding
+  driver admits the same entry through `gateselect.BinaryConsumer`, so the AFP-V0-098 superset
+  rule holds, and a FULL Go run left the consumer unrun as well. Non-goals: running the consumer,
+  which stays its own driver's job (`script/web-flows-gate` for `tools/web-flows/test/*.mjs`);
+  widening `gateselect.AllowedUnknown`. Failure mode: a consumer the
   project never declared in `.corvint/test-binary-consumers.json` is no entry at all, as before.
-  Evidence: `TestBinaryConsumerIsANamedCheckOnTheLocalProfile_STRV0750`,
+  Evidence: `TestBinaryConsumerIsANamedCheck_STRV0750`,
   `TestSTRV0750CLIBinaryConsumerIsANamedCheck`, and the unchanged
-  `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`, which now lists the reason. Rollback:
+  `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`, which requires the driver to admit a
+  well-formed consumer. Rollback:
   drop `binaryConsumer` and its case in `Build`; the entry then forces `FULL` again.
   Rollback: revert the change; the entries then force `FULL` as before, and manifests and receipts
   lose the optional `dir` member.
@@ -667,8 +668,8 @@ two requirements make its version name its content and make each receipt carry i
 | A dirty path in a nested Go module the root does not build (AFP-V0-650), local profile (STR-V0-064) | one `go-module:<dir>` unit runs `go test ./...` from the module with `GOWORK=off`; `FULL` still runs it |
 | The module's `go list ./...` fails (STR-V0-064) | nothing launched for it; `INCOMPLETE` naming the module directory |
 | A module the root requires or replaces, an unreadable `go.mod`, a malformed module detail, or the `ci` profile (STR-V0-064) | `FULL`, the unallowed entry naming the module |
-| A declared binary consumer of a Go command the change reaches (AFP-V0-762), local profile (STR-V0-750) | the run keeps its scope and names the consumer once under `checks` as still required, not run |
-| A malformed consumer detail, or the `ci` profile (STR-V0-750) | `FULL`, the unallowed entry naming the file |
+| A declared binary consumer of a Go command the change reaches (AFP-V0-762), any profile (STR-V0-750) | the run keeps its scope and names the consumer once under `checks` as still required, not run |
+| A malformed consumer detail (STR-V0-750) | `FULL`, the unallowed entry naming the file |
 
 Every failure fails closed toward a larger run or a nonzero exit. No path narrows on missing
 evidence (invariant 2), and repository declarations outrank the planner (invariant 3).
@@ -772,7 +773,8 @@ above, which removes balanced placement only.
    that status: sliced measured plans need the same executed 20% comparison, `NOT_RUN`.
 
 Rollback of STR-V0-750: revert its commit; AFP-V0-762 consumer entries then force `FULL` again on
-the local profile, and the CI profile is unchanged either way.
+the local profile. Rollback of its V1-4361 `ci` extension: revert that commit; the driver and the
+`ci` profile then force `FULL` on a consumer again, together.
 Rollback of STR-V0-064: revert its commit; AFP-V0-650 module entries then force `FULL` again, and
 the optional `dir` member leaves manifests, dry-run documents and receipts.
 Rollback of STR-V0-055..057: revert their commits. STR-V0-055 restores the earlier plain open;
@@ -840,7 +842,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-060 | `pathDigest` in `internal/sessiontest/identity.go` (no-follow, non-blocking `openInput` plus an fstat identity check against the Lstat) | `internal/sessiontest/identity_swap_unix_test.go` TestSTRV0060PathDigestRefusesSwap (symlink, symlink-to-same-inode, FIFO and other-file swaps between the Lstat and the open are refused with the typed error inside a deadline) |
 | STR-V0-800 | `testDryRunSummary`, `summaryList` and `summaryClip` in `cmd/corvint/test_summary.go`; the `--summary` flag and its refusal in `parseTestOptions` (`cmd/corvint/test.go`) | `TestSTRV0800DryRunSummaryIsBounded`, `TestSTRV0800CLIDryRunSummary` |
 | STR-V0-770 | `wholeReader` in `cmd/corvint/test_slices.go`; `testAttributionReasons` in `cmd/corvint/test.go` | `TestWholePackageSelectionsNameTheirReader_V13573` |
-| STR-V0-750 | `binaryConsumer`, `BinaryConsumerCheck` and the consumer case of `Build` in `internal/sessiontest/plan.go` | `internal/sessiontest/consumer_strv0750_test.go` TestBinaryConsumerIsANamedCheckOnTheLocalProfile_STRV0750; `cmd/corvint/test_consumer_strv0750_unix_test.go` TestSTRV0750CLIBinaryConsumerIsANamedCheck; `internal/sessiontest/allowlist_afpv0982_test.go` TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982 |
+| STR-V0-750 | `binaryConsumer`, `BinaryConsumerCheck` and the consumer case of `Build` in `internal/sessiontest/plan.go` | `internal/sessiontest/consumer_strv0750_test.go` TestBinaryConsumerIsANamedCheck_STRV0750; `cmd/corvint/test_consumer_strv0750_unix_test.go` TestSTRV0750CLIBinaryConsumerIsANamedCheck; `internal/sessiontest/allowlist_afpv0982_test.go` TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982 |
 | STR-V0-548 | `ReasonCode` and its codes in `internal/sessiontest/reasoncode.go`; `Unit.ReasonCode` in `internal/sessiontest/manifest.go` and `plan.go`; the classifier in `tools/selection-baseline/main.go` | `TestSTRV0548ReasonCodesPinTheProseShapes` in `internal/sessiontest/reasoncode_test.go`; `tools/selection-baseline` tests; the TSP-V0-006/861 and STR-V0-063 manifest tests |
 | STR-V0-920 | `Makefile` `GATE_STEPS` and `shell-test:`; `tools/test-commands-check/main_test.go` `TestGateStepsTwoLaneMergeIsClean_STR_V0_920`, `TestSTRV0004ShellTestIsTheGateShellSteps` on logical lines; `script/no-python-runtime-dependency_test.sh` continued-list fixtures | implemented; Go and shell tests PASS |
 | STR-V0-908 | `tmpdirDefault` and its use in `checkLedger` (`tools/test-commands-check/main.go`); `CORVINT_GOCACHE ?=` in the `Makefile` | `TestSTRV0006DeclarationMatchesMakefile`; the `cache` and `cache function` cases of `TestSTRV0006LedgerMatchesDeclaration` in `tools/test-commands-check/main_test.go` |
