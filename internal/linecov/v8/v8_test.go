@@ -124,6 +124,41 @@ func TestAddV8CachedMap(t *testing.T) {
 	}
 }
 
+// TestAddV8CacheURL covers LPCV-V0-965: a cached map's sources resolve
+// against the map's own URL, not the script's.
+func TestAddV8CacheURL(t *testing.T) {
+	root := t.TempDir()
+	sm := SourceMap{Version: 3, Sources: []string{"../src/a.ts"}, Mappings: "AAAA"}
+	url := "file://" + filepath.ToSlash(filepath.Join(root, "out/a.js"))
+	report := Report{
+		Result:         []Script{{URL: url, Functions: []Function{{Ranges: []Range{{0, 1, 1}}}}}},
+		SourceMapCache: map[string]CachedMap{url: {URL: "file://" + filepath.ToSlash(filepath.Join(root, "maps/deep/a.js.map")), LineLengths: []int{1}, Data: sm}},
+	}
+	data, _ := json.Marshal(report)
+	l := Lines{}
+	if err := l.AddV8(data, Options{Scope: RepoScope(root, nil)}); err != nil {
+		t.Fatal(err)
+	}
+	if !l["maps/src/a.ts"][1] || l["src/a.ts"] != nil {
+		t.Fatalf("lines %v", l)
+	}
+}
+
+// TestAddV8Unreadable covers LPCV-V0-965: an in-scope script the report names
+// but nothing can read is an error, so its run is never trusted, while an
+// out-of-scope one is skipped.
+func TestAddV8Unreadable(t *testing.T) {
+	root := t.TempDir()
+	report := Report{Result: []Script{{URL: "file://" + filepath.ToSlash(filepath.Join(root, "gone.js")), Functions: []Function{{Ranges: []Range{{0, 1, 1}}}}}}}
+	data, _ := json.Marshal(report)
+	if err := (Lines{}).AddV8(data, Options{Scope: RepoScope(root, nil)}); err == nil {
+		t.Fatal("unreadable in-scope script accepted")
+	}
+	if err := (Lines{}).AddV8(data, Options{Scope: RepoScope(root, func(string) bool { return false })}); err != nil {
+		t.Fatalf("out-of-scope script: %v", err)
+	}
+}
+
 // TestAddV8Unmapped covers LPCV-V0-965: a script without a map counts its own
 // non-blank lines, with UTF-16 offsets past a non-BMP character.
 func TestAddV8Unmapped(t *testing.T) {
@@ -223,18 +258,19 @@ func encode(b []byte) string {
 }
 
 // TestAddIstanbul covers LPCV-V0-965: the statement declaring an uncalled
-// function ran, but its body did not.
+// function ran, but its body did not, and a line holding a ran statement and
+// an uncalled one-line callback ran.
 func TestAddIstanbul(t *testing.T) {
 	data := `{"/r/a.ts":{"path":"/r/a.ts",
-	 "statementMap":{"0":{"start":{"line":1},"end":{"line":3}},"1":{"start":{"line":2},"end":{"line":2}},"2":{"start":{"line":5},"end":{"line":5}}},
-	 "s":{"0":1,"1":0,"2":4},
-	 "fnMap":{"0":{"loc":{"start":{"line":1},"end":{"line":3}}}},"f":{"0":0}},
+	 "statementMap":{"0":{"start":{"line":1},"end":{"line":3}},"1":{"start":{"line":2},"end":{"line":2}},"2":{"start":{"line":5},"end":{"line":5}},"3":{"start":{"line":7},"end":{"line":7}}},
+	 "s":{"0":1,"1":0,"2":4,"3":1},
+	 "fnMap":{"0":{"loc":{"start":{"line":1},"end":{"line":3}}},"1":{"loc":{"start":{"line":7},"end":{"line":7}}}},"f":{"0":0,"1":0}},
 	 "/elsewhere/b.ts":{"path":"/elsewhere/b.ts","statementMap":{"0":{"start":{"line":1},"end":{"line":1}}},"s":{"0":1},"fnMap":{},"f":{}}}`
 	l := Lines{}
 	if err := l.AddIstanbul([]byte(data), RepoScope("/r", nil)); err != nil {
 		t.Fatal(err)
 	}
-	want := Lines{"a.ts": {1: false, 2: false, 3: false, 5: true}}
+	want := Lines{"a.ts": {1: true, 2: false, 3: true, 5: true, 7: true}}
 	if !reflect.DeepEqual(l, want) {
 		t.Fatalf("got %v, want %v", l, want)
 	}
