@@ -4460,5 +4460,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/language-plugins-v0.md",
+    "title": "Language Plugins V0",
+    "reqPrefix": "LGP-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "One in-process manifest per language declares its paths, provider, analyzers, runners, coverage and mutation tools; a missing piece fails a test.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
