@@ -10,7 +10,7 @@
 // plugin's owned paths and every sub-plugin path, sorted. It reads the
 // provider-free decl package, so printing them compiles no language provider. An unknown name, or any other argument count, is
 // refused with exit 2 and the known names. `make plugin-test PLUGIN=NAME`
-// runs `go test` over each printed directory through script/heavy.sh.
+// runs `go test` over each printed directory.
 package main
 
 import (
