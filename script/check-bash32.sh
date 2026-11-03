@@ -86,6 +86,20 @@ function nounset(raw,   s, m) {
     s = substr(s, RSTART + RLENGTH)
   }
 }
+# ASD-V0-2190: these raw-line rules also see quoted commands passed to sh -c; comments and
+# deliberate negative fixtures use the same explicit bash32 allow marker as the syntax rules.
+function portable_test(raw,   text) {
+  if (f !~ /^script\/[^\/]*_test\.sh$/ || raw ~ /^[[:space:]]*#/ || raw ~ /# bash32: allow$/) return
+  text = raw
+  sub(/[[:space:]]+#.*/, "", text)
+  if (text ~ /(^|[^A-Za-z0-9_-])mktemp[[:space:]]+-d([[:space:]]*([0-9]*[<>]|[);|&]|$)|["\047])/) portability("mktemp-template", "mktemp -d needs an explicit TMPDIR template")
+  if ((text ~ /[[][[]/ || text ~ /(^|[[:space:];|&(])(test|[[])[[:space:]]/) && (text ~ /wc[[:space:]]+-l[^|]*[)]["\047[:space:]]*(==|!=|=[[:space:]])/ || text ~ /(==|!=|=)["\047[:space:]]*[$][(]wc[[:space:]]+-l[^|]*[)]/)) portability("wc-equality", "strip wc -l whitespace before string equality")
+  if (text ~ /(^|[[:space:]"\047])--(eval|trace|output-sync|shuffle|jobserver-style|guile|debugger)([=[:space:]"\047]|$)/ || (text ~ /(^|[[:space:];|&(\047"])(make|gmake)[[:space:]]/ && text ~ /[[:space:]"\047]-(O(target|line|recurse|none)?|E)([=[:space:]"\047]|$)/)) portability("make-3.81-options", "use GNU make 3.81 options (an include wrapper replaces --eval)")
+}
+function portability(label, detail) {
+  printf "check-bash32: FAIL %s %s:%d: %s\n", label, f, ln, detail
+  fails++
+}
 BEGIN {
   SQ = sprintf("%c", 39)
   nr = split(ENVIRON["BASH32_RULES"], rl, "\n")
@@ -97,6 +111,7 @@ BEGIN {
     f = ARGV[a]; st = 0; term = ""; ln = 0; setu = 0; split("", empty); split("", guard)
     while ((r = (getline raw < f)) > 0) {
       ln++
+      portable_test(raw)
       if (term != "") {
         t = raw; sub(/^\t+/, "", t)
         if (t == term) { term = ""; continue }

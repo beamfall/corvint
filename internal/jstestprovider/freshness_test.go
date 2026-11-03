@@ -2,12 +2,15 @@ package jstestprovider
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -146,7 +149,9 @@ func TestPTFV0ObservedCurrency(t *testing.T) {
 			r := freshFixture(t)
 			row.mutate(&r)
 			got := ReceiptTestProjection(r, r.Tests[0])
-			if got.Freshness.State != row.want {
+			if row.want == testvalidity.FreshnessCurrent {
+				requireFreshCurrent(t, got.Freshness.State, name)
+			} else if got.Freshness.State != row.want {
 				t.Fatalf("got %+v want %s", got, row.want)
 			}
 			if got.Strength.State == testvalidity.StrengthKilled {
@@ -175,6 +180,9 @@ func TestPTFV0ClosedCodec(t *testing.T) {
 		"wrong profile": bytes.Replace(data, []byte(FreshnessProfile), []byte(AttestedExternalProfile), 1),
 	} {
 		t.Run(name, func(t *testing.T) {
+			if name == "projection" && runtime.GOOS == "windows" {
+				t.Skip("no CURRENT projection to contradict: native Windows freshness fails closed (decision 0559); TestASDV02235FreshnessFailsClosedOnWindows covers it")
+			}
 			if _, err := DecodeFreshness(mutated); err == nil {
 				t.Fatal("accepted altered envelope")
 			}
@@ -225,6 +233,21 @@ func TestPTFV0ResponseDeltaAndAssertion(t *testing.T) {
 // PTF-V0-755: the ancestor walk ends at the platform's filesystem root, so the
 // bound is reached on native Windows too instead of looping at a volume root.
 func TestPTFV0DependencyManifestBound(t *testing.T) {
+	// ASD-V0-2232: isolate the synchronous observer so even a regression to
+	// the Windows volume-root loop fails this test within its own bound.
+	// A context alone cannot interrupt filepath.Dir/Lstat inside that loop.
+	const childMarker = "CORVINT_TEST_DEPENDENCY_BOUND_CHILD"
+	if os.Getenv(childMarker) != "1" {
+		ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+		defer cancel()
+		command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestPTFV0DependencyManifestBound$", "-test.timeout=15s", "-test.v")
+		command.Env = append(os.Environ(), childMarker+"=1")
+		command.WaitDelay = time.Second
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("dependency observer exceeded its bound or failed: %v (context: %v)\n%s", err, ctx.Err(), output)
+		}
+		return
+	}
 	root, e := filepath.EvalSymlinks(t.TempDir())
 	if e != nil {
 		t.Fatal(e)
@@ -303,9 +326,7 @@ func TestV10689BoundedWitnessFreshnessCodec(t *testing.T) {
 			}
 			got := ReceiptTestProjection(decoded, decoded.Tests[0]).Freshness.State
 			if state == "legacy" || state == "sampled" {
-				if got != testvalidity.FreshnessCurrent {
-					t.Fatalf("valid observation refused: %s", got)
-				}
+				requireFreshCurrent(t, got, "valid observation")
 			} else if got == testvalidity.FreshnessCurrent {
 				t.Fatal("unresolved cleanup promoted currency")
 			}

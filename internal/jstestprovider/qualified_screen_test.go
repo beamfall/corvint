@@ -129,7 +129,7 @@ func TestPWPV3012PointerWithholdsDynamicKeys(t *testing.T) {
 func TestPWPV3011KeepReportersCredentialNamedInputs(t *testing.T) {
 	control, keep := keepQualificationPair(t)
 	for _, r := range []*Receipt{&control, &keep} {
-		r.Identity.ConfigInputDigests["/repo/password-policy.cjs"] = strings.Repeat("d", 64)
+		r.Identity.ConfigInputDigests[hostAbs("/repo/password-policy.cjs")] = strings.Repeat("d", 64)
 		r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
 	}
 	q := QualifyKeepReporters(control, nil, keep, nil)
@@ -143,7 +143,7 @@ func TestPWPV3011KeepReportersCredentialNamedInputs(t *testing.T) {
 	if !strings.Contains(string(data), "password-policy.cjs") {
 		t.Fatal("credential-named config input not bound")
 	}
-	q.ConfigInputs["/repo/ghp_"+strings.Repeat("a1", 18)+".cjs"] = strings.Repeat("d", 64)
+	q.ConfigInputs[hostAbs("/repo/ghp_"+strings.Repeat("a1", 18)+".cjs")] = strings.Repeat("d", 64)
 	if _, err := EncodeKeepReportersQualification(q); err == nil || err.Error() != "qualified-document-secret-shaped" || refusalPointer(err) != "/configInputs" {
 		t.Fatalf("vendor token in a config input path: %v (member %q)", err, refusalPointer(err))
 	}

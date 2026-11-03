@@ -214,8 +214,9 @@ type taskContextCompiler struct {
 	acronymProse bool
 	// relationRank is each path's 1-based position per relation, and
 	// relationSeen each relation's count so far, recorded only for RRF.
-	relationRank map[string]map[string]int
-	relationSeen map[string]int
+	relationRank  map[string]map[string]int
+	relationSeen  map[string]int
+	relationOrder map[string]int
 	// undefinedIDs are the requirement ids the spec-mentioned pass found no
 	// defining clause for (TCP-V0-152).
 	undefinedIDs []string
@@ -436,7 +437,12 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		return nil
 	}
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
-	rows = compiler.orderRows(rows)
+	if compiler.rrfOrder {
+		// TCP-V0-2222: freeze corroboration's membership before changing order.
+		rows = compiler.corroborate(rows)
+	} else {
+		rows = compiler.orderRows(rows)
+	}
 	rows = compiler.reserve(rows)
 	compiler.recordLexicalTail(rows)
 	rows = compiler.placeGraphRows(rows, limit)
@@ -448,6 +454,9 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	compiler.admitted = len(rows)
 	if len(rows) > limit {
 		rows, compiler.truncated = rows[:limit], true
+	}
+	if compiler.rrfOrder {
+		rows = compiler.fuseSelectedRows(rows)
 	}
 	return compiler.markWorktreeRows(rows)
 }
@@ -488,6 +497,7 @@ func (compiler *taskContextCompiler) admitLexicalPairs(rows []contextRow, limit 
 			protected[pair.path] = true
 			candidates = append(candidates, counterpart{pair: pair, sourceRank: sourceRank})
 			compiler.candidates["pair"] = append(compiler.candidates["pair"], pair.path)
+			compiler.recordRelationRanks([]contextRow{pair})
 		}
 	}
 	testRank := func(path string) int {

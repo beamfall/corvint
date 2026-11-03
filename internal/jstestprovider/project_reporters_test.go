@@ -35,13 +35,13 @@ func keptFixture(t *testing.T) Receipt {
 // replace-only template; keep mode is opt-in.
 func TestExternalCommandDefaultConfigUnchanged(t *testing.T) {
 	scratch := t.TempDir()
-	cfg := E2EConfig{Config: Config{ConfigFile: "/repo/playwright.config.cjs"}}
+	cfg := E2EConfig{Config: Config{ConfigFile: hostAbs("/repo/playwright.config.cjs")}}
 	config, _, reportPath, err := externalCommand(cfg, scratch)
 	if err != nil {
 		t.Fatal(err)
 	}
 	q := func(s string) string { b, _ := json.Marshal(s); return string(b) }
-	want := "const imported = require(" + q("/repo/playwright.config.cjs") + ");\nconst original = imported.default || imported;\nconst base = " + q("/repo") + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + q(filepath.Join(scratch, "reporter.cjs")) + ", {output:" + q(reportPath) + ", sensitiveInputPolicy:null}]]};\n"
+	want := "const imported = require(" + q(cfg.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + q(filepath.Dir(cfg.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + q(filepath.Join(scratch, "reporter.cjs")) + ", {output:" + q(reportPath) + ", sensitiveInputPolicy:null}]]};\n"
 	if config != want {
 		t.Fatalf("default controlled config drifted:\n%s", config)
 	}
@@ -80,13 +80,15 @@ func TestKeptReporterListResolution(t *testing.T) {
 		}
 	}
 	write(filepath.Join(project, "node_modules", "pkg-reporter", "index.js"), "module.exports = class {};\n")
+	// q JSON-quotes a native path as JSON.stringify does, so a Windows backslash is escaped (ASD-V0-2233).
+	q := func(s string) string { b, _ := json.Marshal(s); return string(b) }
 	for name, test := range map[string]struct {
 		reporter string
 		want     string
 		invalid  bool
 	}{
 		"array": {reporter: `[['list'], ['./project-reporter.cjs', {target: 'evidence.json'}], ['json', {outputFile: 'out/report.json'}], 'dot', ['html'], ['junit', {configDir: '/elsewhere'}], ['pkg-reporter'], ['unresolvable-reporter']]`,
-			want: `[["list"],["` + filepath.Join(project, "project-reporter.cjs") + `",{"target":"evidence.json"}],["json",{"configDir":"` + project + `","outputFile":"` + filepath.Join(project, "out", "report.json") + `"}],["dot"],["html",{"configDir":"` + project + `"}],["junit",{"configDir":"/elsewhere"}],["` + filepath.Join(project, "node_modules", "pkg-reporter", "index.js") + `"],["unresolvable-reporter"],`},
+			want: `[["list"],[` + q(filepath.Join(project, "project-reporter.cjs")) + `,{"target":"evidence.json"}],["json",{"configDir":` + q(project) + `,"outputFile":` + q(filepath.Join(project, "out", "report.json")) + `}],["dot"],["html",{"configDir":` + q(project) + `}],["junit",{"configDir":"/elsewhere"}],[` + q(filepath.Join(project, "node_modules", "pkg-reporter", "index.js")) + `],["unresolvable-reporter"],`},
 		"string":    {reporter: `'line'`, want: `[["line"],`},
 		"undefined": {reporter: `undefined`, want: `[`},
 		"number":    {reporter: `42`, invalid: true},
@@ -115,7 +117,7 @@ func TestKeptReporterListResolution(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%v\n%s", err, out)
 			}
-			want := `[["` + filepath.Join(scratch, "reporter.cjs") + `",{"output":"` + reportPath + `","sensitiveInputPolicy":null,"keepReporters":true}]`
+			want := `[[` + q(filepath.Join(scratch, "reporter.cjs")) + `,{"output":` + q(reportPath) + `,"sensitiveInputPolicy":null,"keepReporters":true}]`
 			if entries := strings.TrimSuffix(strings.TrimPrefix(test.want, "["), ","); entries != "" {
 				want += "," + entries
 			}

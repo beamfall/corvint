@@ -1,0 +1,353 @@
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 4 darwin-only file(s), first ./cmd/corvint/affected_identity_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=5b450ee28a020ef0dc18f68b35a2ebdf1d0709bc dirty=12
+heavy.sh: slot 1/8 after 0s
+--- FAIL: TestContextRecencyReportsCodeOwnersBlameDisagreement (0.14s)
+    --- FAIL: TestContextRecencyReportsCodeOwnersBlameDisagreement/TCP-V0-037 (0.14s)
+        blame_test.go:89: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit (0.14s)
+    --- FAIL: TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit/TCP-V0-037 (0.13s)
+        blame_test.go:130: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextAnchorClassesMatchVerbatim (0.08s)
+    --- FAIL: TestContextAnchorClassesMatchVerbatim/TCP-V0-022 (0.08s)
+        context_anchors_test.go:50: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextAnchorsExplainAndNeverOutrankAuthority (0.09s)
+    --- FAIL: TestContextAnchorsExplainAndNeverOutrankAuthority/TCP-V0-022 (0.09s)
+        context_anchors_test.go:107: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextAnchorsDefaultBytes (0.18s)
+    --- FAIL: TestContextAnchorsDefaultBytes/TCP-V0-022_off_restores_the_pre-amendment_bytes (0.10s)
+        context_anchors_test.go:138: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+    --- FAIL: TestContextAnchorsDefaultBytes/TCP-V0-022_anchors_are_extracted_by_default (0.08s)
+        context_anchors_test.go:157: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextFuzzyFallbackIsLabelled (0.10s)
+    context_fuzzy_test.go:68: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextFuzzyCorroborationIsLabelled (0.11s)
+    --- FAIL: TestContextFuzzyCorroborationIsLabelled/TCP-V0-650 (0.11s)
+        context_fuzzy_test.go:118: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextFuzzyVerbatimKeepsCase (0.09s)
+    --- FAIL: TestContextFuzzyVerbatimKeepsCase/TCP-V0-651 (0.09s)
+        context_fuzzy_test.go:149: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextFuzzyDefaultBytes (0.09s)
+    --- FAIL: TestContextFuzzyDefaultBytes/TCP-V0-650 (0.09s)
+        context_fuzzy_test.go:163: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextOrderDefaultBytes (0.09s)
+    --- FAIL: TestContextOrderDefaultBytes/CRK-V0-007 (0.09s)
+        context_order_test.go:16: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextOrderAdditive (0.10s)
+    context_order_test.go:96: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextExactHitFallback_TCPV02220 (0.12s)
+    context_packet_experiments_test.go:15: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextPrebudgetMerge_TCPV02221 (0.11s)
+    context_packet_experiments_test.go:65: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextMergeBytes_TCPV02221 (0.11s)
+    context_packet_experiments_test.go:78: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextRRFMembership_TCPV02222 (0.11s)
+    context_packet_experiments_test.go:93: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextColdBuildRetainsTestImportWinner (0.27s)
+    --- FAIL: TestContextColdBuildRetainsTestImportWinner/TCP-V0-015_Go (0.09s)
+        context_parity_regression_test.go:30: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+    --- FAIL: TestContextColdBuildRetainsTestImportWinner/TCP-V0-015_Python (0.09s)
+        context_parity_regression_test.go:30: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+    --- FAIL: TestContextColdBuildRetainsTestImportWinner/TCP-V0-015_TypeScript (0.09s)
+        context_parity_regression_test.go:30: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextEqualIDFTestEvidenceIsStable (0.11s)
+    --- FAIL: TestContextEqualIDFTestEvidenceIsStable/TCP-V0-004_TCP-V0-007 (0.11s)
+        context_parity_regression_test.go:63: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextIdentifierTermsExactOutranksParts (0.09s)
+    --- FAIL: TestContextIdentifierTermsExactOutranksParts/TCP-V0-019 (0.09s)
+        context_terms_test.go:80: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextIdentifierTermsDefaultBytes (0.10s)
+    --- FAIL: TestContextIdentifierTermsDefaultBytes/TCP-V0-019 (0.10s)
+        context_terms_test.go:99: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextGraphSlotRanksFromTheTaskAnchors (0.09s)
+    ppr_test.go:26: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextGraphSlotAbstains (0.09s)
+    --- FAIL: TestContextGraphSlotAbstains/TCP-V0-033 (0.09s)
+        ppr_test.go:86: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextGraphDefaultBytes (0.13s)
+    --- FAIL: TestContextGraphDefaultBytes/TCP-V0-034 (0.13s)
+        ppr_test.go:119: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextRecipeDefaultPathIsByteIdentical (0.13s)
+    --- FAIL: TestContextRecipeDefaultPathIsByteIdentical/TCP-V0-018 (0.13s)
+        ranking_regression_test.go:177: Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory
+--- FAIL: TestContextRecipeRetiredFlagsAreIgnored (0.03s)
+    --- FAIL: TestContextRecipeRetiredFlagsAreIgnored/TCP-V0-018 (0.03s)
+        ranking_regression_test.go:196: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRecencyDefaultBytes (0.03s)
+    --- FAIL: TestContextRecencyDefaultBytes/TCP-V0-035 (0.03s)
+        recency_test.go:63: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures (0.02s)
+    --- FAIL: TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures/TCP-V0-035 (0.02s)
+        recency_test.go:97: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRecencyBoundsBlameAndAbstains (0.02s)
+    --- FAIL: TestContextRecencyBoundsBlameAndAbstains/TCP-V0-036 (0.02s)
+        recency_test.go:128: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRecencyWeightsCochangeByAge (0.02s)
+    --- FAIL: TestContextRecencyWeightsCochangeByAge/TCP-V0-035 (0.02s)
+        recency_test.go:178: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRecencyCoverageMember (0.02s)
+    --- FAIL: TestContextRecencyCoverageMember/TCP-V0-038 (0.02s)
+        recency_test.go:209: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRecencyCanChangeLexicalMembership (0.02s)
+    --- FAIL: TestContextRecencyCanChangeLexicalMembership/TCP-V0-035 (0.02s)
+        recency_test.go:248: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRolesExplainAndNeverOutrankAuthority (0.04s)
+    --- FAIL: TestContextRolesExplainAndNeverOutrankAuthority/TCP-V0-040 (0.02s)
+        rolesummary_test.go:135: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+    --- FAIL: TestContextRolesExplainAndNeverOutrankAuthority/TCP-V0-041 (0.02s)
+        rolesummary_test.go:135: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextRolesDefaultBytes (0.02s)
+    --- FAIL: TestContextRolesDefaultBytes/TCP-V0-040 (0.02s)
+        rolesummary_test.go:163: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextSpanHitRange (0.02s)
+    --- FAIL: TestContextSpanHitRange/CRK-V0-009 (0.02s)
+        span_merge_test.go:49: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextSpanFallbacks (0.02s)
+    span_merge_test.go:77: git [add .]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextSpanMerge (0.02s)
+    span_merge_test.go:136: git [add .]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextSpansDefaultBytes (0.02s)
+    --- FAIL: TestContextSpansDefaultBytes/TCP-V0-025 (0.02s)
+        span_rank_test.go:57: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextSpansCoreAndCallSite (0.03s)
+    --- FAIL: TestContextSpansCoreAndCallSite/TCP-V0-025 (0.02s)
+        span_rank_test.go:87: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+    --- FAIL: TestContextSpansCoreAndCallSite/TCP-V0-026 (0.02s)
+        span_rank_test.go:103: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextSpansBudgetAndBounds (0.02s)
+    --- FAIL: TestContextSpansBudgetAndBounds/TCP-V0-027 (0.02s)
+        span_rank_test.go:138: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+--- FAIL: TestContextSufficiencyReservedInstructionAnchorIsCarried_TCPV0975 (0.02s)
+    sufficiency_test.go:89: git [add .]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextSpansSkipInstructionRoutedRows (0.02s)
+    taskcontext_routed_test.go:139: git [add .]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextSufficiency (0.02s)
+    --- FAIL: TestContextSufficiency/TCP-V0-028 (0.02s)
+        sufficiency_test.go:20: git [add .]: exit status 128
+            fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+            
+            Another git process seems to be running in this repository, e.g.
+            an editor opened by 'git commit'. Please make sure all processes
+            are terminated then try again. If it still fails, a git process
+            may have crashed in this repository earlier:
+            remove the file manually to continue.
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/contextindex	3.089s
+--- FAIL: TestContextLSPOffKeepsTheGoldenAndOnDegrades (0.11s)
+    context_lsp_test.go:30: CORVINT_CONTEXT_LSP="" changed the wire:  {"code": "repository-probe-failed", "error": "Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory", "ok": false}
+--- FAIL: TestContextLSPExplicitSelection (0.17s)
+    --- FAIL: TestContextLSPExplicitSelection/TCP-V0-051_explicit_selection (0.17s)
+        context_lsp_test.go:71: off: 2  {"code": "repository-probe-failed", "error": "Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory", "ok": false}
+--- FAIL: TestContextLSPDriftWithholdsPacket (0.16s)
+    --- FAIL: TestContextLSPDriftWithholdsPacket/TCP-V0-052_repository_drift (0.16s)
+        --- FAIL: TestContextLSPDriftWithholdsPacket/TCP-V0-052_repository_drift/printf_'\n//_changed\n'_>>_cache/demux.go (0.08s)
+            context_lsp_test.go:107: drift: 2  {"code": "repository-probe-failed", "error": "Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory", "ok": false}
+        --- FAIL: TestContextLSPDriftWithholdsPacket/TCP-V0-052_repository_drift/'/usr/bin/git'_-c_core.hooksPath=/dev/null_commit_-q_--allow-empty_-m_drift (0.08s)
+            context_lsp_test.go:107: drift: 2  {"code": "repository-probe-failed", "error": "Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory", "ok": false}
+--- FAIL: TestContextCLIMatchesMCPReceipt (0.08s)
+    context_mcp_parity_test.go:47: off: exit 2: {"code": "repository-probe-failed", "error": "Git status cannot safely observe repository metadata: metadata directory objects is missing or not a plain directory", "ok": false}
+--- FAIL: TestContextSummaryKeepsIdentityCoverageAndCriticalRows (0.06s)
+    context_summary_test.go:112: git [add -A]: exit status 128
+--- FAIL: TestContextMissSpawnsTheObservationPairOnce (0.06s)
+    context_spawns_test.go:30: git [add -A]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextAuthorityModeAcceptsSeveralPathsAndStaysReadOnly (0.06s)
+    context_lookup_test.go:85: git [add -A]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextExpandRefusesAnAmbiguousAbbreviatedBlob (0.06s)
+    context_summary_test.go:335: git [add -A]: exit status 128
+--- FAIL: TestContextWorktreeOverlayCLI (0.06s)
+    worktree_overlay_test.go:118: git [add -A]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextExpandReturnsExactPinnedBytes (0.06s)
+    context_summary_test.go:198: git [-c user.name=t -c user.email=t@x commit -qm fixture]: exit status 128
+--- FAIL: TestContextSummaryTruncationReportsTotalsAndRefusesToDropCriticalRows (0.06s)
+    context_summary_test.go:165: git [add -A]: exit status 128
+--- FAIL: TestContextDefaultWireIsTheGolden (0.06s)
+    context_summary_test.go:96: git [add -A]: exit status 128
+--- FAIL: TestContextExpandRefusesASymlinkRowNamingItsMode (0.06s)
+    context_summary_test.go:296: git [add -A]: exit status 128
+--- FAIL: TestContextExpandDeadlineExpiryRefusesAsDeadlineExceeded (0.08s)
+    source_handoff_unix_test.go:250: git [commit -qm initial authority fixture]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextExpandRefusesWithoutSubstitutingContent (0.08s)
+    context_summary_test.go:282: huge-range: stderr {"code": "repository-root", "error": "the root is not its Git toplevel", "ok": false}
+        , want invalid-handle
+--- FAIL: TestContextExpandSequenceBoundExpires (0.09s)
+    source_handoff_unix_test.go:309: git [commit -q -F /home/russell/projects/corvint-lanes/ctx-w58/.agent-evidence/ctx-w58-scratch/tmp/TestContextExpandSequenceBoundExpires3004656491/002/message-0]: exit status 128
+        fatal: Unable to create '/tmp/ctx-w58-evidence/index.lock': File exists.
+        
+        Another git process seems to be running in this repository, e.g.
+        an editor opened by 'git commit'. Please make sure all processes
+        are terminated then try again. If it still fails, a git process
+        may have crashed in this repository earlier:
+        remove the file manually to continue.
+--- FAIL: TestContextExpandRefusesAStaleHandleAfterHeadMoves (0.13s)
+    context_summary_test.go:318: decode "": unexpected end of JSON input
+--- FAIL: TestContextInALinkedWorktreeAnswersForItsOwnHead (0.14s)
+    context_linked_worktree_test.go:28: open /home/russell/projects/corvint-lanes/ctx-w58/.agent-evidence/ctx-w58-scratch/tmp/TestContextInALinkedWorktreeAnswersForItsOwnHead1796086900/007/linked/internal/parser/lexer.go: no such file or directory
+--- FAIL: TestContextSummaryAndExpandAreReadOnly (0.14s)
+    context_summary_test.go:367: decode "": unexpected end of JSON input
+FAIL
+FAIL	github.com/Beamfall/corvint/cmd/corvint	0.743s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=21.5s rc=1
+heavy.sh: exit rc=1 cause=command cmd=env

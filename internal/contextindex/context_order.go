@@ -50,6 +50,7 @@ func configureContextOrder(compiler *taskContextCompiler) *taskContextCompiler {
 	if compiler.rrfOrder {
 		compiler.relationRank = map[string]map[string]int{}
 		compiler.relationSeen = map[string]int{}
+		compiler.relationOrder = map[string]int{}
 	}
 	return compiler
 }
@@ -65,6 +66,12 @@ func (compiler *taskContextCompiler) recordRelationRanks(candidates []contextRow
 	for _, candidate := range candidates {
 		if candidate.path == compiler.subject {
 			continue
+		}
+		if compiler.relationOrder == nil {
+			compiler.relationOrder = map[string]int{}
+		}
+		if _, seen := compiler.relationOrder[candidate.kind]; !seen {
+			compiler.relationOrder[candidate.kind] = len(compiler.relationOrder)
 		}
 		compiler.relationSeen[candidate.kind]++
 		ranks := compiler.relationRank[candidate.path]
@@ -114,7 +121,35 @@ func (compiler *taskContextCompiler) fuseRanks(rows []contextRow) []contextRow {
 		fused[row.path] = score
 		row.reason += "; rrf " + strconv.FormatFloat(score, 'f', 4, 64) + " (" + strings.Join(terms, ", ") + ")"
 	}
-	sort.SliceStable(rows, func(left, right int) bool { return fused[rows[left].path] > fused[rows[right].path] })
+	sort.SliceStable(rows, func(left, right int) bool {
+		a, b := rows[left], rows[right]
+		if fused[a.path] != fused[b.path] {
+			return fused[a.path] > fused[b.path]
+		}
+		if compiler.relationOrder[a.kind] != compiler.relationOrder[b.kind] {
+			return compiler.relationOrder[a.kind] < compiler.relationOrder[b.kind]
+		}
+		return a.path < b.path
+	})
+	return rows
+}
+
+// fuseSelectedRows changes only ordinary positions in the final selected packet.
+// Reservations and graph rows keep their positions, fields and membership.
+func (compiler *taskContextCompiler) fuseSelectedRows(rows []contextRow) []contextRow {
+	ordinary := make([]contextRow, 0, len(rows))
+	positions := make([]int, 0, len(rows))
+	for position, row := range rows {
+		if reservedRelation(row.kind) || row.kind == "graph" {
+			continue
+		}
+		ordinary = append(ordinary, row)
+		positions = append(positions, position)
+	}
+	ordinary = compiler.fuseRanks(ordinary)
+	for index, position := range positions {
+		rows[position] = ordinary[index]
+	}
 	return rows
 }
 

@@ -18,7 +18,7 @@ profile changes.
 - Claim: Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.
 - Status: proposed; experimental; RRF and additive failed the frozen gate and stay opt-in; the acronym rule and span modes stay opt-in pending owner decision.
 - Exists: `CORVINT_CONTEXT_RRF`, `CORVINT_CONTEXT_ADDITIVE`, `CORVINT_CONTEXT_ACRONYMS=prose`, `CORVINT_CONTEXT_SPANS=hits|merged`, and `matchTerms` with a text-sized interner.
-- Blocked on: the decision 0027 history-backed corpus for TCP-V0-050(b) and the ContextBench dataset for V1-2716 AC1.
+- Blocked on: the remaining three frozen retrieval releases, historical manifest subjects absent at their pinned bases, and the ContextBench dataset for V1-2716 AC1; the 63-task history-backed replay is now measured with errors retained (TCP-V0-2223).
 - Read next: Requirements; Measurements; Failure modes; Rollback.
 
 ## User and current state
@@ -45,7 +45,7 @@ budget, and silently drops overlapping candidates (V1-0114, V1-0116). `countTerm
   `BenchmarkCountTermsLine`, `BenchmarkLineTokens`, `BenchmarkRoleTerms` and
   `BenchmarkScanWordsFile` MUST report allocations per call, and the before and after readings
   MUST be recorded.
-- `CRK-V0-004`: (proposed 2026-11-01, not accepted; V1-0219) With `CORVINT_CONTEXT_RRF=on` the
+- `CRK-V0-004`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V0-2221; TCP-V0-2222; V1-0114; V1-0116; V1-0219) (proposed 2026-11-01, not accepted; V1-0219) With `CORVINT_CONTEXT_RRF=on` the
   ordering step after admission MUST implement TCP-V0-048 and TCP-V0-049: `F(p)` summed over the
   admitting relation and every corroborating relation with `k = 60`, `rank_r(p)` counted across
   every slot call that yields relation `r`'s kind with the subject removed (the first position a
@@ -75,28 +75,33 @@ budget, and silently drops overlapping candidates (V1-0114, V1-0116). `countTerm
   20, recording recall@5/10/20, MRR and the gold rank buckets. An ordering that loses recall@20
   on any subset fails the gate and MUST stay opt-in or be removed; the failed reading MUST be
   recorded as a failed evaluation. Promotion to default needs its own owner decision.
-- `CRK-V0-009`: (proposed 2026-11-01, not accepted; V1-0114) With `CORVINT_CONTEXT_SPANS=hits`
+- `CRK-V0-009`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V0-2221; TCP-V0-2222; V1-0114; V1-0116; V1-0219) (proposed 2026-11-01, not accepted; V1-0114) With `CORVINT_CONTEXT_SPANS=hits`
   (or `merged`) each span row MUST carry `hit_start_line` and `hit_end_line`, the matched range the
   span grew from: the declaring line for a definition span, the matched line for an enclosing or
   window span, and the call line for a call site. Removing those two members MUST give the `on`
   packet byte for byte when no fallback applies. `on` MUST be unchanged.
-- `CRK-V0-010`: (proposed 2026-11-01, not accepted; V1-0114) Under `hits` and `merged`, a
+- `CRK-V0-010`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V0-2221; TCP-V0-2222; V1-0114; V1-0116; V1-0219) (proposed 2026-11-01, not accepted; V1-0114) Under `hits` and `merged`, a
   declaration clipped to the 80-line span cap MUST say so in its reason; a hit that lies inside a
   declaration but past its clip MUST return the hit window (radius 5, clamped to the file) with a
   reason naming the declaration and its length; and a span that would overrun the remaining line
   budget MUST fall back to its hit window, with a reason, when that window is smaller and fits,
   else be counted omitted as under `on`. No span crosses a file boundary.
-- `CRK-V0-011`: (proposed 2026-11-01, not accepted; V1-0116) Under `merged`, a candidate span
+- `CRK-V0-011`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V0-2221; TCP-V0-2222; V1-0114; V1-0116; V1-0219) (proposed 2026-11-01, not accepted; V1-0116) Under `merged`, a candidate span
   that overlaps or is adjacent to selected spans of the same path MUST be folded with them,
   transitively, into one row at the earliest joined position, keeping the head's role, symbol,
   reason, authority and the union of hit ranges, when the union is at most 80 lines and fits the
   budget; the row MUST list each other contributor in `merged_from` with its role, symbol, range,
   reason and hit range. `mergeSpans` MUST be a pure, deterministic function of the selected spans
   and the candidate, and leave the other rows' order unchanged.
-- `CRK-V0-012`: (proposed 2026-11-01, not accepted; V1-0114, V1-0116) Each span mode MUST be read
+- `CRK-V0-012`: (amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V0-2221; TCP-V0-2222; V1-0114; V1-0116; V1-0219) (proposed 2026-11-01, not accepted; V1-0114, V1-0116) Each span mode MUST be read
   on the same frozen subsets, recording frozen file recall, packet bytes, span rows, lines used and
   a lane diagnostic of gold-span line coverage against each sample's `gold_spans`. A mode whose
   packet bytes rise or whose recall falls against `on` MUST stay opt-in.
+
+The owner-authorized follow-up TCP-V0-2220..2223 in `task-context-packet-v0.md` governs the
+`hits`, `merged` and RRF amendments to CRK-V0-004 and CRK-V0-009..012: exact-hit fallback,
+pre-budget coalescing with compact slot provenance, and RRF over fixed final membership. Earlier
+failed readings remain historical evidence; they are not promotion evidence for the amended modes.
 
 ## Non-goals
 

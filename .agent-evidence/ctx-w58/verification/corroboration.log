@@ -1,0 +1,4 @@
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: slot 1/8 after 0s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=39.5s rc=0

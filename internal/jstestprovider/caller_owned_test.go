@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -16,6 +17,9 @@ import (
 // that it ran; the caller-owned app is the given loopback server.
 func callerOwnedConfig(t *testing.T, readyURL string) (E2EConfig, string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake Playwright runner is a POSIX shell script (ASD-V0-2230; V1-2491)")
+	}
 	dir := t.TempDir()
 	for _, name := range []string{"new.spec.js", "playwright.config.js", "package.json", "package-lock.json"} {
 		writeFile(t, filepath.Join(dir, name), "{}\n")

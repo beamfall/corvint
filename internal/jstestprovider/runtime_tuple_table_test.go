@@ -27,9 +27,7 @@ func TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable(t *testing.T) {
 		t.Fatal("freshness admitted a tuple without a live freshness run")
 	}
 	current := func(r Receipt) string { return ReceiptTestProjection(r, r.Tests[0]).Freshness.State }
-	if got := current(freshFixture(t)); got != testvalidity.FreshnessCurrent {
-		t.Fatalf("admitted freshness row read %s", got)
-	}
+	requireFreshCurrent(t, current(freshFixture(t)), "admitted freshness row")
 	onNode := func(node string) Receipt {
 		r := freshFixture(t)
 		r.Identity.NodeVersion = node
@@ -44,9 +42,7 @@ func TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable(t *testing.T) {
 	saved := admittedRuntimeTuples
 	t.Cleanup(func() { admittedRuntimeTuples = saved })
 	admittedRuntimeTuples = append(slices.Clone(saved), admittedRuntimeTuple{FreshnessProfile, "1.63.0", qualifiedNodeVersion, BrowserSourceBundled})
-	if got := current(onNode(qualifiedNodeVersion)); got != testvalidity.FreshnessCurrent {
-		t.Fatalf("freshness did not admit from the shared table: %s", got)
-	}
+	requireFreshCurrent(t, current(onNode(qualifiedNodeVersion)), "freshness admitted from the shared table")
 	admittedRuntimeTuples = slices.DeleteFunc(slices.Clone(saved), func(row admittedRuntimeTuple) bool {
 		return row.profile == ExternalProfile && row.runner == "1.64.0" && row.node == admittedBundledNodeVersion
 	})

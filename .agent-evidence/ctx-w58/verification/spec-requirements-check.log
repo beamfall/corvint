@@ -1,0 +1,31 @@
+docs/specs/affected-plan-v0.md: warning: its ## Requirements section holds 254 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/corvint-self-development-v0.md: warning: its ## Requirements section holds 244 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/corvint-tasks-agent-leases-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/daily-change-evidence-workflow-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/documentation-corpus-v1.md: warning: its ## Requirements section holds 256 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' script/heavy.sh script/heavy.sh env -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/specindex
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=3d8f1b5118ec3d4b7692297723797d85b1f6e1fd dirty=59
+heavy.sh: slot 2/8 after 0s
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=3d8f1b5118ec3d4b7692297723797d85b1f6e1fd dirty=59
+heavy.sh: slot 2.inner/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/specindex	1.206s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=1.5s rc=0
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=1.9s rc=0
+HEAVY_CLASS=light script/heavy.sh script/heavy.sh env -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES GOTOOLCHAIN=local go test -count=1 -timeout 30m -run '^(TestSpecsStayWithinTheOCMObligationBound$|Test[A-Za-z0-9]*Specs?Enumerat)' ./internal/lrfrepo
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/lrfrepo/stable_reuse_change_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=3d8f1b5118ec3d4b7692297723797d85b1f6e1fd dirty=59
+heavy.sh: light slot 1/2 after 0s
+heavy.sh: script sha256=a2d917759545360e2856ddeac9118a6e6b5a65a1c35d1c7998fb51ee5e4b7081 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/lrfrepo/stable_reuse_change_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 5d1ed52b17d61147bd8c04b08afa6da39fa80afb tree=3d8f1b5118ec3d4b7692297723797d85b1f6e1fd dirty=59
+heavy.sh: light slot 1.inner/2 after 0s
+ok  	github.com/Beamfall/corvint/internal/lrfrepo	0.088s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=0.5s rc=0
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=1.0s rc=0

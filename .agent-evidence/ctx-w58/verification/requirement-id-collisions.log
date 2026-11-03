@@ -1,0 +1,12 @@
+requirement-id-collisions: NOTE claude/lane-cir-w35-1101 (f07f2b784718) is contained in another scanned head; skipped
+requirement-id-collisions: NOTE claude/lane-dgr-u29-rb-a45 (88e92c0473da) is contained in another scanned head; skipped
+requirement-id-collisions: NOTE claude/lane-hst-m27-1101 (a108e8a66246) is contained in another scanned head; skipped
+requirement-id-collisions: NOTE claude/lane-sad-m34-1101 (021352966064) is contained in another scanned head; skipped
+requirement-id-collisions: NOTE claude/lane-sel-w14-1101 (b9027ad65ec5) is contained in another scanned head; skipped
+requirement-id-collisions: NOTE /home/russell/projects/corvint-lanes/b1101d-probe (28c327581360) is contained in another scanned head; skipped
+docs/specs/affected-plan-v0.md: warning: its ## Requirements section holds 254 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/corvint-self-development-v0.md: warning: its ## Requirements section holds 244 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/corvint-tasks-agent-leases-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/daily-change-evidence-workflow-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+docs/specs/documentation-corpus-v1.md: warning: its ## Requirements section holds 256 of the 256 obligations `ocm prepare` admits; define new requirements in a companion spec with its own requirement prefix, never in the frozen Intent status header (SRG-V0-980) (SRG-V0-740)
+no-collision 4 new IDs here, 42 open refs not yet in origin/main

@@ -4,6 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { EventEmitter } = require('node:events');
 const { extend, _internal } = require('./route-stubs.cjs');
 
@@ -216,9 +217,24 @@ test('long patterns are clipped inside the bound and stack frames resolve', () =
   assert.ok(Buffer.byteLength(clipped) <= 1024 && clipped.endsWith('...'));
   assert.equal(clip('a\u0000b'), 'a�b');
   assert.deepEqual(frameLocation('    at Object.<anonymous> (/tmp/x y/spec.ts:12:5)'), { file: '/tmp/x y/spec.ts', line: 12 });
-  assert.deepEqual(frameLocation(`    at ${new URL('file:///tmp/spec.mjs')}:7:1`), { file: path.resolve('/tmp/spec.mjs'), line: 7 });
+  // ASD-V0-2237: the ESM frame URL is built from the host-absolute path, file:///tmp/spec.mjs off
+  // Windows and file:///C:/tmp/spec.mjs there; a drive-less file URL is not a Windows path.
+  assert.deepEqual(frameLocation(`    at ${pathToFileURL(path.resolve('/tmp/spec.mjs'))}:7:1`), { file: path.resolve('/tmp/spec.mjs'), line: 7 });
   assert.equal(frameLocation('    at node:internal/process/task_queues:95:5'), null);
   assert.deepEqual(frameLocation('    at async /tmp/spec.cjs:9:3'), { file: '/tmp/spec.cjs', line: 9 });
+});
+
+// ASD-V0-2237: a drive-letter frame is a call site only where it is host-absolute. Native Windows
+// resolves both V8 frame shapes; elsewhere the backslash path is relative and names no call site.
+test('drive-letter stack frames resolve only on Windows', () => {
+  const { frameLocation } = _internal;
+  const cjs = frameLocation('    at Object.<anonymous> (C:\\tmp\\x y\\spec.ts:12:5)');
+  if (process.platform !== 'win32') {
+    assert.equal(cjs, null);
+    return;
+  }
+  assert.deepEqual(cjs, { file: 'C:\\tmp\\x y\\spec.ts', line: 12 });
+  assert.deepEqual(frameLocation('    at file:///C:/tmp/spec.mjs:7:1'), { file: 'C:\\tmp\\spec.mjs', line: 7 });
 });
 
 // LPCV-V0-076: contexts the test creates, routeWebSocket and routeFromHAR.
