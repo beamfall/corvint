@@ -8055,6 +8055,8 @@ ASD-V0-2233	docs/specs/windows-test-portability-v0.md	(accepted under the owner'
 ASD-V0-2234	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
 ASD-V0-2235	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
 ASD-V0-2236	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2237	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
+ASD-V0-2238	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)	standing	2026-10-11
 WQO-V0-001	docs/specs/work-queue-observation-v0.md	Every V0 document and nested record MUST implement the exact closed registry in	unrecorded	-
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv	unrecorded	-
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	The only authority root is target-tree regular `100644` blob	unrecorded	-

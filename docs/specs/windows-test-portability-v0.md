@@ -10,7 +10,7 @@ Authoritative inputs: owner lane win-w59 request for V1-2491 and V1-2492;
 ## Agent digest
 - Claim: Native Windows test fixtures distinguish POSIX assumptions from portable assertions and bound the corpus transport and dependency-observer regressions.
 - Status: accepted/experimental
-- Exists: explicit POSIX fixture skips, Windows temporary-directory selection, bounded MCP test pipes, an isolated dependency-observer regression, host-absolute receipt fixtures and exact platform-refusal skips.
+- Exists: explicit POSIX fixture skips, Windows temporary-directory selection, bounded MCP test pipes, an isolated dependency-observer regression, host-absolute receipt, stack-frame and preflight fixtures and exact platform-refusal skips.
 - Blocked on: operator native Windows qualification and independent review; no Windows product-support claim.
 - Read next: Requirements; Evidence and qualification; Boundaries and rollback.
 
@@ -80,6 +80,18 @@ cancelled. Server-exit pipe cleanup alone does not cover a server that remains r
   The corpus MCP batch-frame test MUST still build its corpus on native Windows. It skips only when
   `doccorpus.ReadCorpusFile` returns the listed docs-corpus refusal of decision 0559. That refusal
   is probed before `corpusbridge.New`, because the bridge folds it into `corpus-unavailable`.
+- `ASD-V0-2237`: (accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)
+  The route-stubs producer unit MUST build its ESM stack-frame fixture from the host-absolute
+  path with `pathToFileURL`: the drive-less `file:///tmp/spec.mjs` off Windows, unchanged, and a
+  drive-letter file URL on Windows, where a drive-less file URL names no path. Drive-letter V8
+  frames, both `C:\...` and `file:///C:/...`, MUST resolve to their file and line on native Windows.
+  Elsewhere the backslash `C:\...` frame MUST name no call site, because it is not host-absolute.
+  The producer's frame parsing stays unchanged.
+- `ASD-V0-2238`: (accepted under the owner's standing auto-accept (2026-10-11); win-w59 W5)
+  The preflight declaration test's absolute storage-state case MUST use a host-absolute path
+  (`hostAbs`): `/etc/state.json` off Windows, unchanged, and `C:\etc\state.json` on Windows, where
+  the rooted POSIX form is not `filepath.IsAbs`. It MUST still refuse
+  `preflight-declaration-invalid` on every host. Production preflight validation stays unchanged.
 
 ## Evidence and qualification
 
@@ -92,6 +104,8 @@ cancelled. Server-exit pipe cleanup alone does not cover a server that remains r
 | ASD-V0-2234 | `skipWindowsProcessRefusal` in `TestApplicationAttestationCommandProvider` (after preparation), `TestObserveTestRepositoryIgnoresAmbientGitRedirects`, `TestObserveTestRepositoryAtStart`, `TestObserveTestRepositoryIgnoresGrafts_EEPV0771`, and the `passing`, `http-declared-status` and `command-*` subtests of `TestPWPV0091PreflightProbesRunInOrderAndStopAtFirstFailure`; refusal covered by `internal/procgroup` `TestRunPlatformRefusalIsTheSentinel`. |
 | ASD-V0-2235 | `requireFreshCurrent` and `TestASDV02235FreshnessFailsClosedOnWindows`; used by `TestPTFV0ObservedCurrency`, `TestV10689BoundedWitnessFreshnessCodec`, `TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable`, `TestPWPV0050OneTupleAdmitsExternalAndFreshness`; `TestPTFV0ClosedCodec/projection` Windows skip. |
 | ASD-V0-2236 | `cmd/corvint-corpus-mcp/main_test.go`: `TestDCPV1145BatchFitsOneFrame` reader probe with `testplatform.SkipWindowsRefusal`; refusal covered by `TestASDV02231CorpusWindowsRefusal`. |
+| ASD-V0-2237 | `internal/jstestprovider/route-stubs_test.cjs`: `long patterns are clipped inside the bound and stack frames resolve` and `drive-letter stack frames resolve only on Windows`, run by `TestLPCVV0072ProducerNodeUnit`. |
+| ASD-V0-2238 | `internal/jstestprovider/preflight_test.go`: `TestPWPV0090PreflightDeclarationValidation/absolute-state` with `hostAbs`. |
 
 The build-log entry `2026-11-03-win-w59-windows-test-portability.md` and root
 `win-w59.handback.md` retain exact commands, results, the listed-test inventory, uncertainty and
@@ -102,7 +116,9 @@ attribution remains NOT_OBSERVED unless the operator supplies the retained stack
 native W5 run failed. Its keep-reporters panic aborted the rest of the jstestprovider package, so
 tests in files after `keep_reporters_qualification_test.go` remain NOT_OBSERVED on Windows until
 a W5 rerun. ASD-V0-2233..2236 are inferred from code and that run's output, not from a passing
-native run.
+native run. The W5 rerun at `606e61fb8` failed only `TestPWPV0090PreflightDeclarationValidation`
+and `TestLPCVV0072ProducerNodeUnit`. ASD-V0-2237..2238 are inferred from that output and the Node
+win32 URL rules. Their Windows branches remain NOT_OBSERVED until a native run.
 
 ## Boundaries and rollback
 

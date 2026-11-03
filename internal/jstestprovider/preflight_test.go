@@ -86,7 +86,8 @@ func TestPWPV0090PreflightDeclarationValidation(t *testing.T) {
 		"no-argv":        func(d map[string]any) { d["probes"].([]map[string]any)[1]["argv"] = []string{} },
 		"absent-argv":    func(d map[string]any) { delete(d["probes"].([]map[string]any)[1], "argv") },
 		"escaping-state": func(d map[string]any) { d["probes"].([]map[string]any)[2]["file"] = "../outside.json" },
-		"absolute-state": func(d map[string]any) { d["probes"].([]map[string]any)[2]["file"] = "/etc/state.json" },
+		// ASD-V0-2238: host-absolute, so /etc/state.json off Windows and C:\etc\state.json there.
+		"absolute-state": func(d map[string]any) { d["probes"].([]map[string]any)[2]["file"] = hostAbs("/etc/state.json") },
 		"negative-valid": func(d map[string]any) { d["probes"].([]map[string]any)[2]["minValidSeconds"] = -1 },
 		"secret-shaped": func(d map[string]any) {
 			d["probes"].([]map[string]any)[1]["argv"] = []string{"seed", "--password=hunter2hunter2"}

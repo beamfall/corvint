@@ -124,6 +124,31 @@ upstream. Linux full-package runs of all four touched packages passed, as did ta
 panic stay NOT_OBSERVED, including possible `os.Symlink` privilege failures. Full commands and
 results: `win-w59.fix-handback.md`.
 
+## W5 rerun repair (ASD-V0-2237..2238)
+
+The native W5 rerun at `606e61fb8` failed two tests. As before, each cause below is inferred from
+code and the retained output; it was not run on native Windows.
+
+- Route-stubs frame fixture (ASD-V0-2237). The unit built its ESM frame as
+  `file:///tmp/spec.mjs`. On win32, `fileURLToPath` throws `ERR_INVALID_FILE_URL_PATH` for a
+  drive-less file URL, so `frameLocation` returned `null`. This was confirmed with Node's
+  `{ windows: true }` URL mode. That URL is not a frame V8 emits on Windows. Real Windows frames
+  (`C:\...:L:C` and `file:///C:/...:L:C`) parse, because the greedy `(.*):(\d+):\d+$` keeps the
+  drive colon and win32 `path.isAbsolute` admits the result. This is a fixture defect, not a
+  producer bug. The fixture now uses `pathToFileURL(path.resolve(...))`, which gives the same URL
+  bytes off Windows. A new case pins the drive-letter frames: both shapes resolve on Windows, and
+  the backslash frame names no call site elsewhere. (Off Windows, `file:///C:/...` decodes to the
+  POSIX path `/C:/...`, which V8 never emits there.)
+- Preflight absolute state file (ASD-V0-2238). On Windows, `/etc/state.json` is rooted but not
+  `filepath.IsAbs`, so the declaration passed validation. The case now uses
+  `hostAbs("/etc/state.json")`, unchanged off Windows.
+
+Finding for the orchestrator (production; not fixed here): on Windows, the storage-state check
+(`preflight.go:225`) admits a rooted `\x` path and then joins it under `--dir`. It also admits a
+drive-relative `C:x` path and reserved device names. `filepath.IsLocal` would refuse all three
+and behaves the same on POSIX. Whether `C:x` or `NUL` can reach outside `--dir` was not tested.
+Commands and results: `win-w59.fix2-handback.md`.
+
 ## Rollback
 
 Revert the task's test changes and the companion/index rows. Keep the pre-existing production
