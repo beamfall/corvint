@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -53,9 +54,7 @@ func TestPWPV0050OneTupleAdmitsExternalAndFreshness(t *testing.T) {
 		t.Fatalf("external receipt on the shared tuple read %s", got)
 	}
 	current := func(r Receipt) string { return ReceiptTestProjection(r, r.Tests[0]).Freshness.State }
-	if got := current(fresh164Fixture(t, qualifiedNodeVersion)); got != testvalidity.FreshnessCurrent {
-		t.Fatalf("freshness on the shared tuple read %s", got)
-	}
+	requireFreshCurrent(t, current(fresh164Fixture(t, qualifiedNodeVersion)), "freshness on the shared tuple")
 	if got := current(fresh164Fixture(t, admittedBundledNodeVersion)); got != testvalidity.FreshnessUnknown {
 		t.Fatalf("freshness on 1.64.0/v24.11.1 without a live run read %s", got)
 	}
@@ -108,11 +107,18 @@ func TestPWPV0051FreshCommandExecutableStreamDigest(t *testing.T) {
 	if got, err := digestBoundedRegularFile(small, freshCommandExecutableLimit); err != nil || got != sha256Hex([]byte("node")) {
 		t.Fatalf("small file digest %q %v", got, err)
 	}
+	refused := []string{dir, filepath.Join(dir, "missing")}
 	link := filepath.Join(dir, "link")
-	if err := os.Symlink(small, link); err != nil {
+	if err := os.Symlink(small, link); err == nil {
+		refused = append(refused, link)
+	} else if runtime.GOOS == "windows" {
+		// Creating a symlink needs a privilege native Windows may withhold; the directory and
+		// missing-path refusals still run (ASD-V0-2233).
+		t.Logf("symlink refusal NOT_RUN: %v", err)
+	} else {
 		t.Fatal(err)
 	}
-	for _, path := range []string{dir, link, filepath.Join(dir, "missing")} {
+	for _, path := range refused {
 		if _, err := digestBoundedRegularFile(path, freshCommandExecutableLimit); err == nil {
 			t.Fatalf("%s digested as a regular file", path)
 		}

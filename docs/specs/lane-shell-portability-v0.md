@@ -1,0 +1,48 @@
+# Lane Shell Portability V0
+
+Owner: Russell Lewis
+Date: 2026-11-03
+Intent status: accepted
+Delivery status: experimental
+Authoritative inputs: lane scr-w55 (V1-4319, V1-4333, V1-4334, V1-4335) and V1-2691 under the
+owner's standing auto-accept; `AGENTS.md`; `docs/SPEC-DRIVEN-DEVELOPMENT.md`.
+
+## Agent digest
+- Claim: Lane shell scripts stay portable to Bash 3.2, BWK awk and Make 3.81, keep offload scratch and caches on disk, and sweep only their own stale temp dirs.
+- Status: accepted/experimental
+- Exists: the Bash 3.2 lint rules, lane-shell group selection and portability matrix, bounded failure excerpts, the operator temp sweep, and heavy.sh remote cache and scratch filtering.
+- Blocked on: independent review; live WSL cache migration remains a separate observation.
+- Read next: Requirements; Evidence and qualification; Boundaries and rollback.
+
+## User job and verified baseline
+
+This companion to `corvint-self-development-v0.md` holds the lane-shell requirements that would
+take that spec's Requirements section past its 256-obligation limit (SRG-V0-740). The IDs are
+unchanged from the lane that introduced them, under the existing ASD-V0 test-workflow prefix.
+
+## Requirements
+
+- `ASD-V0-2190`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The Bash 3.2 lint MUST refuse, naming file and line in `script/*_test.sh`, a bare `mktemp -d` with no template, string equality on an unstripped `wc -l` result, and GNU make options introduced after 3.81 (including `--eval`, `--trace`, `--output-sync`, `--shuffle`, `--jobserver-style`, `--guile`, `-O` and `-E`). Comments and explicitly marked negative fixtures MAY be excluded. Quoted commands passed to `sh -c` MUST also be checked. Numeric comparisons and explicit templates remain supported. The scanner MUST parse under BWK awk (macOS `/usr/bin/awk`), which ends a regex literal at the first unescaped slash even inside a bracket expression, so a slash in a bracket is written `\/`. Evidence: `script/check-bash32_test.sh` portability cases and its BWK regex-literal lexer check. Rollback: remove the added portability rules, retaining the Bash syntax rules.
+- `ASD-V0-2191`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The lane shell suite MUST give the same group results with or without a trailing slash on the caller's `TMPDIR`, and with neither, either or both `CORVINT_GOCACHE` and `GOCACHE` set. Fixtures MUST isolate their own temporary/cache state without cleaning caller caches. Evidence: `script/lane-scripts_test.sh` named group `portability`, eight real child runs of `portability-probe`. Rollback: revert fixture isolation and retain the failing matrix.
+- `ASD-V0-2192`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SCRIPTS_GROUPS` MUST select only the named lane-shell groups (space-separated names); unset or empty runs all groups. Unknown names MUST refuse with exit 2 before running fixtures. Shared fixture setup MAY run without another group's assertions, and every named group MUST pass when selected alone: a fixture, helper or constant another group uses MUST be set up outside any one group's assertions. A run whose failure ledger vanished MUST refuse (exit 2), never report a pass. Numeric failure IDs and aggregate failure reporting MUST remain stable. Evidence: `script/lane-scripts_test.sh` named group `portability`, focused group invocations (each name alone), the lost-ledger self-test and the complete suite. Rollback: remove selection and run the complete suite.
+- `ASD-V0-2193`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4334) Lane-shell failure excerpts MUST remove heavy wrapper header lines before truncating to their existing bound, preserving the underlying diagnostic and refusal lines. The group-32 leak fixture MUST remove its `leak.*` directories on exit, including failure, adding owner write permission before removal; the enclosing fixture cleanup MUST also cover signal-killed jobs. Evidence: `script/lane-scripts_test.sh` named groups `portability` and `admission`, long-header excerpt self-test and private-TMPDIR timeout/cap cases. Rollback: retain full failure logs and the encompassing private-root cleanup.
+- `ASD-V0-2194`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4319) `script/lane-tmp-sweep.sh` MUST default to a dry run and remove only caller-owned immediate directories matching `corvint-<name>-test.<six letters/digits/underscores>` or `heavy-run.<six letters/digits/underscores>` under an explicit temp root (default caller `TMPDIR`, else `/tmp`), with all contents older than 24 hours. Fresh, symlinked, foreign-owned, unreadable or observed in-use content MUST be kept; unavailable process/open-file inspection MUST keep every candidate. `--apply` MUST recheck recency and use before removing, adding owner directory permissions as needed. It MUST never sweep other temp content, Go caches or heavy lock directories. Lane-host documentation MUST show dry-run and explicit apply commands and the race limit. Evidence: `script/lane-scripts_test.sh` named group `sweep`. Non-goal: surviving a KILL of heavy.sh itself; `ASD-V0-734` still owns per-job cleanup. Rollback: stop invoking the operator sweep.
+- `ASD-V0-2120`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2691) Before a Linux offload runs, `script/heavy.sh` MUST check the filesystem type of both `GOCACHE` and `CORVINT_GOCACHE`, including remote environment-file overrides and symlink targets. A tmpfs or ramfs cache MUST move to the remote `$HOME/.cache/corvint-go-build-cache`; when that fallback is also RAM-backed or its type cannot be checked, the remote MUST refuse as unavailable (97) before executing the command and name an environment-file disk-path repair. Caller cache assignments MUST NOT override this decision, including `make windows-vet CORVINT_GOCACHE=...`. Help MUST describe the policy. Acceptance: the foreground host-environment mode of `script/lane-scripts_test.sh` covers Go and windows-vet, a disk override, symlinks and unavailable fallback, and the default suite repeats it from a simulated Darwin caller against a simulated Linux remote. Fixtures MUST stay hermetic: the default suite's offload groups model the fake remote's file systems as disk (a `stat` stub on its PATH, since their remote HOME lies under the run's TMPDIR, which is tmpfs on WSL), and the host-environment mode uses a fixed, never-contacted origin URL, so no result depends on the host's `/tmp` file system, its CI state or how the checkout was cloned. Non-goals: trimming or deleting existing shared caches, changing local admission policy, or promising a bound on disk-backed caches. Rollback: revert this requirement's cache check and corresponding fixtures together.
+- `ASD-V0-2121`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4335, V1-2691) An offloaded command MUST retain host-local scratch: caller `TMPDIR` and `GOTMPDIR` assignment words MUST NOT override the remote per-run `TMPDIR` and remote-selected `GOTMPDIR`, including leading assignment, `env` and Makefile forms; a Makefile assignment is dropped in every operator form Make applies (`=`, `:=`, `::=`, `:::=`, `+=`, `?=`, `!=`, with blanks allowed around the name and operator), as are caller `GOCACHE`, `CORVINT_GOCACHE` and `GOMODCACHE` words. The command's TMPDIR is the remote per-run directory, or the private `heavy-run.*` directory that heavy.sh creates inside it for the command (V1-4319, on origin/main), and its GOTMPDIR is the per-run directory unless the remote selects another. The normal remote EXIT cleanup MUST remove its per-run directory with test-helper `Test*` leftovers on command success and failure, including unwritable subtrees. Acceptance: `script/lane-scripts_test.sh --heavy-host-env-only` forwards a non-existent Mac-style directory, observes the command's actual environment, refuses any assignment word that reaches the stub make, and checks cleanup after success and a nonzero command status. Non-goals: cleaning pre-existing unowned `/tmp/Test*` directories, surviving SIGKILL, or changing local scratch selection. Failure to establish remote scratch retains the existing unavailable-offload result. Rollback: revert assignment filtering and fixtures together.
+
+## Evidence and qualification
+
+| Requirement | Implementation / executable evidence |
+|---|---|
+| ASD-V0-2190 | `script/check-bash32_test.sh` portability cases and its BWK regex-literal lexer check. |
+| ASD-V0-2191 | `script/lane-scripts_test.sh` named group `portability`, eight child runs of `portability-probe`. |
+| ASD-V0-2192 | `script/lane-scripts_test.sh` group `portability`, each group selected alone, and the lost-ledger self-test. |
+| ASD-V0-2193 | `script/lane-scripts_test.sh` groups `portability` and `admission`. |
+| ASD-V0-2194 | `script/lane-scripts_test.sh` group `sweep`. |
+| ASD-V0-2120, ASD-V0-2121 | `script/heavy.sh` remote cache checks and assignment filtering; `bash script/lane-scripts_test.sh --heavy-host-env-only` exercises the real payload/serve/slot/EXIT path with isolated clones and stub Go/make commands. Host filesystem types (in this mode and, as disk, in the default offload groups), and the remote's Linux `uname`/`timeout`, are simulated; live WSL cache migration and pre-existing helper-leak inventory remain separate observations. |
+
+## Boundaries and rollback
+
+Only lane shell scripts, their fixtures and this contract change; no product behavior or completion
+authority changes. Each requirement names its own rollback. Rollback of the whole companion
+reverts those scripts and fixtures together and removes this spec's generated rows.

@@ -75,8 +75,9 @@ func (coverage *changeCoverage) summaryFields() []string {
 		"change-untraced=" + strconv.Itoa(coverage.requirements-coverage.linked)}
 }
 
-// requirementLine is the frozen OCM requirement-line syntax (OCM-V0-001).
-var requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3})[.:]\\*\\*[ ])")
+// requirementLine is the OCM requirement-line syntax (OCM-V0-001, with the
+// three-or-more-digit number of OCM-V0-952).
+var requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})[.:]\\*\\*[ ])")
 
 // requirementItem is one requirement of a blob's `## Requirements` section:
 // its lines [first, end) (zero-based) and bytes [start, stop).

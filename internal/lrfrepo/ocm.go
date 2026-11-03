@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	requirementID = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}$`)
+	requirementID = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}$`) // OCM-V0-952: three or more digits
 	claimID       = regexp.MustCompile(`^claim:sha256:[0-9a-f]{64}$`)
 	hunkID        = regexp.MustCompile(`^hunk:sha256:[0-9a-f]{64}$`)
 	unknownReason = map[string]bool{

@@ -8,7 +8,9 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-var obligationIDPattern = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}$`)
+// obligationIDPattern accepts every OCM obligation ID (OCM-V0-952: three or
+// more digits). The term-scan ID grammar of rule 4 stays three digits (decision 0265).
+var obligationIDPattern = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}$`)
 
 func requirementBody(statement []byte, obligationID string) ([]byte, error) {
 	prefix := []byte("- `" + obligationID + "`: ")

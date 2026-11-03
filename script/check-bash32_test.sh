@@ -206,3 +206,92 @@ absent 'heavy.sh' "$tmp/out"
 /bin/rm -f "$repo/bad.sh" "$repo/loose.sh" "$repo/script/heavy.sh"
 
 echo 'check-bash32_test: PASS'
+
+# ASD-V0-2190 (V1-4333): test-script portability refusals, including quoted sh -c commands.
+# Split the negative spellings so this test never exempts an executable portability mistake.
+mkdir -p "$repo/script"
+for row in \
+  'mktemp-template|d=$(mk''temp -d)' \
+  'mktemp-template|d=$(mk''temp -d 2>/dev/null)' \
+  "mktemp-template|sh -c 'mk""temp -d'" \
+  'wc-equality|[[ $(wc -''l < f) == 1 ]]' \
+  'wc-equality|[[ 1 == $(wc -''l < f) ]]' \
+  'wc-equality|[[ "$(wc -''l < f)" == 1 ]]' \
+  'wc-equality|[ "$(wc -''l < f)" = 1 ]' \
+  'wc-equality|[ 1 = "$(wc -''l < f)" ]' \
+  'wc-equality|test "$(wc -''l < f)" = 1' \
+  'make-3.81-options|make --ev''al="x: ; true"' \
+  'make-3.81-options|make --tr''ace x' \
+  "make-3.81-options|make '--tr""ace' x" \
+  'make-3.81-options|make -''Otarget x' \
+  'make-3.81-options|make -''E "x: ; true"' \
+  'make-3.81-options|make --output-''sync=target x'; do
+  label=${row%%|*} text=${row#*|}
+  printf '#!/bin/bash\n%s\n' "$text" > "$repo/script/portable_test.sh"
+  if run_gate; then fail "portability construct passed: $text"; fi
+  expect "FAIL $label script/portable_test.sh:2:" "$tmp/out"
+done
+printf '#!/bin/bash\n%s\n' \
+  'd=$(mktemp -d "$TMPDIR/fixture.XXXXXX")' \
+  '[[ $(wc -l < f | tr -d "[:space:]") == 1 ]]' \
+  '[[ $(wc -l < f) -eq 1 ]]' \
+  '(( $(wc -l < f) == 4 ))' \
+  'make -f Makefile -f extra.mk x' \
+  '# mk''temp -d; make --ev''al=x; [[ $(wc -''l < f) == 1 ]]' \
+  'mk''temp -d # bash32: allow' > "$repo/script/portable_test.sh"
+run_gate || { cat "$tmp/out" >&2; fail 'portable test forms refused'; }
+echo 'check-bash32_test: portable test rules passed'
+
+# ASD-V0-2190: BWK awk (macOS /usr/bin/awk) ends a regex literal at the first unescaped slash, even
+# inside a bracket expression, so the scanner writes [^\/], never [^/]; gawk and mawk accept both.
+# This lexes the scanner program as BWK does and refuses a literal that leaves a bracket open.
+bwk_regex_check() { # bwk_regex_check FILE -> the open literals; status 1 when there are any
+  sed -n "/^prog='\$/,/^}'\$/p" "$1" | awk '
+  function closed(re,   j, k, m, c) {
+    m = length(re)
+    for (j = 1; j <= m; j++) {
+      c = substr(re, j, 1)
+      if (c == "\\") { j++; continue }
+      if (c != "[") continue
+      j++; if (substr(re, j, 1) == "^") j++; if (substr(re, j, 1) == "]") j++
+      for (; j <= m; j++) {
+        c = substr(re, j, 1)
+        if (c == "\\") { j++; continue }
+        if (c == "[" && substr(re, j + 1, 1) == ":") { k = index(substr(re, j + 2), ":]"); if (!k) return 0; j += k + 2; continue }
+        if (c == "]") break
+      }
+      if (j > m) return 0
+    }
+    return 1
+  }
+  {
+    n = length($0); prev = ""
+    for (i = 1; i <= n; i++) {
+      c = substr($0, i, 1)
+      if (c == "\"") { for (i++; i <= n && substr($0, i, 1) != "\""; i++) if (substr($0, i, 1) == "\\") i++; prev = c; continue }
+      if (c == "#") break
+      if (c == "/" && (prev == "" || index("~(,!{;&|", prev))) {
+        re = ""
+        for (i++; i <= n && (c = substr($0, i, 1)) != "/"; i++) { if (c == "\\") { c = c substr($0, i + 1, 1); i++ } re = re c }
+        lits++
+        if (!closed(re)) { printf "line %d: /%s/\n", NR, re; bad++ }
+        prev = "/"; continue
+      }
+      if (c !~ /[[:space:]]/) prev = c
+    }
+  }
+  END { printf "literals %d\n", lits; exit bad > 0 }'
+}
+bwk_regex_check "$here/check-bash32.sh" > "$tmp/bwk" || { cat "$tmp/bwk" >&2; fail 'a scanner regex literal ends inside a bracket under BWK awk'; }
+[[ $(sed -n 's/^literals //p' "$tmp/bwk") -ge 25 ]] || fail "the BWK lexer read too few literals: $(cat "$tmp/bwk")"
+sed 's#\[^\\/\]\*_test#[^/]*_test#' "$here/check-bash32.sh" > "$tmp/unescaped.sh"
+! cmp -s "$here/check-bash32.sh" "$tmp/unescaped.sh" || fail 'the unescaped-slash probe did not change the scanner'
+if bwk_regex_check "$tmp/unescaped.sh" > "$tmp/bwk"; then fail 'the BWK lexer accepted an unescaped slash in a bracket'; fi
+expect '/^script\/[^/' "$tmp/bwk"
+# The escaped form keeps the meaning: a test script in a subdirectory is not a script/*_test.sh.
+mkdir -p "$repo/script/sub"
+/bin/rm -f "$repo/script/portable_test.sh"
+printf '#!/bin/bash\n%s\n' 'd=$(mk''temp -d)' > "$repo/script/sub/nested_test.sh"
+run_gate || { cat "$tmp/out" >&2; fail 'a nested test script got the script/*_test.sh portability rules'; }
+/bin/rm -rf "$repo/script/sub"
+echo 'check-bash32_test: BWK regex literals passed'
