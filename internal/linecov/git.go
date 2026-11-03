@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/parser"
 	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -113,7 +113,8 @@ func OIDs(ctx context.Context, root, rev string) (map[string]string, error) {
 }
 
 // HeadTests lists the top-level tests each package directory declares in the
-// working tree, honouring build constraints for the current platform.
+// working tree under any build constraint: CI may run with tags (-race) or on
+// a platform the selector does not, and an extra name only keeps a test.
 func HeadTests(root string, dirs []string) (map[string][]string, error) {
 	out := map[string][]string{}
 	for _, dir := range dirs {
@@ -130,9 +131,6 @@ func HeadTests(root string, dirs []string) (map[string][]string, error) {
 				continue
 			}
 			full := filepath.Join(root, filepath.FromSlash(dir))
-			if ok, err := build.Default.MatchFile(full, name); err != nil || !ok {
-				continue
-			}
 			fset := token.NewFileSet()
 			f, err := parser.ParseFile(fset, filepath.Join(full, name), nil, parser.SkipObjectResolution)
 			if err != nil {
@@ -147,6 +145,7 @@ func HeadTests(root string, dirs []string) (map[string][]string, error) {
 			}
 		}
 		sort.Strings(out[dir])
+		out[dir] = slices.Compact(out[dir])
 	}
 	return out, nil
 }
