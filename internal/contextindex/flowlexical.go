@@ -1,20 +1,21 @@
 package contextindex
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/langplugin/dialect"
+)
 
 // FlowCodeLines shares the native literal/comment masks with the bounded flow
 // producer. It preserves line/column positions; masked bytes are never facts.
-// Web interpolation and dynamic Ruby dispatch intentionally remain unresolved.
+// language is an impact dialect; its registered profile masks the text, and
+// any other language gets the web mask (LGP-V0-025). Web interpolation and
+// dynamic Ruby dispatch intentionally remain unresolved.
 func FlowCodeLines(language, text string) []string {
-	if language != "ruby" {
-		return strings.Split(flowWebMask(text), "\n")
+	if profile, ok := dialect.LookupImpact(language); ok {
+		return profile.CodeLines(text)
 	}
-	scanner := rubyScanner{}
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		lines[i] = scanner.scanLine(line)
-	}
-	return lines
+	return strings.Split(flowWebMask(text), "\n")
 }
 
 // flowWebMask additionally treats slash expressions conservatively and blanks

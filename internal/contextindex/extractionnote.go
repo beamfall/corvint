@@ -31,6 +31,9 @@ const (
 	// noteUnterminatedString: the file ended inside a multi-line string
 	// literal, with the same consequence for the lines it swallowed.
 	noteUnterminatedString = "file ends inside an unterminated string literal"
+	// noteExtractorUnavailable: the source's language plugin registered no
+	// symbol extractor in this binary, so no declaration was read (LGP-V0-026).
+	noteExtractorUnavailable = "no symbol extractor registered for this dialect; file not scanned"
 )
 
 // maxSymbolsPerSource bounds one file's contribution to the symbol table. The

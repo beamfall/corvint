@@ -73,15 +73,17 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 // internal/contextindex classifies Tasks store projection paths with it (V1-2068);
 // internal/clitree because internal/tasks/cli builds its command tree with it (V1-2685);
 // internal/langplugin/decl because internal/contextindex reads its language
-// dialects from it (LGP-V0-015).
+// dialects from it (LGP-V0-015); internal/langplugin/dialect and
+// internal/rubydialect because internal/contextindex runs the dialect hooks
+// the Ruby plugin registers there (LGP-V0-023, LGP-V0-025).
 var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
 
 var tasksExportPrefixes = []string{
 	"cmd/corvint-tasks/", "internal/tasks/",
 	"internal/cem/cemcode/", "internal/cem/gitrun/", "internal/clitree/",
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
-	"internal/langplugin/decl/", "internal/projectprofile/", "internal/pythongrammar/", "internal/pythonsyntax/",
-	"internal/rubyautoload/", "internal/runtimeenv/", "internal/secretscreen/", "internal/taskprojection/",
+	"internal/langplugin/decl/", "internal/langplugin/dialect/", "internal/projectprofile/", "internal/pythongrammar/",
+	"internal/pythonsyntax/", "internal/rubyautoload/", "internal/rubydialect/", "internal/runtimeenv/", "internal/secretscreen/", "internal/taskprojection/",
 	"internal/untrackedallowance/",
 }
 
