@@ -30,12 +30,35 @@ const affectedTierSummary = "tier0=%d tier1=%d tier2=%d"
 // unit, which every controller change reaches (RUBY-AFFECTED-V0-049). It
 // returns nil for an empty selection, so the member is then omitted.
 func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
+	return tierDeclaredSelections(selected, nil)
+}
+
+// tierAffectedPlan tiers a plan's selection, ranking in tier 0 every unit the
+// plan names in mustRun or declaredOwners whatever witness reached it first
+// (AFP-V0-2489).
+func tierAffectedPlan(plan affected.Plan) *affectedTiers {
+	declared := map[string]bool{}
+	for _, entry := range plan.MustRun {
+		declared[entry.UnitID] = true
+	}
+	for _, owner := range plan.DeclaredOwners {
+		declared[owner.UnitID] = true
+	}
+	return tierDeclaredSelections(plan.Selected, declared)
+}
+
+func tierDeclaredSelections(selected []affected.Selection, declared map[string]bool) *affectedTiers {
 	if len(selected) == 0 {
 		return nil
 	}
 	tiers := &affectedTiers{Units: make(map[string]int, len(selected))}
 	parents := map[string]bool{}
 	for _, selection := range selected {
+		// A declared unit is tier 0 whatever reached it first (AFP-V0-2489);
+		// only its witness decides whether it raises a neighbourhood.
+		if declared[selection.UnitID] {
+			tiers.Units[selection.UnitID] = 0
+		}
 		switch selection.Witness.Kind {
 		case affected.WitnessDirectSource, affected.WitnessDirectTest, affected.WitnessEnclosingPackage:
 			tiers.Units[selection.UnitID] = 0
@@ -44,6 +67,11 @@ func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
 			if strings.Contains(path.Dir(path.Dir(selection.Witness.DirtyPath)), "/") {
 				parents[affectedUnitParent(selection.UnitID)] = true
 			}
+		case affected.WitnessDeclaredTestOwner, affected.WitnessMustRun:
+			// The project declares these tests run for the change
+			// (AFP-V0-2485); the unit's location says nothing of the
+			// change, so it raises no neighbourhood.
+			tiers.Units[selection.UnitID] = 0
 		}
 	}
 	for _, selection := range selected {

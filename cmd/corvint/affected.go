@@ -133,6 +133,9 @@ type affectedInvocation struct {
 	Cache string
 	// NoCache turns off the default graph cache (AFP-V0-437).
 	NoCache bool
+	// FailFastOrder adds the compact plan's fail-fast order, read from the
+	// local `corvint test` receipts (AFP-V0-2487).
+	FailFastOrder bool
 	// Format is the --format value: "" or json writes the JSON document,
 	// text the affected-plan/1 projection as lines (AFP-V0-928).
 	Format string
@@ -329,7 +332,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--format", "--full", "--no-cache", "--require-clean", "--worktree"}
+	names := []string{"--fail-fast-order", "--format", "--full", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -392,6 +395,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
 			}
 			invocation.RequireClean = true
+			index++
+			continue
+		}
+		if rest[index] == "--fail-fast-order" || strings.HasPrefix(rest[index], "--fail-fast-order=") {
+			if invocation.FailFastOrder || rest[index] != "--fail-fast-order" {
+				return affectedInvocation{}, argumentError("argument --fail-fast-order: does not accept a value or repetition")
+			}
+			invocation.FailFastOrder = true
 			index++
 			continue
 		}
@@ -488,6 +499,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Summary && (invocation.Full || invocation.ByPath || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--summary writes the affected-summary/1 verdict and cannot be combined with --full, --by-path or --playwright-config")
+	}
+	if invocation.FailFastOrder && (invocation.Full || invocation.Summary || invocation.ByPath || invocation.Format == "text" || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--fail-fast-order adds an order to the affected-plan/1 JSON plan and cannot be combined with --full, --summary, --by-path, --format text or --playwright-config")
 	}
 	if invocation.ByPath && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.Full) {
 		return affectedInvocation{}, argumentError("--by-path requires --path or --paths-from and cannot be combined with --full")
@@ -821,6 +835,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if err == nil && !invocation.Full {
 		receipt, err = compactAffectedReceipt(receipt)
+	}
+	if err == nil && invocation.FailFastOrder {
+		receipt, err = affectedFailFastOrder(ctx, invocation.Root, receipt)
 	}
 	if err != nil {
 		emitError(stderr, err)

@@ -92,7 +92,8 @@ type Witness struct {
 	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
 	Cause *UnboundedCause `json:"cause,omitempty"`
 	// Glob is set on a PATH_GLOB_READER witness only: the unit's literal glob
-	// pattern that matches DirtyPath (AFP-V0-401).
+	// pattern that matches DirtyPath (AFP-V0-401), and on a
+	// DECLARED_TEST_OWNER witness: the owner pattern (AFP-V0-2482).
 	Glob string `json:"glob,omitempty"`
 	// link holds the chain by reference while the selector runs, in place of
 	// Via (V1-2979, AFP-V0-641); see via.go.
@@ -183,6 +184,14 @@ type Plan struct {
 	// (TSP-V0-942). It restates Unknown and never changes selection or
 	// scope; it is omitted when no frontier bears.
 	FrontierBearers []FrontierBearer `json:"frontierBearers,omitempty"`
+	// MustRun names every declared must-run unit the plan selects whatever
+	// reaches it, sorted by unit then entry (AFP-V0-2484). It is omitted
+	// when none is declared or nothing is dirty.
+	MustRun []MustRun `json:"mustRun,omitempty"`
+	// DeclaredOwners names every unit an owner pattern selects for the plan,
+	// whatever reached it first, sorted by unit then pattern (AFP-V0-2489).
+	// It is omitted when no owner matches a dirty path.
+	DeclaredOwners []DeclaredOwner `json:"declaredOwners,omitempty"`
 }
 
 // FrontierBearer is one source that made the frontier entry Detail bear on a
@@ -289,9 +298,14 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, documentation...)
 	runtimeReaders, unknown := graph.runtimeReaderPaths(unknown)
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
+	owned, unknown := graph.ownedPaths(unknown)
 	declaration, unknown := graph.declarationPath(unknown)
+	// AFP-V0-2488: an owner-declared path stays unowned for the frontier rules,
+	// so a declaration never removes a LANGUAGE_FRONTIER entry.
+	frontierNonSource := append(slices.Clip(plan.NonSource), declaration...)
+	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
+	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
@@ -299,6 +313,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
+	plan.MustRun = graph.mustRunOf(reached, normalized)
+	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
@@ -406,6 +422,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
+	graph.ownersOf(reached, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -982,7 +999,7 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner:
 		return true
 	}
 	return false
