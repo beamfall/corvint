@@ -60,6 +60,17 @@ entry sorted after `.git`. Decision: skip only a `.git` directory and pass over 
 Evidence: `TestWalkGrantedRootGitFile` fails on the first walk (the empty `zz` directory went
 unseen) and passes with the fix. A `.git` directory is the negative control.
 
+## Disabled for 1.0
+
+The owner capped this lane at round 5: a reuse rule no test this round proves sound must refuse.
+The new tests, like the earlier ones, ran on linux only, so nothing proves the walk, the raw
+byte checks, the filter case or the recheck on darwin or windows (case-insensitive paths,
+reparse points, executable bits, no FIFOs). Decision: `DigestPackage` refuses every package off
+linux (`DIGEST_ERROR` with `unproven-platform`, AFP-V0-2320). CI records and decides only on
+linux runners, so CI reuse is unchanged. Evidence: `TestUnprovenPlatformRuns` fails without the
+check (each platform was reused) and passes with it. The same record decided on linux is the
+negative control.
+
 ## Residuals
 
 The walk is POSIX-tested only: the fixtures use a shell filter, FIFOs and `os.ReadDir` over

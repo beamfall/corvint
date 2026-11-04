@@ -23,6 +23,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -118,6 +119,9 @@ const (
 	ErrorDeclarationBroken = "declaration-invalid"
 	// ErrorWorktreeBytes: a worktree file does not hold its blob's bytes.
 	ErrorWorktreeBytes = "worktree-bytes"
+	// ErrorUnprovenPlatform: the reuse rules are proven by tests only on
+	// linux, so no package is eligible on any other platform (AFP-V0-2320).
+	ErrorUnprovenPlatform = "unproven-platform"
 	// ErrorSnapshotDrift: the checkout changed during the observation.
 	ErrorSnapshotDrift = "snapshot-drift"
 )
@@ -275,6 +279,9 @@ type PackageDigest struct {
 }
 
 // DigestPackage computes the input-closure digest of package importPath over
+// reusePlatform is the platform DigestPackage checks; tests pin it.
+var reusePlatform = runtime.GOOS
+
 // snapshot (AFP-V0-2321) after the eligibility checks of AFP-V0-2320;
 // confine is the identity's Confine.
 func DigestPackage(snapshot *Snapshot, importPath, identityDigest, confine string) PackageDigest {
@@ -282,6 +289,9 @@ func DigestPackage(snapshot *Snapshot, importPath, identityDigest, confine strin
 	fail := func(reason, detail string) PackageDigest {
 		result.Reason, result.Detail = reason, detail
 		return result
+	}
+	if reusePlatform != "linux" {
+		return fail(ReasonDigestError, ErrorUnprovenPlatform+": reuse is proven only on linux, not "+reusePlatform)
 	}
 	if snapshot.DeclarationError != "" {
 		return fail(ReasonDigestError, snapshot.DeclarationError)

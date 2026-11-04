@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -27,6 +28,15 @@ func reuseFixtureWrite(t *testing.T, root string, files map[string]string) {
 	}
 }
 
+// skipUnprovenReusePlatform skips a test that expects reuse where the
+// digest refuses every package (unproven-platform, AFP-V0-2320).
+func skipUnprovenReusePlatform(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("test reuse refuses every package off linux")
+	}
+}
+
 func reuseFixtureCommit(t *testing.T, root, message string) string {
 	t.Helper()
 	materializationGit(t, root, "add", "-A")
@@ -39,6 +49,7 @@ func reuseFixtureCommit(t *testing.T, root, message string) string {
 // unrelated commit and runs it after a change to its scope, and the usage
 // refusals.
 func TestTestReuseCLI(t *testing.T) {
+	skipUnprovenReusePlatform(t)
 	t.Setenv("GOFLAGS", "")
 	t.Setenv("GOWORK", "off")
 	t.Setenv("GOAMD64", "v1")
@@ -141,6 +152,7 @@ func TestTestReuseCLI(t *testing.T) {
 // its digest unchanged, so the package must run (EXISTENCE_READER), and the
 // rerun fails; an undeclared sibling with unchanged inputs is still reused.
 func TestTestReuseExistenceReaderRuns(t *testing.T) {
+	skipUnprovenReusePlatform(t)
 	t.Setenv("GOFLAGS", "")
 	t.Setenv("GOWORK", "off")
 	t.Setenv("GOAMD64", "v1")
@@ -220,6 +232,7 @@ func TestTestReuseExistenceReaderRuns(t *testing.T) {
 // so must a rewritten confinement wrapper; the same decision without an edit
 // is the negative control.
 func TestTestReuseLateEditIsDrift(t *testing.T) {
+	skipUnprovenReusePlatform(t)
 	t.Setenv("GOFLAGS", "")
 	t.Setenv("GOWORK", "off")
 	t.Setenv("GOAMD64", "v1")
