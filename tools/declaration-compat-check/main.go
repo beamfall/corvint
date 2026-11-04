@@ -44,6 +44,7 @@ var closed = map[string][]string{
 
 // notPlanner lists the .corvint/*.json files no planner or selector reads.
 var notPlanner = map[string]string{
+	".corvint/ci-job-inputs.json":     "read by `corvint affected jobs` (internal/jobinputs) to decide CI jobs, never by the test planner or selector",
 	".corvint/dogfood-report.json":    "the dogfood run report",
 	".corvint/evidence-reach.json":    "read by `corvint runs` (internal/evidencereach), not by the planner",
 	".corvint/work-queue-policy.json": "the Tasks work-queue policy",

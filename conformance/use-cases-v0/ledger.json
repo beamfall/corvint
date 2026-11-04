@@ -221,7 +221,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
-          "sha256": "69d95ce77c4b6008244076ed4ec5b9fb2d113b828099840553ce55f3130cb543"
+          "sha256": "81811f25dff761602b414fe27a97282611d351a467e98b860ac2c7f6c1cb39ca"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-CHANGE-CONSEQUENCE.json",

@@ -446,6 +446,27 @@
     },
     {
       "path": [
+        "affected",
+        "jobs"
+      ],
+      "command": "corvint affected jobs",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]"
+      ],
+      "flags": [
+        "--base",
+        "--declaration",
+        "--root"
+      ],
+      "required": [
+        "--base FULL_COMMIT_ID"
+      ],
+      "example": "corvint affected jobs --base FULL_COMMIT_ID",
+      "help": "corvint affected jobs --help"
+    },
+    {
+      "path": [
         "answerability"
       ],
       "command": "corvint answerability",

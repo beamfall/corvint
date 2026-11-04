@@ -149,6 +149,9 @@ type affectedInvocation struct {
 	// AuditChanges is set only by `affected audit`: the change manifest replayed
 	// against observed outcomes (AFP-V0-445).
 	AuditChanges string
+	// JobsDeclaration is set only by `affected jobs`: the CI job input
+	// declaration evaluated over the range (AFP-V0-2341).
+	JobsDeclaration string
 }
 
 type playwrightAffectedReceipt struct {
@@ -351,6 +354,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "audit" {
 		return parseAffectedAuditOptions(rest[1:])
+	}
+	if len(rest) != 0 && rest[0] == "jobs" {
+		return parseAffectedJobsOptions(rest[1:])
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -802,6 +808,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if invocation.AuditChanges != "" {
 		return runAffectedAudit(ctx, invocation, stdout, stderr)
+	}
+	if invocation.JobsDeclaration != "" {
+		return runAffectedJobs(ctx, invocation, stdout, stderr)
 	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {

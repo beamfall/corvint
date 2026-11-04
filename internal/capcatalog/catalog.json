@@ -1377,7 +1377,8 @@
       "operations": [
         "audit",
         "cache",
-        "discovery"
+        "discovery",
+        "jobs"
       ],
       "nestedOperations": {},
       "requiredFlags": {
@@ -1387,6 +1388,9 @@
         "affected discovery": [
           "--playwright-config",
           "--playwright-list"
+        ],
+        "affected jobs": [
+          "--base"
         ]
       },
       "flags": [
@@ -1395,6 +1399,7 @@
         "--by-path",
         "--cache",
         "--changes",
+        "--declaration",
         "--format",
         "--full",
         "--list",
@@ -1430,6 +1435,8 @@
         "application-map-impact/0",
         "corvint-affected-audit-input/0",
         "corvint-affected-audit/1",
+        "corvint-ci-job-inputs/0",
+        "corvint-ci-job-plan/0",
         "corvint-planning-snapshot/0",
         "corvint-playwright-unreached-paths/0",
         "e2e-safe-selection/1",
@@ -1441,6 +1448,7 @@
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
+        0,
         1,
         2
       ],
@@ -1458,6 +1466,7 @@
         "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
         "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
         "affected cache (experimental) reports the default cache's location, state (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON object, or with --format doctor-plugin as one AFFECTED_CACHE item for a corvint-tasks doctor plugin; it creates and writes nothing.",
+        "affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the project-owned input declaration of non-test CI jobs (--declaration, default .corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range --base..HEAD and the dirty worktree, and writes one corvint-ci-job-plan/0: per job RUN or SKIP with its reason and witnesses.",
         "In a private shared clone it runs affected on every change, appmap-impact and e2e-compile (the corvint-test companion) where configured, treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses, recall, precision, fallback and elapsed time; per selector micro recall and precision and a 95% one-sided Clopper-Pearson bound on the per-change miss rate.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
       ],
