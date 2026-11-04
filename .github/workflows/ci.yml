@@ -2051,9 +2051,6 @@ jobs:
           # AFP-V0-591: must equal the go-product-shard matrix length.
           SHARDS: "16"
         run: |
-          test "$HOST_RESULT" = success
-          test "$WEB_PLAN_RESULT" = success
-          if [ "$WEB_REQUIRED" = true ]; then test "$WEB_RESULT" = success; else test "$WEB_RESULT" = skipped; fi
           # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
           # intentionally skips pushes; every PR and merge-group run must actually pass it.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$SHELL_RESULT" = skipped ]; then
@@ -2061,6 +2058,9 @@ jobs:
           else
             test "$SHELL_RESULT" = success
           fi
+          test "$HOST_RESULT" = success
+          test "$WEB_PLAN_RESULT" = success
+          if [ "$WEB_REQUIRED" = true ]; then test "$WEB_RESULT" = success; else test "$WEB_RESULT" = skipped; fi
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
           # this check passes with a notice instead of failing, so a lane PR is not red. It still
           # cannot land untested: main's merge_queue rule sends every merge through a merge_group
