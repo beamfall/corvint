@@ -12,24 +12,24 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
-// TSP-V0-1061: the project-owned exclusion removes the root-locator floor
-// for a new dated record, retaining the checks that declare the directory.
+// TSP-V0-1061: new dated records retain declared readers and the root-locator
+// floor, including contextindex, whose self-corpus scanner reads every tracked file.
 func TestNewBuildLogKeepsDeclaredReaders_TSPV01061(t *testing.T) {
 	graph, module := repositoryNarrowingGraph(t)
 	dirty := "docs/build-log/2099-01-01-new-record.md"
 	plan := affected.Select(graph, []string{dirty})
 	for _, s := range plan.Selected {
-		if s.Witness.Kind == affected.WitnessUnboundedReader {
-			t.Errorf("documentation selected %s only through its unbounded read: %+v", s.UnitID, s.Witness)
+		if s.UnitID == "go:"+module+"/internal/contextindex" && s.Witness.Kind != affected.WitnessUnboundedReader {
+			t.Errorf("self-corpus reader lost its root-locator witness: %+v", s.Witness)
 		}
 	}
 	units := selectedUnits(graph, module, dirty)
-	for _, reader := range []string{"cmd/corvint", "tools/flow-guide-check"} {
+	for _, reader := range []string{"cmd/corvint", "tools/flow-guide-check", "internal/contextindex"} {
 		if _, ok := units[reader]; !ok {
-			t.Errorf("declared reader %s omitted", reader)
+			t.Errorf("reader %s omitted", reader)
 		}
 	}
-	// The opt-in is limited to build-log: unrelated data retains the floor.
+	// Unrelated data retains the same conservative floor.
 	wider := affected.Select(graph, []string{"undeclared/data.json"})
 	if !slices.ContainsFunc(wider.Selected, func(s affected.Selection) bool { return s.Witness.Kind == affected.WitnessUnboundedReader }) {
 		t.Fatal("undeclared input lost its conservative fallback")

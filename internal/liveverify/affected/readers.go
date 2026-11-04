@@ -364,6 +364,9 @@ func readScopeCause(id, directory string, scope []string, dirtyPath string) *Rea
 		// The Go declaration itself changed; InReadScope selects shell units on it too.
 		return &ReadScopeCause{Declaration: ReadScopesPath, Entry: ReadScopesPath}
 	}
+	if dirtyPath == ShellReadScopesPath {
+		return &ReadScopeCause{Declaration: ShellReadScopesPath, Entry: ShellReadScopesPath}
+	}
 	declaration := ReadScopesPath
 	if strings.HasPrefix(id, "shell:") {
 		declaration = ShellReadScopesPath

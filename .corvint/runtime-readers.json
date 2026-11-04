@@ -30,10 +30,6 @@
       "reason": "use-case receipts pinned by the ledger; read by the enclosing conformance/use-cases-v0 package and script/repin-use-case-receipts.sh"
     },
     {
-      "path": "docs/build-log/",
-      "reason": "dated decision and evidence records, not executable inputs (V1-4544, TSP-V0-1061); documentation checks name this directory through literals, globs or declared scopes; root-locator-only readers build Go tools, inspect source or operate on temporary and immutable fixtures, not these records"
-    },
-    {
       "path": "integrations/compatibility.json",
       "reason": "host compatibility matrix; every test reader names it by a path literal or declared read scope (cmd/corvint, conformance/harness-event-v0, conformance/host-lifecycle-v1, integrations/pi, integrations/opencode); release gates read it unconditionally"
     },
