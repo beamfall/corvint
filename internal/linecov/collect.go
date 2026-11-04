@@ -54,7 +54,7 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	flags := strings.TrimSpace(o.GOFLAGS + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
 	// Clipped, so each worker's append below copies instead of sharing storage.
 	env := slices.Clip(append(os.Environ(), "GOFLAGS="+flags))
-	type job struct{ pkg, name, bin, dir string }
+	type job struct{ pkg, name, bin, dir, flags string }
 	var jobs []job
 	windows := map[string]string{}
 	fallback := map[string]string{}
@@ -103,12 +103,12 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 		listed := false
 		for _, name := range strings.Fields(string(out)) {
 			if listedTest.MatchString(name) {
-				jobs = append(jobs, job{pkg, name, bin, dir})
+				jobs = append(jobs, job{pkg, name, bin, dir, flags + " -overlay=" + overlay})
 				listed = true
 			}
 		}
 		if listed {
-			jobs = append(jobs, job{pkg, InOrder, bin, dir})
+			jobs = append(jobs, job{pkg, InOrder, bin, dir, flags + " -overlay=" + overlay})
 		}
 	}
 	outcomes := make([]Outcome, len(jobs))
@@ -120,9 +120,9 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 			defer wg.Done()
 			for i := range next {
 				j := jobs[i]
-				jobEnv := env
+				jobEnv := append(slices.Clone(env), "GOFLAGS="+j.flags)
 				if j.name == InOrder && windows[j.pkg] != "" {
-					jobEnv = append(slices.Clone(env), "CORVINT_LINECOV_WINDOWS="+windows[j.pkg])
+					jobEnv = append(jobEnv, "CORVINT_LINECOV_WINDOWS="+windows[j.pkg])
 				}
 				outcomes[i] = runOne(ctx, o, jobEnv, j.pkg, j.name, j.bin, j.dir, filepath.Join(o.Work, fmt.Sprintf("c%d", i)))
 			}
@@ -211,14 +211,30 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		out.Divergent = err.Error()
 		return out
 	}
-	counters, _ := filepath.Glob(filepath.Join(children, "covcounters.*"))
-	if bytes.Contains(auditData, []byte("covered-child\t")) && len(counters) == 0 {
-		out.Divergent = "missing-child-counters"
-		return out
+	var counterDirs []string
+	_ = filepath.WalkDir(children, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasPrefix(d.Name(), "covcounters.") {
+			counterDirs = append(counterDirs, filepath.Dir(p))
+		}
+		return nil
+	})
+	for _, line := range strings.Split(string(auditData), "\n") {
+		if p, ok := strings.CutPrefix(line, "covered-child\t"); ok {
+			counters, _ := filepath.Glob(filepath.Join(p, "covcounters.*"))
+			if len(counters) == 0 {
+				out.Divergent = "missing-child-counters: " + p
+				return out
+			}
+		}
 	}
-	if len(counters) > 0 {
+	sort.Strings(counterDirs)
+	counterDirs = slices.Compact(counterDirs)
+	if len(counterDirs) > 0 {
 		merged := filepath.Join(cov, "children.txt")
-		conv := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+children, "-o="+merged)
+		conv := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+strings.Join(counterDirs, ","), "-o="+merged)
 		if msg, err := conv.CombinedOutput(); err != nil {
 			out.Divergent = fmt.Sprintf("covdata: %v: %s", err, msg)
 			return out

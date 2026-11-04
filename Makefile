@@ -610,6 +610,7 @@ capabilities-check:
 CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
 capcatalog_write = $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
+	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,37 +61,66 @@ func TestInOrderWindows(t *testing.T) {
 // record, even when its build explicitly strips GOFLAGS.
 func TestUninstrumentedChild(t *testing.T) {
 	requireGo(t)
-	for _, cleared := range []bool{false, true} {
-		t.Run(map[bool]string{false: "covered", true: "cleared"}[cleared], func(t *testing.T) {
+	for _, mode := range []string{"covered", "cleared", "prebuilt", "missing-second"} {
+		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			tree := map[string]string{}
-			for p, s := range fixture {
-				if strings.HasPrefix(p, "ord/") {
-					continue
+			for p, src := range fixture {
+				if !strings.HasPrefix(p, "ord/") {
+					tree[p] = src
 				}
-				tree[p] = s
 			}
-			if cleared {
-				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "\"os/exec\"", "\"os/exec\"\n\"os\"", 1)
+			if mode == "cleared" {
 				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "bin := filepath.Join", `t.Setenv("GOFLAGS", "")
- _ = os.Getenv("GOFLAGS")
  bin := filepath.Join`, 1)
+			}
+			if mode == "prebuilt" {
+				tree["e2e/e2e_test.go"] = `package e2e
+ import("os/exec";"testing")
+ func TestTool(t *testing.T){if err:=exec.Command("../prebuilt-tool").Run();err!=nil{t.Fatal(err)}}
+ `
+			}
+			if mode == "missing-second" {
+				tree["cmd/tool/main.go"] = strings.Replace(tree["cmd/tool/main.go"], `"fmt"`, `"fmt"
+ "os"
+ "syscall"`, 1)
+				tree["cmd/tool/main.go"] = strings.Replace(tree["cmd/tool/main.go"], "func main() {", `func main() {
+ if os.Getenv("KILL_CHILD")=="1" { syscall.Kill(os.Getpid(),syscall.SIGKILL) }
+ `, 1)
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "out, err := exec.Command(bin).Output()", `out, err := exec.Command(bin).Output()
+ t.Setenv("KILL_CHILD","1")
+ if err:=exec.Command(bin).Run(); err==nil {t.Fatal("child should be killed")}
+ `, 1)
 			}
 			writeTree(t, root, tree)
 			git(t, root, "init", "-q")
 			git(t, root, "add", ".")
 			git(t, root, "commit", "-qm", "base")
+			if mode == "prebuilt" {
+				cmd := exec.Command("go", "build", "-o", "prebuilt-tool", "./cmd/tool")
+				cmd.Dir = root
+				cmd.Env = append(os.Environ(), "GOFLAGS=")
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("prebuild: %v %s", err, out)
+				}
+			}
 			out, err := Collect(context.Background(), root, CollectOptions{Module: "example.com/m", Packages: []string{"e2e"}, Work: t.TempDir(), Timeout: time.Minute, SuiteTimeout: time.Minute})
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, o := range out {
-				if cleared {
-					if o.Record != nil || !strings.Contains(o.Divergent, "uninstrumented-child") {
+				if mode == "covered" {
+					if o.Record == nil {
+						t.Fatalf("covered child refused %+v", o)
+					}
+				} else {
+					reason := "uninstrumented-child"
+					if mode == "missing-second" {
+						reason = "missing-child-counters"
+					}
+					if o.Record != nil || !strings.Contains(o.Divergent, reason) {
 						t.Fatalf("unsafe record %+v", o)
 					}
-				} else if o.Record == nil {
-					t.Fatalf("covered child refused %+v", o)
 				}
 			}
 		})
@@ -127,5 +157,39 @@ func TestNeutralBuildLookups(t *testing.T) {
 	}
 	if !bytes.Equal(x.Bytes(), y.Bytes()) {
 		t.Fatal("different bytes for equal records")
+	}
+}
+
+func TestMergeCollectorIdentity(t *testing.T) {
+	a, err := Build("m", "c", "runner", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Build("m", "c", "runner", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.TestTimeout = time.Second
+	b.TestTimeout = 2 * time.Second
+	if _, err := Merge(a, b); err == nil {
+		t.Fatal("different recorded deadlines merged")
+	}
+	b.TestTimeout = a.TestTimeout
+	a.Language = "ruby"
+	b.Language = "ruby"
+	a.Command = []string{"ruby", "a.rb"}
+	b.Command = []string{"ruby", "b.rb"}
+	if _, err := Merge(a, b); err == nil {
+		t.Fatal("different suite commands merged")
+	}
+	b.Command = a.Command
+	a.WindowFallback = map[string]string{"p": "parallel-test-windows"}
+	b.WindowFallback = map[string]string{"q": "unsupported-test-entrypoint"}
+	merged, err := Merge(a, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merged.TestTimeout != time.Second || len(merged.WindowFallback) != 2 {
+		t.Fatalf("lost collection metadata %+v", merged)
 	}
 }

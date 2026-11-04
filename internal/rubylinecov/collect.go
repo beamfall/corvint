@@ -59,7 +59,9 @@ type Options struct {
 	Prefix func(env []string) []string
 	PathIn func(host string) string
 	// Timeout bounds the suite run; zero means no bound beyond ctx.
-	Timeout time.Duration
+	Timeout               time.Duration
+	IsolatedTimeout       time.Duration // per isolated test; zero uses Timeout
+	onlyPackage, onlyName string
 }
 
 // Outcome is one test the run reported, with the reason it has no record
@@ -78,6 +80,7 @@ type Run struct {
 	records  []record // passing tests with complete coverage, and Load
 	files    map[string]fileShape
 	exit     int
+	isolated bool
 }
 
 // ExitCode is the suite process's exit status; failing tests make it nonzero
@@ -99,6 +102,7 @@ type record struct {
 }
 
 type event struct {
+	Launch    string               `json:"launch"`
 	Kind      string               `json:"kind"`
 	Ruby      string               `json:"ruby"`
 	Test      string               `json:"test"`
@@ -118,7 +122,7 @@ type event struct {
 // process wrote no completion marker (a crash, a timeout, a kill) publishes
 // nothing, and a test whose subprocess dump is incomplete has no record
 // (LPCV-V0-954, LPCV-V0-962).
-func Collect(ctx context.Context, o Options) (*Run, error) {
+func collectOnce(ctx context.Context, o Options) (*Run, error) {
 	if len(o.Argv) == 0 {
 		return nil, errors.New("rubylinecov: no suite command")
 	}
@@ -160,6 +164,8 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 		"RUBYOPT=" + rubyopt,
 		"CORVINT_LINECOV_DIR=" + pathIn(dumps),
 		"CORVINT_LINECOV_ROOT=" + pathIn(o.Root),
+		"CORVINT_LINECOV_ONLY=" + o.onlyName,
+		"CORVINT_LINECOV_PACKAGE=" + o.onlyPackage,
 	}
 	if o.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -223,6 +229,8 @@ type dump struct {
 	child, load      []event
 	files            map[string]fileShape
 	done             bool
+	launches         []event
+	unobserved       []event
 }
 
 func readDump(path string) (*dump, error) {
@@ -240,6 +248,12 @@ func readDump(path string) (*dump, error) {
 			return nil, fmt.Errorf("rubylinecov: %s: %w", filepath.Base(path), err)
 		}
 		switch e.Kind {
+		case "launch-cancel":
+			d.unobserved = append(d.unobserved, e)
+		case "launch":
+			d.launches = append(d.launches, e)
+		case "unobserved-child":
+			d.unobserved = append(d.unobserved, e)
 		case "start":
 			d.start = &e
 		case "framework":
@@ -284,6 +298,15 @@ func read(dir string) (*Run, error) {
 	}
 	bySeq := map[string]*record{}
 	incomplete := map[string]string{}
+	launches := append([]event(nil), suite.launches...)
+	completed := map[string]bool{}
+	for _, e := range suite.unobserved {
+		if e.Kind == "launch-cancel" {
+			completed[e.Launch] = true
+		} else {
+			incomplete[e.Test] = "uninstrumented-child"
+		}
+	}
 	var seqs []string
 	var order []event
 	for _, e := range suite.tests {
@@ -309,6 +332,14 @@ func read(dir string) (*Run, error) {
 		if err != nil {
 			return nil, err
 		}
+		launches = append(launches, d.launches...)
+		for _, e := range d.unobserved {
+			if e.Kind == "launch-cancel" {
+				completed[e.Launch] = true
+			} else {
+				incomplete[e.Test] = "uninstrumented-child"
+			}
+		}
 		test := ""
 		if d.start != nil {
 			test = d.start.Test
@@ -320,6 +351,9 @@ func read(dir string) (*Run, error) {
 		if d.start.Ruby != suite.start.Ruby {
 			incomplete[test] = "a subprocess ran Ruby " + d.start.Ruby
 		}
+		if d.start.Launch != "" {
+			completed[d.start.Launch] = true
+		}
 		mergeShapes(run.files, d.files)
 		for _, e := range d.child {
 			target := bySeq[e.Test]
@@ -329,6 +363,11 @@ func read(dir string) (*Run, error) {
 			if target != nil {
 				target.add(e)
 			}
+		}
+	}
+	for _, e := range launches {
+		if !completed[e.Launch] {
+			incomplete[e.Test] = "uninstrumented-child: no completed instrumented process"
 		}
 	}
 	for _, e := range order {
@@ -429,7 +468,9 @@ func Index(module, commit string, run *Run, oids map[string]string) (*linecov.In
 	}
 	unordered := map[string]bool{}
 	for _, o := range run.Outcomes {
-		unordered[o.Package] = true
+		if !run.isolated || !o.Recorded {
+			unordered[o.Package] = true
+		}
 	}
 	for p := range unordered {
 		ix.Unordered = append(ix.Unordered, p)

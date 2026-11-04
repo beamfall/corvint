@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package linecov
 
+import "os"
+
 // FileByPath returns the indexed file. Callers must treat index storage as
 // immutable. The same lookup is used by Go and language plugins (LPCV-V0-7602).
 func (ix *Index) FileByPath(path string) (*File, bool) {
@@ -51,4 +53,14 @@ func (ix *Index) TestsOfFile(path string) []Test {
 		}
 	}
 	return out
+}
+
+// Load reads and validates an immutable index from disk.
+func Load(path string) (*Index, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return Decode(f)
 }
