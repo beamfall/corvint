@@ -26,6 +26,18 @@ not retroactively claim that decision 0388 accepted a query exception.
 
 ## Requirements
 
+- `QAT-V0-7708`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3736)
+  Shared CLI framing MUST retain the intentional abstention. This amends only the byte-rendering
+  clauses of QAT-V0-001/004: the producer, retained-receipt check and every independently selected
+  base/current/override query replay MUST accept exactly either of the two canonical stderr forms
+  below, exit 2 and empty stdout. Different admitted renderings agree on the same exact intentional
+  reason; no other JSON encoding, extra/duplicate member, missing LF, altered details, binary or
+  message qualifies. Original raw receipt bytes and their hashes MUST remain unchanged; all
+  task/argv/base/target bindings and blocking non-query gates remain required. Query discovery stays
+  NOT_PRODUCED, and this is no query support or qualification promotion.
+  Tests: `TestQATV07708SharedCLIEnvelope`, all `TestQueryAbstention*` hostile controls, and
+  `TestAggregateStrictQueryAbstentionNativeReplay` with the retained current native binary.
+
 - `QAT-V0-001`: The producer MUST qualify only exit 2, empty raw stdout and exactly the canonical single-line stderr envelope below. It MUST preserve the original task and earlier traces. Every other error, including unreachable or corrupt trace state with the same code, extra stderr, malformed envelopes, nonempty stdout and other exit statuses MUST remain blocking.
 - `QAT-V0-002`: The producer MUST retain the exact NUL-terminated invocation, raw output files and a private canonical `corvint-dogfood-query-abstention/0` artifact binding argv/task SHA-256, immutable base/target, exit status and raw output SHA-256. Only a successfully written artifact may exempt the single exact query row. Every run MUST clear its previous query artifact and digest before success, a different failure or another abstention can replace it; failure to clear or write MUST block.
 - `QAT-V0-003`: The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-trace-state-abstention` and optional `queryAbstentionEvidenceSha256`. The strict checker MUST reject absent, duplicate, extra, malformed, stale or tampered artifact members/bindings, duplicate report query rows/digest members, the reason on another step, missing artifacts and invalid argv/root/task/limit/NUL shape. An absent digest member in an older non-abstention report or a null member with no artifact MUST remain compatible.
@@ -34,11 +46,21 @@ not retroactively claim that decision 0388 accepted a query exception.
 
 ## Evidence contract
 
-The only admitted stderr bytes are UTF-8 followed by one LF:
+The legacy admitted stderr bytes are UTF-8 followed by one LF:
 
 ```json
 {"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}
 ```
+
+QAT-V0-7708 additionally admits exactly this shared CLI rendering, followed by one LF:
+
+```json
+{"binary":"corvint","code":"unsupported-query-trace-state","details":{"code":"unsupported-query-trace-state","error":"native Go authority-start query requires an absent clean-tree local trace store","ok":false},"error":"native Go authority-start query requires an absent clean-tree local trace store","help":"corvint --help","ok":false}
+```
+
+The two representations have the same admitted reason. Base/current/override replay must each
+match one complete enumerated representation; no general normalization is applied. Raw retained
+output is never rewritten to the other form.
 
 Files live at `<git-dir>/corvint/coordination-time-query.{argv,json,stderr}` and
 `<git-dir>/corvint/coordination-time-query-abstention.json`. The argv file contains exactly eight

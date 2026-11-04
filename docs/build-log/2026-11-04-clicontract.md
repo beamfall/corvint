@@ -43,6 +43,14 @@ synopses retain release/readiness and corpus mode alternatives and paired-proces
 Root positionals now reach their native parser; a relative GOROOT is an operational input,
 not an unknown verb, pinned by the tree and compiled process regressions.
 
+The final clean query hit the intentional authority-start trace refusal, exposing another exact-byte
+consumer of the legacy envelope. QAT-V0-7708 admits precisely two complete byte forms: the legacy
+refusal and its shared CLI rendering. It preserves raw receipts/hashes and requires every independent
+base/current/override replay to match one enumerated form. Extra/duplicate fields, other binaries,
+altered details/reasons, missing LF and every other refusal remain blocking. The task and traces
+are unchanged; query remains NOT_PRODUCED. `TestQATV07708SharedCLIEnvelope` failed before repair;
+hostile replay controls and actual retained native replay qualify this compatibility change.
+
 The lexical drift check retains explicit limits: dynamic names, semantic option preconditions,
 profile membership and the truth of prose are not inferred. Required-option coverage remains
 `partial`. Nested fixed-index dispatch retains route context so existing words cannot hide a

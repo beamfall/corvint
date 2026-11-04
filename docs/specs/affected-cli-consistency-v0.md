@@ -42,10 +42,12 @@ driving Corvint from scripts.
   framing and metadata helpers may cross the Tasks boundary only at the explicitly enumerated
   process/help/version files, and the Tasks source export MUST retain their complete closure.
   Internal outdated-map consumers MUST compare the exact admitted code and message independent
-  of additional framing fields; other reasons MUST NOT authorize map replacement.
+  of additional framing fields; other reasons MUST NOT authorize map replacement. The intentional
+  query abstention MUST remain byte-bound under the exact two-rendering QAT-V0-7708 contract;
+  arbitrary envelope normalization MUST NOT widen that exemption.
   Tests: `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`,
   `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess`,
-  `TestACXV07707OutdatedMapEnvelope`.
+  `TestACXV07707OutdatedMapEnvelope`, `TestQATV07708SharedCLIEnvelope`.
 
 
 - **ACX-V0-850:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)
