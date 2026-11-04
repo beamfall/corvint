@@ -16,7 +16,7 @@ Authoritative inputs: repository-owner requests V1-3615, V1-4166, V1-4239, V1-42
 
 ## User and measurable job
 
-This spec extends `docs/specs/corvint-self-development-v0.md`, whose Requirements section is at the `ocm prepare` limit; new lane-gate requirements go here. The job is a shorter lane closeout: `make doc-gates` names every failing gate in one parallel run, a reseal selects against the last sealed head's receipt, ledger records name their step, and `selection-baseline-check` scales to the host and reuses identical replays. Each requirement keeps the number it was written under in the lane that built it (`ASC-V0-775` to `ASC-V0-779` became `ASC-V0-775` to `ASC-V0-779` when the work was merged, because the parent spec was full).
+This spec extends `docs/specs/corvint-self-development-v0.md`, whose Requirements section is at the `ocm prepare` limit; new lane-gate requirements go here. The job is a shorter lane closeout: `make doc-gates` names every failing gate in one parallel run, a reseal selects against the last sealed head's receipt, ledger records name their step, and `selection-baseline-check` scales to the host and reuses identical replays. Each requirement keeps the number it was written under in the lane that built it (`ASD-V0-775` to `ASD-V0-779` became `ASC-V0-775` to `ASC-V0-779` when the work was merged, because the parent spec was full).
 
 ## Requirements
 

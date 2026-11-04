@@ -1723,7 +1723,8 @@ if ((fail)); then
   exit 1
 fi
 if ((warn)); then
-  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
+  # DWC-V0-745 (V1-3837): the run still exits 0, so the line says a caller continues.
+  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present; exit 0, continuing\n' "$warn"
 elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
   printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps the bind can reach\n'
   # ICL-V0-021: the passed pre-bind entries, bound to this head, for the precheck of the sealed head.

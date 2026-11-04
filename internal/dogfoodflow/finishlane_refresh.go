@@ -55,9 +55,9 @@ func (l *finishLane) refreshMovedPlan() {
 	run := &proposal{
 		flow:    flow{ctx: l.ctx, prefix: "dogfood-propose-citations", root: l.root, stderr: &notes},
 		options: ProposeOptions{Root: l.root, Base: l.base, Refresh: plan}, stdout: &stdout,
-		blobs: map[string][]byte{}, lines: map[string][][]byte{},
+		blobs: map[string][]byte{}, lines: map[string][][]byte{}, batchBlobs: batchBlobReads,
 	}
-	code, err := boundary(l.ctx, run.run, func() {})
+	code, err := boundary(l.ctx, run.run, run.closeBlobBatch)
 	if err != nil {
 		l.exit(-1)
 	}

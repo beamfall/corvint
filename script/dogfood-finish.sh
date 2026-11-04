@@ -8,6 +8,21 @@
 set -uo pipefail
 export LC_ALL=C
 
+# DWC-V0-755 (V1-4197): the wrapper times each of its own phases from here, so every second of a
+# finish or pre-flight outside the binary's TIMING sections is named. Bash before 5 has no
+# EPOCHREALTIME, and then no wrapper timing is printed.
+wrapper_mark=${EPOCHREALTIME-} wrapper_started=${EPOCHREALTIME-} wrapper_phases=
+wrapper_phase() {
+  [[ -n $wrapper_mark && -n ${EPOCHREALTIME-} ]] || return 0
+  local now=$EPOCHREALTIME
+  wrapper_phases+=" $1=$(awk -v a="$wrapper_mark" -v b="$now" 'BEGIN { printf "%.2f", b - a }')"
+  wrapper_mark=$now
+}
+# wrapper_timing prints the wrapper's phases before it hands over to the binary.
+wrapper_timing() {
+  [[ -n $wrapper_started && -n ${EPOCHREALTIME-} ]] || return 0
+  printf '%s: TIMING wrapper seconds=%s%s\n' "$prefix" "$(awk -v a="$wrapper_started" -v b="$EPOCHREALTIME" 'BEGIN { printf "%.2f", b - a }')" "$wrapper_phases" >&2
+}
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
@@ -130,19 +145,63 @@ if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
     printf '%s: the static pre-check ran the installed %s, not this tree'"'"'s build; if this tree changed the refused rule, rerun with DOGFOOD_STATIC_PRECHECK=0\n' "$prefix" "$installed" >&2
   exit "$status"
 fi
+wrapper_phase inputs
 repo=$(cd "$(dirname "$0")/.." && pwd)
+# DWC-V0-753: a VERIFY file finish-lane would refuse is refused here first, with finish-lane's own
+# lines, by the same Go validator (tools/verify-syntax-check calls it), before any Git read, static
+# check or build: a warm go run takes about 0.1 s, against about 18-25 s to reach the late check.
+# A tool that does not build or run (an older tree, no Go) leaves the late check to refuse. It takes
+# the same inputs and --entry, so its rerun hints name the make target (DCW-V0-730). It matters when
+# the DCW-V0-731 static pre-check above said SKIP; otherwise that pre-check refused the file first.
+# A relative VERIFY names a file under the caller's directory, so it is made absolute here, before
+# the cd into the repository.
+if [[ -n $verify && -f $repo/tools/verify-syntax-check/main.go ]]; then
+  verify_path=$verify
+  [[ $verify_path == /* ]] || verify_path=$PWD/$verify_path
+  verify_out=$(cd "$repo" && GOCACHE=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}} \
+    GOTOOLCHAIN=local go run ./tools/verify-syntax-check --prefix "$prefix" --base "$base_arg" ${inputs[@]+"${inputs[@]}"} "$verify_path" 2>&1 < /dev/null)
+  if [[ $verify_out == "$prefix: REFUSE "* ]]; then
+    grep -v -E '^exit status [0-9]+$' <<< "$verify_out" >&2
+    printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
+    exit 2
+  fi
+fi
+wrapper_phase verify-syntax
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+# DWC-V0-757 (V1-4197): the static checks below (requirement definitions, test read scopes, spec
+# indexes, analyzer schema) read only HEAD's tree, BASE and the Go toolchain when the worktree is
+# clean but for the bind sidecar. A pass on a clean worktree records that key in the git directory, and a later run whose
+# clean worktree has the same key (the dogfood-finish after its dogfood-inputs-check) skips them,
+# saying so; a dirty worktree, an unreadable key or any other key runs them.
+static_input_key() {
+  local tree toolchain status
+  # The bind sidecar .corvint/change.cem.json, which dogfood change leaves untracked, is read by none
+  # of the checks (test-read-scopes-check skips it by name), so it does not dirty the key. A status
+  # Git cannot read gives no key, never a clean one.
+  status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all -- . ':(exclude).corvint/change.cem.json' 2> /dev/null) || return 1
+  [[ -z $status ]] || return 1
+  tree=$(git -C "$repo" rev-parse --verify -q 'HEAD^{tree}') || return 1
+  toolchain=$(cd "$repo" && GOTOOLCHAIN=local go env GOVERSION GOOS GOARCH GOFLAGS CGO_ENABLED 2> /dev/null) || return 1
+  printf 'dogfood-static-pass/1\ntree %s\nbase %s\n%s\n' "$tree" "$base" "$toolchain" | git -C "$repo" hash-object --stdin
+}
+static_stamp="$git_dir/corvint/dogfood-static-pass"
+static_key=$(static_input_key) || static_key=
+static_reuse=0
+if [[ -n $static_key && -f $static_stamp && $(cat "$static_stamp" 2> /dev/null) == "$static_key" ]]; then
+  static_reuse=1
+  printf '%s: static checks REUSE: they passed for this clean tree %s at BASE %s (DWC-V0-757)\n' "$prefix" "$(git -C "$repo" rev-parse --short 'HEAD^{tree}')" "${base:0:12}" >&2
+fi
 # DCW-V0-815 (V1-3594): the cheap static doc checks that batch-precheck would otherwise fail minutes
 # in run here, before any build: every requirement definition, and, when the change touches a test
 # file or the declared read scopes, the test read scopes. A fixture without the checks skips them.
-if [[ -x $repo/script/check-requirement-definitions.sh ]] &&
+if ((!static_reuse)) && [[ -x $repo/script/check-requirement-definitions.sh ]] &&
   ! static_out=$(cd "$repo" && script/check-requirement-definitions.sh 2>&1); then
   printf '%s: REFUSE requirement-definitions-invalid\n%s\n' "$prefix" "$(head -n 5 <<< "$static_out")" >&2
   printf 'fix: correct the definitions make requirement-definitions-check names, commit, then rerun make %s (nothing was built, prepared or bound)\n' "$entry" >&2
   exit 2
 fi
-if [[ -d $repo/tools/test-read-scopes-check ]] &&
+if ((!static_reuse)) && [[ -d $repo/tools/test-read-scopes-check ]] &&
   [[ -n $(git -C "$repo" diff --name-only "$base" -- '*_test.go' .corvint/test-read-scopes.json) ]] &&
   ! static_out=$(cd "$repo" && GOCACHE=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}} \
     GOTOOLCHAIN=local go run ./tools/test-read-scopes-check 2>&1 > /dev/null); then
@@ -150,9 +209,10 @@ if [[ -d $repo/tools/test-read-scopes-check ]] &&
   printf 'fix: declare the read in .corvint/test-read-scopes.json or mark a fixture path //corvint:fixture-path, as make test-read-scopes-check names, commit, then rerun make %s (nothing was built, prepared or bound)\n' "$entry" >&2
   exit 2
 fi
+wrapper_phase static-definitions-read-scopes
 # DCW-V0-090: a change that touches docs/specs/ must commit the regenerated spec indexes. The
 # generator reads a private index of HEAD, so staged or worktree edits cannot hide a stale commit.
-if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
+if ((!static_reuse)) && [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
   spec_tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-check.XXXXXX") || exit 2
   trap '/bin/rm -rf "$spec_tmp"' EXIT
   mkdir "$spec_tmp/out" || exit 2
@@ -174,10 +234,11 @@ if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
   /bin/rm -rf "$spec_tmp"
   trap - EXIT
 fi
+wrapper_phase spec-indexes
 # IDX-SNAP-V0-891 (V1-2976): an analyzer input change whose golden output drifted from its pins is
 # refused here, before any build or bind, instead of at batch-precheck after the seal. The static
 # check notes a changed input; only then does the golden output test run.
-if [[ -f $repo/internal/contextindex/analyzer_schema_test.go && -x $repo/script/analyzer-schema.sh ]]; then
+if ((!static_reuse)) && [[ -f $repo/internal/contextindex/analyzer_schema_test.go && -x $repo/script/analyzer-schema.sh ]]; then
   schema_note=$(cd "$repo" && script/analyzer-schema.sh check --base "$base" 2>&1)
   schema_rc=$?
   if ((schema_rc != 0)) || [[ $schema_note == *'analyzer schema: NOTE '* ]]; then
@@ -191,6 +252,11 @@ if [[ -f $repo/internal/contextindex/analyzer_schema_test.go && -x $repo/script/
     fi
   fi
 fi
+# The checks passed; the key is recorded only when the tree it names is still the one checked.
+if ((!static_reuse)) && [[ -n $static_key && $(static_input_key) == "$static_key" ]]; then
+  mkdir -p "$git_dir/corvint" && printf '%s\n' "$static_key" > "$static_stamp.tmp" && /bin/mv -f "$static_stamp.tmp" "$static_stamp" || /bin/rm -f "$static_stamp.tmp"
+fi
+wrapper_phase analyzer-schema
 # ASD-V0-087 (V1-3154): a CORVINT_BIN built before this change cannot run the change's own dogfood
 # tooling, and a matching VERSION does not prove otherwise. When the change touches that tooling, only
 # the lane-built tree binary may run the steps, so an override is refused before any build.
@@ -269,11 +335,13 @@ dogfood_finish_interrupted() {
 }
 trap 'dogfood_finish_interrupted 130' INT
 trap 'dogfood_finish_interrupted 143' TERM
+wrapper_phase setup
 if ! dogfood_build_tree_corvint "$tree_bin"; then
   printf 'dogfood-finish-lane: REFUSE current-tree-corvint-build-failed\n' >&2
   dogfood_build_fix dogfood-finish-lane tree
   exit 2
 fi
+wrapper_phase "build-tree-$dogfood_bin_outcome"
 steps_bin=$tree_bin
 [[ -z $corvint_bin_set ]] || steps_bin=$corvint_bin
 # DCW-V0-380: the input pre-flight runs before the base verifier is built and before any bind: the
@@ -283,9 +351,11 @@ build_step=inputs-check
 if [[ ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]]; then
   trap - INT TERM
   cd "$repo" || exit 2
+  wrapper_timing
   exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin"
 fi
 (cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin") || exit $?
+wrapper_phase inputs-check
 base_status=0
 build_step=build-base
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
@@ -297,7 +367,9 @@ elif ((base_status != 0)); then
   dogfood_build_fix dogfood-finish-lane base
   exit 2
 fi
+wrapper_phase "build-base-$dogfood_bin_outcome"
 trap - INT TERM
 cd "$repo" || exit 2
+wrapper_timing
 exec "$tree_bin" dogfood finish-lane --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin" \
   --base-verifier "$base_bin" --tree-verifier "$tree_bin" ${override[@]+"${override[@]}"}

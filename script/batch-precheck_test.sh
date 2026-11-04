@@ -131,6 +131,11 @@ for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
   grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
 done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
+# DWC-V0-747 (V1-3334): the pre-bind run of dogfood-closeout still runs the sync-check, so a lane
+# whose CI and precheck lists disagree learns it before the bind rather than after the seal.
+(cd "$script/.." && BATCH_PRECHECK_SKIP_DRIFT=1 "$pre" --list) > "$tmp/skip" 2>&1 || fail "skip-drift --list: $(cat "$tmp/skip")"
+grep -qx 'sync-check' "$tmp/skip" && grep -qx 'batch-drift (skipped before the bind)' "$tmp/skip" ||
+  fail "skip-drift --list has no sync-check or drift-skip row: $(cat "$tmp/skip")"
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
@@ -902,7 +907,8 @@ crun --base "$basesha" || fail "base-present only failed the run: $(cat "$tmp/ou
 grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "second warn: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARNING 2 base-present' "$tmp/out" || fail "two warnings: $(cat "$tmp/out")"
 # On this clean checkout a base-present WARN still writes no receipt: not every step passed.
-grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
+# DWC-V0-745 (V1-3837): the line says the run continues, since it exits 0.
+grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present; exit 0, continuing$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
 [[ -f $crepo/.git/batch-precheck-receipt ]] && fail "a run with base-present failures wrote a receipt"
 # A new finding that differs from a base one only by digits is introduced, not a timing.
 printf 'cmd/v2schema.go\n' >> "$crepo/fail-test-read-scopes-check"
@@ -1196,6 +1202,66 @@ STUB_PLAN_RC=3 srun --base "$sbase" || fail "many-path fallback run failed: $(ca
 grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @go entry: $(cat "$tmp/out")"
 /bin/rm -rf "$srepo/notes"
 git -C "$srepo" checkout -q -- docs/specs/freeze.md
+# DWC-V0-751 (V1-3854): two lanes that each pass alone collide once merged, as in PR #41: lane A
+# adds a dispatch name and updates its generated tree, lane B adds another generated tree from the
+# old dispatch. The merge is clean, and the precheck of the merged batch, selected by the union diff
+# since the shared base, runs the drift test and fails before any push.
+(
+  home=$(git -C "$srepo" symbolic-ref -q --short HEAD) || exit 1
+  commit() { git -C "$srepo" add -A && git -C "$srepo" -c user.name=t -c user.email=t@e.invalid commit -qm "$1"; }
+  mkdir -p "$srepo/tree/testdata"
+  printf 'package tree\n\nconst dispatch = "a"\n' > "$srepo/tree/dispatch.go"
+  cat > "$srepo/tree/tree_test.go" <<'EOF2'
+package tree
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestTreeMatchesDispatch(t *testing.T) {
+	trees, _ := filepath.Glob("testdata/*.txt")
+	for _, tree := range trees {
+		b, err := os.ReadFile(tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.TrimSpace(string(b)); got != dispatch {
+			t.Errorf("command tree drift: %s has %q, dispatch is %q", tree, got, dispatch)
+		}
+	}
+}
+EOF2
+  printf 'a\n' > "$srepo/tree/testdata/commands.txt"
+  commit 'tree base' || exit 1
+  tbase=$(git -C "$srepo" rev-parse HEAD)
+  git -C "$srepo" switch -q -c lane-a || exit 1
+  printf 'package tree\n\nconst dispatch = "a x"\n' > "$srepo/tree/dispatch.go"
+  printf 'a x\n' > "$srepo/tree/testdata/commands.txt"
+  commit 'lane a: dispatch x' || exit 1
+  git -C "$srepo" switch -q -c lane-b "$tbase" || exit 1
+  printf 'a\n' > "$srepo/tree/testdata/help.txt"
+  commit 'lane b: regenerate help tree' || exit 1
+  pbase=$tbase plan "$frontier" tree
+  # Plain variable assignments are visible to srun, which runs in this subshell.
+  sdrift='./tree TestTreeMatchesDispatch @go'
+  for lane in lane-a lane-b; do
+    git -C "$srepo" switch -q "$lane" || exit 1
+    srun --base "$tbase" || { printf 'lane %s alone failed: %s\n' "$lane" "$(cat "$tmp/out")" >&2; exit 1; }
+  done
+  git -C "$srepo" switch -q -c batch lane-a || exit 1
+  git -C "$srepo" -c user.name=t -c user.email=t@e.invalid merge -q --no-edit lane-b || exit 1
+  status=0
+  srun --base "$tbase" || status=$?
+  [[ $status != 0 ]] || { printf 'the merged collision passed: %s\n' "$(cat "$tmp/out")" >&2; exit 1; }
+  grep -q "^batch-precheck: batch-drift runs 1 of 1 drift tests for the diff since $tbase " "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  row_is FAIL 'batch-drift (1 packages)'
+  grep -qF 'command tree drift: testdata/help.txt has "a", dispatch is "a x"' "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  git -C "$srepo" switch -q "$home" || exit 1
+) || fail "DWC-V0-751 two-lane drift collision"
 
 # 8. ASD-V0-046 (V1-3122): a failed step reruns once before it is classified. A pass on the rerun
 # is FLAKY (counted passed, both attempts named, attempt 1's failing test named); a second failure
@@ -1627,8 +1693,9 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\')' ||
-  fail "dogfood-closeout-precheck does not select since the receipt (DCW-V0-923)"
+# DWC-V0-746 (V1-4072): the sealed-head run is followed by the unwind on a refusal.
+grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qF $'\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\') || { script/dogfood-closeout-unwind.sh ' ||
+  fail "dogfood-closeout-precheck does not select since the receipt or unwind a refusal (DCW-V0-923, DWC-V0-746)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
 git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"

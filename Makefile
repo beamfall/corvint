@@ -1188,22 +1188,33 @@ doc-gates: ## Run the documentation gates
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
 # ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
+# DWC-V0-745 (V1-3837): a phase line after each stage says the closeout continues, so a precheck
+# ending on a base-present "no receipt" line, then minutes of bind, check and seal, does not read as
+# a stop. DWC-V0-746 (V1-4072): the head before the bind is recorded, so that when the separate
+# dogfood-closeout-precheck (DCW-V0-923) refuses, script/dogfood-closeout-unwind.sh can drop the
+# bind and seal commits again.
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)"
 	@$(MAKE) --no-print-directory dogfood-inputs-check
+	@printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
 	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@printf 'dogfood-closeout: phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal\n'
+	@git rev-parse HEAD > "$$(git rev-parse --git-path dogfood-closeout-start)"
 	@$(MAKE) --no-print-directory dogfood-finish
 	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
 
 # DCW-V0-923 (V1-3850): the sealed-head batch-precheck, run after dogfood-closeout as its own command.
 # A rerun after a timeout reuses the gate ledger's per-step results (ASD-V0-042), and a receipt that
-# already names the clean HEAD runs nothing (ASD-V0-943).
+# already names the clean HEAD runs nothing (ASD-V0-943). DWC-V0-746 (V1-4072): a refusal unwinds the
+# bind and seal commits to the head dogfood-closeout recorded; DWC-V0-758: the last line says whether
+# the sealed head has a precheck receipt.
 .PHONY: dogfood-closeout-precheck
 dogfood-closeout-precheck: export LANE = 1
 dogfood-closeout-precheck:
-	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)') || { script/dogfood-closeout-unwind.sh "$$(cat "$$(git rev-parse --git-path dogfood-closeout-start)" 2> /dev/null)"; exit 1; }
+	@printf 'dogfood-closeout: DONE sealed head %s %s\n' "$$(git rev-parse HEAD)" "$$(script/batch-precheck.sh --verify-receipt HEAD > /dev/null 2>&1 && echo 'has a precheck receipt' || echo 'has no precheck receipt: its precheck passed only with base-present failures, named in its WARN lines')"
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:
