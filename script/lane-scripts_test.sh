@@ -406,9 +406,19 @@ fi
 case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; printf '%s\n' "\${GOTMPDIR-}" > "$off/gotmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
 printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
 cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
+printf '%s %s\n' "\$where" "\$*" >> "$off/go-args.log"
+if [[ \$where == local && " \$* " == *' -hiddenexit=6 '* ]]; then
+  prev= regex=
+  for a in "\$@"; do
+    [[ \$prev == -run ]] && regex=\$a
+    prev=\$a
+  done
+  [[ -n \$regex && ! TestHidden =~ \$regex ]] || exit 6
+fi
 for a in "\$@"; do
   case \$a in
     -exit=*) exit "\${a#-exit=}" ;;
+    -localexit=*) [[ \$where == local ]] && exit "\${a#-localexit=}" ;;
     -probe) mkdir "$off/running" || exit 9; sleep 1; rmdir "$off/running" ;;
     -write=*) mkdir -p "\$(dirname "\${a#-write=}")" && printf 'written-%s\n' "\$where" > "\${a#-write=}" ;;
     -delete=*) /bin/rm -f "\${a#-delete=}" ;;
@@ -738,7 +748,92 @@ out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOSTS='box box2' hv go test -run X ./.
   fail "heavy.sh offloaded darwin-only work from a Darwin host or did not record it: $out ssh=$(cat "$off/ssh.log") $(cat "$off/err")"
 out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -run X ./both 2> "$off/err")
 [[ $out == where=remote* ]] || fail "heavy.sh kept a portable package on a Darwin host: $out $(cat "$off/err")"
-/bin/rm -rf "$off/lc/sub/mac" "$off/lc/sub/both"
+# ASD-V0-2403 (deferred, review round e): on a Darwin host a package whose darwin-only files are
+# all test files stays wholly local, like every darwin-only command (ASD-V0-934): the unchanged
+# command runs here once and its failure is the command's. No static scan proves a split
+# equivalent, so each case below is a common test that fails only on Darwin and that a split
+# would have hidden; the go stub fails TestHidden in a local run (-hiddenexit=6).
+mkdir -p "$off/lc/sub/mtest" && printf 'package mtest\n' > "$off/lc/sub/mtest/e.go" &&
+  printf 'package mtest\n\nimport "testing"\n\nfunc TestMac(t *testing.T) {}\n\nfunc\tTestTab(t *testing.T) {}\n\nfunc ExampleMac() {}\n\nfunc helper() {}\n' > "$off/lc/sub/mtest/d_darwin_test.go" || fail "darwin test fixture"
+: > "$off/ssh.log"; : > "$off/go-args.log"
+out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 ./mtest 2> "$off/err")
+[[ $(grep -c '^where=' <<< "$out") == 1 && $out == where=local* && ! -s $off/ssh.log && $(< "$off/go-args.log") == 'local test -count=1 ./mtest' ]] &&
+  grep -qx 'heavy.sh: 1 darwin-only file(s), first ./mtest/d_darwin_test.go: running on this darwin host, not offloading' "$off/err" ||
+  fail "heavy.sh did not keep a test-only darwin package wholly local: $out args=$(cat "$off/go-args.log") $(cat "$off/err")"
+: > "$off/ssh.log"
+PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -localexit=4 ./mtest > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 4 && ! -s $off/ssh.log ]] || fail "a failing test-only darwin package did not fail the local command (rc=$rc): $(cat "$off/err")"
+for args in '-count=1 ./mac' '-run TestMac ./mtest' '-count=1 ./mtest ./mac'; do
+  : > "$off/ssh.log"
+  # shellcheck disable=SC2086 # each case is a word list on purpose
+  out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test $args 2> "$off/err")
+  [[ $out == where=local* && $(grep -c '^where=' <<< "$out") == 1 && ! -s $off/ssh.log ]] && grep -q 'running on this darwin host, not offloading' "$off/err" ||
+    fail "heavy.sh offloaded go test $args, which must stay on the darwin host: $out $(cat "$off/err")"
+done
+# Review round c: a test file that builds on Darwin but not Linux without being darwin-only by
+# name or a `darwin` constraint (`//go:build !linux`), a `_linux` file or an assembly file.
+for case in 'k_test.go://go:build !linux' 'k_test.go:// +build !linux' 'k_linux_test.go:' 'k_test.go:@asm_darwin_arm64.s'; do
+  name=${case%%:*} header=${case#*:} extra=
+  [[ $header == @* ]] && extra=${header#@} header=
+  printf '%s\n\npackage mtest\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) { t.Fatal("darwin") }\n' "$header" > "$off/lc/sub/mtest/$name"
+  [[ -z $extra ]] || : > "$off/lc/sub/mtest/$extra"
+  : > "$off/ssh.log"
+  PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+  rc=$?
+  [[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a package whose other file $name ${header:-$extra} is platform-constrained (rc=$rc): $(cat "$off/err")"
+  /bin/rm -f "$off/lc/sub/mtest/$name" ${extra:+"$off/lc/sub/mtest/$extra"}
+done
+# Review round c: an import of the darwin-only test file runs its package's init in the Darwin
+# test binary, which can change state the common tests read (TestHidden fails only under it).
+printf 'package mtest\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) {}\n' > "$off/lc/sub/mtest/k_test.go"
+for imports in '_ "fixture/side"' 'side "fixture/side"' '. "fixture/side"' '"C"' '"fixture/side"'; do
+  printf 'package mtest\n\nimport (\n\t%s\n\t"testing"\n)\n\nfunc TestMac2(t *testing.T) {}\n' "$imports" > "$off/lc/sub/mtest/i_darwin_test.go"
+  : > "$off/ssh.log"
+  PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+  rc=$?
+  [[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a darwin test file importing $imports (rc=$rc): $(cat "$off/err")"
+done
+/bin/rm -f "$off/lc/sub/mtest/i_darwin_test.go" "$off/lc/sub/mtest/k_test.go"
+# Review round d: a second package argument whose `//go:build !linux` test fails.
+mkdir -p "$off/lc/sub/mtest2" && printf 'package mtest2\n' > "$off/lc/sub/mtest2/e.go" &&
+  printf '//go:build !linux\n\npackage mtest2\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) { t.Fatal("darwin") }\n' > "$off/lc/sub/mtest2/k_test.go" || fail "second package fixture"
+: > "$off/ssh.log"
+PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest ./mtest2 > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep ./mtest ./mtest2 local though ./mtest2 has a platform-constrained test (rc=$rc): $(cat "$off/err")"
+/bin/rm -rf "$off/lc/sub/mtest2"
+# Review round d: a common test or helper that branches on GOOS or GOARCH (aliased imports
+# included), testenv, or a Skip, SkipNow or Skipf call; TestHidden skips on Linux.
+for case in 'k_test.go:"runtime":if runtime.GOOS != "darwin" { t.Skip("linux") }' \
+  'k_test.go:rt "runtime":if rt.GOARCH == "amd64" { t.Fatal("x") }' \
+  'k_test.go:"os":if os.Getenv("GOOS") == "linux" { return }' \
+  'k_test.go:"fixture/testenv":testenv.MustHaveExec(t)' \
+  'k_test.go:"fixture/gate":gate.Linux(t); t.SkipNow()' \
+  'k_test.go:"fixture/gate":gate.Linux(t); t.Skipf("%s", "linux")' \
+  'helper.go:"runtime":_ = runtime.GOOS'; do
+  name=${case%%:*} rest=${case#*:} imp=${rest%%:*} body=${rest#*:}
+  if [[ $name == *_test.go ]]; then
+    printf 'package mtest\n\nimport (\n\t%s\n\t"testing"\n)\n\nfunc TestHidden(t *testing.T) {\n\t%s\n\tt.Fatal("darwin")\n}\n' "$imp" "$body" > "$off/lc/sub/mtest/$name"
+  else
+    printf 'package mtest\n\nimport %s\n\nfunc gate() {\n\t%s\n}\n' "$imp" "$body" > "$off/lc/sub/mtest/$name"
+    printf 'package mtest\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) { gate() }\n' > "$off/lc/sub/mtest/k_test.go"
+  fi
+  : > "$off/ssh.log"
+  PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+  rc=$?
+  [[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a package whose $name is runtime-gated by $body (rc=$rc): $(cat "$off/err")"
+  /bin/rm -f "$off/lc/sub/mtest/$name" "$off/lc/sub/mtest/k_test.go"
+done
+# Review round e: a common test that runs `uname -s` and fails on Darwin. Nothing in its source
+# names a platform, so only running it here sees the failure.
+printf 'package mtest\n\nimport (\n\t"os/exec"\n\t"strings"\n\t"testing"\n)\n\nfunc TestHidden(t *testing.T) {\n\tout, _ := exec.Command("uname", "-s").Output()\n\tif strings.TrimSpace(string(out)) == "Darwin" {\n\t\tt.Fatal("darwin")\n\t}\n}\n' > "$off/lc/sub/mtest/k_test.go"
+: > "$off/ssh.log"
+PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a common test that fails on Darwin through uname -s (rc=$rc): $(cat "$off/err")"
+/bin/rm -f "$off/lc/sub/mtest/k_test.go"
+/bin/rm -rf "$off/lc/sub/mac" "$off/lc/sub/both" "$off/lc/sub/mtest"
 ok
 fi
 if selected offload 10; then
@@ -1504,7 +1599,7 @@ HEAVY_WHOLE_REASON= pv go test -count=1 ./x > "$pol/out" 2> "$pol/err"
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] &&
   grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test -count=1 ./x" "$pol/err" &&
   grep -qF "heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd $pol && corvint test --base " "$pol/err" &&
-  grep -qE " --dry-run --manifest [^ ]*heavy-selection\.json && $hself --plan [^ ]*heavy-selection\.json\$" "$pol/err" ||
+  grep -qE " --dry-run --manifest [^ ]*/corvint-heavy-selection-[0-9]+-[0-9]+\.json && $hself --plan [^ ]*/corvint-heavy-selection-[0-9]+-[0-9]+\.json\$" "$pol/err" ||
   fail "heavy.sh whole refusal did not print its rerun lines: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > /dev/null 2> "$pol/err"
 grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test ./x" "$pol/err" &&
@@ -3548,6 +3643,69 @@ out=$(sweep --apply)
 [[ $? == 2 ]] || fail 'sweep accepted symlink root'
 "$script/lane-tmp-sweep.sh" --root "$sw/root/corvint-link-test.OLD123/" > "$sw/err" 2>&1
 [[ $? == 2 ]] || fail 'sweep accepted symlink root with trailing slash'
+ok
+fi
+
+if selected tools 63; then
+
+# ASD-V0-2400 (V1-3968): a whole-package go test of a brand-new package (a ./REL directory holding Go
+# files, none of which exists at the merge base of HEAD and origin/main) needs no HEAVY_WHOLE_REASON,
+# since every test in it is new and Corvint's selection runs it whole; it is logged as new-package.
+# Negative controls: a package that exists at the base, a mix of both, ./... and a checkout with no
+# origin/main are still refused. Fault injection: a failing new package is admitted and its failure
+# (exit 1, not the refusal's 2) is passed through.
+np=$tmp/new-package
+mkdir -p "$np/bin" "$np/repo/old" || fail "new-package fixture"
+printf '#!/bin/sh\ncase " $* " in *" ./fresh "*) [ -n "$STUB_FRESH_FAIL" ] && exit 1 ;; esac\nexit 0\n' > "$np/bin/go" && chmod +x "$np/bin/go" &&
+  printf 'package old\n' > "$np/repo/old/a.go" && printf 'package old\n' > "$np/repo/old/a_test.go" &&
+  g -C "$np/repo" init -q && g -C "$np/repo" add old && g -C "$np/repo" commit -qm base &&
+  g -C "$np/repo" update-ref refs/remotes/origin/main HEAD && mkdir -p "$np/repo/fresh" &&
+  printf 'package fresh\n' > "$np/repo/fresh/a.go" && printf 'package fresh\n' > "$np/repo/fresh/a_test.go" || fail "new-package fixture repo"
+npbase=$(git -C "$np/repo" rev-parse HEAD)
+npv() { (cd "$np/repo" && env -u HEAVY_WHOLE_REASON PATH="$np/bin:$PATH" HEAVY_SELECTION_LOG="$np/sel.log" HEAVY_LOCK_DIR="$np/slots" \
+  HEAVY_SLOTS=1 HEAVY_REMOTE_HOST= "$heavy" "$@") > "$np/out" 2> "$np/err"; }
+npv go test -count=1 ./fresh || fail "heavy.sh refused a brand-new package: $(cat "$np/out" "$np/err")"
+grep -Eq " whole reason=new-package:${npbase:0:12} pwd=.* cmd=go test -count=1 \./fresh script=" "$np/sel.log" ||
+  fail "new-package not logged: $(cat "$np/sel.log")"
+g -C "$np/repo" add fresh && g -C "$np/repo" commit -qm fresh || fail "commit the new package"
+npv go test ./fresh || fail "heavy.sh refused a committed brand-new package: $(cat "$np/err")"
+for args in './old' './fresh ./old' './...' './fresh/...'; do
+  # shellcheck disable=SC2086 # each case is a word list on purpose
+  npv go test $args
+  [[ $? == 2 && $(cat "$np/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh ran whole go test $args without a reason: $(cat "$np/out" "$np/err")"
+done
+STUB_FRESH_FAIL=1 npv go test ./fresh
+[[ $? == 1 ]] || fail "a failing brand-new package did not fail through heavy.sh: $(cat "$np/out" "$np/err")"
+g -C "$np/repo" update-ref -d refs/remotes/origin/main || fail "drop origin/main"
+npv go test ./fresh
+[[ $? == 2 ]] || fail "heavy.sh admitted a new package with no origin/main to measure it against: $(cat "$np/err")"
+g -C "$np/repo" update-ref refs/remotes/origin/main "$npbase" || fail "restore origin/main"
+# ASD-V0-2401 (V1-4358): the refusal's Corvint selection line suggests a manifest path that
+# `corvint test --dry-run --manifest` accepts: never under the Git directory (it refuses every name
+# there but its receipts) and never in the worktree; with TMPDIR inside the worktree, /tmp.
+npv go test ./old
+m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
+gd=$(git -C "$np/repo" rev-parse --absolute-git-dir) top=$(cd "$np/repo" && pwd -P)
+[[ -n $m && $m == "$TMPDIR"/corvint-heavy-selection-*.json && $m != "$gd"/* && $m != "$top"/* ]] &&
+  grep -qE " && [^ ]*/heavy\.sh --plan ${m//./\\.}\$" "$np/err" || fail "heavy.sh suggested a manifest corvint test refuses: $m (git dir $gd): $(cat "$np/err")"
+mkdir -p "$np/repo/tmpin" || fail "worktree TMPDIR"
+(cd "$np/repo" && env -u HEAVY_WHOLE_REASON TMPDIR="$np/repo/tmpin" PATH="$np/bin:$PATH" HEAVY_SELECTION_LOG="$np/sel.log" HEAVY_LOCK_DIR="$np/slots" \
+  HEAVY_SLOTS=1 HEAVY_REMOTE_HOST= "$heavy" go test ./old) > "$np/out" 2> "$np/err"
+m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
+[[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested a manifest inside the worktree: $m"
+# A linked worktree's Git directory and common Git directory lie outside its checkout. Both are
+# forbidden manifest destinations, including when TMPDIR names them through an outside symlink.
+g -C "$np/repo" worktree add -q "$np/linked" HEAD || fail "linked manifest fixture"
+linked_git=$(git -C "$np/linked" rev-parse --absolute-git-dir)
+common_git=$(git -C "$np/linked" rev-parse --path-format=absolute --git-common-dir)
+ln -s "$linked_git" "$np/git-link" && ln -s "$common_git" "$np/common-link" || fail "manifest symlinks"
+for manifest_tmp in "$linked_git" "$common_git" "$np/git-link" "$np/common-link"; do
+  (cd "$np/linked" && env -u HEAVY_WHOLE_REASON TMPDIR="$manifest_tmp" PATH="$np/bin:$PATH" HEAVY_SELECTION_LOG="$np/sel.log" HEAVY_LOCK_DIR="$np/slots" \
+    HEAVY_SLOTS=1 HEAVY_REMOTE_HOST= "$heavy" go test ./old) > "$np/out" 2> "$np/err"
+  [[ $? == 2 ]] || fail "linked manifest fixture did not refuse whole-package run: $(cat "$np/err")"
+  m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
+  [[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested an unusable manifest for TMPDIR=$manifest_tmp: $m"
+done
 ok
 fi
 

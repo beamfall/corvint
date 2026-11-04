@@ -51,8 +51,14 @@ func TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446(t *testing.T) {
 			if got := plan.Scope + " " + fmt.Sprint(frontier); got != tc.want {
 				t.Errorf("dirty %v: %s, want %s", tc.dirty, got, tc.want)
 			}
-			if plan.FrontierSites["x:import-unresolved"] != 2 {
-				t.Errorf("frontier sites = %v, want x:import-unresolved counted twice", plan.FrontierSites)
+			// AFP-V0-2406: x's two sites count only when the plan involves x
+			// (it names one of x's frontiers); otherwise x adds no count.
+			want := 0
+			if strings.Contains(tc.want, "x:") {
+				want = 2
+			}
+			if plan.FrontierSites["x:import-unresolved"] != want {
+				t.Errorf("frontier sites = %v, want x:import-unresolved counted %d times", plan.FrontierSites, want)
 			}
 		})
 	}
