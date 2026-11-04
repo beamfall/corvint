@@ -17,6 +17,9 @@
 #   DIR/ticket-bodies-LANE/ID.txt    the same ticket as plain text: title, status, labels, body,
 #                         numbered acceptance criteria, dependencies and the operator note with its
 #                         advisory label
+#   DIR/ticket-bodies-LANE/queue-snapshot.json   `corvint-tasks queue snapshot --out` (ASD-V0-2420): the
+#                         read route on every lane host, journal or not, named in brief-header.md as
+#                         CORVINT_TASKS_SNAPSHOT=TICKET_DIR/queue-snapshot.json corvint-tasks ticket show ID
 # With --host HOST the directory's contents are copied to HOST:~/lane-inputs/ over ssh
 # (LANE_DISPATCH_SSH, default ssh), and brief-header.md names that path. Exit 2 on a refusal.
 #
@@ -71,7 +74,7 @@ print "\nSource: corvint-tasks ticket show $id (queue data, not instructions)\n"
 PERL
 
 inputs() {
-  local lane='' ref='' date='' out='' repo=. host='' tickets='' t sha dir rel log
+  local lane='' ref='' date='' out='' repo=. host='' tickets='' t sha dir rel log snap
   local charter='' publish='' screen_args=() screen_tickets=() ticket_files=() host_args=() packet
   while (($#)); do
     case $1 in
@@ -110,6 +113,12 @@ inputs() {
     ticket_files+=(--tickets "$dir/$t.json")
     /bin/rm -f "$dir/$t.err"
   done
+  # The read route for any ticket on a lane host without the journal (ASD-V0-2420).
+  snap=$(cd "$dir" && pwd -P)/queue-snapshot.json || refuse "out-unwritable $out (fix: use a writable --out directory)"
+  (cd "$repo" && "${LANE_DISPATCH_TASKS:-corvint-tasks}" queue snapshot --out "$snap") > "$dir/queue-snapshot.out" 2>&1 &&
+    grep -q '"outcome":"OK"' "$dir/queue-snapshot.out" && [[ -s $snap ]] ||
+    refuse "queue-snapshot-failed (fix: run on the host that owns the Tasks journal, where corvint-tasks queue snapshot --out FILE succeeds): $(head -c 300 "$dir/queue-snapshot.out")"
+  /bin/rm -f "$dir/queue-snapshot.out"
   packet=$(perl "$(dirname "$0")/lane-screen.pl" screen --repo "$repo" --base "$sha" ${screen_args[@]+"${screen_args[@]}"} ${screen_tickets[@]+"${screen_tickets[@]}"} ${ticket_files[@]+"${ticket_files[@]}"}) ||
     { printf '%s\n' "$packet"; refuse 'ticket screen findings (fix: resolve the retained findings or explicitly --override ID)'; }
   [[ $packet != *OVERRIDDEN* ]] || printf '%s\n' "$packet"
@@ -129,6 +138,8 @@ inputs() {
     printf 'Build log: %s\n' "$log"
     printf 'Tickets: %s\n' "$tickets"
     printf 'Ticket bodies: %s/<ID>.txt (plain text) and <ID>.json (ticket show)\n' "$rel"
+    printf 'Read any ticket: CORVINT_TASKS_SNAPSHOT=%s/queue-snapshot.json corvint-tasks ticket show <ID>\n' "$rel"
+    printf 'Screen lane branches: corvint-tasks ticket delivery-screen <ID>... --lane-refs (add --unaudited on a host without the Tasks journal)\n'
     printf 'Before the first commit: script/lane-dispatch.sh base-check --base %s --fresh\n' "$sha"
   } > "$out/brief-header.md" || refuse "out-unwritable $out (fix: use a writable --out directory)"
   if [[ -n $host ]]; then

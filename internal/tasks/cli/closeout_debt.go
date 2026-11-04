@@ -33,7 +33,8 @@ const (
 	citeIssue    = "issue-link"
 	citeUmbrella = "umbrella"
 	// citeProgressHead marks a row whose OPEN ticket's effective progress
-	// names a scanned commit as its head (TLF-V0-883).
+	// names a scanned commit as its head in a delivery phase (TLF-V0-883,
+	// TCD-V0-2400).
 	citeProgressHead = "progress-head"
 
 	stepNoAttempt       = "NO_ATTEMPT"
@@ -51,7 +52,28 @@ const (
 	// Why a cited OPEN ticket is no candidate (TCD-V0-741).
 	excludeMarked       = "MARKED_NOT_DELIVERED"
 	excludeBuildLogOnly = "BUILD_LOG_ONLY"
+	// Why a scanned progress head is no citation (TCD-V0-2400).
+	excludeProgressInProgress = "PROGRESS_IN_PROGRESS"
+	excludeProgressBlocked    = "PROGRESS_BLOCKED"
 )
+
+// progressHead is an OPEN ticket whose effective progress names a head, and
+// why that head is no delivery citation, or "".
+type progressHead struct{ id, exclusion string }
+
+// progressHeadExclusion is why a progress head in phase is no citation
+// (TCD-V0-2400): a head cites only in the phases through which
+// batch-delivered and batch-close deliver (TLF-V0-1101). An IN_PROGRESS head
+// is a lane's dispatch base and a BLOCKED one names no delivered work.
+func progressHeadExclusion(phase string) string {
+	switch phase {
+	case ticket.PhaseInProgress:
+		return excludeProgressInProgress
+	case ticket.PhaseBlocked:
+		return excludeProgressBlocked
+	}
+	return ""
+}
 
 var (
 	// closeoutWord is one message word (TCD-V0-004): ticket IDs, local
@@ -363,20 +385,20 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	var (
 		index    *closeoutIndex
 		locals   map[string]string            // OPEN tickets only
-		heads    map[string][]string          // progress head -> OPEN ticket IDs
+		heads    map[string][]progressHead    // progress head -> OPEN tickets
 		attempts map[string]*snapshot.Attempt // nil = NOT_OBSERVED
 		branch   string
 	)
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}, origin: store.OriginSlug(rc.repo.PrimaryWorktree)}
-		locals, heads, attempts, branch = map[string]string{}, map[string][]string{}, nil, rc.store.Queue.IntentBranch
+		locals, heads, attempts, branch = map[string]string{}, map[string][]progressHead{}, nil, rc.store.Queue.IntentBranch
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
 			index.add(rec)
 			if rec.Status == ticket.StatusOpen {
 				locals[id] = rec.TicketID.Local
 				if p := rec.EffectiveProgress(); p != nil && p.Head != nil {
-					heads[*p.Head] = append(heads[*p.Head], id)
+					heads[*p.Head] = append(heads[*p.Head], progressHead{id: id, exclusion: progressHeadExclusion(p.Phase)})
 				}
 			}
 		}
@@ -517,9 +539,18 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 					delivers: refs[cite.ticketID] == refDelivered})
 			}
 		}
-		for _, id := range heads[c.Commit] {
-			listed[id] = true
-			collected.add(closeoutRow{ticketID: id, local: locals[id], commit: c.Commit, subject: subject, kind: citeProgressHead})
+		for _, h := range heads[c.Commit] {
+			if h.exclusion != "" {
+				e := excludedBy[h.id]
+				if e == nil {
+					e = &closeoutExcluded{ticketID: h.id, local: locals[h.id], reason: h.exclusion}
+					excludedBy[h.id] = e
+				}
+				e.commits = append(e.commits, c.Commit)
+				continue
+			}
+			listed[h.id] = true
+			collected.add(closeoutRow{ticketID: h.id, local: locals[h.id], commit: c.Commit, subject: subject, kind: citeProgressHead})
 		}
 	}
 	type stepOf struct{ step, gate string }

@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # usage: script/tasks-reconcile.sh   (make tasks-reconcile)
 #
-# Post-merge closeout reconcile (TCD-V0-872, V1-3496). It exports merged PRs and CI runs with gh,
-# runs `corvint-tasks ticket closeout-debt --ref REF --prs EXPORT` and retains the exports and the
-# report under <git-common-dir>/corvint/reconcile/<refCommit>/. It prints each batch-close proposal
+# Post-merge closeout reconcile (TCD-V0-872, V1-3496). It exports merged PRs with gh, runs
+# `corvint-tasks ticket closeout-debt --ref REF --prs EXPORT`, then exports the CI runs of each
+# proposal's merge commit and PR head with `gh run list --commit SHA` (TCD-V0-2401, V1-4449: a
+# latest-N window misses an older merge's green run), and retains the exports and the report
+# under <git-common-dir>/corvint/reconcile/<refCommit>/. It prints each batch-close proposal
 # (its command with the retained exports filled in) and the tickets left for review, and exits with
 # the closeout-debt status: 0 no debt, 1 debt or proposals, 2 refusal. A failed export, a missing
 # binary or an unparsable report exits 2 with the reason on stderr; it never skips silently.
@@ -37,8 +39,6 @@ mkdir -p "$dir"
 "$gh" pr list --state merged --limit "$limit" \
   --json number,state,title,body,headRefName,headRefOid,mergeCommit,labels,mergedAt,url > "$dir/prs.json" ||
   die "gh pr list failed; no reconcile for $commit"
-"$gh" run list --limit "$((limit * 4))" --json databaseId,headSha,conclusion,url > "$dir/runs.json" ||
-  die "gh run list failed; no reconcile for $commit"
 
 set +e
 "$tasks" ticket closeout-debt --ref "$ref" --prs "$dir/prs.json" < /dev/null > "$dir/report.json"
@@ -49,6 +49,28 @@ jq -e '.items[0].profile == "taskman-closeout-debt/0"' "$dir/report.json" > /dev
 
 echo "tasks-reconcile $commit: report $dir/report.json"
 jq -r '.items[0].human[]' "$dir/report.json"
+
+# The runs of each proposal's merge commit and PR head, one entry per run, so batch-close finds a
+# green run however old the merge is (TCD-V0-2401). The fields let a gated close derive CI gate
+# evidence (TCD-V0-770). A failed or unreadable export exits 2; it never becomes an empty file.
+runs_dir=$(mktemp -d "$dir/runs.XXXXXX") || die "cannot create a runs directory in $dir"
+trap '/bin/rm -rf "$runs_dir"' EXIT
+runs_files=()
+shas=$(jq -r --slurpfile prs "$dir/prs.json" '.items[0].proposals[]? | .pr as $pr |
+  .mergeCommit, ($prs[0][]? | select((.number | tostring) == ($pr | tostring)) | .headRefOid // empty)' "$dir/report.json" | sort -u) ||
+  die "cannot read the proposal commits from $dir/report.json; no runs export for $commit"
+for sha in $shas; do
+  [[ $sha =~ ^[0-9a-f]{40}$ ]] || die "proposal commit $sha is not a full commit id; no runs export for $commit"
+  "$gh" run list --commit "$sha" --limit 100 --json databaseId,headSha,conclusion,url,workflowName,event,updatedAt > "$runs_dir/$sha.json" ||
+    die "gh run list --commit $sha failed; no runs export for $commit"
+  runs_files+=("$runs_dir/$sha.json")
+done
+if ((${#runs_files[@]})); then
+  jq -cs 'add | unique_by(.databaseId)' "${runs_files[@]}" > "$dir/runs.json" ||
+    die "gh run list --commit printed no JSON run array; no runs export for $commit"
+else
+  echo '[]' > "$dir/runs.json"
+fi
 
 failed=0
 if [[ -n $apply ]]; then

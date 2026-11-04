@@ -11,6 +11,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -2121,7 +2123,8 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
 		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
 		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
-		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id)
+		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id) +
+		stagedSnapshotHint(id, time.Now())
 }
 
 // snapshotRouteHint is the CTS-V0-680 addition to a journal-absent miss: a
@@ -2130,6 +2133,68 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 func snapshotRouteHint(id string) string {
 	return " On a host without that checkout, export a snapshot on the primary with `corvint-tasks queue snapshot --out FILE`, copy FILE here and retry with `" +
 		SnapshotEnv + "=FILE corvint-tasks ticket show " + id + "` (CTS-V0-680)."
+}
+
+// maxStagedSnapshots caps the staged snapshot files a journal-absent miss
+// stats (ASD-V0-2421).
+const maxStagedSnapshots = 256
+
+// plainShellWord is a path a shell reads as one word without quoting.
+var plainShellWord = regexp.MustCompile(`^[A-Za-z0-9_./-]+$`)
+
+// stagedSnapshotHint is the ASD-V0-2421 addition to a journal-absent miss:
+// the newest queue snapshot the dispatch kit staged on this host under
+// $HOME/lane-inputs (lane-dispatch.sh inputs, lane-stage-inputs.sh), with
+// its age and the exact retry, else the staging command. It only stats the
+// candidates, never decodes one, and never serves the ticket from it.
+func stagedSnapshotHint(id string, now time.Time) string {
+	none := " No queue snapshot is staged under $HOME/lane-inputs on this host; on the host that owns the journal, stage one with " +
+		"`script/lane-stage-inputs.sh --host HOST LANE " + id + "` (ASD-V0-2421)."
+	path, mod := newestStagedSnapshot()
+	if path == "" {
+		return none
+	}
+	quoted := path
+	if !plainShellWord.MatchString(path) {
+		quoted = "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
+	}
+	hint := " A queue snapshot is staged on this host at " + quoted + " (modified " + strconv.FormatInt(int64(now.Sub(mod)/time.Hour), 10) +
+		" hour(s) ago): retry with `" + SnapshotEnv + "=" + quoted + " corvint-tasks ticket show " + id + "` (ASD-V0-2421)."
+	if _, err := wire.ParseProse("", hint, 1, wire.MaxProseBytes); err != nil {
+		return none
+	}
+	return hint
+}
+
+// newestStagedSnapshot is the newest regular file, by modification time,
+// among $HOME/lane-inputs/queue-snapshot.json and
+// $HOME/lane-inputs/ticket-bodies-*/queue-snapshot.json, or "" when there
+// is none or HOME cannot be read.
+func newestStagedSnapshot() (string, time.Time) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return "", time.Time{}
+	}
+	base := filepath.Join(home, "lane-inputs")
+	candidates := []string{filepath.Join(base, "queue-snapshot.json")}
+	if entries, err := os.ReadDir(base); err == nil {
+		for _, e := range entries {
+			if len(candidates) >= maxStagedSnapshots {
+				break
+			}
+			if e.IsDir() && strings.HasPrefix(e.Name(), "ticket-bodies-") {
+				candidates = append(candidates, filepath.Join(base, e.Name(), "queue-snapshot.json"))
+			}
+		}
+	}
+	var best string
+	var mod time.Time
+	for _, c := range candidates {
+		if fi, err := os.Stat(c); err == nil && fi.Mode().IsRegular() && fi.Size() > 0 && (best == "" || fi.ModTime().After(mod)) {
+			best, mod = c, fi.ModTime()
+		}
+	}
+	return best, mod
 }
 
 func queueStatus(env Env, args []string) *wire.Result {
