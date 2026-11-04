@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 const behaviorEventsLive = "testdata/behavior-events/live-1.61.1/report.json"
@@ -16,7 +18,8 @@ const behaviorEventsLive = "testdata/behavior-events/live-1.61.1/report.json"
 // committed report fixture's annotations from synthetic pages and locators.
 func TestDCPV1081ProducerNodeUnit(t *testing.T) {
 	t.Parallel()
-	out, err := exec.Command("node", "--test", "behavior-events_test.cjs").CombinedOutput()
+	node := testsupport.NodeOrSkip(t, "the behavior-events producer test")
+	out, err := exec.Command(node, "--test", "behavior-events_test.cjs").CombinedOutput()
 	if err != nil {
 		t.Fatalf("behavior-events producer: %v\n%s", err, out)
 	}

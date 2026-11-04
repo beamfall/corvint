@@ -295,3 +295,26 @@ func TestCCEV0037NoOpPreservesNotUseful(t *testing.T) {
 		t.Fatal("a DISCRIMINATES scenario beside PRESERVES must keep the entry useful")
 	}
 }
+
+// CCE-V0-740 (V1-2375): an omitted-event control is read only through the verdict it guards. A
+// CONTROL_SURVIVED scenario's recorded kills score nothing, so the hosted catch is a miss and not
+// an escape; a control ID recorded as a seeded mutant refuses the window.
+func TestCCEV0740OmittedEventControlIsNotATarget(t *testing.T) {
+	w := ShadowWindow{Schema: ShadowWindowSchema, Registration: registered(), Gate: FrozenShadowGate,
+		HostedTests: []HostedTest{{ID: "t1", AssertedOutcomes: []string{"outcome:f/o"}}}}
+	w.Entries = []ShadowEntry{{ID: "a", Type: EntryMerged, Base: "b", Head: "h", TestRevision: "h", Obligations: map[string]int{"REACHED": 1},
+		Mutants: []string{"m1"}, Hosted: HostedSide{TestsRun: []string{"t1"}, MutantsCaught: map[string][]string{"t1": {"m1"}}},
+		Scenarios: []ShadowScenario{{Obligation: "o1", Verdict: VerdictControlSurvived, OracleOrigin: OriginAdmittedAtBase, KilledMutants: []string{"m1"}}}}}
+	doc := runShadow(t, w)
+	if e := doc.Entries[0]; strings.Join(e.Misses, ",") != "mutant:m1" || len(e.Escapes) != 0 || e.Useful {
+		t.Fatalf("survived control: misses %v escapes %v useful %v", e.Misses, e.Escapes, e.Useful)
+	}
+	if m := doc.Totals.MissRate; m.Numerator != 1 || m.Denominator != 1 || doc.Totals.Escapes != 0 {
+		t.Fatalf("totals %+v", doc.Totals)
+	}
+	w.Entries[0].Mutants = append(w.Entries[0].Mutants, "control:omitted-event:step-1")
+	data, _ := json.Marshal(w)
+	if _, err := Shadow(data); refusalCode(err) != "e2e-shadow-window-invalid" {
+		t.Fatalf("control recorded as a mutant: %v", err)
+	}
+}

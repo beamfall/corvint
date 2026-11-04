@@ -900,12 +900,29 @@ func TestAHI017AdapterHostKillMatchesDeclaredHooks(t *testing.T) {
 			}
 		}
 	}
+	// V1-3946: the shipped entries equal the hooks.json kills; an opt-in entry is registered by
+	// no shipped hooks.json and is an event the Claude Code adapter accepts.
 	want := map[string]time.Duration{}
-	for arguments, kill := range adapterDeclaredHostKill {
-		want["adapter "+arguments] = kill
+	optIn := 0
+	for arguments, entry := range adapterDeclaredHostKill {
+		if !entry.optIn {
+			want["adapter "+arguments] = entry.kill
+			continue
+		}
+		optIn++
+		if _, shipped := declared["adapter "+arguments]; shipped {
+			t.Fatalf("opt-in %q is registered by a shipped hooks.json", arguments)
+		}
+		event, ok := strings.CutPrefix(arguments, "claude-code ")
+		if !ok || !slices.Contains(claudeCodeAdapterEvents, event) {
+			t.Fatalf("opt-in %q is not an event the claude-code adapter accepts", arguments)
+		}
 	}
 	if !reflect.DeepEqual(declared, want) {
-		t.Fatalf("declared host kills %v, adapter table %v", declared, want)
+		t.Fatalf("declared host kills %v, shipped adapter table %v", declared, want)
+	}
+	if optIn == 0 {
+		t.Fatal("the table carries no opt-in entry, so the opt-in checks above ran on nothing")
 	}
 	start := time.Now()
 	for arguments, kill := range declared {
@@ -1148,7 +1165,7 @@ func TestAHI019ClaudePostToolReceiptNamesEveryDegradation(t *testing.T) {
 	}
 	text, _ := claudeHookOutput(t, output)["additionalContext"].(string)
 	id, codes, named := strings.Cut(strings.TrimPrefix(text, "Corvint FALLBACK "), "; ")
-	if !named || !strings.HasPrefix(id, "harness-receipt:sha256:") || codes != "frontier-authority-unavailable" {
+	if !named || !strings.HasPrefix(id, "harness-receipt:sha256:") || strings.Split(codes, "\n")[0] != "frontier-authority-unavailable" || !strings.Contains(text, "cause: no-accepted-closing-authority") || !strings.Contains(text, "fix: none exists") {
 		t.Fatalf("post-tool receipt does not name its degradations: %q", text)
 	}
 }
@@ -1198,8 +1215,8 @@ func TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery(t *testing.T) {
 	output := runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"})
 	text, _ := output["systemMessage"].(string)
 	want := "Corvint FALLBACK degraded: " + claudeUnavailableReason + "; coding continues" +
-		"\nCorvint's read-only context read for this event failed with an error outside its named codes, so this event got no Corvint context; coding continues." +
-		"\nTo see the underlying error, run this read-only command outside the hook:\n" + string(query)
+		"\ncause: event-read-unavailable\nCorvint's read-only context read for this event failed with an error outside its named codes, so this event got no Corvint context; coding continues." +
+		"\nTo see the underlying error, run this read-only command outside the hook:\nfix: " + string(query)
 	if text != want {
 		t.Fatalf("notice=%q\nwant  %q", text, want)
 	}
@@ -1228,9 +1245,9 @@ func TestAHI802SharedCloneFallbackNamesObjectAlternates(t *testing.T) {
 	output := runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"})
 	text, _ := output["systemMessage"].(string)
 	lines := strings.Split(text, "\n")
-	if len(lines) < 2 || lines[0] != "Corvint FALLBACK degraded: "+claudeUnavailableReason+"; coding continues" ||
-		!strings.Contains(lines[1], "unsupported-object-alternates") || !strings.Contains(lines[1], "objects/info/alternates") ||
-		!strings.Contains(lines[1], "git clone --no-local") || !strings.Contains(lines[1], "git commit-graph write --reachable") {
+	if len(lines) < 3 || lines[1] != "cause: event-read-unavailable" || lines[0] != "Corvint FALLBACK degraded: "+claudeUnavailableReason+"; coding continues" ||
+		!strings.Contains(lines[2], "unsupported-object-alternates") || !strings.Contains(lines[2], "objects/info/alternates") ||
+		!strings.Contains(lines[2], "git clone --no-local") || !strings.Contains(lines[2], "git commit-graph write --reachable") {
 		t.Fatalf("shared-clone notice=%q", text)
 	}
 	if adapterDegradationReason(output) != claudeUnavailableReason {
@@ -1311,10 +1328,29 @@ func TestAHI803SiblingRepositoryEditIsAttributedToItsOwner(t *testing.T) {
 			t.Fatalf("%s: output=%s err=%v", spelled, &stdout, err)
 		}
 		text, _ := claudeHookOutput(t, output)["additionalContext"].(string)
-		receipt, attribution, ok := strings.Cut(text, "\n")
+		// The receipt line, then one cause/fix pair per named degradation code (DTL-V0-002),
+		// then exactly the framed attribution.
+		receipt, _, ok := strings.Cut(text, "\n")
 		want, framed := siblingAttribution(resolvedSibling)
-		if !ok || !framed || !strings.HasPrefix(receipt, "Corvint FALLBACK harness-receipt:sha256:") || attribution != want {
+		if !ok || !framed || !strings.HasPrefix(receipt, "Corvint FALLBACK harness-receipt:sha256:") {
 			t.Fatalf("%s: sibling edit was not attributed: %q", spelled, text)
+		}
+		var codes []any
+		if _, named, found := strings.Cut(receipt, "; "); found {
+			for _, code := range strings.Split(named, ",") {
+				if strings.HasPrefix(code, "+") {
+					t.Fatalf("%s: elided codes cannot be checked: %q", spelled, receipt)
+				}
+				codes = append(codes, code)
+			}
+		}
+		diagnostics := ""
+		for _, raw := range hookDegradationDiagnostics(codes) {
+			row := raw.(map[string]any)
+			diagnostics += "\ncause: " + row["cause"].(string) + "\nfix: " + row["fix"].(string)
+		}
+		if text != receipt+diagnostics+"\n"+want {
+			t.Fatalf("%s: diagnostics or attribution differ:\n got %q\nwant %q", spelled, text, receipt+diagnostics+"\n"+want)
 		}
 	}
 	if ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl")); err == nil && bytes.Contains(ledger, []byte("post-tool-path-outside-project")) {

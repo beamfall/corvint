@@ -282,9 +282,10 @@ is a later, separate decision that needs its own owner acceptance and the promot
   mutant is caught by the compiled side when at least one eligible scenario of that entry passes on
   the unmutated application and fails at its outcome assertion's location on the mutated one, in
   every repeat; a real failure is caught when an eligible scenario reads `REGRESSION_DETECTED` for
-  it. Every target the hosted side caught and no eligible scenario caught is one miss and one escape,
-  counted once however many scenarios were non-scoring. For an entry whose obligations read
-  `UNKNOWN`, every target the hosted side caught there is a miss and an escape. Every rate MUST print
+  it. Every target the hosted side caught and no eligible scenario caught is one miss, and one
+  escape when it is a real failure (CCE-V0-740), counted once however many scenarios were
+  non-scoring. For an entry whose obligations read `UNKNOWN`, every target the hosted side caught
+  there is a miss, and each real failure among them an escape. Every rate MUST print
   its numerator and denominator and the one-sided 95% Clopper-Pearson bound.
 - `CCE-V0-012`: A hosted test MAY be listed as a retirement candidate only when all of these hold
   over the shadow window:
@@ -1321,6 +1322,23 @@ installed); the fixtures use shell test commands and recorded provider documents
 
 Rollback: delete `internal/extmutate`, `cmd/corvint-test/discriminate.go`, the synopsis, summary,
 tree snapshot entries and the capabilities wording; no other document or wire changes.
+
+Lane spd-u27 adds CCE-V0-740 (V1-2375, 2026-11-01), experimental under the owner's standing
+auto-accept:
+
+- `CCE-V0-740`: (experimental under the owner's standing auto-accept (2026-11-01); V1-2375) The
+  shadow report MUST read an `omitted-event` control (CCE-V0-018, 029, 036, 039) only through the
+  verdict of the scenario or hosted proof it guards, never as a target. A control is not a seeded
+  regression: it is never a catch, a miss, an escape or a member of a rate's denominator, and a
+  window that lists a control ID (`control:...`) among an entry's `mutants` is refused
+  `e2e-shadow-window-invalid` (a scenario's `killed_mutants` must already name the entry's own
+  mutants). A survived control makes its scenario read `CONTROL_SURVIVED`, which is not eligible, so
+  that scenario's recorded kills score nothing and a hosted catch it alone matched is a miss. An
+  escape is a real hosted failure no eligible scenario caught; a seeded mutant the hosted side
+  caught and no eligible scenario caught is a miss and not an escape, in an `UNKNOWN` entry as in
+  any other. Failure modes: a survived control's kills inflate seeded parity; a control ID recorded
+  as a mutant enters the miss-rate denominator. Evidence: `TestCCEV0740OmittedEventControlIsNotATarget`.
+  Rollback: drop the control-ID refusal and this requirement.
 
 ## Shadow evaluation and retirement
 

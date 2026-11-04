@@ -167,8 +167,6 @@ docs/specs/diagnostic-repair-contract-v0.md	internal/worktreeimpact/compiler.go:
 docs/specs/diagnostic-repair-contract-v0.md	internal/worktreeimpact/compiler.go:96
 docs/specs/documentation-citation-gate-v0.md	ROADMAP.md:343
 docs/specs/documentation-citation-gate-v0.md	docs/RELEASE-NOTES-alpha.md:127
-docs/specs/eol-policy-gate-v0.md	Makefile:16-23
-docs/specs/eol-policy-gate-v0.md	Makefile:16-23
 docs/specs/eol-policy-gate-v0.md	Makefile:87-95
 docs/specs/eol-policy-gate-v0.md	Makefile:87-95
 docs/specs/eol-policy-gate-v0.md	script/check-eol-policy.sh:22-40
@@ -582,7 +580,6 @@ docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:614
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:68
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:863
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:911
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:930
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:94
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:26
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:32

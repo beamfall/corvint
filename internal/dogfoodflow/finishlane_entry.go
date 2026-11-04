@@ -20,12 +20,13 @@ func ValidFinishLaneEntry(entry string) bool {
 // recovery's make alternative and "with the same inputs" tail.
 var finishLaneRerun = regexp.MustCompile(`rerun corvint dogfood (?:finish-lane|inputs-check) --base ([^\s,;()]+)(?: \(or make dogfood-finish BASE=[^\s()]+\))?(?: with the same inputs)?`)
 
-// say prints like flow.say, but under a pre-flight or a wrapper's --entry
-// each rerun hint names the command the operator ran, with every input it
-// took, so the fix line reruns the same check (DCW-V0-730, V1-3883, V1-3930).
+// say prints like flow.say, but under a pre-flight, a wrapper's --entry or
+// --seal no each rerun hint names the command the operator ran, with every
+// input it took, so the fix line reruns the same check (DCW-V0-730, V1-3883,
+// V1-3930) and a stop-before-seal run's retry never seals (DTL-V0-004).
 func (l *finishLane) say(format string, values ...any) {
 	text := fmt.Sprintf(format, values...)
-	if l.options.Entry != "" || l.options.Preflight {
+	if l.options.Entry != "" || l.options.Preflight || l.options.StopBeforeSeal {
 		text = finishLaneRerun.ReplaceAllStringFunc(text, func(match string) string {
 			return "rerun " + l.rerunCommand(finishLaneRerun.FindStringSubmatch(match)[1])
 		})
@@ -34,15 +35,25 @@ func (l *finishLane) say(format string, values ...any) {
 }
 
 // rerunCommand is the command that reruns this run on base: the --entry make
-// target with its variables, or else corvint dogfood inputs-check with its
-// flags. An inline DOGFOOD_VERIFY has no file to name, so the hint says so.
+// target with its variables, or else corvint dogfood inputs-check (or, for a
+// direct finish-lane --seal no, finish-lane) with its flags. A sealing entry
+// run with --seal no keeps SEAL=0, and a direct finish-lane keeps --seal no
+// (DTL-V0-004); the pre-flight's own entry and inputs-check never seal. An
+// inline DOGFOOD_VERIFY has no file to name, so the hint says so.
 func (l *finishLane) rerunCommand(base string) string {
 	change := l.options.Change
 	words := []string{"corvint", "dogfood", "inputs-check", "--base", shellWord(base)}
 	names := []string{"--citations", "--intents", "--verify", "--outcome"}
+	direct := l.options.Entry == "" && !l.options.Preflight && l.options.StopBeforeSeal
+	if direct {
+		words[2] = "finish-lane"
+	}
 	if l.options.Entry != "" {
 		words = []string{"make", l.options.Entry, "BASE=" + shellWord(base)}
 		names = []string{"CITATIONS=", "INTENTS=", "VERIFY=", "OUTCOME="}
+		if l.options.StopBeforeSeal && l.options.Entry != "dogfood-inputs-check" {
+			words = append(words, "SEAL=0")
+		}
 	}
 	for index, value := range []string{change.Citations, change.IntentsFile, change.VerifyFile, change.Outcome} {
 		if value == "" {
@@ -53,6 +64,9 @@ func (l *finishLane) rerunCommand(base string) string {
 		} else {
 			words = append(words, names[index], shellWord(value))
 		}
+	}
+	if direct {
+		words = append(words, "--seal", "no")
 	}
 	if change.VerifyFile == "" && change.Verify != "" {
 		words = append(words, "with the same DOGFOOD_VERIFY")

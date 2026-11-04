@@ -15,6 +15,8 @@ set -eu
 # their own definition lines and add different phony make targets, each on its own `.PHONY:` line,
 # merge in both orders with no conflict, while the same amendments as header segments and the same
 # targets on one shared `.PHONY:` line conflict; the repository Makefile has no shared line.
+# Covers SRG-V0-752 (V1-2392): two lanes that extend the ranges of adjacent README rows conflict
+# in README.md alone, and spec-requirements-resolve finishes the merge.
 # Covers SRG-V0-920..922 (V1-3448, V1-3338, V1-3437): spec-requirements-resolve regenerates and
 # exits 0 when only a spec conflicted and when no merge is in progress; two lanes that each add a
 # new spec and repin a different use-case receipt conflict in INDEX.json, README.md and the ledger,
@@ -492,5 +494,41 @@ out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-re
 test "$(git diff --name-only --diff-filter=U)" = "$uc/ledger.json" && test "$(git diff | git hash-object --stdin)" = "$before" ||
   fail "the refused resolve changed the merge state"
 git merge --abort
+
+# SRG-V0-752 (V1-2392): two lanes that each add a requirement past the top of a different spec,
+# whose README rows are adjacent and carry SRG-V0-043 ranges, conflict in README.md alone, in both
+# orders, because git merges adjacent changed lines as one hunk; spec-requirements-resolve
+# finishes the merge and every merged generated file is the regenerated one.
+git checkout -q -b range-base "$rbase"
+for spec in rna:RNA rnb:RNB; do
+  printf '# %s spec\n\nIntent status: accepted\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s.\n\n## Requirements\n\n- %s-V0-001: (accepted, decision 0005) The first clause.\n- %s-V0-002: (accepted, decision 0005) The second clause.\n' \
+    "${spec%%:*}" "${spec%%:*}" "${spec#*:}" "${spec#*:}" > "$repo/docs/specs/${spec%%:*}.md"
+done
+regen
+perl -pi -e 's/\((rn[ab])\.md\) \|/"($1.md) " . uc($1) . "-V0-001 |"/e' "$repo/docs/specs/README.md"
+regen
+git commit -q -m range-base
+rows=$(grep -n '(rn[ab]\.md) RN[AB]-V0-001\.\.002 |' "$repo/docs/specs/README.md" | cut -d: -f1 | tr '\n' ' ')
+case $rows in *' '*' ') test $((${rows#* } - ${rows%% *})) = 1 || fail "the range rows are not adjacent: $rows" ;; *) fail "the range rows were not generated: $rows" ;; esac
+rbase2=$(git rev-parse HEAD)
+add_requirement lane-ra rna.md RNA-V0-002 "- RNA-V0-003: (accepted under the owner's standing auto-accept (2026-11-01); V1-2392) Lane RA's clause." "$rbase2"
+add_requirement lane-rb rnb.md RNB-V0-002 "- RNB-V0-003: (accepted under the owner's standing auto-accept (2026-11-01); V1-2392) Lane RB's clause." "$rbase2"
+for order in 'lane-ra lane-rb' 'lane-rb lane-ra'; do
+  set -- $order
+  git checkout -q -b "merge-$1" "$1"
+  if git merge -q --no-edit "$2" > /dev/null 2>&1; then fail "$1 <- $2: adjacent range rows merged without a conflict (the V1-2392 limit no longer holds; update SRG-V0-752)"; fi
+  conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+  test "$conflicted" = "docs/specs/README.md " || fail "$1 <- $2: the range-row conflict touched more than README.md: $conflicted"
+  out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve 2>&1) ||
+    fail "$1 <- $2: spec-requirements-resolve did not finish the range-row merge: $out"
+  test -z "$(git diff --name-only --diff-filter=U)" || fail "$1 <- $2: paths still unmerged after the resolve"
+  git commit -q --no-edit
+  for file in REQUIREMENTS.tsv INDEX.json README.md; do
+    case $file in REQUIREMENTS.tsv) flag= ;; INDEX.json) flag=--index ;; README.md) flag=--readme ;; esac
+    (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" || fail "$1 <- $2: the resolved $file is not the regenerated one"
+  done
+  grep -q '(rna\.md) RNA-V0-001\.\.003 |' "$repo/docs/specs/README.md" && grep -q '(rnb\.md) RNB-V0-001\.\.003 |' "$repo/docs/specs/README.md" ||
+    fail "$1 <- $2: a lane's range was lost in the resolve"
+done
 
 printf 'ok\n'

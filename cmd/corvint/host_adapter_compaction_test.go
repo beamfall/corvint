@@ -214,11 +214,13 @@ func TestAHI028ClaudePostCompactReportsNonRehydratablePaths(t *testing.T) {
 
 // AHI-027/AHI-028: the host reads compaction stdout as text, so a degradation prints its frame
 // text rather than hook JSON, and the empty summary of a cached replacement compaction is silent.
+// The PreCompact frame keeps its cause and fix lines after the unavailable prefix (DTL-V0-002).
 func TestClaudeCompactionDegradationIsPlainText(t *testing.T) {
 	t.Parallel()
 	root, ctx := compactionFixture(t)
 	pre := compactionHookStdout(t, ctx, root, "pre-compact", map[string]any{"trigger": "scheduled"})
-	if pre != compactionPinUnavailable+"Corvint FALLBACK degraded: invalid-compaction-trigger; coding continues\n" {
+	frame := withFallbackDiagnostics(map[string]any{"text": "Corvint FALLBACK degraded: invalid-compaction-trigger; coding continues"})["text"].(string)
+	if !strings.Contains(frame, "\ncause: invalid-compaction-trigger\nfix: ") || pre != compactionPinUnavailable+frame+"\n" {
 		t.Fatalf("pre-compact stdout=%q", pre)
 	}
 	post := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"compact_summary": "no pin in the summary"})
@@ -375,10 +377,10 @@ func TestAHI970CompactionPinUnavailableNamesCauseAndRecovery(t *testing.T) {
 			continue
 		}
 		lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
-		if len(lines) != 4 || lines[0] != "Corvint FALLBACK degraded: "+want[0]+"; coding continues" ||
-			!strings.Contains(lines[1], want[1]) || !strings.Contains(lines[1], "not re-verified") ||
-			lines[2] != "The next prompt rebuilds Corvint context from the current tree. To check that Corvint's read works, run this read-only command outside the hook:" ||
-			lines[3] != string(query) {
+		if len(lines) != 5 || lines[0] != "Corvint FALLBACK degraded: "+want[0]+"; coding continues" ||
+			lines[1] != "cause: "+want[0] || !strings.Contains(lines[2], want[1]) || !strings.Contains(lines[2], "not re-verified") ||
+			lines[3] != "The next prompt rebuilds Corvint context from the current tree. To check that Corvint's read works, run this read-only command outside the hook:" ||
+			lines[4] != "fix: "+string(query) {
 			t.Fatalf("%s notice=%q", want[0], stdout)
 		}
 	}

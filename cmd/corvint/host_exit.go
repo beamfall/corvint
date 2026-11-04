@@ -37,7 +37,7 @@ type hookStdout struct {
 func (w hookStdout) Write(p []byte) (int, error) {
 	n, err := w.stdout.Write(p)
 	if err != nil {
-		_, _ = io.WriteString(w.stderr, "Corvint FALLBACK degraded: hook-stdout-unwritable; coding continues\n")
+		_, _ = io.WriteString(w.stderr, "Corvint FALLBACK degraded: hook-stdout-unwritable; coding continues\ncause: hook-stdout-unwritable\nfix: restore the hook stdout pipe in the host and retry; the hook cannot repair a closed host pipe\n")
 	}
 	return n, err
 }

@@ -24,6 +24,7 @@ import (
 	falsifycli "github.com/Beamfall/corvint/internal/behaviorfalsify/cli"
 	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/changee2e"
+	"github.com/Beamfall/corvint/internal/clitree"
 	minimizecli "github.com/Beamfall/corvint/internal/playwrightminimize/cli"
 	acceptcli "github.com/Beamfall/corvint/internal/testacceptance/cli"
 	"github.com/Beamfall/corvint/internal/testrunner/cli"
@@ -71,6 +72,9 @@ func main() {
 			os.Exit(2)
 		}
 		return
+	}
+	if exit, refused := clitree.RefuseIfUnknownVerb(commandTree(), os.Args[1:], os.Stderr); refused {
+		os.Exit(exit)
 	}
 	// The runner group shares the old companion's entry, so its output is byte-identical
 	// apart from the invocation name in diagnostics (CTF-V0-002, CTF-V0-004).

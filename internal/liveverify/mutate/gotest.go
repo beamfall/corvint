@@ -142,8 +142,9 @@ const (
 )
 
 // runGrace is how much longer than go test's own -timeout the runner waits
-// before killing the run, so a hung test is reported by go test as a failure
-// rather than silenced by the runner. Tests shorten it.
+// before killing the run, so go test's alarm names a hung test rather than the
+// runner silencing it; a single-claim run that alarm ended is still no kill
+// (alarmEnded, FPK-V0-740). Tests shorten it.
 var runGrace = 5 * time.Second
 
 // observeRun, when set, sees the package of every go test the runner
@@ -156,8 +157,27 @@ var observeRun func(packageDir string)
 func runTests(ctx context.Context, configuration settings, space workspace, pattern string, cold bool) (runOutcome, string) {
 	// Baselines and grouped fallbacks must use the mutants' JSON mode too:
 	// -json implies -v and can change testing.Verbose() inside the cited tests.
-	outcome, output, _ := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true, cold)
-	return outcome, output
+	outcome, output, outcomes := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true, cold)
+	return alarmEnded(outcome, output, outcomes), output
+}
+
+// alarmEnded reads a single claim's failed run that go test's own -timeout
+// alarm ended, with no function failure reported first, as runTimedOut: the
+// alarm fires at the per-run limit runGrace before the runner's own kill, and
+// on a loaded host a passing mutant can outlast it, so it is the per-run limit
+// and never a kill (FPK-V0-740, V1-2382). A function that failed before the
+// alarm, itself or through a failed subtest, still kills. A package run is
+// left to creditGroup, which re-runs the hung claim alone.
+func alarmEnded(outcome runOutcome, output string, outcomes map[string]runOutcome) runOutcome {
+	if outcome != runFailed || !strings.Contains(output, testTimeoutMarker) {
+		return outcome
+	}
+	for _, result := range outcomes {
+		if result == runFailed {
+			return outcome
+		}
+	}
+	return runTimedOut
 }
 
 // perRunDetail names the per-run limit that ended a warm run (FPK-V0-142).
@@ -284,21 +304,30 @@ func (sink *eventSink) Write(chunk []byte) (int, error) {
 	return len(chunk), nil
 }
 
-// readLine records one event: pass or skip is a pass, fail is a failure, a
-// subtest names nothing, and a line that is no event (a sandbox message, a
-// cut line) is skipped. Package-level events and output carry the markers
-// classifyRun reads from plain output.
+// readLine records one event: pass or skip is a pass, fail is a failure, and
+// a line that is no event (a sandbox message, a cut line) is skipped. A
+// subtest's fail is its top-level function's failure, kept even when that
+// function then hangs until go test's alarm and never reports its own result
+// (FPK-V0-740); a subtest's pass or skip says nothing about the function.
+// Package-level events and output carry the markers classifyRun reads from
+// plain output.
 func (sink *eventSink) readLine(line []byte) {
 	var event testEvent
 	if err := json.Unmarshal(line, &event); err != nil {
 		return
 	}
 	sink.readMarkers(event.Action, event.Output)
-	if event.Test == "" || strings.Contains(event.Test, "/") {
+	if event.Test == "" {
 		return
 	}
 	result, known := outcomeByAction[event.Action]
 	if !known {
+		return
+	}
+	if function, _, subtest := strings.Cut(event.Test, "/"); subtest {
+		if result == runFailed {
+			sink.outcomes[function] = runFailed
+		}
 		return
 	}
 	sink.outcomes[event.Test] = result
