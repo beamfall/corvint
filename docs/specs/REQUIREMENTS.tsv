@@ -5242,6 +5242,16 @@ ASD-V0-2193	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's 
 ASD-V0-2194	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4319) `script/	standing	2026-11-03; V1-4319
 ASD-V0-2120	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2691) Before a	standing	2026-10-11; V1-2691
 ASD-V0-2121	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4335, V1-2691)	standing	2026-10-11; V1-4335; V1-2691
+LVT-V0-001	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4046)	standing	2026-11-03; V1-4046
+LVT-V0-002	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4046)	standing	2026-11-03; V1-4046
+LVT-V0-003	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4046)	standing	2026-11-03; V1-4046
+LVT-V0-004	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4046)	standing	2026-11-03; V1-4046
+LVT-V0-005	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4252)	standing	2026-11-03; V1-4252
+LVT-V0-006	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4252)	standing	2026-11-03; V1-4252
+LVT-V0-007	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4252)	standing	2026-11-03; V1-4252
+LVT-V0-008	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3570)	standing	2026-11-03; V1-3570
+LVT-V0-009	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4319)	standing	2026-11-03; V1-4319
+LVT-V0-010	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; owner friction)	standing	2026-11-03
 LGP-V0-001	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each	standing	2026-11-03; V1-4404
 LGP-V0-002	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) The piec	standing	2026-11-03; V1-4404
 LGP-V0-003	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Owned	standing	2026-11-03; V1-4404

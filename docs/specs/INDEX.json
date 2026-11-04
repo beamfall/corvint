@@ -4472,5 +4472,19 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/lane-verification-tooling-v0.md",
+    "title": "Lane Verification Tooling V0",
+    "reqPrefix": "LVT-V0",
+    "intent": "accepted under the owner's standing lane auto-accept (2026-10-11)",
+    "delivery": "experimental",
+    "claim": "Lane verification reserves requirement IDs, batches immutable Git reads, and cleans private host-test scratch safely.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "script/requirement-id-reservations.sh"
+    ]
   }
 ]

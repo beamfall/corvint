@@ -282,6 +282,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Native Windows Test Portability V0 | [`windows-test-portability-v0.md`](windows-test-portability-v0.md) ASD-V0-2230..2238 | accepted | experimental | Native Windows test fixtures distinguish POSIX assumptions from portable assertions and bound the corpus transport and dependency-observer regressions. |
 | Lane Shell Portability V0 | [`lane-shell-portability-v0.md`](lane-shell-portability-v0.md) ASD-V0-2120..2194 | accepted | experimental | Lane shell scripts stay portable to Bash 3.2, BWK awk and Make 3.81, keep offload scratch and caches on disk, and sweep only their own stale temp dirs. |
 | Dogfood Citation Plan Precheck V0 | [`dogfood-citation-plan-precheck-v0.md`](dogfood-citation-plan-precheck-v0.md) | accepted under the owner's standing auto-accept (2026-10-11) | implemented | A citation-plan precheck names every refused row and its CEM reason before binding. |
+| Lane Verification Tooling V0 | [`lane-verification-tooling-v0.md`](lane-verification-tooling-v0.md) LVT-V0-001..010 | accepted under the owner's standing lane auto-accept (2026-10-11) | experimental | Lane verification reserves requirement IDs, batches immutable Git reads, and cleans private host-test scratch safely. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
@@ -293,3 +294,5 @@ for `LTPM-V0-013..014`, `LTA-V0-013`, `LOD-V0-035` and `LAC-V0-038`. Delivery re
 Trace producer provenance (V1-0745, decision 0429): the same local-trace producer entry is the
 single active spec route for `LTPM-V0-015..016`, with amendment notes in `LOD-V0-035`,
 `OCL-V0-001`, `LTA-V0-001` and the core compatibility freeze. Delivery remains experimental.
+
+| Lane verification tooling | [Lane Verification Tooling V0](lane-verification-tooling-v0.md) | accepted | experimental |
