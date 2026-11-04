@@ -22,7 +22,11 @@ the native store is deliberately not written by this lane.
   advice only; canonical receipt admission still decides whether a failure contributes.
 - Make the local dry-run default the existing 4096-byte summary and expose JSON through --full.
   Keep the CI profile's JSON default because pinned shadow consumers parse it. All projections
-  produce the same manifest. No CI control-plane files change.
+  produce the same manifest. A retained wide plan exposed a second output path: 4075 bytes
+  on stdout plus 16942 bytes of whole-package advice on stderr. The bounded form now carries
+  top causes and one ready heavy reason within its single budget, with no duplicate verdict
+  or detailed stderr list. The 400-unit regression reproduces 24241 bytes before the fix.
+  No CI control-plane files change.
 - Honor the admitted shared Go cache in both executable-build helpers. Add parallel admission to
   90 command tests, 20 Tasks CLI tests and 60 companion-release tests after an AST candidate audit
   and shuffled execution. Keep environment, chdir, hook and timing users serial. The retained
@@ -86,8 +90,9 @@ qualification. Exhaustive `make gate`, parallel full-suite execution and Windows
 under the owner's focused-only/no-push instructions. `script/batch-precheck_test.sh` is deliberately
 untouched because V1-4525 is already failing at the base.
 
-Focused runs and raw-log digests are retained in the verification evidence artifact and the lane
-handback. Before/after performance observations use explicit serial overlays and the same selected
+Focused runs and raw-log digests are retained in the [verification evidence](../../.agent-evidence/pk-affected-verification.json) and the lane
+handback. Twelve focused verification commands passed; the combined-output regression and the
+recency-comment check passed separately after their final inputs changed. Before/after performance observations use explicit serial overlays and the same selected
 candidate sets; overloaded-host numbers are not a quiet-host or CI qualification. Initial broad
 candidate baselines also exposed sandbox fixture failures, which are kept as failures, not passes.
 The prototype commits a673dd7c7 and 8ef4154fc are absent from this checkout's object database;
@@ -96,6 +101,22 @@ equivalent cache precedence and safely qualified parallel admission were impleme
 The orchestrator runs independent review. This lane does not run a model-backed reviewer, publish,
 write the native Tasks store, or seal. Final CEM binding and dogfood-check are local structural
 checks; their success does not promote the two incomplete performance qualifications.
+
+The serial-overlay/candidate timings below isolate parallel admission over the same focused sets.
+Candidate times are the total for two shuffled runs; these are loaded-host observations, not the
+required quiet-host or CI full-package A/B.
+
+| Package subset | Tests | Serial overlay, one run | Candidate, two runs |
+|---|---:|---:|---:|
+| cmd/corvint | 90 | 17.195 s | 12.651 s |
+| internal/tasks/cli | 20 | 8.880 s | 4.561 s |
+| internal/companionrelease | 60 | 1.734 s | 3.025 s |
+
+The 20-count live-budget invocation hit the unchanged 30-minute package hang detector after
+19 SKIPs. Those skips mean the calibration-relative bound held while the absolute bound was
+NOT_ENFORCED. The last observation did not complete. Worktree inputs also evolved during the live
+observations, so this is not a frozen-corpus or parallel full-suite qualification. The timeout and
+all SKIPs remain retained failures/limits; the bound and wrapper policy were not relaxed.
 
 ## Rollback
 

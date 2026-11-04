@@ -52,7 +52,7 @@ of every requirement below and the binding gate until this spec is promoted.
 - `STR-V0-7305`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard executed by the session runner MUST record its completion wall time as optional RFC3339Nano completedAt. Legacy receipts without that field remain admissible. It is ordering advice, never an execution, revision or evidence-validity assertion.
   Acceptance evidence: `TestFailFastContentTimeSurvivesTimestampTies` in `cmd/corvint/affected_order_test.go` and the session-runner round-trip tests.
 
-- `STR-V0-7313`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3424) The default local-profile test --dry-run output MUST be the existing bounded summary (at most 4096 bytes), including counts, selection and fallback reasons sufficient to justify HEAVY_WHOLE_REASON. --full MUST request the complete JSON argv listing. --summary remains an explicit synonym for the local default; the CI profile retains its JSON default for pinned shadow consumers, and --pins retains its own output. All forms write identical manifests. --full outside --dry-run or with --summary or --pins MUST refuse. This amends STR-V0-800's output default, not planning or execution.
+- `STR-V0-7313`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3424) The default local-profile test --dry-run output MUST be a bounded summary (at most 4096 bytes across stdout and stderr), including counts, selection and fallback reasons sufficient to justify HEAVY_WHOLE_REASON. --full MUST request the complete JSON argv listing. --summary remains an explicit synonym for the local default; the CI profile retains its JSON default for pinned shadow consumers, and --pins retains its own output. The bounded form MUST include top whole-package causes and a usable HEAVY_WHOLE_REASON; it MUST NOT append the full per-invocation advice or a duplicate verdict on stderr. All forms write identical manifests. --full outside --dry-run or with --summary or --pins MUST refuse. This amends STR-V0-800's output default, not planning or execution.
   Acceptance evidence: `TestDryRunDefaultsToBoundedSummary`, `TestSTRV0800DryRunSummaryIsBounded` and `TestSTRV0800CLIDryRunSummary` in `cmd/corvint`.
 
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
@@ -533,7 +533,10 @@ two requirements make its version name its content and make each receipt carry i
   units' own reasons, or the plan's reason when a unit has none, naming at most three packages
   (more are counted), so a lane copying the plan into `script/heavy.sh` (`ASD-V0-030`) needs no
   hand-written reason; a `-run` slice and a non-Go declared command get no line, and the stdout
-  JSON plan is unchanged. Non-goals: exporting the variable or weakening heavy.sh's refusal of a
+  JSON plan is unchanged. Amended by STR-V0-7313 (V1-3424): the bounded dry-run summary
+  instead includes one whole-package count, top causes and a ready HEAVY_WHOLE_REASON within
+  its output budget; detailed JSON dry runs and executing runs retain the per-invocation stderr.
+  Non-goals: exporting the variable or weakening heavy.sh's refusal of a
   hand-typed whole run. Rollback: remove `testWholeReasons` and its call.
 - `STR-V0-173`: (experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint
   test --go-parallel N`, accepted once with N from 1 to 64 and only with `--profile local`, SHALL run

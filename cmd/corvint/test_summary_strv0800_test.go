@@ -104,3 +104,22 @@ func TestDryRunCIKeepsPinnedJSONDefault(t *testing.T) {
 		t.Fatalf("CI lost the pinned JSON wire: %s", &out)
 	}
 }
+
+// STR-V0-7313: the context bound includes stderr's whole-package advice.
+func TestDryRunSummaryBoundsBothOutputStreams(t *testing.T) {
+	t.Parallel()
+	m := sessiontest.Manifest{Scope: "FULL", Placement: "universe", ShardCount: 1}
+	for i := 0; i < 400; i++ {
+		m.Units = append(m.Units, sessiontest.Unit{Adapter: "go", Slice: "whole", Unit: fmt.Sprintf("go:example.test/m/pkg%03d", i), Reason: fmt.Sprintf("whole: DIRECT_SOURCE_CHANGE via pkg%03d/source.go", i)})
+	}
+	var out, errout bytes.Buffer
+	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), testOptions{profile: "local", dryRun: true}, &out, &errout); code != 0 {
+		t.Fatalf("exit=%d %s", code, &errout)
+	}
+	if out.Len()+errout.Len() > 4096 {
+		t.Fatalf("summary streams total %d bytes (stdout=%d stderr=%d)", out.Len()+errout.Len(), out.Len(), errout.Len())
+	}
+	if !strings.Contains(out.String()+errout.String(), "HEAVY_WHOLE_REASON") {
+		t.Fatal("bounded summary lost the whole-package reason")
+	}
+}

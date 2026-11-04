@@ -366,7 +366,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
-	testVerdict(stderr, manifest)
+	if !testSummarySelected(options) {
+		testVerdict(stderr, manifest)
+	}
 	if options.dryRun {
 		if options.pins {
 			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
@@ -776,7 +778,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	switch {
 	case options.pins:
 		// The pins report was written in place of the JSON plan (TSP-V0-944).
-	case options.summary || !options.full && options.profile != "ci":
+	case testSummarySelected(options):
 		_, _ = io.WriteString(stdout, testDryRunSummary(m, digest, invocations, options.shard))
 	default:
 		encoded, err := gokernel.CanonicalJSON(document)
@@ -786,7 +788,9 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 		}
 		_, _ = stdout.Write(append(encoded, '\n'))
 	}
-	testWholeReasons(invocations, m.Reason, stderr)
+	if !testSummarySelected(options) {
+		testWholeReasons(invocations, m.Reason, stderr)
+	}
 	if len(m.Incomplete) != 0 {
 		return testCommandExit[sessiontest.ResultIncomplete]
 	}
@@ -1010,4 +1014,10 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 	}
 	_, _ = stdout.Write(encoded)
 	return 0
+}
+
+// testSummarySelected chooses the bounded local/default or explicit summary projection.
+// Its verdict and whole-package advice live inside the same output budget (STR-V0-7313).
+func testSummarySelected(options testOptions) bool {
+	return options.dryRun && !options.pins && (options.summary || !options.full && options.profile != sessiontest.ProfileCI)
 }
