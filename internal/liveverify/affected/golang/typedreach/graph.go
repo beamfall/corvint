@@ -67,6 +67,9 @@ type graph struct {
 	plainRead map[*ast.Ident]bool
 	// private are the local variables naming a private temporary path.
 	private map[*types.Var]bool
+	// pureUse marks the identifiers of standard-library calls the call site
+	// proves act only on in-memory buffers.
+	pureUse map[*ast.Ident]bool
 	// derived maps a constant or type to the constants, types and variables
 	// declared from it.
 	derived map[types.Object][]types.Object
@@ -131,23 +134,52 @@ var purePackages = map[string]bool{
 	"encoding": true, "encoding/json": true, "encoding/hex": true, "encoding/base64": true, "encoding/base32": true,
 	"encoding/binary": true, "encoding/csv": true, "encoding/xml": true, "encoding/pem": true, "encoding/asn1": true,
 	"hash": true, "hash/crc32": true, "hash/crc64": true, "hash/fnv": true, "hash/adler32": true, "hash/maphash": true,
-	"crypto": true, "crypto/sha256": true, "crypto/sha1": true, "crypto/sha512": true, "crypto/md5": true,
+	"crypto/sha256": true, "crypto/sha1": true, "crypto/sha512": true, "crypto/md5": true,
 	"crypto/hmac": true, "crypto/subtle": true, "crypto/ed25519": true,
 	"fmt": true, "io": true, "io/fs": true, "bufio": true, "context": true, "sync": true, "sync/atomic": true,
 	"time": true, "testing": true, "testing/fstest": true, "testing/iotest": true, "reflect": true,
 	"text/template": true, "text/template/parse": true, "html/template": true, "html": true, "text/tabwriter": true,
 	"text/scanner": true, "go/ast": true, "go/token": true, "go/parser": true, "go/printer": true, "go/format": true,
 	"go/scanner": true, "go/types": true, "go/constant": true, "go/doc/comment": true, "go/build/constraint": true,
-	"archive/tar": true, "archive/zip": true, "compress/gzip": true, "compress/flate": true, "compress/zlib": true,
-	"net/url": true, "net/netip": true, "unsafe": true, "embed": true, "runtime": true, "log": true, "log/slog": true,
+	"archive/tar": true, "compress/gzip": true, "compress/flate": true, "compress/zlib": true,
+	"net/url": true, "net/netip": true, "unsafe": true, "embed": true, "log": true, "log/slog": true,
 	"os/signal": true,
 }
 
 // impureFunctions are functions of purePackages that touch state the model
 // does not follow.
 var impureFunctions = map[string]bool{
-	"archive/zip.OpenReader": true, "path/filepath.Abs": true, "runtime.SetFinalizer": true,
-	"runtime.LockOSThread": true, "runtime.Goexit": true, "time.AfterFunc": true,
+	"path/filepath.Abs": true, "time.AfterFunc": true, "time.LoadLocation": true,
+	"text/template.ParseFiles": true, "text/template.ParseGlob": true, "text/template.ParseFS": true,
+	"html/template.ParseFiles": true, "html/template.ParseGlob": true, "html/template.ParseFS": true,
+	"(*text/template.Template).ParseFiles": true, "(*text/template.Template).ParseGlob": true,
+	"(*text/template.Template).ParseFS": true, "(*html/template.Template).ParseFiles": true,
+	"(*html/template.Template).ParseGlob": true, "(*html/template.Template).ParseFS": true,
+	"go/parser.ParseFile": true, "go/parser.ParseDir": true,
+	"fmt.Fprint": true, "fmt.Fprintf": true, "fmt.Fprintln": true, "fmt.Fscan": true, "fmt.Fscanf": true,
+	"fmt.Fscanln": true,
+}
+
+// pureRuntime are the runtime functions that read or change no state
+// another test observes.
+var pureRuntime = map[string]bool{
+	"Caller": true, "Callers": true, "CallersFrames": true, "FuncForPC": true, "Gosched": true,
+	"KeepAlive": true, "Version": true, "NumCPU": true,
+}
+
+// pureBuffers are in-memory writers and readers whose methods act only on
+// their receiver; an io argument of another type may be a file or a
+// connection (AFP-V0-2374).
+var pureBuffers = map[string]bool{
+	"bytes.Buffer": true, "strings.Builder": true, "bytes.Reader": true, "strings.Reader": true,
+}
+
+// opaqueInterfaces are the standard-library packages whose interfaces
+// (io.Writer, fs.File, net.Conn, ...) standard-library types with state
+// implement: calling one of their methods may reach a file or a connection.
+var opaqueInterfaces = map[string]bool{
+	"io": true, "io/fs": true, "net": true, "os": true, "net/http": true, "database/sql": true,
+	"database/sql/driver": true, "bufio": true, "mime/multipart": true,
 }
 
 // pureOS are the os functions that read no state a test can change, or only
@@ -182,6 +214,16 @@ func stdModelled(f *types.Func) bool {
 // stdPure reports a standard-library function or method on the pure list.
 func stdPure(f *types.Func) bool {
 	path := f.Pkg().Path()
+	if receiver := f.Signature().Recv(); receiver != nil && types.IsInterface(receiver.Type()) && opaqueInterfaces[path] {
+		// An abstract method dispatches to whatever implements it.
+		return false
+	}
+	if impureFunctions[f.FullName()] {
+		return false
+	}
+	if path == "runtime" {
+		return f.Signature().Recv() == nil && pureRuntime[f.Name()]
+	}
 	if path == "os" && f.Signature().Recv() == nil {
 		return pureOS[f.Name()]
 	}
@@ -192,6 +234,61 @@ func stdPure(f *types.Func) bool {
 		return true
 	}
 	return purePackages[path]
+}
+
+// stdArguments records a standard-library call that hands a value of
+// unknown effect to an interface it may call: an io, fs, net or os interface
+// parameter given anything but a module type or an in-memory buffer makes
+// the call unknown; fmt's Fprint and Fscan functions given an in-memory
+// buffer are pure (AFP-V0-2374).
+func (g *graph) stdArguments(n *node, pkg *Package, call *ast.CallExpr, callee *types.Func) {
+	signature := callee.Signature()
+	params := signature.Params()
+	allPure := true
+	for i, arg := range call.Args {
+		var param types.Type
+		switch {
+		case signature.Variadic() && i >= params.Len()-1:
+			if slice, ok := params.At(params.Len() - 1).Type().(*types.Slice); ok && call.Ellipsis == token.NoPos {
+				param = slice.Elem()
+			}
+		case i < params.Len():
+			param = params.At(i).Type()
+		}
+		named, ok := types.Unalias(param).(*types.Named)
+		if !ok || !types.IsInterface(param) || named.Obj().Pkg() == nil || !opaqueInterfaces[named.Obj().Pkg().Path()] {
+			continue
+		}
+		if !g.pureArgument(pkg.Info.TypeOf(arg)) {
+			allPure = false
+			n.unknown = append(n.unknown, g.position(arg.Pos())+" "+callee.FullName()+" given an opaque "+named.Obj().Name())
+		}
+	}
+	if allPure && strings.HasPrefix(callee.FullName(), "fmt.F") {
+		if ident := calleeIdent(unparen(call.Fun)); ident != nil {
+			g.pureUse[ident] = true
+		}
+	}
+}
+
+// pureArgument reports a value whose interface methods act only on itself:
+// a module type, whose methods the graph follows, or an in-memory buffer.
+func (g *graph) pureArgument(t types.Type) bool {
+	if t == nil || types.IsInterface(t) {
+		return false
+	}
+	if pointer, ok := t.(*types.Pointer); ok {
+		t = pointer.Elem()
+	}
+	named, ok := types.Unalias(t).(*types.Named)
+	if !ok || named.Obj().Pkg() == nil {
+		return false
+	}
+	path := named.Obj().Pkg().Path()
+	if pkg := g.program.byPath[path]; pkg != nil && pkg.Module {
+		return true
+	}
+	return pureBuffers[path+"."+named.Obj().Name()]
 }
 
 // implicitReads returns the standard-library state a call into package
@@ -258,10 +355,12 @@ var (
 		"syscall.Setenv": environment, "syscall.Unsetenv": environment, "syscall.Clearenv": environment,
 		"os/signal.Notify": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals,
 		"log.SetOutput": logDefault, "log.SetFlags": logDefault, "log.SetPrefix": logDefault,
-		"log/slog.SetDefault": slogDefault, "log/slog.SetLogLoggerLevel": slogDefault,
+		"log/slog.SetDefault": slogDefault, "os/signal.NotifyContext": signals, "log/slog.SetLogLoggerLevel": slogDefault,
 	}
 	stateReaders = map[string]*types.Var{
-		"os.Getenv": environment, "os.LookupEnv": environment, "os.Environ": environment, "os.ExpandEnv": environment,
+		"os.Getenv": environment, "os.LookupEnv": environment, "os.TempDir": environment,
+		"os.UserHomeDir": environment, "os.UserCacheDir": environment, "os.UserConfigDir": environment,
+		"os.MkdirTemp": environment, "os.CreateTemp": environment, "os.Environ": environment, "os.ExpandEnv": environment,
 		"syscall.Getenv": environment, "syscall.Environ": environment,
 		"os/signal.Notify": signals, "os/signal.NotifyContext": signals, "os/signal.Ignored": signals,
 		"os/signal.Stop": signals, "syscall.Kill": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals,
@@ -277,14 +376,10 @@ var processStarters = map[string]int{
 
 // exemptStateMethods are pointer-receiver methods whose call on a package
 // variable leaves no state a later test observes (AFP-V0-2374).
-var exemptStateMethods = map[string]bool{
-	"(*sync.Mutex).Lock": true, "(*sync.Mutex).Unlock": true, "(*sync.Mutex).TryLock": true,
-	"(*sync.RWMutex).Lock": true, "(*sync.RWMutex).Unlock": true, "(*sync.RWMutex).RLock": true,
-	"(*sync.RWMutex).RUnlock": true, "(*sync.RWMutex).TryLock": true, "(*sync.RWMutex).TryRLock": true,
-}
+var exemptStateMethods = map[string]bool{}
 
 func buildGraph(program *Program) *graph {
-	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}, private: map[*types.Var]bool{}, derived: map[types.Object][]types.Object{}}
+	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}, private: map[*types.Var]bool{}, derived: map[types.Object][]types.Object{}, pureUse: map[*ast.Ident]bool{}}
 	for _, pkg := range program.Packages() {
 		initialization := newNode(program.relative(pkg)+": package initialization", pkg)
 		g.always = append(g.always, initialization)
@@ -730,7 +825,7 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 		}
 		switch object := info.Uses[x].(type) {
 		case *types.Func:
-			if object.Pkg() != nil && !g.moduleFunc(object) && !stdModelled(object) && !stdPure(object) {
+			if object.Pkg() != nil && !g.moduleFunc(object) && !g.pureUse[x] && !stdModelled(object) && !stdPure(object) {
 				n.unknown = append(n.unknown, g.position(x.Pos())+" "+object.FullName())
 			}
 			n.calls[object.Origin()] = true
@@ -842,8 +937,19 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 		return
 	}
 	callee := calleeOf(info, fun)
+	if callee != nil && callee.Pkg() != nil && !g.moduleFunc(callee) {
+		g.stdArguments(n, pkg, call, callee)
+	}
 	if callee != nil && callee.Pkg() != nil {
 		name := callee.Pkg().Path() + "." + callee.Name()
+		if name == "log/slog.SetDefault" {
+			// slog.SetDefault also redirects the log package's output.
+			n.writes[logDefault] = true
+		}
+		if name == "os.Symlink" || name == "os.Link" {
+			// A link can lead a private path anywhere.
+			n.unknown = append(n.unknown, g.position(call.Pos())+" "+name)
+		}
 		if callee.Signature().Recv() == nil {
 			switch {
 			case stateWriters[name] != nil:
@@ -1137,6 +1243,12 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 	}
 	if v := stateReaders[name]; v != nil {
 		n.reads[v] = true
+	}
+	for _, v := range g.implicitReads(f) {
+		n.reads[v] = true
+	}
+	if name == "log/slog.SetDefault" {
+		n.writes[logDefault] = true
 	}
 	if _, writes := fileWriters[name]; writes || fileReaders[name] {
 		n.writes[files] = true

@@ -2,6 +2,7 @@ package typedreach
 
 import (
 	"errors"
+	"go/types"
 	"os"
 	"path/filepath"
 	"slices"
@@ -293,6 +294,52 @@ func TestAFPV02374RoundFourRegressions(t *testing.T) {
 		t.Fatal("(*os.File).Write is not an unmodelled standard-library use")
 	case len(roots["TestHTTPRead"].unknown) == 0 || len(roots["TestListenB"].unknown) == 0:
 		t.Fatal("net/http.Get or net.Listen is treated as pure")
+	}
+}
+
+// TestAFPV02374AllowListRegressions holds the confirming review's cases
+// against the standard-library allow-list: hidden environment reads,
+// registries, runtime setters, file-loading parsers, location loading, the
+// slog bridge, NotifyContext, interface dispatch to files, fmt values,
+// symlinks and lock state. An in-memory Fprintf stays pure.
+func TestAFPV02374AllowListRegressions(t *testing.T) {
+	program, err := Load(filepath.Join("testdata", "mod"), fixtureModule, "t5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := buildGraph(program)
+	roots := map[string]*node{}
+	for _, test := range g.tests {
+		roots[test.name] = test.node
+	}
+	var stdout *types.Var
+	for v := range roots["TestPrintValue"].reads {
+		if v.Name() == "Stdout" {
+			stdout = v
+		}
+	}
+	var lock bool
+	for v := range roots["TestLock"].writes {
+		lock = lock || v.Name() == "mu"
+	}
+	for _, unknownUse := range []string{"TestZip", "TestCrypto", "TestRuntime", "TestTemplate", "TestParser", "TestLocation", "TestWriterInterface", "TestFprintFile", "TestSymlink"} {
+		if len(roots[unknownUse].unknown) == 0 {
+			t.Errorf("%s is treated as pure", unknownUse)
+		}
+	}
+	switch {
+	case !roots["TestHome"].reads[environment]:
+		t.Error("os.UserHomeDir does not read the environment")
+	case !roots["TestSlog"].writes[logDefault] || !roots["TestSlog"].writes[slogDefault]:
+		t.Error("slog.SetDefault does not write both default loggers")
+	case !roots["TestNotifyContext"].writes[signals]:
+		t.Error("signal.NotifyContext does not write signal dispositions")
+	case len(roots["TestFprintBuffer"].unknown) != 0:
+		t.Errorf("Fprintln to a bytes.Buffer is unknown: %v", roots["TestFprintBuffer"].unknown)
+	case stdout == nil:
+		t.Error("fmt.Println taken as a value does not read os.Stdout")
+	case !lock:
+		t.Error("locking a package mutex is not a write of it")
 	}
 }
 
