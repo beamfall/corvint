@@ -897,9 +897,6 @@ func (c *check) verifyBinding(report []byte) int {
 		covered()
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
-	if !noIntent {
-		fmt.Fprintln(c.stdout, countUniverseNote)
-	}
 	if note := coverage.unlinkedNote(); note != "" {
 		c.say("%s\n", note)
 	}
@@ -914,7 +911,7 @@ func (c *check) verifyBinding(report []byte) int {
 	return 0
 }
 
-// checkSummary is the one PASS line that stands in for the CEM and OCM status
+// checkSummary is the PASS summary and its count-universe explanation for the CEM and OCM status
 // JSON (DCW-V0-033): their states and counts, the report, and the detail file
 // that holds the full JSON. A field the JSON does not carry prints NOT_OBSERVED.
 // unknownShare is unknown over material (non-mechanical) hunks, the measure of
@@ -963,7 +960,11 @@ func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, coverage
 		fields = append(fields, independence)
 	}
 	fields = append(fields, "report=.corvint/dogfood-report.json", "detail="+detail)
-	return "dogfood-check: SUMMARY " + strings.Join(fields, " ")
+	summary := "dogfood-check: SUMMARY " + strings.Join(fields, " ")
+	if !noIntent {
+		summary += "\n" + countUniverseNote
+	}
+	return summary
 }
 
 // summaryString admits one state token of letters, digits, '-' and '_';
