@@ -228,7 +228,8 @@ func TestCINV02304BatchPullRequestNeedsSealedEvidence(t *testing.T) {
 		t.Fatal("doc-gates lacks the CIN-V0-2304 step as its last step")
 	}
 	for _, want := range []string{
-		"if: needs.doc-gates-reuse.outputs.mode != 'REUSE' && github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/batch-')",
+		"if: needs.doc-gates-reuse.outputs.mode != 'REUSE'\n",
+		"EVENT_NAME: ${{ github.event_name }}", "HEAD_REF: ${{ github.head_ref }}",
 		"PR_BASE: ${{ github.event.pull_request.base.sha }}", "PR_HEAD: ${{ github.event.pull_request.head.sha }}",
 	} {
 		if !strings.Contains(m[1], want) {
@@ -277,25 +278,30 @@ func TestCINV02304BatchPullRequestNeedsSealedEvidence(t *testing.T) {
 	g("checkout", "-q", "main")
 	g("commit", "-q", "--allow-empty", "-m", "main moved")
 	prBase := g("rev-parse", "HEAD")
-	step := func(t *testing.T, prHead, exit string) (string, string, error) {
+	step := func(t *testing.T, ref, prHead, exit string) (string, string, error) {
 		temp := t.TempDir()
 		log := filepath.Join(temp, "log")
 		cmd := exec.Command("sh", "-c", body)
 		cmd.Dir = repo
-		cmd.Env = append(os.Environ(), "PR_BASE="+prBase, "PR_HEAD="+prHead, "RUNNER_TEMP="+temp, "BATCH_LOG="+log, "BATCH_EXIT="+exit)
+		cmd.Env = append(os.Environ(), "EVENT_NAME=pull_request", "HEAD_REF="+ref, "PR_BASE="+prBase, "PR_HEAD="+prHead, "RUNNER_TEMP="+temp, "BATCH_LOG="+log, "BATCH_EXIT="+exit)
 		out, err := cmd.CombinedOutput()
 		got, _ := os.ReadFile(log)
 		g("worktree", "prune")
 		return strings.TrimSpace(string(got)), string(out), err
 	}
 	want := "trusted " + head + " dogfood batch-check verifier=true " + mergeBase
-	if got, out, err := step(t, head, "0"); err != nil || got != want {
+	if got, out, err := step(t, "claude/batch-x", head, "0"); err != nil || got != want {
 		t.Fatalf("passing batch check: got %q, err %v; want %q (the base-built checker at the head, from the merge base)\n%s", got, err, want, out)
 	}
-	if got, out, err := step(t, head, "1"); err == nil || got != want {
+	if got, out, err := step(t, "claude/batch-x", head, "1"); err == nil || got != want {
 		t.Fatalf("a refusing batch check did not fail the step: got %q\n%s", got, out)
 	}
-	if got, out, err := step(t, strings.Repeat("f", 40), "0"); err == nil || got != "" {
+	if got, out, err := step(t, "claude/batch-x", strings.Repeat("f", 40), "0"); err == nil || got != "" {
 		t.Fatalf("an unresolvable head did not fail the step before the check: got %q\n%s", got, out)
+	}
+	// A non-batch pull request skips the check (the filter lives in the script so the step keeps
+	// the exact AFP-V0-670 REUSE condition); even a refusing checker is never reached.
+	if got, out, err := step(t, "claude/feature-x", head, "1"); err != nil || got != "" {
+		t.Fatalf("a non-batch pull request ran the batch check: got %q, err %v\n%s", got, err, out)
 	}
 }

@@ -104,12 +104,19 @@ jobs:
         # out beside this checkout (the job's own HEAD is the synthetic merge, which no CEM binds)
         # and `corvint dogfood batch-check` (DCW-V0-039) runs there from its merge base with the
         # base. Any refusal, including a head or merge base that cannot be resolved, fails the job.
-        if: needs.doc-gates-reuse.outputs.mode != 'REUSE' && github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/batch-')
+        # The batch filter lives in the script so the step keeps the exact AFP-V0-670 REUSE condition.
+        if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -eu
+          case "$EVENT_NAME:$HEAD_REF" in
+            pull_request:claude/batch-*) ;;
+            *) echo "not a batch pull request; skipped"; exit 0 ;;
+          esac
           base=$(git merge-base "$PR_BASE" "$PR_HEAD")
           git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
           (cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
