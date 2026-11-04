@@ -1999,7 +1999,10 @@ and container qualification; full fallback remains available.
   2026-10-18-v1-1796-ruby-verification-command). Rollback: delete `advisoryRSpecCheck`, its
   constants and the tests.
 - **AFP-V0-072:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no
-  GitHub issue) File-name-only Go readers must place the path. AFP-V0-021 selects a unit whose
+  GitHub issue) File-name-only Go readers must place the path. (Amended in place by AFP-V0-2203
+  round 8 in `affected-plan-selection-v0.md`: for a Go unit outside the CEM paths, (1), (2) and
+  the V1-0290 file-name restriction no longer narrow, because no literal proves the root a token
+  is joined to; certified non-Go units keep them.) AFP-V0-021 selects a unit whose
   path token names a dirty path, and V1-0290 lets an unanchored lone token without `..` name only
   the path's file name. (1) For a Go unit and any dirty path except the CEM sidecar (whose own
   narrowing is unchanged), when every token that names the path does so only through such a lone
