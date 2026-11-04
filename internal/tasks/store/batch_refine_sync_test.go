@@ -18,10 +18,9 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// CTW-V0-7100: an entry overlaps only independent syncs in its publication
-// phase and preserves all durability edges. Without the batch publisher the
-// same entry runs its directory syncs serially and fails maxIn.
-func TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering(t *testing.T) {
+// CTW-V0-013: measurement instrumentation must retain the ordinary batch
+// publisher, with serial directory syncs and all base durability edges.
+func TestCTWV07100_BatchEntryKeepsBasePublication(t *testing.T) {
 	s := newLeaseStore(t)
 	id := s.ticket(t, "batch sync")
 	rec := newSyncRecorder(t, s.repo.StateDir, -1)
@@ -40,14 +39,14 @@ func TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering(t *testing.T) {
 			events[i].dir = "intent/tickets"
 		}
 	}
-	checkOrderingEdges(t, "batch refine", events, true)
-	if rec.maxIn < 2 {
-		t.Fatalf("independent directory syncs ran serially: max concurrency %d", rec.maxIn)
+	checkOrderingEdges(t, "batch refine", events, false)
+	if rec.maxIn != 1 {
+		t.Fatalf("batch publication differs from base: max sync concurrency %d", rec.maxIn)
 	}
 	auditOK(t, s.repo)
 }
 
-// CTW-V0-7100: every publication boundary keeps the staged mutation's
+// CTW-V0-013: every publication boundary keeps the staged mutation's
 // ordinary recovery and exact replay semantics.
 func TestCTWV07100_BatchPublicationFailureCleansStages(t *testing.T) {
 	for stop := 0; stop < 4; stop++ {

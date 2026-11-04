@@ -162,7 +162,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	keepReadCheckpoint(ctx, repo, w.proof)
 	at = writerStage(ctx, "readCheckpoint", at)
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
-	report.Receipt, err = applyMutation(ctx, repo, session, result.Plan)
+	report.Receipt, err = apply(repo, session, result.Plan)
 	if err != nil {
 		out, err = guardFailure(report, env.RequestID, err)
 		return true, out, err

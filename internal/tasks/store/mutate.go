@@ -315,7 +315,7 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	if err = bindObservation(repo, canonical.Identity, transaction.Mutate); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	report.Receipt, err = applyMutation(ctx, repo, session, result.Plan)
+	report.Receipt, err = apply(repo, session, result.Plan)
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
@@ -493,13 +493,4 @@ func priorNoteEvent(repo *intent.Repository, env *mutation.Envelope, records map
 		return nil, nil
 	}
 	return raw, err
-}
-
-// applyMutation reuses the proved lease publisher for a batch entry. This
-// changes scheduling only: every staging and destination sync is retained.
-func applyMutation(ctx context.Context, repo *intent.Repository, session *authority.Session, plan transaction.Publication) (string, error) {
-	if batch, _ := ctx.Value(mutationBatchKey{}).(bool); batch {
-		return applyLease(repo, session, plan, nil)
-	}
-	return apply(repo, session, plan)
 }

@@ -1,0 +1,4 @@
+internal/tasks/store/mutate.go: byte-identical to BASE
+internal/tasks/store/writer_route.go: byte-identical to BASE
+internal/tasks/store/mutate_batch.go: byte-identical to BASE after removing only retained stage instrumentation
+CTW-V0-013: non-goal paragraph restored verbatim from BASE

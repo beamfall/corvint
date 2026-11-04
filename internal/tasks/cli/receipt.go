@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,13 +31,18 @@ func receiptAudit(env Env, args []string) *wire.Result {
 			if err != nil {
 				return failure(cmd, nil, err)
 			}
-			// Resolve ancestor aliases such as macOS /tmp and /var before
-			// the native closed-layout reader checks the selected store.
-			worktree, err = filepath.EvalSymlinks(worktree)
+			// Resolve ancestor aliases such as macOS /tmp and /var, but
+			// retain the unresolved leaf so a symlinked DIR is refused.
+			parent, err := filepath.EvalSymlinks(filepath.Dir(worktree))
 			if err != nil {
 				return failure(cmd, nil, err)
 			}
+			worktree = filepath.Join(parent, filepath.Base(worktree))
 			if err = intent.CheckNoSymlink(worktree); err != nil {
+				return failure(cmd, nil, err)
+			}
+			worktree, err = filepath.EvalSymlinks(worktree)
+			if err != nil {
 				return failure(cmd, nil, err)
 			}
 			i++
@@ -121,7 +127,8 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		var repo *intent.Repository
 		repo, err = intent.Resolve(env.Cwd)
 		if err == nil {
-			repo.IntentWorktree, repo.IntentFix = worktree, ""
+			repo.IntentWorktree = worktree
+			repo.IntentFix = fmt.Sprintf("receipt audit --worktree selected projection %q: compare its .taskman contents with the owning journal and select an agreeing projection with --worktree DIR, then retry", worktree)
 			rc, err = withResolvedStore(env, repo, body)
 		}
 	} else {
