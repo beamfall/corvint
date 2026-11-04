@@ -200,7 +200,10 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   registers it under the TypeScript plugin's declared `module-imports` impact dialects and their
   region dialects, by rule rather than by name. The contextindex ratchet entries for `kotlin`,
   `swift`, `ruby`, `typescript`, `rspec` and `minitest` are removed. Behavior is unchanged and every
-  existing test passes unchanged.
+  existing test passes unchanged. (Amended by AFP-V0-2247 in
+  [`affected-plan-selection-v0.md`](affected-plan-selection-v0.md): the impact profile's probes, load
+  pattern and static-load rule live in the TypeScript plugin's `internal/webdialect`; core still
+  owns the mask and registers the profile.)
 
 ## Failure modes
 

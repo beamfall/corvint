@@ -14,8 +14,9 @@ requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 `2026-11-01-aff-w26`. Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
 `2026-11-03-selprec-selection-precision`. Lane selprec2 (2026-11-03; native tickets V1-4437,
-V1-4173, V1-4284) adds AFP-V0-2240 to AFP-V0-2244; see build-log entry
-`2026-11-03-selprec2-ci-selector-parity`.
+V1-4173, V1-4284) adds AFP-V0-2240 to AFP-V0-2244, and its third round (V1-4173, V1-3282)
+AFP-V0-2245 to AFP-V0-2247; see build-log entries `2026-11-03-selprec2-ci-selector-parity` and
+`2026-11-03-selprec2-round3-typescript-anchors`.
 
 ## Agent digest
 - Claim: `corvint affected` narrows fixture, anchored, temp-root and `go list` reads, marks deletions, and the CI selector follows its Go naming relation.
@@ -304,6 +305,66 @@ measure. None of them drops a unit the change can reach.
   from the CI pin reads it (AFP-V0-710). Measured on a `script/heavy.sh` edit over the lane base
   with the declaration committed: 71 units to 52, `BINARY_EXEC` 25 to 0.
 
+- **AFP-V0-2245:** (experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
+  V1-4173; amending `AFP-V0-072` (3)) The TypeScript plugin SHALL record, for each module, the
+  directories a runner it knows may start the module in (`Unit.RunDirectories`): a runner starts in
+  the repository root or a package root, the root or an ancestor of the module, unless a config
+  whose test membership names anything but plain literals below its own directory (a `..`
+  component after escapes are decoded, a leading `/` or `~`, a template substitution, a `+`
+  concatenation, a computed member, an import other than a runner's own config helper, or a
+  path-computing name such as `process`, `dirname`, `resolve`, `join`, `root`, `dir`, `rootDir` or
+  `roots`) may own the module from elsewhere; that config's directory and its ancestors are then
+  recorded. The plugin SHALL certify the module (`Unit.AnchorsPlaced`) only when its comments and
+  literals lex; no package manifest in the repository has a script with a directory change, a
+  parent component, or a root, directory, prefix, `rootDir` or config option (`cd`, `pushd`, `..`,
+  `--prefix`, `--cwd`, `--dir`, `--root`, `rootDir`, `--config`, `-c`, `-C`), or an embedded runner
+  config naming a parent component or a root, directory, test directory or projects member; its
+  code uses `process` only as `process.cwd()`, `process.env.NAME` or `process.env['NAME']` for a
+  NAME other than `PWD`, `OLDPWD` and `INIT_CWD`, or a member that reaches no directory, `require`
+  only to call a literal or to `require.resolve` a `./` or `../` literal, `import` only statically,
+  on a literal, as `import.meta.url`, `dirname` or `filename`, or to `import.meta.resolve` a `./`
+  or `../` literal, and names no `createRequire`, `Deno`, `Bun`, computed `globalThis` member,
+  shell directory variable or `process` module import; and every module of its local import
+  closure is certified and every relative specifier of the closure resolves to a module unit. It
+  records the literal words its path-token lexicon drops, merged over the closure with the
+  closure's token components, and the closure's module directories and their ancestors as run
+  directories (`Unit.AnchorWords`, at most `MaxPathsPerUnit`). For a certified unit, a dirty path
+  outside its own subtree SHALL be named by an anchored token only as AFP-V0-2203 names it for a
+  Go unit, from the root, the module's directory and its ancestors, and each recorded run
+  directory, with the words added to the placement vocabulary; every other token keeps the
+  component-run relation. So `process.cwd()`, `path.resolve()` and a relative join
+  (`'fixtures' + '/repo'`) start from a recorded runner directory, a value an imported module
+  computes is placed by that module's words, and a renamed destructured `cwd`, `process.env.PWD`,
+  `process.argv`, `process.chdir` and an aliased `require` refuse the certificate. Measured with
+  the by-path probe below: three of the five TypeScript `"/repo"` readers of
+  `internal/jslinecov/testdata/repo/lib.js` are no longer readers. `integrations/opencode/cockpit.test.mjs`
+  and `task-metrics.test.mjs` stay: their closure holds `integrations/opencode/src/runtime.js`,
+  which passes the whole `process.env` on, and code holding it can read `PWD`.
+
+- **AFP-V0-2246:** (experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
+  V1-4173; amending `AFP-V0-2204`) A temp root's canonicalization, `NAME=$(cd "$NAME" && pwd)` or
+  with `pwd -P`, SHALL be no new assignment of the name when it is a plain top-level command of
+  its own after the name's one other assignment and that assignment is followed by `|| exit`
+  that ends its list (not `|| exit 1 | cat`, whose exit runs in a subshell), in a file that does
+  not alias `exit`. A
+  mktemp that fails without exiting would leave the name empty, and `cd ""` succeeds in dash, so
+  `pwd` would print the working directory; a canonicalization of another name, one before the
+  assignment, or any other shape leaves the name assigned twice. Measured with the by-path probe
+  below: `script/batch-assemble_test.sh` is no longer a reader.
+
+- **AFP-V0-2247:** (experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
+  V1-3282; amending `LGP-V0-027`) The TypeScript plugin's impact profile (its probes, its dynamic
+  load pattern and its static-load rule) SHALL live in `internal/webdialect`, a TypeScript plugin
+  package with no package-level variable whose initializer calls a function (its patterns are
+  compiled when `webdialect.Impact` builds the profile, so ADN-V0-004's initializer rule holds), and
+  core SHALL register `webdialect.Impact(flowWebCodeLines)` for each declared `module-imports`
+  impact dialect, its web mask staying in `internal/contextindex`. Behavior is unchanged. Measured
+  on a `flowWordBefore` body edit: the `contextindex` record no longer reaches the profile's var
+  initializer, but still falls back on the registering `init`
+  (`CHANGE_REACHES_PACKAGE_INITIALIZATION`), 151 units as before. The fallback is the real reach:
+  `Build` reaches `nonGoImpactUnknowns`, whose `dialect.LookupImpact` runs the registered code
+  lines, which run `flowWordBefore`; a registration rule could at most select 147.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -316,16 +377,14 @@ adapter. AFP-V0-2200 does not narrow a declared read scope or an unbounded read:
 selected on any `internal/` edit by AFP-V0-023, and a header-only scope would be a new owner
 declaration. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
 and AFP-V0-2241 port no non-Go reader to the CI selector, and change neither its rules (a), (b)
-and (d), the CEM evidence rule, nor declared read scopes (TSP-V0-980). No TypeScript anchored token is
-narrowed (the V1-4173 remainder): a TypeScript runner's working directory is unknown
-(AFP-V0-072 (3)), and a relative join (`'fixtures' + '/repo'`) or a call that returns it
-(`process.cwd()`, `path.resolve()`, `process.env.PWD`) roots the token there, so the five
-TypeScript `"/repo"` readers of the by-path probe stay. AFP-V0-2243 does not
-accept a temp root assigned twice (`tmp=$(cd "$tmp" && pwd)`) or in a function. AFP-V0-2244
-adds no declaration member and does not narrow `batch-regen.sh`'s worktree callers. The symbol
-rule for a registering `init` (V1-3282) is not changed: measured, a sound rule would select 147
-of 151 units for a contextindex body edit, because contextindex's own registry lookups reach the
-registered profile (build-log entry `2026-11-03-selprec2-ci-selector-parity`).
+and (d), the CEM evidence rule, nor declared read scopes (TSP-V0-980). AFP-V0-2245 does not certify a Storybook
+group or narrow a TypeScript token that does not start with `/`. AFP-V0-2243 and AFP-V0-2246 do
+not accept a temp root assigned in a function. AFP-V0-2244 adds no declaration member and does
+not narrow `batch-regen.sh`'s worktree callers. AFP-V0-2247 does not move the web mask out of
+`internal/contextindex`, and the symbol rule for a registering `init` (V1-3282) is not changed:
+measured, a sound rule would select 147 of 151 units for a contextindex body edit, because
+contextindex's own registry lookups reach the registered profile (build-log entries
+`2026-11-03-selprec2-ci-selector-parity` and `2026-11-03-selprec2-round3-typescript-anchors`).
 
 ## Failure modes
 
@@ -345,7 +404,15 @@ supplied at run time is narrowed in the CI selector exactly as AFP-V0-2203 and A
 it in the planner, and the `-bounds` attribution of `tools/gate-ledger` (GL-V0-009) follows the
 same relation, so the ledger keys such a package on fewer paths. A file that
 reads a committed copy of a script but is listed as a mention while it also runs the worktree
-copy is a declaration error the review of `.corvint/shell-foreign-callers.json` owns. The CI PR
+copy is a declaration error the review of `.corvint/shell-foreign-callers.json` owns. A
+TypeScript runner started in a directory no manifest, config or package root of the repository
+records (a CI job's `working-directory`, a shell that changes directory before calling the
+runner) can root an anchored token there: AFP-V0-2245 trusts the recorded runner directories, as
+the Go plugin trusts `go test`'s package directory; a CI job or Makefile that changes directory
+before a runner is invisible to it. A TypeScript module that roots an anchored token at a
+directory it is handed at run time (a literal-keyed environment variable other than the refused
+ones, an external package's export, a function argument), or that builds a component by
+concatenating literals (`'fix' + 'tures'`), is the same accepted residual as the Go plugin's. The CI PR
 and merge-queue selector runs the pinned `CORVINT_PR_TOOL_SOURCE` build, so AFP-V0-2240 and
 AFP-V0-2241 reach CI only with the next re-pin.
 
@@ -373,6 +440,9 @@ AFP-V0-2241 reach CI only with the next re-pin.
 | AFP-V0-2242 | the test itself | `TestRuleCMatchesThePlanner_AFPV02242` in `internal/gateselect/naming_test.go`; the fault-injection runs in build-log entry `2026-11-03-selprec2-ci-selector-parity` |
 | AFP-V0-2243 | the trail switch of `unconditionalAssignment` in `internal/liveverify/affected/shell/shell.go` | the `or exit`, `and cd`, `piped`, `background`, `list in background`, `or list in background`, `or reassign` and `or read` cases of `TestTempRootPathsAreNoTokens_AFPV02204` |
 | AFP-V0-2244 | the `script/batch-regen.sh` entry of `.corvint/shell-foreign-callers.json` | the repository declaration check (`TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`); `tools/declaration-compat-check`; the `heavy.sh` replay in the build log |
+| AFP-V0-2245 | `runDirectories`, `localMembership`, `placeAcrossImports`, `isRelativeSpecifier`, `packageScope.movesDirectory`, `directoryMove` and `embeddedMove` in `internal/liveverify/affected/typescript/typescript.go`; `anchorWords`, `unrecordedDirectory`, `processMembers`, `literalAt` and `moduleRelativeArgument` in `typescript/path_tokens.go`; `Unit.AnchorsPlaced`, `AnchorWords`, `RunDirectories` in `unit.go`, `graph.go`, `graphcache.go`; `anchorsPlacedName` and `anchoredFrom` in `internal/liveverify/affected/readers.go` | `TestTypeScriptAnchoredTokensResolveFromRunDirectories_AFPV02245` (fake root narrowed; `process.cwd()`, renamed destructured `cwd`, `path.resolve()`, relative join, `process.env.PWD` and `INIT_CWD` controls), `TestTypeScriptAnchorCertificateRefusals_AFPV02245` (manifest `cd` and `--prefix`, `chdir`, `argv`, `require.resolve`), `TestTypeScriptClimbingModulesReachRunDirectoryAncestors_AFPV02245` (run-directory ancestors, `argv:` key, module-relative resolver, local and imported config membership), `TestTypeScriptAnchorEscapesStayReaders_AFPV02245` (imported constant and JSON, embedded Jest roots, script `rootDir`, `-c` and `..`, renamed `argv`, computed `process` member, aliased `require`, computed environment key) and `TestLocalMembershipRefusesComputedConfigs_AFPV02245` in `typescript/anchored_afpv02245_test.go` |
+| AFP-V0-2246 | `canonicalPath`, `withoutCanonicalPaths`, `exitsNext` and `separator` in `internal/liveverify/affected/shell/shell.go` | the `canonical`, `canonical physical`, `canonical without exit`, `canonical other name`, `canonical exit piped`, `canonical exit aliased` and `canonical first` cases of `TestTempRootPathsAreNoTokens_AFPV02204` |
+| AFP-V0-2247 | `Impact` and `StaticLoad` in `internal/webdialect/webdialect.go`; `flowWebCodeLines` in `internal/contextindex/flowlexical.go` and the registration in `dialect_hooks.go`; the TypeScript plugin's paths in `internal/langplugin` and `internal/langplugin/decl`; the Tasks export prefix in `internal/companionrelease/export.go` | `TestImpactProfileIsUnchanged_AFPV02247` in `internal/webdialect/webdialect_test.go`; the unchanged `internal/contextindex` and `internal/langplugin` suites; the contextindex replay in the build log |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 
 ## Rollback
@@ -388,5 +458,8 @@ AFP-V0-2204, call `pathTokens` without temp roots; for AFP-V0-2205, drop `Extens
 from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`. For AFP-V0-2240 to
 AFP-V0-2242, delete `internal/gateselect/naming.go` and its test and make `keepsReader` return
 true (rule (c) is the component-run relation again); for AFP-V0-2243, restore `&&` and `||` to the trail
-refusal; for AFP-V0-2244, move the three `internal/dogfoodflow` files back to `callers`. Run
+refusal; for AFP-V0-2244, move the three `internal/dogfoodflow` files back to `callers`. For
+AFP-V0-2245, stop setting `AnchorsPlaced` in the TypeScript plugin; for AFP-V0-2246, drop the
+`withoutCanonicalPaths` call from `tempRoots`; for AFP-V0-2247, move `Impact` back into
+`internal/contextindex` as the `webImpact` variable and delete `internal/webdialect`. Run
 `make spec-requirements` after deleting this file.
