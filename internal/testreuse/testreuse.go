@@ -56,6 +56,10 @@ const (
 	ReasonUndeclaredReadScope = "UNDECLARED_READ_SCOPE"
 	// ReasonUnboundedReader: the affected graph selects the unit on any path.
 	ReasonUnboundedReader = "UNBOUNDED_READER"
+	// ReasonExistenceReader: the package's tests read the existence or mode
+	// of paths no digest binds (AFP-V0-980), so an unchanged digest does not
+	// prove an unchanged outcome.
+	ReasonExistenceReader = "EXISTENCE_READER"
 	// ReasonSlicedUnit: CI may split the package into test slices
 	// (AFP-V0-041), so no single invocation proves the whole package.
 	ReasonSlicedUnit = "SLICED_UNIT"
@@ -107,6 +111,10 @@ const (
 	ErrorScopeForm         = "scope-form"
 	ErrorDeclarationDirty  = "declaration-dirty"
 	ErrorDeclarationBroken = "declaration-invalid"
+	// ErrorWorktreeBytes: a worktree file does not hold its blob's bytes.
+	ErrorWorktreeBytes = "worktree-bytes"
+	// ErrorSnapshotDrift: the checkout changed during the observation.
+	ErrorSnapshotDrift = "snapshot-drift"
 )
 
 // IdentityEnv names the environment values, as `go env` resolves them, that
@@ -288,6 +296,9 @@ func DigestPackage(snapshot *Snapshot, importPath, identityDigest, confine strin
 	if snapshot.Unbounded[importPath] {
 		return fail(ReasonUnboundedReader, importPath)
 	}
+	if snapshot.ExistenceReaders[directory] {
+		return fail(ReasonExistenceReader, directory)
+	}
 	if snapshot.Sliced[importPath] {
 		return fail(ReasonSlicedUnit, importPath)
 	}
@@ -417,6 +428,10 @@ func DigestPackage(snapshot *Snapshot, importPath, identityDigest, confine strin
 	}
 	if path, dirty := snapshot.dirtyWithin(inputs, directories); dirty {
 		return fail(ReasonDigestError, ErrorDirtyInput+": "+path)
+	}
+	// A clean status does not prove the worktree holds each blob's bytes.
+	if detail := snapshot.worktreeInputs(inputs); detail != "" {
+		return fail(ReasonDigestError, detail)
 	}
 	document := digestDocument{Profile: DigestProfile, Package: importPath, Identity: identityDigest, Scope: append([]string{}, scope...)}
 	if document.Scope == nil {

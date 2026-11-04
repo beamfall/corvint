@@ -119,3 +119,65 @@ func TestJobEscapingIncludeFault(t *testing.T) {
 		t.Fatal("the invalid escaping header did not fail a fresh build")
 	}
 }
+
+// TestCheckoutAttributesRunEveryJob covers AFP-V0-2342: a changed
+// .gitattributes, at the root or in any directory, runs every job, because
+// a checkout transformation changes the bytes a job reads from its declared
+// paths without changing their blobs. A documentation-only change is the
+// negative control. The fault injection commits only a root attribute that
+// checks interop sources out with CRLF; the job runs and its gofmt check then
+// reports the file.
+func TestCheckoutAttributesRunEveryJob(t *testing.T) {
+	declaration := parsed(t)
+	if result := decisions(Evaluate(declaration, DeclarationPath, boundedEvidence("docs/readme.md")))["go-interop"]; result.Decision != DecisionSkip {
+		t.Fatalf("documentation only: %+v", result)
+	}
+	for _, path := range []string{".gitattributes", "interop/.gitattributes", "docs/.gitattributes"} {
+		for job, result := range decisions(Evaluate(declaration, DeclarationPath, boundedEvidence(path))) {
+			if result.Decision != DecisionRun || result.Reason != "CHECKOUT_ATTRIBUTES_CHANGED" {
+				t.Errorf("%s: job %s: %+v", path, job, result)
+			}
+		}
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	root := goFixture(t, map[string]string{"interop/m/go.mod": "module example.com/i\n\ngo 1.27\n", "interop/m/a.go": "package i\n"})
+	gitRun := func(arguments ...string) string {
+		t.Helper()
+		command := exec.Command("git", append([]string{"-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false"}, arguments...)...)
+		command.Dir = root
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		out, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", arguments, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	gitRun("init", "-q")
+	gitRun("add", "-A")
+	gitRun("commit", "-qm", "base")
+	if err := os.WriteFile(filepath.Join(root, ".gitattributes"), []byte("interop/m/*.go text eol=crlf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitRun("add", "-A")
+	gitRun("commit", "-qm", "attributes")
+	changed := strings.Fields(gitRun("diff", "--name-only", "HEAD~1", "HEAD"))
+	if len(changed) != 1 || changed[0] != ".gitattributes" {
+		t.Fatalf("changed %v, want only .gitattributes", changed)
+	}
+	if err := os.Remove(filepath.Join(root, "interop/m/a.go")); err != nil {
+		t.Fatal(err)
+	}
+	gitRun("checkout", "-q", "--", "interop/m/a.go")
+	result := decisions(Evaluate(declaration, DeclarationPath, boundedEvidence(changed...)))["go-interop"]
+	if result.Decision != DecisionRun {
+		t.Fatalf("attribute-only change: %+v", result)
+	}
+	gofmt := exec.Command("gofmt", "-l", ".")
+	gofmt.Dir = filepath.Join(root, "interop/m")
+	out, err := gofmt.Output()
+	if err != nil || strings.TrimSpace(string(out)) != "a.go" {
+		t.Fatalf("gofmt -l did not report the CRLF checkout: %q %v", out, err)
+	}
+}

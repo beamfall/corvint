@@ -6,6 +6,7 @@ import (
 	"bytes"
 	json "encoding/json/v2"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -132,4 +133,83 @@ func TestTestReuseCLI(t *testing.T) {
 	invoke(2, "record", "--argv", "-count=1", "--out", record)
 	invoke(2, "explain")
 	invoke(testReuseExitIncomplete, "decide", "--argv", "-count=1", "--confine", scratch)
+}
+
+// TestTestReuseExistenceReaderRuns is AFP-V0-2320 (5) with a fault injection:
+// a declared existence reader stats a path outside its read scope, which the
+// confinement does not deny and no digest binds. Deleting that path leaves
+// its digest unchanged, so the package must run (EXISTENCE_READER), and the
+// rerun fails; an undeclared sibling with unchanged inputs is still reused.
+func TestTestReuseExistenceReaderRuns(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOAMD64", "v1")
+	root := materializationFixture(t)
+	reuseFixtureWrite(t, root, map[string]string{
+		"go.mod":                          "module example.com/m\n\ngo 1.27\n",
+		"a/a.go":                          "package a\n",
+		"a/a_test.go":                     "package a\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestA(t *testing.T) {\n\tif _, err := os.Stat(\"../script/gate.sh\"); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n",
+		"b/b.go":                          "package b\n",
+		"b/b_test.go":                     "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) {}\n",
+		"script/gate.sh":                  "#!/bin/sh\n",
+		".corvint/test-read-scopes.json":  `{"profile":"corvint-test-read-scopes/0","packages":{"a":[],"b":[]}}` + "\n",
+		".corvint/existence-readers.json": `{"profile":"corvint-existence-readers/0","entries":[{"package":"a","manifests":["a/a.go"],"reason":"TestA stats script/gate.sh"}]}` + "\n",
+	})
+	reuseFixtureCommit(t, root, "base")
+	goTest := func(wantPass bool) []byte {
+		t.Helper()
+		command := exec.Command("go", "test", "-count=1", "-json", "./a", "./b")
+		command.Dir = root
+		out, err := command.Output()
+		if (err == nil) != wantPass {
+			t.Fatalf("go test: err %v, want pass %v\n%s", err, wantPass, out)
+		}
+		return out
+	}
+	scratch := t.TempDir()
+	stream := filepath.Join(scratch, "run.json")
+	if err := os.WriteFile(stream, goTest(true), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	confine := filepath.Join(scratch, "test-confine")
+	if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	invoke := func(arguments ...string) {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		if code := run(append([]string{"--root", root, "test", "reuse"}, arguments...), nil, &stdout, &stderr); code != 0 {
+			t.Fatalf("test reuse %v: exit %d\n%s%s", arguments, code, stdout.String(), stderr.String())
+		}
+	}
+	record := filepath.Join(scratch, "record.json")
+	invoke("record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", record)
+	if err := os.Remove(filepath.Join(root, "script/gate.sh")); err != nil {
+		t.Fatal(err)
+	}
+	reuseFixtureCommit(t, root, "delete the stat target")
+	out := filepath.Join(scratch, "decision.json")
+	invoke("decide", "--argv", "-count=1", "--confine", confine, "--records", record, "--out", out)
+	body, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decision struct {
+		Units []struct {
+			Package  string `json:"package"`
+			Decision string `json:"decision"`
+			Reason   string `json:"reason"`
+		} `json:"units"`
+	}
+	if err := json.Unmarshal(body, &decision, json.RejectUnknownMembers(false)); err != nil {
+		t.Fatal(err)
+	}
+	units := map[string]string{}
+	for _, unit := range decision.Units {
+		units[strings.TrimPrefix(unit.Package, "example.com/m/")] = unit.Decision + " " + unit.Reason
+	}
+	if units["a"] != "RUN EXISTENCE_READER" || units["b"] != "REUSE RECORD_DIGEST_EQUAL" {
+		t.Fatalf("after deleting the stat target: %v", units)
+	}
+	goTest(false)
 }

@@ -47,19 +47,23 @@ const (
 // Reasons and witness kinds (AFP-V0-2342). A RUN job names the first reason
 // that holds and every witness of every reason that holds, up to MaxWitnesses.
 const (
-	ReasonWorkflowChanged       = "WORKFLOW_CHANGED"
-	ReasonDeclarationChanged    = "DECLARATION_CHANGED"
-	ReasonInputPathChanged      = "INPUT_PATH_CHANGED"
-	ReasonGoModuleChanged       = "GO_MODULE_CHANGED"
-	ReasonGoPackageDirChanged   = "GO_PACKAGE_DIRECTORY_CHANGED"
-	ReasonGoTestSelected        = "GO_TEST_SELECTED"
-	ReasonPlanScopeUnknown      = "PLAN_SCOPE_UNKNOWN"
-	ReasonIrregularTreeEntry    = "IRREGULAR_TREE_ENTRY"
-	ReasonOversizedTreeEntry    = "OVERSIZED_TREE_ENTRY"
-	ReasonTreeListingLarge      = "TREE_LISTING_LARGE"
-	ReasonEvaluationError       = "EVALUATION_ERROR"
-	ReasonNoDeclaredInputChange = "NO_DECLARED_INPUT_CHANGED"
-	WitnessInputsEvaluated      = "INPUTS_EVALUATED"
+	ReasonWorkflowChanged    = "WORKFLOW_CHANGED"
+	ReasonDeclarationChanged = "DECLARATION_CHANGED"
+	// ReasonCheckoutAttributesChanged: a changed .gitattributes, at any
+	// depth, can rewrite the checkout bytes or the exported tree of any
+	// declared input without changing that input's blob.
+	ReasonCheckoutAttributesChanged = "CHECKOUT_ATTRIBUTES_CHANGED"
+	ReasonInputPathChanged          = "INPUT_PATH_CHANGED"
+	ReasonGoModuleChanged           = "GO_MODULE_CHANGED"
+	ReasonGoPackageDirChanged       = "GO_PACKAGE_DIRECTORY_CHANGED"
+	ReasonGoTestSelected            = "GO_TEST_SELECTED"
+	ReasonPlanScopeUnknown          = "PLAN_SCOPE_UNKNOWN"
+	ReasonIrregularTreeEntry        = "IRREGULAR_TREE_ENTRY"
+	ReasonOversizedTreeEntry        = "OVERSIZED_TREE_ENTRY"
+	ReasonTreeListingLarge          = "TREE_LISTING_LARGE"
+	ReasonEvaluationError           = "EVALUATION_ERROR"
+	ReasonNoDeclaredInputChange     = "NO_DECLARED_INPUT_CHANGED"
+	WitnessInputsEvaluated          = "INPUTS_EVALUATED"
 )
 
 // Bounds.
@@ -290,6 +294,9 @@ func Evaluate(declaration Declaration, declarationPath string, evidence Evidence
 			}
 			if path == declarationPath {
 				hold(ReasonDeclarationChanged, Witness{Path: path})
+			}
+			if path == ".gitattributes" || strings.HasSuffix(path, "/.gitattributes") {
+				hold(ReasonCheckoutAttributesChanged, Witness{Path: path})
 			}
 		}
 		for _, path := range changed {

@@ -5,6 +5,7 @@ package testreuse
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json/jsontext"
@@ -19,6 +20,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -97,8 +99,20 @@ type Snapshot struct {
 	Sliced map[string]bool
 	// Unbounded holds the affected graph's UNBOUNDED_READER import paths.
 	Unbounded map[string]bool
+	// ExistenceReaders holds the package directories whose tests read the
+	// existence or mode of paths outside any digest (AFP-V0-980): no such
+	// package is eligible (AFP-V0-2320).
+	ExistenceReaders map[string]bool
 	// Universe lists the module's packages in go list order.
 	Universe []string
+
+	git   string
+	env   []string
+	state string
+	// worktree caches each checked file's raw worktree object id, or the
+	// worktree-bytes detail that refused it (AFP-V0-2321).
+	worktreeMu sync.Mutex
+	worktree   map[string]string
 }
 
 // GitObserveArgs precede every Git command an observation runs: no
@@ -218,6 +232,9 @@ type ObserveOptions struct {
 	// Unbounded is the affected graph's UNBOUNDED_READER unit set, by
 	// import path. The caller computes it from the same checkout.
 	Unbounded map[string]bool
+	// ExistenceReaders is the affected graph's existence-reader package
+	// directory set (AFP-V0-980), from the same checkout.
+	ExistenceReaders map[string]bool
 	// BuildFlags are the argv's build flags (BuildFlags), passed to every
 	// go list so the closure is the one the test binary is built from.
 	BuildFlags []string
@@ -246,12 +263,15 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 	if env == nil {
 		env = os.Environ()
 	}
-	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{}, Packages: map[string]GoPackage{}, Sliced: map[string]bool{}, Unbounded: options.Unbounded}
+	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{}, Packages: map[string]GoPackage{}, Sliced: map[string]bool{}, Unbounded: options.Unbounded, ExistenceReaders: options.ExistenceReaders, git: git, env: gitEnv(env), worktree: map[string]string{}}
 	if snapshot.Unbounded == nil {
 		snapshot.Unbounded = map[string]bool{}
 	}
+	if snapshot.ExistenceReaders == nil {
+		snapshot.ExistenceReaders = map[string]bool{}
+	}
 	gitRun := func(arguments ...string) ([]byte, error) {
-		return runBounded(ctx, root, gitEnv(env), maxGitBytes, git, append(append([]string{}, GitObserveArgs...), arguments...)...)
+		return snapshot.gitRun(ctx, arguments...)
 	}
 	head, err := gitRun("rev-parse", "--verify", "-q", "HEAD^{commit}")
 	if err != nil {
@@ -301,6 +321,7 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 		}
 		snapshot.Dirty = append(snapshot.Dirty, string(record[3:]))
 	}
+	snapshot.state = observedState(snapshot.Head, snapshot.Tree, status, flagged)
 	sort.Strings(snapshot.Dirty)
 	snapshot.readDeclarations(gitRun)
 	// GOFLAGS may come from the environment or Go's persistent configuration.
@@ -334,7 +355,130 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 		}
 		snapshot.Packages[p.ImportPath] = p
 	}
+	if err := snapshot.Recheck(ctx); err != nil {
+		return nil, err
+	}
 	return snapshot, nil
+}
+
+func (s *Snapshot) gitRun(ctx context.Context, arguments ...string) ([]byte, error) {
+	return runBounded(ctx, s.Root, s.env, maxGitBytes, s.git, append(append([]string{}, GitObserveArgs...), arguments...)...)
+}
+
+func observedState(head, tree string, status, flagged []byte) string {
+	statusSum, flaggedSum := sha256.Sum256(status), sha256.Sum256(flagged)
+	return head + " " + tree + " " + hex.EncodeToString(statusSum[:]) + " " + hex.EncodeToString(flaggedSum[:])
+}
+
+// Recheck rereads HEAD, its tree, the status and the index flags the
+// snapshot was observed from and refuses any change (AFP-V0-2321): a checkout
+// that moved while the snapshot, the affected graph or the identity was being
+// read is no single observation. Observe calls it last; a caller that reads
+// more of the checkout afterwards calls it again after those reads.
+func (s *Snapshot) Recheck(ctx context.Context) error {
+	if s.git == "" || s.state == "" {
+		return errors.New(ErrorSnapshotDrift + ": the snapshot was not observed from a checkout")
+	}
+	read := func(arguments ...string) ([]byte, error) { return s.gitRun(ctx, arguments...) }
+	head, err := read("rev-parse", "--verify", "-q", "HEAD^{commit}")
+	if err != nil {
+		return fmt.Errorf("%s: HEAD: %w", ErrorSnapshotDrift, err)
+	}
+	tree, err := read("rev-parse", "--verify", "-q", "HEAD^{tree}")
+	if err != nil {
+		return fmt.Errorf("%s: HEAD tree: %w", ErrorSnapshotDrift, err)
+	}
+	status, err := read(StatusArgs...)
+	if err != nil {
+		return fmt.Errorf("%s: status: %w", ErrorSnapshotDrift, err)
+	}
+	flagged, err := read("ls-files", "-v", "-z")
+	if err != nil {
+		return fmt.Errorf("%s: ls-files -v: %w", ErrorSnapshotDrift, err)
+	}
+	if state := observedState(strings.TrimSpace(string(head)), strings.TrimSpace(string(tree)), status, flagged); state != s.state {
+		return errors.New(ErrorSnapshotDrift + ": HEAD, its tree, the status or the index flags changed during the observation")
+	}
+	return nil
+}
+
+// worktreeInputs checks every regular-file input against its worktree bytes,
+// in path order, and returns the first worktree-bytes detail or "".
+func (s *Snapshot) worktreeInputs(inputs map[string]Input) string {
+	for _, key := range sortedKeys(inputs) {
+		input := inputs[key]
+		if input.Mode != "100644" && input.Mode != "100755" {
+			continue
+		}
+		if detail := s.worktreeObject(input.Path, Entry{Mode: input.Mode, Object: input.Object}); detail != "" {
+			return detail
+		}
+	}
+	return ""
+}
+
+// worktreeObject checks that the worktree file at relative holds exactly the
+// bytes of its tracked blob (AFP-V0-2321). A clean status does not prove it:
+// a checkout attribute (eol, text, filter, ident, working-tree-encoding),
+// core.autocrlf or info/attributes can rewrite the bytes on checkout while the
+// blob and the status stay unchanged. It returns "" or a worktree-bytes
+// detail.
+func (s *Snapshot) worktreeObject(relative string, entry Entry) string {
+	s.worktreeMu.Lock()
+	defer s.worktreeMu.Unlock()
+	if s.worktree == nil {
+		s.worktree = map[string]string{}
+	}
+	if detail, ok := s.worktree[relative]; ok {
+		return detail
+	}
+	detail := s.readWorktreeObject(relative, entry)
+	s.worktree[relative] = detail
+	return detail
+}
+
+func (s *Snapshot) readWorktreeObject(relative string, entry Entry) string {
+	refuse := func(why string) string { return ErrorWorktreeBytes + ": " + relative + " " + why }
+	path := filepath.Join(s.Root, filepath.FromSlash(relative))
+	info, err := os.Lstat(path)
+	if err != nil {
+		return refuse("cannot be read: " + err.Error())
+	}
+	if !info.Mode().IsRegular() {
+		return refuse("is not a regular file")
+	}
+	if runtime.GOOS != "windows" && (info.Mode().Perm()&0o100 != 0) != (entry.Mode == "100755") {
+		return refuse("has an executable bit that differs from mode " + entry.Mode)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return refuse("cannot be read: " + err.Error())
+	}
+	defer file.Close()
+	var hash interface {
+		io.Writer
+		Sum([]byte) []byte
+	}
+	switch len(entry.Object) {
+	case 40:
+		hash = sha1.New()
+	case 64:
+		hash = sha256.New()
+	default:
+		return refuse("has an object id of unknown format")
+	}
+	fmt.Fprintf(hash, "blob %d\x00", info.Size())
+	copied, err := io.Copy(hash, file)
+	if err != nil {
+		return refuse("cannot be read: " + err.Error())
+	}
+	if copied != info.Size() {
+		return refuse("changed size while being read")
+	}
+	if got := hex.EncodeToString(hash.Sum(nil)); got != entry.Object {
+		return refuse("differs from its tracked blob " + entry.Object + " (worktree object " + got + ")")
+	}
+	return ""
 }
 
 // readDeclarations reads the read-scope and split declarations from the
@@ -510,6 +654,9 @@ func ObserveIdentity(ctx context.Context, snapshot *Snapshot, goExecutable strin
 	}
 	if path, dirty := snapshot.dirtyWithin(inputs, directories); dirty {
 		return Identity{}, fmt.Errorf("harness input %s is dirty", path)
+	}
+	if detail := snapshot.worktreeInputs(inputs); detail != "" {
+		return Identity{}, fmt.Errorf("harness input: %s", detail)
 	}
 	for _, key := range sortedKeys(inputs) {
 		identity.Harness = append(identity.Harness, inputs[key])

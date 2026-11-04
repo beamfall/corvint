@@ -133,9 +133,14 @@ func runTestReuse(ctx context.Context, root string, args []string, stdout, stder
 	return testReuseDecide(snapshot, identity, options, stdout, stderr)
 }
 
-// testReuseObserve reads the snapshot, with the affected graph's
-// UNBOUNDED_READER set, and the identity.
+// testReuseObserve reads the snapshot, the affected graph's UNBOUNDED_READER
+// and existence-reader sets, and the identity, then rechecks the checkout so
+// all of them describe one observation (AFP-V0-2320, AFP-V0-2321).
 func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse.Snapshot, testreuse.Identity, error) {
+	snapshot, err := testreuse.Observe(ctx, testreuse.ObserveOptions{Root: options.root, BuildFlags: testreuse.BuildFlags(strings.Fields(options.argv))})
+	if err != nil {
+		return nil, testreuse.Identity{}, err
+	}
 	invocation := affectedInvocation{Root: options.root}
 	if err := resolveAffectedBatchAndCache(&invocation); err != nil {
 		return nil, testreuse.Identity{}, err
@@ -144,18 +149,19 @@ func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse
 	if err != nil {
 		return nil, testreuse.Identity{}, fmt.Errorf("affected graph: %w", err)
 	}
-	unbounded := map[string]bool{}
 	for _, id := range graph.UnboundedReaders() {
 		if name, ok := strings.CutPrefix(id, "go:"); ok {
-			unbounded[name] = true
+			snapshot.Unbounded[name] = true
 		}
 	}
-	snapshot, err := testreuse.Observe(ctx, testreuse.ObserveOptions{Root: options.root, Unbounded: unbounded, BuildFlags: testreuse.BuildFlags(strings.Fields(options.argv))})
-	if err != nil {
-		return nil, testreuse.Identity{}, err
+	for _, directory := range graph.ExistenceReaderPackages() {
+		snapshot.ExistenceReaders[directory] = true
 	}
 	identity, err := testreuse.ObserveIdentity(ctx, snapshot, "", nil, strings.Fields(options.argv), options.harness)
 	if err != nil {
+		return nil, testreuse.Identity{}, err
+	}
+	if err := snapshot.Recheck(ctx); err != nil {
 		return nil, testreuse.Identity{}, err
 	}
 	// Without --confine the run was unconfined and no package is eligible
