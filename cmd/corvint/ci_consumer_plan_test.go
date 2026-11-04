@@ -15,7 +15,7 @@ func TestCINV07504WorkflowPlanFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := regexp.MustCompile(`(?m)^          "\$RUNNER_TEMP/corvint-web-plan" test (.*) > "\$RUNNER_TEMP/web-plan.json"$`).FindStringSubmatch(string(data))
+	m := regexp.MustCompile(`(?m)^          "\$RUNNER_TEMP/corvint-web-plan" --root "\$GITHUB_WORKSPACE/source" test (.*) > "\$RUNNER_TEMP/web-plan.json"$`).FindStringSubmatch(string(data))
 	if m == nil {
 		t.Fatal("workflow has no plan invocation")
 	}

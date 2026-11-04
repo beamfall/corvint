@@ -1759,26 +1759,41 @@ jobs:
     # CIN-V0-7504: use the same shadow plan's still-required binary consumer checks.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
     outputs:
       required: ${{ steps.plan.outputs.required }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          path: source
+          ref: ${{ github.sha }}
           fetch-depth: 0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          path: trusted-web-plan
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || github.sha }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
           go-version: "1.27.3"
       - name: Select web-flows consumer
         id: plan
+        working-directory: trusted-web-plan
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -eu
           go build -o "$RUNNER_TEMP/corvint-web-plan" ./cmd/corvint
           go build -o "$RUNNER_TEMP/web-plan-confine" ./.github/testconfine/cmd
-          "$RUNNER_TEMP/corvint-web-plan" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json"
+          "$RUNNER_TEMP/corvint-web-plan" --root "$GITHUB_WORKSPACE/source" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json"
           required=$(jq -r 'any(.checks[]?; startswith("tools/web-flows/test/") and contains("UNSELECTED_BINARY_CONSUMER"))' "$RUNNER_TEMP/web-plan.json")
           echo "required=$required" >> "$GITHUB_OUTPUT"
 
