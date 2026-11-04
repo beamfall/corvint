@@ -111,8 +111,10 @@ func TestCTSV0014_ImportMappedQueueTakesEveryWrite(t *testing.T) {
 // and lease release, and audits CONSISTENT (CTS-V0-014, CTS-V0-015).
 func TestCTSV0014_ImportMappedQueueLeasesAndReleases(t *testing.T) {
 	t.Parallel()
-	s := leaseStoreOn(t, mappedStore(t, "NATIVE", importMapBytes(fixture.QueueID)))
-	applyRelease(t, s.repo, releaseRequest("create", release.OpCreate, "", "Mapped"))
+	repo := mappedStore(t, "NATIVE", importMapBytes(fixture.QueueID))
+	applyRelease(t, repo, releaseRequest("create", release.OpCreate, "", "Mapped"))
+	// Sample the lease clock after the release receipt, including across a second boundary.
+	s := leaseStoreOn(t, repo)
 	if r := s.executionCutover(t, operator(), "qualified", suiteRun()); r.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("execution cutover: %+v", r)
 	}

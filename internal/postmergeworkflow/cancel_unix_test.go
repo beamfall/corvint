@@ -26,8 +26,10 @@ func TestCancellationRetiresDescendant(t *testing.T) {
 	for time.Now().Before(deadline) {
 		b, err := os.ReadFile(pidFile)
 		if err == nil {
-			pid, _ = strconv.Atoi(string(b))
-			break
+			if observed, parseErr := strconv.Atoi(string(b)); parseErr == nil && observed > 0 {
+				pid = observed
+				break
+			}
 		}
 		select {
 		case err := <-done:

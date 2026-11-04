@@ -78,9 +78,9 @@ func (f *fakeSystemd) labels() []string {
 
 // newHelperHome is a linux (systemd --user) service home whose profile
 // declares one helper, web.
-func newHelperHome(t *testing.T) (*serviceHome, *fakeSystemd) {
+func newHelperHome(t *testing.T, suffix ...string) (*serviceHome, *fakeSystemd) {
 	t.Helper()
-	s := newServiceHome(t)
+	s := newServiceHome(t, suffix...)
 	helper := filepath.Join(s.home, "bin", "web-helper")
 	if err := fixture.WriteExecutable(helper, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -276,7 +276,7 @@ func (s *serviceHome) helperPulse(t *testing.T) *Pulse {
 }
 
 func TestSERVICE500_HelperInstallAcceptedOnLinuxRefusedElsewhere(t *testing.T) {
-	s, sd := newHelperHome(t)
+	s, sd := newHelperHome(t, "home8080")
 	if _, err := s.install(t, "install-1", false); err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestSERVICE500_HelperInstallAcceptedOnLinuxRefusedElsewhere(t *testing.T) {
 			t.Fatalf("helper unit lacks %s:\n%s", want, helperUnitText)
 		}
 	}
-	if strings.Contains(helperUnitText, "8080") {
+	if strings.Contains(helperUnitText, `"8080"`) || strings.Contains(helperUnitText, `"--port"`) {
 		t.Fatal("helper argv must come from the manifest, not unit text")
 	}
 
