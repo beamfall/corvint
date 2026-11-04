@@ -106,8 +106,8 @@ AFP-V0-2206	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2240	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2241	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2242	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
-AFP-V0-2243	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
-AFP-V0-2244	docs/specs/affected-plan-selection-v0.md	(experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;	unrecorded	-
+AFP-V0-2243	docs/specs/affected-plan-selection-v0.md	(disabled for 1.0 in round 9, 2026-11-04: an orchestrator-made, owner-delegated	unrecorded	-
+AFP-V0-2244	docs/specs/affected-plan-selection-v0.md	(disabled for 1.0 in round 9, 2026-11-04: an orchestrator-made, owner-delegated	unrecorded	-
 AFP-V0-2245	docs/specs/affected-plan-selection-v0.md	(withdrawn 2026-11-03, rejected by the orchestrator under owner delegation:	unrecorded	-
 AFP-V0-2246	docs/specs/affected-plan-selection-v0.md	(withdrawn and superseded by the pre-canonicalization `AFP-V0-2204` rule:	unrecorded	-
 AFP-V0-2247	docs/specs/affected-plan-selection-v0.md	(experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;	unrecorded	-
@@ -276,7 +276,7 @@ AFP-V0-494	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-495	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2666,	standing	2026-10-11; V1-2666; #1751
 AFP-V0-496	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2872)	standing	2026-10-11; V1-2872
 AFP-V0-505	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2553, V1-	standing	2026-10-11; V1-2553; V1-2708
-AFP-V0-506	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2553) Ame	standing	2026-10-11; V1-2553
+AFP-V0-506	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2553)	standing	2026-10-11; V1-2553
 AFP-V0-507	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2818) Ame	standing	2026-10-11; V1-2818
 AFP-V0-508	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2726) Ame	standing	2026-10-11; V1-2726
 AFP-V0-509	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2833) Ame	standing	2026-10-11; V1-2833

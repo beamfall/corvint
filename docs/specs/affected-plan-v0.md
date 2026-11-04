@@ -3979,6 +3979,9 @@ selected as a reader with no check, while the tests that import it were not sele
 ### Lexicon tags and backslashes, `--path` recovery and the widened documentation declaration (AFP-V0-505 to AFP-V0-508; V1-2553, V1-2708, V1-2726, V1-2818)
 
 - **AFP-V0-505:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2553, V1-2708)
+  (Amended in place by AFP-V0-2242 round 9 in `affected-plan-selection-v0.md`: the tag name is
+  added beside the token as written, `/`-anchored included, never in its place, so a closing tag
+  narrows nothing; the text below is the original rule.)
   Amending the AFP-V0-021 lexicon in the Go plugin: a `/` that directly follows `<` inside a
   string literal closes a markup tag (`</script>`, `</b/c>`) and anchors no path, so the token
   starts after it. `</script>` yields the lone name `script`, which names only a file called
@@ -3992,7 +3995,12 @@ selected as a reader with no check, while the tests that import it were not sele
   at run time are unchanged. Falsifier: a unit whose only link to a dirty path is `</name>` in
   one literal and whose test reads that path. Rollback: remove the closing-tag branch of
   `literalTokens`.
-- **AFP-V0-506:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2553) Amending the
+- **AFP-V0-506:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2553)
+  (Amended in place by AFP-V0-2241 and AFP-V0-2242 round 9 in `affected-plan-selection-v0.md`: the
+  tokens of the `../x` rewrite are added beside the literal's written tokens, never in their place,
+  because the literal may be split at the backslash (`strings.Split("foo..\\notes", "\\")[1]`
+  reads `notes`); so a `..\x` literal keeps its bare `..`, which reaches the repository root from a
+  test file deep enough, as a lone `".."` does. The text below is the original rule.) Amending the
   AFP-V0-021 lexicon and AFP-V0-012 rule (d) in the Go plugin: a backslash directly after a
   parent component (`..\x`) is read as the separator `../x` before tokenization, so the token is
   the whole climbing path and rule (d) judges where it resolves, instead of a bare `..` that
@@ -5315,7 +5323,8 @@ The second does not reproduce: the build-tag edit selects the same 56 units as a
 of the same file, dirty and with `--base`.
 
 - **AFP-V0-840:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3207;
-  amends AFP-V0-505) In the Go plugin's AFP-V0-021 lexicon, a `/` directly after the HTML entity
+  amends AFP-V0-505; amended in place by AFP-V0-2242 round 9 in `affected-plan-selection-v0.md`: the
+  tag name is added beside the written `/`-anchored token, never in its place) In the Go plugin's AFP-V0-021 lexicon, a `/` directly after the HTML entity
   `&lt;`, in any letter case, closes an escaped markup tag as a `/` after `<` does: the token
   starts after it, so `&lt;/script&gt;` yields the lone name `script`, which names only a file
   called `script` and never the directory `script/`. A path literal still selects a reader only
@@ -5869,8 +5878,10 @@ admit a selection that under-selects without detection.
   comment splits a qualified identifier, so this reaches no file today. (3) root-locator table:
   one function per import path in the index, a set in the graph, with equal contents
   (`os.Getwd`). (4) literal lexicon: the index splits a literal with printf verbs as spaces and
-  none of the AFP-V0-505, AFP-V0-506, AFP-V0-840 and V1-1818 rules, so a closing tag, a `..\x`
-  path or a short sed component yields other path tokens there; that is a selection difference
+  applies no V1-1818 rule, so a short sed component yields other path tokens there; since
+  AFP-V0-2242 round 9 both lexicons keep every written token and add the closing-tag
+  (AFP-V0-505, AFP-V0-840), `..\x` (AFP-V0-506) and module-anchored spellings beside it, so those
+  are no difference. That is a selection difference
   between `corvint test` and `affected` by design of each lexicon, not a lexer difference
   sharing could remove. Falsifier: a token-stream difference beyond comments on the repository,
   or a comment-split qualifier. Rollback: delete the two tests.
@@ -6259,9 +6270,9 @@ graph; a listed path no language claims widens to `UNKNOWN`
 rather than selecting nothing at `BOUNDED`.
 
 The `--path` dirty-worktree refusal names its two recovery commands with HEAD's full commit id
-(AFP-V0-507); it still plans nothing. Lexicon narrowing (AFP-V0-505, AFP-V0-506): a unit whose
-only way to a dirty path was a closing tag or a bare `..` spelt `..\\` is no longer selected for
-it; any literal, scope, import or root-locating call that can reach the path still selects it.
+(AFP-V0-507); it still plans nothing. Lexicon narrowing (AFP-V0-505, AFP-V0-506) is withdrawn by
+AFP-V0-2242 round 9: a closing tag and a bare `..` spelt `..\\` keep the tokens as written, so a
+unit whose only way to a dirty path is one of them stays selected for it.
 
 The `--playwright-env`, alias, config, dotenv and tag-closure failure modes of AFP-V0-382 to
 AFP-V0-389 and AFP-V0-404 to AFP-V0-413 moved with those requirements to
@@ -6491,7 +6502,7 @@ traceability table.
 | AFP-V0-934 | `SELECTION_BASE` in `decide` and `select_` of `.github/forward-rows/mq-narrow.sh`; the `scripts` merge base of the narrowing gate in `.github/workflows/ci.yml` | `TestAFPV0731MergeQueueSelection` (a stacked entry selects from main's commit; one sharing no commit with main is FULL); `TestAFPV0097WorkflowBindings` |
 | AFP-V0-935 | the scope test of `plan_` in `.github/forward-rows/mq-narrow.sh` | the language-frontier-only reuse case and the unowned-path and malformed-list refusals of `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` |
 | AFP-V0-828 | `tempRootOnly`, `tempRooted`, `tempRootScan`, `packageNames`, `localNames` and `importAliases` in `tools/test-read-scopes-check/temp_root.go`; the `exempt` term in `check` | `TestTempRootOnlyLiteralsAreNoRepositoryRead_V1_3137` (five accepted shapes and twenty-five refusals), `TestTempRootOnlyRefusesAnUnparsableFile_V1_3137` |
-| AFP-V0-840 | `closesEscapedTag` and the closing-tag branch of `literalTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralBoundary_AFPV0840` (escaped tags lex to lone names; `source.sh` and `foo-source.sh` do not select `script/core-n1-source.sh`, the full path and `../script/` do) |
+| AFP-V0-840 | `closesEscapedTag` and the closing-tag branch of `spelledTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralBoundary_AFPV0840` (escaped tags add lone names beside the written `/`-anchored tokens since round 9; `source.sh` and `foo-source.sh` do not select `script/core-n1-source.sh`, the full path and `../script/` do) |
 | AFP-V0-841 | `seed` direct test-change selection in `internal/liveverify/affected/select.go`; `FrontierBuildConstraint` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstrainedTestFileSelectsOwner_AFPV0841` (a `//go:build` test file selects only its package, with the variant unknown retained) |
 | AFP-V0-846 | `selfBinaryStale`, `executableStale`, `binaryStaleAgainst` and `diffPaths` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` in `cmd/corvint/affected.go`; the `DEGRADED` line in `runTest` | `TestSelfBinaryStaleComparesStampedCommitWithHEAD` (fresh binary, test-, documentation- and testdata-only changes, another module and an unstamped binary report nothing; a Go source change is stale and an absent commit unverified), `TestSelfBinaryDiffPathsTruncation`, `TestSelfBinaryStaleIsReportedByAffectedAndTest` (compact and `--full` receipts and both stderr lines; a fresh binary adds neither) |
 | AFP-V0-847 | `goBuildTargets`, `specArgv`, `goBinary`, `buildTarget` and `recordedAbove` in `tools/test-read-scopes-check/main.go`; the `built` finding in `check` and `run`; the `/...` suffix in `dependencyDirectories` | `TestGoBuildDependencyOutsideScopeFails_V1_3210` (`tools/test-read-scopes-check/main_test.go`: undeclared build dependency, undeclared `./fixtures/`+variant dependency, declared, recorded, parent-file entry only; a non-`Spec` slice is data) and `TestGoTestDependencyAndFlagValues_V1_3210` (a `go test` target's test-only import, a flags-only `go build -tags x`); `TestOwnPackageBuildNamesRemedies_V1_3658` (an own-package `go build -o bin .` names its import-closure directory and the re-execute remedy, and a recorded directory keeps it quiet); the check against d92b0a2a5 exits 1 naming `tools/compat-trial` and `internal/archivepath`, and the current tree exits 0 |
@@ -6537,8 +6548,8 @@ traceability table.
 | AFP-V0-467 | exact callee matching in `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go`; the selector's `rootLocatorFuncs` rule in `internal/gateselect/readers.go` (only `os.Getwd` locates the root; the runtime frame APIs are excluded, as the planner excludes them, AFP-V0-810) | `TestFrameMetadataDoesNotReadFiles_AFPV0810` (the log fixture calls `Callers`, `CallersFrames` and `FuncForPC`); the measured widening in build log 2026-10-26-affected-caller-compile-checks |
 | AFP-V0-468 | `Graph.UntestedCodeReached` in `internal/liveverify/affected/graph.go`; `providerGoUntested` and `advisoryAffectedChecks` in `cmd/corvint/affected.go` | `TestAffectedUntestedPackageGetsCompileCheck_AFP_V0_468`; flipt p07 replay in build log 2026-10-26-affected-caller-compile-checks |
 | AFP-V0-469 | `advisoryGoModuleChecks` and `goIgnoredDirectory` in `cmd/corvint/affected.go`; `GoverningWorkspace` in `internal/liveverify/affected/golang/golang.go` | `TestAffectedGoModuleChangeGetsModuleCheck_AFP_V0_469` (root and nested module, a `testdata` module ignored, a removed `go.mod` named); `TestAffectedGoModuleCheckFollowsWorkspace_AFP_V0_469` (a used `testdata` module vetted, a non-member vetted with `GOWORK=off`, an unparsable `go.work` named) |
-| AFP-V0-505 | the closing-tag branch of `literalTokens` in `internal/liveverify/affected/golang/golang.go` | `TestLexiconClosingTagAndParentBackslash_AFPV0505` (`</script>` and `</b/c>` tokens; a test package carrying `</script>` is not selected for `script/heavy.sh` while the `script` package is); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-selection-precision-tags-writes-docs.md` |
-| AFP-V0-506 | `parentBackslash` in `internal/liveverify/affected/golang/golang.go` | `TestLexiconClosingTagAndParentBackslash_AFPV0505` (`..\\x` and `x\\..\\y` tokens; a test file carrying only `..\\fixtures\\x` is bounded and selected for `fixtures/x`; a lone `".."` stays an unbounded reader; a `..` in a comment is no token) |
+| AFP-V0-505 | the closing-tag branch of `spelledTokens` in `internal/liveverify/affected/golang/golang.go` | `TestLexiconClosingTagAndParentBackslash_AFPV0505` (`</script>` and `</b/c>` keep their written tokens and add the tag names since round 9; a test package carrying `</script>` is selected for `script/heavy.sh`); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-selection-precision-tags-writes-docs.md` |
+| AFP-V0-506 | `parentBackslash` and its additive use in `literalTokens` in `internal/liveverify/affected/golang/golang.go` | `TestLexiconClosingTagAndParentBackslash_AFPV0505` (`..\\x` and `x\\..\\y` keep their written tokens, a bare `..` among them, and add `../x` and `../y` since round 9; a test file carrying only `..\\fixtures\\x` is selected for `fixtures/x`; it and a lone `".."` are unbounded readers; a `..` in a comment is no token); `TestParentBackslashKeepsWrittenTokens_AFPV0506` in `anchored_test.go` (round 9: the `strings.Split` reader of `foo..\\notes` is selected for `notes`, with a `foo..\\other` control) |
 | AFP-V0-507 | `affectedPathListRecovery` in `cmd/corvint/affected_freshness.go` | `TestAFPV0507PathRefusalNamesRecovery` (clean `--path` plans; dirty `--path` exits 2 with both commands and HEAD's id, writing nothing) |
 | AFP-V0-511 | `FrontierReach` in `internal/liveverify/affected/unit.go`; `declareFrontierReach` in `internal/liveverify/affected/graph.go`; `frontierUnknowns`, `participants`, `readsResolutionInput`, `hostedFixtureDirectories`, `bearsOnUnowned`, `listsBelowAny` in `internal/liveverify/affected/select.go`; `frontier_reach.go` in `internal/liveverify/affected/{typescript,python,ruby,dotnet,swift}` | `TestUnownedPathRaisesOnlyPathOpenFrontiers_AFPV0511` (unowned path, owned path, `PathReader`, Go-hosted and unhosted fixtures, site inside a fixture, listing plugin, rule off, resolution input), `TestFrontierReachLeavesTheDigestUnchanged_AFPV0511`, `TestFrontierReachDeclarationsAreValidatedAtBuild_AFPV0511`, `TestFrontierReachHoldsForUnownedPaths_AFPV0511` in each of the five declaring plugin packages; the measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-unowned-path-frontier-reach.md` |
 | AFP-V0-510 | `affectedSummary`, `summarizeAffectedPlan` in `cmd/corvint/affected_summary.go`; `Summary` in `affectedCompactReceipt` | `TestAFPV0510AffectedSummaryRestatesThePlan` (an unowned path beside a source edit: scope, dirty, selected, excluded and unknown counts equal the plan members, `unknownByReason` and `line` name `UNOWNED_DIRTY_PATH`; a clean bounded plan has an empty `unknownByReason`; `--full` carries no summary); `TestCoreVerbsEmitTheFrozenProfiles` goldens |
