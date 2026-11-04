@@ -288,11 +288,13 @@ type e2eSelector struct {
 	records   []CoverageRecord
 	changedBy map[string]string
 	// changed is every changed path: the plan's root paths, then each bound repository's qualified paths.
-	changed   []string
-	repos     map[string]boundRepository
-	declared  map[string]bool
-	dirty     map[string]bool
-	selected  map[string]bool
+	changed  []string
+	repos    map[string]boundRepository
+	declared map[string]bool
+	dirty    map[string]bool
+	selected map[string]bool
+	// mustRun holds the plan's declared must-run units (AFP-V0-2486).
+	mustRun   map[string]bool
 	coverage  map[string]CoverageRecord
 	closure   map[string]bool
 	globals   map[string]bool
@@ -386,7 +388,15 @@ func newE2ESelector(ctx context.Context, root string, in E2EInput, provider Sele
 		s.dirty[p] = true
 	}
 	for _, sel := range in.Plan.Selected {
-		s.selected[sel.UnitID] = true
+		// A must-run selection is the project's pin, not reach: it puts no
+		// path into the obligation closure (AFP-V0-2486).
+		if sel.Witness.Kind != affected.WitnessMustRun {
+			s.selected[sel.UnitID] = true
+		}
+	}
+	s.mustRun = map[string]bool{}
+	for _, entry := range in.Plan.MustRun {
+		s.mustRun[entry.UnitID] = true
 	}
 	for _, record := range records {
 		s.coverage[record.TestKey] = record
@@ -777,6 +787,9 @@ func (s *e2eSelector) reasons(t InventoryTest, links []EvaluatedLink) []string {
 	}
 	if record, ok := s.coverage[t.TestKey]; ok && s.touchesChange(record) {
 		reasons = append(reasons, "observed-coverage")
+	}
+	if owner, ok := s.in.Graph.OwnerOf(t.Path); ok && !s.qualified(t.Path) && s.mustRun[owner] {
+		reasons = append(reasons, "declared-must-run")
 	}
 	return reasons
 }

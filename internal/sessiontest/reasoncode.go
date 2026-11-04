@@ -52,6 +52,10 @@ func ReasonCode(reason string) string {
 		return ""
 	case reason == moduleReason:
 		return ReasonNestedModule
+	case strings.HasPrefix(reason, "whole: MUST_RUN ("):
+		// A declared must-run unit (AFP-V0-2485); its prose carries the
+		// project's free-text reason, so no substring rule below may read it.
+		return ReasonReachedPrefix + "must-run"
 	case strings.HasPrefix(reason, "selected: the tests of "):
 		return ReasonSelectedChangedTests
 	case strings.HasPrefix(reason, "selected: the tests reaching "):

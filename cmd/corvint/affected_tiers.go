@@ -44,6 +44,11 @@ func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
 			if strings.Contains(path.Dir(path.Dir(selection.Witness.DirtyPath)), "/") {
 				parents[affectedUnitParent(selection.UnitID)] = true
 			}
+		case affected.WitnessDeclaredTestOwner, affected.WitnessMustRun:
+			// The project declares these tests run for the change
+			// (AFP-V0-2485); the unit's location says nothing of the
+			// change, so it raises no neighbourhood.
+			tiers.Units[selection.UnitID] = 0
 		}
 	}
 	for _, selection := range selected {
