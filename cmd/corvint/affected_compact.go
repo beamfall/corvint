@@ -125,6 +125,7 @@ type affectedCompactWitness struct {
 	Via       []string                 `json:"via,omitempty"`
 	Cause     *affected.UnboundedCause `json:"cause,omitempty"`
 	Glob      string                   `json:"glob,omitempty"`
+	ReadScope *affected.ReadScopeCause `json:"readScope,omitempty"`
 }
 
 // affectedExcludedSummary counts the exclusions and binds them by digest to
@@ -213,7 +214,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 	prefixes := map[string]affected.ViaStep{}
 	for _, selection := range selections {
 		witness := selection.Witness
-		compact := affectedCompactWitness{Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob}
+		compact := affectedCompactWitness{Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob, ReadScope: witness.ReadScope}
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}

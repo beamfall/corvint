@@ -526,6 +526,23 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   `tools/gate-ledger` hashes never name a path that cannot select the package. Non-goals: bounding rule (a), (b) or (d), or declaring more packages.
   Failure mode: a declared test reads outside its scope; testconfine fails it in CI rather than
   the change being missed silently. Rollback: make `boundedReaders` return its input.
+- `TSP-V0-1061`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4544)
+  This repository SHALL opt `docs/build-log/` into the existing AFP-V0-772 runtime-reader
+  exclusion, with a reason in `.corvint/runtime-readers.json` and the matching entry in
+  `.corvint/unbounded-reader-exclusions.json`. New dated records select their literal, glob,
+  enclosing and declared-scope readers, without the root-locator-only floor. Other paths,
+  invalid declarations and missing exclusions retain the existing conservative rules.
+  This is project-owned authority for this directory, not a built-in documentation heuristic;
+  no declaration grammar, confinement permission or generic documentation rule changes.
+- `TSP-V0-1062`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4544)
+  A new indexed Go test file SHALL select its package without traversing its importers.
+  Explicit declared consumers remain selected: a broad source-reading scope is real evidence,
+  not an import edge. Each `DECLARED_READ_SCOPE` witness SHALL include optional `readScope`
+  with `declaration` naming the Go or shell declaration and `entry` naming the matching scope
+  entry, the implicit own-directory subtree, or the changed read-scope declaration itself.
+  Full JSON, compact JSON and text SHALL retain that explanation. This additive witness
+  changes no selection rule, including the conservative unindexed/deleted-file fallback.
+
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -719,6 +736,9 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 | TSP-V0-908 | `servedByOrigin` and its call in `main` (`tools/selection-baseline/main.go`) | `TestSelectionBaselineRefusesCommitsOriginDoesNotServe_TSPV0908` in `tools/selection-baseline/served_test.go` (a commit on origin/main and one only on an origin branch pass; a local-only head is refused naming its change id and no other) |
 
+| TSP-V0-1061 | `.corvint/runtime-readers.json`, `.corvint/unbounded-reader-exclusions.json`; existing `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go` | `TestNewBuildLogKeepsDeclaredReaders_TSPV01061` in `internal/liveverify/affected/new_file_precision_test.go` |
+| TSP-V0-1062 | `scopedReadersOf`, `readScopeCause` in `internal/liveverify/affected/readers.go`; `compactAffectedSelections` and `renderAffectedText` in `cmd/corvint` | `TestNewTestKeepsNamedDeclaredConsumers_TSPV01062`; `TestDeclaredScopeExplanation_TSPV01062` in `cmd/corvint/affected_readscope_test.go` |
+
 ## Rollback
 
 Remove `frontierBears = affected.FrontierBearsOnOwnFiles` in `observeDirectory`; the constant and
@@ -756,3 +776,7 @@ TSP-V0-980: make `boundedReaders` return its input. TSP-V0-720: restore the full
 TSP-V0-940: drop the `applyGatedLocators`
 call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
 declared package's dependents on every dirty path again, as before.
+
+V1-4544 rollback: remove only the `docs/build-log/` runtime-reader and exclusion entries to
+restore the conservative floor. Remove `Witness.ReadScope` and its projections to restore
+unexplained scope fan-out; neither change affects persisted repository or trace state.

@@ -103,13 +103,18 @@ type serviceHome struct {
 // newServiceHome builds a disposable temp HOME with an executable, a
 // dispatch config and a service profile. Temporary-root refusal is lifted
 // only for the test's own temp tree.
-func newServiceHome(t *testing.T) *serviceHome {
+func newServiceHome(t *testing.T, suffix ...string) *serviceHome {
 	t.Helper()
 	saved := temporaryRoots
 	temporaryRoots = nil
 	t.Cleanup(func() { temporaryRoots = saved })
 	home, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
+		t.Fatal(err)
+	}
+	// A caller can force significant digits into the home path (V1-4549).
+	home = filepath.Join(append([]string{home}, suffix...)...)
+	if err := os.MkdirAll(home, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	// V1-3686: t.TempDir makes its directory 0777 &^ umask, so a 0002 umask (WSL, Unraid) leaves
