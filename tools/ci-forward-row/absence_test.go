@@ -4,7 +4,9 @@ package forwardrow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -20,7 +22,7 @@ type absenceResult struct {
 func absence(t *testing.T, names []string, extra ...string) absenceResult {
 	t.Helper()
 	args := append([]string{"-R", "-s", "-c", "--arg", "epoch", forwardEpoch(t)}, extra...)
-	cmd := exec.Command("jq", append(args, "-f", "absence.jq")...)
+	cmd := exec.Command("jq", append(args, "-f", script(t, "absence.jq"))...)
 	cmd.Stdin = strings.NewReader(strings.Join(names, "\n") + "\n")
 	out, err := cmd.Output()
 	if err != nil {
@@ -87,5 +89,25 @@ func TestCINV0861RowAbsenceTripsTheKillSwitch(t *testing.T) {
 	}
 	if got := absence(t, with(names, outage...)); got.KillSwitch != "clear" || got.Window != 20 || got.Absent != 0 {
 		t.Fatalf("window: %+v", got)
+	}
+	// AFP-V0-463, as in bar.jq: an INCOMPLETE row named in the reviewed list counts as INFRA and
+	// takes no place, so it cannot push a NOROW marker at the older edge out of the window. 17
+	// rows, one reviewed INCOMPLETE, then the three markers: 21 entries, 20 places.
+	var edge []string
+	for n := 41; n > 24; n-- {
+		edge = append(edge, row("CLEAN", n, live))
+	}
+	edge = append(edge, row("INCOMPLETE", 24, live))
+	edge = append(edge, outage...)
+	reviewed := filepath.Join(t.TempDir(), "infra-reclassified.txt")
+	if err := os.WriteFile(reviewed, []byte(fmt.Sprintf("pr24-%s reviewed infra\n", head(24))), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := absence(t, edge, "--rawfile", "reclassified", reviewed); got.KillSwitch != "TRIPPED" || got.Window != 20 || got.Absent != 3 {
+		t.Fatalf("reviewed INFRA row: %+v", got)
+	}
+	// Negative control: unreviewed, the INCOMPLETE row takes a place and the oldest marker leaves.
+	if got := absence(t, edge, "--rawfile", "reclassified", os.DevNull); got.KillSwitch != "clear" || got.Window != 20 || got.Absent != 2 {
+		t.Fatalf("unreviewed INCOMPLETE row: %+v", got)
 	}
 }

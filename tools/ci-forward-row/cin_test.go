@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // liveEpoch is the forward-evidence epoch the CI workflows name today (AFP-V0-030), read from
@@ -204,5 +206,110 @@ func TestCINV0003VerdictListsBackToTheEpochSince(t *testing.T) {
 	// from the workflows, so a synchronized advance passes without editing this test.
 	if err := forwardEpochSinceProblem(liveEpoch(t), liveEpochSince(t)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestCINV02304BatchPullRequestNeedsSealedEvidence pins CIN-V0-2304 (V1-2805): the required
+// doc-gates job runs script/dogfood-batch-check.sh for a claude/batch-* pull request, from the
+// pull-request head checked out beside the synthetic merge and from the merge base of the pull
+// request's base and head. The step is run against a fixture repository whose batch check is a
+// stub: a passing check passes; a refusing check (the injected fault: an unbound commit) and an
+// unresolvable head each fail the step, so the required check fails.
+func TestCINV02304BatchPullRequestNeedsSealedEvidence(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the CIN-V0-2304 step body is a POSIX shell script run by sh")
+	b, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ci := string(b)
+	job := regexp.MustCompile(`(?ms)^  doc-gates:\n(.*?)\n  doc-gates-record:`).FindStringSubmatch(ci)
+	if job == nil {
+		t.Fatal("no doc-gates job")
+	}
+	m := regexp.MustCompile(`(?ms)^      - name: Refuse a batch pull request whose commits no sealed CEM binds \(CIN-V0-2304, V1-2805\)\n(.*?)\n        run: \|\n(.*?)\n\n?$`).FindStringSubmatch(job[1] + "\n")
+	if m == nil {
+		t.Fatal("doc-gates lacks the CIN-V0-2304 step as its last step")
+	}
+	for _, want := range []string{
+		"if: needs.doc-gates-reuse.outputs.mode != 'REUSE'\n",
+		"EVENT_NAME: ${{ github.event_name }}", "HEAD_REF: ${{ github.head_ref }}",
+		"PR_BASE: ${{ github.event.pull_request.base.sha }}", "PR_HEAD: ${{ github.event.pull_request.head.sha }}",
+	} {
+		if !strings.Contains(m[1], want) {
+			t.Fatalf("CIN-V0-2304 step lacks %q:\n%s", want, m[1])
+		}
+	}
+	// An unstamped build is never judged stale by dogfoodStaleBinary (TestSelfBinaryStaleComparesStampedCommitWithHEAD,
+	// "no Git stamp"); a base-stamped one would refuse every batch that changes cmd/corvint's Go sources or go.mod.
+	if want := `go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint`; !strings.Contains(m[2], want) {
+		t.Fatalf("CIN-V0-2304 step must build the trusted checker without a Git stamp (%q):\n%s", want, m[2])
+	}
+	if strings.Contains(m[1], "continue-on-error") {
+		t.Fatal("the CIN-V0-2304 step must fail the required job, not continue on error")
+	}
+	body := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[2], "")
+	dir := t.TempDir()
+	repo := filepath.Join(dir, "repo")
+	g := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	// The checker is a stand-in cmd/corvint: it records which tree built it, the commit it runs
+	// at and its arguments. The batch head replaces it with one that always passes; the step must
+	// still run the base's build (the trusted checker), never the head's.
+	checker := func(mark string) string {
+		return "package main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"os/exec\"\n\t\"strings\"\n)\n\n" +
+			"func main() {\n\thead, _ := exec.Command(\"git\", \"rev-parse\", \"HEAD\").Output()\n" +
+			"\tverifier := len(os.Args) > 4 && os.Args[3] == \"--verifier\" && os.Args[4] == os.Args[0]\n" +
+			"\tline := fmt.Sprintf(\"" + mark + " %s %s %s verifier=%v %s\\n\", strings.TrimSpace(string(head)), os.Args[1], os.Args[2], verifier, os.Args[len(os.Args)-1])\n" +
+			"\t_ = os.WriteFile(os.Getenv(\"BATCH_LOG\"), []byte(line), 0o600)\n" +
+			"\tif \"" + mark + "\" == \"trusted\" && os.Getenv(\"BATCH_EXIT\") == \"1\" {\n\t\tos.Exit(1)\n\t}\n}\n"
+	}
+	if err := os.MkdirAll(filepath.Join(repo, "cmd", "corvint"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	g("init", "-q", "-b", "main")
+	writeFile(t, filepath.Join(repo, "go.mod"), []byte("module example.invalid/batch\n\ngo 1.27\n"))
+	writeFile(t, filepath.Join(repo, "cmd", "corvint", "main.go"), []byte(checker("trusted")))
+	g("add", "-A")
+	g("commit", "-qm", "base")
+	mergeBase := g("rev-parse", "HEAD")
+	g("checkout", "-qb", "claude/batch-x")
+	writeFile(t, filepath.Join(repo, "cmd", "corvint", "main.go"), []byte(checker("head")))
+	g("commit", "-qam", "batch replaces its checker")
+	head := g("rev-parse", "HEAD")
+	g("checkout", "-q", "main")
+	g("commit", "-q", "--allow-empty", "-m", "main moved")
+	prBase := g("rev-parse", "HEAD")
+	step := func(t *testing.T, ref, prHead, exit string) (string, string, error) {
+		temp := t.TempDir()
+		log := filepath.Join(temp, "log")
+		cmd := exec.Command("sh", "-c", body)
+		cmd.Dir = repo
+		cmd.Env = append(os.Environ(), "EVENT_NAME=pull_request", "HEAD_REF="+ref, "PR_BASE="+prBase, "PR_HEAD="+prHead, "RUNNER_TEMP="+temp, "BATCH_LOG="+log, "BATCH_EXIT="+exit)
+		out, err := cmd.CombinedOutput()
+		got, _ := os.ReadFile(log)
+		g("worktree", "prune")
+		return strings.TrimSpace(string(got)), string(out), err
+	}
+	want := "trusted " + head + " dogfood batch-check verifier=true " + mergeBase
+	if got, out, err := step(t, "claude/batch-x", head, "0"); err != nil || got != want {
+		t.Fatalf("passing batch check: got %q, err %v; want %q (the base-built checker at the head, from the merge base)\n%s", got, err, want, out)
+	}
+	if got, out, err := step(t, "claude/batch-x", head, "1"); err == nil || got != want {
+		t.Fatalf("a refusing batch check did not fail the step: got %q\n%s", got, out)
+	}
+	if got, out, err := step(t, "claude/batch-x", strings.Repeat("f", 40), "0"); err == nil || got != "" {
+		t.Fatalf("an unresolvable head did not fail the step before the check: got %q\n%s", got, out)
+	}
+	// A non-batch pull request skips the check (the filter lives in the script so the step keeps
+	// the exact AFP-V0-670 REUSE condition); even a refusing checker is never reached.
+	if got, out, err := step(t, "claude/feature-x", head, "1"); err != nil || got != "" {
+		t.Fatalf("a non-batch pull request ran the batch check: got %q, err %v\n%s", got, err, out)
 	}
 }
