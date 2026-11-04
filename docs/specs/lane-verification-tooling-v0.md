@@ -46,8 +46,12 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   `OWNER` excludes only that owner's reservations. Whole prefixes overlap every version of their
   family; ranges overlap within one version. Malformed or unreadable ledgers refuse. Outputs are
   `used`, `free`, `reserved`, `unreserved`, `reserved-ok`, `already-reserved`, and `released N`.
+  A read-only `next PREFIX SIZE` query MUST find the lowest contiguous free block of SIZE
+  IDs (1..10000) across the same base, open refs and reservations. It prints `next-free` with
+  its pinned base or `no-free-block` and exit 1; it never reserves the answer. `--owner` excludes
+  only that owner's ledger rows. Missing evidence refuses, including a malformed base index.
   Refusals exit 2 with usage/recovery: `bad-arguments`, `bad-prefix`, `bad-owner`, `bad-range`,
-  `missing-owner`, `missing-base`, `unknown-command`, `not-a-checkout`, `git-dir-unavailable`,
+  `missing-owner`, `missing-base`, `bad-size`, `unknown-command`, `not-a-checkout`, `git-dir-unavailable`,
   `ledger-unreadable`, `ledger-malformed`, `ledger-dir-unwritable`, `ledger-unwritable`,
   `ledger-locked`, `scratch-unavailable`, `bad-family`, `bad-block`, and `bad-argument`.
 - `LVT-V0-005`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
