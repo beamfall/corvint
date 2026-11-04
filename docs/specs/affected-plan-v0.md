@@ -338,7 +338,7 @@ status bound), with `--base` once more for the base identity and once for the ra
 bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
 `affected.MaxSourceBytes` per file, and executes nothing else. Every failure is fail-closed.
 
-- **AFP-V0-013:** (accepted (decision 0431); amended by decision 0431; originally decision 0289) `tools/corvint-pr-tests` MUST execute only
+- **AFP-V0-013:** (accepted (decision 0431); amended by decision 0431; originally decision 0289; its build/interop rule amended by AFP-V0-2344 of `affected-plan-reuse-v0.md`, experimental) `tools/corvint-pr-tests` MUST execute only
   typed root-module Go package argv from a separately pinned trusted planner and the existing
   AFP-V0-012 selector outside the PR checkout. It MUST verify the exact captured merge commit,
   clean tree, event base as first parent and event head as second parent, with Git replacements
