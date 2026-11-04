@@ -3,8 +3,9 @@ set -eu
 
 # Covers SRG-V0-013: two lanes that each add one requirement to the same spec and run
 # `make spec-requirements` conflict only inside that spec's requirement list and the
-# REQUIREMENTS.tsv rows, never in the spec header, the Agent digest, INDEX.json or README.md.
-# The TSV conflict resolves by regeneration, and a lane on another spec merges cleanly.
+# REQUIREMENTS.tsv rows, plus the generated README range cell when the highest ID changes,
+# never in the spec header, the Agent digest or INDEX.json. Generated conflicts resolve by
+# regeneration, and a lane on another spec merges cleanly.
 # Covers SRG-V0-016: lanes that add requirements to different specs, or to different sections of
 # one spec so that each shifts the other's definition lines, or that only edit prose no indexed
 # field reads, merge in both orders with no conflict in any file, and every merged generated file
@@ -39,6 +40,8 @@ cp "$source_root/script/gen-spec-requirements.sh" "$source_root/script/spec-requ
   "$source_root/script/repin-use-case-receipts.sh" "$repo/script/"
 git() { command git -C "$repo" -c user.name=t -c user.email=t@example.invalid -c merge.conflictStyle=merge "$@"; }
 git init -q -b main
+# Keep the copied generator tracked, so resolved fixture trees can assert a clean status.
+git add -- script
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
@@ -157,6 +160,38 @@ for file in REQUIREMENTS.tsv INDEX.json README.md; do
     fail "the merged $file is not the regenerated one"
 done
 grep -q '^OTH-V0-002	' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "OTH-V0-002 lost in the merge"
+
+# SRG-V0-013 / SRG-V0-7500: both lanes append a new highest ID to the same spec.
+# Unlike the fixed-endpoint fixture above, each lane changes its generated README range cell.
+add_requirement highest-a shared.md SHR-V0-099 \
+  "- SHR-V0-100: (accepted under the owner's standing auto-accept (2026-10-11); V1-9001) Highest A's clause."
+add_requirement highest-b shared.md SHR-V0-099 \
+  "- SHR-V0-101: (accepted under the owner's standing auto-accept (2026-10-11); V1-9002) Highest B's clause."
+git checkout -q highest-a
+if git merge -q --no-edit highest-b > /dev/null 2>&1; then fail "highest-ID lanes merged without a conflict"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/README.md docs/specs/REQUIREMENTS.tsv docs/specs/shared.md " ||
+  fail "highest-ID conflict set is not exactly spec, TSV and README: $conflicted"
+resolve && fail "highest-ID resolve ran with the spec still conflicted"
+sed -e '/^<<<<<<< /d' -e '/^=======$/d' -e '/^>>>>>>> /d' "$repo/docs/specs/shared.md" > "$test_root/spec"
+cp "$test_root/spec" "$repo/docs/specs/shared.md"
+git add -- docs/specs/shared.md
+resolve || fail "highest-ID resolve did not regenerate TSV and README conflicts"
+test -z "$(git diff --name-only --diff-filter=U)" || fail "highest-ID resolve left unmerged paths"
+for id in SHR-V0-100 SHR-V0-101; do
+  grep -q "^$id	docs/specs/shared.md	.*	standing	" "$repo/docs/specs/REQUIREMENTS.tsv" || fail "$id lost in highest-ID resolve"
+done
+for file in REQUIREMENTS.tsv INDEX.json README.md; do
+  case $file in
+    REQUIREMENTS.tsv) flag= ;;
+    INDEX.json) flag=--index ;;
+    README.md) flag=--readme ;;
+  esac
+  (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" ||
+    fail "highest-ID resolved $file is not the regenerated one"
+done
+git commit -q --no-edit
+test -z "$(git status --porcelain)" || fail "highest-ID resolve did not yield a clean regenerated tree"
 
 # SRG-V0-016: a spec with two requirement sections, separated by prose. Every lane below branches
 # from this commit.

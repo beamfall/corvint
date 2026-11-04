@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -64,7 +65,7 @@ func TestCINV07502RequiredFamiliesAndOfflineModules(t *testing.T) {
 	}
 }
 
-// CIN-V0-7504: execute the workflow's actual selection expression with reached/unreached plans.
+// CIN-V0-7504: execute workflow status capture and selection with reached, FULL and Incomplete plans.
 func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 	plan := workflowJob(t, "web-flows-plan")
 	for _, trusted := range []string{
@@ -76,23 +77,54 @@ func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 			t.Fatalf("consumer selector is not isolated from tested code: missing %s", trusted)
 		}
 	}
-	line := regexp.MustCompile(`(?m)^          required=\$\((.*)\)$`).FindStringSubmatch(plan)
-	if line == nil {
-		t.Fatal("missing consumer selection")
+	selection := regexp.MustCompile(`(?s)          (status=0.*?echo "required=\$required" >> "\$GITHUB_OUTPUT")`).FindStringSubmatch(plan)
+	if selection == nil {
+		t.Fatal("missing status capture and consumer selection")
 	}
-	for _, tc := range []struct{ checks, want string }{
-		{`["tools/web-flows/test/e2e.mjs (UNSELECTED_BINARY_CONSUMER: run it)"]`, "true"},
-		{`["tools/web-flows/test/navigation-e2e.mjs (UNSELECTED_BINARY_CONSUMER: run it)"]`, "true"},
-		{`["make go-vet"]`, "false"},
+	for _, tc := range []struct {
+		name, document, want string
+		status               int
+	}{
+		{"e2e", `{"scope":"SELECTED","checks":["tools/web-flows/test/e2e.mjs (UNSELECTED_BINARY_CONSUMER: run it)"]}`, "true", 0},
+		{"navigation", `{"checks":["tools/web-flows/test/navigation-e2e.mjs (UNSELECTED_BINARY_CONSUMER: run it)"]}`, "true", 0},
+		{"unreached", `{"scope":"SELECTED","checks":["make go-vet"]}`, "false", 0},
+		{"full", `{"scope":"FULL","checks":[]}`, "true", 0},
+		{"incomplete", `{"scope":"SELECTED","checks":[],"incomplete":["unknown coverage"]}`, "true", 3},
+		{"failure", `{"scope":"FULL","checks":[]}`, "", 1},
+		{"invalid", `{"scope":"FULL","checks":[]}`, "", 2},
+		{"other-error", `{"scope":"FULL","checks":[]}`, "", 4},
 	} {
-		dir := t.TempDir()
-		writeFile(t, filepath.Join(dir, "web-plan.json"), []byte(`{"checks":`+tc.checks+`}`))
-		cmd := exec.Command("sh", "-ec", line[1])
-		cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir)
-		out, err := cmd.CombinedOutput()
-		if err != nil || strings.TrimSpace(string(out)) != tc.want {
-			t.Fatalf("checks=%s result=%s err=%v", tc.checks, out, err)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			fixture := filepath.Join(dir, "fixture.json")
+			output := filepath.Join(dir, "output")
+			writeFile(t, fixture, []byte(tc.document))
+			selector := filepath.Join(dir, "corvint-web-plan")
+			writeFile(t, selector, []byte("#!/bin/sh\ncat \"$PLAN_FIXTURE\"\nexit \"$PLAN_STATUS\"\n"))
+			if err := os.Chmod(selector, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("sh", "-ec", selection[1])
+			cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir, "GITHUB_OUTPUT="+output,
+				"GITHUB_WORKSPACE="+dir, "BASE=base", "PLAN_FIXTURE="+fixture, "PLAN_STATUS="+strconv.Itoa(tc.status))
+			out, err := cmd.CombinedOutput()
+			if tc.want == "" {
+				if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != tc.status {
+					t.Fatalf("expected exit %d, got %v: %s", tc.status, err, out)
+				}
+				if _, err := os.Stat(output); !os.IsNotExist(err) {
+					t.Fatal("failed plan published a required decision")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("selection: %v: %s", err, out)
+			}
+			got, err := os.ReadFile(output)
+			if err != nil || strings.TrimSpace(string(got)) != "required="+tc.want {
+				t.Fatalf("result=%s err=%v, want required=%s", got, err, tc.want)
+			}
+		})
 	}
 	web := workflowJob(t, "web-flows")
 	if !strings.Contains(web, "if: needs.web-flows-plan.outputs.required == 'true'") || !strings.Contains(web, "run: script/web-flows-gate") || strings.Contains(web, "continue-on-error") {
