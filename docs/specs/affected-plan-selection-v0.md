@@ -326,11 +326,12 @@ measure. None of them drops a unit the change can reach.
   a kept test's closure may write SHALL be kept with `READS_STATE_A_KEPT_TEST_WRITES`, to a
   fixpoint. A write is an assignment, increment, address-taking, or `append`/`copy`/`clear`/`delete`
   destination rooted at the variable, and for a module variable also a pointer-receiver method
-  call on it or passing it, when of map, slice, pointer or channel type, as an argument; the
+  call on it or passing it, when of map, slice, pointer, channel or interface type, as an argument,
+  through any selector, index, slice, dereference or type assertion; the
   `sync.Mutex`/`RWMutex` lock methods and the read-only methods of `regexp.Regexp`,
   `strings.Replacer` and the template types' execution are not writes (`sync.Once.Do` and
-  `sync.Pool` are). Any other use of a module variable holding a map, slice, pointer or channel (directly or in a
-  struct or array field) than
+  `sync.Pool` are). Any other use of a module variable holding a map, slice, pointer, channel or interface (directly
+  or in a struct or array field) than
   an index, field or range yielding no such reference, a `len`/`cap` argument or a comparison
   operand is a write, since a copy of the reference can be written through. A file write
   (`os.WriteFile`, `Create`, `OpenFile` unless its constant flags only read, `Mkdir*`, `Remove*`,
@@ -340,16 +341,26 @@ measure. None of them drops a unit the change can reach.
   is a call for this rule. The file system is a third pseudo variable: every file write or read
   (`os.ReadFile`, `Open`, `Stat`, `Lstat`, `ReadDir`, `Readlink`, `DirFS`, `filepath.Walk*`,
   `Glob`, `EvalSymlinks`, `fs.ReadFile`, `io/ioutil.ReadFile`, `io/ioutil.ReadDir`, a read-only
-  `OpenFile`) whose path neither calls nor names a local variable a body assigned once from
-  `TempDir`, `os.MkdirTemp`, `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile` writes or
-  reads it; any use of `os.OpenRoot`, `os.OpenInRoot` or an `os.Root` method reads and writes it;
+  `OpenFile`) writes or reads it unless its path is private: a call of `TempDir`, `os.MkdirTemp`,
+  `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile`, a local variable a body assigned
+  once from a private path, `filepath.Join` or `path.Join` of a private first element and constant
+  elements naming no `..`, or a private path plus a constant starting with `/` naming no `..`; any
+  other expression, a helper call included, is not private; any use of `os.OpenRoot`, `os.OpenInRoot` or an `os.Root` method reads and writes it;
   and every state reader or writer taken as a value reads or writes its pseudo variable. A closure
   that may start a process (AFP-V0-2373) writes the file system, environment and signal pseudo
   variables, since a child's writes are not bounded. Standard-library state read without being
   named counts as read: a call into `fmt` reads `os.Stdout` and `os.Stderr`, into `log` reads
   `os.Stderr` and the log default (written by `log.SetOutput`, `SetFlags`, `SetPrefix`), into
   `log/slog` also the slog default (written by `slog.SetDefault`, `SetLogLoggerLevel`), and into
-  `time` reads `time.Local`. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
+  `time` reads `time.Local`. The standard library is otherwise closed by an allow-list: a use of a
+  standard-library function or method that the model neither records above nor finds in
+  `purePackages` (value-only packages such as `strings`, `encoding/json`, `regexp`, `sync`,
+  `testing`, `time`, `fmt`, less `impureFunctions` and the package-level `math/rand` functions) or
+  `pureOS` makes its closure read and write a fourth pseudo variable, `unknown`, as do a process
+  start and any write of a standard-library variable. `unknown` on either side conflicts with any
+  pseudo or standard-library variable on the other: an `os.File` method, `net`, `net/http`, a
+  listener on a fixed port or any unlisted package therefore keeps every dropped test that reads
+  such state when a kept test may write it. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
   start) and signal dispositions (`signal.Notify`, `Ignore`, `Reset`, a `Notify` paired with
   `signal.Stop` in the same body excepted) are two pseudo variables under the same rule. A kept
   test whose closure calls another process-wide setter (`os.Chdir`, `runtime.GOMAXPROCS` with an
@@ -458,7 +469,7 @@ error the confined CI shard surfaces.
 | AFP-V0-2371 | `buildGraph`, `funcDecl`, `packageVar`, `walkInitializer`, `heldAssignment`, `visitExpr`, `call`, `composite`, `convertTo` in `internal/liveverify/affected/golang/typedreach/graph.go`; `Load` in `load.go`; `namedIn` in `analyze.go` | `TestAFPV02371ConversionsAndHeldValuesCarryReach` |
 | AFP-V0-2372 | `childOnly`, `moduleHazard`, `hasLinkname`, `Analyze` | `TestAFPV02372AlwaysRunReachKeepsThePackageWhole`, `TestAFPV02372LoadRefusesUnmodelledSource`, `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (negative control) |
 | AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction`, `TestAFPV02373RoundThreeRegressions` (constants, `os/exec` uses, ioutil and `os.Root`) |
-| AFP-V0-2374 | `sharedVar`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `scopeSignals`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`) |
+| AFP-V0-2374 | `sharedVar`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `scopeSignals`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`), `TestAFPV02374RoundFourRegressions` (interface-held references, discarded-temp privacy, `os.File` handles, `net/http` defaults, fixed-port listeners) |
 | AFP-V0-2375 | the slice and whole forms in `testTypedSlices` | `corvint test --dry-run` replays (build log) |
 | AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go` | `TestAFPV02376DiffFileNamesChangedDeclarations` |
 | AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log); `TestAFPV02370DryRunNarrowsAnAllowListedDependent` (embedded and run-time data files) |
