@@ -128,10 +128,27 @@ printf '#!/usr/bin/env bash\nexit 0\n' > "$seal/script/dogfood-check.sh"
 git -C "$seal" add script/dogfood-check.sh && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m check-stub
 sealhead=$(git -C "$seal" rev-parse HEAD)
 printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review.\n' "$sealhead" > "$tmp/external-review.txt"
+# P2-1 / DWC-V0-046: an external header wrapping legacy output records only
+# the validated external head, even when the nested pin names another commit.
+printf 'codex-review: reviewed-head=%s tree=x dirty=no\n' "$(git -C "$seal" rev-parse HEAD~1)" >> "$tmp/external-review.txt"
 out=$(cd "$seal" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
 message=$(git -C "$seal" log -1 --format=%B)
 changes=$(git -C "$seal" diff --name-status -M HEAD^ HEAD)
-[[ $rc == 0 && $out == *'dogfood-seal: PASS'* && $message == *"review-before-seal OBSERVED"* && $message == *"reviewed-head=$sealhead"* && $changes == R100$'\t'*.cem.json$'\t'*.cem.json ]] || fail "durable external review seal: rc=$rc out=$out message=$message changes=$changes"
+[[ $rc == 0 && $out == *'dogfood-seal: PASS'* && $message == *"review-before-seal OBSERVED"* && $message == *"reviewed-head=$sealhead"* && $message == *'verdict=PASS' && $(printf '%s\n' "$message" | wc -l) -eq 3 && $changes == R100$'\t'*.cem.json$'\t'*.cem.json ]] || fail "durable external review seal: rc=$rc out=$out message=$message changes=$changes"
+
+# DWC-V0-046: legacy reports allow a metadata-only descendant but carry no verdict.
+legacyhead=$(git -C "$seal" rev-parse HEAD)
+printf 'bound again\n' > "$seal/.corvint/change.cem.json"
+git -C "$seal" add .corvint/change.cem.json && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m rebind
+bindhead=$(git -C "$seal" rev-parse HEAD)
+printf 'codex-review: reviewed-head=%s tree=x dirty=no\n' "$legacyhead" > "$tmp/legacy-review.txt"
+cat "$tmp/legacy-review.txt" "$tmp/legacy-review.txt" > "$tmp/duplicate-legacy.txt"
+out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/duplicate-legacy.txt script/dogfood-seal.sh "$legacyhead" 2>&1); rc=$?
+[[ $rc == 2 && $out == *'invalid-legacy-review duplicate pins'* && $(git -C "$seal" rev-parse HEAD) == "$bindhead" ]] || fail "duplicate legacy pins: rc=$rc out=$out"
+out=$(cd "$seal" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t DOGFOOD_REVIEW=$tmp/legacy-review.txt script/dogfood-seal.sh "$legacyhead" 2>&1); rc=$?
+message=$(git -C "$seal" log -1 --format=%B)
+changes=$(git -C "$seal" diff --name-status -M HEAD^ HEAD)
+[[ $rc == 0 && $out == *'dogfood-seal: PASS'* && $message == *"reviewed-head=$legacyhead"* && $message == *'verdict=NOT_OBSERVED' && $(printf '%s\n' "$message" | wc -l) -eq 3 && $changes == R100$'\t'*.cem.json$'\t'*.cem.json ]] || fail "legacy descendant seal: rc=$rc out=$out message=$message changes=$changes"
 
 [[ $failed == 0 ]] || exit 1
 echo "review-head-check_test.sh: ok"

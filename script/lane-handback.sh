@@ -43,7 +43,7 @@ TEMPLATE
         Base|'Fix head') [[ $value =~ ^[0-9a-f]{40}$ ]] || refuse "invalid $name" ;;
         'Bind head'|'Sealed head') [[ $value =~ ^[0-9a-f]{40}$ || $value == 'NOT_PRODUCED '?* ]] || refuse "invalid $name: full SHA or NOT_PRODUCED plus reason required" ;;
         'Delivered tickets'|'Superseded tickets')
-          [[ $value == none || $value =~ ^V1-[0-9]+(\ V1-[0-9]+)*$ ]] || refuse "invalid $name: space-separated ticket IDs or none required" ;;
+          [[ $value == none || $value =~ ^[A-Z0-9]+(-[A-Z0-9]+)*(\ [A-Z0-9]+(-[A-Z0-9]+)*)*$ ]] || refuse "invalid $name: space-separated ticket IDs or none required" ;;
       esac
     done
     if [[ $# == 3 ]]; then

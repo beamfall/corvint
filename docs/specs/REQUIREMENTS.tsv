@@ -3619,7 +3619,7 @@ DWC-V0-044	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted u
 DWC-V0-045	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4546;	standing	2026-10-11; V1-4546
 DWC-V0-046	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4548)	standing	2026-10-11; V1-4548
 DWC-V0-047	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4541)	standing	2026-10-11; V1-4541
-DWC-V0-048	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4545	standing	2026-10-11; V1-4545
+DWC-V0-048	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4573;	standing	2026-10-11; V1-4573
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-

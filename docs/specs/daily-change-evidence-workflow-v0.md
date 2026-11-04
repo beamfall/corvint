@@ -2939,7 +2939,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   reason; the cmdcem-r replay count is recorded in `docs/build-log/2026-11-01-cit-w12.md`. Rollback:
   remove the sibling attempt and the fallback admission.
 - `DCW-V0-842`: (experimental under the standing lane auto-accept; V1-3814, V1-3791; refines
-  `DCW-V0-171`) `propose-citations --refresh` MUST keep a re-keyed row current, without the stale
+  `DCW-V0-171`; amended by DWC-V0-045) `propose-citations --refresh` MUST keep a re-keyed row current, without the stale
   marker, when its hunk's content is unchanged, and MUST re-pin a carried cite row whose plan was
   drafted at another BASE: the row keeps its lines when the prior BASE and BASE hold the same text
   there, and moves to the single occurrence of that text at BASE otherwise (a `bytes:START:END` row
@@ -2948,12 +2948,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   old coordinates. The prior BASE is the sealed CEM's base under `--from-cem`, else the map revision
   only when the citation-plan binding records the `--refresh` plan against that map; otherwise a NOTE
   `refresh-base-unproven` is printed and cite rows are carried as written for `DCW-V0-840`, which
-  admits both span forms. Hunk facts are also read from the prior BASE's patches. An owed hunk with no carried
-  row in a file whose other hunks carry a cite row MUST be proposed that file's first carried
-  citation, labelled `carried forward`; a hunk of a file with no carried citation keeps the ordinary
-  draft. Evidence: `internal/dogfoodflow` tests merge an unrelated mainline commit that shifts the
-  cited lines and refresh with zero stale rows and a passing precheck, and pin the carried-forward
-  proposal and the uncited file. Rollback: drop the re-pin and the carried-forward branch.
+  admits both span forms. Hunk facts are also read from the prior BASE's patches. An owed
+  hunk with no carried row uses ordinary drafting under DWC-V0-045. Evidence:
+  `internal/dogfoodflow` tests merge an unrelated mainline commit that shifts the cited lines
+  and refresh with zero stale rows and a passing precheck, and verify independent drafting
+  for unmatched hunks. Rollback: drop the re-pin.
 - `DCW-V0-843`: (experimental under the standing lane auto-accept; V1-3502) `propose-citations
   --from-cem PATH` MUST seed the draft from a sealed CEM: each of its hunks becomes a refresh row
   keyed by its hunk ID, a cite row per basis evidence (its byte span converted to the BASE lines of
