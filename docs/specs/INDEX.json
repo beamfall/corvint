@@ -4508,5 +4508,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-self-development-companion-v0.md",
+    "title": "Corvint Self-Development Companion V0",
+    "reqPrefix": "CSD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Local gate fixtures and batch verification expose platform drift, skipped inputs and unresolved historical evidence.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

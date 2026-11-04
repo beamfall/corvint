@@ -12,6 +12,8 @@
 # ${#NAME[@]} guard precedes it; write ${a[@]+"${a[@]}"} or "${a[*]-}". It is a per-file
 # heuristic, not data flow: an array filled before every use still needs the idiom or an allow.
 set -euo pipefail
+# CSD-V0-7511: probe arbitrary tracked files as bytes, including PNG headers.
+export LC_ALL=C
 cd "$(git rev-parse --show-toplevel)"
 
 # label<TAB>view<TAB>ERE, one Bash 4+ construct each. view `code` drops quoted text and comments;

@@ -83,6 +83,8 @@ separate exact extension tuple remains governed by AHI-024.
 
 ## Requirements
 
+- `AHI-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Claude Code host-package version bump MUST update the manifest, marketplace, adapter/matrix declarations and `.mcp.json` injected `CORVINT_PLUGIN_VERSION` together. The injected value MUST keep its `claude-code/` prefix, and version verification MUST reject a disagreement before changing any location.
+
 - `AHI-001`: Every adapter MUST consume and produce the transport-neutral Corvint request, receipt,
   CEM, frontier, and outcome contracts. It MUST NOT maintain a second graph or reinterpret authority.
 - `AHI-002`: Installation, discovery, upgrade, disable, and uninstall MUST be documented and tested
@@ -3148,3 +3150,9 @@ records the explicit caller-reported outcome at a clean revision. Native RPC new
 and interactive TUI prompt/shutdown are exercised separately. The PTY harness has a regression
 for interrupted cleanup of a TERM-ignoring descendant. These functional witnesses do not establish
 protected FULL, arbitrary extension qualification, latency or equal-critical-recall promotion.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `AHI-7500` | `script/host-package-version.sh`; `script/host-package-version_test.sh` real-manifest five-location bump, evidence preservation and mismatch refusal; `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`. |

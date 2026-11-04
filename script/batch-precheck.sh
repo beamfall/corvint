@@ -166,7 +166,7 @@ need_gocache() {
 
 # Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the node
 # half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062).
-EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test)
+EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test)
 # What capability-catalog-check reads beyond Go source: the root guides (README.md, llms.txt,
 # AGENTS.md) and top-level docs (CAPABILITIES.md, E2E-ADOPTION.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
@@ -187,7 +187,7 @@ SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
 # What script/lane-scripts_test.sh reads: its groups drive the scripts under script/ and read the
 # Makefile, docs/DOGFOOD.md and benchmarks/retained-data.tsv (the ASD-V0-646 group). Its groups run in sequence and share fixtures, so the step runs the
 # whole file, on the merged tree, when one of these changed (ASD-V0-640, V1-3744).
-LST_INPUTS='^(script/|Makefile$|docs/DOGFOOD\.md$|benchmarks/retained-data\.tsv$)'
+LST_INPUTS='^(script/|Makefile$|docs/(DOGFOOD|CAPABILITIES)\.md$|internal/capcatalog/|benchmarks/retained-data\.tsv$)'
 # Every input of a step whose result the diff can change only through these paths (ASD-V0-110):
 # a failure with none of them changed since the base is unattributed, not introduced. The node
 # tests also read cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md and conformance/; the
@@ -224,6 +224,8 @@ else
     "./internal/tasks/store TestCALV0070_ @prebind"
     "./internal/tasks/journal TestCALV0070_ @prebind"
     "./internal/tasks/safeopen TestCALV0070_ @prebind"
+    "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
+    "./tools/ci-forward-row Test .github/"
     "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )

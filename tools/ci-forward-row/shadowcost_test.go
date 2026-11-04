@@ -559,3 +559,16 @@ func TestAFPV0484BarShadowCost(t *testing.T) {
 		t.Fatalf("a re-run without its own cost = %v, want unpriced", e)
 	}
 }
+
+// CIN-V0-7500: retain every FULL reason beyond the old twenty-path sample.
+func TestCINV07500AllFullReasons(t *testing.T) {
+	var changed strings.Builder
+	for i := 0; i < 25; i++ {
+		fmt.Fprintf(&changed, ".github/workflows/flow%d.yml\n", i)
+	}
+	changed.WriteString("go.mod\na/testdata/input.json\nb/static/x.html\nunknown/x.go\n")
+	tr := sub(tiersOf(t, changed.String(), tierModule), "tiers")
+	if got := len(strs(tr["full"])); got != 29 {
+		t.Fatalf("FULL reasons=%d, want 29: %v", got, tr)
+	}
+}
