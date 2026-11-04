@@ -76,6 +76,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			continue
 		}
 		var declarations []typedreach.Declaration
+		baseFiles := map[string][]byte{}
 		unreadable := ""
 		for _, file := range changed {
 			blob := blobs[file]
@@ -91,6 +92,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			if !blob.absent {
 				before = blob.content
 			}
+			baseFiles[file] = before
 			declarations = append(declarations, typedreach.DiffFile(file, before, head).Declarations(module+"/"+path.Dir(file))...)
 		}
 		if unreadable != "" {
@@ -112,6 +114,15 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 		result := typedReachAnalyze(program, declarations, nil)
 		if result.Whole != "" {
 			whole(result.Whole)
+			continue
+		}
+		before, err := typedreach.LoadBase(root, module, relative, baseFiles)
+		if err != nil {
+			whole(typedreach.WholeBaseSource + ": " + err.Error())
+			continue
+		}
+		if why := typedreach.BaseEffects(before, declarations); why != "" {
+			whole(why)
 			continue
 		}
 		kept := make([]string, 0, len(result.Kept))

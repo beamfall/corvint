@@ -6,6 +6,7 @@
 package typedreach
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -39,15 +40,17 @@ type Package struct {
 // internal test files, its external test package when it has one, and every
 // package either imports.
 type Program struct {
-	Fset    *token.FileSet
-	Module  string
-	Root    string
-	Context build.Context
-	Target  *Package
-	XTest   *Package
-	byPath  map[string]*Package
-	loading map[string]bool
-	order   []*Package
+	Fset          *token.FileSet
+	Module        string
+	Root          string
+	Context       build.Context
+	Target        *Package
+	XTest         *Package
+	byPath        map[string]*Package
+	loading       map[string]bool
+	order         []*Package
+	overrides     map[string][]byte
+	overridesRead map[string]bool
 }
 
 // Packages returns the module packages of the program in load order.
@@ -74,6 +77,42 @@ var (
 // them. A module package with cgo, assembly or a //go:linkname directive, or
 // any type error, is an error wrapping ErrUnmodelled or ErrTypeCheck.
 func Load(root, module, dir string) (*Program, error) {
+	return load(root, module, dir, nil)
+}
+
+// LoadBase checks the changed files at base without writing the worktree
+// (AFP-V0-2376). Keys are root-relative paths; nil means absent at base.
+// Incompatible head tests, changed build constraints and deleted files fail
+// closed rather than pretending this overlay is a complete historical tree.
+func LoadBase(root, module, dir string, files map[string][]byte) (*Program, error) {
+	for name, source := range files {
+		if bytes.Contains(source, []byte("//go:build")) || bytes.Contains(source, []byte("// +build")) {
+			return nil, fmt.Errorf("%w: constrained base file %s", ErrUnmodelled, name)
+		}
+		if source != nil {
+			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(name))); err != nil {
+				return nil, fmt.Errorf("%w: base file %s is absent at head", ErrUnmodelled, name)
+			}
+		}
+	}
+	program, err := load(root, module, dir, files)
+	if err != nil {
+		return nil, err
+	}
+	for name, source := range files {
+		if source == nil || program.overridesRead[name] {
+			continue
+		}
+		for _, pkg := range program.Packages() {
+			if filepath.Clean(pkg.Dir) == filepath.Join(program.Root, filepath.FromSlash(path.Dir(name))) {
+				return nil, fmt.Errorf("%w: base file %s was not loaded", ErrUnmodelled, name)
+			}
+		}
+	}
+	return program, nil
+}
+
+func load(root, module, dir string, overrides map[string][]byte) (*Program, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUnmodelled, err)
@@ -82,7 +121,7 @@ func Load(root, module, dir string) (*Program, error) {
 	ctx.CgoEnabled = false
 	ctx.GOOS, ctx.GOARCH = runtime.GOOS, runtime.GOARCH
 	ctx.Dir = root
-	program := &Program{Fset: token.NewFileSet(), Module: module, Root: root, Context: ctx, byPath: map[string]*Package{}, loading: map[string]bool{}}
+	program := &Program{Fset: token.NewFileSet(), Module: module, Root: root, Context: ctx, byPath: map[string]*Package{}, loading: map[string]bool{}, overrides: overrides, overridesRead: map[string]bool{}}
 	importPath := module
 	if dir != "." && dir != "" {
 		importPath = module + "/" + filepath.ToSlash(dir)
@@ -186,7 +225,18 @@ func (program *Program) check(importPath, dir, name string, files, tests []strin
 	}
 	for _, file := range files {
 		full := filepath.Join(dir, file)
-		source, err := os.ReadFile(full)
+		relative, _ := filepath.Rel(program.Root, full)
+		key := filepath.ToSlash(relative)
+		source, overridden := program.overrides[key]
+		var err error
+		if module && overridden {
+			program.overridesRead[key] = true
+			if source == nil {
+				continue
+			}
+		} else {
+			source, err = os.ReadFile(full)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrUnmodelled, err)
 		}
@@ -202,6 +252,9 @@ func (program *Program) check(importPath, dir, name string, files, tests []strin
 		if slices.Contains(tests, file) {
 			pkg.Tests[parsed] = true
 		}
+	}
+	if len(pkg.Files) == 0 {
+		return nil, fmt.Errorf("%w: %s has no source at base", ErrTypeCheck, importPath)
 	}
 	var first error
 	config := types.Config{

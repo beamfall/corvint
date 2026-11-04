@@ -111,11 +111,13 @@ func measure(root, base, pkg string, runOracle bool, runTimeout time.Duration) (
 	}
 	out := report{Root: root, Base: base, Head: strings.TrimSpace(string(head)), Package: pkg, Kept: map[string]string{}}
 	var changed []typedreach.Declaration
+	baseFiles := map[string][]byte{}
 	for _, name := range strings.Fields(string(names)) {
 		if strings.HasSuffix(name, "_test.go") || strings.HasPrefix(name, "testdata/") || strings.Contains(name, "/testdata/") {
 			continue
 		}
 		before, _ := git(root, "show", base+":"+name)
+		baseFiles[name] = before
 		after, err := os.ReadFile(filepath.Join(root, name))
 		if err != nil {
 			after = nil
@@ -132,6 +134,14 @@ func measure(root, base, pkg string, runOracle bool, runTimeout time.Duration) (
 		return report{}, err
 	}
 	result := typedreach.Analyze(program, changed, nil)
+	if result.Whole == "" {
+		before, err := typedreach.LoadBase(root, module, pkg, baseFiles)
+		if err != nil {
+			result.Whole = typedreach.WholeBaseSource + ": " + err.Error()
+		} else {
+			result.Whole = typedreach.BaseEffects(before, changed)
+		}
+	}
 	out.PlanMillis = time.Since(start).Milliseconds()
 	out.Whole, out.Tests, out.Dropped = result.Whole, result.Tests, result.Dropped
 	for test, why := range result.Kept {

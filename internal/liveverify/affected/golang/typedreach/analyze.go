@@ -25,6 +25,8 @@ const (
 	WholeAlwaysRunStarts  = "ALWAYS_RUN_STARTS_PROCESS"
 	WholeProcessState     = "KEPT_TEST_WRITES_PROCESS_STATE"
 	WholeEveryTestKept    = "EVERY_TEST_REACHES_CHANGE"
+	WholeBaseSource       = "BASE_SOURCE_UNPROVED"
+	WholeBaseWrites       = "BASE_MAY_WRITE_SHARED_STATE"
 	KeptReachesChange     = "REACHES_CHANGE"
 	KeptStartsProcess     = "STARTS_PROCESS"
 	KeptReadsSharedState  = "READS_STATE_A_KEPT_TEST_WRITES"
@@ -48,6 +50,53 @@ type change struct {
 	packages map[string]bool
 	// initialization labels a linked package's changed initialization.
 	initialization string
+}
+
+// BaseEffects refuses narrowing when a changed declaration could write
+// shared state before the edit (AFP-V0-2376). Head-only effects cannot prove
+// independence from a write, callback or process start the edit removed.
+func BaseEffects(program *Program, changed []Declaration) string {
+	var existing []Declaration
+	for _, declaration := range changed {
+		pkg := program.byPath[declaration.Package]
+		if pkg == nil || !pkg.Module {
+			continue
+		}
+		if declaration.Initialization {
+			return WholeBaseWrites + ": " + declaration.Package + ": " + declaration.Name
+		}
+		name, _, _ := strings.Cut(declaration.Name, ".")
+		if _, _, _, imported := importDeclaration(declaration.Name); imported || pkg.Types.Scope().Lookup(name) != nil {
+			existing = append(existing, declaration)
+		}
+	}
+	g := buildGraph(program)
+	c := resolve(program, existing, nil)
+	if c.initialization != "" {
+		return WholeBaseWrites + ": " + c.initialization
+	}
+	deriveChanges(g, &c)
+	a := &analysis{g: g, c: c, structural: map[types.Type][]*types.Named{}}
+	var roots []*node
+	for f, n := range g.funcs {
+		changedType := false
+		if recv := f.Signature().Recv(); recv != nil {
+			for _, named := range a.namedIn(recv.Type()) {
+				changedType = changedType || c.types[named.Origin()]
+			}
+		}
+		if a.changedFunc(f) || changedType {
+			roots = append(roots, n)
+		}
+	}
+	sort.Slice(roots, func(i, j int) bool { return roots[i].label < roots[j].label })
+	for _, n := range roots {
+		before := a.reach([]*node{n})
+		if len(before.writes) > 0 || len(before.process) > 0 || len(before.starts) > 0 {
+			return WholeBaseWrites + ": " + n.label
+		}
+	}
+	return ""
 }
 
 // Analyze decides which test functions of program can reach the changed

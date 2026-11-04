@@ -142,4 +142,22 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 			t.Fatalf("p %+v, want whole with the always-run reason", got)
 		}
 	})
+	t.Run("a removed shared write keeps p whole", func(t *testing.T) {
+		affectedGit(t, root, "checkout", "-q", "--", ".")
+		before := "package lib\n\nvar Shared int\n\nfunc A() int { Shared = 1; return 1 }\n\nfunc B() int { return 2 }\n"
+		if err := os.WriteFile(filepath.Join(root, "lib/lib.go"), []byte(before), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		reader := files["p/p_test.go"] + "\nfunc TestShared(t *testing.T) { if lib.Shared != 1 { t.Fatal(lib.Shared) } }\n"
+		if err := os.WriteFile(filepath.Join(root, "p/p_test.go"), []byte(reader), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		affectedGit(t, root, "add", ".")
+		affectedGit(t, root, "commit", "-qm", "shared-write baseline")
+		base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+		got := plan(t, strings.Replace(before, "Shared = 1; ", "", 1))["go:example.test/m/p"]
+		if got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, "BASE_MAY_WRITE_SHARED_STATE") {
+			t.Fatalf("removed write: %+v, want whole with the base-effect reason", got)
+		}
+	})
 }

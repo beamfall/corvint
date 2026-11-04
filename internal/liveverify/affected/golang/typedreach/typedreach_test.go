@@ -286,6 +286,54 @@ func TestAFPV02374TemporaryCreationKeepsParentReaders(t *testing.T) {
 	}
 }
 
+// TestAFPV02376BaseEffectsPreserveRemovedWrites checks the conservative
+// base-side proof, including an indirect process start. A pure base body
+// remains eligible for narrowing. The overlay never changes source files.
+func TestAFPV02376BaseEffectsPreserveRemovedWrites(t *testing.T) {
+	root := filepath.Join("testdata", "mod")
+	name := "lib/lib.go"
+	source, err := os.ReadFile(filepath.Join(root, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, body string
+		writes     bool
+	}{
+		{"pure", "return 1", false},
+		{"package variable", "Registry = nil; return 1", true},
+		{"process", "_ = Run(\"child\"); return 1", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := strings.Replace(string(source), "func A() int { return 1 }", "func A() int { "+tc.body+" }", 1)
+			program, err := LoadBase(root, fixtureModule, "p", map[string][]byte{name: []byte(before)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			why := BaseEffects(program, []Declaration{lib("A")})
+			if (why != "") != tc.writes || why != "" && !strings.HasPrefix(why, WholeBaseWrites+":") {
+				t.Fatalf("why=%q, writes=%v", why, tc.writes)
+			}
+		})
+	}
+	unchanged, err := os.ReadFile(filepath.Join(root, name))
+	if err != nil || string(unchanged) != string(source) {
+		t.Fatalf("base overlay changed source: %v", err)
+	}
+	t.Run("incompatible base", func(t *testing.T) {
+		before := strings.Replace(string(source), "func A() int { return 1 }", "", 1)
+		if _, err := LoadBase(root, fixtureModule, "p", map[string][]byte{name: []byte(before)}); !errors.Is(err, ErrTypeCheck) {
+			t.Fatalf("missing base declaration: %v", err)
+		}
+	})
+	t.Run("constrained base", func(t *testing.T) {
+		before := append([]byte("//go:build linux\n\n"), source...)
+		if _, err := LoadBase(root, fixtureModule, "p", map[string][]byte{name: before}); !errors.Is(err, ErrUnmodelled) {
+			t.Fatalf("constrained base: %v", err)
+		}
+	})
+}
+
 // TestAFPV02374RoundFourRegressions holds the fourth review's cases: a
 // write through a type assertion on an interface-held reference, a path made
 // "private" by an argument the helper discards, a write through a shared
