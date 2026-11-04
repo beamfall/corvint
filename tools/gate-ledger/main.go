@@ -330,9 +330,10 @@ func (l *ledger) plan(steps []string) int {
 	return 0
 }
 
-// runStep executes command unless a pass for step's current inputs is recorded,
-// and records a pass when the command exits zero and the step's key, derived
-// again from the worktree immediately before and after it, is unchanged (GL-V0-786).
+// runStep executes command unless a pass for step's current inputs is recorded
+// before it takes the step's lock, and records a pass when the command exits
+// zero and the step's key, derived again from the worktree immediately before
+// and after it, is unchanged (GL-V0-786).
 func (l *ledger) runStep(step string, packages []string, command []string) int {
 	key, reason := l.key(step, packages)
 	if reason != "" {
@@ -349,11 +350,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 		return l.inv.execute(command)
 	}
 	defer unlock()
-	if rec, hit := l.lookup(key); hit {
-		fmt.Fprintf(l.stdout, "%sHIT %s %s (recorded %s on %s while waiting)\n", prefixOut, step, short(key), rec.RecordedAt, rec.Host)
-		return 0
-	}
-	fmt.Fprintf(l.stdout, "%sRUN %s: no recorded pass for %s\n", prefixOut, step, short(key))
+	fmt.Fprintf(l.stdout, "%sRUN %s: %s\n", prefixOut, step, l.afterLock(key))
 	moved := l.stepMoved(movedBefore, step, packages, key)
 	started := time.Now()
 	code := l.inv.execute(command)
@@ -676,10 +673,11 @@ func sortedKeys(set map[string]bool) []string {
 	return keys
 }
 
-// runPackages runs the resolved packages whose key has no recorded pass in one
-// go test invocation, holding each key's lock, and records each package on
-// a proven package pass, even on batch failure (GL-V0-002/009), when the worktree
-// digested to the keys' tree immediately before and after the batch (GL-V0-786).
+// runPackages runs the resolved packages whose key had no recorded pass before
+// it took the key's lock in one go test invocation, holding each key's lock,
+// and records each package on a proven package pass, even on batch failure
+// (GL-V0-002/009), when the worktree digested to the keys' tree immediately
+// before and after the batch (GL-V0-786).
 // A package with a reason runs in the same invocation and is not recorded.
 func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	var pending []packageKey
@@ -716,11 +714,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 			continue
 		}
 		unlocks = append(unlocks, unlock)
-		if rec, hit := l.lookup(p.key); hit {
-			fmt.Fprintf(l.stdout, "%sHIT %s %s %s (recorded %s on %s while waiting)\n", prefixOut, packageStep, p.pkg, short(p.key), rec.RecordedAt, rec.Host)
-			continue
-		}
-		fmt.Fprintf(l.stdout, "%sRUN %s %s: no recorded pass for %s\n", prefixOut, packageStep, p.pkg, short(p.key))
+		fmt.Fprintf(l.stdout, "%sRUN %s %s: %s\n", prefixOut, packageStep, p.pkg, l.afterLock(p.key))
 		run = append(run, p)
 	}
 	if len(run) == 0 {
@@ -1395,8 +1389,20 @@ func overflow[T any](records []T, keep int) []T {
 	return records[:len(records)-keep]
 }
 
-// lock serialises concurrent runs of one key so the step executes once and the
-// waiter reads the record. The holder removes locks/KEY.lock before releasing it,
+// afterLock is why a run that now holds key's lock executes its step. A pass
+// recorded since the run's own lookup, while it waited for the lock, was tested
+// on the holder's tree, and this worktree may have moved after it was digested,
+// so it is never reused: the step runs again under the stepMoved checks.
+// Disabled for 1.0 (GL-V0-786, amends GL-V0-008).
+func (l *ledger) afterLock(key string) string {
+	if _, hit := l.lookup(key); hit {
+		return "a pass for " + short(key) + " recorded while this run waited for its lock is not reused"
+	}
+	return "no recorded pass for " + short(key)
+}
+
+// lock serialises concurrent runs of one key; the waiter then runs the step
+// again (afterLock). The holder removes locks/KEY.lock before releasing it,
 // and an acquirer whose file was removed or replaced meanwhile opens the path
 // again, at most maxLockAttempts times, so no lock file outlives its run, two
 // holders never coexist, and a symlinked lock file cannot loop (GL-V0-912).

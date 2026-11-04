@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/testplatform"
@@ -347,6 +348,144 @@ func TestGoTestRecordsAPackagePassOnlyOnAnUnmovedTree_GLV0786(t *testing.T) {
 	}
 	if _, out := ledgerRun(t, "go-test", "--", "sh", "-c", passing); !strings.Contains(out, "HIT "+core+" ") {
 		t.Fatalf("the unedited pass missed: %q", out)
+	}
+}
+
+// waitSignal is a run's log that closes waited once the run prints its WAIT
+// line, so a test releases a held lock only after the run found it held.
+type waitSignal struct {
+	bytes.Buffer
+	once   sync.Once
+	waited chan struct{}
+}
+
+func (w *waitSignal) Write(p []byte) (int, error) {
+	if bytes.Contains(p, []byte("WAIT ")) {
+		w.once.Do(func() { close(w.waited) })
+	}
+	return w.Buffer.Write(p)
+}
+
+// recordAside runs args once to record a genuine pass on the current tree,
+// moves the record match selects out of the ledger, and returns its key and a
+// function that puts it back, so a test can make it appear while a run waits.
+func recordAside(t *testing.T, match func(record) bool, args ...string) (string, func()) {
+	t.Helper()
+	if code, out := ledgerRun(t, args...); code != 0 {
+		t.Fatalf("recording run: %d %q", code, out)
+	}
+	files, _ := filepath.Glob(filepath.Join(ledgerDirectoryOf(t), "*.json"))
+	for _, file := range files {
+		var rec record
+		if json.Unmarshal([]byte(mustRead(t, file)), &rec) != nil || !match(rec) {
+			continue
+		}
+		aside := filepath.Join(t.TempDir(), filepath.Base(file))
+		if err := os.Rename(file, aside); err != nil {
+			t.Fatal(err)
+		}
+		return rec.Key, func() {
+			if err := os.Rename(aside, file); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	t.Fatalf("the recording run %v left no matching record", args)
+	return "", nil
+}
+
+// lockWaitRun runs args while the test holds key's lock, as another
+// worktree's run would. When the run opens the lock file for lockStep, after
+// it digested its worktree and missed key's record, whileHeld runs; the lock
+// is released once the run prints WAIT, so the run provably waited.
+func lockWaitRun(t *testing.T, key, lockStep string, whileHeld func(), args ...string) (int, string) {
+	t.Helper()
+	holder := open(*fixture(t), io.Discard, io.Discard)
+	release, err := holder.lock(key, "holder")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	lockHook = func(step, event string) {
+		if step == lockStep && event == "open" {
+			once.Do(whileHeld)
+		}
+	}
+	t.Cleanup(func() { lockHook = nil })
+	log := &waitSignal{waited: make(chan struct{})}
+	done, released := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(released)
+		select {
+		case <-log.waited:
+		case <-done:
+		}
+		release()
+	}()
+	code := run(*fixture(t), args, log, log)
+	lockHook = nil
+	close(done)
+	<-released
+	select {
+	case <-log.waited:
+	default:
+		t.Fatalf("the run never waited for the held lock: %q", log.String())
+	}
+	return code, log.String()
+}
+
+// TestLockWaiterRerunsAStepWhosePassWasRecordedWhileItWaited_GLV0786 replays
+// the third review's finding: a run digests A, misses and waits on the step's
+// lock; its worktree is edited to B; the holder, another worktree's run on A,
+// records its pass for A and releases. The waiter must run the step rather
+// than reuse a pass tested on A for B (GL-V0-786; disabled for 1.0:
+// post-lock-wait HIT reuse).
+func TestLockWaiterRerunsAStepWhosePassWasRecordedWhileItWaited_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	setenv(t, sharedDigestEnv, "")
+	step := "decision-numbers-check+aaa"
+	key, restore := recordAside(t, func(rec record) bool { return rec.Step == step }, append([]string{"run", step}, counting...)...)
+	code, out := lockWaitRun(t, key, step, func() {
+		write(t, root, "docs/decisions/0001.md", "B: edited while the run waited\n")
+		restore()
+	}, append([]string{"run", step}, counting...)...)
+	if code != 0 || strings.Contains(out, "HIT ") || !strings.Contains(out, "RUN "+step+": a pass for "+short(key)+" recorded while this run waited for its lock is not reused") {
+		t.Fatalf("waiter: %d %q", code, out)
+	}
+	if !strings.Contains(out, "RECORD "+step+" skipped: its inputs changed before the step started") {
+		t.Fatalf("the waiter recorded a pass of B: %q", out)
+	}
+	if got := runs(t, root); got != 2 {
+		t.Fatalf("the step ran %d times, want 2 (the holder's run on A and the waiter on B)", got)
+	}
+}
+
+// TestLockWaiterRerunsAPackageWhosePassWasRecordedWhileItWaited_GLV0786 is
+// the same sequence for a resolved go-test package: the waiter runs the
+// package in its batch rather than reuse the holder's pass for A.
+func TestLockWaiterRerunsAPackageWhosePassWasRecordedWhileItWaited_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := packageRepository(t, map[string]string{
+		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
+		"core/core.go":      "package core\n",
+		"core/core_test.go": "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+	})
+	setenv(t, sharedDigestEnv, "")
+	passing := `for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`
+	core := packageStep + " example.com/fixture/core"
+	key, restore := recordAside(t, func(rec record) bool {
+		return rec.Step == packageStep && len(rec.Packages) == 1 && rec.Packages[0] == "example.com/fixture/core"
+	}, "go-test", "--", "sh", "-c", passing)
+	code, out := lockWaitRun(t, key, core, func() {
+		write(t, root, "core/core.go", "package core\n\n// B: edited while the run waited\n")
+		restore()
+	}, "go-test", "--", "sh", "-c", passing)
+	if code != 0 || strings.Contains(out, "HIT "+core) || !strings.Contains(out, "RUN "+core+": a pass for "+short(key)+" recorded while this run waited for its lock is not reused") {
+		t.Fatalf("waiter: %d %q", code, out)
+	}
+	if !strings.Contains(out, "RECORD "+core+" skipped: the worktree moved before the step started") {
+		t.Fatalf("the waiter did not run the package, or recorded a pass of B: %q", out)
 	}
 }
 

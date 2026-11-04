@@ -55,7 +55,8 @@ Fix, in `tools/gate-ledger`, the same for both paths:
   that writes into the worktree records no package, which fails closed.
 - Stated limit, kept in the spec: an edit made and undone entirely inside one step's execution is
   not detected, nor one made after the check before the step and undone before the check after it.
-- Neither path needed to disable reuse; nothing is listed under Disabled for 1.0.
+- Neither path needed to disable reuse in this round. The third review below adds the one Disabled
+  for 1.0 entry.
 - Cost, paid only by a step that runs, never by a HIT: two worktree digests, the second only after a
   pass, plus the key's own derivation each time (a `go list` for a `@test:` or `@deps:` scope). The
   shared path paid one digest before. A warm digest of this repository (12,021 tracked files) took
@@ -77,6 +78,42 @@ Evidence:
   - `runStep` post check removed: the V1-4547 test fails.
   - `runPackages` pre check removed, and separately its post check removed: the go-test test fails.
 - The full package, `go test -count=1 ./tools/gate-ledger/`, passes.
+
+## Third independent review (one P1, in code this change had not touched)
+
+- Finding: a lock waiter returned HIT before the GL-V0-786 checks (`runStep` after `lock`, and
+  the same in `runPackages`). A run digests A, misses and waits on the key's lock. Its worktree is
+  edited to B. Another worktree's run, on A, records its pass and releases. The waiter found that
+  record and returned success without testing B.
+- Revalidating the waiter's inputs before such a HIT would be a redesign under the owner's cap, so
+  that reuse is disabled instead.
+
+Disabled for 1.0: post-lock-wait HIT reuse (always rerun).
+
+- Behaviour: `runStep` and `runPackages` reuse a pass only when the lookup made before taking the
+  lock finds it. A HIT found then, with no lock contention, stays as it was.
+- After the lock, `afterLock` still looks the key up, but only to say why the step runs:
+  `RUN STEP: a pass for KEY recorded while this run waited for its lock is not reused`. The step
+  or package then runs under the `stepMoved` or `treeMoved` checks.
+- The spec states the amendment of GL-V0-008 in both requirements and adds a failure-mode row.
+- Cost: two concurrent runs of one key, for example two lanes' batch-precheck runs at one tree,
+  now each execute the step instead of once. A sequential rerun still hits. The lost reuse was not
+  measured.
+- Rollback: restore the HIT branch after `lock` in both functions. That restores the finding too,
+  so a rollback needs the waiter to revalidate first.
+
+Evidence:
+
+- `TestLockWaiterRerunsAStepWhosePassWasRecordedWhileItWaited_GLV0786` and
+  `TestLockWaiterRerunsAPackageWhosePassWasRecordedWhileItWaited_GLV0786` replay the sequence
+  deterministically:
+  - The test holds the key's lock.
+  - The lock hook makes the edit and inserts a genuine record for A once the waiter opens the lock
+    file.
+  - The test releases the lock only after the waiter prints WAIT.
+  - The waiter then runs the step or package and records nothing for B.
+- Mutation: restoring the old HIT branch in `runStep` fails the step test, and restoring it in
+  `runPackages` fails the package test.
 
 ## Independent review finding (P2)
 
