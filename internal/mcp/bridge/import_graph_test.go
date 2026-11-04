@@ -12,9 +12,9 @@ import (
 func TestGraphImportsToolAdmission(t *testing.T) {
 	root := makeRepository(t)
 	revision := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
-	legacy, err := New(root)
-	if err != nil {
-		t.Fatal(err)
+	legacy, newErr := New(root)
+	if newErr != nil {
+		t.Fatal(newErr)
 	}
 	if _, err := legacy.Call(t.Context(), ToolGraphImports, []byte(`{}`)); err == nil || err.Code != "unsupported-tool" {
 		t.Fatal(err)
@@ -28,9 +28,9 @@ func TestGraphImportsToolAdmission(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	registry, err := NewImportGraph(root)
-	if err != nil {
-		t.Fatal(err)
+	registry, newErr := NewImportGraph(root)
+	if newErr != nil {
+		t.Fatal(newErr)
 	}
 	for _, item := range []struct{ request, code string }{
 		{`{}`, "graph-invalid-revision"},
