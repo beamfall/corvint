@@ -39,8 +39,9 @@ func main() {
 		if err != nil && !os.IsNotExist(err) {
 			must(err)
 		}
-		tree := rootTree(binary)
+		var tree clitree.Tree
 		if group := map[string]string{"corvint-behavior-falsify": "falsify", "corvint-playwright-minimize": "minimize", "corvint-test-runner": "runner", "corvint-tests-accept": "accept"}[binary]; group != "" {
+			tree = clitree.Tree{Schema: clitree.Schema, Binary: binary, HelpJSON: binary + " help --json", Source: "companion root contract", Global: []string{"--version"}}
 			data, err = os.ReadFile(filepath.Join(treeDir, "corvint-test.json"))
 			must(err)
 			var folded clitree.Tree
@@ -61,6 +62,8 @@ func main() {
 				}
 				tree.Nodes = append(tree.Nodes, node)
 			}
+		} else {
+			tree = rootTree(binary)
 		}
 		tree.Nodes = append(tree.Nodes, clitree.Node{Path: []string{"help"}, Command: binary + " help", Summary: "Show command help or the offline machine catalog.", Usage: []string{binary + " help [COMMAND...] [--json]"}, Flags: []string{"--json"}, Required: []string{}, Example: binary + " help --json", Help: binary + " help --help"})
 		encoded, err := clitree.Encode(tree)
@@ -78,56 +81,60 @@ func must(err error) {
 
 func rootTree(binary string) clitree.Tree {
 	dir := "cmd/" + binary
-	entries, err := os.ReadDir(dir)
-	must(err)
+	dirs := []string{dir}
+	if binary == "corvint-mcp" { // This entrypoint delegates its parser and authored usage.
+		dirs = append(dirs, "internal/mcp/cli")
+	}
 	usage := ""
 	descriptions := map[string]string{}
 	values := map[string]string{}
 	summaryText := ""
-	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
-			continue
-		}
-		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, entry.Name()), nil, 0)
+	for _, source := range dirs {
+		entries, err := os.ReadDir(source)
 		must(err)
-		if file.Doc != nil && summaryText == "" {
-			summaryText = strings.TrimSpace(file.Doc.Text())
-		}
-		ast.Inspect(file, func(n ast.Node) bool {
-			// Evaluate concatenated authored usage constants, without reading runtime input.
-			if v, ok := n.(*ast.ValueSpec); ok {
-				for _, expr := range v.Values {
+		for _, entry := range entries {
+			if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+				continue
+			}
+			file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(source, entry.Name()), nil, 0)
+			must(err)
+			if file.Doc != nil && summaryText == "" {
+				summaryText = strings.TrimSpace(file.Doc.Text())
+			}
+			ast.Inspect(file, func(n ast.Node) bool {
+				// Printed usage literals are as authoritative as named constants.
+				if expr, ok := n.(ast.Expr); ok {
 					s := literal(expr)
 					if strings.Contains(strings.ToLower(s), "usage: "+binary) && len(s) > len(usage) {
 						usage = s
 					}
 				}
-			}
-			if c, ok := n.(*ast.CallExpr); ok {
-				if f, ok := c.Fun.(*ast.SelectorExpr); ok {
-					index := -1
-					switch f.Sel.Name {
-					case "String", "Bool", "Int", "Int64", "Uint", "Uint64", "Duration", "Float64", "Func", "BoolFunc":
-						index = 0
-					case "StringVar", "BoolVar", "IntVar", "Int64Var", "UintVar", "Uint64Var", "DurationVar", "Float64Var", "Var":
-						index = 1
-					}
-					if index >= 0 && len(c.Args) > index+1 {
-						name := literal(c.Args[index])
-						if name != "" {
-							key := "--" + name
-							descriptions[key] = literal(c.Args[len(c.Args)-1])
-							if !strings.HasPrefix(f.Sel.Name, "Bool") {
-								values[key] = "VALUE"
+				if c, ok := n.(*ast.CallExpr); ok {
+					if f, ok := c.Fun.(*ast.SelectorExpr); ok {
+						index := -1
+						switch f.Sel.Name {
+						case "String", "Bool", "Int", "Int64", "Uint", "Uint64", "Duration", "Float64", "Func", "BoolFunc":
+							index = 0
+						case "StringVar", "BoolVar", "IntVar", "Int64Var", "UintVar", "Uint64Var", "DurationVar", "Float64Var", "Var":
+							index = 1
+						}
+						if index >= 0 && len(c.Args) > index+1 {
+							name := literal(c.Args[index])
+							if name != "" {
+								key := "--" + name
+								descriptions[key] = literal(c.Args[len(c.Args)-1])
+								if !strings.HasPrefix(f.Sel.Name, "Bool") {
+									values[key] = "VALUE"
+								}
 							}
 						}
 					}
 				}
-			}
-			return true
-		})
+				return true
+			})
+		}
 	}
-	scan, err := clitree.ScanDirs(dir)
+	scan, err := clitree.ScanDirs(dirs...)
 	must(err)
 	flags := []string{}
 	for _, f := range scan.Flags {
@@ -136,24 +143,11 @@ func rootTree(binary string) clitree.Tree {
 	forms := clitree.Synopses(binary, usage)
 	required := []string{}
 	if len(forms) == 0 {
-		form := binary
-		for _, f := range flags {
-			token := f
-			if values[f] != "" {
-				token += " " + values[f]
-			}
-			if strings.Contains(strings.ToLower(descriptions[f]), "required") {
-				form += " " + token
-				required = append(required, token)
-			} else {
-				form += " [" + token + "]"
-			}
+		if !strings.HasPrefix(binary, "corvint-analyzer-") || len(flags) != 0 {
+			panic(binary + ": missing authored usage; parser declarations cannot establish required inputs or conditional modes")
 		}
-		if len(flags) == 0 {
-			form += " < REQUEST.json"
-			required = append(required, "stdin: protocol request JSON")
-		}
-		forms = []string{form}
+		forms = []string{binary + " < REQUEST.json"}
+		required = []string{"stdin: protocol request JSON"}
 	}
 	for _, f := range flags {
 		if !slices.Contains(clitree.Flags(forms), f) {
@@ -189,7 +183,7 @@ func rootTree(binary string) clitree.Tree {
 	slices.Sort(flags)
 	flags = slices.Compact(flags)
 	root := clitree.Node{Path: []string{}, Command: binary, Summary: summary, Usage: forms, Flags: flags, Required: required, Example: clitree.MinimalExample(forms[0]), Help: binary + " --help"}
-	return clitree.Tree{Schema: clitree.Schema, Binary: binary, HelpJSON: binary + " help --json", Source: "companion root contract", Sources: []string{dir}, Global: []string{"--version"}, Internal: []clitree.Internal{}, Nodes: []clitree.Node{root}}
+	return clitree.Tree{Schema: clitree.Schema, Binary: binary, HelpJSON: binary + " help --json", Source: "companion root contract", Sources: dirs, Global: []string{"--version"}, Internal: []clitree.Internal{}, Nodes: []clitree.Node{root}}
 }
 
 func literal(e ast.Expr) string {

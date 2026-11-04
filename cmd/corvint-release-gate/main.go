@@ -16,6 +16,9 @@ import (
 	"github.com/Beamfall/corvint/internal/releasegate"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-release-gate --commit SHA --manifest FILE --git FILE --git-sha256 SHA256 --policy FILE --policy-sha256 SHA256 [--root DIR]`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-release-gate", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()

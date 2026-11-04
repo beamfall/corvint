@@ -22,6 +22,9 @@ import (
 // through it to prove its retirement independently of the port number.
 var listen = net.Listen
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-corpus-http --index FILE --sha256 SHA256 [--listen HOST:PORT] [--allow-remote]`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-corpus-http", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()

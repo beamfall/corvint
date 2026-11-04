@@ -111,7 +111,14 @@ func TestCLIErrorContracts_ACXV0859(t *testing.T) {
 				cliconformance.Failure(t, binary, []string{"--root"}, 2)
 			}
 			for _, args := range [][]string{{"zz-no-such-command"}, {"--zz-no-such-option"}, {"help", "zz-no-such-topic"}} {
-				e := cliconformance.Failure(t, binary, args, 2)
+				wantExit := 2
+				if ref.Binary == "corvint-go-toolchain-receipt" && args[0] == "zz-no-such-command" {
+					wantExit = 1 // This is a positional GOROOT, not a command name.
+				}
+				e := cliconformance.Failure(t, binary, args, wantExit)
+				if wantExit == 1 && e.Code == "unknown-verb" {
+					t.Fatal("positional GOROOT was blocked by verb discovery")
+				}
 				if e.Binary != ref.Binary || e.Help == "" {
 					t.Fatalf("missing binary/help attribution: %+v", e)
 				}

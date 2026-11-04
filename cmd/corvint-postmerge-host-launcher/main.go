@@ -17,6 +17,12 @@ import (
 
 type launcherOptions struct{ profile, profileSHA, request, requestSHA, out string }
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-postmerge-host-launcher --profile FILE --profile-sha256 SHA256 --request FILE --request-sha256 SHA256 --out DIR
+       corvint-postmerge-host-launcher --internal-envelope FILE
+       corvint-postmerge-host-launcher --internal-process-observer ARGS...
+The internal forms are private paired-process protocols, not standalone host invocations.`
+
 func parseOptions(args []string) (launcherOptions, error) {
 	var out launcherOptions
 	if len(args) != 10 {

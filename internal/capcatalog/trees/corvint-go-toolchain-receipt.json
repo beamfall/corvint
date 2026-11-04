@@ -14,15 +14,15 @@
     {
       "path": [],
       "command": "corvint-go-toolchain-receipt",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "summary": "usage: corvint-go-toolchain-receipt GOROOT",
       "usage": [
-        "corvint-go-toolchain-receipt < REQUEST.json"
+        "corvint-go-toolchain-receipt GOROOT"
       ],
       "flags": [],
       "required": [
-        "stdin: protocol request JSON"
+        "GOROOT"
       ],
-      "example": "corvint-go-toolchain-receipt < REQUEST.json",
+      "example": "corvint-go-toolchain-receipt GOROOT",
       "help": "corvint-go-toolchain-receipt --help"
     },
     {

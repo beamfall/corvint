@@ -14,9 +14,9 @@
     {
       "path": [],
       "command": "corvint-companion-release",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--bundle-name: name of the retained bundle directory under -output-parent (required)\n--npm-cache: retained compatibility argument; unused by core bundle\n--output-parent: directory the retained bundle is placed under (required; must be outside -source-root)\n--scratch: scratch working directory (required)\n--source-root: clean Corvint source checkout (required)\n--target: GOOS/GOARCH pair to build (darwin/arm64; with -tasks-only also cross-built linux/amd64)\n--tasks-only: build only the standalone Tasks archive; no full bundle qualification",
+      "summary": "usage: corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME [--target GOOS/GOARCH] [--tasks-only] [--npm-cache DIR]\n--bundle-name: name of the retained bundle directory under -output-parent (required)\n--npm-cache: retained compatibility argument; unused by core bundle\n--output-parent: directory the retained bundle is placed under (required; must be outside -source-root)\n--scratch: scratch working directory (required)\n--source-root: clean Corvint source checkout (required)\n--target: GOOS/GOARCH pair to build (darwin/arm64; with -tasks-only also cross-built linux/amd64)\n--tasks-only: build only the standalone Tasks archive; no full bundle qualification",
       "usage": [
-        "corvint-companion-release --bundle-name VALUE [--npm-cache VALUE] --output-parent VALUE --scratch VALUE --source-root VALUE [--target VALUE] [--tasks-only]"
+        "corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME [--target GOOS/GOARCH] [--tasks-only] [--npm-cache DIR]"
       ],
       "flags": [
         "--bundle-name",
@@ -28,12 +28,12 @@
         "--tasks-only"
       ],
       "required": [
-        "--bundle-name VALUE",
-        "--output-parent VALUE",
-        "--scratch VALUE",
-        "--source-root VALUE"
+        "--source-root DIR",
+        "--scratch DIR",
+        "--output-parent DIR",
+        "--bundle-name NAME"
       ],
-      "example": "corvint-companion-release --bundle-name VALUE --output-parent VALUE --scratch VALUE --source-root VALUE",
+      "example": "corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME",
       "help": "corvint-companion-release --help"
     },
     {

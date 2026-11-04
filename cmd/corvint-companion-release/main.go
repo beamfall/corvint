@@ -22,6 +22,9 @@ import (
 	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME [--target GOOS/GOARCH] [--tasks-only] [--npm-cache DIR]`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-companion-release", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()

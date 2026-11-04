@@ -33,6 +33,16 @@ internal tree entry, and the compiled refusal suite proves its own argument pars
 The native outdated-map reader now matches its exact admitted code/message independently of
 additional envelope metadata; its regression rejects every other reason, preserving the replacement fence.
 
+Final catalog inspection exposed mandatory release flags labelled optional, a positional GOROOT
+mislabelled stdin, and a delegated MCP parser omitted from the root source route. The generator
+now consumes printed usage literals and the delegated parser, and requires authored synopses
+for non-protocol roots instead of guessing required inputs from descriptions. Source-owned
+synopses retain release/readiness and corpus mode alternatives and paired-process forms.
+`TestCAPV07700RootInputs` failed before repair for all eleven inspected roots;
+`TestCAPV07700UnauthoredInputsRefused` pins refusal of ambiguous prose inference.
+Root positionals now reach their native parser; a relative GOROOT is an operational input,
+not an unknown verb, pinned by the tree and compiled process regressions.
+
 The lexical drift check retains explicit limits: dynamic names, semantic option preconditions,
 profile membership and the truth of prose are not inferred. Required-option coverage remains
 `partial`. Nested fixed-index dispatch retains route context so existing words cannot hide a

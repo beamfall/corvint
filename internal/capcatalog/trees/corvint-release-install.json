@@ -14,16 +14,19 @@
     {
       "path": [],
       "command": "corvint-release-install",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--candidate: verified qualified candidate directory\n--store: versioned install store",
+      "summary": "usage: corvint-release-install --candidate DIR --store DIR\n--candidate: verified qualified candidate directory\n--store: versioned install store",
       "usage": [
-        "corvint-release-install [--candidate VALUE] [--store VALUE]"
+        "corvint-release-install --candidate DIR --store DIR"
       ],
       "flags": [
         "--candidate",
         "--store"
       ],
-      "required": [],
-      "example": "corvint-release-install",
+      "required": [
+        "--candidate DIR",
+        "--store DIR"
+      ],
+      "example": "corvint-release-install --candidate DIR --store DIR",
       "help": "corvint-release-install --help"
     },
     {

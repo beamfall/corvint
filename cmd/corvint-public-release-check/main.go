@@ -19,6 +19,11 @@ import (
 	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA [--qualification editor]
+       corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA --qualification core --node-sha256 SHA256 --npm-sha256 SHA256 --go-authority-bundle FILE --go-authority-sha256 SHA256
+Editor qualification rejects the four core runtime/authority flags; core requires all four.`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-public-release-check", Out: os.Stdout, Err: os.Stderr}
 	processStdout, processStderr = streams.Stdout(), streams.Stderr()

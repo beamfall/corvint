@@ -35,8 +35,14 @@ cannot silently go missing or outlive its command.
   synthetic omissions of a command, option, binary or MCP tool MUST fail the required Go drift
   gate. Existing authored trees remain authoritative; single-mode root trees derive from their
   parser declarations and authored usage, and folded shims reuse their owning group's tree.
+  Non-protocol roots without authored usage MUST refuse generation rather than infer mandatory
+  or conditional inputs from flag descriptions. Delegated parsers MUST be included in the source
+  route; printed usage literals and alternative mode synopses MUST be retained. Required
+  positional root inputs MUST reach the native parser rather than become unknown commands.
   Tests: `TestCAPV07700EveryBinaryHasTree`, `TestCAPV0047SyntheticDriftFails`,
-  `TestCAPV07700NodeCatalog`, `TestCAPV07700NestedRouteDrift`, `TestCAPV07700ShippedHelp`.
+  `TestCAPV07700NodeCatalog`, `TestCAPV07700NestedRouteDrift`, `TestCAPV07700ShippedHelp`,
+  `TestCAPV07700RootInputs`, `TestCAPV07700UnauthoredInputsRefused`,
+  `TestCAPV07700RootPositionalInput`.
 
 
 - `CAP-V0-7701`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3781)

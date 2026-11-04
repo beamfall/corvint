@@ -15,6 +15,12 @@ import (
 	"syscall"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-corpus-parity [--mode parity] --index FILE --sha256 SHA256 --request FILE
+       corvint-corpus-parity --mode query --index FILE --sha256 SHA256 --request FILE
+       corvint-corpus-parity --mode build --root DIR --artifact FILE
+Build refuses index, sha256 and request. Query/parity refuse root and artifact.`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-corpus-parity", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()

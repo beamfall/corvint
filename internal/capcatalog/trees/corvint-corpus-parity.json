@@ -14,9 +14,11 @@
     {
       "path": [],
       "command": "corvint-corpus-parity",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--artifact: producer /2 corpus\n--index: embedded indexed artifact\n--mode: build, query, or parity (experimental)\n--request: query or question recording JSON\n--root: source-revalidating producer only\n--sha256: required operator-pinned index digest",
+      "summary": "usage: corvint-corpus-parity [--mode parity] --index FILE --sha256 SHA256 --request FILE\n       corvint-corpus-parity --mode query --index FILE --sha256 SHA256 --request FILE\n       corvint-corpus-parity --mode build --root DIR --artifact FILE\nBuild refuses index, sha256 and request. Query/parity refuse root and artifact.\n--artifact: producer /2 corpus\n--index: embedded indexed artifact\n--mode: build, query, or parity (experimental)\n--request: query or question recording JSON\n--root: source-revalidating producer only\n--sha256: required operator-pinned index digest",
       "usage": [
-        "corvint-corpus-parity [--artifact VALUE] [--index VALUE] [--mode VALUE] [--request VALUE] [--root VALUE] --sha256 VALUE"
+        "corvint-corpus-parity [--mode parity] --index FILE --sha256 SHA256 --request FILE",
+        "corvint-corpus-parity --mode query --index FILE --sha256 SHA256 --request FILE",
+        "corvint-corpus-parity --mode build --root DIR --artifact FILE"
       ],
       "flags": [
         "--artifact",
@@ -27,9 +29,11 @@
         "--sha256"
       ],
       "required": [
-        "--sha256 VALUE"
+        "--index FILE",
+        "--sha256 SHA256",
+        "--request FILE"
       ],
-      "example": "corvint-corpus-parity --sha256 VALUE",
+      "example": "corvint-corpus-parity --index FILE --sha256 SHA256 --request FILE",
       "help": "corvint-corpus-parity --help"
     },
     {

@@ -16,6 +16,9 @@ import (
 	"github.com/Beamfall/corvint/internal/releasecandidate"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-release-install --candidate DIR --store DIR`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-release-install", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()

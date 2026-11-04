@@ -14,9 +14,9 @@
     {
       "path": [],
       "command": "corvint-corpus-http",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--allow-remote: operator declares external TLS/auth boundary; external qualification NOT_OBSERVED\n--index: embedded index artifact\n--listen: explicit companion listener\n--sha256: required operator-pinned SHA256",
+      "summary": "usage: corvint-corpus-http --index FILE --sha256 SHA256 [--listen HOST:PORT] [--allow-remote]\n--allow-remote: operator declares external TLS/auth boundary; external qualification NOT_OBSERVED\n--index: embedded index artifact\n--listen: explicit companion listener\n--sha256: required operator-pinned SHA256",
       "usage": [
-        "corvint-corpus-http [--allow-remote] [--index VALUE] [--listen VALUE] --sha256 VALUE"
+        "corvint-corpus-http --index FILE --sha256 SHA256 [--listen HOST:PORT] [--allow-remote]"
       ],
       "flags": [
         "--allow-remote",
@@ -25,9 +25,10 @@
         "--sha256"
       ],
       "required": [
-        "--sha256 VALUE"
+        "--index FILE",
+        "--sha256 SHA256"
       ],
-      "example": "corvint-corpus-http --sha256 VALUE",
+      "example": "corvint-corpus-http --index FILE --sha256 SHA256",
       "help": "corvint-corpus-http --help"
     },
     {

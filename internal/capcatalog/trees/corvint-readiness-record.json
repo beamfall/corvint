@@ -14,9 +14,10 @@
     {
       "path": [],
       "command": "corvint-readiness-record",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--candidate: verified release candidate directory\n--evidence-file: TSV of ROW, STATUS, PATH, DECISION and REASON, one supplied row per line\n--output: new file for the record; an existing file is refused (build mode)\n--source-root: Corvint Git checkout containing the candidate commit (build mode)\n--store-candidate-sha256: task-store candidate SHA-256 (build mode, optional)\n--store-release: task-store release id (build mode, optional)\n--verify: readiness record to verify; selects verify mode, which writes nothing",
+      "summary": "usage: corvint-readiness-record --candidate DIR --source-root DIR --evidence-file FILE --output FILE [--store-release ID --store-candidate-sha256 SHA256]\n       corvint-readiness-record --verify FILE --candidate DIR --evidence-file FILE\nBuild mode takes both store flags together or neither. Verify mode accepts no build inputs.\n--candidate: verified release candidate directory\n--evidence-file: TSV of ROW, STATUS, PATH, DECISION and REASON, one supplied row per line\n--output: new file for the record; an existing file is refused (build mode)\n--source-root: Corvint Git checkout containing the candidate commit (build mode)\n--store-candidate-sha256: task-store candidate SHA-256 (build mode, optional)\n--store-release: task-store release id (build mode, optional)\n--verify: readiness record to verify; selects verify mode, which writes nothing",
       "usage": [
-        "corvint-readiness-record [--candidate VALUE] [--evidence-file VALUE] [--output VALUE] [--source-root VALUE] [--store-candidate-sha256 VALUE] [--store-release VALUE] [--verify VALUE]"
+        "corvint-readiness-record --candidate DIR --source-root DIR --evidence-file FILE --output FILE [--store-release ID --store-candidate-sha256 SHA256]",
+        "corvint-readiness-record --verify FILE --candidate DIR --evidence-file FILE"
       ],
       "flags": [
         "--candidate",
@@ -27,8 +28,13 @@
         "--store-release",
         "--verify"
       ],
-      "required": [],
-      "example": "corvint-readiness-record",
+      "required": [
+        "--candidate DIR",
+        "--source-root DIR",
+        "--evidence-file FILE",
+        "--output FILE"
+      ],
+      "example": "corvint-readiness-record --candidate DIR --source-root DIR --evidence-file FILE --output FILE",
       "help": "corvint-readiness-record --help"
     },
     {

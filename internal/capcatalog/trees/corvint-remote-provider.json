@@ -14,16 +14,19 @@
     {
       "path": [],
       "command": "corvint-remote-provider",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "summary": "usage: corvint-remote-provider --allow-network --config FILE",
       "usage": [
-        "corvint-remote-provider [--allow-network] [--config]"
+        "corvint-remote-provider --allow-network --config FILE"
       ],
       "flags": [
         "--allow-network",
         "--config"
       ],
-      "required": [],
-      "example": "corvint-remote-provider",
+      "required": [
+        "--allow-network",
+        "--config FILE"
+      ],
+      "example": "corvint-remote-provider --allow-network --config FILE",
       "help": "corvint-remote-provider --help"
     },
     {

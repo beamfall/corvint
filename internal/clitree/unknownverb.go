@@ -22,6 +22,15 @@ func UnknownVerb(tree Tree, args []string) (string, bool) {
 		if len(node.Path) > 0 && node.Path[0] == args[0] {
 			return "", false
 		}
+		// Single-mode tools can take a positional input (for example GOROOT).
+		// A word in that slot belongs to the native parser, not verb discovery.
+		if tree.Source == "companion root contract" && len(node.Path) == 0 {
+			for _, input := range node.Required {
+				if !strings.HasPrefix(input, "-") && !strings.HasPrefix(input, "stdin:") {
+					return "", false
+				}
+			}
+		}
 	}
 	for _, entry := range tree.Internal {
 		if entry.Word == args[0] {

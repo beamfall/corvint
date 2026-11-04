@@ -14,9 +14,9 @@
     {
       "path": [],
       "command": "corvint-release-gate",
-      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "summary": "usage: corvint-release-gate --commit SHA --manifest FILE --git FILE --git-sha256 SHA256 --policy FILE --policy-sha256 SHA256 [--root DIR]",
       "usage": [
-        "corvint-release-gate [--commit] [--git] [--git-sha256] [--manifest] [--policy] [--policy-sha256] [--root]"
+        "corvint-release-gate --commit SHA --manifest FILE --git FILE --git-sha256 SHA256 --policy FILE --policy-sha256 SHA256 [--root DIR]"
       ],
       "flags": [
         "--commit",
@@ -27,8 +27,15 @@
         "--policy-sha256",
         "--root"
       ],
-      "required": [],
-      "example": "corvint-release-gate",
+      "required": [
+        "--commit SHA",
+        "--manifest FILE",
+        "--git FILE",
+        "--git-sha256 SHA256",
+        "--policy FILE",
+        "--policy-sha256 SHA256"
+      ],
+      "example": "corvint-release-gate --commit SHA --manifest FILE --git FILE --git-sha256 SHA256 --policy FILE --policy-sha256 SHA256",
       "help": "corvint-release-gate --help"
     },
     {

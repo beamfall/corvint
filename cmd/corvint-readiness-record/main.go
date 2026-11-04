@@ -17,6 +17,11 @@ import (
 	"github.com/Beamfall/corvint/internal/releasecandidate"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-readiness-record --candidate DIR --source-root DIR --evidence-file FILE --output FILE [--store-release ID --store-candidate-sha256 SHA256]
+       corvint-readiness-record --verify FILE --candidate DIR --evidence-file FILE
+Build mode takes both store flags together or neither. Verify mode accepts no build inputs.`
+
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-readiness-record", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()
