@@ -241,10 +241,12 @@ git clone -q "$root/repo" "$root/bound"
     [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
   done
 ) || exit 1
+# The fixture BASE is not a commit, so step 1 (the spec capacity check) refuses it; the input cases
+# below resume at step 2 with CLOSEOUT_FROM=2 (ASD-V0-567).
 # ASD-V0-045 (V1-3119): dogfood-closeout without a plan refuses before any build or batch-precheck
 # step and names the drafting and pre-flight commands.
 status=0
-make -s dogfood-closeout LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
+make -s dogfood-closeout CLOSEOUT_FROM=2 LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || exit 1
 rg -q '^dogfood-inputs-check: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTCOME$' "$root/output" || exit 1
 rg -q '^fix: make dogfood-closeout BASE=<full sha> ' "$root/output" || exit 1
@@ -255,14 +257,14 @@ rg -qF 'make dogfood-inputs-check BASE=feedfacefeedfacefeedfacefeedfacefeedface'
 # alone still names the missing INTENTS, VERIFY and OUTCOME before any build.
 printf '1\tsource-marker\t1:1\timplementation\n' > "$root/closeout-cites.tsv"
 status=0
-env -u LANE make -s dogfood-closeout BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$root/closeout-cites.tsv" > "$root/output" 2>&1 || status=$?
+env -u LANE make -s dogfood-closeout CLOSEOUT_FROM=2 BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$root/closeout-cites.tsv" > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
 rg -q '^dogfood-inputs-check: REFUSE missing-inputs INTENTS VERIFY OUTCOME$' "$root/output" || { cat "$root/output" >&2; exit 1; }
 # ASD-V0-902 (V1-3481): an unreadable plan through the pre-flight alone, or through the closeout, is
 # refused under the dogfood-inputs-check prefix, and the fix line names the target that ran.
 for entry in dogfood-inputs-check dogfood-closeout; do
   status=0
-  make -s "$entry" BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS=/dev/null > "$root/output" 2>&1 || status=$?
+  make -s "$entry" CLOSEOUT_FROM=2 BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS=/dev/null > "$root/output" 2>&1 || status=$?
   [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
   rg -q '^dogfood-inputs-check: REFUSE missing-inputs .*CITATIONS:unreadable' "$root/output" || { cat "$root/output" >&2; exit 1; }
   rg -q "^fix: make $entry BASE=<full sha> " "$root/output" || { cat "$root/output" >&2; exit 1; }
@@ -289,12 +291,17 @@ done
 # mechanical repin runs between the pre-flight and the batch-precheck.
 recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(call closeout_step,[0-9],[a-z-]*,/, ""); sub(/^BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); sub(/\$\(MAKE\) --no-print-directory /, ""); sub(/^DOGFOOD_CLOSEOUT_REGEN=\$\(call dogfood_finish_quote,\$\(DOGFOOD_CLOSEOUT_REGEN\)\) /, "REGEN "); sub(/ \$\(call dogfood_finish_quote.*/, ""); sub(/\)$/, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' '|')
 [[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(BASE)"|dogfood-inputs-check|REGEN script/dogfood-closeout-repin.sh|lane-closeout:skip-drift:batch-precheck|dogfood-finish|next:dogfood-closeout-precheck|' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
-recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; exit 1; }
+recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(HEAVY_ADMIT\) [^ ]*batch-precheck[.]sh .*/, "lane-closeout:since-receipt:batch-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+[[ $recipe == 'lane-closeout:since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; exit 1; }
 # ASD-V0-567 (V1-4114, V1-3477): a failed step names itself on one line with the resume command, and
 # CLOSEOUT_FROM skips the earlier steps; the closing line still names the sealed-head precheck.
 status=0
 make -s dogfood-closeout LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
+rg -q '^dogfood-closeout: FAILED step 1/5 static-checks rc=2 after [0-9]+s$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=1 BASE='feedfacefeedfacefeedfacefeedfacefeedface' " "$root/output" || { cat "$root/output" >&2; exit 1; }
+status=0
+make -s dogfood-closeout CLOSEOUT_FROM=2 LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
 [[ $status == 2 ]] || { cat "$root/output" >&2; exit 1; }
 rg -q '^dogfood-closeout: FAILED step 2/5 dogfood-inputs-check rc=2 after [0-9]+s$' "$root/output" || { cat "$root/output" >&2; exit 1; }
 rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=2 BASE='feedfacefeedfacefeedfacefeedfacefeedface' CITATIONS='' " "$root/output" || { cat "$root/output" >&2; exit 1; }
