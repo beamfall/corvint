@@ -66,7 +66,9 @@ jobs:
     needs: doc-gates-reuse
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # 30, not 15 (V1-4482): the documentation gates alone took 9-14.5 minutes on main
+    # (selection-baseline replays most of it), so a loaded runner hit the old cap.
+    timeout-minutes: 30
     env:
       GOTOOLCHAIN: local
       GOPROXY: "off"
