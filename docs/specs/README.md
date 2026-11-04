@@ -284,6 +284,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Lane Shell Portability V0 | [`lane-shell-portability-v0.md`](lane-shell-portability-v0.md) ASD-V0-704..2194 | accepted | experimental | Lane shell scripts stay portable to Bash 3.2, BWK awk and Make 3.81, keep offload scratch and caches on disk, and sweep only their own stale temp dirs. |
 | Dogfood Citation Plan Precheck V0 | [`dogfood-citation-plan-precheck-v0.md`](dogfood-citation-plan-precheck-v0.md) | accepted under the owner's standing auto-accept (2026-10-11) | implemented | A citation-plan precheck names every refused row and its CEM reason before binding. |
 | Corvint Self-Development Selection Correctness V0 | [`corvint-self-development-selection-v0.md`](corvint-self-development-selection-v0.md) | per requirement, each experimental under the standing lane auto-accept (2026-11-03) | experimental | heavy.sh admits new packages, suggests an accepted manifest path and keeps every darwin-only command local; batch-precheck uses the CI allowlist. |
+| Lane Dogfood Tooling V0 | [`lane-dogfood-tooling-v0.md`](lane-dogfood-tooling-v0.md) DTL-V0-001..016 | accepted | experimental | Lane tooling preserves evidence boundaries while making verification, diagnostics and local scratch predictable. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have

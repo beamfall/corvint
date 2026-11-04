@@ -33,6 +33,7 @@ func TestAHI046HookContextProjectionSilenceRule(t *testing.T) {
 	}
 	full := hookContextProjection("session-start", quiet, true)
 	want := map[string]any{"profile": hookContextProfile, "event": "session-start", "governance": governance, "declared_scope": current, "degradations": baseline, "resolution": unresolved}
+	want["degradationDiagnostics"] = []any{map[string]any{"code": "frontier-authority-unavailable", "cause": "no-accepted-closing-authority", "fix": "none exists automatically; use the project's explicit review and completion workflow"}, map[string]any{"code": "host-version-unknown", "cause": "host-version-unknown", "fix": "inspect corvint harness event --help and retry the event outside the hook"}}
 	if !reflect.DeepEqual(full, want) {
 		t.Fatalf("main-thread SessionStart projection\n got %v\nwant %v", full, want)
 	}

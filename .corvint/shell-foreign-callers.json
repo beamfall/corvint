@@ -129,6 +129,8 @@
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh",
         "script/codex-review.sh",
+        "script/go-test-shard.sh",
+        "script/lane-corvint.sh",
         "script/lane-host-heavy.sh",
         "script/lane-scripts_test.sh"
       ],
@@ -159,6 +161,7 @@
         "script/test-run-pattern_test.sh",
         "tools/flow-guide-check/main.go",
         "tools/flow-guide-check/main_test.go",
+        "tools/test-commands-check/dogtools_test.go",
         "tools/test-shards/main.go"
       ],
       "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; lane-host-heavy.sh execs it (ASD-V0-766); codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-host-check.sh, lane-host-tools_test.sh, lane-tmp-sweep.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it."

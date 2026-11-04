@@ -2795,7 +2795,7 @@ for range in ..979 1..2..3 960.. abc; do
   out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
   [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
 done
-for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" ${argv[@]+"${argv[@]}"} 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"

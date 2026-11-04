@@ -812,7 +812,13 @@ func claudeReceiptOutput(event string, result map[string]any) map[string]any {
 	if !ok {
 		return map[string]any{}
 	}
-	return claudeContextOutput(name, "Corvint FALLBACK "+fmt.Sprint(result["receiptId"])+claudeNamedCodes(result["degradations"]))
+	text := "Corvint FALLBACK " + fmt.Sprint(result["receiptId"]) + claudeNamedCodes(result["degradations"])
+	codes, _ := result["degradations"].([]any)
+	for _, raw := range hookDegradationDiagnostics(codes) {
+		row := raw.(map[string]any)
+		text += "\ncause: " + row["cause"].(string) + "\nfix: " + row["fix"].(string)
+	}
+	return claudeContextOutput(name, text)
 }
 
 // claudeRecognisedDegradation is receiptDegradationPolicy.recognised in
@@ -899,11 +905,11 @@ func snapshotRemediations(ctx context.Context, root string) (string, string) {
 	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
 	status, previous := startSnapshotRefreshReporting(ctx, root)
 	if status == "disabled" {
-		text := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+		text := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. cause: index-snapshot-missing\nfix: refresh once outside the hook:\n" + string(refresh)
 		return text, text
 	}
 	lead := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh " + status + "."
-	tail := " Manual fallback, outside the hook:\n" + string(refresh)
+	tail := "\ncause: index-snapshot-missing\nfix: refresh outside the hook:\n" + string(refresh)
 	if previous == "" {
 		return lead + tail, lead + tail
 	}
@@ -1032,7 +1038,11 @@ func causeRemediation(root, reason string) string {
 			cause = line
 		}
 	}
-	return "\n" + cause + recovery + string(query)
+	code := reason
+	if reason == claudeUnavailableReason {
+		code = "event-read-unavailable"
+	}
+	return "\ncause: " + code + "\n" + cause + recovery + "fix: " + string(query)
 }
 
 // alternatesCauseLine is the AHI-802 cause line for an unavailable read in a clone that borrows
@@ -1419,11 +1429,13 @@ func codexDegraded(event, reason string) map[string]any {
 	return map[string]any{"systemMessage": message}
 }
 func emitAdapterOutput(stdout io.Writer, value map[string]any) int {
+	value = withFallbackDiagnostics(value)
 	raw, err := json.Marshal(value)
-	if err != nil || len(raw)+1 > adapterOutputLimit {
-		raw, _ = json.Marshal(degradedAdapterOutput("corvint-output-too-large"))
+	overflow := err != nil || len(raw)+1 > adapterOutputLimit
+	if overflow {
+		raw, _ = json.Marshal(withFallbackDiagnostics(degradedAdapterOutput("corvint-output-too-large")))
 	}
-	if text, ok := value[adapterPlainStdoutKey].(string); ok && err == nil && len(raw)+1 <= adapterOutputLimit {
+	if text, ok := value[adapterPlainStdoutKey].(string); ok && !overflow {
 		raw = []byte(text) // the host reads this event's stdout as text, not hook JSON (decision 0340)
 	}
 	raw = append(raw, '\n')
