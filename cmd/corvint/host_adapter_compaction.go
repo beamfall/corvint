@@ -287,7 +287,8 @@ func compactSessionDisclosure(event string, normalized map[string]any) string {
 // joins PreCompact stdout into the compactor's instructions and shows PostCompact stdout to the
 // user, reading neither as hook JSON, so a degradation is its systemMessage frame text and any
 // other output without text is empty. A PreCompact output without text emitted no pin, so its
-// text starts with the unavailable line (AHI-057). The systemMessage field stays for the
+// text starts with the unavailable line (AHI-057), and a fallback frame carries its cause and fix
+// lines before that prefix is added (DTL-V0-002). The systemMessage field stays for the
 // SOL-V0-010 reason.
 func compactionPlainOutput(arguments []string, output map[string]any) map[string]any {
 	if len(arguments) != 2 || arguments[0] != "claude-code" || (arguments[1] != "pre-compact" && arguments[1] != "post-compact") {
@@ -296,6 +297,8 @@ func compactionPlainOutput(arguments []string, output map[string]any) map[string
 	if _, ok := output[adapterPlainStdoutKey]; ok {
 		return output
 	}
+	// DTL-V0-002: diagnose before the prefix, which would hide the frame from withFallbackDiagnostics.
+	output = withFallbackDiagnostics(output)
 	text, _ := output["systemMessage"].(string)
 	if arguments[1] == "pre-compact" {
 		text = compactionPinUnavailable + text

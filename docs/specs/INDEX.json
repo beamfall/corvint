@@ -4496,5 +4496,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/lane-dogfood-tooling-v0.md",
+    "title": "Lane Dogfood Tooling V0",
+    "reqPrefix": "DTL-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Lane tooling preserves evidence boundaries while making verification, diagnostics and local scratch predictable.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
