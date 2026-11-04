@@ -451,7 +451,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
-| CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps` (PLANNED), `TestCINV02320RequiredCheckPropagatesShellFailure` (PLANNED) in `tools/ci-reuse-plan/workflow_test.go`, landing with the `ci.yml` job change |
+| CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps`, `TestCINV02320RequiredCheckPropagatesShellFailure` in `tools/ci-reuse-plan/workflow_test.go` |
 
 ## Rollback
 
