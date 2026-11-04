@@ -1160,7 +1160,9 @@ run --batch-capacity "$batch_base" lane-a lane-a > "$test_root/batch-out" || fai
 grep -q 'base=254 added=2 count=256 limit=256' "$test_root/batch-out" || fail "shared union wrong"
 run --batch-capacity "$batch_base" lane-a missing-ref > /dev/null 2>&1 && fail "missing lane admitted"
 run --batch-capacity missing-base lane-a > /dev/null 2>&1 && fail "missing base admitted"
-run --batch-capacity lane-a lane-b > /dev/null 2>&1 && fail "lane without BASE ancestry admitted"
+# A lane forked at the fixed batch base remains countable after BASE advances on another lane.
+batch_out=$(run --batch-capacity lane-a lane-b 2>&1) && fail "older lane overflow admitted"
+case $batch_out in *'batch.md base=256 added=2 count=258 limit=256 lanes=lane-b('*'exceed 256'*) ;; *) fail "advanced BASE lost lane additions: $batch_out" ;; esac
 # Conservative base retention refuses even when one lane deletes base obligations.
 git -C "$run_root" checkout -q lane-b
 sed '/BATCH-V0-001/d' "$run_root/docs/specs/batch.md" > "$run_root/reduced"

@@ -1156,8 +1156,11 @@ go-version-pins-check:
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
-# first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
+# first in that order; the remaining one-target-per-line entries are unique and bytewise sorted
+# (LC_ALL=C), so failures print within seconds, before the Go-test doc gates.
 DOC_GATE_TARGETS := \
+  line-citations-check \
+  spec-requirements-check \
   bash32-check \
   binary-blobs-check \
   capabilities-check \
@@ -1173,13 +1176,11 @@ DOC_GATE_TARGETS := \
   import-direction-check \
   legal-file-pins-check \
   license-headers-check \
-  line-citations-check \
   mkfifo-build-tags-check \
   requirement-definitions-check \
   selection-baseline-check \
   shell-foreign-callers-check \
   shell-test-registration-check \
-  spec-requirements-check \
   stray-backups-check \
   tasks-profiles-check \
   test-commands-check \

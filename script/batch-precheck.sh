@@ -741,7 +741,7 @@ doc_gate_expansion() {
       line = $0; continuation = (line ~ /\\$/); sub(/[[:space:]]*\\$/, "", line)
       sub(/^[[:space:]]+/, "", line); targets = targets " " line; next
     }
-    /^doc-gates:[[:space:]]*(spec-status-check[[:space:]]*)?(##.*)?$/ { on = 1; next }
+    /^doc-gates:([[:space:]]|$)/ { on = 1; next }
     on && /^\t/ { recipe[++n] = $0; next }
     on { on = 0 }
     END {
@@ -1061,6 +1061,7 @@ static_checks() {
   [[ -e docs/specs/README.md || -e docs/specs/INDEX.json ]] || return 0
   local rc=0
   "$self_dir/check-spec-readme.sh" || rc=1
+  "$self_dir/check-doc-gate-targets.sh" || rc=1
   script/gen-spec-requirements.sh --status-check || rc=1
   SPEC_REQUIREMENTS_BASE="$base" SPEC_CAPACITY_MARGIN="${SPEC_CAPACITY_MARGIN:-8}" \
     script/gen-spec-requirements.sh --capacity || rc=1
