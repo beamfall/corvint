@@ -834,3 +834,21 @@ func (candidate run) matchesAt(parts []string) bool {
 	}
 	return true
 }
+
+// NamesPath reports whether the path literals of unit id name dirtyPath, the
+// match a PATH_LITERAL_READER selection rests on (AFP-V0-2377).
+func (graph *Graph) NamesPath(id, dirtyPath string) bool {
+	parts := strings.Split(dirtyPath, "/")
+	for i, tokens := range graph.pathTokens() {
+		if graph.order[i] == id {
+			return namesAny(tokens, parts)
+		}
+	}
+	return false
+}
+
+// GlobRead returns the first dirty path a glob of unit id matches, with the
+// glob, the match a PATH_GLOB_READER selection rests on (AFP-V0-2377).
+func (graph *Graph) GlobRead(id string, dirty []string) (dirtyPath, glob string, ok bool) {
+	return graph.globRead(id, dirty)
+}

@@ -94,6 +94,7 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 	for _, candidate := range eligible {
 		sliced[candidate.pkg] = testSourceSlice(root, candidate, blobs)
 	}
+	testTypedSlices(ctx, plan, graph, root, base, sliced)
 	return sliced
 }
 
