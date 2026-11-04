@@ -381,8 +381,11 @@ func (graph *Graph) MustRunUnits() []MustRun {
 }
 
 // DeclaredTestOwners returns, sorted, the units the declared owners select for
-// dirtyPath (AFP-V0-2482).
+// dirtyPath (AFP-V0-2482), or nil when the project declares none.
 func (graph *Graph) DeclaredTestOwners(dirtyPath string) []string {
+	if graph.testSelection.empty() {
+		return nil
+	}
 	var units []string
 	for _, owner := range graph.testSelection.Owners {
 		if ownerPatternMatches(owner.Paths, dirtyPath) {

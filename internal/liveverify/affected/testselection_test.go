@@ -396,3 +396,11 @@ func TestMustRunSurvivesEveryExclusion_AFPV02484(t *testing.T) {
 		t.Fatalf("undeclared: selected=%+v", plan.Selected)
 	}
 }
+
+// AFP-V0-2482: a graph whose project declares no test selection names no
+// owner for any path rather than panicking on the absent declaration.
+func TestDeclaredTestOwnersWithoutDeclaration_AFPV02482(t *testing.T) {
+	if got := (&Graph{}).DeclaredTestOwners("docs/contracts/v1/order.json"); got != nil {
+		t.Fatalf("DeclaredTestOwners without a declaration = %v, want nil", got)
+	}
+}

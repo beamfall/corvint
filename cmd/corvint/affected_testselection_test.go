@@ -144,6 +144,42 @@ func TestDeclaredUnitsAreTierZeroWhateverReachedThem_AFPV02489(t *testing.T) {
 // AFP-V0-2485: a must-run unit whose test file changed runs whole, naming the
 // declared reason, where it would otherwise run only the changed test file's
 // functions; its reason code is reached-via-must-run.
+// AFP-V0-2485: a unit a declared owner selects runs whole, so a change to
+// the owner-named test file cannot slice away the other declared tests
+// (smoke_extra_test.go's TestExtra here).
+func TestDeclaredOwnerUnitRunsWhole_AFPV02485(t *testing.T) {
+	t.Parallel()
+	const owner = `{"profile":"corvint-test-selection/0",` +
+		`"owners":[{"paths":"x/c/smoke/smoke_test.go","tests":["x/c/smoke/"]}]}`
+	for _, test := range []struct {
+		name, declaration, reason, code string
+	}{
+		{"declared", owner, "whole: DECLARED_TEST_OWNER via x/c/smoke/smoke_test.go", sessiontest.ReasonReachedPrefix + "declared-test-owner"},
+		// Negative control: without the declaration the change slices.
+		{"undeclared", "", "selected: the tests of x/c/smoke/smoke_test.go", sessiontest.ReasonSelectedChangedTests},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			root, base := testSelectionFixture(t, test.declaration)
+			appendFile(t, filepath.Join(root, "x", "c", "smoke", "smoke_test.go"), "\n// edited\n")
+			receipt, graph, err := compileAffectedGraph(context.Background(), affectedInvocation{Root: root, Base: base})
+			if err != nil {
+				t.Fatal(err)
+			}
+			slice := testGoSlices(context.Background(), receipt.Plan, graph, root, base)["example.com/owned/x/c/smoke"]
+			if slice.Reason != test.reason {
+				t.Fatalf("smoke slice %+v, want reason %q", slice, test.reason)
+			}
+			if test.declaration != "" && slice.Pattern != "" {
+				t.Fatalf("an owner-selected unit was narrowed to -run %q", slice.Pattern)
+			}
+			if got := sessiontest.ReasonCode(slice.Reason); got != test.code {
+				t.Fatalf("ReasonCode(%q) = %q, want %q", slice.Reason, got, test.code)
+			}
+		})
+	}
+}
+
 func TestMustRunUnitRunsWhole_AFPV02485(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
