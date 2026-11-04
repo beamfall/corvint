@@ -1030,6 +1030,15 @@ are verified first, and every result names the snapshot's host, primary worktree
 journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
 naming the owning store and the command to run there.
 
+Every dispatch carries this snapshot (ASD-V0-2420, V1-4440): `script/lane-dispatch.sh inputs` writes
+`ticket-bodies-<lane>/queue-snapshot.json` beside the ticket bodies, so a lane on any host reads any
+ticket, not only its assigned ones, with the "Read any ticket" line of its brief header (section 14).
+A journal-absent `ticket show` miss names the newest snapshot staged under `~/lane-inputs/` on that
+host with its age and the exact `CORVINT_TASKS_SNAPSHOT=` retry, or, when none is staged, the
+`script/lane-stage-inputs.sh --host HOST LANE ID` command the journal host runs (ASD-V0-2421). The
+all-lane-branch screen needs no journal: `corvint-tasks ticket delivery-screen <ID>... --lane-refs
+--unaudited` runs in a journal-less clone; the audited form there refuses and names `--unaudited`.
+
 Store parity (TCL-V0-742, V1-3931). A lane host's store copy or snapshot can fall behind the owning
 store, and a lane that reads it reports tickets as absent that exist. Before claiming anything about
 store contents on a lane host, compare it with the staged authoritative snapshot:
@@ -1159,8 +1168,9 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
   assigned ticket, exported on the owning host, and `<ID>.txt`, the same ticket as readable text from
   `corvint-tasks ticket show <ID> --format text` (TCL-V0-741, V1-3817). A lane host may instead read a queue snapshot
-  (`CORVINT_TASKS_SNAPSHOT`, section 12); without either, `ticket show` there refuses
-  `journal-absent` (V1-3262). The `open-friction-*.txt` digest cuts titles at 120 characters, so it
+  (`CORVINT_TASKS_SNAPSHOT`, section 12); `lane-dispatch.sh inputs` stages one as
+  `queue-snapshot.json` in the same directory (ASD-V0-2420). Without either, `ticket show` there
+  refuses `journal-absent` (V1-3262) and names a staged snapshot or the staging command (ASD-V0-2421). The `open-friction-*.txt` digest cuts titles at 120 characters, so it
   is not a ticket body.
 - `~/lane-inputs/gh-issues-<lane>/<N>.md`: the body of every GitHub issue a ticket cites
   (`gh issue view N --repo beamfall/corvint --json title,body`, run on the Mac) (V1-3252). The route
@@ -1249,8 +1259,14 @@ script/lane-dispatch.sh check --env <dir>/lane.env <brief> <charter>
   the brief and the charter paste), and per ticket `ticket-bodies-<lane>/<ID>.json` (`ticket show`)
   plus `<ID>.txt`: title, status, labels, body, numbered acceptance criteria, dependencies and the
   operator note under its advisory label, readable without `jq`. A refused or non-`OK` ticket read
-  refuses the dispatch (exit 2), so a lane never starts without its ticket bodies. `--host` copies
-  the directory to `HOST:~/lane-inputs/`.
+  refuses the dispatch (exit 2), so a lane never starts without its ticket bodies. It also writes
+  `ticket-bodies-<lane>/queue-snapshot.json` (`corvint-tasks queue snapshot --out`); a failed or
+  empty export refuses `queue-snapshot-failed` (exit 2, ASD-V0-2420). `--host` copies the directory
+  to `HOST:~/lane-inputs/`.
+- A lane charter template carries these two `brief-header.md` lines verbatim (ASD-V0-2420), the
+  read route on every lane host, journal or not, with `TICKET_DIR` as `lane.env` names it:
+  `Read any ticket: CORVINT_TASKS_SNAPSHOT=TICKET_DIR/queue-snapshot.json corvint-tasks ticket show <ID>`
+  and `Screen lane branches: corvint-tasks ticket delivery-screen <ID>... --lane-refs (add --unaudited on a host without the Tasks journal)`.
 - `check` refuses (exit 2, one `MISMATCH base|build-log FILE:LINE` per finding) a brief or charter
   that names a different `BASE` commit on a line mentioning `BASE`, or a different build-log path for
   the dispatch date. The charter template therefore says "the BASE and build log in lane.env" or

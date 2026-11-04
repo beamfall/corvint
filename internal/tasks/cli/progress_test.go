@@ -170,3 +170,94 @@ func TestTLFV0883_CloseoutDebtReportsMergedProgressHead(t *testing.T) {
 		t.Fatalf("cleared marker still reported (exit %d): %+v", code, rows)
 	}
 }
+
+// TestTCDV02400_InProgressHeadIsExcludedNotDebt covers V1-4448: only a
+// delivery-phase progress head cites. A lane's IN_PROGRESS dispatch base and
+// a BLOCKED head reachable in the ref are excluded with a named reason and
+// are no debt; a DELIVERED_ON_BRANCH head at a later merged commit is the
+// only head candidate; a message citation of an IN_PROGRESS ticket keeps its
+// row (negative control).
+func TestTCDV02400_InProgressHeadIsExcludedNotDebt(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	parked, parkedLocal := tcdTicket(t, root, "parked", "")
+	moved, _ := tcdTicket(t, root, "moved", "")
+	blocked, blockedLocal := tcdTicket(t, root, "blocked", "")
+	tcdCommit(t, root, "dispatch base with no ticket citation")
+	base := revParse(t, root, "HEAD")
+	mark := func(id, req, rev, payload string) {
+		t.Helper()
+		x := atm(t, root, nil, "ticket", "progress", "--target", id, "--expected-revision", rev,
+			"--request-id", req, "--issued-at", "2026-11-03T12:00:00Z", "--payload", payload)
+		if x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("progress %s: %s", id, x.stdout)
+		}
+	}
+	mark(parked, "p-parked", "1", progressPayload("IN_PROGRESS", "lane/x", base, "", ""))
+	mark(moved, "p-moved", "1", progressPayload("IN_PROGRESS", "lane/x", base, "", ""))
+	mark(blocked, "p-blocked", "1", progressPayload("BLOCKED", "lane/x", base, "", "waits on the owner"))
+
+	// Only IN_PROGRESS and BLOCKED heads at the ref commit: no debt, each
+	// excluded with its reason and the head as its commit.
+	code, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	if code != 0 || len(rows) != 0 {
+		t.Fatalf("IN_PROGRESS and BLOCKED heads are debt (exit %d): %+v", code, rows)
+	}
+	got := map[string]string{}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		var commits []string
+		for _, c := range field(e, "commits").Arr {
+			commits = append(commits, c.Str)
+		}
+		got[field(e, "ticketId").Str] = field(e, "reason").Str + " " + strings.Join(commits, ",")
+	}
+	want := map[string]string{parked: "PROGRESS_IN_PROGRESS " + base, moved: "PROGRESS_IN_PROGRESS " + base, blocked: "PROGRESS_BLOCKED " + base}
+	if len(got) != len(want) || got[parked] != want[parked] || got[moved] != want[moved] || got[blocked] != want[blocked] {
+		t.Fatalf("excludedCandidates %v, want %v", got, want)
+	}
+	human := wire.Encode(field(item, "human"))
+	for _, line := range []string{parkedLocal + " excluded PROGRESS_IN_PROGRESS via 1 commit(s)", blockedLocal + " excluded PROGRESS_BLOCKED via 1 commit(s)"} {
+		if !strings.Contains(string(human), line) {
+			t.Fatalf("human lacks %q: %s", line, human)
+		}
+	}
+
+	// The lane merges later and marks DELIVERED_ON_BRANCH at its head: that
+	// head is the one candidate; the parked dispatch base stays excluded.
+	git(t, root, "checkout", "-q", "-b", "lane")
+	tcdCommit(t, root, "lane work with no ticket citation")
+	laneHead := revParse(t, root, "HEAD")
+	git(t, root, "checkout", "-q", "main")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "Merge lane", "lane")
+	mark(moved, "p-moved-delivered", "2", progressPayload("DELIVERED_ON_BRANCH", "lane/x", laneHead, "", ""))
+	code, res = tcdRun(t, root)
+	item, rows = tcdRows(t, res)
+	if code != 1 || len(rows) != 1 || rows[0].ticket != moved || rows[0].citation != "progress-head" || rows[0].subject != "lane work with no ticket citation" {
+		t.Fatalf("closeout-debt rows (exit %d): %+v", code, rows)
+	}
+	if c := field(item, "candidates").Arr[0]; field(c, "commit").Str != laneHead {
+		t.Fatalf("the candidate cites %s, want the delivered head %s", field(c, "commit").Str, laneHead)
+	}
+	if ex := wire.Encode(field(item, "excludedCandidates")); strings.Contains(string(ex), moved) || !strings.Contains(string(ex), parked) {
+		t.Fatalf("excludedCandidates after delivery: %s", ex)
+	}
+
+	// Negative control: a message citation of the IN_PROGRESS ticket is
+	// still a candidate, and the ticket is then not excluded.
+	tcdCommit(t, root, "fix: finish the parked work ("+parkedLocal+")")
+	code, res = tcdRun(t, root)
+	item, rows = tcdRows(t, res)
+	cited := false
+	for _, r := range rows {
+		if r.ticket == parked {
+			cited = cited || r.citation == "direct-id"
+			if r.citation == "progress-head" {
+				t.Fatalf("the IN_PROGRESS head cited: %+v", rows)
+			}
+		}
+	}
+	if code != 1 || !cited || strings.Contains(string(wire.Encode(field(item, "excludedCandidates"))), parked) {
+		t.Fatalf("message-cited IN_PROGRESS ticket (exit %d): %+v excluded %s", code, rows, wire.Encode(field(item, "excludedCandidates")))
+	}
+}
