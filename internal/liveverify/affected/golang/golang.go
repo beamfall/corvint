@@ -381,6 +381,8 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	embeds, constrained, command := false, false, false
 	var patterns []string
 	var reads unboundedReads
+	var leafReads []string
+	moves := false
 	fileSet := token.NewFileSet()
 	// The disk walk drops a symlinked .go file, though the build compiles its
 	// target as one of this package's files: read the target under the link's
@@ -430,6 +432,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			declared[value] = true
 		}
 		scan := pathTokens(body[importsEnd(fileSet, file):], owner.path, file.Imports)
+		moves = moves || scan.movesDirectory
 		if scan.err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
 			reads.mark(relative+" does not tokenize", isTest)
@@ -444,7 +447,12 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			if !scan.fixtureOnly(name, isTest) {
 				names[name] = true
 			}
-			if reason := escapesPackage(directory, name, isTest); reason != "" && !leafPattern(directory, name, isTest, packages) {
+			reason := escapesPackage(directory, name, isTest)
+			switch {
+			case reason == "":
+			case leafPattern(directory, name, isTest, packages):
+				leafReads = append(leafReads, relative+" "+reason)
+			default:
 				reads.mark(relative+" "+reason, isTest)
 			}
 		}
@@ -453,6 +461,14 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			continue
 		}
 		sources = append(sources, relative)
+	}
+	// A leaf pattern reaches only the package directory while the package's
+	// commands run there: a package that moves the working directory keeps
+	// rule (d) for it (AFP-V0-2542).
+	if moves {
+		for _, reason := range leafReads {
+			reads.mark(reason, true)
+		}
 	}
 	if len(sources) == 0 && len(tests) == 0 {
 		return affected.Unit{}, nil, nil, false, nil, nil
@@ -597,12 +613,14 @@ func importsEnd(fileSet *token.FileSet, file *ast.File) int {
 // fileScan is what one lexing pass over a file's body after its imports
 // yields: its path tokens, its root-locating calls, and any lexical error.
 // fixture holds each token that only literals on a line carrying
-// FixturePathMarker hold (AFP-V0-551).
+// FixturePathMarker hold (AFP-V0-551). movesDirectory reports a change of the
+// working directory a command runs in (directoryMove, AFP-V0-2542).
 type fileScan struct {
-	tokens  []string
-	calls   []string
-	err     error
-	fixture map[string]bool
+	tokens         []string
+	calls          []string
+	err            error
+	fixture        map[string]bool
+	movesDirectory bool
 }
 
 // FixturePathMarker is the per-literal fixture marker of ASD-V0-895: a test
@@ -634,10 +652,12 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	previous := [2]string{}
 	var literals []scannedLiteral
 	markers := map[int]bool{}
+	var move directoryMove
 	for {
 		position, kind, text := lexer.Scan()
 		if kind == token.EOF {
 			scan.fixture = fixtureTokens(literals, markers)
+			scan.movesDirectory = move.moved
 			return scan
 		}
 		if kind == token.COMMENT {
@@ -646,6 +666,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 			}
 			continue
 		}
+		move.observe(kind, text)
 		if kind == token.IDENT {
 			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
 		}

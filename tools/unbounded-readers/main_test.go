@@ -441,7 +441,10 @@ func TestAFPV2542LeafPackagePatternIsNoUnboundedRead(t *testing.T) {
 		}
 	}
 	write("leaf/l.go", "package leaf\n")
-	write("leaf/l_test.go", "package leaf\n\nimport \"testing\"\n\nfunc TestL(t *testing.T) { _ = []string{\"go\", \"test\", \"./...\"} }\n")
+	// The fixture's pattern is split so that this file, whose own tests set cmd.Dir, carries no
+	// package pattern of its own (AFP-V0-2542).
+	pattern := "./" + "..."
+	write("leaf/l_test.go", "package leaf\n\nimport \"testing\"\n\nfunc TestL(t *testing.T) { _ = []string{\"go\", \"test\", \""+pattern+"\"} }\n")
 	check("leaf package", 0, `"count": 1`)
 	write("leaf/sub/s.go", "package sub\n")
 	check("package below", 1, "[leaf] are selected on every change")

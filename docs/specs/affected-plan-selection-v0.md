@@ -396,8 +396,13 @@ measure. None of them drops a unit the change can reach.
   already accepts. The planner's Go plugin and the CI selector (`internal/gateselect`) SHALL apply
   the same rule and agree on every fixture case. A subtree with another package or a nested module,
   an import-path pattern, a component that is empty, `.`, `..` or holds `...`, and any non-test file
-  keep rule (d). Motivation: a leaf package whose test passed `./...` to a Go command was selected
-  on every change, though the pattern reaches nothing outside the package directory.
+  keep rule (d). The exemption SHALL hold only while no Go file of the package moves the working
+  directory: a `Dir` assigned or keyed to anything but the literal `"."` or `""`, a `Chdir` or
+  `Fchdir` identifier, or a string literal with a `cd` or `pushd` word or a `-C` or `--chdir`
+  option keeps rule (d) for every such pattern in the package, as when a test finds the
+  repository root through `runtime.Caller`, sets `cmd.Dir` there and runs `go build ./...`.
+  Motivation: a leaf package whose test passed `./...` to a Go command was selected on every
+  change, though the pattern reaches nothing outside the package directory.
 
 ## Non-goals
 
@@ -419,7 +424,9 @@ AFP-V0-2487 does not change what `corvint test` runs or in which order; it order
 runner or agent that reads it. It reads no CI history and no remote failure data, learns no
 weights, and does not order the e2e-safe `selected` list. AFP-V0-2542 does not narrow an
 import-path or climbing pattern, and the nested-module reader path (`nested.go`) keeps rule (d) for
-every `/...` token.
+every `/...` token. Its directory-move check reads only the package's own tokens: a helper in
+another package that changes the directory, or a directory built by `filepath.Join` or string
+concatenation into a command argument other than `Dir`, `-C` or a `cd` word, is not seen.
 
 ## Failure modes
 
@@ -441,7 +448,9 @@ whose tests no longer exist refuses the build (AFP-V0-2483). A must-run entry ma
 larger; it never makes one smaller. An unreadable `corvint test` receipt leaves the order with
 that receipt `UNREADABLE` and contributes no failure; it never fails the plan. A package added
 below a leaf package makes the leaf's pattern an unbounded read again, so `unbounded-readers-check`
-fails on the unrecorded unit until the record or the test changes (AFP-V0-2542).
+fails on the unrecorded unit until the record or the test changes (AFP-V0-2542). A package whose
+tests set `Dir` for an unrelated command loses the exemption for its leaf patterns too; that is
+conservative, and the read is recorded or the pattern rewritten as `"."`.
 
 ## Acceptance evidence and traceability
 
@@ -474,7 +483,7 @@ fails on the unrecorded unit until the record or the test changes (AFP-V0-2542).
 | AFP-V0-2487 | `affectedFailFastOrder`, `readFailFastReceipts` in `cmd/corvint/affected_order.go`; the `--fail-fast-order` parse and its refusals in `cmd/corvint/affected.go`; `Order` in `affectedCompactReceipt` | `TestFailFastOrderPutsRecentFailuresFirst_AFPV02487`, `TestFailFastOrderKeepsTheMostRecentReceipts_AFPV02487` (the 64 newest by time, ties by name) and `TestFailFastOrderUnlistableDirectoryIsUnreadable_AFPV02487` (absent-directory control) in `cmd/corvint/affected_order_test.go` |
 | AFP-V0-2540 | `droppedDeclarations` and the `likely cause` line of `run` in `tools/unbounded-readers/main.go` | `TestAFPV2540RefusalNamesTheDroppedDeclaration` in `tools/unbounded-readers/main_test.go` (a dropped declaration; controls: a package HEAD never declared, no commit) |
 | AFP-V0-2541 | `droppedUnrecorded`, `droppedDeclarations` and the `dropped` report of `run` in `tools/test-read-scopes-check/main.go` | `TestDroppedDeclarationNamesTheRatchetEntry_AFP_V0_2541` in `tools/test-read-scopes-check/main_test.go` (controls: a package the record lists, no commit) |
-| AFP-V0-2542 | `leafPattern` and `packageDirectories` in `internal/liveverify/affected/golang/unbounded.go`, its call in `observeDirectory` (`golang.go`); `leafPattern`, `goDirectories` and its call in `record` in `internal/gateselect/readers.go` | `TestLeafPackagePatternParity_AFPV02542` in `internal/gateselect/leaf_pattern_test.go` (both analyzers agree; bounded: a leaf, a data-only subtree, Go files only under `testdata`; unbounded: a package below, a nested module, an import-path, a climbing, a deep and a wildcard pattern) and `TestAFPV2542LeafPackagePatternIsNoUnboundedRead` in `tools/unbounded-readers/main_test.go` (a package added below makes the read unbounded again) |
+| AFP-V0-2542 | `leafPattern`, `directoryMove` and `packageDirectories` in `internal/liveverify/affected/golang/unbounded.go`, their calls in `observeDirectory` and `pathTokens` (`golang.go`); `leafPattern`, `directoryMove`, `goDirectories`, their calls in `record`, `scanSource` and `indexRepositoryMemo` in `internal/gateselect/readers.go`, and the `movesDirectory` memo field in `scanmemo.go` | `TestLeafPackagePatternParity_AFPV02542` in `internal/gateselect/leaf_pattern_test.go` (both analyzers agree, and a cold and a warm scan memo agree; bounded: a leaf, a data-only subtree, Go files only under `testdata`, a `Dir` set to `"."`; unbounded: a package below, a nested module, an import-path, a climbing, a deep and a wildcard pattern, and a leaf pattern in a package that sets `cmd.Dir` to a `runtime.Caller` root, sets `Dir` in another file or in a composite literal, calls `t.Chdir`, or passes `-C` or a `cd` shell word) and `TestAFPV2542LeafPackagePatternIsNoUnboundedRead` in `tools/unbounded-readers/main_test.go` (a package added below makes the read unbounded again) |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 | AFP-V0-2440 | `unownedUnknown` and `fixtureOnlyClaim` in `internal/liveverify/affected/select.go` | `TestFixtureOnlyClaimIsNoUnindexedSource_AFPV2440` in `internal/liveverify/affected/fixtures_test.go` (two reclassified shapes; five kept: unhosted, indexed below, outside testdata, a Go claim, a second indexing claimant); `TestRubyFixturesOfANewGoPackageAreNoUnindexedSource_V14446` in `internal/liveverify/affected/replay_v14446_test.go` (real plugins; a no-`go.mod` negative control); both fail with the rule disabled; live replay of PR 85 in build log `2026-11-03-mqfix` |
 
@@ -498,4 +507,6 @@ and its paths fall back to `UNOWNED_DIRTY_PATH`. For AFP-V0-2487, drop the flag 
 `cmd/corvint/affected_order.go`; plans without the flag are unchanged either way. For AFP-V0-2540
 and AFP-V0-2541, delete `droppedDeclarations` from both tools and `droppedUnrecorded`; the refusals
 then name only the unbounded-readers record again. For AFP-V0-2542, delete both `leafPattern`
-functions, `packageDirectories` and `goDirectories`; such patterns are unbounded reads again.
+and `directoryMove` functions, `packageDirectories`, `goDirectories`, the `leafReads` and
+`movesDirectory` fields and the memo's `movesDirectory` entry; such patterns are unbounded reads
+again.

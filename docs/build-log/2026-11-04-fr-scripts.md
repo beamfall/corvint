@@ -30,7 +30,8 @@ at this base and are left to a later lane.
   a file skips the rest of its parent directory. `verifyMaterializedTree` did this for a linked
   worktree's `.git` file, so every later root entry went unverified; the post-merge launcher had
   the same shape. `tools/walk-skipdir-check` is a doc gate that accepts `SkipDir` only under a
-  known-directory guard or for a walk error.
+  known-directory guard or for a walk error. It resolves each file's import names, so an alias
+  or a dot import of `path/filepath` or `io/fs` is still checked.
 - **Dropped declarations name the right file (AFP-V0-2540, AFP-V0-2541, V1-4532).** When a
   package leaves `.corvint/test-read-scopes.json` its tests become unbounded readers. The refusal
   named only `.corvint/unbounded-readers.json`, so lanes edited the wrong file.
@@ -39,9 +40,9 @@ at this base and are left to a later lane.
   commit they add nothing. The reader is duplicated because two `main` packages cannot share it.
 - **JSON language names are data (GOC-V0-062, V1-4531).** The no-Python scan was red at the base
   on `"python"` in language lists (`FRONTIER_OTHER_LANGS`) and on `"detail":"python:REASON"`. The
-  mask blanks only those two forms, so `python3`, a JSON argv and an image tag still fail. The
-  residual limit: an argv whose first argument is exactly a language name, such as
-  `["python","go"]`, is masked.
+  mask blanks only those two forms, so `python3`, a JSON argv and an image tag still fail. A
+  language list is recognized by its field or variable name (`LANGS`, `languages` and the like),
+  not by its neighbours, so the argv `["python","go"]` still fails.
 - **A leaf package pattern is no unbounded read (AFP-V0-2542, V1-4512).** Rule (d) of AFP-V0-012
   made any test token ending in `/...` an unbounded read. A `./...` or `./NAME/...` whose subtree
   holds no other package directory and no nested `go.mod` reaches no more than `"."`, which rule
@@ -52,7 +53,9 @@ at this base and are left to a later lane.
   gateselect scan memo caches tokens, not verdicts, and the planner's graph cache restats every
   listed directory, so neither can keep a stale verdict. The ticket's example, a `WalkDir` over
   `"."`, is not unbounded under rule (d), so the fix targets the `/...` form. The repository's
-  recorded unbounded set is unchanged by the rule.
+  recorded unbounded set is unchanged by the rule. The premise is that the command runs in the
+  package directory, so a package whose Go files set `Dir` to anything but `"."`, call `Chdir`
+  or pass `-C` or a `cd` word keeps rule (d) for its leaf patterns.
 - **No product change for V1-4526 and V1-4523.** The `internal/mcp/cli` and `internal/tasks/cli`
   tests that need a directory outside any Git repository now skip when the temp directory sits
   below a `.git` entry, and the skip names that directory. The guard is duplicated in each package so that
@@ -70,3 +73,20 @@ Each behavior change has a regression test that fails at `6c33df33` (or with the
 reverted) and passes after it; the traceability rows of each spec name them. For AFP-V0-2542,
 with the exemption disabled `TestLeafPackagePatternParity_AFPV02542` reports `datum`, `fixtured`
 and `leaf` as unbounded, and `TestAFPV2542LeafPackagePatternIsNoUnboundedRead` fails.
+
+## Fix round 1
+
+An independent review found three gaps, each now closed with a regression that fails on the
+sealed head `6ebc5518`:
+
+- AFP-V0-2542 assumed a leaf pattern runs in the package directory. A test that finds the root
+  with `runtime.Caller`, sets `cmd.Dir` there and runs `go build ./...` was exempted by both
+  analyzers. Each now records a directory move per file (`directoryMove`) and puts the package's
+  leaf reads back under rule (d) when any file moves. The gateselect scan memo stores the flag,
+  so a warm index agrees with a cold one. `tools/unbounded-readers` sets `cmd.Dir` in its tests,
+  so its AFP-V0-2542 test now builds the fixture's `./...` from two literals rather than carry it.
+- GOC-V0-062 masked `"python"` next to any other language name, so the argv `["python","go"]`
+  hid an interpreter call. The mask now needs a named language-list field.
+- ASD-V0-2476 matched `filepath.WalkDir` and `fs.SkipDir` by literal qualifier, so an aliased or
+  dot import skipped the check, and a different package imported as `filepath` was checked. It
+  now resolves the file's imports.

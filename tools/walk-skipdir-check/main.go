@@ -10,8 +10,9 @@
 // error parameter compared non-nil (WalkDir reports an error only for the root or a directory),
 // or when an earlier `if !ENTRY.IsDir() { ... return ... }` in an enclosing block has returned.
 // Each unguarded return prints one FAIL line; it exits 1 on a finding, 2 when it cannot list or
-// read the files, and 0 otherwise. It reads files only. SkipDir returned through another
-// function is not followed.
+// read the files, and 0 otherwise. It reads files only. A walk and SkipDir are recognized under
+// the local name the file's own imports give path/filepath and io/fs: the default name, an alias,
+// or the bare name of a dot import. SkipDir returned through another function is not followed.
 package main
 
 import (
@@ -22,8 +23,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -75,11 +78,12 @@ func check(name string, source []byte) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
+	imports := walkImports(file)
 	direct := map[*ast.FuncLit]bool{}
 	named := map[string]bool{}
 	ast.Inspect(file, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
-		if !ok || !isWalk(call.Fun) || len(call.Args) == 0 {
+		if !ok || !imports.refers(call.Fun, "path/filepath.WalkDir", "io/fs.WalkDir", "path/filepath.Walk") || len(call.Args) == 0 {
 			return true
 		}
 		switch callback := call.Args[len(call.Args)-1].(type) {
@@ -114,7 +118,7 @@ func check(name string, source []byte) ([]int, error) {
 	var lines []int
 	for literal := range direct {
 		entry, walkErr := callbackParams(literal)
-		c := callback{entry: entry, err: walkErr}
+		c := callback{entry: entry, err: walkErr, imports: imports}
 		c.block(literal.Body.List, false)
 		for _, position := range c.found {
 			lines = append(lines, files.Position(position).Line)
@@ -123,19 +127,51 @@ func check(name string, source []byte) ([]int, error) {
 	return sortedUnique(lines), nil
 }
 
-// isWalk reports whether fun names filepath.WalkDir, fs.WalkDir or filepath.Walk.
-func isWalk(fun ast.Expr) bool {
-	selector, ok := fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
+// qualifiers maps each local name a file's imports give path/filepath or io/fs (the default
+// name or an alias) to its import path; dot holds the ones dot-imported, whose names appear
+// bare. A blank import brings no name.
+type qualifiers struct {
+	names map[string]string
+	dot   []string
+}
+
+func walkImports(file *ast.File) qualifiers {
+	imports := qualifiers{names: map[string]string{}}
+	for _, spec := range file.Imports {
+		value, err := strconv.Unquote(spec.Path.Value)
+		if err != nil || (value != "path/filepath" && value != "io/fs") {
+			continue
+		}
+		switch {
+		case spec.Name == nil:
+			imports.names[path.Base(value)] = value
+		case spec.Name.Name == ".":
+			imports.dot = append(imports.dot, value)
+		case spec.Name.Name != "_":
+			imports.names[spec.Name.Name] = value
+		}
 	}
-	pkg, ok := selector.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	switch pkg.Name + "." + selector.Sel.Name {
-	case "filepath.WalkDir", "fs.WalkDir", "filepath.Walk":
-		return true
+	return imports
+}
+
+// refers reports whether expr names one of want, each an import path and a name
+// ("io/fs.SkipDir"): a selector whose qualifier the file's imports bind to that path, or the
+// bare name under a dot import of it.
+func (imports qualifiers) refers(expr ast.Expr, want ...string) bool {
+	switch e := expr.(type) {
+	case *ast.SelectorExpr:
+		qualifier, ok := e.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		importPath, imported := imports.names[qualifier.Name]
+		return imported && slices.Contains(want, importPath+"."+e.Sel.Name)
+	case *ast.Ident:
+		for _, importPath := range imports.dot {
+			if slices.Contains(want, importPath+"."+e.Name) {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -163,6 +199,7 @@ func callbackParams(literal *ast.FuncLit) (string, string) {
 
 type callback struct {
 	entry, err string
+	imports    qualifiers
 	found      []token.Pos
 }
 
@@ -179,7 +216,7 @@ func (c *callback) block(statements []ast.Stmt, guarded bool) {
 func (c *callback) statement(statement ast.Stmt, guarded bool) {
 	switch s := statement.(type) {
 	case *ast.ReturnStmt:
-		if !guarded && len(s.Results) == 1 && isSkipDir(s.Results[0]) {
+		if !guarded && len(s.Results) == 1 && c.imports.refers(s.Results[0], "io/fs.SkipDir", "path/filepath.SkipDir") {
 			c.found = append(c.found, s.Pos())
 		}
 	case *ast.BlockStmt:
@@ -254,11 +291,6 @@ func (c *callback) isDir(call *ast.CallExpr) bool {
 func isIdent(expr ast.Expr, name string) bool {
 	ident, ok := expr.(*ast.Ident)
 	return ok && ident.Name == name
-}
-
-func isSkipDir(expr ast.Expr) bool {
-	selector, ok := expr.(*ast.SelectorExpr)
-	return ok && selector.Sel.Name == "SkipDir" && (isIdent(selector.X, "fs") || isIdent(selector.X, "filepath"))
 }
 
 // returns reports whether a block ends in a return statement.

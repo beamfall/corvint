@@ -159,6 +159,91 @@ func TestASDV2476ReportsUnguardedSkipDir(t *testing.T) {
 	}
 }
 
+// ASD-V0-2476: a walk and SkipDir are recognized under the name the file's imports give
+// path/filepath and io/fs, an alias or a dot import's bare name, and a package of another path
+// imported under the name filepath names neither.
+func TestASDV2476ResolvesImportAliases(t *testing.T) {
+	cases := map[string]string{
+		"aliased walk and SkipDir": `package p
+
+import (
+	iofs "io/fs"
+	fp "path/filepath"
+)
+
+func a(root string) error {
+	return fp.WalkDir(root, func(p string, d iofs.DirEntry, err error) error {
+		if p == ".git" {
+			return fp.SkipDir // FAIL
+		}
+		if d.IsDir() {
+			return iofs.SkipDir
+		}
+		return nil
+	})
+}
+`,
+		"aliased SkipDir in a plain walk": `package p
+
+import (
+	iofs "io/fs"
+	"path/filepath"
+)
+
+func a(root string) error {
+	return filepath.WalkDir(root, func(p string, d iofs.DirEntry, err error) error {
+		if d.Name() == "vendor" {
+			return iofs.SkipDir // FAIL
+		}
+		return nil
+	})
+}
+`,
+		"dot import": `package p
+
+import (
+	. "io/fs"
+	"os"
+)
+
+func a(root string) error {
+	return WalkDir(os.DirFS(root), ".", func(p string, d DirEntry, err error) error {
+		if p == ".git" {
+			return SkipDir // FAIL
+		}
+		if d.IsDir() {
+			return SkipDir
+		}
+		return nil
+	})
+}
+`,
+		"another package named filepath": `package p
+
+import (
+	"io/fs"
+
+	filepath "example.com/walker"
+)
+
+func a(root string) error {
+	return filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		return fs.SkipDir
+	})
+}
+`,
+	}
+	for name, text := range cases {
+		got, err := check("p.go", []byte(text))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if expected := want(text); !slices.Equal(got, expected) {
+			t.Errorf("%s: reported lines %v, want %v", name, got, expected)
+		}
+	}
+}
+
 // ASD-V0-2476: run lists tracked non-test files outside testdata, prints a FAIL line with the
 // fix for each finding and exits 1, and exits 0 when none remain.
 func TestASDV2476RunScansTrackedNonTestFiles(t *testing.T) {

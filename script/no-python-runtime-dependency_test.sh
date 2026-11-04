@@ -67,14 +67,16 @@ mask_fixture_data() {
 }
 
 # mask_language_names blanks a JSON string that names Python as a language, not a program
-# (GOC-V0-062, V1-4531): "python" beside another quoted language name in a JSON list, such as
-# ["dotnet","python","ruby"], and a language-frontier "detail":"python:REASON". "python3", a
-# "python" next to any other word, such as the argv ["python","build.py"], an image tag such as
-# "python:alpine" outside a "detail" field, and an unquoted name still match.
-langs='cfamily|dotnet|go|java|javascript|kotlin|php|ruby|rust|shell|swift|typescript'
+# (GOC-V0-062, V1-4531), in two contexts only: an entry of the list a language field holds, a
+# JSON key or shell variable whose name ends in langs or languages, such as
+# FRONTIER_OTHER_LANGS='["dotnet","python"]' or "languages": ["go", "python"], and a
+# language-frontier "detail":"python:REASON". The list ends at its first "]", so an argv later on
+# the same line is still read. "python" anywhere else, such as the argv ["python","go"] or
+# ["python","build.py"], "python3", an image tag such as "python:alpine" outside a "detail"
+# field, and an unquoted name still match. The list marker has no "]", which would end the list.
+langlist="((LANGS|LANGUAGES|[Ll]angs|[Ll]anguages)\"? *[:=] *'?\\[[^]]*)\"python\""
 mask_language_names() {
-  sed -E -e "s/(\"($langs)\", *)\"python\"/\1\"[language]\"/g" \
-    -e "s/\"python\"( *, *\"($langs)\")/\"[language]\"\1/g" \
+  sed -E -e ':list' -e "s/$langlist/\1\"<language>\"/" -e 't list' \
     -e 's/("detail" *: *)"python:([a-z][a-z0-9-]*)"/\1"[language]:\2"/g'
 }
 
@@ -238,8 +240,9 @@ for line in "script/x_test.sh:7:python3 -c 1" "script/x_test.sh:8:printf 'x' | p
   fi
 done
 
-# GOC-V0-062 (V1-4531): Python named as a language in a JSON list or a language:reason detail is
-# data, while a JSON argv or a line that also runs an interpreter is still reported.
+# GOC-V0-062 (V1-4531): Python named as a language in a language field's list or a
+# language:reason detail is data, while a JSON argv, even one whose other entries are language
+# names, or a line that also runs an interpreter is still reported.
 # shellcheck disable=SC2016
 for line in "script/x.sh:440:FRONTIER_OTHER_LANGS='[\"cfamily\",\"dotnet\",\"python\",\"ruby\",\"swift\",\"typescript\"]'" \
   "script/x_test.sh:16:plan '{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"python:dynamic-import\"}' golden" \
@@ -258,7 +261,9 @@ done
 for line in "integrations/x/hooks.json:3:  \"command\": [\"python3\", \"hook.py\"]" \
   "script/x.sh:17:run '[\"python\",\"build.py\"]'" "integrations/x/hooks.json:4:  \"command\": \"python3 hook.py\"" \
   "script/x.sh:18:langs='[\"ruby\",\"python\"]'; python3 -c 1" "script/x.sh:19:run '[\"python\",\"-c\",\"go\"]'" \
-  "script/x.sh:20:cmd='\"python:3\"'" "integrations/x/devcontainer.json:2:  \"image\": \"python:alpine\""; do
+  "script/x.sh:20:cmd='\"python:3\"'" "integrations/x/devcontainer.json:2:  \"image\": \"python:alpine\"" \
+  "integrations/x/hooks.json:5:  {\"command\":[\"python\",\"go\"]}" "script/x.sh:21:run '[\"python\",\"go\"]'" \
+  "integrations/x/hooks.json:6:  {\"languages\":[\"go\"],\"command\":[\"python\",\"go\"]}"; do
   if ! fires "$line"; then
     echo "self-test: a genuine invocation was hidden as a language name: $line" >&2
     exit 1
