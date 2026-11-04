@@ -42,6 +42,8 @@ read start. Former IDs: DCP-V1-NNN is DCR-V1-NNN for every ID listed here.
   is p50 below 170 ms on the DCR-V1-418 fixture, with DCR-V1-430's RSS bound retained.
 - `DCR-V1-7801`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2588)
   Decode workers MAY allocate their own element storage and reuse their own JSON encoder.
+  At most eight decode workers and eight queued batches may pin streamed blocks; a smaller
+  GOMAXPROCS lowers both bounds. This bounds retained block/encoder storage on many-core hosts.
   Every element MUST still pass the closed decoder and exact canonical byte comparison. The
   encoder's one top-level framing newline MUST NOT conceal a missing, changed or extra element
   byte. An undecodable element anywhere still outranks every canonical mismatch. No artifact

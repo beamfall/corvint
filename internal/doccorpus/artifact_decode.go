@@ -304,9 +304,13 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	// decoder does, before any canonical mismatch, so the refusal does not depend on which worker
 	// finishes first.
 	var undecodable, mismatched, stop atomic.Bool
-	jobs := make(chan decodeJob, runtime.GOMAXPROCS(0))
+	// Each active or queued job pins a streamed block. More workers than
+	// this inflate the live block/encoder set on many-core hosts without
+	// shortening the read's other serial stages (DCR-V1-7801).
+	workerCount := min(runtime.GOMAXPROCS(0), 8)
+	jobs := make(chan decodeJob, workerCount)
 	var workers sync.WaitGroup
-	for range runtime.GOMAXPROCS(0) {
+	for range workerCount {
 		workers.Go(func() {
 			options := json.RejectUnknownMembers(true)
 			var comparison elementEncodingComparer
