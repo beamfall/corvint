@@ -13,12 +13,14 @@ and 8. The parent's Requirements section is at the 256-obligation OCM limit, so 
 requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 `2026-11-01-aff-w26`. Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
-`2026-11-03-selprec-selection-precision`.
+`2026-11-03-selprec-selection-precision`. Lane floor (2026-11-03; V1-0643, V1-2744) adds
+AFP-V0-2360 to AFP-V0-2363 and AFP-V0-2370 to AFP-V0-2378 here for the same reason; see build-log
+entry `2026-11-03-floor-typed-reach`.
 
 ## Agent digest
-- Claim: `corvint affected` names Git timeouts, marks TestMain changes whole, narrows fixture, anchored, temp-root and `go list` reads, and marks deletions.
+- Claim: `corvint affected` narrows more reads and marks deletions; `corvint test` narrows allow-listed dependency selections by a typed call graph.
 - Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`.
+- Exists: `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `internal/liveverify/affected/golang/typedreach`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`, `tools/typed-reach-measure`.
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
@@ -246,6 +248,116 @@ measure. None of them drops a unit the change can reach.
   the cone (AFP-V0-821), and in a `--path` plan, whose paths are probes rather than changes; the
   compact form carries the same list. Selection is unchanged.
 
+- **AFP-V0-2360:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-0643, owner direction 2026-11-03) `internal/companionrelease` SHALL be declared in
+  `.corvint/test-read-scopes.json` (AFP-V0-023) and leave `.corvint/unbounded-readers.json`. Its
+  tests that exported the enclosing checkout's `HEAD` through Git SHALL instead export one
+  disposable fixture repository per test binary (`currentSourceFixture`): the Tasks subset
+  (`tasksExportFiles`, `tasksExportPrefixes`), `.gitattributes`, `.gitignore` and
+  `extensions/vscode/` copied from the working tree, the repository's own ignore rules applied,
+  committed with `closedGitEnv`, no hooks and fixed identities, outside the repository root. The
+  production `exportSource`, `tasksExport` and every assertion are unchanged; the content is the
+  working tree's bytes of the declared paths, so in CI's clean checkout it is `HEAD`'s. Builds from
+  the repository root pass `-buildvcs=false` and read only declared entries.
+- **AFP-V0-2361:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-0643) `conformance/release-artifact-v0` SHALL be declared the same way. Its tests that ran
+  Git against the enclosing checkout SHALL run it against a disposable repository: the shared
+  archive repository for destination validation, and one committing the package's own
+  `manifest.json` for the cancelled archive build; fixture repositories are created from a
+  temporary parent directory, never with the checkout as Git's working directory. Plain reads of
+  committed files stay `../..` reads of declared entries, and the two evidence trees the
+  historical-version sweep walks (`.agent-evidence/`, `benchmarks/results/`) are declared whole so
+  the sweep keeps its strength.
+- **AFP-V0-2362:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-0643) The darwin/arm64 Corvint host archive proof (`TestCorvintHostArchivePartialProof`),
+  which exports and builds the checkout's `HEAD` through its `.git`, SHALL run only when
+  `CORVINT_HOST_ARCHIVE_PROOF=1`, which the `release-gates` workflow's legs set, and SHALL skip
+  naming the variable otherwise. It is the one read outside the package's declaration and runs
+  only in a whole-suite release gate, never in a planned selection.
+- **AFP-V0-2363:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-0643) With the declarations of AFP-V0-2360 and AFP-V0-2361, `corvint affected` SHALL NOT
+  select either package for a dirty path outside its subtree and declared entries (no
+  `UNBOUNDED_READER` witness), and SHALL still select it, with `DECLARED_READ_SCOPE`,
+  `PATH_LITERAL_READER`, `BINARY_EXEC` or a dependency witness, for a path inside them. The
+  measured per-merge saving is retained in build-log entry `2026-11-03-floor-typed-reach`.
+- **AFP-V0-2370:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-2744) `corvint test` SHALL narrow a Go package of the allow-list `typedReachPackages`
+  (`cmd/corvint`, `internal/tasks/cli`, `internal/tasks/store`) that the plan selects by
+  `DEPENDENCY_PATH` to the test functions a type-checked call graph of its host test binary
+  (`internal/liveverify/affected/golang/typedreach`) cannot prove unable to reach the change.
+  Every other package, and every allow-listed package any AFP-V0-2372, AFP-V0-2374 or AFP-V0-2377
+  condition refuses, keeps its whole-package selection with the refusal named.
+- **AFP-V0-2371:** (experimental; V1-2744) The graph SHALL load every module package of the test
+  binary from source for the host `GOOS`/`GOARCH` with cgo disabled, type-check it with
+  `go/types` (standard-library packages from `GOROOT` without bodies), and give each function or
+  method body, with its function literals, an edge to: every function it calls or names as a
+  value; every method of every module named type structurally inside a value it converts to an
+  interface (call arguments, assignments, returns, composite elements, sends, comparisons,
+  explicit conversions, `append`) or passes as a type argument, which covers standard-library and
+  reflective calls; every module method of a name it calls on a type parameter; and the code a
+  package variable it mentions holds. A package variable initializer's calls run at
+  initialization; the functions, literals and converted values it only stores, and those an
+  `init` function only assigns to a package variable, are held by that variable.
+- **AFP-V0-2372:** (experimental; V1-2744) The always-run code is every module package's
+  initialization (variable initializer calls and `init` bodies) and `TestMain`, less each
+  `TestMain` `if` statement without `else` whose condition reads `os.Args`, `os.Getenv` or
+  `os.LookupEnv` and whose body ends by calling `os.Exit` (it runs only in a child the binary
+  starts as itself, which only an unproved process start can do, and that start keeps its test by
+  AFP-V0-2373). When it reaches the change the package SHALL stay whole with
+  `ALWAYS_RUN_REACHES_CHANGE`, and when it starts an unproved process with
+  `ALWAYS_RUN_STARTS_PROCESS`. A module package with cgo, assembly or other non-Go source, a
+  `//go:linkname` directive, an import outside the module and `GOROOT`, or any type error SHALL
+  keep the package whole with `UNMODELLED_SOURCE` or `TYPE_CHECK_FAILED`.
+- **AFP-V0-2373:** (experimental; V1-2744) A test function (`Test`, `Benchmark`, `Fuzz`, `Example`
+  names `go test` runs) SHALL be kept with `REACHES_CHANGE` when its closure reaches a changed
+  declaration (a changed function by edge, a changed constant, variable or type by mention, a
+  changed type by any expression of a type holding it), and with `STARTS_PROCESS` when its closure
+  starts a process (`os/exec.Command`, `CommandContext`, `os.StartProcess`, `syscall.Exec`,
+  `ForkExec`, `StartProcess`, `plugin.Open`) whose program is not the constant `git` or
+  `/usr/bin/git`. Every other test function SHALL be dropped.
+- **AFP-V0-2374:** (experimental; V1-2744) A dropped test whose closure reads a package variable
+  a kept test's closure may write SHALL be kept with `READS_STATE_A_KEPT_TEST_WRITES`, to a
+  fixpoint. A write is an assignment, increment, address-taking, or `append`/`copy`/`clear`/`delete`
+  destination rooted at the variable, and for a module variable also a pointer-receiver method
+  call on it or passing it, when of map, slice, pointer or channel type, as an argument; the
+  `sync.Mutex`/`RWMutex` lock methods, `sync.Once.Do` and the read-only methods of
+  `regexp.Regexp`, `strings.Replacer`, the template types' execution and `sync.Pool` are not
+  writes. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
+  start) and signal dispositions (`signal.Notify`, `Ignore`, `Reset`, a `Notify` paired with
+  `signal.Stop` in the same body excepted) are two pseudo variables under the same rule. A kept
+  test whose closure calls another process-wide setter (`os.Chdir`, `runtime.GOMAXPROCS` with an
+  argument other than a constant below 1, `log.Set*`, `flag.Set`/`Parse`, `net/http.Handle*`, the
+  `runtime/debug` setters except the goroutine-local `SetPanicOnFault`, and the others
+  `processState` lists) SHALL keep the package whole with `KEPT_TEST_WRITES_PROCESS_STATE`.
+- **AFP-V0-2375:** (experimental; V1-2744) A narrowed package SHALL run `-run ^(KEPT...)$` with
+  reason `selected: the tests reaching <changed files> (typed reach: N of M test functions cannot
+  reach it)` (code `SELECTED_REACHING_CHANGE`), or `-run ^$` with `selected: no test reaches
+  <changed files>; build and vet only` when none is kept; a pattern past `cishards.MaxPatternBytes`
+  or every test kept (`EVERY_TEST_REACHES_CHANGE`) keeps it whole. A refusal keeps the plan's
+  whole reason and appends ` (typed reach: <refusal>)`.
+- **AFP-V0-2376:** (experimental; V1-2744) The changed declarations SHALL be read per changed
+  non-test Go file by comparing base and head top-level declarations by key (function name,
+  `Type.Method`, each declared name; a constant group as a whole) on printed text, either side
+  absent counting as changed (`typedreach.DiffFile`). An `init` function, a package variable
+  whose initializer calls or is blank, a package clause change or a parse failure SHALL be an
+  initialization change, which keeps whole every test binary linking that package and bears on no
+  other. A changed name absent at head (removed) SHALL count every declaration of its package as
+  changed; an added or removed method counts its receiver type as changed.
+- **AFP-V0-2377:** (experimental; V1-2744) A package SHALL be refused narrowing, with the reason
+  named, when it is an unbounded reader, when one of its globs matches a dirty path
+  (`Graph.GlobRead`), when it embeds files, reads the import graph or is a declared existence
+  reader, when its path literals name a dirty path (`Graph.NamesPath`), when its declared read
+  scope holds one, when a dirty path is its own file, when a non-Go dirty path belongs to a package
+  that embeds files, or when a changed file's base cannot be read. Another package's test files,
+  test data and non-Go paths are never linked and are otherwise left out of the change.
+- **AFP-V0-2378:** (experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing
+  of one package for the Go change between a base and a checked-out head and, with `-oracle`, run
+  each test function alone in a test binary built at head and in one with
+  `panic("typed-reach fault")` at the entry of every changed function, naming every test whose
+  outcome differs and every such test the plan dropped; `-oracle-dropped-only` runs only the
+  dropped tests (a missed observer can only be one of them) plus `-oracle-also` controls. Recall
+  against observed outcomes is retained in the build-log entry.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -258,7 +370,12 @@ adapter. AFP-V0-2200 does not narrow a declared read scope or an unbounded read:
 selected on any `internal/` edit by AFP-V0-023, and a header-only scope would be a new owner
 declaration. AFP-V0-2203 and AFP-V0-2204 are not ported to the CI selector's rule (c)
 (`internal/gateselect`), which stays broader than the planner as before. AFP-V0-2205 does not
-sniff extensionless files elsewhere in the tree.
+sniff extensionless files elsewhere in the tree. AFP-V0-2370 does not trace process argument
+values through data structures (a gate or pool command a test defines keeps its test by
+`STARTS_PROCESS`), does not model shared files, child processes left running, or function and
+interface values one test stores in shared state for another to call outside a package variable
+the second reads, and does not narrow `cmd/corvint` or `internal/tasks/cli`, which stay unbounded
+readers (AFP-V0-025) and keep their whole selection with that refusal named.
 
 ## Failure modes
 
@@ -295,10 +412,26 @@ error the confined CI shard surfaces.
 | AFP-V0-2205 | `ExtensionlessRoots`, `ExtensionlessScript`, `shellShebang`, `shellExecutables` and `Owns` in `internal/liveverify/affected/shell/shell.go` | `TestOwnsOnlyShellSuffixes_NSAV0006`; `TestExtensionlessShellExecutablesAreUnits_AFPV02205` in `internal/liveverify/affected/shell/shell_test.go` |
 | AFP-V0-2206 | `Plan.Deleted` in `internal/liveverify/affected/select.go`; `affectedDeletedPaths` and its call in `planAffectedGraph` (`cmd/corvint/affected.go`); `cmd/corvint/affected_compact.go` | `TestAffectedPlanMarksDeletedPaths_AFPV02206` in `cmd/corvint/affected_deleted_test.go` |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
+| AFP-V0-2360 | `currentSourceFixture` in `internal/companionrelease/source_fixture_test.go`; its use in `exported_current_test.go`; `-buildvcs=false` in `companion_cli_contract_test.go`; `.corvint/test-read-scopes.json`; `.corvint/unbounded-readers.json` | `go test -exec test-confine ./internal/companionrelease/` (build log); `TestCurrentTasksSourceArchiveBuildsOffline`, `TestCurrentExportedTasksSmokeGenerator` |
+| AFP-V0-2361 | `manifestArchiveTestRepository`, `sharedArchiveTestRepository`, `initArchiveTestRepository` in `conformance/release-artifact-v0/archive_gate_test.go`; `newPublicationFixture` in `publication_status_test.go`; `.corvint/test-read-scopes.json` | `go test -exec test-confine ./conformance/release-artifact-v0/` (build log); `TestArchiveDestinationRequiresTrustedAbsentExternalChild`, `TestBuildArchivesCancellationRemovesScratchStageAndOutput` |
+| AFP-V0-2362 | the `CORVINT_HOST_ARCHIVE_PROOF` check in `conformance/release-artifact-v0/corvint_archive_test.go`; the job env of `.github/workflows/release-gates.yml` | `TestCorvintHostArchivePartialProof` (skips naming the variable) |
+| AFP-V0-2363 | the two declarations and `.corvint/unbounded-readers.json` | `make unbounded-readers-check`; planner runs and per-merge saving in build-log entry `2026-11-03-floor-typed-reach` |
+| AFP-V0-2370 | `typedReachPackages`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`; its call in `testGoSlices` | `corvint test --dry-run` replays in build-log entry `2026-11-03-floor-typed-reach` |
+| AFP-V0-2371 | `buildGraph`, `funcDecl`, `packageVar`, `walkInitializer`, `heldAssignment`, `visitExpr`, `call`, `composite`, `convertTo` in `internal/liveverify/affected/golang/typedreach/graph.go`; `Load` in `load.go`; `namedIn` in `analyze.go` | `TestAFPV02371ConversionsAndHeldValuesCarryReach` |
+| AFP-V0-2372 | `childOnly`, `moduleHazard`, `hasLinkname`, `Analyze` | `TestAFPV02372AlwaysRunReachKeepsThePackageWhole`, `TestAFPV02372LoadRefusesUnmodelledSource`, `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (negative control) |
+| AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` |
+| AFP-V0-2374 | `sharedVar`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `scopeSignals`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`) |
+| AFP-V0-2375 | the slice and whole forms in `testTypedSlices` | `corvint test --dry-run` replays (build log) |
+| AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go` | `TestAFPV02376DiffFileNamesChangedDeclarations` |
+| AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log) |
+| AFP-V0-2378 | `tools/typed-reach-measure/main.go` | fault-injection oracle runs in build-log entry `2026-11-03-floor-typed-reach` |
 
 ## Rollback
 
-Revert the lane's commits for the requirement and delete its row here. For AFP-V0-551, removing
+Revert the lane's commits for the requirement and delete its row here. For AFP-V0-2370 to
+AFP-V0-2378, emptying `typedReachPackages` restores whole-package selection; the package and the
+tool can then be deleted. For AFP-V0-2360 to AFP-V0-2363, deleting a declaration and restoring its
+`.corvint/unbounded-readers.json` row returns the package to the floor; the fixtures stay correct. For AFP-V0-551, removing
 `fixtureTokens` makes marked literals read paths again; the markers are inert comments. For
 AFP-V0-830, drop the integrations listing from `script/gen-documentation-paths.sh` and run
 `make documentation-paths`. For AFP-V0-2200 to AFP-V0-2202, delete

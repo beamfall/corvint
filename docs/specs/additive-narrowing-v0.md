@@ -164,7 +164,7 @@ not bound, although the planner had already resolved their readers with witnesse
 ## Non-goals
 
 type-checked reference analysis, narrowing to test functions inside a package (V1-2744's
-allow-list; the always-run `TestMain`, `init` and process-starting package code of `cmd/corvint`,
+allow-list, since specified separately as AFP-V0-2370 in `affected-plan-selection-v0.md`; the always-run `TestMain`, `init` and process-starting package code of `cmd/corvint`,
 `internal/tasks/store` and `internal/tasks/cli` keeps them whole, V1-2708), narrowing past the
 first import hop, narrowing a reordered declaration,
 narrowing a changed `main`, embedding or cgo package, any change to `gateselect.Select` or the CI
