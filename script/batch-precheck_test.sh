@@ -1016,7 +1016,9 @@ row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
 # ASD-V0-912 (V1-3804): the non-Go frontier details every real plan carries (the TypeScript,
 # C-family, .NET, Python, Ruby and Swift adapters' own gaps) do not widen a doc-only diff.
-plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
+# printf: the detail list is data to the GOC-V0-008 scan (V1-3842).
+others=$(printf %s ',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}')
+plan "$frontier$others" golden
 srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
   fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"
@@ -1548,8 +1550,8 @@ grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:4: ' "$tmp/out" &&
 # 14. ASD-V0-583 (V1-3373): license-headers-check and mkfifo-build-tags-check are doc gates, and the
 # Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
-# suffix pass.
-for t in license-headers-check mkfifo-build-tags-check; do
+# suffix pass. V1-3842: no-python-runtime-dependency-test is a doc gate too, so PRs run it.
+for t in license-headers-check mkfifo-build-tags-check no-python-runtime-dependency-test; do
   grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
 done
 frepo=$tmp/frepo

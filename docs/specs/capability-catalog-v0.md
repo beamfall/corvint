@@ -365,11 +365,13 @@ cannot silently go missing or outlive its command.
   servers' existing `--version` bytes are unchanged. Non-goals: command trees for these binaries
   (`CLI-RATCHET.tsv` keeps them); per-subcommand help. Falsifier: a companion that starts work,
   exits non-zero or writes stderr on one of the five forms.
-- `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499)
-  `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"` and exit
-  2 before it reads a repository or listens; `corvint-update` MUST refuse an action other than
-  `check`, `apply` or `rollback` (including none) with its usage on stderr and exit 2 before it reads
-  state, and its usage names every action, `--allow-network` and `--component core|tasks`.
+- `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended by
+  ACX-V0-904) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
+  and exit 2 before it reads a repository or listens; `corvint-update` MUST refuse an action other
+  than `check`, `apply` or `rollback` (including none) with exit 2 before it reads state, an unknown
+  operation word with the shared ACX-V0-904 envelope, which names `corvint-update --help`, and any
+  other refusal with its usage on stderr; its usage names every action, `--allow-network` and
+  `--component core|tasks`.
 - `CAP-V0-820`: (experimental under the standing lane auto-accept (2026-11-01); V1-3902; refines
   `CAP-V0-060`) An unknown verb, at the first word or after any verb group (`ticket`, `queue`,
   `plan`, `policy`, `service`, `slots` and the rest), MUST

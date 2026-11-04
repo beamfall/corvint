@@ -1236,7 +1236,9 @@ or `ocm mark` to preserve an honest unknown. A requirement the change does not t
 `unassessed`: that reason means "not assessed by this change" and needs no mark (decision 0029). A
 Go test anchors a requirement by naming its ID in a table case `name` or a `t.Run("...")` literal.
 Include a descriptive word with the ID: numeric-only suffixes disappear during selector
-normalization, so multiple bare IDs in one test function can collide. A whole-function selector
+normalization, so multiple bare IDs in one test function can collide. The normalization (lower-casing, plural `s`/`ies` folding, dropped
+digit-only words) is stated in `docs/specs/ocm-v0-dogfood.md`; a miss names the given and the
+normalized fragment (`OCM-V0-700`). A whole-function selector
 whose function-name anchor lacks the exact requirement ID is not a substitute.
 
 The ID must appear as an exact token: a requirement token continues through `A-Z`, `a-z`, `0-9`, `_`

@@ -27,15 +27,24 @@ func TestOCMClaimSelectorMiss(t *testing.T) {
 	t.Run("OCM-V0-007 hints do not promise a match", func(t *testing.T) {
 		for _, suffix := range []string{"WQO-V0-032", "123", strings.Repeat("ABC-", 100)} {
 			_, err := resolveClaimSelectors(nil, []string{"test:TestWork/case:" + suffix})
-			want := "claim-selector-out-of-range: claim selector is outside the extracted worklist; normalized case fragment: " + selectorFragment(suffix) + goCaseAnchorShapes + claimSelectorRecovery
+			want := "claim-selector-out-of-range: claim selector is outside the extracted worklist; given case fragment: " + boundedFragment(suffix) + "; normalized case fragment: " + selectorFragment(suffix) + claimSelectorNormalization + goCaseAnchorShapes + claimSelectorRecovery
 			if err == nil || err.Error() != want {
 				t.Fatalf("got %v want %s", err, want)
 			}
-			// Bounded fragment plus the fixed shape list (OCM-V0-018 lengthened it)
-			// and the fixed recovery line (V1-3659).
-			if len(err.Error()) > 360+len(claimSelectorRecovery) {
+			// Bounded given and normalized fragments plus the fixed shape list (OCM-V0-018
+			// lengthened it), the normalization note and the recovery line (V1-3659).
+			if len(err.Error()) > 480+len(claimSelectorNormalization)+len(claimSelectorRecovery) {
 				t.Fatalf("unbounded diagnostic: %d", len(err.Error()))
 			}
+		}
+	})
+	t.Run("OCM-V0-700 a normalized miss names the given and the normalized fragment", func(t *testing.T) {
+		_, err := resolveClaimSelectors(nil, []string{"test:TestWork/case:Keeps"})
+		if err == nil || !strings.Contains(err.Error(), `; given case fragment: "Keeps"; normalized case fragment: keep (lower-cased`) {
+			t.Fatalf("given and normalized fragments not both named: %v", err)
+		}
+		if got := boundedFragment(strings.Repeat("x", 200) + "\n"); got != `"`+strings.Repeat("x", 96)+`..."` {
+			t.Fatalf("unbounded given fragment: %s", got)
 		}
 	})
 	t.Run("OCM-V0-007 unrelated and normalized misses retain message", func(t *testing.T) {

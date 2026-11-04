@@ -900,12 +900,29 @@ func TestAHI017AdapterHostKillMatchesDeclaredHooks(t *testing.T) {
 			}
 		}
 	}
+	// V1-3946: the shipped entries equal the hooks.json kills; an opt-in entry is registered by
+	// no shipped hooks.json and is an event the Claude Code adapter accepts.
 	want := map[string]time.Duration{}
-	for arguments, kill := range adapterDeclaredHostKill {
-		want["adapter "+arguments] = kill
+	optIn := 0
+	for arguments, entry := range adapterDeclaredHostKill {
+		if !entry.optIn {
+			want["adapter "+arguments] = entry.kill
+			continue
+		}
+		optIn++
+		if _, shipped := declared["adapter "+arguments]; shipped {
+			t.Fatalf("opt-in %q is registered by a shipped hooks.json", arguments)
+		}
+		event, ok := strings.CutPrefix(arguments, "claude-code ")
+		if !ok || !slices.Contains(claudeCodeAdapterEvents, event) {
+			t.Fatalf("opt-in %q is not an event the claude-code adapter accepts", arguments)
+		}
 	}
 	if !reflect.DeepEqual(declared, want) {
-		t.Fatalf("declared host kills %v, adapter table %v", declared, want)
+		t.Fatalf("declared host kills %v, shipped adapter table %v", declared, want)
+	}
+	if optIn == 0 {
+		t.Fatal("the table carries no opt-in entry, so the opt-in checks above ran on nothing")
 	}
 	start := time.Now()
 	for arguments, kill := range declared {
