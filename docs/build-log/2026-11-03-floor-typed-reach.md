@@ -200,3 +200,81 @@ make this hold; it is proposed in the Friction list.
   an unbounded reader by test function would drop tests that read a dirty path outside the model.
 - Wall-clock saving of a narrowed store run is NOT_PRODUCED. The selection drops 25 of 666 test
   functions, and their durations were not measured in isolation.
+
+## Round 3 (owner review of round 2, then two more independent reviews)
+
+### Owner review of round 2: five escapes, each fixed with a regression
+
+Each escape was reproduced with `corvint test --dry-run`: a dropped test fails under the edit.
+
+| # | Severity | Escape | Fix | Regression |
+|---|---|---|---|---|
+| 1 | HIGH | Data and embedded files: a dependency's `data.txt` edit sliced `cmd/corvint` | Any dirty path other than non-test `.go` in or under a Go package directory, or under an embedding package, keeps the package whole. An empty change set never slices. | `TestAFPV02370DryRunNarrowsAnAllowListedDependent` (embedded and run-time data files) |
+| 2 | HIGH | Constants: changing `const A` missed users of `const B = A + 1` | Constants, types and variables close the change set over the declarations naming them, across packages, iota groups included. Function signatures count. | `TestAFPV02373RoundThreeRegressions` (`TestConst`, `TestArr`) |
+| 3 | HIGH | Process start through `new(exec.Cmd)` | Any use of `os/exec` is a process start. | `TestSelf`, `TestSpawnA` |
+| 4 | MEDIUM | A kept process-starting test recorded no writes | A process-starting closure writes files, environment and signals. | `TestReadShared` kept |
+| 5 | MEDIUM | Missing file APIs | `io/ioutil` read/write/temp, `os.CopyFS`, `os.OpenRoot`/`OpenInRoot`/`os.Root` methods added. | `TestIoutil`, `TestRoot` node effects |
+| LOW | LOW | Implicit standard-library globals | `fmt` `Print*`/`Scan*`, `log`, `log/slog` and `time` read `os.Stdout`/`os.Stdin`/`os.Stderr`, the log and slog defaults, and `time.Local`. | `TestStdoutA`/`TestPrint` |
+
+The LOW note on companionrelease's `.gitignore` copying is left as is (recorded residual).
+
+Every round-3 regression was fault-checked:
+- constant derivation disabled → fails;
+- `os/exec` detection disabled → fails;
+- process-start writes disabled → fails;
+- the HEAD slicer gives `^$` on both data-file cases.
+
+### Fresh independent review (`codex-review.sh`, reviewed head `568eebf39`)
+
+The five escape classes were tried. It reported no escape in the data-file, constant and process-start classes. It found five new cross-test escapes:
+1. an interface-held reference written through a type assertion;
+2. a path made private by a discarded `t.TempDir()` argument;
+3. a write through a shared `os.File` handle;
+4. `net/http` defaults;
+5. a fixed-port listener.
+
+**Decision.** Close the standard library by an allow-list instead of a deny-list.
+- An unmodelled standard-library use, a process start or a standard-library variable write
+  reads and writes an `unknown` pseudo variable. `unknown` conflicts with any opaque state on the
+  other side.
+- Interfaces count as reference-holding, and type assertions root writes.
+- Private paths need a containment-preserving derivation.
+- Regression: `TestAFPV02374RoundFourRegressions`. The privacy fault is detected. Removing only
+  the type-assertion root is still caught by the interface rule, so the two are independent
+  sufficient mechanisms.
+
+### Confirming review (reviewed head `94f557e0b`)
+
+It confirmed those five fixed and found eleven allow-list holes:
+1. hidden environment reads in `os` home, cache, config and temp lookups;
+2. `archive/zip` and `crypto` registries;
+3. `runtime` setters;
+4. template and `go/parser` file loading;
+5. `time.LoadLocation`;
+6. the slog→log bridge;
+7. `signal.NotifyContext`;
+8. standard-library concrete methods behind `io` interfaces;
+9. implicit reads lost on function values;
+10. symlinks;
+11. mutex lock state.
+
+All eleven are fixed. Regression: `TestAFPV02374AllowListRegressions`; the lock fault is detected.
+
+The fixes after this confirming review were not reviewed a third time.
+
+### Re-measured (same build, final head)
+
+| Measure | Result |
+|---|---|
+| V1-2744, `6a2c582ef` | 648 kept, **18 dropped of 666**; `corvint test --dry-run` narrows store (`typed reach: 18 of 666`, 13.7 s plan) |
+| V1-2744, `c38c32203` | 657 kept, 19 dropped of 676 (product: whole, path-token refusal) |
+| V1-2744, `d1ccab3b6` | 648 kept, 18 dropped of 666 (product: whole, path-token refusal) |
+| Oracle (dropped-only + 4 kept controls) | `6a2c582ef`: 22 ran, 4 observers (the controls), **0 missed**; `c38c32203` (round-3 model): 23 ran, 0 missed |
+| V1-0643, unrelated path at head | floor 27; neither package selected |
+| V1-0643, 60-merge replay with the head build | companionrelease 45/60, release-artifact-v0 36/60; ≈ 31.2 + 5.7 = **37 package-seconds per merge** (the earlier 47/37 used the older installed binary) |
+
+Ordered whole-suite versus sliced-suite comparison is NOT_PRODUCED, for two reasons:
+- the per-test oracle runs each test alone, so it cannot observe cross-test effects;
+- a whole store run with a non-crashing fault is past this lane's budget.
+
+The model instead keeps every dropped test that reads any state a kept test may write.
