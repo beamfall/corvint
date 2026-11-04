@@ -244,3 +244,22 @@ func TestTCQV07408ImportedSelectorsDoNotCarryClosure(t *testing.T) {
 		t.Fatalf("candidates=%v", got)
 	}
 }
+
+// TCQ-V0-7408: importer closure must not conflate two packages' exported
+// selectors just because their identifiers have the same spelling.
+func TestTCQV07408ImporterNamespace(t *testing.T) {
+	source := []byte(`package q
+import changed "example.test/m/p"
+import other "example.test/m/r"
+import "testing"
+func actual() int { return changed.Double(1) }
+func foreign() int { return other.Double(1) }
+func TestActual(t *testing.T) { actual() }
+func TestForeign(t *testing.T) { foreign() }
+`)
+	p := &goPackage{decls: parseDecls("q/q_test.go", source, true)}
+	got := p.testsMentioning(p.growImported("example.test/m/p", map[string]bool{"Double": true}))
+	if !reflect.DeepEqual(got, []string{"TestActual"}) {
+		t.Fatalf("candidates=%v, want only the changed import", got)
+	}
+}
