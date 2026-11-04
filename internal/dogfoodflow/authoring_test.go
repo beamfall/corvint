@@ -27,7 +27,9 @@ func TestDCWV07401CaretAndVerifyDraft(t *testing.T) {
 
 // DCW-V0-7403: the string-only aggregate receipt cannot carry typed argv.
 func TestDCWV07403AggregateArgvRefusedBeforePrepare(t *testing.T) {
- root, base := preflightRepository(t, nil)
- code, _, stderr, calls := preflightRun(t, root, ChangeOptions{Base:base, Citations:writeInput(t,"1\tpre.go\t1:1\tspecification\n"), Verify:"go test -run 'TestA|TestB' .", AggregateOverLimit:true})
- if code != 2 || len(calls) != 0 || !strings.Contains(stderr,"REFUSE aggregate-verify-argv-unsupported") || !strings.Contains(stderr,"typed argv") { t.Fatalf("code=%d calls=%v stderr=%s",code,calls,stderr) }
+	root, base := preflightRepository(t, nil)
+	code, _, stderr, calls := preflightRun(t, root, ChangeOptions{Base: base, Citations: writeInput(t, "1\tpre.go\t1:1\tspecification\n"), Verify: "go test -run 'TestA|TestB' .", AggregateOverLimit: true})
+	if code != 2 || len(calls) != 0 || !strings.Contains(stderr, "REFUSE aggregate-verify-argv-unsupported") || !strings.Contains(stderr, "typed argv") {
+		t.Fatalf("code=%d calls=%v stderr=%s", code, calls, stderr)
+	}
 }

@@ -30,6 +30,9 @@ are excluded by the lane charter. Independent review belongs to the orchestrator
   function for restored widen paths, and pass admitted keys to the actual claim. Bind step
   request IDs to base, candidate, scope source and scope keys, preserving the readable ticket
   and attempt prefix. Multi-lane and submitted-widen regressions exercise the real CLI.
+  Retry scope comes only from the latest generation, excluding declared paths; the 256-key
+  explicit request limit does not replace the larger native declared-resource limit. A
+  submitted-widen regression includes a declaration of 257 resources (64 PATH resources plus 193 touch paths).
 - `TCL-V0-7405` (V1-3536, V1-3539, V1-3598): remove dangling local guide references from help;
   required manual-completion flags have a shared invocation in help and missing-flag errors;
   unbounded-effect warnings report effective coverage, including UNKNOWN and INCOMPLETE.
