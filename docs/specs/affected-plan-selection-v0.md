@@ -345,7 +345,11 @@ measure. None of them drops a unit the change can reach.
   `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile`, a local variable a body assigned
   once from a private path, `filepath.Join` or `path.Join` of a private first element and constant
   elements naming no `..`, or a private path plus a constant starting with `/` naming no `..`; any
-  other expression, a helper call included, is not private; any use of `os.OpenRoot`, `os.OpenInRoot` or an `os.Root` method reads and writes it;
+  other expression, a helper call included, is not private. Temporary creation by `os.MkdirTemp`,
+  `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile` also writes the file system unless
+  its parent directory is provably private: a private result still changes a shared parent's
+  directory entries. These creators taken as values write the file system too. Any use of
+  `os.OpenRoot`, `os.OpenInRoot` or an `os.Root` method reads and writes it;
   and every state reader or writer taken as a value reads or writes its pseudo variable. A closure
   that may start a process (AFP-V0-2373) writes the file system, environment and signal pseudo
   variables, since a child's writes are not bounded. Standard-library state read without being
@@ -366,7 +370,8 @@ measure. None of them drops a unit the change can reach.
   (`Caller`, `Callers`, `CallersFrames`, `FuncForPC`, `Gosched`, `KeepAlive`, `Version`,
   `NumCPU`); `crypto` and `archive/zip` (their registries) are not admitted; `time.LoadLocation`,
   the template and `go/parser` file-loading entry points and `filepath.Abs` are impure. `os.TempDir`,
-  `UserHomeDir`, `UserCacheDir`, `UserConfigDir`, `MkdirTemp` and `CreateTemp` read the
+  `UserHomeDir`, `UserCacheDir`, `UserConfigDir`, `MkdirTemp`, `CreateTemp`, `io/ioutil.TempDir`
+  and `io/ioutil.TempFile` read the
   environment; `signal.NotifyContext` writes signal dispositions; `slog.SetDefault` writes both
   default loggers; a function taken as a value carries its implicit reads. `unknown` on either side conflicts with any
   pseudo or standard-library variable on the other: an `os.File` method, `net`, `net/http`, a
