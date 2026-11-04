@@ -585,11 +585,11 @@ func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 }
 
 // STR-V0-800: --dry-run --summary prints the bounded text summary of the
-// same plan in place of the JSON, with the same stderr.
+// same plan in place of JSON, with verdict and heavy advice inside its bound.
 func TestSTRV0800CLIDryRunSummary(t *testing.T) {
 	root, base, log := sessionFixture(t, "pass")
 	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--summary")
-	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: NARROWED 1 execution units\n") {
+	if code != 0 || stderr != "" {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
 	if !strings.HasPrefix(stdout, "corvint-test: DRY-RUN scope=NARROWED placement=universe shard=0/1 manifest=sha256:") ||

@@ -43,9 +43,11 @@ measure. None of them drops a unit the change can reach.
   without a deadline keeps `GitCancelled`. `ErrStatusUnavailable` still wraps both.
 
 - **AFP-V0-549:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2728)
+  Amended under the owner's standing auto-accept, 2026-11-04, V1-4576, TSP-V0-7318:
   `TestIncrementalSelectionMeetsTheLiveBudget` MUST measure up to three rounds of 32 interleaved
-  selection and probe samples, stop at the first round within the budget, and enforce the budget
-  on the round with the lowest selection-to-probe p95 ratio. A slower Select is over the budget in
+  samples per representative edit, bracketing each selection with calibration probes before and
+  after it. It MUST normalize each selection against the slower adjacent probe, stop at the first
+  round within the budget, and enforce the round with the lowest normalized p95. A slower Select is over the budget in
   every round and still fails; a transient spike from a concurrent heavy.sh run does not. The
   budget, the probe and the reference ratio are unchanged.
 
@@ -320,15 +322,19 @@ measure. None of them drops a unit the change can reach.
   labelled `static-reach` and selects no linked test by itself. The `strict` and `coverage`
   profiles are unchanged (AFU-V1-024).
 - **AFP-V0-2487:** (experimental under the owner's standing lane auto-accept (2026-10-11);
-  V1-1189) `corvint affected --fail-fast-order` MUST add an `order` member to the compact plan.
+  V1-1189; amended under the owner's standing auto-accept, 2026-11-04, V1-4472,
+  TSP-V0-7305) `corvint affected --fail-fast-order` MUST add an `order` member to the compact plan.
   `order.key` is `["recent-local-failure", "plan-order"]`. `order.units` lists every
   `plan.selected` unit once, as `{unitId, recentFailure, planIndex}`: units with a recent local
   failure first, each group in `plan.selected` order. That order is already AFP-V0-007's: via
   length, then proximity, then unit id. `order.failures` names the evidence. Its `receipts` list
   holds each `corvint test` receipt read from `<git-dir>/corvint/test-run.json` and
-  `test-run.<n>.json`, at most 64: the most recently modified, ties broken by name, listed in
-  name order, so a fresh `test-run.json` is never dropped for older shard names that sort before
-  it. Each is read by the STR-V0-010 strict reader. Each entry has the
+  `test-run.<n>.json`, at most 64: newest by a valid RFC3339Nano `completedAt` read within
+  the bounded 64 KiB header, mtime as fallback, ties broken by name, listed in name order.
+  Thus a content-newer `test-run.json` survives equal filesystem timestamps. Metadata Info
+  failures MUST be disclosed in `order.failures.detail` even outside the retained 64 and make
+  no recency claim; they set the aggregate state to `UNREADABLE`. Each retained receipt is
+  read by the STR-V0-010 strict reader. Each entry has the
   `path` relative to the Git directory, `state` `OBSERVED` or `UNREADABLE` (with `detail`), and
   for an observed receipt its `sha256`, `revision` and `failed` (units with a `FAIL`,
   `BUILD_FAILED` or `TIMED_OUT` outcome, sorted). `order.failures.state` is `OBSERVED` when any

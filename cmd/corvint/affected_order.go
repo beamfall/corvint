@@ -41,7 +41,8 @@ type affectedOrderUnit struct {
 
 // affectedOrderFailures discloses the local state the order read: OBSERVED
 // when at least one receipt was read, UNREADABLE (with Detail) when the
-// receipt directory exists but cannot be listed, NOT_OBSERVED otherwise.
+// directory cannot be listed or any candidate's metadata cannot be read,
+// NOT_OBSERVED otherwise. Metadata failures retain the other observed receipts.
 type affectedOrderFailures struct {
 	State    string                 `json:"state"`
 	Detail   string                 `json:"detail,omitempty"`
@@ -135,7 +136,8 @@ func orderAffectedSelection(selected []affectedCompactSelection, receipts []affe
 // name, listed in name order. A receipt that cannot be read, is not canonical,
 // or changes while read is UNREADABLE with its reason and contributes no
 // failure. An absent directory reads nothing; a directory that exists but
-// cannot be listed returns no receipt and the reason as unlisted.
+// cannot be listed returns no receipt and the reason as unlisted. Candidate
+// metadata failures also return a reason as unlisted, even outside the retained set.
 func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlisted string) {
 	directory := filepath.Join(gitDir, "corvint")
 	entries, err := readFailFastDirectory(directory)
