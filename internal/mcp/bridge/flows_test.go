@@ -149,7 +149,7 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 		if callErr != nil {
 			t.Fatal(callErr)
 		}
-		review, callErr := NewTaskReview(clone)
+		review, callErr := newTaskReview(clone)
 		if callErr != nil {
 			t.Fatal(callErr)
 		}
@@ -317,7 +317,7 @@ func TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching(t *tes
 			name, root string
 			refused    bool
 		}{{"complete", complete, false}, {"partial", partial, true}} {
-			registry, err := NewTaskReview(test.root)
+			registry, err := newTaskReview(test.root)
 			if err != nil {
 				t.Fatal(err)
 			}

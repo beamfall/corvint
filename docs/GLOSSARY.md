@@ -77,7 +77,7 @@ dashboard spec cites it.
 | Surface | Values | Casing | Citation |
 |---|---|---|---|
 | Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go:40-46@9d0ecd1e`; `docs/specs/local-observability-dashboard-v0.md:80@4b5e015c` |
-| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:1113@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:258@f4047e06` |
+| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:1113@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:260@f4047e06` |
 | Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:249@1e1231f8` |
 | Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `internal/lrf/types.go:12@fc816169`; `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:268,270@1875648f` |
 | Verification Planner/Observer | `CORVINT_PROCESS_OBSERVED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/verification-planner-observer-v0.md:389,285@8b000654` |
@@ -127,8 +127,8 @@ cross-profile definition and the following table is the mapping between the fiel
 |---|---|---|---|
 | MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1111@e32959ff`; `docs/MCP-SERVER.md:155@84842141` |
 | LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:268,271@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
-| TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:123@c6531e00` |
-| TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:118@11bd5f87` |
+| TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:134@b607a27b` |
+| TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:135@902d0f8a` |
 
 LRF is the only surface that distinguishes **abstained** from **rejected**, and the distinction is
 normative for the whole vocabulary: `abstained` means the inputs could not be evaluated and the

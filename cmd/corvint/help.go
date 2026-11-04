@@ -1751,12 +1751,14 @@ Verification options:
                        you trust. status and report refuse it.
 
 Map paths:
-  status, verify and report read --map MAP repository-relative, or as an
+  status and report read --map MAP repository-relative, or as an
   absolute path outside the repository and its Git directories (for example an
   assembled or exported bundle's map); an absolute path inside them is refused,
   so name it repository-relative. The map binds the repository by object IDs;
   the read is bounded, a symlinked map is refused, and only report writes (its
-  review file, never over the map). verify-stable reads its --map at any path;
+  review file, never over the map). verify also accepts an absolute in-repository
+  map through the same bounded repository reader. verify-stable accepts either
+  form, resolving a relative --map against --repository (CEM-V1-7400);
   prove --cem and --verify-cem-attestation --cem read MAP the same way, naming
   an out-of-tree map external:<sha256 of its bytes> in both statements, never
   its host path (CEM-V1-641). cite, mark, cover and discriminate read an

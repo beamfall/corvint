@@ -23,6 +23,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 
 ## Requirements
 
+- `CEM-V1-7400`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3863) `cem verify` and `cem verify-stable` MUST accept both absolute and repository-relative paths to an in-repository map. `verify-stable` resolves a relative map against `--repository`, refusing traversal. This amends `CEM-V1-316` for verify only; metadata and final symlink refusals remain. Evidence: `TestCEMV17400MapForms` in `internal/cem/cli`.
+
 - `CEM-V1-001`: (accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk binding and closed versioned decoding. Amended by decision 0525 §6 (V1-0595): `cem/0.1`, `cem/0.2` and `cem/0.3` documents are no longer readable; every consumer refuses them with `unsupported-spec` and the `CEM-V1-200` recovery line (`CEM-V1-200`, `CEM-V1-210`, `CEM-V1-215`), and Git history keeps them. Any other unknown spec stays an explicit unsupported result.
 - `CEM-V1-002`: (accepted by decision 0546, 2026-10-20) Bind criterion references to canonical native ticket identity, acceptance revision, ordered acceptance digest and immutable claim-era record. Current applicability is distinct from historical validity.
 - `CEM-V1-003`: (accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by digest, with exact runner/profile, admitted source inventory, primary and auxiliary executable pins, native report hashes, expected inventory and observed attempts. Declare dependency closure and execution authority limits.

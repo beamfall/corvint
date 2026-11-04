@@ -24,7 +24,7 @@ func TestContextCancellationNeverReturnsReady(t *testing.T) {
 		t.Skip("native context is qualified only on Darwin and Linux")
 	}
 	root := makeRepository(t)
-	registry, err := NewTaskReview(root)
+	registry, err := newTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestContextTimedCancellationRetiresWork(t *testing.T) {
 		t.Skip("native context is qualified only on Darwin and Linux")
 	}
 	root := makeRepository(t)
-	registry, err := NewTaskReview(root)
+	registry, err := newTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}

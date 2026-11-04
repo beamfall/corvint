@@ -122,6 +122,11 @@ func envAssignments(line string) (words []string, rest string, quoted bool) {
 // other line stays a v1 command under the unchanged grammar.
 func verifyLineArguments(line string) []string {
 	assignments, rest, quoted := envAssignments(strings.TrimSpace(line))
+	// A caret and dollar are literal in an unquoted POSIX shell word.
+	// Normalize a single anchored name through the quoted argv grammar too.
+	if match := regexp.MustCompile(`^` + runPrefix + ` -run(=| )(\^` + runName + `\$?)` + runSuffix + `$`).FindStringSubmatch(rest); match != nil {
+		rest = match[1] + " -run" + match[2] + "'" + match[3] + "'" + match[4]
+	}
 	match := quotedRunAlternation.FindStringSubmatch(rest)
 	if match == nil {
 		if !quoted || trace.ValidateVerificationCommands([]string{rest}) != nil {

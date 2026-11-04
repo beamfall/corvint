@@ -212,7 +212,7 @@ func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []G
 					importers = indexImporters(tree)
 				}
 				for _, importer := range importers.of(dir) {
-					if names := load(importer).testsMentioning(load(importer).grow(exported)); len(names) > 0 {
+					if names := load(importer).testsMentioning(load(importer).growImported(exported)); len(names) > 0 {
 						candidate.units = append(candidate.units, testUnit{dir: importer, names: names})
 					}
 				}
@@ -291,6 +291,7 @@ type goDecl struct {
 	file       string
 	names      []string
 	refs       map[string]bool
+	importRefs map[string]bool // qualified names retained for direct-importer search
 	start, end int64
 	test       bool // a func TestX(t *testing.T) declared in a _test.go file and at the base
 }
@@ -348,10 +349,27 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 	if err != nil {
 		return nil
 	}
+	// Imported selectors live in another package's namespace. The explicit
+	// package-under-test import of an external test is the one exception.
+	foreign := map[string]bool{}
+	for _, imp := range parsed.Imports {
+		importPath, e := strconv.Unquote(imp.Path.Value)
+		if e != nil {
+			continue
+		}
+		name := path.Base(importPath)
+		if imp.Name != nil {
+			name = imp.Name.Name
+		}
+		own := strings.HasSuffix(parsed.Name.Name, "_test")
+		if !own && name != "." && name != "_" {
+			foreign[name] = true
+		}
+	}
 	var decls []goDecl
 	for _, decl := range parsed.Decls {
 		d := goDecl{
-			file: file, refs: map[string]bool{},
+			file: file, refs: map[string]bool{}, importRefs: map[string]bool{},
 			// Physical lines: a //line directive must not move a declaration
 			// away from the patch lines that edit it.
 			start: int64(fileSet.PositionFor(decl.Pos(), false).Line), end: int64(fileSet.PositionFor(decl.End(), false).Line),
@@ -379,6 +397,12 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 			}
 		}
 		ast.Inspect(decl, func(node ast.Node) bool {
+			if selector, ok := node.(*ast.SelectorExpr); ok {
+				if qualifier, ok := selector.X.(*ast.Ident); ok && qualifier.Obj == nil && foreign[qualifier.Name] {
+					d.importRefs[selector.Sel.Name] = true
+					return false
+				}
+			}
 			if ident, ok := node.(*ast.Ident); ok && !declaredWithin(ident, decl) {
 				d.refs[ident.Name] = true
 			}
@@ -555,4 +579,23 @@ func baseHeaderLines(base []byte, name string) (int64, int64, bool) {
 		}
 	}
 	return 0, 0, false
+}
+
+// growImported first connects foreign exported names to declarations in an
+// importing package, then follows only that package's ordinary closure.
+// Keeping these edges separate prevents unrelated imports polluting the
+// changed package's closure while preserving TCQ-V0-761 importer guards.
+func (p *goPackage) growImported(exported map[string]bool) map[string]bool {
+	seed := map[string]bool{}
+	for name := range exported {
+		seed[name] = true
+	}
+	for _, decl := range p.decls {
+		if mentions(decl.importRefs, exported) {
+			for _, name := range decl.names {
+				seed[name] = true
+			}
+		}
+	}
+	return p.grow(seed)
 }

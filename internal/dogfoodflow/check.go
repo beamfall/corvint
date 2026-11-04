@@ -897,6 +897,9 @@ func (c *check) verifyBinding(report []byte) int {
 		covered()
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
+	if !noIntent {
+		fmt.Fprintln(c.stdout, countUniverseNote)
+	}
 	if note := coverage.unlinkedNote(); note != "" {
 		c.say("%s\n", note)
 	}

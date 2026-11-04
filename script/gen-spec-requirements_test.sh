@@ -1106,4 +1106,16 @@ run --lines | grep -q 'MODE-V0-002' || fail "run --lines did not print the stage
 test "$(git -C "$run_root" status --porcelain)" = "$before" || fail "run --lines changed the worktree"
 run_root=
 
+# DCW-V0-7401: authoring guidance is available before the generator, and
+# changing help without refreshing the trees produces a doc-gate hint.
+grep -q '160 characters' "$source_root/docs/SPEC-AUTHORING-TEMPLATE.md" || fail "Claim limit absent from template"
+grep -q 'internal/tasks/wire/facets.go' "$source_root/docs/AGENT-ROUTES.md" || fail "facets decoder absent from route"
+mkdir -p "$test_root/cmd/tool"
+printf 'package main\n// Usage: before\n' > "$test_root/cmd/tool/main.go"
+git -C "$test_root" add -- cmd/tool/main.go
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -qm 'help baseline'
+printf 'package main\n// Usage: after\n' > "$test_root/cmd/tool/main.go"
+hint=$(cd "$test_root" && bash "$source_root/script/doc-gates-summary.sh" true 2>&1)
+case $hint in *'HINT help text changed'*'make capability-catalog'*) ;; *) fail "no stale tree hint: $hint" ;; esac
+
 printf 'ok\n'

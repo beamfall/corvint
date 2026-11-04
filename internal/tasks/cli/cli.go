@@ -656,7 +656,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks version",
 		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
 	}))
-	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
+	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 

@@ -282,8 +282,9 @@ func (c *change) noDiffYet() bool {
 
 // reportNoDiffYet writes the report with the pre-change rows and every later
 // step NOT_PRODUCED no-diff-yet, so the report is never complete and
-// dogfood-check still refuses it, and exits 0 naming the inputs still owed. A
-// failing pre-change row still fails the run.
+// dogfood-check still refuses it. It succeeds only with both required agent
+// receipts present; absent receipts have a named refusal. A failing pre-change
+// row still fails the run.
 func (c *change) reportNoDiffYet() int {
 	failed := false
 	for _, row := range c.rows {
@@ -300,6 +301,10 @@ func (c *change) reportNoDiffYet() int {
 	c.say("  pre-change context recorded; %s NOT_PRODUCED %s until a commit differs from BASE\n", strings.Join(noDiffYetSteps, ", "), noDiffYetReason)
 	c.say("  inputs still to supply after the last commit: CITATIONS (corvint dogfood propose-citations %s > plan.tsv), INTENTS, VERIFY, OUTCOME; check them with make dogfood-inputs-check BASE=%s\n", c.base, c.base)
 	c.absentReceiptHints()
+	if !isRegular(c.evidence+"/prechange-query.json") || !isRegular(c.evidence+"/prechange-impact.json") {
+		c.say("dogfood-change: REFUSE prechange-receipts-missing: record both receipts before editing, using TASK and PATHS with make dogfood-change\n")
+		return 2
+	}
 	return 0
 }
 

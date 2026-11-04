@@ -259,7 +259,7 @@ func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 	cem := []byte(`{"state":"ready-for-ci","counts":{"total":3,"supported":2,"unknown":1,"mechanical":0},"tool":"cem-status"}` + "\n")
 	// OCM-V0-019: the requirement members come from the change's own
 	// coverage, never the aggregate's whole intent scope (total 56 here).
-	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":56,"linked":0,"unknown":56}},"tool":"dogfood-ocm-status"}` + "\n")
+	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":115,"linked":0,"unknown":115}},"tool":"dogfood-ocm-status"}` + "\n")
 	unobserved := " change-requirements=NOT_OBSERVED change-traced=NOT_OBSERVED change-untraced=NOT_OBSERVED"
 	cases := []struct {
 		name     string
@@ -546,9 +546,9 @@ func TestSealDCWV0166CommitsUnderTheEnvironmentIdentity(t *testing.T) {
 func TestOCMV0920SummaryNamesTheChangePopulation(t *testing.T) {
 	t.Parallel()
 	cem := []byte(`{"state":"ready-for-ci","counts":{"total":1,"supported":1,"unknown":0,"mechanical":0},"tool":"cem-status"}` + "\n")
-	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":56,"linked":0,"unknown":56}},"tool":"dogfood-ocm-status"}` + "\n")
-	got := checkSummary(cem, ocm, false, 0, &changeCoverage{requirements: 2, linked: 2}, "", "/g/detail")
-	if !strings.Contains(got, " change-requirements=2 change-traced=2 change-untraced=0 ") {
+	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":115,"linked":0,"unknown":115}},"tool":"dogfood-ocm-status"}` + "\n")
+	got := checkSummary(cem, ocm, false, 0, &changeCoverage{requirements: 12, linked: 12}, "", "/g/detail")
+	if !strings.Contains(got, " change-requirements=12 change-traced=12 change-untraced=0 ") {
 		t.Fatalf("summary does not name the change population: %q", got)
 	}
 	for _, field := range strings.Fields(got) {
@@ -558,5 +558,14 @@ func TestOCMV0920SummaryNamesTheChangePopulation(t *testing.T) {
 	}
 	if note := (&changeCoverage{requirements: 1, unlinked: "OCM-V0-001"}).unlinkedNote(); !strings.HasPrefix(note, "dogfood-check: NOTE untraced-requirements count=1 ") {
 		t.Fatalf("note %q", note)
+	}
+}
+
+// DCW-V0-7402 explains why 0/115 OCM links can coexist with 12/12 traces.
+func TestDCWV07402CountUniverses(t *testing.T) {
+	for _, phrase := range []string{"all obligations in the declared intents", "explicit CEM links", "cited or edited requirements", "test/table traces", "need not agree"} {
+		if !strings.Contains(countUniverseNote, phrase) {
+			t.Fatal(countUniverseNote)
+		}
 	}
 }

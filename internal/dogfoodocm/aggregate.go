@@ -358,7 +358,7 @@ func linkageFindings(coverage Coverage) []Finding {
 	if coverage.Linked > 0 {
 		return nil
 	}
-	message := fmt.Sprintf("0 of %d declared requirements are linked to the change", coverage.Total)
+	message := fmt.Sprintf("0 of %d declared requirements are linked to the change (full declared-intent OCM universe; change test/table traces are a separate measure)", coverage.Total)
 	return []Finding{{Code: "no-requirements-linked", Message: message}}
 }
 

@@ -21,7 +21,7 @@ const stablePacketMap = "../../../protocol/cem-1.0/stable/repository-envelope-pa
 // MCPV0-036: corvint.cem.report advertises one optional repository-relative
 // `artifacts` directory under the same closed path rule as `map`.
 func TestCEMReportToolAdvertisesArtifacts(t *testing.T) {
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestCEMReportToolAdvertisesArtifacts(t *testing.T) {
 // MCPV0-036: the artifacts directory resolves under the bound root, and an
 // absent one stays absent; an unsafe one is invalid-arguments.
 func TestCEMReportToolResolvesArtifactsUnderTheRoot(t *testing.T) {
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestCEMReportToolPreviewsStableMap(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
-	registry, newErr := NewTaskReview(root)
+	registry, newErr := newTaskReview(root)
 	if newErr != nil {
 		t.Fatal(newErr)
 	}
@@ -244,7 +244,7 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 	// reaches admission differently from `cem verify-stable --repository
 	// <same string>`.
 	for _, refused := range []string{alias + "/../" + filepath.Base(root), root + "/", "./" + filepath.Base(root), filepath.Base(root), "./alias"} {
-		if registry, newErr := NewTaskReview(refused); newErr == nil || newErr.Code != "invalid-root" {
+		if registry, newErr := newTaskReview(refused); newErr == nil || newErr.Code != "invalid-root" {
 			t.Fatalf("--root %q = %v %v, want invalid-root", refused, registry, newErr)
 		}
 	}
@@ -263,7 +263,7 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 		t.Fatalf("fixture does not discriminate the alias: %v", stable(alias))
 	}
 	for _, accepted := range []string{root, alias} {
-		registry, newErr := NewTaskReview(accepted)
+		registry, newErr := newTaskReview(accepted)
 		if newErr != nil {
 			t.Fatal(newErr)
 		}
