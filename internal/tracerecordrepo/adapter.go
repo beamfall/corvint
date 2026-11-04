@@ -85,41 +85,12 @@ func Record(ctx context.Context, root string, input Input) (Result, error) {
 // RecordDogfood classifies and records one base-to-target change under a single
 // pinned authority. It returns no-source-paths without opening the trace store.
 func RecordDogfood(ctx context.Context, root, baseArg, targetArg string, input Input) (DogfoodResult, error) {
-	index, tracked, err := recordIndex(ctx, root)
+	index, tracked, result, err := dogfoodPathInput(ctx, root, baseArg, targetArg)
 	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("record-index-failed", err)
+		return DogfoodResult{}, err
 	}
-	base, err := resolveCommit(ctx, root, index.ObjectFormat, baseArg)
-	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("invalid-base-revision", err)
-	}
-	target, err := resolveCommit(ctx, root, index.ObjectFormat, targetArg)
-	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("invalid-target-revision", err)
-	}
-	if target != index.CommitRevision {
-		return DogfoodResult{}, dogfoodFailure("repository-identity-changed", &repositoryChangedError{})
-	}
-	candidates, err := changedPaths(ctx, root, base, target)
-	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("changed-path-acquisition-failed", err)
-	}
-	admitted, err := trace.AdmissibleCurrentPaths(candidates, tracked)
-	if err != nil {
-		reason := trace.AdmissionFailureReason(err)
-		if reason == "" {
-			reason = "changed-path-admission-failed"
-		}
-		return DogfoodResult{}, dogfoodFailure(reason, err)
-	}
-	authority := &dogfoodAuthority{
-		base: base, target: target, candidates: digestPaths(candidates), admitted: digestPaths(admitted),
-	}
-	result := DogfoodResult{
-		Base: base, Target: target, Tree: index.Revision,
-		CandidateSHA256: authority.candidates, AdmittedSHA256: authority.admitted,
-		Candidates: candidates, Admitted: admitted,
-	}
+	base, target, candidates, admitted := result.Base, result.Target, result.Candidates, result.Admitted
+	authority := &dogfoodAuthority{base: base, target: target, candidates: digestPaths(candidates), admitted: digestPaths(admitted)}
 	stable := stabilityCheck(ctx, root, index, authority)
 	if len(admitted) == 0 {
 		if err := stable(); err != nil {
@@ -137,6 +108,58 @@ func RecordDogfood(ctx context.Context, root, baseArg, targetArg string, input I
 	result.State = "recorded"
 	result.Recorded = &recorded
 	return result, nil
+}
+
+// dogfoodPathInput acquires the recorder's pinned path admission without opening
+// the trace store or entering its append/recovery path.
+func dogfoodPathInput(ctx context.Context, root, baseArg, targetArg string) (*contextindex.Index, []string, DogfoodResult, error) {
+	index, tracked, err := recordIndex(ctx, root)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("record-index-failed", err)
+	}
+	base, err := resolveCommit(ctx, root, index.ObjectFormat, baseArg)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("invalid-base-revision", err)
+	}
+	target, err := resolveCommit(ctx, root, index.ObjectFormat, targetArg)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("invalid-target-revision", err)
+	}
+	if target != index.CommitRevision {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("repository-identity-changed", &repositoryChangedError{})
+	}
+	candidates, err := changedPaths(ctx, root, base, target)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("changed-path-acquisition-failed", err)
+	}
+	admitted, err := trace.AdmissibleCurrentPaths(candidates, tracked)
+	if err != nil {
+		reason := trace.AdmissionFailureReason(err)
+		if reason == "" {
+			reason = "changed-path-admission-failed"
+		}
+		return nil, nil, DogfoodResult{}, dogfoodFailure(reason, err)
+	}
+	result := DogfoodResult{
+		Base: base, Target: target, Tree: index.Revision,
+		CandidateSHA256: digestPaths(candidates), AdmittedSHA256: digestPaths(admitted),
+		Candidates: candidates, Admitted: admitted,
+	}
+	return index, tracked, result, nil
+}
+
+// DogfoodNeedsAggregate checks the exact recorder path limit without recording.
+// A small raw change cannot exceed the admitted limit and needs no index build.
+func DogfoodNeedsAggregate(ctx context.Context, root, base, target string) (bool, error) {
+	candidates, err := changedPaths(ctx, root, base, target)
+	if err != nil || len(candidates) <= trace.MaxTracePaths {
+		return false, err
+	}
+	_, _, _, err = dogfoodPathInput(ctx, root, base, target)
+	if DogfoodFailureReason(err) == "admitted-path-limit" {
+		return true, nil
+	}
+	return false, err
 }
 
 type dogfoodError struct {
