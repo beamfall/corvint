@@ -150,7 +150,7 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   what a write commits is as durable at its commit point as before. Any failure in `PrepareAll`
   cleans up every file it created and registers none; a stop before any artifact is published
   leaves no staged slot. A plan that repeats a destination or has more than 11 artifacts, and every
-  write that is not a lease write, keeps staging one artifact at a time. `SyncCalls` counts the
+  write that is neither a lease write nor a CTW-V0-7100 batch entry, keeps staging one artifact at a time. `SyncCalls` counts the
   same calls as before (`LGL-V0-006`).
 - `LGL-V0-014`: (proposed; V1-2539, V1-2203; experimental under the standing lane auto-accept)
   `loadTickets` MUST first find, in record order, the longest prefix of canonical tickets whose
@@ -178,8 +178,8 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   ordering edge recovery relies on is kept: evidence, then the receipt link and its receipts
   directory sync, each return before the next artifact is published; no sync is in flight when
   any artifact is published; a failed sync fails the write before any later step. Directory
-  creation, staging, barrier deletion, slot removal and every non-lease write sync at once, as
-  before; a phase left on an error still issues its deferred syncs. `SyncCalls` counts the same
+  creation, staging, barrier deletion and slot removal sync at once. Non-lease writes outside
+  CTW-V0-7100 batch entries also sync at once; a phase left on an error still issues its deferred syncs. `SyncCalls` counts the same
   calls (`LGL-V0-006`), and no stored state, wire format or receipt changes.
 
 - `LGL-V0-017`: (proposed; V1-2877; experimental under the standing lane auto-accept)
