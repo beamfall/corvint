@@ -55,6 +55,9 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   `missing-owner`, `missing-base`, `bad-size`, `unknown-command`, `not-a-checkout`, `git-dir-unavailable`,
   `ledger-unreadable`, `ledger-malformed`, `ledger-dir-unwritable`, `ledger-unwritable`,
   `ledger-locked`, `scratch-unavailable`, `bad-family`, `bad-block`, and `bad-argument`.
+  Git evidence refusals are `ref-not-a-commit`, `requirements-index-unavailable`,
+  `refs-unreadable`, `merge-base-failed`, `batch-read-failed`, `ref-unreadable`,
+  `search-failed`, and `generator-failed`.
 - `LVT-V0-005`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
   Host package version history MUST batch immutable blob reads without changing first-parent
   field-change verdicts. Unreadable batches MUST fall back to the previous per-commit algorithm;
