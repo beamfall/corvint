@@ -34,6 +34,7 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   Block and whole-family availability MUST check origin/main (or explicit REF), unmerged local
   branches, remote-tracking branches and worktree heads sharing its history. Missing or malformed
   required evidence MUST refuse rather than declare availability. Whole-family checks cover versions.
+  Allocation includes the caller's committed head; peer collision reporting still excludes it.
 - `LVT-V0-003`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4046)
   `requirement-ids-reserve` MUST serialize check-and-reserve through an exclusive directory lock
   and atomic ledger replacement; reserve only IDs passing base and open-ref checks, reject another
