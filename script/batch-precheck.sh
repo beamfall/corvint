@@ -767,6 +767,9 @@ doc_gate_expansion() {
       # ASD-V0-782: the first may also run through script/doc-gates-summary.sh.
       sub(/^\t@script\/doc-gates-summary\.sh /, "\t@", recipe[1])
       for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
+      # DTL-V0-006: the timed bounded-parallel wrapper runs precisely the same inventory.
+      if (recipe[1] == "\t@$(MAKE) --no-print-directory --keep-going -j$(DOC_GATE_JOBS) $(addprefix doc-gate/,$(DOC_GATE_TARGETS))")
+        recipe[1] = "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)"
       if (n == 0) exit
       if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") { print "drift"; exit }
       m = split(targets, t, /[[:space:]]+/)

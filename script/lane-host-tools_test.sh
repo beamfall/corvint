@@ -188,8 +188,9 @@ expect 0 'VISIBLE claude/lane-x refs/remotes/inflight/claude/lane-x' -- "$script
 git -C "$tmp/host.git" log --all --grep=V1-9999 --format=%s | grep -q V1-9999 || fail 'inflight not found by log --all --grep'
 expect 2 'usage' -- "$script/lane-inflight-branches.sh" check
 
-# ASD-V0-771: the V1-3649 text finds the delivered `corvint test` row and its --summary flag.
-expect 0 'corvint test flags=--dry-run row-flags=--dry-run,--summary' -- bash -c "cd '$repo' && '$script/capability-screen.sh' 'corvint test --dry-run prints 77 KB just to justify HEAVY_WHOLE_REASON'"
+# ASD-V0-771: the V1-3649 text finds the delivered `corvint test` row and its --summary flag,
+# wherever the row's flag list names it.
+expect 0 'corvint test flags=--dry-run row-flags=' -- bash -c "set -o pipefail; cd '$repo' && '$script/capability-screen.sh' 'corvint test --dry-run prints 77 KB just to justify HEAVY_WHOLE_REASON' | grep -E 'row-flags=(.*,)?--summary(,|\$)'"
 expect 1 'NONE' -- bash -c "cd '$repo' && '$script/capability-screen.sh' 'no command named here'"
 expect 2 'cannot read' -- "$script/capability-screen.sh" --catalog "$tmp/none.md" 'corvint test'
 

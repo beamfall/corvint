@@ -377,14 +377,14 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 }
 
 // replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the CPU count, at
-// most 4 and at most n. A 4-CPU hosted runner needs all 4: one worker there overruns the
+// most 8 and at most n (DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the
 // doc-gates job bound (ASD-V0-925).
 func replayJobs(n int) int {
 	jobs := max(1, runtime.NumCPU())
 	if v, err := strconv.Atoi(os.Getenv("SELECTION_BASELINE_JOBS")); err == nil && v > 0 {
 		jobs = v
 	} else {
-		jobs = min(jobs, 4)
+		jobs = min(jobs, 8)
 	}
 	return max(1, min(jobs, n))
 }

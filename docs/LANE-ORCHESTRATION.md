@@ -1112,7 +1112,11 @@ main passes `queue parity` and its preflight `tasks-store` row reads `in sync`.
 
 One lane runs this flow, in order; each step names the command and the section that owns it.
 
-1. Orient: `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
+1. Orient with the current worktree build (DTL-V0-003): run `script/lane-corvint.sh`, which
+   checks the installed binary against fetched origin/main, builds the current worktree, and prints
+   its absolute executable path. Use that path for the following reads; rerun it after source edits.
+   A build failure stops orientation. Keep the emitted freshness verdict with the task evidence.
+   Run `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
    `corvint context --task "..."`; retain the `query` and `impact` receipts (DOGFOOD section 1).
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
@@ -1121,6 +1125,21 @@ One lane runs this flow, in order; each step names the command and the section t
    (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
    a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
    line means that package runs whole.
+   For an explicit unrelated-path control while edits are uncommitted, use
+   `corvint affected --worktree --path PATH --format json` (DTL-V0-010). This asks about exactly
+   PATH against the current graph; retain the actual dirty-range plan separately.
+   To run the complete command package in foreground slices, run
+   `script/go-test-shard.sh ./cmd/corvint/ 1 8`, then the same command for indexes 2 through 8
+   against unchanged inputs. `--list-only` prints each pattern. Every Test, Example and Fuzz seed
+   belongs to exactly one slice; failures propagate and no selection evidence is used to skip one.
+   The recipe clears inherited test-selection flags such as `-skip` and `-list`, keeps build
+   settings such as `-tags`, and refuses any other GOFLAGS word with
+   `inherited-goflags-unsupported` (DTL-V0-007); unset that word and rerun.
+   For local Linux confinement, build the wrapper with
+   `script/heavy.sh --admit-only env GOTOOLCHAIN=local go build -o /absolute/scratch/test-confine ./.github/testconfine/cmd`.
+   Export `CORVINT_CONFINE_ROOT=$(git rev-parse --show-toplevel)` before running a focused package
+   through heavy.sh with `go test -exec /absolute/scratch/test-confine`; an unset root refuses
+   before executing the test (DTL-V0-010).
    A change to a `cmd/corvint` verb also runs the verb's use-case and help tests,
    which a batch otherwise finds failing only after the lane sealed (V1-4138, ASD-V0-616):
    `script/heavy.sh go test -count=1 -run '^(TestUseCase|Test[A-Za-z0-9]*Help|TestVERB[A-Za-z0-9]*CLI)' ./cmd/corvint`
@@ -1141,6 +1160,11 @@ One lane runs this flow, in order; each step names the command and the section t
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
+   `SEAL=0` on `make dogfood-finish LANE=1` stops after bind, the bind commit, rebind and a passing
+   dogfood-check; the sidecar remains at HEAD and no seal commit is made (DTL-V0-004).
+   The direct CLI equivalent is `corvint dogfood finish-lane --base FULL_SHA --seal no` with the
+   same citation, intent, verify and outcome inputs. The default SEAL=1 still seals. Every rerun
+   or fix hint from such a run keeps SEAL=0 (or `--seal no`), including dogfood-closeout retries.
    After the last commit, run `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
    finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
@@ -1507,3 +1531,14 @@ branch stays code-only, so review fixes and reseals never interleave with it. `m
 runs `script/github-split-check.sh` on the batch range: a range mixing `.github/` commits with
 other paths fails with `refuse github-in-code-range SHA SUBJECT` and the side-branch recovery; a
 `.github`-only range passes.
+
+## Dogtools scratch recovery (DTL-V0-014)
+
+Set CORVINT_SCRATCH_ROOT to an absolute roomy disk directory before lane commands. heavy.sh
+uses it for default Go scratch and caches; explicit TMPDIR, GOTMPDIR and cache variables still win.
+Per-run scratch is private and cleaned by the foreground runner. A low-space /tmp refuses even
+when Go scratch lives elsewhere, because host command output still needs /tmp headroom. Remove
+only scratch you own. When the host reports Disk full, redirect diagnostics to a file under
+~/.cache until the operator restores /tmp headroom; never delete another lane's cache.
+Doc gates print one doc-gate-timing line per target. DOC_GATE_JOBS=1 runs the same inventory
+serially; the default bounded concurrency is four (DTL-V0-006).
