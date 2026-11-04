@@ -132,9 +132,11 @@ func (f fixture) regenerateSpecIndex() {
 	}
 }
 
+// specFixture ends its Agent digest with a blank line, as real specs do: the SRG-V0-082 scan in
+// script/gen-spec-requirements.sh ends a digest only there.
 func specFixture(title, id, text string) string {
 	return "# " + title + "\nOwner: t\nIntent status: proposed\nDelivery status: experimental\n## Agent digest\n- Claim: " +
-		strings.ToLower(title) + ".\n## Requirements\n- `" + id + "`: " + text + "\n"
+		strings.ToLower(title) + ".\n\n## Requirements\n- `" + id + "`: " + text + "\n"
 }
 
 // TestProposeGeneratedSpecIndexDCWV0828 regenerates REQUIREMENTS.tsv,
