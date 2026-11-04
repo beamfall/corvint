@@ -94,6 +94,10 @@ func TestMustRunAndOwnerAreTierZero_AFPV02485(t *testing.T) {
 	if len(mustRun) != 1 || mustRun[0].(map[string]any)["unitId"] != "go:example.com/owned/x/c/smoke" {
 		t.Fatalf("plan.mustRun = %v", plan["mustRun"])
 	}
+	wantOwners := []any{map[string]any{"unitId": "go:example.com/owned/x/d/contract", "paths": "docs/contract.json", "dirtyPath": "docs/contract.json"}}
+	if !reflect.DeepEqual(plan["declaredOwners"], wantOwners) {
+		t.Fatalf("plan.declaredOwners = %v", plan["declaredOwners"])
+	}
 
 	// Negative control: the same tiering keeps a path reader at tier 2, and a
 	// declared unit beside a deep change gains no neighbour.
@@ -104,6 +108,36 @@ func TestMustRunAndOwnerAreTierZero_AFPV02485(t *testing.T) {
 	})
 	if want := map[string]int{"go:x/a/b/owned": 0, "go:x/a/b/sibling": 2, "go:x/smoke": 0}; !reflect.DeepEqual(got.Units, want) {
 		t.Fatalf("tiers %v, want %v", got.Units, want)
+	}
+}
+
+// AFP-V0-2489: a unit the plan names in mustRun or declaredOwners is tier 0
+// whatever witness reached it first; an undeclared reader stays tier 2, and a
+// declared unit reached by its own source still raises its neighbourhood.
+func TestDeclaredUnitsAreTierZeroWhateverReachedThem_AFPV02489(t *testing.T) {
+	t.Parallel()
+	const dirty = "x/a/b/c/contract.json"
+	selected := []affected.Selection{
+		{UnitID: "go:x/owned", Witness: affected.Witness{Kind: affected.WitnessPathLiteralReader, DirtyPath: dirty}},
+		{UnitID: "go:x/smoke", Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: dirty, Via: []string{"go:x/a/b/c", "go:x/m", "go:x/n", "go:x/smoke"}}},
+		{UnitID: "go:x/reader", Witness: affected.Witness{Kind: affected.WitnessPathLiteralReader, DirtyPath: dirty}},
+		{UnitID: "go:x/a/b/c", Witness: affected.Witness{Kind: affected.WitnessDirectSource, DirtyPath: "x/a/b/c/c.go"}},
+		{UnitID: "go:x/a/b/sibling", Witness: affected.Witness{Kind: affected.WitnessPathLiteralReader, DirtyPath: dirty}},
+	}
+	plan := affected.Plan{
+		Selected:       selected,
+		MustRun:        []affected.MustRun{{UnitID: "go:x/smoke", Tests: "x/smoke/", Reason: "release smoke suite"}},
+		DeclaredOwners: []affected.DeclaredOwner{{UnitID: "go:x/owned", Paths: "x/**/*.json", DirtyPath: dirty}, {UnitID: "go:x/a/b/c", Paths: "x/**/*.json", DirtyPath: dirty}},
+	}
+	want := map[string]int{"go:x/owned": 0, "go:x/smoke": 0, "go:x/reader": 2, "go:x/a/b/c": 0, "go:x/a/b/sibling": 1}
+	if got := tierAffectedPlan(plan); !reflect.DeepEqual(got.Units, want) || got.Summary != "tier0=3 tier1=1 tier2=1" {
+		t.Fatalf("tiers %v %q, want %v", got.Units, got.Summary, want)
+	}
+	// Negative control: the same selection without the declared members
+	// ranks by witness alone.
+	want = map[string]int{"go:x/owned": 2, "go:x/smoke": 2, "go:x/reader": 2, "go:x/a/b/c": 0, "go:x/a/b/sibling": 1}
+	if got := tierAffectedSelections(selected); !reflect.DeepEqual(got.Units, want) {
+		t.Fatalf("undeclared tiers %v, want %v", got.Units, want)
 	}
 }
 

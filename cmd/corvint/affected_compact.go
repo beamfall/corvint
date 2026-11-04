@@ -78,6 +78,8 @@ type affectedCompactPlan struct {
 	ViaLinks map[string]string `json:"viaLinks,omitempty"`
 	// MustRun is the plan's declared must-run units (AFP-V0-2484).
 	MustRun []affected.MustRun `json:"mustRun,omitempty"`
+	// DeclaredOwners is the plan's owner-selected units (AFP-V0-2489).
+	DeclaredOwners []affected.DeclaredOwner `json:"declaredOwners,omitempty"`
 }
 
 // affectedCompactAdvice is the affected-plan/0 advice except that the
@@ -181,6 +183,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			GoAdditiveExcluded: full.Plan.GoAdditiveExcluded,
 			ViaLinks:           links,
 			MustRun:            full.Plan.MustRun,
+			DeclaredOwners:     full.Plan.DeclaredOwners,
 		},
 		Profile:      affectedCompactProfile,
 		Provider:     full.Provider,
@@ -189,7 +192,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Tool:         full.Tool,
 		Warning:      full.Warning,
 		Degradations: full.Degradations,
-		Tiers:        tierAffectedSelections(full.Plan.Selected),
+		Tiers:        tierAffectedPlan(full.Plan),
 		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
 
 		DegradationDetails: full.DegradationDetails,

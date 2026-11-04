@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -37,9 +39,11 @@ type affectedOrderUnit struct {
 }
 
 // affectedOrderFailures discloses the local state the order read: OBSERVED
-// when at least one receipt was read, NOT_OBSERVED otherwise.
+// when at least one receipt was read, UNREADABLE (with Detail) when the
+// receipt directory exists but cannot be listed, NOT_OBSERVED otherwise.
 type affectedOrderFailures struct {
 	State    string                 `json:"state"`
+	Detail   string                 `json:"detail,omitempty"`
 	Receipts []affectedOrderReceipt `json:"receipts"`
 }
 
@@ -87,8 +91,11 @@ func affectedFailFastOrder(ctx context.Context, root string, receipt any) (any, 
 	if err != nil {
 		return nil, errors.New("--fail-fast-order cannot find the Git directory: " + err.Error())
 	}
-	receipts := readFailFastReceipts(strings.TrimSpace(string(gitDir)))
+	receipts, unlisted := readFailFastReceipts(strings.TrimSpace(string(gitDir)))
 	compact.Order = orderAffectedSelection(compact.Plan.Selected, receipts)
+	if unlisted != "" {
+		compact.Order.Failures.State, compact.Order.Failures.Detail = affectedOrderUnreadable, unlisted
+	}
 	return compact, nil
 }
 
@@ -122,31 +129,57 @@ func orderAffectedSelection(selected []affectedCompactSelection, receipts []affe
 	return order
 }
 
-// readFailFastReceipts reads, in name order, at most maxFailFastReceipts
-// `corvint test` receipts under gitDir/corvint. A receipt that cannot be read,
-// is not canonical, or changes while read is UNREADABLE with its reason and
-// contributes no failure.
-func readFailFastReceipts(gitDir string) []affectedOrderReceipt {
+// readFailFastReceipts reads at most maxFailFastReceipts `corvint test`
+// receipts under gitDir/corvint: the most recently modified, ties broken by
+// name, listed in name order. A receipt that cannot be read, is not canonical,
+// or changes while read is UNREADABLE with its reason and contributes no
+// failure. An absent directory reads nothing; a directory that exists but
+// cannot be listed returns no receipt and the reason as unlisted.
+func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlisted string) {
 	directory := filepath.Join(gitDir, "corvint")
 	entries, err := os.ReadDir(directory)
-	if err != nil {
-		return nil
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, ""
 	}
-	var names []string
+	if err != nil {
+		return nil, "the receipt directory corvint/ cannot be listed"
+	}
+	type candidate struct {
+		name     string
+		modified time.Time
+	}
+	var candidates []candidate
 	for _, entry := range entries {
-		if entry.Type().IsRegular() && failFastReceiptName.MatchString(entry.Name()) {
-			names = append(names, entry.Name())
+		if !entry.Type().IsRegular() || !failFastReceiptName.MatchString(entry.Name()) {
+			continue
 		}
+		// A receipt whose metadata cannot be read sorts as the oldest; its
+		// read below then reports why it is UNREADABLE.
+		var modified time.Time
+		if info, err := entry.Info(); err == nil {
+			modified = info.ModTime()
+		}
+		candidates = append(candidates, candidate{entry.Name(), modified})
+	}
+	slices.SortFunc(candidates, func(left, right candidate) int {
+		if order := right.modified.Compare(left.modified); order != 0 {
+			return order
+		}
+		return strings.Compare(left.name, right.name)
+	})
+	if len(candidates) > maxFailFastReceipts {
+		candidates = candidates[:maxFailFastReceipts]
+	}
+	names := make([]string, 0, len(candidates))
+	for _, kept := range candidates {
+		names = append(names, kept.name)
 	}
 	sort.Strings(names)
-	if len(names) > maxFailFastReceipts {
-		names = names[:maxFailFastReceipts]
-	}
-	receipts := make([]affectedOrderReceipt, 0, len(names))
+	receipts = make([]affectedOrderReceipt, 0, len(names))
 	for _, name := range names {
 		receipts = append(receipts, readFailFastReceipt(directory, name))
 	}
-	return receipts
+	return receipts, ""
 }
 
 func readFailFastReceipt(directory, name string) affectedOrderReceipt {

@@ -188,6 +188,10 @@ type Plan struct {
 	// reaches it, sorted by unit then entry (AFP-V0-2484). It is omitted
 	// when none is declared or nothing is dirty.
 	MustRun []MustRun `json:"mustRun,omitempty"`
+	// DeclaredOwners names every unit an owner pattern selects for the plan,
+	// whatever reached it first, sorted by unit then pattern (AFP-V0-2489).
+	// It is omitted when no owner matches a dirty path.
+	DeclaredOwners []DeclaredOwner `json:"declaredOwners,omitempty"`
 }
 
 // FrontierBearer is one source that made the frontier entry Detail bear on a
@@ -295,10 +299,13 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	runtimeReaders, unknown := graph.runtimeReaderPaths(unknown)
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
 	owned, unknown := graph.ownedPaths(unknown)
-	plan.NonSource = append(plan.NonSource, owned...)
 	declaration, unknown := graph.declarationPath(unknown)
+	// AFP-V0-2488: an owner-declared path stays unowned for the frontier rules,
+	// so a declaration never removes a LANGUAGE_FRONTIER entry.
+	frontierNonSource := append(slices.Clip(plan.NonSource), declaration...)
+	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
+	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
@@ -307,6 +314,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
 	plan.MustRun = graph.mustRunOf(reached, normalized)
+	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {

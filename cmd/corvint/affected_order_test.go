@@ -6,8 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -107,6 +111,102 @@ func TestFailFastOrderPutsRecentFailuresFirst_AFPV02487(t *testing.T) {
 		if _, _, stderr, code := runAffectedCLI(t, root, combination...); code != 2 || !strings.Contains(stderr, "--fail-fast-order") {
 			t.Fatalf("%v: exit %d, stderr %s", combination, code, stderr)
 		}
+	}
+}
+
+// AFP-V0-2487: past the bound the most recently modified receipts are kept,
+// ties broken by name, so a fresh unsharded test-run.json is never dropped for
+// older shard names that sort before it; the kept receipts list in name order.
+func TestFailFastOrderKeepsTheMostRecentReceipts_AFPV02487(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	start := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	stamp := func(name string, at time.Time) {
+		t.Helper()
+		if err := os.Chtimes(filepath.Join(root, ".git", "corvint", name), at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	names := []string{"test-run.json"}
+	for shard := 1; shard <= maxFailFastReceipts; shard++ {
+		names = append(names, "test-run."+strconv.Itoa(shard)+".json")
+	}
+	for index, name := range names {
+		writeFailFastReceipt(t, root, name, sessiontest.Outcome{Outcome: sessiontest.OutcomePass, Unit: "go:x"})
+		stamp(name, start.Add(time.Duration(index)*time.Second))
+	}
+	// test-run.json is the newest; test-run.9.json the oldest.
+	stamp("test-run.json", start.Add(time.Hour))
+	stamp("test-run.9.json", start.Add(-time.Hour))
+	read := func() []string {
+		t.Helper()
+		receipts, unlisted := readFailFastReceipts(filepath.Join(root, ".git"))
+		if unlisted != "" {
+			t.Fatalf("unlisted %q", unlisted)
+		}
+		var paths []string
+		for _, receipt := range receipts {
+			paths = append(paths, receipt.Path)
+		}
+		return paths
+	}
+	got := read()
+	if len(got) != maxFailFastReceipts || !slices.Contains(got, "corvint/test-run.json") || slices.Contains(got, "corvint/test-run.9.json") || !slices.IsSorted(got) {
+		t.Fatalf("kept %v: want the %d newest in name order, test-run.json in, test-run.9.json out", got, maxFailFastReceipts)
+	}
+
+	// Equal times break by name: the name sorting last is the one left out.
+	for _, name := range names {
+		stamp(name, start)
+	}
+	if got := read(); len(got) != maxFailFastReceipts || slices.Contains(got, "corvint/test-run.json") || !slices.Contains(got, "corvint/test-run.9.json") {
+		t.Fatalf("tied: kept %v", got)
+	}
+}
+
+// AFP-V0-2487: a receipt directory that exists but cannot be listed is
+// UNREADABLE with a detail, never NOT_OBSERVED, and the order stays plan order.
+func TestFailFastOrderUnlistableDirectoryIsUnreadable_AFPV02487(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("directory permissions do not deny a listing here")
+	}
+	const core, mid = "go:example.com/owned/x/a/core", "go:example.com/owned/x/b/mid"
+	root, _ := testSelectionFixture(t, "")
+	appendFile(t, filepath.Join(root, "x", "a", "core", "core.go"), "\n// edited\n")
+	writeFailFastReceipt(t, root, "test-run.json", sessiontest.Outcome{Outcome: sessiontest.OutcomeFail, Unit: mid})
+	directory := filepath.Join(root, ".git", "corvint")
+	if err := os.Chmod(directory, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(directory, 0o755) })
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--fail-fast-order")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	order := receipt["order"].(map[string]any)
+	failures := order["failures"].(map[string]any)
+	if failures["state"] != "UNREADABLE" || !strings.Contains(failures["detail"].(string), "corvint/") || !reflect.DeepEqual(failures["receipts"], []any{}) {
+		t.Fatalf("failures %v", failures)
+	}
+	if got := orderedUnits(order); !reflect.DeepEqual(got, []string{core, mid}) {
+		t.Fatalf("order %v, want plan order", got)
+	}
+
+	// Negative control: an absent directory is NOT_OBSERVED with no detail.
+	if err := os.Chmod(directory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(directory); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code = runAffectedCLI(t, root, "--fail-fast-order")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	failures = receipt["order"].(map[string]any)["failures"].(map[string]any)
+	if _, detail := failures["detail"]; failures["state"] != "NOT_OBSERVED" || detail {
+		t.Fatalf("absent directory: failures %v", failures)
 	}
 }
 

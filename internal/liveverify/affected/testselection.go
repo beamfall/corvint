@@ -71,6 +71,14 @@ type MustRun struct {
 	Reason string `json:"reason"`
 }
 
+// DeclaredOwner names one unit an owner pattern selects for a plan, with the
+// pattern and the first dirty path in plan order it matches (AFP-V0-2489).
+type DeclaredOwner struct {
+	UnitID    string `json:"unitId"`
+	Paths     string `json:"paths"`
+	DirtyPath string `json:"dirtyPath"`
+}
+
 // testSelection is the declaration as the graph digest and cache carry it.
 type testSelection struct {
 	Owners  []TestOwner    `json:"owners,omitempty"`
@@ -335,6 +343,35 @@ func (graph *Graph) mustRunOf(reached map[string]Witness, dirty []string) []Must
 		}
 	}
 	return slices.Clone(graph.mustRun)
+}
+
+// declaredOwnersOf returns every unit an owner pattern selects for dirty,
+// whatever else reaches it, once per unit and pattern with the first matching
+// dirty path, sorted by unit and then pattern; nil when there is none
+// (AFP-V0-2489).
+func (graph *Graph) declaredOwnersOf(dirty []string) []DeclaredOwner {
+	if graph.testSelection.empty() {
+		return nil
+	}
+	var owners []DeclaredOwner
+	for _, owner := range graph.testSelection.Owners {
+		for _, dirtyPath := range dirty {
+			if !ownerPatternMatches(owner.Paths, dirtyPath) {
+				continue
+			}
+			for _, id := range graph.ownerUnits[owner.Paths] {
+				owners = append(owners, DeclaredOwner{UnitID: id, Paths: owner.Paths, DirtyPath: dirtyPath})
+			}
+			break
+		}
+	}
+	slices.SortFunc(owners, func(left, right DeclaredOwner) int {
+		if left.UnitID != right.UnitID {
+			return strings.Compare(left.UnitID, right.UnitID)
+		}
+		return strings.Compare(left.Paths, right.Paths)
+	})
+	return owners
 }
 
 // MustRunUnits returns every declared must-run unit with its entry, sorted by
