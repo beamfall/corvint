@@ -186,7 +186,8 @@ func TestSharedDigestStagesPassesUntilVerify_GLV0786(t *testing.T) {
 // TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786: a step
 // that ran on a worktree edited after the shared digest passes but records
 // nothing, even when the edit is undone before digest --verify (A, B, A), so
-// no pass is keyed on content the step did not test.
+// no pass is keyed on content the step did not test. The check made
+// immediately before the step starts is the one that sees the edit.
 func TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
@@ -200,7 +201,7 @@ func TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786(t *testing.
 	setenv(t, sharedDigestEnv, file)
 	step := append([]string{"run", "decision-numbers-check+aaa"}, counting...)
 	code, out := ledgerRun(t, step...)
-	if code != 0 || !strings.Contains(out, "RECORD decision-numbers-check+aaa skipped: the worktree moved since the shared digest") {
+	if code != 0 || !strings.Contains(out, "RECORD decision-numbers-check+aaa skipped: its inputs changed before the step started") {
 		t.Fatalf("moved step: %d %q", code, out)
 	}
 	write(t, root, "docs/decisions/0001.md", "one\n")
@@ -213,6 +214,139 @@ func TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786(t *testing.
 	}
 	if got := runs(t, root); got != 1 {
 		t.Fatalf("the step ran %d times, want 1", got)
+	}
+}
+
+// TestSharedDigestRefusesAPassOfAnEditRestoredBeforeTheStepReturns_GLV0786
+// replays the second review's finding: digest A, edit a declared input to B
+// before the step starts, let the step pass on B and restore A before it
+// returns. The tree after the step is A again, but the check made immediately
+// before execution saw B, so nothing is staged or promoted and the next run
+// tests A.
+func TestSharedDigestRefusesAPassOfAnEditRestoredBeforeTheStepReturns_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	write(t, root, ".gitignore", "COUNT\n")
+	file := filepath.Join(t.TempDir(), "digest.json")
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", file); code != 0 {
+		t.Fatalf("digest: %q", out)
+	}
+	write(t, root, "docs/decisions/0001.md", "B: edited after the digest, before the step\n")
+	setenv(t, sharedDigestEnv, file)
+	code, out := ledgerRun(t, "run", "decision-numbers-check+aaa", "--", "sh", "-c", `echo ran >> COUNT; printf 'one\n' > docs/decisions/0001.md`)
+	if code != 0 || !strings.Contains(out, "RECORD decision-numbers-check+aaa skipped: its inputs changed before the step started") {
+		t.Fatalf("restored step: %d %q", code, out)
+	}
+	if got := mustRead(t, filepath.Join(root, "docs", "decisions", "0001.md")); got != "one\n" {
+		t.Fatalf("the step did not restore A: %q", got)
+	}
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", "--verify", file); code != 0 || !strings.Contains(out, "DIGEST unchanged") || !strings.Contains(out, "promoted 0 staged records") {
+		t.Fatalf("verify on the restored tree: %d %q", code, out)
+	}
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+		t.Fatalf("a pass of B was keyed on A: %q", out)
+	}
+	if got := records(t); got != 0 {
+		t.Fatalf("%d records, want 0", got)
+	}
+}
+
+// TestOwnDigestRefusesAPassWhoseInputChangedWhileTheStepRan_GLV0786 replays
+// V1-4547: a process on its own digest, with no shared digest, whose step
+// edits a declared input while it runs records nothing, so restoring the input
+// afterwards cannot reuse a pass keyed on content the step did not end on. An
+// unedited step on the same digest still records and then hits: the untracked
+// COUNT file each run writes is outside the step's declared inputs.
+func TestOwnDigestRefusesAPassWhoseInputChangedWhileTheStepRan_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	setenv(t, sharedDigestEnv, "")
+	code, out := ledgerRun(t, "run", "decision-numbers-check+aaa", "--", "sh", "-c", `echo ran >> COUNT; printf 'B\n' > docs/decisions/0001.md`)
+	if code != 0 || !strings.Contains(out, "RECORD decision-numbers-check+aaa skipped: its inputs changed while the step ran") {
+		t.Fatalf("editing step: %d %q", code, out)
+	}
+	if got := records(t); got != 0 {
+		t.Fatalf("the editing step left %d records", got)
+	}
+	write(t, root, "docs/decisions/0001.md", "one\n")
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+		t.Fatalf("the restored input reused the editing step's pass: %q", out)
+	}
+	if _, out := ledgerRun(t, append([]string{"run", "decision-numbers-check+aaa"}, counting...)...); !strings.Contains(out, "RECORD decision-numbers-check+aaa ") || strings.Contains(out, "skipped") {
+		t.Fatalf("an unedited step did not record: %q", out)
+	}
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "HIT decision-numbers-check+aaa") {
+		t.Fatalf("the unedited pass missed: %q", out)
+	}
+	if got := runs(t, root); got != 2 {
+		t.Fatalf("the step ran %d times, want 2", got)
+	}
+}
+
+// TestOwnDigestRefusesAPassOfAnEditRestoredBeforeTheStepReturns_GLV0786: on
+// its own digest, an input edited after the process digested the worktree but
+// before its step starts (here, once it holds the step's lock), and restored
+// by the step before it returns, records nothing.
+func TestOwnDigestRefusesAPassOfAnEditRestoredBeforeTheStepReturns_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	setenv(t, sharedDigestEnv, "")
+	lockHook = func(step, event string) {
+		if step == "decision-numbers-check+aaa" && event == "flock" {
+			write(t, root, "docs/decisions/0001.md", "B: edited after the digest, before the step\n")
+		}
+	}
+	t.Cleanup(func() { lockHook = nil })
+	code, out := ledgerRun(t, "run", "decision-numbers-check+aaa", "--", "sh", "-c", `echo ran >> COUNT; printf 'one\n' > docs/decisions/0001.md`)
+	lockHook = nil
+	if code != 0 || !strings.Contains(out, "RECORD decision-numbers-check+aaa skipped: its inputs changed before the step started") {
+		t.Fatalf("restored step: %d %q", code, out)
+	}
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+		t.Fatalf("a pass of B was keyed on A: %q", out)
+	}
+	if got := records(t); got != 0 {
+		t.Fatalf("%d records, want 0", got)
+	}
+}
+
+// TestGoTestRecordsAPackagePassOnlyOnAnUnmovedTree_GLV0786: a resolved
+// package's pass is not recorded when an input was edited before the batch
+// started and restored by the batch, or edited while the batch ran; the next
+// run on the original tree then runs the package, and an unedited batch
+// records it and hits.
+func TestGoTestRecordsAPackagePassOnlyOnAnUnmovedTree_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := packageRepository(t, map[string]string{
+		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
+		"core/core.go":      "package core\n",
+		"core/core_test.go": "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+	})
+	passing := `for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`
+	core := packageStep + " example.com/fixture/core"
+	lockHook = func(step, event string) {
+		if step == core && event == "flock" {
+			write(t, root, "core/core.go", "package core\n\n// B: edited before the batch\n")
+		}
+	}
+	t.Cleanup(func() { lockHook = nil })
+	code, out := ledgerRun(t, "go-test", "--", "sh", "-c", `printf 'package core\n' > core/core.go; `+passing)
+	lockHook = nil
+	if code != 0 || !strings.Contains(out, "RECORD "+core+" skipped: the worktree moved before the step started") {
+		t.Fatalf("restored batch: %d %q", code, out)
+	}
+	code, out = ledgerRun(t, "go-test", "--", "sh", "-c", `printf 'package core\n\n// C: edited by the batch\n' > core/core.go; `+passing)
+	if code != 0 || !strings.Contains(out, "RECORD "+core+" skipped: the worktree moved while the step ran") {
+		t.Fatalf("editing batch: %d %q", code, out)
+	}
+	write(t, root, "core/core.go", "package core\n")
+	if _, out := ledgerRun(t, "go-test", "--", "sh", "-c", passing); !strings.Contains(out, "RUN "+core+": no recorded pass") || !strings.Contains(out, "RECORD "+core+" ") || strings.Contains(out, "RECORD "+core+" skipped") {
+		t.Fatalf("unedited batch: %q", out)
+	}
+	if _, out := ledgerRun(t, "go-test", "--", "sh", "-c", passing); !strings.Contains(out, "HIT "+core+" ") {
+		t.Fatalf("the unedited pass missed: %q", out)
 	}
 }
 

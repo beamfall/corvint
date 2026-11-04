@@ -167,20 +167,48 @@ func (l *ledger) stagedNote() string {
 	return " (staged until digest --verify)"
 }
 
-// moved is why a process on the shared digest must not record the pass it
-// just observed: the worktree no longer digests to the shared tree, so the
-// step may have read content its key does not name (GL-V0-786). It costs one
-// worktree digest, paid only by a step that ran and passed; a process on its
-// own digest returns "".
-func (l *ledger) moved() string {
-	if l.stage == "" {
+// When a step's worktree check found the tree moved (GL-V0-786).
+const (
+	movedBefore = "before the step started"
+	movedDuring = "while the step ran"
+)
+
+// stepMoved is why a process, on the shared digest or its own, must not
+// record the pass of step under key: the key derived again from a fresh
+// worktree digest is not key, so the step may have read declared inputs the
+// key does not name (GL-V0-786). A step checks immediately before it executes
+// and, when that matched, again after it passes, so a pass is recorded only
+// when its declared inputs before execution, after it and in the key are the
+// same; a write outside them (an untracked log, another step's output) does
+// not refuse it. An edit made after the first check and undone before the
+// second, in effect while the step runs, is not detected.
+// Each check costs one worktree digest plus the key's own derivation (a
+// `go list` for a test-closure scope), paid only by a step that runs.
+func (l *ledger) stepMoved(when, step string, packages []string, key string) string {
+	fresh := *l
+	fresh.stdout = io.Discard // a SCOPE fallback note would repeat the step's own
+	fresh.tree, fresh.entries, fresh.digestErr = l.inv.worktreeDigest(l.root)
+	again, reason := fresh.key(step, packages)
+	if again == key {
 		return ""
 	}
+	if reason == "" {
+		reason = short(again)
+	}
+	return fmt.Sprintf("its inputs changed %s (key %s -> %s)", when, short(key), reason)
+}
+
+// treeMoved is stepMoved for a go-test batch: the whole worktree, a superset
+// of every package's bound, must still digest to the tree the package keys
+// were derived from. Deriving the package keys again would rerun `go list`
+// and the selector; a go test that writes into the worktree is refused
+// instead, at the cost of its package records.
+func (l *ledger) treeMoved(when string) string {
 	tree, _, digestErr := l.inv.worktreeDigest(l.root)
 	if tree == l.tree && digestErr == l.digestErr {
 		return ""
 	}
-	return fmt.Sprintf("the worktree moved since the shared digest (%s -> %s)", describeTree(l.tree, l.digestErr), describeTree(tree, digestErr))
+	return fmt.Sprintf("the worktree moved %s (%s -> %s)", when, describeTree(l.tree, l.digestErr), describeTree(tree, digestErr))
 }
 
 // promoteStaged writes the passes staged under stage into the ledger once the

@@ -1539,10 +1539,11 @@ export -f salt_input
 # private-index digest of 8 git calls and a hash-object per step. The first salt is checked against
 # the per-step form; a mismatch or a failed batch leaves each step to hash its own.
 # BATCH_PRECHECK_SHARED_DIGEST=off keeps the per-step digest and salt (same keys, more git calls).
-# A step on the shared digest re-digests after it passes and records nothing if the tree moved; its
-# pass is staged in $dir/ledger-digest.json.stage, which no lookup reads, until verify_shared below
-# finds the tree unchanged and promotes it. cleanup removes $dir on EXIT, HUP, INT and TERM, so an
-# interrupted run discards every unverified pass, and a run killed outright leaves them unread.
+# A step on the shared digest re-digests just before it runs and after it passes, and records nothing
+# unless its key from both digests is its shared-tree key; its pass is staged in
+# $dir/ledger-digest.json.stage, which no lookup reads, until verify_shared below finds the tree
+# unchanged and promotes it. cleanup removes $dir on EXIT, HUP, INT and TERM, so an interrupted run
+# discards every unverified pass, and a run killed outright leaves them unread.
 if [[ -n $ledger && ${BATCH_PRECHECK_SHARED_DIGEST:-} != off ]]; then
   if "$ledger" digest "$dir/ledger-digest.json" > "$dir/ledger-digest.log" 2>&1 < /dev/null; then
     export GATE_LEDGER_SHARED_DIGEST=$dir/ledger-digest.json

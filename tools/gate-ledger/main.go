@@ -331,7 +331,8 @@ func (l *ledger) plan(steps []string) int {
 }
 
 // runStep executes command unless a pass for step's current inputs is recorded,
-// and records a pass when the command exits zero.
+// and records a pass when the command exits zero and the step's key, derived
+// again from the worktree immediately before and after it, is unchanged (GL-V0-786).
 func (l *ledger) runStep(step string, packages []string, command []string) int {
 	key, reason := l.key(step, packages)
 	if reason != "" {
@@ -353,12 +354,16 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 		return 0
 	}
 	fmt.Fprintf(l.stdout, "%sRUN %s: no recorded pass for %s\n", prefixOut, step, short(key))
+	moved := l.stepMoved(movedBefore, step, packages, key)
 	started := time.Now()
 	code := l.inv.execute(command)
 	if code != 0 {
 		return code
 	}
-	if moved := l.moved(); moved != "" {
+	if moved == "" {
+		moved = l.stepMoved(movedDuring, step, packages, key)
+	}
+	if moved != "" {
 		fmt.Fprintf(l.stdout, "%sRECORD %s skipped: %s\n", prefixOut, step, moved)
 		return 0
 	}
@@ -673,8 +678,9 @@ func sortedKeys(set map[string]bool) []string {
 
 // runPackages runs the resolved packages whose key has no recorded pass in one
 // go test invocation, holding each key's lock, and records each package on
-// a proven package pass, even on batch failure (GL-V0-002/009). A package with a reason runs in the same invocation
-// and is not recorded.
+// a proven package pass, even on batch failure (GL-V0-002/009), when the worktree
+// digested to the keys' tree immediately before and after the batch (GL-V0-786).
+// A package with a reason runs in the same invocation and is not recorded.
 func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	var pending []packageKey
 	for _, p := range keyed {
@@ -722,8 +728,14 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	}
 	sort.Slice(run, func(i, j int) bool { return run[i].pkg < run[j].pkg })
 	command := append(append([]string{}, goTest...), "-json")
+	recordable := false
 	for _, p := range run {
 		command = append(command, p.pkg)
+		recordable = recordable || p.reason == ""
+	}
+	moved := ""
+	if recordable {
+		moved = l.treeMoved(movedBefore)
 	}
 	started := time.Now()
 	outcomes := newPackageOutcomes(run, os.Stdout)
@@ -732,13 +744,13 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	if passes == nil {
 		fmt.Fprintf(l.stderr, "%sresolved output incomplete or invalid; no package records\n", prefixOut)
 	}
-	moved, checked := "", false
+	checked := moved != ""
 	for _, p := range run {
 		if p.reason != "" || !passes[p.pkg] || code >= 128 {
 			continue
 		}
 		if !checked {
-			moved, checked = l.moved(), true
+			moved, checked = l.treeMoved(movedDuring), true
 		}
 		if moved != "" {
 			fmt.Fprintf(l.stdout, "%sRECORD %s %s skipped: %s\n", prefixOut, packageStep, p.pkg, moved)
