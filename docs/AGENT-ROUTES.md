@@ -182,6 +182,16 @@ Closeout cites a current-main test or file in addition to historical SHA evidenc
 historical identity as historical; an old SHA alone cannot prove the current implementation.
 
 On 2026-11-04, the available account's archive repository request returned HTTP 404 and the pinned
-archive commit was absent locally. That is an access blocker: issue title/body recovery and archived
-measured values remain NOT_OBSERVED. Preserve the original URL/SHA, request archive access or an
+archive commit was absent locally. That is an access blocker: issue title/body recovery and unrecovered archived
+text remain NOT_OBSERVED (the B3 rows recovered locally below are a separate retained observation). Preserve the original URL/SHA, request archive access or an
 owner-exported title/body and immutable evidence excerpt, and do not substitute guessed values.
+
+Some shared worktrees still hold individual original objects even when the archive pin is absent.
+Check the exact cited SHA before concluding that every original is unavailable. The
+[pk-ci recovery summary](build-log/2026-11-04-pk-ci.md#recovered-pre-snapshot-source-evidence-v1-3264)
+retains V1-2278's eight B3 widen/reap p50/p95 rows, host/load qualifications and source blob/hash
+from `c6c75440bf2cb6ef6d1f6f27bbdbdb467ad61ef5`, plus the original commit mapping of GH #1897 to
+V1-2800. The mapped implementation commit's subject/body are **not** the original GitHub issue's
+subject/body. Do not confuse GH #1897 with native ticket V1-1897. Original issue text and other
+unrecovered archive content remain access-blocked; recovered summaries are historical measurements,
+not present-host qualifications.
