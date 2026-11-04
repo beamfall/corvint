@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // liveEpoch is the forward-evidence epoch the CI workflows name today (AFP-V0-030), read from
@@ -214,6 +216,7 @@ func TestCINV0003VerdictListsBackToTheEpochSince(t *testing.T) {
 // stub: a passing check passes; a refusing check (the injected fault: an unbound commit) and an
 // unresolvable head each fail the step, so the required check fails.
 func TestCINV02304BatchPullRequestNeedsSealedEvidence(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the CIN-V0-2304 step body is a POSIX shell script run by sh")
 	b, err := os.ReadFile("../../.github/workflows/ci.yml")
 	if err != nil {
 		t.Fatal(err)
@@ -235,6 +238,11 @@ func TestCINV02304BatchPullRequestNeedsSealedEvidence(t *testing.T) {
 		if !strings.Contains(m[1], want) {
 			t.Fatalf("CIN-V0-2304 step lacks %q:\n%s", want, m[1])
 		}
+	}
+	// An unstamped build is never judged stale by dogfoodStaleBinary (TestSelfBinaryStaleComparesStampedCommitWithHEAD,
+	// "no Git stamp"); a base-stamped one would refuse every batch that changes cmd/corvint's Go sources or go.mod.
+	if want := `go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint`; !strings.Contains(m[2], want) {
+		t.Fatalf("CIN-V0-2304 step must build the trusted checker without a Git stamp (%q):\n%s", want, m[2])
 	}
 	if strings.Contains(m[1], "continue-on-error") {
 		t.Fatal("the CIN-V0-2304 step must fail the required job, not continue on error")
