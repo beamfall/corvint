@@ -21,7 +21,6 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 ## Requirements
 
 - `DWC-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3291) The shell inputs-check/finish path MUST check line citations before a build or bind, refuse moved citations with `line-citations-invalid`, and name `script/check-line-citations.sh --repin` plus review/commit before rebinding. The sealed-head closeout precheck MUST disable mechanical regeneration, so a repin cannot create an unbound post-seal change.
-- `DWC-V0-7501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4573) Report publication MUST try the Git-directory atomic rename first. Only EXDEV MAY fall back to an ignored same-directory temporary file and atomic rename. Both paths MUST preserve the effective staging-file mode. All failure paths MUST remove temporary files and preserve an existing published report; other rename errors MUST refuse without a fallback.
 
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
@@ -119,4 +118,3 @@ For `DWC-V0-001` and `DWC-V0-002`, remove `regeneratedSpecs` and its call in `de
 | Requirement | Implementation and regression |
 | --- | --- |
 | `DWC-V0-7500` | `script/dogfood-finish.sh`, `Makefile` dogfood-closeout-precheck; `script/dogfood-cache_test.sh` pre-build refusal and post-seal no-regeneration recipe. |
-| `DWC-V0-7501` | `internal/dogfoodflow/report_publish.go`, `.gitignore`; `TestDWCV07501ReportPublish`, `TestDWCV07501ReportPublishFallbackCleanup`. |

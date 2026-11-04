@@ -96,4 +96,3 @@ node_modules/
 /tiers-replay
 /unbounded-readers
 /tasks-profiles-check
-.corvint/.dogfood-report.*.tmp

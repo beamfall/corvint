@@ -1788,13 +1788,18 @@ jobs:
         id: plan
         working-directory: trusted-web-plan
         env:
+          # Diff raw pull_request.base.sha / event.before deliberately: a stale base only over-selects.
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -eu
           go build -o "$RUNNER_TEMP/corvint-web-plan" ./cmd/corvint
           go build -o "$RUNNER_TEMP/web-plan-confine" ./.github/testconfine/cmd
-          "$RUNNER_TEMP/corvint-web-plan" --root "$GITHUB_WORKSPACE/source" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json"
-          required=$(jq -r 'any(.checks[]?; startswith("tools/web-flows/test/") and contains("UNSELECTED_BINARY_CONSUMER"))' "$RUNNER_TEMP/web-plan.json")
+          status=0
+          "$RUNNER_TEMP/corvint-web-plan" --root "$GITHUB_WORKSPACE/source" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json" || status=$?
+          case "$status" in 0|3) ;; *) exit "$status" ;; esac
+          required=$(jq -r '(.scope == "FULL") or any(.checks[]?; startswith("tools/web-flows/test/") and contains("UNSELECTED_BINARY_CONSUMER"))' "$RUNNER_TEMP/web-plan.json")
+          # testDryRun returns ResultIncomplete (3) when the plan cannot prove coverage.
+          if [ "$status" -eq 3 ]; then required=true; fi
           echo "required=$required" >> "$GITHUB_OUTPUT"
 
   web-flows:

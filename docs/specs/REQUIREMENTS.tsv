@@ -3621,7 +3621,6 @@ BKM-V0-099	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-ac
 BKM-V0-955	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go	standing	2026-11-01; V1-3529
 BKM-V0-710	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When the selected Go API's boun	standing	2026-11-01; V1-3529
 DWC-V0-7500	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3291) The shel	standing	2026-10-11; V1-3291
-DWC-V0-7501	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4573) Report p	standing	2026-10-11; V1-4573
 DWC-V0-001	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines	standing	2026-11-02; V1-1467
 DWC-V0-002	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467)	standing	2026-11-02; V1-1467
 DWC-V0-003	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends	standing	2026-11-02; V1-4318
@@ -7103,7 +7102,7 @@ SRG-V0-009	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-010	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1347)	standing	2026-10-11; V1-1347
 SRG-V0-011	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1346) A spec	standing	2026-10-11; V1-1346
 SRG-V0-012	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1346)	standing	2026-10-11; V1-1346
-SRG-V0-013	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1346) Two chan	standing	2026-10-11; V1-1346
+SRG-V0-013	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; V1-4550; V1-1346
 SRG-V0-014	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-15); V1-1409) A spec w	standing	2026-10-15; V1-1409
 SRG-V0-015	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1525) The	standing	2026-10-11; V1-1525
 SRG-V0-016	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1525) Two chan	standing	2026-10-11; V1-1525

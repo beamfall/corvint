@@ -89,8 +89,8 @@ stop_tracked_descendants() {
   done <"$descendants"
 }
 wait_runner_gone() {
-  # CSD-V0-7517: probe cost counts against the grace period on loaded hosts.
-  local deadline=$((SECONDS + 2)) state
+  # CSD-V0-7517: at least 2 s grace; +3 offsets SECONDS truncation, and probe cost counts.
+  local deadline=$((SECONDS + 3)) state
   while ((SECONDS < deadline)); do
     state=$(ps -p "$runner" -o state= 2>/dev/null | tr -d ' ') || return 0
     case "$state" in ''|Z*) return 0;; esac
