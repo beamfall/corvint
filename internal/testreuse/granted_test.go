@@ -154,3 +154,33 @@ func TestRecheckRevalidatesWorktreeBytes(t *testing.T) {
 		t.Errorf("an edit hidden from status after validation: %v", err)
 	}
 }
+
+// TestWalkGrantedRootGitFile covers AFP-V0-2321 for a root package in a
+// linked worktree, whose .git is a file: the walk must still see every later
+// root entry. A .git directory, skipped whole, and the tree without the extra
+// directory are the negative controls.
+func TestWalkGrantedRootGitFile(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, ".git", "gitdir: elsewhere\n")
+	writeFixture(t, root, "a.go", "package a\n")
+	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{"a.go": {Mode: "100644"}}}
+	if detail := snapshot.walkGranted("."); detail != "" {
+		t.Fatalf("negative control: %q", detail)
+	}
+	if err := os.Mkdir(filepath.Join(root, "zz"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if detail := snapshot.walkGranted("."); !strings.HasPrefix(detail, "zz is a directory") {
+		t.Fatalf("an empty directory after a .git file: %q", detail)
+	}
+	if err := os.Remove(filepath.Join(root, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	writeFixture(t, root, ".git/HEAD", "ref: refs/heads/main\n")
+	if err := os.Remove(filepath.Join(root, "zz")); err != nil {
+		t.Fatal(err)
+	}
+	if detail := snapshot.walkGranted("."); detail != "" {
+		t.Fatalf("a .git directory is skipped whole: %q", detail)
+	}
+}

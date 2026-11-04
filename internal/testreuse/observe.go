@@ -501,7 +501,7 @@ func (s *Snapshot) walkGranted(directory string) string {
 	if s.trackedDirs == nil {
 		s.trackedDirs = map[string]bool{".": true}
 		for path := range s.Entries {
-			for parent := pathpkg.Dir(path); parent != "."; parent = pathpkg.Dir(parent) {
+			for parent := pathpkg.Dir(path); parent != "." && parent != "/"; parent = pathpkg.Dir(parent) {
 				s.trackedDirs[parent] = true
 			}
 		}
@@ -518,7 +518,12 @@ func (s *Snapshot) walkGranted(directory string) string {
 		}
 		relative = filepath.ToSlash(relative)
 		if relative == ".git" {
-			return filepath.SkipDir
+			// A linked worktree has a .git file; SkipDir on a file would skip
+			// the rest of the root.
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		kind := "special file"
 		switch {

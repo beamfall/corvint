@@ -51,6 +51,15 @@ reviewed implementation, and each fix refuses where it cannot prove soundness.
      `core.trustctime=false`, a same-size edit with a restored mtime is hidden from status after
      the harness file was validated. On the reviewed code `Recheck` returned nil.
 
+## Self-review finding
+
+A hostile self-review of the round diff found that the first walk returned `SkipDir` for a root
+`.git` entry of any type. In a linked worktree `.git` is a file, and `SkipDir` on a file makes
+`filepath.WalkDir` skip the rest of that directory, so a root package's walk ignored every root
+entry sorted after `.git`. Decision: skip only a `.git` directory and pass over a `.git` file.
+Evidence: `TestWalkGrantedRootGitFile` fails on the first walk (the empty `zz` directory went
+unseen) and passes with the fix. A `.git` directory is the negative control.
+
 ## Residuals
 
 The walk is POSIX-tested only: the fixtures use a shell filter, FIFOs and `os.ReadDir` over
