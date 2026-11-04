@@ -13,8 +13,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -109,10 +111,18 @@ type Snapshot struct {
 	git   string
 	env   []string
 	state string
-	// worktree caches each checked file's raw worktree object id, or the
-	// worktree-bytes detail that refused it (AFP-V0-2321).
-	worktreeMu sync.Mutex
-	worktree   map[string]string
+	// worktree caches each worktree validation (a file's raw bytes, a
+	// granted directory's entries, an absent input) with the detail it gave;
+	// Recheck reruns every one uncached (AFP-V0-2321).
+	worktreeMu  sync.Mutex
+	worktree    map[string]validation
+	trackedDirs map[string]bool
+}
+
+// validation is one cached worktree check and the detail it returned.
+type validation struct {
+	detail string
+	check  func() string
 }
 
 // GitObserveArgs precede every Git command an observation runs: no
@@ -263,7 +273,7 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 	if env == nil {
 		env = os.Environ()
 	}
-	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{}, Packages: map[string]GoPackage{}, Sliced: map[string]bool{}, Unbounded: options.Unbounded, ExistenceReaders: options.ExistenceReaders, git: git, env: gitEnv(env), worktree: map[string]string{}}
+	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{}, Packages: map[string]GoPackage{}, Sliced: map[string]bool{}, Unbounded: options.Unbounded, ExistenceReaders: options.ExistenceReaders, git: git, env: gitEnv(env), worktree: map[string]validation{}}
 	if snapshot.Unbounded == nil {
 		snapshot.Unbounded = map[string]bool{}
 	}
@@ -373,8 +383,11 @@ func observedState(head, tree string, status, flagged []byte) string {
 // Recheck rereads HEAD, its tree, the status and the index flags the
 // snapshot was observed from and refuses any change (AFP-V0-2321): a checkout
 // that moved while the snapshot, the affected graph or the identity was being
-// read is no single observation. Observe calls it last; a caller that reads
-// more of the checkout afterwards calls it again after those reads.
+// read is no single observation. It then reruns, uncached, every worktree
+// validation the snapshot has made and refuses any whose detail changed: an
+// edit Git's stat check cannot see (same size, restored mtime) is still a
+// change. Observe calls it last; a caller that builds a record or decision
+// from the snapshot calls it again after building it and before publishing.
 func (s *Snapshot) Recheck(ctx context.Context) error {
 	if s.git == "" || s.state == "" {
 		return errors.New(ErrorSnapshotDrift + ": the snapshot was not observed from a checkout")
@@ -398,6 +411,18 @@ func (s *Snapshot) Recheck(ctx context.Context) error {
 	}
 	if state := observedState(strings.TrimSpace(string(head)), strings.TrimSpace(string(tree)), status, flagged); state != s.state {
 		return errors.New(ErrorSnapshotDrift + ": HEAD, its tree, the status or the index flags changed during the observation")
+	}
+	s.worktreeMu.Lock()
+	defer s.worktreeMu.Unlock()
+	keys := make([]string, 0, len(s.worktree))
+	for key := range s.worktree {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if s.worktree[key].check() != s.worktree[key].detail {
+			return errors.New(ErrorSnapshotDrift + ": " + key + " changed after it was validated")
+		}
 	}
 	return nil
 }
@@ -424,17 +449,120 @@ func (s *Snapshot) worktreeInputs(inputs map[string]Input) string {
 // blob and the status stay unchanged. It returns "" or a worktree-bytes
 // detail.
 func (s *Snapshot) worktreeObject(relative string, entry Entry) string {
+	return s.validate(relative, func() string { return s.readWorktreeObject(relative, entry) })
+}
+
+// validate runs check once per key and caches the detail it returns.
+func (s *Snapshot) validate(key string, check func() string) string {
 	s.worktreeMu.Lock()
 	defer s.worktreeMu.Unlock()
 	if s.worktree == nil {
-		s.worktree = map[string]string{}
+		s.worktree = map[string]validation{}
 	}
-	if detail, ok := s.worktree[relative]; ok {
+	if cached, ok := s.worktree[key]; ok {
+		return cached.detail
+	}
+	detail := check()
+	s.worktree[key] = validation{detail: detail, check: check}
+	return detail
+}
+
+// grantedEntries checks what the confinement grants beyond the tracked
+// files (AFP-V0-2321): every entry on disk below the package directory and
+// each granted directory must be in the immutable tree, and every input the
+// digest records as absent must not exist. Git does not report an empty
+// directory or a special file, so a clean status does not prove either. It
+// returns the first detail in path order, or "".
+func (s *Snapshot) grantedEntries(directory string, inputs map[string]Input) string {
+	if detail := s.validate("walk:"+directory, func() string { return s.walkGranted(directory) }); detail != "" {
 		return detail
 	}
-	detail := s.readWorktreeObject(relative, entry)
-	s.worktree[relative] = detail
-	return detail
+	for _, key := range sortedKeys(inputs) {
+		input := inputs[key]
+		var detail string
+		switch input.Mode {
+		case "dir":
+			trimmed := strings.TrimSuffix(input.Path, "/")
+			detail = s.validate("walk:"+trimmed, func() string { return s.walkGranted(trimmed) })
+		case "absent":
+			trimmed := strings.TrimSuffix(input.Path, "/")
+			detail = s.validate("absent:"+trimmed, func() string { return s.checkAbsent(trimmed) })
+		}
+		if detail != "" {
+			return detail
+		}
+	}
+	return ""
+}
+
+// walkGranted walks directory on disk without following links and returns
+// the first entry the tree does not hold. The caller holds worktreeMu.
+func (s *Snapshot) walkGranted(directory string) string {
+	if s.trackedDirs == nil {
+		s.trackedDirs = map[string]bool{".": true}
+		for path := range s.Entries {
+			for parent := pathpkg.Dir(path); parent != "."; parent = pathpkg.Dir(parent) {
+				s.trackedDirs[parent] = true
+			}
+		}
+	}
+	base := filepath.Join(s.Root, filepath.FromSlash(directory))
+	var found string
+	err := filepath.WalkDir(base, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(s.Root, path)
+		if err != nil {
+			return err
+		}
+		relative = filepath.ToSlash(relative)
+		if relative == ".git" {
+			return filepath.SkipDir
+		}
+		kind := "special file"
+		switch {
+		case entry.IsDir():
+			if s.trackedDirs[relative] {
+				return nil
+			}
+			kind = "directory"
+		case entry.Type().IsRegular():
+			if _, tracked := s.Entries[relative]; tracked {
+				return nil
+			}
+			kind = "file"
+		case entry.Type()&fs.ModeSymlink != 0:
+			if _, tracked := s.Entries[relative]; tracked {
+				return nil
+			}
+			kind = "symbolic link"
+		default:
+			if _, tracked := s.Entries[relative]; tracked {
+				kind = "special file where the tree holds a file"
+			}
+		}
+		found = relative + " is a " + kind + " the tree does not hold"
+		return filepath.SkipAll
+	})
+	if err != nil {
+		return directory + " cannot be walked: " + err.Error()
+	}
+	return found
+}
+
+// checkAbsent refuses an input the digest records as absent that exists on
+// disk in any form. The caller holds worktreeMu.
+func (s *Snapshot) checkAbsent(relative string) string {
+	_, err := os.Lstat(filepath.Join(s.Root, filepath.FromSlash(relative)))
+	switch {
+	case err == nil:
+		return relative + " exists although the digest records it absent"
+	case errors.Is(err, fs.ErrNotExist):
+		return ""
+	default:
+		return relative + " cannot be checked: " + err.Error()
+	}
 }
 
 func (s *Snapshot) readWorktreeObject(relative string, entry Entry) string {
@@ -484,8 +612,17 @@ func (s *Snapshot) readWorktreeObject(relative string, entry Entry) string {
 // readDeclarations reads the read-scope and split declarations from the
 // committed tree. A dirty or invalid read-scope declaration leaves no package
 // eligible; a split declaration that cannot be read marks every package
-// sliced, which also leaves none eligible.
+// sliced, which also leaves none eligible. The confinement wrapper loads the
+// worktree file, so its raw bytes and regular-file type must match the blob
+// parsed here, or no package is eligible (worktree-bytes, AFP-V0-2321).
 func (s *Snapshot) readDeclarations(gitRun func(...string) ([]byte, error)) {
+	defer func() {
+		for _, path := range []string{ReadScopesPath, SplitAllowPath} {
+			if entry, ok := s.Entries[path]; ok && s.DeclarationError == "" {
+				s.DeclarationError = s.worktreeObject(path, entry)
+			}
+		}
+	}()
 	for _, dirty := range s.Dirty {
 		trimmed := strings.TrimSuffix(dirty, "/")
 		if dirty == ReadScopesPath || (strings.HasSuffix(dirty, "/") && strings.HasPrefix(ReadScopesPath, trimmed+"/")) {

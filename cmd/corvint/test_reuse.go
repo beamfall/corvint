@@ -30,6 +30,10 @@ const (
 // be produced; a caller then runs its full plan (AFP-V0-2325).
 const testReuseExitIncomplete = 3
 
+// testReuseBeforePublish runs after the record or decision is built and
+// before its final check and output; a test makes a controlled edit there.
+var testReuseBeforePublish = func() {}
+
 type multiFlag []string
 
 func (m *multiFlag) String() string { return strings.Join(*m, ",") }
@@ -128,14 +132,15 @@ func runTestReuse(ctx context.Context, root string, args []string, stdout, stder
 		return testReuseExitIncomplete
 	}
 	if mode == "record" {
-		return testReuseRecord(snapshot, identity, options, stderr)
+		return testReuseRecord(ctx, snapshot, identity, options, stderr)
 	}
-	return testReuseDecide(snapshot, identity, options, stdout, stderr)
+	return testReuseDecide(ctx, snapshot, identity, options, stdout, stderr)
 }
 
 // testReuseObserve reads the snapshot, the affected graph's UNBOUNDED_READER
-// and existence-reader sets, and the identity, then rechecks the checkout so
-// all of them describe one observation (AFP-V0-2320, AFP-V0-2321).
+// and existence-reader sets, and the identity. testReuseFinalCheck later
+// rechecks the checkout so all of them, and the record or decision built from
+// them, describe one observation (AFP-V0-2320, AFP-V0-2321).
 func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse.Snapshot, testreuse.Identity, error) {
 	snapshot, err := testreuse.Observe(ctx, testreuse.ObserveOptions{Root: options.root, BuildFlags: testreuse.BuildFlags(strings.Fields(options.argv))})
 	if err != nil {
@@ -161,9 +166,6 @@ func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse
 	if err != nil {
 		return nil, testreuse.Identity{}, err
 	}
-	if err := snapshot.Recheck(ctx); err != nil {
-		return nil, testreuse.Identity{}, err
-	}
 	// Without --confine the run was unconfined and no package is eligible
 	// (AFP-V0-2320); the record or decision still lists every package.
 	if options.confine != "" {
@@ -174,7 +176,29 @@ func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse
 	return snapshot, identity, nil
 }
 
-func testReuseRecord(snapshot *testreuse.Snapshot, identity testreuse.Identity, options testReuseOptions, stderr io.Writer) int {
+// testReuseFinalCheck runs after the record or decision is built and before
+// any of it is published (AFP-V0-2321): it rechecks HEAD, the tree, the
+// status, the index flags and every worktree validation uncached, and
+// re-digests the confinement wrapper, so an edit made while the output was
+// being built refuses it.
+func testReuseFinalCheck(ctx context.Context, snapshot *testreuse.Snapshot, identity testreuse.Identity, options testReuseOptions) error {
+	if err := snapshot.Recheck(ctx); err != nil {
+		return err
+	}
+	if options.confine == "" {
+		return nil
+	}
+	confine, err := testreuse.ConfineDigest(options.confine)
+	if err != nil {
+		return err
+	}
+	if confine != identity.Confine {
+		return errors.New(testreuse.ErrorSnapshotDrift + ": the confinement wrapper changed after it was digested")
+	}
+	return nil
+}
+
+func testReuseRecord(ctx context.Context, snapshot *testreuse.Snapshot, identity testreuse.Identity, options testReuseOptions, stderr io.Writer) int {
 	var outcomes map[string]string
 	var err error
 	if options.testJSON != "" {
@@ -211,6 +235,11 @@ func testReuseRecord(snapshot *testreuse.Snapshot, identity testreuse.Identity, 
 		emitError(stderr, argumentError("record: "+err.Error()))
 		return 2
 	}
+	testReuseBeforePublish()
+	if err := testReuseFinalCheck(ctx, snapshot, identity, options); err != nil {
+		emitError(stderr, &gokernel.Error{Code: "test-reuse-incomplete", Message: "no record is produced: " + err.Error()})
+		return testReuseExitIncomplete
+	}
 	if err := testReuseWrite(options.out, record); err != nil {
 		emitError(stderr, &gokernel.Error{Code: "test-reuse-incomplete", Message: "the record cannot be written: " + err.Error()})
 		return testReuseExitIncomplete
@@ -223,7 +252,7 @@ func testReuseRecord(snapshot *testreuse.Snapshot, identity testreuse.Identity, 
 	return 0
 }
 
-func testReuseDecide(snapshot *testreuse.Snapshot, identity testreuse.Identity, options testReuseOptions, stdout, stderr io.Writer) int {
+func testReuseDecide(ctx context.Context, snapshot *testreuse.Snapshot, identity testreuse.Identity, options testReuseOptions, stdout, stderr io.Writer) int {
 	policy := testreuse.Policy{Trust: map[string]bool{}, PullRequest: options.pullRequest}
 	for _, kind := range strings.Split(options.trust, ",") {
 		switch kind {
@@ -254,6 +283,11 @@ func testReuseDecide(snapshot *testreuse.Snapshot, identity testreuse.Identity, 
 	}
 	decision, err := testreuse.Decide(snapshot, identity, policy, records, packages)
 	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "test-reuse-incomplete", Message: "no decision is produced and the full plan runs: " + err.Error()})
+		return testReuseExitIncomplete
+	}
+	testReuseBeforePublish()
+	if err := testReuseFinalCheck(ctx, snapshot, identity, options); err != nil {
 		emitError(stderr, &gokernel.Error{Code: "test-reuse-incomplete", Message: "no decision is produced and the full plan runs: " + err.Error()})
 		return testReuseExitIncomplete
 	}

@@ -213,3 +213,80 @@ func TestTestReuseExistenceReaderRuns(t *testing.T) {
 	}
 	goTest(false)
 }
+
+// TestTestReuseLateEditIsDrift covers AFP-V0-2321: a controlled edit to a
+// scoped input after the decision or record is built and before it is
+// published must refuse it as snapshot-drift, exit 3, and write no output, and
+// so must a rewritten confinement wrapper; the same decision without an edit
+// is the negative control.
+func TestTestReuseLateEditIsDrift(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOAMD64", "v1")
+	root := materializationFixture(t)
+	reuseFixtureWrite(t, root, map[string]string{
+		"go.mod":                         "module example.com/m\n\ngo 1.27\n",
+		"a/a.go":                         "package a\n",
+		"a/a_test.go":                    "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n",
+		"data/a.txt":                     "ok\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"a":["data/a.txt"]}}` + "\n",
+	})
+	reuseFixtureCommit(t, root, "base")
+	scratch := t.TempDir()
+	stream := filepath.Join(scratch, "run.json")
+	if err := os.WriteFile(stream, []byte(`{"Action":"pass","Package":"example.com/m/a"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	confine := filepath.Join(scratch, "test-confine")
+	if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	invoke := func(wantCode int, arguments ...string) string {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		code := run(append([]string{"--root", root, "test", "reuse"}, arguments...), nil, &stdout, &stderr)
+		if code != wantCode {
+			t.Fatalf("test reuse %v: exit %d, want %d\n%s%s", arguments, code, wantCode, stdout.String(), stderr.String())
+		}
+		return stdout.String() + stderr.String()
+	}
+	record := filepath.Join(scratch, "record.json")
+	invoke(0, "record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", record)
+	out := filepath.Join(scratch, "decision.json")
+	decide := []string{"decide", "--argv", "-count=1", "--confine", confine, "--records", record, "--out", out}
+	if got := invoke(0, decide...); !strings.Contains(got, "DECIDE reuse 1,") {
+		t.Fatalf("negative control: %s", got)
+	}
+	if err := os.Remove(out); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { testReuseBeforePublish = func() {} })
+	testReuseBeforePublish = func() {
+		reuseFixtureWrite(t, root, map[string]string{"data/a.txt": "late\n"})
+	}
+	if got := invoke(testReuseExitIncomplete, decide...); !strings.Contains(got, "snapshot-drift") {
+		t.Fatalf("late edit: %s", got)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("a drifted decision was published: %v", err)
+	}
+	materializationGit(t, root, "checkout", "--", "data/a.txt")
+	if got := invoke(testReuseExitIncomplete, "record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", filepath.Join(scratch, "late-record.json")); !strings.Contains(got, "snapshot-drift") {
+		t.Fatalf("late edit during record: %s", got)
+	}
+	if _, err := os.Stat(filepath.Join(scratch, "late-record.json")); !os.IsNotExist(err) {
+		t.Fatalf("a drifted record was published: %v", err)
+	}
+	materializationGit(t, root, "checkout", "--", "data/a.txt")
+	testReuseBeforePublish = func() {
+		if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec env \"$@\"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := invoke(testReuseExitIncomplete, decide...); !strings.Contains(got, "confinement wrapper changed") {
+		t.Fatalf("late confinement edit: %s", got)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("a decision under a changed wrapper was published: %v", err)
+	}
+}

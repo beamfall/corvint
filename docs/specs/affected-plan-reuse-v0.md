@@ -47,12 +47,15 @@ per package, and skip per job, only where the inputs the result depends on are p
   alone enforces nothing and an unconfined test's out-of-scope read is in no digest; and (5) its
   input-closure digest (AFP-V0-2321) resolves. Otherwise it runs with reason
   `UNDECLARED_READ_SCOPE`, `UNBOUNDED_READER`, `EXISTENCE_READER`, `SLICED_UNIT`,
-  `UNCONFINED_EXECUTION` or `DIGEST_ERROR`, checked in that order. An existence-reader
+  `UNCONFINED_EXECUTION`, `DIGEST_ERROR` or `UNTRACKED_GRANTED_ENTRY`, checked in that order. An existence-reader
   declaration that cannot be read fails the affected graph, so no snapshot is produced and the
   caller runs its full plan (`test-reuse-incomplete`). A record of an unconfined run therefore carries no
   package, and a decision without `--confine` reuses none. A dirty or invalid read-scope or
-  split declaration leaves no package eligible.
-- **AFP-V0-2321:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness, and in round 4; V1-1097)
+  split declaration leaves no package eligible, and so does one whose worktree file is not a
+  regular file holding its tree blob's raw bytes (`worktree-bytes`, as for AFP-V0-2321): the
+  confinement wrapper loads the worktree file, so a clean filter that widens it while Git reports
+  it clean would otherwise grant scopes no digest bound (amended 2026-11-04, round 5).
+- **AFP-V0-2321:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness, and in rounds 4 and 5; V1-1097)
   The input-closure digest of package P is the SHA-256 of the canonical JSON
   `corvint-test-input-digest/0` document naming P, the identity digest (AFP-V0-2322), P's declared
   entries, and the sorted `(path, mode, blob)` of: every tracked file below P's directory; every
@@ -78,10 +81,18 @@ per package, and skip per job, only where the inputs the result depends on are p
   read raw from the worktree, as a regular file (not followed through a link), and must hash, as a
   Git blob of HEAD's object format, to its tree blob, with an owner executable bit that matches its
   mode outside Windows; otherwise the digest is a `DIGEST_ERROR` with `worktree-bytes` naming the
-  first such path (amended 2026-11-04, round 4). One observation reads HEAD, its tree, the status
-  and the index flags first and rereads them after its last read of the checkout (in the CLI,
-  after the affected graph and the identity); any change refuses the observation with
-  `snapshot-drift`, exit 3 `test-reuse-incomplete` (amended 2026-11-04, round 4).
+  first such path (amended 2026-11-04, round 4). Git does not report an empty directory or a
+  special file, yet the confinement grants P's directory and each declared `DIR/` whole. So every
+  entry on disk below them, walked without following links, must be in HEAD's tree (a directory
+  holding a tracked path, a tracked file or link), and every `absent` input must not exist in any
+  form; otherwise the package runs with `UNTRACKED_GRANTED_ENTRY`, whose detail names the first
+  such path (amended 2026-11-04, round 5). One observation reads HEAD, its tree, the status
+  and the index flags first and rereads them after its last read of the checkout; in the CLI
+  that final check runs after the record or decision is built and immediately before any of it
+  is written, reruns every worktree validation (raw bytes, granted entries, absent inputs)
+  uncached, and re-digests the confinement wrapper. Any change refuses the observation with
+  `snapshot-drift`, exit 3 `test-reuse-incomplete`, and nothing is written (amended 2026-11-04,
+  rounds 4 and 5).
 - **AFP-V0-2322:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness, and in rounds 3 and 4; V1-1097)
   The identity is the canonical `corvint-test-reuse-identity/0` of the `go env` values of `CC`,
   `CGO_CFLAGS`, `CGO_CPPFLAGS`, `CGO_CXXFLAGS`, `CGO_ENABLED`, `CGO_LDFLAGS`, `CXX`, `GO386`, `GOAMD64`,
@@ -128,13 +139,13 @@ per package, and skip per job, only where the inputs the result depends on are p
   number; any other record is listed with `UNTRUSTED_SOURCE` or `RECORD_INVALID` and never
   reused. The caller that chose the record files is the trust boundary: in CI only the workflow
   lists runs of this repository by event, branch and pull-request number (AFP-V0-2327).
-- **AFP-V0-2325:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 (round 4); V1-1097)
+- **AFP-V0-2325:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 (rounds 4 and 5); V1-1097)
   The decision is one `corvint-test-reuse-decision/0`: HEAD, tree, identity, every record's
   verdict, and per package (`--packages`, default `go list ./...`) `REUSE` with
   `RECORD_DIGEST_EQUAL` and a witness naming the record, its source and commit, only when the
   package is eligible and an admitted record passed it with the same identity and digest; else
   `RUN` with exactly one of `UNDECLARED_READ_SCOPE`, `UNBOUNDED_READER`, `EXISTENCE_READER`,
-  `SLICED_UNIT`, `UNCONFINED_EXECUTION`, `DIGEST_ERROR` (with detail), `NO_RECORD`, `IDENTITY_CHANGED` or `DIGEST_CHANGED`. `--run-list`
+  `SLICED_UNIT`, `UNCONFINED_EXECUTION`, `DIGEST_ERROR` (with detail), `UNTRACKED_GRANTED_ENTRY` (with detail), `NO_RECORD`, `IDENTITY_CHANGED` or `DIGEST_CHANGED`. `--run-list`
   writes the RUN packages. When no decision can be produced (no snapshot, no identity, an
   unwritable output) it exits 3, `test-reuse-incomplete`, and the caller runs its full plan.
 - **AFP-V0-2326:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 (round 3); V1-1097)
@@ -286,12 +297,12 @@ any decision it cannot apply.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| AFP-V0-2320 | `DigestPackage` eligibility checks in `internal/testreuse/testreuse.go`; `readDeclarations` in `observe.go`; `testReuseObserve` in `cmd/corvint/test_reuse.go` | `TestRecordCarriesOnlyEligiblePasses`, `TestUnboundedAndSlicedUnitsRun`, `TestDirtyOrUntrackedInputRuns` in `internal/testreuse/testreuse_test.go`; `TestUnconfinedOutOfScopeReadRuns` (fault injection: an out-of-scope read changes and the rerun fails) in `internal/testreuse/review_test.go`; the `UNCONFINED_EXECUTION` step of `TestTestReuseCLI`; `TestTestReuseExistenceReaderRuns` (fault injection: a confined existence reader's stat target is deleted and the rerun fails; an undeclared sibling is the negative control) in `cmd/corvint/test_reuse_test.go` |
-| AFP-V0-2321 | `DigestPackage`, `Snapshot.closure`, `Snapshot.dirtyWithin`, `Observe` in `internal/testreuse` | `TestDigestNegativeControls` (ten controls), `TestDirtyOrUntrackedInputRuns`, `TestFaultInjectionIsSelectedAndFails`, `TestBuildFlagsReachTheClosure`, `TestHiddenIndexFlagsAreDirty`, `TestDependencyModuleLanguageFault`, `TestAssemblyIncludedHeaderFault` in `internal/testreuse/review_test.go`; `TestCheckoutAttributeTransformationRuns` (fault injection: a CRLF attribute keeps a clean status and the rerun fails; a non-transforming attribute is the negative control), `TestHiddenModeChangeRuns`, `TestConcurrentEditDuringListingIsDrift` (fault injection: an edit during go list fails the rerun), `TestRecheckRefusesLaterDrift` in `internal/testreuse/worktree_test.go` (`Snapshot.Recheck`, `Snapshot.worktreeObject`) |
+| AFP-V0-2320 | `DigestPackage` eligibility checks in `internal/testreuse/testreuse.go`; `readDeclarations` in `observe.go`; `testReuseObserve` in `cmd/corvint/test_reuse.go` | `TestRecordCarriesOnlyEligiblePasses`, `TestUnboundedAndSlicedUnitsRun`, `TestDirtyOrUntrackedInputRuns` in `internal/testreuse/testreuse_test.go`; `TestUnconfinedOutOfScopeReadRuns` (fault injection: an out-of-scope read changes and the rerun fails) in `internal/testreuse/review_test.go`; `TestFilteredDeclarationRuns` (fault injection: a clean filter widens the worktree declaration while the status stays clean; the filtered unchanged declaration is the negative control) in `internal/testreuse/granted_test.go`; the `UNCONFINED_EXECUTION` step of `TestTestReuseCLI`; `TestTestReuseExistenceReaderRuns` (fault injection: a confined existence reader's stat target is deleted and the rerun fails; an undeclared sibling is the negative control) in `cmd/corvint/test_reuse_test.go` |
+| AFP-V0-2321 | `DigestPackage`, `Snapshot.closure`, `Snapshot.dirtyWithin`, `Observe` in `internal/testreuse` | `TestDigestNegativeControls` (ten controls), `TestDirtyOrUntrackedInputRuns`, `TestFaultInjectionIsSelectedAndFails`, `TestBuildFlagsReachTheClosure`, `TestHiddenIndexFlagsAreDirty`, `TestDependencyModuleLanguageFault`, `TestAssemblyIncludedHeaderFault` in `internal/testreuse/review_test.go`; `TestCheckoutAttributeTransformationRuns` (fault injection: a CRLF attribute keeps a clean status and the rerun fails; a non-transforming attribute is the negative control), `TestHiddenModeChangeRuns`, `TestConcurrentEditDuringListingIsDrift` (fault injection: an edit during go list fails the rerun), `TestRecheckRefusesLaterDrift` in `internal/testreuse/worktree_test.go` (`Snapshot.Recheck`, `Snapshot.worktreeObject`); `TestGrantedDirectoryEntriesRun` (fault injection: an empty directory below the package and below a declared `DIR/` each fail an `os.ReadDir` rerun, as do an empty directory at an `absent` path and a FIFO; the unchanged tree is the negative control), `TestRecheckRevalidatesWorktreeBytes` (fault injection: a same-size edit with a restored mtime hidden from status after validation) in `internal/testreuse/granted_test.go` (`Snapshot.grantedEntries`); `TestTestReuseLateEditIsDrift` (fault injection: an input edit or a rewritten confinement wrapper between building and publishing; the unedited decision is the negative control) in `cmd/corvint/test_reuse_test.go` (`testReuseFinalCheck`) |
 | AFP-V0-2322 | `Identity`, `CheckArgv`, `ObserveIdentity` in `internal/testreuse` | `TestCheckArgv`, `TestIdentityAndTrust`, `TestArgvFlagsAreClassified`, `TestHarnessDirectoryReevaluation`, `TestUnsupportedGOFLAGSFailClosed`, `TestWorkspaceInputsFailClosed`, `TestRuntimeEnvironmentEnablesSkippedFailure`, `TestRuntimeEnvironmentCanonicalization`, `TestConfinementWrapperBindsIdentity` in `internal/testreuse/review_test.go`; `ConfineDigest`; the harness step of `TestCheckoutAttributeTransformationRuns` |
 | AFP-V0-2323 | `BuildRecord`, `ParseOutcomes`, `MergeOutcomes`, `ParseTestJSON` in `internal/testreuse/record.go`; `testReuseRecord` | `TestRecordCarriesOnlyEligiblePasses`, `TestMergeOutcomesRefusesAnotherCommit`, `TestParseTestJSON` |
 | AFP-V0-2324 | `ParseRecord` in `record.go`; record admission in `Decide` (`decide.go`) | `TestIdentityAndTrust` |
-| AFP-V0-2325 | `Decide`; `testReuseDecide` in `cmd/corvint/test_reuse.go` | `TestDigestNegativeControls`, `TestFaultInjectionIsSelectedAndFails` |
+| AFP-V0-2325 | `Decide`; `testReuseDecide` in `cmd/corvint/test_reuse.go` | `TestDigestNegativeControls`, `TestFaultInjectionIsSelectedAndFails`; the `UNTRACKED_GRANTED_ENTRY` reasons of `TestGrantedDirectoryEntriesRun` |
 | AFP-V0-2326 | `HEAVY_REUSE` in `manifest_perl` and `print_plan` of `script/heavy.sh` | the AFP-V0-2326 group of `script/lane-scripts_test.sh` |
 | AFP-V0-2327 | the reuse steps and `test-reuse-plan` job of `.github/workflows/ci.yml` (separate commit) | `NOT_OBSERVED` hosted; structural review |
 | AFP-V0-2333 | `tools/ci-reuse-replay/fetch.py`, `replay.py tests` | build-log entry `2026-11-03-reuse-verified-results`; `ReplayFreshnessTest.test_records_and_decisions_regenerated` in `tools/ci-reuse-replay/replay_test.py` |

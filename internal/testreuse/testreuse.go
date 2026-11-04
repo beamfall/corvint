@@ -70,6 +70,11 @@ const (
 	// ReasonDigestError: an input of the digest could not be bound to
 	// immutable Git content; Detail names the cause.
 	ReasonDigestError = "DIGEST_ERROR"
+	// ReasonUntrackedGrantedEntry: a granted directory holds an entry the
+	// immutable tree does not (an empty directory, a symbolic link or a
+	// special file Git does not report), or a path the digest records as
+	// absent exists; Detail names it.
+	ReasonUntrackedGrantedEntry = "UNTRACKED_GRANTED_ENTRY"
 	// ReasonNoRecord: no admitted record names the package as passed.
 	ReasonNoRecord = "NO_RECORD"
 	// ReasonIdentityChanged: a record passed the package under another
@@ -432,6 +437,11 @@ func DigestPackage(snapshot *Snapshot, importPath, identityDigest, confine strin
 	// A clean status does not prove the worktree holds each blob's bytes.
 	if detail := snapshot.worktreeInputs(inputs); detail != "" {
 		return fail(ReasonDigestError, detail)
+	}
+	// Nor does it report an empty directory or a special file the
+	// confinement would still grant.
+	if detail := snapshot.grantedEntries(directory, inputs); detail != "" {
+		return fail(ReasonUntrackedGrantedEntry, detail)
 	}
 	document := digestDocument{Profile: DigestProfile, Package: importPath, Identity: identityDigest, Scope: append([]string{}, scope...)}
 	if document.Scope == nil {
