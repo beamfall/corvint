@@ -217,7 +217,8 @@ type closeoutExcluded struct {
 }
 
 // add records commit as excluded for why. The primary reason is the first
-// seen, with MARKED_NOT_DELIVERED winning (TCD-V0-741).
+// seen, with MARKED_NOT_DELIVERED winning (TCD-V0-741). A commit is listed
+// once in commits however many causes cite it, and once per cause.
 func (e *closeoutExcluded) add(why, commit string) {
 	if e.reason == "" || why == excludeMarked {
 		e.reason = why
@@ -225,8 +226,12 @@ func (e *closeoutExcluded) add(why, commit string) {
 	if e.causes == nil {
 		e.causes = map[string][]string{}
 	}
-	e.causes[why] = append(e.causes[why], commit)
-	e.commits = append(e.commits, commit)
+	if !slices.Contains(e.causes[why], commit) {
+		e.causes[why] = append(e.causes[why], commit)
+	}
+	if !slices.Contains(e.commits, commit) {
+		e.commits = append(e.commits, commit)
+	}
 }
 
 // closeoutRow is one candidate (TCD-V0-007).
