@@ -15,9 +15,11 @@ requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
 `2026-11-03-selprec-selection-precision`. Lane selprec2 (2026-11-03; native tickets V1-4437,
 V1-4173, V1-4284) adds AFP-V0-2240 to AFP-V0-2244, and its third round (V1-4173, V1-3282)
-AFP-V0-2245 to AFP-V0-2247, of which its fourth round withdrew AFP-V0-2245; see build-log
+AFP-V0-2245 to AFP-V0-2247, of which its fourth round withdrew AFP-V0-2245 and its fifth round
+withdrew AFP-V0-2246; see build-log
 entries `2026-11-03-selprec2-ci-selector-parity`, `2026-11-03-selprec2-round3-typescript-anchors`
-and `2026-11-03-selprec2-round4-withdraw-typescript-anchors`.
+and `2026-11-03-selprec2-round4-withdraw-typescript-anchors`, with round 5 recorded in
+`2026-11-03-selprec2-round5-withdraw-shell-canonicalization`.
 
 ## Agent digest
 - Claim: `corvint affected` narrows fixture, anchored, temp-root and `go list` reads, marks deletions, and the CI selector follows its Go naming relation.
@@ -315,27 +317,19 @@ measure. None of them drops a unit the change can reach.
   the component-run relation of AFP-V0-072 (3). The counterexamples are regression tests that a
   future attempt must keep passing (`TestTypeScriptAnchoredCounterexamplesStaySelected_AFPV02245`).
 
-- **AFP-V0-2246:** (experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
-  V1-4173; amending `AFP-V0-2204`) A temp root's canonicalization, `NAME=$(cd "$NAME" && pwd)` or
-  with `pwd -P`, SHALL be no new assignment of the name when it is a plain top-level command of
-  its own after the name's one other assignment and that assignment is followed by `|| exit`
-  that ends its list (not `|| exit 1 | cat`, whose exit runs in a subshell), and only in a file
-  this allowlist admits, which is the whole contract: its first line is a bash, sh or dash
-  shebang; it holds no text `BASH_ALIASES`; every function it defines has a plain identifier name
-  that is none of `cd`, `pwd`, `exit`, `builtin`, `command`, `trap`, `eval`, `source`, `enable`,
-  `alias`, `set`, `shopt`, `chpwd`, `precmd`, `preexec` and `command_not_found_handle`; and every
-  command, substituted or in a function included, starts with a command word that is a plain
-  literal (no quote, backslash, `$` or backquote) or the one expansion of a name assigned once in
-  the file whose value holds a literal `/` (a name with a slash runs a file, never a builtin or
-  function), and is none of `.`, `source`, `eval`, `enable`, `disable`, `alias`, `builtin`,
-  `command`, `mapfile`, `readarray`, `shopt`, `typeset`, `declare`, `functions` and `autoload`,
-  nor a `trap` on any condition but EXIT, INT, TERM, HUP and QUIT, nor a `set` turning on
-  function or error tracing. Any other file keeps the assignment: the ways to make `cd`, `pwd` or
-  `exit` run something other than the builtin are open-ended, and a sourced file is not read. A
-  mktemp that fails without exiting would leave the name empty, and `cd ""` succeeds in dash, so
-  `pwd` would print the working directory; a canonicalization of another name, one before the
-  assignment, or any other shape leaves the name assigned twice. Measured with the by-path probe
-  below: `script/batch-assemble_test.sh` is no longer a reader.
+- **AFP-V0-2246:** (withdrawn and superseded by the pre-canonicalization `AFP-V0-2204` rule:
+  orchestrator-made, owner-delegated decision, 2026-11-03; V1-4173; ID retained, never reused)
+  The canonicalization-through-`pwd` narrowing is withdrawn entirely. Independent review found
+  that compound-keyword prefixes hide refused commands, expansion can remove a command word's
+  slash, scripts can signal their own traps, and line continuations can hide function names.
+  These bypasses invalidate the shell allowlist; extending it is not an accepted repair.
+  A temp-root token SHALL be dropped only by the earlier `AFP-V0-2204` rule: a literal path
+  suffix written directly after a proven temp-root expansion in the script text. A path derived
+  through `pwd`, `cd`, a command substitution other than the original `mktemp -d` root creation,
+  or a variable assigned from those operations MUST keep its path tokens. In particular,
+  `NAME=$(cd "$NAME" && pwd)` (also `pwd -P`) remains an assignment, so the name is assigned
+  twice and no longer qualifies as a temp root. The old allowlist and canonicalization helpers
+  MUST be removed. The counterexamples remain regression tests for any future proposal.
 
 - **AFP-V0-2247:** (experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
   V1-3282; amending `LGP-V0-027`) The TypeScript plugin's impact profile (its probes, its dynamic
@@ -363,9 +357,9 @@ selected on any `internal/` edit by AFP-V0-023, and a header-only scope would be
 declaration. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
 and AFP-V0-2241 port no non-Go reader to the CI selector, and change neither its rules (a), (b)
 and (d), the CEM evidence rule, nor declared read scopes (TSP-V0-980). No TypeScript token is narrowed: AFP-V0-2245
-is withdrawn, and TypeScript keeps the component-run relation (AFP-V0-072 (3)). AFP-V0-2243 and
-AFP-V0-2246 do not accept a temp root assigned in a function, and AFP-V0-2246 does not read a
-sourced file. AFP-V0-2244 adds no declaration member and does
+is withdrawn, and TypeScript keeps the component-run relation (AFP-V0-072 (3)). AFP-V0-2246 is
+withdrawn; shell tokens derived through canonicalization stay selected. AFP-V0-2243 does not
+accept a temp root assigned in a function. AFP-V0-2244 adds no declaration member and does
 not narrow `batch-regen.sh`'s worktree callers. AFP-V0-2247 does not move the web mask out of
 `internal/contextindex`, and the symbol rule for a registering `init` (V1-3282) is not changed:
 measured, a sound rule would select 147 of 151 units for a contextindex body edit, because
@@ -405,10 +399,13 @@ script); (7) a Vitest `setupFiles` or `globalSetup` module or a Mocha `--require
 calls `process.chdir`; (8) a dynamic `import()` of a template literal, or a package `"imports"`
 alias (`#dirs`), which the import closure did not follow; (9) identifiers turned into components
 (`Object.keys({ app: 1, x: 2 }).join('/')`); (11) a case transform (`'APP/X'.toLowerCase()`); and
-(12) a directory taken from `module.parent.filename` or an `Error().stack`. A canonicalization
-whose file overrides `cd`, `pwd` or `exit` through an imported environment function (Bash's
-`BASH_FUNC_*`) is the same accepted residual as an environment-supplied `mktemp` under
-AFP-V0-2204. The CI PR
+(12) a directory taken from `module.parent.filename` or an `Error().stack`. The withdrawn
+AFP-V0-2246 allowlist missed (1) `if`, `!`, `while`, `for` and `time` prefixes before `eval`,
+source, `enable`, `set -T`, DEBUG traps or dash aliases; (2) backticks and nested parameter
+expansions whose slash vanishes; (3) an INT trap fired by `kill -INT $$`; (4) function names or
+the `function` keyword split by a backslash-newline; and (5) a missing standalone `set -T`
+regression. All these cases, and plain canonicalization without any override, MUST keep the
+`internal/x/y.json` token. The CI PR
 and merge-queue selector runs the pinned `CORVINT_PR_TOOL_SOURCE` build, so AFP-V0-2240 and
 AFP-V0-2241 reach CI only with the next re-pin.
 
@@ -437,7 +434,7 @@ AFP-V0-2241 reach CI only with the next re-pin.
 | AFP-V0-2243 | the trail switch of `unconditionalAssignment` in `internal/liveverify/affected/shell/shell.go` | the `or exit`, `and cd`, `piped`, `background`, `list in background`, `or list in background`, `or reassign` and `or read` cases of `TestTempRootPathsAreNoTokens_AFPV02204` |
 | AFP-V0-2244 | the `script/batch-regen.sh` entry of `.corvint/shell-foreign-callers.json` | the repository declaration check (`TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`); `tools/declaration-compat-check`; the `heavy.sh` replay in the build log |
 | AFP-V0-2245 | withdrawn; no implementation | `TestTypeScriptAnchoredCounterexamplesStaySelected_AFPV02245` in `internal/liveverify/affected/typescript/anchored_counterexamples_test.go` (the 17 counterexample cases stay selected; each fails against the withdrawn implementation at `7f7458dc9`) |
-| AFP-V0-2246 | `canonicalPath`, `withoutCanonicalPaths`, `canonicalOverride`, `canonicalShebang`, `functionDefinition`, `plainName`, `canonicalFunctions`, `harmlessTraps`, `pathCommand`, `exitsNext` and `separator` in `internal/liveverify/affected/shell/shell.go` | the 29 `canonical` cases of `TestTempRootPathsAreNoTokens_AFPV02204` (narrowed: plain, physical, EXIT trap, path command; kept: without exit, other name, piped exit, first, the `cd`, `pwd`, `exit`, `builtin` and `command` functions, a quoted function name, `alias`, `enable`, quoted `enable`, `eval`, quoted `eval`, a computed command word, sourced files, a DEBUG trap and a quoted one, `mapfile -C`, `BASH_ALIASES`, `shopt`, `declare`); `TestCanonicalizationNeedsAPlainShell_AFPV02246` (bash, sh and dash admitted; zsh, ksh and no shebang refused) |
+| AFP-V0-2246 | Withdrawn: canonicalization helpers removed; `tempRoots` and `pathTokens` in `internal/liveverify/affected/shell/shell.go` retain the pre-canonicalization rule | `TestTempRootPathsAreNoTokens_AFPV02204` (all canonical cases kept; literal temp-root controls unchanged); `TestCanonicalizationCounterexamplesStaySelected_AFPV02246` (all five review classes and sub-cases, standalone `set -T`, direct and assigned derived paths, shell variants) |
 | AFP-V0-2247 | `Impact` and `StaticLoad` in `internal/webdialect/webdialect.go`; `flowWebCodeLines` in `internal/contextindex/flowlexical.go` and the registration in `dialect_hooks.go`; the TypeScript plugin's paths in `internal/langplugin` and `internal/langplugin/decl`; the Tasks export prefix in `internal/companionrelease/export.go` | `TestImpactProfileIsUnchanged_AFPV02247` in `internal/webdialect/webdialect_test.go`; the unchanged `internal/contextindex` and `internal/langplugin` suites; the contextindex replay in the build log |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 
@@ -455,7 +452,6 @@ from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`. For AFP-V0-
 AFP-V0-2242, delete `internal/gateselect/naming.go` and its test and make `keepsReader` return
 true (rule (c) is the component-run relation again); for AFP-V0-2243, restore `&&` and `||` to the trail
 refusal; for AFP-V0-2244, move the three `internal/dogfoodflow` files back to `callers`. AFP-V0-2245
-is withdrawn and needs none; for AFP-V0-2246, drop the
-`withoutCanonicalPaths` call from `tempRoots`; for AFP-V0-2247, move `Impact` back into
+and AFP-V0-2246 are withdrawn and need none; for AFP-V0-2247, move `Impact` back into
 `internal/contextindex` as the `webImpact` variable and delete `internal/webdialect`. Run
 `make spec-requirements` after deleting this file.
