@@ -7,14 +7,8 @@ import (
 	"testing"
 )
 
-// TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair pins the stacked
-// repair of V1-3118: a commit after a seal makes BASE..HEAD add each prior
-// seal's CEM, .corvint/changes/<bind>.cem.json, as a new hunk no BASE line can
-// anchor. Each such hunk gets a cite row on a stable BASE line of
-// docs/DOGFOOD.md that defines the sealed path, a different line per sealed
-// file, instead of an unknown row the bind loop must rewrite; the code hunks,
-// whose file the change modifies, are unknown (DCW-V0-393), and the rows are keyed by the current patch's
-// hunk IDs.
+// DCW-V0-385 amended by DWC-V0-926: generic seal instructions do not name
+// a future bind commit path; stacked-repair rows retain uncertainty.
 func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -46,11 +40,11 @@ func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 	writeTree(t, root, map[string]string{"pkg/code.go": edit("10")})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "change")
-	first := seal("first")
+	seal("first")
 	writeTree(t, root, map[string]string{"pkg/code.go": edit("10", "40")})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "repair")
-	second := seal("second")
+	seal("second")
 	writeTree(t, root, map[string]string{"pkg/code.go": edit("10", "40", "55")})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "second repair")
@@ -60,49 +54,7 @@ func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 	if err != nil || status != 0 {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", status, err, stderr.String())
 	}
-	out, errText := stdout.String(), stderr.String()
-	rows := textLines([]byte(out))
-	if len(rows) != 5 {
-		t.Fatalf("rows = %d, want 3 code hunks and 2 sealed CEMs:\n%s\n%s", len(rows), out, errText)
-	}
-	spans := map[string]bool{}
-	sealed := 0
-	for _, row := range rows {
-		fields := strings.Split(row, "\t")
-		if len(fields) != 4 || len(fields[0]) < 40 {
-			t.Fatalf("row is not a hunk-ID keyed plan row: %q", row)
-		}
-		mapped := ""
-		for _, name := range []string{first, second, "pkg/code.go"} {
-			if strings.Contains(errText, "hunk "+fields[0]+" edits "+name+" at BASE ") {
-				mapped = name
-			}
-		}
-		if unknownRow(fields) {
-			if mapped != "pkg/code.go" {
-				t.Errorf("hunk of %s drafted unknown: %q\n%s", mapped, row, errText)
-			}
-			continue
-		}
-		// DCW-V0-962: only its own marked proposal may cite the modified file.
-		if mapped == "pkg/code.go" && (fields[1] != "pkg/code.go" || !proposalRow(errText, row)) {
-			t.Errorf("hunk of the modified pkg/code.go cites a span other than its marked proposal: %q", row)
-		}
-		if spans[fields[1]+":"+fields[2]] {
-			t.Errorf("span %s:%s cited twice:\n%s", fields[1], fields[2], out)
-		}
-		spans[fields[1]+":"+fields[2]] = true
-		if mapped == first || mapped == second {
-			sealed++
-			if fields[1] != "docs/DOGFOOD.md" || fields[3] != "specification" {
-				t.Errorf("sealed CEM %s not cited to the seal contract: %q", mapped, row)
-			}
-		}
-	}
-	if sealed != 2 {
-		t.Fatalf("sealed CEM rows = %d, want 2:\n%s\n%s", sealed, out, errText)
-	}
-	if !strings.Contains(errText, "cited to the seal contract that writes it (DCW-V0-385)") {
-		t.Errorf("stderr does not say why the sealed CEMs are cited:\n%s", errText)
-	}
+	// DWC-V0-926: a generic seal contract cannot name an as-yet nonexistent
+	// bind commit path. Its rows stay unknown, as do unanchored code rows.
+	assertAnchoredDraft(t, root, base, stdout.String())
 }

@@ -65,48 +65,20 @@ func unknownRows(plan string) int {
 	return count
 }
 
-// TestProposeCitationsDCWV0966BoundsTheUnknownRate (V1-3284, V1-3428): on a
-// self-development change at most one row in five is unknown. The code, test
-// and added test hunks naming the new requirement cite the BASE requirement it
-// refines (DCW-V0-967), and the spec, code and docs hunks get their own file's
-// marked proposals. The draft passes
-// the bind's pre-flight with real cem prepare and cite, so no row is refused
-// as cite-span-not-stable.
+// DCW-V0-966 amended by DWC-V0-926: lowering the unknown count cannot
+// justify cross-file guesses or arbitrary own-file spans. Retain the real
+// self-development scenario and check its citations against CEM-V1-081.
 func TestProposeCitationsDCWV0966BoundsTheUnknownRate(t *testing.T) {
 	root, base := selfDevelopmentRepository(t)
 	var stdout, stderr bytes.Buffer
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
-	rows := textLines(stdout.Bytes())
-	unknown := unknownRows(stdout.String())
-	if len(rows) < 6 || unknown*5 > len(rows) {
-		t.Fatalf("draft has %d unknown of %d rows, over one in five:\n%s\n%s", unknown, len(rows), stdout.String(), stderr.String())
-	}
-	// The code, its test and the added test file all name XYZ-V0-003, so each
-	// cites the BASE definition of the XYZ-V0-001 it refines.
-	for _, name := range []string{"internal/x/x.go at BASE 7,7", "internal/x/x_test.go at BASE 7,7", "internal/x/new_test.go at BASE 0,0 HEAD 1,6"} {
-		found := false
-		for _, row := range rows {
-			id, _, _ := strings.Cut(row, "\t")
-			found = found || strings.Contains(stderr.String(), "  hunk "+id+" edits "+name) && strings.HasSuffix(row, "\tdocs/specs/x-v0.md\t5:5\tspecification")
-		}
-		if !found {
-			t.Errorf("the hunk of %s does not cite the refined XYZ-V0-001 definition:\n%s\n%s", name, stdout.String(), stderr.String())
-		}
-	}
-	for _, want := range []string{
-		"the BASE definition of XYZ-V0-001, which the entry of the same-change requirement XYZ-V0-003 refines, amends or names",
-		"\tdocs/specs/x-v0.md\t5:5\tspecification\n",
-	} {
-		if !strings.Contains(stderr.String()+stdout.String(), want) {
-			t.Errorf("draft lacks %q:\n%s\n%s", want, stdout.String(), stderr.String())
-		}
-	}
-	code, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: writeInput(t, stdout.String())})
-	if code != 0 || strings.Contains(out+errText, "cite-span-not-stable") {
-		t.Fatalf("the drafted plan failed the pre-flight: exit=%d\n%s\n%s\nplan:\n%s", code, out, errText, stdout.String())
-	}
+	// DWC-V0-926/927 supersede unanchored same-file, move, sibling and seal
+	// guesses. Preserve the full scenario and check every remaining cite with
+	// the CEM verifier; missing anchors must be explicit unknown rows.
+	assertAnchoredDraft(t, root, base, stdout.String())
+
 }
 
 // TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute (V1-3284): a prior
@@ -143,9 +115,9 @@ func TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute(t *testing.T) {
 		t.Fatalf("no row for %s:\n%s\n%s", sealed, plan, errText)
 		return ""
 	}
-	contract := "\tdocs/DOGFOOD.md\t13:13\tspecification"
+	contract := "\tunknown\tinsufficient-evidence\t"
 	plan, errText := draft(ProposeOptions{})
-	if row := sealedRow(plan, errText); !strings.HasSuffix(row, contract) {
+	if row := sealedRow(plan, errText); !strings.Contains(row, contract) {
 		t.Errorf("no-map route: sealed row = %q; want %q", row, contract)
 	}
 	// The prepared-map route keys the rows by ordinal.
@@ -155,7 +127,7 @@ func TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute(t *testing.T) {
 	}
 	writeTree(t, root, map[string]string{".corvint/change.cem.json": string(document) + "\n"})
 	mapped, mappedErr := draft(ProposeOptions{})
-	if row := sealedRow(mapped, mappedErr); !strings.HasSuffix(row, contract) || strings.HasPrefix(row, "hunk:") {
+	if row := sealedRow(mapped, mappedErr); !strings.Contains(row, contract) || strings.HasPrefix(row, "hunk:") {
 		t.Errorf("map route: sealed row = %q; want an ordinal row citing %q\n%s", row, contract, mappedErr)
 	}
 	if err := os.Remove(filepath.Join(root, ".corvint", "change.cem.json")); err != nil {
@@ -171,14 +143,14 @@ func TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute(t *testing.T) {
 		hand += row + "\n"
 	}
 	refreshed, refreshErr := draft(ProposeOptions{Refresh: writeInput(t, hand)})
-	if row := sealedRow(refreshed, refreshErr); !strings.HasSuffix(row, contract) {
+	if row := sealedRow(refreshed, refreshErr); !strings.Contains(row, contract) {
 		t.Errorf("refresh route: sealed row = %q; want %q\n%s", row, contract, refreshErr)
 	}
 	// The change edits the sealed-path line itself: the DCW-V0-385 definition.
 	writeTree(t, root, map[string]string{"docs/DOGFOOD.md": strings.Replace(readText(t, root, "docs/DOGFOOD.md"), "`.corvint/changes/<bind-commit>.cem.json`.", "`.corvint/changes/<bind-commit>.cem.json`, byte for byte.", 1)})
 	testGit(t, root, "commit", "-q", "-am", "edit the seal contract")
 	plan, errText = draft(ProposeOptions{})
-	if row := sealedRow(plan, errText); !strings.HasSuffix(row, "\tdocs/specs/daily-change-evidence-workflow-v0.md\t5:5\tspecification") {
+	if row := sealedRow(plan, errText); !strings.Contains(row, contract) {
 		t.Errorf("edited-contract route: sealed row = %q; want the DCW-V0-385 definition\n%s", row, errText)
 	}
 }

@@ -20,6 +20,28 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 ## Requirements
 
+- `DWC-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amends `DCW-V0-161`, `DCW-V0-962`, `DCW-V0-805`, `DCW-V0-841`, `DCW-V0-803`, `DCW-V0-385`, `DCW-V0-548`, `DCW-V0-966` and `DCW-V0-967`)
+  Every newly drafted `propose-citations` span MUST name the hunk's full path, its basename
+  of at least 6 bytes, or define a requirement ID the hunk adds or names, using `CEM-V1-081`
+  anchoring. Similar words, sibling contracts and change-wide governing specs alone MUST NOT
+  justify a row. If no admissible stable BASE span exists, draft `unknown` with the reason.
+  Author-reviewed rows carried by refresh retain their existing semantics. Evidence:
+  `TestProposeCitationsDWCV0926OnlyAnchoredDrafts`. Rollback: remove the drafted-row anchor filter.
+- `DWC-V0-927`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amends `DCW-V0-439` and `DCW-V0-962`) A newly drafted span MUST NOT consist only of a bare
+  Markdown section heading, even when it names the hunk path. Try an admissible substantive
+  line instead, or keep the row `unknown`. Evidence: `TestProposeCitationsDWCV0927NoHeadings`.
+  Rollback: restore heading candidates.
+- `DWC-V0-928`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  refines `DCW-V0-967` and amends `DCW-V0-805`) For a spec amendment naming a governing ID,
+  the draft MUST prefer its BASE ``- `ID`:`` requirement definition over changed text,
+  a section heading or a guessed cross-file span. An unchanged definition within hunk
+  context is eligible when the citation stability verifier admits it. A definition removed or
+  repeated by the change MUST NOT be cited; retain uncertainty or another admissible anchor.
+  Evidence: `TestProposeCitationsDWCV0928BaseGoverningDefinition`. Rollback: remove the
+  governing-definition preference.
+
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
   `regenerated-specs`, a merge whose ort merge of its two parents conflicts only in
@@ -99,6 +121,9 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 | Requirement | Evidence | State |
 |---|---|---|
+| `DWC-V0-926` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0926OnlyAnchoredDrafts` | implemented; focused regression |
+| `DWC-V0-927` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0927NoHeadings` | implemented; focused regression |
+| `DWC-V0-928` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0928BaseGoverningDefinition` | implemented; focused regression |
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |

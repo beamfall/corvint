@@ -13,7 +13,7 @@ import (
 // head that carries its own seal and nothing stacked on it, propose-citations,
 // with or without --refresh, drafts no row for that seal's CEM hunk and says
 // why; once a later commit changes content on top of the seal, the stacked
-// rebind keeps its DCW-V0-385 row.
+// rebind keeps a row, unknown without an anchor (DWC-V0-926).
 func TestASDV0843ProposeDraftsNoRowForAResealOfTheSameContent(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -64,7 +64,7 @@ func TestASDV0843ProposeDraftsNoRowForAResealOfTheSameContent(t *testing.T) {
 	// A repair on top of the seal makes the head a stacked rebind.
 	writeTree(t, root, map[string]string{"pkg/code.go": strings.Replace(code, "// c line 40\n", "// c line 40 changed\n", 1)})
 	testGit(t, root, "commit", "-q", "-am", "repair")
-	if rows, errText = propose(""); !citesSeal(rows) || strings.Contains(errText, "drafted no row") {
-		t.Fatalf("stacked rebind lost its DCW-V0-385 row:\n%s\n%s", strings.Join(rows, "\n"), errText)
+	if rows, errText = propose(""); len(rows) != 2 || citesSeal(rows) || !strings.Contains(rows[0], "\tunknown\t") || strings.Contains(errText, "drafted no row") {
+		t.Fatalf("stacked rebind must keep an unanchored seal row unknown (DWC-V0-926):\n%s\n%s", strings.Join(rows, "\n"), errText)
 	}
 }

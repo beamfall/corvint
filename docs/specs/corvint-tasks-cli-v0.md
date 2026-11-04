@@ -37,6 +37,13 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 ## Requirements
 
+- `TCL-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4626)
+  `ticket show ID --root DIR` and `ticket show --root=DIR ID` MUST resolve the read from DIR,
+  relative to the caller's directory, just as the leading global `--root` form does. The flag
+  MUST work with JSON, field selection, summary and text output. An empty or missing directory
+  MUST refuse `MALFORMED` before reading a store. This changes no records or write authority.
+  Evidence: `TestTCLV0926TicketShowRootAfterVerb`. Rollback: remove the show-local root parsing.
+
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
   `corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]...
   [--limit N] [--digest FILE]` MUST rank tickets against the query by BM25 (k1 1.2, b 0.3, the
@@ -508,6 +515,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   CAL-V0-131 test still covers it (TCL-V0-815).
 
 ## Acceptance evidence
+
+- `TCL-V0-926` — `internal/tasks/cli/ticket_show_text.go`; `TestTCLV0926TicketShowRootAfterVerb`.
 
 - `internal/tasks/similar/similar_test.go`: `TestTCLV0002_RankIsDeterministicWithEvidence`,
   `TestTCLV0008_RecurrenceLines`, `TestTCLV0006_DigestRoundTrip`;
