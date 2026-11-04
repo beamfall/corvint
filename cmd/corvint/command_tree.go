@@ -24,6 +24,7 @@ var commandTreeInternal = []clitree.Internal{
 	{Word: "authority-event", Reason: "host hook event forwarded by the installed adapter"},
 	{Word: "--native-output", Reason: "authority-event option the installed adapter passes"},
 	{Word: "qualified-event", Reason: "host hook event forwarded by the installed adapter"},
+	{Word: "dogfood-record", Reason: "private local-outcome recorder invoked by dogfood change; the public workflow is dogfood"},
 	{Word: "dogfood-outcome-worker", Reason: "worker process dogfood starts for itself"},
 	{Word: "dogfood-verifier-worker", Reason: "worker process dogfood starts for itself"},
 	{Word: "--aggregate-over-limit", Reason: "dogfood-record option dogfood change passes for itself (DCW-V0-374)"},

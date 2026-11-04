@@ -28,6 +28,10 @@ and authored usage; folded shims reuse their owning command group's tree. Runtim
 remain protocol messages on stdout even with an explicit root. Shared helpers use only the
 standard library and existing presentation packages. Tasks' exact boundary exceptions and
 source export include that closure, verified by the existing boundary and export checks.
+Native closeout also exposed the private `dogfood-record` entry: it now has an explicit reasoned
+internal tree entry, and the compiled refusal suite proves its own argument parser remains reachable.
+The native outdated-map reader now matches its exact admitted code/message independently of
+additional envelope metadata; its regression rejects every other reason, preserving the replacement fence.
 
 The lexical drift check retains explicit limits: dynamic names, semantic option preconditions,
 profile membership and the truth of prose are not inferred. Required-option coverage remains

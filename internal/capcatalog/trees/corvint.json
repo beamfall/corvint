@@ -37,6 +37,10 @@
       "reason": "host hook event forwarded by the installed adapter"
     },
     {
+      "word": "dogfood-record",
+      "reason": "private local-outcome recorder invoked by dogfood change; the public workflow is dogfood"
+    },
+    {
       "word": "dogfood-outcome-worker",
       "reason": "worker process dogfood starts for itself"
     },

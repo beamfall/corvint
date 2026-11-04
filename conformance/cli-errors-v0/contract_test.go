@@ -128,6 +128,12 @@ func TestCLIErrorContracts_ACXV0859(t *testing.T) {
 	cliconformance.Failure(t, filepath.Join(dir, "corvint-companion-release"), nil, 2)
 	cliconformance.Failure(t, filepath.Join(dir, "corvint-public-release-check"), nil, 2)
 	cliconformance.Failure(t, filepath.Join(dir, "corvint-postmerge-workflow"), []string{"encode-id"}, 2)
+	// CAP-V0-7700: an internal recorder must reach its own closed argument
+	// parser, rather than being blocked as an unknown public command.
+	recorder := cliconformance.Failure(t, filepath.Join(dir, "corvint"), []string{"dogfood-record", "--zz-no-such-option"}, 2)
+	if recorder.Code == "unknown-verb" {
+		t.Fatal("private dogfood recorder was blocked by public discovery")
+	}
 	// Exercise the native serializers too, rather than only common preflight.
 	for _, args := range [][]string{{"test-validity", "--receipt", "/no/such/clicontract-receipt.json"}, {"ocm", "status", "--map", "/no/such/clicontract-map.json"}, {"prove", "--cem", "/no/such/clicontract-map.json"}} {
 		cliconformance.Failure(t, filepath.Join(dir, "corvint"), args, 2)
