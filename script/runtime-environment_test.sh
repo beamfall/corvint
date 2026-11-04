@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Run by `make runtime-environment-test`, a gate step (ASD-V0-942).
 set -euo pipefail
+# Child fixtures must work on hosts without a global Git identity.
+export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
+export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 root=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-runtime-environment-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
