@@ -1293,6 +1293,37 @@ small_package_bytes() {
   printf '%s\n' "$total"
 }
 
+# new_package_base COMMAND...: ASD-V0-2400 (V1-3968). Succeeds, printing the first 12 hex digits of
+# the base, when every package argument is a ./REL directory of this checkout that holds a Go file
+# and no Go file directly under it exists at the merge base of HEAD and origin/main: a brand-new
+# package, whose every test is new, so Corvint's selection runs it whole and no narrower run exists.
+# Other flags are skipped as in small_package_bytes; ./..., .., -C, an unresolvable base or a failed
+# git call is not admitted.
+new_package_base() {
+  local seen=0 skip=0 prev_go=0 arg dir base n=0 listed
+  base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    case $arg in
+      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -C | -C=*) return 1 ;;
+      -*) ;;
+      *)
+        dir=${arg#./}
+        dir=${dir%/}
+        [[ $arg == ./* && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
+        compgen -G "$dir/*.go" > /dev/null || return 1
+        listed=$(git ls-tree --name-only "$base" -- "$dir/" 2> /dev/null) || return 1
+        ! grep -q '\.go$' <<< "$listed" || return 1
+        n=$((n + 1))
+        ;;
+    esac
+  done
+  ((n > 0)) || return 1
+  printf '%s\n' "${base:0:12}"
+}
+
 # run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
@@ -1397,6 +1428,75 @@ compile_only() {
   ((c))
 }
 
+# list_only COMMAND...: DTL-V0-007. Succeeds when the go test arguments give -list a non-empty value
+# last, so the test binary only prints matching names and runs no test. It refuses, conservatively,
+# every form whose last effective -list it cannot see: an empty last value (that lists nothing and
+# runs the tests), a test.-prefixed flag anywhere (-test.list= is the same flag), any argument after
+# -args (the test binary parses those last), and a non-empty -exec, which hands the binary to
+# another program: on the command line, or in an exported GOFLAGS or a GOFLAGS= word that no
+# command-line -exec overrides. An empty -exec= is the default and stays neutral. A -- after go test
+# also refuses: go passes it on and the test binary stops parsing flags there (DTL-V0-007).
+list_only() {
+  local seen=0 prev_go=0 listed=0 skip=0 after=0 inherited=0 overridden=0 arg
+  goflags_exec "${GOFLAGS-}" && inherited=1
+  for arg in "$@"; do
+    case $arg in -test.* | --test.*) return 1 ;; esac
+    ((after)) && return 1
+    if ((!seen)); then
+      if [[ $arg == GOFLAGS=* ]]; then goflags_exec "${arg#GOFLAGS=}" && inherited=1 || inherited=0; fi
+      [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue
+    fi
+    [[ $arg == -- ]] && return 1
+    if ((skip == 2)); then [[ -n $arg ]] && listed=1 || listed=0; skip=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    case ${arg#-} in
+      -args | args) after=1 ;;
+      list | -list) skip=2 ;;
+      list=* | -list=*) [[ -n ${arg#*=} ]] && listed=1 || listed=0 ;;
+      exec=* | -exec=*) [[ -z ${arg#*=} ]] || return 1; overridden=1 ;;
+      exec | -exec) return 1 ;;
+      run | skip | bench | benchtime | timeout | count | p | parallel | cpu | tags | shuffle | vet | ldflags | gcflags | asmflags | mod | modfile | o | coverpkg | covermode | coverprofile | cpuprofile | memprofile | memprofilerate | blockprofile | blockprofilerate | mutexprofile | mutexprofilefraction | trace | outputdir | fuzz | fuzztime | fuzzminimizetime | C | overlay | pgo | toolexec | installsuffix | pkgdir) skip=1 ;;
+    esac
+  done
+  ((listed && (overridden || !inherited)))
+}
+
+# goflags_exec FLAGS: DTL-V0-007. True when the GOFLAGS value FLAGS sets a non-empty -exec (or
+# names -exec without a value), which list-only admission refuses.
+goflags_exec() {
+  local word words
+  read -ra words <<< "$1"
+  for word in ${words[@]+"${words[@]}"}; do
+    case ${word#-} in
+      -exec | exec) return 0 ;;
+      -exec=?* | exec=?*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# run_aliased COMMAND...: DTL-V0-007. True when a test.run flag (-test.run, --test.run, on the
+# command line or after -args) can override the -run selection the policy reads.
+run_aliased() {
+  local arg
+  for arg in "$@"; do
+    case $arg in -test.run | -test.run=* | --test.run | --test.run=*) return 0 ;; esac
+  done
+  return 1
+}
+
+# flags_terminated COMMAND...: DTL-V0-007. True when a -- argument follows go test: go passes it
+# to the test binary, which stops parsing flags there, so a -run or -list after it is ignored.
+flags_terminated() {
+  local seen=0 prev_go=0 arg
+  for arg in "$@"; do
+    if ((seen)); then [[ $arg == -- ]] && return 0; continue; fi
+    [[ $arg == test && $prev_go == 1 ]] && seen=1
+    [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0
+  done
+  return 1
+}
+
 # manifest_admits COMMAND...: ASD-V0-891. Succeeds, printing the manifest's planDigest prefix, when
 # HEAVY_SELECTION is a manifest of HEAD that selects every package argument whole, or, with one
 # -skip PATTERN, lists that -skip slice for each; each argument must be ./REL (or .) with no ..., ..
@@ -1447,13 +1547,22 @@ selection_policy() {
     selection_log "$now whole reason=compile-only pwd=$PWD cmd=$*"
     return 0
   fi
+  if list_only "$@"; then
+    selection_log "$now whole reason=list-only pwd=$PWD cmd=$*"
+    return 0
+  fi
   case " $* " in
     *" -run "* | *" -run="* | *" --run "* | *" --run="*)
-      if ! run_selects_all "$@"; then
+      if run_aliased "$@"; then
+        cause='a test.run flag can override its -run selection (DTL-V0-007)'
+      elif flags_terminated "$@"; then
+        cause='a -- argument ends the test binary flags, so a -run after it is ignored (DTL-V0-007)'
+      elif ! run_selects_all "$@"; then
         selection_log "$now selected pwd=$PWD cmd=$*"
         return 0
+      else
+        cause='its -run pattern matches every test name, such as ., .*, Test or an empty pattern (ASD-V0-860)'
       fi
-      cause='its -run pattern matches every test name, such as ., .*, Test or an empty pattern (ASD-V0-860)'
       ;;
   esac
   local small digest
@@ -1461,12 +1570,16 @@ selection_policy() {
     selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
     return 0
   fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(new_package_base "$@"); then
+    selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
+    return 0
+  fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
     selection_log "$now whole reason=corvint-selection:$digest pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; an internal/ or cmd/ package always needs a selection or a reason." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; a brand-new package (no Go file at the merge base of HEAD and origin/main, ASD-V0-2400) needs none either; any other internal/ or cmd/ package needs a selection or a reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
@@ -1491,6 +1604,28 @@ env_reasons() {
 
 # self_path: this script's absolute physical path.
 self_path() { printf '%s/%s\n' "$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd -P)" "${BASH_SOURCE[0]##*/}"; }
+
+# selection_manifest_path: ASD-V0-2401 (V1-4358). The manifest path the rerun line suggests: a file
+# `corvint test --dry-run --manifest` accepts, so never under the Git directory (it refuses every
+# name there but its own receipts) and never in the worktree (an unignored file is a dirty path):
+# ${TMPDIR:-/tmp}/corvint-heavy-selection-UID-CKSUM.json, CKSUM the cksum of this directory's
+# physical path so concurrent checkouts do not share one; /tmp when TMPDIR cannot be resolved or
+# lies inside the worktree, its Git directory or the common Git directory, including via symlinks.
+selection_manifest_path() {
+  local tmp=${TMPDIR:-/tmp} top here sum git_dir common_dir root
+  tmp=$(cd "$tmp" 2> /dev/null && pwd -P) || tmp=/tmp
+  here=$(pwd -P)
+  top=$(git rev-parse --show-toplevel 2> /dev/null) || top=$here
+  git_dir=$(git rev-parse --absolute-git-dir 2> /dev/null) || git_dir=''
+  common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null) || common_dir=''
+  for root in "$top" "$git_dir" "$common_dir"; do
+    [[ -n $root ]] || continue
+    root=$(cd "$root" 2> /dev/null && pwd -P) || { tmp=/tmp; break; }
+    case "$tmp/" in "$root/"*) tmp=/tmp; break ;; esac
+  done
+  sum=$(printf '%s' "$here" | cksum | awk '{ print $1 }')
+  printf '%s/corvint-heavy-selection-%s-%s.json\n' "$tmp" "$(id -u 2> /dev/null || echo 0)" "$sum"
+}
 
 # rerun_lines MISSING... -- COMMAND...: ASD-V0-730 (NEW-B3). After a reason refusal, the exact
 # commands that rerun COMMAND from any directory: with each missing reason as a leading NAME=VALUE
@@ -1525,7 +1660,7 @@ rerun_lines() {
   printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]-}" "$self" "$(printf ' %q' "$@")" >&2
   [[ $missing == *whole-reason-missing* ]] || return 0
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
-  manifest=$(git rev-parse --absolute-git-dir 2> /dev/null)/heavy-selection.json || manifest=$PWD/heavy-selection.json
+  manifest=$(selection_manifest_path)
   printf 'heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd %q && corvint test --base %s --dry-run --manifest %q && %q --plan %q\n' \
     "$PWD" "$base" "$manifest" "$self" "$manifest" >&2
 }
@@ -1580,10 +1715,12 @@ load_wait() {
 }
 
 # free_gb PATH: whole GiB free on the file system of PATH (its nearest existing directory); empty
-# when df cannot say (ASD-V0-937).
+# when df cannot say (ASD-V0-937). A relative PATH is resolved against $PWD first, and the walk stops
+# at / or ., so a missing relative path cannot loop (DTL-V0-014).
 free_gb() {
   local d=$1
-  while [[ -n $d && ! -d $d ]]; do d=${d%/*}; done
+  [[ -z $d || $d == /* ]] || d=$PWD/$d
+  while [[ -n $d && $d != / && $d != . && ! -d $d ]]; do d=${d%/*}; done
   df -Pk "${d:-/}" 2> /dev/null | awk 'NR == 2 && $4 ~ /^[0-9]+$/ { printf "%d", $4 / 1048576 }'
 }
 
@@ -1627,8 +1764,10 @@ on_tmp_root() {
 # temporary files default to the home disk, where the remote half keeps them, so a host that is
 # both a lane host and an offload host has one Go cache and RAM is not filled by builds.
 tmpfs_defaults() {
-  [[ $(tmp_fstype) == tmpfs ]] || return 0
-  local base=${XDG_CACHE_HOME:-$HOME/.cache} moved=''
+  [[ -n ${CORVINT_SCRATCH_ROOT-} || $(tmp_fstype) == tmpfs ]] || return 0
+  local base=${CORVINT_SCRATCH_ROOT:-${XDG_CACHE_HOME:-$HOME/.cache}} moved=''
+  # DTL-V0-014: a relative root is resolved against $PWD, so the disk check and the command agree.
+  [[ $base == /* ]] || base=$PWD/$base
   if [[ -z ${GOCACHE-} && -z ${CORVINT_GOCACHE-} ]]; then
     CORVINT_GOCACHE=$base/corvint-go-build-cache
     export CORVINT_GOCACHE
@@ -1639,12 +1778,19 @@ tmpfs_defaults() {
     export TMPDIR
     moved="${moved:+$moved }TMPDIR=$TMPDIR"
   fi
-  [[ -z $moved ]] || printf 'heavy.sh: /tmp is a tmpfs; this run uses %s\n' "$moved" >&2
+  if [[ -n $moved ]]; then
+    if [[ -n ${CORVINT_SCRATCH_ROOT-} ]]; then
+      printf 'heavy.sh: CORVINT_SCRATCH_ROOT; this run uses %s\n' "$moved" >&2
+    else
+      printf 'heavy.sh: /tmp is a tmpfs; this run uses %s\n' "$moved" >&2
+    fi
+  fi
   # V1-2691: a Go cache the caller put on the tmpfs (the per-lane /tmp/<lane>-go-cache copies
   # that filled a 16 GiB WSL /tmp), and a CORVINT_GOCACHE a Makefile recipe would derive from a
   # TMPDIR there, move to the home-disk cache too, each named on its own line, as the remote half
   # moves an env-file cache (ASD-V0-2120). A TMPDIR there stays: the run's scratch is private and
-  # removed when the run ends.
+  # removed when the run ends. Only a tmpfs /tmp moves them; CORVINT_SCRATCH_ROOT alone does not.
+  [[ $(tmp_fstype) == tmpfs ]] || return 0
   local name path cache=$base/corvint-go-build-cache
   for name in GOCACHE CORVINT_GOCACHE; do
     path=${!name-}
@@ -1673,9 +1819,20 @@ writable_dir() {
 # Never silently choose a private semaphore: that would bypass the host limit.
 writable_paths() {
   local mode=$1 bad=() name path slot scratch=${TMPDIR:-/tmp} cache=${GOCACHE-} corvint=${CORVINT_GOCACHE-} gotmp=${GOTMPDIR-}
+  local transport=${TMPDIR:-/tmp} disk_scratch='' disk_corvint='' set_scratch=0 set_corvint=0
   shift
+  if [[ $mode == control ]]; then
+    # DTL-V0-014: the local defaults main applies once it chooses to run here (tmpfs_defaults, then
+    # the TMPDIR-derived cache), resolved in a subshell so nothing is exported or announced yet.
+    # Only the disk check uses them; the writable check still covers heavy.sh's own TMPDIR.
+    { IFS= read -r disk_scratch; IFS= read -r disk_corvint; } < <(
+      tmpfs_defaults 2> /dev/null
+      path=${TMPDIR:-/tmp}
+      printf '%s\n%s\n' "$path" "${CORVINT_GOCACHE:-${path%/}/corvint-go-build-cache}"
+    )
+  fi
   # Also check paths the wrapped command explicitly overrides through env (or leading NAME=V).
-  if [[ $mode == local && ${1-} == env ]]; then
+  if [[ ${1-} == env ]]; then
     shift
     # env options precede assignments; -u consumes a name, while -- ends option parsing.
     while (($#)); do
@@ -1685,26 +1842,45 @@ writable_paths() {
           name=$2; shift 2 ;;
         -u?*) name=${1#-u}; shift ;;
         --unset=*) name=${1#--unset=}; shift ;;
-        -i|-) scratch=/tmp; cache=; corvint=; gotmp=; shift; continue ;;
+        -i|-) scratch=/tmp; cache=; corvint=; gotmp=; set_scratch=1; set_corvint=1; shift; continue ;;
         --) shift; break ;;
         *) break ;;
       esac
       case $name in
-        TMPDIR) scratch=/tmp ;;
+        TMPDIR) scratch=/tmp; set_scratch=1 ;;
         GOCACHE) cache= ;;
-        CORVINT_GOCACHE) corvint= ;;
+        CORVINT_GOCACHE) corvint=; set_corvint=1 ;;
         GOTMPDIR) gotmp= ;;
       esac
     done
     for path; do
       [[ $path =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break
       case $path in
-        TMPDIR=*) scratch=${path#*=}; scratch=${scratch:-/tmp} ;;
+        TMPDIR=*) scratch=${path#*=}; scratch=${scratch:-/tmp}; set_scratch=1 ;;
         GOCACHE=*) cache=${path#*=} ;;
-        CORVINT_GOCACHE=*) corvint=${path#*=} ;;
+        CORVINT_GOCACHE=*) corvint=${path#*=}; set_corvint=1 ;;
         GOTMPDIR=*) gotmp=${path#*=} ;;
       esac
     done
+  fi
+  # DTL-V0-014: check the effective local paths (argv overrides over the resolved defaults) before
+  # any probe or scratch-index build. Before host choice heavy.sh's own TMPDIR also carries the
+  # offload transport, so it is checked as well, separately from the command's argv overrides.
+  local extra=()
+  if [[ $mode == control ]]; then
+    extra=("$transport")
+    ((set_scratch)) || scratch=$disk_scratch
+    ((set_corvint)) || corvint=$disk_corvint
+  fi
+  if ! TMPDIR="$scratch" GOTMPDIR="$gotmp" GOCACHE="${cache:-${corvint:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}" CORVINT_GOCACHE="$corvint" local_disk refuse-only ${extra[@]+"${extra[@]}"}; then
+    printf 'fix: choose scratch and cache directories with at least HEAVY_REFUSE_FREE_GB free (CORVINT_SCRATCH_ROOT=DIR moves both), then rerun\n' >&2
+    printf 'heavy.sh: REFUSED low-disk (exit 2)\n'
+    heavy_cause=refused-low-disk
+    heavy_exit 2
+  fi
+  if [[ $mode == control ]]; then
+    ((set_scratch)) || scratch=$transport
+    ((set_corvint)) || corvint=${CORVINT_GOCACHE-}
   fi
   if ! writable_dir "$lock_dir"; then
     bad+=("HEAVY_LOCK_DIR=$lock_dir")
@@ -1735,19 +1911,20 @@ writable_paths() {
   refuse "unwritable-paths ${bad[*]}; set the overrides on the fix: line above"
 }
 
-# local_disk: before a local run, name a TMPDIR or GOCACHE file system below the warning floor (the
-# run still goes ahead, ASD-V0-937) or below the refusal floor (status 1, ASD-V0-062), each followed
-# by one cleanup hint.
+# local_disk [refuse-only] [PATH...]: before a local run, name a TMPDIR or GOCACHE file system (and
+# each extra PATH) below the warning floor (the run still goes ahead, ASD-V0-937) or below the
+# refusal floor (status 1, ASD-V0-062), each followed by one cleanup hint.
 local_disk() {
-  local p g low='' refused=''
-  for p in "${TMPDIR:-/tmp}" "$GOCACHE"; do
+  local p g low='' refused='' mode=${1-}
+  (($#)) && shift
+  for p in /tmp "${TMPDIR:-/tmp}" "${GOTMPDIR:-${TMPDIR:-/tmp}}" "${GOCACHE:-${CORVINT_GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}" "${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}" "$@"; do
     g=$(free_gb "$p")
     [[ $g =~ ^[0-9]+$ ]] || continue
     if ((heavy_refuse_free > 0 && g < heavy_refuse_free)); then
       printf 'heavy.sh: low disk here: %s free=%sG refuse-floor=%sG\n' "$p" "$g" "$heavy_refuse_free" >&2
       selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-refused path=$p free=${g}G floor=${heavy_refuse_free}G pwd=$PWD"
       refused=1
-    elif ((heavy_min_free > 0 && g < heavy_min_free)); then
+    elif [[ $mode != refuse-only ]] && ((heavy_min_free > 0 && g < heavy_min_free)); then
       printf 'heavy.sh: low disk here: %s free=%sG floor=%sG\n' "$p" "$g" "$heavy_min_free" >&2
       selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-local path=$p free=${g}G floor=${heavy_min_free}G pwd=$PWD"
     else
@@ -2020,6 +2197,7 @@ main() {
   printf 'heavy.sh: script sha256=%s %s\n' "$heavy_script" "${BASH_SOURCE[0]}" >&2
   cpus=$(cpu_count)
   slot_limits "$cpus"
+  disk_floor
   writable_paths control "$@"
   # ASD-V0-931: one spelling of the lock dir, so a nested HEAVY_HELD always matches its holder.
   lock_dir=$(cd -P "$lock_dir" 2> /dev/null && pwd -P) || refuse "lock-dir-unavailable $lock_dir"
@@ -2048,7 +2226,6 @@ main() {
   else
     unset HEAVY_CLASS
   fi
-  disk_floor
   local remote_hosts=() h
   if [[ -n $heavy_admit_only ]]; then
     # A make dry run (-n) still executes $(MAKE) recipe lines; it takes no slot.
@@ -2126,6 +2303,12 @@ main() {
   : "${CORVINT_GOCACHE:=${cache_tmp%/}/corvint-go-build-cache}"
   export GOCACHE CORVINT_GOCACHE
   writable_paths local "$@"
+  # DTL-V0-014: refuse before load waiting or a scratch-index selection can consume space.
+  if ! local_disk; then
+    printf 'heavy.sh: REFUSED low-disk (exit 2)\n'
+    heavy_cause=refused-low-disk
+    return 2
+  fi
   # ASD-V0-931: a nested admission skips the load gate its holder already passed.
   heavy_load_wait=0
   [[ ${HEAVY_HELD-} == "$slot_dir"/slot* ]] || load_wait "$cpus"
@@ -2137,7 +2320,7 @@ main() {
   # with TMPDIR's trailing slash dropped, ASD-V0-914), so a plain go test and a make target do not
   # fill two caches. ASD-V0-061: on a tmpfs /tmp both move to the home disk first.
   cache_trim
-  if ! local_disk; then
+  if ! local_disk refuse-only; then
     printf 'heavy.sh: REFUSED low-disk (exit 2)\n' # stdout marker (V1-3213)
     heavy_cause=refused-low-disk
     return 2

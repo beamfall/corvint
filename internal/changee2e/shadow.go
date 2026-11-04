@@ -9,6 +9,7 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/jsonend"
 )
@@ -298,6 +299,10 @@ func (w *ShadowWindow) validate() error {
 		for _, m := range e.Mutants {
 			if m == "" || mutants[m] {
 				return bad("entry %s: mutant id %q empty or duplicated in the window", e.ID, m)
+			}
+			// A control guards a verdict and is never a seeded regression (CCE-V0-740).
+			if strings.HasPrefix(m, "control:") {
+				return bad("entry %s: %q is a control, not a seeded mutant", e.ID, m)
 			}
 			mutants[m], own[m] = true, true
 		}

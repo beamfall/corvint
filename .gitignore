@@ -26,6 +26,7 @@ dist/
 .corvint/change.ocm.[0-9][0-9][0-9].json
 .corvint/self-observations.jsonl
 .corvint/dogfood-report.json
+.corvint/.dogfood-report-*.tmp
 .corvint/index/
 .corvint/test-evidence/
 .corvint/strength-evidence/
@@ -87,6 +88,7 @@ node_modules/
 /requirement-id-collisions
 /retrieval-bench
 /selection-baseline
+/shell-test-select
 /str-parity
 /test-commands-check
 /test-exec-writes-check

@@ -15,11 +15,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/testsupport"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
 func TestQualifiedReporterSensitiveRedaction(t *testing.T) {
-	command := exec.Command("node", "--test", "qualified-reporter_test.cjs")
+	command := exec.Command(testsupport.NodeOrSkip(t, "the qualified-reporter regression test"), "--test", "qualified-reporter_test.cjs")
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("reporter regression: %v\n%s", err, output)

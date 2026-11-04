@@ -52,8 +52,9 @@ type Graph struct {
 	// repository, so they are no part of the digest.
 	sourceBound   map[string]map[string]bool
 	fixtureClosed map[string]map[string]bool
-	// sites counts the repository's frontier sites by reason (AFP-V0-381).
-	sites map[string]int
+	// sites counts the repository's frontier sites by plugin and reason
+	// (AFP-V0-381, AFP-V0-2406).
+	sites map[string]map[string]int
 	// promoted marks each fixture unit whose own frontier no Go unit hosts, so
 	// it was raised to its plugin's frontier again (AFP-V0-446).
 	promoted map[string]bool
@@ -811,41 +812,82 @@ func (graph *Graph) UntestedCodeReached(dirty []string) []string {
 	return ids
 }
 
-// frontierSites counts every frontier site in the repository by reason
-// (AFP-V0-381): each plugin and unit frontier entry is one site of the reason
-// formed by its first two colon-separated fields, except a `reason:+N` entry,
-// which counts the N sites its list left unnamed. Plugin-wide and unit
-// frontiers are summed per list, so a count does not depend on the dirty set.
-// It is nil when the repository has no frontier.
-func (graph *Graph) frontierSites() map[string]int {
-	var sites map[string]int
-	add := func(entries []string) {
+// frontierSites counts every frontier site in the repository by plugin and
+// reason (AFP-V0-381): each plugin and unit frontier entry is one site of the
+// reason formed by its first two colon-separated fields, except a `reason:+N`
+// entry, which counts the N sites its list left unnamed. A plugin-wide entry
+// counts toward its plugin, a unit entry toward the plugin its unit id names.
+// Plugin-wide and unit frontiers are summed per list. It is nil when the
+// repository has no frontier.
+func (graph *Graph) frontierSites() map[string]map[string]int {
+	var sites map[string]map[string]int
+	add := func(plugin string, entries []string) {
 		for _, entry := range entries {
 			if sites == nil {
-				sites = make(map[string]int)
+				sites = make(map[string]map[string]int)
+			}
+			if sites[plugin] == nil {
+				sites[plugin] = make(map[string]int)
 			}
 			fields := strings.SplitN(entry, ":", 3)
 			if len(fields) < 2 {
-				sites[entry]++
+				sites[plugin][entry]++
 				continue
 			}
 			reason := fields[0] + ":" + fields[1]
 			if len(fields) == 3 && strings.HasPrefix(fields[2], "+") {
 				if n, err := strconv.Atoi(fields[2][1:]); err == nil && n > 0 {
-					sites[reason] += n
+					sites[plugin][reason] += n
 					continue
 				}
 			}
-			sites[reason]++
+			sites[plugin][reason]++
 		}
 	}
 	for _, name := range graph.languages {
-		add(graph.frontierBy[name])
+		add(name, graph.frontierBy[name])
 	}
 	for id, unit := range graph.units {
 		if !graph.promoted[id] {
-			add(unit.Frontier)
+			plugin, _, _ := strings.Cut(id, ":")
+			add(plugin, unit.Frontier)
 		}
 	}
 	return sites
+}
+
+// planFrontierSites is a plan's frontierSites (AFP-V0-2406, amending
+// AFP-V0-381): the repository sites, whether or not the dirty set reaches
+// them, of each plugin the plan involves (participants) or whose frontier one
+// of its unknown entries names. A plugin the change does not touch adds
+// nothing, so adding, removing or changing an unrelated plugin leaves the
+// plan's bytes unchanged. It is nil when those plugins have no site.
+func (graph *Graph) planFrontierSites(involved []string, unknown []Unknown) map[string]int {
+	if len(graph.sites) == 0 {
+		return nil
+	}
+	plugins := make(map[string]bool, len(involved))
+	for _, name := range involved {
+		plugins[name] = true
+	}
+	for _, entry := range unknown {
+		if entry.Reason == UnknownLanguageFrontier {
+			if name, _, ok := strings.Cut(entry.Detail, ":"); ok {
+				plugins[name] = true
+			}
+		}
+	}
+	var counted map[string]int
+	for plugin, reasons := range graph.sites {
+		if !plugins[plugin] {
+			continue
+		}
+		for reason, count := range reasons {
+			if counted == nil {
+				counted = make(map[string]int)
+			}
+			counted[reason] += count
+		}
+	}
+	return counted
 }

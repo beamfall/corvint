@@ -51,7 +51,7 @@ func testHostAdapterJavaScriptHosts(t *testing.T) {
 	args = append(args, path)
 	result := procgroup.Run(ctx, procgroup.Spec{Argv: args, Dir: filepath.Dir(path), Env: testEnvironment("GOTOOLCHAIN=local", "CORVINT_TEST_NATIVE_FIXTURE="+fixture, "CORVINT_TEST_REAL_BINARY="+realBinary), Timeout: 30 * time.Minute, OutputLimit: 1 << 20}) // hang detector, not a budget (decision 0082)
 	if result.Err != nil || result.ExitStatus != 0 {
-		t.Fatalf("host adapters: %v exit=%d\n%s\n%s", result.Err, result.ExitStatus, result.Stdout, result.Stderr)
+		t.Fatalf("host adapters: %v exit=%d\n%s\nfull output:\n%s\n%s", result.Err, result.ExitStatus, nodeTestFailures(result.Stdout), result.Stdout, result.Stderr)
 	}
 }
 
@@ -105,6 +105,30 @@ func TestASDV0644RequireNode(t *testing.T) {
 	if path, got, fatal := requireNode(found, env("1")); path != "/opt/node/bin/node" || got != "" || fatal {
 		t.Fatalf("found node: %q %q %v", path, got, fatal)
 	}
+}
+
+// nodeTestFailures returns each failing node --test subtest from TAP output, its "not ok" line
+// with the diagnostic block that follows it, so a wrapper failure leads with the failing subtest
+// instead of leaving it somewhere in the full output (V1-3677). With no "not ok" line it says so.
+func nodeTestFailures(out []byte) string {
+	var b strings.Builder
+	in := false
+	for _, line := range strings.Split(string(out), "\n") {
+		trimmed := strings.TrimLeft(line, " ")
+		switch {
+		case strings.HasPrefix(trimmed, "not ok "):
+			in = true
+			b.WriteString(line + "\n")
+		case in && (strings.HasPrefix(trimmed, "ok ") || strings.HasPrefix(trimmed, "# Subtest:") || strings.HasPrefix(trimmed, "1..")):
+			in = false
+		case in:
+			b.WriteString(line + "\n")
+		}
+	}
+	if b.Len() == 0 {
+		return "failing node subtests: none reported (the run ended before a TAP result; see the full output)"
+	}
+	return "failing node subtests:\n" + b.String()
 }
 
 func TestHostAdapterJavaScriptHosts(t *testing.T) {
