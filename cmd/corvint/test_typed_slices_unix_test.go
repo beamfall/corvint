@@ -119,12 +119,19 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 		{"a data file beside a package", "lib/notes.txt", "is a data file under the Go package directory lib"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			units := planFiles(t, map[string]string{tc.file: "two\n"})
-			got, ok := units["go:example.test/m/p"]
-			if tc.file == "ed/data.txt" && !ok {
-				t.Fatalf("p, whose TestEmbed reads ed's embedded file, is not selected")
+			edits := map[string]string{tc.file: "two\n"}
+			if tc.file == "lib/notes.txt" {
+				// Ensure the dependent is selected, even when the data file
+				// has no literal reader in this fixture. Mixed code/data edits
+				// must preserve the whole-package dependency selection.
+				edits["lib/lib.go"] = strings.Replace(lib, "return 1", "return 3", 1)
 			}
-			if ok && (got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, tc.reason)) {
+			units := planFiles(t, edits)
+			got, ok := units["go:example.test/m/p"]
+			if !ok {
+				t.Fatal("p is not selected for the dependency change")
+			}
+			if got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, tc.reason) {
 				t.Fatalf("p %+v, want whole naming %q", got, tc.reason)
 			}
 		})

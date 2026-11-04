@@ -347,6 +347,13 @@ var tempSources = map[string]bool{
 	"io/ioutil.TempDir": true, "io/ioutil.TempFile": true,
 }
 
+// tempCreators change entries in their parent directory even though the
+// resulting path is private (AFP-V0-2374).
+var tempCreators = map[string]bool{
+	"os.MkdirTemp": true, "os.CreateTemp": true,
+	"io/ioutil.TempDir": true, "io/ioutil.TempFile": true,
+}
+
 // stateWriters and stateReaders map standard-library functions to the
 // pseudo variable they write or read.
 var (
@@ -361,6 +368,7 @@ var (
 		"os.Getenv": environment, "os.LookupEnv": environment, "os.TempDir": environment,
 		"os.UserHomeDir": environment, "os.UserCacheDir": environment, "os.UserConfigDir": environment,
 		"os.MkdirTemp": environment, "os.CreateTemp": environment, "os.Environ": environment, "os.ExpandEnv": environment,
+		"io/ioutil.TempDir": environment, "io/ioutil.TempFile": environment,
 		"syscall.Getenv": environment, "syscall.Environ": environment,
 		"os/signal.Notify": signals, "os/signal.NotifyContext": signals, "os/signal.Ignored": signals,
 		"os/signal.Stop": signals, "syscall.Kill": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals,
@@ -960,6 +968,12 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 			if fileReaders[name] && len(call.Args) > 0 {
 				g.fileRead(n, pkg, call.Args[0])
 			}
+			if tempCreators[name] && len(call.Args) > 0 {
+				g.packagePathVars(n, pkg, call.Args[0])
+				if !g.privatePath(pkg, call.Args[0]) {
+					n.writes[files] = true
+				}
+			}
 			if readOnlyOpen(info, name, call) {
 				g.fileRead(n, pkg, call.Args[0])
 			} else {
@@ -1250,7 +1264,7 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 	if name == "log/slog.SetDefault" {
 		n.writes[logDefault] = true
 	}
-	if _, writes := fileWriters[name]; writes || fileReaders[name] {
+	if _, writes := fileWriters[name]; writes || fileReaders[name] || tempCreators[name] {
 		n.writes[files] = true
 		n.reads[files] = true
 	}

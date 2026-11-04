@@ -221,6 +221,11 @@ func TestAFPV02373RoundThreeRegressions(t *testing.T) {
 	if constant.Whole != "" || keptCodes(constant)["TestConst"] != KeptReachesChange || keptCodes(constant)["TestArr"] != KeptReachesChange {
 		t.Fatalf("constant: whole=%q kept=%v", constant.Whole, constant.Kept)
 	}
+	for _, name := range []string{"TestCrossConst", "TestCrossArray"} {
+		if keptCodes(constant)[name] != KeptReachesChange {
+			t.Errorf("constant dependency across packages: %s not kept: %v", name, constant.Kept)
+		}
+	}
 	child := analyzePackage(t, "t3", lib("Child"))
 	if keptCodes(child)["TestSelf"] != KeptStartsProcess || keptCodes(child)["TestSpawnA"] != KeptStartsProcess {
 		t.Fatalf("exec.Cmd by new or var: whole=%q kept=%v", child.Whole, child.Kept)
@@ -246,6 +251,38 @@ func TestAFPV02373RoundThreeRegressions(t *testing.T) {
 	}
 	if n := roots["TestRoot"]; n == nil || !n.writes[files] || !n.reads[files] {
 		t.Fatalf("os.OpenRoot does not read and write files")
+	}
+	for _, name := range []string{"TestIoutilRead", "TestIoutilReadDir", "TestOpenInRoot", "TestRootRead", "TestRootWrite"} {
+		if !roots[name].reads[files] {
+			t.Errorf("%s does not read files", name)
+		}
+	}
+	for _, name := range []string{"TestCopyFS", "TestOpenInRoot", "TestRootRead", "TestRootWrite"} {
+		if !roots[name].writes[files] {
+			t.Errorf("%s does not write files", name)
+		}
+	}
+	for _, name := range []string{"TestIoutilTempFile", "TestIoutilTempDir", "TestIoutilTempFileValue", "TestOSCreateTemp", "TestOSMkdirTemp"} {
+		if !roots[name].writes[files] || !roots[name].reads[environment] {
+			t.Errorf("%s does not write its shared parent and read the environment", name)
+		}
+	}
+	if roots["TestPrivateTemp"].writes[files] {
+		t.Error("temporary creation inside t.TempDir is treated as a shared-directory write")
+	}
+}
+
+// TestAFPV02374TemporaryCreationKeepsParentReaders checks AFP-V0-2374:
+// creating a private temporary file still changes its shared parent's
+// directory entries. The unrelated code-only test remains a negative control.
+func TestAFPV02374TemporaryCreationKeepsParentReaders(t *testing.T) {
+	result := analyzePackage(t, "t6", lib("A"))
+	want := map[string]string{
+		"TestCreate":     KeptReachesChange,
+		"TestReadParent": KeptReadsSharedState,
+	}
+	if result.Whole != "" || !maps(keptCodes(result), want) || !slices.Equal(result.Dropped, []string{"TestControl"}) {
+		t.Fatalf("temporary creation: whole=%q kept=%v dropped=%v", result.Whole, result.Kept, result.Dropped)
 	}
 }
 
