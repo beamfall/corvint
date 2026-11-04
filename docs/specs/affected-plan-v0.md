@@ -2618,7 +2618,7 @@ traceability rows there.
   under CCF-V1-006. The count measures progress toward a bounded scope; it does not change `scope`,
   `unknown` or any selection. Falsifier: a plan whose count differs between two dirty sets over one
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
-  two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
+  two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`. Amended by AFP-V0-2406 (`docs/specs/affected-plan-selection-v0.md`, V1-4281): the count covers only the plugins the plan involves or whose frontier an unknown entry names, so an unrelated plugin changes no plan byte.
 
 - **AFP-V0-400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1817) The
   shell plugin MUST set a unit's `placesFileNames` (part of the AFP-V0-005 projection when true)

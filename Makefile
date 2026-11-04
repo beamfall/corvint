@@ -944,6 +944,20 @@ selection-baseline-check: ## Check the test-selection baseline
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
+# shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
+# (AFP-V0-2401, V1-3489): it builds corvint and tools/shell-test-select from this checkout, plans
+# with `corvint affected --base BASE` and runs the printed steps with --keep-going. A plan that
+# cannot narrow them (unreadable, a dirty Makefile, an unknown outside the shell allowlist) runs
+# every step and says why. Example: make shell-test-affected BASE=$$(git merge-base HEAD origin/main)
+.PHONY: shell-test-affected
+shell-test-affected: go-version ## Run the shell-test steps the affected plan selects (BASE=sha)
+	@test -n "$(BASE)" || { echo "usage: make shell-test-affected BASE=FULL_SHA" >&2; exit 2; }
+	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/shell-test-select && \
+	{ "$$d/corvint" affected --base "$(BASE)" > "$$d/plan.json" 2> "$$d/plan.err" || echo "shell-test-affected: corvint affected exited $$? ($$(head -c 200 "$$d/plan.err"))" >&2; } && \
+	targets=$$("$$d/shell-test-select" --plan "$$d/plan.json" --makefile Makefile) && \
+	if [ -n "$$targets" ]; then $(MAKE) --no-print-directory --keep-going $$targets; else echo "shell-test-affected: no shell-test step selected"; fi
+
 .PHONY: ai-coauthor-trailers-test
 ai-coauthor-trailers-test:
 	@script/check-ai-coauthor-trailers_test.sh

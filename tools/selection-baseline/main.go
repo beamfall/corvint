@@ -117,6 +117,13 @@ type manifest struct {
 	Scope  string         `json:"scope"`
 	Reason string         `json:"reason"`
 	Units  []manifestUnit `json:"units"`
+	// Excluded lists each graph Go unit the manifest leaves out of the root
+	// Go universe, as "<unit>: <reason>" (STR-V0-069): a dependent nested
+	// module's synthetic unit (AFP-V0-582), which is no root package.
+	Excluded []string `json:"excluded"`
+	// nested holds the Excluded units that name a nested module directory of
+	// the replayed head (nestedModuleUnits); only those are not compared.
+	nested map[string]bool
 }
 
 type manifestUnit struct {
@@ -158,6 +165,14 @@ type Result struct {
 	Misses         []string       `json:"misses,omitempty"`
 	MissCauses     []string       `json:"missCauses,omitempty"`
 	Unattributed   int            `json:"unattributedFailures,omitempty"`
+	// TestExtra names each Go package a NARROWED `corvint test` manifest
+	// runs that the plan does not select, TestOmitted each root Go package
+	// the plan selects that a manifest which is not FULL does not run, and
+	// TestMisses each failing package such a manifest does not run
+	// (AFP-V0-2403): all must stay empty.
+	TestExtra   []string `json:"testExtra,omitempty"`
+	TestOmitted []string `json:"testOmitted,omitempty"`
+	TestMisses  []string `json:"testMisses,omitempty"`
 }
 
 // Summary restates the results; narrow rates are only reported with misses.
@@ -174,6 +189,11 @@ type Summary struct {
 	WholePackagesMerged   int     `json:"wholePackagesMerged"`
 	SlicedPackagesMerged  int     `json:"slicedPackagesMerged"`
 	WholeWithTestsMerged  int     `json:"wholeSourceAndTestsChangedMerged"`
+	// TestExtra, TestOmitted and TestMisses total the per-change lists over
+	// every change (AFP-V0-2403).
+	TestExtra   int `json:"testExtra"`
+	TestOmitted int `json:"testOmitted"`
+	TestMisses  int `json:"testMisses"`
 }
 
 type results struct {
@@ -348,8 +368,8 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 			return r, fmt.Errorf("%s: %w", set.Changes[i].ID, errs[i])
 		}
 		r.Results = append(r.Results, res)
-		fmt.Fprintf(os.Stderr, "selection-baseline: %s plan=%s verdict=%s ci=%s packages=%d cost=%.3f whole=%d misses=%d\n",
-			res.ID, res.PlanScope, res.Verdict, res.CIScope, len(res.Packages), res.CostShare, res.WholePackages, len(res.Misses))
+		fmt.Fprintf(os.Stderr, "selection-baseline: %s plan=%s verdict=%s ci=%s packages=%d cost=%.3f whole=%d misses=%d test=%s test-extra=%d test-omitted=%d test-misses=%d\n",
+			res.ID, res.PlanScope, res.Verdict, res.CIScope, len(res.Packages), res.CostShare, res.WholePackages, len(res.Misses), res.TestScope, len(res.TestExtra), len(res.TestOmitted), len(res.TestMisses))
 	}
 	r.Summary = Summarize(r.Results)
 	r.Verdicts = append(Moved(set.Changes, r.Results), verdictLines(r.Summary, set.Floor)...)
@@ -405,6 +425,7 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 	if err != nil {
 		return res, fmt.Errorf("manifest: %w", err)
 	}
+	m.nested = nestedModuleUnits(clone, module, m.Excluded)
 	diff, err := run(ctx, clone, "git", "diff", "--name-only", "--no-renames", "-z", c.Base, c.Head)
 	if err != nil {
 		return res, err
@@ -418,6 +439,7 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 	fillVerdict(&res, audit, costs)
 	fillManifest(&res, m)
 	checkFailures(&res)
+	checkAgreement(&res, p, m)
 	return res, nil
 }
 
@@ -524,6 +546,78 @@ func fillManifest(res *Result, m manifest) {
 	}
 }
 
+// checkAgreement compares a NARROWED `corvint test` manifest with the plan
+// (AFP-V0-2403, V1-4363): every Go package the manifest runs must be one the
+// plan selects, every root Go package the plan selects must be one the manifest
+// runs (review round e P2), so the two paths agree, and every failing package
+// of the change must be one the manifest runs. Only a FULL manifest, which runs
+// every package, is not compared. A NOTHING manifest, or one of any other
+// scope, runs no package: each planned root Go package is omitted and each
+// failing package of the change is a test miss, whatever units it lists and
+// whatever the CI selector chose (review round c P2).
+func checkAgreement(res *Result, p plan, m manifest) {
+	if m.Scope == "FULL" {
+		return
+	}
+	units := m.Units
+	if m.Scope != "NARROWED" {
+		units = nil
+	}
+	planned := map[string]bool{}
+	for _, s := range p.Plan.Selected {
+		planned[s.UnitID] = true
+	}
+	run := map[string]bool{}
+	for _, u := range units {
+		if u.Adapter != "go" || !strings.HasPrefix(u.Unit, "go:") {
+			continue // a nested module's own unit (go-module:) is not a plan unit
+		}
+		if !run[u.Unit] && !planned[u.Unit] {
+			res.TestExtra = append(res.TestExtra, strings.TrimPrefix(u.Unit, "go:"))
+		}
+		run[u.Unit] = true
+	}
+	sort.Strings(res.TestExtra)
+	// The reverse direction (review round e P2): every root Go package the plan
+	// selects must be run, whether or not the change records a failure. A nested
+	// module's packages are not plan units, and other adapters' units are not
+	// compared.
+	// A dependent nested module's synthetic `go:` unit (AFP-V0-582) is skipped
+	// only when the manifest excludes it and its directory holds a go.mod.
+	omitted := map[string]bool{}
+	for _, s := range p.Plan.Selected {
+		if strings.HasPrefix(s.UnitID, "go:") && !run[s.UnitID] && !omitted[s.UnitID] && !m.nested[s.UnitID] {
+			omitted[s.UnitID] = true
+			res.TestOmitted = append(res.TestOmitted, strings.TrimPrefix(s.UnitID, "go:"))
+		}
+	}
+	sort.Strings(res.TestOmitted)
+	for _, f := range res.Failures {
+		if f.Package != "" && !run["go:"+f.Package] {
+			res.TestMisses = append(res.TestMisses, f.Package)
+		}
+	}
+}
+
+// nestedModuleUnits returns the manifest's excluded units that name a nested
+// module of the replayed head: a `go:` unit below the root module path whose
+// local directory holds a regular go.mod. Any other excluded entry is dropped,
+// so the agreement check still compares it (fails closed).
+func nestedModuleUnits(clone, module string, excluded []string) map[string]bool {
+	nested := map[string]bool{}
+	for _, entry := range excluded {
+		unit, _, _ := strings.Cut(entry, ": ")
+		rel, ok := strings.CutPrefix(unit, "go:"+module+"/")
+		if !ok || !filepath.IsLocal(filepath.FromSlash(rel)) {
+			continue
+		}
+		if info, err := os.Lstat(filepath.Join(clone, filepath.FromSlash(rel), "go.mod")); err == nil && info.Mode().IsRegular() {
+			nested[unit] = true
+		}
+	}
+	return nested
+}
+
 // checkFailures lists each failing package a narrowed change does not select.
 func checkFailures(res *Result) {
 	selected := map[string]bool{}
@@ -554,6 +648,9 @@ func Summarize(rs []Result) Summary {
 	failing := map[string]bool{}
 	for _, r := range rs {
 		s.Misses += len(r.Misses)
+		s.TestExtra += len(r.TestExtra)
+		s.TestOmitted += len(r.TestOmitted)
+		s.TestMisses += len(r.TestMisses)
 		for _, f := range r.Failures {
 			if f.Package != "" {
 				failing[r.ID+" "+f.Package] = true
@@ -637,12 +734,21 @@ func Failures(s Summary, f floor) []string {
 	if s.Misses > f.Misses {
 		out = append(out, fmt.Sprintf("%d failing packages missed by a narrowed selection (allowed %d)", s.Misses, f.Misses))
 	}
+	if s.TestExtra > 0 {
+		out = append(out, fmt.Sprintf("%d Go packages a narrowed corvint test runs that corvint affected does not select (AFP-V0-2403: the two must agree)", s.TestExtra))
+	}
+	if s.TestOmitted > 0 {
+		out = append(out, fmt.Sprintf("%d Go packages corvint affected selects that a narrowed corvint test does not run (AFP-V0-2403: the two must agree)", s.TestOmitted))
+	}
+	if s.TestMisses > f.Misses {
+		out = append(out, fmt.Sprintf("%d failing packages missed by a narrowed corvint test (allowed %d, AFP-V0-2403)", s.TestMisses, f.Misses))
+	}
 	return out
 }
 
 func verdictLines(s Summary, f floor) []string {
-	lines := []string{fmt.Sprintf("selection-baseline: narrow=%d/%d merged (rate %.3f) bounded=%d misses=%d over %d failing packages of %d failed CI runs; median cost %.3f; whole=%d sliced=%d whole-source-and-tests=%d",
-		s.NarrowMerged, s.Merged, s.NarrowRateMerged, s.BoundedMerged, s.Misses, s.FailingPackages, s.FailedCI, s.MedianCostShareMerged, s.WholePackagesMerged, s.SlicedPackagesMerged, s.WholeWithTestsMerged)}
+	lines := []string{fmt.Sprintf("selection-baseline: narrow=%d/%d merged (rate %.3f) bounded=%d misses=%d over %d failing packages of %d failed CI runs; median cost %.3f; whole=%d sliced=%d whole-source-and-tests=%d test-extra=%d test-omitted=%d test-misses=%d",
+		s.NarrowMerged, s.Merged, s.NarrowRateMerged, s.BoundedMerged, s.Misses, s.FailingPackages, s.FailedCI, s.MedianCostShareMerged, s.WholePackagesMerged, s.SlicedPackagesMerged, s.WholeWithTestsMerged, s.TestExtra, s.TestOmitted, s.TestMisses)}
 	fails := Failures(s, f)
 	for _, line := range fails {
 		lines = append(lines, "selection-baseline: FAIL "+line)

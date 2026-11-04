@@ -776,10 +776,13 @@ func TestShortFragmentsDoNotNamePaths_V1_1818(t *testing.T) {
 	}
 }
 
-// AFP-V0-381: every plan counts the repository's frontier sites by reason,
-// unit and plugin-wide alike, whether or not its dirty set reaches them; a
+// AFP-V0-381, as AFP-V0-2406 (V1-4281) amends it: a plan counts the
+// repository frontier sites by reason, unit and plugin-wide alike, of each
+// plugin it involves, whether or not its dirty set reaches the site; a
 // truncation entry counts the sites it left unnamed, and a repository with no
-// frontier emits no count.
+// frontier emits no count. A plugin the change does not touch adds nothing, so
+// adding or removing it leaves the plan's bytes (but its graph digest) alone;
+// a change that involves it counts its sites.
 func TestAFPV0381PlanCountsRepositoryFrontierSites(t *testing.T) {
 	x := chain()
 	for index := range x.units {
@@ -787,12 +790,12 @@ func TestAFPV0381PlanCountsRepositoryFrontierSites(t *testing.T) {
 			x.units[index].Frontier = []string{"x:conditional-load:solo.x:7", "x:dynamic-load:+4", "x:dynamic-load:solo.x:3"}
 		}
 	}
-	y := fake{name: "y", frontier: []string{"y:bare", "y:dynamic-load:+2", "y:dynamic-load:a.y:2"}}
+	y := fake{name: "y", frontier: []string{"y:bare", "y:dynamic-load:+2", "y:dynamic-load:a.y:2"}, owns: func(p string) bool { return p == "a.y" }}
 	graph, err := Build(context.Background(), t.TempDir(), x, y)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int{"x:conditional-load": 1, "x:dynamic-load": 5, "y:bare": 1, "y:dynamic-load": 3}
+	want := map[string]int{"x:conditional-load": 1, "x:dynamic-load": 5}
 	plan := Select(graph, []string{"leaf.x"})
 	if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 {
 		t.Fatalf("an unreached site must not widen the plan: %+v", plan)
@@ -801,14 +804,38 @@ func TestAFPV0381PlanCountsRepositoryFrontierSites(t *testing.T) {
 		t.Fatalf("frontierSites=%v want %v", plan.FrontierSites, want)
 	}
 	if reached := Select(graph, []string{"solo.x"}); reached.Scope != ScopeUnknown || !maps.Equal(reached.FrontierSites, want) {
-		t.Fatalf("the count must not depend on the dirty set: %+v", reached)
+		t.Fatalf("the count of an involved plugin must not depend on which of its sites the dirty set reaches: %+v", reached)
 	}
 	encoded, err := json.Marshal(plan, json.Deterministic(true))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(encoded), `"frontierSites":{"x:conditional-load":1,"x:dynamic-load":5,"y:bare":1,"y:dynamic-load":3}`) {
+	if !strings.Contains(string(encoded), `"frontierSites":{"x:conditional-load":1,"x:dynamic-load":5}`) {
 		t.Fatalf("wire=%s", encoded)
+	}
+	// AFP-V0-2406: the same plan without the unrelated plugin y is byte-equal
+	// but for the graph digest; a change y owns counts y's sites too.
+	without, err := Build(context.Background(), t.TempDir(), x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bare := func(p Plan) string {
+		p.GraphDigest = ""
+		for index := range p.Excluded {
+			p.Excluded[index].Universe = "" // the graph's identity, as its digest
+		}
+		out, err := json.Marshal(p, json.Deterministic(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(out)
+	}
+	if got, base := bare(Select(without, []string{"leaf.x"})), bare(plan); got != base {
+		t.Fatalf("an unrelated plugin changed the plan bytes:\nwith    %s\nwithout %s", base, got)
+	}
+	both := map[string]int{"x:conditional-load": 1, "x:dynamic-load": 5, "y:bare": 1, "y:dynamic-load": 3}
+	if owned := Select(graph, []string{"leaf.x", "a.y"}); !maps.Equal(owned.FrontierSites, both) {
+		t.Fatalf("a change the y plugin owns must count its sites: %v", owned.FrontierSites)
 	}
 	clean, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {

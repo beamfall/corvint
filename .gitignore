@@ -87,6 +87,7 @@ node_modules/
 /requirement-id-collisions
 /retrieval-bench
 /selection-baseline
+/shell-test-select
 /str-parity
 /test-commands-check
 /test-exec-writes-check

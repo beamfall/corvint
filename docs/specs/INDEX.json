@@ -4484,5 +4484,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-self-development-selection-v0.md",
+    "title": "Corvint Self-Development Selection Correctness V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "per requirement, each experimental under the standing lane auto-accept (2026-11-03)",
+    "delivery": "experimental",
+    "claim": "heavy.sh admits new packages, suggests an accepted manifest path and keeps every darwin-only command local; batch-precheck uses the CI allowlist.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

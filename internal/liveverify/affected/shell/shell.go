@@ -193,6 +193,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	applyForeignCallers(root, units, built, frontier)
 	applyShellReadScopes(root, units, toolchainOnly, frontier)
+	applyShellTestInputs(root, units, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
