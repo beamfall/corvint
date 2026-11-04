@@ -334,6 +334,11 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		"cmd/corvint/test.go runTestVerifyShards ReadReceipt",
 		"cmd/corvint/test.go runTestVerifyShards Receipt",
 		"cmd/corvint/test.go runTestVerifyShards Verify",
+		// AFP-V0-2487's advisory fail-fast order: it reads local receipts with
+		// the strict reader to put recent failures first and changes no
+		// selection, run, shard or authority; its help text names the paths.
+		"cmd/corvint/affected_order.go readFailFastReceipt ReadReceipt",
+		"cmd/corvint/help.go affectedHelp literal",
 		// Writers: the run that produces a receipt, its default path, the
 		// output-path refusal that protects it, and the help text.
 		"cmd/corvint/test.go testCheckOutputPath literal",
