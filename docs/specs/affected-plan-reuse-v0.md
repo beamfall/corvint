@@ -74,6 +74,9 @@ per package, and skip per job, only where the inputs the result depends on are p
   valued execution flags are `timeout`, `p`, `parallel` and `cpu`; supported boolean execution
   flags are `v` and `json`. `GOFLAGS` is checked against the same allowlist. Unknown flags,
   file-valued compiler overrides, partial execution flags and invalid values refuse reuse.
+  `GOWORK` must be empty, `off`, or the repository root's `go.work`, whose bytes AFP-V0-2321
+  pins; any other workspace refuses the observation with `unmodeled-workspace` because its
+  contents (including runtime default directives) are not part of the digest.
 - **AFP-V0-2323:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
   `corvint test reuse record` writes one `corvint-test-reuse-record/0` to `--out`: the source
   (`kind` `main`, `pull_request` with its number, or `local`; run id and attempt; commit and tree,
