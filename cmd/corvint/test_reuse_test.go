@@ -38,6 +38,7 @@ func reuseFixtureCommit(t *testing.T, root, message string) string {
 func TestTestReuseCLI(t *testing.T) {
 	t.Setenv("GOFLAGS", "")
 	t.Setenv("GOWORK", "off")
+	t.Setenv("GOAMD64", "v1")
 	root := materializationFixture(t)
 	reuseFixtureWrite(t, root, map[string]string{
 		"go.mod":                         "module example.com/m\n\ngo 1.27\n",

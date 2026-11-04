@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -60,6 +61,7 @@ type GoPackage struct {
 	Incomplete   bool
 	Error        *struct{ Err string }
 	DepsErrors   []*struct{ Err string }
+	Module       *struct{ Dir, GoMod string }
 }
 
 func (p GoPackage) compiled() []string {
@@ -314,7 +316,7 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 		return nil, fmt.Errorf("go list: %w", err)
 	}
 	snapshot.Universe = strings.Fields(string(universe))
-	fields := "ImportPath,Dir,Standard,ForTest,GoFiles,CgoFiles,CFiles,CXXFiles,HFiles,SFiles,SysoFiles,EmbedFiles,TestGoFiles,XTestGoFiles,Deps,Incomplete,Error,DepsErrors"
+	fields := "ImportPath,Dir,Standard,ForTest,GoFiles,CgoFiles,CFiles,CXXFiles,HFiles,SFiles,SysoFiles,EmbedFiles,TestGoFiles,XTestGoFiles,Deps,Incomplete,Error,DepsErrors,Module"
 	listed, err := runBounded(ctx, root, goEnv(env), maxGoListBytes, gotool, append(append([]string{"list", "-e", "-deps", "-test", "-json=" + fields}, options.BuildFlags...), "./...")...)
 	if err != nil {
 		return nil, fmt.Errorf("go list -deps -test: %w", err)
@@ -437,6 +439,26 @@ func ObserveIdentity(ctx context.Context, snapshot *Snapshot, goExecutable strin
 	}
 	if workspace := identity.Env["GOWORK"]; workspace != "" && workspace != "off" && filepath.Clean(workspace) != filepath.Join(snapshot.Root, "go.work") {
 		return Identity{}, fmt.Errorf("unmodeled-workspace: GOWORK %q is not the pinned repository root go.work", workspace)
+	}
+	// Tests and their children can read arbitrary environment names. Hash the
+	// entire supplied environment without persisting arbitrary (possibly secret)
+	// values. Match exec's last-value-wins rule; distinguish unset from empty.
+	runtimeEnv := map[string]string{}
+	for _, entry := range env {
+		name, value, _ := strings.Cut(entry, "=")
+		if name == "" && strings.HasPrefix(entry, "=") {
+			// Windows drive-current-directory entries have names such as =C:.
+			name, value, _ = strings.Cut(entry[1:], "=")
+			name = "=" + name
+		}
+		if runtime.GOOS == "windows" {
+			name = strings.ToUpper(name)
+		}
+		runtimeEnv[name] = value
+	}
+	identity.RuntimeEnvDigest, err = canonicalDigest(runtimeEnv)
+	if err != nil {
+		return Identity{}, err
 	}
 	inputs := map[string]Input{}
 	var directories []string

@@ -8,7 +8,9 @@ usage: python3 -I tools/ci-reuse-replay/replay.py tests DATA CORVINT WORKTREE OU
 DATA is a fetch.py directory, CORVINT the binary under test, WORKTREE a
 detached linked worktree of this repository the replay checks out each
 historical commit in (it must hold no work), OUT a directory for the records,
-decisions, plans and summary.json.
+decisions, plans and summary.json. Existing output files are removed before
+each recomputation and never read; only records computed during this
+invocation may be shared between pairs.
 
 tests (AFP-V0-2333): for each merged pull request with a re-push, every pull
 request run with first-run outcomes is decided against a record of the same
@@ -35,6 +37,14 @@ ENV = dict(os.environ, GOFLAGS="", GOTOOLCHAIN="local", GOWORK="off", GOPROXY="o
 def load(path):
     with open(path) as handle:
         return json.load(handle)
+
+
+def discard(path):
+    """Remove an earlier invocation's output so it can never stand for this one's."""
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
 
 
 def git(worktree, *arguments, check=True):
@@ -129,6 +139,7 @@ def run_tests(data, corvint, worktree, out):
             pairs.append({"pr": number, "previous": previous, "current": current, "main": main[-1] if main else None})
     needed = [p["previous"]["target"] for p in pairs] + [p["current"]["target"] for p in pairs] + [p["main"]["target"] for p in pairs if p["main"]]
     unavailable = set(fetch(worktree, needed))
+    discard(os.path.join(out, "summary.json"))
     os.makedirs(os.path.join(out, "records"), exist_ok=True)
     os.makedirs(os.path.join(out, "decisions"), exist_ok=True)
     records = {}
@@ -137,24 +148,24 @@ def run_tests(data, corvint, worktree, out):
         path = os.path.join(out, "records", f"{kind}-{entry['id']}.json")
         if path in records:
             return records[path]
+        discard(path)
         if entry["target"] in unavailable:
             records[path] = None
             return None
-        if not os.path.exists(path):
-            checkout(worktree, entry["target"])
-            command = [corvint, "--root", worktree, "test", "reuse", "record", "--argv", ARGV, "--out", path,
-                       "--source-kind", kind, "--run-id", str(entry["id"]), "--run-attempt", str(entry["attempt"])]
-            for harness in HARNESS:
-                command += ["--harness", harness]
-            if number:
-                command += ["--pull-request", str(number)]
-            for document in entry["documents"]:
-                command += ["--outcomes", document]
-            result = subprocess.run(command, capture_output=True, text=True, env=ENV)
-            if result.returncode != 0:
-                print(f"record {kind} {entry['id']}: {result.stderr.strip()}", file=sys.stderr)
-                records[path] = None
-                return None
+        checkout(worktree, entry["target"])
+        command = [corvint, "--root", worktree, "test", "reuse", "record", "--argv", ARGV, "--out", path,
+                   "--source-kind", kind, "--run-id", str(entry["id"]), "--run-attempt", str(entry["attempt"])]
+        for harness in HARNESS:
+            command += ["--harness", harness]
+        if number:
+            command += ["--pull-request", str(number)]
+        for document in entry["documents"]:
+            command += ["--outcomes", document]
+        result = subprocess.run(command, capture_output=True, text=True, env=ENV)
+        if result.returncode != 0:
+            print(f"record {kind} {entry['id']}: {result.stderr.strip()}", file=sys.stderr)
+            records[path] = None
+            return None
         records[path] = path
         return path
 
@@ -162,6 +173,7 @@ def run_tests(data, corvint, worktree, out):
     for pair in pairs:
         current = pair["current"]
         decision_path = os.path.join(out, "decisions", f"{current['id']}.json")
+        discard(decision_path)
         sources = [s for s in (record(pair["previous"], "pull_request", pair["pr"]), pair["main"] and record(pair["main"], "main")) if s]
         row = {"pr": pair["pr"], "run": current["id"], "previousRun": pair["previous"]["id"], "mainRun": pair["main"] and pair["main"]["id"],
                "ran": len(current["outcomes"]), "failed": sorted(n for n, o in current["outcomes"].items() if o == "fail")}
@@ -169,23 +181,22 @@ def run_tests(data, corvint, worktree, out):
             row["state"] = "NOT_PRODUCED"
             summary["pairs"].append(row)
             continue
-        if not os.path.exists(decision_path):
-            checkout(worktree, current["target"])
-            packages = os.path.join(out, "decisions", f"{current['id']}.packages")
-            with open(packages, "w") as handle:
-                handle.write("\n".join(sorted(current["outcomes"])) + "\n")
-            command = [corvint, "--root", worktree, "test", "reuse", "decide", "--argv", ARGV, "--trust", "main,pull_request",
-                       "--pull-request", str(pair["pr"]), "--packages", packages, "--out", decision_path]
-            for harness in HARNESS:
-                command += ["--harness", harness]
-            for source in sources:
-                command += ["--records", source]
-            result = subprocess.run(command, capture_output=True, text=True, env=ENV)
-            if result.returncode != 0:
-                row["state"] = "NOT_PRODUCED"
-                row["error"] = result.stderr.strip()[-400:]
-                summary["pairs"].append(row)
-                continue
+        checkout(worktree, current["target"])
+        packages = os.path.join(out, "decisions", f"{current['id']}.packages")
+        with open(packages, "w") as handle:
+            handle.write("\n".join(sorted(current["outcomes"])) + "\n")
+        command = [corvint, "--root", worktree, "test", "reuse", "decide", "--argv", ARGV, "--trust", "main,pull_request",
+                   "--pull-request", str(pair["pr"]), "--packages", packages, "--out", decision_path]
+        for harness in HARNESS:
+            command += ["--harness", harness]
+        for source in sources:
+            command += ["--records", source]
+        result = subprocess.run(command, capture_output=True, text=True, env=ENV)
+        if result.returncode != 0:
+            row["state"] = "NOT_PRODUCED"
+            row["error"] = result.stderr.strip()[-400:]
+            summary["pairs"].append(row)
+            continue
         decision = load(decision_path)
         reused = set(decision["reused"])
         reasons = defaultdict(int)
@@ -253,6 +264,7 @@ def run_jobs(data, corvint, worktree, out, declaration):
 
     heads = [r["head_sha"] for r in runs] + [p["head_sha"] for p in pushes]
     unavailable = set(fetch(worktree, heads))
+    discard(os.path.join(out, "summary.json"))
     os.makedirs(os.path.join(out, "plans"), exist_ok=True)
     summary = {"runs": [], "violations": []}
     for run in runs:
@@ -271,17 +283,17 @@ def run_jobs(data, corvint, worktree, out, declaration):
             summary["runs"].append(row)
             continue
         plan_path = os.path.join(out, "plans", f"{run['id']}.json")
-        if not os.path.exists(plan_path):
-            checkout(worktree, run["head_sha"])
-            result = subprocess.run([corvint, "--root", worktree, "affected", "jobs", "--base", base, "--declaration", declaration],
-                                    capture_output=True, text=True, env=ENV)
-            if result.returncode != 0:
-                row["state"] = "NOT_PRODUCED"
-                row["error"] = result.stderr.strip()[-400:]
-                summary["runs"].append(row)
-                continue
-            with open(plan_path, "w") as handle:
-                handle.write(result.stdout)
+        discard(plan_path)
+        checkout(worktree, run["head_sha"])
+        result = subprocess.run([corvint, "--root", worktree, "affected", "jobs", "--base", base, "--declaration", declaration],
+                                capture_output=True, text=True, env=ENV)
+        if result.returncode != 0:
+            row["state"] = "NOT_PRODUCED"
+            row["error"] = result.stderr.strip()[-400:]
+            summary["runs"].append(row)
+            continue
+        with open(plan_path, "w") as handle:
+            handle.write(result.stdout)
         plan = load(plan_path)
         row.update({"state": "PLANNED", "base": base, "changed": plan["changed"], "planScope": plan.get("planScope")})
         found = conclusions(run)

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -313,9 +314,15 @@ func goTest(t *testing.T, root string, wantPass bool, arguments ...string) []byt
 	command := exec.Command("go", append([]string{"test", "-count=1"}, arguments...)...)
 	command.Dir = root
 	command.Env = fixtureEnv()
+	var stderr strings.Builder
+	command.Stderr = &stderr
 	out, err := command.Output()
 	if (err == nil) != wantPass {
-		t.Fatalf("go test %v: err %v, want pass %v\n%s", arguments, err, wantPass, out)
+		t.Fatalf("go test %v: err %v, want pass %v\n%s%s", arguments, err, wantPass, out, stderr.String())
+	}
+	if !slices.Contains(arguments, "-json") {
+		// Build failures (the compiler's diagnostics) are on stderr.
+		out = append(out, stderr.String()...)
 	}
 	return out
 }

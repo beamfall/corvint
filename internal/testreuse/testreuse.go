@@ -93,6 +93,8 @@ const (
 	ErrorIrregularInput    = "irregular-input"
 	ErrorExternalPackage   = "external-package"
 	ErrorCgoInput          = "cgo-input"
+	ErrorAssemblyInput     = "assembly-input"
+	ErrorModuleInput       = "module-input"
 	ErrorGoListPackage     = "go-list-error"
 	ErrorClosureUnlisted   = "closure-unlisted"
 	ErrorPackageUnlisted   = "package-unlisted"
@@ -122,10 +124,11 @@ type Input struct {
 // Identity is what the result was obtained under besides repository content
 // (AFP-V0-2322).
 type Identity struct {
-	Profile string            `json:"profile"`
-	Env     map[string]string `json:"env"`
-	Argv    []string          `json:"argv"`
-	Harness []Input           `json:"harness"`
+	Profile          string            `json:"profile"`
+	Env              map[string]string `json:"env"`
+	RuntimeEnvDigest string            `json:"runtimeEnvDigest"`
+	Argv             []string          `json:"argv"`
+	Harness          []Input           `json:"harness"`
 }
 
 // Digest returns the identity's canonical digest.
@@ -355,6 +358,30 @@ func DigestPackage(snapshot *Snapshot, importPath, identityDigest string) Packag
 		}
 		if len(member.CgoFiles) != 0 {
 			return fail(ReasonDigestError, ErrorCgoInput+": "+member.ImportPath+" uses cgo, whose includes go list does not name")
+		}
+		if len(member.SFiles) != 0 {
+			return fail(ReasonDigestError, ErrorAssemblyInput+": "+member.ImportPath+" uses assembly, whose includes go list does not name")
+		}
+		// go list reports the effective module directory and manifest, including
+		// a replacement's. Missing or unusual metadata is not proof of closure.
+		if member.Module == nil {
+			return fail(ReasonDigestError, ErrorModuleInput+": "+member.ImportPath+" has no module metadata")
+		}
+		moduleDirectory, ok := snapshot.relative(member.Module.Dir)
+		manifest, manifestOK := snapshot.relative(member.Module.GoMod)
+		if !ok || !manifestOK || manifest != joinRelative(moduleDirectory, "go.mod") {
+			return fail(ReasonDigestError, ErrorModuleInput+": "+member.ImportPath+" has unmodeled module inputs")
+		}
+		if !addFile(manifest) {
+			return fail(ReasonDigestError, detail)
+		}
+		checksum := joinRelative(moduleDirectory, "go.sum")
+		if _, tracked := snapshot.Entries[checksum]; tracked {
+			if !addFile(checksum) {
+				return fail(ReasonDigestError, detail)
+			}
+		} else {
+			inputs[checksum] = Input{Path: checksum, Mode: "absent", Object: "absent"}
 		}
 		if memberDirectory == directory {
 			continue

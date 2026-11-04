@@ -43,29 +43,39 @@ per package, and skip per job, only where the inputs the result depends on are p
   resolves. Otherwise it runs with reason `UNDECLARED_READ_SCOPE`, `UNBOUNDED_READER`,
   `SLICED_UNIT` or `DIGEST_ERROR`. A dirty or invalid read-scope or split declaration leaves no
   package eligible.
-- **AFP-V0-2321:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
+- **AFP-V0-2321:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness; V1-1097)
   The input-closure digest of package P is the SHA-256 of the canonical JSON
   `corvint-test-input-digest/0` document naming P, the identity digest (AFP-V0-2322), P's declared
   entries, and the sorted `(path, mode, blob)` of: every tracked file below P's directory; every
   tracked file below each declared `DIR/` entry (with a `dir` marker) and each declared file, or an
   `absent` marker for a declared path the tree lacks; `go.mod`, `go.sum`, `go.work` and
-  `go.work.sum`, each present or `absent`; and the compiled and embedded files (`GoFiles`,
+  `go.work.sum`, each present or `absent`; every closure module's effective `go.mod`
+  and adjacent `go.sum` (including in-repository replacements, checksum present or `absent`); and the compiled and embedded files (`GoFiles`,
   `CFiles`, `CXXFiles`, `HFiles`, `SFiles`, `SysoFiles`, `EmbedFiles`) of every non-standard
   package `go list -deps -test` puts in P's test binary (P itself when it has no test files).
   Blob ids come from HEAD's tree. The digest is a `DIGEST_ERROR` with a named detail when an input
   is untracked (`untracked-input`), not a regular file blob (`irregular-input`), dirty, or has a
   modified, untracked or ignored worktree path at or below it (`dirty-input`), including inputs hidden by assume-unchanged or skip-worktree index flags; when a closure
-  package is outside the repository (`external-package`) or uses cgo (`cgo-input`); when
+  package is outside the repository (`external-package`), uses cgo (`cgo-input`), or has
+  assembly sources (`assembly-input`, because `go list` omits escaping includes); when a
+  non-standard closure member lacks module metadata or its effective module directory/manifest
+  is outside the repository or not the directory's `go.mod` (`module-input`); when
   `go list` reports an error for any closure package (`go-list-error`, `closure-unlisted`,
   `package-unlisted`); or when a declared entry's form disagrees with the tree (`scope-form`).
-- **AFP-V0-2322:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
+- **AFP-V0-2322:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness; V1-1097)
   The identity is the canonical `corvint-test-reuse-identity/0` of the `go env` values of `CC`,
   `CGO_CFLAGS`, `CGO_CPPFLAGS`, `CGO_CXXFLAGS`, `CGO_ENABLED`, `CGO_LDFLAGS`, `CXX`, `GO386`, `GOAMD64`,
   `GOARCH`, `GOARM`, `GOARM64`, `GODEBUG`, `GOEXPERIMENT`, `GOFLAGS`, `GOMIPS`, `GOMIPS64`, `GOOS`,
   `GOPPC64`, `GORISCV64`, `GOTOOLCHAIN`, `GOVERSION`, `GOWASM` and `GOWORK`;
-  the caller's `--argv` words; and the `(path, mode, blob)` of every tracked file of each
+  the SHA-256 `runtimeEnvDigest` of the canonical full supplied process environment
+  (all names and values, not an allowlist, including test qualification controls and child-process
+  configuration); the caller's `--argv` words; and the `(path, mode, blob)` of every tracked file of each
   `--harness` path, which must be clean. Harness directories carry a `dir` marker so local
-  re-evaluation also discovers added files. The argv MUST carry `-count=1` and MUST NOT carry `-run`,
+  re-evaluation also discovers added files. The runtime environment digest uses a name/value
+  map with last-value-wins duplicates (case-folded names on Windows), independent of entry order,
+  distinguishing unset from an empty value. Arbitrary environment names/values are never written
+  into the identity; only their digest is retained, alongside the existing resolved Go values.
+  Older records without the runtime environment binding cannot authorize reuse. The argv MUST carry `-count=1` and MUST NOT carry `-run`,
   `-skip`, `-list`, `-short`, `-failfast`, `-shuffle`, `-bench` or `-fuzz` (with or without the
   `test.` prefix): a partial or cached run is never a package pass. A record matches only an equal
   identity digest; otherwise the unit runs with `IDENTITY_CHANGED`. Closure discovery receives the
@@ -135,12 +145,17 @@ per package, and skip per job, only where the inputs the result depends on are p
   `fullN` output stays empty, so it never writes an AFP-V0-170 tested-tree record and the merge
   queue, which never reads reuse records, runs in full; (5) any failure in (1) to (3) leaves the
   shard on its existing path.
-- **AFP-V0-2333:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
+- **AFP-V0-2333:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness; V1-1097)
   Acceptance replay: `tools/ci-reuse-replay` decides every pull-request re-push of at least 50
   merged pull requests that have retained outcomes against records of the previous push and of
   main, each made by the branch's own `corvint` at that run's tested merge commit, and reports zero
   packages decided `REUSE` whose outcome in the later run was `fail`, with the runner minutes and
-  modelled shard wall time the reuse removes.
+  modelled shard wall time the reuse removes. Every invocation MUST recompute records and
+  decisions from the supplied binary, environment, source outcomes and historical checkout;
+  existing output files never authorize loading old results and are removed before each
+  recomputation, so a failed one leaves none behind. Only records freshly computed
+  within that same invocation may be memoized. A recomputation failure remains `NOT_PRODUCED`
+  and cannot fall back to an older file or enter the decided/savings denominator.
 - **AFP-V0-2340:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1099)
   The project-owned `.corvint/ci-job-inputs.json` (`corvint-ci-job-inputs/0`) declares, per job of
   a workflow under `.github/workflows/`, its inputs: `paths` (sorted repository files and `DIR/`
@@ -185,11 +200,14 @@ per package, and skip per job, only where the inputs the result depends on are p
   `artifact-integrity` was skipped writes no integrity record and its queue entry runs the gate.
   The `containment` job of `intake-containment.yml` is declared and evaluated but not wired: its
   run (about two minutes) costs about what building `corvint` for its plan would.
-- **AFP-V0-2346:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1099)
+- **AFP-V0-2346:** (experimental under the owner's standing lane auto-accept (2026-10-11); amended 2026-11-04 for review soundness; V1-1099)
   Acceptance replay: `tools/ci-reuse-replay jobs` evaluates the declaration with the branch's own
   `corvint` over each of the last 100 completed `pull_request` and `push` runs of `ci.yml` at the
   run's head, and reports no `SKIP` of a job whose conclusion in that run was `failure`, with the
-  runner minutes the observed SKIPs would have saved.
+  runner minutes the observed SKIPs would have saved. Every invocation MUST regenerate job
+  plans using the supplied binary, environment, declaration and source evidence, irrespective
+  of existing output files, each removed before its plan is regenerated. A planning failure stays
+  `NOT_PRODUCED`, never a stale plan or savings.
 
 ## Non-goals
 
@@ -221,20 +239,20 @@ any decision it cannot apply.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-2320 | `DigestPackage` eligibility checks in `internal/testreuse/testreuse.go`; `readDeclarations` in `observe.go`; `testReuseObserve` in `cmd/corvint/test_reuse.go` | `TestRecordCarriesOnlyEligiblePasses`, `TestUnboundedAndSlicedUnitsRun`, `TestDirtyOrUntrackedInputRuns` in `internal/testreuse/testreuse_test.go` |
-| AFP-V0-2321 | `DigestPackage`, `Snapshot.closure`, `Snapshot.dirtyWithin`, `Observe` in `internal/testreuse` | `TestDigestNegativeControls` (ten controls), `TestDirtyOrUntrackedInputRuns`, `TestFaultInjectionIsSelectedAndFails`, `TestBuildFlagsReachTheClosure`, `TestHiddenIndexFlagsAreDirty` |
-| AFP-V0-2322 | `Identity`, `CheckArgv`, `ObserveIdentity` in `internal/testreuse` | `TestCheckArgv`, `TestIdentityAndTrust`, `TestArgvFlagsAreClassified`, `TestHarnessDirectoryReevaluation`, `TestUnsupportedGOFLAGSFailClosed`, `TestWorkspaceInputsFailClosed` |
+| AFP-V0-2321 | `DigestPackage`, `Snapshot.closure`, `Snapshot.dirtyWithin`, `Observe` in `internal/testreuse` | `TestDigestNegativeControls` (ten controls), `TestDirtyOrUntrackedInputRuns`, `TestFaultInjectionIsSelectedAndFails`, `TestBuildFlagsReachTheClosure`, `TestHiddenIndexFlagsAreDirty`, `TestDependencyModuleLanguageFault`, `TestAssemblyIncludedHeaderFault` in `internal/testreuse/review_test.go` |
+| AFP-V0-2322 | `Identity`, `CheckArgv`, `ObserveIdentity` in `internal/testreuse` | `TestCheckArgv`, `TestIdentityAndTrust`, `TestArgvFlagsAreClassified`, `TestHarnessDirectoryReevaluation`, `TestUnsupportedGOFLAGSFailClosed`, `TestWorkspaceInputsFailClosed`, `TestRuntimeEnvironmentEnablesSkippedFailure`, `TestRuntimeEnvironmentCanonicalization` in `internal/testreuse/review_test.go` |
 | AFP-V0-2323 | `BuildRecord`, `ParseOutcomes`, `MergeOutcomes`, `ParseTestJSON` in `internal/testreuse/record.go`; `testReuseRecord` | `TestRecordCarriesOnlyEligiblePasses`, `TestMergeOutcomesRefusesAnotherCommit`, `TestParseTestJSON` |
 | AFP-V0-2324 | `ParseRecord` in `record.go`; record admission in `Decide` (`decide.go`) | `TestIdentityAndTrust` |
 | AFP-V0-2325 | `Decide`; `testReuseDecide` in `cmd/corvint/test_reuse.go` | `TestDigestNegativeControls`, `TestFaultInjectionIsSelectedAndFails` |
 | AFP-V0-2326 | `HEAVY_REUSE` in `manifest_perl` and `print_plan` of `script/heavy.sh` | the AFP-V0-2326 group of `script/lane-scripts_test.sh` |
 | AFP-V0-2327 | the reuse steps and `test-reuse-plan` job of `.github/workflows/ci.yml` (separate commit) | `NOT_OBSERVED` hosted; structural review |
-| AFP-V0-2333 | `tools/ci-reuse-replay/fetch.py`, `replay.py tests` | build-log entry `2026-11-03-reuse-verified-results` |
+| AFP-V0-2333 | `tools/ci-reuse-replay/fetch.py`, `replay.py tests` | build-log entry `2026-11-03-reuse-verified-results`; `ReplayFreshnessTest.test_records_and_decisions_regenerated` in `tools/ci-reuse-replay/replay_test.py` |
 | AFP-V0-2340 | `Parse` in `internal/jobinputs/jobinputs.go`; `.corvint/ci-job-inputs.json` | `TestParseRefusesInvalidDeclarations`, `TestRepositoryDeclarationParses` |
 | AFP-V0-2341 | `parseAffectedJobsOptions`, `runAffectedJobs`, `affectedJobsTree` in `cmd/corvint/affected_jobs.go` | `TestAffectedJobsCLI` in `cmd/corvint/affected_jobs_test.go` |
 | AFP-V0-2342 | `Evaluate`, `GoDirectories` in `internal/jobinputs` | `TestEvaluateSkipsOnlyWithoutDeclaredInputChange`, `TestEvaluateFailsClosed`, `TestGoDirectoriesUnionsPlatforms` (fault injection), `TestInteropFormattingFaultIsRun` (fault injection) |
 | AFP-V0-2343 | the `ExportedTree` branch of `Evaluate` | `TestEvaluateExportedTree` |
 | AFP-V0-2344 | the `job-plan` job and `if:` conditions of `.github/workflows/ci.yml` (separate commit) | `NOT_OBSERVED` hosted; structural review |
-| AFP-V0-2346 | `replay.py jobs` | build-log entry `2026-11-03-reuse-verified-results` |
+| AFP-V0-2346 | `replay.py jobs` | build-log entry `2026-11-03-reuse-verified-results`; `ReplayFreshnessTest.test_job_plans_regenerated` in `tools/ci-reuse-replay/replay_test.py` |
 
 ## Rollback
 
