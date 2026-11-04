@@ -360,6 +360,10 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 // readScopeCause records the exact declaration that justifies fan-out rather
 // than treating a declared subtree as a Go import (TSP-V0-1062).
 func readScopeCause(id, directory string, scope []string, dirtyPath string) *ReadScopeCause {
+	if dirtyPath == ReadScopesPath {
+		// The Go declaration itself changed; InReadScope selects shell units on it too.
+		return &ReadScopeCause{Declaration: ReadScopesPath, Entry: ReadScopesPath}
+	}
 	declaration := ReadScopesPath
 	if strings.HasPrefix(id, "shell:") {
 		declaration = ShellReadScopesPath
@@ -368,15 +372,11 @@ func readScopeCause(id, directory string, scope []string, dirtyPath string) *Rea
 	if directory == "." {
 		entry = "./"
 	}
-	if dirtyPath == ReadScopesPath {
-		entry = ReadScopesPath
-	} else {
-		for _, candidate := range scope {
-			target := strings.TrimSuffix(candidate, "/")
-			if dirtyPath == target || strings.HasPrefix(target, dirtyPath+"/") || (target != candidate && strings.HasPrefix(dirtyPath, candidate)) {
-				entry = candidate
-				break
-			}
+	for _, candidate := range scope {
+		target := strings.TrimSuffix(candidate, "/")
+		if dirtyPath == target || strings.HasPrefix(target, dirtyPath+"/") || (target != candidate && strings.HasPrefix(dirtyPath, candidate)) {
+			entry = candidate
+			break
 		}
 	}
 	return &ReadScopeCause{Declaration: declaration, Entry: entry}

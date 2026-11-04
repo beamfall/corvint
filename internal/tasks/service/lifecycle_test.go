@@ -112,14 +112,15 @@ func newServiceHome(t *testing.T, suffix ...string) *serviceHome {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// V1-3686: t.TempDir makes its directory 0777 &^ umask, so a 0002 umask (WSL, Unraid) leaves
+	// it group-writable and observeFile refuses every file under it. Restrict the TempDir root
+	// itself, before any suffix, because unsafeAncestor checks every ancestor of a file.
+	if err := os.Chmod(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	// A caller can force significant digits into the home path (V1-4549).
 	home = filepath.Join(append([]string{home}, suffix...)...)
 	if err := os.MkdirAll(home, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	// V1-3686: t.TempDir makes its directory 0777 &^ umask, so a 0002 umask (WSL, Unraid) leaves
-	// it group-writable and observeFile refuses every file under it.
-	if err := os.Chmod(home, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	s := &serviceHome{home: home, work: filepath.Join(home, "project"), exe: filepath.Join(home, "bin", "corvint-tasks"), config: filepath.Join(home, "config", "dispatch.json"), profile: filepath.Join(home, "config", "service.json")}
