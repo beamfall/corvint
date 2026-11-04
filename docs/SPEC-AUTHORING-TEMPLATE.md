@@ -28,3 +28,5 @@ trust boundary, traceability and rollback sections. A template confers no accept
 
 For dogfood inputs, sort the owning-spec manifest with `LC_ALL=C sort -u -o intents.txt intents.txt`.
 A lane with no declared intent uses a single `#no-intent-declared` line, not an empty manifest.
+
+The Claim bound is `SRG-V0-763`; the index-only staging refusal is `SRG-V0-954`.

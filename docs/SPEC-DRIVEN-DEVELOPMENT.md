@@ -128,7 +128,7 @@ of its own.
 
 ## Required capability-spec shape
 
-Use the [authoring template](SPEC-AUTHORING-TEMPLATE.md) for the Claim limit and staging order. Every substantive capability spec contains:
+Use the [authoring template](SPEC-AUTHORING-TEMPLATE.md) for the Claim limit (`SRG-V0-763`) and staging order (`SRG-V0-954`). Every substantive capability spec contains:
 
 1. owner, date, intent status, delivery status, and authoritative inputs, and an `## Agent digest`
    whose `- Claim:` is one sentence of at most 160 characters ending in `.`, `?` or `!`, which

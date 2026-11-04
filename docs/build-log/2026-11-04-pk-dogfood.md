@@ -8,8 +8,9 @@ are excluded by the lane charter. Independent review belongs to the orchestrator
 
 ## Decisions and contract changes
 
-- `CEM-V1-7400` (V1-3863): verify accepts an absolute in-worktree map through the same held-root
-  reader as a relative one. Verify-stable anchors relative maps to its explicit repository.
+- `CEM-V1-7400` (V1-3863): verify accepts an absolute in-worktree map through the checked parent-directory
+  reader. A lexical-only normalization was replaced after an alias counterexample failed:
+  parent identity, held-directory reads and metadata aliases must retain the old safeguards. Verify-stable anchors relative maps to its explicit repository.
   Git metadata, final symlinks, bounds and existing out-of-tree checks keep their refusals.
 - `DCW-V0-7401` (V1-3977): fail a receipt-less no-diff change start with a named refusal instead
   of silently succeeding with instructions. Existing TASK/PATHS recording is reused. Supply a
