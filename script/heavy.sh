@@ -75,6 +75,14 @@
 #                        ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache, the remote half's
 #                        default, and one whose caller set no TMPDIR uses .../corvint-tmp, naming both
 #                        on one stderr line (ASD-V0-061, V1-3824, V1-2904). `disk` keeps the /tmp paths.
+#                        On a tmpfs, a caller's GOCACHE or CORVINT_GOCACHE at or below the tmpfs root,
+#                        and a CORVINT_GOCACHE that would be derived from a TMPDIR there, move to the
+#                        home-disk cache too, one line each (V1-2691).
+#   HEAVY_TMP_ROOT       the directory HEAVY_TMP_FSTYPE describes and stat probes, default /tmp.
+#   HEAVY_TMPFS_CACHE_GIB  on a tmpfs, the automatic trim (HEAVY_CACHE_TRIM_HOURS) also bounds
+#                        HEAVY_TMP_ROOT/corvint-go-build-cache, the cache a make recipe run outside
+#                        this wrapper fills, to this many GiB of entries over an hour old (default 2;
+#                        V1-2691).
 #   HEAVY_CACHE_TRIM_HOURS  hours between automatic Go cache trims, default 6, 0 off (ASD-V0-104,
 #                        V1-3787): a local run whose HEAVY_LOCK_DIR/cache-trim.stamp is missing or
 #                        older runs `go-cache-trim.sh --apply` on its GOCACHE and TMPDIR first, with
@@ -1596,8 +1604,23 @@ tmp_fstype() {
   if [[ -n ${HEAVY_TMP_FSTYPE-} ]]; then
     printf '%s' "$HEAVY_TMP_FSTYPE"
   elif [[ $(uname -s 2> /dev/null) == Linux ]]; then
-    stat -f -c %T /tmp 2> /dev/null
+    stat -f -c %T "$(tmp_root)" 2> /dev/null
   fi
+}
+
+# tmp_root: the directory whose file system tmp_fstype names, HEAVY_TMP_ROOT or /tmp, without a
+# trailing slash (ASD-V0-061, V1-2691).
+tmp_root() {
+  local root=${HEAVY_TMP_ROOT:-/tmp}
+  [[ $root == / ]] || root=${root%/}
+  printf '%s' "$root"
+}
+
+# on_tmp_root PATH: whether PATH is the tmpfs root or lies below it, compared as written.
+on_tmp_root() {
+  local root
+  root=$(tmp_root)
+  [[ -n $1 && ($1 == "$root" || $1 == "$root"/*) ]]
 }
 
 # tmpfs_defaults: ASD-V0-061 (V1-3824, V1-2904). On a tmpfs /tmp, a local run's Go cache and
@@ -1617,6 +1640,22 @@ tmpfs_defaults() {
     moved="${moved:+$moved }TMPDIR=$TMPDIR"
   fi
   [[ -z $moved ]] || printf 'heavy.sh: /tmp is a tmpfs; this run uses %s\n' "$moved" >&2
+  # V1-2691: a Go cache the caller put on the tmpfs (the per-lane /tmp/<lane>-go-cache copies
+  # that filled a 16 GiB WSL /tmp), and a CORVINT_GOCACHE a Makefile recipe would derive from a
+  # TMPDIR there, move to the home-disk cache too, each named on its own line, as the remote half
+  # moves an env-file cache (ASD-V0-2120). A TMPDIR there stays: the run's scratch is private and
+  # removed when the run ends.
+  local name path cache=$base/corvint-go-build-cache
+  for name in GOCACHE CORVINT_GOCACHE; do
+    path=${!name-}
+    on_tmp_root "$path" || continue
+    export "$name=$cache"
+    printf 'heavy.sh: /tmp is a tmpfs; the caller'"'"'s %s=%s moves to %s (V1-2691)\n' "$name" "$path" "$cache" >&2
+  done
+  if [[ -z ${CORVINT_GOCACHE-} ]] && on_tmp_root "$TMPDIR"; then
+    export CORVINT_GOCACHE=$cache
+    printf 'heavy.sh: /tmp is a tmpfs; CORVINT_GOCACHE moves from below TMPDIR=%s to %s (V1-2691)\n' "$TMPDIR" "$cache" >&2
+  fi
   return 0
 }
 
@@ -1738,6 +1777,21 @@ cache_trim() {
     case $line in TRIMMED\ * | SUMMARY\ * | WARN\ *) printf 'heavy.sh: cache trim: %s\n' "$line" >&2 ;; esac
   done <<< "$out"
   ((rc == 0)) || printf 'heavy.sh: cache trim failed (exit %s); the run goes ahead\n' "$rc" >&2
+  # V1-2691: on a tmpfs /tmp, `make windows-vet` and every make recipe run outside this wrapper
+  # still default their cache to <tmp root>/corvint-go-build-cache (the Makefile's CORVINT_GOCACHE,
+  # whose form STR-V0-908 pins). Bound that RAM-backed copy tightly: HEAVY_TMPFS_CACHE_GIB (default
+  # 2) GiB of entries older than an hour. go-cache-trim.sh touches only a directory with Go's cache
+  # README marker, and Go rebuilds a removed entry.
+  local tmpfs_cache gib=${HEAVY_TMPFS_CACHE_GIB:-2}
+  tmpfs_cache=$(tmp_root)/corvint-go-build-cache
+  [[ $(tmp_fstype) == tmpfs && -d $tmpfs_cache && $tmpfs_cache != "$GOCACHE" ]] || return 0
+  [[ $gib =~ ^[0-9]{1,4}$ ]] || { printf 'heavy.sh: tmpfs cache trim skipped: HEAVY_TMPFS_CACHE_GIB=%s is not whole GiB\n' "$gib" >&2; return 0; }
+  out=$("$tool" --apply --max-gib "$((10#$gib))" --min-age-hours 1 --cache "$tmpfs_cache" 2>&1)
+  rc=$?
+  while IFS= read -r line; do
+    case $line in TRIMMED\ * | SUMMARY\ * | WARN\ *) printf 'heavy.sh: tmpfs cache trim: %s\n' "$line" >&2 ;; esac
+  done <<< "$out"
+  ((rc == 0)) || printf 'heavy.sh: tmpfs cache trim failed (exit %s); the run goes ahead\n' "$rc" >&2
 }
 
 # unwrap_perl STRING: the words of a simple shell command, NUL-terminated; exit 3 for anything a

@@ -1427,7 +1427,15 @@ shell-test: \
 # GOFLAGS alone would fall back to; the CI runner has none. Run it
 # before pushing a change that touches a .go, go.mod or go.sum file (AFP-V0-054,
 # docs/specs/affected-plan-v0.md); TestAFPV0054 keeps the two in step.
-WINDOWS_VET_ENV = GOCACHE=$(CORVINT_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
+# ASD-V0-061 (V1-2691): windows-vet is the Go step AGENTS.md has every lane run directly, outside
+# heavy.sh, so on a host whose CORVINT_GOCACHE default directory is a RAM-backed tmpfs (WSL: a
+# 16 GiB /tmp) it filled RAM. There it uses the home-disk cache heavy.sh uses; a CORVINT_GOCACHE
+# the caller set, and any disk default, are kept. The `make gate` ledger's CORVINT_GOCACHE stays
+# the static default STR-V0-908 resolves; GOCACHE selects no files, so the AFP-V0-054 parity holds.
+ifndef WINDOWS_VET_GOCACHE
+WINDOWS_VET_GOCACHE := $(if $(filter environment command line,$(origin CORVINT_GOCACHE)),$(CORVINT_GOCACHE),$(if $(filter tmpfs ramfs,$(shell stat -f -c %T $(patsubst %/,%,$(or $(TMPDIR),/tmp)) 2> /dev/null)),$(or $(XDG_CACHE_HOME),$(HOME)/.cache)/corvint-go-build-cache,$(CORVINT_GOCACHE)))
+endif
+WINDOWS_VET_ENV = GOCACHE=$(WINDOWS_VET_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
 .PHONY: windows-vet
 windows-vet: go-version ## Vet test files for GOOS=windows
 	$(WINDOWS_VET_ENV) go vet ./...
