@@ -1096,13 +1096,10 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	if replaced != 1 {
 		return fmt.Errorf("report has %d dogfoodCheck lines", replaced)
 	}
-	// Stage in the Git directory and rename, so an interrupted write never
-	// leaves a truncated report or an unignored file in the worktree.
+	// Prefer private Git staging; a cross-mount destination uses sibling staging
+	// so the final replacement stays atomic and never exposes partial report bytes.
 	staged := filepath.Join(c.gitDir, "corvint-dogfood-report.json.tmp")
-	if err := os.WriteFile(staged, []byte(strings.Join(lines, "\n")+"\n"), 0o666); err != nil {
-		return err
-	}
-	return os.Rename(staged, c.report)
+	return publishCheckReport(staged, c.report, []byte(strings.Join(lines, "\n")+"\n"), os.Rename)
 }
 
 func (c *check) unboundNotObserved(reason string) {
