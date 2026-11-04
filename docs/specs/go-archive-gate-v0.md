@@ -56,8 +56,8 @@ themselves remain owned by `release-artifact-integrity-v0.md`.
 ## Verified current state
 
 At `5b496119` the script was wired into `make gate` through the `go-archive-gate` target (historical
-`Makefile@5b496119`). The current target is `Makefile:231@df81c156`; it runs
-`Makefile@5b496119`). The current target is `Makefile:231@df81c156`; it runs
+`Makefile@5b496119`). The current target is `Makefile:236@df81c156`; it runs
+`Makefile@5b496119`). The current target is `Makefile:236@df81c156`; it runs
 `go run ./conformance/release-artifact-v0 archive --revision HEAD` (`script/go-archive-gate:36`)
 followed by an `archive-status` cross-check against a witness under the repository's Git directory.
 
@@ -118,7 +118,7 @@ The `archive` subcommand writes the witness best-effort: on failure it prints
 `release-artifact-v0 archive: private witness not recorded` to stderr and leaves the verdict
 unchanged (`conformance/release-artifact-v0/archive_cli.go:29`), and the archive gate test asserts
 that a witness failure does not relabel the verdict
-(`conformance/release-artifact-v0/archive_gate_test.go:204@cf6df7df`). The witness is persistent private
+(`conformance/release-artifact-v0/archive_gate_test.go:205@cf6df7df`). The witness is persistent private
 state under the Git directory, so a failed write used to leave a witness for the same revision and
 tree from an earlier run for `archive-status` to read, and the script reported `PASS` on evidence
 the current run did not produce. The wrapper now removes any pre-existing witness before the build
