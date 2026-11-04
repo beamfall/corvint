@@ -27,6 +27,7 @@ local trace store (`DCW-V0-023`); without them the worktree is dirty or the reco
 
 ```text
 .corvint/dogfood-report.json
+.corvint/.dogfood-report.*.tmp
 .corvint/change.ocm-intents
 .corvint/change.ocm-status.json
 .corvint/change.ocm.*.json
