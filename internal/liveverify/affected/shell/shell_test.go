@@ -800,6 +800,18 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		{"link", "tmp=$(mktemp -d)\nln -s \"$PWD\" \"$tmp/r\"\ncat \"$tmp/r/internal/x/y.json\"\n", true},
 		{"conditional", "[ -n \"${tmp-}\" ] || tmp=$(mktemp -d)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"used first", "cat \"$tmp/internal/x/y.json\"\ntmp=$(mktemp -d)\n", true},
+		// AFP-V0-2243: an `&&` or `||` after the assignment still runs it
+		// first, in the file's own shell; a pipeline or the background
+		// runs it in a subshell, and a second assignment on the right
+		// refuses as any second assignment does.
+		{"or exit", "tmp=$(mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || exit 1\ncat \"$tmp/repo/internal/x/y.json\"\n", false},
+		{"and cd", "tmp=$(mktemp -d) && cd \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", false},
+		{"piped", "tmp=$(mktemp -d) | cat\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"background", "tmp=$(mktemp -d) &\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"list in background", "tmp=$(mktemp -d) && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"or list in background", "tmp=$(mktemp -d) || echo no && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"or reassign", "tmp=$(mktemp -d) || tmp=.\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"or read", "tmp=$(mktemp -d) || read -r tmp\ncat \"$tmp/internal/x/y.json\"\n", true},
 	}
 	for _, tc := range cases {
 		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)

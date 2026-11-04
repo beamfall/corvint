@@ -65,8 +65,8 @@ func TestSelectPackagesHonorsDeclaredReadScopes(t *testing.T) {
 // a dirty path inside the scope still selects the declared package.
 func TestSelectBoundsDeclaredPathReaders(t *testing.T) {
 	files := map[string]string{
-		"bounded/bounded_test.go": "package bounded\n\nvar _ = []string{\"notes/\", \"docs/\"}\n",
-		"open/open_test.go":       "package open\n\nvar _ = \"notes/\"\n",
+		"bounded/bounded_test.go": "package bounded\n\nvar _ = []string{\"../notes/\", \"../docs/\"}\n",
+		"open/open_test.go":       "package open\n\nvar _ = \"../notes/\"\n",
 		readScopesPath:            `{"profile":"corvint-test-read-scopes/0","packages":{"bounded":["docs/"]}}`,
 	}
 	root := writeFixture(t, files)

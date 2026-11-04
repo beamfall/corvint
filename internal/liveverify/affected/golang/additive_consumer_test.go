@@ -119,7 +119,10 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	})
 	lines = gateselect.SelectStructural(stale, module, root)
 	selected = consumerRun(t, lines)
-	if !has(selected, "reader") || !has(selected, "named") || !has(selected, "enum") {
+	// Since AFP-V0-2241 rule (c) agrees with the planner that named's lone,
+	// unplaced "INDEX.json" names no path, so the whole rule (c) shows as the
+	// stale readers kept and a data line rather than as named.
+	if !has(selected, "reader") || !has(selected, "enum") || has(selected, "named") || !slices.Contains(lines, "data docs/specs/INDEX.json") {
 		t.Errorf("a stale reader selection narrowed rule (c): %q", strings.Join(lines, "\n"))
 	}
 	if slices.ContainsFunc(lines, func(line string) bool {
@@ -144,7 +147,7 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	}
 	lines = gateselect.SelectStructural(receipt, module, root)
 	selected = consumerRun(t, lines)
-	if !has(selected, "named") || slices.Contains(lines, "documentation docs/specs/INDEX.json") {
+	if !slices.Contains(lines, "data docs/specs/INDEX.json") || slices.Contains(lines, "documentation docs/specs/INDEX.json") {
 		t.Errorf("an undeclared documentation path took the plan's readers: %q", strings.Join(lines, "\n"))
 	}
 }

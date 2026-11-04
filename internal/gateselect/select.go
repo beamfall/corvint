@@ -765,10 +765,17 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 	// applies per dirty path, evaluated token by token, and bounded by the
 	// read-scope declaration as selection bounds it (TSP-V0-980).
 	matcher := newPathMatcher(paths)
+	memo := map[string]bool{}
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
 			if !resolvedEvidence(paths[i]) {
-				bind(boundedReaders(directories, scopes, nil, paths[i]), "reader", paths[i])
+				var kept []string
+				for _, directory := range directories {
+					if index.keepsReader(directory, value, paths[i], memo) {
+						kept = append(kept, directory)
+					}
+				}
+				bind(boundedReaders(kept, scopes, nil, paths[i]), "reader", paths[i])
 			}
 		}
 	}

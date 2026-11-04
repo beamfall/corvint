@@ -19,7 +19,7 @@ func narrowingFixture(t *testing.T) string {
 		"ref/ref.go":                        "package ref\n\nimport \"example.com/fixture/core\"\n\nvar _ = core.Fresh()\n",
 		"unref/unref.go":                    "package unref\n\nimport \"example.com/fixture/core\"\n\nvar _ = core.Old()\n",
 		"leaf/leaf.go":                      "package leaf\n\nimport _ \"example.com/fixture/unref\"\n",
-		"named/named_test.go":               "package named\n\nvar fixture = \"INDEX.json\"\n",
+		"named/named_test.go":               "package named\n\nvar fixture, a, b = \"INDEX.json\", \"docs\", \"specs\"\n",
 		"reader/reader_test.go":             "package reader\n\nvar index = \"../docs/specs/INDEX.json\"\n",
 		"docs/specs/INDEX.json":             "{}\n",
 		"docs/specs/unrelated.md":           "x\n",

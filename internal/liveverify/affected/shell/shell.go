@@ -1048,7 +1048,7 @@ var tempExpansion = regexp.MustCompile(`\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za
 // (makesDirectory) or another such name followed only by a literal path
 // without `..` (`rp=$tmp/review`). The assignment is a command of its own at
 // the file's top level, run unconditionally (not after `&&` or `||`, not in a
-// pipeline or the background), and no expansion of the name comes before it
+// pipeline or the background; an `&&` or `||` may follow it), and no expansion of the name comes before it
 // in the text, so no value from the environment can stand in. A file that
 // defines or aliases mktemp has none; one that assigns PATH before the name's
 // assignment must call `command -p mktemp`, as makesDirectory requires when
@@ -1085,7 +1085,8 @@ var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A
 
 // unconditionalAssignment reports that name's one assignment is a command of
 // its own at the file's top level, not after `&&` or `||` and not in a
-// pipeline or the background, and that no expansion of the name precedes it.
+// pipeline or the background (an `&&` or `||` after it is allowed,
+// AFP-V0-2243), and that no expansion of the name precedes it.
 func unconditionalAssignment(r *resolver, parsed script, text, name string) bool {
 	at, plain := r.plainAt[name]
 	if !plain || at >= len(parsed.commands) {
@@ -1099,9 +1100,26 @@ func unconditionalAssignment(r *resolver, parsed script, text, name string) bool
 	case "&&", "||", "|", "&":
 		return false
 	}
+	// An `&&` or `||` after the assignment leaves it the list's first
+	// command, which always runs in the file's own shell, so
+	// `tmp=$(mktemp -d) || exit 1` assigns as a plain line does
+	// (AFP-V0-2243); a pipeline or the background runs it in a subshell, and
+	// so does an `&` that ends its list.
 	switch command.trail {
-	case "&&", "||", "|", "&":
+	case "|", "&":
 		return false
+	}
+	// An `&` that ends the list the assignment leads runs the whole list,
+	// assignment included, in the background.
+list:
+	for next := at; next < len(parsed.commands); next++ {
+		switch parsed.commands[next].trail {
+		case "&&", "||", "|":
+		case "&":
+			return false
+		default:
+			break list
+		}
 	}
 	assigned := firstAssignment(text, name)
 	if assigned < 0 {

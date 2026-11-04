@@ -83,7 +83,7 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 // CEM sidecar: a fixture-root token does not select its holder, a literal that
 // resolves to the sidecar or its directory from the holder's directory does,
 // partial literals composed with a root-climbing literal remain conservative,
-// and any other path keeps the component-run rule.
+// and any other path keeps rule (c)'s own relation (AFP-V0-2241).
 func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 	if changeEvidence != frontier.ExcludedPath {
 		t.Fatalf("changeEvidence = %q, want the CEM excluded path %q", changeEvidence, frontier.ExcludedPath)
@@ -98,7 +98,9 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 	})
 	cases := []struct{ name, dirty, verdict string }{
 		{name: "AFP-V0-012 sidecar selects only resolving readers", dirty: ".corvint/change.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/partial example.com/fixture/split"},
-		{name: "AFP-V0-012 other hidden path keeps component-run readers", dirty: ".corvint/other.json", verdict: "run example.com/fixture/deep/dir example.com/fixture/fixture"},
+		// Any other path keeps rule (c)'s own relation, which since
+		// AFP-V0-2241 lets the lone ".corvint" of fixture name only a file.
+		{name: "AFP-V0-012 other hidden path keeps rule (c)", dirty: ".corvint/other.json", verdict: "run example.com/fixture/deep/dir"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,7 +117,7 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 // TestSelectPackagesNarrowsSealedChangeEvidenceReaders covers AFP-V0-152: a
 // sealed CEM directly under .corvint/changes/ selects only the readers whose
 // literal resolves to it or an ancestor, as the sidecar does, and the
-// -bounds attribution agrees; another path there keeps the component-run rule.
+// -bounds attribution agrees; another path there keeps rule (c)'s own relation.
 func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"fixture/fixture_test.go": "package fixture\n\nvar a, b = \".corvint/changes\", \".corvint/changes/\"\n",
@@ -131,7 +133,9 @@ func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
 	cases := []struct{ name, dirty, verdict string }{
 		{name: "sealed CEM selects only resolving readers", dirty: sealed, verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact"},
 		{name: "AFP-V0-931 sidecar ignores a lone component beside a module anchor", dirty: ".corvint/change.cem.json", verdict: "run example.com/fixture/deep/dir"},
-		{name: "other file keeps component-run readers", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture example.com/fixture/modroot"},
+		// Another file keeps rule (c)'s own relation: modroot's lone
+		// ".corvint" names no directory there either (AFP-V0-2241).
+		{name: "other file keeps rule (c)", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -234,7 +238,7 @@ func TestSelectPackagesLinksRootModuleLiteral(t *testing.T) {
 func TestSelectPackagesStopsClosureAtTestOnlyTokenHolder(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"target/target.go":      "package target\n",
-		"holder/holder_test.go": "package holder\n\nvar ref = \"target\"\n",
+		"holder/holder_test.go": "package holder\n\nvar ref = \"../target\"\n",
 		"importer/importer.go":  "package importer\n\nimport _ \"example.com/fixture/holder\"\n",
 	})
 	var plan Receipt
