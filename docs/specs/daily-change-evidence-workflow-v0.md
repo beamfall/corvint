@@ -2593,20 +2593,20 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   selection, intent manifest, outcome), take no operation lock, never refresh the plan and run no
   step, then print `inputs-check STATIC PASS ...` on stdout and exit 0, or the same refusal and
   exit status as the full pre-flight. Its plan check MUST refuse the row grammar and an unregistered RELATION exactly as the prepare pass's `planShape` would (`invalid-citation-plan`, `citation-plan-relation-unknown`), leaving a plan over the row or byte bound to the staged route; on a seal HEAD it MUST print `inputs-check STATIC SKIP already-sealed; the full inputs-check reports the seal` and exit 0 without the outcome inputs, so a rerun with BASE and CITATIONS alone still reaches the full run's `seal SKIP`. The wrapper's inputs-only phase, which runs before the
-  heavy.sh admission, MUST run it with the cached tree build of HEAD's exact build key, or else
-  the installed `corvint` on PATH, each only when its `inputs-check --help` lists `--static`; with
-  neither it prints `static pre-check SKIP no-static-binary` and goes on, and
+  heavy.sh admission, MUST use explicit `CORVINT_BIN` when it lists `--static`; without an
+  explicit capable binary it prints `static pre-check SKIP no-static-binary` with a reason.
+  It MUST NOT select an unrelated installed binary (amended by `LVT-V0-010`, owner charter
+  2026-11-03). The admitted pre-flight still uses the tree build, and
   `DOGFOOD_STATIC_PRECHECK=0` skips it. The `DCW-V0-074` build key MUST leave out a GOFLAGS
   `-p=N` word (outside quotes, with one adjacent separator) and keep every other GOFLAGS byte, quoted spaces and newlines included, since that word sets parallelism only, so the build the admitted run recorded under heavy.sh's
-  exported `-p` is the one the next unadmitted phase finds. A refusal from the installed binary adds one line naming it
-  and that escape. Target: an input defect is refused in under 1 s of wall time on the lane host
+  exported `-p` is reusable by the admitted phase. Target: an input defect is refused in under 1 s of wall time on the lane host
   instead of after the admission wait and the tree build (measured before and after in
   `docs/build-log/2026-11-02-hvy-u41.md`). Non-goals: running the prepare pass or OCM scope checks
   early; building the tree binary before admission. Failure mode: an installed binary older than
-  a rule this tree relaxed refuses a valid input; the added line names `DOGFOOD_STATIC_PRECHECK=0`,
+  a rule this tree relaxed refuses a valid input; using explicit `CORVINT_BIN` avoids that selection,
   and the admitted pre-flight always uses the tree's own build. Evidence:
   `TestDCWV0731StaticPreCheck` (refusal without step, lock or plan rewrite; STATIC PASS), the
-  `make lane-scripts-test` group `DCW-V0-731` (SKIP, installed-binary refusal before any build,
+  `make lane-scripts-test` group `DCW-V0-731` (SKIP, explicit-binary refusal before any build,
   and the escape), and the `make dogfood-bin-reuse-test` `-p` cases. Rollback: remove `--static`, `staticPass` and the inputs-only phase's pre-check
   block; that phase then exits 0 after the missing-input refusal as before.
 - `DCW-V0-732`: (experimental under the standing lane auto-accept, 2026-11-02; V1-3862, NEW-B4,
