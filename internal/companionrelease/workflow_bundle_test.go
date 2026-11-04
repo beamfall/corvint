@@ -154,11 +154,11 @@ func TestRetainedSmokeReportBindsArchiveOutsideArchive(t *testing.T) {
 func TestExportedPackageTreeAndManifestReferencesAreBound(t *testing.T) {
 	t.Run("PUB-V0-014 host-package-tree-manifest-binding", func(t *testing.T) {
 		export := Export{HeadCommit: "commit", HeadTree: "tree", Files: []SourceFile{
-			{Path: "integrations/codex/README.md", Mode: "100644", Data: []byte("FALLBACK\n")},
+			{Path: "integrations/codex/README.md", Mode: "100644", Data: []byte("FALLBACK\n")}, //corvint:fixture-path
 			{Path: "integrations/codex/plugins/corvint/run", Mode: "100755", Data: []byte("run\n")},
 		}}
 		source := []byte("source")
-		files, artifact, err := exportedPackageTree(export, "integrations/codex/", "source/corvint-src.tar.gz", sha256Hex(source))
+		files, artifact, err := exportedPackageTree(export, "integrations/codex/", "source/corvint-src.tar.gz", sha256Hex(source)) //corvint:fixture-path
 		if err != nil {
 			t.Fatal(err)
 		}

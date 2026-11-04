@@ -1058,7 +1058,7 @@ func TestBundleReportsNameNotRunTargetsAndBrowserScope(t *testing.T) {
 		}
 	})
 	t.Run("WQO-V0-047 adoption-record", func(t *testing.T) {
-		for _, want := range []string{"corvint-tasks --version", "go.mod, notices, cmd/corvint-tasks and internal/tasks", "-X main.build=<N>", "corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint", "work rebind", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} {
+		for _, want := range []string{"corvint-tasks --version", "go.mod, notices, cmd/corvint-tasks and internal/tasks", "-X main.build=<N>", "corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint", "work rebind", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} { //corvint:fixture-path
 			if !strings.Contains(readme, want) {
 				t.Fatalf("README does not record %q:\n%s", want, readme)
 			}

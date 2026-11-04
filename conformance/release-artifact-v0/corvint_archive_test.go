@@ -71,6 +71,12 @@ func testCorvintHostArchivePartialProof(t *testing.T) {
 	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
 		t.Skip("host proof requires Darwin arm64; five-target qualification NOT_RUN")
 	}
+	// The host proof exports and builds this checkout's HEAD through its
+	// .git, which the package's read-scope declaration does not cover, so it
+	// runs only when a whole-suite release gate asks for it (AFP-V0-2362).
+	if os.Getenv("CORVINT_HOST_ARCHIVE_PROOF") != "1" {
+		t.Skip("host proof reads the checkout's .git; set CORVINT_HOST_ARCHIVE_PROOF=1 (the release-gates full-gate legs do) to run it; NOT_RUN")
+	}
 	ctx := context.Background()
 	root, err := filepath.Abs("../..")
 	if err != nil {
