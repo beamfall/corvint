@@ -278,7 +278,7 @@ func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 	}
 	for _, tc := range cases {
 		want := "dogfood-check: SUMMARY " + tc.want + " report=.corvint/dogfood-report.json detail=/g/corvint/dogfood-check.stdout"
-		if got := checkSummary(tc.cem, tc.ocm, tc.noIntent, 0, tc.coverage, "", "/g/corvint/dogfood-check.stdout"); got != want {
+		if got := strings.SplitN(checkSummary(tc.cem, tc.ocm, tc.noIntent, 0, tc.coverage, "", "/g/corvint/dogfood-check.stdout"), "\n", 2)[0]; got != want {
 			t.Errorf("%s\n got %s\nwant %s", tc.name, got, want)
 		}
 	} // DCW-V0-046: the share is unknown over material hunks, mechanical ones
@@ -563,9 +563,16 @@ func TestOCMV0920SummaryNamesTheChangePopulation(t *testing.T) {
 
 // DCW-V0-7402 explains why 0/115 OCM links can coexist with 12/12 traces.
 func TestDCWV07402CountUniverses(t *testing.T) {
-	for _, phrase := range []string{"all obligations in the declared intents", "explicit CEM links", "cited or edited requirements", "test/table traces", "need not agree"} {
-		if !strings.Contains(countUniverseNote, phrase) {
-			t.Fatal(countUniverseNote)
+	cem := []byte(`{"state":"ready-for-ci","counts":{"total":1,"supported":1,"unknown":0,"mechanical":0}}`)
+	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":115,"linked":0,"unknown":115}}}`)
+	got := checkSummary(cem, ocm, false, 0, &changeCoverage{requirements: 12, linked: 12}, "", "/g/detail")
+	for _, phrase := range []string{"change-requirements=12 change-traced=12", "all obligations in the declared intents", "explicit CEM links", "cited or edited requirements", "test/table traces", "need not agree"} {
+		if !strings.Contains(got, phrase) {
+			t.Fatalf("summary missing %q: %s", phrase, got)
 		}
+	}
+	withoutIntent := checkSummary(cem, nil, true, 0, nil, "", "/g/detail")
+	if strings.Contains(withoutIntent, "count-universes") {
+		t.Fatalf("no-intent summary makes an OCM claim: %s", withoutIntent)
 	}
 }
