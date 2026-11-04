@@ -307,40 +307,37 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	// Each active or queued job pins a streamed block. More workers than
 	// this inflate the live block/encoder set on many-core hosts without
 	// shortening the read's other serial stages (DCR-V1-7801).
-	workerCount := min(runtime.GOMAXPROCS(0), 8)
-	jobs := make(chan decodeJob, workerCount)
+	workerCount := min(runtime.GOMAXPROCS(0), 16)
+	jobs := make(chan decodeJob, min(workerCount, 8))
 	var workers sync.WaitGroup
 	for range workerCount {
 		workers.Go(func() {
 			options := json.RejectUnknownMembers(true)
 			var comparison elementEncodingComparer
 			encoder := jsontext.NewEncoder(&comparison, json.Deterministic(true))
+			var batch []byte
 			for job := range jobs {
 				// Allocate the large element storage on the worker, so dispatch does not
 				// serially fault in every chunk before any worker can decode it.
-				*job.chunk = reflect.MakeSlice(job.typ, len(job.raws), len(job.raws))
-				verified := true
-				for i, raw := range job.raws {
-					if stop.Load() {
-						verified = false
-						break
-					}
-					element := job.chunk.Index(i)
-					if json.Unmarshal(raw, element.Addr().Interface(), options) != nil {
-						undecodable.Store(true)
-						stop.Store(true)
-						verified = false
-						break
-					}
-					// A mismatch stops only the comparisons: every element is still decoded, so an
-					// undecodable element anywhere refuses first whatever the batches and their
-					// order (DCR-V1-431).
-					if !verified {
-						continue
-					}
-					comparison = elementEncodingComparer{encodingComparer: encodingComparer{want: raw}}
+				if stop.Load() {
+					job.ref.release()
+					continue
+				}
+				target := reflect.New(job.typ)
+				target.Elem().Set(reflect.MakeSlice(job.typ, len(job.raws), len(job.raws)))
+				*job.chunk = target.Elem()
+				// Batch framing amortizes JSON setup and reflection. Only element
+				// bytes are copied: the main scan independently checks the original
+				// separators and brackets before accepting any worker result.
+				batch = frameElements(batch, job.raws)
+				verified := json.Unmarshal(batch, target.Interface(), options) == nil
+				if !verified {
+					undecodable.Store(true)
+					stop.Store(true)
+				} else {
+					comparison = elementEncodingComparer{encodingComparer: encodingComparer{want: batch}}
 					encoder.Reset(&comparison, json.Deterministic(true))
-					if err := json.MarshalEncode(encoder, element.Addr().Interface()); err != nil || !comparison.equalElement() {
+					if err := json.MarshalEncode(encoder, target.Interface()); err != nil || !comparison.equalElement() {
 						mismatched.Store(true)
 						verified = false
 					}
@@ -525,6 +522,29 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 		tail = hasher.finish()
 	}
 	return &a, tail, nil
+}
+
+// frameElements adds array framing around exact element bytes. Validation of
+// these bytes is still the closed decoder's; validation of the source's own
+// framing remains the scan's. Buffer ownership is local to one decode worker.
+func frameElements(buffer []byte, raws [][]byte) []byte {
+	size := 1 + len(raws)
+	for _, raw := range raws {
+		size += len(raw)
+	}
+	if cap(buffer) < size {
+		buffer = make([]byte, 0, size)
+	} else {
+		buffer = buffer[:0]
+	}
+	buffer = append(buffer, '[')
+	for i, raw := range raws {
+		if i != 0 {
+			buffer = append(buffer, ',')
+		}
+		buffer = append(buffer, raw...)
+	}
+	return append(buffer, ']')
 }
 
 // elementEncodingComparer compares the exact element bytes and the one newline

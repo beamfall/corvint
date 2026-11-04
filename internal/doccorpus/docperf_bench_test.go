@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// BenchmarkDocperfCanonicalClaim isolates the worker's canonical comparison.
+// BenchmarkDocperfCanonicalClaim isolates encoder setup on one representative claim.
 // All arms use the same JSON implementation and must compare every byte.
 func BenchmarkDocperfCanonicalClaim(b *testing.B) {
 	c := Claim{ID: "native:claim:docs/feature.md:123", Subject: "native:subject:docs/feature.md", Text: "The operator opens the ledger and confirms an entry before saving.", Provider: "native", Evidence: Evidence{Derivation: "declared", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{{Path: "docs/feature.md", Start: 12, End: 13}}, Limitations: []string{"structural evidence"}}}

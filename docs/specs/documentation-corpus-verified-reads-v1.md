@@ -42,8 +42,11 @@ read start. Former IDs: DCP-V1-NNN is DCR-V1-NNN for every ID listed here.
   is p50 below 170 ms on the DCR-V1-418 fixture, with DCR-V1-430's RSS bound retained.
 - `DCR-V1-7801`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2588)
   Decode workers MAY allocate their own element storage and reuse their own JSON encoder.
-  At most eight decode workers and eight queued batches may pin streamed blocks; a smaller
+  At most sixteen decode workers and eight queued batches may pin streamed blocks; a smaller
   GOMAXPROCS lowers both bounds. This bounds retained block/encoder storage on many-core hosts.
+  A worker MAY frame the exact element bytes as one array and closed-decode/compare that batch
+  to amortize JSON setup and reflection. The scanner MUST independently check the source's own
+  brackets, commas and adjacency; synthetic framing cannot forgive source whitespace or syntax.
   Every element MUST still pass the closed decoder and exact canonical byte comparison. The
   encoder's one top-level framing newline MUST NOT conceal a missing, changed or extra element
   byte. An undecodable element anywhere still outranks every canonical mismatch. No artifact
@@ -71,7 +74,7 @@ encoder reuse or stamp record encoding independently; no artifact or snapshot mi
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCR-V1-7800 | `artifact_scan.go`, `artifact_decode.go` | `TestDCRV1551ParallelElementsMatchScan`, `TestDCRV1551ParallelElementsCorrupt`, `TestDCRV1552ParallelScanMatchesSequential`, `TestDCRV1559BlockScanMatchesScan`; `docs/build-log/2026-11-04-docperf.md` |
-| DCR-V1-7801 | `artifact_decode.go` | `TestDCRV17801WorkerCanonicalComparison`, `TestDCRV1552ParallelScanMatchesSequential`; `BenchmarkDocperfCanonicalClaim`; `docs/build-log/2026-11-04-docperf.md` |
+| DCR-V1-7801 | `artifact_decode.go` | `TestDCRV17801WorkerCanonicalComparison`, `TestDCRV17801BatchMatchesClosedArtifact`, `TestDCRV1552ParallelScanMatchesSequential`; `BenchmarkDocperfCanonicalClaim`; `docs/build-log/2026-11-04-docperf.md` |
 | DCR-V1-7802 | `internal/mcp/corpusbridge/stamp.go`, `stamp_stat_linux_amd64.go` | `TestDCRV17802StampChunkAllocation`, `TestDCRV17802RelativeStatMatchesLstat`, `TestDCRV1847ChunkedStatMatchesSerialDigest`, `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale`; `TestDocperfStampQualification`, `BenchmarkDCRV1847CheckoutStamp`; `docs/build-log/2026-11-04-docperf.md` |
 
 ### Verified fast corpus reads (GitHub #1598)

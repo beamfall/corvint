@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -48,6 +50,44 @@ func TestDCRV17801WorkerCanonicalComparison(t *testing.T) {
 				if comparison.equalElement() {
 					t.Fatal("accepted a second framing newline")
 				}
+			}
+		}
+	}
+}
+
+// DCR-V1-7801: batch decoding is still the ordinary closed artifact decoder,
+// including a noncanonical early member followed by an undecodable member in
+// a later batch. Scanner segmentation and read windows cannot change that order.
+func TestDCRV17801BatchMatchesClosedArtifact(t *testing.T) {
+	_, a, _ := builtFixture(t)
+	data := rehashed(t, a, func(a *Artifact) {
+		sample := a.Claims[0]
+		a.Claims = make([]Claim, 2*splitChunk+3)
+		texts := scanTexts()
+		for i := range a.Claims {
+			a.Claims[i] = sample
+			a.Claims[i].ID = fmt.Sprintf("batch:%04d", i)
+			a.Claims[i].Text = texts[i%len(texts)]
+		}
+	})
+	noncanonical := bytes.Replace(data, []byte(`"id":"batch:0000"`), []byte(`"id":"\u0062atch:0000"`), 1)
+	unknown := bytes.Replace(data, []byte(`"id":"batch:1026"`), []byte(`"extra":0,"id":"batch:1026"`), 1)
+	both := bytes.Replace(noncanonical, []byte(`"id":"batch:1026"`), []byte(`"extra":0,"id":"batch:1026"`), 1)
+	for _, raw := range [][]byte{data, noncanonical, unknown, both} {
+		closed, err := decodeArtifact(raw)
+		wantError := ""
+		if err != nil {
+			wantError = fail("invalid closed JSON input").Error()
+		} else if !EncodedEqual(closed, raw) {
+			wantError = fail("noncanonical artifact").Error()
+		}
+		for _, window := range []int{0, 4096, 1 << 20} {
+			got := decodeWith(raw, boundaryScan{}, window, 16)
+			if got.err != wantError {
+				t.Fatalf("window %d: batch error %q, closed oracle %q", window, got.err, wantError)
+			}
+			if wantError == "" && !reflect.DeepEqual(got.artifact, closed) {
+				t.Fatalf("window %d: batch records differ from closed artifact", window)
 			}
 		}
 	}
