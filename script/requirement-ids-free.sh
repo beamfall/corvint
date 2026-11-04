@@ -2,7 +2,7 @@
 # usage: script/requirement-ids-free.sh PREFIX LO HI [REF]
 #        script/requirement-ids-free.sh PREFIX [REF]
 #
-# Reports whether the requirement IDs PREFIX-LO..PREFIX-HI (three-digit numbers) are free in REF's
+# Reports whether the requirement IDs PREFIX-LO..PREFIX-HI (three- or four-digit numbers) are free in REF's
 # tree (default origin/main), so a lane charter never names a block already in use (ASD-V0-960,
 # V1-3472). Each ID some tracked file at REF names prints as `used ID PATH:LINE` (its first
 # occurrence) and the exit is 1; otherwise one `free PREFIX-LO..PREFIX-HI at REF (SHA)` line and
@@ -66,8 +66,8 @@ if (($# <= 2)); then
   exit 1
 fi
 lo=$2 hi=$3 ref=${4:-origin/main}
-[[ $lo =~ ^[0-9]{1,3}$ && $hi =~ ^[0-9]{1,3}$ ]] && ((10#$lo <= 10#$hi)) || {
-  printf 'requirement-ids-free: REFUSE bad-range %q..%q: LO and HI are numbers 0..999 with LO <= HI\n' "$lo" "$hi" >&2
+[[ $lo =~ ^[0-9]{1,4}$ && $hi =~ ^[0-9]{1,4}$ ]] && ((10#$lo <= 10#$hi)) || {
+  printf 'requirement-ids-free: REFUSE bad-range %q..%q: LO and HI are numbers 0..9999 with LO <= HI\n' "$lo" "$hi" >&2
   exit 2
 }
 sha=$(git rev-parse --verify -q --end-of-options "$ref^{commit}") || {
@@ -97,7 +97,7 @@ used=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" -v sha="$sha:" '
       id = substr(rest, index(rest, ":") + 1)
       id = substr(id, index(id, prefix))
       number = substr(id, length(prefix) + 1)
-      if (length(number) != 3 || number + 0 < lo || number + 0 > hi || seen[id]++) next
+      if ((length(number) != 3 && length(number) != 4) || number + 0 < lo || number + 0 > hi || seen[id]++) next
       print "used " id " " path ":" line
     }' "$matches" | sort) || exit 2
 range=$(printf '%s-%03d..%s-%03d' "$prefix" "$lo" "$prefix" "$hi")
@@ -107,10 +107,10 @@ if [[ -n $used ]]; then
     "$(printf '%s\n' "$used" | wc -l | tr -d ' ')" $((hi - lo + 1)) "$range" "$ref" "${sha:0:12}" >&2
   # ASD-V0-660 (V1-3876): name the first block of the same width that no tracked file at REF uses,
   # above HI and then below LO, so a collided charter block has a checked alternative.
-  next=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '
+  next=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" -v ceiling="$((hi > 999 ? 10000 : 1000))" '
       match($0, prefix "[0-9]+$") {
         number = substr($0, RSTART + length(prefix))
-        if (length(number) == 3) taken[number + 0] = 1
+        if (length(number) == 3 || length(number) == 4) taken[number + 0] = 1
       }
       function free(start,   n) {
         for (n = start; n < start + width; n++) if (n in taken) return 0
@@ -118,7 +118,7 @@ if [[ -n $used ]]; then
       }
       END {
         width = hi - lo + 1
-        for (s = hi + 1; s + width <= 1000; s++) if (free(s)) { print s, s + width - 1; exit }
+        for (s = hi + 1; s + width <= ceiling; s++) if (free(s)) { print s, s + width - 1; exit }
         for (s = 0; s + width <= lo; s++) if (free(s)) { print s, s + width - 1; exit }
       }' "$matches") || exit 2
   if [[ -n $next ]]; then

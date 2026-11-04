@@ -619,11 +619,79 @@ func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
 		t.Fatalf("tree subcommands not merged: flows %v, runs %v", inv.Subcommands["flows"], inv.Subcommands["runs"])
 	}
 	dropped := replaceOnce(t, catalog, "include `coverage`, ", "include ")
+	if shadows := proseShadows(t, dropped, "flows", "coverage"); len(shadows) != 0 {
+		t.Fatalf("%s", shadowMessage("flows", "coverage", shadows))
+	}
 	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "flows coverage") || len(got) != 1 {
 		t.Errorf("dropped tree subcommand: subcommand-undocumented %v", got)
 	}
 	if err := MergeSubcommands(&Inventory{}, t.TempDir()); err == nil {
 		t.Error("missing corvint tree: want an error")
+	}
+}
+
+// proseShadows returns, for each catalog row of verb, each backticked span outside the row's
+// Subcommands sentence that holds sub as a word. CAP-V0-007 counts every such span as naming the
+// subcommand, so a prose word such as `coverage` keeps a dropped subcommand documented
+// (CAP-V0-080, V1-3887).
+func proseShadows(t *testing.T, doc []byte, verb, sub string) []string {
+	t.Helper()
+	rows, err := parseRows(doc, sectionCommands)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, r := range rows {
+		if strings.Fields(commandName(r.Name))[0] != verb {
+			continue
+		}
+		listed := 0
+		for _, span := range subcommandSpans(r.Cells) {
+			if slices.Contains(literalWord.FindAllString(span, -1), sub) {
+				listed++
+			}
+		}
+		for _, span := range r.Spans {
+			if slices.Contains(literalWord.FindAllString(span, -1), sub) {
+				if listed > 0 {
+					listed--
+					continue
+				}
+				out = append(out, fmt.Sprintf("line %d `%s`", r.Line, span))
+			}
+		}
+	}
+	return out
+}
+
+// shadowMessage names the shadowing tokens and the rule that makes them shadow.
+func shadowMessage(verb, sub string, shadows []string) string {
+	return fmt.Sprintf("a `%s` row names `%s` in a backticked span outside its Subcommands sentence (%s); CAP-V0-007 counts any backticked word of the verb's rows as documenting the subcommand, so dropping it from the Subcommands sentence cannot fail: write the prose word without backticks, or pick another tree-only subcommand",
+		verb, sub, strings.Join(shadows, ", "))
+}
+
+// TestCAPV0080BacktickedProseWordIsNamed (V1-3887) is the regression for a backticked prose word in
+// a capability row: `coverage` written in backticks elsewhere in the flows row keeps the dropped
+// subcommand documented, and the TestCAPV0960 precondition names that token, its line and the rule
+// instead of failing on an empty finding list; the committed catalog has no such shadow.
+func TestCAPV0080BacktickedProseWordIsNamed(t *testing.T) {
+	inv, catalog, readme := load(t)
+	if shadows := proseShadows(t, catalog, "flows", "coverage"); len(shadows) != 0 {
+		t.Fatalf("committed catalog: %s", shadowMessage("flows", "coverage", shadows))
+	}
+	prose := replaceOnce(t, catalog, "include `coverage`, ", "include ")
+	prose = replaceOnce(t, prose, "Web applications with a flow manifest.", "Web applications with a flow manifest; read the `coverage` column first.")
+	if got := kinds(Check(prose, readme, inv, linkBase))["subcommand-undocumented"]; contains(got, "flows coverage") {
+		t.Fatalf("a backticked prose word no longer documents the subcommand (CAP-V0-007 changed): %v", got)
+	}
+	shadows := proseShadows(t, prose, "flows", "coverage")
+	if len(shadows) != 1 || !strings.HasSuffix(shadows[0], "`coverage`") {
+		t.Fatalf("shadows %v, want the one prose `coverage` span", shadows)
+	}
+	for _, want := range []string{"`coverage`", "CAP-V0-007", "outside its Subcommands sentence", "without backticks"} {
+		if msg := shadowMessage("flows", "coverage", shadows); !strings.Contains(msg, want) {
+			t.Errorf("message %q lacks %q", msg, want)
+		}
 	}
 }
 

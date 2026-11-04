@@ -2114,7 +2114,7 @@ Usage:
     [--override-verifier PATH] BASE
   corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
     [--override-verifier PATH] BASE
-  corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE
+  corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--seal yes|no]
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
     [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
@@ -2184,7 +2184,9 @@ the worktree top level.
 
 finish-lane runs the bind loop on a committed change: prepare, bind with the
 --citations plan, commit .corvint/change.cem.json as "chore: bind change evidence",
-rebind, check and seal, one stdout line per step, then every NOT_PRODUCED row and
+rebind, check and seal (default --seal yes); --seal no stops at the checked bind
+commit without sealing. Example: corvint dogfood finish-lane --base BASE --citations FILE --seal no.
+One stdout line per step is followed by every NOT_PRODUCED row and
 the check's SUMMARY and verdict. It stops at the first failing step with that
 step's own reason and fix line; rerun from a bind commit continues at rebind.
 Prepare also cites each plan row against the prepared map without writing it,

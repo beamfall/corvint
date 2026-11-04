@@ -936,6 +936,47 @@ twobase=$(git -C "$crepo" rev-parse HEAD)
 printf 'fixture_test.go:41:1: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
 crun --base "$twobase" || fail "fewer inherited occurrences classified introduced: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "fewer occurrences: $(cat "$tmp/out")"
+# ASD-V0-110 (V1-4153): host-adapter-node-test fails at HEAD and passes at the base, but the diff
+# touches none of its inputs (integrations/, Makefile and the outside paths its tests read): an
+# unattributed WARN with the host load, never introduced, and no receipt. The same failure is
+# introduced when the diff changes an input outside integrations/ (cmd/corvint/pi_adapter.go), adds a
+# git-quoted name under integrations/ (untracked or committed), or when a test the recipe runs reads a
+# path no declared input covers.
+/bin/rm -f "$crepo/fail-test-commands-check"
+mkdir -p "$crepo/integrations/pi" "$crepo/cmd/corvint"
+printf 'host-adapter-node-test:\n\tnode --test integrations/pi/*.test.mjs\n' > "$crepo/Makefile"
+printf "const v=read('../../cmd/corvint/pi_adapter.go'),r=new URL(\"../../conformance/r/\",import.meta.url),d=['../x.json']\n" > "$crepo/integrations/pi/cap.test.mjs"
+printf "const s=read('../../docs/specs/pi-workflow-v0.md')\n" > "$crepo/integrations/pi/src.js"
+printf 'package main\n\nconst piAdapterVersion = "1"\n' > "$crepo/cmd/corvint/pi_adapter.go"
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm base3 || fail "base3 commit"
+base3=$(git -C "$crepo" rev-parse HEAD)
+printf 'not ok 7 - opencode interruption\n' > "$crepo/fail-host-adapter-node-test"
+mkdir -p "$crepo/docs/build-log" && printf 'note\n' > "$crepo/docs/build-log/x.md"
+crun --base "$base3" || fail "an unattributed failure failed the run: $(cat "$tmp/out")"
+grep -Eq "^batch-precheck: WARN make host-adapter-node-test \([0-9]+s\) unattributed: fails at HEAD, not the same way at $base3, but the diff changes none of its inputs \(integrations/, Makefile, cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md, conformance/\), so the change cannot have caused it; host load [^ ]+: rerun it at a lower load$" "$tmp/out" ||
+  fail "unattributed not warned: $(cat "$tmp/out")"
+grep -q 'make host-adapter-node-test .* introduced' "$tmp/out" && fail "unattributed failure called introduced: $(cat "$tmp/out")"
+[[ -f $crepo/.git/batch-precheck-receipt ]] && fail "an unattributed failure wrote a receipt"
+attributed() {
+  crun --base "$base3" && fail "$1 hid the failure"
+  grep -q '^batch-precheck: FAIL make host-adapter-node-test .* introduced' "$tmp/out" || fail "$1 not introduced: $(cat "$tmp/out")"
+}
+printf 'x\n' > "$crepo/integrations/host.mjs"
+attributed "an integrations/ change"
+/bin/rm -f "$crepo/integrations/host.mjs"
+printf 'package main\n\nconst piAdapterVersion = "2"\n' > "$crepo/cmd/corvint/pi_adapter.go"
+attributed "a change to cmd/corvint/pi_adapter.go, read by the node tests"
+git -C "$crepo" checkout -q -- cmd/corvint/pi_adapter.go
+printf 'x\n' > "$crepo/integrations/pi/régression.test.mjs"
+attributed "an untracked git-quoted integrations/ name"
+git -C "$crepo" add integrations && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm quoted || fail "quoted commit"
+attributed "a committed git-quoted integrations/ name"
+git -C "$crepo" reset -q --hard "$base3"
+printf "const t=read('../../internal/tool.go')\n" >> "$crepo/integrations/pi/cap.test.mjs"
+git -C "$crepo" add -A integrations && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm base4 || fail "base4 commit"
+base3=$(git -C "$crepo" rev-parse HEAD)
+attributed "a test reading an undeclared path (internal/tool.go)"
+/bin/rm -rf "$crepo/integrations" "$crepo/docs" "$crepo/cmd" "$crepo/Makefile" "$crepo/fail-host-adapter-node-test"
 
 # 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
 # real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input
@@ -1016,10 +1057,21 @@ row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
 # ASD-V0-912 (V1-3804): the non-Go frontier details every real plan carries (the TypeScript,
 # C-family, .NET, Python, Ruby and Swift adapters' own gaps) do not widen a doc-only diff.
-plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
+# printf: the detail list is data to the GOC-V0-008 scan (V1-3842).
+others=$(printf %s ',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}')
+plan "$frontier$others" golden
 srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
   fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"
+# ASD-V0-2402 (V1-3804): the unknowns CI's deciding selector narrows with (gateselect.AllowedUnknown:
+# an UNOWNED_DIRTY_PATH, a NO_SELECTABLE_TEST, a non-Go frontier of any language and the two
+# admitted go: frontiers) and a well-formed UNSELECTED_BINARY_CONSUMER, which every real plan
+# carries, narrow a first precheck of a doc-only diff too.
+ciok=',{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"},{"reason":"NO_SELECTABLE_TEST","detail":"shell:script/lib.sh"},{"reason":"UNSELECTED_BINARY_CONSUMER","detail":"tools/web/e2e.mjs"},{"reason":"LANGUAGE_FRONTIER","detail":"shell:read-scopes-changed"}'
+plan "$frontier$ciok" golden
+srun --base "$sbase" || fail "a doc-only diff with CI-admitted unknowns failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
+  fail "CI-admitted unknowns widened a doc-only diff: $(cat "$tmp/out")"
 plan "$frontier" golden
 # ASD-V0-892 (V1-3572, V1-3818): the skipped catalog check is a print-only row, which never goes
 # through the ledger: on a rerun on identical inputs it is a PASS while the listed steps reuse.
@@ -1058,6 +1110,15 @@ grep -q 'golden drift: want v1, got v2' "$tmp/out" || fail "drift output not sho
 grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || fail "drift not introduced: $(cat "$tmp/out")"
 grep -q '^batch-precheck: capability-catalog-check runs (a catalog input changed' "$tmp/out" || fail "catalog not run on a Go input: $(cat "$tmp/out")"
 git -C "$srepo" checkout -q -- golden/testdata/want.txt
+# ASD-V0-2402 fault injection: the same real drift under a plan carrying the CI-admitted unknowns
+# is still selected and fails, so the admitted unknowns narrow without hiding a selected package.
+plan "$frontier$ciok" golden
+printf 'v2\n' > "$srepo/golden/testdata/want.txt"
+srun --base "$sbase" && fail "real golden drift passed under CI-admitted unknowns"
+grep -q "^batch-precheck: batch-drift runs 2 of 3 drift tests" "$tmp/out" || fail "golden selection under CI-admitted unknowns: $(cat "$tmp/out")"
+grep -q 'golden drift: want v1, got v2' "$tmp/out" || fail "drift output under CI-admitted unknowns: $(cat "$tmp/out")"
+git -C "$srepo" checkout -q -- golden/testdata/want.txt
+plan "$frontier" golden
 # A changed declared spec runs its test even when the plan selects nothing; a nested docs path is
 # not a top-level docs/*.md catalog input.
 plan "$frontier"
@@ -1083,8 +1144,12 @@ full() {
   grep -q '^make -s capability-catalog-check$' "$tmp/scalls" || fail "catalog skipped for $1: $(cat "$tmp/scalls")"
 }
 run_full() { : > "$tmp/scalls"; srun "$@" || fail "full run failed: $(cat "$tmp/out")"; }
-plan '{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"}' golden
-run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNOWNED_DIRTY_PATH notes/a.txt; all in '
+# ASD-V0-2402 (V1-3804): an unknown outside the shared allowlist (an UNINDEXED_SOURCE_PATH, a
+# malformed binary consumer) still runs everything: the negative control of the narrowing below.
+plan '{"reason":"UNINDEXED_SOURCE_PATH","detail":"notes/a.go"}' golden
+run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNINDEXED_SOURCE_PATH notes/a.go; all in '
+plan '{"reason":"UNSELECTED_BINARY_CONSUMER","detail":"../outside.mjs"}' golden
+run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNSELECTED_BINARY_CONSUMER ../outside.mjs; all in '
 # ASD-V0-893 (V1-3260): many unknowns print a count, the first and the retained file, not the list.
 many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"go:fake-frontier %s"}' "$i"; done)
 plan "$frontier$many" golden
@@ -1353,6 +1418,18 @@ printf '#!/bin/sh\necho boom >&2\nexit 3\n' > "$dgs/make"
 "$script/doc-gates-summary.sh" "$dgs/make" alpha.check 2> "$dgs/err"
 [[ $? == 3 && $(tail -n 1 "$dgs/err") == 'doc-gates-summary: FAIL exit 3 naming no doc gate; read the output above' ]] || fail "unnamed failure: $(cat "$dgs/err")"
 "$script/doc-gates-summary.sh" true alpha.check > "$dgs/out" 2>&1 && [[ ! -s $dgs/out ]] || fail "a passing run printed a summary: $(cat "$dgs/out")"
+# DTL-V0-006: an empty, zero or non-integer DOC_GATE_JOBS (`-j`, `-j0`, `-jx`) is refused before
+# CMD runs, so it never becomes make's unbounded bare -j; a positive count still runs.
+for j in -j -j0 -j04x -jx '-j-1'; do
+  "$script/doc-gates-summary.sh" "$dgs/make" --keep-going "$j" alpha.check > "$dgs/out" 2> "$dgs/err"
+  [[ $? == 2 && ! -s $dgs/out ]] && grep -q 'DOC_GATE_JOBS must be a positive integer' "$dgs/err" && ! grep -q boom "$dgs/err" ||
+    fail "doc-gates-summary accepted $j: $(cat "$dgs/err")"
+done
+"$script/doc-gates-summary.sh" true --keep-going -j4 alpha.check > "$dgs/out" 2>&1 && [[ ! -s $dgs/out ]] || fail "-j4 refused: $(cat "$dgs/out")"
+# The real recipe: `make -n` runs its $(MAKE) line, and an empty DOC_GATE_JOBS stops at the wrapper.
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= DOC_GATE_JOBS= doc-gates) > "$tmp/out" 2>&1 &&
+  fail "make doc-gates DOC_GATE_JOBS= passed: $(cat "$tmp/out")"
+grep -q "DOC_GATE_JOBS must be a positive integer, got '' (from -j)" "$tmp/out" || fail "make doc-gates DOC_GATE_JOBS= not refused: $(cat "$tmp/out")"
 # V1-4137, V1-3734: a `## help` comment on the doc-gates target line still expands.
 printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
@@ -1548,8 +1625,8 @@ grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:4: ' "$tmp/out" &&
 # 14. ASD-V0-583 (V1-3373): license-headers-check and mkfifo-build-tags-check are doc gates, and the
 # Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
-# suffix pass.
-for t in license-headers-check mkfifo-build-tags-check; do
+# suffix pass. V1-3842: no-python-runtime-dependency-test is a doc gate too, so PRs run it.
+for t in license-headers-check mkfifo-build-tags-check no-python-runtime-dependency-test; do
   grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
 done
 frepo=$tmp/frepo

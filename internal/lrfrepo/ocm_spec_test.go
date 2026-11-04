@@ -90,15 +90,60 @@ func TestImprovementLoopSpecsEnumerateEveryObligation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(requirements) != len(test.want) {
-				t.Fatalf("OCM enumerates %v; want %v", requirements, test.want)
-			}
-			for i, want := range test.want {
-				if requirements[i] != want {
-					t.Errorf("obligation %d = %s, want %s", i, requirements[i], want)
-				}
+			if msg := obligationOrderMismatch(test.path, requirements, test.want); msg != "" {
+				t.Fatal(msg)
 			}
 		})
+	}
+}
+
+// obligationOrderMismatch compares an expected obligation list with the OCM enumeration of path,
+// which follows the spec's document order. When the two hold the same IDs in another order (a union
+// merge of two lanes' lists appends one lane's IDs after the other's), it names that order and the
+// list to paste, rather than an opaque first differing index (OCM-V0-080, V1-4140).
+func obligationOrderMismatch(path string, got, want []string) string {
+	if slices.Equal(got, want) {
+		return ""
+	}
+	if slices.Equal(slices.Sorted(slices.Values(got)), slices.Sorted(slices.Values(want))) {
+		return fmt.Sprintf("%s: the expected obligation list holds the right IDs out of order; it must follow the spec's document order (the OCM enumeration order), so reorder it to %q (got %q)",
+			path, got, want)
+	}
+	return fmt.Sprintf("%s: OCM enumerates %q in document order; want %q (missing %q, extra %q)",
+		path, got, want, setDifference(want, got), setDifference(got, want))
+}
+
+// setDifference returns the members of a absent from b, in a's order.
+func setDifference(a, b []string) []string {
+	out := []string{}
+	for _, id := range a {
+		if !slices.Contains(b, id) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// TestOCMV0080OrderMismatchNamesDocumentOrder (V1-4140): a union-merged list with the right IDs in
+// another order fails naming document order and the list to paste; a missing or extra ID is named.
+func TestOCMV0080OrderMismatchNamesDocumentOrder(t *testing.T) {
+	path := "docs/specs/example-v0.md" //corvint:fixture-path
+	got := []string{"EXA-001", "EXA-002", "EXA-003", "EXA-004"}
+	if msg := obligationOrderMismatch(path, got, slices.Clone(got)); msg != "" {
+		t.Fatalf("equal lists: %q", msg)
+	}
+	merged := []string{"EXA-001", "EXA-003", "EXA-002", "EXA-004"}
+	msg := obligationOrderMismatch(path, got, merged)
+	for _, want := range []string{path, "document order", "reorder it to", `["EXA-001" "EXA-002" "EXA-003" "EXA-004"]`} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("reordered list: message %q lacks %q", msg, want)
+		}
+	}
+	msg = obligationOrderMismatch(path, got, []string{"EXA-001", "EXA-002", "EXA-003", "EXA-005"})
+	for _, want := range []string{`missing ["EXA-005"]`, `extra ["EXA-004"]`} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("different set: message %q lacks %q", msg, want)
+		}
 	}
 }
 
