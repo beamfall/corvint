@@ -1,0 +1,24 @@
+{
+  "base": "6c33df33bc5670131482f5263b410cb980580657",
+  "rescueBase": "852b045e61484efc53a99fa1f320984b9bb3cd2c",
+  "rescueTarget": "a435407595eb0cae03be4a9e7f49dd394f2659b5",
+  "paths": [
+    "docs/build-log/2026-11-04-gl-v0-786-staged-shared-passes.md",
+    "docs/specs/gate-ledger-v0.md",
+    "internal/dogfoodflow/change_impact_test.go",
+    "script/batch-precheck.sh",
+    "script/batch-precheck_test.sh",
+    "tools/gate-ledger/main.go",
+    "tools/gate-ledger/shared_digest.go",
+    "tools/gate-ledger/shared_digest_test.go"
+  ],
+  "method": "Select over the current source graph, toggling only the two runtime-reader declarations to their base bytes. Path replay, not original-target execution. Full union stays conservative because other paths independently reach the removed documentation-only floor.",
+  "results": [
+    "result base-declarations rescue-delta selected=109 scope=UNKNOWN witnesses=map[BINARY_EXEC:25 DECLARED_READ_SCOPE:20 DEPENDENCY_PATH:8 DIRECT_SOURCE_CHANGE:2 DIRECT_TEST_CHANGE:1 IMPORT_GRAPH_READER:11 PATH_LITERAL_READER:31 UNBOUNDED_READER:11] unknown=5",
+    "result base-declarations build-log selected=35 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:1 DEPENDENCY_PATH:2 PATH_LITERAL_READER:8 UNBOUNDED_READER:24] unknown=1",
+    "result base-declarations test-only selected=47 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:3 DEPENDENCY_PATH:4 DIRECT_SOURCE_CHANGE:1 IMPORT_GRAPH_READER:14 PATH_LITERAL_READER:4 UNBOUNDED_READER:21] unknown=3",
+    "result new-declarations rescue-delta selected=109 scope=UNKNOWN witnesses=map[BINARY_EXEC:25 DECLARED_READ_SCOPE:20 DEPENDENCY_PATH:8 DIRECT_SOURCE_CHANGE:2 DIRECT_TEST_CHANGE:1 IMPORT_GRAPH_READER:11 PATH_LITERAL_READER:31 UNBOUNDED_READER:11] unknown=5",
+    "result new-declarations build-log selected=11 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:1 DEPENDENCY_PATH:2 PATH_LITERAL_READER:8] unknown=1",
+    "result new-declarations test-only selected=47 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:3 DEPENDENCY_PATH:4 DIRECT_SOURCE_CHANGE:1 IMPORT_GRAPH_READER:14 PATH_LITERAL_READER:4 UNBOUNDED_READER:21] unknown=3"
+  ]
+}
