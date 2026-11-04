@@ -265,10 +265,13 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 - `CIN-V0-2304`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
   effective only after the owner's `ci-control-plane` review) For a pull request whose head branch
   starts with `claude/batch-`, the required `doc-gates` job SHALL, unless its reuse decision is
-  REUSE, check the pull-request head out in a separate worktree (its own checkout is the synthetic
-  merge, which no CEM binds) and run `script/dogfood-batch-check.sh` from the merge base of the
-  pull request's base and head. Any nonzero exit, and a head or merge base that cannot be resolved,
-  SHALL fail the job, so a batch whose commits no sealed CEM binds cannot reach the merge queue.
+  REUSE, build the checker and its verifier from the pull request's base commit (trusted `main`,
+  never the head under check) without a Git stamp, so `dogfoodStaleBinary` never judges it stale,
+  check the pull-request head out in a separate worktree (its own checkout is the synthetic merge,
+  which no CEM binds) and run that trusted `corvint dogfood batch-check` (DCW-V0-039) there from
+  the merge base of the pull request's base and head. Any nonzero exit, and a head or merge base
+  that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
+  reach the merge queue.
 
 ## Non-goals
 
@@ -306,9 +309,11 @@ change merged to `main` made every Go shard FULL until both pins were repinned p
 now builds the tools from the compared commit, so only a run whose compared commit predates a pin or
 is off `main` builds the pin and can still lag. That costs latency, not soundness. The path list is declared, not derived: a selection rule moved outside it
 would go unnoticed until the list follows it. A `main` change to `package-costs.json` moves shard
-costs only, so it does not count as lag. (9) CIN-V0-2304 runs the batch head's own
-`script/dogfood-batch-check.sh`, so a batch that edits that script can weaken its own check; the
-pre-push hook (DCW-V0-348) and review remain the guard. A non-batch pull request is not checked.
+costs only, so it does not count as lag. (9) CIN-V0-2304 runs a checker built from the
+pull request's base, so a batch cannot weaken its own check by editing `cmd/corvint` or
+`script/dogfood-batch-check.sh`; a change to the check itself takes effect only after it merges, and
+only an edit to the protected `.github/` paths can alter the step. A non-batch pull request is not
+checked.
 (10) CIN-V0-2303's trigger depends on GitHub delivering `workflow_run` for the dynamic CodeQL
 workflow; that is NOT_OBSERVED until the change runs on `main`, and a run it never delivers is
 caught only by the schedule. (11) CIN-V0-2301 and CIN-V0-2302 count only runs the collector saw: a
@@ -341,7 +346,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2301 | the `pr-base-target-unreadable` exit of `.github/forward-rows/collect.sh`; the `target` reason of `absence.jq` | the mixed-targets (`rtarget`) and no-document (`rnodoc`) cases of `TestAFPV0047CollectorNamesRows`; a no-document run whose pull request touches `.github/` is not named |
 | CIN-V0-2302 | `absent`, its two calls and the carried `rowAbsence.absent` in `.github/forward-rows/accept.sh` | the "runs without a row" cases of `TestAFPV0097VerdictAcceptance`, whole and incremental (CIN-V0-004) listings: three markers are FULL, two and three of another epoch are MET; two carried plus one since is FULL; an incremental verdict without a count is FULL |
 | CIN-V0-2303 | the `on:` block and the job `if:` of `.github/workflows/cache-prune.yml` | `TestCINV02303CachePruneFollowsCodeQL` (trigger, backstop, guard clauses; no other workflow grants `actions: write`, with the matcher checked on a planted grant); `TestAFPV0097CachePruneKeepsNewestOverlay` |
-| CIN-V0-2304 | the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | `TestCINV02304BatchPullRequestNeedsSealedEvidence` (the step run on a fixture repository with a stub check: pass from the head and the merge base; a refusing check and an unresolvable head fail); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` |
+| CIN-V0-2304 | the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | `TestCINV02304BatchPullRequestNeedsSealedEvidence` (the step run on a fixture repository with a stand-in `cmd/corvint`: the base-built trusted checker runs, never the head's replacement, from the head and the merge base, built without a Git stamp; a refusing check and an unresolvable head fail; skipped where no POSIX sh exists); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` |
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
