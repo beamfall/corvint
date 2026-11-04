@@ -481,13 +481,17 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 	parts := strings.Split(dirtyPath, "/")
 	climbs, named := false, false
 	// prefixes holds, for each anchored token that does not resolve from a
-	// base, the number of leading path components before a run of it
-	// matches: the run then needs those components placed (AFP-V0-2203).
+	// base, the number of leading path components before a lone-component
+	// run of it matches: the run then needs those components placed
+	// (AFP-V0-2203). A run of two or more components keeps the
+	// component-run relation, as an unanchored one does: the root it is
+	// joined to may come from the environment or another value no literal
+	// spells (`os.Getenv("FIXTURES") + "/repo/lib.js"`).
 	var prefixes []int
 	for _, value := range tokens {
 		if strings.HasPrefix(value, "/") || strings.Contains(value, "..") {
 			if anchored, ok := anchoredWithin(directory, value, dirtyPath); module && ok {
-				if anchored {
+				if anchored || longRunNames(value, parts) {
 					return true
 				}
 				prefixes = append(prefixes, runOffsets(value, parts)...)
@@ -619,12 +623,32 @@ func anchoredWithin(directory, value, dirtyPath string) (names, ok bool) {
 	return false, true
 }
 
-// runOffsets lists the offsets at which a run of the token matches
-// consecutive components of parts, as namesPath tries them.
+// longRunNames reports whether a run of two or more components of the token
+// matches consecutive components of parts anywhere (AFP-V0-2203).
+func longRunNames(value string, parts []string) bool {
+	for _, candidate := range newPathToken(value).runs {
+		if len(candidate.components) < 2 {
+			continue
+		}
+		for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
+			if candidate.matchesAt(parts[offset:]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// runOffsets lists the offsets at which a lone-component run of the token
+// matches a component of parts, as namesPath tries them; longRunNames
+// decides a longer run.
 func runOffsets(value string, parts []string) []int {
 	token := newPathToken(value)
 	var offsets []int
 	for _, candidate := range token.runs {
+		if len(candidate.components) >= 2 {
+			continue
+		}
 		first := 0
 		if len(candidate.components) == 1 && token.nameOnly {
 			first = len(parts) - 1

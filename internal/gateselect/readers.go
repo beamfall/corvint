@@ -392,18 +392,43 @@ func importState(state int, kind token.Token) int {
 }
 
 // pathTokens splits a literal into path-shaped tokens with printf verbs
-// removed; an import path under the module becomes a root-anchored path.
+// removed; an import path under the module becomes a root-anchored path. A
+// token whose `/` directly follows `<` or an HTML-escaped `&lt;` (a closing
+// tag, `</repo/lib.js>`) is kept both anchored and without that `/`: the
+// planner reads only the second (AFP-V0-505, AFP-V0-840), whose first
+// component may end a longer name, so this index keeps both to stay a
+// superset of the planner's relation (AFP-V0-2242).
 func pathTokens(literal, module string) []string {
+	literal = printfVerb.ReplaceAllString(literal, " ")
 	var tokens []string
-	for _, value := range pathToken.FindAllString(printfVerb.ReplaceAllString(literal, " "), -1) {
-		if value == module {
-			value = "/"
-		} else if rest, ok := strings.CutPrefix(value, module+"/"); ok {
-			value = "/" + rest
+	for _, bounds := range pathToken.FindAllStringIndex(literal, -1) {
+		start, end := bounds[0], bounds[1]
+		tokens = append(tokens, moduleAnchored(literal[start:end], module))
+		if literal[start] == '/' && end > start+1 && closesTag(literal, start) {
+			tokens = append(tokens, moduleAnchored(literal[start+1:end], module))
 		}
-		tokens = append(tokens, value)
 	}
 	return tokens
+}
+
+// moduleAnchored turns an import path under the module into a root-anchored
+// path.
+func moduleAnchored(value, module string) string {
+	if value == module {
+		return "/"
+	}
+	if rest, ok := strings.CutPrefix(value, module+"/"); ok {
+		return "/" + rest
+	}
+	return value
+}
+
+// closesTag reports a `/` at index directly after `<` or, in any letter case,
+// the HTML entity `&lt;`: the planner's closing-tag test (AFP-V0-505,
+// AFP-V0-840).
+func closesTag(literal string, index int) bool {
+	return index > 0 && literal[index-1] == '<' ||
+		index >= len("&lt;") && strings.EqualFold(literal[index-len("&lt;"):index], "&lt;")
 }
 
 // escapesPackage names why a token read from directory's files cannot be

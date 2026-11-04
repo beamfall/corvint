@@ -40,6 +40,11 @@ func namingFixture(t testing.TB) string {
 		// climbing `../notes`, this index `..` and a lone `notes`.
 		"backslash/backslash_test.go": "package backslash\n\nvar note = `..\\notes`\n",
 		"mixed/mixed_test.go":         "package mixed\n\nvar note = `a/..\\notes`\n",
+		// The closing-tag lexicon difference (AFP-V0-505/840): the planner
+		// reads the unanchored `repo/page.html`, whose `repo` may end a longer
+		// name; this index keeps that token and the anchored one.
+		"tag/tag_test.go":       "package tag\n\nvar page = \"</repo/page.html>\"\n",
+		"esctag/esctag_test.go": "package esctag\n\nvar page = \"&lt;/repo/page.html&gt;\"\n",
 	})
 }
 
@@ -49,6 +54,7 @@ var namingPaths = []string{
 	"internal/jsprobe/testdata/repo/lib.js",
 	"internal/jsprobe/testdata/repo/out/calc.js",
 	"repo/lib.js",
+	"app/xrepo/page.html",
 	"nested/data/f.txt",
 	"other/data/f.txt",
 	"internal/x/y.txt",
@@ -73,8 +79,10 @@ func TestRuleCAnchoredTokens_AFPV02240(t *testing.T) {
 		dirty string
 		want  []string
 	}{
-		// Narrowed: no base places "/repo" in a fixture repository.
-		{"internal/x/testdata/repo/lib.js", []string{"modpath", "multi"}},
+		// Narrowed: no base places the lone "/repo" in a fixture
+		// repository; placed's two-component "/testdata/repo" keeps the
+		// component-run relation (its root may come from the environment).
+		{"internal/x/testdata/repo/lib.js", []string{"modpath", "multi", "placed"}},
 		// Controls: the root's repo/ ("/repo", and "/../repo" from a module
 		// rooted at climbs/), an ancestor's data/, placed components.
 		{"repo/lib.js", []string{"climbs", "fake"}},
@@ -82,6 +90,9 @@ func TestRuleCAnchoredTokens_AFPV02240(t *testing.T) {
 		{"other/data/f.txt", nil},
 		{"internal/jsprobe/testdata/repo/lib.js", []string{"multi", "placed"}},
 		{"internal/x/y.txt", []string{"modpath"}},
+		// A closing tag's unanchored token (AFP-V0-2242): `repo` may end
+		// `xrepo`.
+		{"app/xrepo/page.html", []string{"esctag", "tag"}},
 		// Control: the holder's own subtree keeps every token.
 		{"own/testdata/fixture/f.txt", []string{"own"}},
 	}
@@ -90,6 +101,29 @@ func TestRuleCAnchoredTokens_AFPV02240(t *testing.T) {
 		if !slices.Equal(got, tc.want) && !(len(got) == 0 && len(tc.want) == 0) {
 			t.Errorf("readers(%s) = %v, want %v", tc.dirty, got, tc.want)
 		}
+	}
+}
+
+// TestRuleCRuntimeRootedRuns_AFPV02240 is the review counterexample to
+// placing every anchored run: a reader of `os.Getenv("FIXTURES") +
+// "/repo/lib.js"` joins its run to a root no literal spells, so it stays a
+// reader of app/x/repo/lib.js wherever that run lies, next to app/x, the
+// package that encloses the path. The lone "/lib.js" of another package is
+// still placed, as an unanchored lone token is (AFP-V0-072).
+func TestRuleCRuntimeRootedRuns_AFPV02240(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
+		"app/x/x.go":            "package x\n",
+		"app/x/x_test.go":       "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+		"app/x/repo/lib.js":     "export const x = 1\n",
+		"reader/reader_test.go": "package reader\n\nimport \"os\"\n\nvar lib = os.Getenv(\"FIXTURES\") + \"/repo/lib.js\"\n",
+		"lone/lone_test.go":     "package lone\n\nimport \"os\"\n\nvar lib = os.Getenv(\"FIXTURES\") + \"/lib.js\"\n",
+	})
+	var plan Receipt
+	plan.Provider.Go.State = "RUNNABLE"
+	plan.Plan.Dirty = []string{"app/x/repo/lib.js"}
+	if got, want := verdict(plan, root), "run example.com/fixture/app/x example.com/fixture/reader"; got != want {
+		t.Fatalf("verdict = %q, want %q", got, want)
 	}
 }
 
@@ -143,7 +177,9 @@ func TestRuleCLoneTokens_AFPV02241(t *testing.T) {
 // intended difference is the `..\notes` package, which this index keeps as a
 // reader of a path the planner's climbing token also names, so it is equal
 // there too; a package the planner selects and rule (c) does not is the
-// failure this test exists for.
+// failure this test exists for. The closing-tag packages (`</repo/page.html>`,
+// `&lt;/repo/page.html&gt;`) are readers of app/xrepo/page.html only through the
+// planner's unanchored token, which this index must keep too.
 func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 	root := namingFixture(t)
 	index, err := indexRepository(root, fixtureModule)

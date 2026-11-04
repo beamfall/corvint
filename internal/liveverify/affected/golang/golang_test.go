@@ -697,9 +697,10 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 		// V1-0290 keeps the lone `.corvint` of fixture from naming a directory.
 		{".corvint/other.json", "[deep/dir/dir_test.go]"},
 		// A path of the same shape that is not the sidecar is not narrowed by
-		// the sidecar rule; the anchored token, joined to a root no literal
-		// of its unit can place under docs/, is not a reader (AFP-V0-2203).
-		{"docs/.corvint/change.cem.json", "[deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
+		// the sidecar rule; the anchored two-component token keeps the
+		// component-run relation, since its root may lie under docs/ at run
+		// time (AFP-V0-2203).
+		{"docs/.corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})

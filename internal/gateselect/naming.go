@@ -12,8 +12,9 @@ package gateselect
 //   - AFP-V0-2240: an anchored token (one that starts with "/") names a path
 //     outside its holder's subtree only when, joined to the repository root,
 //     the holder's directory or one of its ancestors, it is the path or an
-//     ancestor of it, or when a run of it matches after components a literal
-//     of the package could join.
+//     ancestor of it, when a run of two or more of its components matches
+//     anywhere, or when a lone-component run matches after components a
+//     literal of the package could join.
 //   - AFP-V0-2241: a lone component of an unanchored, non-climbing token
 //     names only the file name, and a package that only such tokens name
 //     reaches the path in its own subtree or, from the root (or an ancestor
@@ -79,7 +80,7 @@ func (index *repositoryIndex) namesWithin(directory, dirtyPath string, climbing 
 	var prefixes []int
 	for _, value := range tokens {
 		if strings.HasPrefix(value, "/") {
-			if anchoredWithin(bases, value, parts) {
+			if anchoredWithin(bases, value, parts) || longRunNames(value, parts) {
 				return true
 			}
 			prefixes = append(prefixes, runOffsets(value, parts)...)
@@ -192,12 +193,30 @@ func anchoredWithin(bases []string, value string, parts []string) bool {
 	return false
 }
 
-// runOffsets lists the offsets at which a run of an anchored token matches
-// consecutive components of parts (every run, at every offset: an anchored
-// token's lone component is not limited to the file name).
+// longRunNames reports whether a run of two or more components of an
+// anchored token matches consecutive components of parts anywhere: such a
+// run keeps the component-run relation, because the root it is joined to may
+// come from the environment or another value no literal spells
+// (`os.Getenv("FIXTURES") + "/repo/lib.js"`), so no placement bounds it.
+func longRunNames(value string, parts []string) bool {
+	for _, candidate := range componentRuns(value) {
+		if len(candidate.components) >= 2 && candidate.matchesAnywhere(parts) {
+			return true
+		}
+	}
+	return false
+}
+
+// runOffsets lists the offsets at which a lone-component run of an anchored
+// token matches a component of parts (at every offset: an anchored token's
+// lone component is not limited to the file name); longRunNames decides a
+// longer run.
 func runOffsets(value string, parts []string) []int {
 	var offsets []int
 	for _, candidate := range componentRuns(value) {
+		if len(candidate.components) >= 2 {
+			continue
+		}
 		for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
 			if candidate.matchesAt(parts[offset:]) {
 				offsets = append(offsets, offset)

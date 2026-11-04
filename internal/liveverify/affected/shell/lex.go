@@ -204,6 +204,14 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 	endCommand := func() {
 		endWord()
 		if len(words) == 0 {
+			// An operator after a compound command's closing `}`, `)` or
+			// `esac` ends no simple command, but it still joins the
+			// compound to the next one (`{ :; } || tmp=...`), so it is the
+			// next command's lead (AFP-V0-2243).
+			switch trail {
+			case "&&", "||", "|", "&", ";":
+				lead = trail
+			}
 			return
 		}
 		if words[0] == "function" {

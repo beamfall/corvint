@@ -1084,9 +1084,11 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A-Za-z]*[rRa]|--recursive|--archive|--parents)|rsync|tar|cpio|pax|unzip|ditto|ln|mv|xargs)([ \t]|$)|git[^\n;|&]*[ \t](clone|worktree|archive|checkout-index|--work-tree)([ \t=]|$)`)
 
 // unconditionalAssignment reports that name's one assignment is a command of
-// its own at the file's top level, not after `&&` or `||` and not in a
-// pipeline or the background (an `&&` or `||` after it is allowed,
-// AFP-V0-2243), and that no expansion of the name precedes it.
+// its own at the file's top level, not after `&&` or `||` (also after a
+// compound command, `{ :; } || tmp=...`) and not in a pipeline or the
+// background (an `&&` or `||` after it is allowed, AFP-V0-2243, unless the
+// list it continues enters a compound command, whose end the scan cannot
+// see), and that no expansion of the name precedes it.
 func unconditionalAssignment(r *resolver, parsed script, text, name string) bool {
 	at, plain := r.plainAt[name]
 	if !plain || at >= len(parsed.commands) {
@@ -1110,12 +1112,27 @@ func unconditionalAssignment(r *resolver, parsed script, text, name string) bool
 		return false
 	}
 	// An `&` that ends the list the assignment leads runs the whole list,
-	// assignment included, in the background.
+	// assignment included, in the background. The lexer records no operator
+	// after a compound command's closing `}`, `)`, `fi`, `done` or `esac`,
+	// and a compound's inner `;` is no end of the list, so a list that
+	// continues into a compound command (or any reserved word) has no end
+	// this scan can find, and the name is no temp root. A command or
+	// process substitution's commands sit inside a later list member and
+	// end nothing.
 list:
 	for next := at; next < len(parsed.commands); next++ {
-		switch parsed.commands[next].trail {
+		member := parsed.commands[next]
+		if next > at {
+			if member.substituted {
+				continue
+			}
+			if member.block != 0 || member.inFunction || slices.ContainsFunc(member.words, reservedWord) {
+				return false
+			}
+		}
+		switch member.trail {
 		case "&&", "||", "|":
-		case "&":
+		case "&", "(", ")":
 			return false
 		default:
 			break list
@@ -1143,6 +1160,16 @@ list:
 		}
 	}
 	return true
+}
+
+// reservedWord reports a word that opens, continues or closes a compound
+// command or changes how the rest of the list runs.
+func reservedWord(word string) bool {
+	switch word {
+	case "{", "}", "(", ")", "if", "then", "elif", "else", "fi", "do", "done", "while", "until", "for", "select", "case", "esac", "function", "time", "coproc":
+		return true
+	}
+	return false
 }
 
 // firstAssignment is the text offset of the first whole-word `name=`, or -1.

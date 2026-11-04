@@ -861,6 +861,61 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 	}
 }
 
+// AFP-V0-2243: a list the assignment leads that continues into a compound
+// command (a brace group, a subshell, an if, a loop, a case, `time` or a
+// function) may end in an `&` the lexer does not record after the closing
+// word, so the name is no temp root and the read keeps its token; so does an
+// assignment after the `&&` or `||` that follows a compound command, and a
+// list whose later member's substitution holds a `;`. Controls: a compound
+// command that ends its own line, a function defined before, and a list of
+// simple commands keep the narrowing.
+func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
+	root := t.TempDir()
+	const read = "wait\ncat \"$tmp/internal/x/y.json\"\n"
+	cases := []struct {
+		name, body string
+		kept       bool
+	}{
+		{"brace group", "tmp=$(mktemp -d) && { :; } &\n" + read, true},
+		{"brace group two", "tmp=$(mktemp -d) && { echo a; echo b; } &\n" + read, true},
+		{"subshell", "tmp=$(mktemp -d) && ( :; ) &\n" + read, true},
+		{"subshell or", "tmp=$(mktemp -d) || ( exit 1 ) &\n" + read, true},
+		{"if", "tmp=$(mktemp -d) && if true; then :; fi &\n" + read, true},
+		{"while", "tmp=$(mktemp -d) && while false; do :; done &\n" + read, true},
+		{"for", "tmp=$(mktemp -d) && for f in a; do :; done &\n" + read, true},
+		{"case", "tmp=$(mktemp -d) && case x in x) :;; esac &\n" + read, true},
+		{"time group", "tmp=$(mktemp -d) && time { :; } &\n" + read, true},
+		{"substitution", "tmp=$(mktemp -d) && echo \"$(true; true)\" &\n" + read, true},
+		{"group then and", "tmp=$(mktemp -d) && { :; } && true &\n" + read, true},
+		{"group not backgrounded", "tmp=$(mktemp -d) && { :; }\n" + read, true},
+		{"after group or", "{ true; } || tmp=$(mktemp -d)\n" + read, true},
+		{"after subshell or", "( true ) || tmp=$(mktemp -d)\n" + read, true},
+		{"after esac and", "case x in y) :;; esac && tmp=$(mktemp -d)\n" + read, true},
+		{"after group continued", "{ false; } ||\ntmp=$(mktemp -d)\n" + read, true},
+		// Controls.
+		{"group on its own line", "{ :; }\ntmp=$(mktemp -d) || exit 1\n" + read, false},
+		{"group then semicolon", "{ :; }; tmp=$(mktemp -d) || exit 1\n" + read, false},
+		{"function before", "f() { :; }\ntmp=$(mktemp -d) || exit 1\n" + read, false},
+		{"subshell on its own line", "( :; )\ntmp=$(mktemp -d)\n" + read, false},
+		{"simple list", "tmp=$(mktemp -d) && cd \"$tmp\" && echo ok\n" + read, false},
+		{"simple list with substitution", "tmp=$(mktemp -d) || echo \"$(date)\"\n" + read, false},
+	}
+	for _, tc := range cases {
+		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)
+	}
+	got := units(t, root)
+	for _, tc := range cases {
+		unit := unitOf(t, got, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh")
+		kept := false
+		for _, token := range unit.PathTokens {
+			kept = kept || strings.HasSuffix(token, "internal/x/y.json")
+		}
+		if kept != tc.kept {
+			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
+		}
+	}
+}
+
 // AFP-V0-2246 is withdrawn. Each round-5 review bypass keeps the path token,
 // including every compound prefix and expansion shape; no shell allowlist is
 // sufficient authority to discard a path computed through cd or pwd.
