@@ -156,3 +156,43 @@ reports `cited content changed`. Read the lines at the new position. If they sti
 sentence claims, run `script/check-line-citations.sh --hash path:N-M` with the new range. It prints
 the whole `path:N-M@hex` token, which replaces the old one. A changed hash over the same range
 means the cited text itself changed, so re-read it before repinning (`DCG-V0-006` to `DCG-V0-009`).
+
+## Resolving pre-snapshot evidence
+
+`CSD-V0-7515` (V1-3264): old GitHub numbers belong to `beamfall/corvint-history`, not the
+new single-root repository. With archive access, retrieve the original title and body with:
+
+```sh
+gh api repos/beamfall/corvint-history/issues/1897 --jq '{number,title,body,html_url}'
+```
+
+A `corvint-history/blob/REV/PATH` citation names the exact archived bytes. Read them without
+reinterpreting the URL as a current-main path:
+
+```sh
+gh api 'repos/beamfall/corvint-history/contents/docs/BUILD-LOG.md?ref=1c4d8793cf71cbb01b8509b68a6cb1502a40a13e' -H 'Accept: application/vnd.github.raw+json'
+```
+
+For a pre-snapshot full commit SHA in an acceptance criterion, first test whether the local object
+exists with `git cat-file -t SHA`. If absent, use an archive clone pinned to
+`1c4d8793cf71cbb01b8509b68a6cb1502a40a13e`, verify the SHA is its ancestor, and read with
+`git show SHA:PATH` or `git show SHA -- PATH`. A fresh archive clone is obtained using
+`git clone https://github.com/beamfall/corvint-history /tmp/corvint-history-audit`; use a fresh
+operator-chosen destination if that path exists. Never merge the archive lineage into current main.
+Closeout cites a current-main test or file in addition to historical SHA evidence, naming the
+historical identity as historical; an old SHA alone cannot prove the current implementation.
+
+On 2026-11-04, the available account's archive repository request returned HTTP 404 and the pinned
+archive commit was absent locally. That is an access blocker: issue title/body recovery and unrecovered archived
+text remain NOT_OBSERVED (the B3 rows recovered locally below are a separate retained observation). Preserve the original URL/SHA, request archive access or an
+owner-exported title/body and immutable evidence excerpt, and do not substitute guessed values.
+
+Some shared worktrees still hold individual original objects even when the archive pin is absent.
+Check the exact cited SHA before concluding that every original is unavailable. The
+[pk-ci recovery summary](build-log/2026-11-04-pk-ci.md#recovered-pre-snapshot-source-evidence-v1-3264)
+retains V1-2278's eight B3 widen/reap p50/p95 rows, host/load qualifications and source blob/hash
+from `c6c75440bf2cb6ef6d1f6f27bbdbdb467ad61ef5`, plus the original commit mapping of GH #1897 to
+V1-2800. The mapped implementation commit's subject/body are **not** the original GitHub issue's
+subject/body. Do not confuse GH #1897 with native ticket V1-1897. Original issue text and other
+unrecovered archive content remain access-blocked; recovered summaries are historical measurements,
+not present-host qualifications.

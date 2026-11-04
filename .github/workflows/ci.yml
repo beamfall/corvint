@@ -1657,6 +1657,61 @@ jobs:
           done
           echo "Static reuse (AFP-V0-080): no successful merge-queue run passed all three jobs on $GITHUB_SHA; they run in full." >> "$GITHUB_STEP_SUMMARY"
 
+  host-adapters:
+    # CIN-V0-7502: run the declared TypeScript family on pull requests and queue entries.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.11.1"
+      - name: Declared TypeScript family
+        run: make host-adapter-test
+
+  local-authority-deps:
+    # CIN-V0-7503: the only networked module preparation; the compiler job stays offline.
+    needs: static-reuse
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: ${{ runner.temp }}/local-authority-modules
+          key: local-authority-modules-v1-${{ hashFiles('tools/local-authority/go.mod', 'tools/local-authority/go.sum') }}
+      - name: Prepare and verify checksum-bound modules
+        working-directory: tools/local-authority
+        env:
+          GOTOOLCHAIN: local
+          GOWORK: "off"
+          GOFLAGS: "-mod=readonly"
+          GOMODCACHE: ${{ runner.temp }}/local-authority-modules
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
+        run: |
+          go mod download
+          go mod verify
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.modules.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/local-authority-modules
+          key: local-authority-modules-v1-${{ hashFiles('tools/local-authority/go.mod', 'tools/local-authority/go.sum') }}
+
   go-static:
     # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
     # ran serially after its race tests. They need no docs-plan output, so they start at once,
@@ -1664,7 +1719,7 @@ jobs:
     # AFP-V0-013 keeps them full; go-product needs this job, so its required coverage is
     # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it, and a
     # main push whose queue run passed it on the same commit reuses that result (AFP-V0-080).
-    needs: static-reuse
+    needs: [static-reuse, local-authority-deps]
     if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -1733,15 +1788,21 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
+      - name: Restore checksum-bound local-authority modules (CIN-V0-7503)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/local-authority-modules
+          key: local-authority-modules-v1-${{ hashFiles('source/tools/local-authority/go.mod', 'source/tools/local-authority/go.sum') }}
+          fail-on-cache-miss: true
       - name: Nested module tools/local-authority tests and vet (CIN-V0-008)
-        # V1-3329: the only CI run of this nested module's tests. It runs on every path that
-        # starts go-static, so it covers every change a plan can carry to the module, its own
-        # files included. Its two external modules are fetched once, verified against the
-        # module's go.sum (-mod=readonly fails on a missing or mismatched hash); the tests and
-        # vet then run with GOPROXY off, as every other Go step does.
         working-directory: source/tools/local-authority
+        env:
+          GOMODCACHE: ${{ runner.temp }}/local-authority-modules
+          GOFLAGS: "-mod=readonly"
         run: |
-          GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download
+          # GOPROXY and GOSUMDB stay off: a missing module fails instead of fetching.
+          go mod download
+          go mod verify
           go test -count=1 -timeout 30m ./...
           go vet ./...
       - name: Independent interop under production toolchain
@@ -1750,6 +1811,78 @@ jobs:
         run: |
           go test -count=1 -timeout 30m ./...
           go vet ./...
+
+  web-flows-plan:
+    # CIN-V0-7504: use the same shadow plan's still-required binary consumer checks.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    outputs:
+      required: ${{ steps.plan.outputs.required }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          path: trusted-web-plan
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || github.sha }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Select web-flows consumer
+        id: plan
+        working-directory: trusted-web-plan
+        env:
+          # Diff raw pull_request.base.sha / event.before deliberately: a stale base only over-selects.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          set -eu
+          go build -o "$RUNNER_TEMP/corvint-web-plan" ./cmd/corvint
+          go build -o "$RUNNER_TEMP/web-plan-confine" ./.github/testconfine/cmd
+          status=0
+          "$RUNNER_TEMP/corvint-web-plan" --root "$GITHUB_WORKSPACE/source" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json" || status=$?
+          case "$status" in 0|3) ;; *) exit "$status" ;; esac
+          required=$(jq -r '(.scope == "FULL") or any(.checks[]?; startswith("tools/web-flows/test/") and contains("UNSELECTED_BINARY_CONSUMER"))' "$RUNNER_TEMP/web-plan.json")
+          # testDryRun returns ResultIncomplete (3) when the plan cannot prove coverage.
+          if [ "$status" -eq 3 ]; then required=true; fi
+          echo "required=$required" >> "$GITHUB_OUTPUT"
+
+  web-flows:
+    needs: web-flows-plan
+    if: needs.web-flows-plan.outputs.required == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.11.1"
+      - name: Install locked web-flows runtime
+        working-directory: tools/web-flows
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install the locked Playwright browser
+        working-directory: tools/web-flows
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run required web-flows consumers
+        run: script/web-flows-gate
 
   go-macos:
     # CIN-V0-4625 (V1-4625): advisory until V1-4636 qualifies the required integration.
@@ -1889,7 +2022,7 @@ jobs:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1904,6 +2037,10 @@ jobs:
           path: ${{ runner.temp }}/ci-coverage
       - name: Every go-product shard and the static job succeeded
         env:
+          HOST_RESULT: ${{ needs.host-adapters.result }}
+          WEB_PLAN_RESULT: ${{ needs.web-flows-plan.result }}
+          WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
+          WEB_RESULT: ${{ needs.web-flows.result }}
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
@@ -1914,6 +2051,9 @@ jobs:
           # AFP-V0-591: must equal the go-product-shard matrix length.
           SHARDS: "16"
         run: |
+          test "$HOST_RESULT" = success
+          test "$WEB_PLAN_RESULT" = success
+          if [ "$WEB_REQUIRED" = true ]; then test "$WEB_RESULT" = success; else test "$WEB_RESULT" = skipped; fi
           # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
           # intentionally skips pushes; every PR and merge-group run must actually pass it.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$SHELL_RESULT" = skipped ]; then
