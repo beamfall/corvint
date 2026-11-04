@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
 // FinishLaneOptions are the inputs of one finish-lane run: the change passes
@@ -310,19 +311,26 @@ func (l *finishLane) requireInputsUnchanged(step string) {
 func (l *finishLane) requireVerifyInput() {
 	verify, reason := verifyInput(l.options.Change)
 	detail := ""
-	if reason == "" && l.options.Change.AggregateOverLimit {
-		for _, word := range verify {
-			if word == "--verify-argv-json" {
-				reason, detail = "aggregate-verify-argv-unsupported", "the aggregate outcome receipt supports command strings only; typed argv (including a quoted -run expression) cannot be bound. Use separate commands with plain test names, or turn off aggregate-over-limit for a change within the trace path limit."
-				break
-			}
-		}
-	}
 	if reason == "" && len(verify) > 0 {
 		if err := validateVerify(verify); err != nil {
 			reason, detail = verifyFailureReason(err), err.Error()
 		}
 	}
+	if reason == "" && l.options.Change.AggregateOverLimit {
+		for _, word := range verify {
+			if word != "--verify-argv-json" {
+				continue
+			}
+			required, err := tracerecordrepo.DogfoodNeedsAggregate(l.ctx, l.root, l.base, l.target)
+			if err != nil {
+				reason, detail = "aggregate-admission-unavailable", "cannot establish the recorder's admitted path count: "+err.Error()
+			} else if required {
+				reason, detail = "aggregate-verify-argv-unsupported", "this change exceeds the 200 admitted-path trace limit; its aggregate outcome receipt supports command strings only, so typed argv (including a quoted -run expression) cannot be bound. Use separate commands with plain test names or a committed verification script."
+			}
+			break
+		}
+	}
+
 	if reason == "" {
 		l.requireVerifyRunSelectsTest()
 		return
@@ -340,12 +348,29 @@ func (l *finishLane) requireVerifyInput() {
 		// line with the absolute home directory.
 		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
 	}
-	if line, text := refusedVerifyLineOf(l.options.Change); detail != "" && line > 0 {
-		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
+	line, text := refusedVerifyLineOf(l.options.Change)
+	if reason == "aggregate-verify-argv-unsupported" || reason == "aggregate-admission-unavailable" {
+		line, text = typedVerifyLineOf(l.options.Change)
+	}
+	if detail != "" && line > 0 {
+		if l.options.Change.VerifyFile == "" {
+			l.say("  input: inline verify line %d\n", line)
+		} else {
+			l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
+		}
 		l.say("  text: %s\n", text)
 	}
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
+	}
+	if reason == "aggregate-verify-argv-unsupported" || reason == "aggregate-admission-unavailable" {
+		fix := "write separate plain test-name commands or a committed verification script"
+		if reason == "aggregate-admission-unavailable" {
+			fix = "resolve the repository admission failure above"
+		}
+		l.say("  fix: %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+		l.exit(2)
+		return
 	}
 	if _, text := refusedVerifyLineOf(l.options.Change); text != "" {
 		if why := quotedRunRefusal(text); why != "" {
@@ -491,6 +516,26 @@ func refusedVerifyLineOf(options ChangeOptions) (int, string) {
 		text = data
 	}
 	return refusedVerifyLine(text)
+}
+
+// typedVerifyLineOf names the first argv-form line when aggregate admission
+// refuses it even though its ordinary recorder syntax is valid.
+func typedVerifyLineOf(options ChangeOptions) (int, string) {
+	data := []byte(options.Verify)
+	if options.VerifyFile != "" {
+		var err error
+		data, err = readPrefix(options.VerifyFile, maxVerifyFileBytes)
+		if err != nil {
+			return 0, ""
+		}
+	}
+	for index, line := range strings.Split(string(data), "\n") {
+		args := verifyLineArguments(line)
+		if len(args) > 0 && args[0] == "--verify-argv-json" {
+			return index + 1, line
+		}
+	}
+	return 0, ""
 }
 
 // line writes one step line to stdout.

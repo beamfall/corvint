@@ -21,10 +21,14 @@ are excluded by the lane charter. Independent review belongs to the orchestrator
 - `DCW-V0-7402` (V1-4569): the suspected disagreement is a population and witness mismatch,
   not an arithmetic defect. A test uses 0/115 OCM links and 12/12 change traces. Explain both
   populations; do not invent explicit OCM links from test/table traceability.
-- `DCW-V0-7403` (V1-4169): choose an early named refusal for typed argv with the explicitly
-  selected string-only aggregate receipt. Do not silently revise its closed wire format or
+- `DCW-V0-7403` (V1-4169): choose an early named refusal for typed argv when exact path
+  admission requires the string-only aggregate receipt. Do not silently revise its closed wire format or
   claim that a quoted test regex can bind through that receipt. Inputs-check explains the
-  actual incompatibility before prepare, with a plain-command remedy.
+  actual incompatibility before prepare, with a plain-command remedy. An end-to-end preflight
+  caught an overbroad first check: wrappers enable aggregate fallback even for small changes.
+  A read-only shared recorder admission now checks the actual 200-source-path boundary;
+  enabling fallback alone is compatible with typed argv. Tests cover 200/201 admitted paths,
+  201 filtered non-source paths and zero trace-store/append-recovery entry calls.
 - `TCL-V0-7404` (V1-4288, V1-4289): explicit seal overrides take precedence over a delivering
   lane PR's exported head. Validate containment as before. Reuse the claim retry admission
   function for restored widen paths, and pass admitted keys to the actual claim. Bind step
