@@ -3,10 +3,12 @@ package golang
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // This file mirrors AFP-V0-012 rule (d) of tools/gate-affected-select
@@ -126,7 +128,9 @@ func escapesPackage(directory, value string, test bool) string {
 // relative package pattern ("./..." or "./NAME/...") whose subtree holds no
 // directory of packages but directory itself (AFP-V0-2542, V1-4512). With the
 // package directory as the working directory, such a pattern reaches what "."
-// reaches, so rule (d) does not make it an unbounded read. packages lists every
+// reaches, so rule (d) does not make it an unbounded read; observeDirectory
+// drops the exemption when a file of the package moves the working directory
+// (directoryMove). packages lists every
 // directory that holds a Go file outside testdata or a nested go.mod, as packageDirectories builds it.
 func leafPattern(directory, value string, test bool, packages []string) bool {
 	inner, pattern := strings.CutSuffix(value, "/...")
@@ -151,6 +155,59 @@ func leafPattern(directory, value string, test bool, packages []string) bool {
 		}
 	}
 	return true
+}
+
+// directoryMove recognizes, over one file's tokens after its imports, a change
+// of the working directory a command runs in, which voids leafPattern's
+// premise that a pattern resolves against the package directory
+// (AFP-V0-2542): a `Dir` assigned or keyed to anything but the literal "." or
+// "", a `Chdir` or `Fchdir` identifier, or a string literal with a `cd` or
+// `pushd` word or a `-C` or `--chdir` option. It mirrors directoryMove in
+// internal/gateselect.
+type directoryMove struct {
+	state int // 1 after `Dir`, 2 after `Dir =`, 3 after `Dir = "."`
+	moved bool
+}
+
+func (move *directoryMove) observe(kind token.Token, text string) {
+	state := move.state
+	move.state = 0
+	switch {
+	case state == 1 && (kind == token.ASSIGN || kind == token.DEFINE || kind == token.COLON):
+		move.state = 2
+		return
+	case state == 2 && kind == token.STRING && (text == `"."` || text == `""` || text == "`.`" || text == "``"):
+		move.state = 3
+		return
+	case state == 2:
+		move.moved = true
+	case state == 3 && kind != token.SEMICOLON && kind != token.COMMA && kind != token.RBRACE && kind != token.RPAREN:
+		move.moved = true
+	}
+	switch {
+	case kind == token.IDENT && text == "Dir":
+		move.state = 1
+	case kind == token.IDENT && (text == "Chdir" || text == "Fchdir"):
+		move.moved = true
+	case kind == token.STRING && !move.moved:
+		move.moved = changesDirectory(text)
+	}
+}
+
+// changesDirectory reports a quoted literal with a shell word or option that
+// changes the directory a command runs in.
+func changesDirectory(text string) bool {
+	value, err := strconv.Unquote(text)
+	if err != nil {
+		return false
+	}
+	words := strings.FieldsFunc(value, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(";&|()`{}", r) })
+	for _, word := range words {
+		if word == "cd" || word == "pushd" || word == "-C" || word == "--chdir" || strings.HasPrefix(word, "-C=") || strings.HasPrefix(word, "--chdir=") {
+			return true
+		}
+	}
+	return false
 }
 
 // packageDirectories lists the directories leafPattern counts: each observed
