@@ -1,0 +1,619 @@
+{
+  "profile": "cx-affected-ci-investigation/0",
+  "sourceIssue": "https://github.com/beamfall/corvint/issues/52",
+  "records": [
+    {
+      "artifactId": 13189593431,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41544141629,
+        "runAttempt": 1,
+        "target": "0ebb3bf667f722e43593ccd32e2aef8c97b37480",
+        "shard": 4,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCTSV0006_ReadVerbsUnderConcurrentWriter"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestDSGV0012_RollingUpgradeWithRealExec"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestERGV0026_CheckpointCommitBinding"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestERGV0027_HistoryBoundNamesNextCursor"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTCDV0185_GatedBatchCloseRunsRequiredGates"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTCDV0967_InterruptedMultiTargetHoldResumes"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTOLV0011_ConflictingMatches"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTOLV0029_RunBatchCreditsAndWritesCauses"
+          }
+        ]
+      },
+      "withinPublishedWindow": false,
+      "logs": [
+        {
+          "jobId": 125616030367,
+          "sha256": "bfcda50b03677b6c06c53c3e68579080b850f245c8fa60cce9ae36df5adb6745",
+          "failures": [
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestERGV0026_CheckpointCommitBinding (2.49s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestERGV0027_HistoryBoundNamesNextCursor (2.40s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTOLV0029_RunBatchCreditsAndWritesCauses (0.71s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTOLV0011_ConflictingMatches (0.62s)",
+            "read_wait_test.go:87: quiet [queue status]: 13ms",
+            "read_wait_test.go:87: quiet [plan preview]: 6ms",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTCDV0967_InterruptedMultiTargetHoldResumes (1.15s)",
+            "read_wait_test.go:146: queue under the writer: 164 reads, mean 12ms, max 62ms",
+            "read_wait_test.go:146: plan under the writer: 269 reads, mean 7ms, max 44ms",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCTSV0006_ReadVerbsUnderConcurrentWriter (2.06s)",
+            "dispatch_rolling_upgrade_test.go:252: session 3 lease state BLOCKED",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestDSGV0012_RollingUpgradeWithRealExec (10.60s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTCDV0185_GatedBatchCloseRunsRequiredGates (6.07s)"
+          ],
+          "raceReports": [
+            "WARNING: DATA RACE\nRead at 0x000002bd9930 by goroutine 15474:\n  github.com/Beamfall/corvint/internal/tasks/cli.packetHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:392 +0x424\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:534 +0x194\n  github.com/Beamfall/corvint/internal/tasks/cli.runBody()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:113 +0x84\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore.func2()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:782 +0xa9e\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:290 +0x2e2\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:524 +0x375\n  github.com/Beamfall/corvint/internal/tasks/cli.gatePacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:804 +0x13e5\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:409 +0x150a\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.packetOf()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:48 +0x232\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0026_CheckpointCommitBinding()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:282 +0xb1e\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bd9930 by goroutine 15473:\n  github.com/Beamfall/corvint/internal/tasks/cli.ShrinkReviewPacketHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_export_test.go:8 +0x6b\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0027_HistoryBoundNamesNextCursor()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:227 +0x99\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38",
+            "WARNING: DATA RACE\nRead at 0x000002bd9938 by goroutine 15474:\n  github.com/Beamfall/corvint/internal/tasks/cli.packetHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:393 +0x544\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:534 +0x194\n  github.com/Beamfall/corvint/internal/tasks/cli.runBody()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:113 +0x84\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore.func2()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:782 +0xa9e\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:290 +0x2e2\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:524 +0x375\n  github.com/Beamfall/corvint/internal/tasks/cli.gatePacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:804 +0x13e5\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:409 +0x150a\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.packetOf()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:48 +0x232\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0026_CheckpointCommitBinding()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:282 +0xb1e\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bd9938 by goroutine 15473:\n  github.com/Beamfall/corvint/internal/tasks/cli.ShrinkReviewPacketHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_export_test.go:8 +0x84\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0027_HistoryBoundNamesNextCursor()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:227 +0x99\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38",
+            "WARNING: DATA RACE\nRead at 0x000002bd99f8 by goroutine 3204:\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:243 +0xa4\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.batchCloseCommand()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/batch_close.go:122 +0x1144\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:262 +0x7534\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestTCDV0185_GatedBatchCloseRunsRequiredGates()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/batch_close_gated_test.go:128 +0x1b87\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bd99f8 by goroutine 2451:\n  github.com/Beamfall/corvint/internal/tasks/cli.withReadPatience()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/read_wait_test.go:22 +0x5c\n  github.com/Beamfall/corvint/internal/tasks/cli.TestCTSV0006_ReadVerbsUnderConcurrentWriter()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/read_wait_test.go:108 +0x8ee\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nGoroutine 3204 (running) created at:\n  testing.(*T).Run()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0xb12\n  testing.runTests.func1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2744 +0x84\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.runTests()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2742 +0x9e9\n  testing.(*M).Run()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2602 +0xf44"
+          ],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41544141629/job/125616030367"
+        }
+      ]
+    },
+    {
+      "artifactId": 13156515342,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41467616941,
+        "runAttempt": 1,
+        "target": "88a9a8befa0ff6f392b519e5595c66e740f6e349",
+        "shard": 4,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestERGV0017_ReviewPacketAcrossRounds"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestERGV0019_CapNamesOmittedRanges"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestERGV0026_CheckpointCommitBinding"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestERGV0027_HistoryBoundNamesNextCursor"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 125353161108,
+          "sha256": "40ef7926a2a8ec4967787736b3eb5cf1c2e8d6973fffbaef251f19d4536d1603",
+          "failures": [
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestERGV0027_HistoryBoundNamesNextCursor (1.50s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestERGV0026_CheckpointCommitBinding (1.63s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestERGV0019_CapNamesOmittedRanges (1.72s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestERGV0017_ReviewPacketAcrossRounds (1.61s)"
+          ],
+          "raceReports": [
+            "WARNING: DATA RACE\nWrite at 0x000002bd9930 by goroutine 15419:\n  github.com/Beamfall/corvint/internal/tasks/cli.ShrinkReviewPacketHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_export_test.go:8 +0x6b\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0027_HistoryBoundNamesNextCursor()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:227 +0x99\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious read at 0x000002bd9930 by goroutine 15420:\n  github.com/Beamfall/corvint/internal/tasks/cli.packetHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:392 +0x424\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:534 +0x194\n  github.com/Beamfall/corvint/internal/tasks/cli.runBody()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:113 +0x84\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore.func2()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:782 +0xa9e\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:290 +0x2e2\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:524 +0x375\n  github.com/Beamfall/corvint/internal/tasks/cli.gatePacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:804 +0x13e5\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:409 +0x150a\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.packetOf()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:48 +0x232\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0026_CheckpointCommitBinding()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:282 +0xb1e\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38",
+            "WARNING: DATA RACE\nWrite at 0x000002bd9938 by goroutine 15419:\n  github.com/Beamfall/corvint/internal/tasks/cli.ShrinkReviewPacketHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_export_test.go:8 +0x84\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0027_HistoryBoundNamesNextCursor()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:227 +0x99\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious read at 0x000002bd9938 by goroutine 15420:\n  github.com/Beamfall/corvint/internal/tasks/cli.packetHistory()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:393 +0x544\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:534 +0x194\n  github.com/Beamfall/corvint/internal/tasks/cli.runBody()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:113 +0x84\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore.func2()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:782 +0xa9e\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:290 +0x2e2\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.collectReviewPacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:524 +0x375\n  github.com/Beamfall/corvint/internal/tasks/cli.gatePacket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet.go:804 +0x13e5\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:409 +0x150a\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.packetOf()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:48 +0x232\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestERGV0026_CheckpointCommitBinding()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/review_packet_test.go:282 +0xb1e\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38"
+          ],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41467616941/job/125353161108"
+        }
+      ]
+    },
+    {
+      "artifactId": 13133666959,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41424244656,
+        "runAttempt": 1,
+        "target": "f9cbc5703a7122054fd23721d82e50f6859f07ed",
+        "shard": 4,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCTSV0006_ReadVerbsUnderConcurrentWriter"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestDSGV0012_RollingUpgradeWithRealExec"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTCDV0169_BatchCloseClosesDeliveredOpenTickets"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTCDV0185_GatedBatchCloseRunsRequiredGates"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestTOLV0139_ArchiveCarriesReceipts"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 125207342632,
+          "sha256": "6e224532401ada698145ae42e4e6a2c186e49e1c3355a61f25f943fee6247644",
+          "failures": [
+            "read_wait_test.go:87: quiet [queue status]: 8ms",
+            "read_wait_test.go:87: quiet [plan preview]: 7ms",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTCDV0169_BatchCloseClosesDeliveredOpenTickets (1.69s)",
+            "read_wait_test.go:146: queue under the writer: 159 reads, mean 12ms, max 49ms",
+            "read_wait_test.go:146: plan under the writer: 245 reads, mean 8ms, max 43ms",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCTSV0006_ReadVerbsUnderConcurrentWriter (2.03s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTOLV0139_ArchiveCarriesReceipts (0.57s)",
+            "dispatch_rolling_upgrade_test.go:252: session 3 lease state BLOCKED",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestTCDV0185_GatedBatchCloseRunsRequiredGates (6.25s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestDSGV0012_RollingUpgradeWithRealExec (10.56s)"
+          ],
+          "raceReports": [
+            "WARNING: DATA RACE\nRead at 0x000002bbe9f8 by goroutine 3195:\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:243 +0xa4\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.withInventoryStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:25 +0x10d\n  github.com/Beamfall/corvint/internal/tasks/cli.createSubjectGuard()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/create_source_ref.go:41 +0x484\n  github.com/Beamfall/corvint/internal/tasks/cli.mutateCommand()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/mutate.go:146 +0x1b53\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:292 +0x8604\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.effectsTicket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/serial_fallback_test.go:38 +0x5ca\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestTCDV0185_GatedBatchCloseRunsRequiredGates()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/batch_close_gated_test.go:92 +0x117\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bbe9f8 by goroutine 2442:\n  github.com/Beamfall/corvint/internal/tasks/cli.withReadPatience()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/read_wait_test.go:22 +0x5c\n  github.com/Beamfall/corvint/internal/tasks/cli.TestCTSV0006_ReadVerbsUnderConcurrentWriter()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/read_wait_test.go:108 +0x8ee\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nGoroutine 3195 (running) created at:\n  testing.(*T).Run()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0xb12\n  testing.runTests.func1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2744 +0x84",
+            "WARNING: DATA RACE\nWrite at 0x000002bbe9f8 by goroutine 2442:\n  github.com/Beamfall/corvint/internal/tasks/cli.withReadPatience.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/read_wait_test.go:23 +0x30\n  runtime.deferreturn()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/runtime/panic.go:668 +0x53\n  github.com/Beamfall/corvint/internal/tasks/cli.TestCTSV0006_ReadVerbsUnderConcurrentWriter()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/read_wait_test.go:108 +0x8ee\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious read at 0x000002bbe9f8 by goroutine 17676:\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:243 +0xa4\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.withInventoryStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:25 +0x10d\n  github.com/Beamfall/corvint/internal/tasks/cli.createSubjectGuard()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/create_source_ref.go:41 +0x484\n  github.com/Beamfall/corvint/internal/tasks/cli.mutateCommand()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/mutate.go:146 +0x1b53\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:292 +0x8604\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.planTicket()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/plan_test.go:19 +0x5aa\n  github.com/Beamfall/corvint/internal/tasks/cli_test.obligationRepoWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/obligations_test.go:74 +0xaec\n  github.com/Beamfall/corvint/internal/tasks/cli_test.obligationRepo()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/obligations_test.go:47 +0x34\n  github.com/Beamfall/corvint/internal/tasks/cli_test.witnessed()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/witness_receipts_test.go:23 +0x71\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestTOLV0139_ArchiveCarriesReceipts()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/witness_receipts_test.go:228 +0x9d\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c"
+          ],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41424244656/job/125207342632"
+        }
+      ]
+    },
+    {
+      "artifactId": 13113917871,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41379953719,
+        "runAttempt": 1,
+        "target": "1ccf29896e07f9fa0ea0fabf75192530e69986f7",
+        "shard": 4,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/service"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/service",
+            "test": "TestSERVICE500_HelperInstallAcceptedOnLinuxRefusedElsewhere"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 125068726618,
+          "sha256": "9f0418e6e28e766f15daf172a4e1d141ac458722d8ab2f6a433453f0bfdb44c3",
+          "failures": [
+            "helper_test.go:306: helper argv must come from the manifest, not unit text",
+            "--- FAIL: TestSERVICE500_HelperInstallAcceptedOnLinuxRefusedElsewhere (0.03s)"
+          ],
+          "raceReports": [],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41379953719/job/125068726618"
+        }
+      ]
+    },
+    {
+      "artifactId": 13048261801,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41213660516,
+        "runAttempt": 1,
+        "target": "6181892df5f791471ca2146aa5c902b09f1ce6a6",
+        "shard": 6,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/store"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/store",
+            "test": "TestCTSV0014_ImportMappedQueueLeasesAndReleases"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 124575173368,
+          "sha256": "148f586a2fe1ccd0118605e962a064844fcfeb713c27c599e65025546c021215",
+          "failures": [
+            "nonfixture_importmap_test.go:117: execution cutover: &{LaneUntouchedAttestation:<nil> PoolAllocation:<nil> PoolOperation:<nil> SharedAllocation:<nil> ReleasedPoolAllocation:<nil> Slot:<nil> Delivery:<nil> AuthorExclusion:<nil> ScopeRefusal:<nil> RestoredScope:<nil> Outcome:{RequestID:qualified Outcome:STORAGE_FAILED Replayed:false ResultingRevision:<nil> ResultingAcceptanceRevision:<nil> ReleaseID:<nil> ResultingReleaseRevision:<nil> ReceiptSeq:<nil> Codes:[]} Coverage:{ActorAuthentication:NOT_OBSERVED AdministrativeAuthorization:NOT_OBSERVED InventoryObservation:NOT_OBSERVED Durability:NOT_OBSERVED RuntimeQualification:NOT_OBSERVED} Receipt: Directories:[] Kind:Refused Detail:MALFORMED: transaction: recordedAt 2026-10-31T15:41:23Z is earlier than the head receipt's 2026-10-31T15:41:24Z Redone:false Unretryable:false GateReusedFrom:<nil> GateInterrupted:false GateExecuted:<nil> Ticket: Release: MutationEffects:<nil> OldPolicySha256: NewPolicySha256: AttemptID: Generation: Expired:[] Reaped:[] ReapReceipt",
+            "--- FAIL: TestCTSV0014_ImportMappedQueueLeasesAndReleases (0.64s)"
+          ],
+          "raceReports": [],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41213660516/job/124575173368"
+        }
+      ]
+    },
+    {
+      "artifactId": 13188954325,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41544141629,
+        "runAttempt": 1,
+        "target": "0ebb3bf667f722e43593ccd32e2aef8c97b37480",
+        "shard": 7,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0049_ChargedReasonsAndCleanHandoffReadback"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0049_ChargedReasonsAndCleanHandoffReadback/CAL-V0-049_retry_debt_reason_handoff"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0122_Issue643AdditiveMemberKeepsHandoff"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0216_LockWaitAdmissionVerbs"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt/policy_update"
+          }
+        ]
+      },
+      "withinPublishedWindow": false,
+      "logs": [
+        {
+          "jobId": 125616030565,
+          "sha256": "d9785cf189b7434dc3db0f3bad7cff54387b4371b9d940907f46fb6edd7a2d6c",
+          "failures": [
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt/policy_update (0.66s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0122_Issue643AdditiveMemberKeepsHandoff (2.22s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0216_LockWaitAdmissionVerbs (3.02s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0049_ChargedReasonsAndCleanHandoffReadback/CAL-V0-049_retry_debt_reason_handoff (1.88s)",
+            "--- FAIL: TestCALV0049_ChargedReasonsAndCleanHandoffReadback (1.88s)",
+            "--- FAIL: TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt (5.52s)"
+          ],
+          "raceReports": [
+            "WARNING: DATA RACE\nRead at 0x000002bd99f8 by goroutine 12492:\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:243 +0xa4\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.withInventoryStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/inventory.go:25 +0x10d\n  github.com/Beamfall/corvint/internal/tasks/cli.ticketShow()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:1960 +0x361\n  github.com/Beamfall/corvint/internal/tasks/cli.ticketShowCommand.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/ticket_show_text.go:44 +0x137\n  github.com/Beamfall/corvint/internal/tasks/cli.compactRead()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/compact.go:92 +0xb27\n  github.com/Beamfall/corvint/internal/tasks/cli.ticketShowCommand()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/ticket_show_text.go:44 +0x990\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:248 +0x67b6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.handoffCLIWithBinary()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/lease_handoff_test.go:86 +0xac4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.handoffCLI()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/lease_handoff_test.go:80 +0xd0\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0049_ChargedReasonsAndCleanHandoffReadback.func1.1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/tasks_426_428_test.go:119 +0xbd\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0049_ChargedReasonsAndCleanHandoffReadback.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/tasks_426_428_test.go:128 +0x8a6\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bd99f8 by goroutine 12435:\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt.func3()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/writer_redo_pending_test.go:179 +0x5e4\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38"
+          ],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41544141629/job/125616030565"
+        }
+      ]
+    },
+    {
+      "artifactId": 13160525518,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41476603865,
+        "runAttempt": 1,
+        "target": "d32f1a0485f4602f287a8acce7895abb0ac250ee",
+        "shard": 7,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff/4"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0181_TicketListStatusFilter"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0181_TicketListStatusFilter/CAL-V0-181"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey/resource-directory"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt/policy_update"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 125385291497,
+          "sha256": "11a5f91b21bc97b93caef4191fcf3764560081d0a4a8252db2ec075a634e6150",
+          "failures": [
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey/resource-directory (0.82s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt/policy_update (0.98s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff/4 (3.63s)",
+            "--- FAIL: TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff (5.29s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0181_TicketListStatusFilter/CAL-V0-181 (6.99s)",
+            "--- FAIL: TestCALV0181_TicketListStatusFilter (7.00s)",
+            "--- FAIL: TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey (5.01s)",
+            "--- FAIL: TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt (6.31s)"
+          ],
+          "raceReports": [
+            "WARNING: DATA RACE\nRead at 0x000002bd99f8 by goroutine 14939:\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:243 +0xa4\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.ticketList()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:1229 +0x48d\n  github.com/Beamfall/corvint/internal/tasks/cli.Run.func2()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:242 +0x132\n  github.com/Beamfall/corvint/internal/tasks/cli.compactRead()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/compact.go:92 +0xb27\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:242 +0x6b18\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.listIDs()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/throughput_test.go:22 +0x2fa\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0181_TicketListStatusFilter.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/throughput_test.go:64 +0x784\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bd99f8 by goroutine 15610:\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt.func3()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/writer_redo_pending_test.go:174 +0x288\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nGoroutine 14939 (running) created at:\n  testing.(*T).Run()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0xb12\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0181_TicketListStatusFilter()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/throughput_test.go:46 +0x44\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c"
+          ],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41476603865/job/125385291497"
+        }
+      ]
+    },
+    {
+      "artifactId": 13133280686,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41424244656,
+        "runAttempt": 1,
+        "target": "f9cbc5703a7122054fd23721d82e50f6859f07ed",
+        "shard": 7,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0141_PlanNodeBoundScalesPerEntry"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0181_TicketListStatusFilter"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0181_TicketListStatusFilter/CAL-V0-181"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt/policy_update"
+          },
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestCALV0277_RenewOnlyHolderNeverReadsStale"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 125207342788,
+          "sha256": "c47d06779f98103f845e3b9d69052f44f6e1f9af6717214abb0f39543f7d171d",
+          "failures": [
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt/policy_update (0.95s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0277_RenewOnlyHolderNeverReadsStale (5.31s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0181_TicketListStatusFilter/CAL-V0-181 (7.05s)",
+            "--- FAIL: TestCALV0181_TicketListStatusFilter (7.05s)",
+            "--- FAIL: TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt (6.36s)",
+            "testing.go:1867: race detected during execution of test",
+            "--- FAIL: TestCALV0141_PlanNodeBoundScalesPerEntry (10.71s)"
+          ],
+          "raceReports": [
+            "WARNING: DATA RACE\nRead at 0x000002bbe9f8 by goroutine 10294:\n  github.com/Beamfall/corvint/internal/tasks/snapshot.Reader.Read()\n      /home/runner/work/corvint/corvint/source/internal/tasks/snapshot/probe.go:243 +0xa4\n  github.com/Beamfall/corvint/internal/tasks/cli.withStore()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:758 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli.ticketList()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:1229 +0x48d\n  github.com/Beamfall/corvint/internal/tasks/cli.Run.func2()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:242 +0x132\n  github.com/Beamfall/corvint/internal/tasks/cli.compactRead()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/compact.go:92 +0xb34\n  github.com/Beamfall/corvint/internal/tasks/cli.Run()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli.go:242 +0x6b18\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atmWith()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:115 +0x3e4\n  github.com/Beamfall/corvint/internal/tasks/cli_test.atm()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/cli_test.go:101 +0xf6\n  github.com/Beamfall/corvint/internal/tasks/cli_test.listIDs()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/throughput_test.go:22 +0x2fa\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0181_TicketListStatusFilter.func1()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/throughput_test.go:64 +0x784\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nPrevious write at 0x000002bbe9f8 by goroutine 10907:\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt.func3()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/writer_redo_pending_test.go:174 +0x288\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c\n  testing.(*T).Run.gowrap1()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0x38\n\nGoroutine 10294 (running) created at:\n  testing.(*T).Run()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2260 +0xb12\n  github.com/Beamfall/corvint/internal/tasks/cli_test.TestCALV0181_TicketListStatusFilter()\n      /home/runner/work/corvint/corvint/source/internal/tasks/cli/throughput_test.go:46 +0x44\n  testing.tRunner()\n      /opt/hostedtoolcache/go/1.27.3/x64/src/testing/testing.go:2195 +0x21c"
+          ],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41424244656/job/125207342788"
+        }
+      ]
+    },
+    {
+      "artifactId": 13114077031,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41379953719,
+        "runAttempt": 1,
+        "target": "1ccf29896e07f9fa0ea0fabf75192530e69986f7",
+        "shard": 7,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 125068726591,
+          "sha256": "f42a695ffd5556141bdc735097d191581b52d9db6c698789fc0b1d419f12e76a",
+          "failures": [
+            "worker_reap_test.go:289: a completed detached claim failed the package's leak check (exit status 1):",
+            "--- FAIL: TestATRV0310Helper (1.72s)",
+            "worker_reap_test.go:48: detached claim: code 1 {\"codes\":[\"SUPERVISOR_LOST\"],\"command\":[\"claim\"],\"items\":[{\"ceilingAt\":\"2026-11-02T03:25:51Z\",\"childPid\":\"92580\",\"command\":\"claim\",\"holder\":\"agent\",\"record\":\"/tmp/atm-2747476825/repo/.git/taskman-requests/27b41829738a8a5ffc9ecef907aabd81b4c3578d49a53776707b23fe66c3912d\",\"requestId\":\"r-exit\",\"startedAt\":\"2026-11-02T03:15:51Z\",\"state\":\"LOST\"}],\"mutation\":null,\"outcome\":\"REFUSED\",\"page\":null,\"profile\":\"taskman-command-result/0\",\"retryable\":false,\"snapshot\":null,\"untrusted\":[],\"warnings\":[\"the detached claim ended without keeping a result; nothing was signalled; repeat claim --detach with the same arguments and request id: the store replays a committed request and otherwise runs it once\"]}",
+            "--- FAIL: TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck (2.83s)"
+          ],
+          "raceReports": [],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41379953719/job/125068726591"
+        }
+      ]
+    },
+    {
+      "artifactId": 13006702739,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "pull_request",
+        "runId": 41113942897,
+        "runAttempt": 1,
+        "target": "af3222047847dc488a0ca6c29d29e96f284c1071",
+        "shard": 7,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/tasks/cli"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/tasks/cli",
+            "test": "TestATRV0059_ClaimCarriesDrainNotice"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 124264336683,
+          "sha256": "4d89c59c5437e77872ce7f5490d68130a243edeb3ef0eec2651b8dc2334a3020",
+          "failures": [
+            "drain_notice_test.go:43: detached claim during the drain: {\"codes\":[\"SUPERVISOR_LOST\"],\"command\":[\"claim\"],\"items\":[{\"ceilingAt\":\"2026-10-30T19:47:39Z\",\"childPid\":\"87022\",\"command\":\"claim\",\"holder\":\"second\",\"record\":\"/tmp/atm-1539370845/repo/.git/taskman-requests/b03b89fdf0a7e792bcc2a127d6d13bce8e3747c4d5eca8d2ae09830901fdacd1\",\"requestId\":\"claim-detached\",\"startedAt\":\"2026-10-30T19:37:39Z\",\"state\":\"LOST\"}],\"mutation\":null,\"outcome\":\"REFUSED\",\"page\":null,\"profile\":\"taskman-command-result/0\",\"retryable\":false,\"snapshot\":null,\"untrusted\":[],\"warnings\":[\"the detached claim ended without keeping a result; nothing was signalled; repeat claim --detach with the same arguments and request id: the store replays a committed request and otherwise runs it once\"]}",
+            "--- FAIL: TestATRV0059_ClaimCarriesDrainNotice (0.35s)"
+          ],
+          "raceReports": [],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41113942897/job/124264336683"
+        }
+      ]
+    },
+    {
+      "artifactId": 13048503889,
+      "record": {
+        "profile": "corvint-ci-flaky/0",
+        "verdict": "FLAKY",
+        "event": "merge_group",
+        "runId": 41215360726,
+        "runAttempt": 1,
+        "target": "85d5ad4b758193ef702a83632f4cb8c573b91933",
+        "shard": 1,
+        "shards": 8,
+        "firstStatus": 1,
+        "rerunInvocations": 1,
+        "failedPackages": [
+          "github.com/Beamfall/corvint/internal/postmergeworkflow"
+        ],
+        "failedTests": [
+          {
+            "package": "github.com/Beamfall/corvint/internal/postmergeworkflow",
+            "test": "TestCancellationRetiresDescendant"
+          }
+        ]
+      },
+      "withinPublishedWindow": true,
+      "logs": [
+        {
+          "jobId": 124578728134,
+          "sha256": "c314989f08aec46beb05c485f2daf8df9e79ce3a577cc7a13e49a26b6fbd66bb",
+          "failures": [
+            "cancel_unix_test.go:40: no descendant observed",
+            "--- FAIL: TestCancellationRetiresDescendant (0.41s)"
+          ],
+          "raceReports": [],
+          "url": "https://github.com/beamfall/corvint/actions/runs/41215360726/job/124578728134"
+        }
+      ]
+    }
+  ]
+}
