@@ -733,6 +733,7 @@ AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	Verification MUST 
 AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	With `draft`, the plan MUST include a Playwright skeleton that is guarded by	unrecorded	-
 AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`	unrecorded	-
 AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	The planner MUST be served by two surfaces:	unrecorded	-
+AMAP-V0-8206	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2651)	standing	2026-10-11; V1-2651
 AMAP-V0-001	docs/specs/application-map-v0.md	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
 AMAP-V0-002	docs/specs/application-map-v0.md	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
 AMAP-V0-003	docs/specs/application-map-v0.md	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
@@ -1340,6 +1341,7 @@ CSB-V0-002	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner
 CSB-V0-003	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner's standing auto-accept (2026-10-11)) Output a	standing	V1-2672; 2026-10-11
 CSB-V0-004	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner's standing auto-accept (2026-10-11)) Path rul	standing	V1-2672; 2026-10-11
 CSB-V0-005	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner's standing auto-accept (2026-10-11)) Refusals	standing	V1-2672; 2026-10-11
+CEM-V1-8201	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
 CEM-V1-001	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk	owner	decision 0546; 2026-10-20
 CEM-V1-002	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Bind criterion references to canonical n	owner	decision 0546; 2026-10-20
 CEM-V1-003	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by dig	owner	decision 0546; 2026-10-20
@@ -1543,7 +1545,7 @@ CEM-V1-076	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A
 CEM-V1-077	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The console chain pane MUST admit `cem/1	owner	decision 0546; 2026-10-20
 CEM-V1-078	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Each criterion binding, runner receipt (	owner	decision 0546; 2026-10-20
 CEM-V1-079	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The registry stays closed: an unsupporte	owner	decision 0546; 2026-10-20
-CEM-V1-140	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `corvint cem prepare` MUST write `cem/1.	owner	decision 0546; 2026-10-20
+CEM-V1-140	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Historical transition, superseded	owner	decision 0546; 2026-10-20
 CEM-V1-141	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A `cem/1.0` prepare MUST write the canon	owner	decision 0546; 2026-10-20
 CEM-V1-142	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `cem begin --spec cem/1.0` MUST write th	owner	decision 0546; 2026-10-20
 CEM-V1-143	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `cem cite`, `cem mark`, `cem cover` and	owner	decision 0546; 2026-10-20
@@ -2656,6 +2658,8 @@ TAW-V0-015	docs/specs/corvint-tasks-agent-workflow-v0.md	`corvint-mcp --tool-pro
 TAW-V0-025	docs/specs/corvint-tasks-agent-workflow-v0.md	The tasks-work group MUST reach Tasks only through that process boundary (decisi	unrecorded	-
 TAW-V0-016	docs/specs/corvint-tasks-agent-workflow-v0.md	`work start`, `work deliver` and `work block` MUST be allowed in a read-only ses	unrecorded	-
 TAW-V0-017	docs/specs/corvint-tasks-agent-workflow-v0.md	The lane protocol (which trailers a lane writes and when) MUST be documented in	unrecorded	-
+ATR-V0-8207	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4637)	standing	2026-10-11; V1-4637
+ATR-V0-8208	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4638)	standing	2026-10-11; V1-4638
 ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before	unrecorded	-
 ATR-V0-002	docs/specs/corvint-tasks-attempt-runner-v0.md	Before launch the runner MUST heartbeat the attempt, then renew it only when the	unrecorded	-
 ATR-V0-003	docs/specs/corvint-tasks-attempt-runner-v0.md	The command MUST be started once through `groupreap.Start` as the leader of an o	unrecorded	-
@@ -5623,6 +5627,7 @@ LAC-V0-035	docs/specs/local-admin-console-v0.md	An edge the artifacts do not est
 LAC-V0-036	docs/specs/local-admin-console-v0.md	The pane MUST be reachable from the primary navigation and operable by keyboard	unrecorded	-
 LAC-V0-037	docs/specs/local-admin-console-v0.md	Selecting a hunk through its existing pinned plain hyperlink MUST gather its	unrecorded	-
 LAC-V0-038	docs/specs/local-admin-console-v0.md	The chain pane MUST validate schema-2 rows under `LTPM-V0-013` before displaying	unrecorded	-
+LCP-V0-8209	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0580)	standing	2026-10-11; V1-0580
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	The local policy MUST remain caller-owned and non-authoritative. Its positive st	unrecorded	-
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi	unrecorded	-
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	`status` and automatic event evaluation MUST be read-only. They derive unmet	unrecorded	-
@@ -7173,6 +7178,7 @@ SEA-V0-006	docs/specs/source-evidence-axes-v0.md	The default command path MUST p
 SEA-V0-007	docs/specs/source-evidence-axes-v0.md	Qualification MUST freeze deterministic source/consumer fixtures, legacy byte	unrecorded	-
 SEA-V0-008	docs/specs/source-evidence-axes-v0.md	Rollout and rollback MUST retain existing receipts and failed evidence; publicat	unrecorded	-
 SRG-V0-7500	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4550) The same	standing	2026-10-11; V1-4550
+SRG-V0-8202	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1323)	standing	2026-10-11; V1-1323
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	(accepted, decision 0506) The generator MUST recognise a requirement id as a tok	owner	decision 0506
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	(accepted, decision 0506) The generator MUST classify each occurrence of an id i	owner	decision 0506
@@ -7331,6 +7337,7 @@ SAC-005	docs/specs/swift-apple-analyzer-candidate-v0.md	Before the envelope vali
 SAC-006	docs/specs/swift-apple-analyzer-candidate-v0.md	The candidate does not claim registry/lock selection, containment, launch, admis	unrecorded	-
 SAC-007	docs/specs/swift-apple-analyzer-candidate-v0.md	`BenchmarkAnalyzeCandidate` constructs the successful pinned Beamfall Apple requ	unrecorded	-
 SAC-008	docs/specs/swift-apple-analyzer-candidate-v0.md	Each refusal reports the one closed reason that names its actual cause.	unrecorded	-
+TCP-V0-8200	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3710)	standing	2026-10-11; V1-3710
 TCP-V0-001	docs/specs/task-context-packet-v0.md	`context` MUST be read-only. It builds one index over the committed tree and	unrecorded	-
 TCP-V0-002	docs/specs/task-context-packet-v0.md	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]	unrecorded	-
 TCP-V0-003	docs/specs/task-context-packet-v0.md	Results are files. Each result row carries `kind`, `id` (the path), `score`,	unrecorded	-

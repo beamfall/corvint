@@ -53,25 +53,40 @@ git add .corvint && git commit -q -m seal-missing
 [[ $? == 1 ]] && grep -q 'bbbb.cem.json: base 0123456789abcdef0123456789abcdef01234567 is not reachable' "$tmp/out" ||
   fail "missing base not refused: $(cat "$tmp/out")"
 
-# 4. Register labels admit exactly the labelled base.
-printf '# target\tbase\tlabel\tretained\naaaa\t%s\tarchive-lineage\tarchive@x\nbbbb\t0123456789abcdef0123456789abcdef01234567\tbase-unavailable\tnone\n' "$orphan" > .corvint/cem-lineage.tsv
-"$check" > "$tmp/out" 2>&1 && grep -q '2 labelled' "$tmp/out" || fail "labelled maps refused: $(cat "$tmp/out")"
-printf 'aaaa\t%s\tarchive-lineage\tarchive@x\nbbbb\t%s\tbase-unavailable\tnone\n' "$retained" "$retained" > .corvint/cem-lineage.tsv
+# 4. CEM-V1-8201: labels require a live named ref reaching the exact base.
+git update-ref refs/tags/lineage "$orphan"
+printf 'aaaa\t%s\tarchive-lineage\trefs/tags/lineage\n' "$orphan" > .corvint/cem-lineage.tsv
+# Remove the intentionally unavailable map before the positive control.
+git rm -q .corvint/changes/bbbb.cem.json && git commit -q -m remove-missing
+"$check" > "$tmp/out" 2>&1 && grep -q '1 labelled' "$tmp/out" || fail "retained labelled map refused: $(cat "$tmp/out")"
+git update-ref refs/tags/lineage "$retained"
 "$check" > "$tmp/out" 2>&1
-[[ $? == 1 ]] && grep -q "labels aaaa with base $retained, but the map's base is $orphan" "$tmp/out" || fail "mismatched label passed: $(cat "$tmp/out")"
-printf 'aaaa\t%s\tarchive-lineage\tarchive@x\nbbbb\t0123456789abcdef0123456789abcdef01234567\tbase-unavailable\tnone\ncccc\t%s\trebased-lane-base\tnone\n' "$orphan" "$retained" > .corvint/cem-lineage.tsv
+[[ $? == 1 ]] && grep -q 'is not retained by refs/tags/lineage' "$tmp/out" || fail "unrelated label ref passed: $(cat "$tmp/out")"
+git update-ref -d refs/tags/lineage
 "$check" > "$tmp/out" 2>&1
-[[ $? == 1 ]] && grep -q 'labels cccc, but .corvint/changes/cccc.cem.json is not tracked' "$tmp/out" || fail "stale label passed: $(cat "$tmp/out")"
-printf 'aaaa\t%s\ttrusted\tarchive@x\n' "$orphan" > .corvint/cem-lineage.tsv
+[[ $? == 1 ]] && grep -q 'is not retained by refs/tags/lineage' "$tmp/out" || fail "absent label ref passed: $(cat "$tmp/out")"
+printf 'aaaa\t%s\tarchive-lineage\t%s\n' "$orphan" "$orphan" > .corvint/cem-lineage.tsv
 "$check" > "$tmp/out" 2>&1
-[[ $? == 1 ]] && grep -q "aaaa has unknown label 'trusted'" "$tmp/out" || fail "unknown label passed: $(cat "$tmp/out")"
+[[ $? == 1 ]] || fail "bare OID counted as a retained ref"
+printf 'aaaa\t%s\tarchive-lineage\trefs/tags/lineage\n' "$retained" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q "labels aaaa with base $retained, but the map's base is $orphan" "$tmp/out" || fail "mismatched label passed"
+printf 'cccc\t%s\trebased-lane-base\trefs/tags/lineage\n' "$retained" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q 'labels cccc, but .corvint/changes/cccc.cem.json is not tracked' "$tmp/out" || fail "stale label passed"
+printf 'aaaa\t%s\ttrusted\trefs/tags/lineage\n' "$orphan" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q "aaaa has unknown label 'trusted'" "$tmp/out" || fail "unknown label passed"
 
-# 5. Without a resolvable retained ref the check is skipped, saying so; a bad argument refuses.
+# 5. Without a default retained ref, unretained maps still refuse; a bad argument refuses.
 git update-ref -d refs/remotes/origin/main
-"$check" > "$tmp/out" 2>&1 && grep -q 'skipped: no retained ref resolves here' "$tmp/out" || fail "no retained ref: $(cat "$tmp/out")"
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q 'no default retained ref resolves here' "$tmp/out" || fail "no retained ref passed: $(cat "$tmp/out")"
 "$check" --retained > "$tmp/out" 2>&1
 [[ $? == 2 ]] || fail "--retained without a ref did not refuse: $(cat "$tmp/out")"
 # An explicit --retained ref replaces the default: the orphan base it reaches passes, the missing one does not.
+map bbbb 0123456789abcdef0123456789abcdef01234567
+git add .corvint && git commit -q -m missing-again
 rm .corvint/cem-lineage.tsv
 "$check" --retained "$orphan" > "$tmp/out" 2>&1
 [[ $? == 1 ]] && ! grep -q 'aaaa.cem.json' "$tmp/out" && grep -q 'bbbb.cem.json' "$tmp/out" ||

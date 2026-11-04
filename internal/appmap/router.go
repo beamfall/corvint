@@ -24,7 +24,8 @@ type rawState struct {
 	anchor             Anchor
 	duplicate          bool
 	// redirect marks a React route whose element is only a <Navigate> (AMAP-V0-194).
-	redirect bool
+	redirect       bool
+	redirectTarget *RouteRedirect
 	// nameFrom and parentFrom anchor a name or parent read through a constant table (AMAP-V0-016).
 	nameFrom, parentFrom []Anchor
 	// parentDetail names why an `X.Y` parent did not resolve (AMAP-V0-202).
@@ -359,7 +360,7 @@ func resolveScreens(app string, raws []rawState) ([]Screen, []Unknown) {
 	index := map[string]int{}
 	for _, n := range names {
 		s, r := byName[n], compute(n)
-		sc := Screen{Entry: s.entry, ID: screenID(app, n), State: n, Status: r.status, Reason: r.reason, Parent: s.parent, Abstract: s.abstract, SplatNonEmpty: s.splatNonEmpty,
+		sc := Screen{Redirect: s.redirectTarget, Entry: s.entry, ID: screenID(app, n), State: n, Status: r.status, Reason: r.reason, Parent: s.parent, Abstract: s.abstract, SplatNonEmpty: s.splatNonEmpty,
 			Params: []string{}, Query: []string{}, Permissions: []string{}, Flags: []string{}, Anchor: s.anchor,
 			PageObjects: []string{}, Workflows: []string{}, Scenarios: []string{}, Specs: []Attribution{}, Flows: []string{},
 			Steps: []string{}, Preconditions: []Requirement{}}
@@ -445,8 +446,10 @@ type screenIndex struct {
 	// ranked names the screens whose recorded dialect is react-router/0; a URL matching only such
 	// screens takes the single best React Router rank (AMAP-V0-600). It is read from the screens
 	// themselves, so every index built over a map ranks as the builder does (AMAP-V0-881).
-	ranked map[string]bool
-	score  map[string]int
+	ranked    map[string]bool
+	score     map[string]int
+	redirects map[string]Screen
+	screens   map[string]Screen
 }
 
 type routable struct {
@@ -456,12 +459,18 @@ type routable struct {
 }
 
 func newScreenIndex(hashPrefix, basePath string, screens []Screen) *screenIndex {
-	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}, ranked: map[string]bool{}, score: map[string]int{}}
+	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}, ranked: map[string]bool{}, score: map[string]int{}, redirects: map[string]Screen{}, screens: map[string]Screen{}}
 	for _, s := range screens {
-		if s.Status != StatusResolved || s.Abstract {
+		x.screens[s.ID] = s
+		if s.Redirect != nil {
+			x.redirects[s.ID] = s
+		}
+		if s.Status != StatusResolved || (s.Abstract && s.Redirect == nil) {
 			continue
 		}
-		x.byKey[s.Key] = append(x.byKey[s.Key], s.ID)
+		if s.Redirect == nil {
+			x.byKey[s.Key] = append(x.byKey[s.Key], s.ID)
+		}
 		if s.Dialect == DialectReact {
 			x.ranked[s.ID] = true
 		}
@@ -650,6 +659,10 @@ func (x *screenIndex) basePathStripped(raw string) (string, bool) {
 }
 
 func (x *screenIndex) urlMatches(raw string) ([]string, string) {
+	return x.followRedirect(raw, map[string]bool{})
+}
+
+func (x *screenIndex) directURLMatches(raw string) ([]string, string) {
 	if _, outside := x.basePathStripped(raw); outside {
 		return nil, "outside-base-path"
 	}

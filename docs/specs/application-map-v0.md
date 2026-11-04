@@ -73,6 +73,17 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 ## Requirements
 
+- `AMAP-V0-8206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2651)
+  A test URL matching a childless literal React `Navigate` route MUST resolve through its
+  absolute or route-relative `to` to a unique destination screen, including index routes,
+  declared base paths and chains of at most 32 redirects. `relative="path"` uses path segments;
+  default `..` uses contributing route ancestors. Redirects remain abstract, never synthetic
+  screens. Persist optional `redirect` metadata and join the traversed declarations' anchors
+  as target `redirect_from` freshness inputs. Nonliteral/spread-overridden targets, external
+  URLs, unresolved relative parameters, ambiguous destinations and cycles MUST remain unknown.
+  Test: `TestAMAPV08206NavigateTargetsAndFreshness`. Existing maps without these optional
+  fields retain their prior interpretation. Rollback: remove redirect following and rebuild maps.
+
 AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed
 (V1-0981; GitHub #669) and awaits owner acceptance; AMAP-V0-021 to AMAP-V0-023 are accepted
 (decision 0460; V1-1027; GitHub #685); AMAP-V0-024 to AMAP-V0-026 are accepted (decision 0475;

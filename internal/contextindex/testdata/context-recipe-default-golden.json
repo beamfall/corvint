@@ -169,7 +169,7 @@
       "summary": "test counterpart of pkg/parser/parser.go, which the task names; also test, lexical"
     },
     {
-      "action": "Open this definition of `zqframe`, which the task names: a change to how `zqframe` is defined or used must be reconciled here.",
+      "action": "Open this definition of `zqframe; additive 246 (lexical 46, definition +150, also +50)`, which the task names: a change to how `zqframe; additive 246 (lexical 46, definition +150, also +50)` is defined or used must be reconciled here.",
       "evidence": [
         {
           "authority": "syntax",
@@ -177,13 +177,13 @@
           "confidence": "high",
           "line": 3,
           "path": "lib/scan/def.go",
-          "reason": "defines zqframe",
+          "reason": "defines zqframe; additive 246 (lexical 46, definition +150, also +50)",
           "trust": "repository-content"
         }
       ],
       "id": "lib/scan/def.go",
       "kind": "definition",
-      "score": 850,
+      "score": 546,
       "summary": "defines zqframe, which the task names; also lexical"
     },
     {

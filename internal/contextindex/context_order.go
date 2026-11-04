@@ -228,3 +228,53 @@ func allCapitalWord(name string) bool {
 	}
 	return true
 }
+
+// rankSelectedAdditively keeps reservations and graph positions and every
+// selected path. Scores reflect lexical strength plus the existing slot bonus.
+func (compiler *taskContextCompiler) rankSelectedAdditively(rows []contextRow) []contextRow {
+	positions := []int{}
+	ordinary := []contextRow{}
+	for i, row := range rows {
+		if reservedRelation(row.kind) || row.kind == "graph" {
+			continue
+		}
+		positions = append(positions, i)
+		ordinary = append(ordinary, row)
+	}
+	// Keep decision 0027's corroboration order. Additive scores describe
+	// strength; promoting a global additive order still needs CRK-V0-008.
+	band := compiler.lexicalBand()
+	for i := range ordinary {
+		row := &ordinary[i]
+		if row.kind != "definition" && row.kind != "test" {
+			continue
+		}
+		lexical, bonus, also := band[row.path], contextSlotBonus[row.kind], 50*len(compiler.support[row.path])
+		key := lexical + bonus + also
+		row.score = min(contextLexicalBase+key, contextAdditiveMaxScore)
+		row.reason += "; additive " + strconv.Itoa(key) + " (lexical " + strconv.Itoa(lexical) + ", " + row.kind + " +" + strconv.Itoa(bonus) + ", also +" + strconv.Itoa(also) + ")"
+	}
+	// A lookup asks for implementation. Keep a convention-paired test after
+	// its source when both survived selection; never invent an absent source.
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(compiler.task)), "where ") {
+		for i := 0; i < len(ordinary); i++ {
+			anchor := ordinary[i].testAnchor
+			if anchor == "" || contextIsTest(anchor) {
+				continue
+			}
+			for j := i + 1; j < len(ordinary); j++ {
+				if ordinary[j].path == anchor {
+					test := ordinary[i]
+					copy(ordinary[i:j], ordinary[i+1:j+1])
+					ordinary[j] = test
+					i--
+					break
+				}
+			}
+		}
+	}
+	for i, position := range positions {
+		rows[position] = ordinary[i]
+	}
+	return rows
+}

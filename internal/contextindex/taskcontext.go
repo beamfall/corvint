@@ -93,6 +93,7 @@ type contextRow struct {
 	score, line int
 	// lexicalOnly marks a test row bound by the mention signal alone.
 	lexicalOnly bool
+	testAnchor  string
 	// fuzzy is the TCP-V0-650 disclosure prefix of a lexical row that took a
 	// fuzzy credit, kept so a row it only corroborates still discloses it.
 	fuzzy string
@@ -457,6 +458,11 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	}
 	if compiler.rrfOrder {
 		rows = compiler.fuseSelectedRows(rows)
+	}
+	// Score only the final membership: lexical strength cannot evict a slot's
+	// evidence before the packet limit (TCP-V0-8200).
+	if !compiler.rrfOrder && !compiler.additiveOrder {
+		rows = compiler.rankSelectedAdditively(rows)
 	}
 	return compiler.markWorktreeRows(rows)
 }
@@ -3198,7 +3204,7 @@ func (compiler *taskContextCompiler) testRows(anchors []string) []contextRow {
 		rows = append(rows, contextRow{
 			kind: "test", path: candidate.path, score: 650, line: 1,
 			summary: candidate.reason(), reason: candidate.reason(),
-			confidence: confidence, authority: "test-convention", lexicalOnly: candidate.lexicalOnly(),
+			confidence: confidence, authority: "test-convention", lexicalOnly: candidate.lexicalOnly(), testAnchor: candidate.anchor,
 		})
 	}
 	return rows

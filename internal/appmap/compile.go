@@ -262,6 +262,7 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 	}
 	screens, unknowns := resolveScreens(b.m.App, raws)
 	markDialects(b.m.App, b.m.Routers, raws, spans, screens)
+	attachRedirectFreshness(screens)
 	b.out.Screens = screens
 	b.out.Unknowns = append(b.out.Unknowns, unknowns...)
 	b.screens = map[string]*Screen{}

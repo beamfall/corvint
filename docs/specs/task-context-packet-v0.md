@@ -46,6 +46,17 @@ it must read, each with the relation that admitted it, without naming the task's
 
 ## Requirements
 
+- `TCP-V0-8200`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3710)
+  With both ordering experiments off, final selected `definition` and `test` rows MUST report the
+  lexical band plus the CRK-V0-005 slot bonus and corroboration bonuses as their score
+  with its components. Preserve corroboration order; global additive ordering remains opt-in
+  under CRK-V0-008. Apply scores after selection so no evidence is displaced; reservations
+  and graph positions remain fixed. For a task beginning with `where `, a selected paired
+  test MUST follow its selected source. Common acronym filtering remains TCP-V0-961.
+  Tests: `TestTaskContextSelectedSlotScores`,
+  `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. Measure all four frozen
+  retrieval subsets; retain rank changes and failures. Rollback: remove the final ranking call.
+
 - `TCP-V0-001`: `context` MUST be read-only. It builds one index over the committed tree and
   writes no repository, trace, or ledger state on any path, including every error path; its wire
   carries `"mutates": false`.
@@ -1318,10 +1329,8 @@ as withheld. This amendment reserves what the routed spec cites.
   about. A backticked acronym and a rarer one keep the slot; `definitionEligible`'s other callers
   are unchanged. Falsifier: on the `CEM canonical binding` probe a definition row for the `CEM`
   declarer above `internal/cem/wire/canonical.go`. Test:
-  `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. The ticket's other criterion, slot
-  evidence as an additive bonus on the lexical score measured on the frozen retrieval eval, is not
-  delivered: the frozen `tools/retrieval-bench` corpora are absent from the host that made this
-  change, and an unmeasured re-ranking would break TCP-V0-994's no-regression bound. Rollback:
+  `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. TCP-V0-8200 adds lexical slot scores after final selection; the earlier unmeasured
+  ordering was not delivered and is superseded by that bounded ranking. Rollback:
   call `definitionEligible` again in `symbolRows` and `eligibleDefiners`.
 
 - `TCP-V0-270`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)

@@ -76,6 +76,7 @@ func ProjectEntries(ctx context.Context, m *Map, l *EdgeLedger, o Options) ([]by
 		anchors = append(anchors, s.Anchor)
 		anchors = append(anchors, s.NameFrom...)
 		anchors = append(anchors, s.ParentFrom...)
+		anchors = append(anchors, s.RedirectFrom...)
 	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].ID < ordered[j].ID })
 	fresh := newFreshness(ctx, o, anchors)
@@ -133,6 +134,7 @@ func ProjectEntries(ctx context.Context, m *Map, l *EdgeLedger, o Options) ([]by
 			}
 			aa := append([]Anchor{cur.Anchor}, cur.NameFrom...)
 			aa = append(aa, cur.ParentFrom...)
+			aa = append(aa, cur.RedirectFrom...)
 			for _, a := range aa {
 				f := sourceState(a)
 				if f == Stale || (f == FreshUnknown && state != Stale) {

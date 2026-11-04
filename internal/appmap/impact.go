@@ -181,7 +181,7 @@ func ImpactWithRecords(ctx context.Context, m *Map, l *EdgeLedger, rec *UIRecord
 		}
 		for i := range m.Screens {
 			s := &m.Screens[i]
-			for _, a := range append(append([]Anchor{s.Anchor}, s.NameFrom...), s.ParentFrom...) {
+			for _, a := range append(append(append([]Anchor{s.Anchor}, s.NameFrom...), s.ParentFrom...), s.RedirectFrom...) {
 				if a.Repo == "" && a.Path == p {
 					direct[s.ID] = append(direct[s.ID], p)
 					touch(s.ID, p, "router-anchor")

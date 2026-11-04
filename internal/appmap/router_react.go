@@ -342,6 +342,7 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 		routePath := ""
 		index := false
 		redirect := false
+		var redirectTarget *RouteRedirect
 		element := ""
 		children, hasChildren := node.get("children")
 		for _, pair := range node.obj {
@@ -375,6 +376,19 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 				}
 			case "element":
 				redirect = value.kind == "navigate"
+				if redirect {
+					redirectTarget = &RouteRedirect{}
+					if to, ok := value.get("to"); ok && to.kind == "string" {
+						target := to.str
+						redirectTarget.To = &target
+					}
+					if relative, ok := value.get("relative"); ok {
+						if relative.kind != "string" || relative.str != "route" && relative.str != "path" {
+							redirectTarget.To = nil
+						}
+						redirectTarget.PathRelative = relative.str == "path"
+					}
+				}
 				if value.kind == "element" {
 					element = value.str
 				}
@@ -404,7 +418,7 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 			return
 		}
 		// A childless route whose element is only a <Navigate> redirects; it declares no screen (AMAP-V0-194).
-		p.states = append(p.states, rawState{name: name, parent: parent, parentSet: true, url: "^" + full, urlSet: true, abstract: hasChildren || redirect, redirect: redirect, reason: reason, anchor: p.anchor, tree: p.trees, element: element})
+		p.states = append(p.states, rawState{name: name, parent: parent, parentSet: true, url: "^" + full, urlSet: true, abstract: hasChildren || redirect, redirect: redirect, redirectTarget: redirectTarget, reason: reason, anchor: p.anchor, tree: p.trees, element: element})
 		if hasChildren && children.kind == "array" {
 			p.routes(children, name, full, depth+1)
 		}
@@ -454,7 +468,7 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 					value = jsValue{kind: "other", line: v.line}
 				}
 				if reactNavigateElement(ts[i+1 : end]) {
-					value = jsValue{kind: "navigate", line: v.line}
+					value = reactNavigateValue(ts[i+1:end], v.line)
 				} else if key == "element" {
 					// The element's canonical token text tells two declarations of one path apart (AMAP-V0-882).
 					value = jsValue{kind: "element", str: reactTokenText(ts[i+1 : end]), line: v.line}
@@ -935,4 +949,41 @@ func reactOpenOf(ts []token, c int) int {
 		}
 	}
 	return -1
+}
+
+// reactNavigateValue reads only literal attributes; a spread can override to.
+func reactNavigateValue(ts []token, line int) jsValue {
+	v := jsValue{kind: "navigate", line: line}
+	for i := 2; i < len(ts)-2; {
+		if ts[i].kind != tokIdent {
+			return jsValue{kind: "navigate", line: line}
+		}
+		key := ts[i].text
+		i++
+		value := jsValue{kind: "bool", str: "true"}
+		if next(ts, i, "=") {
+			i++
+			if i >= len(ts)-2 {
+				return jsValue{kind: "navigate", line: line}
+			}
+			if ts[i].kind == tokString && !strings.ContainsAny(ts[i].code, "&\\\n\r\t") {
+				value = jsValue{kind: "string", str: ts[i].text}
+				i++
+			} else if next(ts, i, "{") {
+				end := closeParen(ts, i)
+				if end <= i || end >= len(ts)-2 {
+					return jsValue{kind: "navigate", line: line}
+				}
+				value = jsValue{kind: "other"}
+				if end == i+2 && ts[i+1].kind == tokString && !ts[i+1].subst && !strings.ContainsAny(ts[i+1].code, "\\\n\r\t") {
+					value = jsValue{kind: "string", str: ts[i+1].text}
+				}
+				i = end + 1
+			} else {
+				return jsValue{kind: "navigate", line: line}
+			}
+		}
+		v.obj = append(v.obj, jsPair{key: key, value: value})
+	}
+	return v
 }

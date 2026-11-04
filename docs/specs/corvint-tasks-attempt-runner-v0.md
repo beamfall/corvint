@@ -74,6 +74,21 @@ path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor
 
 ## Requirements
 
+- `ATR-V0-8207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4637)
+  Detached claim transport envelopes `PENDING` and `LOST` MUST carry the current drain notice
+  under ATR-V0-059, including when a child exits without a kept result. Retained result bytes
+  MUST remain exact. Test: `TestATRV08207_DetachedTransportCarriesDrainNotice`; the original
+  `TestATRV0059_ClaimCarriesDrainNotice` remains enabled. This fixes the missing notice in the
+  hosted LOST envelope; the original child's exit cause remains unknown. Rollback: remove
+  transport notice decoration; no stored result is rewritten.
+- `ATR-V0-8208`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4638)
+  The hosted detached-child integration test MAY be quarantined while its child's exit without
+  a kept result remains unexplained. The exact test MUST name V1-4638 and remain runnable with
+  `CORVINT_TEST_V1_4638=1`. All deterministic join and process ownership checks remain enabled;
+  quarantine is not repair or evidence of a clean next weekly hosted report. Remove it only
+  after the original failure is explained and qualified. Test:
+  `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (explicit opt-in).
+
 - `ATR-V0-001`: `corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before the first `--`, and MUST then accept exactly `--attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND...`. Unknown, repeated or program-mode flags, a missing delimiter or command, a timeout outside 1..86270 seconds, lease minutes outside 5..1440 (default 60) or an attempt of another queue are usage refusals before any effect. The command's argv is executed directly without a shell, in the caller's working directory, with the caller's stdin and environment. Program mode is unchanged.
 - `ATR-V0-002`: Before launch the runner MUST heartbeat the attempt, then renew it only when the current lease does not cover the timeout plus the 10-second cleanup bound plus a 120-second scheduling and writer margin, using the larger of the requested minutes and the minutes that coverage needs. It MUST NOT shorten a longer lease, and it MUST refuse when the lease still does not cover timeout plus cleanup. A refused heartbeat or renewal starts nothing and records no outcome.
 - `ATR-V0-003`: The command MUST be started once through `groupreap.Start` as the leader of an owned process group. On timeout, interruption or lost lease the runner MUST `Stop` the group, and in every started case it MUST retire it through `FinishBounded` with a 10-second bound; it never signals a numeric group ID after the reap. Only a `RELEASED` result reports cleanup as released; any other result is `HOLD`.

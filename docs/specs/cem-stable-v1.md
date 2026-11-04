@@ -23,6 +23,16 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 
 ## Requirements
 
+- `CEM-V1-8201`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3758)
+  A historical lineage label MUST name a resolving `refs/` ref whose commit reaches the exact
+  registered base. A label with a missing ref or unrelated tip MUST fail the committed-map gate;
+  a bare object ID is not a retained ref. With no default retained ref, require a verified
+  lineage ref for every map rather than skipping (supersedes the CEM-V1-963 skip).
+  This strengthens CEM-V1-963 without rewriting sealed
+  maps. Preserve and transfer the `refs/tags/cem-lineage/*` evidence refs with archived maps;
+  Git source alone does not preserve their evidence. Test: `script/check-cem-base-retained_test.sh`.
+  Rollback: restore the prior gate; missing retention then remains explicitly unproved.
+
 - `CEM-V1-001`: (accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk binding and closed versioned decoding. Amended by decision 0525 §6 (V1-0595): `cem/0.1`, `cem/0.2` and `cem/0.3` documents are no longer readable; every consumer refuses them with `unsupported-spec` and the `CEM-V1-200` recovery line (`CEM-V1-200`, `CEM-V1-210`, `CEM-V1-215`), and Git history keeps them. Any other unknown spec stays an explicit unsupported result.
 - `CEM-V1-002`: (accepted by decision 0546, 2026-10-20) Bind criterion references to canonical native ticket identity, acceptance revision, ordered acceptance digest and immutable claim-era record. Current applicability is distinct from historical validity.
 - `CEM-V1-003`: (accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by digest, with exact runner/profile, admitted source inventory, primary and auxiliary executable pins, native report hashes, expected inventory and observed attempts. Declare dependency closure and execution authority limits.
@@ -2594,7 +2604,9 @@ stay until V1-1278. It amends `CEM-V1-018`, `CEM-V1-030..033` and `CEM-V1-058` i
 `DCW-V0` text that named the refusals. A producer map is a `cem/1.0` map with no criteria,
 receipts, links, artifacts or provenance; it may carry a `role` (`CEM-V1-095`).
 
-- `CEM-V1-140`: (accepted by decision 0546, 2026-10-20) `corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps the
+- `CEM-V1-140`: (accepted by decision 0546, 2026-10-20) Historical transition, superseded
+  for current producer defaults and legacy flags by CEM-V1-215 and CEM-V1-216 (V1-1323 review).
+  `corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps the
   `cem/0.2` producer as an explicit, fail-closed escape until V1-1278 removes it with the 0.x
   readers. `corvint cem begin` keeps `cem/0.1` by default, because the frozen cli-parity case
   `cem-begin-map` pins it, and writes `cem/1.0` with `--spec cem/1.0`. Any other `--spec` value,
@@ -5967,10 +5979,14 @@ Status: experimental under the owner's standing lane auto-accept (2026-10-11); V
 
 Requirement: `CEM-V1-963` (every committed map base retained or labelled), in the Requirements section.
 
-Non-goals: no rewrite of a sealed map, no new ref, no verification of the archive repository.
+Non-goals: no rewrite of a sealed map or verification of the archive repository.
+CEM-V1-8201 pins locally available historical bases under `refs/tags/cem-lineage/`;
+export with `git bundle create lineage.bundle --tags=cem-lineage/*` and fetch those refs
+into the restoring repository before running the gate. No remote publication is implied.
 
-Failure modes: a shallow or remote-less clone skips the check, saying so; a label cannot make an
-absent object verify, so a `base-unavailable` map stays `UNSUPPORTED`.
+Failure modes: a shallow or remote-less clone without retained lineage refs fails the check
+(CEM-V1-8201 supersedes the original skip). A label cannot make an absent object verify.
+The 17 formerly labelled maps now have exact local retained refs; transferring those refs is required.
 
 Acceptance evidence: `script/check-cem-base-retained_test.sh` (retained base passes; a base only a
 deleted branch held and a missing base are refused with the fix; a label admits exactly its base;
