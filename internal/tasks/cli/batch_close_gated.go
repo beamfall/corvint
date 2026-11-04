@@ -218,17 +218,7 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 		return
 	}
 	g.tree = tree
-	var priorKeys []string
-	for _, attempt := range pin.Attempts {
-		if attempt.TicketID.Raw == rec.TicketID.Raw && attempt.Scope != nil {
-			for _, resource := range attempt.Scope.Resources {
-				if resource.Class == "PATH" {
-					priorKeys = append(priorKeys, resource.Key)
-				}
-			}
-		}
-	}
-	if _, restored := transaction.RestoreScope(rec, pin.Attempts, priorKeys); restored != nil {
+	if restored := transaction.RestorableScope(rec, pin.Attempts); restored != nil {
 		g.restored = restored.Paths
 	}
 	b.planScope(r, rec, g)
@@ -292,7 +282,7 @@ func (b *gatedBatch) planScope(r *closeRow, rec *ticket.Record, g *gatedRow) {
 		declared = append(append([]string(nil), declared...), g.restored...)
 		slices.Sort(declared)
 		declared = slices.Compact(declared)
-		if len(declared) > wire.MaxTouchPaths {
+		if len(g.restored) > wire.MaxTouchPaths {
 			r.unrunnable(wire.CodeLimitExceeded, "restored claim scope exceeds the bounded path limit", "use a narrower lane seal")
 			return
 		}
@@ -448,8 +438,10 @@ func (r *closeRow) runGated(env Env, cmd []string, actor mutation.Binding, b *ga
 	switch {
 	case g.scope == nil || g.scope.source == scopeDiff:
 		claim = append(claim, "--scope-from-diff", g.candidate)
-	case g.scope.source == scopeCollapsed || g.scope.source == scopeDeclared && len(g.restored) > 0:
+	case g.scope.source == scopeCollapsed:
 		claim = append(append(claim, "--scope"), g.scope.keys...)
+	case g.scope.source == scopeDeclared && len(g.restored) > 0:
+		claim = append(append(claim, "--scope"), g.restored...)
 	}
 	res := lease("claim", claim...)
 	if res.Outcome != wire.OutcomeOK {

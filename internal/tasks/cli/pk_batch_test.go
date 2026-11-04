@@ -2,6 +2,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"strings"
 	"testing"
@@ -29,34 +30,50 @@ func TestTCLV07404MultiLaneHeads(t *testing.T) {
 // TCL-V0-7404: a retry precheck and its actual claim retain admitted widen
 // paths from the previously submitted generation, instead of rejecting them.
 func TestTCLV07404BatchRestoresSubmittedWiden(t *testing.T) {
-	root, base, laneA, merge := bigBatchRepo(t)
-	id, _ := effectsTicket(t, root, "restored", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["docs/"]}`)
-	local := id[strings.LastIndex(id, ":")+1:]
-	x := atm(t, root, nil, "claim", id, "--holder", "retry", "--base", base, "--request-id", "prior-claim")
-	if x.res.Outcome != wire.OutcomeOK {
-		t.Fatal(string(x.stdout))
-	}
-	attempt, generation := field(x.res.Items[0], "attemptId").Str, field(x.res.Items[0], "generation").Str
-	for _, args := range [][]string{
-		{"widen", "--attempt", attempt, "--generation", generation, "--scope", "src/", "--request-id", "prior-widen"},
-		{"submit", "--attempt", attempt, "--generation", generation, "--tree", revParse(t, root, laneA+"^{tree}"), "--request-id", "prior-submit"},
-		{"release", "--attempt", attempt, "--generation", generation, "--request-id", "prior-release"},
-	} {
-		x = atm(t, root, nil, args...)
-		if x.res.Outcome != wire.OutcomeOK {
-			t.Fatalf("%v: %s", args, x.stdout)
-		}
-	}
-	prs := tdsExport(t, "prs.json", `[{"number":40,"state":"MERGED","title":"lane a","body":"Refs `+local+`","headRefOid":"`+laneA+`","labels":[]},{"number":50,"state":"MERGED","title":"Batch #40","body":"- #40","mergeCommit":{"oid":"`+merge+`"},"mergedAt":"2026-11-01T05:00:00Z","url":"https://github.com/beamfall/corvint/pull/50","labels":[]}]`)
-	runs := tdsExport(t, "runs.json", `[{"databaseId":7,"headSha":"`+merge+`","conclusion":"success","url":"https://github.com/beamfall/corvint/actions/runs/7"}]`)
-	args := []string{"ticket", "batch-close", "--pr", "50", "--prs", prs, "--runs", runs}
-	dry := atm(t, root, nil, append(append([]string{}, args...), "--dry-run")...)
-	row := gbRows(t, dry)[local]
-	if field(row, "disposition").Str != "CLOSE" {
-		t.Fatal(string(dry.stdout))
-	}
-	x = atm(t, root, nil, args...)
-	if field(gbRows(t, x)[local], "disposition").Str != "CLOSED" {
-		t.Fatal(string(x.stdout))
+	for _, large := range []bool{false, true} {
+		t.Run(fmt.Sprintf("large-declaration-%t", large), func(t *testing.T) {
+			root, base, laneA, merge := bigBatchRepo(t)
+			var resources []string
+			touch := []string{`"docs/"`}
+			if large {
+				// Both input arrays stay within their own limits, while the native
+				// declared scope legitimately has more than 256 resources.
+				for i := 0; i < 64; i++ {
+					resources = append(resources, fmt.Sprintf(`{"class":"PATH","key":"unused/resource%03d/"}`, i))
+				}
+				for i := 0; i < 192; i++ {
+					touch = append(touch, fmt.Sprintf(`"unused/touch%03d/"`, i))
+				}
+			}
+			id, _ := effectsTicket(t, root, "restored", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[`+strings.Join(resources, ",")+`],"touchPaths":[`+strings.Join(touch, ",")+`]}`)
+			local := id[strings.LastIndex(id, ":")+1:]
+			x := atm(t, root, nil, "claim", id, "--holder", "retry", "--base", base, "--request-id", "prior-claim")
+			if x.res.Outcome != wire.OutcomeOK {
+				t.Fatal(string(x.stdout))
+			}
+			attempt, generation := field(x.res.Items[0], "attemptId").Str, field(x.res.Items[0], "generation").Str
+			for _, args := range [][]string{
+				{"widen", "--attempt", attempt, "--generation", generation, "--scope", "src/", "--request-id", "prior-widen"},
+				{"submit", "--attempt", attempt, "--generation", generation, "--tree", revParse(t, root, laneA+"^{tree}"), "--request-id", "prior-submit"},
+				{"release", "--attempt", attempt, "--generation", generation, "--request-id", "prior-release"},
+			} {
+				x = atm(t, root, nil, args...)
+				if x.res.Outcome != wire.OutcomeOK {
+					t.Fatalf("%v: %s", args, x.stdout)
+				}
+			}
+			prs := tdsExport(t, "prs.json", `[{"number":40,"state":"MERGED","title":"lane a","body":"Refs `+local+`","headRefOid":"`+laneA+`","labels":[]},{"number":50,"state":"MERGED","title":"Batch #40","body":"- #40","mergeCommit":{"oid":"`+merge+`"},"mergedAt":"2026-11-01T05:00:00Z","url":"https://github.com/beamfall/corvint/pull/50","labels":[]}]`)
+			runs := tdsExport(t, "runs.json", `[{"databaseId":7,"headSha":"`+merge+`","conclusion":"success","url":"https://github.com/beamfall/corvint/actions/runs/7"}]`)
+			args := []string{"ticket", "batch-close", "--pr", "50", "--prs", prs, "--runs", runs}
+			dry := atm(t, root, nil, append(append([]string{}, args...), "--dry-run")...)
+			row := gbRows(t, dry)[local]
+			if field(row, "disposition").Str != "CLOSE" {
+				t.Fatal(string(dry.stdout))
+			}
+			x = atm(t, root, nil, args...)
+			if field(gbRows(t, x)[local], "disposition").Str != "CLOSED" {
+				t.Fatal(string(x.stdout))
+			}
+		})
 	}
 }

@@ -380,11 +380,28 @@ func planClaim(c leaseContext) leaseOutcome {
 // would retry qualifies, so a restored path was admitted to this ticket's
 // attempt before, through a widen. The rest stay OUT_OF_SCOPE (TRM-V0-007).
 func (c leaseContext) restoreScope(rec *ticket.Record, outside []string) ([]string, *RestoredScope) {
-	return RestoreScope(rec, c.st.attempts, outside)
+	return restoreScope(rec, c.st.attempts, outside)
 }
 
-// RestoreScope applies the claim retry admission rule to a read-only scope precheck.
-func RestoreScope(rec *ticket.Record, attempts map[string]*snapshot.Attempt, outside []string) ([]string, *RestoredScope) {
+// RestorableScope returns only the last generation's admitted widen paths,
+// excluding paths the declaration already covers. It uses the native retry rule
+// without importing scope keys from older generations into a new claim.
+func RestorableScope(rec *ticket.Record, attempts map[string]*snapshot.Attempt) *RestoredScope {
+	prior := lastAttemptOf(attempts, rec.TicketID.Raw)
+	if prior == nil || prior.Scope == nil {
+		return nil
+	}
+	var paths []string
+	for _, resource := range prior.Scope.Resources {
+		if resource.Class == "PATH" {
+			paths = append(paths, resource.Key)
+		}
+	}
+	_, restored := restoreScope(rec, attempts, requestedOutsideDeclared(rec, paths))
+	return restored
+}
+
+func restoreScope(rec *ticket.Record, attempts map[string]*snapshot.Attempt, outside []string) ([]string, *RestoredScope) {
 	if len(outside) == 0 {
 		return outside, nil
 	}

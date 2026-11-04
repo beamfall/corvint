@@ -16,11 +16,14 @@ func TestTCLV07404RestoredScopeAndRequestBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec := &ticket.Record{TicketID: id, AcceptanceRevision: "1"}
-	prior := &snapshot.Attempt{TicketID: id, TicketRevision: "1", Generation: "1", Phase: "RELEASED", Scope: &snapshot.Scope{Source: "DECLARED", Resources: []ticket.Resource{{Class: "PATH", Key: "src/"}}}}
-	bad, restored := transaction.RestoreScope(rec, map[string]*snapshot.Attempt{"a": prior}, []string{"src/a.go", "other/b.go"})
-	if restored == nil || strings.Join(restored.Paths, " ") != "src/a.go" || strings.Join(bad, " ") != "other/b.go" {
-		t.Fatalf("bad=%v restored=%+v", bad, restored)
+	rec := &ticket.Record{TicketID: id, AcceptanceRevision: "1", Effects: ticket.Effects{Coverage: "QUALIFIED", TouchPaths: []string{"docs/"}}}
+	prior := &snapshot.Attempt{TicketID: id, TicketRevision: "1", Generation: "1", Phase: "RELEASED", Scope: &snapshot.Scope{Source: "DECLARED", Resources: []ticket.Resource{{Class: "PATH", Key: "src/"}, {Class: "PATH", Key: "docs/"}}}}
+	older := *prior
+	older.Generation = "0"
+	older.Scope = &snapshot.Scope{Source: "DECLARED", Resources: []ticket.Resource{{Class: "PATH", Key: "other/"}, {Class: "PATH", Key: "src/a.go"}}}
+	restored := transaction.RestorableScope(rec, map[string]*snapshot.Attempt{"a": prior, "old": &older})
+	if restored == nil || strings.Join(restored.Paths, " ") != "src/" {
+		t.Fatalf("restored=%+v, want only last generation's widen", restored)
 	}
 	row := &closeRow{local: "AT-0001", hit: batchHit{ticketID: id.Raw}, g: &gatedRow{candidate: "aaa", base: "bbb", scope: &claimScope{source: scopeDeclared, keys: []string{"src/"}}}}
 	first := row.gatedStepID(50, "claim")
@@ -42,7 +45,7 @@ func TestTCLV07404RestoredScopeAndRequestBinding(t *testing.T) {
 		t.Fatal("scope keys omitted")
 	}
 	prior.TicketRevision = "2"
-	if _, restored := transaction.RestoreScope(rec, map[string]*snapshot.Attempt{"a": prior}, []string{"src/a.go"}); restored != nil {
+	if restored := transaction.RestorableScope(rec, map[string]*snapshot.Attempt{"a": prior}); restored != nil {
 		t.Fatal("stale acceptance restored")
 	}
 }
