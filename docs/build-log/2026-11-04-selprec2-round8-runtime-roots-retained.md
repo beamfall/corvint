@@ -80,6 +80,10 @@ of the sound relation, and it is the relation the CI selector already applied.
    runtime root could be dropped.
 2. The V1-0290 file-name prefilter still applies to a non-Go unit whose plugin does not certify
    its roots.
+3. Planner only, and present at base: `foreignTestFile` (ACX-V0-852) drops a Go unit as a reader
+   of another Go unit's `_test.go` unless a token names the file itself. A test that walks a
+   directory and reads the `_test.go` files under it as data would be dropped. The CI selector has
+   no such filter, so CI keeps that reader.
 
 ## Verification
 
