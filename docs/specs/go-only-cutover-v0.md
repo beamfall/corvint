@@ -127,6 +127,14 @@ this change.
   target depends on it, a recipe other than its own runs the script, or another scanned script
   invokes it outside a comment. Removing the exemption is the rollback once that job no longer
   needs Python.
+- `GOC-V0-081`: `make doc-gates` MUST run `no-python-runtime-dependency-test`, so a pull request whose
+  shell test, script or Makefile gains a Python invocation fails CI rather than only the local
+  `make gate` (V1-3842). So that the current tree passes, the scan MUST mask a single-quoted shell
+  word that parses as JSON arrays or objects (after an optional leading comma) like quoted `printf`
+  data, and MUST scan it when it is not valid JSON, when its command names a shell, `eval` or a `-c`
+  flag, or when it is a bare word in command position (a continuation line); a later call is still
+  reported. Residual risk: an argv written as a single-quoted JSON array is not scanned. Removing the
+  target from `DOC_GATE_TARGETS` and the JSON literal mask is the rollback.
 
 ## Non-goals and boundaries
 
@@ -167,6 +175,7 @@ unmeasured when the owner has cancelled measurement; it is not an inferred PASS.
 | GOC-V0-009 | explicit delivery context abstention | `cmd/corvint/go_only_cutover_test.go::TestGoOnlyContextAbstentionRemainsClosed` executes `script/dogfood-change_test.sh` refusal, malformed-output, crash and drift cases; actual refusal and ordinary-inspection evidence remain required |
 | GOC-V0-010 | `script/gate-receipt`, `make gate` clear-first/record-last wiring, `full-gate` checklist row | `script/gate-receipt_test.sh` covers the canonical binding, mode 0600, the clear step, each refusal leaving no receipt (including a worktree dirty at the start, a commit made during the run, a failing `git status`, a tracked file edited under skip-worktree or assume-unchanged, and an ignored `.go` file Go compiles, while one under a dot directory records), a `record` signalled with `TERM` during a passing status check exiting 143 with no receipt (decision 0248), the Makefile wiring, and under `make -j8` the real Makefile graph starting no step before the clear finished while a standalone step does not clear; `script/release-checklist_test.sh` covers `full-gate` PASS for a bound receipt, NOT_RUN for a stale receipt or a changed or missing witness, and FAIL for a malformed, trailing-byte or symlinked receipt; the gate run at the release candidate is still NOT_RUN |
 | GOC-V0-011 | exact-path external-conformance exemption in `script/no-python-runtime-dependency_test.sh` | the script's self-test allows the exempt script's own `python3` line and fails the same line under `script/build.sh`, `script/spec-toolchain-conformance.sh.bak`, a prefixed path and a Makefile recipe naming the script; it detects `GATE_STEPS` listing `spec-toolchain-conformance`, another target depending on it and another recipe running it, while allowing its own target; four mutants of the exemption and reachability rules each fail a self-test (V1-1970) |
+| GOC-V0-081 | `DOC_GATE_TARGETS` in `Makefile` | the script's self-test fails unless `DOC_GATE_TARGETS` lists `no-python-runtime-dependency-test`; it allows a single-quoted JSON language list and a quoted JSON `detail` naming `python`, and still reports a call after a JSON literal, a braced `sh -c` or `bash -lc` group, a JSON-shaped argument to `sh -c`, `bash -c --`, `/bin/sh` or `eval`, a JSON-shaped continuation line and a non-JSON braced assignment; dropping the command guard or the command-position guard fails a self-test; `script/batch-precheck_test.sh` passes with the extended list |
 
 At `573bd72b`, the cutover OCM scope links eight of nine requirements only after decision 0234's
 committed link plan is replayed onto a freshly prepared local map. Each row names the

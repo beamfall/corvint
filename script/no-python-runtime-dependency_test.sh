@@ -39,23 +39,72 @@ unexempted() {
 # has its single-quoted arguments and its double-quoted ones without $( or a backquote replaced by
 # empty quotes, up to the next unquoted | ; & or ). An unquoted name, a later command on the line and
 # a command substitution inside double quotes are left as they are, so a real call still matches.
+# A single-quoted word whose text parses as a JSON array or object, or as a comma-separated run of
+# them after an optional leading comma (array elements spliced after a quoted prefix), is a JSON
+# literal, such as a language list, and is blanked the same way (GOC-V0-081). It stays scanned when
+# its command names a shell, eval or a -c flag anywhere (the text may run even when it parses as
+# JSON), and when it is a bare word in command position, such as a continuation line whose earlier
+# words grep did not show.
 mask_fixture_data() {
   awk '
+    function jws() { while (jp <= jn && substr(js, jp, 1) ~ /[ \t]/) jp++ }
+    function jstr(  c) {
+      if (substr(js, jp, 1) != "\"") return 0
+      for (jp++; jp <= jn; jp++) {
+        c = substr(js, jp, 1)
+        if (c == "\\") { jp++; continue }
+        if (c == "\"") { jp++; return 1 }
+      }
+      return 0
+    }
+    function jval(  c) {
+      jws(); c = substr(js, jp, 1)
+      if (c == "\"") return jstr()
+      if (c == "{" || c == "[") {
+        jp++; jws()
+        if (substr(js, jp, 1) == (c == "{" ? "}" : "]")) { jp++; return 1 }
+        for (;;) {
+          if (c == "{") { jws(); if (!jstr()) return 0; jws(); if (substr(js, jp, 1) != ":") return 0; jp++ }
+          if (!jval()) return 0
+          jws()
+          if (substr(js, jp, 1) == (c == "{" ? "}" : "]")) { jp++; return 1 }
+          if (substr(js, jp, 1) != ",") return 0
+          jp++
+        }
+      }
+      if (match(substr(js, jp), /^(true|false|null|-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?)/)) { jp += RLENGTH; return 1 }
+      return 0
+    }
+    # isjson: s, after one optional leading comma, is one or more comma-separated JSON arrays or
+    # objects and nothing else.
+    function isjson(s) {
+      sub(/^,/, "", s)
+      js = s; jn = length(s); jp = 1
+      for (;;) {
+        jws(); if (substr(js, jp, 1) !~ /^[[{]$/ || !jval()) return 0
+        jws(); if (jp > jn) return 1
+        if (substr(js, jp, 1) != ",") return 0
+        jp++
+      }
+    }
     function endword() {
       if (word == "") return
+      if (word ~ /^(-[A-Za-z]*c|eval)$/ || word ~ /(^|\/)(sh|bash|dash|zsh|ksh)$/) runs = 1
       if (cmdpos && (word == "printf" || word == "echo")) args = 1
       cmdpos = word ~ /^(then|do|else|elif|if|while|until|!|time)$/
       word = ""
     }
     {
-      line = $0; n = length(line); out = ""; word = ""; cmdpos = 1; args = 0
+      line = $0; n = length(line); out = ""; word = ""; cmdpos = 1; args = 0; runs = 0
       for (i = 1; i <= n; i++) {
         c = substr(line, i, 1)
         if (c == "\\") { out = out substr(line, i, 2); word = word "x"; i++; continue }
         if (c == "\047") {
           j = index(substr(line, i + 1), "\047")
           if (j == 0) { out = out substr(line, i); break }
-          out = out (args ? "\047\047" : substr(line, i, j + 1)); i += j; word = word "x"; continue
+          s = substr(line, i + 1, j - 1)
+          data = args || (!runs && !(cmdpos && word == "") && isjson(s))
+          out = out (data ? "\047\047" : substr(line, i, j + 1)); i += j; word = word "x"; continue
         }
         if (c == "\"") {
           for (j = i + 1; j <= n && substr(line, j, 1) != "\""; j++) if (substr(line, j, 1) == "\\") j++
@@ -64,7 +113,7 @@ mask_fixture_data() {
         }
         if (c ~ /[ \t|;&():]/) {
           endword()
-          if (c ~ /[|;&(:]/) { cmdpos = 1; args = 0 } else if (c == ")") args = 0
+          if (c ~ /[|;&(:]/) { cmdpos = 1; args = 0; runs = 0 } else if (c == ")") args = 0
         } else word = word c
         out = out c
       }
@@ -152,6 +201,37 @@ fi
 printf '\t@script/no-python-runtime-dependency_test.sh && python3 -c 1\n' > "$fixture"
 if ! grep -nE "$pattern" "$fixture" | unexempted >/dev/null; then
   echo "self-test: an allowed name on the line hid a genuine python3 invocation" >&2
+  exit 1
+fi
+
+# GOC-V0-081 (V1-3842): the check runs in doc-gates, which every pull request runs, so a scanned
+# path that gains a Python call cannot merge unseen; a single-quoted JSON literal is data.
+# shellcheck disable=SC2016
+for line in "x:1:LANGS='[\"cfamily\",\"python\"]'" "x:1:plan \"\$f\"',{\"detail\":\"python:dynamic-import\"}' golden"; do
+  if [ -n "$(printf '%s\n' "$line" | scan)" ]; then
+    echo "self-test: a single-quoted JSON literal naming a language was reported: $line" >&2
+    exit 1
+  fi
+done
+if [ -z "$(printf '%s\n' "x:1:LANGS='[\"a\"]'; python3 -c 1" | scan)" ]; then
+  echo "self-test: a call after a single-quoted JSON literal was not reported" >&2
+  exit 1
+fi
+# Shell code is never JSON data: a braced group is not valid JSON, a word that parses as JSON still
+# runs when its command names a shell, eval or -c, and a bare word in command position may continue
+# an earlier line's sh -c that grep did not show.
+# shellcheck disable=SC2016
+for line in "x:1:sh -c '{ python3 -c \"print(1)\"; }'" "x:1:sh -c '[\"\$(python3 -c 1)\"]'" \
+  "x:1:bash -lc '{ pip install x; }'" "x:1:eval '[\"\$(pytest)\"]'" "x:1:X='{ python3 -c 1; }'" \
+  "x:1:bash -c -- '[\"\$(python3 -c 1)\"]'" "x:1:/bin/sh -e '[\"\$(pip install x)\"]'" \
+  "x:2:  '[\"\$(python3 -c 1)\"]' \\"; do
+  if [ -z "$(printf '%s\n' "$line" | scan)" ]; then
+    echo "self-test: executable shell code was masked as a JSON literal: $line" >&2
+    exit 1
+  fi
+done
+if ! grep -E '^DOC_GATE_TARGETS :=.* no-python-runtime-dependency-test( |$)' Makefile >/dev/null; then
+  echo "self-test: doc-gates (DOC_GATE_TARGETS) does not run no-python-runtime-dependency-test" >&2
   exit 1
 fi
 

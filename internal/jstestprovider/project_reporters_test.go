@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/testsupport"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -57,7 +58,7 @@ func TestExternalCommandDefaultConfigUnchanged(t *testing.T) {
 
 func evaluateReporters(t *testing.T, config string) (string, error) {
 	t.Helper()
-	out, err := exec.Command("node", "-e", "process.stdout.write(JSON.stringify(require(process.argv[1]).reporter))", config).CombinedOutput()
+	out, err := exec.Command(testsupport.NodeOrSkip(t, "the reporter list resolution test"), "-e", "process.stdout.write(JSON.stringify(require(process.argv[1]).reporter))", config).CombinedOutput()
 	return string(out), err
 }
 
@@ -150,6 +151,7 @@ func TestKeptProjectReporterRunsBesideProvider(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	node := testsupport.NodeOrSkip(t, "the kept project reporter test")
 	runner := filepath.Join(t.TempDir(), "runner.cjs")
 	builtins, _ := json.Marshal(builtinPlaywrightReporters)
 	if err := os.WriteFile(runner, []byte("const config = require(process.argv[2]); const builtin = "+string(builtins)+";\nconst reporters = config.reporter.filter(([name]) => !builtin.includes(name)).map(([name, options]) => new (require(name))(options || {}));\nfor (const r of reporters) r.onBegin({workers: 1, version: '1.60.0', reporter: config.reporter}, {allTests: () => []});\nfor (const r of reporters) r.onEnd({status: 'passed'});\n"), 0o600); err != nil {
@@ -163,7 +165,7 @@ func TestKeptProjectReporterRunsBesideProvider(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		command := exec.Command("node", runner, filepath.Join(scratch, "playwright.config.cjs"))
+		command := exec.Command(node, runner, filepath.Join(scratch, "playwright.config.cjs"))
 		command.Dir = root
 		if out, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("keep=%v: %v\n%s", keep, err, out)
