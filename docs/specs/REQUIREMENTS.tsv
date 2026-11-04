@@ -2051,6 +2051,11 @@ CRB-V0-017	docs/specs/corvint-rebrand-v0.md	Current companion writers MUST emit 
 CRB-V0-018	docs/specs/corvint-rebrand-v0.md	Runtime settings are read from exactly `CORVINT_CPUPROFILE`,	unrecorded	-
 CRB-V0-019	docs/specs/corvint-rebrand-v0.md	(writer selection superseded by `CRB-V0-020` on 2026-10-18; `/2` stays a closed	unrecorded	-
 CRB-V0-020	docs/specs/corvint-rebrand-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1809; GitHub	standing	2026-10-11; V1-1809
+ASC-V0-775	docs/specs/corvint-self-development-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4239, V1-3475;	standing	2026-11-01; V1-4239; V1-3475
+ASC-V0-776	docs/specs/corvint-self-development-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4242; refines	standing	2026-11-01; V1-4242
+ASC-V0-777	docs/specs/corvint-self-development-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166; amends `	standing	2026-11-01; V1-4166
+ASC-V0-778	docs/specs/corvint-self-development-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166, V1-3580)	standing	2026-11-01; V1-4166; V1-3580
+ASC-V0-779	docs/specs/corvint-self-development-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3615; refines	standing	2026-11-01; V1-3615
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	A real source-change slice captures original task context, appropriate impact an	unrecorded	-
@@ -4805,6 +4810,12 @@ GL-V0-912	docs/specs/gate-ledger-v0.md	(experimental under the standing lane aut
 GL-V0-913	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune	standing	2026-11-01; V1-4241
 GL-V0-914	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-9	standing	2026-11-01; V1-4241
 GL-V0-787	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run	standing	2026-11-01; V1-4188
+GL-V0-775	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4160; refines	standing	2026-11-01; V1-4160
+GL-V0-776	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4160) The	standing	2026-11-01; V1-4160
+GL-V0-785	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4160) Every	standing	2026-11-01; V1-4160
+GL-V0-786	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4194)	standing	2026-11-01; V1-4194
+GL-V0-3720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4193; refines	standing	2026-11-01; V1-4193
+GL-V0-788	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4193)	standing	2026-11-01; V1-4193
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
 GVA-V0-003	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) Each command MUST map its outco	standing	2026-10-27; V1-2841

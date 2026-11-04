@@ -4472,5 +4472,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-self-development-companion-v0.md",
+    "title": "Corvint Self-Development Companion V0",
+    "reqPrefix": "ASC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Self-development gate requirements beyond the 256-obligation limit of `corvint-self-development-v0.md`, under their own prefix.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

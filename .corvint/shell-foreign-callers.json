@@ -7,9 +7,10 @@
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh"
       ],
-      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930) (TSP-V0-005).",
+      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930); tools/gate-ledger's precheck step table reads its EXTRA_TARGETS (GL-V0-785) (TSP-V0-005).",
       "mentions": [
-        "script/lane-scripts_test.sh"
+        "script/lane-scripts_test.sh",
+        "tools/gate-ledger/precheck_steps_test.go"
       ]
     },
     "script/batch-regen.sh": {
@@ -44,6 +45,17 @@
         "script/check-install-lifecycle_test.sh"
       ],
       "reason": "Every tracked file naming check-install-lifecycle.sh: its shell test runs it, and the release-gates workflow runs it through run-gate; the workflow owns no unit, so it adds no edge (TSP-V0-005; V1-3571, V1-4178)."
+    },
+    "script/doc-gates.sh": {
+      "callers": [
+        "Makefile",
+        "script/doc-gates_test.sh"
+      ],
+      "reason": "make doc-gates runs it and its shell test runs it; batch-precheck.sh matches the doc-gates recipe that names it to expand the gates into steps, and batch-precheck_test.sh checks that recipe (ASC-V0-779) (TSP-V0-005).",
+      "mentions": [
+        "script/batch-precheck.sh",
+        "script/batch-precheck_test.sh"
+      ]
     },
     "script/dogfood-bind-coverage.sh": {
       "callers": [

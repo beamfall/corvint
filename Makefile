@@ -85,6 +85,7 @@ GATE_STEPS = \
   decision-numbers-check \
   decision-numbers-test \
   diagnostic-coverage-check \
+  doc-gates-test \
   documentation-paths-check \
   documentation-paths-test \
   dogfood-bin-reuse-test \
@@ -687,6 +688,11 @@ bash32-check:
 bash32-test:
 	@script/check-bash32_test.sh
 
+# ASC-V0-779 (V1-3615): the doc-gates runner names every failed gate in one run.
+.PHONY: doc-gates-test
+doc-gates-test:
+	@script/doc-gates_test.sh
+
 # ASD-V0-582 (V1-3364): no binary blob outside a declared fixture path, and every tools/ main's
 # root build output ignored. A doc gate, so CI and batch-precheck both run it.
 .PHONY: binary-blobs-check
@@ -937,11 +943,14 @@ ai-coauthor-trailers-check:
 # over the fixed change set benchmarks/selection-baseline/changes.json (merged lane changes and the
 # merged-branch commits whose CI failed) and fails when CI would narrow fewer merged changes than the
 # recorded floor or a narrowed selection misses a package that failed in CI. It needs full history.
-# SELECTION_BASELINE_OUT=FILE also writes the results JSON.
+# SELECTION_BASELINE_OUT=FILE also writes the results JSON. Without it the binaries build with
+# -trimpath -buildvcs=false, so identical Go inputs give identical bytes in any worktree and each
+# change's recorded result is reused across runs (ASC-V0-778); with it they keep the commit stamp
+# that the results' planner field names.
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build $(if $(SELECTION_BASELINE_OUT),,-trimpath -buildvcs=false) -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
 .PHONY: ai-coauthor-trailers-test
@@ -1152,12 +1161,14 @@ go-version-pins-check:
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
 DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
-# --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
-# script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
+# ASC-V0-779 (V1-3615): script/doc-gates.sh runs every gate and the use-case conformance run in one
+# call, in parallel, each gate's output as one block, and ends naming every failed gate with the
+# DOC_GATES_RUN='...' command that reruns only those (DCW-V0-813: one run names every failure;
+# ASD-V0-782: the failed gates' names are the last lines of a failing run).
+DOC_GATES_RUN ?= $(DOC_GATE_TARGETS) conformance/use-cases-v0
 .PHONY: doc-gates
 doc-gates: ## Run the documentation gates
-	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
-	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
+	@$(HEAVY_ADMIT) script/doc-gates.sh $(DOC_GATES_RUN)
 
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
@@ -1390,6 +1401,7 @@ shell-test: \
   codex-review-test \
   companion-release-gate-test \
   decision-numbers-test \
+  doc-gates-test \
   documentation-paths-test \
   dogfood-bin-reuse-test \
   dogfood-cache-test \

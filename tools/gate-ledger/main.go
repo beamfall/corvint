@@ -12,6 +12,8 @@
 //	                                        and the unresolved packages under a tree-keyed record;
 //	                                        --packages limits the run to LIST's go list patterns
 //	gate-ledger plan STEP...                print HIT or RUN per step; reads nothing but the ledger
+//	gate-ledger digest [--verify] FILE      write the worktree digest the run's steps share through
+//	                                        GATE_LEDGER_SHARED_DIGEST, or check it still holds
 //
 // Every doubt is a RUN: a step with no declared scope, a worktree the tool cannot
 // digest (skip-worktree or assume-unchanged entries, an ignored Go file, a failed
@@ -120,6 +122,7 @@ type record struct {
 	Packages   []string `json:"packages,omitempty"`
 	Bound      string   `json:"bound,omitempty"` // how a per-package bound was proven (GL-V0-009)
 	Scope      []string `json:"scope,omitempty"` // the --packages patterns of a scoped go-test (GL-V0-720)
+	Label      string   `json:"label,omitempty"` // the caller's step name, never part of the key (ASC-V0-776)
 }
 
 // packageKey is one resolved package's per-package content key, or the reason
@@ -236,6 +239,8 @@ func run(inv invocation, args []string, stdout, stderr io.Writer) int {
 		l := open(inv, stdout, stderr)
 		l.scope = scope
 		return l.goTest(command)
+	case "digest":
+		return digestCommand(inv, args[1:], stdout, stderr)
 	case "plan":
 		if len(args) < 2 {
 			return usage(stderr)
@@ -246,7 +251,7 @@ func run(inv invocation, args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(stderr io.Writer) int {
-	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP...")
+	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP... | digest [--verify] FILE")
 	return 2
 }
 
@@ -291,6 +296,9 @@ func open(inv invocation, stdout, stderr io.Writer) *ledger {
 		l.dirErr = "CORVINT_GATE_LEDGER=off"
 		l.stdout = io.Discard
 		return l
+	}
+	if shared, ok := openShared(inv, stdout, stderr); ok {
+		return shared
 	}
 	root, err := inv.gitOutput("", "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -349,7 +357,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	if code != 0 {
 		return code
 	}
-	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope}); err != nil {
+	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope, Label: l.stepLabel()}); err != nil {
 		fmt.Fprintf(l.stderr, "%sRECORD %s failed: %s\n", prefixOut, step, err)
 		return 0
 	}
@@ -465,7 +473,7 @@ func (l *ledger) key(step string, packages []string) (string, string) {
 	if l.digestErr != "" {
 		return "", l.digestErr
 	}
-	return l.digestKey(step, l.inputs(scope), packages), ""
+	return l.digestKey(step, l.scopedInputs(scope), packages), ""
 }
 
 // digestKey is the key of step over inputs: the schema, the tool identity,
@@ -581,7 +589,12 @@ func (l *ledger) selectorBounds(module string) (map[string]map[string]string, er
 // of its test binary's transitive closure within the module, from one
 // `go list -deps -test -json ./...`.
 func (l *ledger) listedFiles(module string) (map[string][]string, error) {
-	out, err := l.inv.output(l.root, "go", "list", "-deps", "-test", "-json="+listFields, "./...")
+	return l.listedFilesFor(module, "./...")
+}
+
+// listedFilesFor is listedFiles over the packages patterns match and their deps.
+func (l *ledger) listedFilesFor(module string, patterns ...string) (map[string][]string, error) {
+	out, err := l.inv.output(l.root, "go", append([]string{"list", "-deps", "-test", "-json=" + listFields}, patterns...)...)
 	if err != nil {
 		return nil, errors.New("go list -deps -test failed: " + err.Error())
 	}
