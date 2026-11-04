@@ -2720,6 +2720,7 @@ ATR-V0-806	docs/specs/corvint-tasks-attempt-runner-v0.md	(proposed; V1-3185) A f
 ATR-V0-807	docs/specs/corvint-tasks-attempt-runner-v0.md	(proposed; V1-3540) A fresh `widen` that commits a requested PATH key without a	unrecorded	-
 ATR-V0-808	docs/specs/corvint-tasks-attempt-runner-v0.md	(proposed; V1-3547) `claim --base REV` MUST resolve any revision naming one comm	unrecorded	-
 ATR-V0-213	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2189) The	standing	2026-10-11; V1-2189
+ATR-V0-700	docs/specs/corvint-tasks-attempt-runner-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2815; refines	standing	2026-11-01; V1-2815
 ATR-V0-270	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0830) The usag	standing	2026-10-11; V1-0830
 ATR-V0-271	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0828) A `FENCE	standing	2026-10-11; V1-0828
 ATR-V0-272	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1874) The	standing	2026-10-11; V1-1874
@@ -6532,6 +6533,7 @@ PUB-V0-052	docs/specs/public-release-v0.md	A binary is a release build, `release
 PUB-V0-053	docs/specs/public-release-v0.md	(amended 2026-10-27, GitHub #1902, orchestrator decision for rc.3) The plain	unrecorded	-
 PUB-V0-054	docs/specs/public-release-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3221)	standing	2026-10-30; V1-3221
 PUB-V0-965	docs/specs/public-release-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3799; refines	standing	2026-10-11; V1-3799
+PUB-V0-700	docs/specs/public-release-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3823; refines	standing	2026-11-01; V1-3823
 PUB-V0-027	docs/specs/public-release-v0.md	`corvint impact ... --producer` and `corvint test-validity ... --producer` MUST	unrecorded	-
 PUB-V0-028	docs/specs/public-release-v0.md	Each member MUST come from its own source only, and a member that source cannot	unrecorded	-
 PUB-V0-029	docs/specs/public-release-v0.md	Build `0` is correct only for an unstamped source build (for example the	unrecorded	-

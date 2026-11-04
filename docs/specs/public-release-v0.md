@@ -692,6 +692,17 @@ Context, non-goals, failure modes and rollback: the "Version source identity ame
   free-space guard MUST measure the file system of that same `GOTMPDIR` (its nearest existing
   ancestor), not `TMPDIR`. Rollback: drop the `GOTMPDIR` entry, its directory creation and the
   guard's measured path.
+- `PUB-V0-700`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3823; refines
+  PUB-V0-965) Before a closed-environment Go invocation starts, the runner MUST write telemetry
+  mode `off` into the go command's config directory under the build's own home (`HOME/.config`
+  or `XDG_CONFIG_HOME`, `HOME/Library/Application Support` on macOS), keeping an existing mode
+  file. Only an environment in the `closedGoEnv` layout (`GOTMPDIR` is `HOME/gotmp`) is touched;
+  a caller's real home never is. Failure mode: with the default mode the go command starts a
+  detached child that writes counters under that home after the command exits, so removing the
+  home raced it and failed with `directory not empty` (observed 2 of 2 `-count=20` runs on
+  unraid-lanes, go1.27.3); `GOTELEMETRY=off` in the environment does not change that mode.
+  Non-goals: Windows, whose config directory is not under `HOME`. Rollback: drop
+  `quietGoTelemetry` and its call in `ensureGoTmp`.
 
 ## Non-goals and failure modes
 
@@ -756,6 +767,7 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-024 | `internal/companionrelease/core_smoke.go`, `internal/companionrelease/smoke.go`, `internal/releasecandidate` (`buildQualification`, `validateQualification`) | `TestPUBV0024InstalledCoreDiscoveryWorkflows`, `TestPUBV0024DocumentationCorpusSearchProfiles` (supported profiles, rejection and trailing-byte controls, V1-0588/V1-0589), `TestInitSmokeRepoPinsIntentBranch`; retained-bundle tests require the five new `/2` steps while preserving legacy profiles |
 | PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate`, `TestPUBV0025RecoveryLifecycle`, `TestPUBV0025HostileStore` |
 | PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`, `TestPUBV0026ScratchAndOutputCannotOverlapInputs`, `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `TestPUBV0026CancelledInstallRetainsNothing`; completed staging is reverified before promotion, command errors precede retention and neither command has a publication operation |
+| PUB-V0-700 | `internal/companionrelease/toolchain.go` (`quietGoTelemetry`, `ensureGoTmp`) | `TestPUBV0700ClosedGoEnvTurnsGoTelemetryOff`; `TestPUBV0965ClosedGoEnvPinsItsOwnGOTMPDIR` passes `-count=100` where the base failed `-count=20` |
 | PUB-V0-965 | `internal/companionrelease/toolchain.go` (`closedGoEnv`, `goTmpDir`, `ensureGoTmp`), `internal/companionrelease/proc.go`; the PUB-V0-054 guard in `TestCorvintBundledBinariesBuildTwiceIdentically` | `TestPUBV0965ClosedGoEnvPinsItsOwnGOTMPDIR` |
 
 ## Core release scope amendment (2026-09-16)
