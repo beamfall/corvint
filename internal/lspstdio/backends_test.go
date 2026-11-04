@@ -357,9 +357,9 @@ func TestWrappedContextAtBoundRevision(t *testing.T) {
 		t.Fatalf("initialize: %s", m)
 	}
 	send(map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}})
-	registry, failure := bridge.NewTaskReview(root)
-	if failure != nil {
-		t.Fatal(failure)
+	registry, openErr := bridge.NewTaskReview(root)
+	if openErr != nil {
+		t.Fatal(openErr)
 	}
 	for i, v := range []struct{ path, language string }{{"web/app.ts", "typescript"}, {"lib/widget.rb", "ruby"}} {
 		uri := h.docURI(v.path)

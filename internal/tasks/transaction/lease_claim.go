@@ -380,10 +380,15 @@ func planClaim(c leaseContext) leaseOutcome {
 // would retry qualifies, so a restored path was admitted to this ticket's
 // attempt before, through a widen. The rest stay OUT_OF_SCOPE (TRM-V0-007).
 func (c leaseContext) restoreScope(rec *ticket.Record, outside []string) ([]string, *RestoredScope) {
+	return RestoreScope(rec, c.st.attempts, outside)
+}
+
+// RestoreScope applies the claim retry admission rule to a read-only scope precheck.
+func RestoreScope(rec *ticket.Record, attempts map[string]*snapshot.Attempt, outside []string) ([]string, *RestoredScope) {
 	if len(outside) == 0 {
 		return outside, nil
 	}
-	prior := lastAttemptOf(c.st.attempts, rec.TicketID.Raw)
+	prior := lastAttemptOf(attempts, rec.TicketID.Raw)
 	if prior == nil || prior.Phase == "COMPLETED" || prior.TicketRevision != rec.AcceptanceRevision || prior.Scope == nil || prior.Scope.Source != "DECLARED" {
 		return outside, nil
 	}

@@ -87,6 +87,8 @@ MUST NOT upgrade V0 artifacts in place.
 
 ## Requirements
 
+- `TCQ-V0-7408`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1451) Guard candidate naming MUST exclude selectors qualified by an imported package from the package declaration closure, unless the qualifier resolves to a local shadow. Qualified references MUST remain available to direct-importer search so existing importer guards are retained. External test packages remain conservative because a syntax-only parser cannot establish which renamed import is the package under test. Candidate reduction alone MUST NOT claim a timing improvement or retained guarded results: the recorded three-pair median wall-time and guarded-result comparison remains required. Test: `TestTCQV07408ImportedSelectorsDoNotCarryClosure` and `TestTCQV0761GuardInAnImportingPackageIsFound` in `internal/cem/verify`; opt-in `TestPKGuardRecordedPairs` retains per-run loads and result rows.
+
 ### Boundary, profiles, and exact selected set
 
 - `TCQ-V0-001`: TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its

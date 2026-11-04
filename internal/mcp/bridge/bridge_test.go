@@ -35,7 +35,7 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 			t.Fatalf("omitted tool %q error = %#v", omitted, callErr)
 		}
 	}
-	registry, err = NewTaskReview(root)
+	registry, err = newTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestReadToolsRefuseConfiguredFilterWithoutExecutingIt(t *testing.T) {
 			writeFile(t, filepath.Join(root, ".gitattributes"), "*.go filter=hostile\n")
 			gitOutput(t, root, "config", "filter.hostile.clean", "touch '"+marker+"'; cat")
 			writeFile(t, filepath.Join(root, "internal", "widget", "widget.go"), "package pkg\nconst Value = 99\n")
-			registry, err := NewTaskReview(root)
+			registry, err := newTaskReview(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -125,7 +125,7 @@ func TestReadToolsRejectEffectiveWorktreeRedirectBeforeAndAfterAdmission(t *test
 			if !late {
 				gitOutput(t, root, "config", "core.worktree", outside)
 			}
-			registry, err := NewTaskReview(root)
+			registry, err := newTaskReview(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -153,7 +153,7 @@ func TestReadToolsRejectEffectiveWorktreeRedirectBeforeAndAfterAdmission(t *test
 }
 
 func TestCallRejectsUnknownDuplicateAndHostileArgumentsBeforeRepositoryWork(t *testing.T) {
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -95,6 +95,11 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 		}
 	}
 	options.Repository = values["--repository"]
+	// CEM-V1-7400: relative maps are anchored to the explicit repository,
+	// never to the caller's working directory; traversal remains invalid.
+	if path := values["--map"]; path != "" && !filepath.IsAbs(path) && filepath.IsLocal(path) && filepath.Clean(path) == path && filepath.IsAbs(options.Repository) {
+		values["--map"] = filepath.Join(options.Repository, path)
+	}
 	options.ExpectedBase = values["--expected-base"]
 	options.Target = values["--target"]
 	options.ArtifactRoot = values["--artifacts"]
@@ -138,7 +143,7 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 				}
 				return [2]string{name, ""}
 			}
-			paths := [][2]string{relative("--root", 0, at), relative("--repository", at+2, len(args)), relative("--map", at+2, len(args)), relative("--artifacts", at+2, len(args)), relative("--trusted-keys", at+2, len(args)), relativeExternal(args[at+2:])}
+			paths := [][2]string{relative("--root", 0, at), relative("--repository", at+2, len(args)), relative("--artifacts", at+2, len(args)), relative("--trusted-keys", at+2, len(args)), relativeExternal(args[at+2:])}
 			if fix := verify.RelativePathFix(paths...); fix != "" {
 				_, _ = io.WriteString(errout, "corvint cem verify-stable: "+fix+"\n")
 			}

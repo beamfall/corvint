@@ -310,6 +310,14 @@ func (l *finishLane) requireInputsUnchanged(step string) {
 func (l *finishLane) requireVerifyInput() {
 	verify, reason := verifyInput(l.options.Change)
 	detail := ""
+	if reason == "" && l.options.Change.AggregateOverLimit {
+		for _, word := range verify {
+			if word == "--verify-argv-json" {
+				reason, detail = "aggregate-verify-argv-unsupported", "the aggregate outcome receipt supports command strings only; typed argv (including a quoted -run expression) cannot be bound. Use separate commands with plain test names, or turn off aggregate-over-limit for a change within the trace path limit."
+				break
+			}
+		}
+	}
 	if reason == "" && len(verify) > 0 {
 		if err := validateVerify(verify); err != nil {
 			reason, detail = verifyFailureReason(err), err.Error()
@@ -332,8 +340,9 @@ func (l *finishLane) requireVerifyInput() {
 		// line with the absolute home directory.
 		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
 	}
-	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
+	if line, text := refusedVerifyLineOf(l.options.Change); detail != "" && line > 0 {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
+		l.say("  text: %s\n", text)
 	}
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))

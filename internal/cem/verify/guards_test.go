@@ -228,3 +228,19 @@ func TestTCQV0062SpentBudgetKeepsNoCandidateReason(t *testing.T) {
 		t.Fatalf("spent before naming: ran=%v rows=%+v", ran, rows)
 	}
 }
+
+// TCQ-V0-7408: a foreign package selector cannot reference a declaration
+// of this package; the package-under-test import in an external test can.
+func TestTCQV07408ImportedSelectorsDoNotCarryClosure(t *testing.T) {
+	code := []byte("package p\nimport foreign \"elsewhere/q\"\nfunc Read() {}\nfunc wrapper() { foreign.Read() }\n")
+	tests := []byte("package p\nimport foreign \"elsewhere/q\"\nfunc TestLocal(t *testing.T) { Read() }\nfunc TestForeign(t *testing.T) { foreign.Read() }\nfunc TestWrapper(t *testing.T) { wrapper() }\n")
+	external := []byte("package p_test\nimport subject \"example/p\"\nfunc TestExternal(t *testing.T) { subject.Read() }\n")
+	p := &goPackage{}
+	p.decls = append(p.decls, parseDecls("p.go", code, false)...)
+	p.decls = append(p.decls, parseDecls("p_test.go", tests, true)...)
+	p.decls = append(p.decls, parseDecls("external_test.go", external, true)...)
+	got := p.testsMentioning(p.grow(map[string]bool{"Read": true}))
+	if strings.Join(got, " ") != "TestExternal TestLocal" {
+		t.Fatalf("candidates=%v", got)
+	}
+}

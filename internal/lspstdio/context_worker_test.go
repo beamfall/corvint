@@ -67,9 +67,9 @@ func TestNativeContextWorker(t *testing.T) {
 	root := contextFixture(t)
 	input := contextWorkerInput{Subject: "internal/widget/widget.go", Task: "change widget Value PROOF-001", Limit: 6}
 	body, _ := json.Marshal(input)
-	registry, e := bridge.NewTaskReview(root)
-	if e != nil {
-		t.Fatal(e)
+	registry, openErr := bridge.NewTaskReview(root)
+	if openErr != nil {
+		t.Fatal(openErr)
 	}
 	expected, failure := registry.Call(context.Background(), bridge.ToolContext, body)
 	if failure != nil {

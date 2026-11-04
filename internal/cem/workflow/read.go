@@ -72,6 +72,13 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	}
 	var raw []byte
 	var err error
+	// CEM-V1-7400: normalize an in-worktree absolute verify input through
+	// the same held-root reader as its relative spelling.
+	if action == "verify" && filepath.IsAbs(options.MapPath) {
+		if relative, e := filepath.Rel(s.workRoot.Path(), options.MapPath); e == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !strings.EqualFold(strings.Split(filepath.ToSlash(relative), "/")[0], ".git") {
+			options.MapPath = filepath.ToSlash(relative)
+		}
+	}
 	// A CLI report reads an out-of-tree map as status and verify do; the MCP
 	// report preview stays repository-relative (CEM-V1-315, CEM-V1-640).
 	if filepath.IsAbs(options.MapPath) && (action == "status" || action == "verify" || action == "report") {

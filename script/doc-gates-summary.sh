@@ -7,6 +7,11 @@
 # last thing in a long CI log. A failure that names no ARG says so. The exit status is CMD's.
 set -uo pipefail
 (($#)) || { printf 'usage: script/doc-gates-summary.sh CMD [ARG...]\n' >&2; exit 2; }
+# Help source changes need the generated command trees before the catalog gate.
+if git diff HEAD --name-only -- 'cmd/*help*.go' 'cmd/**/*help*.go' 'internal/*/cli/*help*.go' 2>/dev/null | grep -E '.' >/dev/null ||
+  git diff HEAD -- 'cmd/*.go' 'cmd/**/*.go' 'internal/*/cli/*.go' 2>/dev/null | grep -E '^[-+].*(Usage:|usage:|--help|helpText|help text)' >/dev/null; then
+  printf 'doc-gates: HINT help text changed; check stale capcatalog trees with make capability-catalog, then stage internal/capcatalog/ (CAP-V0-040)\n' >&2
+fi
 log=$(mktemp "${TMPDIR:-/tmp}/doc-gates-summary.XXXXXX") || exit 2
 trap '/bin/rm -f "$log"' EXIT
 {

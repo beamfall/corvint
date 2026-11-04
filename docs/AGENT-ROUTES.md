@@ -23,6 +23,8 @@ Read the matching row, then expand only the relevant original sources.
 | Find a pre-1.0 build-log entry, CEM, closed ticket or dated result | [Build log](build-log/README.md) → [decision 0587](decisions/0587-fresh-1-0-repository.md) → `beamfall/corvint-history` at `1c4d8793cf71cbb01b8509b68a6cb1502a40a13e`. | Archived records are history, not live authority. Record new entries as `docs/build-log/YYYY-MM-DD-<slug>.md` in this repository. |
 | Verify documentation | [Focused checks](#focused-documentation-checks), then the owning spec's test/measurement matrix. | Focused checks do not replace `make gate`, frozen evaluations, independent review or dogfood. Coordinate full gates with an existing runner. |
 
+For `CAL-V0-206` facet changes, read `internal/tasks/wire/facets.go`, the closed facets decoder, before editing the CLI projection.
+
 ## A task names a requirement
 
 For file discovery when the task names a requirement ID, use the experimental task-context packet:
