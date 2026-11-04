@@ -122,6 +122,15 @@ GOTOOLCHAIN=local go -C interop/cem01-go vet ./...
 a performance budget (decision 0082). Go's 600s default is too tight to use here, because
 `cmd/corvint` alone takes roughly 591s on an otherwise quiet host and panics under any load.
 
+While iterating, run `make changed-checks BASE=FULL_SHA` only when the change touches a test, a
+script, the `Makefile` or a cited file: it runs `line-citations-check`, `unbounded-readers-check`
+and `test-read-scopes-check` for the inputs the diff reaches, which otherwise surface only at
+closeout (ASD-V0-576).
+
+```sh
+make changed-checks BASE=FULL_SHA
+```
+
 Before each push, run the local twin of the CI Windows vet step (AFP-V0-054), which type-checks
 test files for `GOOS=windows` as CI does. Run `make windows-vet` only when the change touches a
 `.go`, `go.mod` or `go.sum` file.

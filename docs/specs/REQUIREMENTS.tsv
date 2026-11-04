@@ -5236,6 +5236,19 @@ KAT-V0-009	docs/specs/kotlin-jvm-affected-test-v0.md	Only a Gradle manifest that
 KAT-V0-761	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)	standing	2026-10-11; V1-2054
 KAT-V0-763	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2055)	standing	2026-10-11; V1-2055
 KAT-V0-762	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)	standing	2026-10-11; V1-2054
+ASD-V0-566	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4175; refines	standing	2026-11-01; V1-4175
+ASD-V0-567	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4114, V1-3477)	standing	2026-11-01; V1-4114; V1-3477
+ASD-V0-568	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4101) The clos	standing	2026-11-01; V1-4101
+ASD-V0-569	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3319) `make sh	standing	2026-11-01; V1-3319
+ASD-V0-570	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3513) `go run	standing	2026-11-01; V1-3513
+ASD-V0-571	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4167) `script/	standing	2026-11-01; V1-4167
+ASD-V0-573	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3461) `.corvin	standing	2026-11-01; V1-3461
+ASD-V0-574	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2178) `make py	standing	2026-11-01; V1-2178
+ASD-V0-575	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4139) `make mc	standing	2026-11-01; V1-4139
+ASD-V0-576	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3390) `make ch	standing	2026-11-01; V1-3390
+ASD-V0-577	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3503) `make do	standing	2026-11-01; V1-3503
+ASD-V0-578	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4128; refines	standing	2026-11-01; V1-4128
+ASD-V0-579	docs/specs/lane-check-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3489) `DOC_GAT	standing	2026-11-01; V1-3489
 ASD-V0-2190	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The Bash	standing	2026-11-03; V1-4333
 ASD-V0-2191	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The lane	standing	2026-11-03; V1-4333
 ASD-V0-2192	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SC	standing	2026-11-03; V1-4334

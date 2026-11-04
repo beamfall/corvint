@@ -78,6 +78,7 @@ GATE_STEPS = \
   capability-catalog-test \
   cem-base-retention-check \
   cem-base-retention-test \
+  changed-checks-test \
   ci-least-privilege-check \
   ci-least-privilege-test \
   codex-review-test \
@@ -90,6 +91,7 @@ GATE_STEPS = \
   dogfood-bin-reuse-test \
   dogfood-cache-test \
   dogfood-change-test \
+  dogfood-closeout-repin-test \
   eol-policy-check \
   eol-policy-test \
   error-code-ownership-check \
@@ -113,11 +115,14 @@ GATE_STEPS = \
   license-headers-test \
   line-citations-check \
   line-citations-test \
+  long-lines-check-test \
+  merge-drivers-test \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
   qualify-tasks-basic-test \
+  register-shell-test-test \
   release-checklist-test \
   repin-test \
   requirement-definitions-check \
@@ -778,6 +783,36 @@ release-artifact-reproducibility-test:
 # exist, or when a gated refusal names no recovery and is not listed in
 # tools/flow-guide-check/unhinted-refusals.tsv, a list that only shrinks (ASD-V0-996, ASD-V0-997).
 # `go run ./tools/flow-guide-check --audit` prints the refusal audit counts (ASD-V0-998).
+# ASD-V0-573 (V1-3461): a tracked text file with a line over 4096 bytes must sit under a glob in
+# .corvint/agent-grep-exclude, which script/agent-grep.sh keeps out of agent searches, or be listed
+# in .corvint/long-line-allow.
+# ASD-V0-576 (V1-3390): changed-checks runs line-citations-check, unbounded-readers-check and
+# test-read-scopes-check only when the diff from BASE reaches their inputs, so a lane sees them
+# while it iterates instead of at closeout. AGENTS.md's Verify section declares it, so
+# `corvint affected` lists it.
+.PHONY: changed-checks
+changed-checks:
+	@test -n "$(DOGFOOD_BASE)" || { echo "changed-checks: $(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@script/changed-checks.sh "$(DOGFOOD_BASE)"
+
+.PHONY: long-lines-check
+long-lines-check:
+	@script/long-lines-check.sh
+
+# ASD-V0-574 (V1-2178): no tracked Python signal handler raises InterruptedError, which the code
+# around an interrupted call can catch and retry; handlers raise SystemExit or KeyboardInterrupt.
+# ASD-V0-575 (V1-4139): mcp-tools-list-goldens rewrites internal/mcp/cli/testdata/tools-list-*.golden.jsonl
+# from the server after a deliberate tools/list change; the same tests compare them otherwise.
+.PHONY: mcp-tools-list-goldens
+mcp-tools-list-goldens:
+	@env $(MCP_TOOLS_LIST_UPDATE)=1 $(GO_TEST_COMMAND) -run '^(TestAFUV1034FlowsToolProfile|TestMMRV0012GroupsToolsListGolden)$$' ./internal/mcp/cli
+	@git status --short -- internal/mcp/cli/testdata
+MCP_TOOLS_LIST_UPDATE = CORVINT_UPDATE_TOOLS_LIST_GOLDENS
+
+.PHONY: py-signal-lint
+py-signal-lint:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/py-signal-lint
+
 .PHONY: flow-guide-check
 flow-guide-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
@@ -1097,11 +1132,13 @@ dogfood-finish:
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
-# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first,
-# unadmitted line also runs the static input pre-check (DCW-V0-731); its second admits on heavy.sh's
-# light pool (ASD-V0-732).
+# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first
+# line prints a hint for a script/*_test.sh added since BASE that is not registered (ASD-V0-569);
+# its next, unadmitted line also runs the static input pre-check (DCW-V0-731); its last admits on
+# heavy.sh's light pool (ASD-V0-732).
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
+	@if [ -x script/register-shell-test.sh ]; then script/register-shell-test.sh --hint $(call dogfood_finish_quote,$(DOGFOOD_BASE)); fi
 	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
@@ -1131,6 +1168,13 @@ shell-foreign-callers-check:
 tasks-profiles-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/tasks-profiles-check >/dev/null
 
+# shell-test-register registers TEST=script/NAME_test.sh in its rule, GATE_STEPS and shell-test in one
+# command (ASD-V0-569, V1-3319; docs/SHELL-TEST-REGISTRATION.md).
+.PHONY: shell-test-register
+shell-test-register:
+	@test -n "$(TEST)" || { echo "TEST is required: make shell-test-register TEST=script/NAME_test.sh" >&2; exit 2; }
+	@script/register-shell-test.sh "$(TEST)"
+
 # shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
 # executable-bit check alone, so a GATE_STEPS shell step missing from shell-test, or a script test
 # committed without its executable bit, fails in doc-gates, not only in go test (DCW-V0-813).
@@ -1147,7 +1191,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check long-lines-check py-signal-lint no-python-runtime-dependency-test qualify-tasks-basic-test
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
@@ -1173,13 +1217,28 @@ doc-gates: ## Run the documentation gates
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
 # ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
+# ASD-V0-567 (V1-4114, V1-3477): each step prints its number, name, result and wall time on one
+# line, a failed step prints `dogfood-closeout: FAILED step N/5 NAME rc=RC after Ss` and the exact
+# command that resumes at that step, and CLOSEOUT_FROM=N skips the steps before N, so a closeout cut
+# by a tool timeout resumes where it stopped. ASD-V0-568 (V1-4101): the repin step commits a
+# mechanical repin and refreshes the plan before batch-precheck reads them.
+CLOSEOUT_FROM ?= 1
+# The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
+DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
+closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
+closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: step $(1)/5 $(2) skipped (CLOSEOUT_FROM=$(CLOSEOUT_FROM))" >&2; else \
+	t0=$$(date +%s); rc=0; $(3) || rc=$$?; secs=$$(( $$(date +%s) - t0 )); \
+	if [ $$rc -ne 0 ]; then echo "dogfood-closeout: FAILED step $(1)/5 $(2) rc=$$rc after $${secs}s" >&2; \
+	echo "resume: $(call closeout_resume,$(1))" >&2; exit $$rc; fi; \
+	echo "dogfood-closeout: step $(1)/5 $(2) ok after $${secs}s" >&2; fi
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
-	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)"
-	@$(MAKE) --no-print-directory dogfood-inputs-check
-	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
-	@$(MAKE) --no-print-directory dogfood-finish
+	@$(call closeout_step,1,static-checks,$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)")
+	@$(call closeout_step,2,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
+	@$(call closeout_step,3,repin,DOGFOOD_CLOSEOUT_REGEN=$(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
+	@$(call closeout_step,4,batch-precheck,BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)'))
+	@$(call closeout_step,5,dogfood-finish,$(MAKE) --no-print-directory dogfood-finish)
 	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
 
 # DCW-V0-923 (V1-3850): the sealed-head batch-precheck, run after dogfood-closeout as its own command.
@@ -1213,6 +1272,10 @@ dogfood-cache-test:
 .PHONY: dogfood-bin-reuse-test
 dogfood-bin-reuse-test:
 	@script/dogfood-bin-reuse_test.sh
+
+.PHONY: dogfood-closeout-repin-test
+dogfood-closeout-repin-test:
+	@script/dogfood-closeout-repin_test.sh
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
 # for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit);
@@ -1382,6 +1445,7 @@ shell-test: \
   batch-precheck-test \
   capability-catalog-test \
   cem-base-retention-test \
+  changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
@@ -1390,6 +1454,7 @@ shell-test: \
   dogfood-bin-reuse-test \
   dogfood-cache-test \
   dogfood-change-test \
+  dogfood-closeout-repin-test \
   eol-policy-test \
   error-code-ownership-test \
   gate-receipt-test \
@@ -1403,10 +1468,13 @@ shell-test: \
   lane-interrupted-test \
   license-headers-test \
   line-citations-test \
+  long-lines-check-test \
+  merge-drivers-test \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
   qualify-tasks-basic-test \
+  register-shell-test-test \
   release-checklist-test \
   repin-test \
   requirement-definitions-test \
@@ -1476,3 +1544,19 @@ CCE_LIVE_PARALLEL ?= 3
 .PHONY: cce-live
 cce-live:
 	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local sh internal/changee2e/cce-live.sh $(CCE_LIVE_PARALLEL) $(GO_TEST_TIMEOUT)
+
+.PHONY: register-shell-test-test
+register-shell-test-test:
+	@script/register-shell-test_test.sh
+
+.PHONY: merge-drivers-test
+merge-drivers-test:
+	@script/merge-drivers_test.sh
+
+.PHONY: long-lines-check-test
+long-lines-check-test:
+	@script/long-lines-check_test.sh
+
+.PHONY: changed-checks-test
+changed-checks-test:
+	@script/changed-checks_test.sh

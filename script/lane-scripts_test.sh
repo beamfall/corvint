@@ -5,7 +5,7 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), lane-binary-check.sh (ASD-V0-755..757),
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831, ASD-V0-571), lane-binary-check.sh (ASD-V0-755..757),
 # requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
 # (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
@@ -2465,8 +2465,10 @@ if selected tools 41; then
 # runs the lane's own script/check-ai-coauthor-trailers.sh, so the source commits it.
 ls_src=$tmp/lane-setup-src
 git init -q "$ls_src" && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one &&
-  mkdir -p "$ls_src/script" && /bin/cp -f "$script/check-ai-coauthor-trailers.sh" "$ls_src/script/" &&
-  git -C "$ls_src" add script && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-setup source"
+  mkdir -p "$ls_src/script" && /bin/cp -f "$script/check-ai-coauthor-trailers.sh" "$script/merge-drivers.sh" "$ls_src/script/" &&
+  printf "#!/bin/sh\n" > "$ls_src/script/merge-pins.sh" && chmod +x "$ls_src/script/merge-pins.sh" &&
+  printf "pins.json merge=pins\n" > "$ls_src/.gitattributes" &&
+  git -C "$ls_src" add script .gitattributes && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-setup source"
 git clone -q --depth 1 "file://$ls_src" "$tmp/lane-setup-shallow" 2> /dev/null || fail "lane-setup shallow clone"
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-shallow" --dir "$tmp/lane-a" --branch claude/a 2>&1)
 rc=$?
@@ -2479,6 +2481,9 @@ out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" 
 # checkout keeps its own setting.
 [[ $(git -C "$tmp/lane-a" config --get rerere.enabled) == false && $(git -C "$tmp/lane-setup-full" config --get rerere.enabled) == true ]] ||
   fail "lane rerere not disabled per worktree: lane=$(git -C "$tmp/lane-a" config --get rerere.enabled) shared=$(git -C "$tmp/lane-setup-full" config --get rerere.enabled)"
+# ASD-V0-571 (V1-4167): the lane checkout gets the .gitattributes merge driver.
+[[ $(git -C "$tmp/lane-a" config --get merge.pins.driver) == "script/merge-pins.sh %O %A %B %L" ]] ||
+  fail "lane setup configured no merge driver: $out"
 [[ $(git -C "$tmp/lane-a" rev-parse --abbrev-ref HEAD) == claude/a && $(git -C "$tmp/lane-a" rev-parse HEAD) == $(git -C "$ls_src" rev-parse HEAD) ]] ||
   fail "lane worktree not on claude/a at origin/main: $out"
 printf 'feat: x\n\n%s\n' "$(printf 'Co-Authored-By: Claude <noreply@%s>' anthropic.com)" > "$tmp/lane-a-msg"
