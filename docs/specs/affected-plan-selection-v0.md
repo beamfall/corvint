@@ -337,10 +337,11 @@ measure. None of them drops a unit the change can reach.
   read by the STR-V0-010 strict reader. Each entry has the
   `path` relative to the Git directory, `state` `OBSERVED` or `UNREADABLE` (with `detail`), and
   for an observed receipt its `sha256`, `revision` and `failed` (units with a `FAIL`,
-  `BUILD_FAILED` or `TIMED_OUT` outcome, sorted). `order.failures.state` is `OBSERVED` when any
-  receipt was read, `UNREADABLE` with a `detail` and no receipt when `<git-dir>/corvint` exists
-  but cannot be listed (a permission error, for example), and `NOT_OBSERVED` otherwise, an absent
-  directory included. The order only reorders: `plan.selected`, the
+  `BUILD_FAILED` or `TIMED_OUT` outcome, sorted). `order.failures.state` is `OBSERVED` when a
+  canonical receipt was observed and no candidate metadata failed. It is `UNREADABLE` with a
+  `detail` when `<git-dir>/corvint` exists but cannot be listed (no receipts), or when candidate
+  metadata fails (other observed receipts remain). It is `NOT_OBSERVED` otherwise, including
+  an absent directory. The order only reorders: `plan.selected`, the
   tiers and every other member are byte-identical with and without the flag. Without the flag
   nothing is read. The flag is refused with `--full`, `--summary`, `--by-path`,
   `--format text` and `--playwright-config`, whose documents carry no compact plan member.
