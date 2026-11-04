@@ -65,6 +65,9 @@ func cemRepo(t *testing.T) (string, string, string) {
 
 func runCLI(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
+	if hasTestArg(args, "test") && hasTestArg(args, "--dry-run") && !hasTestArg(args, "--summary") && !hasTestArg(args, "--pins") && !hasTestArg(args, "--full") {
+		args = append(args, "--full")
+	}
 	var stdout, stderr bytes.Buffer
 	code := runContext(context.Background(), args, strings.NewReader(""), &stdout, &stderr)
 	return code, stdout.String(), stderr.String()

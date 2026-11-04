@@ -15,9 +15,9 @@ const affectedByPathProfile = "affected-by-path/1"
 
 // affectedByPathUnit is one selected unit of a --by-path document.
 type affectedByPathUnit struct {
-	UnitID    string `json:"unitId"`
-	TestCount int    `json:"testCount"`
-	Witness   string `json:"witness"`
+	UnitID    string                 `json:"unitId"`
+	TestCount int                    `json:"testCount"`
+	Witness   affectedCompactWitness `json:"witness"`
 }
 
 // affectedByPathEntry is one named path: its own selection less the shared
@@ -109,7 +109,7 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 	for _, selection := range receipt.Plan.Selected {
 		if unbounded[selection.UnitID] && selectedBy[selection.UnitID] == len(paths) {
 			shared[selection.UnitID] = true
-			result.Shared = append(result.Shared, affectedByPathUnit{UnitID: selection.UnitID, TestCount: tests[selection.UnitID], Witness: affected.WitnessUnboundedReader})
+			result.Shared = append(result.Shared, affectedByPathUnit{UnitID: selection.UnitID, TestCount: tests[selection.UnitID], Witness: compactWitness(affected.Witness{Kind: affected.WitnessUnboundedReader, Via: []string{selection.UnitID}, Cause: selection.Witness.Cause})})
 		}
 	}
 	for index, path := range paths {
@@ -120,7 +120,7 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 				entry.Shared++
 				continue
 			}
-			entry.Additions = append(entry.Additions, affectedByPathUnit{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: selection.Witness.Kind})
+			entry.Additions = append(entry.Additions, affectedByPathUnit{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compactWitness(selection.Witness)})
 		}
 		result.Paths = append(result.Paths, entry)
 	}
@@ -136,12 +136,12 @@ func renderAffectedByPathText(result affectedByPathReceipt) string {
 	}
 	writeAffectedDegradations(&out, result.Degradations, result.DegradationDetails)
 	for _, unit := range result.Shared {
-		fmt.Fprintf(&out, "shared %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness)
+		fmt.Fprintf(&out, "shared %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness.Kind)
 	}
 	for _, entry := range result.Paths {
 		fmt.Fprintf(&out, "path %s scope=%s shared=%d/%d additions=%d\n", textWord(entry.Path), entry.Scope, entry.Shared, len(result.Shared), len(entry.Additions))
 		for _, unit := range entry.Additions {
-			fmt.Fprintf(&out, "  added %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness)
+			fmt.Fprintf(&out, "  added %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness.Kind)
 		}
 		for _, unknown := range entry.Unknown {
 			fmt.Fprintf(&out, "  unknown %s %s\n", unknown.Reason, textWord(unknown.Detail))

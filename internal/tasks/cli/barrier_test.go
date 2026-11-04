@@ -11,6 +11,7 @@ import (
 )
 
 func TestTMV0016_AS27_CLIBarrierWorkflow(t *testing.T) {
+	t.Parallel()
 	r := receiptFixture(t)
 	pause := []string{"pause", "--request-id", "pause"}
 	if x := atm(t, r.Root, nil, pause...); x.res.Outcome != wire.OutcomeOK {
@@ -48,6 +49,7 @@ func TestTMV0016_AS27_CLIBarrierWorkflow(t *testing.T) {
 }
 
 func TestTMV0016_AS27_CLIBarrierClosedArguments(t *testing.T) {
+	t.Parallel()
 	r := receiptFixture(t)
 	before, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
 	for _, verb := range []string{"pause", "unpause"} {

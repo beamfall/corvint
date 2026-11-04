@@ -23,6 +23,7 @@ func buildInfoWith(settings ...string) *debug.BuildInfo {
 // unstamped build and absent VCS settings yield explicit markers, never a
 // guessed value.
 func TestPUBV0028ProducerDevBuildMarkers(t *testing.T) {
+	t.Parallel()
 	for name, info := range map[string]*debug.BuildInfo{
 		"no build info":       nil,
 		"no vcs settings":     buildInfoWith("-trimpath", "true"),
@@ -56,6 +57,7 @@ func TestPUBV0028ProducerDevBuildMarkers(t *testing.T) {
 // release archives pass -X main.build=N and -buildvcs=false, so the build is
 // stated and the commit stays an explicit unknown for the manifest to name.
 func TestPUBV0029ProducerReleaseStampedBuild(t *testing.T) {
+	t.Parallel()
 	release := buildInfoWith("-buildvcs", "false", "-trimpath", "true", "-ldflags", "-X main.build=676")
 	got := producerFrom("1.0.0-rc.3", "676", release)
 	want := producerIdentity{Version: "1.0.0-rc.3", Build: "676", Commit: "unknown", CommitState: "unknown"}

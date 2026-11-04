@@ -1,0 +1,503 @@
+package	test	file	serial_reason
+cmd/corvint	TestAdoptSetupReportsEachGapClass	cmd/corvint/adopt_setup_test.go	env: TestAdoptSetupReportsEachGapClass calls t.Setenv
+cmd/corvint	TestAdoptSetupRefusesOtherOptions	cmd/corvint/adopt_setup_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAdoptSetupUnobservedChecksCarryAFix	cmd/corvint/adopt_setup_test.go	env: TestAdoptSetupUnobservedChecksCarryAFix calls t.Setenv
+cmd/corvint	TestADS800SetupFixesResolveInAdopterRepositories	cmd/corvint/adopt_setup_test.go	env: TestADS800SetupFixesResolveInAdopterRepositories calls t.Setenv
+cmd/corvint	TestAdoptSetupRejectsFIFOWithoutOpening	cmd/corvint/adopt_setup_unix_test.go	hooks: TestAdoptSetupRejectsFIFOWithoutOpening uses process state via syscall.Mkfifo
+cmd/corvint	TestAdoptSetupUnreadableIgnoreFileIsUnobserved	cmd/corvint/adopt_setup_unix_test.go	env: TestAdoptSetupUnreadableIgnoreFileIsUnobserved calls t.Setenv
+cmd/corvint	TestAFPV0230AbbreviatedBaseAndTrailingRoot	cmd/corvint/affected_abbrev_base_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestAFPV0232AmbiguousAbbreviatedBase	cmd/corvint/affected_abbrev_base_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestACXV0854RevisionBase	cmd/corvint/affected_abbrev_base_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestTSPV0720BaseRevisionExpressionResolves	cmd/corvint/affected_abbrev_base_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedAdviceFocusedNextStep_AFPV0496	cmd/corvint/affected_advice_unix_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853	cmd/corvint/affected_advice_unix_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestANLV0031AffectedRoutesImpactVerdict	cmd/corvint/affected_appmap_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0034AffectedAggregatesMapsPerApp	cmd/corvint/affected_appmap_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0060AffectedBindsReportToDeclaredRepository	cmd/corvint/affected_appmap_tworepo_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0063ImpactRefusesUnsupportedLayout	cmd/corvint/affected_appmap_tworepo_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedAuditE2ECompileSelector_AFPV0447	cmd/corvint/affected_audit_test.go	env: auditE2EFixture calls t.Setenv
+cmd/corvint	TestAffectedAuditE2ETwoRepository_AFPV0490	cmd/corvint/affected_audit_test.go	env: auditE2EFixture calls t.Setenv
+cmd/corvint	TestAffectedAuditE2ETwoRepositoryInputErrors_AFPV0491	cmd/corvint/affected_audit_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFPV0151StandaloneAffectedCancellationRefuses	cmd/corvint/affected_bounds_test.go	hooks: mutates package state via cancelAffectedGraphWalk
+cmd/corvint	TestAFPV0151ReviewFallbackCancellationRefuses	cmd/corvint/affected_bounds_test.go	hooks: mutates package state via cancelAffectedGraphWalk
+cmd/corvint	TestAFPV0150PlanHeadDriftAfterSourcesRefuses	cmd/corvint/affected_bounds_test.go	hooks: mutates package state via affectedPlanSourcesObserved
+cmd/corvint	TestAFPV0393ReceiptsAreByteIdenticalWithAndWithoutTheCache	cmd/corvint/affected_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph	cmd/corvint/affected_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0393CacheParityAcrossTheRemainingForms	cmd/corvint/affected_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0393CacheParityWithAnAppMapImpact	cmd/corvint/affected_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0395PathsFromFIFOCannotBlock	cmd/corvint/affected_cache_unix_test.go	hooks: mutates package state via affectedPathsFromBeforeOpen
+cmd/corvint	TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory	cmd/corvint/affected_default_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0437NoCacheAndCacheOverrideTheDefault	cmd/corvint/affected_default_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0438DefaultCacheDegradesToUncached	cmd/corvint/affected_default_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0439CacheStatusReportsLocationAndSize	cmd/corvint/affected_default_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAFPV0970EvictionNeverChangesPlanBytes	cmd/corvint/affected_default_cache_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestAffectedPlanMarksDeletedPaths_AFPV02206	cmd/corvint/affected_deleted_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestAffectedFollowsDirtyEditsBetweenCalls	cmd/corvint/affected_dirty_tree_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1065CeilingMeasurement	cmd/corvint/affected_e2e_safe_scale_test.go	timing: TestAFUV1065CeilingMeasurement uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1019UnnamedProjectSelection	cmd/corvint/affected_e2e_safe_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980	cmd/corvint/affected_existence_readers_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestAFPV0356MixedNamesGloballyExcludedPath	cmd/corvint/affected_freshness_test.go	env: TestAFPV0356MixedNamesGloballyExcludedPath calls t.Setenv
+cmd/corvint	TestAffectedMakefileRecipeOnlySelectsScriptTest_TSP_V0_945	cmd/corvint/affected_makefile_recipe_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestAffectedIgnoresGitignoredBuildProducts_TSP_V0_946	cmd/corvint/affected_makefile_recipe_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestFailFastContentTimeSurvivesTimestampTies	cmd/corvint/affected_order_test.go	timing: TestFailFastContentTimeSurvivesTimestampTies uses time.Unix; keep its deadline/load assumptions serial
+cmd/corvint	TestFailFastDroppedInfoFailureIsDisclosed	cmd/corvint/affected_order_test.go	hooks: mutates package state via readFailFastDirectory
+cmd/corvint	TestAFPV0231PathDirectoryExpansion	cmd/corvint/affected_path_directory_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestAffectedPlaywrightDeclarationClosure_GH1751	cmd/corvint/affected_playwright_closure_gh1751_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightDiscoveryStaleListing_GH709	cmd/corvint/affected_playwright_discovery_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709	cmd/corvint/affected_playwright_discovery_test.go	hooks: mutates package state via playwrightDiscoverySourcesVerified
+cmd/corvint	TestAffectedPlaywrightEnvFlag_GH1640	cmd/corvint/affected_playwright_env_gh1640_test.go	env: TestAffectedPlaywrightEnvFlag_GH1640 calls t.Setenv
+cmd/corvint	TestAffectedPlaywrightEnvResolvesExecutableEndToEnd_GH1640	cmd/corvint/affected_playwright_env_gh1640_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightIgnoredReportNarrows_GH1750	cmd/corvint/affected_playwright_ignored_gh1750_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedOverBoundSourceIsPerPath_GH1811	cmd/corvint/affected_playwright_overbound_gh1811_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedGeneratedPathsDeclaration_GH1811	cmd/corvint/affected_playwright_overbound_gh1811_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightPathDeclaration_GH1751	cmd/corvint/affected_playwright_path_owners_gh1751_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightDeclarationReporterShape_GH1751	cmd/corvint/affected_playwright_reporter_shape_gh1751_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightProfileEmitsProjectDistinctUnits	cmd/corvint/affected_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightArgumentsFailClosed	cmd/corvint/affected_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightDiscoveryFallback	cmd/corvint/affected_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightDiscoveryProducer_GH709	cmd/corvint/affected_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033	cmd/corvint/affected_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestASDV0072AffectedRefusesAShallowClone	cmd/corvint/affected_shallow_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources	cmd/corvint/affected_snapshot_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAffectedSnapshotPlaywrightPinsConfigAndSource	cmd/corvint/affected_snapshot_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestAFPV0550TestMainChangeMakesThePackageWhole	cmd/corvint/affected_whole_test.go	hooks: workKillGroup uses process state via syscall.Kill
+cmd/corvint	TestBreakageCommandHelperProcess	cmd/corvint/breakage_test.go	hooks: TestBreakageCommandHelperProcess uses process state via os.Exit
+cmd/corvint	TestBreakageCLIComplete	cmd/corvint/breakage_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestBreakageManifestCLIPinsNamedSources	cmd/corvint/breakage_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkflowHelpKeepsBooleanFlagsScoped	cmd/corvint/breakage_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTCBV0016GateVerdictRunsBothConsumers	cmd/corvint/cem_gate_verdict_test.go	chdir: TestTCBV0016GateVerdictRunsBothConsumers changes the process directory
+cmd/corvint	TestCEMV1317HelpDocumentsMapPaths	cmd/corvint/cem_map_path_help_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMReviewNativeOCMAdapter	cmd/corvint/cem_review_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMExportStableKeepsCallerRoot	cmd/corvint/cem_stable_export_root_test.go	chdir: TestCEMExportStableKeepsCallerRoot changes the process directory
+cmd/corvint	TestCEMExportStableBundleRelocates	cmd/corvint/cem_stable_export_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMStableReportKeepsCallerRoot	cmd/corvint/cem_stable_report_root_test.go	chdir: TestCEMStableReportKeepsCallerRoot changes the process directory
+cmd/corvint	TestCEMStableReadKeepsCallerRoot	cmd/corvint/cem_stable_root_test.go	chdir: TestCEMStableReadKeepsCallerRoot changes the process directory
+cmd/corvint	TestCEMStableReadDefaultsToSessionRoot	cmd/corvint/cem_stable_root_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMStableDispatchBeforeRootReads	cmd/corvint/cem_stable_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMV1084VerifyStableTrustedKeysFlag	cmd/corvint/cem_stable_trusted_keys_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMV1084HelpNamesTrustedKeys	cmd/corvint/cem_stable_trusted_keys_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMCLIRefusesGitMetadataOutput	cmd/corvint/cem_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSPCV0012ChangesBehindCLI	cmd/corvint/changes_behind_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestChangesCLI	cmd/corvint/changes_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestSPCV0008ChangesSharedCLI	cmd/corvint/changes_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestVersionCommandNamesTheVersionFlag_PRSV1910	cmd/corvint/choice_quoting_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestContextLSPOffKeepsTheGoldenAndOnDegrades	cmd/corvint/context_lsp_test.go	env: TestContextLSPOffKeepsTheGoldenAndOnDegrades calls t.Setenv
+cmd/corvint	TestContextLSPExplicitSelection	cmd/corvint/context_lsp_test.go	env: TestContextLSPExplicitSelection calls t.Setenv
+cmd/corvint	TestContextLSPDriftWithholdsPacket	cmd/corvint/context_lsp_test.go	env: TestContextLSPDriftWithholdsPacket calls t.Setenv
+cmd/corvint	TestContextCLIMatchesMCPReceipt	cmd/corvint/context_mcp_parity_test.go	env: TestContextCLIMatchesMCPReceipt calls t.Setenv
+cmd/corvint	TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway	cmd/corvint/core_freeze_test.go	env: TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway calls t.Setenv
+cmd/corvint	TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching	cmd/corvint/core_freeze_test.go	env: TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching calls t.Setenv
+cmd/corvint	TestDCPV1097CorpusDepthFlag	cmd/corvint/corpus_flow_depth_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusWorkEvidenceIsNonAuthoritative	cmd/corvint/corpus_work_unix_test.go	hooks: mutates package state via workProductionFixture
+cmd/corvint	TestDeltaPublicHelp	cmd/corvint/delta_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1268CorpusAuditCLI	cmd/corvint/docs_corpus_audit_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1313CorpusClaimsQueryCLIParity	cmd/corvint/docs_corpus_claim_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1563DeltaCurrentSideIsDecidedByPresence	cmd/corvint/docs_corpus_delta_presence_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1360DeltaCLI	cmd/corvint/docs_corpus_delta_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1425DeltaUnavailableCheckoutCLI	cmd/corvint/docs_corpus_delta_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1421DeltaViewsCLI	cmd/corvint/docs_corpus_delta_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestDCRV1460DeltaCLIVerifiedRead	cmd/corvint/docs_corpus_delta_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1370DocsCorpusDiscoverTestsCLI	cmd/corvint/docs_corpus_discover_tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1257CorpusEvalCLI	cmd/corvint/docs_corpus_eval_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1399DocsCorpusExtractCLI	cmd/corvint/docs_corpus_extract_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1506DocsCorpusExtractCallerProfileCLI	cmd/corvint/docs_corpus_extract_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1560DocsCorpusExtractSchemaCLI	cmd/corvint/docs_corpus_extract_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1321CorpusKindAndClaimSearchCLIParity	cmd/corvint/docs_corpus_gh1570_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1332CorpusCallerRevisionCLIParity	cmd/corvint/docs_corpus_gh1570_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsCorpusRunnerHelpNamesEachOperationsRunners	cmd/corvint/docs_corpus_help_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1579SearchIncludeHelpSaysClaimsAreAdded	cmd/corvint/docs_corpus_include_help_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsCorpusLocalInputPathRefusals	cmd/corvint/docs_corpus_input_path_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1241CorpusMaintainPageRefusalNamesFlag	cmd/corvint/docs_corpus_input_path_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsCorpusLegacyCasesCLI	cmd/corvint/docs_corpus_legacy_cases_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1165DocsCorpusSearchCasesModesCLI	cmd/corvint/docs_corpus_legacy_cases_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsCorpusDiscoverLegacyCLI	cmd/corvint/docs_corpus_legacy_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds	cmd/corvint/docs_corpus_manifest_scopes_test.go	timing: TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1160DefaultSingleScopeUnchanged	cmd/corvint/docs_corpus_manifest_scopes_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1160SchemaFlagValues	cmd/corvint/docs_corpus_manifest_scopes_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1161ScopesSortedAndOverlapRefused	cmd/corvint/docs_corpus_manifest_scopes_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCSV1594CorpusPathOperationsReturnDocumentingOwners	cmd/corvint/docs_corpus_owner_kind_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCSV1592CorpusClaimKindsCLIAndMCP	cmd/corvint/docs_corpus_owner_kind_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCSV1597CorpusNavigationQueryCLIAndMCP	cmd/corvint/docs_corpus_owner_kind_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1349CorpusPatternsCLI	cmd/corvint/docs_corpus_patterns_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsCorpusPlaywrightProducersCLI	cmd/corvint/docs_corpus_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsHelpNamesPlaywrightReceiptProducer	cmd/corvint/docs_corpus_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusTypedCLIMCPEndToEnd	cmd/corvint/docs_corpus_query_parity_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCRV1413CorpusReadsWithoutRederivation	cmd/corvint/docs_corpus_read_fast_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCRV1432JoinedCorpusReusesVerifiedArtifact	cmd/corvint/docs_corpus_read_fast_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCRV1431CorpusRefusalJoinsFreshness	cmd/corvint/docs_corpus_read_fast_test.go	hooks: mutates package state via corpusLiveFreshness
+cmd/corvint	TestDCRV1467CorpusPreHeaderRefusalJoinsPrimary	cmd/corvint/docs_corpus_read_fast_test.go	hooks: mutates package state via corpusLiveFreshness
+cmd/corvint	TestDCXV1495BuildRebuildsFromEmbeddedManifest	cmd/corvint/docs_corpus_rebuild_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades	cmd/corvint/docs_corpus_rebuild_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCXV1532BuildArtifactReusesRecords	cmd/corvint/docs_corpus_reuse_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMV1162CorpusStableOperation	cmd/corvint/docs_corpus_stable_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDCPV1318StatusAndIntentListingCLIParity	cmd/corvint/docs_corpus_status_listing_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusCLIBuildQueryAndMCPParity	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestBehaviorAdapterCLI	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusNativeReadIntegrationParity	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusNativeReceiptJoin	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusNativeOptionIsolation	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusImpactNativePathSelection	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusRootPreambleFlagAloneDoesNotConsumeCorpusValue	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusRootPreambleRefusesOptionLikeValue	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCorpusAdoptionCLIMCPPagination	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestV11305CorpusCEMRefusesStableMapWithFix	cmd/corvint/docs_corpus_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestBehaviorProviderV2CLI	cmd/corvint/docs_corpus_v2_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowDocsCLIInventory	cmd/corvint/docs_flows_inventory_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowDocsCLIEndToEnd	cmd/corvint/docs_flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowDocsCLIPredecessorManifestTypedStale	cmd/corvint/docs_flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1125FlowLimitCLICode	cmd/corvint/docs_flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDocsMaintainWatchSignalHelper	cmd/corvint/docs_maintain_signal_unix_test.go	hooks: TestDocsMaintainWatchSignalHelper uses process state via os.Exit
+cmd/corvint	TestDocsMaintainWatchSignalJoinsGitDescendants	cmd/corvint/docs_maintain_signal_unix_test.go	hooks: TestDocsMaintainWatchSignalJoinsGitDescendants uses process state via syscall.Kill
+cmd/corvint	TestDocsMaintainWatchGrammar	cmd/corvint/docs_maintain_test.go	timing: parseDocsMaintainInvocation uses time.ParseDuration; keep its deadline/load assumptions serial
+cmd/corvint	TestTrustedNavCLITrustBoundary	cmd/corvint/docs_nav_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCKCV0002RecordClaimsCLI	cmd/corvint/dogfood_claims_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity	cmd/corvint/dogfood_event_bracket_test.go	hooks: mutates package state via loadSnapshotObserved
+cmd/corvint	TestAggregateQualificationPublicWriterRaces	cmd/corvint/dogfood_flow_portable_test.go	timing: TestAggregateQualificationPublicWriterRaces uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodHandoffBundleRoundTrip	cmd/corvint/dogfood_handoff_bundle_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodHandoffBundleDriftWithholdsState	cmd/corvint/dogfood_handoff_bundle_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodHandoffBundleMalformed	cmd/corvint/dogfood_handoff_bundle_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodHandoffBundleTaskStateAndDirtyRefusal	cmd/corvint/dogfood_handoff_bundle_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodHandoffBundleOutputBound	cmd/corvint/dogfood_handoff_bundle_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodHandoffRefusesUnstableRepository	cmd/corvint/dogfood_handoff_test.go	hooks: mutates package state via handoffProbe
+cmd/corvint	TestAggregateWorkerNativeProduceVerify	cmd/corvint/dogfood_outcome_worker_test.go	hooks: mutates package state via portableDogfoodRunner
+cmd/corvint	TestLCPV0810SessionRefusalsNameSessionKey	cmd/corvint/dogfood_session_refusal_test.go	env: TestLCPV0810SessionRefusalsNameSessionKey calls t.Setenv
+cmd/corvint	TestGPKV0071DubiousOwnershipIsOneCodedRefusal	cmd/corvint/dubious_ownership_test.go	env: TestGPKV0071DubiousOwnershipIsOneCodedRefusal calls t.Setenv
+cmd/corvint	TestFlowCoverageCLI	cmd/corvint/flow_coverage_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1039AcceptanceFixture	cmd/corvint/flows_acceptance_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0106ActionsCLI	cmd/corvint/flows_appmap_actions_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0116BranchesCLI	cmd/corvint/flows_appmap_actions_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0145BlockerCLI	cmd/corvint/flows_appmap_blocker_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowsAppmapCoverageCLI	cmd/corvint/flows_appmap_coverage_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0048DialectCLI	cmd/corvint/flows_appmap_dialects_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0004EdgesCLI	cmd/corvint/flows_appmap_edges_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0023EdgesObservationCLI	cmd/corvint/flows_appmap_edges_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0212EndpointsCLI	cmd/corvint/flows_appmap_endpoints_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestEntriesCLI	cmd/corvint/flows_appmap_entries_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestStatsCLI	cmd/corvint/flows_appmap_entries_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0211BuildFromCLI	cmd/corvint/flows_appmap_from_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0_143_HowCLI	cmd/corvint/flows_appmap_how_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0_161_PlanDraftCLI	cmd/corvint/flows_appmap_how_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0810HowAlias	cmd/corvint/flows_appmap_how_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0015ImpactCLI	cmd/corvint/flows_appmap_impact_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0_126_InferCLIAndImport	cmd/corvint/flows_appmap_infer_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0_013_PageObjectsAndStepsCLI	cmd/corvint/flows_appmap_knowledge_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0_103_SetupConditionCLI	cmd/corvint/flows_appmap_knowledge_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0006ObserveCLI	cmd/corvint/flows_appmap_observe_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMSPV0010FlowsAppmapPlanCLI	cmd/corvint/flows_appmap_plan_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMSPV0010PlanReceiptVerificationCLI	cmd/corvint/flows_appmap_plan_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0098RefsCLI	cmd/corvint/flows_appmap_refs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0189SourceVerbsTakeRepo	cmd/corvint/flows_appmap_sourceroots_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestWSDV0145SourceVerbsWorkspace	cmd/corvint/flows_appmap_sourceworkspace_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0329AliasedManifestUnbound	cmd/corvint/flows_appmap_sourceworkspace_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSKHV0330SourceVerbFlagOrder	cmd/corvint/flows_appmap_sourceworkspace_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0FlowsAppmapCLI	cmd/corvint/flows_appmap_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRVNV0FlowsAppmapVerificationCLI	cmd/corvint/flows_appmap_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowsAppmapObservedUIVerbs	cmd/corvint/flows_appmap_ui_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsServerErrorsCLI	cmd/corvint/flows_appmap_ui_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestWSDV0004BuildCLI	cmd/corvint/flows_appmap_workspace_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowDocMaintenanceCLIGuards	cmd/corvint/flows_docs_maintain_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1030DocsRenderGoldenAndByteStable	cmd/corvint/flows_docs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1032DocsCheckDrift	cmd/corvint/flows_docs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1032WaiverExpiry	cmd/corvint/flows_docs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1033AnchoredMarkdown	cmd/corvint/flows_docs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1032WaiverKeepsUnrenderedClaim	cmd/corvint/flows_docs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1033NonRegularMarkdownSkipped	cmd/corvint/flows_docs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1130FlowsHelpSaysTestLinksOnly	cmd/corvint/flows_import_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1128FlowsCLIPlaywrightListLinksResolve	cmd/corvint/flows_import_playwright_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1112FlowsIngestCoverageCLI	cmd/corvint/flows_ingest_coverage_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1904PlainPlaywrightReportNamesEveryHeaderFlag	cmd/corvint/flows_ingest_header_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1904Help	cmd/corvint/flows_ingest_header_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1131IngestJoinsPlaywrightListImport	cmd/corvint/flows_ingest_join_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1034FlowsToolsMatchCLIVerbs	cmd/corvint/flows_mcp_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1025NavigationMapGolden	cmd/corvint/flows_navigate_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1026LocatorsOnlyFromIntent	cmd/corvint/flows_navigate_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1027EffectClasses	cmd/corvint/flows_navigate_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1028PacketRequiresGrant	cmd/corvint/flows_navigate_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1028ScriptedAgentCompletesGoals	cmd/corvint/flows_navigate_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1057TrafficFileBoundCLI	cmd/corvint/flows_navigate_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsQueryGoldens	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIReverseLookups	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsImpactDirtyWorktreeUnknown	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIPassingControlNeverVerifies	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIIngest	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsQueriesAreReadOnly	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1PassingRunNeedsStability	cmd/corvint/flows_query_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAMAPV0138RequestPathCLI	cmd/corvint/flows_request_path_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1MapAndGapsRegistryQualification	cmd/corvint/flows_stability_gate_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIStabilityIsReadOnly	cmd/corvint/flows_stability_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowsCLIReadPurity	cmd/corvint/flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestFlowsHelpDoesNotRequireRepository	cmd/corvint/flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIExportIsReadOnly	cmd/corvint/flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIImportNeverOverwrites	cmd/corvint/flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIExportUsesCommittedIntents	cmd/corvint/flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAFUV1FlowsCLIImportReportsNothingWritten	cmd/corvint/flows_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestGVAV0001AdvisoryCompareCLI	cmd/corvint/gate_agreement_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestGVAV0003MigrationRatchetAdvisory	cmd/corvint/gate_agreement_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestGVAV0088RatchetIdentityDeltaKeys	cmd/corvint/gate_agreement_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestGVAV0094ValidityAdvisoryCompareCLI	cmd/corvint/gate_agreement_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestGVAV0095ValidityCompareKeepsParityFindings	cmd/corvint/gate_agreement_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestGraphImportsCLIMCPParity	cmd/corvint/graph_imports_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestGraphImportsCLIAdmission	cmd/corvint/graph_imports_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMCiteHelpListsRelations	cmd/corvint/help_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestLanePlanRetired	cmd/corvint/help_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestClaudeCompactionDeadlineNamesRemediation	cmd/corvint/host_adapter_compaction_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin	cmd/corvint/host_adapter_compaction_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodWorkflowGoModReadIsBounded	cmd/corvint/host_adapter_dogfood_scope_unix_test.go	hooks: TestDogfoodWorkflowGoModReadIsBounded uses process state via syscall.Mkfifo
+cmd/corvint	TestHostAdapterJavaScriptHarnessInterruption	cmd/corvint/host_adapter_javascript_test.go	hooks: TestHostAdapterJavaScriptHarnessInterruption uses process state via syscall.Signal
+cmd/corvint	TestPURV02210_SessionStartWarnsStaleBarrier	cmd/corvint/host_adapter_projection_test.go	env: TestPURV02210_SessionStartWarnsStaleBarrier calls t.Setenv
+cmd/corvint	TestExperimentalKernelAdapterContext	cmd/corvint/host_adapter_test.go	hooks: mutates package state via experimentalKernelDeadline
+cmd/corvint	TestAHI048ExitProcessKillsLiveChildGroups	cmd/corvint/host_exit_unix_test.go	hooks: requireExitProcessKillsHelperChildren uses process state via syscall.Kill
+cmd/corvint	TestAHI049ExitProcessKillsProcgroupGroup	cmd/corvint/host_exit_unix_test.go	hooks: requireExitProcessKillsHelperChildren uses process state via syscall.Kill
+cmd/corvint	TestAHI048ExitProcessHelper	cmd/corvint/host_exit_unix_test.go	hooks: exitProcess uses process state via os.Exit
+cmd/corvint	TestAHI049ExitProcessProcgroupHelper	cmd/corvint/host_exit_unix_test.go	timing: TestAHI049ExitProcessProcgroupHelper uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactMixedCLIReadOnly	cmd/corvint/impact_freshness_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactRequireCleanCLI	cmd/corvint/impact_freshness_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestProveRefusesRequireClean	cmd/corvint/impact_freshness_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactTaskStoreProjectionDirtIsSourceCleanCLI	cmd/corvint/impact_freshness_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactTrackedTaskStoreProjectionIsNotEvidence	cmd/corvint/impact_freshness_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactCLIMatchesMCPOnRuby	cmd/corvint/impact_mcp_parity_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactLanguageProfileAnyPosition	cmd/corvint/impact_mcp_parity_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestImpactRangeRefusesGraftedAncestry_EEPV0770	cmd/corvint/impact_range_ancestry_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestMCPV0032PathImpactHonoursBudgetBytes	cmd/corvint/impact_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestMCPV0032ProveRefusesBudgetBytes	cmd/corvint/impact_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0064TwoRootImpact	cmd/corvint/impact_tworoot_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0066TwoRootImpactAtRevision	cmd/corvint/impact_tworoot_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0064TwoRootImpactRefusesInvalidLayout	cmd/corvint/impact_tworoot_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0067AffectedChecksTestRootPin	cmd/corvint/impact_tworoot_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSnapshotRefreshWorkerHelper	cmd/corvint/index_refresh_unix_test.go	hooks: mutates package state via snapshotRefreshSetpriority
+cmd/corvint	TestSnapshotRefreshCommitThenEvent	cmd/corvint/index_refresh_unix_test.go	hooks: refreshTestContext uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshSingleFlight	cmd/corvint/index_refresh_unix_test.go	hooks: refreshTestContext uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshStaleLock	cmd/corvint/index_refresh_unix_test.go	hooks: refreshTestContext uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshDisabledAndFailures	cmd/corvint/index_refresh_unix_test.go	hooks: TestSnapshotRefreshDisabledAndFailures uses process state via syscall.Mkfifo
+cmd/corvint	TestSnapshotRefreshSlowChild	cmd/corvint/index_refresh_unix_test.go	hooks: TestSnapshotRefreshSlowChild uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshInterrupted	cmd/corvint/index_refresh_unix_test.go	hooks: TestSnapshotRefreshInterrupted uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshCPUBudgetRetiresWorkThatIgnoresCancel_IDXSNAPV0912	cmd/corvint/index_refresh_unix_test.go	hooks: TestSnapshotRefreshCPUBudgetRetiresWorkThatIgnoresCancel_IDXSNAPV0912 uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshEffectivePriority	cmd/corvint/index_refresh_unix_test.go	hooks: TestSnapshotRefreshEffectivePriority uses process state via syscall.Getpriority
+cmd/corvint	TestSnapshotRefreshPriorityDenied	cmd/corvint/index_refresh_unix_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSnapshotRefreshPreviousOutcome	cmd/corvint/index_refresh_unix_test.go	timing: previousSnapshotRefresh uses time.Parse; keep its deadline/load assumptions serial
+cmd/corvint	TestSnapshotRefreshNoticeNamesPreviousOutcome	cmd/corvint/index_refresh_unix_test.go	hooks: refreshTestContext uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshPreviousOutcomeYieldsToOutputLimit	cmd/corvint/index_refresh_unix_test.go	hooks: refreshTestContext uses process state via syscall.Kill
+cmd/corvint	TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912	cmd/corvint/index_refresh_unix_test.go	timing: TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912 uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestInstructionDoctorFlagsAndDefaultWire	cmd/corvint/instruction_doctor_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestDogfoodEventGoPythonWireAndSession	cmd/corvint/local_completion_event_test.go	env: TestDogfoodEventGoPythonWireAndSession calls t.Setenv
+cmd/corvint	TestCodexHostAdapterNormalizesAndFramesNativeEvent	cmd/corvint/local_completion_event_test.go	env: TestCodexHostAdapterNormalizesAndFramesNativeEvent calls t.Setenv
+cmd/corvint	TestLocalCompletionFinishSignalHelper	cmd/corvint/local_completion_signal_unix_test.go	hooks: mutates package state via wrapFinishCommand
+cmd/corvint	TestLocalCompletionFrontierUnavailableNextActionOrReason	cmd/corvint/local_completion_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestLocalCompletionInactiveStatusGolden	cmd/corvint/local_completion_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestLocalCompletionUnavailableEvaluationReason	cmd/corvint/local_completion_test.go	hooks: runDogfoodFlow uses process state via signal.Stop
+cmd/corvint	TestCandidateHelperProcess	cmd/corvint/main_test.go	hooks: TestCandidateHelperProcess uses process state via os.Exit
+cmd/corvint	TestRunContextCancelsAnOpenStdinPipe	cmd/corvint/main_test.go	timing: TestRunContextCancelsAnOpenStdinPipe uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestAHI373MCPVerbOwnsItsArgumentsAndProfile	cmd/corvint/mcp_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestAHI373MCPProfiledHelper	cmd/corvint/mcp_test.go	hooks: TestAHI373MCPProfiledHelper uses process state via os.Exit
+cmd/corvint	TestMCPV0951MCPVerbReportsTheBuildVersion	cmd/corvint/mcp_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestMigrationRatchetCLIExitAndDeterministicReceipt	cmd/corvint/migration_ratchet_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestMigrationRatchetCLIRefusesMutableOrMalformedBinding	cmd/corvint/migration_ratchet_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestMigrationRatchetCLIHelperForms	cmd/corvint/migration_ratchet_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestMigrationRatchetCLIVerifiesRecordSourceSpans	cmd/corvint/migration_ratchet_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestMER098SealRefusesBadAcceptIncomparable	cmd/corvint/migration_ratchet_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestMER099SourceRootUnavailableOutsideGit	cmd/corvint/migration_ratchet_test.go	chdir: TestMER099SourceRootUnavailableOutsideGit changes the process directory
+cmd/corvint	TestNativeHookExecHelper	cmd/corvint/native_hook_test.go	hooks: TestNativeHookExecHelper uses process state via os.Exit
+cmd/corvint	TestNativeHookReplacementCanBeInterrupted	cmd/corvint/native_hook_test.go	hooks: TestNativeHookReplacementCanBeInterrupted uses process state via signal.String
+cmd/corvint	TestNonGoImpactCLIProfile	cmd/corvint/non_go_impact_cli_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestObligationsInputReadIsBounded	cmd/corvint/obligations_input_unix_test.go	hooks: TestObligationsInputReadIsBounded uses process state via syscall.Mkfifo
+cmd/corvint	TestCEMV1642ObligationsReviewerOverlay	cmd/corvint/obligations_overlay_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMV1135ObligationsStableMode	cmd/corvint/obligations_stable_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMV1639ObligationsAllowAbsentSidecar	cmd/corvint/obligations_stable_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestV11305StableReportOCM	cmd/corvint/ocm_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestPackQueryAndEventVerbsRereadARefusedBodyWithoutChangingAByte	cmd/corvint/pack_snapshot_test.go	hooks: mutates package state via loadSnapshot
+cmd/corvint	TestPiNativeStopReceipt	cmd/corvint/pi_adapter_test.go	chdir: TestPiNativeStopReceipt changes the process directory
+cmd/corvint	TestPiToolContextExpansion	cmd/corvint/pi_tools_test.go	chdir: TestPiToolContextExpansion changes the process directory
+cmd/corvint	TestPiToolRecord	cmd/corvint/pi_tools_test.go	chdir: TestPiToolRecord changes the process directory
+cmd/corvint	TestPiToolClosedInput	cmd/corvint/pi_tools_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestPUBV0027ImpactProducerIsAdditive	cmd/corvint/producer_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPUBV0027TestValidityProducerIsAdditive	cmd/corvint/producer_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPUBV0030DefaultReceiptsCarryNoProducer	cmd/corvint/producer_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestGPKV0084ImpactCapabilitiesListing	cmd/corvint/producer_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestGPKV0084ImpactCapabilitiesOutsideGitRoot	cmd/corvint/producer_test.go	chdir: TestGPKV0084ImpactCapabilitiesOutsideGitRoot changes the process directory
+cmd/corvint	TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged	cmd/corvint/producer_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPRBV0008EveryNamedCommandWritesProfiles	cmd/corvint/profile_knobs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestPRBV0006UnusableKnobRefusesCommand	cmd/corvint/profile_knobs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestPRBV0009HelpJSONListsProfileKnobScope	cmd/corvint/profile_knobs_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPRBV0013ProfileInsideWorktreeRefusesBeforeRead	cmd/corvint/profile_knobs_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestProveAttackAdmission	cmd/corvint/prove_attack_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestProveAttackFindsWeakConditionAndStrongTestKillsIt	cmd/corvint/prove_attack_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestProveAttackUnavailableAndDefault	cmd/corvint/prove_attack_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestCheckpointProcess	cmd/corvint/prove_checkpoint_test.go	hooks: TestCheckpointProcess uses process state via os.Exit
+cmd/corvint	TestCheckpointSnapshotLoadCounterSeesEverySeam	cmd/corvint/prove_checkpoint_test.go	hooks: mutates package state via countSnapshotLoads
+cmd/corvint	TestCheckpointReadsNoIndexSnapshotAndRetainsNothing	cmd/corvint/prove_checkpoint_test.go	hooks: mutates package state via countSnapshotLoads
+cmd/corvint	TestProveStatusDeadlineRefusesWithTheTimeoutCode	cmd/corvint/prove_status_timeout_test.go	env: TestProveStatusDeadlineRefusesWithTheTimeoutCode calls t.Setenv
+cmd/corvint	TestDirectStopRemainsSeparateAndRecursive	cmd/corvint/qualified_direct_test.go	hooks: replaceNativeHook uses process state via syscall.Exec
+cmd/corvint	TestQualifiedLifecycleSharedTargetProbesAndGitParity	cmd/corvint/qualified_lifecycle_test.go	env: TestQualifiedLifecycleSharedTargetProbesAndGitParity calls t.Setenv
+cmd/corvint	TestQualifiedLifecycleInvocationDeadline	cmd/corvint/qualified_lifecycle_test.go	timing: TestQualifiedLifecycleInvocationDeadline uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestQuerySharedObservationEmitsByteIdenticalOutput	cmd/corvint/query_shared_observation_test.go	env: TestQuerySharedObservationEmitsByteIdenticalOutput calls t.Setenv
+cmd/corvint	TestPRSV1920ReceiptAndRequirementReadsReportThePlatformRefusal	cmd/corvint/receipt_platform_refusal_test.go	hooks: mutates package state via readReceiptFile
+cmd/corvint	TestRecordTypedArgvRoundTripAndRefusal	cmd/corvint/record_argv_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRecordFreshRepositoryWithoutIgnore	cmd/corvint/record_fresh_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceMarkerBoundaries	cmd/corvint/repository_guidance_issues_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceSourceSuffixes	cmd/corvint/repository_guidance_issues_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceIndexFreshness	cmd/corvint/repository_guidance_issues_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceImmutableDiscovery	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceReviewBranches	cmd/corvint/repository_guidance_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceRefBoundsAndDrift	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceRefusalsDoNotObserve	cmd/corvint/repository_guidance_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceAncestryTrustAndDeadline	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceCandidateAndOverlapBounds	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceCLIAndLiteralRegistration	cmd/corvint/repository_guidance_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceCurrentRefDrift	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceCurrentRefExcludedBeforeBudget	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceCleanupFailureRefuses	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceDeletedFeatureIsExplicitUnknown	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidanceEmptyOverviewFieldsRemainExplicit	cmd/corvint/repository_guidance_test.go	hooks: openBoundedFile uses process state via syscall.Open
+cmd/corvint	TestRepositoryGuidancePrivateStatusBudget	cmd/corvint/repository_guidance_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceReviewAffectedInventoryCompleteness	cmd/corvint/repository_guidance_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceSnapshotPlanSharesTheAffectedTail_AFPV0930	cmd/corvint/repository_guidance_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed	cmd/corvint/repository_guidance_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRepositoryGuidanceFeaturesRoundTripToFeature	cmd/corvint/repository_guidance_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRPBV0004RecordAndRunRoundTrip	cmd/corvint/repro_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRPBV0006RunFailsAnUnmetExpectation	cmd/corvint/repro_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRPBV0003UnpinnableInputsRefuse	cmd/corvint/repro_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRPBV0002RunRefusesMalformedBundles	cmd/corvint/repro_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRPBV0047RelativeArgumentsResolveAgainstRoot	cmd/corvint/repro_test.go	chdir: TestRPBV0047RelativeArgumentsResolveAgainstRoot changes the process directory
+cmd/corvint	TestRequireCleanHonouredOrRefusedByEveryCommand	cmd/corvint/require_clean_commands_test.go	chdir: TestRequireCleanHonouredOrRefusedByEveryCommand changes the process directory
+cmd/corvint	TestPWRV0041_RunsBaselineCLI	cmd/corvint/runs_baseline_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0043_RunsBaselineOwnFailsClosed	cmd/corvint/runs_baseline_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0042_RunsBaselineRelativeRoot	cmd/corvint/runs_baseline_test.go	chdir: TestPWRV0042_RunsBaselineRelativeRoot changes the process directory
+cmd/corvint	TestPWRV0065_RunsIdentitySidecars	cmd/corvint/runs_closure_sidecar_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0067_RunsBaselineIdentitySource	cmd/corvint/runs_closure_sidecar_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0069_RunsStabilityPoolByClosure	cmd/corvint/runs_closure_sidecar_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0071_RunsIdentityClosureDigests	cmd/corvint/runs_closure_sidecar_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0072_RunsIdentityComputeClosures	cmd/corvint/runs_closure_sidecar_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0059_RunsInvalidArgumentsReason	cmd/corvint/runs_gh1896_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0063_RunsStabilityLast	cmd/corvint/runs_gh1896_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0060_RunsBaselineUnobserved	cmd/corvint/runs_gh1896_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0062_RunsBaselineNotAncestorSides	cmd/corvint/runs_gh1896_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPWRV0176_RunsJoinedOptionValue	cmd/corvint/runs_gh1896_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsIdentityCLI	cmd/corvint/runs_identity_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsIdentitySetupProjectPools	cmd/corvint/runs_identity_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsIdentityServedDigest	cmd/corvint/runs_identity_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsReusableCLI	cmd/corvint/runs_reuse_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsRedundancyCLI	cmd/corvint/runs_reuse_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsStabilityCLI	cmd/corvint/runs_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsCompareCLI	cmd/corvint/runs_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsRepeatAndShardCLI	cmd/corvint/runs_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestAFPV0825StaleCheckReusesThePlanHEAD	cmd/corvint/self_binary_afpv0825_unix_test.go	hooks: mutates package state via useAffectedUserCacheDir
+cmd/corvint	TestAFPV0825FailedOrSlowHEADReadIsUnverified	cmd/corvint/self_binary_afpv0825_unix_test.go	hooks: mutates package state via useAffectedUserCacheDir
+cmd/corvint	TestAffectedStaleBinaryMergedStreamStillParses	cmd/corvint/self_binary_merged_stream_test.go	hooks: mutates package state via stubSelfBuildInfo
+cmd/corvint	TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750	cmd/corvint/self_binary_notice_acx_test.go	hooks: mutates package state via stubSelfBuildInfo
+cmd/corvint	TestStaleBinaryNoticeOncePerInvocation_ACXV0751	cmd/corvint/self_binary_notice_acx_test.go	hooks: mutates package state via stubSelfBuildInfo
+cmd/corvint	TestSelfBinaryStaleIsReportedByAffectedAndTest	cmd/corvint/self_binary_test.go	hooks: mutates package state via stubSelfBuildInfo
+cmd/corvint	TestDogfoodFlowRefusesStaleBinary	cmd/corvint/self_binary_test.go	hooks: mutates package state via readExecutableBuildInfo
+cmd/corvint	TestSTRV0018CLIDryRunLaunchesNoRunner	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0010CLIRunWritesReceipt	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0003CLINoPlanRunsDeclaredScope	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0003CLIUnreadableDeclarationIsIncomplete	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0001CLIRefusesProtectedOutputPaths	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0009CLIShardsAndVerify	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0014CLISignalKillsRunAndExits	cmd/corvint/session_test_command_unix_test.go	hooks: TestSTRV0014CLISignalKillsRunAndExits uses process state via syscall.Kill
+cmd/corvint	TestSTRV0008CLIUsageRefusals	cmd/corvint/session_test_command_unix_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSTRV0008CLIBalancedShards	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0800CLIDryRunSummary	cmd/corvint/session_test_command_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0050CLIShardsPlan	cmd/corvint/session_test_shards_unix_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSTRV0054CLIMeasuredShards	cmd/corvint/session_test_shards_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0053CLIShardsOverTableBound	cmd/corvint/session_test_shards_unix_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSTRV0050ShardsInputReadIsBounded	cmd/corvint/session_test_shards_unix_test.go	hooks: TestSTRV0050ShardsInputReadIsBounded uses process state via syscall.Mkfifo
+cmd/corvint	TestSTRV0055ShardPlanReadIsBounded	cmd/corvint/session_test_shards_unix_test.go	hooks: TestSTRV0055ShardPlanReadIsBounded uses process state via syscall.Mkfifo
+cmd/corvint	TestSTRV0057CLIShardsSlices	cmd/corvint/session_test_shards_unix_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestSnapshotMissNoticeNamesTheBuild	cmd/corvint/snapshot_miss_notice_test.go	hooks: mutates package state via snapshotMissNoticeAfter
+cmd/corvint	TestStepPublicDispatchConformance	cmd/corvint/step_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestEnrolledStopSpawnsBoundedGit	cmd/corvint/stop_git_calls_test.go	env: TestEnrolledStopSpawnsBoundedGit calls t.Setenv
+cmd/corvint	TestDogfoodEventObservedMismatchFallsBack	cmd/corvint/stop_git_calls_test.go	env: TestDogfoodEventObservedMismatchFallsBack calls t.Setenv
+cmd/corvint	TestUnknownCommandSuggestsNearChoices_ACXV0859	cmd/corvint/suggest_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestCompileTaskContextRefusesAfterInstructionReads_IDXSNAPV0814	cmd/corvint/taskcontext_deferred_refusal_test.go	env: TestCompileTaskContextRefusesAfterInstructionReads_IDXSNAPV0814 calls t.Setenv
+cmd/corvint	TestRunTaskContextSubjectlessCounterparts	cmd/corvint/taskcontext_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRunTaskContextReservesAncestorInstructions	cmd/corvint/taskcontext_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestNTPV0008CommandBoundary	cmd/corvint/taskman_fixture_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTaskmanFixtureWriteFailureReportsDiagnostic	cmd/corvint/taskman_fixture_test.go	hooks: mutates package state via taskmanPreview
+cmd/corvint	TestSTRV0750CLIBinaryConsumerIsANamedCheck	cmd/corvint/test_consumer_strv0750_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0173GoParallelBindsTheManifest	cmd/corvint/test_go_parallel_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestSTRV0064CLINestedModuleRuns	cmd/corvint/test_module_strv0064_unix_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestAFPV0824SharedObservationPlansAsItsOwnRead	cmd/corvint/test_observe_afpv0824_unix_test.go	hooks: mutates package state via useAffectedUserCacheDir
+cmd/corvint	TestTSPV0944DryRunPinsNamesPinnedTests	cmd/corvint/test_pins_tspv0944_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestAFPV0822DryRunCachedPlanMatchesUncached	cmd/corvint/test_plan_cache_afpv0822_unix_test.go	hooks: mutates package state via observeAffectedCache
+cmd/corvint	TestANLV0014PageStateCLI	cmd/corvint/test_plan_pagestate_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0033PageStateDrift	cmd/corvint/test_plan_pagestate_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestANLV0011PrefixesCLI	cmd/corvint/test_plan_prefixes_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTestPlanConsolidateIsReadOnly	cmd/corvint/test_plan_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTestPlanRefusesInvalidUse	cmd/corvint/test_plan_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTestPlanCheckExitCodes	cmd/corvint/test_plan_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTestPlanHelp	cmd/corvint/test_plan_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTestPlanRefusesFIFO	cmd/corvint/test_plan_unix_test.go	hooks: TestTestPlanRefusesFIFO uses process state via syscall.Mkfifo
+cmd/corvint	TestSTRV0063DryRunSlicesTestOnlyChanges	cmd/corvint/test_slices_strv0063_unix_test.go	env: sliceFixture calls t.Setenv
+cmd/corvint	TestSTRV0063RemovedInitializationKeepsPackageWhole	cmd/corvint/test_slices_strv0063_unix_test.go	env: sliceFixture calls t.Setenv
+cmd/corvint	TestSTRV0070WrapperTestKeepsPackageWhole	cmd/corvint/test_slices_strv0070_unix_test.go	env: sliceFixture calls t.Setenv
+cmd/corvint	TestSTRV0071ImportChangesKeepPackageWhole	cmd/corvint/test_slices_strv0070_unix_test.go	env: sliceFixture calls t.Setenv
+cmd/corvint	TestSTRV0072SliceWalksDoNotGrowWithPackages	cmd/corvint/test_slices_strv0072_unix_test.go	hooks: mutates package state via bulkSlices
+cmd/corvint	TestSTRV0072BulkSliceReasonsMatchPerPackageSelect	cmd/corvint/test_slices_strv0072_unix_test.go	hooks: mutates package state via bulkSlices
+cmd/corvint	TestTSPV0006DryRunSlicesSourceChanges	cmd/corvint/test_source_slices_tspv0006_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestTSPV0861DryRunSlicesSourceAndTestChanges	cmd/corvint/test_source_slices_tspv0861_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestTSPV0864DryRunSlicesAdditiveDeclarations	cmd/corvint/test_source_slices_tspv0861_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestTSPV0941DryRunSeedsMovedDeclarations	cmd/corvint/test_source_slices_tspv0941_unix_test.go	env: sourceSliceFixture calls t.Setenv
+cmd/corvint	TestDryRunDefaultsToBoundedSummary	cmd/corvint/test_summary_strv0800_test.go	env: sessionFixture calls t.Setenv
+cmd/corvint	TestNegateExecsProviderPrintsAndRetains	cmd/corvint/test_validity_negate_unix_test.go	env: negateFixture calls t.Setenv
+cmd/corvint	TestNegateRefusalsAndBusyEvidence	cmd/corvint/test_validity_negate_unix_test.go	env: negateFixture calls t.Setenv
+cmd/corvint	TestNegateLocksScreenedTitle	cmd/corvint/test_validity_negate_unix_test.go	env: negateFixture calls t.Setenv
+cmd/corvint	TestSTRV0073CommandNamesHeavyWholeReasonInBothModes	cmd/corvint/test_whole_reason_cli_unix_test.go	env: sliceFixture calls t.Setenv
+cmd/corvint	TestTestsDuplicatesDecisionsCLI	cmd/corvint/tests_duplicates_decisions_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestRunsResponseWaitCLI	cmd/corvint/tests_env_contract_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsRoleLocatorsAndEnvCLI	cmd/corvint/tests_env_contract_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsSetupSelectProviderHandoffLive	cmd/corvint/tests_setup_select_handoff_live_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsTeardownCLI	cmd/corvint/tests_teardown_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsCLI	cmd/corvint/tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsLintAdvisoryCLI	cmd/corvint/tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsValidityCLI	cmd/corvint/tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTSAV0108SeedParityCLI	cmd/corvint/tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsCitationsCLI	cmd/corvint/tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsExampleJoinCLI	cmd/corvint/tests_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestTestsUnselectedCLI	cmd/corvint/tests_unselected_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestASDV0927CopiedBinaryStartOutlastsLoadedFork	cmd/corvint/text_busy_start_test.go	timing: TestASDV0927CopiedBinaryStartOutlastsLoadedFork uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestUseCaseHostileTaskOrientation	cmd/corvint/usecase_hostile_task_orientation_test.go	env: TestUseCaseHostileTaskOrientation calls t.Setenv
+cmd/corvint	TestPRSV1020VersionJSONNamesVerbsAndHosts	cmd/corvint/version_json_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPUBV0050VersionJSONStatesSourceCommit	cmd/corvint/version_json_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestPUBV0053PlainVersionLineFormat	cmd/corvint/version_json_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestCEMV1160WitnessStableRoute	cmd/corvint/witness_stable_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkAdapterProcess	cmd/corvint/work_adopt_test.go	hooks: TestWorkAdapterProcess uses process state via os.Exit
+cmd/corvint	TestWorkInitRejectsUnqualifiedExecutableWQOV0049	cmd/corvint/work_adopt_test.go	hooks: mutates package state via workBoundCorvint
+cmd/corvint	TestWorkInitAdmitsAStickyParentWQOV0910	cmd/corvint/work_adopt_test.go	hooks: mutates package state via workBoundCorvint
+cmd/corvint	TestWorkInitBindsResolvedSymlinkTargetWQOV0049	cmd/corvint/work_adopt_test.go	hooks: mutates package state via workBoundCorvint
+cmd/corvint	TestWorkExecutableMissingAndSymlinkSwapWQOV0049	cmd/corvint/work_adopt_test.go	hooks: mutates package state via workBoundCorvint
+cmd/corvint	TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed	cmd/corvint/work_materialization_flock_test.go	hooks: mutates package state via workGitRetirementBound
+cmd/corvint	TestWorkChildEnvironmentUserCache	cmd/corvint/work_materialization_test.go	hooks: mutates package state via workUserCacheDir
+cmd/corvint	TestWorkRunParentOverride	cmd/corvint/work_materialization_test.go	env: TestWorkRunParentOverride calls t.Setenv
+cmd/corvint	TestWorkSelfAdapterStandaloneInterruption	cmd/corvint/work_materialization_unix_test.go	hooks: TestWorkSelfAdapterStandaloneInterruption uses process state via syscall.Kill
+cmd/corvint	TestWorkCloseRetiresKilledProducerGit	cmd/corvint/work_materialization_unix_test.go	hooks: TestWorkCloseRetiresKilledProducerGit uses process state via syscall.Kill
+cmd/corvint	TestWorkSourceRefusalNeverLaunchesAdapter	cmd/corvint/work_observe_test.go	env: TestWorkSourceRefusalNeverLaunchesAdapter calls t.Setenv
+cmd/corvint	TestWorkProcessHelper	cmd/corvint/work_process_unix_test.go	hooks: TestWorkProcessHelper uses process state via os.Exit
+cmd/corvint	TestWorkRunnerGroupDescendantCleanup	cmd/corvint/work_process_unix_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkRunnerEscapedPipeHolder	cmd/corvint/work_process_unix_test.go	timing: TestWorkRunnerEscapedPipeHolder uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkRunnerCoordinatorInterruptionGuardian	cmd/corvint/work_process_unix_test.go	hooks: TestWorkRunnerCoordinatorInterruptionGuardian uses process state via syscall.Kill
+cmd/corvint	TestWorkDrainCaptureIgnoresHostStalls	cmd/corvint/work_runner_drain_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkDrainCaptureExpiresWhileAwake	cmd/corvint/work_runner_drain_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkDrainCaptureHangDetector	cmd/corvint/work_runner_drain_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkDrainCaptureStopsOnCancellation	cmd/corvint/work_runner_drain_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkDrainCaptureCopyError	cmd/corvint/work_runner_drain_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestV11036WorkRunnerResidueIsObservedBeforeReap	cmd/corvint/work_runner_prereap_test.go	hooks: mutates package state via workWaitResidue
+cmd/corvint	TestV12433WorkRunnerRetriesTextBusyAdapterStart	cmd/corvint/work_runner_prereap_test.go	hooks: mutates package state via workStartLive
+cmd/corvint	TestPGOV0009WorkRunnerRecordsItsGroupForTheExitKill	cmd/corvint/work_runner_prereap_test.go	hooks: mutates package state via workStartLive
+cmd/corvint	TestWorkRunnerInterpreterQualification	cmd/corvint/work_runner_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkRunnerExecutableSwap	cmd/corvint/work_runner_test.go	timing: run uses time.After; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkRunnerTranscripts	cmd/corvint/work_runner_test.go	timing: TestWorkRunnerTranscripts uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestWorkHangDetectorNamesItsCause	cmd/corvint/work_runner_test.go	hooks: mutates package state via workHangBound
+cmd/corvint	TestPGOV0009WorkVersionProbeKillsItsGroupBeforeTheReap	cmd/corvint/work_version_group_unix_test.go	hooks: TestPGOV0009WorkVersionProbeKillsItsGroupBeforeTheReap uses process state via syscall.Kill
+cmd/corvint	TestWSDV0146SingleRootVerbsRefuseWorkspace	cmd/corvint/workspace_guard_test.go	timing: runContext uses time.Now; keep its deadline/load assumptions serial
+cmd/corvint	TestExecutableBuildHelpersHonorSharedGoCache	cmd/corvint/build_cache_pk_test.go	env: replaces PATH, CORVINT_GOCACHE and GOCACHE for fake-builder isolation
+cmd/corvint	TestAHI860ClaudePluginHandshakeAcrossProjectDirShapes	cmd/corvint/plugin_mcp_handshake_test.go	hooks: spare non-repository fixture requires a temp parent without the sandbox placeholder .git; concurrent qualification unavailable
+cmd/corvint	TestTSPV0785ParsedFilesAreReusedAndEqual	cmd/corvint/test_source_slices_tspv0785_test.go	hooks: clears and counts the process-wide parsed-source cache
+cmd/corvint	TestWorkInitBindsExplicitExecutableWQOV0049	cmd/corvint/work_adopt_test.go	hooks: exact executable materialization requires a host scratch directory with admissible ancestor ownership
+cmd/corvint	TestWorkExecutableChangeRequiresReviewedRebindWQOV0050	cmd/corvint/work_adopt_test.go	hooks: exact executable materialization requires a host scratch directory with admissible ancestor ownership
+cmd/corvint	TestWorkSourceUnqualifiedNamesReasonWQOV0051	cmd/corvint/work_adopt_test.go	hooks: source qualification requires ordinary Git metadata without sandbox placeholder ancestors
+cmd/corvint	TestWorkScratchRootFollowsOverride	cmd/corvint/work_scratch_parent_test.go	env: scratch ancestor ownership must be admissible; lane sandbox has root-owned mount ancestors
+cmd/corvint	TestAffectedTempFailureReportsSelectedTMPDIR	cmd/corvint/affected_temp_pk_test.go	env: replaces TMPDIR to pin the operator-selected failing scratch path

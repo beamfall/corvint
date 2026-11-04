@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -23,7 +24,7 @@ import (
 )
 
 // affectedOrder is the opt-in fail-fast order of a compact plan's selection
-// (AFP-V0-2487): the units a recent local `corvint test` receipt records as
+// (TSP-V0-7305): the units a recent local `corvint test` receipt records as
 // failing first, each group in plan.selected order. It only reorders: it
 // names exactly the selected units and changes no other member.
 type affectedOrder struct {
@@ -74,7 +75,7 @@ var affectedOrderKey = []string{"recent-local-failure", "plan-order"}
 var failFastReceiptName = regexp.MustCompile(`^test-run(\.[0-9]+)?\.json$`)
 
 // affectedFailFastOrder adds the fail-fast order to a compact receipt, reading
-// the `corvint test` receipts under root's Git directory (AFP-V0-2487). Every
+// the `corvint test` receipts under root's Git directory (TSP-V0-7305). Every
 // other member is returned unchanged.
 func affectedFailFastOrder(ctx context.Context, root string, receipt any) (any, error) {
 	compact, ok := receipt.(affectedCompactReceipt)
@@ -130,14 +131,14 @@ func orderAffectedSelection(selected []affectedCompactSelection, receipts []affe
 }
 
 // readFailFastReceipts reads at most maxFailFastReceipts `corvint test`
-// receipts under gitDir/corvint: the most recently modified, ties broken by
+// receipts under gitDir/corvint: newest completedAt, or mtime when absent, ties broken by
 // name, listed in name order. A receipt that cannot be read, is not canonical,
 // or changes while read is UNREADABLE with its reason and contributes no
 // failure. An absent directory reads nothing; a directory that exists but
 // cannot be listed returns no receipt and the reason as unlisted.
 func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlisted string) {
 	directory := filepath.Join(gitDir, "corvint")
-	entries, err := os.ReadDir(directory)
+	entries, err := readFailFastDirectory(directory)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, ""
 	}
@@ -153,11 +154,21 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 		if !entry.Type().IsRegular() || !failFastReceiptName.MatchString(entry.Name()) {
 			continue
 		}
-		// A receipt whose metadata cannot be read sorts as the oldest; its
-		// read below then reports why it is UNREADABLE.
+		// A metadata failure is disclosed even if the receipt is outside the
+		// retained set (TSP-V0-7305); it contributes no recency claim.
 		var modified time.Time
 		if info, err := entry.Info(); err == nil {
 			modified = info.ModTime()
+			if completed, ok := failFastContentTime(filepath.Join(directory, entry.Name())); ok {
+				modified = completed
+			}
+		} else {
+			if unlisted != "" {
+				unlisted += "; "
+			}
+			if len(unlisted) < 4096 {
+				unlisted += "receipt metadata unreadable: corvint/" + entry.Name()
+			}
 		}
 		candidates = append(candidates, candidate{entry.Name(), modified})
 	}
@@ -179,7 +190,7 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 	for _, name := range names {
 		receipts = append(receipts, readFailFastReceipt(directory, name))
 	}
-	return receipts, ""
+	return receipts, unlisted
 }
 
 func readFailFastReceipt(directory, name string) affectedOrderReceipt {
@@ -221,4 +232,40 @@ func readFailFastReceipt(directory, name string) affectedOrderReceipt {
 	}
 	sort.Strings(result.Failed)
 	return result
+}
+
+var readFailFastDirectory = os.ReadDir
+
+// failFastContentTime reads only a bounded header for ordering; a missing,
+// invalid or over-bound timestamp falls back to mtime. Strict receipt admission
+// still happens after retention. completedAt precedes invocations in canonical JSON.
+func failFastContentTime(name string) (time.Time, bool) {
+	file, err := os.Open(name)
+	if err != nil {
+		return time.Time{}, false
+	}
+	defer file.Close()
+	decoder := json.NewDecoder(io.LimitReader(file, 64<<10))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return time.Time{}, false
+	}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		if key == "completedAt" {
+			var stamp string
+			if decoder.Decode(&stamp) != nil {
+				break
+			}
+			parsed, err := time.Parse(time.RFC3339Nano, stamp)
+			return parsed, err == nil && !parsed.IsZero()
+		}
+		var skip json.RawMessage
+		if decoder.Decode(&skip) != nil {
+			break
+		}
+	}
+	return time.Time{}, false
 }

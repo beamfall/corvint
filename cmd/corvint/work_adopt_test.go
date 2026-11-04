@@ -95,7 +95,7 @@ func workBuildExecutable(path string, flags ...string) error {
 	}
 	arguments := append(append([]string{"build", "-trimpath"}, flags...), "-o", path, ".")
 	command := exec.Command("go", arguments...)
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(os.TempDir(), "corvint-go-build-cache"))
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+executableTestGoCache())
 	if output, err := command.CombinedOutput(); err != nil {
 		return errors.New(err.Error() + ": " + string(output))
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -26,6 +27,7 @@ func (byPathLanguage) Units(context.Context, string) (affected.Result, error) {
 // AFP-V0-990 (V1-3648): --by-path lists the units every named path selects
 // through an unbounded reader once, then only each path's own additions.
 func TestAFPV0990ByPathSeparatesSharedUnboundedReaders(t *testing.T) {
+	t.Parallel()
 	graph, err := affected.Build(context.Background(), t.TempDir(), byPathLanguage{})
 	if err != nil {
 		t.Fatal(err)
@@ -33,15 +35,15 @@ func TestAFPV0990ByPathSeparatesSharedUnboundedReaders(t *testing.T) {
 	paths := []string{"docs/a.md", "docs/b.md"}
 	union := affected.Select(graph, paths)
 	result := affectedByPath(affectedReceipt{Revision: "r", Plan: union}, graph, paths)
-	if len(result.Shared) != 1 || result.Shared[0].UnitID != "go:any" || result.Shared[0].Witness != affected.WitnessUnboundedReader {
+	if len(result.Shared) != 1 || result.Shared[0].UnitID != "go:any" || result.Shared[0].Witness.Kind != affected.WitnessUnboundedReader {
 		t.Fatalf("shared=%+v union=%+v", result.Shared, union.Selected)
 	}
 	if len(result.Paths) != 2 {
 		t.Fatalf("paths=%+v", result.Paths)
 	}
-	for index, want := range []affectedByPathUnit{{UnitID: "go:a", TestCount: 1, Witness: affected.WitnessPathLiteralReader}, {UnitID: "go:b", TestCount: 2, Witness: affected.WitnessPathLiteralReader}} {
+	for index, want := range []affectedByPathUnit{{UnitID: "go:a", TestCount: 1, Witness: affectedCompactWitness{Kind: affected.WitnessPathLiteralReader}}, {UnitID: "go:b", TestCount: 2, Witness: affectedCompactWitness{Kind: affected.WitnessPathLiteralReader}}} {
 		entry := result.Paths[index]
-		if entry.Path != paths[index] || entry.Shared != 1 || len(entry.Additions) != 1 || entry.Additions[0] != want {
+		if entry.Path != paths[index] || entry.Shared != 1 || len(entry.Additions) != 1 || (entry.Additions[0].UnitID != want.UnitID || entry.Additions[0].TestCount != want.TestCount || entry.Additions[0].Witness.Kind != want.Witness.Kind) {
 			t.Errorf("path %d = %+v, want shared 1 and addition %+v", index, entry, want)
 		}
 	}
@@ -58,6 +60,7 @@ func TestAFPV0990ByPathSeparatesSharedUnboundedReaders(t *testing.T) {
 
 // AFP-V0-990: --by-path needs a path list and is not the --full wire.
 func TestAFPV0990ByPathArguments(t *testing.T) {
+	t.Parallel()
 	for _, arguments := range [][]string{{"--by-path"}, {"--by-path", "--full", "--path", "a.go"}, {"--by-path", "--by-path", "--path", "a.go"}, {"--by-path=1", "--path", "a.go"}} {
 		if _, err := parseAffectedOptions(arguments); err == nil {
 			t.Errorf("%q accepted", arguments)
@@ -66,5 +69,37 @@ func TestAFPV0990ByPathArguments(t *testing.T) {
 	invocation, err := parseAffectedOptions([]string{"--by-path", "--path", "a.go", "b.go", "--format", "text"})
 	if err != nil || !invocation.ByPath || len(invocation.PathList) != 2 {
 		t.Fatalf("%+v %v", invocation, err)
+	}
+}
+
+// TSP-V0-7311: one object decoder handles full, compact and by-path witnesses.
+func TestWitnessFormsShareOneObjectDecoder(t *testing.T) {
+	t.Parallel()
+	graph, err := affected.Build(context.Background(), t.TempDir(), byPathLanguage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"docs/a.md"})
+	compact, _ := compactAffectedSelections(plan.Selected)
+	byPath := affectedByPath(affectedReceipt{Plan: plan}, graph, []string{"docs/a.md"})
+	for _, object := range []any{plan.Selected[0], compact[0], byPath.Shared[0], byPath.Paths[0].Additions[0]} {
+		body, err := json.Marshal(object)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decoded struct {
+			Witness struct {
+				Kind      string   `json:"kind"`
+				DirtyPath string   `json:"dirtyPath"`
+				ViaLength int      `json:"viaLength"`
+				Via       []string `json:"via,omitempty"`
+			} `json:"witness"`
+		}
+		if err := json.Unmarshal(body, &decoded); err != nil {
+			t.Fatalf("one decoder refused %s: %v", body, err)
+		}
+		if decoded.Witness.Kind == "" || decoded.Witness.ViaLength < 1 {
+			t.Fatalf("incomplete witness: %s", body)
+		}
 	}
 }

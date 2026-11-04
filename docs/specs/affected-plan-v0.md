@@ -28,6 +28,12 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
 
 ## Requirements
 
+
+
+
+
+
+
 - **AFP-V0-001:** The command MUST be read-only: one bounded `git status`, one HEAD identity read,
   one source walk, at most two bounded advice-declaration reads (AFP-V0-009), one bounded
   read-scope declaration read (AFP-V0-023), one bounded binary-exec declaration read
@@ -6627,3 +6633,9 @@ retained documentation checks. All other mandatory checks and AFP-V0-016 control
 remain. (accepted (decision 0431); amended by decision 0431) It does not alter this planner's
 UNKNOWN scope or enable general Go selection; AFP-V0-028/029 govern queue-backstopped general
 Go narrowing without the historical campaign. Missing or stale DCI qualification runs FULL.
+
+### Selection repair companion
+
+The bounded diagnostics, witness projection, receipt-ordering and qualification refinements
+requested by the pk-affected lane live in [Test Selection Precision V0](test-selection-precision-v0.md).
+This contract remains at its 256-obligation limit.

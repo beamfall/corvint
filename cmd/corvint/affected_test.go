@@ -1209,6 +1209,7 @@ func resolveCompactAdvice(t *testing.T, compact map[string]any) any {
 // entries by one count line instead of repeating each, keeps every
 // advice-specific line, and resolves to the --full advice.
 func TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown(t *testing.T) {
+	t.Parallel()
 	planUnknown := []affected.Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "python:dynamic-import"}, {Reason: "UNOWNED_DIRTY_PATH", Detail: "docs/x.md"}}
 	full := []string{"LANGUAGE_FRONTIER: python:dynamic-import", "NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION", "UNOWNED_DIRTY_PATH: docs/x.md"}
 	got := compactAffectedAdvice(affectedAdvice{Unknown: full}, nil, planUnknown).Unknown

@@ -186,6 +186,7 @@ func TestCEMV1569StableReleaseReadiness(t *testing.T) {
 // leaves OPEN only once the release gate integrates the stable-result reader,
 // and its status stays experimental and unpromoted (CEM-V1-604).
 func TestCEMV1604MigrationA02Integrated(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../protocol/cem-1.0/stable/MIGRATION.json")
 	if err != nil {
 		t.Fatal(err)

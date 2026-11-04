@@ -31,6 +31,7 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 
 ## Requirements
 
+
 - `ASD-V0-001`: One shared repository-owned stage guide maps every inventoried family to an applicable trigger, exact admitted surface, existing authority, retained evidence and explicit exclusion. This is practical self-use coverage, never formal FULL.
 - `ASD-V0-002`: Both generic host skills use the shared guide only when repository-owned instructions opt in and the repository-owned guide exists. Corvint self-development opts in explicitly; unrelated repositories retain existing fallback without looking for Corvint-only documentation. Preserve native identity and explicit Claude key/root rules. Read-only questions select relevant read routes without requiring the full self-use loop.
 - `ASD-V0-003`: A real source-change slice captures original task context, appropriate impact and dirty affected advice, then challenges relevant evidence with prove. Source reads and chosen tests follow the returned evidence or retain an explicit reason for widening.
@@ -754,3 +755,9 @@ Roll back `ASD-V0-980` to `ASD-V0-985` by reverting each one's commit on `claude
 Roll back `ASD-V0-2370` by removing `script/check-stray-backups.sh`, its test, the two Makefile targets and their `DOC_GATE_TARGETS`, `GATE_STEPS` and `shell-test` entries, and the `STATIC_GATES` member and `static_fix` line of `script/batch-precheck.sh`; a stray leftover is then caught only in review. Roll back `ASD-V0-2371` and `ASD-V0-2372` by reverting the prologue and header of `script/lane-scripts_test.sh` and its `ASD-V0-2372` group; the suite then again writes inherited-`TMPDIR` scratch into the caller's `TMPDIR` and never exercises the probe itself. No product, state or wire format changes.
 
 Roll back `ASD-V0-2420` by reverting the snapshot export and the two brief-header lines in `script/lane-dispatch.sh`, their `lane-scripts-test` assertions and the section 14 and skill lines; lanes then read only the per-ticket bodies. Roll back `ASD-V0-2421` by reverting `stagedSnapshotHint`; the miss then names only the `CTS-V0-680` export route.
+
+### Selection repair companion
+
+The bounded diagnostics, witness projection, receipt-ordering and qualification refinements
+requested by the pk-affected lane live in [Test Selection Precision V0](test-selection-precision-v0.md).
+This contract remains at its 256-obligation limit.

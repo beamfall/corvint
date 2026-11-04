@@ -94,6 +94,7 @@ func TestPUBV0050VersionJSONStatesSourceCommit(t *testing.T) {
 // TestPUBV0051UnstampedBuildOmitsBuild (V1-2839): an unstamped binary never
 // reports a constant build 0 in --version --json; the member is omitted.
 func TestPUBV0051UnstampedBuildOmitsBuild(t *testing.T) {
+	t.Parallel()
 	for _, stamp := range []string{"0", ""} {
 		if identity := versionIdentityFrom("1.0.0-rc.3", stamp, "", nil); identity.Build != producerUnstamped {
 			t.Fatalf("build %q: %+v", stamp, identity)
@@ -108,6 +109,7 @@ func TestPUBV0051UnstampedBuildOmitsBuild(t *testing.T) {
 // builder stamped with both its build number and source commit reports the
 // compiled VERSION; every other build reports a pre-release of it.
 func TestPUBV0052UnreleasedBuildIsPreRelease(t *testing.T) {
+	t.Parallel()
 	commit := strings.Repeat("e", 40)
 	for name, test := range map[string]struct {
 		version, build, stamp, display string
