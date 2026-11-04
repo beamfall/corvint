@@ -74,3 +74,16 @@ expanded to direct multi-package Go tests, contrary to the lane rule; its
 focused checks were then rerun one package at a time through script/heavy.sh.
 The handback retains the exact commands, failed attempts and coverage unknowns.
 No token-saving or independent outcome claim is made.
+
+## Observed final-check blocker: separate sandbox mounts
+
+The first real final check reached verifier agreement but refused dogfood-report-write.
+Both paths were writable. A bounded rename probe confirmed errno 18 EXDEV from
+`/home/russell/projects/corvint/.git/worktrees/cx-dogfood/corvint/` to the worktree's
+`.corvint/` despite matching device numbers. DWC-V0-048 records the necessary integration
+repair: keep the existing Git-directory stage, and only on EXDEV publish the same checked
+bytes through a private destination-directory temporary file. All temporary files are
+removed and an unsuccessful publication leaves the old report intact. Other failures
+still refuse. `TestDWCV0048ReportPublicationAcrossMounts` covers success and a refused
+second rename without truncation. This fixes the observed lane blocker; it grants no
+verification exception and does not change CEM wire semantics.

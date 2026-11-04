@@ -1111,10 +1111,7 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	// Stage in the Git directory and rename, so an interrupted write never
 	// leaves a truncated report or an unignored file in the worktree.
 	staged := filepath.Join(c.gitDir, "corvint-dogfood-report.json.tmp")
-	if err := os.WriteFile(staged, []byte(strings.Join(lines, "\n")+"\n"), 0o666); err != nil {
-		return err
-	}
-	return os.Rename(staged, c.report)
+	return publishDogfoodReport(staged, c.report, []byte(strings.Join(lines, "\n")+"\n"), os.Rename)
 }
 
 func (c *check) unboundNotObserved(reason string) {

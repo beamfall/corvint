@@ -112,6 +112,15 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   Heads are full Git SHAs; an unproduced bind or seal MUST explicitly say NOT_PRODUCED and why,
   so a lane delegated to stop after check never invents a seal. No ticket or issue writes occur.
 
+- `DWC-V0-048`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4545
+  observed final-check blocker) If the check report's atomic rename from the Git directory
+  fails EXDEV because metadata and worktree are separate mounts, the check MUST stage the
+  same checked bytes in a private temporary file beside the destination and atomically rename
+  it there. It MUST clean both staging files on success or failure, preserve the old report
+  on failure, and retain refusal for every other publication error. This grants no verifier,
+  policy or review exception. Evidence: `TestDWCV0048ReportPublicationAcrossMounts` and the
+  lane's actual final check. Rollback: remove this fallback; cross-mount checks refuse again.
+
 ## Failure modes
 
 | Condition | Required observation |
@@ -132,6 +141,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-044` | `TestDWCV0044RebindStopsBeforeCascadingFailures` | implemented; focused regression PASS |
 | `DWC-V0-045` | `TestDWCV0045RefreshDraftsNewHunkFromItsOwnContent`, `TestProposeCitationsDCWV0842RefreshAcrossAMainlineMerge` | implemented; focused regressions PASS |
 | `DWC-V0-046` | `TestDWCV0046ExternalReviewSeal`, `make review-head-check-test` | implemented; native and wrapper regressions PASS |
+| `DWC-V0-048` | `TestDWCV0048ReportPublicationAcrossMounts` | focused publication regression |
 | `DWC-V0-047` | `TestDWCV0047HandbackCumulativeTickets` | implemented; template/lint regression PASS |
 
 ## Non-goals and limits
