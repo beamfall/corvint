@@ -190,7 +190,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	imports := make(map[string]map[string]bool, len(directories))
 	testImports := make(map[string]map[string]bool, len(directories))
 	ordered := sortedKeys(directories)
-	observedDirectories := language.observeDirectories(root, owners, directories, ordered)
+	observedDirectories := language.observeDirectories(root, owners, directories, ordered, packageDirectories(ordered, manifests))
 	embedding := make(map[int][]string)
 	for offset, directory := range ordered {
 		observation := observedDirectories[offset]
@@ -333,13 +333,13 @@ type directoryObservation struct {
 // files concurrently, so its directories are observed by a bounded pool; each
 // result lands at its directory's offset and the caller merges them in order,
 // so the units, edges and frontier are those of the serial pass.
-func (language Language) observeDirectories(root *affected.Source, owners map[string]module, directories map[string][]string, ordered []string) []directoryObservation {
+func (language Language) observeDirectories(root *affected.Source, owners map[string]module, directories map[string][]string, ordered, packages []string) []directoryObservation {
 	observations := make([]directoryObservation, len(ordered))
 	observe := func(offset int) {
 		directory := ordered[offset]
 		observation := &observations[offset]
 		observation.frontier = map[string]bool{}
-		observation.unit, observation.imports, observation.testImports, observation.command, observation.embeds, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], observation.frontier)
+		observation.unit, observation.imports, observation.testImports, observation.command, observation.embeds, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], packages, observation.frontier)
 	}
 	workers := min(runtime.GOMAXPROCS(0), observeWorkers, len(ordered))
 	if !root.ConcurrentReads() || workers < 2 {
@@ -371,7 +371,7 @@ const observeWorkers = 8
 // whether a non-test file declares package main (a command, AFP-V0-037). It
 // also returns the patterns of the non-test files' //go:embed directives; a
 // file whose directives do not parse contributes none (AFP-V0-600).
-func (Language) observeDirectory(root *affected.Source, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, bool, []string, error) {
+func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, bool, []string, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
@@ -444,7 +444,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			if !scan.fixtureOnly(name, isTest) {
 				names[name] = true
 			}
-			if reason := escapesPackage(directory, name, isTest); reason != "" {
+			if reason := escapesPackage(directory, name, isTest); reason != "" && !leafPattern(directory, name, isTest, packages) {
 				reads.mark(relative+" "+reason, isTest)
 			}
 		}

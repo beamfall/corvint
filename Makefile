@@ -137,6 +137,7 @@ GATE_STEPS = \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
+  walk-skipdir-check \
   # end of GATE_STEPS: add a step above, in sorted order, ending its line with a backslash
 .PHONY: gate
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS)) ## Run the exhaustive repository gate (heavy)
@@ -724,6 +725,11 @@ stray-backups-test:
 test-exec-writes-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-exec-writes-check
 
+# ASD-V0-2476 (V1-4511): a walk callback returns SkipDir only for a directory entry.
+.PHONY: walk-skipdir-check
+walk-skipdir-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/walk-skipdir-check
+
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
 .PHONY: host-package-version-bump
@@ -1147,7 +1153,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check walk-skipdir-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates

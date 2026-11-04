@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -119,4 +120,47 @@ func escapesPackage(directory, value string, test bool) string {
 		return fmt.Sprintf("carries the literal %q, which reaches the repository root", value)
 	}
 	return ""
+}
+
+// leafPattern reports whether value, a token of a test file in directory, is a
+// relative package pattern ("./..." or "./NAME/...") whose subtree holds no
+// directory of packages but directory itself (AFP-V0-2542, V1-4512). With the
+// package directory as the working directory, such a pattern reaches what "."
+// reaches, so rule (d) does not make it an unbounded read. packages lists every
+// directory that holds a Go file outside testdata or a nested go.mod, as packageDirectories builds it.
+func leafPattern(directory, value string, test bool, packages []string) bool {
+	inner, pattern := strings.CutSuffix(value, "/...")
+	if !test || !pattern || (inner != "." && !strings.HasPrefix(inner, "./")) {
+		return false
+	}
+	for _, component := range strings.Split(inner, "/")[1:] {
+		if component == "" || component == "." || component == ".." || strings.Contains(component, "...") {
+			return false
+		}
+	}
+	if directory == "" {
+		directory = "."
+	}
+	subtree := path.Join(directory, inner)
+	for _, candidate := range packages {
+		if candidate == "" {
+			candidate = "."
+		}
+		if candidate != directory && (subtree == "." || candidate == subtree || strings.HasPrefix(candidate, subtree+"/")) {
+			return false
+		}
+	}
+	return true
+}
+
+// packageDirectories lists the directories leafPattern counts: each observed
+// package directory and each go.mod directory outside testdata.
+func packageDirectories(ordered, manifests []string) []string {
+	directories := slices.Clone(ordered)
+	for _, manifest := range manifests {
+		if directory := path.Dir(manifest); !inTestdata(directory) {
+			directories = append(directories, directory)
+		}
+	}
+	return directories
 }

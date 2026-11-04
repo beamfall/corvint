@@ -144,6 +144,10 @@ type finding struct {
 	// is a finding, not an abort, so one run reports every package
 	// (ASD-V0-612).
 	refusal string
+	// dropped marks a package HEAD declared and the working tree does not,
+	// whose tests are now unbounded and absent from the unbounded-readers
+	// units (AFP-V0-2541); file and path are then empty.
+	dropped bool
 }
 
 // rootLocator names the first test-file literal of a package that locates the
@@ -1105,7 +1109,70 @@ func check(root string) ([]finding, []string, error) {
 		}
 	}
 	slices.Sort(stale)
-	return findings, stale, nil
+	return append(findings, droppedUnrecorded(root, graph)...), stale, nil
+}
+
+// droppedUnrecorded reports each package whose declaration the working tree
+// drops while its tests, now unbounded, are not in units of the
+// unbounded-readers record (AFP-V0-2541, V1-4532). That ratchet compares sets,
+// so dropping a declaration also needs a units entry; an unreadable record is
+// left to unbounded-readers-check.
+func droppedUnrecorded(root string, graph *affected.Graph) []finding {
+	dropped := droppedDeclarations(root)
+	if len(dropped) == 0 {
+		return nil
+	}
+	var record struct {
+		Units []string `json:"units"`
+	}
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(unboundedPath)))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) || err == nil && json.Unmarshal(raw, &record) != nil {
+		return nil
+	}
+	unbounded := map[string]bool{}
+	for _, id := range graph.UnboundedReaders() {
+		if unit, ok := graph.Unit(id); ok && len(unit.Tests) > 0 && strings.HasPrefix(id, "go:") {
+			unbounded[path.Dir(unit.Tests[0])] = true
+		}
+	}
+	var findings []finding
+	for _, directory := range dropped {
+		if unbounded[directory] && !slices.Contains(record.Units, directory) {
+			findings = append(findings, finding{pkg: directory, dropped: true})
+		}
+	}
+	return findings
+}
+
+// droppedDeclarations lists, sorted, the package directories that HEAD's
+// committed declaration names and the working tree's copy no longer does. Without Git,
+// a commit or a readable committed declaration it lists none. tools/unbounded-readers holds
+// the same reader; the two main packages cannot share it.
+func droppedDeclarations(root string) []string {
+	// "HEAD:./" resolves against root, not an enclosing repository's top level.
+	command := exec.Command("git", "-C", root, "show", "HEAD:./"+affected.ReadScopesPath)
+	command.Stderr = io.Discard
+	committed, err := command.Output()
+	if err != nil {
+		return nil
+	}
+	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath)))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	var before, after struct {
+		Packages map[string]any `json:"packages"`
+	}
+	if json.Unmarshal(committed, &before) != nil || len(current) > 0 && json.Unmarshal(current, &after) != nil {
+		return nil
+	}
+	var dropped []string
+	for _, directory := range slices.Sorted(maps.Keys(before.Packages)) {
+		if _, ok := after.Packages[directory]; !ok {
+			dropped = append(dropped, directory)
+		}
+	}
+	return dropped
 }
 
 // unsupportedKeys names, for a declaration the planner found invalid, each key
@@ -1182,6 +1249,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "test-read-scopes-check: %s records %s, which no test file of the package names; remove it\n", literalsPath, entry)
 	}
 	for _, found := range findings {
+		if found.dropped {
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s is declared in %s at HEAD and not in the working tree, so its tests now read outside the package unbounded and run on every change, but units of %s do not list it; restore its entry in %s, or add %q to units of %s with a reasons entry naming the read (that ratchet compares sets, AFP-V0-025; AFP-V0-2541)\n",
+				found.pkg, affected.ReadScopesPath, unboundedPath, affected.ReadScopesPath, found.pkg, unboundedPath)
+			continue
+		}
 		if found.sandbox != "" {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s is declared in %s, but %s records that its tests launch a nested sandbox (%s), which the confined CI shard refuses; remove its entry and add it to units of %s with a reason (AFP-V0-615)\n",
 				found.pkg, affected.ReadScopesPath, sandboxesPath, found.sandbox, unboundedPath)
