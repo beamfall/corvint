@@ -39,3 +39,11 @@ func pair() (T, error) { return T{}, nil }
 
 // Box converts a T to an interface through a multi-value call.
 func Box() (any, error) { return pair() }
+
+// Shared holds a reference inside a struct.
+var Shared = struct{ P *int }{new(int)}
+
+// State is written by Guard, which a TestMain condition calls.
+var State int
+
+func Guard() bool { State = 1; return true }

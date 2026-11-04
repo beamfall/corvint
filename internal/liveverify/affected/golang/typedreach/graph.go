@@ -62,6 +62,8 @@ type graph struct {
 	// package-variable uses that yield no shared reference.
 	called    map[*ast.Ident]bool
 	plainRead map[*ast.Ident]bool
+	// private are the local variables naming a private temporary path.
+	private map[*types.Var]bool
 	// methods indexes every module method by name, for calls on a type
 	// parameter.
 	methods map[string][]*types.Func
@@ -98,7 +100,23 @@ var (
 	processPackage = types.NewPackage("process", "process")
 	environment    = types.NewVar(token.NoPos, processPackage, "environment", types.Typ[types.String])
 	signals        = types.NewVar(token.NoPos, processPackage, "signals", types.Typ[types.Int])
+	// files is the file system outside the paths a body derives from a
+	// temporary-directory call (AFP-V0-2374).
+	files = types.NewVar(token.NoPos, processPackage, "files", types.Typ[types.String])
 )
+
+// fileReaders are the standard-library functions that read the file or
+// directory named by their first argument.
+var fileReaders = map[string]bool{
+	"os.ReadFile": true, "os.Open": true, "os.Stat": true, "os.Lstat": true, "os.ReadDir": true,
+	"os.Readlink": true, "os.DirFS": true, "path/filepath.Walk": true, "path/filepath.WalkDir": true,
+	"path/filepath.Glob": true, "path/filepath.EvalSymlinks": true, "io/fs.ReadFile": true,
+}
+
+// tempSources are the calls whose result names a private temporary path.
+var tempSources = map[string]bool{
+	"(*testing.common).TempDir": true, "os.MkdirTemp": true, "os.CreateTemp": true,
+}
 
 // stateWriters and stateReaders map standard-library functions to the
 // pseudo variable they write or read.
@@ -132,7 +150,7 @@ var exemptStateMethods = map[string]bool{
 }
 
 func buildGraph(program *Program) *graph {
-	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}}
+	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}, private: map[*types.Var]bool{}}
 	for _, pkg := range program.Packages() {
 		initialization := newNode(program.relative(pkg)+": package initialization", pkg)
 		g.always = append(g.always, initialization)
@@ -181,7 +199,10 @@ func (g *graph) funcDecl(pkg *Package, file *ast.File, decl *ast.FuncDecl, initi
 	case decl.Recv == nil && decl.Name.Name == "TestMain" && pkg.Tests[file] && decl.Body != nil:
 		for _, statement := range decl.Body.List {
 			if g.childOnly(pkg, statement) {
+				// The condition runs in the parent; only the body is the
+				// child's.
 				g.children = append(g.children, g.position(statement.Pos()))
+				g.walk(n, pkg, statement.(*ast.IfStmt).Cond, signatureOf(object))
 				continue
 			}
 			g.walk(n, pkg, statement, signatureOf(object))
@@ -445,6 +466,7 @@ type bodyVisitor struct {
 }
 
 func (g *graph) walk(n *node, pkg *Package, body ast.Node, signature *types.Signature) {
+	g.markPrivate(pkg, body)
 	ast.Walk(bodyVisitor{g: g, n: n, pkg: pkg, signature: signature}, body)
 }
 
@@ -514,6 +536,16 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 		}
 	case *ast.SelectorExpr:
 		g.markPlainReads(pkg, x)
+		if selection := info.Selections[x]; selection != nil && selection.Kind() == types.MethodVal && !g.called[x.Sel] {
+			// A bound method value can be called anywhere it flows.
+			if f, ok := selection.Obj().(*types.Func); ok {
+				if _, pointer := f.Signature().Recv().Type().(*types.Pointer); pointer && !exemptStateMethods[f.FullName()] && !readOnlyMethod(f) {
+					if root := rootVar(info, x.X); root != nil && g.moduleVar(root) {
+						n.writes[root] = true
+					}
+				}
+			}
+		}
 		if selection := info.Selections[x]; selection != nil && selection.Kind() != types.FieldVal {
 			if _, param := types.Unalias(selection.Recv()).(*types.TypeParam); param {
 				n.paramMethods[x.Sel.Name] = true
@@ -596,7 +628,12 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 			case processState[name] && !queryOnly(info, name, call):
 				n.process = append(n.process, g.position(call.Pos())+" calls "+name)
 			}
-			if !readOnlyOpen(info, name, call) {
+			if fileReaders[name] && len(call.Args) > 0 {
+				g.fileRead(n, pkg, call.Args[0])
+			}
+			if readOnlyOpen(info, name, call) {
+				g.fileRead(n, pkg, call.Args[0])
+			} else {
 				for _, index := range fileWriters[name] {
 					if index < len(call.Args) {
 						g.fileWrite(n, pkg, call.Args[index], name)
@@ -713,14 +750,29 @@ func readOnlyOpen(info *types.Info, name string, call *ast.CallExpr) bool {
 	return exact && flags&int64(os.O_WRONLY|os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_APPEND) == 0
 }
 
-// fileWrite records a file write (AFP-V0-2374): a path built from a module
-// package variable writes that variable's state, and a path that is a
-// constant string is process-wide state another test can read.
+// fileWrite records a file write (AFP-V0-2374): a constant path is
+// process-wide state; a path a package variable names writes that variable;
+// any other path not derived in the same body from a temporary-directory
+// call writes the files pseudo variable.
 func (g *graph) fileWrite(n *node, pkg *Package, path ast.Expr, name string) {
 	if tv := pkg.Info.Types[path]; tv.Value != nil {
 		n.process = append(n.process, g.position(path.Pos())+" "+name+" of the fixed path "+tv.Value.ExactString())
 		return
 	}
+	g.packagePathVars(n, pkg, path)
+	if !g.privatePath(pkg, path) {
+		n.writes[files] = true
+	}
+}
+
+// fileRead records a file read of a path not provably private.
+func (g *graph) fileRead(n *node, pkg *Package, path ast.Expr) {
+	if !g.privatePath(pkg, path) {
+		n.reads[files] = true
+	}
+}
+
+func (g *graph) packagePathVars(n *node, pkg *Package, path ast.Expr) {
 	ast.Inspect(path, func(x ast.Node) bool {
 		if ident, ok := x.(*ast.Ident); ok {
 			if v, ok := pkg.Info.Uses[ident].(*types.Var); ok && isPackageVar(v) && g.moduleVar(v) {
@@ -729,6 +781,80 @@ func (g *graph) fileWrite(n *node, pkg *Package, path ast.Expr, name string) {
 		}
 		return true
 	})
+}
+
+// privatePath reports a path expression that calls a temporary-directory
+// source or names a local variable a body assigned from one.
+func (g *graph) privatePath(pkg *Package, path ast.Expr) bool {
+	private := false
+	ast.Inspect(path, func(x ast.Node) bool {
+		switch typed := x.(type) {
+		case *ast.CallExpr:
+			if f := calleeOf(pkg.Info, unparen(typed.Fun)); f != nil && tempSources[f.FullName()] {
+				private = true
+			}
+		case *ast.Ident:
+			if v, ok := pkg.Info.Uses[typed].(*types.Var); ok && g.private[v] {
+				private = true
+			}
+		}
+		return !private
+	})
+	return private
+}
+
+// markPrivate marks the local variables a body assigns, to a fixed point,
+// from a temporary-directory source or another such variable.
+func (g *graph) markPrivate(pkg *Package, body ast.Node) {
+	for grown := true; grown; {
+		grown = false
+		ast.Inspect(body, func(x ast.Node) bool {
+			assign, ok := x.(*ast.AssignStmt)
+			if !ok || len(assign.Lhs) != len(assign.Rhs) {
+				return true
+			}
+			for i, lhs := range assign.Lhs {
+				ident, ok := lhs.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				v, _ := pkg.Info.Defs[ident].(*types.Var)
+				if v == nil {
+					v, _ = pkg.Info.Uses[ident].(*types.Var)
+				}
+				if v == nil || isPackageVar(v) || g.private[v] || g.assignedElsewhere(pkg, body, v, assign) {
+					continue
+				}
+				if g.privatePath(pkg, assign.Rhs[i]) {
+					g.private[v] = true
+					grown = true
+				}
+			}
+			return true
+		})
+	}
+}
+
+// assignedElsewhere reports another assignment to v in body, which could
+// make the variable name a shared path.
+func (g *graph) assignedElsewhere(pkg *Package, body ast.Node, v *types.Var, own *ast.AssignStmt) bool {
+	other := false
+	ast.Inspect(body, func(x ast.Node) bool {
+		if assign, ok := x.(*ast.AssignStmt); ok && assign != own {
+			for _, lhs := range assign.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok && (pkg.Info.Defs[ident] == v || pkg.Info.Uses[ident] == v) {
+					other = true
+				}
+			}
+		}
+		if unary, ok := x.(*ast.UnaryExpr); ok && unary.Op == token.AND {
+			if ident, ok := unparen(unary.X).(*ast.Ident); ok && pkg.Info.Uses[ident] == v {
+				other = true
+			}
+		}
+		return !other
+	})
+	return other
 }
 
 // valueEffects records the effects of a standard-library function taken as a
@@ -745,7 +871,14 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 	if v := stateWriters[name]; v != nil {
 		n.writes[v] = true
 	}
-	if _, writes := fileWriters[name]; processState[name] || writes {
+	if v := stateReaders[name]; v != nil {
+		n.reads[v] = true
+	}
+	if _, writes := fileWriters[name]; writes || fileReaders[name] {
+		n.writes[files] = true
+		n.reads[files] = true
+	}
+	if processState[name] {
 		n.process = append(n.process, g.position(at.Pos())+" "+name+" as a value")
 	}
 }
@@ -986,9 +1119,27 @@ func isPackageVar(object *types.Var) bool {
 
 // referenceType reports a type whose value shares memory with its copies.
 func referenceType(t types.Type) bool {
-	switch underlying(t).(type) {
+	return holdsReference(t, map[types.Type]bool{})
+}
+
+// holdsReference reports a map, slice, pointer or channel, or a struct or
+// array holding one, whose copy shares memory with the original.
+func holdsReference(t types.Type, seen map[types.Type]bool) bool {
+	if t == nil || seen[t] {
+		return false
+	}
+	seen[t] = true
+	switch typed := underlying(t).(type) {
 	case *types.Map, *types.Slice, *types.Pointer, *types.Chan:
 		return true
+	case *types.Struct:
+		for i := 0; i < typed.NumFields(); i++ {
+			if holdsReference(typed.Field(i).Type(), seen) {
+				return true
+			}
+		}
+	case *types.Array:
+		return holdsReference(typed.Elem(), seen)
 	}
 	return false
 }

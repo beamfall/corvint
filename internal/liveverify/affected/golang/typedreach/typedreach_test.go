@@ -184,6 +184,31 @@ func TestAFPV02374ReviewRegressions(t *testing.T) {
 	}
 }
 
+// TestAFPV02374ReReviewRegressions holds the second review's cases: an
+// environment reader taken as a value, a write through a copy of a struct
+// holding a pointer, a bound sync.Once method value, a shared file named
+// through a local variable, and a TestMain condition the parent runs.
+func TestAFPV02374ReReviewRegressions(t *testing.T) {
+	result := analyzePackage(t, "s", lib("A"))
+	if result.Whole != "" {
+		t.Fatalf("whole: %s", result.Whole)
+	}
+	for _, test := range []string{"TestEnvRead", "TestStructRead", "TestOnceRead", "TestFileRead"} {
+		if keptCodes(result)[test] != KeptReadsSharedState {
+			t.Fatalf("%s: kept=%v", test, result.Kept)
+		}
+	}
+	// A file under the test's own temporary directory is private: when only
+	// B changes, the readers of shared files are not kept through it.
+	control := analyzePackage(t, "s", lib("B"))
+	if keptCodes(control)["TestPrivateFile"] != KeptReachesChange || keptCodes(control)["TestFileRead"] != "" {
+		t.Fatalf("private file control: whole=%q kept=%v", control.Whole, control.Kept)
+	}
+	if guard := analyzePackage(t, "g", lib("Guard")); !strings.HasPrefix(guard.Whole, WholeAlwaysRunReaches+":") {
+		t.Fatalf("TestMain condition: whole=%q kept=%v", guard.Whole, guard.Kept)
+	}
+}
+
 func maps(got, want map[string]string) bool {
 	if len(got) != len(want) {
 		return false
