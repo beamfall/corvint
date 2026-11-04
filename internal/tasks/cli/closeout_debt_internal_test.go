@@ -97,3 +97,18 @@ func TestTCDV0007_FanOutKeepsFirstRowsOnly(t *testing.T) {
 		}
 	}
 }
+
+// TestTCDV02400_ProgressHeadPhaseAllowlist: only the delivery phases cite;
+// IN_PROGRESS, BLOCKED, CLEARED and a phase this build does not know are
+// each excluded with a reason.
+func TestTCDV02400_ProgressHeadPhaseAllowlist(t *testing.T) {
+	for phase, want := range map[string]string{
+		ticket.PhaseDeliveredOnBranch: "", ticket.PhaseInReview: "", ticket.PhaseInMergeQueue: "", ticket.PhaseMergedAwaitingCloseout: "",
+		ticket.PhaseInProgress: "PROGRESS_IN_PROGRESS", ticket.PhaseBlocked: "PROGRESS_BLOCKED",
+		ticket.PhaseCleared: "PROGRESS_NOT_DELIVERY", "SHIPPED_SOMEWHERE": "PROGRESS_NOT_DELIVERY", "": "PROGRESS_NOT_DELIVERY",
+	} {
+		if got := progressHeadExclusion(phase); got != want {
+			t.Errorf("phase %q excluded %q, want %q", phase, got, want)
+		}
+	}
+}

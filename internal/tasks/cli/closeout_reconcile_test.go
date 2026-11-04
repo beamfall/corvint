@@ -273,6 +273,127 @@ func TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus(t *testing.T) {
 	}
 }
 
+// TestTCDV02401_ReconcileExportsRunsPerProposalCommit covers V1-4449: the
+// reconcile exports the CI runs of each proposal's merge commit and PR head
+// with `gh run list --commit`, so a merge whose green run no latest-N window
+// holds still passes batch-close's green-run check; a merge with no green
+// run is still refused PREREQUISITE_UNSATISFIED; a failed per-commit export
+// exits 2 naming the commit (TCD-V0-2401).
+func TestTCDV02401_ReconcileExportsRunsPerProposalCommit(t *testing.T) {
+	script, err := filepath.Abs(reconcileScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CORVINT_TASKS", cli.CompiledTasksBinary(t))
+	setActor(t, "tester")
+	t.Setenv("RECONCILE_REF", "main")
+	root, l, prs, _ := reconcileRepo(t)
+	merge, side := revParse(t, root, "main~2"), revParse(t, root, "side")
+	tmp := t.TempDir()
+	green := tdsExport(t, "green.json", `[
+{"databaseId":5,"headSha":"`+merge+`","conclusion":"success","url":"https://github.com/beamfall/corvint/actions/runs/5","workflowName":"ci","event":"push","updatedAt":"2026-10-31T05:10:00Z"},
+{"databaseId":9,"headSha":"`+strings.Repeat("d", 40)+`","conclusion":"success","url":"https://github.com/beamfall/corvint/actions/runs/9","workflowName":"ci","event":"push","updatedAt":"2026-11-03T05:10:00Z"}]`)
+	red := tdsExport(t, "red.json", `[{"databaseId":6,"headSha":"`+merge+`","conclusion":"failure","url":"https://github.com/beamfall/corvint/actions/runs/6","workflowName":"ci","event":"push","updatedAt":"2026-10-31T05:10:00Z"}]`)
+	log := filepath.Join(tmp, "gh.log")
+	// The stub's window (no --commit) holds only newer runs, as a busy
+	// repository's latest-N window does; --commit SHA answers that commit.
+	stub := filepath.Join(tmp, "gh")
+	cli.WriteExecutable(t, stub, []byte(`#!/bin/sh
+echo "$*" >> '`+log+`'
+case "$1" in
+pr) cat '`+prs+`' ;;
+run) [ -z "$GH_RUN_FAIL" ] || exit 1
+  sha=; while [ $# -gt 0 ]; do [ "$1" = --commit ] && sha=$2; shift; done
+  if [ -n "$sha" ] && [ "$sha" = "$GH_RUN_ODD" ]; then printf '%s' "$GH_RUN_ODD_OUT"; exit 0; fi
+  if [ -z "$sha" ]; then jq '[.[] | select(.databaseId > 5)]' "$GH_RUNS"; else jq --arg s "$sha" '[.[] | select(.headSha == $s)]' "$GH_RUNS"; fi ;;
+*) exit 9 ;;
+esac
+`), 0o755)
+	reconcile := func(env ...string) (int, string) {
+		t.Helper()
+		_ = os.Remove(log)
+		c := exec.Command(script)
+		c.Dir = root
+		c.Env = append(os.Environ(), append([]string{"GH=" + stub}, env...)...)
+		out, err := c.CombinedOutput()
+		var exit *exec.ExitError
+		if err != nil && !errors.As(err, &exit) {
+			t.Fatalf("reconcile: %v %s", err, out)
+		}
+		return c.ProcessState.ExitCode(), string(out)
+	}
+	head := revParse(t, root, "main")
+	git(t, root, "update-ref", "refs/remotes/origin/main", head)
+	dir := filepath.Join(root, ".git", "corvint", "reconcile", head)
+
+	code, out := reconcile("GH_RUNS="+green, "RECONCILE_APPLY=dry-run")
+	raw, err := os.ReadFile(filepath.Join(dir, "apply-35.json"))
+	if !strings.Contains(out, "batch-close --pr 35 --prs "+filepath.Join(dir, "prs.json")+" --runs "+filepath.Join(dir, "runs.json")+"\n") {
+		t.Fatalf("the printed proposal does not name the written runs export: %s", out)
+	}
+	if code != 1 || err != nil || !strings.Contains(string(raw), `"outcome":"OK"`) || !strings.Contains(string(raw), `"dryRun":true`) || !strings.Contains(string(raw), l["a"]) {
+		t.Fatalf("old green merge (exit %d): %s\napply: %v %s", code, out, err, raw)
+	}
+	calls, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := " --limit 100 --json databaseId,headSha,conclusion,url,workflowName,event,updatedAt"
+	for _, want := range []string{"run list --commit " + merge + fields, "run list --commit " + side + fields} {
+		if !strings.Contains(string(calls), want+"\n") {
+			t.Fatalf("gh calls lack %q:\n%s", want, calls)
+		}
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(calls)), "\n") {
+		if strings.HasPrefix(line, "run ") && !strings.Contains(line, "--commit ") {
+			t.Fatalf("a window run export remains: %q", line)
+		}
+	}
+	runs, err := os.ReadFile(filepath.Join(dir, "runs.json"))
+	if err != nil || strings.Count(string(runs), `"databaseId":5`) != 1 || strings.Contains(string(runs), `"databaseId":9`) || !strings.Contains(string(runs), `"event":"push"`) {
+		t.Fatalf("retained runs export: %v %s", err, runs)
+	}
+	if entries, _ := filepath.Glob(filepath.Join(dir, "runs.??????")); len(entries) != 0 {
+		t.Fatalf("per-commit export directory left behind: %v", entries)
+	}
+
+	// Negative control: no green run at the merge or the head still refuses.
+	code, out = reconcile("GH_RUNS="+red, "RECONCILE_APPLY=dry-run")
+	raw, err = os.ReadFile(filepath.Join(dir, "apply-35.json"))
+	if code != 1 || !strings.Contains(out, "a batch-close failed") || err != nil || !strings.Contains(string(raw), "PREREQUISITE_UNSATISFIED") || !strings.Contains(string(raw), "no successful CI run") {
+		t.Fatalf("no green run (exit %d): %s\napply: %v %s", code, out, err, raw)
+	}
+
+	// A failed per-commit export exits 2 naming the commit.
+	// A runs.json from the earlier reconcile is removed and no proposal
+	// command is printed.
+	if code, out = reconcile("GH_RUNS="+green, "GH_RUN_FAIL=1"); code != 2 || !strings.Contains(out, "gh run list --commit ") || !strings.Contains(out, " failed; no runs export for "+head) {
+		t.Fatalf("failed run export: exit %d %s", code, out)
+	}
+	assertNoRuns := func(what, out string) {
+		t.Helper()
+		if _, err := os.Stat(filepath.Join(dir, "runs.json")); !errors.Is(err, os.ErrNotExist) || strings.Contains(out, "batch-close --pr") {
+			t.Fatalf("%s left runs.json (%v) or printed a proposal: %s", what, err, out)
+		}
+	}
+	assertNoRuns("a failed export", out)
+
+	// One commit's export that is null, empty or not an array exits 2
+	// naming that commit, although the other commit's export is an array.
+	for _, odd := range []string{"null", "", `{"databaseId":5}`} {
+		code, out = reconcile("GH_RUNS="+green, "GH_RUN_ODD="+side, "GH_RUN_ODD_OUT="+odd)
+		if code != 2 || !strings.Contains(out, "gh run list --commit "+side+" printed no JSON run array; no runs export for "+head) {
+			t.Fatalf("export %q merged silently: exit %d %s", odd, code, out)
+		}
+		assertNoRuns("export "+odd, out)
+	}
+	for _, n := range []string{"a", "b", "c"} {
+		if st := field(bcShow(t, root, l[n]), "status").Str; st != "OPEN" {
+			t.Fatalf("a dry run or refusal changed %s to %s", l[n], st)
+		}
+	}
+}
+
 func sortedLocals(ls ...string) []string {
 	out := append([]string(nil), ls...)
 	for i := range out {
