@@ -79,18 +79,25 @@ func openCache(ctx context.Context, root, corvint, selector string, costs []byte
 		return nil, err.Error()
 	}
 	fmt.Fprintf(h, "module %s\n", module)
-	for _, tool := range [][]string{{"go", "version"}, {"git", "--version"}} {
+	// go env and git config read settings no variable carries: the go env -w
+	// file and every Git config file the replay's git reads. go env names its
+	// keys, since its whole listing holds a per-call temporary directory.
+	for _, tool := range [][]string{{"go", "version"}, append([]string{"go", "env"}, goEnvKeys...), {"git", "--version"}, {"git", "config", "--list", "--includes"}} {
 		out, err := run(ctx, root, tool[0], tool[1:]...)
 		if err != nil {
 			return nil, err.Error()
 		}
-		fmt.Fprintf(h, "%s %s\n", tool[0], strings.TrimSpace(out))
+		fmt.Fprintf(h, "%s %q\n", strings.Join(tool, " "), strings.TrimSpace(out))
 	}
 	for _, kv := range cacheEnvironment(os.Environ()) {
 		fmt.Fprintf(h, "env %s\n", kv)
 	}
 	return &resultCache{dir: dir, stamp: h.Sum(nil)}, ""
 }
+
+// goEnvKeys are the go env settings that can change the go tool's or a
+// planner's output; go env -w can set each of them outside the environment.
+var goEnvKeys = []string{"CGO_ENABLED", "GO111MODULE", "GOAMD64", "GOARCH", "GOARM64", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GONOPROXY", "GONOSUMDB", "GOOS", "GOPRIVATE", "GOPROXY", "GOSUMDB", "GOTOOLCHAIN", "GOWORK"}
 
 // cacheEnvironment is every GO*, CGO_*, CORVINT_*, GIT_* and SELECTION_BASELINE_*
 // variable, sorted, except the trace sinks, which change no output, and the

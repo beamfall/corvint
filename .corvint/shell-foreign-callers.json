@@ -110,11 +110,14 @@
         "script/dogfood-cache_test.sh",
         "script/lane-scripts_test.sh"
       ],
-      "reason": "Every tracked file naming dogfood-finish.sh: the make dogfood-finish, dogfood-inputs-check and closeout targets run it, and the dogfood-cache and lane-scripts tests run it with stub tools; gen-spec-requirements.sh, lane-guard.sh and spec-requirements-worktree-check.sh name it only in comments. Its dirty-tree filter names the sealed CEM paths (TSP-V0-005).",
+      "reason": "Every tracked file naming dogfood-finish.sh: the make dogfood-finish, dogfood-inputs-check and closeout targets run it, and the dogfood-cache and lane-scripts tests run it with stub tools; gen-spec-requirements.sh, lane-guard.sh and spec-requirements-worktree-check.sh name it only in comments. Its dirty-tree filter names the sealed CEM paths. The early VERIFY check it runs (tools/verify-syntax-check, internal/dogfoodflow/verify_syntax.go and its test) names it only in comments (DWC-V0-753) (TSP-V0-005).",
       "mentions": [
+        "internal/dogfoodflow/verify_syntax.go",
+        "internal/dogfoodflow/verify_syntax_test.go",
         "script/gen-spec-requirements.sh",
         "script/lane-guard.sh",
-        "script/spec-requirements-worktree-check.sh"
+        "script/spec-requirements-worktree-check.sh",
+        "tools/verify-syntax-check/main.go"
       ]
     },
     "script/dogfood-seal.sh": {

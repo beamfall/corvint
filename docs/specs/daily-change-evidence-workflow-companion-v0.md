@@ -154,8 +154,9 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 - `DWC-V0-752`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2360; refines
   `DCW-V0-161`) `corvint dogfood propose-citations` MUST compute a hunk's file-wide and change-wide
   requirement-family fallbacks once per change, not once per hunk. Its BASE and HEAD blob reads go
-  through the `CKC-V0-015` batch reader. Non-goals: changing any drafted row or note. Evidence: the
-  `internal/dogfoodflow` draft tests, unchanged, and the draft timings in
+  through the `CKC-V0-015` batch reader. Non-goals: changing any drafted row or note. Evidence:
+  `TestProposeCitationsDWCV0752FamilyFallbacksMatchThePerHunkScan`, the `internal/dogfoodflow` draft
+  tests, unchanged, and the draft timings in
   `docs/build-log/2026-11-01-dsl-w32.md`, which were measured with an earlier batch reader of the
   same shape. Rollback: drop `familyFallbacks`.
 - `DWC-V0-753`: (experimental under the standing lane auto-accept, 2026-11-01; repository-owner
@@ -203,7 +204,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   seconds=S phase=S...` line before it hands over to the binary, so the wrapper's seconds and the
   binary's `TIMING` sections together cover a finish. Bash before 5 prints no wrapper line. Measured
   on WSL: the wrapper line and the binary's `TIMING total` cover 26.4 of 26.6 s of `make
-  dogfood-finish`, where 15-20 s had been unattributed. Evidence: the build-log runs. Rollback: drop
+  dogfood-finish`, where 15-20 s had been unattributed. Evidence: the `DWC-V0-755` case of
+  `script/dogfood-cache_test.sh` and the build-log runs. Rollback: drop
   `wrapper_phase` and `wrapper_timing`.
 - `DWC-V0-756`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
   `DCW-V0-026`) When the step runner is safe for concurrent calls (`Runner.Concurrent`, which `Exec`
@@ -288,10 +290,10 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-748` (experimental under the standing lane auto-accept; V1-4091) | `internal/dogfoodflow/propose_entryspan.go` `entryEnd`; `propose.go` `anchoredProposal`; `propose_samechange.go` `refinedProposal`; `TestProposeCitationsDWCV0748CitesTheWholeRequirementEntry` | implemented; focused tests PASS |
 | `DWC-V0-749` (experimental under the standing lane auto-accept; V1-3955) | `TestProposeCitationsDWCV0749UndefinedRequirementStaysUnknown` | implemented; focused test PASS |
 | `DWC-V0-751` (experimental under the standing lane auto-accept; V1-3854) | `script/batch-precheck_test.sh` (`DWC-V0-751` case) | implemented; shell test PASS |
-| `DWC-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose.go` `familyFallbacks`; the `internal/dogfoodflow` draft tests | implemented; focused tests PASS |
+| `DWC-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose.go` `familyFallbacks`; `TestProposeCitationsDWCV0752FamilyFallbacksMatchThePerHunkScan` and the `internal/dogfoodflow` draft tests | implemented; focused tests PASS |
 | `DWC-V0-753` (experimental under the standing lane auto-accept; repository-owner request) | `script/dogfood-finish.sh` early VERIFY block; `tools/verify-syntax-check`; `internal/dogfoodflow/verify_syntax.go` `CheckVerifySyntax`; `TestDWCV0753VerifySyntaxCheckMatchesThePreflight` | implemented; focused test PASS; measured in the build log |
 | `DWC-V0-754` (experimental under the standing lane auto-accept; repository-owner request) | `internal/dogfoodflow/propose_grep.go` `onlyMatching`, `fixedMatcher`; `check_anchor_grep.go` `anchorGrep`; `TestProposeCitationsDWCV0754AnchorSearchMatchesGitGrep`, `TestProposeCitationsDWCV0754LongLineStaysBoundedAndInterruptible` | implemented; focused tests PASS; measured in the build log |
-| `DWC-V0-755` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `wrapper_phase`, `wrapper_timing` | implemented; measured in the build log |
+| `DWC-V0-755` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `wrapper_phase`, `wrapper_timing`; the `DWC-V0-755` case of `script/dogfood-cache_test.sh` | implemented; measured in the build log |
 | `DWC-V0-756` (experimental under the standing lane auto-accept; V1-4197) | `internal/dogfoodflow/change.go` `startImpact`; `flow.go` `Runner.Concurrent`; `TestChangeDWCV0756ImpactBesideQueryMatchesTheSequentialRun` | implemented; focused test PASS (also -race) |
 | `DWC-V0-757` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `static_input_key`, `dogfood-static-pass`; `script/dogfood-cache_test.sh` (`DWC-V0-757` case) | implemented; shell test PASS; measured in the build log |
 | `DWC-V0-758` (experimental under the standing lane auto-accept; V1-3850) | `Makefile` `dogfood-closeout-precheck` DONE line; `script/dogfood-cache_test.sh` | implemented; shell test PASS |

@@ -380,6 +380,32 @@ EOF
   rg -q 'unwind: NOT_RUN HEAD moved to [0-9a-f]{40} while the bind and seal commits were inspected' "$root/output" || { cat "$root/output" >&2; exit 1; }
   [[ $(git log -1 --format=%s) == racing ]] || { git log --oneline >&2; exit 1; }
 ) || { printf 'DWC-V0-746 unwind refuses a moved HEAD: FAIL\n' >&2; exit 1; }
+# Review (DWC-V0-746): the unwind reads paths NUL-delimited, so a sealed CEM whose name Git would
+# display quoted (a space, a non-ASCII byte) is still a seal path and is dropped; an empty commit and
+# a merge commit in the range are never dropped.
+(
+  zr="$root/unwind-paths"
+  mkdir -p "$zr/script"
+  /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$zr/script/"
+  cd "$zr"
+  commit() { git -c user.name=t -c user.email=t@e.invalid commit -q "$@"; }
+  git init -q && printf 'a\n' > a.txt && git add a.txt && commit -m start
+  start=$(git rev-parse HEAD)
+  mkdir -p .corvint/changes && printf '{}\n' > ".corvint/changes/s \303\251.cem.json"
+  git add .corvint/changes && commit -m 'chore: seal change evidence'
+  script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  [[ $(git rev-parse HEAD) == "$start" ]] || { cat "$root/output" >&2; exit 1; }
+  commit --allow-empty -m 'not a bind'
+  script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  rg -q 'unwind: NOT_RUN commit [0-9a-f]{40} changes no path, so it is not a bind or seal commit' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git rev-list --count "$start..HEAD") == 1 ]] || exit 1
+  git reset -q --keep "$start"
+  git checkout -q -b side && mkdir -p .corvint && printf '{}\n' > .corvint/change.cem.json && git add .corvint/change.cem.json && commit -m bind
+  git checkout -q - && commit --allow-empty -m other && git -c user.name=t -c user.email=t@e.invalid merge -q --no-ff --no-edit side
+  script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  rg -q 'unwind: NOT_RUN the range holds a merge commit' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git rev-list --count --merges "$start..HEAD") == 1 ]] || exit 1
+) || { printf 'DWC-V0-746 unwind path and commit-shape refusals: FAIL\n' >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.
@@ -404,6 +430,14 @@ head=$(git rev-parse HEAD)
 : > "$TEST_FLOW_LOG"
 PATH="$stamp_bin:$PATH" TEST_STAMP_REV=$head TEST_STAMP_MODIFIED=false CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
 rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || exit 1
+# DWC-V0-755: the wrapper names its own phases in one TIMING line before the hand-over; a Bash
+# without EPOCHREALTIME prints none.
+if [[ -n ${EPOCHREALTIME-} ]] && bash -c '[[ -n ${EPOCHREALTIME-} ]]'; then
+  [[ $(rg -c ': TIMING wrapper ' "$root/output") == 1 ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q ': TIMING wrapper seconds=[0-9]+\.[0-9]{2} inputs=[0-9]+\.[0-9]{2} verify-syntax=[0-9]+\.[0-9]{2} .*setup=[0-9]+\.[0-9]{2}' "$root/output" || { cat "$root/output" >&2; exit 1; }
+else
+  ! rg -q 'TIMING wrapper' "$root/output" || { cat "$root/output" >&2; exit 1; }
+fi
 for stamp in "$base:false" "$head:true"; do
   status=0
   PATH="$stamp_bin:$PATH" TEST_STAMP_REV=${stamp%:*} TEST_STAMP_MODIFIED=${stamp#*:} CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
@@ -549,11 +583,11 @@ EOF
   for run in first second; do
     PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
   done
-  [[ $(wc -l < "$TEST_STATIC_LOG") == 1 ]] || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 1 ]] || { cat "$root/output" >&2; exit 1; }
   rg -q '^dogfood-inputs-check: static checks REUSE: they passed for this clean tree [0-9a-f]+ at BASE [0-9a-f]{12} \(DWC-V0-757\)$' "$root/output" || { cat "$root/output" >&2; exit 1; }
   printf 'x\n' > untracked-input
   PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
-  [[ $(wc -l < "$TEST_STATIC_LOG") == 2 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 2 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
   /bin/rm -f untracked-input
   # Review: a git status that fails with no output gives no key, so an existing stamp is not reused.
   PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
@@ -562,7 +596,7 @@ EOF
   printf '#!/usr/bin/env bash\nfor a in "$@"; do [[ $a == status ]] && exit 128; done\nexec %q "$@"\n' "$(type -P git)" > "$root/gitbin/git"
   chmod +x "$root/gitbin/git"
   PATH="$root/gitbin:$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
-  [[ $(wc -l < "$TEST_STATIC_LOG") == 3 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 3 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
   # Review: a relative VERIFY given from another directory reaches the early check as the caller's
   # file, not as a path under the repository.
   export TEST_VERIFY_LOG="$root/verify.log"

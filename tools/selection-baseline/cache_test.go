@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -100,6 +101,11 @@ func replayJSON(t *testing.T, r results) string {
 func TestResultCacheEqualsReplay_ASCV0778(t *testing.T) {
 	root, corvint, selector, count, set := cacheFixture(t)
 	ctx := context.Background()
+	goenv := filepath.Join(t.TempDir(), "go.env")
+	if err := os.WriteFile(goenv, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GOENV", goenv)
 	cold, err := replay(ctx, root, set, "changes.json", corvint, selector)
 	if err != nil {
 		t.Fatal(err)
@@ -146,16 +152,26 @@ func TestResultCacheEqualsReplay_ASCV0778(t *testing.T) {
 	replays("ledger off", func() { t.Setenv("CORVINT_GATE_LEDGER", "off") })
 	t.Setenv("CORVINT_GATE_LEDGER", "")
 	replays("planner bytes", func() {
-		if err := os.WriteFile(corvint, []byte(fakeCorvint+"# rebuilt\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(corvint, []byte(fakeCorvint+"# rebuilt\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	})
 	replays("selector bytes", func() {
-		if err := os.WriteFile(selector, []byte(fakeSelector+"# rebuilt\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(selector, []byte(fakeSelector+"# rebuilt\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	})
 	replays("environment", func() { t.Setenv("GOFLAGS", "-mod=mod") })
+	replays("go env -w", func() {
+		if err := os.WriteFile(goenv, []byte("GOPROXY=off\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	})
+	replays("git config", func() {
+		if out, err := exec.Command("git", "-C", root, "config", "core.abbrev", "12").CombinedOutput(); err != nil {
+			t.Fatalf("git config: %v %s", err, out)
+		}
+	})
 	replays("costs", func() {
 		if err := os.WriteFile(filepath.Join(root, ".github", "cishards", "package-costs.json"), []byte(`{"milliseconds":{"example.com/fixture/x":50,"example.com/fixture/y":50}}`+"\n"), 0o644); err != nil {
 			t.Fatal(err)

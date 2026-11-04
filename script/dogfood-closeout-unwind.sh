@@ -28,13 +28,18 @@ git merge-base --is-ancestor "$start" "$head" || keep "the start head $start is 
 [[ -z $(git status --porcelain --untracked-files=no) ]] || keep "tracked files are modified"
 commits=$(git rev-list --reverse "$start..$head") || keep "git rev-list failed"
 [[ -z $(git rev-list --merges "$start..$head") ]] || keep "the range holds a merge commit, which diff-tree lists no paths for"
+# Paths are read NUL-delimited (-z), so a path Git would display quoted is matched as it is. A commit
+# that changes no path (an empty commit) is not a bind or seal commit and is never dropped.
 for commit in $commits; do
-  while IFS= read -r path; do
+  paths=0
+  while IFS= read -r -d '' path; do
+    paths=$((paths + 1))
     case $path in
       .corvint/change.cem.json | .corvint/changes/*.cem.json) ;;
       *) keep "commit $commit changes $path, which is not a bind or seal path" ;;
     esac
-  done < <(git diff-tree --no-commit-id --name-only -r --root "$commit")
+  done < <(git diff-tree -z --no-commit-id --name-only -r --root "$commit")
+  ((paths > 0)) || keep "commit $commit changes no path, so it is not a bind or seal commit"
 done
 # Review: a commit made while the range was inspected is never dropped: HEAD must still be the head
 # inspected right before the reset.
