@@ -108,18 +108,18 @@ Every refusal is named in the slice reason.
 
 ### Measurements
 
-All rows are after the review fixes below, and all use the same build: this lane's binary.
+All rows are after both review rounds below, and all use the same build: this lane's binary.
 
 | Range (origin/main) | Package | `typed-reach-measure` | `corvint test --dry-run` |
 |---|---|---|---|
-| `6a2c582ef^..6a2c582ef` (`internal/tasks/wire/value.go`) | internal/tasks/store | 642 kept, 24 dropped of 666; 4.7 s | **narrowed**: `-run` of 642; reason `selected: the tests reaching internal/tasks/wire/value.go (typed reach: 24 of 666 test functions cannot reach it)`; 9.4 s whole plan |
-| `c38c32203^..c38c32203` (`internal/tasks/intent`) | internal/tasks/store | 650 kept, 26 dropped of 676; 5.3 s | whole: `the package names internal/tasks/intent/export_test.go as a path` |
-| `d1ccab3b6^..d1ccab3b6` (`internal/tasks/dispatch/config.go`) | internal/tasks/store | 642 kept, 24 dropped of 666; 6.0 s | whole: `the package names docs/specs/corvint-tasks-dispatch-signals-v0.md as a path` |
+| `6a2c582ef^..6a2c582ef` (`internal/tasks/wire/value.go`) | internal/tasks/store | 648 kept, 18 dropped of 666; 4.8 s | **narrowed**: `-run` of 648; reason `selected: the tests reaching internal/tasks/wire/value.go (typed reach: 18 of 666 test functions cannot reach it)`; 9.4 s whole plan |
+| `c38c32203^..c38c32203` (`internal/tasks/intent`) | internal/tasks/store | 656 kept, 20 dropped of 676; 6.2 s | whole: `the package names internal/tasks/intent/export_test.go as a path` |
+| `d1ccab3b6^..d1ccab3b6` (`internal/tasks/dispatch/config.go`) | internal/tasks/store | 648 kept, 18 dropped of 666; 7.2 s | whole: `the package names docs/specs/corvint-tasks-dispatch-signals-v0.md as a path` |
 | all of the above | internal/tasks/cli, cmd/corvint | n/a | whole: unbounded reader (AFP-V0-025), or an `IMPORT_GRAPH_READER` / `PATH_LITERAL_READER` witness |
 
 Kept reasons on `6a2c582ef`:
 - 553 `REACHES_CHANGE`
-- 17 `READS_STATE_A_KEPT_TEST_WRITES`
+- 23 `READS_STATE_A_KEPT_TEST_WRITES`
 - 72 `STARTS_PROCESS`
 
 The conservative mass is:
@@ -135,8 +135,9 @@ outcome from `-test.v` output.
 
 | Range | Faulted functions | Ran | Observers (outcome changed) | Dropped observers (missed) |
 |---|---|---|---|---|
-| `6a2c582ef` | `wire.CheckSortedUnique`, `wire.clip` | 24 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
-| `c38c32203` | 9 `intent` functions | 26 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
+| `6a2c582ef` (final model) | `wire.CheckSortedUnique`, `wire.clip` | 18 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
+| `6a2c582ef` (after round 1) | the same | 24 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
+| `c38c32203` (after round 1) | 9 `intent` functions | 26 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
 | `14e055d69` (before the review fixes) | 67 (none linked by store tests) | 29 dropped | 0 | **0** |
 
 A missed observer can only be a dropped test, so no unit that observes the change was left out.
@@ -162,6 +163,21 @@ soundness gap is fixed and has a regression in `TestAFPV02374ReviewRegressions`:
    that variable.
 
 The oracle bug is fixed too: it now reads `-test.v`, so a skip is no longer a pass.
+
+### Re-review (reviewed head `90c65cd6a`)
+
+The re-review confirmed four fixes complete: imports, tuples, git, and the oracle. It found five
+remaining gaps, all now fixed with regressions in `TestAFPV02374ReReviewRegressions`:
+
+1. **Reader functions taken as values.** They now read their pseudo variable.
+2. **A write through a copy of a struct holding a pointer.** Structs and arrays holding references
+   now count as references.
+3. **A bound `once.Do` value.** It now writes its receiver.
+4. **A TestMain condition that runs in the parent.** The condition is now always-run code.
+5. **A shared file named through a local variable.** Files are now a pseudo variable unless the
+   path is provably derived from `TempDir`, `MkdirTemp` or `CreateTemp` in the same body.
+
+It found no gap in `cmd/corvint/test_typed_slices.go` itself.
 
 **Fixture strength (P2), recorded and not fixed.** The companionrelease fixture applies ignore
 rules. That equals `HEAD`'s tracked set only while no tracked file matches an ignore rule;
