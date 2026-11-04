@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -46,8 +45,6 @@ func init() {
 		"source-view": runSourceViewAdapter,
 		"done-list":   runDoneListCommand,
 	}
-	// AHI-194: the done-list Stop hook's 10-second kill, beside the AHI-017 table.
-	adapterDeclaredHostKill["claude-code stop-done-list"] = 10 * time.Second
 }
 
 // runClaudeUnlistedEvent serves the Claude Code events outside the shared lifecycle set:

@@ -57,25 +57,29 @@ func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, st
 	return emitAdapterOutput(stdout, compactionPlainOutput(arguments, watchedHostAdapterOutput(ctx, deadline, arguments, stdin)))
 }
 
-// AHI-017: the kill each shipped hooks.json declares for an adapter invocation, keyed by the
-// arguments after "adapter". An invocation absent here declares no kill and gets no watchdog.
-var adapterDeclaredHostKill = map[string]time.Duration{
-	"codex":                     2 * time.Second,
-	"claude-code session-start": 2 * time.Second,
-	"claude-code user-prompt":   2 * time.Second,
-	"claude-code post-tool":     2 * time.Second,
-	"claude-code stop":          2 * time.Second,
-	"claude-code session-end":   time.Second,
-	"claude-code pre-compact":   2 * time.Second,
-	"claude-code post-compact":  2 * time.Second,
+// adapterHostKill is one AHI-017 watchdog entry: the host kill for an adapter invocation and
+// whether the invocation is opt-in, so no shipped hooks.json registers it.
+type adapterHostKill struct {
+	kill  time.Duration
+	optIn bool
 }
 
-// adapterOptInHostKill bounds the opt-in events no shipped hooks.json registers (AHI-804, AHI-805):
-// an operator who wires one under a host timeout gets the same 2 s watchdog and degradation as a
-// registered event. It is kept apart from adapterDeclaredHostKill, which AHI-017 pins to hooks.json.
-var adapterOptInHostKill = map[string]time.Duration{
-	"claude-code subagent-start": 2 * time.Second,
-	"claude-code pre-tool":       2 * time.Second,
+// AHI-017: the kill for each adapter invocation, keyed by the arguments after "adapter". A
+// shipped entry is the kill its hooks.json declares; an opt-in entry (AHI-804, AHI-805) bounds an
+// event an operator wires themselves, which gets the same watchdog and degradation (V1-3946). An
+// invocation absent here declares no kill and gets no watchdog.
+var adapterDeclaredHostKill = map[string]adapterHostKill{
+	"codex":                      {kill: 2 * time.Second},
+	"claude-code session-start":  {kill: 2 * time.Second},
+	"claude-code user-prompt":    {kill: 2 * time.Second},
+	"claude-code post-tool":      {kill: 2 * time.Second},
+	"claude-code stop":           {kill: 2 * time.Second},
+	"claude-code stop-done-list": {kill: 10 * time.Second}, // AHI-194
+	"claude-code session-end":    {kill: time.Second},
+	"claude-code pre-compact":    {kill: 2 * time.Second},
+	"claude-code post-compact":   {kill: 2 * time.Second},
+	"claude-code subagent-start": {kill: 2 * time.Second, optIn: true},
+	"claude-code pre-tool":       {kill: 2 * time.Second, optIn: true},
 }
 
 const (
@@ -101,15 +105,11 @@ func adapterHostKillContext(parent context.Context, arguments []string, start ti
 	if len(arguments) < 2 || arguments[0] != "adapter" {
 		return parent, func() {}
 	}
-	key := strings.Join(arguments[1:], " ")
-	kill, ok := adapterDeclaredHostKill[key]
-	if !ok {
-		kill, ok = adapterOptInHostKill[key]
-	}
+	entry, ok := adapterDeclaredHostKill[strings.Join(arguments[1:], " ")]
 	if !ok {
 		return parent, func() {}
 	}
-	return context.WithDeadline(parent, start.Add(kill-adapterProcessReserve))
+	return context.WithDeadline(parent, start.Add(entry.kill-adapterProcessReserve))
 }
 
 // watchedHostAdapterOutput returns the adapter's own output, or a degradation once the

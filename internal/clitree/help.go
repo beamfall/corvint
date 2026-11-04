@@ -67,13 +67,14 @@ func (h Help) Root() string {
 }
 
 // Serve answers the invocations Answer answers, with exit 0, or exit 2 and one stderr line for an
-// unknown help path. A node's help is its Render followed by its authored Detail. handled is false
-// for every other invocation, which the binary's own dispatch then handles unchanged.
+// unknown help path. A node's help is its Render followed by its authored Detail. An unknown verb
+// gets the shared RefuseUnknownVerb envelope and exit 2 (ACX-V0-904). handled is false for every
+// other invocation, which the binary's own dispatch then handles unchanged.
 func (h Help) Serve(args []string, stdout, stderr io.Writer) (exit int, handled bool) {
 	var answer bytes.Buffer
 	handled, err := Answer(h.Tree, args, h.Root(), &answer)
 	if !handled {
-		return 0, false
+		return RefuseIfUnknownVerb(h.Tree, args, stderr)
 	}
 	if err != nil {
 		fmt.Fprintln(stderr, err)

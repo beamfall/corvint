@@ -399,7 +399,8 @@ FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:
 # frontier detail of a language no Go test is selected through (its `LANG:` prefix) cannot change
 # it; every plan of this checkout carries dozens of TypeScript ones. Go and shell details still
 # need FRONTIER_OK, and any other prefix runs everything.
-FRONTIER_OTHER_LANGS='["cfamily","dotnet","python","ruby","swift","typescript"]'
+# The list is printed data, so the GOC-V0-008 scan reads its language names as data (V1-3842).
+FRONTIER_OTHER_LANGS=$(printf %s '["cfamily","dotnet","python","ruby","swift","typescript"]')
 
 # select_plan reads the batch diff and the affected plan into sel_changed, sel_go and sel_planned
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
@@ -817,6 +818,7 @@ steps() {
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
+  printf 'github-split (%s)\t%q %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/github-split-check.sh" "$base" # ASD-V0-706, V1-3292: a code range carries no .github commit
   printf 'test-script-refs\t%q\n' "${0%/*}/check-test-script-refs.sh" # ASD-V0-641, V1-3745
   printf 'dr-numbers\t%q\n' "${0%/*}/check-dr-numbers.sh" # ASD-V0-642, V1-3764
   printf 'merge-conflict-comments (%s)\t%q --conflict-comments %q\n' "$(git rev-parse --short HEAD)" "$0" "$base" # ASD-V0-784, V1-3504

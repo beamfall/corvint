@@ -7,7 +7,10 @@ row without a binary, fails the test. Every row names a stream and a check, beca
 refusal carries a code (ACX-V0-664). It also checks the near-verb suggestion of `corvint` and
 `corvint-tasks`.
 
-The rows record each binary's current contract; they are not one shared envelope. Changing a
+Every companion binary refuses an unknown verb with one shared envelope (ACX-V0-904): exit 2,
+nothing on stdout, and one JSON line on stderr with `binary`, `code` `unknown-verb`, `error`
+naming the word, `help` and `ok` false. `corvint` keeps its argparse-parity `invalid-arguments`
+envelope (ACX-V0-859) and `corvint-tasks` its Tasks command result on stdout. Changing a
 binary's refusal is a reviewed edit of its row.
 
 ```sh
