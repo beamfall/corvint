@@ -7,13 +7,16 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 const routeStubsLive = "route-stubs/live-1.61.1/report.json"
 
 // LPCV-V0-072: the producer's Node unit suite over a synthetic context and pages.
 func TestLPCVV0072ProducerNodeUnit(t *testing.T) {
-	out, err := exec.Command("node", "--test", "route-stubs_test.cjs").CombinedOutput()
+	node := testsupport.NodeOrSkip(t, "the route-stubs producer test")
+	out, err := exec.Command(node, "--test", "route-stubs_test.cjs").CombinedOutput()
 	if err != nil {
 		t.Fatalf("route-stubs producer: %v\n%s", err, out)
 	}

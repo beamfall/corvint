@@ -539,6 +539,13 @@ cannot silently go missing or outlive its command.
   capability table, the `internal/capcatalog` regeneration (`make capability-catalog`), and the
   use-case receipt repin (`script/repin-use-case-receipts.sh`). Other sections keep their plain
   detail. Rollback: restore the plain detail for the commands section.
+- `CAP-V0-080`: (experimental under the standing lane auto-accept (2026-11-01); V1-3887) CAP-V0-007
+  counts a subcommand as documented when any backticked span of its verb's rows holds it as a
+  word, so a prose word such as `coverage` written in backticks elsewhere in the `flows` row keeps
+  a subcommand dropped from the `Subcommands` sentence documented. `TestCAPV0960TreeSubcommandUndocumentedFails` MUST check that
+  precondition first and, when it fails, name the verb, the token, each shadowing span with its row
+  line and the CAP-V0-007 rule, rather than reporting an empty finding list. Non-goal: narrowing
+  CAP-V0-007 to the `Subcommands` sentence. Rollback: drop `proseShadows` and its call.
 
 ## Boundaries and failure modes
 
@@ -662,6 +669,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-960 | `treeSubcommands`, `MergeSubcommands` | `TestCAPV0960TreeSubcommandUndocumentedFails`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
 | CAP-V0-961 | `documentedSubcommands`, `checkStaleSubcommands` | `TestCAPV0961StaleDocumentedSubcommandFails`, `TestCAPV0961DocumentedSubcommandsParse` |
 | CAP-V0-965 | `subcommandSpans`, `checkSubcommandSpans` | `TestCAPV0965SubcommandSpansAreNames` |
+| CAP-V0-080 | `proseShadows`, `shadowMessage` in `tools/capabilities-check/main_test.go`; the `TestCAPV0960TreeSubcommandUndocumentedFails` precondition | `TestCAPV0080BacktickedProseWordIsNamed` (a backticked prose `coverage` in the flows row is named with its line and CAP-V0-007) |
 | CAP-V0-962 | `ScanLiterals`, `checkRefusals` | `TestCAPV0962RefusalCodeMatchesWholeLiteral`, `TestCAPV0009RemovedRefusalCodeFails` |
 | CAP-V0-650 | `capcatalog.Registry.HiddenCommands`, `parseRootCommands`, `parseRootLabel`, `parseHidden`, `parseCommands` | `TestCAPV0002JobGroupedRootHelp`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestHiddenVerbsStayCallableButUnlisted` |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |

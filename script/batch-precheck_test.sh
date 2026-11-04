@@ -936,6 +936,47 @@ twobase=$(git -C "$crepo" rev-parse HEAD)
 printf 'fixture_test.go:41:1: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
 crun --base "$twobase" || fail "fewer inherited occurrences classified introduced: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "fewer occurrences: $(cat "$tmp/out")"
+# ASD-V0-110 (V1-4153): host-adapter-node-test fails at HEAD and passes at the base, but the diff
+# touches none of its inputs (integrations/, Makefile and the outside paths its tests read): an
+# unattributed WARN with the host load, never introduced, and no receipt. The same failure is
+# introduced when the diff changes an input outside integrations/ (cmd/corvint/pi_adapter.go), adds a
+# git-quoted name under integrations/ (untracked or committed), or when a test the recipe runs reads a
+# path no declared input covers.
+/bin/rm -f "$crepo/fail-test-commands-check"
+mkdir -p "$crepo/integrations/pi" "$crepo/cmd/corvint"
+printf 'host-adapter-node-test:\n\tnode --test integrations/pi/*.test.mjs\n' > "$crepo/Makefile"
+printf "const v=read('../../cmd/corvint/pi_adapter.go'),r=new URL(\"../../conformance/r/\",import.meta.url),d=['../x.json']\n" > "$crepo/integrations/pi/cap.test.mjs"
+printf "const s=read('../../docs/specs/pi-workflow-v0.md')\n" > "$crepo/integrations/pi/src.js"
+printf 'package main\n\nconst piAdapterVersion = "1"\n' > "$crepo/cmd/corvint/pi_adapter.go"
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm base3 || fail "base3 commit"
+base3=$(git -C "$crepo" rev-parse HEAD)
+printf 'not ok 7 - opencode interruption\n' > "$crepo/fail-host-adapter-node-test"
+mkdir -p "$crepo/docs/build-log" && printf 'note\n' > "$crepo/docs/build-log/x.md"
+crun --base "$base3" || fail "an unattributed failure failed the run: $(cat "$tmp/out")"
+grep -Eq "^batch-precheck: WARN make host-adapter-node-test \([0-9]+s\) unattributed: fails at HEAD, not the same way at $base3, but the diff changes none of its inputs \(integrations/, Makefile, cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md, conformance/\), so the change cannot have caused it; host load [^ ]+: rerun it at a lower load$" "$tmp/out" ||
+  fail "unattributed not warned: $(cat "$tmp/out")"
+grep -q 'make host-adapter-node-test .* introduced' "$tmp/out" && fail "unattributed failure called introduced: $(cat "$tmp/out")"
+[[ -f $crepo/.git/batch-precheck-receipt ]] && fail "an unattributed failure wrote a receipt"
+attributed() {
+  crun --base "$base3" && fail "$1 hid the failure"
+  grep -q '^batch-precheck: FAIL make host-adapter-node-test .* introduced' "$tmp/out" || fail "$1 not introduced: $(cat "$tmp/out")"
+}
+printf 'x\n' > "$crepo/integrations/host.mjs"
+attributed "an integrations/ change"
+/bin/rm -f "$crepo/integrations/host.mjs"
+printf 'package main\n\nconst piAdapterVersion = "2"\n' > "$crepo/cmd/corvint/pi_adapter.go"
+attributed "a change to cmd/corvint/pi_adapter.go, read by the node tests"
+git -C "$crepo" checkout -q -- cmd/corvint/pi_adapter.go
+printf 'x\n' > "$crepo/integrations/pi/régression.test.mjs"
+attributed "an untracked git-quoted integrations/ name"
+git -C "$crepo" add integrations && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm quoted || fail "quoted commit"
+attributed "a committed git-quoted integrations/ name"
+git -C "$crepo" reset -q --hard "$base3"
+printf "const t=read('../../internal/tool.go')\n" >> "$crepo/integrations/pi/cap.test.mjs"
+git -C "$crepo" add -A integrations && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm base4 || fail "base4 commit"
+base3=$(git -C "$crepo" rev-parse HEAD)
+attributed "a test reading an undeclared path (internal/tool.go)"
+/bin/rm -rf "$crepo/integrations" "$crepo/docs" "$crepo/cmd" "$crepo/Makefile" "$crepo/fail-host-adapter-node-test"
 
 # 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
 # real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input

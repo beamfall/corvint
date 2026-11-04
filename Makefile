@@ -1310,6 +1310,13 @@ runtime-environment-test:
 # cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
 # loaded host exceeds; release-env-compat-test already runs in companion-release-gate-test; and
 # seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
+# Outside the gate: host-adapters-test-test cancels script/host-adapters-test.sh and waits out a
+# 1-second SIGKILL grace for a TERM-ignoring grandchild, a process-timing check a loaded host can
+# disturb (V1-4147).
+.PHONY: host-adapters-test-test
+host-adapters-test-test:
+	@script/host-adapters-test_test.sh
+
 .PHONY: public-release-check-test
 public-release-check-test:
 	@script/public-release-check_test.sh

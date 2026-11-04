@@ -92,6 +92,8 @@ perl_mode=$mode
 case $mode in
   write | check)
     perl_mode=all
+    # SRG-V0-085 (V1-3906): every exit path, a refusal, a failed write or a signal, removes the
+    # private directory; script/gen-spec-requirements_test.sh case 20 forces each one.
     out_dir=$(mktemp -d "${TMPDIR:-/tmp}/gen-spec-requirements.XXXXXX") || exit 1
     trap 'rm -rf "$out_dir"' EXIT
     trap 'exit 129' HUP
@@ -390,6 +392,7 @@ for my $file (sort @specs) {
         digest => scalar($blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/m),
         intent_line => field_line($blob, 'Intent status:'), status_line => field_line($blob, 'Status', 1),
         claim_line => field_line($blob, 'Claim', 1),
+        delivery_line => field_line($blob, 'Delivery status:'),
     };
     # SRG-V0-891 (V1-3295): the ## Requirements section's line range, tracked as
     # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
@@ -607,6 +610,26 @@ for my $file (sort @specs) {
         "$file:$header{$file}{claim_line}: the Agent digest Claim is " . length($claim) . " characters; the limit is 160")
         if length($claim) > 160;
 }
+# SRG-V0-082 (V1-4124): an Agent digest field outside the specindex set (Blocked on, Claim,
+# Exists, Read next, Status, and Successor and Why for a superseded spec) is refused here, naming
+# spec:line, instead of only by spec-requirements-check later; which set a spec needs stays its check.
+for my $file (sort @specs) {
+    my $blob = $blobs->{$file};
+    next unless $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/mg;
+    my $at = substr($blob, 0, pos $blob) =~ tr/\n//;
+    my @allowed = ('Blocked on', 'Claim', 'Exists', 'Read next', 'Status', 'Successor', 'Why');
+    my %allowed = map { $_ => 1 } @allowed;
+    my @unknown;
+    for my $line (split /\n/, substr($blob, pos $blob)) {
+        ++$at;
+        my $text = trim($line);
+        last if $text eq q();
+        next unless $text =~ /\A- ([^:]+): /;
+        push @unknown, "$file:$at: unknown Agent digest field `$1`; the fields are " . join(', ', @allowed)
+            unless $allowed{$1};
+    }
+    refuse("an Agent digest holds only its fixed fields; move other text into the spec body (SRG-V0-082)", @unknown);
+}
 # status_ids returns the requirement IDs a status names: each SRG-V0-003 token and each `..NNN` or
 # `/NNN` suffix after it, read with the token's prefix, so `X-V0-001..003` and `X-V0-001/002` name
 # X-V0-003 and X-V0-002 too.
@@ -619,7 +642,8 @@ sub status_ids {
     }
     return @ids;
 }
-# SRG-V0-980 (V1-3458): the header `Intent status:` and digest `Status:` are frozen. A spec may name
+# SRG-V0-980 (V1-3458): the header `Intent status:` and digest `Status:` are frozen, and (SRG-V0-750,
+# V1-2299) so is the header `Delivery status:` for requirement IDs. A spec may name
 # in them only the requirement IDs its row in INTENT-STATUS-FROZEN.tsv lists, and its header may
 # exceed 160 characters only up to that row's length, so an amendment is recorded on the
 # requirement's own line (SRG-V0-981) and two lanes never append to one header line.
@@ -641,19 +665,28 @@ sub status_ids {
         my $why = exists $frozen{$file}
             ? 'which its frozen header text does not; this line is frozen (docs/specs/INTENT-STATUS-FROZEN.tsv)'
             : 'and it has no docs/specs/INTENT-STATUS-FROZEN.tsv row, so, as for every new spec, this line holds the current status only and names no requirement ID';
+        # SRG-V0-083 (V1-3881): each refusal names the frozen field, its ledger row (or that it
+        # has none) and the supported way to change a requirement's status.
+        my $ledger = $frozen{$file}
+            ? "its row for $file allows $row->{chars} characters and " . scalar(keys %{$row->{ids}}) . " listed ID(s)"
+            : "no row for $file, so the line may name no ID and hold at most 160 characters";
+        my $how = "a requirement's status changes only in the leading note of its own definition line; "
+            . "this frozen line may only be shortened or lose an ID";
         # SRG-V0-950 (V1-3575): each refusal names the frozen line as path:line.
         for my $field (['Intent status', $header{$file}{intent}, $header{$file}{intent_line}],
-                ['Agent digest Status', $header{$file}{status}, $header{$file}{status_line}]) {
+                ['Agent digest Status', $header{$file}{status}, $header{$file}{status_line}],
+                ['Delivery status', $header{$file}{delivery}, $header{$file}{delivery_line}]) {
             my ($name, $value, $at) = @$field;
             next unless defined $value;
             my %seen;
-            push @refused, "$file:$at: its $name names $_, $why, so $_ belongs on " . where_requirements($file)
+            push @refused, "$file:$at: its $name names $_, $why, so $_ belongs on " . where_requirements($file) . "; the ledger: $ledger; $how"
                 for grep { !$row->{ids}{$_} && !$seen{$_}++ } status_ids($value);
         }
         next unless defined(my $intent = $header{$file}{intent});
         utf8::decode($intent);
         push @refused, "$file:$header{$file}{intent_line}: its Intent status is " . length($intent)
             . " characters; the limit is " . ($row->{chars} > 160 ? "its frozen length, $row->{chars}" : '160')
+            . "; the ledger: $ledger; $how"
             if length($intent) > 160 && length($intent) > $row->{chars};
     }
     refuse("the Intent status header and digest Status lines are frozen and hold the current status "
@@ -1013,6 +1046,9 @@ sub readme_text {
                     . "hand; restore the claim as its first sentence and put the change in the spec's "
                     . "`- Claim:` line, then rerun make spec-requirements (SRG-V0-761)\n";
             }
+            # SRG-V0-084 (V1-4150): further leading copies of the current or the recorded claim are
+            # dropped too, so a hand-edited row that carried both, or a doubled claim, is not repeated.
+            1 while grep { defined && $_ ne '' && $description =~ s/\A\s+\Q$_\E(?=\s|\z)//s } $spec->{claim}, $old;
             $columns[5] = $cell->($columns[5], $spec->{claim} . $description);
         }
         $row = join('|', @columns) . $newline;
@@ -1072,6 +1108,17 @@ case $mode in
     fi
     if test -n "$updated"; then echo "spec-requirements: updated$updated"; else echo "spec-requirements: no changes"; fi
     test -z "$staged" || echo "spec-requirements: staged$staged"
+    # SRG-V0-086 (V1-4127): a regenerated README can move rows that other documents cite by line,
+    # which line-citations-check then fails; name the citing files and the exact repin command.
+    case " $updated " in
+      *' README.md '*)
+        citing=$(git grep -l -E 'docs/specs/README\.md:[0-9]' -- '*.md' 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
+        if test -n "$citing"; then
+          echo "spec-requirements: README.md changed and is cited by line from: $citing"
+          echo "spec-requirements: stage it, then run: script/check-line-citations.sh --repin --changed --base HEAD"
+        fi
+        ;;
+    esac
     ;;
   check)
     stale=

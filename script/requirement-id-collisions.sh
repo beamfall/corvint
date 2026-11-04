@@ -19,6 +19,11 @@
 # in it that an open ref newly defines prints `used ID REF_NAME (SHA) FILE` and the exit is 1;
 # otherwise `free ... on open refs`. `make requirement-ids-free` runs it after the REF tree check.
 #
+# Both modes read definitions only, never prose (ASD-V0-080, V1-4110): an ID that a build log, a
+# charter or a ticket names before any spec defines it is not seen. Each verdict is followed on
+# stderr by one `NOTE scope:` line that says so and names the `git grep` that finds such prose
+# mentions on REF.
+#
 # Malformed input, a REF that is not a commit, an open ref whose committed index cannot be read, or
 # a generator failure exits 2. It reads only Git
 # objects and the index; it writes nothing.
@@ -49,6 +54,12 @@ fi
 top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || refuse "not-a-checkout $PWD: run it inside a Git checkout"
 base_sha=$(git rev-parse --verify -q --end-of-options "$base^{commit}") ||
   refuse "ref-not-a-commit $base: fetch it (git fetch origin) or use a commit"
+
+# scope_note PATTERN states that prose mentions were not scanned and names the search for them.
+scope_note() {
+  printf '%s: NOTE scope: only docs/specs/REQUIREMENTS.tsv definitions were compared; IDs named only in prose (build logs, charters, tickets) are not scanned; find them with: git grep -nE '\''%s'\'' %s -- docs/build-log\n' \
+    "$me" "$1" "$base" >&2
+}
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/$me.XXXXXX") || exit 2
 trap '/bin/rm -rf "$work"' EXIT
@@ -182,9 +193,11 @@ if [[ -n $block ]]; then
   if [[ -n $used ]]; then
     printf '%s\n' "$used"
     printf '%s: %s is partly defined on open refs not yet in %s; pick a free block\n' "$me" "$range" "$base" >&2
+    scope_note "$prefix-[0-9]{3}"
     exit 1
   fi
   printf 'free %s on %d open refs not yet in %s\n' "$range" "$open" "$base"
+  scope_note "$prefix-[0-9]{3}"
   exit 0
 fi
 
@@ -198,6 +211,8 @@ collisions=$(awk -F'\t' '
 if [[ -n $collisions ]]; then
   printf '%s\n' "$collisions"
   printf '%s: renumber this checkout'"'"'s IDs (make requirement-ids-free PREFIX=... RANGE=... names a free block), or agree which side keeps each ID, before either merges (ASD-V0-950)\n' "$me" >&2
+  scope_note '[A-Z][A-Z0-9-]*-[0-9]{3}'
   exit 1
 fi
 printf 'no-collision %d new IDs here, %d open refs not yet in %s\n' "$(wc -l < "$work/here" | tr -d ' ')" "$open" "$base"
+scope_note '[A-Z][A-Z0-9-]*-[0-9]{3}'
