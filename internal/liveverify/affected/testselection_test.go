@@ -268,6 +268,59 @@ func TestDeclaredOwnerSelectsItsTests_AFPV02482(t *testing.T) {
 	if got := witnesses(plan); got["g:api"].Kind != WitnessDirectSource || got["ts:contracts"].Kind != WitnessDeclaredTestOwner {
 		t.Fatalf("selected=%+v", plan.Selected)
 	}
+	// AFP-V0-2489: plan.declaredOwners names every owner-selected unit,
+	// the one reached first by its own source included.
+	wantOwners := []DeclaredOwner{{UnitID: "g:api", Paths: "*.g", DirtyPath: "api.g"}, {UnitID: "ts:contracts", Paths: "*.g", DirtyPath: "api.g"}}
+	if !reflect.DeepEqual(plan.DeclaredOwners, wantOwners) {
+		t.Fatalf("declaredOwners=%+v, want %+v", plan.DeclaredOwners, wantOwners)
+	}
+	// Negative control: no matching owner, no member.
+	if plan = testSelectionPlan(t, contractsOwner, "api.g"); plan.DeclaredOwners != nil {
+		t.Fatalf("unmatched declaredOwners=%+v", plan.DeclaredOwners)
+	}
+}
+
+// AFP-V0-2488: an owner declaration only adds. An owner-declared path still
+// counts as owned by no plugin for the frontier rules, so every plugin's
+// LANGUAGE_FRONTIER entry the unowned path raised without the declaration is
+// still raised with it, no frontier moves to frontierExcluded, and the plan
+// stays UNKNOWN; only its UNOWNED_DIRTY_PATH entry turns into the
+// DECLARED_TEST_OWNER group (AFP-V0-2482).
+func TestOwnerKeepsFrontierUnknowns_AFPV02488(t *testing.T) {
+	const contract = "docs/contracts/v1/order.json"
+	languages := testSelectionLanguages()
+	g, ts := languages[0].(fake), languages[1].(fake)
+	g.frontier = []string{"g:dynamic-load:api.g:3"}
+	ts.frontier = []string{"ts:dynamic-import:tests/contracts.spec.ts:9"}
+	languages = []Language{g, ts}
+	plan := func(declaration string) Plan {
+		t.Helper()
+		graph, err := Build(context.Background(), testSelectionRoot(t, map[string]string{DeclaredSelectionPath: declaration}), languages...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return Select(graph, []string{contract})
+	}
+	frontier := []string{"g:dynamic-load:api.g:3", "ts:dynamic-import:tests/contracts.spec.ts:9"}
+
+	// Negative control: without an owner the unowned path raises every
+	// plugin's frontier.
+	bare := plan(`{"profile":"corvint-test-selection/0"}`)
+	if bare.Scope != ScopeUnknown || !reflect.DeepEqual(unknownOf(bare, UnknownLanguageFrontier), frontier) ||
+		!reflect.DeepEqual(unknownOf(bare, UnknownUnownedDirtyPath), []string{contract}) {
+		t.Fatalf("undeclared: scope=%s unknown=%+v", bare.Scope, bare.Unknown)
+	}
+
+	owned := plan(contractsOwner)
+	if owned.Scope != ScopeUnknown || !reflect.DeepEqual(unknownOf(owned, UnknownLanguageFrontier), frontier) || len(owned.FrontierExcluded) != 0 {
+		t.Fatalf("owned: scope=%s unknown=%+v frontierExcluded=%+v", owned.Scope, owned.Unknown, owned.FrontierExcluded)
+	}
+	if got := witnesses(owned); len(got) != 1 || got["ts:contracts"].Kind != WitnessDeclaredTestOwner {
+		t.Fatalf("owned: selected=%+v, want ts:contracts by its owner", owned.Selected)
+	}
+	if unknownOf(owned, UnknownUnownedDirtyPath) != nil || !reflect.DeepEqual(nonSourceOf(owned, ClassDeclaredTestOwner), []string{contract}) {
+		t.Fatalf("owned: unknown=%+v nonSource=%+v", owned.Unknown, owned.NonSource)
+	}
 }
 
 // AFP-V0-2483: a declared test that holds no test file contradicts the
