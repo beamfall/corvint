@@ -1318,9 +1318,9 @@ run_selects_all() {
 # Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], each slice with its own
 # -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line. A
 # non-empty ARGV[3] in plan mode is HEAVY_REUSE, a corvint-test-reuse-decision/0 of the manifest's
-# source.head: each unit of a package it decides REUSE prints a `# reused` line instead of a command
-# (AFP-V0-2326). Any doubt about the decision prints one `heavy.sh: HEAVY_REUSE=PATH not applied:
-# REASON` stderr line and the full plan.
+# source.head, re-evaluated for current inputs with the plan argv -count=1 -timeout 30m: each
+# unit of a package still decided REUSE prints a `# reused` line. A failed re-evaluation or
+# unusable decision prints one reason line and the full plan (AFP-V0-2326).
 manifest_perl='
 use strict; use warnings; use JSON::PP;
 my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
@@ -1349,7 +1349,12 @@ if ($skip ne "") {
     my $d = eval { local $/; JSON::PP->new->decode(<$rh>) };
     if (!(ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" && ref $d->{units} eq "ARRAY")) { $why = "not a corvint-test-reuse-decision/0" }
     elsif (($d->{head} // "") ne $mhead || $mhead eq "") { $why = "decision head " . ($d->{head} // "") . " is not the manifest source.head $mhead (rerun corvint test reuse decide at this commit)" }
+    elsif (($pkgs[0] // "") eq "") { $why = "reuse re-evaluation failed" }
     else {
+      $d = eval { JSON::PP->new->decode($pkgs[0]) };
+      if (!(ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" && ($d->{head} // "") eq $mhead && ref $d->{units} eq "ARRAY")) { $why = "reuse re-evaluation failed" }
+    }
+    if (!defined $why) {
       for my $u (@{ $d->{units} }) {
         next unless ref $u eq "HASH" && ($u->{decision} // "") eq "REUSE" && ($u->{reason} // "") eq "RECORD_DIGEST_EQUAL" && ref $u->{witness} eq "HASH";
         $reused{$u->{package} // ""} = $u;
@@ -1454,7 +1459,48 @@ manifest_admits() {
 print_plan() {
   local mod
   mod=$(module_path) && [[ -n $mod ]] || refuse "no-module ./go.mod names no module; run --plan from the module root"
-  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod" "${HEAVY_REUSE-}"
+  local fresh="" arg last
+  local reuse_args=()
+  if [[ -n ${HEAVY_REUSE-} ]]; then
+    # Reopen the original records and recompute both eligibility and digests.
+    # A saved status listing cannot prove that input bytes or identity still match.
+    # NUL-delimited arguments preserve paths literally; only a complete parse ends in READY.
+    while IFS= read -r -d '' arg; do reuse_args+=("$arg"); done < <(
+      perl -MJSON::PP -e '
+        use strict; use warnings;
+        open(my $f, "<", $ARGV[0]) or exit 1;
+        my $d = eval { local $/; JSON::PP->new->decode(<$f>) };
+        ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" &&
+          ref $d->{records} eq "ARRAY" && ref $d->{identity} eq "HASH" &&
+          ref $d->{identity}{harness} eq "ARRAY" or exit 1;
+        my (@args, %prs);
+        for my $r (@{ $d->{records} }) {
+          ref $r eq "HASH" or exit 1;
+          next unless ($r->{verdict} // "") eq "ADMITTED";
+          defined $r->{name} && !ref $r->{name} && $r->{name} ne "" or exit 1;
+          push @args, "--records", $r->{name};
+          if (($r->{source}{kind} // "") eq "pull_request") {
+            my $pr = $r->{source}{pullRequest} // "";
+            $pr =~ /^[1-9][0-9]*$/ or exit 1; $prs{$pr} = 1;
+          }
+        }
+        keys(%prs) <= 1 or exit 1;
+        push @args, "--trust", keys(%prs) ? "local,main,pull_request" : "local,main";
+        push @args, "--pull-request", keys %prs if keys %prs;
+        for my $h (@{ $d->{identity}{harness} }) {
+          ref $h eq "HASH" && defined $h->{path} && !ref $h->{path} && $h->{path} ne "" or exit 1;
+          push @args, "--harness", $h->{path};
+        }
+        print "$_\0" for (@args, "READY");
+      ' "$HEAVY_REUSE" 2> /dev/null
+    )
+    last=$((${#reuse_args[@]} - 1))
+    if ((last >= 0)) && [[ ${reuse_args[$last]} == READY ]]; then
+      unset 'reuse_args[last]'
+      fresh=$("${CORVINT_BIN:-corvint}" test reuse decide --argv "-count=1 -timeout 30m" "${reuse_args[@]}" 2> /dev/null) || fresh=""
+    fi
+  fi
+  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod" "${HEAVY_REUSE-}" "$fresh"
 }
 
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run

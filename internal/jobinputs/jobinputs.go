@@ -313,11 +313,19 @@ func Evaluate(declaration Declaration, declarationPath string, evidence Evidence
 				hold(ReasonEvaluationError, Witness{Detail: "go list: " + err.Error()})
 			} else {
 				goDirectories = len(directories)
+				// A path anywhere below a package directory runs the job: an
+				// embed pattern may name a subtree, and Go keeps every embedded
+				// file inside its package directory.
 				for _, path := range changed {
-					directory := filepath.ToSlash(filepath.Dir(path))
-					if owner, ok := directories[directory]; ok {
-						importPath, platform, _ := strings.Cut(owner, " ")
-						hold(ReasonGoPackageDirChanged, Witness{Path: path, Package: importPath, Platform: platform})
+					for directory := filepath.ToSlash(filepath.Dir(path)); ; directory = filepath.ToSlash(filepath.Dir(directory)) {
+						if owner, ok := directories[directory]; ok {
+							importPath, platform, _ := strings.Cut(owner, " ")
+							hold(ReasonGoPackageDirChanged, Witness{Path: path, Package: importPath, Platform: platform})
+							break
+						}
+						if directory == "." || directory == "/" {
+							break
+						}
 					}
 				}
 			}

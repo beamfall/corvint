@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Profiles of the documents this package reads and writes.
@@ -104,7 +106,8 @@ const (
 // argv carries the rest of the flags.
 var IdentityEnv = []string{
 	"CC", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_ENABLED", "CGO_LDFLAGS", "CXX",
-	"GOAMD64", "GOARCH", "GOARM64", "GODEBUG", "GOEXPERIMENT", "GOFLAGS", "GOOS", "GOTOOLCHAIN", "GOVERSION", "GOWORK",
+	"GO386", "GOAMD64", "GOARCH", "GOARM", "GOARM64", "GODEBUG", "GOEXPERIMENT", "GOFLAGS", "GOMIPS", "GOMIPS64", "GOOS",
+	"GOPPC64", "GORISCV64", "GOTOOLCHAIN", "GOVERSION", "GOWASM", "GOWORK",
 }
 
 // Input is one path a digest binds: Mode and Object are the Git tree
@@ -130,30 +133,101 @@ func (identity Identity) Digest() (string, error) {
 	return canonicalDigest(identity)
 }
 
-// CheckArgv refuses an argv that runs part of a package or reports Go's own
-// cached result: a pass under it is never a whole-package pass recorded at
-// this run (AFP-V0-2322). The argv must carry -count=1.
+// Argv flags (AFP-V0-2322). A build flag changes which files the test binary
+// is built from, so it is also passed to go list; a run flag changes only how
+// the binary runs. Any other flag is refused: its effect on the result or the
+// closure is not known.
+var (
+	argvBuildFlags      = map[string]bool{"race": true, "msan": true, "asan": true, "cover": true, "trimpath": true}
+	argvBuildValueFlags = map[string]bool{"tags": true, "covermode": true, "coverpkg": true}
+	argvRunValueFlags   = map[string]bool{"timeout": true, "p": true, "parallel": true, "cpu": true}
+	argvRunFlags        = map[string]bool{"v": true, "json": true}
+)
+
+// CheckArgv refuses an argv that runs part of a package, reports Go's own
+// cached result or carries a flag whose effect is not known: a pass under it
+// is never a whole-package pass recorded at this run (AFP-V0-2322). The argv
+// must carry -count=1.
 func CheckArgv(argv []string) error {
+	_, err := splitArgv(argv)
+	return err
+}
+
+// BuildFlags returns the argv's build flags, each value joined to its flag,
+// in argv order, for go list.
+func BuildFlags(argv []string) []string {
+	flags, _ := splitArgv(argv)
+	return flags
+}
+
+func splitArgv(argv []string) ([]string, error) {
+	var build []string
 	countOne := false
-	for _, word := range argv {
-		name, value, hasValue := strings.Cut(strings.TrimLeft(word, "-"), "=")
+	for index := 0; index < len(argv); index++ {
+		word := argv[index]
 		if !strings.HasPrefix(word, "-") {
-			continue
+			return nil, fmt.Errorf("argv word %q is not a flag; name packages elsewhere", word)
 		}
-		switch strings.TrimPrefix(name, "test.") {
-		case "run", "skip", "list", "short", "failfast", "shuffle", "bench", "fuzz":
-			return fmt.Errorf("argv word %q runs part of a package; only whole-package runs are recorded or reused", word)
-		case "count":
+		name, value, hasValue := strings.Cut(strings.TrimLeft(word, "-"), "=")
+		name = strings.TrimPrefix(name, "test.")
+		takeValue := func() (string, error) {
+			if hasValue {
+				return value, nil
+			}
+			if index+1 >= len(argv) {
+				return "", fmt.Errorf("argv flag %q needs a value", word)
+			}
+			index++
+			return argv[index], nil
+		}
+		switch {
+		case name == "count":
 			if !hasValue || value != "1" {
-				return fmt.Errorf("argv word %q: write the count as -count=1", word)
+				return nil, fmt.Errorf("argv word %q: write the count as -count=1", word)
 			}
 			countOne = true
+		case argvBuildFlags[name] && !hasValue:
+			build = append(build, "-"+name)
+		case argvBuildValueFlags[name]:
+			v, err := takeValue()
+			if err != nil {
+				return nil, err
+			}
+			if v == "" || strings.HasPrefix(v, "-") || (name == "covermode" && v != "set" && v != "count" && v != "atomic") {
+				return nil, fmt.Errorf("argv flag %q has invalid value %q", word, v)
+			}
+			build = append(build, "-"+name+"="+v)
+		case argvRunValueFlags[name]:
+			v, err := takeValue()
+			if err != nil {
+				return nil, err
+			}
+			if name == "timeout" {
+				duration, err := time.ParseDuration(v)
+				if err != nil || duration < 0 {
+					return nil, fmt.Errorf("argv flag %q has invalid duration %q", word, v)
+				}
+			} else {
+				values := []string{v}
+				if name == "cpu" {
+					values = strings.Split(v, ",")
+				}
+				for _, value := range values {
+					n, err := strconv.Atoi(value)
+					if err != nil || n < 1 {
+						return nil, fmt.Errorf("argv flag %q has invalid positive integer %q", word, value)
+					}
+				}
+			}
+		case argvRunFlags[name] && !hasValue:
+		default:
+			return nil, fmt.Errorf("argv word %q runs part of a package or has an effect reuse does not model; only whole-package runs with known flags are recorded or reused", word)
 		}
 	}
 	if !countOne {
-		return errors.New("argv must carry -count=1, so a pass is this run's own execution, not Go's cached result")
+		return nil, errors.New("argv must carry -count=1, so a pass is this run's own execution, not Go's cached result")
 	}
-	return nil
+	return build, nil
 }
 
 type digestDocument struct {

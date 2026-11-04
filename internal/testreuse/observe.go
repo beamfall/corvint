@@ -97,6 +97,14 @@ type Snapshot struct {
 	Universe []string
 }
 
+// GitObserveArgs precede every Git command an observation runs: no
+// replacements, quoted paths, filesystem monitor or untracked cache, so status
+// reflects the bytes on disk.
+var GitObserveArgs = []string{"--no-replace-objects", "-c", "core.quotePath=false", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"}
+
+// StatusArgs is the status read a snapshot's StatusDigest names.
+var StatusArgs = []string{"status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching", "--no-renames"}
+
 func (s *Snapshot) relative(directory string) (string, bool) {
 	if directory == "" {
 		return "", false
@@ -206,6 +214,9 @@ type ObserveOptions struct {
 	// Unbounded is the affected graph's UNBOUNDED_READER unit set, by
 	// import path. The caller computes it from the same checkout.
 	Unbounded map[string]bool
+	// BuildFlags are the argv's build flags (BuildFlags), passed to every
+	// go list so the closure is the one the test binary is built from.
+	BuildFlags []string
 }
 
 var hexObject = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
@@ -236,7 +247,7 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 		snapshot.Unbounded = map[string]bool{}
 	}
 	gitRun := func(arguments ...string) ([]byte, error) {
-		return runBounded(ctx, root, gitEnv(env), maxGitBytes, git, append([]string{"--no-replace-objects", "-c", "core.quotePath=false"}, arguments...)...)
+		return runBounded(ctx, root, gitEnv(env), maxGitBytes, git, append(append([]string{}, GitObserveArgs...), arguments...)...)
 	}
 	head, err := gitRun("rev-parse", "--verify", "-q", "HEAD^{commit}")
 	if err != nil {
@@ -265,9 +276,20 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 		}
 		snapshot.Entries[string(path)] = Entry{Mode: fields[0], Object: fields[2]}
 	}
-	status, err := gitRun("status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching", "--no-renames")
+	status, err := gitRun(StatusArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("status: %w", err)
+	}
+	// A path marked assume-unchanged or skip-worktree can differ from its
+	// blob while status omits it, so it counts as dirty (lower-case tag or S).
+	flagged, err := gitRun("ls-files", "-v", "-z")
+	if err != nil {
+		return nil, fmt.Errorf("ls-files -v: %w", err)
+	}
+	for _, record := range bytes.Split(flagged, []byte{0}) {
+		if len(record) > 2 && (record[0] == 'S' || (record[0] >= 'a' && record[0] <= 'z')) {
+			snapshot.Dirty = append(snapshot.Dirty, string(record[2:]))
+		}
 	}
 	for _, record := range bytes.Split(status, []byte{0}) {
 		if len(record) < 4 {
@@ -277,13 +299,23 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 	}
 	sort.Strings(snapshot.Dirty)
 	snapshot.readDeclarations(gitRun)
-	universe, err := runBounded(ctx, root, goEnv(env), maxGoListBytes, gotool, "list", "-e", "./...")
+	// GOFLAGS may come from the environment or Go's persistent configuration.
+	// Refuse flags whose extra inputs are outside the modeled closure before listing.
+	goFlags, err := runBounded(ctx, root, goEnv(env), 1<<20, gotool, "env", "GOFLAGS")
+	if err != nil {
+		return nil, fmt.Errorf("go env GOFLAGS: %w", err)
+	}
+	if err := CheckArgv(append([]string{"-count=1"}, strings.Fields(string(goFlags))...)); err != nil {
+		return nil, fmt.Errorf("GOFLAGS: %w", err)
+	}
+
+	universe, err := runBounded(ctx, root, goEnv(env), maxGoListBytes, gotool, append(append([]string{"list", "-e"}, options.BuildFlags...), "./...")...)
 	if err != nil {
 		return nil, fmt.Errorf("go list: %w", err)
 	}
 	snapshot.Universe = strings.Fields(string(universe))
 	fields := "ImportPath,Dir,Standard,ForTest,GoFiles,CgoFiles,CFiles,CXXFiles,HFiles,SFiles,SysoFiles,EmbedFiles,TestGoFiles,XTestGoFiles,Deps,Incomplete,Error,DepsErrors"
-	listed, err := runBounded(ctx, root, goEnv(env), maxGoListBytes, gotool, "list", "-e", "-deps", "-test", "-json="+fields, "./...")
+	listed, err := runBounded(ctx, root, goEnv(env), maxGoListBytes, gotool, append(append([]string{"list", "-e", "-deps", "-test", "-json=" + fields}, options.BuildFlags...), "./...")...)
 	if err != nil {
 		return nil, fmt.Errorf("go list -deps -test: %w", err)
 	}
@@ -419,6 +451,7 @@ func ObserveIdentity(ctx context.Context, snapshot *Snapshot, goExecutable strin
 			return Identity{}, fmt.Errorf("harness path %q is not tracked at HEAD", path)
 		}
 		directories = append(directories, cleaned)
+		inputs[cleaned] = Input{Path: cleaned, Mode: "dir", Object: "dir"}
 		for _, file := range files {
 			entry := snapshot.Entries[file]
 			inputs[file] = Input{Path: file, Mode: entry.Mode, Object: entry.Object}

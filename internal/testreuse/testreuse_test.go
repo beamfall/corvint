@@ -366,3 +366,148 @@ func TestMergeOutcomesRefusesAnotherCommit(t *testing.T) {
 		t.Fatalf("a package one shard failed: %v %v", merged, err)
 	}
 }
+
+func observeArgv(t *testing.T, root string, argv []string) (*Snapshot, Identity) {
+	t.Helper()
+	snapshot, err := Observe(context.Background(), ObserveOptions{Root: root, Env: fixtureEnv(), BuildFlags: BuildFlags(argv)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), argv, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot, identity
+}
+
+func reasonFor(t *testing.T, snapshot *Snapshot, identity Identity, record []byte, name string) Unit {
+	t.Helper()
+	decision, err := Decide(snapshot, identity, localPolicy, []RecordInput{{Name: "r", Body: record}}, snapshot.Universe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unit := range decision.Units {
+		if unit.Package == fixtureModule+"/"+name {
+			return unit
+		}
+	}
+	t.Fatalf("no unit %s", name)
+	return Unit{}
+}
+
+// TestBuildFlagsReachTheClosure is AFP-V0-2321 with AFP-V0-2322: a file only a
+// -race build compiles is an input of a -race identity, so changing it reruns
+// the package, while the same change is outside a non-race closure (control).
+func TestBuildFlagsReachTheClosure(t *testing.T) {
+	root := fixtureRepo(t)
+	writeFixture(t, root, "b/b_race.go", "//go:build race\n\npackage b\n\nvar raced = 1\n")
+	commitAll(t, root, "race file")
+	race := []string{"-race", "-count=1", "-timeout", "5m"}
+	records := map[string][]byte{}
+	for name, argv := range map[string][]string{"race": race, "plain": fixtureArgv} {
+		snapshot, identity := observeArgv(t, root, argv)
+		record, err := BuildRecord(snapshot, identity, Source{Kind: SourceLocal, Commit: snapshot.Head, Tree: snapshot.Tree}, allPassed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if records[name], err = json.Marshal(record); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFixture(t, root, "b/b_race.go", "//go:build race\n\npackage b\n\nvar raced = 2\n")
+	commitAll(t, root, "race edit")
+	snapshot, identity := observeArgv(t, root, race)
+	if unit := reasonFor(t, snapshot, identity, records["race"], "a"); unit.Reason != ReasonDigestChanged {
+		t.Fatalf("race-only dependency file under -race: %+v", unit)
+	}
+	snapshot, identity = observeArgv(t, root, fixtureArgv)
+	if unit := reasonFor(t, snapshot, identity, records["plain"], "a"); unit.Reason != ReasonRecordDigestEqual {
+		t.Fatalf("race-only dependency file without -race: %+v", unit)
+	}
+}
+
+// TestHiddenIndexFlagsAreDirty is AFP-V0-2321: a tracked input marked
+// assume-unchanged or skip-worktree may differ from its blob while status says
+// nothing, so it is a dirty input.
+func TestHiddenIndexFlagsAreDirty(t *testing.T) {
+	for _, flag := range []string{"--assume-unchanged", "--skip-worktree"} {
+		root := fixtureRepo(t)
+		record := recordAt(t, root, Source{Kind: SourceLocal}, allPassed)
+		git(t, root, "update-index", flag, "data/a.txt")
+		writeFixture(t, root, "data/a.txt", "hidden\n")
+		units := decideAt(t, root, localPolicy, record)
+		if units["a"].Reason != ReasonDigestError || !strings.HasPrefix(units["a"].Detail, ErrorDirtyInput) {
+			t.Fatalf("%s: %+v", flag, units["a"])
+		}
+	}
+}
+
+func TestArgvFlagsAreClassified(t *testing.T) {
+	got := BuildFlags([]string{"-race", "-count=1", "-tags", "x y", "-timeout", "5m", "-p", "1", "-v"})
+	if strings.Join(got, "|") != "-race|-tags=x y" {
+		t.Fatalf("build flags %q", got)
+	}
+	for _, argv := range [][]string{{"-count=1", "-foo"}, {"-count=1", "-timeout"}, {"-count=1", "./pkg"}, {"-count=1", "-race=false"}, {"-count=1", "-overlay=x.json"}, {"-count=1", "-pgo=x.pprof"}, {"-count=1", "-gcflags=-importcfg=x"}} {
+		if err := CheckArgv(argv); err == nil {
+			t.Errorf("%v: accepted", argv)
+		}
+	}
+	for _, flag := range []string{"-tags=", "-covermode=invalid", "-timeout=-1s", "-timeout=invalid", "-p=0", "-parallel=no", "-cpu=1,0"} {
+		if err := CheckArgv([]string{"-count=1", flag}); err == nil {
+			t.Errorf("invalid flag %s: accepted", flag)
+		}
+	}
+	if err := CheckArgv([]string{"-count=1", "-timeout=0", "-cpu=1,2", "-covermode=atomic"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestUnsupportedGOFLAGSFailClosed is AFP-V0-2322: a file-valued build
+// override cannot be accepted on the identity of its path alone.
+func TestUnsupportedGOFLAGSFailClosed(t *testing.T) {
+	root := fixtureRepo(t)
+	_, err := Observe(context.Background(), ObserveOptions{Root: root, Env: append(fixtureEnv(), "GOFLAGS=-overlay=missing.json")})
+	if err == nil || !strings.Contains(err.Error(), "GOFLAGS:") {
+		t.Fatalf("overlay: %v", err)
+	}
+}
+
+// TestHarnessDirectoryReevaluation is AFP-V0-2322/AFP-V0-2326: reopening a
+// saved identity must preserve the directory scope and notice new harness files.
+func TestHarnessDirectoryReevaluation(t *testing.T) {
+	root := fixtureRepo(t)
+	writeFixture(t, root, "harness/runner.sh", "exit 0\n")
+	commitAll(t, root, "harness")
+	snapshot, _ := observe(t, root, nil)
+	identity, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, []string{"harness"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := BuildRecord(snapshot, identity, Source{Kind: SourceLocal, Commit: snapshot.Head, Tree: snapshot.Tree}, allPassed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, input := range identity.Harness {
+		paths = append(paths, input.Path)
+	}
+	check := func(want string) {
+		t.Helper()
+		snapshot, _ := observe(t, root, nil)
+		current, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if unit := reasonFor(t, snapshot, current, body, "a"); unit.Reason != want {
+			t.Fatalf("saved harness paths %v: %+v, want %s", paths, unit, want)
+		}
+	}
+	check(ReasonRecordDigestEqual)
+	writeFixture(t, root, "harness/extra.sh", "exit 1\n")
+	commitAll(t, root, "new harness input")
+	check(ReasonIdentityChanged)
+}

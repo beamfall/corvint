@@ -73,6 +73,8 @@ func TestEvaluateSkipsOnlyWithoutDeclaredInputChange(t *testing.T) {
 		{"package of the closure", boundedEvidence("cmd/x/main.go"), map[string]string{"archive": ReasonGoPackageDirChanged}},
 		{"package only another platform builds", boundedEvidence("internal/winonly/w.go"), map[string]string{"archive": ReasonGoPackageDirChanged}},
 		{"deleted file of a closure package", boundedEvidence("cmd/x/gone.go"), map[string]string{"archive": ReasonGoPackageDirChanged}},
+		{"embedded subtree of a closure package", boundedEvidence("cmd/x/reporters/nested/r.js"), map[string]string{"archive": ReasonGoPackageDirChanged}},
+		{"sibling of a closure package", boundedEvidence("cmd/xy/main.go"), map[string]string{"archive": ReasonNoDeclaredInputChange}},
 	}
 	selected := boundedEvidence("internal/intake/a.go")
 	selected.Selected["go:example.com/m/internal/intake"] = "DIRECT_SOURCE_CHANGE"

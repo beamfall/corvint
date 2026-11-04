@@ -12,7 +12,6 @@ import (
 	"maps"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -150,7 +149,7 @@ func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse
 			unbounded[name] = true
 		}
 	}
-	snapshot, err := testreuse.Observe(ctx, testreuse.ObserveOptions{Root: options.root, Unbounded: unbounded})
+	snapshot, err := testreuse.Observe(ctx, testreuse.ObserveOptions{Root: options.root, Unbounded: unbounded, BuildFlags: testreuse.BuildFlags(strings.Fields(options.argv))})
 	if err != nil {
 		return nil, testreuse.Identity{}, err
 	}
@@ -237,7 +236,7 @@ func testReuseDecide(snapshot *testreuse.Snapshot, identity testreuse.Identity, 
 	var records []testreuse.RecordInput
 	for _, name := range options.records {
 		body, err := readBoundedFile(name, testreuse.MaxRecordBytes)
-		records = append(records, testreuse.RecordInput{Name: filepath.Base(filepath.Dir(name)) + "/" + filepath.Base(name), Body: body, Err: err})
+		records = append(records, testreuse.RecordInput{Name: name, Body: body, Err: err})
 	}
 	decision, err := testreuse.Decide(snapshot, identity, policy, records, packages)
 	if err != nil {

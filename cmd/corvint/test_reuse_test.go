@@ -93,6 +93,21 @@ func TestTestReuseCLI(t *testing.T) {
 	if got := decide(); got["a"] != "REUSE RECORD_DIGEST_EQUAL" {
 		t.Fatalf("unrelated commit: %v", got)
 	}
+	// AFP-V0-2326: re-deciding for a local plan checks current worktree inputs,
+	// even when the dirty status code and path stay unchanged across edits.
+	for _, contents := range []string{"dirty one\n", "dirty two\n"} {
+		reuseFixtureWrite(t, root, map[string]string{"data/a.txt": contents})
+		if got := decide(); got["a"] != "RUN DIGEST_ERROR" {
+			t.Fatalf("dirty input: %v", got)
+		}
+	}
+	materializationGit(t, root, "checkout", "--", "data/a.txt")
+	t.Setenv("GOAMD64", "v2")
+	if got := decide(); got["a"] != "RUN IDENTITY_CHANGED" {
+		t.Fatalf("current environment: %v", got)
+	}
+	t.Setenv("GOAMD64", "v1")
+
 	reuseFixtureWrite(t, root, map[string]string{"data/a.txt": "changed\n"})
 	reuseFixtureCommit(t, root, "scope")
 	if got := decide(); got["a"] != "RUN DIGEST_CHANGED" {
