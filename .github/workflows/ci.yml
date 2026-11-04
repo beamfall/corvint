@@ -1776,7 +1776,6 @@ jobs:
           TESTED_MERGE: ${{ github.sha }}
           SHARD: "0"
           SHARDS: "1"
-          SHARD_TEST_P: "1"
           TOOL_SOURCE: ${{ steps.native-tools.outputs.source }}
           VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
         run: |
