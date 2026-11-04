@@ -1,7 +1,9 @@
 package typedreach
 
 import (
+	"go/ast"
 	"go/types"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -143,6 +145,10 @@ func resolve(program *Program, changed []Declaration, wholePackages []string) ch
 			// Not linked into this test binary: it cannot run here.
 			continue
 		}
+		if kind, file, path, ok := importDeclaration(declaration.Name); ok {
+			resolveImport(program, pkg, kind, file, path, &c)
+			continue
+		}
 		if declaration.Initialization {
 			if c.initialization == "" {
 				c.initialization = declaration.Name
@@ -191,6 +197,64 @@ func resolve(program *Program, changed []Declaration, wholePackages []string) ch
 		}
 	}
 	return c
+}
+
+// importDeclaration splits an import declaration name (diff.go).
+func importDeclaration(name string) (kind, file, path string, ok bool) {
+	for _, prefix := range []string{importMapped, importAdded, importRemoved} {
+		if rest, found := strings.CutPrefix(name, prefix); found {
+			file, path, _ = strings.Cut(rest, "\x00")
+			return prefix, file, path, true
+		}
+	}
+	return "", "", "", false
+}
+
+// resolveImport applies one import change (AFP-V0-2376). A path imported
+// under another name changes every declaration of the file that uses it; an
+// added path another file of the package already imports, and a removed path
+// the binary still links, change no initialization; any other added or
+// removed path changes which package initializations run.
+func resolveImport(program *Program, pkg *Package, kind, file, path string, c *change) {
+	var own *ast.File
+	imported := false
+	for i, parsed := range pkg.Files {
+		if strings.HasSuffix(filepath.ToSlash(pkg.Names[i]), "/"+file) {
+			own = parsed
+			continue
+		}
+		for _, spec := range parsed.Imports {
+			imported = imported || strings.Trim(spec.Path.Value, "\"`") == path
+		}
+	}
+	switch kind {
+	case importMapped, importAdded:
+		if own == nil {
+			c.packages[pkg.Path] = true
+			return
+		}
+		for _, spec := range own.Imports {
+			if strings.Trim(spec.Path.Value, "\"`") != path {
+				continue
+			}
+			object := pkg.Info.Implicits[spec]
+			if spec.Name != nil {
+				object = pkg.Info.Defs[spec.Name]
+			}
+			if object == nil {
+				c.packages[pkg.Path] = true
+				return
+			}
+			c.objects[object] = true
+		}
+		if kind == importAdded && !imported && c.initialization == "" {
+			c.initialization = file + ": imports " + path + ", which it did not"
+		}
+	case importRemoved:
+		if linked := program.byPath[path]; linked == nil && c.initialization == "" {
+			c.initialization = file + ": no longer imports " + path + ", which the binary no longer links"
+		}
+	}
 }
 
 type analysis struct {

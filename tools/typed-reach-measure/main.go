@@ -226,7 +226,7 @@ func goTestBuild(root, pkg, output string) error {
 func runOne(binary, directory, test string, timeout time.Duration) string {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	command := exec.CommandContext(ctx, binary, "-test.run", "^"+test+"$", "-test.count=1")
+	command := exec.CommandContext(ctx, binary, "-test.run", "^"+test+"$", "-test.count=1", "-test.v")
 	command.Dir = directory
 	command.Env = append(os.Environ(), "CGO_ENABLED=0")
 	output, err := command.CombinedOutput()
@@ -237,10 +237,12 @@ func runOne(binary, directory, test string, timeout time.Duration) string {
 		return "fail"
 	case bytes.Contains(output, []byte("no tests to run")):
 		return "none"
-	case bytes.Contains(output, []byte("--- SKIP")):
+	case bytes.Contains(output, []byte("--- SKIP: "+test+" ")):
 		return "skip"
+	case bytes.Contains(output, []byte("--- PASS: "+test+" ")):
+		return "pass"
 	}
-	return "pass"
+	return "unclassified"
 }
 
 // injectFaults inserts `panic("typed-reach fault")` as the first statement of

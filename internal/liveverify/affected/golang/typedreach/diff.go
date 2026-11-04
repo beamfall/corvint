@@ -19,6 +19,11 @@ import (
 type FileChange struct {
 	Names     []string
 	AlwaysRun string
+	// File is the changed file's slash path; Mapped are the import paths
+	// whose local name binds differently at head, and Added and Removed the
+	// import paths only one side has (AFP-V0-2376).
+	File                   string
+	Mapped, Added, Removed []string
 }
 
 // Declarations returns the change as declarations of the package at
@@ -29,7 +34,12 @@ func (change FileChange) Declarations(importPath string) []Declaration {
 	if change.AlwaysRun != "" {
 		return []Declaration{{Package: importPath, Name: change.AlwaysRun, Initialization: true}}
 	}
-	out := make([]Declaration, 0, len(change.Names))
+	var out []Declaration
+	for kind, paths := range map[string][]string{importMapped: change.Mapped, importAdded: change.Added, importRemoved: change.Removed} {
+		for _, path := range paths {
+			out = append(out, Declaration{Package: importPath, Name: kind + change.File + "\x00" + path})
+		}
+	}
 	for _, name := range change.Names {
 		out = append(out, Declaration{Package: importPath, Name: name})
 	}
@@ -48,7 +58,15 @@ func DiffFile(name string, base, head []byte) FileChange {
 	if base != nil && head != nil && beforeName != afterName {
 		return FileChange{AlwaysRun: name + ": package clause changed"}
 	}
-	var change FileChange
+	change := FileChange{File: name}
+	if before[importsKey].text != after[importsKey].text {
+		if before[importsKey].alwaysRun || after[importsKey].alwaysRun {
+			return FileChange{AlwaysRun: name + ": a blank or dot import changed"}
+		}
+		change.Mapped, change.Added, change.Removed = importDelta(before[importsKey].text, after[importsKey].text)
+	}
+	delete(before, importsKey)
+	delete(after, importsKey)
 	names := map[string]bool{}
 	for _, side := range [2][2]map[string]declText{{before, after}, {after, before}} {
 		for key, text := range side[0] {
@@ -67,6 +85,9 @@ func DiffFile(name string, base, head []byte) FileChange {
 	sort.Strings(change.Names)
 	return change
 }
+
+// importsKey keys a file's import set among its declarations.
+const importsKey = "\x00imports"
 
 type declText struct {
 	name      string
@@ -95,6 +116,18 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 		return buffer.String()
 	}
 	inits := 0
+	var imports []string
+	initializing := false
+	for _, spec := range file.Imports {
+		local := ""
+		if spec.Name != nil {
+			local = spec.Name.Name
+			initializing = initializing || local == "_" || local == "."
+		}
+		imports = append(imports, local+" "+spec.Path.Value)
+	}
+	sort.Strings(imports)
+	out[importsKey] = declText{text: strings.Join(imports, "\n"), alwaysRun: initializing}
 	for _, decl := range file.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
@@ -144,6 +177,48 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 		}
 	}
 	return out, file.Name.Name, true
+}
+
+// Import declaration kinds, carried in Declaration.Name.
+const (
+	importMapped  = "\x00import-mapped:"
+	importAdded   = "\x00import-added:"
+	importRemoved = "\x00import-removed:"
+)
+
+// importDelta compares two import sets ("name path" lines): a path both
+// sides import under different names is mapped, the rest added or removed.
+func importDelta(before, after string) (mapped, added, removed []string) {
+	paths := func(set string) map[string]string {
+		out := map[string]string{}
+		for _, line := range strings.Split(set, "\n") {
+			if line == "" {
+				continue
+			}
+			name, quoted, _ := strings.Cut(line, " ")
+			path := strings.Trim(quoted, "\"`")
+			out[path] += name + ","
+		}
+		return out
+	}
+	b, a := paths(before), paths(after)
+	for path, names := range a {
+		switch old, ok := b[path]; {
+		case !ok:
+			added = append(added, path)
+		case old != names:
+			mapped = append(mapped, path)
+		}
+	}
+	for path := range b {
+		if _, ok := a[path]; !ok {
+			removed = append(removed, path)
+		}
+	}
+	sort.Strings(mapped)
+	sort.Strings(added)
+	sort.Strings(removed)
+	return mapped, added, removed
 }
 
 func receiverTypeName(expr ast.Expr) string {

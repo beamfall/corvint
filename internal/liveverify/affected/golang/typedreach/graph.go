@@ -6,6 +6,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -57,6 +58,10 @@ type graph struct {
 	tests  []testRoot
 	// children are the TestMain statements left to child processes.
 	children []string
+	// called marks the identifiers in call position, and plainRead the
+	// package-variable uses that yield no shared reference.
+	called    map[*ast.Ident]bool
+	plainRead map[*ast.Ident]bool
 	// methods indexes every module method by name, for calls on a type
 	// parameter.
 	methods map[string][]*types.Func
@@ -68,8 +73,10 @@ type testRoot struct {
 }
 
 // externalTools are the programs a process start may name as a constant and
-// still be proven to run no module code (AFP-V0-2373).
-var externalTools = map[string]bool{"git": true, "/usr/bin/git": true}
+// still be proven to run no module code (AFP-V0-2373). It is empty: a
+// constant git or shell can still run module code through configuration,
+// aliases or hooks a test writes, so every process start keeps its test.
+var externalTools = map[string]bool{}
 
 // processState are standard-library functions that change state every later
 // test of the process observes (AFP-V0-2374).
@@ -122,11 +129,10 @@ var exemptStateMethods = map[string]bool{
 	"(*sync.Mutex).Lock": true, "(*sync.Mutex).Unlock": true, "(*sync.Mutex).TryLock": true,
 	"(*sync.RWMutex).Lock": true, "(*sync.RWMutex).Unlock": true, "(*sync.RWMutex).RLock": true,
 	"(*sync.RWMutex).RUnlock": true, "(*sync.RWMutex).TryLock": true, "(*sync.RWMutex).TryRLock": true,
-	"(*sync.Once).Do": true,
 }
 
 func buildGraph(program *Program) *graph {
-	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}}
+	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}}
 	for _, pkg := range program.Packages() {
 		initialization := newNode(program.relative(pkg)+": package initialization", pkg)
 		g.always = append(g.always, initialization)
@@ -306,8 +312,8 @@ func (g *graph) heldAssignment(pkg *Package, statement ast.Stmt) []*types.Var {
 
 // childOnly reports a TestMain statement that runs only in a child process
 // the test binary starts as itself (AFP-V0-2372): an if statement without
-// else whose condition reads os.Args, os.Getenv or os.LookupEnv and whose
-// body ends by calling os.Exit.
+// else whose condition argsSelect admits and whose body ends by calling
+// os.Exit.
 func (g *graph) childOnly(pkg *Package, statement ast.Stmt) bool {
 	branch, ok := statement.(*ast.IfStmt)
 	if !ok || branch.Else != nil || branch.Init != nil || len(branch.Body.List) == 0 {
@@ -321,19 +327,55 @@ func (g *graph) childOnly(pkg *Package, statement ast.Stmt) bool {
 	if !ok || !isFunc(calleeOf(pkg.Info, unparen(call.Fun)), "os", "Exit") {
 		return false
 	}
-	guarded := false
-	ast.Inspect(branch.Cond, func(x ast.Node) bool {
-		if ident, ok := x.(*ast.Ident); ok {
-			switch object := pkg.Info.Uses[ident].(type) {
-			case *types.Var:
-				guarded = guarded || (object.Pkg() != nil && object.Pkg().Path() == "os" && object.Name() == "Args")
-			case *types.Func:
-				guarded = guarded || isFunc(object, "os", "Getenv") || isFunc(object, "os", "LookupEnv")
-			}
-		}
-		return true
-	})
-	return guarded
+	return argsSelect(pkg.Info, branch.Cond)
+}
+
+// argsSelect reports a condition that holds only when os.Args[N], N >= 1,
+// equals a non-empty string constant not starting with "-": `go test` passes
+// the test binary only -test.* flags, so the parent never takes the branch.
+// A conjunction holds when either side does.
+func argsSelect(info *types.Info, cond ast.Expr) bool {
+	binary, ok := unparen(cond).(*ast.BinaryExpr)
+	if !ok {
+		return false
+	}
+	switch binary.Op {
+	case token.LAND:
+		return argsSelect(info, binary.X) || argsSelect(info, binary.Y)
+	case token.EQL:
+		return argsIndex(info, binary.X) && childWord(info, binary.Y) || argsIndex(info, binary.Y) && childWord(info, binary.X)
+	}
+	return false
+}
+
+func argsIndex(info *types.Info, expr ast.Expr) bool {
+	index, ok := unparen(expr).(*ast.IndexExpr)
+	if !ok {
+		return false
+	}
+	selector, ok := unparen(index.X).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	v, ok := info.Uses[selector.Sel].(*types.Var)
+	if !ok || v.Pkg() == nil || v.Pkg().Path() != "os" || v.Name() != "Args" {
+		return false
+	}
+	value := info.Types[index.Index].Value
+	if value == nil || value.Kind() != constant.Int {
+		return false
+	}
+	n, exact := constant.Int64Val(value)
+	return exact && n >= 1
+}
+
+func childWord(info *types.Info, expr ast.Expr) bool {
+	value := info.Types[expr].Value
+	if value == nil || value.Kind() != constant.String {
+		return false
+	}
+	word := constant.StringVal(value)
+	return word != "" && !strings.HasPrefix(word, "-")
 }
 
 func isFunc(f *types.Func, pkg, name string) bool {
@@ -347,7 +389,6 @@ var readOnlyReceivers = map[string]map[string]bool{
 	"strings.Replacer":       {},
 	"text/template.Template": {"Funcs": true, "Parse": true, "New": true, "AddParseTree": true, "Delims": true, "Option": true},
 	"html/template.Template": {"Funcs": true, "Parse": true, "New": true, "AddParseTree": true, "Delims": true, "Option": true, "ParseFiles": true, "ParseGlob": true, "ParseFS": true},
-	"sync.Pool":              {},
 }
 
 // readOnlyMethod reports a standard-library method readOnlyReceivers admits.
@@ -415,9 +456,20 @@ func (v bodyVisitor) Visit(x ast.Node) ast.Visitor {
 		v.g.visitExpr(v.n, v.pkg, lit)
 		return bodyVisitor{g: v.g, n: v.n, pkg: v.pkg, signature: signatureOf(v.pkg.Info.Types[lit].Type)}
 	}
-	if ret, ok := x.(*ast.ReturnStmt); ok && v.signature != nil && len(ret.Results) == v.signature.Results().Len() {
-		for i, result := range ret.Results {
-			v.g.convertTo(v.n, v.pkg, v.signature.Results().At(i).Type(), result)
+	if ret, ok := x.(*ast.ReturnStmt); ok && v.signature != nil {
+		results := v.signature.Results()
+		switch {
+		case len(ret.Results) == results.Len():
+			for i, result := range ret.Results {
+				v.g.convertTo(v.n, v.pkg, results.At(i).Type(), result)
+			}
+		case len(ret.Results) == 1:
+			v.g.convertTuple(v.n, v.pkg, ret.Results[0], func(i int) types.Type {
+				if i < results.Len() {
+					return results.At(i).Type()
+				}
+				return nil
+			})
 		}
 	}
 	v.g.visitExpr(v.n, v.pkg, x)
@@ -437,13 +489,22 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 		switch object := info.Uses[x].(type) {
 		case *types.Func:
 			n.calls[object.Origin()] = true
+			if !g.called[x] {
+				g.valueEffects(n, object, x)
+			}
 		case *types.Var:
 			if isPackageVar(object) {
 				n.reads[object] = true
+				// A copy of a reference can be written through
+				// (AFP-V0-2374): only a use that yields no shared
+				// reference is a plain read.
+				if g.moduleVar(object) && referenceType(object.Type()) && !g.plainRead[x] {
+					n.writes[object] = true
+				}
 			} else {
 				n.mentions[object.Origin()] = true
 			}
-		case *types.Const, *types.TypeName:
+		case *types.Const, *types.TypeName, *types.PkgName:
 			n.mentions[object] = true
 		}
 		if instance, ok := info.Instances[x]; ok {
@@ -452,21 +513,36 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 			}
 		}
 	case *ast.SelectorExpr:
+		g.markPlainReads(pkg, x)
 		if selection := info.Selections[x]; selection != nil && selection.Kind() != types.FieldVal {
 			if _, param := types.Unalias(selection.Recv()).(*types.TypeParam); param {
 				n.paramMethods[x.Sel.Name] = true
 			}
 		}
 	case *ast.CallExpr:
+		if ident := calleeIdent(unparen(x.Fun)); ident != nil {
+			g.called[ident] = true
+		}
+		g.markPlainReads(pkg, x)
 		g.call(n, pkg, x)
+	case *ast.IndexExpr, *ast.RangeStmt:
+		g.markPlainReads(pkg, x)
 	case *ast.AssignStmt:
 		for _, lhs := range x.Lhs {
 			g.write(n, pkg, lhs)
 		}
-		if x.Tok == token.ASSIGN && len(x.Lhs) == len(x.Rhs) {
+		switch {
+		case x.Tok == token.ASSIGN && len(x.Lhs) == len(x.Rhs):
 			for i, rhs := range x.Rhs {
 				g.convertTo(n, pkg, info.TypeOf(x.Lhs[i]), rhs)
 			}
+		case x.Tok == token.ASSIGN && len(x.Rhs) == 1:
+			g.convertTuple(n, pkg, x.Rhs[0], func(i int) types.Type {
+				if i < len(x.Lhs) {
+					return info.TypeOf(x.Lhs[i])
+				}
+				return nil
+			})
 		}
 	case *ast.IncDecStmt:
 		g.write(n, pkg, x.X)
@@ -485,11 +561,15 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 			g.convertTo(n, pkg, channel.Elem(), x.Value)
 		}
 	case *ast.BinaryExpr:
+		g.markPlainReads(pkg, x)
 		if x.Op == token.EQL || x.Op == token.NEQ {
 			g.convertTo(n, pkg, info.TypeOf(x.X), x.Y)
 			g.convertTo(n, pkg, info.TypeOf(x.Y), x.X)
 		}
 	case *ast.CompositeLit:
+		if named, ok := types.Unalias(info.TypeOf(x)).(*types.Named); ok && named.Obj().Pkg() != nil && named.Obj().Pkg().Path() == "os/exec" && named.Obj().Name() == "Cmd" {
+			n.starts = append(n.starts, g.position(x.Pos())+" os/exec.Cmd literal")
+		}
 		g.composite(n, pkg, x)
 	case *ast.TypeAssertExpr, *ast.TypeSwitchStmt:
 	}
@@ -515,6 +595,13 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 				n.writes[stateWriters[name]] = true
 			case processState[name] && !queryOnly(info, name, call):
 				n.process = append(n.process, g.position(call.Pos())+" calls "+name)
+			}
+			if !readOnlyOpen(info, name, call) {
+				for _, index := range fileWriters[name] {
+					if index < len(call.Args) {
+						g.fileWrite(n, pkg, call.Args[index], name)
+					}
+				}
 			}
 			if name == "os/signal.Ignore" || name == "os/signal.Reset" {
 				n.resets = true
@@ -570,6 +657,21 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 		return
 	}
 	params := signature.Params()
+	paramAt := func(i int) types.Type {
+		switch {
+		case signature.Variadic() && i >= params.Len()-1 && call.Ellipsis == token.NoPos:
+			if slice, ok := params.At(params.Len() - 1).Type().(*types.Slice); ok {
+				return slice.Elem()
+			}
+		case i < params.Len():
+			return params.At(i).Type()
+		}
+		return nil
+	}
+	if len(call.Args) == 1 {
+		// f(g()) with a multi-value g.
+		g.convertTuple(n, pkg, call.Args[0], paramAt)
+	}
 	for i, arg := range call.Args {
 		var param types.Type
 		switch {
@@ -587,6 +689,143 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 			n.writes[root] = true
 		}
 	}
+}
+
+// fileWriters are the standard-library functions that create, change or
+// remove a file, with the positions of the arguments naming it.
+var fileWriters = map[string][]int{
+	"os.WriteFile": {0}, "os.Create": {0}, "os.OpenFile": {0}, "os.Mkdir": {0}, "os.MkdirAll": {0},
+	"os.Remove": {0}, "os.RemoveAll": {0}, "os.Rename": {0, 1}, "os.Symlink": {1}, "os.Link": {1},
+	"os.Chmod": {0}, "os.Chtimes": {0}, "os.Truncate": {0}, "os.Lchown": {0}, "os.Chown": {0},
+}
+
+// readOnlyOpen reports os.OpenFile with constant flags that neither write,
+// create, truncate nor append.
+func readOnlyOpen(info *types.Info, name string, call *ast.CallExpr) bool {
+	if name != "os.OpenFile" || len(call.Args) < 2 {
+		return false
+	}
+	value := info.Types[call.Args[1]].Value
+	if value == nil || value.Kind() != constant.Int {
+		return false
+	}
+	flags, exact := constant.Int64Val(value)
+	return exact && flags&int64(os.O_WRONLY|os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_APPEND) == 0
+}
+
+// fileWrite records a file write (AFP-V0-2374): a path built from a module
+// package variable writes that variable's state, and a path that is a
+// constant string is process-wide state another test can read.
+func (g *graph) fileWrite(n *node, pkg *Package, path ast.Expr, name string) {
+	if tv := pkg.Info.Types[path]; tv.Value != nil {
+		n.process = append(n.process, g.position(path.Pos())+" "+name+" of the fixed path "+tv.Value.ExactString())
+		return
+	}
+	ast.Inspect(path, func(x ast.Node) bool {
+		if ident, ok := x.(*ast.Ident); ok {
+			if v, ok := pkg.Info.Uses[ident].(*types.Var); ok && isPackageVar(v) && g.moduleVar(v) {
+				n.writes[v] = true
+			}
+		}
+		return true
+	})
+}
+
+// valueEffects records the effects of a standard-library function taken as a
+// value, which may be called anywhere the value flows (AFP-V0-2374).
+func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
+	if f.Pkg() == nil || f.Signature().Recv() != nil {
+		return
+	}
+	name := f.Pkg().Path() + "." + f.Name()
+	if _, ok := processStarters[name]; ok {
+		n.starts = append(n.starts, g.position(at.Pos())+" "+name+" as a value")
+		n.reads[environment] = true
+	}
+	if v := stateWriters[name]; v != nil {
+		n.writes[v] = true
+	}
+	if _, writes := fileWriters[name]; processState[name] || writes {
+		n.process = append(n.process, g.position(at.Pos())+" "+name+" as a value")
+	}
+}
+
+// markPlainReads marks the package-variable identifiers a node reads without
+// yielding a shared reference: an index, field or range whose result holds
+// none, a len or cap argument, or a comparison operand.
+func (g *graph) markPlainReads(pkg *Package, x ast.Node) {
+	info := pkg.Info
+	mark := func(expr ast.Expr) {
+		switch typed := unparen(expr).(type) {
+		case *ast.Ident:
+			g.plainRead[typed] = true
+		case *ast.SelectorExpr:
+			if info.Selections[typed] == nil {
+				// A qualified identifier, pkg.Var.
+				g.plainRead[typed.Sel] = true
+			}
+		}
+	}
+	switch x := x.(type) {
+	case *ast.IndexExpr:
+		if !referenceType(info.TypeOf(x)) {
+			mark(x.X)
+		}
+	case *ast.SelectorExpr:
+		if selection := info.Selections[x]; selection != nil && selection.Kind() == types.FieldVal && !referenceType(info.TypeOf(x)) {
+			mark(x.X)
+		}
+	case *ast.RangeStmt:
+		if elem := rangeElem(info.TypeOf(x.X)); elem != nil && !referenceType(elem) {
+			mark(x.X)
+		}
+	case *ast.CallExpr:
+		if ident, ok := unparen(x.Fun).(*ast.Ident); ok && len(x.Args) == 1 {
+			if builtin, ok := info.Uses[ident].(*types.Builtin); ok && (builtin.Name() == "len" || builtin.Name() == "cap") {
+				mark(x.Args[0])
+			}
+		}
+	case *ast.BinaryExpr:
+		if x.Op == token.EQL || x.Op == token.NEQ {
+			mark(x.X)
+			mark(x.Y)
+		}
+	}
+}
+
+func rangeElem(t types.Type) types.Type {
+	switch typed := underlying(t).(type) {
+	case *types.Slice:
+		return typed.Elem()
+	case *types.Array:
+		return typed.Elem()
+	case *types.Map:
+		if referenceType(typed.Key()) {
+			return typed.Key()
+		}
+		return typed.Elem()
+	case *types.Pointer:
+		if array, ok := underlying(typed.Elem()).(*types.Array); ok {
+			return array.Elem()
+		}
+	case *types.Basic:
+		return typed
+	}
+	return nil
+}
+
+func calleeIdent(fun ast.Expr) *ast.Ident {
+	switch typed := fun.(type) {
+	case *ast.Ident:
+		return typed
+	case *ast.SelectorExpr:
+		return typed.Sel
+	case *ast.IndexExpr:
+		return calleeIdent(typed.X)
+	case *ast.IndexListExpr:
+		return calleeIdent(typed.X)
+	}
+	return nil
 }
 
 // queryOnly reports runtime.GOMAXPROCS with a constant argument below 1,
@@ -666,6 +905,23 @@ func (g *graph) convertTo(n *node, pkg *Package, target types.Type, value ast.Ex
 	}
 	if from := pkg.Info.TypeOf(value); from != nil && !types.IsInterface(from) {
 		n.converted[from] = true
+	}
+}
+
+// convertTuple records the conversions of a multi-value expression's
+// results to the destination types target names by position.
+func (g *graph) convertTuple(n *node, pkg *Package, value ast.Expr, target func(int) types.Type) {
+	tuple, ok := pkg.Info.TypeOf(value).(*types.Tuple)
+	if !ok {
+		return
+	}
+	for i := 0; i < tuple.Len(); i++ {
+		to, from := target(i), tuple.At(i).Type()
+		if to != nil && types.IsInterface(to) && !types.IsInterface(from) {
+			if _, param := types.Unalias(to).(*types.TypeParam); !param {
+				n.converted[from] = true
+			}
+		}
 	}
 }
 

@@ -31,3 +31,11 @@ func Run(name string) error { return exec.Command(name).Run() }
 type T struct{}
 
 func (T) String() string { return "t" }
+
+// Values is shared state a test can write through a copy of the slice.
+var Values = make([]int, 1)
+
+func pair() (T, error) { return T{}, nil }
+
+// Box converts a T to an interface through a multi-value call.
+func Box() (any, error) { return pair() }

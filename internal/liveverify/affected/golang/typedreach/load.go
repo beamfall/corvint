@@ -221,6 +221,7 @@ func (program *Program) check(importPath, dir, name string, files, tests []strin
 			Uses:       map[*ast.Ident]types.Object{},
 			Selections: map[*ast.SelectorExpr]*types.Selection{},
 			Instances:  map[*ast.Ident]types.Instance{},
+			Implicits:  map[ast.Node]types.Object{},
 		}
 	}
 	checked, _ := config.Check(importPath, program.Fset, pkg.Files, pkg.Info)

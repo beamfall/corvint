@@ -13,7 +13,12 @@ const fixtureModule = "example.com/fix"
 
 func analyzeFixture(t *testing.T, changed ...Declaration) Result {
 	t.Helper()
-	program, err := Load(filepath.Join("testdata", "mod"), fixtureModule, "p")
+	return analyzePackage(t, "p", changed...)
+}
+
+func analyzePackage(t *testing.T, pkg string, changed ...Declaration) Result {
+	t.Helper()
+	program, err := Load(filepath.Join("testdata", "mod"), fixtureModule, pkg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,17 +39,18 @@ func keptCodes(result Result) map[string]string {
 // case and its negative control: a changed function keeps the tests that
 // call it, the test reading state a kept test writes, and the test starting
 // an unproved program; a test running only git is dropped. Changing the
-// other function flips which test is kept.
+// other function flips which test is kept. A constant git start still keeps
+// its test: configuration, aliases or hooks can run module code.
 func TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction(t *testing.T) {
 	result := analyzeFixture(t, lib("A"))
 	if result.Whole != "" {
 		t.Fatalf("whole: %s", result.Whole)
 	}
-	want := map[string]string{"TestA": KeptReachesChange, "TestBump": KeptReachesChange, "TestRead": KeptReadsSharedState, "TestExec": KeptStartsProcess}
+	want := map[string]string{"TestA": KeptReachesChange, "TestBump": KeptReachesChange, "TestRead": KeptReadsSharedState, "TestExec": KeptStartsProcess, "TestGit": KeptStartsProcess}
 	if got := keptCodes(result); !maps(got, want) {
 		t.Fatalf("kept %v, want %v", result.Kept, want)
 	}
-	if !slices.Equal(result.Dropped, []string{"TestB", "TestGit", "TestRegistry", "TestStringer"}) {
+	if !slices.Equal(result.Dropped, []string{"TestB", "TestRegistry", "TestStringer"}) {
 		t.Fatalf("dropped %v", result.Dropped)
 	}
 	// Negative control: TestB reaches B, and TestMain's child-only branch,
@@ -82,7 +88,7 @@ func TestAFPV02372AlwaysRunReachKeepsThePackageWhole(t *testing.T) {
 	}
 	// A package the binary does not link bears on nothing.
 	unlinked := Declaration{Package: fixtureModule + "/other", Name: "x.go: init#+", Initialization: true}
-	if result := analyzeFixture(t, unlinked); result.Whole != "" || len(result.Kept) != 1 {
+	if result := analyzeFixture(t, unlinked); result.Whole != "" || len(result.Kept) != 2 {
 		t.Fatalf("unlinked: whole=%q kept=%v", result.Whole, result.Kept)
 	}
 }
@@ -130,6 +136,51 @@ func TestAFPV02372LoadRefusesUnmodelledSource(t *testing.T) {
 	}
 	if _, err := Load(root, "example.com/asm", "q"); !errors.Is(err, ErrUnmodelled) {
 		t.Fatalf("err=%v, want ErrUnmodelled", err)
+	}
+}
+
+// TestAFPV02374ReviewRegressions holds the independent review's soundness
+// cases: a conversion through a multi-value return, an exec function taken
+// as a value, a write through a copy of a package slice, a TestMain branch
+// the parent process takes, a fixed-path file write, and an import change.
+func TestAFPV02374ReviewRegressions(t *testing.T) {
+	boxed := analyzePackage(t, "q", lib("T.String"))
+	if boxed.Whole != "" || keptCodes(boxed)["TestBoxed"] != KeptReachesChange {
+		t.Fatalf("tuple conversion: whole=%q kept=%v", boxed.Whole, boxed.Kept)
+	}
+	if keptCodes(boxed)["TestIndirectExec"] != KeptStartsProcess {
+		t.Fatalf("exec as a value: kept=%v", boxed.Kept)
+	}
+	alias := analyzePackage(t, "q", lib("A"))
+	if keptCodes(alias)["TestAliasWrite"] != KeptReachesChange || keptCodes(alias)["TestAliasRead"] != KeptReadsSharedState {
+		t.Fatalf("alias write: whole=%q kept=%v", alias.Whole, alias.Kept)
+	}
+	// len of a package slice is a read, not a write: when only B changes,
+	// TestLength is kept and the tests that only read Values are not.
+	if plain := analyzePackage(t, "q", lib("B")); keptCodes(plain)["TestLength"] != KeptReachesChange || keptCodes(plain)["TestAliasRead"] != "" {
+		t.Fatalf("plain read: whole=%q kept=%v", plain.Whole, plain.Kept)
+	}
+	if parent := analyzePackage(t, "r", lib("A")); !strings.HasPrefix(parent.Whole, WholeAlwaysRunReaches+":") {
+		t.Fatalf("parent branch: whole=%q kept=%v", parent.Whole, parent.Kept)
+	}
+	if fixed := analyzePackage(t, "w", lib("A")); !strings.HasPrefix(fixed.Whole, WholeProcessState+":") {
+		t.Fatalf("fixed path: whole=%q kept=%v", fixed.Whole, fixed.Kept)
+	}
+	if control := analyzePackage(t, "w", lib("B")); control.Whole != "" || keptCodes(control)["TestOther"] != KeptReachesChange {
+		t.Fatalf("fixed path negative control: whole=%q kept=%v", control.Whole, control.Kept)
+	}
+	base := []byte("package q\n\nimport impl \"m/one\"\n\nfunc F() int { return impl.V() }\n")
+	head := []byte("package q\n\nimport impl \"m/two\"\n\nfunc F() int { return impl.V() }\n")
+	if change := DiffFile("q.go", base, head); !slices.Equal(change.Added, []string{"m/two"}) || !slices.Equal(change.Removed, []string{"m/one"}) {
+		t.Fatalf("import change: %+v", change)
+	}
+	renamed := []byte("package q\n\nimport other \"m/one\"\n\nfunc F() int { return other.V() }\n")
+	if change := DiffFile("q.go", base, renamed); !slices.Equal(change.Mapped, []string{"m/one"}) || !slices.Contains(change.Names, "F") {
+		t.Fatalf("renamed import: %+v", change)
+	}
+	blank := []byte("package q\n\nimport _ \"m/two\"\n\nfunc F() int { return 1 }\n")
+	if change := DiffFile("q.go", []byte("package q\n\nfunc F() int { return 1 }\n"), blank); change.AlwaysRun == "" {
+		t.Fatalf("blank import: %+v", change)
 	}
 }
 
