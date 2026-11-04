@@ -526,6 +526,7 @@ func globalRoot(env *Env) *wire.Result {
 	if dir == "" || strings.HasPrefix(dir, "--") {
 		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
 	}
+	// TCL-V0-926: conflicting roots refuse before any store access.
 	cwd := env.Cwd
 	if env.rootSelected {
 		cwd = env.rootOriginalCwd

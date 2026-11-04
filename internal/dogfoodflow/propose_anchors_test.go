@@ -239,3 +239,18 @@ func TestProposeCitationsDWCV0926SameChangeReferenceKeepsOwnContext(t *testing.T
 		t.Fatalf("lost surviving context or new-intent uncertainty: %s\n%s", out, notes)
 	}
 }
+
+// DWC-V0-926 / DCW-V0-548: once the repin contract span is consumed, a
+// second repin hunk keeps its same-file context instead of an unrelated match.
+func TestProposeCitationsDWCV0926SecondRepinUsesOwnContext(t *testing.T) {
+	guide := "# Guide\n\n" + numbered("intro", 8) + "Read src/a.go:10@abcd.\n" + numbered("middle", 10) + "Read src/b.go:20@abcd.\n" + numbered("tail", 8)
+	out, notes := anchoredDraft(t, map[string]string{
+		"docs/guide.md":     guide,
+		repinRuleSpec:       "# Gate\n\n" + definitionPattern(repinRequirement) + " relocate pinned spans.\n",
+		"docs/unrelated.md": "# Index\n\nAn unrelated section lists docs/guide.md.\n",
+	}, map[string]string{"docs/guide.md": strings.NewReplacer("src/a.go:10@abcd", "src/a.go:11@abcd", "src/b.go:20@abcd", "src/b.go:21@abcd").Replace(guide)})
+	rows := textLines([]byte(out))
+	if len(rows) != 2 || !strings.Contains(rows[0], "\t"+repinRuleSpec+"\t") || !strings.Contains(rows[1], "\tdocs/guide.md\t") || !proposalRow(notes, rows[1]) {
+		t.Fatalf("second repin lost context: %s\n%s", out, notes)
+	}
+}

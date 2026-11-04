@@ -548,6 +548,13 @@ func (p *proposal) proposeUnchecked(hunk proposedHunk, edited map[string][][2]in
 	if row, cite, note := p.repinProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 		return row, cite, note
 	}
+	// A second repin hunk must not turn a consumed deterministic contract
+	// into an unrelated cross-file path match; preserve its own context.
+	if derived := p.derivedHunk(hunk); derived != nil && repinOnly(derived) {
+		if row, cite := p.nearestOwnProposal(hunk, ordinal, edited, used); row != "" {
+			return row, cite, ""
+		}
+	}
 	// Checked before any anchor: a BASE line that happens to name the path
 	// must not displace the mandatory unknown row (DCW-V0-440).
 	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
