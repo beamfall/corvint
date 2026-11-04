@@ -65,8 +65,8 @@ type proposal struct {
 	matches map[string][]spanLine
 	// basenames also searches each hunk path's basename of at least 6
 	// bytes, which CEM-V1-081 counts as a path anchor. The check sets it to
-	// decide that no anchor is available (DCW-V0-165); drafts do not, since
-	// DCW-V0-161 excludes basename matches.
+	// decide that no anchor is available (DCW-V0-165); drafts also search
+	// basename matches under DWC-V0-926.
 	basenames bool
 	// keyByID keys each row by its full hunk ID instead of its ordinal: a
 	// draft taken from the canonical patch before any map exists has no map

@@ -20,6 +20,16 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 ## Requirements
 
+- `DWC-V0-929`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628
+  closeout blocker; refines `DCW-V0-005`) `dogfood check` MUST replace its private report
+  atomically using a mode-0600 temporary file in the report's own directory, closing it before
+  rename and removing it on return. It MUST NOT depend on renaming a file from Git metadata:
+  a linked worktree and its Git directory may be distinct filesystem or sandbox mounts.
+  A failed update MUST preserve the prior report. The adopter ignore list MUST cover
+  `.corvint/.dogfood-report.*.tmp`, so interrupted staging artifacts are private scratch.
+  Evidence: `TestCheckDWCV0929ReportStaysOnWorktreeMount`; live lane dogfood-check on separate
+  sandbox mounts. Rollback: restore Git-directory staging; cross-mount checks fail again.
+
 - `DWC-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
   amends `DCW-V0-161`, `DCW-V0-962`, `DCW-V0-805`, `DCW-V0-841`, `DCW-V0-803`, `DCW-V0-385`, `DCW-V0-548`, `DCW-V0-966` and `DCW-V0-967`)
   Every newly drafted `propose-citations` span MUST name the hunk's full path, its basename
@@ -121,6 +131,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 | Requirement | Evidence | State |
 |---|---|---|
+| `DWC-V0-929` | `internal/dogfoodflow/check.go`; `TestCheckDWCV0929ReportStaysOnWorktreeMount` | implemented; focused regression |
 | `DWC-V0-926` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0926OnlyAnchoredDrafts` | implemented; focused regression |
 | `DWC-V0-927` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0927NoHeadings` | implemented; focused regression |
 | `DWC-V0-928` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0928BaseGoverningDefinition` | implemented; focused regression |
