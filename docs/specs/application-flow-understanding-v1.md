@@ -474,7 +474,8 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   everything under `flows`, and every `global_paths` prefix.
 - Result: `advice.test_selection` is the `e2e-safe-selection/1` object (AFU-V1-066) with `profile`,
   `state`, `state_reason`, `base`, `mandatory`, `discovery` (`path`, `state`), `selected` (`reasons`
-  from `test-file-changed`, `static-reach`, `linked-to-closure`, `observed-coverage`), `omitted_tests`
+  from `test-file-changed`, `static-reach`, `linked-to-closure`, `observed-coverage`, and
+  `declared-must-run` by AFP-V0-2486), `omitted_tests`
   (`basis` and `proof`, the digest of one entry in `proofs`), `proofs` (each distinct proof once:
   `digest`, then `links` or `coverage` and, for `reviewed-links`, the attestation), `disjoint_from`
   (the changed paths every proof is disjoint from), `omissions_per_basis`, `fallback` (`code`,

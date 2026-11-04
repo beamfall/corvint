@@ -103,6 +103,16 @@ AFP-V0-2203	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2204	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2205	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2206	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2480	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2481	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2482	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2483	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2484	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2485	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2486	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2487	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2488	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2489	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-

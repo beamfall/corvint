@@ -1395,6 +1395,7 @@
         "--by-path",
         "--cache",
         "--changes",
+        "--fail-fast-order",
         "--format",
         "--full",
         "--list",
