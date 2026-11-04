@@ -127,8 +127,17 @@ type routesReport struct {
 // Eligible runs below minEligible are NOT_OBSERVED; no hit among at least minEligible is DEAD;
 // a hit signal absent from every eligible run, or an eligible signal absent from every readable
 // run of the route's events, is SIGNAL_MISSING. Only HEALTHY and NOT_OBSERVED leave OK true.
+// A run id listed more than once (overlapping --runs listings) counts once, as its first listing.
 func RouteHealth(repository string, runs []run, jobs func(int64) ([]stepJob, bool), window, minEligible int) routesReport {
-	sorted := append([]run(nil), runs...)
+	sorted := make([]run, 0, len(runs))
+	seen := make(map[int64]bool, len(runs))
+	for _, r := range runs {
+		if seen[r.ID] {
+			continue
+		}
+		seen[r.ID] = true
+		sorted = append(sorted, r)
+	}
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].ID > sorted[j].ID })
 	rep := routesReport{Profile: routesProfile, Window: window, MinEligible: minEligible, Routes: []routeReport{}, OK: true}
 	for _, rt := range fastRoutes {
