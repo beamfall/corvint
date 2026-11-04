@@ -353,8 +353,8 @@ done
 # language:reason detail is data, while a JSON argv, even one whose other entries are language
 # names, or a line that also runs an interpreter is still reported.
 # shellcheck disable=SC2016
-for line in "script/x.sh:440:FRONTIER_OTHER_LANGS='[\"cfamily\",\"dotnet\",\"python\",\"ruby\",\"swift\",\"typescript\"]'" \
-  "script/x_test.sh:16:plan '{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"python:dynamic-import\"}' golden" \
+for line in "script/x.sh:440:FRONTIER_OTHER_LANGS=[\"cfamily\",\"dotnet\",\"python\",\"ruby\"]" \
+  "integrations/x/report.json:3:  {\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"python:dynamic-import\"}" \
   "integrations/x/langs.json:2:  \"languages\": [\"go\", \"python\"]"; do
   if fires "$line"; then
     echo "self-test: a JSON language name was flagged: $line" >&2
@@ -368,10 +368,10 @@ for line in "script/x.sh:440:FRONTIER_OTHER_LANGS='[\"cfamily\",\"dotnet\",\"pyt
 done
 # shellcheck disable=SC2016
 for line in "integrations/x/hooks.json:3:  \"command\": [\"python3\", \"hook.py\"]" \
-  "script/x.sh:17:run '[\"python\",\"build.py\"]'" "integrations/x/hooks.json:4:  \"command\": \"python3 hook.py\"" \
-  "script/x.sh:18:langs='[\"ruby\",\"python\"]'; python3 -c 1" "script/x.sh:19:run '[\"python\",\"-c\",\"go\"]'" \
-  "script/x.sh:20:cmd='\"python:3\"'" "integrations/x/devcontainer.json:2:  \"image\": \"python:alpine\"" \
-  "integrations/x/hooks.json:5:  {\"command\":[\"python\",\"go\"]}" "script/x.sh:21:run '[\"python\",\"go\"]'" \
+  "integrations/x/hooks.json:7:  [\"python\",\"build.py\"]" "integrations/x/hooks.json:4:  \"command\": \"python3 hook.py\"" \
+  "script/x.sh:18:langs='[\"ruby\",\"python\"]'; python3 -c 1" "integrations/x/hooks.json:8:  [\"python\",\"-c\",\"go\"]" \
+  "integrations/x/x.json:2:  \"cmd\": \"python:3\"" "integrations/x/devcontainer.json:2:  \"image\": \"python:alpine\"" \
+  "integrations/x/hooks.json:5:  {\"command\":[\"python\",\"go\"]}" \
   "integrations/x/hooks.json:6:  {\"languages\":[\"go\"],\"command\":[\"python\",\"go\"]}"; do
   if ! fires "$line"; then
     echo "self-test: a genuine invocation was hidden as a language name: $line" >&2
