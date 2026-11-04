@@ -2,9 +2,10 @@
 set -eu
 
 # Covers SRG-V0-013: two lanes that each add one requirement to the same spec and run
-# `make spec-requirements` conflict only inside that spec's requirement list and the
-# REQUIREMENTS.tsv rows, never in the spec header, the Agent digest, INDEX.json or README.md.
-# The TSV conflict resolves by regeneration, and a lane on another spec merges cleanly.
+# `make spec-requirements` conflict only inside that spec's requirement list, the
+# REQUIREMENTS.tsv rows and that spec's README.md row (its SRG-V0-043/SRG-V0-762 range), never in
+# the spec header, the Agent digest or INDEX.json. Both resolve by regeneration, and a lane on
+# another spec conflicts at most in an adjacent README.md row, resolved the same way (V1-4550).
 # Covers SRG-V0-016: lanes that add requirements to different specs, or to different sections of
 # one spec so that each shifts the other's definition lines, or that only edit prose no indexed
 # field reads, merge in both orders with no conflict in any file, and every merged generated file
@@ -109,8 +110,22 @@ add_requirement lane-c other.md OTH-V0-001 \
 git checkout -q lane-a
 if git merge -q --no-edit lane-b > /dev/null 2>&1; then fail "two lanes on one spec merged without a conflict"; fi
 conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
-test "$conflicted" = "docs/specs/REQUIREMENTS.tsv docs/specs/shared.md " ||
-  fail "the conflict touched more than the spec and REQUIREMENTS.tsv: $conflicted"
+test "$conflicted" = "docs/specs/README.md docs/specs/REQUIREMENTS.tsv docs/specs/shared.md " ||
+  fail "the conflict touched more than the spec, REQUIREMENTS.tsv and the README.md range: $conflicted"
+# readme_conflict_rows SPEC...: every conflicted README.md line is a table row of one of the named
+# specs, the SRG-V0-043/SRG-V0-762 Contract range each lane moved (SRG-V0-013 limit, V1-4550).
+readme_conflict_rows() {
+  awk -v specs=" $* " '
+    /^<<<<<<</ { inside = 1; next }
+    /^>>>>>>>/ { inside = 0; next }
+    /^=======$/ { next }
+    inside { lines++; if (!match($0, /^\| [^|]* \| \[`[^`]*`\]/)) { bad = 1; next }
+             cell = substr($0, RSTART, RLENGTH); sub(/^.*\[`/, "", cell); sub(/`\]$/, "", cell)
+             if (index(specs, " " cell " ") == 0) bad = 1 }
+    END { exit !(lines > 0 && !bad) }
+  ' "$repo/docs/specs/README.md"
+}
+readme_conflict_rows shared.md || fail "a README.md conflict held more than the shared.md row"
 
 # Every conflict marker in the spec lies inside its requirement list.
 awk '
@@ -129,20 +144,32 @@ awk '
 ' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "a REQUIREMENTS.tsv conflict held more than the new rows"
 
 # Resolution: keep both requirement lines and stage the spec; the resolve target refuses until
-# then, and afterwards regenerates the TSV rather than hand-merging it (SRG-V0-041).
+# then, and afterwards regenerates the TSV and README.md rather than hand-merging them (SRG-V0-041).
 resolve() { make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve > /dev/null 2>&1; }
 resolve && fail "spec-requirements-resolve ran with the spec still conflicted"
 sed -e '/^<<<<<<< /d' -e '/^=======$/d' -e '/^>>>>>>> /d' "$repo/docs/specs/shared.md" > "$test_root/spec"
 cp "$test_root/spec" "$repo/docs/specs/shared.md"
 git add -- docs/specs/shared.md
-resolve || fail "spec-requirements-resolve refused a merge whose only conflict left is the TSV"
+resolve || fail "spec-requirements-resolve refused a merge whose only conflicts left are the TSV and README.md"
 git commit -q --no-edit
 for id in SHR-V0-003 SHR-V0-004; do
   grep -q "^$id	docs/specs/shared.md	.*	standing	" "$repo/docs/specs/REQUIREMENTS.tsv" || fail "$id lost in the merge"
 done
+grep -q '^| [^|]* | \[`shared.md`\](shared.md) SHR-V0-001\.\.004 |' "$repo/docs/specs/README.md" ||
+  fail "the resolved README.md row does not carry the merged range SHR-V0-001..004"
 
-# A lane on another spec merges with no conflict at all.
-git merge -q --no-edit lane-c > /dev/null 2>&1 || fail "a lane on another spec conflicted"
+# A lane on another spec conflicts in no spec and no TSV row. In this fixture its README.md row is
+# adjacent to shared.md's and each side moved its own row's range, so README.md conflicts there and
+# only there (SRG-V0-013 limit, V1-4550); lanes whose rows are not adjacent (lane-x and lane-o
+# below) merge cleanly. The resolve regenerates it.
+if git merge -q --no-edit lane-c > /dev/null 2>&1; then
+  fail "adjacent README.md rows whose ranges both moved merged without a conflict; drop the SRG-V0-013 README.md limit"
+fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/README.md " || fail "a lane on another spec conflicted in $conflicted, want only README.md"
+readme_conflict_rows other.md shared.md || fail "the README.md conflict held more than the other.md and shared.md rows"
+resolve || fail "spec-requirements-resolve refused a merge whose only conflict is README.md"
+git commit -q --no-edit
 for file in REQUIREMENTS.tsv INDEX.json README.md; do
   case $file in
     REQUIREMENTS.tsv) flag= ;;

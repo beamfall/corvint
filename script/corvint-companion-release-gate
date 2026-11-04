@@ -88,11 +88,14 @@ stop_tracked_descendants() {
     [ "$(process_start "$child_pid")" != "$child_start" ] || return 1
   done <"$descendants"
 }
+# The grace is also bounded by the clock: each poll forks ps, which a loaded macOS host makes slow
+# enough that 100 polls outlast the interrupted join's 8 s bound (V1-4553).
 wait_runner_gone() {
-  local i state
+  local i state deadline=$((SECONDS + 5))
   for i in $(seq 1 100); do
     state=$(ps -p "$runner" -o state= 2>/dev/null | tr -d ' ') || return 0
     case "$state" in ''|Z*) return 0;; esac
+    [ "$SECONDS" -lt "$deadline" ] || break
     sleep 0.05
   done
   return 1

@@ -4,6 +4,12 @@
 # script/check-spec-readme.sh. Reads worktree README.md and INDEX.json only; no Go build.
 # Status, claims and header agreement remain owned by internal/specindex.
 set -eu
+# A workflow-only fixture with neither file has no spec corpus, so the dogfood-closeout static phase
+# skips this check as the batch-precheck one does (ASD-V0-2010, V1-4553).
+if [ ! -e docs/specs/README.md ] && [ ! -e docs/specs/INDEX.json ]; then
+  echo 'spec-readme-check: SKIP no spec corpus (neither docs/specs/README.md nor docs/specs/INDEX.json)'
+  exit 0
+fi
 perl - <<'PERL'
 use strict;
 use warnings;

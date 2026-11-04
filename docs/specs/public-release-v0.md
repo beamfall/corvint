@@ -722,7 +722,9 @@ itself (`internal/companionrelease`, `buildComponentTwice` and `buildTarGzTwice`
 `PUB-V0-011..015`. A refused or failed run retains no output and prints no `qualified` claim
 (`companionrelease.Run` returns before `retainBundle` on any build, archive, or smoke failure).
 A wrapper signalled by `HUP`, `INT` or `TERM` exits 129, 130 or 143 after removing its private
-parent, never 0 (decision 0248).
+parent, never 0 (decision 0248). `script/corvint-companion-release-gate` gives a runner that
+ignores `TERM` at most 5 s, by the clock as well as by poll count, before `KILL`, so a slow `ps`
+cannot stretch the interrupted join past its 8 s bound (amended 2026-11-04, V1-4553).
 As of 2026-09-12 this has been exercised against a real `corvint-taskman` clone; see
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` for the run's outcome. The smoke's refused-mutation steps are the loopback-HTTP
 half of `PUB-V0-005`'s installed-path refusal-before-effects check. Its control, edit and evidence

@@ -3,10 +3,7 @@ package contextindex
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/gob"
-	"errors"
-	"os"
 	"reflect"
 	"testing"
 )
@@ -70,45 +67,6 @@ func TestDeferredGobBodiesEqualFullLoad_IDXSNAPV0811(t *testing.T) {
 			t.Fatalf("%s: refusal on an intact file: %v", name, err)
 		}
 		deferred.Release()
-	}
-}
-
-// TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811: a snapshot file
-// truncated in place under a deferred load's mapping makes the next body read
-// a refusal (the fault is caught inside the guard), never a SIGBUS, and a
-// fresh load misses.
-func TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811(t *testing.T) {
-	t.Setenv("CORVINT_"+indexStoreSuffix, t.TempDir())
-	index := taskContextFixture(t)
-	receipt, err := WriteSnapshot(index)
-	if err != nil {
-		t.Fatal(err)
-	}
-	deferred, hit, err := LoadSnapshotDeferred(context.Background(), index.Root)
-	if err != nil || !hit {
-		t.Fatalf("hit=%v err=%v", hit, err)
-	}
-	defer deferred.Release()
-	data, err := os.ReadFile(receipt.Path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	footerAt := len(data) - 32 - snapshotFooterBytes
-	regionStart := footerAt - int(binary.LittleEndian.Uint64(data[footerAt:]))
-	if err := os.Truncate(receipt.Path, int64(regionStart)); err != nil {
-		t.Fatal(err)
-	}
-	loaded := 0
-	for _, source := range deferred.Sources {
-		if _, _, ok := source.Text(); ok {
-			loaded++
-		}
-	}
-	if !errors.Is(deferred.SnapshotRefusal(), ErrSnapshotRefused) {
-		t.Fatalf("the truncated body read was not refused (%d loaded)", loaded)
-	}
-	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
-		t.Fatalf("a truncated snapshot loaded: hit=%v err=%v", hit, err)
 	}
 }
 

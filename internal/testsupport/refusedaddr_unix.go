@@ -1,4 +1,4 @@
-//go:build unix
+//go:build unix && !darwin
 
 package testsupport
 
@@ -15,7 +15,9 @@ import (
 // such as 127.0.0.1:1, or a listener closed before the dial, is not enough: on a
 // WSL2 host in mirrored networking mode a loopback dial to a port no Linux
 // socket holds is routed to Windows, whose firewall drops it, so the dial waits
-// out its connect timeout (about 30 s) instead of failing (V1-4083).
+// out its connect timeout (about 30 s) instead of failing (V1-4083). Darwin
+// drops a SYN to a bound, non-listening socket silently instead, so it uses the
+// closed-listener form in refusedaddr_other.go (V1-4553).
 func RefusedLoopbackAddr(t testing.TB) string {
 	t.Helper()
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)

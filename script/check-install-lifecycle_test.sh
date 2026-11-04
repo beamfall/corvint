@@ -31,8 +31,10 @@ digest() {
   fi
 }
 
-# 1. Binary path with a genuine upgrade: every step passes and the upgrade is not same-bytes.
-output=$(CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" CORVINT_LIFECYCLE_UPGRADE_BINARY="$test_root/corvint-2" \
+# 1. Binary path with a genuine upgrade: every step passes and the upgrade is not same-bytes. It is
+#    launched from inside this checkout, as the release gate runs it, so mcp-unavailable-root must
+#    not let the MCPV0-861 launch-worktree substitution serve the checkout (V1-4552).
+output=$(cd "$source_root" && CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" CORVINT_LIFECYCLE_UPGRADE_BINARY="$test_root/corvint-2" \
   CORVINT_LIFECYCLE_REPORT="$test_root/report.txt" "$script") || fail "binary lifecycle failed: $output"
 for step in install-a first-index upgrade-b mcp-unavailable-root rollback-a uninstall backup-restore corrupt-truncate corrupt-overwrite; do
   case $output in

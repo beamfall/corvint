@@ -184,7 +184,12 @@ No requirement below diverges from the implementation.
   the header, the Agent digest, INDEX.json and README.md MUST merge cleanly. The TSV conflict MUST be
   resolved by resolving the spec and regenerating, never by hand, and a change on another spec MUST
   merge with no conflict. `script/spec-requirements-conflict_test.sh` MUST show this through the
-  real `make` target. Extended by SRG-V0-016.
+  real `make` target. Extended by SRG-V0-016. Amended 2026-11-04 (V1-4550), under the owner's
+  standing auto-accept: since SRG-V0-762 projects each spec's id range into its README.md row and
+  SRG-V0-043 keeps it current, README.md MAY also conflict, only inside that spec's row, and a change
+  on another spec MAY conflict in README.md only, only inside its own row and that spec's row, when
+  the two rows are adjacent and both ranges moved. Every README.md conflict is resolved like the TSV
+  one, by regeneration (`make spec-requirements-resolve`, SRG-V0-041).
 - `SRG-V0-014`: (accepted under the owner's standing auto-accept (2026-10-15); V1-1409) A spec whose
   `Delivery status:` header holds more than one word (a qualified delivery) MUST have its Agent
   digest `Status:` carry that header text verbatim, followed by nothing or by a sentence boundary
@@ -216,6 +221,9 @@ No requirement below diverges from the implementation.
   - An edit that changes an indexed field next to another change's new row. For example, a
     reflow that keeps a requirement's meaning but changes its first line, and so its title.
     `script/spec-requirements-conflict_test.sh` shows that case as an expected conflict.
+  - The README.md range rows (SRG-V0-762), amended 2026-11-04 (V1-4550): two changes that each
+    move one spec's range conflict in that spec's row, and changes that move the ranges of two
+    specs whose rows are adjacent conflict in those two rows.
 
   Each such conflict is resolved by resolving and staging the spec, then running
   `make spec-requirements-resolve` (SRG-V0-041), which regenerates the index as SRG-V0-013 states.
@@ -724,6 +732,7 @@ definition line (SRG-V0-017).
 | A committed row names an id its spec no longer defines (a stale index) | the console reports a gap, the compaction kernel refuses with `unsupported-kernel-requirement`, a roadmap link keeps its file and title with no line, and the audit exits 1; `spec-requirements-check` fails on the stale index |
 | A reader is handed an index pinned before SRG-V0-015, with a line column | `specindex.ParseIndex` reads the line from that column, so a kernel or console over an old revision still resolves |
 | Two lanes add requirements whose rows land next to each other in the committed order | a conflict between those rows of `REQUIREMENTS.tsv` only; resolve the spec and regenerate (SRG-V0-013) |
+| Two lanes each move the README.md range of one spec, or of two specs whose rows are adjacent | a conflict inside those README.md rows only; `make spec-requirements-resolve` regenerates them (SRG-V0-013, V1-4550) |
 | One lane reflows a requirement so its first line, and so its title, changes, and another inserts a requirement right after it | a conflict between those rows of `REQUIREMENTS.tsv`, even when the spec merges cleanly; a reflow is not a prose-only edit under SRG-V0-016; resolve the spec and regenerate (SRG-V0-013) |
 | A committed row names a different file than the one the staged specs define its id in | the acceptance audit exits 1 naming both files, instead of citing the row's file at the other file's line |
 | A change touches only INDEX.json, a spec's Agent digest or the README table | `corvint affected` selects `internal/specindex`, whose `TestIndexCoversSpecsAndHeaders` fails on a claim over 160 characters or one the digest and README do not carry (SRG-V0-045) |
@@ -758,7 +767,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-010 | `script/gen-spec-requirements_test.sh` case 8: the standing listing, `UNPARSED_STANDING`, `NOT_PROMOTABLE` with exit 0, the `unrecorded` listing, the refused mode (exit 2), a TSV without the acceptance columns and a five-column row with an empty id (exit 1 each); the live counts in the V1-1346/V1-1347 build-log entry |
 | SRG-V0-011 | this spec's own header and digest, the worked example; `TestIndexCoversSpecsAndHeaders` still requires the digest `Status:` to hold both statuses |
 | SRG-V0-012 | `script/gen-spec-requirements_test.sh` case 7: projection, kept fields and cells, appended entry and row, fixed point and the refused two-sentence claim; byte-identical `--index` and `--readme` output at `523fa4ce` |
-| SRG-V0-013 | `script/spec-requirements-conflict_test.sh`: the conflicted paths are exactly the spec and `REQUIREMENTS.tsv`, every marker sits in the requirement list or between new TSV rows, regeneration resolves the TSV, and a lane on another spec merges cleanly |
+| SRG-V0-013 | `script/spec-requirements-conflict_test.sh`: the conflicted paths are exactly the spec, `REQUIREMENTS.tsv` and README.md, every other marker sits in the requirement list or between new TSV rows, every README.md marker holds only that spec's table row, regeneration resolves both and leaves the merged range, and a lane on another spec whose row is adjacent conflicts in README.md only, in those two rows (V1-4550) |
 | SRG-V0-014 | `TestDeliveryClauseConvention` (rule table with the stale-prefix case) and `TestIndexCoversSpecsAndHeaders` over every spec |
 | SRG-V0-015 | `TestSRGV0015IndexOrderedByDefinitionPosition` over the committed index; `script/gen-spec-requirements_test.sh` case 9: the committed header, definition order within a spec, file order, the id-ordered `--lines` view, and a line shift that leaves the committed index byte for byte. At the V1-1525 base the regenerated `--lines` view was byte-identical to the previous committed index |
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh`: lanes on two sections of one spec, a prose-only lane against each, and a lane on another spec merge in both orders with every generated file equal to its regeneration. Against the base generator three of those four pairs conflicted in `REQUIREMENTS.tsv`. A title-changing reflow against a row inserted after it conflicts in `REQUIREMENTS.tsv` only, in both orders, and regenerates to both rows (the recorded limit) |

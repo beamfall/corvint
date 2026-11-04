@@ -72,9 +72,15 @@ CORVINT_COMPANION_OUTPUT="$test_root/output-no-npm" PATH="$fake:/usr/bin:/bin" \
 [ ! -e "$test_root/npm-invoked" ] || fail "core bundle resolved npm"
 
 
+# Every ps here costs 50 ms more, as on a loaded macOS runner: the TERM grace must stay bounded by
+# the clock rather than by its poll count, or the join below exceeds 8 s (V1-4553).
+slow="$test_root/slow-ps"
+mkdir -p "$slow"
+printf '#!/bin/sh\nsleep 0.05\nexec "%s" "$@"\n' "$(command -v ps)" >"$slow/ps"
+chmod +x "$slow/ps"
 CORVINT_WRAPPER_ARGS="$test_root/interrupt-args" CORVINT_WRAPPER_DESC_PID="$test_root/descendant" CORVINT_WRAPPER_IGNORE_TERM=1 \
 CORVINT_NPM_CACHE="$test_root/npm-cache" CORVINT_COMPANION_OUTPUT="$test_root/output-interrupt" \
-PATH="$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate" &
+PATH="$slow:$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate" &
 wrapper=$!
 for _ in $(seq 1 100); do [ -s "$test_root/descendant" ] && break; sleep 0.05; done
 [ -s "$test_root/descendant" ] || fail "interrupt descendant did not start"
@@ -84,7 +90,8 @@ sleep 0.4
 started=$SECONDS
 kill -TERM "$wrapper"
 wait "$wrapper" 2>/dev/null && fail "interrupted wrapper succeeded"
-[ "$((SECONDS-started))" -le 8 ] || fail "TERM-ignoring runner cleanup exceeded bounded join"
+joined=$((SECONDS-started))
+[ "$joined" -le 8 ] || fail "TERM-ignoring runner cleanup exceeded bounded join: ${joined} s"
 kill -0 "$descendant" 2>/dev/null && fail "interrupted wrapper left descendant alive"
 
 if CORVINT_WRAPPER_ARGS="$test_root/fail-args" CORVINT_WRAPPER_DESC_PID="$test_root/fail-descendant" CORVINT_WRAPPER_FAIL=1 \

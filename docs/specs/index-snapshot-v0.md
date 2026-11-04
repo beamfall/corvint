@@ -1335,7 +1335,10 @@ only.
     copies out under the guard, verifies against `BlobHash` and caches on first read. A fault (a
     file truncated in place) or a mismatch is recorded as the load's refusal, the body reads as
     unloaded, and the caller reloads eagerly. No value a read returns aliases the mapping, so a
-    truncate can never raise SIGBUS outside the guard.
+    truncate can never raise SIGBUS outside the guard. On Darwin a private mapping of a file
+    truncated in place may keep serving its cached pages instead of faulting; each body served
+    that way still verifies against its `BlobHash` before it is returned, so a deferred read either
+    refuses or returns the blob's exact bytes (amended 2026-11-04, V1-4413, V1-4553).
   - **`IDX-SNAP-V0-011` probe:** MUST read the sources and verify every region body, so
     `index --if-stale` still repairs a file whose bodies changed.
   - **Compact event load:** reads only the digest-covered spine. A body change cannot reach its
@@ -1373,8 +1376,11 @@ only.
   Evidence:
   - `TestDeferredGobBodiesEqualFullLoad_IDXSNAPV0811`: every source's `Text` and the 14-query
     packets are equal, on the fixture and on this repository through a scratch store;
-  - `TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811`: a file truncated to the region
-    under a deferred mapping gives a refusal and no SIGBUS, and a fresh load misses;
+  - `TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811` (`mapped_fault_unix_test.go`): a
+    file truncated in place under a deferred load whose region reads through the shared
+    `faultingMapping` (V1-3005) gives a refusal and no SIGBUS on Linux and Darwin; a second
+    deferred load reading its own private mapping refuses on Linux, and every body it serves equals
+    the full load's (on Darwin, 10 of 10 served from cached pages, 2026-11-04); a fresh load misses;
   - `TestGobBodiesInlineAndRegionRoundTrip_IDXSNAPV0811`;
   - the amended `TestSnapshotSameLengthBodyOverwriteIsAMiss`: full, event and probe reads miss,
     the deferred read refuses, and the compact read hits;

@@ -29,8 +29,25 @@ func TestFixtureIgnoresInheritedGitRepository(t *testing.T) {
 	if len(entries) != 0 {
 		t.Fatalf("the fixture wrote %d entries into the decoy repository", len(entries))
 	}
-	if got := git(t, f.root, "rev-parse", "--absolute-git-dir"); got != filepath.Join(f.root, ".git") {
-		t.Fatalf("fixture git dir = %s; want %s", got, filepath.Join(f.root, ".git"))
+	// Git names the physical git dir, while t.TempDir can sit under a symlink (macOS /var is
+	// /private/var), so both sides are compared resolved. The symlinked view of the fixture pins
+	// that comparison on every platform that can create one (V1-4551).
+	physical := func(path string) string {
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resolved
+	}
+	views := []string{f.root}
+	if link := filepath.Join(t.TempDir(), "fixture-link"); os.Symlink(f.root, link) == nil {
+		views = append(views, link)
+	}
+	for _, view := range views {
+		got := physical(git(t, view, "rev-parse", "--absolute-git-dir"))
+		if want := filepath.Join(physical(view), ".git"); got != want {
+			t.Fatalf("fixture git dir via %s = %s; want %s", view, got, want)
+		}
 	}
 }
 

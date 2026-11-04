@@ -163,10 +163,12 @@ IFS=$oldifs
 # ASD-V0-600 (V1-4100): one awk reads the first line of each candidate that is not a *.sh file,
 # instead of a head|grep pair per tracked file (about 11000 of them, 40-85 s on a loaded lane
 # host). A file it cannot read is not listed, as before; a failed finder refuses, never prints ok.
+# It reads bytes in the C locale: under a UTF-8 locale BSD awk stops with a multibyte conversion
+# failure on a binary first line, such as a tracked PNG (V1-4553).
 files=()
 if ((${#cands[@]})); then
   # shellcheck disable=SC2016
-  list=$(printf '%s\n' "${cands[@]}" | awk '
+  list=$(printf '%s\n' "${cands[@]}" | LC_ALL=C awk '
     /\.sh$/ { print; next }
     { f = $0; line = ""; if ((getline line < f) > 0 && line ~ /^#!.*([\/ ]bash)([[:space:]]|$)/) print f; close(f) }') || {
     echo "check-bash32: FAIL incomplete scan: the script finder exited $?; refusing rather than reporting ok (ASD-V0-750)" >&2

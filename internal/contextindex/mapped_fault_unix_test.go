@@ -3,8 +3,12 @@
 package contextindex
 
 import (
+	"bytes"
+	"context"
+	"encoding/binary"
 	"errors"
 	"os"
+	"runtime"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -91,6 +95,91 @@ func TestPackMappedReadsRefuseATruncatedFile(t *testing.T) {
 	if !file.refused.Load() {
 		t.Fatal("a faulted pack is not marked refused")
 	}
+}
+
+// TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811: a snapshot file
+// truncated in place under a deferred load's mapping makes the next body read
+// a refusal (the fault is caught inside the guard), never a SIGBUS, and a
+// fresh load misses. Lazy bodies exist only on a mapped load. One load reads
+// its region through faultingMapping, so the read faults on Darwin as on Linux
+// (V1-3005); another reads through its own private mapping, which refuses on
+// Linux and on Darwin may keep serving the cached pages, so every body it
+// serves must still equal the full load's (V1-4413, V1-4553).
+func TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811(t *testing.T) {
+	t.Setenv("CORVINT_"+indexStoreSuffix, t.TempDir())
+	index := taskContextFixture(t)
+	receipt, err := WriteSnapshot(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, hit, err := LoadSnapshot(context.Background(), index.Root)
+	if err != nil || !hit {
+		t.Fatalf("full load hit=%v err=%v", hit, err)
+	}
+	t.Cleanup(full.Release)
+	faulted, private := deferredLoad(t, index.Root), deferredLoad(t, index.Root)
+	data, err := os.ReadFile(receipt.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	footerAt := len(data) - 32 - snapshotFooterBytes
+	regionStart := footerAt - int(binary.LittleEndian.Uint64(data[footerAt:]))
+	lazy := lazyBodies(t, faulted)
+	if !bytes.Equal(lazy.region, data[regionStart:footerAt]) {
+		t.Fatal("the lazy region is not the file's body region")
+	}
+	lazy.region = faultingMapping(t, receipt.Path)[regionStart:footerAt]
+	loaded := 0
+	for _, source := range faulted.Sources {
+		if _, _, ok := source.Text(); ok {
+			loaded++
+		}
+	}
+	if !errors.Is(faulted.SnapshotRefusal(), ErrSnapshotRefused) {
+		t.Fatalf("the truncated body read was not refused (%d loaded)", loaded)
+	}
+	loaded = 0
+	for path, source := range private.Sources {
+		text, valid, ok := source.Text()
+		if !ok {
+			continue
+		}
+		loaded++
+		if wantText, wantValid, _ := full.Sources[path].Text(); text != wantText || valid != wantValid {
+			t.Fatalf("%s: a body read after the truncate is not the full load's", path)
+		}
+	}
+	refusal := private.SnapshotRefusal()
+	if runtime.GOOS == "linux" && !errors.Is(refusal, ErrSnapshotRefused) {
+		t.Fatalf("the truncated private-mapping read was not refused on linux (%d loaded)", loaded)
+	}
+	t.Logf("private mapping after the truncate on %s: %d verified bodies served, refusal %v", runtime.GOOS, loaded, refusal)
+	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
+		t.Fatalf("a truncated snapshot loaded: hit=%v err=%v", hit, err)
+	}
+}
+
+// deferredLoad is a deferred load of root, released at cleanup.
+func deferredLoad(t *testing.T, root string) *Index {
+	t.Helper()
+	deferred, hit, err := LoadSnapshotDeferred(context.Background(), root)
+	if err != nil || !hit {
+		t.Fatalf("deferred load hit=%v err=%v", hit, err)
+	}
+	t.Cleanup(deferred.Release)
+	return deferred
+}
+
+// lazyBodies is the shared lazy body store of a deferred load.
+func lazyBodies(t *testing.T, deferred *Index) *gobBodies {
+	t.Helper()
+	for _, source := range deferred.Sources {
+		if source.body.gob != nil {
+			return source.body.gob
+		}
+	}
+	t.Fatal("the deferred load handed out no lazy body")
+	return nil
 }
 
 func TestSectionedMappedReadRefusesATruncatedFile(t *testing.T) {

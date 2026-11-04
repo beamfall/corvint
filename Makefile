@@ -815,10 +815,11 @@ goos-filenames-test:
 # windows-main-check fails, in seconds and before `make windows-vet`, when a package main builds
 # for GOOS=windows but no file selected there declares func main, as an untagged help.go beside
 # a `//go:build darwin || linux` main.go does (ASD-V0-974, V1-3782). It lists packages only.
-.PHONY: windows-main-check windows-main-test
+.PHONY: windows-main-check
 windows-main-check:
 	@script/check-windows-main.sh . && script/check-windows-main.sh interop/cem01-go
 
+.PHONY: windows-main-test
 windows-main-test:
 	@script/check-windows-main_test.sh
 

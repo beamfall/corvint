@@ -8,6 +8,10 @@ here=$(cd "$(dirname "$0")" && pwd)
 script=$here/adopter-ci-advisory.sh
 root=$(mktemp -d "${TMPDIR:-/tmp}/adopter-ci-advisory-test.XXXXXX")
 trap 'rm -rf "$root"' EXIT INT TERM
+# The script names the repository as `cd && pwd` prints it, and a TMPDIR with a trailing slash
+# (the macOS default) leaves a double slash in the mktemp path, so the expected path is that
+# canonical form too. run() passes it with a trailing slash to pin the normalization (V1-4553).
+root=$(cd "$root" && pwd)
 fail() { echo "FAIL: $*" >&2; exit 1; }
 if command -v sha256sum >/dev/null 2>&1; then sum() { sha256sum "$@"; }; else sum() { shasum -a 256 "$@"; }; fi
 platform=linux_amd64
@@ -42,7 +46,7 @@ run() {
   shift
   mkdir -p "$root/$name"
   local rc=0
-  FAKE_LOG=$root/$name/fake.log CORVINT_PLATFORM=$platform CORVINT_REPO=$root \
+  FAKE_LOG=$root/$name/fake.log CORVINT_PLATFORM=$platform CORVINT_REPO=$root/ \
     CORVINT_ADVISORY_OUT=$root/$name/out GITHUB_PATH=$root/$name/path GITHUB_STEP_SUMMARY=$root/$name/summary \
     "$script" "$@" > "$root/$name/stdout" 2> "$root/$name/stderr" || rc=$?
   echo "$rc" > "$root/$name/rc"

@@ -29,8 +29,10 @@ func sharedGate(id, script, key string) wire.Value {
 // refused gate runs. Preflight still refuses the gate UNSUPPORTED.
 func TestLGLV0885_GateRunSerializesASharedResource(t *testing.T) {
 	t.Parallel()
-	// argv entries are bounded at 128 bytes, so the paths stay short.
-	sync, err := os.MkdirTemp("", "g")
+	// argv entries are bounded at 128 bytes, so the paths stay short. The macOS
+	// TMPDIR alone is about 50 bytes, which pushes the hold script past the bound
+	// (V1-4553), so the directory sits directly under /tmp on both hosts.
+	sync, err := os.MkdirTemp("/tmp", "g") // fixed-tmp: a 128-byte gate argv bound; TMPDIR is too long on macOS
 	if err != nil {
 		t.Fatal(err)
 	}
