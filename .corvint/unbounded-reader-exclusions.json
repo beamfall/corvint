@@ -2,7 +2,6 @@
   "profile": "corvint-unbounded-reader-exclusions/0",
   "paths": [
     ".corvint/change.cem.json",
-    ".corvint/changes/",
-    "docs/build-log/"
+    ".corvint/changes/"
   ]
 }

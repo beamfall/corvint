@@ -4,7 +4,7 @@ package affected
 import "testing"
 
 // TSP-V0-1062: the explanation pairs each entry with the declaration that holds it; a changed Go
-// declaration is named as itself even for a shell unit it selects.
+// declaration is named as itself even for a shell unit it selects; so is the shell declaration.
 func TestReadScopeCausePairsDeclarationAndEntry_TSPV01062(t *testing.T) {
 	for _, c := range []struct {
 		id, directory, dirty string
@@ -15,6 +15,7 @@ func TestReadScopeCausePairsDeclarationAndEntry_TSPV01062(t *testing.T) {
 		{"go:m/reader", "reader", "reader/x_test.go", []string{"a/"}, ReadScopeCause{ReadScopesPath, "reader/"}},
 		{"shell:script/x_test.sh", "script", "internal/a.go", []string{"internal/"}, ReadScopeCause{ShellReadScopesPath, "internal/"}},
 		{"shell:script/x_test.sh", "script", ReadScopesPath, []string{"internal/"}, ReadScopeCause{ReadScopesPath, ReadScopesPath}},
+		{"shell:script/x_test.sh", "script", ShellReadScopesPath, []string{"internal/"}, ReadScopeCause{ShellReadScopesPath, ShellReadScopesPath}},
 	} {
 		if got := readScopeCause(c.id, c.directory, c.scope, c.dirty); *got != c.want {
 			t.Errorf("readScopeCause(%s, %s) = %+v, want %+v", c.id, c.dirty, *got, c.want)
