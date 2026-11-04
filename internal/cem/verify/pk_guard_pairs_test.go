@@ -33,6 +33,9 @@ func TestPKGuardRecordedPairs(t *testing.T) {
 	if os.Getenv("PK_GUARD_ADDITIONAL") == "1" {
 		pairs = [][2]string{{"25164d1ac^1", "25164d1ac"}, {"3fb719f93^1", "3fb719f93"}}
 	}
+	if os.Getenv("PK_GUARD_THIRD") == "1" {
+		pairs = [][2]string{{"ed4c714ee^1", "ed4c714ee"}}
+	}
 	for _, pair := range pairs {
 		base := strings.TrimSpace(string(git("rev-parse", pair[0])))
 		target := strings.TrimSpace(string(git("rev-parse", pair[1])))
