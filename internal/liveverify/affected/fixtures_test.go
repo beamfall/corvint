@@ -4,6 +4,9 @@ package affected
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -99,5 +102,74 @@ func TestFixtureDirectory_AFPV0446(t *testing.T) {
 		if got := fixtureDirectory(relative); got != want {
 			t.Errorf("fixtureDirectory(%q) = %q, want %q", relative, got, want)
 		}
+	}
+}
+
+// AFP-V0-2440 (V1-4446): a non-Go plugin's claim on a file below a `testdata` directory a Go unit
+// hosts, below which the plugin lists no path, is a fixture-only claim. With no other claimant
+// the path is UNOWNED_DIRTY_PATH, whose hint names the claim, never UNINDEXED_SOURCE_PATH; the
+// hosting Go package is still selected. Every other shape keeps UNINDEXED_SOURCE_PATH: no hosting
+// Go unit, the plugin listing a unit below the directory (the injected fault: a fixture the plugin
+// does index), a path outside testdata, a claim by the Go plugin, and a second claimant that is
+// not fixture-only.
+func TestFixtureOnlyClaimIsNoUnindexedSource_AFPV2440(t *testing.T) {
+	goUnit := fake{name: "go", units: []Unit{{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}}}}
+	x := fake{name: "x", units: []Unit{{ID: "x:app", Sources: []string{"app.x"}, Tests: []string{"app_test.x"}}}}
+	xIndexed := fake{name: "x", units: []Unit{
+		{ID: "x:app", Sources: []string{"app.x"}, Tests: []string{"app_test.x"}},
+		{ID: "x:fixture", Tests: []string{"pkg/testdata/suite/t_test.x"}},
+	}}
+	y := fake{name: "y", owns: func(path string) bool { return strings.HasSuffix(path, ".x") }, units: []Unit{
+		{ID: "y:fixture", Sources: []string{"pkg/testdata/lib/kept.y"}},
+	}}
+	cases := []struct {
+		name      string
+		languages []Language
+		dirty     string
+		reason    string
+		hint      bool
+	}{
+		{"hosted fixture, plugin lists nothing below it", []Language{goUnit, x}, "pkg/testdata/lib/calc.x", UnknownUnownedDirtyPath, true},
+		{"nested testdata keeps the outermost hosted directory", []Language{goUnit, x}, "pkg/testdata/a/testdata/b.x", UnknownUnownedDirtyPath, true},
+		{"no Go unit hosts the directory", []Language{x}, "pkg/testdata/lib/calc.x", UnknownUnindexedSourcePath, false},
+		{"the plugin lists a unit below the directory", []Language{goUnit, xIndexed}, "pkg/testdata/lib/calc.x", UnknownUnindexedSourcePath, false},
+		{"a path outside testdata", []Language{goUnit, x}, "pkg/lib/calc.x", UnknownUnindexedSourcePath, false},
+		{"a Go source below hosted testdata", []Language{goUnit, x}, "pkg/testdata/gen/main.go", UnknownUnindexedSourcePath, false},
+		{"a second claimant indexes below the directory", []Language{goUnit, x, y}, "pkg/testdata/lib/calc.x", UnknownUnindexedSourcePath, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// The dirty file exists, so no deleted-file rule (AFP-V0-620, AFP-V0-821) takes it.
+			root := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(root, filepath.Dir(tc.dirty)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, tc.dirty), []byte("fixture\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			graph, err := Build(context.Background(), root, tc.languages...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := Select(graph, []string{tc.dirty})
+			var found *Unknown
+			for index, unknown := range plan.Unknown {
+				if unknown.Detail == tc.dirty {
+					found = &plan.Unknown[index]
+				}
+				if unknown.Reason == UnknownUnindexedSourcePath && tc.reason != UnknownUnindexedSourcePath {
+					t.Errorf("unexpected %s %s", unknown.Reason, unknown.Detail)
+				}
+			}
+			if found == nil || found.Reason != tc.reason {
+				t.Fatalf("dirty %s: unknown %+v, want reason %s", tc.dirty, plan.Unknown, tc.reason)
+			}
+			if hinted := strings.Contains(found.Hint, "AFP-V0-2440"); hinted != tc.hint {
+				t.Errorf("hint %q, want AFP-V0-2440 hint %v", found.Hint, tc.hint)
+			}
+			if tc.hint && !strings.Contains(found.Hint, "x") {
+				t.Errorf("hint %q does not name the claiming plugin", found.Hint)
+			}
+		})
 	}
 }
