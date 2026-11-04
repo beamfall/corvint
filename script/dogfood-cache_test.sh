@@ -4,6 +4,8 @@
 # ASD-V0-019 / V1-1755: dogfood make targets refuse a defaulted BASE.
 # Bash 3.2 does not apply errexit to [[ ]] in loops; assertions need explicit exits.
 set -euo pipefail
+# Default/environment BASE cases must not inherit a parent make command-line override.
+unset MAKEFLAGS MAKELEVEL MFLAGS
 source_root=$(cd "$(dirname "$0")/.." && pwd)
 # DCW-V0-811: a host without rg asserts through the grep -P stand-in; only a host with neither refuses.
 # shellcheck source=script/test-rg-fallback.sh
