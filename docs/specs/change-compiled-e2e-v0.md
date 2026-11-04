@@ -160,7 +160,7 @@ existing test companions (`corvint-test-runner`, `corvint-tests-accept`, `corvin
 `corvint-playwright-minimize`) into it is governed by its own spec, `docs/specs/corvint-test-fold-v0.md`
 (CTF-V0, V1-1667), under which the `runner`, `falsify` and `minimize` groups have moved. Two existing names collided with `corvint-test` and were resolved in the first slice
 (V1-1665): the companion-release archive classifier now maps only `corvint-test-validity*` names to
-`corvint-test-validity-mcp` (`internal/companionrelease/retained_test.go:142@9304a70e`), and core `corvint test` keeps its bare
+`corvint-test-validity-mcp` (`internal/companionrelease/retained_test.go:145@9304a70e`), and core `corvint test` keeps its bare
 `corvint-test:` diagnostics (`cmd/corvint/session_test_shards_unix_test.go:82@8b1f3cb8`) while the
 companion prints `corvint-test e2e:`. V0 adds no command, flag, dependency or
 default-path behaviour to core `corvint` (invariant 7), so the capability can be built, shipped,

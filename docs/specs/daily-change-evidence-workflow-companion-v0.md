@@ -20,17 +20,6 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 ## Requirements
 
-- `DWC-V0-7319`: (accepted under the lane owner's implementation authority, 2026-11-04;
-  pk-affected final-check blocker; refines `DCW-V0-020`) A passing check MUST publish its complete
-  report atomically even when the private Git directory and worktree are on different mount
-  boundaries. If the initial staged rename refuses with EXDEV, it MUST stage the same report
-  bytes beside the destination and atomically rename that sibling. Other errors MUST retain
-  their original failure; a failed final rename MUST preserve the previous report. Temporary
-  files MUST be removed on success or failure. No verifier, citation, ceiling, agreement or
-  completion rule changes. Evidence: `TestCheckReportPublicationAcrossMounts` exercises the
-  cross-device case, unrelated failure, and failed destination publication. Rollback: restore
-  the Git-directory-only rename, retaining the original report-publication refusal.
-
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
   `regenerated-specs`, a merge whose ort merge of its two parents conflicts only in
@@ -112,7 +101,6 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 | Requirement | Evidence | State |
 |---|---|---|
-| `DWC-V0-7319` | `TestCheckReportPublicationAcrossMounts`; final lane dogfood-check | focused regression and live check required |
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |

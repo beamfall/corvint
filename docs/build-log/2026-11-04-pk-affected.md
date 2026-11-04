@@ -38,7 +38,7 @@ the native store is deliberately not written by this lane.
   Both AND and OR regressions reproduce the unsafe directory case; the exact plain-mktemp forms
   remain conservatively unbounded, and foreground directory lists remain eligible.
 - Bracket every incremental timing sample with calibration probes before and after it. Use the
-  slower adjacent probe and take the p95 of normalized samples, rather than dividing unrelated
+  mean of the two adjacent probes and take the p95 of normalized samples, rather than dividing unrelated
   percentiles. Keep the 100 ms bound and three-round retry limit. An absolute miss remains an
   explicit SKIP/NOT_ENFORCED on a contended host; this is not an absolute latency pass.
 
@@ -56,7 +56,7 @@ DONE below means the lane's implementation/acceptance evidence, not a native tic
 
 | Ticket | Disposition and requirement evidence | Regression / retained witness |
 |---|---|---|
-| V1-3880 | DONE; existing IDX-SNAP-V0-019/115 reuse verified, timing added | `TestSnapshotMissNoticeNamesTheBuild`: cold and snapshot-hit impact timings; silent hit at zero threshold |
+| V1-3880 | DONE for reuse under IDX-SNAP-V0-019/115; before/after timing evidence remains weak | `TestSnapshotMissNoticeNamesTheBuild`: cold and snapshot-hit impact timings; silent hit at zero threshold |
 | V1-3912 | DONE; TSP-V0-7301 | `TestAffectedTempFailureNamesPathAndRemedy`, `TestAffectedTempFailureOnUnwritableParent`; actual failed private scratch creation maps to actionable `unsupported-affected-temp` |
 | V1-3913 | DONE; TSP-V0-7302 | `TestForeignCallerCommentDiagnostic`, offending `notes.go:3`; bounded worker scan regression retained |
 | V1-4279 | DONE; TSP-V0-7303 | `TestUnboundedWitnessSaysAnyDirtyPath`; base-selector overlay omits the label and fails |
@@ -70,9 +70,9 @@ DONE below means the lane's implementation/acceptance evidence, not a native tic
 | V1-4439 | DONE; TSP-V0-7311 | `TestWitnessFormsShareOneObjectDecoder` decodes all three projections |
 | V1-4012 | DONE; existing IDX-SNAP-V0-115 shared store verified | `TestSnapshotMissNoticeNamesTheBuild` creates a fresh linked worktree and exercises both query profiles and impact without rebuilding |
 | V1-3424 | DONE; STR-V0-7313 refines STR-V0-800 | `TestDryRunDefaultsToBoundedSummary`, `TestDryRunCIKeepsPinnedJSONDefault`, existing 400-unit summary bound and CLI summary tests; manifest equality between default and --full |
-| V1-3728 | DONE; existing AHI-803 attribution verified | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` retains two spellings in one session, with zero outside-project ledger rows |
-| V1-4381 | PARTIAL: implementation delivered under TSP-V0-7315; quiet-host/CI package wall-time A/B remains externally blocked by the shared host's sustained load | `TestExecutableBuildHelpersHonorSharedGoCache` fails before the cache fix; shuffled runs cover all 170 newly admitted parallel tests; per-test serial reasons retained |
-| V1-3354 | DONE under existing CIN-V0-860; V1-3480's accepted option B expressly supersedes the old blanket non-language-frontier criterion | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860`: PLAN_TRUNCATED and other unattributable/malformed unknowns FALLBACK; documented attributable exceptions remain |
+| V1-3728 | PARTIAL (AC2); existing AHI-803 attribution verified | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` retains two spellings in one session, with zero outside-project ledger rows |
+| V1-4381 | PARTIAL: implementation delivered under TSP-V0-7315; quiet-host/CI package wall-time A/B was not run; 209 serial inventory rows have generic reasons rather than per-test audits | `TestExecutableBuildHelpersHonorSharedGoCache` fails before the cache fix; shuffled runs cover all 170 newly admitted parallel tests; generic serial inventory reasons retained |
+| V1-3354 | Met by supersession under CIN-V0-860; V1-3480's accepted option B expressly supersedes the old blanket non-language-frontier criterion | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860`: PLAN_TRUNCATED and other unattributable/malformed unknowns FALLBACK; documented attributable exceptions remain |
 | V1-4484 | DONE, confirmed directory-case bug fixed; TSP-V0-7317 | `TestFreshDirectoryRejectsBackgroundAndOrList`, both operators and both mktemp forms; foreground directory positives retained |
 | V1-4576 | PARTIAL: paired calibration delivered under TSP-V0-7318; twenty parallel full-suite runs are outside the owner's focused-only execution authorization | `TestSelectionCalibrationBracketsLoadChanges` fails with the old one-sided calculation and preserves a sustained-regression negative; focused repeated live measurement retains absolute SKIPs |
 
@@ -126,18 +126,10 @@ serial scheduling. Keep the recorded failures and qualification limits; never tu
 missing external outcome into a pass.
 
 
-## Observed final-check blocker: split report mounts
+## Historical final-check blocker: split report mounts
 
-The first clean bind reached independent verifier agreement, then refused `dogfood-report-write`.
-The report and its parent were writable. A minimal write/rename probe showed `EXDEV` between
-`/home/russell/projects/corvint/.git/worktrees/pk-affected/` and the worktree's `.corvint/`:
-the sandbox exposes separate writable mounts even though `stat` reports the same device ID.
-This is a required delivery blocker, so fix publication rather than weaken the checker or manually
-edit its report. DWC-V0-7319 in the existing daily-workflow companion records the decision.
-The original Git-stage path is preferred; only EXDEV permits a complete sibling stage and atomic
-rename on the destination mount. Unrelated and final publication errors preserve the previous
-report and fail normally; temporary files are cleaned. No agreement or completion rule changes.
-`TestCheckReportPublicationAcrossMounts` failed without the fallback (cross-device and destination
-cases), then passed, alongside existing output-declaration and zero-match refusal checks.
-The additional affected plan selects internal/dogfoodflow. The generated requirements check passed.
-The old bind remains historical; the final binding must include this repair and rerun the checker.
+Round 0 repaired EXDEV report publication locally under DWC-V0-7319. Fix round 1 drops
+that duplicate implementation and requirement because the sealed v1fix-a lane owns DWC-V0-929.
+V1-4573 is superseded by v1fix-a. The original checker failure and round-0 passing check remain
+historical evidence; they do not attest the fix-round tree. A fresh EXDEV-only checker refusal
+will be retained for the orchestrator to rerun on the host.

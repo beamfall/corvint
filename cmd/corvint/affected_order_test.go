@@ -220,17 +220,12 @@ func orderedUnits(order map[string]any) []string {
 	return units
 }
 
-// TSP-V0-7305: content time beats equal filesystem timestamps, including the unsharded name.
+// TSP-V0-7305: content probes are limited to the 64 newest mtime candidates.
 func TestFailFastContentTimeSurvivesTimestampTies(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < maxFailFastReceipts+1; i++ {
-		name := fmt.Sprintf("test-run.%d.json", i)
-		stamp := "2026-11-01T00:00:00Z"
-		if i == maxFailFastReceipts {
-			name = "test-run.json"
-			stamp = "2026-11-04T00:00:00Z"
-		}
-		body, err := sessiontest.Encode(sessiontest.Receipt{Profile: sessiontest.ReceiptProfile, CompletedAt: stamp})
+		name := fmt.Sprintf("test-run.%02d.json", i)
+		body, err := sessiontest.Encode(sessiontest.Receipt{Profile: sessiontest.ReceiptProfile, CompletedAt: "2026-11-04T00:00:00.123456789Z"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -240,16 +235,44 @@ func TestFailFastContentTimeSurvivesTimestampTies(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	receipts, detail := readFailFastReceipts(filepath.Join(root, ".git"))
-	if detail != "" {
-		t.Fatal(detail)
-	}
-	for _, r := range receipts {
-		if r.Path == "corvint/test-run.json" {
-			return
+	saved := readFailFastContentTime
+	t.Cleanup(func() { readFailFastContentTime = saved })
+	var probes []string
+	readFailFastContentTime = func(name string) (time.Time, bool) {
+		probes = append(probes, filepath.Base(name))
+		stamp, ok := saved(name)
+		if !ok || stamp.Format(time.RFC3339Nano) != "2026-11-04T00:00:00.123456789Z" {
+			t.Fatalf("content time %s %v", stamp, ok)
 		}
+		return stamp, ok
 	}
-	t.Fatal("newest receipt was discarded on a timestamp tie")
+	receipts, detail := readFailFastReceipts(filepath.Join(root, ".git"))
+	if detail != "" || len(receipts) != maxFailFastReceipts || len(probes) != maxFailFastReceipts || slices.Contains(probes, "test-run.64.json") {
+		t.Fatalf("receipts=%d probes=%v detail=%q", len(receipts), probes, detail)
+	}
+}
+
+// TSP-V0-7305: repeated metadata errors cannot grow the diagnostic beyond 4096 bytes.
+func TestFailFastMetadataDetailIsBounded(t *testing.T) {
+	root := t.TempDir()
+	writeFailFastReceipt(t, root, "test-run.0.json")
+	saved := readFailFastDirectory
+	t.Cleanup(func() { readFailFastDirectory = saved })
+	readFailFastDirectory = func(dir string) ([]os.DirEntry, error) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		repeated := make([]os.DirEntry, 1000)
+		for i := range repeated {
+			repeated[i] = failingInfoEntry{entries[0]}
+		}
+		return repeated, nil
+	}
+	_, detail := readFailFastReceipts(filepath.Join(root, ".git"))
+	if len(detail) != 4096 {
+		t.Fatalf("detail length=%d, want 4096", len(detail))
+	}
 }
 
 type failingInfoEntry struct{ fs.DirEntry }

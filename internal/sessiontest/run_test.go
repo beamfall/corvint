@@ -2,11 +2,13 @@ package sessiontest
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // twoShardManifest has one unit on shard 0, one on shard 1 and an empty
@@ -208,5 +210,42 @@ func TestSTRV0018ManifestStrictRoundTrip(t *testing.T) {
 	}
 	if _, err := ReadReceipt(name); err == nil {
 		t.Fatal("a manifest was read as a receipt")
+	}
+}
+
+// STR-V0-7305: Execute records a UTC nanosecond completion time; legacy wires remain readable.
+func TestExecuteCompletionTime_STRV07305(t *testing.T) {
+	m, digest := twoShardManifest(t)
+	fixed := time.Date(2026, 11, 4, 12, 34, 56, 123456789, time.FixedZone("fixture", 3600))
+	runner := &Runner{now: func() time.Time { return fixed }, Tool: "corvint test",
+		Recheck: func(context.Context) (SourceIdentity, error) { return m.Source, nil },
+	}
+	receipt := runner.Execute(context.Background(), m, digest, 2)
+	const want = "2026-11-04T11:34:56.123456789Z"
+	if receipt.Result != ResultPass || receipt.CompletedAt != want {
+		t.Fatalf("receipt result=%s completedAt=%q, want PASS %q", receipt.Result, receipt.CompletedAt, want)
+	}
+	name := filepath.Join(t.TempDir(), "receipt.json")
+	for _, legacy := range []bool{false, true} {
+		if legacy {
+			receipt.CompletedAt = ""
+		}
+		raw, err := Encode(receipt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !legacy && !bytes.Contains(raw, []byte(`"completedAt":"`+want+`"`)) {
+			t.Fatalf("wire omits completion: %s", raw)
+		}
+		if legacy && bytes.Contains(raw, []byte(`"completedAt"`)) {
+			t.Fatalf("legacy wire contains completedAt: %s", raw)
+		}
+		if err := os.WriteFile(name, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		decoded, err := ReadReceipt(name)
+		if err != nil || decoded.CompletedAt != receipt.CompletedAt || decoded.Result != ResultPass {
+			t.Fatalf("legacy=%v: decoded=%+v err=%v", legacy, decoded, err)
+		}
 	}
 }

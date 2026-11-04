@@ -46,7 +46,7 @@ measure. None of them drops a unit the change can reach.
   Amended under the owner's standing auto-accept, 2026-11-04, V1-4576, TSP-V0-7318:
   `TestIncrementalSelectionMeetsTheLiveBudget` MUST measure up to three rounds of 32 interleaved
   samples per representative edit, bracketing each selection with calibration probes before and
-  after it. It MUST normalize each selection against the slower adjacent probe, stop at the first
+  after it. It MUST normalize each selection against the mean of the two adjacent probes, stop at the first
   round within the budget, and enforce the round with the lowest normalized p95. A slower Select is over the budget in
   every round and still fails; a transient spike from a concurrent heavy.sh run does not. The
   budget, the probe and the reference ratio are unchanged.
@@ -329,9 +329,10 @@ measure. None of them drops a unit the change can reach.
   failure first, each group in `plan.selected` order. That order is already AFP-V0-007's: via
   length, then proximity, then unit id. `order.failures` names the evidence. Its `receipts` list
   holds each `corvint test` receipt read from `<git-dir>/corvint/test-run.json` and
-  `test-run.<n>.json`, at most 64: newest by a valid RFC3339Nano `completedAt` read within
-  the bounded 64 KiB header, mtime as fallback, ties broken by name, listed in name order.
-  Thus a content-newer `test-run.json` survives equal filesystem timestamps. Metadata Info
+  `test-run.<n>.json`, at most 64: first retain the newest mtime-ordered prefix (ties by name), then read
+  only those candidates' bounded 64 KiB headers for valid RFC3339Nano `completedAt`,
+  with mtime as fallback and name as tie breaker. List retained receipts in name order.
+  Content times never admit candidates outside that prefix. Metadata Info
   failures MUST be disclosed in `order.failures.detail` even outside the retained 64 and make
   no recency claim; they set the aggregate state to `UNREADABLE`. Each retained receipt is
   read by the STR-V0-010 strict reader. Each entry has the
