@@ -2867,12 +2867,12 @@ chmod +x "$lw/reconcile"
 git init -q -b main "$lw/origin"
 printf 'before merge\n' > "$lw/origin/merged"
 git -C "$lw/origin" add merged
-git -C "$lw/origin" commit -q -m before
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -m before
 git clone -q "$lw/origin" "$lw/checkout"
 mkdir -p "$lw/checkout/script"
 cp "$script/pr-landing-watch.sh" "$lw/checkout/script/"
 printf 'merged\n' > "$lw/origin/merged"
-git -C "$lw/origin" commit -q -am merged
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -am merged
 merge40=$(git -C "$lw/origin" rev-parse HEAD)
 lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
@@ -2893,7 +2893,7 @@ out=$(lwr 19)
 /bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
 # Move origin ahead again: the first successful pass must refresh origin/main.
 printf 'later merge\n' > "$lw/origin/merged"
-git -C "$lw/origin" commit -q -am later
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -am later
 merge40=$(git -C "$lw/origin" rev-parse HEAD)
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
 out=$(lwr 7)
