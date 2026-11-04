@@ -2280,6 +2280,12 @@ legacy removed records stored. These requirements amend ATR-V0-323 and ATR-V0-32
   other existing registered worktree of that repository has the recorded directory or private
   Git-directory identity. A match keeps the record as `REMOVAL_ROLLED_BACK` naming the new location,
   and a registered worktree whose identity cannot be read keeps it with that reason.
+- `ATR-V0-920`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2480) After any
+  program write that did not complete, fenced or not (a refusal, a failed publication, or an ambiguous
+  outcome), the workflow MUST reload the recorded program before any further effect, keeping the
+  program the write started from when the record cannot be read; the in-memory phase never runs
+  ahead of the store. A retried cleanup on the same workflow therefore re-enters `WORKTREE_REMOVE`
+  durably before it removes any worktree.
 
 Non-goals: recovering a parked record written by an older binary without a remover identity (it
 stays refused, as before ATR-V0-323); following a moved worktree to its new path; supervising
@@ -2818,3 +2824,4 @@ receipt or wire shape changes.
 | ATR-V0-352 | `internal/tasks/dispatch/finish_outcome.go` (`progressLabel`), `internal/tasks/dispatch/loop.go` (`finish`) | TestATRV0350_SignalStopWithCommitFinishedOutcome, TestATRV0352_ProgressLabelFromFacts |
 | ATR-V0-353 | `internal/tasks/dispatch/ledger.go` (`extractSummary`, `summaryText`), `internal/tasks/dispatch/finish_outcome.go` (`finishSummary`) | TestATRV0350_SignalStopWithCommitFinishedOutcome, TestATRV0353_SummaryNeverAStopFragment, TestCALV0058_SummaryReadsHostFinalText |
 | ATR-V0-354 | `docs/TASKS-SUPERVISION.md` (finished event schema) | TestATRV0350_SignalStopWithCommitFinishedOutcome |
+| ATR-V0-920 | `internal/tasks/store/workflow.go` (`persistFenced`) | `TestATRV0920_FailedRemovalWriteReloadsProgram` (`internal/tasks/store`) |

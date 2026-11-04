@@ -103,6 +103,7 @@ AFP-V0-2203	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2204	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2205	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2206	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-920	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3912)	standing	2026-10-11; V1-3912
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -946,6 +947,7 @@ ANL-V0-070	docs/specs/application-navigation-ledger-v0.md	(proposed under the ow
 ANL-V0-071	docs/specs/application-navigation-ledger-v0.md	(proposed under the owner's standing auto-accept (2026-10-11); V1-2776, GH #1876	standing	2026-10-11; V1-2776; #1876
 ANL-V0-072	docs/specs/application-navigation-ledger-v0.md	(proposed under the owner's standing auto-accept (2026-10-11); V1-2776, V1-2775)	standing	2026-10-11; V1-2776; V1-2775
 ANL-V0-073	docs/specs/application-navigation-ledger-v0.md	(proposed under the owner's standing auto-accept (2026-10-11); V1-3024) A URL	standing	2026-10-11; V1-3024
+ANL-V0-920	docs/specs/application-navigation-ledger-v0.md	(proposed under the owner's standing auto-accept (2026-10-11); V1-3889) Under	standing	2026-10-11; V1-3889
 ASS-V0-001	docs/specs/authoring-step-scope-v0.md	A strict versioned declaration must list allowed write paths/prefixes, guarded	unrecorded	-
 ASS-V0-002	docs/specs/authoring-step-scope-v0.md	Pre- and post-state observation must be read-only and bind full commit/tree,	unrecorded	-
 ASS-V0-003	docs/specs/authoring-step-scope-v0.md	Verification must name every observed out-of-scope write, guarded modification a	unrecorded	-
@@ -2740,6 +2742,7 @@ ATR-V0-326	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-327	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A cleanu	standing	2026-10-11; V1-2368
 ATR-V0-328	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A worktr	standing	2026-10-11; V1-2368
 ATR-V0-329	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2368) A missin	standing	2026-10-11; V1-2368
+ATR-V0-920	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2480) After an	standing	2026-10-11; V1-2480
 ATR-V0-320	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) Only the	standing	2026-10-11; V1-1634
 ATR-V0-321	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1634) The	standing	2026-10-11; V1-1634
 ATR-V0-322	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911) On a rea	standing	2026-10-11; V1-0911
@@ -7574,6 +7577,7 @@ TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-665	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-666	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-4118)	standing	2026-10-11; V1-4118
 TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-920	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-861	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-864	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-941	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006 and TSP-V0-864, under the owner's standing	standing	-

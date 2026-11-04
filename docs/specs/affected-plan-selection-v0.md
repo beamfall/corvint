@@ -13,7 +13,8 @@ and 8. The parent's Requirements section is at the 256-obligation OCM limit, so 
 requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 `2026-11-01-aff-w26`. Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
-`2026-11-03-selprec-selection-precision`.
+`2026-11-03-selprec-selection-precision`. Lane gcr-w20 (2026-11-01; V1-3912) adds AFP-V0-920
+here for the same reason; see build-log entry `2026-11-01-gcr-w20`.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, marks TestMain changes whole, narrows fixture, anchored, temp-root and `go list` reads, and marks deletions.
@@ -246,6 +247,19 @@ measure. None of them drops a unit the change can reach.
   the cone (AFP-V0-821), and in a `--path` plan, whose paths are probes rather than changes; the
   compact form carries the same list. Selection is unchanged.
 
+- **AFP-V0-920:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3912)
+  When `corvint affected` cannot create a scratch directory under the temporary directory (a full
+  `/tmp` with no `TMPDIR`, or a `TMPDIR` that is missing or unwritable), it SHALL exit 2 with the
+  stable code `temp-unavailable` on stderr. The message SHALL name the temporary directory it tried
+  and tell the caller to set `TMPDIR` to a writable directory with free space. The `affected audit`
+  scratch clone is the only temporary directory the command creates; the plan itself writes no
+  temporary file, and a failed receipt write already exits 2 with `output-failed`.
+
+Non-goals: no free-space probe before the work starts and no fallback directory. Failure mode: a
+child process (`git`) that writes its own temporary files reports its own error, which the audit
+names as that change's error. Acceptance: `TestAffectedAuditTempUnavailableNamesTMPDIR_AFPV0920`.
+Rollback: restore the `cannot create a scratch clone` message in `auditAffectedChange`.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -294,6 +308,7 @@ error the confined CI shard surfaces.
 | AFP-V0-2204 | `tempRoots`, `unconditionalAssignment`, `populates`, `assignedOnce`, `firstAssignment`, `underTempRoot`, `tempExpansion` and the temp step of `pathTokens` in `internal/liveverify/affected/shell/shell.go` | `TestTempRootPathsAreNoTokens_AFPV02204` (plain root dropped; recursive copy, tree copy, archive, worktree, link, conditional and used-first controls keep the token); `TestWriteOnlyWordsAreNoPathTokens_NSAV0016` |
 | AFP-V0-2205 | `ExtensionlessRoots`, `ExtensionlessScript`, `shellShebang`, `shellExecutables` and `Owns` in `internal/liveverify/affected/shell/shell.go` | `TestOwnsOnlyShellSuffixes_NSAV0006`; `TestExtensionlessShellExecutablesAreUnits_AFPV02205` in `internal/liveverify/affected/shell/shell_test.go` |
 | AFP-V0-2206 | `Plan.Deleted` in `internal/liveverify/affected/select.go`; `affectedDeletedPaths` and its call in `planAffectedGraph` (`cmd/corvint/affected.go`); `cmd/corvint/affected_compact.go` | `TestAffectedPlanMarksDeletedPaths_AFPV02206` in `cmd/corvint/affected_deleted_test.go` |
+| AFP-V0-920 | `affectedTempUnavailable` and `auditAffectedChange` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditTempUnavailableNamesTMPDIR_AFPV0920` (a missing `TMPDIR` exits 2 with `temp-unavailable`, the path and the `TMPDIR` advice) |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 
 ## Rollback

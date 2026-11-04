@@ -226,9 +226,9 @@ func TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching(t *testing
 			name, root string
 			refused    bool
 		}{{"full", full, false}, {"sparse", sparse, true}} {
-			registry, callErr := NewFlows(test.root)
-			if callErr != nil {
-				t.Fatal(callErr)
+			registry, newErr := NewFlows(test.root)
+			if newErr != nil {
+				t.Fatal(newErr)
 			}
 			result, callErr := registry.Call(liftedProbeContext(), ToolFlowsCoverage, arguments)
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {

@@ -19,7 +19,7 @@ func TestGraphImportsToolAdmission(t *testing.T) {
 	if _, err := legacy.Call(t.Context(), ToolGraphImports, []byte(`{}`)); err == nil || err.Code != "unsupported-tool" {
 		t.Fatal(err)
 	}
-	for _, constructor := range []func(string) (*Registry, *Error){NewTaskReview, NewTaskReviewLSP, NewFlows} {
+	for _, constructor := range []func(string) (*Registry, error){NewTaskReview, NewTaskReviewLSP, NewFlows} {
 		existing, err := constructor(root)
 		if err != nil {
 			t.Fatal(err)

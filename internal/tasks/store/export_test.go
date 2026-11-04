@@ -212,3 +212,6 @@ func SetGateBeatIntervalForTest(d time.Duration) func() {
 	gateBeatInterval = func(int64) time.Duration { return d }
 	return func() { gateBeatInterval = prev }
 }
+
+// ProgramPhaseForTest is the workflow's in-memory program phase.
+func (w *Workflow) ProgramPhaseForTest() string { return w.program.Phase }
