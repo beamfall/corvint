@@ -62,6 +62,7 @@ Delivery status: experimental
 
 - SHR-V0-001: (accepted, decision 0001) The first clause.
 - SHR-V0-002: (accepted, decision 0001) The second clause.
+- SHR-V0-099: (accepted, decision 0001) Stable upper range bound.
 
 ## Failure modes
 
@@ -79,6 +80,7 @@ Delivery status: implemented
 ## Requirements
 
 - OTH-V0-001: (accepted, decision 0002) The other clause.
+- OTH-V0-099: (accepted, decision 0002) Stable upper range bound.
 SPEC
 cat > "$repo/docs/specs/README.md" <<'MD'
 # Specs
@@ -112,6 +114,8 @@ conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
 test "$conflicted" = "docs/specs/REQUIREMENTS.tsv docs/specs/shared.md " ||
   fail "the conflict touched more than the spec and REQUIREMENTS.tsv: $conflicted"
 
+# SRG-V0-7500: README range endpoints stay fixed in this isolation fixture.
+# The new-spec merge below separately exercises generated README co-edits.
 # Every conflict marker in the spec lies inside its requirement list.
 awk '
   /^## Requirements$/ { inside = 1; next }

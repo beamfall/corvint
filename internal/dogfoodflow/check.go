@@ -1102,7 +1102,7 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	if err := os.WriteFile(staged, []byte(strings.Join(lines, "\n")+"\n"), 0o666); err != nil {
 		return err
 	}
-	return os.Rename(staged, c.report)
+	return publishReport(staged, c.report, os.Rename)
 }
 
 func (c *check) unboundNotObserved(reason string) {

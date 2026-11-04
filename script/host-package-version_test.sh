@@ -16,7 +16,8 @@ trap 'exit 143' TERM
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-files="integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json
+files="integrations/claude-code/plugins/corvint/.mcp.json
+integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json
 integrations/claude-code/.claude-plugin/marketplace.json
 integrations/claude-code/plugins/corvint/compatibility.json
 integrations/codex/plugins/corvint/.codex-plugin/plugin.json
@@ -58,7 +59,7 @@ before=$(evidence)
 # 2. Bumping each package changes exactly one line per location and leaves recorded evidence
 # versions alone.
 cases=1
-for spec in claude-code:4 codex:3 gemini-cli:4 opencode:4 pi:7 speckit:1 openspec:1; do
+for spec in claude-code:5 codex:3 gemini-cli:4 opencode:4 pi:7 speckit:1 openspec:1; do
     package=${spec%%:*} want=${spec#*:}
     old=$(tool verify "$package") || fail "$package did not verify before its bump"
     old=${old#* }

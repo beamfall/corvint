@@ -295,3 +295,17 @@ printf '#!/bin/bash\n%s\n' 'd=$(mk''temp -d)' > "$repo/script/sub/nested_test.sh
 run_gate || { cat "$tmp/out" >&2; fail 'a nested test script got the script/*_test.sh portability rules'; }
 /bin/rm -rf "$repo/script/sub"
 echo 'check-bash32_test: BWK regex literals passed'
+
+# CSD-V0-7511: binary assets are probed as bytes under a UTF-8 caller locale too.
+printf '\211PNG\r\n\032\n\377\376' > "$repo/asset.png"
+utf8_locale=$(locale -a | grep -E '^(C\.utf8|en_US\.UTF-8|C\.UTF-8)$' | head -1) || utf8_locale=C
+real_awk=$(command -v awk)
+mkdir -p "$tmp/bsd-awk"
+cat > "$tmp/bsd-awk/awk" <<EOF
+#!/bin/sh
+[ "\${LC_ALL:-}" = C ] || { echo 'towc: multibyte conversion failure on PNG' >&2; exit 2; }
+exec "$real_awk" "\$@"
+EOF
+chmod +x "$tmp/bsd-awk/awk"
+PATH="$tmp/bsd-awk:$PATH" LC_ALL=$utf8_locale run_gate || { cat "$tmp/out" >&2; fail "binary asset broke script discovery"; }
+absent 'asset.png' "$tmp/out"
