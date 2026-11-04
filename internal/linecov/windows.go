@@ -124,18 +124,19 @@ func windowOverlay(dir, work string) (string, string, error) {
 // established the state needed to reach it. The suite union remains as a
 // residual owner for setup, teardown, child and unclosed-window coverage.
 func attributeWindows(ctxRun func(string) ([]byte, error), outcomes []Outcome, windows map[string]string) []Outcome {
-	isolated := map[string]map[string]bool{}
+	isolated := map[string]map[string]map[string]bool{}
 	for _, o := range outcomes {
 		if o.Record == nil || o.Name == InOrder {
 			continue
 		}
 		if isolated[o.Package] == nil {
-			isolated[o.Package] = map[string]bool{}
+			isolated[o.Package] = map[string]map[string]bool{}
 		}
+		isolated[o.Package][o.Name] = map[string]bool{}
 		for _, l := range strings.Split(string(o.Record.Profile), "\n") {
 			k, n, ok := strings.Cut(l, " ")
 			if ok && !strings.HasSuffix(n, " 0") {
-				isolated[o.Package][k] = true
+				isolated[o.Package][o.Name][k] = true
 			}
 		}
 	}
@@ -172,6 +173,9 @@ func attributeWindows(ctxRun func(string) ([]byte, error), outcomes []Outcome, w
 			ws = append(ws, win{e.Name(), d})
 			o.Record.Profile = append(o.Record.Profile, d...)
 		}
+		if o.WindowFallback != "" {
+			continue
+		}
 		// Directory iteration is lexical, but dependencies follow the actual start
 		// order, recorded by the marker written before each window opens.
 		order, err := os.ReadFile(filepath.Join(dir, "order"))
@@ -201,7 +205,7 @@ func attributeWindows(ctxRun func(string) ([]byte, error), outcomes []Outcome, w
 			only.WriteString("mode: atomic\n")
 			for _, l := range strings.Split(string(d), "\n") {
 				k, _, ok := strings.Cut(l, " ")
-				if ok && !strings.HasPrefix(l, "mode:") && !isolated[o.Package][k] {
+				if ok && !strings.HasPrefix(l, "mode:") && !isolated[o.Package][n][k] {
 					only.WriteString(l + "\n")
 				}
 			}
