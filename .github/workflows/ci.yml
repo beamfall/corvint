@@ -386,7 +386,8 @@ jobs:
     # shard of this run then runs its part of the cost-balanced placement of the run list. Any
     # failure leaves `mode` empty and every shard on its existing path. A reused run writes no
     # AFP-V0-170 or AFP-V0-734 record, so its merge-queue entry runs in full.
-    if: github.event_name == 'pull_request' && vars.CORVINT_PR_REUSE == 'on' && !contains(github.event.pull_request.labels.*.name, 'ci:batched')
+    # AFP-V0-2327: UNAUTHENTICATED_EXECUTION; protected collector qualification is missing.
+    if: false && github.event_name == 'pull_request' && vars.CORVINT_PR_REUSE == 'on' && !contains(github.event.pull_request.labels.*.name, 'ci:batched')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -1437,7 +1438,8 @@ jobs:
         # Only while CORVINT_PR_REUSE is on. The trusted main-built corvint digests each package
         # this shard passed in its first run at this tested merge; it records nothing it cannot
         # bind to the tree. It never changes the shard's status.
-        if: always() && vars.CORVINT_PR_REUSE == 'on' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.pin-tool-build.outcome == 'success'
+        # AFP-V0-2327: UNAUTHENTICATED_EXECUTION; tests can write their recorder/outcomes.
+        if: false && always() && vars.CORVINT_PR_REUSE == 'on' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.pin-tool-build.outcome == 'success'
         id: reuse-record
         continue-on-error: true
         timeout-minutes: 5

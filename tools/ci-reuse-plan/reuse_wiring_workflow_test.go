@@ -8,13 +8,13 @@ import (
 )
 
 // TestAFPV02327ReuseWiring: the test-reuse-plan job runs only for a pull request while
-// CORVINT_PR_REUSE is on, builds its decider from the tested merge's first parent, and admits only
+// the execution-evidence hold is removed and CORVINT_PR_REUSE is on, builds its decider from the tested merge's first parent, and admits only
 // this pull request's records; a reused run never writes a tested-tree or narrowed-tree record, and
 // a shard records reuse evidence only with the trusted main-built corvint.
 func TestAFPV02327ReuseWiring(t *testing.T) {
 	ci := readWorkflow(t, "ci.yml")
 	plan := jobBlock(t, ci, "test-reuse-plan")
-	wantLine(t, "test-reuse-plan", plan, "    if: github.event_name == 'pull_request' && vars.CORVINT_PR_REUSE == 'on' && !contains(github.event.pull_request.labels.*.name, 'ci:batched')")
+	wantLine(t, "test-reuse-plan", plan, "    if: false && github.event_name == 'pull_request' && vars.CORVINT_PR_REUSE == 'on' && !contains(github.event.pull_request.labels.*.name, 'ci:batched')")
 	wantLine(t, "test-reuse-plan", plan, "        continue-on-error: true")
 	for _, want := range []string{
 		`base=$(git rev-parse --verify -q "$GITHUB_SHA^1")`,
@@ -27,6 +27,11 @@ func TestAFPV02327ReuseWiring(t *testing.T) {
 			t.Errorf("test-reuse-plan lacks %q", want)
 		}
 	}
+	// Negative control: a repository variable alone cannot admit writable PR evidence.
+	if !strings.Contains(plan, "UNAUTHENTICATED_EXECUTION") {
+		t.Fatal("CI reuse must name its missing protected execution collector")
+	}
+
 	for _, job := range []string{"ci-tested-tree-record", NarrowedRecordJob} {
 		b := jobBlock(t, ci, job)
 		if !strings.Contains(b, "test-reuse-plan]") || !strings.Contains(b, "needs.test-reuse-plan.outputs.mode != 'REUSE'") {
@@ -39,7 +44,7 @@ func TestAFPV02327ReuseWiring(t *testing.T) {
 		`if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$REUSE_MODE" = REUSE ] && [ -z "$narrowed" ]; then`,
 		`.head == $head' "$RUNNER_TEMP/ci-test-reuse/decision.json"`,
 		`"$RUNNER_TEMP/corvint-pr-bin/corvint" test reuse record --outcomes "$outcomes"`,
-		"        if: always() && vars.CORVINT_PR_REUSE == 'on' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.pin-tool-build.outcome == 'success'",
+		"        if: false && always() && vars.CORVINT_PR_REUSE == 'on' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.pin-tool-build.outcome == 'success'",
 	} {
 		if !strings.Contains(shard, want) {
 			t.Errorf("go-product-shard lacks %q", want)
