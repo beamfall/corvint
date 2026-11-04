@@ -43,12 +43,12 @@ func TestForeignCallerFindingsMatchThePlugin_TSP_V0_920(t *testing.T) {
 		},
 		{
 			name: "workflow under .github", declaration: declare(`"Makefile","use/use.sh"`),
-			extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"},
-			want:  []string{".github/workflows/ci.yml:1: names run/run.sh"},
+			extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"}, //corvint:fixture-path
+			want:  []string{".github/workflows/ci.yml:1: names run/run.sh"},              //corvint:fixture-path
 		},
 		{
 			name: "extensionless script is no candidate", declaration: declare(`"Makefile","use/use.sh"`),
-			extra: map[string]string{"script/go-run": "#!/bin/sh\n\"$here/$name.sh\" x\n"},
+			extra: map[string]string{"script/go-run": "#!/bin/sh\n\"$here/$name.sh\" x\n"}, //corvint:fixture-path
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
