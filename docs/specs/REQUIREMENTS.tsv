@@ -2250,7 +2250,7 @@ ASD-V0-952	docs/specs/corvint-self-development-v0.md	(experimental under the own
 ASD-V0-805	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-4093; refi	standing	2026-11-01; V1-4093
 ASD-V0-750	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3812) `script/	standing	2026-11-01; V1-3812
 ASD-V0-660	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3876; exte	standing	2026-11-01; V1-3876
-ASD-V0-640	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3744; refines	standing	2026-11-01; V1-3744
+ASD-V0-640	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3744; refines	standing	2026-11-01; V1-3744; 2026-11-04; V1-4540
 ASD-V0-641	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3745; refines	standing	2026-11-01; V1-3745
 ASD-V0-642	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3764) `script/	standing	2026-11-01; V1-3764
 ASD-V0-643	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3741) `script/	standing	2026-11-01; V1-3741
@@ -2274,7 +2274,7 @@ ASD-V0-843	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-844	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3875; refines	standing	2026-11-01; V1-3875
 ASD-V0-845	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3500; refines	standing	2026-11-01; V1-3500
 ASD-V0-846	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2432; refines	standing	2026-11-01; V1-2432
-ASD-V0-780	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3858) `script/	standing	2026-11-01; V1-3858
+ASD-V0-780	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3858; amended	standing	2026-11-01; V1-3858; 2026-11-04; V1-4543
 ASD-V0-781	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4016) An expor	standing	2026-11-01; V1-4016
 ASD-V0-782	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3884) `make do	standing	2026-11-01; V1-3884
 ASD-V0-783	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3486) `make im	standing	2026-11-01; V1-3486
@@ -7103,14 +7103,14 @@ SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-045	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every	standing	2026-10-11; V1-0515
 SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2859) Whe	standing	2026-10-11; V1-2859
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
-SRG-V0-970	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`)	standing	V1-2830
+SRG-V0-970	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`;	standing	V1-2830; 2026-11-04; V1-4539
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-800	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3379;	standing	2026-10-11; V1-3379
 SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 SRG-V0-980	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) Ever	standing	2026-10-31; V1-3458
 SRG-V0-981	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) A ch	standing	2026-10-31; V1-3458
-SRG-V0-982	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) The	standing	2026-10-31; V1-3458
+SRG-V0-982	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458; amen	standing	2026-10-31; V1-3458; 2026-11-04; V1-4542
 SRG-V0-983	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458)	standing	2026-10-31; V1-3458
 SRG-V0-890	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3575; refines	standing	2026-10-31; V1-3575
 SRG-V0-891	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3295) Every	standing	2026-10-31; V1-3295
@@ -7139,7 +7139,7 @@ SRG-V0-820	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-740	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); amended under th	standing	2026-11-01; 2026-11-02; V1-3769; V1-4331
 SRG-V0-743	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The	standing	2026-11-01; V1-3388
 SRG-V0-744	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
-SRG-V0-745	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
+SRG-V0-745	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331; amended	standing	2026-11-02; V1-4331; 2026-11-04; V1-4538
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
