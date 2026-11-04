@@ -3,6 +3,7 @@ package cli
 import (
 	"container/heap"
 	"errors"
+	"maps"
 	"regexp"
 	"slices"
 	"sort"
@@ -55,6 +56,7 @@ const (
 	// Why a scanned progress head is no citation (TCD-V0-2400).
 	excludeProgressInProgress = "PROGRESS_IN_PROGRESS"
 	excludeProgressBlocked    = "PROGRESS_BLOCKED"
+	excludeProgressOther      = "PROGRESS_NOT_DELIVERY"
 )
 
 // progressHead is an OPEN ticket whose effective progress names a head, and
@@ -63,16 +65,19 @@ type progressHead struct{ id, exclusion string }
 
 // progressHeadExclusion is why a progress head in phase is no citation
 // (TCD-V0-2400): a head cites only in the phases through which
-// batch-delivered and batch-close deliver (TLF-V0-1101). An IN_PROGRESS head
-// is a lane's dispatch base and a BLOCKED one names no delivered work.
+// batch-delivered and batch-close deliver (TLF-V0-1101), an allowlist, so a
+// phase this build does not know is excluded, never cited. An IN_PROGRESS
+// head is a lane's dispatch base and a BLOCKED one names no delivered work.
 func progressHeadExclusion(phase string) string {
 	switch phase {
+	case ticket.PhaseDeliveredOnBranch, ticket.PhaseInReview, ticket.PhaseInMergeQueue, ticket.PhaseMergedAwaitingCloseout:
+		return ""
 	case ticket.PhaseInProgress:
 		return excludeProgressInProgress
 	case ticket.PhaseBlocked:
 		return excludeProgressBlocked
 	}
-	return ""
+	return excludeProgressOther
 }
 
 var (
@@ -206,6 +211,22 @@ func (x *closeoutIndex) markedNotDelivered(text, id string) bool {
 type closeoutExcluded struct {
 	ticketID, local, reason string
 	commits                 []string
+	// causes is every distinct exclusion reason with its commits, so a
+	// ticket excluded for more than one reason shows each (TCD-V0-2400).
+	causes map[string][]string
+}
+
+// add records commit as excluded for why. The primary reason is the first
+// seen, with MARKED_NOT_DELIVERED winning (TCD-V0-741).
+func (e *closeoutExcluded) add(why, commit string) {
+	if e.reason == "" || why == excludeMarked {
+		e.reason = why
+	}
+	if e.causes == nil {
+		e.causes = map[string][]string{}
+	}
+	e.causes[why] = append(e.causes[why], commit)
+	e.commits = append(e.commits, commit)
 }
 
 // closeoutRow is one candidate (TCD-V0-007).
@@ -522,13 +543,10 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 				if why := noDelivery(c, cite.ticketID); why != "" {
 					e := excludedBy[cite.ticketID]
 					if e == nil {
-						e = &closeoutExcluded{ticketID: cite.ticketID, local: local, reason: why}
+						e = &closeoutExcluded{ticketID: cite.ticketID, local: local}
 						excludedBy[cite.ticketID] = e
 					}
-					if why == excludeMarked {
-						e.reason = why
-					}
-					e.commits = append(e.commits, c.Commit)
+					e.add(why, c.Commit)
 					continue
 				}
 				listed[cite.ticketID] = true
@@ -543,10 +561,10 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 			if h.exclusion != "" {
 				e := excludedBy[h.id]
 				if e == nil {
-					e = &closeoutExcluded{ticketID: h.id, local: locals[h.id], reason: h.exclusion}
+					e = &closeoutExcluded{ticketID: h.id, local: locals[h.id]}
 					excludedBy[h.id] = e
 				}
-				e.commits = append(e.commits, c.Commit)
+				e.add(h.exclusion, c.Commit)
 				continue
 			}
 			listed[h.id] = true
@@ -805,8 +823,18 @@ func setExcluded(item wire.Value, excluded []closeoutExcluded) {
 		o.Set("local", wire.String(e.local))
 		o.Set("reason", wire.String(e.reason))
 		o.Set("commits", wire.Strings(e.commits))
+		reasons := slices.Sorted(maps.Keys(e.causes))
+		causes := make([]wire.Value, 0, len(reasons))
+		for _, r := range reasons {
+			causes = append(causes, wire.ObjectValue(wire.NewObject().Set("reason", wire.String(r)).Set("commits", wire.Strings(e.causes[r]))))
+		}
+		o.Set("causes", wire.Array(causes...))
 		vals = append(vals, wire.ObjectValue(o))
-		lines = append(lines, wire.String(e.local+" excluded "+e.reason+" via "+strconv.Itoa(len(e.commits))+" commit(s)"))
+		line := e.local + " excluded " + e.reason + " via " + strconv.Itoa(len(e.commits)) + " commit(s)"
+		if len(reasons) > 1 {
+			line += " (causes " + strings.Join(reasons, ", ") + ")"
+		}
+		lines = append(lines, wire.String(line))
 	}
 	item.Obj.Set("excludedCandidates", wire.Array(vals...))
 	item.Obj.Set("human", wire.Array(lines...))

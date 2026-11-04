@@ -304,6 +304,7 @@ case "$1" in
 pr) cat '`+prs+`' ;;
 run) [ -z "$GH_RUN_FAIL" ] || exit 1
   sha=; while [ $# -gt 0 ]; do [ "$1" = --commit ] && sha=$2; shift; done
+  if [ -n "$sha" ] && [ "$sha" = "$GH_RUN_ODD" ]; then printf '%s' "$GH_RUN_ODD_OUT"; exit 0; fi
   if [ -z "$sha" ]; then jq '[.[] | select(.databaseId > 5)]' "$GH_RUNS"; else jq --arg s "$sha" '[.[] | select(.headSha == $s)]' "$GH_RUNS"; fi ;;
 *) exit 9 ;;
 esac
@@ -327,6 +328,9 @@ esac
 
 	code, out := reconcile("GH_RUNS="+green, "RECONCILE_APPLY=dry-run")
 	raw, err := os.ReadFile(filepath.Join(dir, "apply-35.json"))
+	if !strings.Contains(out, "batch-close --pr 35 --prs "+filepath.Join(dir, "prs.json")+" --runs "+filepath.Join(dir, "runs.json")+"\n") {
+		t.Fatalf("the printed proposal does not name the written runs export: %s", out)
+	}
 	if code != 1 || err != nil || !strings.Contains(string(raw), `"outcome":"OK"`) || !strings.Contains(string(raw), `"dryRun":true`) || !strings.Contains(string(raw), l["a"]) {
 		t.Fatalf("old green merge (exit %d): %s\napply: %v %s", code, out, err, raw)
 	}
@@ -361,8 +365,27 @@ esac
 	}
 
 	// A failed per-commit export exits 2 naming the commit.
+	// A runs.json from the earlier reconcile is removed and no proposal
+	// command is printed.
 	if code, out = reconcile("GH_RUNS="+green, "GH_RUN_FAIL=1"); code != 2 || !strings.Contains(out, "gh run list --commit ") || !strings.Contains(out, " failed; no runs export for "+head) {
 		t.Fatalf("failed run export: exit %d %s", code, out)
+	}
+	assertNoRuns := func(what, out string) {
+		t.Helper()
+		if _, err := os.Stat(filepath.Join(dir, "runs.json")); !errors.Is(err, os.ErrNotExist) || strings.Contains(out, "batch-close --pr") {
+			t.Fatalf("%s left runs.json (%v) or printed a proposal: %s", what, err, out)
+		}
+	}
+	assertNoRuns("a failed export", out)
+
+	// One commit's export that is null, empty or not an array exits 2
+	// naming that commit, although the other commit's export is an array.
+	for _, odd := range []string{"null", "", `{"databaseId":5}`} {
+		code, out = reconcile("GH_RUNS="+green, "GH_RUN_ODD="+side, "GH_RUN_ODD_OUT="+odd)
+		if code != 2 || !strings.Contains(out, "gh run list --commit "+side+" printed no JSON run array; no runs export for "+head) {
+			t.Fatalf("export %q merged silently: exit %d %s", odd, code, out)
+		}
+		assertNoRuns("export "+odd, out)
 	}
 	for _, n := range []string{"a", "b", "c"} {
 		if st := field(bcShow(t, root, l[n]), "status").Str; st != "OPEN" {

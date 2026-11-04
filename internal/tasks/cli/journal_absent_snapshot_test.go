@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,7 +131,7 @@ func TestASDV02421_JournalAbsentMissNamesStagedSnapshot(t *testing.T) {
 	}
 	text = miss()
 	quoted := "'" + newer + "'"
-	for _, want := range []string{"A queue snapshot is staged on this host at " + quoted + " (modified 3 hour(s) ago)",
+	for _, want := range []string{"A queue snapshot of queue " + fixture.QueueID + " is staged on this host at " + quoted + " (modified 3 hour(s) ago)",
 		"`" + SnapshotEnv + "=" + quoted + " corvint-tasks ticket show " + id.Str + "` (ASD-V0-2421)"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("staged miss lacks %q: %s", want, text)
@@ -139,10 +141,94 @@ func TestASDV02421_JournalAbsentMissNamesStagedSnapshot(t *testing.T) {
 		t.Errorf("staged miss still says none is staged: %s", text)
 	}
 
+	// A still newer snapshot of another queue is skipped for this queue's
+	// newest; with only foreign snapshots probed, the miss says so.
+	foreign := filepath.Join(inputs, "ticket-bodies-other-w1", "queue-snapshot.json")
+	writeForeignSnapshot(t, newer, foreign)
+	if err := os.Chtimes(foreign, now.Add(-time.Hour), now.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if text = miss(); !strings.Contains(text, "at "+quoted+" (modified 3 hour(s) ago)") || strings.Contains(text, foreign) {
+		t.Errorf("foreign snapshot named instead of this queue's: %s", text)
+	}
+	foreignOnly := filepath.Join(t.TempDir(), "foreign home")
+	if err := os.MkdirAll(filepath.Join(foreignOnly, "lane-inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeForeignSnapshot(t, newer, filepath.Join(foreignOnly, "lane-inputs", "queue-snapshot.json"))
+	t.Setenv("HOME", foreignOnly)
+	if text = miss(); !strings.Contains(text, "1 queue snapshot(s) are staged under $HOME/lane-inputs on this host, but none of the newest 1 carries this checkout's queue "+fixture.QueueID) ||
+		!strings.Contains(text, "script/lane-stage-inputs.sh") {
+		t.Errorf("foreign-only miss: %s", text)
+	}
+
+	// A future modification time reads as 0 hours, never negative.
+	t.Setenv("HOME", home)
+	for _, f := range []string{newer, foreign} {
+		if err := os.Chtimes(f, now.Add(5*time.Hour), now.Add(5*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if text = miss(); !strings.Contains(text, "at "+quoted+" (modified 0 hour(s) ago)") {
+		t.Errorf("future mtime not clamped: %s", text)
+	}
+
+	// The newest is chosen over every scanned entry, not a lexical prefix:
+	// 300 lane directories, the lexically last holding the newest file.
+	many := filepath.Join(t.TempDir(), "many")
+	for i := range 300 {
+		if err := os.MkdirAll(filepath.Join(many, "lane-inputs", fmt.Sprintf("ticket-bodies-l%03d", i)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	last := filepath.Join(many, "lane-inputs", "ticket-bodies-l299", "queue-snapshot.json")
+	raw, err := os.ReadFile(newer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture.Write(t, last, raw)
+	t.Setenv("HOME", many)
+	if text = miss(); !strings.Contains(text, "at "+last+" (modified 0 hour(s) ago)") {
+		t.Errorf("lexically last newest snapshot not named: %s", text)
+	}
+
 	// The named retry serves the ticket on this host.
+	t.Setenv("HOME", home)
 	t.Setenv(SnapshotEnv, newer)
 	served := projectionRead(t, Env{Cwd: clone.Root, Args: []string{"ticket", "show", id.Str}})
 	if served.Outcome != wire.OutcomeOK || len(served.Items) != 1 {
 		t.Fatalf("snapshot read: %+v", served)
 	}
+}
+
+// writeForeignSnapshot copies the snapshot src to dst with its queue.json
+// naming another queue and a matching file digest.
+func writeForeignSnapshot(t *testing.T, src, dst string) {
+	t.Helper()
+	raw, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b snapshotBundle
+	if err := json.Unmarshal(raw, &b); err != nil {
+		t.Fatal(err)
+	}
+	swapped := false
+	for i, f := range b.Files {
+		if f.Path == "queue.json" {
+			c := strings.Replace(f.Content, fixture.QueueID, "queue:other:main", 1)
+			b.Files[i].Content, b.Files[i].Sha256, swapped = c, string(wire.Sum([]byte(c))), c != f.Content
+		}
+	}
+	if !swapped {
+		t.Fatalf("no queue.json naming %s in %s", fixture.QueueID, src)
+	}
+	out, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture.Write(t, dst, out)
 }

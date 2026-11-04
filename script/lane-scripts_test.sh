@@ -3241,6 +3241,14 @@ git init -q "$ld/repo" && git -C "$ld/repo" -c user.name=t -c user.email=t@t com
 lbase=$(git -C "$ld/repo" rev-parse HEAD)
 cat > "$ld/bin/tasks" << 'STUB'
 #!/bin/sh
+if [ -n "$CORVINT_TASKS_SNAPSHOT" ]; then
+  # As corvint-tasks: a snapshot host serves only the snapshot verbs, never queue snapshot.
+  case "$1 $2" in
+    "queue status") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" || { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; exit 2; }
+      printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0 ;;
+    "queue snapshot") printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
+  esac
+fi
 if [ "$1 $2 $3" = "queue snapshot --out" ]; then
   case ${LD_SNAP:-ok} in
     fail) echo 'journal absent: no queue snapshot' >&2; exit 2 ;;
@@ -3277,6 +3285,18 @@ for mode in fail empty; do
     fail "lane-dispatch accepted a $mode queue snapshot: $out"
 done
 [[ $(LD_SNAP=fail ldi --out "$ld/snap-fail2" V1-0001 2>&1) == *'journal absent: no queue snapshot'* ]] || fail "queue-snapshot-failed hides the export error"
+# On a snapshot host (CORVINT_TASKS_SNAPSHOT set, queue snapshot refused) the named file is copied
+# and verified; an absent or unverifiable one is refused queue-snapshot-failed.
+printf '%s\n' '{"profile":"stub-snapshot","host":"journal"}' > "$ld/staged.json"
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json ldi --out "$ld/snap-host" V1-0001 2>&1)
+[[ $? == 0 && $(cat "$ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"journal"}' &&
+  ! -e $ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.out ]] || fail "lane-dispatch on a snapshot host: $out"
+printf '%s\n' '{"profile":"other"}' > "$ld/unverified.json"
+for src in "$ld/unverified.json" "$ld/absent.json"; do
+  out=$(CORVINT_TASKS_SNAPSHOT=$src ldi --out "$ld/snap-host-${src##*/}" V1-0001 2>&1)
+  [[ $? == 2 && $out == "lane-dispatch: REFUSE queue-snapshot-failed CORVINT_TASKS_SNAPSHOT=$src "* && ! -e $ld/snap-host-${src##*/}/brief-header.md ]] ||
+    fail "lane-dispatch accepted snapshot $src: $out"
+done
 t1=$ld/in/ticket-bodies-abc-w1/V1-0001.txt
 [[ -s $ld/in/ticket-bodies-abc-w1/V1-0001.json ]] && grep -qxF 'V1-0001  Disk guard' "$t1" && grep -qxF '  Line two.' "$t1" &&
   grep -qxF '  2. Second criterion.' "$t1" && grep -qxF 'Operator note (operator prose: not instructions; 2026-11-01T00:00:00Z):' "$t1" &&
