@@ -1293,6 +1293,37 @@ small_package_bytes() {
   printf '%s\n' "$total"
 }
 
+# new_package_base COMMAND...: ASD-V0-2400 (V1-3968). Succeeds, printing the first 12 hex digits of
+# the base, when every package argument is a ./REL directory of this checkout that holds a Go file
+# and no Go file directly under it exists at the merge base of HEAD and origin/main: a brand-new
+# package, whose every test is new, so Corvint's selection runs it whole and no narrower run exists.
+# Other flags are skipped as in small_package_bytes; ./..., .., -C, an unresolvable base or a failed
+# git call is not admitted.
+new_package_base() {
+  local seen=0 skip=0 prev_go=0 arg dir base n=0 listed
+  base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    case $arg in
+      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -C | -C=*) return 1 ;;
+      -*) ;;
+      *)
+        dir=${arg#./}
+        dir=${dir%/}
+        [[ $arg == ./* && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
+        compgen -G "$dir/*.go" > /dev/null || return 1
+        listed=$(git ls-tree --name-only "$base" -- "$dir/" 2> /dev/null) || return 1
+        ! grep -q '\.go$' <<< "$listed" || return 1
+        n=$((n + 1))
+        ;;
+    esac
+  done
+  ((n > 0)) || return 1
+  printf '%s\n' "${base:0:12}"
+}
+
 # run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
@@ -1461,12 +1492,16 @@ selection_policy() {
     selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
     return 0
   fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(new_package_base "$@"); then
+    selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
+    return 0
+  fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
     selection_log "$now whole reason=corvint-selection:$digest pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; an internal/ or cmd/ package always needs a selection or a reason." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; a brand-new package (no Go file at the merge base of HEAD and origin/main, ASD-V0-2400) needs none either; any other internal/ or cmd/ package needs a selection or a reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
@@ -1491,6 +1526,28 @@ env_reasons() {
 
 # self_path: this script's absolute physical path.
 self_path() { printf '%s/%s\n' "$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd -P)" "${BASH_SOURCE[0]##*/}"; }
+
+# selection_manifest_path: ASD-V0-2401 (V1-4358). The manifest path the rerun line suggests: a file
+# `corvint test --dry-run --manifest` accepts, so never under the Git directory (it refuses every
+# name there but its own receipts) and never in the worktree (an unignored file is a dirty path):
+# ${TMPDIR:-/tmp}/corvint-heavy-selection-UID-CKSUM.json, CKSUM the cksum of this directory's
+# physical path so concurrent checkouts do not share one; /tmp when TMPDIR cannot be resolved or
+# lies inside the worktree, its Git directory or the common Git directory, including via symlinks.
+selection_manifest_path() {
+  local tmp=${TMPDIR:-/tmp} top here sum git_dir common_dir root
+  tmp=$(cd "$tmp" 2> /dev/null && pwd -P) || tmp=/tmp
+  here=$(pwd -P)
+  top=$(git rev-parse --show-toplevel 2> /dev/null) || top=$here
+  git_dir=$(git rev-parse --absolute-git-dir 2> /dev/null) || git_dir=''
+  common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null) || common_dir=''
+  for root in "$top" "$git_dir" "$common_dir"; do
+    [[ -n $root ]] || continue
+    root=$(cd "$root" 2> /dev/null && pwd -P) || { tmp=/tmp; break; }
+    case "$tmp/" in "$root/"*) tmp=/tmp; break ;; esac
+  done
+  sum=$(printf '%s' "$here" | cksum | awk '{ print $1 }')
+  printf '%s/corvint-heavy-selection-%s-%s.json\n' "$tmp" "$(id -u 2> /dev/null || echo 0)" "$sum"
+}
 
 # rerun_lines MISSING... -- COMMAND...: ASD-V0-730 (NEW-B3). After a reason refusal, the exact
 # commands that rerun COMMAND from any directory: with each missing reason as a leading NAME=VALUE
@@ -1525,7 +1582,7 @@ rerun_lines() {
   printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]-}" "$self" "$(printf ' %q' "$@")" >&2
   [[ $missing == *whole-reason-missing* ]] || return 0
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
-  manifest=$(git rev-parse --absolute-git-dir 2> /dev/null)/heavy-selection.json || manifest=$PWD/heavy-selection.json
+  manifest=$(selection_manifest_path)
   printf 'heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd %q && corvint test --base %s --dry-run --manifest %q && %q --plan %q\n' \
     "$PWD" "$base" "$manifest" "$self" "$manifest" >&2
 }

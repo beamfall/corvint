@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -588,9 +589,8 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	default:
 		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
 		if len(lines) != 0 {
-			input.GoSelection = lines[len(lines)-1]
+			input.GoSelection = testPlanRunSet(lines[len(lines)-1], plan.Provider.Go.Packages)
 		}
-		testAttributionReasons(input.GoSlices, lines)
 		// A change only inside nested modules no observed module builds
 		// selects no root package; their own units run it (STR-V0-064).
 		if strings.HasPrefix(input.GoSelection, "FALLBACK the selection is empty while ") && sessiontest.ModuleCovered(receipt.Plan.Dirty, input.Unknown) {
@@ -600,26 +600,25 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	return nil
 }
 
-// testAttributionReasons gives each package the AFP-V0-012 attribution adds
-// beyond the plan's own selections, which carries no slice yet, its attribution
-// line as its whole-package reason, such as `importer PKG <- PATH`, so every
-// whole-package selection in the manifest names the rule and path that chose
-// it (V1-3573). The plan's selections and the verdict line are left alone.
-func testAttributionReasons(slices map[string]sessiontest.GoSlice, lines []string) {
-	if len(lines) == 0 {
-		return
+// testPlanRunSet is the Go verdict `corvint test` runs (AFP-V0-2402, V1-4363,
+// amending STR-V0-061): the AFP-V0-012 attribution still decides FALLBACK and
+// NOTHING, but a `run` verdict runs exactly the plan's own Go selection, the
+// packages `corvint affected` selects with a witness. The attribution's rule
+// (a) to (c) lines re-add packages the plan's narrower reviewed rules exclude
+// (the lone-component and directory-resolving literal narrowings of
+// AFP-V0-021 and AFP-V0-072, namer edges for a path token that names a package
+// directory), so they no longer enter the run set; the CI PR tier's deciding
+// selector (gateselect.Select) keeps them. A run verdict over a plan that
+// selects no Go package is NOTHING with that reason.
+func testPlanRunSet(verdict string, planned []string) string {
+	if !strings.HasPrefix(verdict, "run ") {
+		return verdict
 	}
-	for _, line := range lines[:len(lines)-1] {
-		kind, rest, ok := strings.Cut(line, " ")
-		if !ok || kind == "selected" {
-			continue
-		}
-		pkg, _, _ := strings.Cut(rest, " ")
-		pkg = strings.TrimSuffix(pkg, ":")
-		if _, sliced := slices[pkg]; !sliced && pkg != "" {
-			slices[pkg] = sessiontest.GoSlice{Reason: "whole: attributed: " + line}
-		}
+	packages := slices.Compact(slices.Sorted(slices.Values(planned)))
+	if len(packages) == 0 {
+		return "NOTHING the plan selects no Go package; the AFP-V0-012 attribution names only packages the plan's rules exclude (AFP-V0-2402)"
 	}
+	return "run " + strings.Join(packages, " ")
 }
 
 // testGoUniverse is the root Go universe: every graph Go unit the root

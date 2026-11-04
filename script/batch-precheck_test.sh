@@ -1063,6 +1063,15 @@ plan "$frontier$others" golden
 srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
   fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"
+# ASD-V0-2402 (V1-3804): the unknowns CI's deciding selector narrows with (gateselect.AllowedUnknown:
+# an UNOWNED_DIRTY_PATH, a NO_SELECTABLE_TEST, a non-Go frontier of any language and the two
+# admitted go: frontiers) and a well-formed UNSELECTED_BINARY_CONSUMER, which every real plan
+# carries, narrow a first precheck of a doc-only diff too.
+ciok=',{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"},{"reason":"NO_SELECTABLE_TEST","detail":"shell:script/lib.sh"},{"reason":"UNSELECTED_BINARY_CONSUMER","detail":"tools/web/e2e.mjs"},{"reason":"LANGUAGE_FRONTIER","detail":"shell:read-scopes-changed"}'
+plan "$frontier$ciok" golden
+srun --base "$sbase" || fail "a doc-only diff with CI-admitted unknowns failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
+  fail "CI-admitted unknowns widened a doc-only diff: $(cat "$tmp/out")"
 plan "$frontier" golden
 # ASD-V0-892 (V1-3572, V1-3818): the skipped catalog check is a print-only row, which never goes
 # through the ledger: on a rerun on identical inputs it is a PASS while the listed steps reuse.
@@ -1101,6 +1110,15 @@ grep -q 'golden drift: want v1, got v2' "$tmp/out" || fail "drift output not sho
 grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || fail "drift not introduced: $(cat "$tmp/out")"
 grep -q '^batch-precheck: capability-catalog-check runs (a catalog input changed' "$tmp/out" || fail "catalog not run on a Go input: $(cat "$tmp/out")"
 git -C "$srepo" checkout -q -- golden/testdata/want.txt
+# ASD-V0-2402 fault injection: the same real drift under a plan carrying the CI-admitted unknowns
+# is still selected and fails, so the admitted unknowns narrow without hiding a selected package.
+plan "$frontier$ciok" golden
+printf 'v2\n' > "$srepo/golden/testdata/want.txt"
+srun --base "$sbase" && fail "real golden drift passed under CI-admitted unknowns"
+grep -q "^batch-precheck: batch-drift runs 2 of 3 drift tests" "$tmp/out" || fail "golden selection under CI-admitted unknowns: $(cat "$tmp/out")"
+grep -q 'golden drift: want v1, got v2' "$tmp/out" || fail "drift output under CI-admitted unknowns: $(cat "$tmp/out")"
+git -C "$srepo" checkout -q -- golden/testdata/want.txt
+plan "$frontier" golden
 # A changed declared spec runs its test even when the plan selects nothing; a nested docs path is
 # not a top-level docs/*.md catalog input.
 plan "$frontier"
@@ -1126,8 +1144,12 @@ full() {
   grep -q '^make -s capability-catalog-check$' "$tmp/scalls" || fail "catalog skipped for $1: $(cat "$tmp/scalls")"
 }
 run_full() { : > "$tmp/scalls"; srun "$@" || fail "full run failed: $(cat "$tmp/out")"; }
-plan '{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"}' golden
-run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNOWNED_DIRTY_PATH notes/a.txt; all in '
+# ASD-V0-2402 (V1-3804): an unknown outside the shared allowlist (an UNINDEXED_SOURCE_PATH, a
+# malformed binary consumer) still runs everything: the negative control of the narrowing below.
+plan '{"reason":"UNINDEXED_SOURCE_PATH","detail":"notes/a.go"}' golden
+run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNINDEXED_SOURCE_PATH notes/a.go; all in '
+plan '{"reason":"UNSELECTED_BINARY_CONSUMER","detail":"../outside.mjs"}' golden
+run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNSELECTED_BINARY_CONSUMER ../outside.mjs; all in '
 # ASD-V0-893 (V1-3260): many unknowns print a count, the first and the retained file, not the list.
 many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"go:fake-frontier %s"}' "$i"; done)
 plan "$frontier$many" golden

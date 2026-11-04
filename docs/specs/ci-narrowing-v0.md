@@ -358,6 +358,21 @@ restore the stacked-entry early exit, remove the `FULL` branch of `reuse_` in `m
 the single listing in the integrity step, and delete `.github/workflows/ci-route-health.yml` and the
 `routes` subcommand.
 
+- **CIN-V0-2320:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3489;
+  effective only after the owner's review of the `.github` change it needs) The CI workflow SHALL
+  run, on every `pull_request` and `merge_group` event and on no other, a `shell-test-selected` job
+  that checks out full history and runs `make -s shell-test-affected BASE=$(git merge-base HEAD
+  BASE_SHA)`, `BASE_SHA` the pull request's base commit or the merge-queue entry's `base_sha`, and
+  SHALL fail when neither is set. The steps it runs are the AFP-V0-2401 selection: the script
+  self-tests (`make shell-test` steps) a change can affect, every step when the plan cannot narrow
+  them. Before it, no PR job ran a shell-test step, so `no-python-runtime-dependency-test` was red
+  on main (build-log entry `2026-11-03-selbugs-selection-correctness`). The required `go-product`
+  check SHALL depend on `shell-test-selected` and require its successful result before every
+  early return, including a batched pull request, DOCS or REUSE; failure, cancellation, missing
+  result or a skipped job on a pull request or merge-group event SHALL fail the required check.
+  A push SHALL explicitly admit the shell job's intentional `skipped` result; a failed or
+  cancelled shell job SHALL never pass through that exception.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -435,8 +450,11 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
+| CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps` (PLANNED), `TestCINV02320RequiredCheckPropagatesShellFailure` (PLANNED) in `tools/ci-reuse-plan/workflow_test.go`, landing with the `ci.yml` job change |
 
 ## Rollback
+
+CIN-V0-2320: delete the `shell-test-selected` job; shell-test steps then run only in `make gate`.
 
 CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
 no persisted state. Hosted wiring is pending; no existing workflow rollback is required. Its

@@ -410,12 +410,18 @@ drift_on=() cat_skip='' sb_skip='' sb_deferred='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
-# ASD-V0-912 (V1-3804): the selection only decides Go drift tests and the Go catalog check, so a
-# frontier detail of a language no Go test is selected through (its `LANG:` prefix) cannot change
-# it; every plan of this checkout carries dozens of TypeScript ones. Go and shell details still
-# need FRONTIER_OK, and any other prefix runs everything.
-# The list is printed data, so the GOC-V0-008 scan reads its language names as data (V1-3842).
-FRONTIER_OTHER_LANGS=$(printf %s '["cfamily","dotnet","python","ruby","swift","typescript"]')
+# ASD-V0-2402 (V1-3804, amends ASD-V0-912): the selection only decides Go drift tests, the Go
+# catalog check and selection-baseline-check, so it admits exactly the unknowns CI's deciding
+# selector narrows with (the shared allowlist gateselect.AllowedUnknown, AFP-V0-982, CIN-V0-860:
+# a LANGUAGE_FRONTIER that is not a `go:` frontier other than go:build-constraint-variants or
+# go:nested-module-frontier, an UNOWNED_DIRTY_PATH or a NO_SELECTABLE_TEST) and a well-formed
+# UNSELECTED_BINARY_CONSUMER, a non-Go file no Go run covers (gateselect.BinaryConsumer,
+# STR-V0-750). Every real plan carries some of these, so a first precheck never narrowed. Any
+# other unknown (an UNINDEXED_SOURCE_PATH, a module-level `go:` frontier) still runs everything.
+SELECT_ALLOWED='(.reason == "LANGUAGE_FRONTIER" and ((.detail | tostring | startswith("go:") | not) or .detail == "go:build-constraint-variants" or .detail == "go:nested-module-frontier"))
+  or .reason == "UNOWNED_DIRTY_PATH" or .reason == "NO_SELECTABLE_TEST"
+  or (.reason == "UNSELECTED_BINARY_CONSUMER" and (.detail | type) == "string" and .detail != "" and .detail != "."
+    and (.detail | test("^/|\\\\|[[:cntrl:]]|(^|/)\\.\\.?(/|$)|//|/$") | not))'
 
 # select_plan reads the batch diff and the affected plan into sel_changed, sel_go and sel_planned
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
@@ -453,7 +459,7 @@ select_plan() {
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
-  reasons=$(jq -r --argjson ok "$FRONTIER_OK" --argjson other "$FRONTIER_OTHER_LANGS" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or (([.detail] - $ok | length) > 0 and ([(.detail | tostring | split(":")[0])] - $other | length) > 0)) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
+  reasons=$(jq -r "[.plan.unknown[] | select(($SELECT_ALLOWED) | not) | \"\\(.reason) \\(.detail)\"] | unique | .[]" <<< "$plan") ||
     { sel_why='the plan unknowns are unreadable'; return 0; }
   # ASD-V0-893 (V1-3260): a count, the first unknown and a retained file of all of them, never the
   # whole list on one line.
