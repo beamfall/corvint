@@ -16,7 +16,7 @@ profile changes.
 
 ## Agent digest
 - Claim: Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.
-- Status: proposed; experimental; RRF and additive failed the frozen gate and stay opt-in; the acronym rule and span modes stay opt-in pending owner decision.
+- Status: proposed; experimental; the original RRF and additive variants failed the frozen gate; membership-preserving variants stay opt-in; the acronym rule and span modes stay opt-in pending owner decision.
 - Exists: `CORVINT_CONTEXT_RRF`, `CORVINT_CONTEXT_ADDITIVE`, `CORVINT_CONTEXT_ACRONYMS=prose`, `CORVINT_CONTEXT_SPANS=hits|merged`, and `matchTerms` with a text-sized interner.
 - Blocked on: the remaining three frozen retrieval releases, historical manifest subjects absent at their pinned bases, and the ContextBench dataset for V1-2716 AC1; the 63-task history-backed replay is now measured with errors retained (TCP-V0-2223).
 - Read next: Requirements; Measurements; Failure modes; Rollback.
@@ -100,8 +100,19 @@ budget, and silently drops overlapping candidates (V1-0114, V1-0116). `countTerm
 
 The owner-authorized follow-up TCP-V0-2220..2223 in `task-context-packet-v0.md` governs the
 `hits`, `merged` and RRF amendments to CRK-V0-004 and CRK-V0-009..012: exact-hit fallback,
-pre-budget coalescing with compact slot provenance, and RRF over fixed final membership. Earlier
+pre-budget coalescing with compact slot provenance, and RRF over fixed final membership. CRK-V0-7900 applies the same membership boundary to additive ordering. Earlier
 failed readings remain historical evidence; they are not promotion evidence for the amended modes.
+
+- `CRK-V0-7900`: (owner-requested lane repair, 2026-11-04; V1-3710) Amending
+  CRK-V0-005, additive ordering MUST run after corroboration, reservations, graph placement,
+  lexical pair admission and limit truncation have selected the default packet's members.
+  Only ordinary rows are sorted by the existing lexical-plus-slot key; governing and graph
+  rows keep their positions and fields. Every final ordinary row, including a promoted pair,
+  receives its additive score exactly once. No default behavior or bonus constants change.
+  Test: `TestContextAdditiveMembership_CRKV07900` (limits 1..50, graph off/on).
+  Falsifier: a different path set at any limit, or a moved or rescored reservation/graph row.
+  Acceptance requires the frozen four-subset recall@20 comparison in CRK-V0-008; retain
+  recall@5/10 and MRR even if they fall. Rollback: restore pre-limit additive ordering.
 
 ## Non-goals
 

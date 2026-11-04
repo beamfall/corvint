@@ -1,0 +1,2 @@
+# Exact tracked fixture paths intentionally containing conflict markers, one per line.
+# Entries must be beneath testdata/ or fixtures/; no glob or directory exemptions.

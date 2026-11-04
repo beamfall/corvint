@@ -82,6 +82,8 @@ GATE_STEPS = \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
+  conflict-markers-check \
+  conflict-markers-test \
   decision-numbers-check \
   decision-numbers-test \
   diagnostic-coverage-check \
@@ -437,8 +439,8 @@ decision-numbers-check: analyzer-schema-check
 	@script/check-decision-numbers.sh
 
 # cem-base-retention-check (decision 0588, V1-3758) refuses a tracked .corvint/changes map whose
-# baseRevision origin/main does not reach unless .corvint/cem-lineage.tsv labels it; with no
-# origin/main (a shallow clone) it prints that it was skipped. cem-base-retention-test is its fixture test.
+# baseRevision no retained ref reaches, except previously pinned historical disclosures; with no
+# origin/main it prints NOT_RUN. New labels require a real ref (CEM-V1-7901); the fixture test guards it.
 .PHONY: cem-base-retention-check
 cem-base-retention-check:
 	@script/check-cem-base-retained.sh
@@ -1162,7 +1164,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := conflict-markers-check cem-base-retention-check tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 # DTL-V0-006: independent gates share the enclosing admission and a bounded job pool.
@@ -1171,6 +1173,12 @@ DOC_GATE_JOBS ?= 4
 doc-gate-force:
 doc-gate/%: doc-gate-force
 	+@script/doc-gate-timed.sh "$*" $(MAKE) --no-print-directory "$*"
+
+.PHONY: conflict-markers-check conflict-markers-test
+conflict-markers-check:
+	@script/check-conflict-markers.sh
+conflict-markers-test:
+	@script/check-conflict-markers_test.sh
 
 .PHONY: tracked-ignored-check
 tracked-ignored-check:
@@ -1421,6 +1429,7 @@ shell-test: \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
+  conflict-markers-test \
   decision-numbers-test \
   documentation-paths-test \
   dogfood-bin-reuse-test \

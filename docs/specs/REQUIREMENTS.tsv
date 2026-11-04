@@ -1436,6 +1436,7 @@ CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-961	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-962	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-963	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
+CEM-V1-7901	docs/specs/cem-stable-v1.md	(owner-requested lane repair, 2026-11-04; V1-3758) Amending	unrecorded	-
 CEM-V1-860	docs/specs/cem-stable-v1.md	(proposed; V1-0591) Every platform row of the committed release-readiness	unrecorded	-
 CEM-V1-861	docs/specs/cem-stable-v1.md	(proposed; V1-0591) A `hosts` entry of `QUALIFICATION.json` MUST identify the ho	unrecorded	-
 CEM-V1-862	docs/specs/cem-stable-v1.md	(proposed; V1-0591) `protocol/cem-1.0/structural-corpus/manifest.json`	unrecorded	-
@@ -2009,6 +2010,7 @@ CRK-V0-009	docs/specs/context-ranking-v0.md	(amended under the owner's standing 
 CRK-V0-010	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-011	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-012	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
+CRK-V0-7900	docs/specs/context-ranking-v0.md	(owner-requested lane repair, 2026-11-04; V1-3710) Amending	unrecorded	-
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
@@ -4010,6 +4012,7 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	**Provenance/trust.** A
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	**Common computation/currentness.** Preserve fixed protected paths, release/adap	unrecorded	-
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho	unrecorded	-
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali	unrecorded	-
+DCI-V0-7902	docs/specs/documentation-ci-v0.md	(owner-requested lane repair, 2026-11-04; V1-1323) The shared	unrecorded	-
 DCI-V0-001	docs/specs/documentation-ci-v0.md	The classifier MUST read a clean checkout at the full captured target SHA, requi	unrecorded	-
 DCI-V0-002	docs/specs/documentation-ci-v0.md	The closed path scope MUST be modified existing mode-100644 `README.md` and,	unrecorded	-
 DCI-V0-003	docs/specs/documentation-ci-v0.md	README fenced and indented code bytes MUST remain identical. The admitted Markdo	unrecorded	-

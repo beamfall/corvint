@@ -944,6 +944,17 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
   unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
   A label is a disclosure and changes no verdict.
+- `CEM-V1-7901`: (owner-requested lane repair, 2026-11-04; V1-3758) Amending
+  CEM-V1-963, both the committed unsealed `.corvint/change.cem.json` and archived maps
+  MUST be checked from Git index bytes, including the lineage register, so unstaged
+  edits cannot conceal committed evidence. A new lineage label MUST NOT bypass base retention. Its retained column MUST
+  name an existing full `refs/...` ref whose commit reaches that exact base; a bare object ID,
+  invented ref or ref that reaches a different lineage is insufficient. A historical
+  target/base pair already labelled at a configured retained tip may remain a disclosure, explicitly
+  reported as `retention NOT_PROVED` when no checked ref reaches its base. Sealed maps MUST
+  remain byte-identical. Test: `script/check-cem-base-retained_test.sh` (invented label,
+  historical row, real retained ref and raw-SHA negative). Rollback: restore CEM-V1-963's
+  unrestricted label exemption; that restores the known retention hole.
 - `CEM-V1-860`: (proposed; V1-0591) Every platform row of the committed release-readiness
   declaration (`tools/cem-release-suites/READINESS.json`, `CEM-V1-600`) MUST have an explicit
   structural-corpus disposition in `protocol/cem-1.0/structural-corpus/QUALIFICATION.json`: either
@@ -2704,6 +2715,13 @@ sidecar, the loop and batch-check again refuse `cem/1.0`, and OCM again refuses 
 map already sealed stays valid for `cem status`/`cem verify-stable`, but the reverted
 `batch-check` refuses it, so a batch over it needs this change or a rebind under `--spec
 cem/0.2`. No wire, schema, packet or frozen case changes.
+The former shared-insertion conflict (V1-1323, reviewed 2026-11-04) combined the
+producer cutover requirements CEM-V1-140..152 with the separate consumer ranges
+CEM-V1-120..139 and CEM-V1-160..168. These are distinct obligations, not duplicate
+alternatives. Their preserved 0.x compatibility clauses are historical: CEM-V1-210..214
+supersede consumer reads, CEM-V1-215..225 retire the old producers and packets, and
+CEM-V1-205..209 supersede CEM-V1-150's sidecar reuse restriction.
+
 ## Closure-chain stable consumers (V1-0632 C06..C08)
 
 Status: accepted under the owner's standing auto-accept (2026-10-11) after independent review

@@ -2,10 +2,13 @@
 # usage: check-cem-base-retained.sh [--retained REF]... — refuse a committed map whose base no retained
 # ref reaches (decision 0588, V1-3758).
 #
-# Every tracked `.corvint/changes/NAME.cem.json` names its `baseRevision`. After branch deletion and gc a
+# Every tracked archived map or unsealed sidecar names its baseRevision. Read the Git index so
+# unstaged bytes cannot hide committed evidence. After branch deletion and gc a
 # base that no retained ref reaches is gone, and the map's Git evidence becomes unverifiable. The check
-# passes a map whose base is an ancestor of a retained ref (default refs/remotes/origin/main) and a map
-# `.corvint/cem-lineage.tsv` labels with exactly that base; it refuses any other map, a register row whose
+# passes a map whose base is an ancestor of a retained ref (default refs/remotes/origin/main) or a real
+# ref named by its exact `.corvint/cem-lineage.tsv` row. Historical target/base labels pinned at a retained tip
+# remain disclosures with retention NOT_PROVED; a new label cannot bypass reachability (CEM-V1-7901).
+# It refuses any other map, a register row whose
 # map is gone or whose base differs, and an unknown label. With no retained ref resolvable here (a shallow
 # or remote-less clone) it says it was skipped and passes: the retention of a base cannot be judged
 # without the ref, and the skip is printed rather than read as a pass.
@@ -39,8 +42,9 @@ fi
 # Bash 3.2 (macOS /bin/bash) has no associative arrays: the register and the tracked targets are
 # newline lists, "TARGET BASE" and "TARGET", looked up with grep -Fx.
 labelled=
+labelled_refs=
 labelled_count=0
-if [[ -f $register ]]; then
+if git cat-file -e ":$register" 2>/dev/null; then
   while IFS=$'\t' read -r target base label ref; do
     [[ -z $target || $target == \#* ]] && continue
     case $label in
@@ -49,11 +53,12 @@ if [[ -f $register ]]; then
     esac
     [[ -n ${ref:-} ]] || { echo "check-cem-base-retained: $register: $target names no retained column" >&2; exit 1; }
     labelled+="$target $base"$'\n'
+    labelled_refs+="$target $ref"$'\n'
     labelled_count=$((labelled_count + 1))
-  done < "$register"
+  done < <(git show ":$register")
 fi
 
-maps=$(git ls-files -- '.corvint/changes/*.cem.json') || { echo "check-cem-base-retained: git ls-files failed" >&2; exit 2; }
+maps=$(git ls-files -- '.corvint/changes/*.cem.json' '.corvint/change.cem.json') || { echo "check-cem-base-retained: git ls-files failed" >&2; exit 2; }
 refused=0
 present=
 while IFS= read -r map; do
@@ -61,19 +66,26 @@ while IFS= read -r map; do
   target=${map#.corvint/changes/}
   target=${target%.cem.json}
   present+="$target"$'\n'
-  base=$(grep -o '"baseRevision": *"[0-9a-f]*"' "$map" | head -1 | grep -o '[0-9a-f]\{40,64\}')
+  base=$(git show ":$map" | grep -o '"baseRevision": *"[0-9a-f]*"'  | head -1 | grep -o '[0-9a-f]\{40,64\}')
   if [[ -z $base ]]; then
     echo "check-cem-base-retained: $map names no baseRevision" >&2
     refused=1
     continue
   fi
+  historic=0
   row=$(printf '%s' "$labelled" | grep -m1 "^$target " || true)
   if [[ -n $row ]]; then
     if [[ ${row#* } != "$base" ]]; then
       echo "check-cem-base-retained: $register labels $target with base ${row#* }, but the map's base is $base" >&2
       refused=1
+      continue
     fi
-    continue
+    # CEM-V1-7901: only a target/base already labelled at a retained commit may
+    # disclose legacy unretained evidence, even after its locator is repaired.
+    # A new map/base pair needs a real ref.
+    for tip in ${tips[@]+"${tips[@]}"}; do
+      if git show "$tip:$register" 2>/dev/null | cut -f1,2 | grep -Fxq -- "$(printf '%s\t%s' "$target" "$base")"; then historic=1; break; fi
+    done
   fi
   reached=0
   if git cat-file -e "$base^{commit}" 2> /dev/null; then
@@ -81,9 +93,20 @@ while IFS= read -r map; do
       if git merge-base --is-ancestor "$base" "$tip" 2> /dev/null; then reached=1; break; fi
     done
   fi
+  if ((!reached)) && [[ -n $row ]]; then
+    labelled_ref=$(printf '%s' "$labelled_refs" | grep -m1 "^$target " || true)
+    labelled_ref=${labelled_ref#* }
+    # A raw object ID is not a retained reference: it does not protect from gc.
+    if [[ $labelled_ref == refs/* ]] && git show-ref --verify --quiet "$labelled_ref" &&
+      git merge-base --is-ancestor "$base" "$labelled_ref" 2>/dev/null; then reached=1; fi
+  fi
+  if ((!reached && historic)); then
+    echo "check-cem-base-retained: historical label $target base=$base retention NOT_PROVED"
+    continue
+  fi
   if ((!reached)); then
     echo "check-cem-base-retained: $map: base $base is not reachable from a retained ref (${retained[*]-})" >&2
-    echo "  fix: rebind the change on a base that ${retained[0]} reaches (make dogfood-change BASE=\$(git rev-parse ${retained[0]})), or label the map in $register (decision 0588)" >&2
+    echo "  fix: rebind the change on a base that ${retained[0]} reaches (make dogfood-change BASE=\$(git rev-parse ${retained[0]})), or pin its base under a real retained ref in $register (CEM-V1-7901)" >&2
     refused=1
   fi
 done <<< "$maps"
