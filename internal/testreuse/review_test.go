@@ -6,9 +6,12 @@ import (
 	"context"
 	json "encoding/json/v2"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestRuntimeEnvironmentEnablesSkippedFailure covers AFP-V0-2322: a pass
@@ -113,7 +116,7 @@ func TestRuntimeEnvironmentCanonicalization(t *testing.T) {
 	base := fixtureEnv()
 	identity := func(extra ...string) string {
 		t.Helper()
-		observed, err := ObserveIdentity(context.Background(), snapshot, "", append(append([]string{}, base...), extra...), fixtureArgv, nil)
+		observed, err := observeConfined(context.Background(), snapshot, "", append(append([]string{}, base...), extra...), fixtureArgv, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -131,5 +134,137 @@ func TestRuntimeEnvironmentCanonicalization(t *testing.T) {
 	}
 	if identity("=C:=before", "=D:=stable") == identity("=C:=after", "=D:=stable") {
 		t.Error("drive environment entries must retain their distinct names")
+	}
+}
+
+// unconfinedAt observes root under an identity that binds no confinement
+// wrapper, as a plain local `go test` run obtains its result.
+func unconfinedAt(t *testing.T, root string) (*Snapshot, Identity) {
+	t.Helper()
+	snapshot, err := Observe(context.Background(), ObserveOptions{Root: root, Env: fixtureEnv()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot, identity
+}
+
+// TestUnconfinedOutOfScopeReadRuns covers AFP-V0-2320: a declared package
+// whose test reads outside its declared scope passes when nothing enforces
+// the scope, and the file it read is in no digest, so an unconfined pass can
+// never be reused: changing that file fails the rerun.
+func TestUnconfinedOutOfScopeReadRuns(t *testing.T) {
+	root := fixtureRepo(t)
+	writeFixture(t, root, "b/b_test.go", `package b
+import ("os"; "testing")
+func TestB(t *testing.T) {
+    body, err := os.ReadFile("../data/other.txt")
+    if err != nil || string(body) != "other\n" { t.Fatalf("got %q %v", body, err) }
+}
+`)
+	commitAll(t, root, "out-of-scope read")
+	goTest(t, root, true, "./b")
+	snapshot, identity := unconfinedAt(t, root)
+	source := Source{Kind: SourceLocal, Commit: snapshot.Head, Tree: snapshot.Tree}
+	record, err := BuildRecord(snapshot, identity, source, allPassed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(record.Packages) != 0 {
+		t.Errorf("an unconfined run recorded passes: %+v", record.Packages)
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range []string{"unchanged", "out-of-scope input changed"} {
+		if step != "unchanged" {
+			writeFixture(t, root, "data/other.txt", "changed\n")
+			commitAll(t, root, step)
+		}
+		snapshot, identity := unconfinedAt(t, root)
+		decision, err := Decide(snapshot, identity, localPolicy, []RecordInput{{Name: "r", Body: body}}, snapshot.Universe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(decision.Reused) != 0 {
+			t.Errorf("%s: unconfined reuse %v", step, decision.Reused)
+		}
+		for _, unit := range decision.Units {
+			if strings.HasSuffix(unit.Package, "/b") && unit.Reason != "UNCONFINED_EXECUTION" {
+				t.Errorf("%s: %+v", step, unit)
+			}
+		}
+	}
+	goTest(t, root, false, "./b")
+}
+
+// TestConfinementWrapperBindsIdentity covers AFP-V0-2322: the identity binds
+// the confinement wrapper's content, so a pass obtained under one wrapper
+// does not stand for a run under another, and a path that is not a regular
+// executable file binds nothing.
+func TestConfinementWrapperBindsIdentity(t *testing.T) {
+	root := fixtureRepo(t)
+	wrappers := t.TempDir()
+	wrapper := func(name, body string, mode os.FileMode) string {
+		t.Helper()
+		path := filepath.Join(wrappers, name)
+		write := os.WriteFile
+		if mode&0o111 != 0 {
+			write = execfile.WriteFile
+		}
+		if err := write(path, []byte(body), mode); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	first, err := ConfineDigest(wrapper("first", "#!/bin/sh\nexec \"$@\"\n", 0o755))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := ConfineDigest(wrapper("second", "#!/bin/sh\nexec env \"$@\"\n", 0o755))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second || !strings.HasPrefix(first, "sha256:") {
+		t.Fatalf("wrapper digests %q %q", first, second)
+	}
+	refused := []string{wrappers, filepath.Join(wrappers, "missing")}
+	if runtime.GOOS != "windows" {
+		refused = append(refused, wrapper("plain", "not executable\n", 0o644))
+	}
+	for _, path := range refused {
+		if digest, err := ConfineDigest(path); err == nil {
+			t.Errorf("%s bound as a wrapper: %s", path, digest)
+		}
+	}
+	under := func(confine string) (*Snapshot, Identity) {
+		snapshot, identity := unconfinedAt(t, root)
+		identity.Confine = confine
+		return snapshot, identity
+	}
+	snapshot, identity := under(first)
+	record, err := BuildRecord(snapshot, identity, Source{Kind: SourceLocal, Commit: snapshot.Head, Tree: snapshot.Tree}, allPassed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for confine, want := range map[string]string{first: ReasonRecordDigestEqual, second: ReasonIdentityChanged} {
+		snapshot, identity := under(confine)
+		decision, err := Decide(snapshot, identity, localPolicy, []RecordInput{{Name: "r", Body: body}}, snapshot.Universe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, unit := range decision.Units {
+			if strings.HasSuffix(unit.Package, "/b") && unit.Reason != want {
+				t.Errorf("wrapper %s: %+v, want %s", confine, unit, want)
+			}
+		}
 	}
 }

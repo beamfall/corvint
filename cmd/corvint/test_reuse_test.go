@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func reuseFixtureWrite(t *testing.T, root string, files map[string]string) {
@@ -63,12 +65,17 @@ func TestTestReuseCLI(t *testing.T) {
 		}
 		return stdout.String() + stderr.String()
 	}
+	// AFP-V0-2320: the run is bound to its confinement wrapper by content.
+	confine := filepath.Join(scratch, "test-confine")
+	if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	record := filepath.Join(scratch, "record.json")
-	invoke(0, "record", "--go-test-json", stream, "--argv", "-count=1", "--out", record)
-	decide := func() map[string]string {
+	invoke(0, "record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", record)
+	decide := func(extra ...string) map[string]string {
 		t.Helper()
 		out := filepath.Join(scratch, "decision.json")
-		invoke(0, "decide", "--argv", "-count=1", "--records", record, "--out", out, "--run-list", filepath.Join(scratch, "run.txt"))
+		invoke(0, append([]string{"decide", "--argv", "-count=1", "--records", record, "--out", out, "--run-list", filepath.Join(scratch, "run.txt")}, extra...)...)
 		body, err := os.ReadFile(out)
 		if err != nil {
 			t.Fatal(err)
@@ -91,27 +98,30 @@ func TestTestReuseCLI(t *testing.T) {
 	}
 	reuseFixtureWrite(t, root, map[string]string{"docs/readme.md": "# changed\n"})
 	reuseFixtureCommit(t, root, "docs")
-	if got := decide(); got["a"] != "REUSE RECORD_DIGEST_EQUAL" {
+	if got := decide("--confine", confine); got["a"] != "REUSE RECORD_DIGEST_EQUAL" {
 		t.Fatalf("unrelated commit: %v", got)
+	}
+	if got := decide(); got["a"] != "RUN UNCONFINED_EXECUTION" {
+		t.Fatalf("unconfined decision: %v", got)
 	}
 	// AFP-V0-2326: re-deciding for a local plan checks current worktree inputs,
 	// even when the dirty status code and path stay unchanged across edits.
 	for _, contents := range []string{"dirty one\n", "dirty two\n"} {
 		reuseFixtureWrite(t, root, map[string]string{"data/a.txt": contents})
-		if got := decide(); got["a"] != "RUN DIGEST_ERROR" {
+		if got := decide("--confine", confine); got["a"] != "RUN DIGEST_ERROR" {
 			t.Fatalf("dirty input: %v", got)
 		}
 	}
 	materializationGit(t, root, "checkout", "--", "data/a.txt")
 	t.Setenv("GOAMD64", "v2")
-	if got := decide(); got["a"] != "RUN IDENTITY_CHANGED" {
+	if got := decide("--confine", confine); got["a"] != "RUN IDENTITY_CHANGED" {
 		t.Fatalf("current environment: %v", got)
 	}
 	t.Setenv("GOAMD64", "v1")
 
 	reuseFixtureWrite(t, root, map[string]string{"data/a.txt": "changed\n"})
 	reuseFixtureCommit(t, root, "scope")
-	if got := decide(); got["a"] != "RUN DIGEST_CHANGED" {
+	if got := decide("--confine", confine); got["a"] != "RUN DIGEST_CHANGED" {
 		t.Fatalf("scope change: %v", got)
 	}
 	if body, _ := os.ReadFile(filepath.Join(scratch, "run.txt")); strings.TrimSpace(string(body)) != "example.com/m/a" {
@@ -121,4 +131,5 @@ func TestTestReuseCLI(t *testing.T) {
 	invoke(2, "decide", "--argv", "-count=1", "--trust", "pull_request")
 	invoke(2, "record", "--argv", "-count=1", "--out", record)
 	invoke(2, "explain")
+	invoke(testReuseExitIncomplete, "decide", "--argv", "-count=1", "--confine", scratch)
 }

@@ -35,11 +35,12 @@ Usage:
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
   corvint test reuse record (--outcomes PATH... | --go-test-json PATH)
-      --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local]
+      --argv WORDS [--confine PATH] [--harness PATH]...
+      [--source-kind main|pull_request|local]
       [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH
-  corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]...
-      [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH]
-      [--run-list PATH]
+  corvint test reuse decide --argv WORDS [--confine PATH] [--records PATH]...
+      [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N]
+      [--packages PATH] [--out PATH] [--run-list PATH]
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
 HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
@@ -98,11 +99,13 @@ digest; --run-list writes the packages still to run. A digest binds the
 package's directory, its declared read scope (.corvint/test-read-scopes.json),
 the files compiled into its test binary, go.mod and go.sum to their Git
 blobs, plus go env, --argv (which must carry -count=1 and no -run or
--skip) and each --harness path. An undeclared, UNBOUNDED_READER or split
-package, or a dirty or untracked input, always runs. It writes only the
+-skip), each --harness path and the content digest of the --confine
+wrapper the tests ran under as go test -exec. An undeclared, UNBOUNDED_READER
+or split package, a run without --confine, or a dirty or untracked input,
+always runs. It writes only the
 named files; exit 3 when no record or decision can be produced.
 Example: corvint test reuse decide --argv "-count=1 -timeout 30m"
---records /tmp/main-record.json --run-list /tmp/run.txt
+--confine "$RUNNER_TEMP/test-confine" --records /tmp/main-record.json --run-list /tmp/run.txt
 
 --go-parallel N (local profile only, 1 to 64) runs the Go invocations with
 -p N in place of the declared -p, so a focused selection fits a bounded

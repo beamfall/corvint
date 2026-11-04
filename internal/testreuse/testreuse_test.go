@@ -80,13 +80,24 @@ func fixtureEnv() []string {
 	return append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GO111MODULE=on")
 }
 
+// fixtureConfine stands for the digest of the confinement wrapper a
+// fixture result is obtained under (AFP-V0-2320).
+const fixtureConfine = "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+
+// observeConfined is ObserveIdentity for a run under the fixture wrapper.
+func observeConfined(ctx context.Context, snapshot *Snapshot, goExecutable string, env []string, argv, harness []string) (Identity, error) {
+	identity, err := ObserveIdentity(ctx, snapshot, goExecutable, env, argv, harness)
+	identity.Confine = fixtureConfine
+	return identity, err
+}
+
 func observe(t *testing.T, root string, unbounded map[string]bool) (*Snapshot, Identity) {
 	t.Helper()
 	snapshot, err := Observe(context.Background(), ObserveOptions{Root: root, Env: fixtureEnv(), Unbounded: unbounded})
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, nil)
+	identity, err := observeConfined(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +260,7 @@ func TestIdentityAndTrust(t *testing.T) {
 	if decision.Records[0].Verdict != RecordIdentityForged || len(decision.Reused) != 0 {
 		t.Fatalf("an edited identity: %+v", decision.Records)
 	}
-	other, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), []string{"-race", "-count=1", "-timeout", "5m"}, nil)
+	other, err := observeConfined(context.Background(), snapshot, "", fixtureEnv(), []string{"-race", "-count=1", "-timeout", "5m"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +391,7 @@ func observeArgv(t *testing.T, root string, argv []string) (*Snapshot, Identity)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), argv, nil)
+	identity, err := observeConfined(context.Background(), snapshot, "", fixtureEnv(), argv, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +497,7 @@ func TestHarnessDirectoryReevaluation(t *testing.T) {
 	writeFixture(t, root, "harness/runner.sh", "exit 0\n")
 	commitAll(t, root, "harness")
 	snapshot, _ := observe(t, root, nil)
-	identity, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, []string{"harness"})
+	identity, err := observeConfined(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, []string{"harness"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,7 +516,7 @@ func TestHarnessDirectoryReevaluation(t *testing.T) {
 	check := func(want string) {
 		t.Helper()
 		snapshot, _ := observe(t, root, nil)
-		current, err := ObserveIdentity(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, paths)
+		current, err := observeConfined(context.Background(), snapshot, "", fixtureEnv(), fixtureArgv, paths)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -535,7 +546,7 @@ func TestWorkspaceInputsFailClosed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := ObserveIdentity(context.Background(), snapshot, "", env, fixtureArgv, nil); err == nil || !strings.Contains(err.Error(), "unmodeled-workspace") {
+		if _, err := observeConfined(context.Background(), snapshot, "", env, fixtureArgv, nil); err == nil || !strings.Contains(err.Error(), "unmodeled-workspace") {
 			t.Fatalf("workspace %s: %v", workspace, err)
 		}
 	}
@@ -548,7 +559,7 @@ func TestWorkspaceInputsFailClosed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		identity, err := ObserveIdentity(context.Background(), snapshot, "", env, fixtureArgv, nil)
+		identity, err := observeConfined(context.Background(), snapshot, "", env, fixtureArgv, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

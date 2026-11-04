@@ -22,8 +22,8 @@ import (
 
 // The `corvint test reuse` usage lines (AFP-V0-2326).
 const (
-	testReuseRecordUsage = "usage: corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
-	testReuseDecideUsage = "usage: corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]"
+	testReuseRecordUsage = "usage: corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--confine PATH] [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
+	testReuseDecideUsage = "usage: corvint test reuse decide --argv WORDS [--confine PATH] [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]"
 )
 
 // testReuseExitIncomplete is the exit status when no record or decision can
@@ -42,10 +42,10 @@ func (m *multiFlag) Set(value string) error {
 }
 
 type testReuseOptions struct {
-	root, argv, out, runList, packages, testJSON, sourceKind, trust string
-	outcomes, records, harness                                      multiFlag
-	pullRequest, runAttempt                                         int
-	runID                                                           int64
+	root, argv, confine, out, runList, packages, testJSON, sourceKind, trust string
+	outcomes, records, harness                                               multiFlag
+	pullRequest, runAttempt                                                  int
+	runID                                                                    int64
 }
 
 func runTestReuse(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
@@ -61,6 +61,7 @@ func runTestReuse(ctx context.Context, root string, args []string, stdout, stder
 	f := flag.NewFlagSet("test reuse "+mode, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	f.StringVar(&options.argv, "argv", "", "")
+	f.StringVar(&options.confine, "confine", "", "")
 	f.Var(&options.harness, "harness", "")
 	f.StringVar(&options.out, "out", "", "")
 	if mode == "record" {
@@ -156,6 +157,13 @@ func testReuseObserve(ctx context.Context, options testReuseOptions) (*testreuse
 	identity, err := testreuse.ObserveIdentity(ctx, snapshot, "", nil, strings.Fields(options.argv), options.harness)
 	if err != nil {
 		return nil, testreuse.Identity{}, err
+	}
+	// Without --confine the run was unconfined and no package is eligible
+	// (AFP-V0-2320); the record or decision still lists every package.
+	if options.confine != "" {
+		if identity.Confine, err = testreuse.ConfineDigest(options.confine); err != nil {
+			return nil, testreuse.Identity{}, err
+		}
 	}
 	return snapshot, identity, nil
 }

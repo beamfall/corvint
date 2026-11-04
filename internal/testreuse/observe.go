@@ -5,6 +5,8 @@ package testreuse
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
@@ -409,6 +411,30 @@ func ParseReadScopes(body []byte) (map[string][]string, error) {
 		}
 	}
 	return declared.Packages, nil
+}
+
+// ConfineDigest binds the `go test -exec` confinement wrapper at path for
+// Identity.Confine (AFP-V0-2322): a regular executable file, named by the
+// SHA-256 of its content, so a changed wrapper is a changed identity. The
+// path itself is not bound; it varies between runners.
+func ConfineDigest(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("confinement wrapper: %w", err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return "", fmt.Errorf("confinement wrapper: %w", err)
+	}
+	if !info.Mode().IsRegular() || (runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0) {
+		return "", fmt.Errorf("confinement wrapper %s is not a regular executable file", path)
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", fmt.Errorf("confinement wrapper: %w", err)
+	}
+	return "sha256:" + hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // ObserveIdentity resolves the identity of argv and the harness paths over

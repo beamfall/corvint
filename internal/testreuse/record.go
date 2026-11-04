@@ -158,7 +158,7 @@ func BuildRecord(snapshot *Snapshot, identity Identity, source Source, outcomes 
 			record.Skipped = append(record.Skipped, Skipped{Package: name, Reason: ReasonNotPassed, Detail: outcomes[name]})
 			continue
 		}
-		digest := DigestPackage(snapshot, name, identityDigest)
+		digest := DigestPackage(snapshot, name, identityDigest, identity.Confine)
 		if digest.Digest == "" {
 			record.Skipped = append(record.Skipped, Skipped{Package: name, Reason: digest.Reason, Detail: digest.Detail})
 			continue

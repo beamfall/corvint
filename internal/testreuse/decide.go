@@ -119,7 +119,7 @@ func Decide(snapshot *Snapshot, identity Identity, policy Policy, records []Reco
 		}
 		seen[name] = true
 		unit := Unit{Package: name, Decision: DecisionRun}
-		digest := DigestPackage(snapshot, name, identityDigest)
+		digest := DigestPackage(snapshot, name, identityDigest, identity.Confine)
 		switch {
 		case digest.Digest == "":
 			unit.Reason, unit.Detail = digest.Reason, digest.Detail

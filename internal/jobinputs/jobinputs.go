@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -204,8 +205,9 @@ type Evidence struct {
 	Tree         map[string]TreeEntry
 	ListingBytes int
 	// GoDirectories returns, for one job's goPackages, each repository
-	// directory of a non-standard package any platform builds, mapped to
-	// "IMPORTPATH PLATFORM".
+	// directory of a non-standard package any platform builds, and the
+	// go.mod and go.sum paths of each such package's effective module, each
+	// mapped to "IMPORTPATH PLATFORM".
 	GoDirectories func(GoPackages) (map[string]string, error)
 	// PlanScope and Selected come from the affected plan of the same
 	// range: Selected maps a selected unit id to its witness kind.
@@ -317,6 +319,15 @@ func Evaluate(declaration Declaration, declarationPath string, evidence Evidence
 				// embed pattern may name a subtree, and Go keeps every embedded
 				// file inside its package directory.
 				for _, path := range changed {
+					// A closure module's manifest or checksum (the root's are
+					// held above) governs how its packages compile.
+					if base := filepath.Base(path); (base == "go.mod" || base == "go.sum") && !slices.Contains(goModuleFiles, path) {
+						if owner, ok := directories[path]; ok {
+							importPath, platform, _ := strings.Cut(owner, " ")
+							hold(ReasonGoModuleChanged, Witness{Path: path, Package: importPath, Platform: platform})
+							continue
+						}
+					}
 					for directory := filepath.ToSlash(filepath.Dir(path)); ; directory = filepath.ToSlash(filepath.Dir(directory)) {
 						if owner, ok := directories[directory]; ok {
 							importPath, platform, _ := strings.Cut(owner, " ")
@@ -380,9 +391,14 @@ func Evaluate(declaration Declaration, declarationPath string, evidence Evidence
 }
 
 // GoDirectories lists, for every platform, the packages the patterns build
-// and maps each repository directory to "IMPORTPATH PLATFORM" (the first
+// and maps each repository directory, and the go.mod and adjacent go.sum of
+// each package's effective module, to "IMPORTPATH PLATFORM" (the first
 // platform that builds it). A package outside root that is not standard, or
-// any listing error, is an error.
+// any listing error, is an error. So is a non-standard package with cgo or
+// assembly sources (cgo-input, assembly-input), whose includes may name
+// files outside every listed directory, and one whose module metadata is
+// missing or whose module manifest is outside root or not its directory's
+// go.mod (module-input): those closures are not bounded, so the job runs.
 func GoDirectories(ctx context.Context, root, goExecutable string, env []string, packages GoPackages) (map[string]string, error) {
 	if goExecutable == "" {
 		var err error
@@ -420,7 +436,7 @@ func GoDirectories(ctx context.Context, root, goExecutable string, env []string,
 		}
 		listEnv = append(listEnv, "GOOS="+goos, "GOARCH="+goarch, "GOPROXY=off", "CGO_ENABLED="+v.cgo)
 		ctx, cancel := context.WithTimeout(ctx, commandTimeout)
-		command := exec.CommandContext(ctx, goExecutable, append([]string{"list", "-e", "-deps", "-json=ImportPath,Dir,Standard,Incomplete,Error,DepsErrors"}, packages.Packages...)...)
+		command := exec.CommandContext(ctx, goExecutable, append([]string{"list", "-e", "-deps", "-json=ImportPath,Dir,Standard,Incomplete,Error,DepsErrors,Module,CgoFiles,SFiles"}, packages.Packages...)...)
 		command.Dir = resolved
 		command.Env = listEnv
 		var stdout, stderr bytes.Buffer
@@ -446,13 +462,28 @@ func GoDirectories(ctx context.Context, root, goExecutable string, env []string,
 			case p.Standard:
 				continue
 			}
-			relative, err := filepath.Rel(resolved, p.Dir)
-			if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			relative, ok := inside(resolved, p.Dir)
+			if !ok {
 				return nil, fmt.Errorf("%s: %s is outside the repository", platform, p.ImportPath)
 			}
-			relative = filepath.ToSlash(relative)
-			if _, seen := directories[relative]; !seen {
-				directories[relative] = p.ImportPath + " " + platform
+			switch {
+			case len(p.CgoFiles) != 0:
+				return nil, fmt.Errorf("%s: cgo-input: %s uses cgo, whose includes go list does not name", platform, p.ImportPath)
+			case len(p.SFiles) != 0:
+				return nil, fmt.Errorf("%s: assembly-input: %s uses assembly, whose includes go list does not name", platform, p.ImportPath)
+			case p.Module == nil:
+				return nil, fmt.Errorf("%s: module-input: %s has no module metadata", platform, p.ImportPath)
+			}
+			moduleDirectory, directoryOK := inside(resolved, p.Module.Dir)
+			manifest, manifestOK := inside(resolved, p.Module.GoMod)
+			if !directoryOK || !manifestOK || manifest != path.Join(moduleDirectory, "go.mod") {
+				return nil, fmt.Errorf("%s: module-input: %s has unmodeled module inputs", platform, p.ImportPath)
+			}
+			owner := p.ImportPath + " " + platform
+			for _, key := range []string{relative, manifest, path.Join(moduleDirectory, "go.sum")} {
+				if _, seen := directories[key]; !seen {
+					directories[key] = owner
+				}
 			}
 		}
 	}
@@ -466,6 +497,22 @@ type listedPackage struct {
 	Incomplete bool
 	Error      *struct{ Err string }
 	DepsErrors []*struct{ Err string }
+	Module     *struct{ Dir, GoMod string }
+	CgoFiles   []string
+	SFiles     []string
+}
+
+// inside returns target relative to root in slash form, or false when it is
+// empty or outside root.
+func inside(root, target string) (string, bool) {
+	if target == "" {
+		return "", false
+	}
+	relative, err := filepath.Rel(root, target)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.ToSlash(relative), true
 }
 
 func decodeList(body []byte) ([]listedPackage, error) {

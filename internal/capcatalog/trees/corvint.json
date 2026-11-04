@@ -6345,11 +6345,12 @@
       "command": "corvint test reuse",
       "summary": "",
       "usage": [
-        "corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]",
-        "corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
+        "corvint test reuse decide --argv WORDS [--confine PATH] [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]",
+        "corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--confine PATH] [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
       ],
       "flags": [
         "--argv",
+        "--confine",
         "--go-test-json",
         "--harness",
         "--out",
@@ -6376,10 +6377,11 @@
       "command": "corvint test reuse decide",
       "summary": "",
       "usage": [
-        "corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]"
+        "corvint test reuse decide --argv WORDS [--confine PATH] [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]"
       ],
       "flags": [
         "--argv",
+        "--confine",
         "--harness",
         "--out",
         "--packages",
@@ -6403,10 +6405,11 @@
       "command": "corvint test reuse record",
       "summary": "",
       "usage": [
-        "corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
+        "corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--confine PATH] [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
       ],
       "flags": [
         "--argv",
+        "--confine",
         "--go-test-json",
         "--harness",
         "--out",

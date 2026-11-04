@@ -6,12 +6,14 @@
 //
 // A package is eligible only when its tests read, below the repository root,
 // nothing but what its input-closure digest names: its declared read scope
-// (AFP-V0-023), which CI's test-confine wrapper enforces, its own directory and
-// the files compiled into its test binary. The digest binds each of those
-// paths to its Git blob, plus the toolchain, the argv and the environment the
-// result was obtained under. Anything the package cannot prove, an
-// undeclared scope, an UNBOUNDED_READER unit, a split package, a dirty or
-// untracked input or any read error, runs the test: missing evidence never
+// (AFP-V0-023), its own directory and the files compiled into its test
+// binary. Only a confinement wrapper (CI's test-confine, run as `go test
+// -exec`) enforces the scope, so a result is eligible only under an identity
+// that binds that wrapper's digest. The digest binds each of those paths to
+// its Git blob, plus the toolchain, the argv and the environment the result
+// was obtained under. Anything the package cannot prove, an undeclared scope,
+// an UNBOUNDED_READER unit, a split package, an unconfined execution, a dirty
+// or untracked input or any read error, runs the test: missing evidence never
 // becomes a reused pass.
 package testreuse
 
@@ -57,6 +59,10 @@ const (
 	// ReasonSlicedUnit: CI may split the package into test slices
 	// (AFP-V0-041), so no single invocation proves the whole package.
 	ReasonSlicedUnit = "SLICED_UNIT"
+	// ReasonUnconfinedExecution: the identity binds no confinement wrapper,
+	// so nothing enforced the declared scope and an out-of-scope read is in
+	// no digest.
+	ReasonUnconfinedExecution = "UNCONFINED_EXECUTION"
 	// ReasonDigestError: an input of the digest could not be bound to
 	// immutable Git content; Detail names the cause.
 	ReasonDigestError = "DIGEST_ERROR"
@@ -129,6 +135,10 @@ type Identity struct {
 	RuntimeEnvDigest string            `json:"runtimeEnvDigest"`
 	Argv             []string          `json:"argv"`
 	Harness          []Input           `json:"harness"`
+	// Confine is the "sha256:" digest of the `go test -exec` confinement
+	// wrapper the result was obtained under (ConfineDigest); empty when the
+	// run was unconfined, which no package is eligible under.
+	Confine string `json:"confine"`
 }
 
 // Digest returns the identity's canonical digest.
@@ -252,8 +262,9 @@ type PackageDigest struct {
 }
 
 // DigestPackage computes the input-closure digest of package importPath over
-// snapshot (AFP-V0-2321) after the eligibility checks of AFP-V0-2320.
-func DigestPackage(snapshot *Snapshot, importPath, identityDigest string) PackageDigest {
+// snapshot (AFP-V0-2321) after the eligibility checks of AFP-V0-2320;
+// confine is the identity's Confine.
+func DigestPackage(snapshot *Snapshot, importPath, identityDigest, confine string) PackageDigest {
 	result := PackageDigest{Package: importPath}
 	fail := func(reason, detail string) PackageDigest {
 		result.Reason, result.Detail = reason, detail
@@ -279,6 +290,9 @@ func DigestPackage(snapshot *Snapshot, importPath, identityDigest string) Packag
 	}
 	if snapshot.Sliced[importPath] {
 		return fail(ReasonSlicedUnit, importPath)
+	}
+	if confine == "" {
+		return fail(ReasonUnconfinedExecution, importPath)
 	}
 	inputs := map[string]Input{}
 	var detail string
