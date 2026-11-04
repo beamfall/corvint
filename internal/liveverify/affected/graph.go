@@ -184,6 +184,9 @@ type digestUnit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
+	AnchorsPlaced        bool     `json:"anchorsPlaced,omitzero"`
+	AnchorWords          []string `json:"anchorWords,omitempty"`
+	RunDirectories       []string `json:"runDirectories,omitempty"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -725,6 +728,9 @@ func projectUnit(unit Unit) digestUnit {
 		ExecConsumers:        unit.ExecConsumers,
 		ImportGraphReads:     unit.ImportGraphReads,
 		ImportGraphReadsAll:  unit.ImportGraphReadsAll,
+		AnchorsPlaced:        unit.AnchorsPlaced,
+		AnchorWords:          unit.AnchorWords,
+		RunDirectories:       unit.RunDirectories,
 	}
 }
 

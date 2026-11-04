@@ -202,6 +202,9 @@ type cachedUnit struct {
 	ExecConsumers        []string `json:"execConsumers"`
 	ImportGraphReads     []string `json:"importGraphReads"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll"`
+	AnchorsPlaced        bool     `json:"anchorsPlaced"`
+	AnchorWords          []string `json:"anchorWords"`
+	RunDirectories       []string `json:"runDirectories"`
 }
 
 type cachedStamp struct {

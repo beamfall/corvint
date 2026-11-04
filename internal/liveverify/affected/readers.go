@@ -434,6 +434,9 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 	if unit.PlacesFileNames && !strings.HasPrefix(id, "go:") && len(files) != 0 {
 		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath, false)
 	}
+	if unit.AnchorsPlaced && !strings.HasPrefix(id, "go:") && len(files) != 0 {
+		return anchorsPlacedName(relativeDirectory(files[0]), unit, dirtyPath)
+	}
 	if !strings.HasPrefix(id, "go:") || len(files) == 0 {
 		// A unit with no files, such as a dependent nested module
 		// (AFP-V0-582), has no directory to narrow a token against.
@@ -557,6 +560,72 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 	return false
 }
 
+// anchorsPlacedName is resolves for a non-Go unit its plugin certifies
+// (Unit.AnchorsPlaced, AFP-V0-2245): a token that does not start with "/"
+// keeps the component-run relation (namesPath), and an anchored token names
+// dirtyPath only as a Go unit's does under AFP-V0-2203, but from the bases a
+// runner may join it to: the repository root, the unit's directory and its
+// ancestors, and each recorded run directory (a relative path,
+// `process.cwd()` or `path.resolve()` starts in the runner's directory; the
+// plugin lists a run directory's ancestors too when the module can climb). A run of the token may also follow directory
+// components below a base that are each a component of one of the unit's
+// tokens or words. The unit's own subtree keeps every token.
+func anchorsPlacedName(directory string, unit Unit, dirtyPath string) bool {
+	if directory == "." || strings.HasPrefix(dirtyPath, directory+"/") {
+		return true
+	}
+	parts := strings.Split(dirtyPath, "/")
+	seen := map[string]bool{"": true}
+	bases := []string{""}
+	for base := directory; base != "." && base != "" && !seen[base]; base = path.Dir(base) {
+		seen[base] = true
+		bases = append(bases, base)
+	}
+	for _, base := range unit.RunDirectories {
+		if !seen[base] {
+			seen[base] = true
+			bases = append(bases, base)
+		}
+	}
+	var vocabulary map[string]bool
+	for _, value := range unit.PathTokens {
+		if !strings.HasPrefix(value, "/") {
+			if namesPath(value, parts) {
+				return true
+			}
+			continue
+		}
+		if anchoredFrom(bases, value, dirtyPath) {
+			return true
+		}
+		for _, offset := range runOffsets(value, parts) {
+			if vocabulary == nil {
+				vocabulary = make(map[string]bool)
+				for _, token := range unit.PathTokens {
+					for _, component := range strings.Split(token, "/") {
+						vocabulary[component] = true
+					}
+				}
+				for _, word := range unit.AnchorWords {
+					vocabulary[word] = true
+				}
+			}
+			before := strings.Join(parts[:offset], "/")
+			for _, base := range bases {
+				rest, under := before, true
+				if base != "" {
+					rest, under = strings.CutPrefix(before+"/", base+"/")
+					rest = strings.TrimSuffix(rest, "/")
+				}
+				if under && (rest == "" || placeable(vocabulary, rest+"/x")) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // anchoredWithin decides an anchored token (one that starts with "/": a
 // module-path literal the Go plugin anchored at its module's directory, or an
 // absolute path) for a Go unit in directory (AFP-V0-2203). The module's
@@ -574,13 +643,18 @@ func anchoredWithin(directory, value, dirtyPath string) (names, ok bool) {
 	if !strings.HasPrefix(value, "/") {
 		return false, false
 	}
-	rest := strings.TrimLeft(value, "/")
-	if len(componentRuns(rest)) == 0 {
-		return false, true
-	}
 	bases := []string{""}
 	for base := directory; base != "." && base != ""; base = path.Dir(base) {
 		bases = append(bases, base)
+	}
+	return anchoredFrom(bases, value, dirtyPath), true
+}
+
+// anchoredFrom is anchoredWithin's relation over an explicit list of bases.
+func anchoredFrom(bases []string, value, dirtyPath string) bool {
+	rest := strings.TrimLeft(value, "/")
+	if len(componentRuns(rest)) == 0 {
+		return false
 	}
 	parts := strings.Split(dirtyPath, "/")
 	for _, base := range bases {
@@ -592,7 +666,7 @@ func anchoredWithin(directory, value, dirtyPath string) (names, ok bool) {
 			// The token climbs back to its module's directory
 			// (`"/x/.."`): it names every path below that base.
 			if base == "" || strings.HasPrefix(dirtyPath, base+"/") {
-				return true, true
+				return true
 			}
 			continue
 		}
@@ -613,10 +687,10 @@ func anchoredWithin(directory, value, dirtyPath string) (names, ok bool) {
 			}
 		}
 		if matched {
-			return true, true
+			return true
 		}
 	}
-	return false, true
+	return false
 }
 
 // runOffsets lists the offsets at which a run of the token matches

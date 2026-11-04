@@ -101,6 +101,15 @@ const MaxPathsPerUnit = 20_000
 // that lists packages it does not name, which reads the whole module's. A
 // plan selects the unit through these edges only when the change alters an
 // import set in that closure (IMPORT_GRAPH_READER, AFP-V0-2201).
+// AnchorsPlaced reports a non-Go unit whose plugin certifies that an anchored
+// path token (one that starts with "/") reaches a dirty path only as a Go
+// unit's does (AFP-V0-2203), from the repository root, the unit's directory
+// or an ancestor, or one of RunDirectories (the directories beyond those from
+// which the plugin records that a runner may run the unit, with their
+// ancestors when the unit can climb),
+// or after directory components each a component of one of its tokens or one
+// of AnchorWords, the sorted, unique lexicon words of its literals that are no
+// path token (AFP-V0-2245). The TypeScript plugin sets it.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -130,6 +139,9 @@ type Unit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitempty"`
+	AnchorsPlaced        bool     `json:"anchorsPlaced,omitempty"`
+	AnchorWords          []string `json:"anchorWords,omitempty"`
+	RunDirectories       []string `json:"runDirectories,omitempty"`
 }
 
 // FrontierBears values. The empty value names a unit's Frontier on every plan
@@ -272,6 +284,15 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if unit.ImportGraphReadsAll && len(unit.ImportGraphReads) != 0 {
+		return ErrInvalidUnit
+	}
+	if err := validIdentifierList(unit.AnchorWords); err != nil {
+		return err
+	}
+	if err := validPathList(unit.RunDirectories); err != nil {
+		return err
+	}
+	if (len(unit.AnchorWords) != 0 || len(unit.RunDirectories) != 0) && !unit.AnchorsPlaced || unit.AnchorsPlaced && (strings.HasPrefix(unit.ID, "go:") || unit.PathTokensBounded) {
 		return ErrInvalidUnit
 	}
 	if err := validIdentifierList(unit.AdvisoryImports); err != nil {

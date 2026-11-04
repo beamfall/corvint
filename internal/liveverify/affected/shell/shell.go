@@ -16,6 +16,7 @@ package shell
 
 import (
 	"context"
+	"maps"
 	"path"
 	"regexp"
 	"slices"
@@ -1059,6 +1060,7 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 	if strings.Contains(text, "mktemp()") || strings.Contains(text, "mktemp ()") || strings.Contains(text, "function mktemp") || strings.Contains(text, "alias mktemp") || populates.MatchString(text) {
 		return nil
 	}
+	r, text = withoutCanonicalPaths(r, parsed, text)
 	firstPath := firstAssignment(text, "PATH")
 	roots := map[string]bool{}
 	for changed := true; changed; {
@@ -1075,6 +1077,89 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 		}
 	}
 	return roots
+}
+
+// canonicalPath matches a temp root's canonicalization, `NAME=$(cd "$NAME"
+// && pwd)` or with `pwd -P`: the same directory under its canonical spelling.
+var canonicalPath = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=\$\(cd "\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?" && pwd( -P)?\)$`)
+
+// withoutCanonicalPaths treats a name's canonicalization as no new
+// assignment (AFP-V0-2246): it returns the resolver with the name's value and
+// plain command taken from its one other assignment, and the text with the
+// canonicalization blanked, so tempRoots decides that assignment. The
+// canonicalization must be a plain top-level command of its own, after that
+// assignment, which must be followed by `|| exit`: a mktemp that fails would
+// leave the name empty, and `cd ""` succeeds in dash, so pwd would print the
+// working directory. Any other shape leaves the name assigned twice.
+func withoutCanonicalPaths(r *resolver, parsed script, text string) (*resolver, string) {
+	if strings.Contains(text, "alias exit") {
+		// dash expands an alias in a script, so `|| exit` may not exit.
+		return r, text
+	}
+	view := r
+	for at, cmd := range parsed.commands {
+		words := plainWords(cmd.words)
+		if len(words) != 1 || cmd.substituted || cmd.inFunction || cmd.block != 0 || !separator(cmd.lead) || !separator(cmd.trail) {
+			continue
+		}
+		match := canonicalPath.FindStringSubmatch(words[0])
+		if match == nil || match[1] != match[2] || strings.Count(text, words[0]) != 1 {
+			continue
+		}
+		name := match[1]
+		first, value := -1, ""
+		for before := 0; before < at; before++ {
+			earlier := plainWords(parsed.commands[before].words)
+			if parsed.commands[before].substituted || len(earlier) == 0 {
+				continue
+			}
+			assigned := assignment.FindStringSubmatch(earlier[0])
+			if assigned == nil || assigned[1] != name {
+				continue
+			}
+			if first >= 0 || len(earlier) != 1 || assigned[2] != "" || assigned[3] != "" {
+				first = -2
+				break
+			}
+			first, value = before, unquote(earlier[0][len(assigned[0]):])
+		}
+		if first < 0 || parsed.commands[first].trail != "||" || !exitsNext(parsed.commands, first) {
+			continue
+		}
+		offset := strings.Index(text, words[0])
+		if offset < firstAssignment(text, name) {
+			continue
+		}
+		if view == r {
+			copied := *r
+			copied.values, copied.plainAt = maps.Clone(r.values), maps.Clone(r.plainAt)
+			view = &copied
+		}
+		view.values[name], view.plainAt[name] = value, first
+		text = text[:offset] + strings.Repeat(" ", len(words[0])) + text[offset+len(words[0]):]
+	}
+	return view, text
+}
+
+// separator reports a command boundary that is no operator: the file's
+// start or end, a newline or a semicolon.
+func separator(boundary string) bool {
+	return boundary == "" || boundary == "\n" || boundary == ";"
+}
+
+// exitsNext reports whether the first command after commands[at] that is no
+// command substitution is `exit`, optionally with a status, ending its list.
+func exitsNext(commands []command, at int) bool {
+	for next := at + 1; next < len(commands); next++ {
+		if commands[next].substituted {
+			continue
+		}
+		words := plainWords(commands[next].words)
+		// The exit must end the list: in a pipeline (`|| exit 1 | cat`) it runs in a
+		// subshell and the file goes on.
+		return commands[next].lead == "||" && separator(commands[next].trail) && len(words) >= 1 && len(words) <= 2 && words[0] == "exit"
+	}
+	return false
 }
 
 // populates matches a command that can copy repository files into a

@@ -812,6 +812,17 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		{"or list in background", "tmp=$(mktemp -d) || echo no && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"or reassign", "tmp=$(mktemp -d) || tmp=.\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"or read", "tmp=$(mktemp -d) || read -r tmp\ncat \"$tmp/internal/x/y.json\"\n", true},
+		// AFP-V0-2246: `tmp=$(cd "$tmp" && pwd)` after a mktemp that exits on
+		// failure is no new assignment; without the exit an empty name would
+		// canonicalize to the working directory (dash's `cd ""`), and another
+		// name's or an earlier canonicalization is an assignment as before.
+		{"canonical", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/repo/internal/x/y.json\"\n", false},
+		{"canonical physical", "tmp=$(mktemp -d) || exit\ntmp=$(cd \"${tmp}\" && pwd -P)\ncat \"$tmp/internal/x/y.json\"\n", false},
+		{"canonical without exit", "tmp=$(mktemp -d)\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical other name", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$base\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit piped", "tmp=$(mktemp -d) || exit 1 | cat\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit aliased", "alias exit=:\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical first", "tmp=$(cd \"$tmp\" && pwd)\ntmp=$(mktemp -d) || exit 1\ncat \"$tmp/internal/x/y.json\"\n", true},
 	}
 	for _, tc := range cases {
 		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)
