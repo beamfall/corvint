@@ -57,7 +57,7 @@ DONE below means the lane's implementation/acceptance evidence, not a native tic
 | Ticket | Disposition and requirement evidence | Regression / retained witness |
 |---|---|---|
 | V1-3880 | DONE; existing IDX-SNAP-V0-019/115 reuse verified, timing added | `TestSnapshotMissNoticeNamesTheBuild`: cold and snapshot-hit impact timings; silent hit at zero threshold |
-| V1-3912 | DONE; TSP-V0-7301 | `TestAffectedTempFailureNamesPathAndRemedy`; actual failed private scratch creation maps to actionable `unsupported-affected-temp` |
+| V1-3912 | DONE; TSP-V0-7301 | `TestAffectedTempFailureNamesPathAndRemedy`, `TestAffectedTempFailureOnUnwritableParent`; actual failed private scratch creation maps to actionable `unsupported-affected-temp` |
 | V1-3913 | DONE; TSP-V0-7302 | `TestForeignCallerCommentDiagnostic`, offending `notes.go:3`; bounded worker scan regression retained |
 | V1-4279 | DONE; TSP-V0-7303 | `TestUnboundedWitnessSaysAnyDirtyPath`; base-selector overlay omits the label and fails |
 | V1-4314 | DONE; existing DCW-V0-922 already applies before the first finish/closeout prepare | `TestDCWV0922VerifyRunMatchingNoTestIsRefused`; `dogfood-closeout` calls inputs-check before finish |
@@ -92,7 +92,7 @@ untouched because V1-4525 is already failing at the base.
 
 Focused runs and raw-log digests are retained in the [verification evidence](../../.agent-evidence/pk-affected-verification.json) and the lane
 handback. Twelve focused verification commands passed; the combined-output regression and the
-recency-comment check passed separately after their final inputs changed. Before/after performance observations use explicit serial overlays and the same selected
+recency-comment check and the actual unwritable-parent scratch regression passed separately after their final inputs changed. The final real plan emits 4083 stdout bytes and zero stderr bytes for 221 units (219 Go). Before/after performance observations use explicit serial overlays and the same selected
 candidate sets; overloaded-host numbers are not a quiet-host or CI qualification. Initial broad
 candidate baselines also exposed sandbox fixture failures, which are kept as failures, not passes.
 The prototype commits a673dd7c7 and 8ef4154fc are absent from this checkout's object database;

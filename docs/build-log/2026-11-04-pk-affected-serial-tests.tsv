@@ -501,3 +501,4 @@ cmd/corvint	TestWorkExecutableChangeRequiresReviewedRebindWQOV0050	cmd/corvint/w
 cmd/corvint	TestWorkSourceUnqualifiedNamesReasonWQOV0051	cmd/corvint/work_adopt_test.go	hooks: source qualification requires ordinary Git metadata without sandbox placeholder ancestors
 cmd/corvint	TestWorkScratchRootFollowsOverride	cmd/corvint/work_scratch_parent_test.go	env: scratch ancestor ownership must be admissible; lane sandbox has root-owned mount ancestors
 cmd/corvint	TestAffectedTempFailureReportsSelectedTMPDIR	cmd/corvint/affected_temp_pk_test.go	env: replaces TMPDIR to pin the operator-selected failing scratch path
+cmd/corvint	TestAffectedTempFailureOnUnwritableParent	cmd/corvint/affected_temp_pk_test.go	env: replaces TMPDIR and denies creation on its resolved parent
