@@ -84,6 +84,9 @@ jobs:
             command: make companion-release-gate
     env:
       RUNNER_LABEL: ${{ matrix.os }}
+      # AFP-V0-2362: the darwin/arm64 Corvint host archive proof reads the checkout's .git,
+      # outside its package's read-scope declaration, so it runs only when asked for here.
+      CORVINT_HOST_ARCHIVE_PROOF: "1"
     steps:
       - &check-inputs
         name: Check inputs
