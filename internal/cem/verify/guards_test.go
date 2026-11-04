@@ -263,3 +263,26 @@ func TestForeign(t *testing.T) { foreign() }
 		t.Fatalf("candidates=%v, want only the changed import", got)
 	}
 }
+
+// TCQ-V0-7408: a field selector is not a reference to a same-spelled package
+// declaration; an actual method selector must still carry method closure.
+func TestTCQV07408FieldsAndMethodsHaveSeparateNamespaces(t *testing.T) {
+	data := []byte(`package p
+import "testing"
+func generation() int { return 1 }
+type record struct { generation int }
+func unrelated(r record) int { return r.generation }
+type machine struct {}
+func (machine) Check() int { return 1 }
+func TestActual(t *testing.T) { generation() }
+func TestField(t *testing.T) { unrelated(record{}) }
+func TestMethod(t *testing.T) { machine{}.Check() }
+`)
+	p := &goPackage{decls: parseDecls("p/p_test.go", data, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"generation": true})); !reflect.DeepEqual(got, []string{"TestActual"}) {
+		t.Fatalf("field carried package closure: %v", got)
+	}
+	if got := p.testsMentioning(p.grow(map[string]bool{"Check": true})); !reflect.DeepEqual(got, []string{"TestMethod"}) {
+		t.Fatalf("method closure lost: %v", got)
+	}
+}
