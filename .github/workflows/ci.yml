@@ -127,6 +127,39 @@ jobs:
           test "$(git rev-parse HEAD)" = "$PR_HEAD"
           "$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
 
+  shell-test-selected:
+    # CIN-V0-2320 (V1-3489): the PR test selection runs Go packages only, so a script self-test
+    # (a make shell-test step such as no-python-runtime-dependency-test) ran only in make gate, and
+    # a change it detects reached main red. This job runs the shell-test steps the affected plan of
+    # the pull request (or merge-queue entry) selects, through make shell-test-affected
+    # (AFP-V0-2401): every step when the plan cannot narrow them, none outside a pull request or
+    # merge queue. It plans with the tested checkout's own corvint, as doc-gates builds its tools.
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Selected shell-test steps (AFP-V0-2401)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          test -n "$BASE_SHA" || { echo "::error::no base commit for the shell-test selection"; exit 1; }
+          base=$(git merge-base HEAD "$BASE_SHA")
+          make -s shell-test-affected BASE="$base"
+
   doc-gates-record:
     # AFP-V0-670, AFP-V0-671: the only evidence the doc-gates-reuse decision accepts. It runs in a
     # pull-request run only after doc-gates passed there, and prints the tested tree, the tested
@@ -1722,7 +1755,7 @@ jobs:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1740,12 +1773,20 @@ jobs:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
+          SHELL_RESULT: ${{ needs.shell-test-selected.result }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
           DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}
           BATCHED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
           # AFP-V0-591: must equal the go-product-shard matrix length.
           SHARDS: "16"
         run: |
+          # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
+          # intentionally skips pushes; every PR and merge-group run must actually pass it.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$SHELL_RESULT" = skipped ]; then
+            echo 'shell-test-selected intentionally skipped on push (CIN-V0-2320).'
+          else
+            test "$SHELL_RESULT" = success
+          fi
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
           # this check passes with a notice instead of failing, so a lane PR is not red. It still
           # cannot land untested: main's merge_queue rule sends every merge through a merge_group

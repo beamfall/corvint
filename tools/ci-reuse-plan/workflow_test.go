@@ -391,7 +391,7 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		wantLine(t, job, b, cond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse]")
+	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected]")
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
 	wantLine(t, "go-product", gp, `            test "$SHARDS_RESULT" = success`)
@@ -590,7 +590,7 @@ func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
 			}
 		}
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
+		cmd.Env = append(os.Environ(), "SHELL_RESULT=success", "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
 			"STATIC_REUSE=", "DOCS_RESULT="+docs, "DOCS_MODE=FULL", "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7",
 			"GITHUB_RUN_ATTEMPT=1", "GITHUB_EVENT_NAME=pull_request", "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1108,7 +1108,7 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 		t.Helper()
 		dir := t.TempDir()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
+		cmd.Env = append(os.Environ(), "SHELL_RESULT=success", "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
 			"DOCS_RESULT="+docs, "DOCS_MODE="+mode, "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7", "GITHUB_RUN_ATTEMPT=1",
 			"GITHUB_EVENT_NAME="+event, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1164,4 +1164,50 @@ func TestDCIV0856DocsRunLeavesNoQueueReuseEvidence(t *testing.T) {
 	wantLine(t, "docs-plan", plan, `          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then`)
 	// DCI-V0-857: the README capability table's reader runs on every DOCS run.
 	wantLine(t, "docs-plan", plan, `            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex ./tools/capabilities-check)`)
+}
+
+// TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps (V1-3489): the shell-test-selected job runs
+// on pull requests and merge-queue entries only, from a full-history checkout, and runs the
+// shell-test steps the affected plan selects through make shell-test-affected over the merge base
+// of the event's base commit; with no base commit it fails rather than running nothing.
+func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
+	job := jobBlock(t, readWorkflow(t, "ci.yml"), "shell-test-selected")
+	wantLine(t, "shell-test-selected", job, "    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}")
+	wantLine(t, "shell-test-selected", job, "          fetch-depth: 0")
+	b := stepBlock(t, job, "Selected shell-test steps (AFP-V0-2401)")
+	wantLine(t, "shell-test-selected", b, "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}")
+	wantLine(t, "shell-test-selected", b, `          test -n "$BASE_SHA" || { echo "::error::no base commit for the shell-test selection"; exit 1; }`)
+	wantLine(t, "shell-test-selected", b, `          make -s shell-test-affected BASE="$base"`)
+}
+
+// CIN-V0-2320: a failed, cancelled, skipped or missing shell result must fail the
+// required check, including its batched early return; only a push intentionally skips it.
+func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
+	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
+	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected]")
+	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
+	script := runScript(t, job)
+	for _, event := range []string{"pull_request", "merge_group", "push"} {
+		for _, result := range []string{"success", "failure", "cancelled", "skipped", ""} {
+			for _, batched := range []string{"false", "true"} {
+				t.Run(event+"/"+result+"/batched="+batched, func(t *testing.T) {
+					static := "success"
+					if batched == "true" {
+						static = "skipped"
+					}
+					cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
+					cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+event, "SHELL_RESULT="+result,
+						"BATCHED="+batched, "SHARDS_RESULT=skipped", "STATIC_RESULT="+static,
+						"STATIC_REUSE=", "DOCS_RESULT=success", "DOCS_MODE=DOCS",
+						"GITHUB_STEP_SUMMARY="+filepath.Join(t.TempDir(), "summary"))
+					out, err := cmd.CombinedOutput()
+					want := result == "success" || event == "push" && result == "skipped"
+					if (err == nil) != want {
+						t.Fatalf("passed=%v want=%v: %s", err == nil, want, out)
+					}
+				})
+			}
+		}
+	}
 }
