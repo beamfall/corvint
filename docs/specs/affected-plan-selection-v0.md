@@ -300,10 +300,11 @@ measure. None of them drops a unit the change can reach.
   `init` function only assigns to a package variable, are held by that variable.
 - **AFP-V0-2372:** (experimental; V1-2744) The always-run code is every module package's
   initialization (variable initializer calls and `init` bodies) and `TestMain`, less each
-  `TestMain` `if` statement without `else` whose condition reads `os.Args`, `os.Getenv` or
-  `os.LookupEnv` and whose body ends by calling `os.Exit` (it runs only in a child the binary
-  starts as itself, which only an unproved process start can do, and that start keeps its test by
-  AFP-V0-2373). When it reaches the change the package SHALL stay whole with
+  `TestMain` `if` statement without `else` whose condition requires `os.Args[N] == "C"` (N at
+  least 1, C a non-empty constant not starting with `-`, alone or in a conjunction) and whose body
+  ends by calling `os.Exit`: `go test` passes the binary only `-test.*` flags, so the branch runs
+  only in a child the binary starts as itself, which only a process start can do, and that start
+  keeps its test by AFP-V0-2373. When it reaches the change the package SHALL stay whole with
   `ALWAYS_RUN_REACHES_CHANGE`, and when it starts an unproved process with
   `ALWAYS_RUN_STARTS_PROCESS`. A module package with cgo, assembly or other non-Go source, a
   `//go:linkname` directive, an import outside the module and `GOROOT`, or any type error SHALL
@@ -313,22 +314,29 @@ measure. None of them drops a unit the change can reach.
   declaration (a changed function by edge, a changed constant, variable or type by mention, a
   changed type by any expression of a type holding it), and with `STARTS_PROCESS` when its closure
   starts a process (`os/exec.Command`, `CommandContext`, `os.StartProcess`, `syscall.Exec`,
-  `ForkExec`, `StartProcess`, `plugin.Open`) whose program is not the constant `git` or
-  `/usr/bin/git`. Every other test function SHALL be dropped.
+  `ForkExec`, `StartProcess`, `plugin.Open`, an `os/exec.Cmd` literal, or any of these taken as a
+  value), whatever the program: a constant `git` or shell can still run module code through
+  configuration, aliases or hooks. Every other test function SHALL be dropped.
 - **AFP-V0-2374:** (experimental; V1-2744) A dropped test whose closure reads a package variable
   a kept test's closure may write SHALL be kept with `READS_STATE_A_KEPT_TEST_WRITES`, to a
   fixpoint. A write is an assignment, increment, address-taking, or `append`/`copy`/`clear`/`delete`
   destination rooted at the variable, and for a module variable also a pointer-receiver method
   call on it or passing it, when of map, slice, pointer or channel type, as an argument; the
-  `sync.Mutex`/`RWMutex` lock methods, `sync.Once.Do` and the read-only methods of
-  `regexp.Regexp`, `strings.Replacer`, the template types' execution and `sync.Pool` are not
-  writes. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
+  `sync.Mutex`/`RWMutex` lock methods and the read-only methods of `regexp.Regexp`,
+  `strings.Replacer` and the template types' execution are not writes (`sync.Once.Do` and
+  `sync.Pool` are). Any other use of a module variable of map, slice, pointer or channel type than
+  an index, field or range yielding no such reference, a `len`/`cap` argument or a comparison
+  operand is a write, since a copy of the reference can be written through. A file write
+  (`os.WriteFile`, `Create`, `OpenFile` unless its constant flags only read, `Mkdir*`, `Remove*`,
+  `Rename`, `Symlink`/`Link` at their link path, `Ch*`, `Truncate`) whose path mentions a module
+  package variable writes that variable. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
   start) and signal dispositions (`signal.Notify`, `Ignore`, `Reset`, a `Notify` paired with
   `signal.Stop` in the same body excepted) are two pseudo variables under the same rule. A kept
   test whose closure calls another process-wide setter (`os.Chdir`, `runtime.GOMAXPROCS` with an
   argument other than a constant below 1, `log.Set*`, `flag.Set`/`Parse`, `net/http.Handle*`, the
   `runtime/debug` setters except the goroutine-local `SetPanicOnFault`, and the others
-  `processState` lists) SHALL keep the package whole with `KEPT_TEST_WRITES_PROCESS_STATE`.
+  `processState` lists), a file write at a constant path, or one of these functions taken as a
+  value, SHALL keep the package whole with `KEPT_TEST_WRITES_PROCESS_STATE`.
 - **AFP-V0-2375:** (experimental; V1-2744) A narrowed package SHALL run `-run ^(KEPT...)$` with
   reason `selected: the tests reaching <changed files> (typed reach: N of M test functions cannot
   reach it)` (code `SELECTED_REACHING_CHANGE`), or `-run ^$` with `selected: no test reaches
@@ -342,7 +350,10 @@ measure. None of them drops a unit the change can reach.
   whose initializer calls or is blank, a package clause change or a parse failure SHALL be an
   initialization change, which keeps whole every test binary linking that package and bears on no
   other. A changed name absent at head (removed) SHALL count every declaration of its package as
-  changed; an added or removed method counts its receiver type as changed.
+  changed; an added or removed method counts its receiver type as changed. An import change SHALL
+  count every declaration of the file using a path imported under a new name, or newly imported,
+  as changed; an added path no other file of the package imports, or a removed path the binary no
+  longer links, SHALL be an initialization change; a blank or dot import change always is.
 - **AFP-V0-2377:** (experimental; V1-2744) A package SHALL be refused narrowing, with the reason
   named, when it is an unbounded reader, when one of its globs matches a dirty path
   (`Graph.GlobRead`), when it embeds files, reads the import graph or is a declared existence
@@ -353,7 +364,8 @@ measure. None of them drops a unit the change can reach.
 - **AFP-V0-2378:** (experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing
   of one package for the Go change between a base and a checked-out head and, with `-oracle`, run
   each test function alone in a test binary built at head and in one with
-  `panic("typed-reach fault")` at the entry of every changed function, naming every test whose
+  `panic("typed-reach fault")` at the entry of every changed function, classifying each outcome
+  from `-test.v` output (`pass`, `skip`, `fail`, `timeout`, `none`), naming every test whose
   outcome differs and every such test the plan dropped; `-oracle-dropped-only` runs only the
   dropped tests (a missed observer can only be one of them) plus `-oracle-also` controls. Recall
   against observed outcomes is retained in the build-log entry.
@@ -372,9 +384,11 @@ declaration. AFP-V0-2203 and AFP-V0-2204 are not ported to the CI selector's rul
 (`internal/gateselect`), which stays broader than the planner as before. AFP-V0-2205 does not
 sniff extensionless files elsewhere in the tree. AFP-V0-2370 does not trace process argument
 values through data structures (a gate or pool command a test defines keeps its test by
-`STARTS_PROCESS`), does not model shared files, child processes left running, or function and
-interface values one test stores in shared state for another to call outside a package variable
-the second reads, and does not narrow `cmd/corvint` or `internal/tasks/cli`, which stay unbounded
+`STARTS_PROCESS`), does not model files shared through paths computed at run time (other than from a package
+variable), child processes left running, or function and interface values one test stores in
+shared state for another to call outside a package variable the second reads; the
+`companionrelease` fixture applies the repository's ignore rules, which equals `HEAD`'s tracked set
+only while no tracked file matches an ignore rule (none does on 2026-11-03), and does not narrow `cmd/corvint` or `internal/tasks/cli`, which stay unbounded
 readers (AFP-V0-025) and keep their whole selection with that refusal named.
 
 ## Failure modes
