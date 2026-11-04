@@ -67,6 +67,15 @@ func TestCINV07502RequiredFamiliesAndOfflineModules(t *testing.T) {
 // CIN-V0-7504: execute the workflow's actual selection expression with reached/unreached plans.
 func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 	plan := workflowJob(t, "web-flows-plan")
+	for _, trusted := range []string{
+		"path: source", "ref: ${{ github.sha }}", "path: trusted-web-plan",
+		"ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || github.sha }}",
+		"working-directory: trusted-web-plan", `--root "$GITHUB_WORKSPACE/source" test`,
+	} {
+		if !strings.Contains(plan, trusted) {
+			t.Fatalf("consumer selector is not isolated from tested code: missing %s", trusted)
+		}
+	}
 	line := regexp.MustCompile(`(?m)^          required=\$\((.*)\)$`).FindStringSubmatch(plan)
 	if line == nil {
 		t.Fatal("missing consumer selection")
