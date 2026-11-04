@@ -2,7 +2,8 @@
 # ASD-V0-568 (V1-4101): the closeout repin step commits a purely mechanical repin and refreshes the
 # plan before batch-precheck, so the aff-w16 shape (main moved a cited span; the precheck's repin
 # rewrote it and then failed the seal) passes in one run; a failed repin still fails with its
-# recovery and commits nothing. Temporary Git fixtures only.
+# recovery, commits nothing and restores HEAD, the index and the tree, even when it staged or
+# committed its rewrite. Temporary Git fixtures only.
 set -uo pipefail
 script=$(cd "$(dirname "$0")" && pwd)/dogfood-closeout-repin.sh
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/closeout-repin-test.XXXXXX") || exit 2
@@ -43,6 +44,28 @@ rc=$?
 [[ $rc == 1 && $(git rev-parse HEAD) == "$head" ]] || fail "failed repin: rc=$rc $out"
 grep -qF '  | line-citations: changed span spec.md:2' <<< "$out" && grep -qF "fix: run $tmp/bad, fix what it names" <<< "$out" || fail "failed repin output: $out"
 git diff --quiet HEAD -- || fail "the failed repin left tracked changes"
+
+# 3b. A failed repin that staged its rewrite, as check-line-citations.sh --repin does, or committed
+# it, leaves HEAD, the index and the tree at the starting commit.
+printf '#!/bin/sh\nprintf "see spec.md:9\\n" > doc.md && git add doc.md\nexit 1\n' > "$tmp/staged" && chmod +x "$tmp/staged"
+out=$(DOGFOOD_CLOSEOUT_REGEN=$tmp/staged "$script" "$base" "$tmp/plan.tsv" 2>&1)
+rc=$?
+[[ $rc == 1 && $(git rev-parse HEAD) == "$head" ]] || fail "staged failed repin: rc=$rc $out"
+git diff --quiet HEAD -- && git diff --cached --quiet HEAD -- || fail "the staged failed repin left changes: $(git status --short)"
+printf '#!/bin/sh\nprintf "see spec.md:8\\n" > doc.md && git commit -q -am partial\nexit 1\n' > "$tmp/committed" && chmod +x "$tmp/committed"
+out=$(DOGFOOD_CLOSEOUT_REGEN=$tmp/committed "$script" "$base" "$tmp/plan.tsv" 2>&1)
+rc=$?
+[[ $rc == 1 && $(git rev-parse HEAD) == "$head" ]] || fail "committed failed repin: rc=$rc $out"
+git diff --quiet HEAD -- && git diff --cached --quiet HEAD -- || fail "the committed failed repin left changes: $(git status --short)"
+
+# 3c. A restore that fails exits 1 naming the starting commit and the recovery.
+printf '#!/bin/sh\nprintf "see spec.md:7\\n" > doc.md && git add doc.md && : > "$(git rev-parse --git-dir)/index.lock"\nexit 1\n' > "$tmp/locked" && chmod +x "$tmp/locked"
+out=$(DOGFOOD_CLOSEOUT_REGEN=$tmp/locked "$script" "$base" "$tmp/plan.tsv" 2>&1)
+rc=$?
+[[ $rc == 1 ]] || fail "failed restore: rc=$rc $out"
+grep -qF "dogfood-closeout-repin: FAIL could not restore HEAD, the index and the tracked tree to $head" <<< "$out" &&
+  grep -qF "fix: git reset -q $head && git checkout -q -- :/" <<< "$out" || fail "failed restore output: $out"
+/bin/rm -f .git/index.lock && git reset -q --hard "$head" || exit 2
 
 # 4. Uncommitted tracked changes skip the step; batch-precheck names them.
 printf 'dirty\n' >> spec.md

@@ -723,9 +723,11 @@ Context, non-goals, failure modes and rollback: the "Version source identity ame
   that read committed Git content MUST use a disposable fixture repository
   (`initArchiveTestRepository`), not the enclosing checkout. The Darwin arm64 host archive proof
   (`TestCorvintHostArchivePartialProof`), which archives the enclosing checkout's clean `HEAD`,
-  runs only when `CORVINT_HOST_ARCHIVE_PROOF=1` is set. The package's remaining working-tree reads
-  are declared in `.corvint/test-read-scopes.json`, and the package leaves the `UNBOUNDED_READER`
-  floor.
+  runs only when `CORVINT_HOST_ARCHIVE_PROOF=1` is set. That proof reads `.git` and builds all of
+  `cmd/corvint`, and the planner does not condition a read scope on the variable, so the package
+  MUST stay on the `UNBOUNDED_READER` floor with that reason and MUST NOT declare a
+  `.corvint/test-read-scopes.json` entry, which would let a change confined to `cmd/corvint`
+  exclude it (rescue-c review, 2026-11-04).
 
 ## Non-goals and failure modes
 
@@ -965,27 +967,36 @@ requirements are `PUB-V0-670..671` under "Bounded release-test reads (V1-0643)" 
 Requirements section. Before this, `corvint affected` selected `internal/companionrelease` (24
 tests, about 194 s on unraid-lanes) and `conformance/release-artifact-v0` through
 `UNBOUNDED_READER` for every change, including one unrelated dirty documentation path. This
-reverses the 2026-10-31 V1-2292 floor acceptance of both packages: the proofs over the real
-checkout keep running unchanged, from the root-locator package `currentproof`.
+reverses the 2026-10-31 V1-2292 floor acceptance of `internal/companionrelease`: the proofs over
+the real checkout keep running unchanged, from the root-locator package `currentproof`.
+`conformance/release-artifact-v0` stays on the floor. The 2026-11-01 lane declared its reads
+instead, but the rescue-c review (2026-11-04) found that declaration unsound for the opt-in host
+archive proof. The orchestrator-made, fail-closed decision kept the floor entry, which costs only
+the package's own tests, since no package imports it.
 
 Non-goals: a hermetic fixture for the current-checkout proofs, which exist to prove the real
 `HEAD` export; widening AFP-V0-023 to grant `.git`; changing `script/release-checklist`, which
-already runs `publication-status` from the checkout root.
+already runs `publication-status` from the checkout root; conditioning a read scope on an
+environment variable.
 Failure modes: a too-narrow declaration fails the confined CI shard loudly (AFP-V0-023), and
 `make test-read-scopes-check` names an undeclared literal before that; a nested `go build`
-inherits the confinement, which is why it must not stamp VCS state.
-Acceptance evidence: `TestPUBV0671PublicationStatusReadsTheRootArgument`; the converted
+inherits the confinement, which is why it must not stamp VCS state; a declaration for a package
+whose opt-in test reads more than it declares lets a change outside the declaration exclude it,
+which `TestPUBV0671HostArchiveProofKeepsTheUnboundedFloor` refuses for `release-artifact-v0`.
+Acceptance evidence: `TestPUBV0671PublicationStatusReadsTheRootArgument`;
+`TestPUBV0671HostArchiveProofKeepsTheUnboundedFloor`; the converted
 `TestArchiveDestinationRequiresTrustedAbsentExternalChild` and
 `TestBuildArchivesCancellationRemovesScratchStageAndOutput`; the moved
 `TestCurrentExportedTasksSmokeGenerator` and `TestCurrentTasksSourceArchiveBuildsOffline` passing
 from `currentproof`; `make test-read-scopes-check` and `make unbounded-readers-check`; and the
 measured `corvint affected` plan for one unrelated dirty path, before and after, in
 `docs/build-log/2026-11-01-rmd-u28.md`.
-Rollback: restore both packages to `.corvint/unbounded-readers.json` with their reasons, remove
-their read-scope entries and `currentproof`, and move the three tests back; restore `os.Getwd` in
-`publication-status`. No stored state depends on them.
+Rollback: restore `internal/companionrelease` to `.corvint/unbounded-readers.json` with its
+reason, remove its read-scope entry and `currentproof`, and move the three tests back; restore
+`os.Getwd` in `publication-status`. `release-artifact-v0` keeps its floor entry. No stored state
+depends on them.
 
 | Requirement | Implementation | Test |
 |---|---|---|
 | PUB-V0-670 | `internal/companionrelease/current_proof.go`, `internal/companionrelease/currentproof`, `.corvint/test-read-scopes.json`, `.corvint/unbounded-readers.json` | `TestCurrentExportedTasksSmokeGenerator`, `TestCurrentTasksSourceArchiveBuildsOffline` |
-| PUB-V0-671 | `conformance/release-artifact-v0/publication_status.go` (`runPublicationStatusCLI`), `conformance/release-artifact-v0/archive_gate_test.go`, `conformance/release-artifact-v0/corvint_archive_test.go` | `TestPUBV0671PublicationStatusReadsTheRootArgument`, `TestArchiveDestinationRequiresTrustedAbsentExternalChild`, `TestBuildArchivesCancellationRemovesScratchStageAndOutput` |
+| PUB-V0-671 | `conformance/release-artifact-v0/publication_status.go` (`runPublicationStatusCLI`), `conformance/release-artifact-v0/archive_gate_test.go`, `conformance/release-artifact-v0/corvint_archive_test.go`, `.corvint/unbounded-readers.json`, `conformance/release-artifact-v0/host_archive_floor_test.go` | `TestPUBV0671PublicationStatusReadsTheRootArgument`, `TestPUBV0671HostArchiveProofKeepsTheUnboundedFloor`, `TestArchiveDestinationRequiresTrustedAbsentExternalChild`, `TestBuildArchivesCancellationRemovesScratchStageAndOutput` |

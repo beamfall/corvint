@@ -5,8 +5,10 @@
 # closeout. From the paths changed since BASE (committed, staged, unstaged and untracked) it runs
 #   line-citations-check     when a Markdown file changed or a changed path is cited as `PATH:N`
 #                            in a tracked Markdown file;
-#   unbounded-readers-check  when a script/*.sh, the Makefile, tools/unbounded-readers/ or an
-#                            .corvint/unbounded-reader* or shell-read-scopes declaration changed;
+#   unbounded-readers-check  when a path other than a Markdown file changed, or a path was added
+#                            or deleted: the ratchet rebuilds the affected graph from tracked code
+#                            in every indexed language and the .corvint read declarations, so a
+#                            Go test or source edit or a read-scope declaration can move it;
 #   test-read-scopes-check   when a *_test.go file, tools/test-read-scopes-check/ or an
 #                            .corvint/test-read-scope* declaration changed, or a path was added
 #                            or deleted;
@@ -31,7 +33,8 @@ if ! cited=$(first '\.md$'); then
   patterns=$(sed 's/.*/`&:/' <<< "$changed")
   cited=$(git grep -h -o -F -f <(printf '%s\n' "$patterns") -- '*.md' 2> /dev/null | head -n 1 | sed 's/^`//; s/:$//')
 fi
-unbounded=$(first '^script/[^/]*\.sh$|^Makefile$|^tools/unbounded-readers/|^\.corvint/(unbounded-reader|shell-read-scopes)')
+unbounded=$(grep -m1 -v -E '\.md$' <<< "$changed")
+[[ -z $unbounded ]] && unbounded=$(head -n 1 <<< "$added")
 scopes=$(first '_test\.go$|^tools/test-read-scopes-check/|^\.corvint/test-read-scope')
 [[ -z $scopes ]] && scopes=$(head -n 1 <<< "$added")
 

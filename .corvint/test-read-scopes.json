@@ -202,23 +202,6 @@
       "internal/clitree/",
       "internal/pulse/"
     ],
-    "conformance/release-artifact-v0": [
-      ".agent-evidence/",
-      "LICENSE",
-      "LICENSE-APACHE-2.0",
-      "LICENSING.md",
-      "Makefile",
-      "PROVENANCE.md",
-      "VERSION",
-      "benchmarks/results/",
-      "cmd/corvint/main.go",
-      "conformance/vscode-extension-v0/cases.json",
-      "docs/CHANGE-EVIDENCE-MAP.md",
-      "docs/RELEASE-NOTES-alpha.md",
-      "docs/RELEASE-NOTES.md",
-      "extensions/vscode/src/executable.ts",
-      "script/release-checklist"
-    ],
     "conformance/release-artifact-v0/archive-verifier": [],
     "conformance/release-artifact-v0/archiveverify": [
       "conformance/release-artifact-v0/archivebuild/archivebuild.go"

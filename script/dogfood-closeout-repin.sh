@@ -10,7 +10,10 @@
 # A failed repin exits 1 with the repin's output and the recovery, restores the tree and commits
 # nothing. A tree with uncommitted tracked changes skips the step (batch-precheck names them), and a
 # repin that changes nothing exits 0 and changes nothing. An unset or empty DOGFOOD_CLOSEOUT_REGEN
-# skips the step.
+# skips the step. A failed repin may have staged what it rewrote (check-line-citations.sh --repin
+# does) or committed it, so the restore resets HEAD and the index to the starting commit before it
+# checks the tracked tree out of that index, and a restore that fails exits 1 naming the commit.
+# Untracked files stay.
 set -uo pipefail
 base=${1-} citations=${2-}
 [[ -n $base ]] || { printf 'usage: script/dogfood-closeout-repin.sh BASE CITATIONS\n' >&2; exit 2; }
@@ -24,6 +27,16 @@ if ! tracked_clean; then
   printf 'dogfood-closeout-repin: skipped: tracked changes are uncommitted; batch-precheck runs the repin and names them\n' >&2
   exit 0
 fi
+start=$(git rev-parse -q --verify 'HEAD^{commit}') || { printf 'dogfood-closeout-repin: HEAD names no commit\n' >&2; exit 2; }
+restore() {
+  local out rc=0
+  out=$(git reset -q --mixed "$start" 2>&1 && git checkout -q -- :/ 2>&1) || rc=$?
+  [[ $rc == 0 && $(git rev-parse -q --verify HEAD) == "$start" ]] && tracked_clean && return 0
+  printf 'dogfood-closeout-repin: FAIL could not restore HEAD, the index and the tracked tree to %s:\n' "$start" >&2
+  [[ -n $out ]] && sed 's/^/  | /' <<< "$out" >&2
+  printf 'fix: git reset -q %s && git checkout -q -- :/, then check git status before rerunning\n' "$start" >&2
+  return 1
+}
 log=$(mktemp "${TMPDIR:-/tmp}/closeout-repin.XXXXXX") || exit 2
 trap '/bin/rm -f "$log"' EXIT
 # shellcheck disable=SC2086 # the override is a command line
@@ -31,7 +44,7 @@ if ! $regen > "$log" 2>&1 < /dev/null; then
   printf 'dogfood-closeout-repin: FAIL the mechanical repin failed; nothing committed:\n' >&2
   tail -n 40 "$log" | sed 's/^/  | /' >&2
   printf 'fix: run %s, fix what it names, commit, then rerun make dogfood-closeout with the same inputs\n' "$regen" >&2
-  git checkout -q -- . 2> /dev/null
+  restore
   exit 1
 fi
 changed=$(git diff --name-only HEAD --)

@@ -4,7 +4,9 @@
 // leave a qualification script running with its children; the repository's handlers raise
 // SystemExit or KeyboardInterrupt and kill their process groups (V1-0610). For each tracked *.py
 // file, a handler is a function named as the second argument of signal.signal(...), or a lambda
-// written there. Exit 1 with one line per finding, 2 when the file list cannot be read.
+// written there; each call is read as one logical call through its closing parenthesis, so a
+// registration split across lines counts. Exit 1 with one line per finding, 2 when the file list
+// cannot be read.
 //
 // usage: go run ./tools/py-signal-lint
 package main
@@ -42,8 +44,9 @@ func main() {
 }
 
 var (
-	register     = regexp.MustCompile(`signal\.signal\(\s*[^,()]+(?:\([^()]*\))?\s*,\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\)`)
-	registerLamb = regexp.MustCompile(`signal\.signal\([^,]+,\s*lambda\b.*\bInterruptedError\b`)
+	signalCall   = regexp.MustCompile(`signal\.signal\(`)
+	register     = regexp.MustCompile(`^signal\.signal\(\s*[^,()]+(?:\([^()]*\))?\s*,\s*([A-Za-z_][A-Za-z0-9_.]*)\s*,?\s*\)`)
+	registerLamb = regexp.MustCompile(`^signal\.signal\([^,]+,\s*lambda\b.*\bInterruptedError\b`)
 	raiseIE      = regexp.MustCompile(`\braise\s+InterruptedError\b`)
 	defLine      = regexp.MustCompile(`^(\s*)(?:async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
 )
@@ -70,16 +73,20 @@ func run(files map[string][]byte, stdout, stderr io.Writer) int {
 
 func lint(path string, data []byte) []string {
 	lines := strings.Split(string(bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))), "\n")
+	code := make([]string, len(lines))
+	for i, line := range lines {
+		code[i] = stripComment(line)
+	}
+	text := strings.Join(code, "\n")
 	handlers := map[string]bool{}
 	var findings []string
-	for i, line := range lines {
-		code := stripComment(line)
-		for _, m := range register.FindAllStringSubmatch(code, -1) {
-			name := m[1][strings.LastIndex(m[1], ".")+1:]
-			handlers[name] = true
+	for _, loc := range signalCall.FindAllStringIndex(text, -1) {
+		call := logicalCall(text, loc[0], loc[1])
+		if m := register.FindStringSubmatch(call); m != nil {
+			handlers[m[1][strings.LastIndex(m[1], ".")+1:]] = true
 		}
-		if registerLamb.MatchString(code) {
-			findings = append(findings, fmt.Sprintf("%s:%d: a signal handler lambda raises InterruptedError; raise SystemExit or KeyboardInterrupt instead (ASD-V0-574)", path, i+1))
+		if registerLamb.MatchString(call) {
+			findings = append(findings, fmt.Sprintf("%s:%d: a signal handler lambda raises InterruptedError; raise SystemExit or KeyboardInterrupt instead (ASD-V0-574)", path, strings.Count(text[:loc[0]], "\n")+1))
 		}
 	}
 	for i := 0; i < len(lines); i++ {
@@ -102,6 +109,37 @@ func lint(path string, data []byte) []string {
 		}
 	}
 	return findings
+}
+
+// logicalCall returns the call that starts at text[start] and whose argument list opens at
+// text[open], through its matching closing parenthesis, with newlines flattened to spaces, so a
+// registration split across lines matches like one written on a single line. A parenthesis inside
+// a string literal does not count; an unclosed call runs to the end of the file, so it is still
+// read.
+func logicalCall(text string, start, open int) string {
+	depth, end := 1, len(text)
+	var quote byte
+scan:
+	for i := open; i < len(text); i++ {
+		c := text[i]
+		switch {
+		case quote != 0 && c == '\\':
+			i++
+		case quote != 0 && c == quote:
+			quote = 0
+		case quote != 0:
+		case c == '\'' || c == '"':
+			quote = c
+		case c == '(':
+			depth++
+		case c == ')':
+			if depth--; depth == 0 {
+				end = i + 1
+				break scan
+			}
+		}
+	}
+	return strings.ReplaceAll(text[start:end], "\n", " ")
 }
 
 // stripComment drops a trailing # comment outside a string literal.

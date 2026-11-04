@@ -3,6 +3,7 @@
   "units": [
     "cmd/corvint",
     "conformance/dashboard-snapshot-v0",
+    "conformance/release-artifact-v0",
     "internal/analyzerhtmlcss",
     "internal/analyzerpython",
     "internal/cemchain",
@@ -33,6 +34,7 @@
   "reasons": {
     "cmd/corvint": "TestFlowDocsCLIEndToEnd runs `docs flows`, which opens the filesystem root /; the wrapper cannot grant an ancestor of the repository without granting the repository. Observed 2026-10-04 under Landlock (flowdocs-refused: cannot open filesystem root) with .corvint/, benchmarks/, cmd/, conformance/, docs/, integrations/, internal/, script/, testing/ and tools/ declared; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container: the tests and the built corvint binary also open /, list the repository root and read .git through git",
     "conformance/dashboard-snapshot-v0": "the test opens the filesystem root / and builds cmd/corvint-dashboard-snapshot over its import closure; the wrapper cannot grant /; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container",
+    "conformance/release-artifact-v0": "TestCorvintHostArchivePartialProof, opted in on Darwin arm64 with CORVINT_HOST_ARCHIVE_PROOF=1, archives the enclosing checkout's clean HEAD through git and builds all of cmd/corvint from it, and AFP-V0-023 never grants .git; the planner does not condition a read scope on that variable, so a declaration would let a change confined to cmd/corvint exclude the package; the remaining tests read committed release declarations through ../..; kept as a floor member 2026-11-04 (rescue-c review, orchestrator-made fail-closed decision) in place of the 2026-11-01 V1-0643 declaration; the package is a main package with no importing dependents, so the floor costs only its own tests",
     "internal/analyzerhtmlcss": "TestTypedFactOrderingWorstCaseRatchet reads a pinned revision through git and skips when git fails, and AFP-V0-023 never grants .git",
     "internal/analyzerpython": "modularity_test.go:18 runs go list -deps ./cmd/corvint and analyzer_test.go resolves the top level through git; with the 95-directory closure declared, the confined run still failed TestCoreDependencyClosureExcludesPythonCandidate, TestLiteralPinnedBeamfallPythonFixtures and TestPerformanceRatchets (V1-0868, 2026-10-06)",
     "internal/cemchain": "its tests build cmd/corvint, cmd/corvint-tasks, cmd/corvint-test-runner and interop/cem01-go with VCS stamping, which runs git over the repository's .git; Landlock confinement under .corvint/test-read-scopes.json forbids that git read, so the package cannot carry read scopes (observed in batch-1101d CI, 2026-11-01)",
