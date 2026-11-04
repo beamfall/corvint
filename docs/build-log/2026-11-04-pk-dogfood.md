@@ -45,7 +45,9 @@ are excluded by the lane charter. Independent review belongs to the orchestrator
 - `TCQ-V0-7408` (V1-1451): imported selectors do not carry same-package declaration closure;
   local shadows still can. The first narrowing lost a direct-importer guard; the existing
   TCQ-V0-761 regression caught it. Qualified references are retained separately for importer
-  search. External test packages remain conservative because import paths
+  search. A second regression confirms that importer edges need the exact import path, not
+  just the exported selector spelling; otherwise unrelated packages reintroduce the broad
+  closure. External test packages remain conservative because import paths
   alone do not prove the package identity. The new regression failed before this fix, naming
   four candidates instead of the two real package references. Timing promotion remains
   contingent on the recorded-pair measurements below.
@@ -92,6 +94,9 @@ The first 120-second-per-run guarding measurement was cancelled before producing
 it did not match the normal producer's 300-second per-run ceiling. Corrected measurement uses
 `DefaultHunkRevertLimits` (300 seconds per run, 1200 seconds total), with three repetitions of each
 recorded pair. No timing improvement or guard-preservation claim follows from that cancelled run.
+The first after-source trial completed PR #934 at a median 929.480 seconds against BASE's
+1013.055 seconds, with the same guard, but was interrupted after the namespace regression
+was confirmed. Final-source measurements are rerun; those earlier numbers are trial evidence.
 
 Self-development routes used: change-start context/query/impact receipts, affected test selection,
 CEM binding and reviewer-report inspection. Mutation, ranking learning and unrelated context

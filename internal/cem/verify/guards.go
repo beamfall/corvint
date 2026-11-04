@@ -212,7 +212,7 @@ func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []G
 					importers = indexImporters(tree)
 				}
 				for _, importer := range importers.of(dir) {
-					if names := load(importer).testsMentioning(load(importer).growImported(exported)); len(names) > 0 {
+					if names := load(importer).testsMentioning(load(importer).growImported(importers.packagePath(dir), exported)); len(names) > 0 {
 						candidate.units = append(candidate.units, testUnit{dir: importer, names: names})
 					}
 				}
@@ -351,7 +351,7 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 	}
 	// Imported selectors live in another package's namespace. The explicit
 	// package-under-test import of an external test is the one exception.
-	foreign := map[string]bool{}
+	foreign := map[string]string{}
 	for _, imp := range parsed.Imports {
 		importPath, e := strconv.Unquote(imp.Path.Value)
 		if e != nil {
@@ -363,7 +363,7 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 		}
 		own := strings.HasSuffix(parsed.Name.Name, "_test")
 		if !own && name != "." && name != "_" {
-			foreign[name] = true
+			foreign[name] = importPath
 		}
 	}
 	var decls []goDecl
@@ -398,8 +398,8 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 		}
 		ast.Inspect(decl, func(node ast.Node) bool {
 			if selector, ok := node.(*ast.SelectorExpr); ok {
-				if qualifier, ok := selector.X.(*ast.Ident); ok && qualifier.Obj == nil && foreign[qualifier.Name] {
-					d.importRefs[selector.Sel.Name] = true
+				if qualifier, ok := selector.X.(*ast.Ident); ok && qualifier.Obj == nil && foreign[qualifier.Name] != "" {
+					d.importRefs[foreign[qualifier.Name]+"\x00"+selector.Sel.Name] = true
 					return false
 				}
 			}
@@ -585,13 +585,17 @@ func baseHeaderLines(base []byte, name string) (int64, int64, bool) {
 // importing package, then follows only that package's ordinary closure.
 // Keeping these edges separate prevents unrelated imports polluting the
 // changed package's closure while preserving TCQ-V0-761 importer guards.
-func (p *goPackage) growImported(exported map[string]bool) map[string]bool {
+func (p *goPackage) growImported(importPath string, exported map[string]bool) map[string]bool {
 	seed := map[string]bool{}
 	for name := range exported {
 		seed[name] = true
 	}
+	qualified := map[string]bool{}
+	for name := range exported {
+		qualified[importPath+"\x00"+name] = true
+	}
 	for _, decl := range p.decls {
-		if mentions(decl.importRefs, exported) {
+		if mentions(decl.importRefs, qualified) {
 			for _, name := range decl.names {
 				seed[name] = true
 			}
