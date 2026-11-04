@@ -322,3 +322,59 @@ func TestTCDV02400_MixedExclusionCausesStayVisible(t *testing.T) {
 		t.Fatalf("human lacks %q: %s", line, human)
 	}
 }
+
+// TestTCDV02400_OneCommitUnderTwoCausesCountsOnce checks that a commit
+// excluded for two causes (a build-log-only commit that is also the ticket's
+// IN_PROGRESS head) is listed once in commits and in the human count, and
+// once under each cause.
+func TestTCDV02400_OneCommitUnderTwoCausesCountsOnce(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	id, local := tcdTicket(t, root, "twice", "")
+	logPath := filepath.Join(root, "docs", "build-log", "2026-11-03-lane.md")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logPath, []byte("# lane\n\n- "+local+" dispatched.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "--", "docs/build-log/2026-11-03-lane.md")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "docs(build-log): dispatch "+local)
+	logCommit := revParse(t, root, "HEAD")
+	x := atm(t, root, nil, "ticket", "progress", "--target", id, "--expected-revision", "1",
+		"--request-id", "p-"+id, "--issued-at", "2026-11-03T12:00:00Z", "--payload", progressPayload("IN_PROGRESS", "lane/x", logCommit, "", ""))
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("progress: %s", x.stdout)
+	}
+
+	code, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	if code != 0 || len(rows) != 0 {
+		t.Fatalf("excluded ticket is debt (exit %d): %+v", code, rows)
+	}
+	ex := field(item, "excludedCandidates").Arr
+	if len(ex) != 1 {
+		t.Fatalf("excludedCandidates %s", wire.Encode(field(item, "excludedCandidates")))
+	}
+	var commits, causes []string
+	for _, c := range field(ex[0], "commits").Arr {
+		commits = append(commits, c.Str)
+	}
+	for _, c := range field(ex[0], "causes").Arr {
+		var cc []string
+		for _, x := range field(c, "commits").Arr {
+			cc = append(cc, x.Str)
+		}
+		causes = append(causes, field(c, "reason").Str+"="+strings.Join(cc, ","))
+	}
+	if got, want := strings.Join(commits, ","), logCommit; got != want {
+		t.Fatalf("commits %q, want %q (one commit under two causes counts once)", got, want)
+	}
+	if got, want := strings.Join(causes, " "), "BUILD_LOG_ONLY="+logCommit+" PROGRESS_IN_PROGRESS="+logCommit; got != want {
+		t.Fatalf("causes %q, want %q", got, want)
+	}
+	line := local + " excluded BUILD_LOG_ONLY via 1 commit(s) (causes BUILD_LOG_ONLY, PROGRESS_IN_PROGRESS)"
+	if human := wire.Encode(field(item, "human")); !strings.Contains(string(human), line) {
+		t.Fatalf("human lacks %q: %s", line, human)
+	}
+}

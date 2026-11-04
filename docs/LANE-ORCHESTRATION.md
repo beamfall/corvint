@@ -1034,7 +1034,7 @@ Every dispatch carries this snapshot (ASD-V0-2420, V1-4440): `script/lane-dispat
 `ticket-bodies-<lane>/queue-snapshot.json` beside the ticket bodies, so a lane on any host reads any
 ticket, not only its assigned ones, with the "Read any ticket" line of its brief header (section 14).
 Dispatched from a snapshot host (`CORVINT_TASKS_SNAPSHOT` set, where `queue snapshot` is refused), it
-stages a verified copy of that snapshot instead. A journal-absent `ticket show` miss names the newest
+stages a verified copy of that snapshot first and reads every ticket body from that copy. A journal-absent `ticket show` miss names the newest
 snapshot of the checkout's own queue staged under `~/lane-inputs/` on that host with its age and the
 exact `CORVINT_TASKS_SNAPSHOT=` retry, or, when none is staged, the
 `script/lane-stage-inputs.sh --host HOST LANE ID` command the journal host runs (ASD-V0-2421). The

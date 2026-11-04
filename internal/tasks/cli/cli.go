@@ -2158,6 +2158,12 @@ func stagedSnapshotHint(rc *readCtx, id string, now time.Time) string {
 	if rc != nil && rc.store != nil && rc.store.Queue != nil {
 		queueID = rc.store.Queue.QueueID.Raw
 	}
+	none := " No queue snapshot is staged under $HOME/lane-inputs on this host"
+	if queueID == "" {
+		// Without this checkout's queue identity no staged snapshot can be
+		// matched, so none is named.
+		return none + "; on the host that owns the journal, stage one with " + stage
+	}
 	found, truncated := stagedSnapshots()
 	scanned := ""
 	if truncated {
@@ -2168,14 +2174,14 @@ func stagedSnapshotHint(rc *readCtx, id string, now time.Time) string {
 		if i == maxStagedProbes {
 			break
 		}
-		if queueID != "" && stagedSnapshotQueue(c.path) == queueID {
+		if stagedSnapshotQueue(c.path) == queueID {
 			path, mod = c.path, c.mod
 			break
 		}
 	}
 	if path == "" {
 		if len(found) == 0 {
-			return " No queue snapshot is staged under $HOME/lane-inputs on this host" + scanned + "; on the host that owns the journal, stage one with " + stage
+			return none + scanned + "; on the host that owns the journal, stage one with " + stage
 		}
 		return " " + strconv.Itoa(len(found)) + " queue snapshot(s) are staged under $HOME/lane-inputs on this host" + scanned + ", but none of the newest " +
 			strconv.Itoa(min(len(found), maxStagedProbes)) + " carries this checkout's queue " + queueID + "; on the host that owns the journal, stage one with " + stage
@@ -2188,7 +2194,7 @@ func stagedSnapshotHint(rc *readCtx, id string, now time.Time) string {
 	hint := " A queue snapshot of queue " + queueID + " is staged on this host at " + quoted + " (modified " + strconv.FormatInt(hours, 10) +
 		" hour(s) ago)" + scanned + ": retry with `" + SnapshotEnv + "=" + quoted + " corvint-tasks ticket show " + id + "` (ASD-V0-2421)."
 	if _, err := wire.ParseProse("", hint, 1, wire.MaxProseBytes); err != nil {
-		return " No queue snapshot is staged under $HOME/lane-inputs on this host; on the host that owns the journal, stage one with " + stage
+		return none + "; on the host that owns the journal, stage one with " + stage
 	}
 	return hint
 }
@@ -2203,8 +2209,9 @@ type stagedSnapshot struct {
 // $HOME/lane-inputs/queue-snapshot.json and
 // $HOME/lane-inputs/ticket-bodies-*/queue-snapshot.json within the first
 // maxStagedEntries directory entries, newest modification time first, and
-// whether the directory held more entries. It is empty when HOME or the
-// directory cannot be read.
+// whether the directory held more entries. A ticket-bodies-* entry that is a
+// symlink is followed like the directory it names (the file stat follows
+// it). It is empty when HOME or the directory cannot be read.
 func stagedSnapshots() ([]stagedSnapshot, bool) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -2220,7 +2227,7 @@ func stagedSnapshots() ([]stagedSnapshot, bool) {
 			entries, truncated = entries[:maxStagedEntries], true
 		}
 		for _, e := range entries {
-			if e.IsDir() && strings.HasPrefix(e.Name(), "ticket-bodies-") {
+			if (e.IsDir() || e.Type()&os.ModeSymlink != 0) && strings.HasPrefix(e.Name(), "ticket-bodies-") {
 				candidates = append(candidates, filepath.Join(base, e.Name(), "queue-snapshot.json"))
 			}
 		}

@@ -3247,6 +3247,11 @@ if [ -n "$CORVINT_TASKS_SNAPSHOT" ]; then
     "queue status") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" || { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; exit 2; }
       printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0 ;;
     "queue snapshot") printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
+    # ticket show verifies the bundle first (readSnapshotBundle), so a missing or unverifiable
+    # file fails the read; LD_SHOWLOG records which file each read was served from.
+    "ticket show") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" 2> /dev/null ||
+        { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; echo "snapshot unreadable: $CORVINT_TASKS_SNAPSHOT" >&2; exit 2; }
+      [ -z "$LD_SHOWLOG" ] || printf '%s %s\n' "$3" "$CORVINT_TASKS_SNAPSHOT" >> "$LD_SHOWLOG" ;;
   esac
 fi
 if [ "$1 $2 $3" = "queue snapshot --out" ]; then
@@ -3288,9 +3293,26 @@ done
 # On a snapshot host (CORVINT_TASKS_SNAPSHOT set, queue snapshot refused) the named file is copied
 # and verified; an absent or unverifiable one is refused queue-snapshot-failed.
 printf '%s\n' '{"profile":"stub-snapshot","host":"journal"}' > "$ld/staged.json"
-out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json ldi --out "$ld/snap-host" V1-0001 2>&1)
-[[ $? == 0 && $(cat "$ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"journal"}' &&
-  ! -e $ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.out ]] || fail "lane-dispatch on a snapshot host: $out"
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json LD_SHOWLOG=$ld/showlog ldi --out "$ld/snap-host" V1-0001 V1-0002 2>&1)
+rc=$? sh_snap=$(cd "$ld/snap-host/ticket-bodies-abc-w1" 2> /dev/null && pwd -P)/queue-snapshot.json
+[[ $rc == 0 && $(cat "$ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"journal"}' &&
+  ! -e $ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.out &&
+  $(cat "$ld/showlog") == "V1-0001 $sh_snap"$'\n'"V1-0002 $sh_snap" ]] ||
+  fail "lane-dispatch on a snapshot host (ticket reads must come from the verified copy): $out $(cat "$ld/showlog" 2> /dev/null)"
+# A relative CORVINT_TASKS_SNAPSHOT resolves in REPO, not the caller's directory.
+printf '%s\n' '{"profile":"stub-snapshot","host":"rel"}' > "$ld/repo/rel-staged.json"
+out=$(cd "$ld" && CORVINT_TASKS_SNAPSHOT=rel-staged.json LANE_DISPATCH_TASKS=$ld/bin/tasks LANE_DISPATCH_SSH=$ld/bin/ssh "$script/lane-dispatch.sh" inputs \
+  --lane abc-w1 --base origin/main --date 2026-11-01 --repo "$ld/repo" --out "$ld/snap-rel" V1-0001 2>&1)
+[[ $? == 0 && $(cat "$ld/snap-rel/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"rel"}' ]] ||
+  fail "lane-dispatch with a relative snapshot: $out"
+/bin/rm -f "$ld/repo/rel-staged.json"
+# A rerun into the same --out naming this run's own staged copy verifies it in place.
+out=$(ldi --out "$ld/snap-rerun" V1-0003 2>&1)
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-not-ok V1-0003'* && ! -e $ld/snap-rerun/lane.env ]] ||
+  fail "lane-dispatch rerun fixture: $out"
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/snap-rerun/ticket-bodies-abc-w1/queue-snapshot.json ldi --out "$ld/snap-rerun" V1-0001 2>&1)
+[[ $? == 0 && $(cat "$ld/snap-rerun/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot"}' ]] ||
+  fail "lane-dispatch rerun naming its own staged snapshot: $out"
 printf '%s\n' '{"profile":"other"}' > "$ld/unverified.json"
 for src in "$ld/unverified.json" "$ld/absent.json"; do
   out=$(CORVINT_TASKS_SNAPSHOT=$src ldi --out "$ld/snap-host-${src##*/}" V1-0001 2>&1)

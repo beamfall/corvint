@@ -192,6 +192,48 @@ func TestASDV02421_JournalAbsentMissNamesStagedSnapshot(t *testing.T) {
 		t.Errorf("lexically last newest snapshot not named: %s", text)
 	}
 
+	// Without this checkout's queue identity nothing can be matched: the
+	// plain none-staged text, never an empty queue name.
+	t.Setenv("HOME", home)
+	if text = stagedSnapshotHint(nil, id.Str, now); !strings.HasPrefix(text, " No queue snapshot is staged under $HOME/lane-inputs on this host;") ||
+		strings.Contains(text, "carries") || strings.Contains(text, newer) {
+		t.Errorf("unknown-queue hint: %s", text)
+	}
+
+	// A symlinked ticket-bodies-* directory is followed.
+	linked := filepath.Join(t.TempDir(), "linked")
+	target := filepath.Join(t.TempDir(), "lane dir")
+	fixture.Write(t, filepath.Join(target, "queue-snapshot.json"), raw)
+	if err := os.MkdirAll(filepath.Join(linked, "lane-inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(linked, "lane-inputs", "ticket-bodies-ln")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", linked)
+	if text = miss(); !strings.Contains(text, "at "+filepath.Join(linked, "lane-inputs", "ticket-bodies-ln", "queue-snapshot.json")+" (modified 0 hour(s) ago)") {
+		t.Errorf("symlinked lane directory not followed: %s", text)
+	}
+
+	// More than maxStagedEntries entries: the scan stops and says so, and the
+	// top-level snapshot is still a candidate.
+	full := filepath.Join(t.TempDir(), "full")
+	for i := range maxStagedEntries + 1 {
+		fixture.Write(t, filepath.Join(full, "lane-inputs", fmt.Sprintf("pad-%04d", i)), nil)
+	}
+	top := filepath.Join(full, "lane-inputs", "queue-snapshot.json")
+	fixture.Write(t, top, raw)
+	t.Setenv("HOME", full)
+	if text = miss(); !strings.Contains(text, "at "+top+" (modified 0 hour(s) ago) (the scan stopped at 1024 entries of $HOME/lane-inputs): retry") {
+		t.Errorf("truncated scan not named: %s", text)
+	}
+	if err := os.Remove(top); err != nil {
+		t.Fatal(err)
+	}
+	if text = miss(); !strings.Contains(text, "No queue snapshot is staged under $HOME/lane-inputs on this host (the scan stopped at 1024 entries of $HOME/lane-inputs);") {
+		t.Errorf("truncated empty scan not named: %s", text)
+	}
+
 	// The named retry serves the ticket on this host.
 	t.Setenv("HOME", home)
 	t.Setenv(SnapshotEnv, newer)
