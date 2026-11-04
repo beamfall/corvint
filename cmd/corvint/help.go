@@ -898,7 +898,7 @@ const affectedHelp = `Compile the affected-test selection plan for the dirty wor
 
 Usage:
   corvint [--root PATH] affected [--full | --summary] [--require-clean]
-          [--cache DIR | --no-cache] [--format json|text]
+          [--cache DIR | --no-cache] [--format json|text] [--fail-fast-order]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--worktree] [--cache DIR | --no-cache]
           [--format json|text]
@@ -906,7 +906,7 @@ Usage:
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full | --summary] [--require-clean]
-          --base FULL_COMMIT_ID [--format json|text]
+          --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
           [--playwright-env NAME[=VALUE] ...]
@@ -1005,6 +1005,15 @@ count: the plan mixes that commit with mutable worktree content.
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
 before the range diff, graph walk or provider; a clean worktree is unchanged.
+
+--fail-fast-order (experimental, AFP-V0-2487; JSON plan only, not with --full,
+--summary, --by-path, --format text or --playwright-config) adds an order
+member: the selected units that a local corvint test receipt in the Git
+directory (corvint/test-run.json, corvint/test-run.N.json) records as FAIL,
+BUILD_FAILED or TIMED_OUT come first, each group in plan order. The key, each
+receipt read with its sha256, and OBSERVED or NOT_OBSERVED are disclosed. The
+selection and every other member are unchanged; without the flag no receipt
+is read. Example: corvint affected --base FULL_COMMIT_ID --fail-fast-order
 
 --by-path (experimental, AFP-V0-990; requires --path or --paths-from, not
 with --full) builds the graph once and writes one affected-by-path/1 document
