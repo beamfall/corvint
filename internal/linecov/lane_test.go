@@ -4,56 +4,103 @@ package linecov
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-// LPCV-V0-7600: a third unrelated test makes a union fallback distinguishable
-// from retaining just the order-dependent test and its prerequisite.
+// LPCV-V0-7600: retain the prerequisite even when C reaches the same block
+// alone. An unrelated test distinguishes attribution from a suite union.
 func TestInOrderWindows(t *testing.T) {
-	requireGo(t)
-	root := t.TempDir()
-	tree := map[string]string{"go.mod": fixture["go.mod"], "ord/ord.go": fixture["ord/ord.go"], "ord/ord_test.go": fixture["ord/ord_test.go"] + "\nfunc TestC(t *testing.T) {}\n"}
-	writeTree(t, root, tree)
-	git(t, root, "init", "-q")
-	git(t, root, "add", ".")
-	git(t, root, "commit", "-qm", "base")
-	base := git(t, root, "rev-parse", "HEAD")
-	out, err := Collect(context.Background(), root, CollectOptions{Module: "example.com/m", Packages: []string{"ord"}, Work: t.TempDir(), Timeout: time.Minute, SuiteTimeout: time.Minute})
-	if err != nil {
-		t.Fatal(err)
+	for _, tc := range []struct {
+		name, source, tests, want string
+		line                      int
+	}{
+		{"unrelated", fixture["ord/ord.go"], fixture["ord/ord_test.go"] + "\nfunc TestC(t *testing.T) {}\n", "TestA,TestB", 8},
+		{"shared-isolated-block", `package ord
+var ready bool
+func g() int {
+ return 1
+}
+`, `package ord
+import "testing"
+func TestA(t *testing.T) { ready = true }
+func TestB(t *testing.T) { if ready { g() } }
+func TestC(t *testing.T) { g() }
+`, "TestA,TestB,TestC", 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requireGo(t)
+			root := t.TempDir()
+			tree := map[string]string{"go.mod": fixture["go.mod"], "ord/ord.go": tc.source, "ord/ord_test.go": tc.tests + "\nfunc TestD(t *testing.T) {}\n"}
+			writeTree(t, root, tree)
+			git(t, root, "init", "-q")
+			git(t, root, "add", ".")
+			git(t, root, "commit", "-qm", "base")
+			base := git(t, root, "rev-parse", "HEAD")
+			out, err := Collect(context.Background(), root, CollectOptions{Module: "example.com/m", Packages: []string{"ord"}, Work: t.TempDir(), Timeout: time.Minute, SuiteTimeout: time.Minute})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var records []Record
+			for _, o := range out {
+				if o.Record == nil || o.WindowFallback != "" {
+					t.Fatalf("outcome %+v", o)
+				}
+				records = append(records, *o.Record)
+			}
+			oids, err := OIDs(context.Background(), root, base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ix, err := Build("example.com/m", base, "test", oids, records)
+			if err != nil {
+				t.Fatal(err)
+			}
+			change := ix.Analyze([]FileDiff{{Path: "ord/ord.go", OldOID: oids["ord/ord.go"], NewOID: "changed", Hunks: []Hunk{{Start: tc.line, End: tc.line}}}}, Reader(context.Background(), root, base))
+			p, why := ix.Narrow([]string{"ord"}, map[string][]string{"ord": {"TestA", "TestB", "TestC", "TestD"}}, Effect{}, change)
+			if why != "" || p["ord"].Mode != Tests || strings.Join(p["ord"].Tests, ",") != tc.want {
+				t.Fatalf("plans %+v why %s", p, why)
+			}
+			// Unsupported overlapping windows retain a named union fallback.
+			if err := os.WriteFile(filepath.Join(root, "ord", "ord_test.go"), []byte(strings.Replace(tree["ord/ord_test.go"], "TestD(t *testing.T) {}", "TestD(t *testing.T) { t.Parallel() }", 1)), 0600); err != nil {
+				t.Fatal(err)
+			}
+			_, reason, err := windowOverlay(filepath.Join(root, "ord"), t.TempDir())
+			if err != nil || reason != "parallel-test-windows" {
+				t.Fatalf("fallback %s %v", reason, err)
+			}
+		})
 	}
-	var records []Record
-	for _, o := range out {
-		if o.Record == nil || o.WindowFallback != "" {
-			t.Fatalf("outcome %+v", o)
-		}
-		records = append(records, *o.Record)
-	}
-	oids, err := OIDs(context.Background(), root, base)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ix, err := Build("example.com/m", base, "test", oids, records)
-	if err != nil {
-		t.Fatal(err)
-	}
-	change := ix.Analyze([]FileDiff{{Path: "ord/ord.go", OldOID: oids["ord/ord.go"], NewOID: "changed", Hunks: []Hunk{{Start: 8, End: 8}}}}, Reader(context.Background(), root, base))
-	p, why := ix.Narrow([]string{"ord"}, map[string][]string{"ord": {"TestA", "TestB", "TestC"}}, Effect{}, change)
-	if why != "" || p["ord"].Mode != Tests || strings.Join(p["ord"].Tests, ",") != "TestA,TestB" {
-		t.Fatalf("plans %+v why %s", p, why)
-	}
-	// Unsupported overlapping windows retain a named union fallback.
-	if err := os.WriteFile(filepath.Join(root, "ord", "ord_test.go"), []byte(strings.Replace(tree["ord/ord_test.go"], "TestC(t *testing.T) {}", "TestC(t *testing.T) { t.Parallel() }", 1)), 0600); err != nil {
-		t.Fatal(err)
-	}
-	_, reason, err := windowOverlay(filepath.Join(root, "ord"), t.TempDir())
-	if err != nil || reason != "parallel-test-windows" {
-		t.Fatalf("fallback %s %v", reason, err)
+}
+
+// LPCV-V0-7600: retain the original dump failure even if the corresponding
+// test window is consequently absent, or its order marker is unavailable.
+func TestInvalidWindowDumpReason(t *testing.T) {
+	for _, order := range []bool{false, true} {
+		t.Run(strconv.FormatBool(order), func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.Mkdir(filepath.Join(dir, "TestA"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if order {
+				if err := os.WriteFile(filepath.Join(dir, "order"), []byte("TestA\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			out := attributeWindows(func(string) ([]byte, error) { return nil, errors.New("invalid dump") }, []Outcome{
+				{Package: "p", Name: "TestA", Record: &Record{}},
+				{Package: "p", Name: InOrder, Record: &Record{}},
+			}, map[string]string{"p": dir})
+			if got := out[1].WindowFallback; got != "window-dump-invalid" {
+				t.Fatalf("fallback %q", got)
+			}
+		})
 	}
 }
 

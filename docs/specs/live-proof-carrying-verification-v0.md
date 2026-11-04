@@ -682,10 +682,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 
 - `LPCV-V0-7600`: (accepted under standing implementation authority, V1-4379) Go collection
   uses scratch overlays to dump/reset atomic counters at serial top-level test windows, including
-  cleanup. Each record unions isolated and in-order reach; order-only reach retains preceding
-  tests as prerequisites. Parallel, unsupported entry points or missing instrumentable source
+  cleanup. Each record unions isolated and in-order reach; reach absent from that same test's
+  isolated record retains preceding tests as prerequisites, even if another test reaches it alone. Parallel, unsupported entry points or missing instrumentable source
   retain the suite union with a named reason. Setup, teardown and child reach retain the residual
-  union owner. Witness: `TestInOrderWindows`, `TestFaultInjection`.
+  union owner. Residual: counts from a goroutine leaked by a test after its window dump can be
+  lost when the next window clears counters; this does not qualify concurrent goroutine attribution.
+  Invalid dumps retain `window-dump-invalid` rather than a secondary missing-window reason.
+  Witness: `TestInOrderWindows`, `TestInvalidWindowDumpReason`, `TestFaultInjection`.
 - `LPCV-V0-7601`: (accepted under standing implementation authority, V1-4380) The Go collector
   observes os/exec launches in its scratch toolchain overlay. A child without coverage build
   metadata, with a different coverage destination, or without completed counters rejects the
@@ -721,7 +724,7 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   `TestLiveRSpecIsolation`.
 - `LPCV-V0-7606`: (accepted under standing implementation authority, V1-4421) The explicit
   `linecov js-collect` and `js-select` commands collect JavaScript/TypeScript indexes through
-  the shared builder and validated `linecov.Load`, apply `jslinecov.Analyze`, and report recorded
+  the shared builder and validated `linecov.Decode` (`Load` is Open + Decode), apply `jslinecov.Analyze`, and report recorded
   inventories and coverage/static/excluded counts. Failed native runs retain their terminal
   observations for qualification while publishing no coverage record. Each of the eight node
   runner adapters has a fault-injection witness; a pinned Beamfall TypeScript suite has a

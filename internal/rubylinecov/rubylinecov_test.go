@@ -154,10 +154,10 @@ func checkCalc(t *testing.T, ix *linecov.Index, add, down, up string) {
 		{12, false, sorted(down, up)},
 		{11, true, sorted(down, up)},
 		{18, false, "fallback: edit outside a method body lib/calc.rb:18"}, // uncalled method may contain a syntax edit
-		{5, false, "fallback: edit outside a method body lib/calc.rb:5"}, // the def line
-		{7, false, "fallback: edit outside a method body lib/calc.rb:7"}, // the end line
-		{3, false, "fallback: edit outside a method body lib/calc.rb:3"}, // class-level comment
-		{8, true, "fallback: edit outside a method body lib/calc.rb:8"},  // between methods
+		{5, false, "fallback: edit outside a method body lib/calc.rb:5"},   // the def line
+		{7, false, "fallback: edit outside a method body lib/calc.rb:7"},   // the end line
+		{3, false, "fallback: edit outside a method body lib/calc.rb:3"},   // class-level comment
+		{8, true, "fallback: edit outside a method body lib/calc.rb:8"},    // between methods
 	} {
 		if got := selected(ix, Analyze(ix, edit(ix, "lib/calc.rb", c.line, c.insert))); got != c.want {
 			t.Errorf("lib/calc.rb:%d insert=%v selects %q, want %q", c.line, c.insert, got, c.want)
