@@ -10,13 +10,17 @@ import (
 // (componentRuns, namesPath, matchesAt; AFP-V0-012 rule (c)). The gate tool is
 // a standard-library-only package main that the trusted PR driver builds
 // (AFP-V0-011, AFP-V0-013), so it cannot import this package without widening
-// that trusted build, and this package cannot import a main package. One rule
-// is narrower here than rule (c): an unanchored lone component names a file
-// name only (namesPath, V1-0290). The CEM sidecar narrowing of rule (c)
-// (resolvingReaders, resolvesWithin, rootAnchors) is mirrored by resolves. A
-// second narrowing exists only here: a Go unit that names a dirty path by
-// such a file name alone must also place the path (namesFileOnlyWithin,
-// AFP-V0-072).
+// that trusted build, and this package cannot import a main package. For a Go
+// unit and a path other than a CEM, the relation is rule (c)'s: any run of a
+// token, a lone component included, names the path at any depth (AFP-V0-2203),
+// because a literal may be joined to a root no literal index bounds (the
+// environment, a flag, a walked directory, any non-constant prefix). For a
+// non-Go unit one rule is narrower here than rule (c): an unanchored lone
+// component names a file name only (namesPath, V1-0290), and a unit whose
+// plugin certifies its roots (Unit.PlacesFileNames) must also place the path
+// (namesFileOnlyWithin, AFP-V0-072, AFP-V0-400). The CEM sidecar narrowing of
+// rule (c) (resolvingReaders, resolvesWithin, rootAnchors) is mirrored by
+// resolves.
 
 // ChangeEvidencePath is the CEM 0.2 sidecar (frontier.ExcludedPath). Its
 // readers are narrowed to the units whose token resolves to it, as the gate's
@@ -74,8 +78,9 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 		if seen && graph.units[id].FrontierBears != FrontierBearsOnDependents {
 			continue
 		}
+		goUnit := strings.HasPrefix(id, "go:")
 		for j, dirtyPath := range dirty {
-			if !namesAny(tokens[i], split[j]) {
+			if !namesAny(tokens[i], split[j], goUnit && !resolvedEvidence(dirtyPath)) {
 				continue
 			}
 			if graph.foreignTestFile(id, dirtyPath) && !namesFileName(tokens[i], split[j]) {
@@ -414,14 +419,19 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 // resolves reports whether unit id can read dirtyPath by one of its tokens.
 // A non-Go unit its plugin certifies (Unit.PlacesFileNames, a shell script
 // that changes to no literal directory and reads nothing recursively) places
-// a lone file name as a Go unit does (namesFileOnlyWithin, AFP-V0-400): it runs
-// from the repository root or below its own directory. Any other non-Go unit
-// keeps the component-run relation: its tests' working directory is unknown. For the CEM sidecar and a sealed CEM
-// (resolvedEvidence), a Go unit's token must resolve against the unit's
-// directory, or against the repository root when a parent-only or anchored
-// token of the unit could put it there, to that path or one of its ancestors. An anchored token always resolves: it is anchored at
-// its module's directory, which this graph does not record, so narrowing it
-// could drop a real reader. For any other path see namesFileOnlyWithin.
+// a lone file name (namesFileOnlyWithin, AFP-V0-400): it runs from the
+// repository root or below its own directory. Any other non-Go unit keeps the
+// component-run relation: its tests' working directory is unknown. A Go unit
+// whose token names a path other than a CEM reads it (AFP-V0-2203): no literal
+// index proves the root its literal is joined to, which may be
+// `os.Getenv("FIXTURES")`, a flag, a walked directory or any other
+// non-constant prefix, so placing the path's directories would drop a real
+// reader. For the CEM sidecar and a sealed CEM (resolvedEvidence), a Go unit's
+// token must resolve against the unit's directory, or against the repository
+// root when a parent-only or anchored token of the unit could put it there, to
+// that path or one of its ancestors. An anchored token always resolves: it is
+// anchored at its module's directory, which this graph does not record, so
+// narrowing it could drop a real reader.
 // A unit with a declared read scope (AFP-V0-023) reads no dirty path outside
 // that scope, whatever its tokens name (AFP-V0-161): the declaration states
 // it, and full CI confines the package's tests to it.
@@ -432,17 +442,14 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 		return false
 	}
 	if unit.PlacesFileNames && !strings.HasPrefix(id, "go:") && len(files) != 0 {
-		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath, false)
+		return namesFileOnlyWithin(relativeDirectory(files[0]), unit.PathTokens, dirtyPath)
 	}
-	if !strings.HasPrefix(id, "go:") || len(files) == 0 {
+	if !strings.HasPrefix(id, "go:") || len(files) == 0 || !resolvedEvidence(dirtyPath) {
 		// A unit with no files, such as a dependent nested module
 		// (AFP-V0-582), has no directory to narrow a token against.
 		return true
 	}
 	directory := relativeDirectory(files[0])
-	if !resolvedEvidence(dirtyPath) {
-		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath, true)
-	}
 	anchored := rootAnchored(unit.PathTokens)
 	parts := strings.Split(dirtyPath, "/")
 	for _, value := range unit.PathTokens {
@@ -456,54 +463,28 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 	return false
 }
 
-// namesFileOnlyWithin reports whether a Go unit in directory whose tokens name
+// namesFileOnlyWithin reports whether a non-Go unit in directory whose plugin
+// certifies its roots (Unit.PlacesFileNames, AFP-V0-400) and whose tokens name
 // dirtyPath can reach it (AFP-V0-072). A token that names it by a run that
 // places a directory (a multi-component run, or any run of an anchored or
 // climbing token) keeps the component-run relation. When only unanchored lone
 // tokens name it by its file name (V1-0290), the unit reaches it only in its
 // own subtree, where its tests run, or under a base its literals can reach:
 // the repository root, or any ancestor of its directory once a token climbs
-// (`filepath.Join("..", "model.go")`). Below that base every directory
-// component of the path must be a whole component of one of its tokens, so a
-// literal could join it, or a component the lexer cannot keep whole (a space,
-// a non-ASCII letter), which no token can witness and so never narrows.
-// Any other way to the repository goes through a root-locating call or a
-// climbing literal, which select the unit as an unbounded reader (rule (d)),
-// or through a root supplied at run time, which no literal index bounds.
-//
-// For a Go unit (module) an anchored token is decided by anchoredWithin
-// instead of the component-run relation (AFP-V0-2203); a non-Go unit's
-// anchored token follows a run-time root and keeps the relation.
-func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, module bool) bool {
+// (`../model.sh`). Below that base every directory component of the path must
+// be a whole component of one of its tokens, so a literal could join it, or a
+// component the lexer cannot keep whole (a space, a non-ASCII letter), which
+// no token can witness and so never narrows. The certification is the proof
+// that no root comes from anywhere else; a Go unit has none (AFP-V0-2203).
+func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string) bool {
 	if directory == "." || strings.HasPrefix(dirtyPath, directory+"/") {
 		return true
 	}
 	parts := strings.Split(dirtyPath, "/")
 	climbs, named := false, false
-	// prefixes holds, for each anchored token that does not resolve from a
-	// base, the number of leading path components before a lone-component
-	// run of it matches a directory component: the run then needs those
-	// components placed (AFP-V0-2203). A run of two or more components keeps the
-	// component-run relation, as an unanchored one does: the root it is
-	// joined to may come from the environment or another value no literal
-	// spells (`os.Getenv("FIXTURES") + "/repo/lib.js"`).
-	var prefixes []int
 	for _, value := range tokens {
 		if strings.HasPrefix(value, "/") || strings.Contains(value, "..") {
-			if anchored, ok := anchoredWithin(directory, value, dirtyPath); module && ok {
-				if anchored || longRunNames(value, parts) {
-					return true
-				}
-				// A lone run that is the file name keeps the reader
-				// at any depth, as a longer run does (round 7): its
-				// root may come from the environment too
-				// (`os.ReadFile(os.Getenv("FIXTURES") + "/lib.js")`).
-				offsets := runOffsets(value, parts)
-				if slices.Contains(offsets, len(parts)-1) {
-					return true
-				}
-				prefixes = append(prefixes, offsets...)
-			} else if namesPath(value, parts) {
+			if namesPath(value, parts) {
 				return true
 			}
 			climbs = climbs || slices.Contains(strings.Split(value, "/"), "..")
@@ -521,7 +502,7 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 			}
 		}
 	}
-	if !named && len(prefixes) == 0 {
+	if !named {
 		return false
 	}
 	vocabulary := make(map[string]bool)
@@ -529,29 +510,6 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 		for _, component := range strings.Split(value, "/") {
 			vocabulary[component] = true
 		}
-	}
-	// An anchored token joined to a root assembled at run time from the
-	// unit's literals: every component before the run must be one a literal
-	// could join, from the root or from the module's possible directories.
-	anchorBases := []string{""}
-	for base := directory; base != "."; base = path.Dir(base) {
-		anchorBases = append(anchorBases, base)
-	}
-	for _, offset := range prefixes {
-		before := strings.Join(parts[:offset], "/")
-		for _, base := range anchorBases {
-			rest, under := before, true
-			if base != "" {
-				rest, under = strings.CutPrefix(before+"/", base+"/")
-				rest = strings.TrimSuffix(rest, "/")
-			}
-			if under && (rest == "" || placeable(vocabulary, rest+"/x")) {
-				return true
-			}
-		}
-	}
-	if !named {
-		return false
 	}
 	bases := []string{""}
 	for base := directory; climbs && base != "."; base = path.Dir(base) {
@@ -567,107 +525,6 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 		}
 	}
 	return false
-}
-
-// anchoredWithin decides an anchored token (one that starts with "/": a
-// module-path literal the Go plugin anchored at its module's directory, or an
-// absolute path) for a Go unit in directory (AFP-V0-2203). The module's
-// directory is not recorded, but it is the unit's directory or one of its
-// ancestors, so the token names dirtyPath only when, joined to one of those
-// bases, it is dirtyPath or an ancestor of it; the last of two or more
-// components may be a fragment the literal is concatenated with, as in
-// componentRuns. A token that climbs out of the repository from every base
-// names nothing in it, and so does one with no component run (`"/"`, `"/."`),
-// as componentRuns finds none. The Go lexicon splits a literal at a printf
-// verb, so an empty component inside one token is a literal double slash,
-// which the join cleans. ok is false for a token that does not start with
-// "/".
-func anchoredWithin(directory, value, dirtyPath string) (names, ok bool) {
-	if !strings.HasPrefix(value, "/") {
-		return false, false
-	}
-	rest := strings.TrimLeft(value, "/")
-	if len(componentRuns(rest)) == 0 {
-		return false, true
-	}
-	bases := []string{""}
-	for base := directory; base != "." && base != ""; base = path.Dir(base) {
-		bases = append(bases, base)
-	}
-	parts := strings.Split(dirtyPath, "/")
-	for _, base := range bases {
-		resolved := path.Join(base, rest)
-		if resolved == ".." || strings.HasPrefix(resolved, "../") {
-			continue
-		}
-		if resolved == "." {
-			// The token climbs back to its module's directory
-			// (`"/x/.."`): it names every path below that base.
-			if base == "" || strings.HasPrefix(dirtyPath, base+"/") {
-				return true, true
-			}
-			continue
-		}
-		components := strings.Split(resolved, "/")
-		if len(components) > len(parts) {
-			continue
-		}
-		matched := true
-		for position, component := range components {
-			last := position == len(components)-1
-			if last && len(components) >= 2 && !strings.HasSuffix(value, "/") {
-				matched = strings.HasPrefix(parts[position], component)
-			} else {
-				matched = parts[position] == component
-			}
-			if !matched {
-				break
-			}
-		}
-		if matched {
-			return true, true
-		}
-	}
-	return false, true
-}
-
-// longRunNames reports whether a run of two or more components of the token
-// matches consecutive components of parts anywhere (AFP-V0-2203).
-func longRunNames(value string, parts []string) bool {
-	for _, candidate := range newPathToken(value).runs {
-		if len(candidate.components) < 2 {
-			continue
-		}
-		for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
-			if candidate.matchesAt(parts[offset:]) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// runOffsets lists the offsets at which a lone-component run of the token
-// matches a component of parts, as namesPath tries them; longRunNames
-// decides a longer run.
-func runOffsets(value string, parts []string) []int {
-	token := newPathToken(value)
-	var offsets []int
-	for _, candidate := range token.runs {
-		if len(candidate.components) >= 2 {
-			continue
-		}
-		first := 0
-		if len(candidate.components) == 1 && token.nameOnly {
-			first = len(parts) - 1
-		}
-		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
-			if candidate.matchesAt(parts[offset:]) {
-				offsets = append(offsets, offset)
-			}
-		}
-	}
-	return offsets
 }
 
 // placeable reports whether every directory component of relative is a whole
@@ -775,9 +632,12 @@ func (graph *Graph) pathTokens() [][]pathToken {
 	return tokens
 }
 
-func namesAny(tokens []pathToken, parts []string) bool {
+// namesAny reports whether one of the tokens names the split path. anyDepth
+// drops the V1-0290 file-name-only rule: a Go unit's lone component names a
+// directory component too, for a path other than a CEM (AFP-V0-2203).
+func namesAny(tokens []pathToken, parts []string, anyDepth bool) bool {
 	for _, token := range tokens {
-		if token.names(parts) {
+		if token.namesAt(parts, anyDepth) {
 			return true
 		}
 	}
@@ -832,9 +692,13 @@ func namesPath(value string, parts []string) bool {
 }
 
 func (token pathToken) names(parts []string) bool {
+	return token.namesAt(parts, false)
+}
+
+func (token pathToken) namesAt(parts []string, anyDepth bool) bool {
 	for _, candidate := range token.runs {
 		first := 0
-		if len(candidate.components) == 1 && token.nameOnly {
+		if len(candidate.components) == 1 && token.nameOnly && !anyDepth {
 			first = len(parts) - 1
 		}
 		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {

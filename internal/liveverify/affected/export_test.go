@@ -12,7 +12,7 @@ func (graph *Graph) namers(dirtyPath string) []string {
 	parts := strings.Split(dirtyPath, "/")
 	ids := make([]string, 0)
 	for i, tokens := range graph.pathTokens() {
-		if namesAny(tokens, parts) {
+		if namesAny(tokens, parts, strings.HasPrefix(graph.order[i], "go:") && !resolvedEvidence(dirtyPath)) {
 			ids = append(ids, graph.order[i])
 		}
 	}

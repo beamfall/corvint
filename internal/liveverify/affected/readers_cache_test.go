@@ -9,11 +9,13 @@ import (
 )
 
 // namesPathOracle is namesPath before V1-1879, kept apart from pathToken so
-// the comparison does not share the matcher it checks.
-func namesPathOracle(value string, parts []string) bool {
+// the comparison does not share the matcher it checks. anyDepth drops the
+// V1-0290 file-name-only rule, as a Go unit's rule (c) does on any path but
+// the CEM's since AFP-V0-2241 round 8.
+func namesPathOracle(value string, parts []string, anyDepth bool) bool {
 	for _, candidate := range componentRuns(value) {
 		first := 0
-		if len(candidate.components) == 1 && !strings.HasPrefix(value, "/") && !strings.Contains(value, "..") {
+		if len(candidate.components) == 1 && !anyDepth && !strings.HasPrefix(value, "/") && !strings.Contains(value, "..") {
 			first = len(parts) - 1
 		}
 		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
@@ -32,7 +34,7 @@ func namersOracle(graph *Graph, dirtyPath string) []string {
 	ids := make([]string, 0)
 	for _, id := range graph.order {
 		for _, value := range graph.units[id].PathTokens {
-			if namesPathOracle(value, parts) {
+			if namesPathOracle(value, parts, strings.HasPrefix(id, "go:") && !resolvedEvidence(dirtyPath)) {
 				ids = append(ids, id)
 				break
 			}
@@ -90,10 +92,13 @@ func TestReadersMatchesDirtyMajorScan(t *testing.T) {
 		graph.order = append(graph.order, id)
 	}
 	for id, unit := range map[string]Unit{
-		"go:narrow-file":   {Sources: []string{"x/f.go"}, PathTokens: []string{"README.md"}},
-		"go:narrow-later":  {Sources: []string{"docs/f.go"}, PathTokens: []string{"z.txt", "x/y/z.txt"}},
-		"go:root":          {Sources: []string{"r/f.go"}, PathTokens: []string{"/", ""}},
-		"go:climb":         {Sources: []string{"a/b/f.go"}, PathTokens: []string{".."}},
+		"go:narrow-file":  {Sources: []string{"x/f.go"}, PathTokens: []string{"README.md"}},
+		"go:narrow-later": {Sources: []string{"docs/f.go"}, PathTokens: []string{"z.txt", "x/y/z.txt"}},
+		"go:root":         {Sources: []string{"r/f.go"}, PathTokens: []string{"/", ""}},
+		"go:climb":        {Sources: []string{"a/b/f.go"}, PathTokens: []string{".."}},
+		// A certified non-Go unit keeps placement (AFP-V0-072, AFP-V0-400),
+		// so it names internal/007.go without placing it: the narrowing.
+		"tool:placed":      {Sources: []string{"x/f.sh"}, PathTokens: []string{"007.go"}, PlacesFileNames: true},
 		"tool:empty-token": {PathTokens: []string{""}},
 	} {
 		unit.ID, unit.Frontier = id, []string{"frontier-" + id}

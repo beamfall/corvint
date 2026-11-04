@@ -46,6 +46,9 @@ var rootLocatorToken = "--show-" + "toplevel"
 var (
 	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
 	pathToken  = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
+	// parentBackslash is the planner's (golang.parentBackslash,
+	// AFP-V0-506, AFP-V0-2242).
+	parentBackslash = strings.NewReplacer(`..\`, `../`)
 )
 
 type goPackage struct {
@@ -63,8 +66,6 @@ type repositoryIndex struct {
 	importers      map[string][]string   // directory -> directories whose non-test files import it
 	namers         map[string][]string   // directory -> directories whose non-test files name it by a path token
 	testImporters  map[string][]string   // directory -> directories whose _test.go files alone import or name it
-	tokens         map[string][]string   // directory -> the distinct path tokens its files carry (AFP-V0-2240)
-	tokenSeen      map[string]bool       // directory NUL token, for tokens
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
@@ -74,7 +75,7 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 // indexRepositoryMemo is indexRepository that reuses, through memo, the scan
 // of each Go source whose stamp is unchanged; memo may be nil (AFP-V0-822).
 func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex, error) {
-	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}, tokens: map[string][]string{}, tokenSeen: map[string]bool{}}
+	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}}
 	var files []indexedFile
 	entries := 0
 	walkErr := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
@@ -242,10 +243,6 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 	for _, values := range scanned.tokens {
 		for _, value := range values {
 			index.holders[value] = appendOnce(index.holders[value], directory)
-			if key := directory + "\x00" + value; !index.tokenSeen[key] {
-				index.tokenSeen[key] = true
-				index.tokens[directory] = append(index.tokens[directory], value)
-			}
 			if !test {
 				index.nonTestHolders[value] = appendOnce(index.nonTestHolders[value], directory)
 			}
@@ -397,9 +394,12 @@ func importState(state int, kind token.Token) int {
 // tag, `</repo/lib.js>`) is kept both anchored and without that `/`: the
 // planner reads only the second (AFP-V0-505, AFP-V0-840), whose first
 // component may end a longer name, so this index keeps both to stay a
-// superset of the planner's relation (AFP-V0-2242).
+// superset of the planner's relation (AFP-V0-2242). A backslash after a
+// parent component (`..\x`) becomes the slash the planner's lexicon reads
+// (golang.parentBackslash, AFP-V0-506), in the same order, after the printf
+// verbs, so `foo..\notes` is the one token `foo../notes` in both.
 func pathTokens(literal, module string) []string {
-	literal = printfVerb.ReplaceAllString(literal, " ")
+	literal = parentBackslash.Replace(printfVerb.ReplaceAllString(literal, " "))
 	var tokens []string
 	for _, bounds := range pathToken.FindAllStringIndex(literal, -1) {
 		start, end := bounds[0], bounds[1]
@@ -569,19 +569,19 @@ func (index *repositoryIndex) reach(withNamers bool, directories []string) []str
 // readers are the packages whose own files carry a path token naming
 // dirtyPath. A dependency's literal is resolved against a root or directory its
 // caller hands it; a dependency that finds the root itself is `locatesRoot`.
-// The token must name the path by the planner's relation, and the package
-// reach it from where its tests run (keepsReader, AFP-V0-2240, AFP-V0-2241).
+// Any run of the token, a lone component included, names the path at any
+// depth: no literal index proves the root a literal is joined to, which may
+// come from the environment, a flag, a walked directory or any other
+// non-constant prefix, so no placement or file-name-only rule narrows it
+// (AFP-V0-2240, AFP-V0-2241).
 func (index *repositoryIndex) readers(dirtyPath string) []string {
 	readers := map[string]bool{}
-	memo := map[string]bool{}
 	for value, directories := range index.holders {
 		if !namesPath(value, dirtyPath) {
 			continue
 		}
 		for _, directory := range directories {
-			if index.keepsReader(directory, value, dirtyPath, memo) {
-				readers[directory] = true
-			}
+			readers[directory] = true
 		}
 	}
 	return sortedKeys(readers)
@@ -593,16 +593,13 @@ func (index *repositoryIndex) readers(dirtyPath string) []string {
 func (index *repositoryIndex) pathReaders(paths []string) [][]string {
 	sets := make([]map[string]bool, len(paths))
 	matcher := newPathMatcher(paths)
-	memo := map[string]bool{}
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
 			if sets[i] == nil {
 				sets[i] = map[string]bool{}
 			}
 			for _, directory := range directories {
-				if index.keepsReader(directory, value, paths[i], memo) {
-					sets[i][directory] = true
-				}
+				sets[i][directory] = true
 			}
 		}
 	}

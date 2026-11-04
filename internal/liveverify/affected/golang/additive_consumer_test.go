@@ -97,12 +97,15 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 
 	lines := gateselect.SelectStructural(receipt, module, root)
 	selected := consumerRun(t, lines)
-	for _, want := range []string{"core", "ref", "alias", "reader", "enum"} {
+	// named's lone "INDEX.json" is a plan reader of docs/specs/INDEX.json
+	// since AFP-V0-2203 round 8 dropped Go placement: its root may be
+	// supplied at run time.
+	for _, want := range []string{"core", "ref", "alias", "reader", "enum", "named"} {
 		if !has(selected, want) {
 			t.Errorf("%s is not selected: %q", want, strings.Join(lines, "\n"))
 		}
 	}
-	for _, unwanted := range []string{"unref", "leaf", "named"} {
+	for _, unwanted := range []string{"unref", "leaf"} {
 		if has(selected, unwanted) {
 			t.Errorf("%s is selected: %q", unwanted, strings.Join(lines, "\n"))
 		}
@@ -119,10 +122,7 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	})
 	lines = gateselect.SelectStructural(stale, module, root)
 	selected = consumerRun(t, lines)
-	// Since AFP-V0-2241 rule (c) agrees with the planner that named's lone,
-	// unplaced "INDEX.json" names no path, so the whole rule (c) shows as the
-	// stale readers kept and a data line rather than as named.
-	if !has(selected, "reader") || !has(selected, "enum") || has(selected, "named") || !slices.Contains(lines, "data docs/specs/INDEX.json") {
+	if !has(selected, "reader") || !has(selected, "named") || !has(selected, "enum") {
 		t.Errorf("a stale reader selection narrowed rule (c): %q", strings.Join(lines, "\n"))
 	}
 	if slices.ContainsFunc(lines, func(line string) bool {
@@ -147,7 +147,7 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	}
 	lines = gateselect.SelectStructural(receipt, module, root)
 	selected = consumerRun(t, lines)
-	if !slices.Contains(lines, "data docs/specs/INDEX.json") || slices.Contains(lines, "documentation docs/specs/INDEX.json") {
+	if !has(selected, "named") || slices.Contains(lines, "documentation docs/specs/INDEX.json") {
 		t.Errorf("an undeclared documentation path took the plan's readers: %q", strings.Join(lines, "\n"))
 	}
 }
