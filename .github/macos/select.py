@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""CIN-V0-4625/4626: native Darwin inventory, optionally intersected with AFP-V0-098.
+"""CIN-V0-4625: native Darwin inventory, optionally intersected with AFP-V0-098.
 
 Usage: python3 .github/macos/select.py LIST_JSON NARROW_JSON TARGET HEAD RUN_ID OUT
 LIST_JSON is concatenated `go list -json ./...` output from the native root module
@@ -11,8 +11,10 @@ import re
 import sys
 
 DARWIN_FILE = re.compile(r"_darwin(?:_[a-z0-9]+)?(?:_test)?\.go$")
-DARWIN_TAG = re.compile(r"^//(?:go:build|\s*\+build)[^\n]*\bdarwin\b", re.M)
-DARWIN_BRANCH = re.compile(r'\bGOOS\s*(?:==|!=)\s*"darwin"|"darwin"\s*(?:==|!=)\s*\w+\.GOOS')
+# Conservatively retain every build constraint: unix, negated OS and custom BSD
+# tags can admit Darwin without spelling darwin. Over-selection is safe.
+DARWIN_TAG = re.compile(r"^//(?:go:build|\s*\+build)\s+[^\n]+", re.M)
+DARWIN_BRANCH = re.compile(r'\bGOOS\s*(?:==|!=)\s*"darwin"|"darwin"\s*(?:==|!=)\s*\w+\.GOOS|\bcase[^:]*"darwin"')
 PATH_ALIAS = re.compile(r"/private/var|/var/folders")
 
 

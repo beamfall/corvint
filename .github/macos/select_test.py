@@ -2,7 +2,6 @@
 import importlib.util
 import pathlib
 import tempfile
-import subprocess
 import unittest
 
 spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("select.py"))
@@ -31,12 +30,39 @@ class DarwinSelection(unittest.TestCase):
             pkg["TestGoFiles"].append("new_test.go")
             self.assertEqual(len(m.inventory([pkg])[0]["reasons"]), 6)
 
+    def test_CINV04625_indirect_build_constraints_and_switch_cases(self):
+        cases = {
+            "unix": ("//go:build unix", "darwin-build"),
+            "not_linux": ("//go:build !linux", "darwin-build"),
+            "not_windows": ("//go:build !windows", "darwin-build"),
+            "bsd": ("//go:build bsd", "darwin-build"),
+            "bsd_family": ("//go:build freebsd || netbsd || openbsd || darwin", "darwin-build"),
+            "legacy_unix": ("// +build unix", "darwin-build"),
+            "legacy_not_linux": ("// +build !linux", "darwin-build"),
+            "legacy_not_windows": ("// +build !windows", "darwin-build"),
+            "legacy_bsd": ("// +build bsd", "darwin-build"),
+            "custom_constraint": ("//go:build cgo && go1.27", "darwin-build"),
+            "switch": ('switch runtime.GOOS { case "darwin": }', "darwin-branch"),
+            "switch_multiple": ('switch runtime.GOOS { case "linux", "darwin": }', "darwin-branch"),
+            "switch_multiline": ('switch runtime.GOOS {\ncase "freebsd",\n "darwin": }', "darwin-branch"),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            for case, (source, reason) in cases.items():
+                with self.subTest(case=case):
+                    (root / "platform.go").write_text(source)
+                    pkg = {"Dir": tmp, "ImportPath": "example/" + case,
+                           "Module": {"Path": "example"}, "GoFiles": ["platform.go"]}
+                    selected = m.inventory([pkg])
+                    self.assertEqual(selected[0]["package"], pkg["ImportPath"])
+                    self.assertEqual(selected[0]["reasons"], ["platform.go:" + reason])
+
     def record(self):
         return {"profile": "corvint-pr-narrowing/0", "mode": "NARROWED", "target": "target",
                 "head": "head", "runId": 42, "shard": 0, "shards": 1, "reasons": [],
                 "selected": ["example/p"], "executed": ["example/p"]}
 
-    def test_CINV04626_fail_closed(self):
+    def test_CINV04625_fail_closed(self):
         self.assertEqual(m.narrow(self.record(), "target", "head", "42"), {"example/p"})
         for field, value in {"profile": "bad", "mode": "FULL", "target": "other", "head": "other",
                              "runId": 43, "shard": 1, "shards": 16, "reasons": ["unreadable"],
@@ -46,7 +72,7 @@ class DarwinSelection(unittest.TestCase):
                 record[field] = value
                 self.assertIsNone(m.narrow(record, "target", "head", "42"))
 
-    def test_CINV04626_nested_module_and_empty_selection(self):
+    def test_CINV04625_nested_module_and_empty_selection(self):
         packages = [{"package": "root/p", "module": "github.com/Beamfall/corvint"},
                     {"package": "nested/p", "module": "nested"}]
         self.assertEqual(m.selection(packages, None), packages)
@@ -59,18 +85,7 @@ class DarwinSelection(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.inventory([{"ImportPath": "bad", "Error": {"Err": "failed"}}])
 
-    def test_CINV04626_required_check_failure_and_batched_pr(self):
-        ci = pathlib.Path(".github/workflows/ci.yml").read_text()
-        guard = ci.split("          # CIN-V0-4626: a Darwin failure")[1].split("          # AFP-V0-027")[0]
-        guard = guard[guard.index("          if "):]
-        for event in ("pull_request", "merge_group", "push"):
-            for result in ("success", "failure", "cancelled", "skipped", ""):
-                with self.subTest(event=event, result=result):
-                    proc = subprocess.run(["bash", "-e", "-c", guard], env={
-                        "GITHUB_EVENT_NAME": event, "MACOS_RESULT": result, "BATCHED": "true"})
-                    self.assertEqual(proc.returncode == 0, result == ("success" if event == "pull_request" else "skipped"))
-
-    def test_CINV04626_workflow_wiring(self):
+    def test_CINV04625_workflow_wiring(self):
         ci = pathlib.Path(".github/workflows/ci.yml").read_text()
         job = ci.split("  go-macos:\n")[1].split("\n  go-product:\n")[0]
         self.assertIn("runs-on: macos-15", job)
@@ -78,9 +93,10 @@ class DarwinSelection(unittest.TestCase):
         self.assertIn('sh "$TRUSTED/.github/forward-rows/narrow.sh"', job)
         self.assertIn('script/heavy.sh', job)
         self.assertIn('if [ "$NATIVE_NARROW_RESULT" = success ]; then', job)
-        self.assertIn('docs-plan, static-reuse, go-macos]', ci)
-        self.assertIn('test "$MACOS_RESULT" = success', ci)
-        self.assertIn('test "$MACOS_RESULT" = skipped', ci)
+        self.assertIn("github.event_name == 'pull_request'", job)
+        aggregate = ci.split("  go-product:\n")[1].split("\n  ci-tested-tree-record:\n")[0]
+        self.assertNotIn('go-macos', aggregate)
+        self.assertNotIn('MACOS_RESULT', aggregate)
 
 
 if __name__ == "__main__":

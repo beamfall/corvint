@@ -273,21 +273,23 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
   reach the merge queue.
 
-- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625)
+- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended by the owner's fix-round charter, 2026-11-04)
   Every pull request SHALL start one GitHub-hosted `macos-15` job, `go-macos`, using the pinned
   production Go toolchain and nightly macOS host provisioning. A verified `docs-plan` DOCS decision
   MAY skip its tests; a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
   `go list` metadata for the root module and CI's existing nested modules `tools/local-authority`
   and `interop/cem01-go`, the job SHALL select packages containing Darwin filename/build constraints,
-  `GOOS` comparisons with `"darwin"` in code or tests, or `/private/var` or `/var/folders` path-alias
-  witnesses. Source and test files, including ignored platform files, SHALL be rescanned on every
-  run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
+  `GOOS` comparisons or switch cases with `"darwin"` in code or tests, or `/private/var` or
+  `/var/folders` path-alias witnesses. Build constraints SHALL conservatively include indirect Darwin terms (`unix`,
+  negated OS tags such as `!linux` and `!windows`, and BSD forms); selecting every build
+  constraint is permitted. Source and test files, including ignored platform files, SHALL be
+  rescanned on every run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
   package and the file/reason for inclusion. Tests SHALL run per package, without the full-suite
   gate or a race run, sequentially with two build workers and two test workers. The job SHALL
   occupy at most one hosted runner, have a 180-minute timeout, and retain selection evidence even
   after failure. Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
   execution; Linux cost history is an estimate, never a native measurement.
-- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625)
+  The job is advisory: `go-product` SHALL NOT depend on it or inspect its result.
   `go-macos` MAY intersect its root-module inventory with a native narrowed selection only after
   the existing `narrowing-verdict` reports MET and the existing trusted `narrow.sh` guards admit
   it: protected main-parent tools built for Darwin, native driver and shadow, matching event/base/
@@ -295,11 +297,18 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   Linux package artifacts SHALL NOT drive this intersection. An absent, failed, malformed or
   mismatched native record SHALL run the entire Darwin inventory, never silently omit packages;
   nested modules SHALL always retain their full Darwin inventory because the root planner does
-  not own them. The existing required `go-product` aggregate SHALL require `go-macos` success on
-  every PR, before its batched-label early exit; outside PRs it SHALL require the intentional job
-  skip. Its artifact SHALL use a distinct name outside the Linux shard record/coverage patterns,
+  not own them. Its artifact SHALL use a distinct name outside the Linux shard record/coverage
+  patterns,
   so it cannot change their denominator. Activation remains subject to `ci-control-plane` admin
   review; no branch-protection change or new required status context is necessary.
+- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred by the owner's fix-round charter, 2026-11-04) PLANNED/deferred: make `go-macos`
+  required through `go-product` only after V1-4413, V1-4551 and V1-4553 fix the existing native
+  failures and one hosted FULL run is green. Until then CIN-V0-4625 remains advisory.
+  The deferred integration SHALL check PR success before the batched-label early exit and
+  require the intentional job skip outside PRs. Nightly `macos-15` full-gate run 41849536472
+  at base `6c33df33bc5670131482f5263b410cb980580657` fails in selected packages
+  (`internal/contextindex`, `internal/tasks/cli`, `internal/tasks/store`, `internal/testsupport`,
+  `interop/cem01-go`); requiring this result now would block FULL-fallback pull requests.
 
 ## Non-goals
 
@@ -326,7 +335,8 @@ OS checks, imported aliases of `GOOS`, and path-sensitive behavior without a pat
 missed. Add a Darwin/platform test or an explicit `/private/var` regression witness when such a
 failure is found. The nightly full gate remains the backstop. New independent nested Go modules
 need explicit job provisioning; fixture modules under testdata are not product packages. Missing
-host tools, metadata errors, native test failures and timeout fail the required aggregate. The
+host tools, metadata errors, native test failures and timeout fail the advisory job
+without blocking `go-product`; required integration is deferred to V1-4636 (CIN-V0-4626). The
 180-minute ceiling is a hang/resource bound, not a latency promise; full fallback is expensive.
 Normal narrowed changes are estimated at 5–15 runner minutes (setup/planning and selected packages),
 while full fallback is conservatively budgeted up to 180; actual macOS timings are NOT_OBSERVED.
@@ -398,13 +408,13 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
-
-| CIN-V0-4625 | `go-macos` in `.github/workflows/ci.yml`; `.github/macos/select.py` | `python3 -B .github/macos/select_test.py` (native-file, tag, multiline/reversed OS comparison, path-alias, inventory drift and metadata-error fixtures); hosted Darwin run NOT_RUN locally |
-| CIN-V0-4626 | native invocation of `.github/forward-rows/narrow.sh`; selector record validation and nested-module boundary; `go-product` dependency/result check | `python3 -B .github/macos/select_test.py` (wrong identity/mode/run/shard, malformed selection, FULL fallback, empty intersection, nested module retention and required-job wiring); existing narrowing guard tests in `tools/ci-forward-row` |
+| CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/ci.yml`; `.github/macos/select.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
+| CIN-V0-4626 | PLANNED/deferred: V1-4636; no required-aggregate dependency/result check | Required integration NOT_PRODUCED: blocked on V1-4413, V1-4551, V1-4553 and one green hosted FULL run; nightly run 41849536472 is failing at the lane base |
 
 ## Rollback
 
-CIN-V0-4625/4626: revert `go-macos`, its aggregate dependency/result check and `.github/macos/`.
+CIN-V0-4625: revert advisory `go-macos` and `.github/macos/`. CIN-V0-4626 has no delivered
+aggregate integration to roll back; V1-4636 owns its future activation.
 The nightly macOS gate and existing Linux narrowing remain operative; no persistent data migrates.
 
 CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
