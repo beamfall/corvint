@@ -38,9 +38,6 @@ type node struct {
 	// external tool, and process each write of process-wide state.
 	starts  []string
 	process []string
-	// resets marks a body calling signal.Ignore or signal.Reset, which
-	// signal.Stop does not undo.
-	resets bool
 	// unknown labels each standard-library function the body uses that is
 	// neither modelled nor on the pure list (AFP-V0-2374).
 	unknown []string
@@ -362,6 +359,7 @@ var (
 		"syscall.Setenv": environment, "syscall.Unsetenv": environment, "syscall.Clearenv": environment,
 		"os/signal.Notify": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals,
 		"log.SetOutput": logDefault, "log.SetFlags": logDefault, "log.SetPrefix": logDefault,
+		"(*log.Logger).SetOutput": logDefault, "(*log.Logger).SetFlags": logDefault, "(*log.Logger).SetPrefix": logDefault,
 		"log/slog.SetDefault": slogDefault, "os/signal.NotifyContext": signals, "log/slog.SetLogLoggerLevel": slogDefault,
 	}
 	stateReaders = map[string]*types.Var{
@@ -522,7 +520,6 @@ func (g *graph) funcDecl(pkg *Package, file *ast.File, decl *ast.FuncDecl, initi
 	}
 	if decl.Body != nil {
 		g.walk(n, pkg, decl.Body, signatureOf(object))
-		scopeSignals(n)
 	}
 	if object == nil {
 		return
@@ -588,25 +585,6 @@ func (g *graph) walkInitializer(initialization, held *node, pkg *Package, expr a
 		g.visitExpr(held, pkg, x)
 		return true
 	})
-}
-
-// scopeSignals drops the signal.Notify writes of a function that also calls
-// signal.Stop: the registration ends with the function (AFP-V0-2374).
-func scopeSignals(n *node) {
-	stops := false
-	for f := range n.calls {
-		stops = stops || isFunc(f, "os/signal", "Stop")
-	}
-	if !stops {
-		return
-	}
-	notifies := false
-	for f := range n.calls {
-		notifies = notifies || isFunc(f, "os/signal", "Notify")
-	}
-	if notifies && !n.resets {
-		delete(n.writes, signals)
-	}
 }
 
 // holder returns the node a package variable holds, creating it.
@@ -950,6 +928,11 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 	}
 	if callee != nil && callee.Pkg() != nil {
 		name := callee.Pkg().Path() + "." + callee.Name()
+		// A receiver may be the default logger or an alias returned by a
+		// helper. Without an ownership proof, every logger setter may write it.
+		if state := stateWriters[callee.FullName()]; state != nil {
+			n.writes[state] = true
+		}
 		if name == "log/slog.SetDefault" {
 			// slog.SetDefault also redirects the log package's output.
 			n.writes[logDefault] = true
@@ -982,9 +965,6 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 						g.fileWrite(n, pkg, call.Args[index], name)
 					}
 				}
-			}
-			if name == "os/signal.Ignore" || name == "os/signal.Reset" {
-				n.resets = true
 			}
 			if stateReaders[name] != nil {
 				n.reads[stateReaders[name]] = true
@@ -1244,7 +1224,13 @@ func (g *graph) assignedElsewhere(pkg *Package, body ast.Node, v *types.Var, own
 // valueEffects records the effects of a standard-library function taken as a
 // value, which may be called anywhere the value flows (AFP-V0-2374).
 func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
-	if f.Pkg() == nil || f.Signature().Recv() != nil {
+	if f.Pkg() == nil {
+		return
+	}
+	if state := stateWriters[f.FullName()]; state != nil {
+		n.writes[state] = true
+	}
+	if f.Signature().Recv() != nil {
 		return
 	}
 	name := f.Pkg().Path() + "." + f.Name()

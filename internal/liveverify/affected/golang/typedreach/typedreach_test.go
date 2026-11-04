@@ -327,9 +327,11 @@ func TestAFPV02376BaseEffectsPreserveRemovedWrites(t *testing.T) {
 		}
 	})
 	t.Run("constrained base", func(t *testing.T) {
-		before := append([]byte("//go:build linux\n\n"), source...)
-		if _, err := LoadBase(root, fixtureModule, "p", map[string][]byte{name: before}); !errors.Is(err, ErrUnmodelled) {
-			t.Fatalf("constrained base: %v", err)
+		for _, header := range []string{"//go:build linux\n\n", "//\t+build linux\n\n"} {
+			before := append([]byte(header), source...)
+			if _, err := LoadBase(root, fixtureModule, "p", map[string][]byte{name: before}); !errors.Is(err, ErrUnmodelled) {
+				t.Fatalf("constrained base %q: %v", header, err)
+			}
 		}
 	})
 }

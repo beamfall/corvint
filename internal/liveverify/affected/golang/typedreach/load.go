@@ -6,11 +6,11 @@
 package typedreach
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -71,8 +71,10 @@ var (
 )
 
 // Load type-checks the test binary of the package in directory dir (relative
-// to root) for the host platform with cgo disabled, the configuration `go
-// test` uses when CGO_ENABLED=0. Every module package keeps its function
+// to root) for the host platform. Explicit module build constraints refuse
+// narrowing: local and CI runner tags may select different source. Cgo is
+// enabled for discovery so cgo source cannot disappear before refusal.
+// Every module package keeps its function
 // bodies; standard-library packages are checked from GOROOT source without
 // them. A module package with cgo, assembly or a //go:linkname directive, or
 // any type error, is an error wrapping ErrUnmodelled or ErrTypeCheck.
@@ -86,7 +88,7 @@ func Load(root, module, dir string) (*Program, error) {
 // closed rather than pretending this overlay is a complete historical tree.
 func LoadBase(root, module, dir string, files map[string][]byte) (*Program, error) {
 	for name, source := range files {
-		if bytes.Contains(source, []byte("//go:build")) || bytes.Contains(source, []byte("// +build")) {
+		if hasBuildConstraint(source) {
 			return nil, fmt.Errorf("%w: constrained base file %s", ErrUnmodelled, name)
 		}
 		if source != nil {
@@ -118,7 +120,7 @@ func load(root, module, dir string, overrides map[string][]byte) (*Program, erro
 		return nil, fmt.Errorf("%w: %v", ErrUnmodelled, err)
 	}
 	ctx := build.Default
-	ctx.CgoEnabled = false
+	ctx.CgoEnabled = true
 	ctx.GOOS, ctx.GOARCH = runtime.GOOS, runtime.GOARCH
 	ctx.Dir = root
 	program := &Program{Fset: token.NewFileSet(), Module: module, Root: root, Context: ctx, byPath: map[string]*Package{}, loading: map[string]bool{}, overrides: overrides, overridesRead: map[string]bool{}}
@@ -136,6 +138,9 @@ func load(root, module, dir string, overrides map[string][]byte) (*Program, erro
 	if err := moduleHazard(bp); err != nil {
 		return nil, err
 	}
+	if err := runnerSourceParity(bp); err != nil {
+		return nil, err
+	}
 	target, err := program.check(importPath, bp.Dir, bp.Name, append(slices.Clone(bp.GoFiles), bp.TestGoFiles...), bp.TestGoFiles, true)
 	if err != nil {
 		return nil, err
@@ -149,6 +154,34 @@ func load(root, module, dir string, overrides map[string][]byte) (*Program, erro
 		program.XTest = xtest
 	}
 	return program, nil
+}
+
+// runnerSourceParity refuses even currently ignored constrained files. The
+// model does not carry the executor's tags (including CI's -race), so their
+// absence from this graph cannot prove their absence from the test binary.
+func runnerSourceParity(bp *build.Package) error {
+	for _, names := range [][]string{bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles, bp.IgnoredGoFiles} {
+		for _, name := range names {
+			source, err := os.ReadFile(filepath.Join(bp.Dir, name))
+			if err != nil {
+				return fmt.Errorf("%w: runner source %s: %v", ErrUnmodelled, name, err)
+			}
+			if hasBuildConstraint(source) {
+				return fmt.Errorf("%w: build-constrained source %s: runner configuration parity unproved", ErrUnmodelled, filepath.Join(bp.Dir, name))
+			}
+		}
+	}
+	return nil
+}
+
+func hasBuildConstraint(source []byte) bool {
+	for _, line := range strings.Split(string(source), "\n") {
+		line = strings.TrimSpace(line)
+		if constraint.IsGoBuild(line) || constraint.IsPlusBuild(line) {
+			return true
+		}
+	}
+	return false
 }
 
 // moduleHazard refuses a module package whose code the model cannot see.
@@ -189,13 +222,21 @@ func (program *Program) ImportFrom(importPath, dir string, _ types.ImportMode) (
 		if err := moduleHazard(bp); err != nil {
 			return nil, err
 		}
+		if err := runnerSourceParity(bp); err != nil {
+			return nil, err
+		}
 		pkg, err := program.check(importPath, bp.Dir, bp.Name, bp.GoFiles, nil, true)
 		if err != nil {
 			return nil, err
 		}
 		return pkg.Types, nil
 	}
-	bp, err := program.Context.Import(importPath, dir, 0)
+	// GOROOT is used only for signatures and is governed by the standard
+	// library effect allow-list. Its generated cgo definitions are not source
+	// inputs to go/types; module discovery above still enables cgo to refuse it.
+	stdlib := program.Context
+	stdlib.CgoEnabled = false
+	bp, err := stdlib.Import(importPath, dir, 0)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %v", ErrUnmodelled, importPath, err)
 	}

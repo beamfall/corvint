@@ -70,7 +70,7 @@ func DiffFile(name string, base, head []byte) FileChange {
 	names := map[string]bool{}
 	for _, side := range [2][2]map[string]declText{{before, after}, {after, before}} {
 		for key, text := range side[0] {
-			if other, ok := side[1][key]; ok && other.text == text.text {
+			if other, ok := side[1][key]; ok && other.text == text.text && other.positions == text.positions {
 				continue
 			}
 			names[text.name] = true
@@ -92,6 +92,7 @@ const importsKey = "\x00imports"
 type declText struct {
 	name      string
 	text      string
+	positions string
 	alwaysRun bool
 }
 
@@ -114,6 +115,22 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 			return "\x00unprintable"
 		}
 		return buffer.String()
+	}
+	// Compiled file/line/column positions are observable through runtime and
+	// logging APIs, even when the printed declaration is unchanged. Include
+	// interior nodes and adjusted //line positions, but not byte offsets.
+	positions := func(node ast.Node) string {
+		var out strings.Builder
+		ast.Inspect(node, func(n ast.Node) bool {
+			if n != nil {
+				out.WriteString(fset.Position(n.Pos()).String())
+				out.WriteByte('\n')
+				out.WriteString(fset.Position(n.End()).String())
+				out.WriteByte('\n')
+			}
+			return true
+		})
+		return out.String()
 	}
 	inits := 0
 	var imports []string
@@ -140,14 +157,14 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 				inits++
 				key += "#" + strings.Repeat("+", inits)
 			}
-			out[key] = declText{name: strings.SplitN(key, "#", 2)[0], text: print(decl), alwaysRun: alwaysRun}
+			out[key] = declText{name: strings.SplitN(key, "#", 2)[0], text: print(decl), positions: positions(decl), alwaysRun: alwaysRun}
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.ImportSpec:
 					// Imports change nothing a declaration does not show.
 				case *ast.TypeSpec:
-					out[spec.Name.Name] = declText{name: spec.Name.Name, text: decl.Tok.String() + " " + print(spec)}
+					out[spec.Name.Name] = declText{name: spec.Name.Name, text: decl.Tok.String() + " " + print(spec), positions: positions(spec)}
 				case *ast.ValueSpec:
 					// A const spec without values repeats the previous one's
 					// (iota), so the whole group is its text.
@@ -170,7 +187,7 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 							// initializer's effect.
 							calls = calls || decl.Tok == token.VAR
 						}
-						out[ident.Name] = declText{name: ident.Name, text: text, alwaysRun: decl.Tok == token.VAR && calls}
+						out[ident.Name] = declText{name: ident.Name, text: text, positions: positions(spec), alwaysRun: decl.Tok == token.VAR && calls}
 					}
 				}
 			}
