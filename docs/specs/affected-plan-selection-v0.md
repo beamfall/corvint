@@ -396,7 +396,15 @@ measure. None of them drops a unit the change can reach.
   absent counting as changed (`typedreach.DiffFile`). An `init` function, a package variable
   whose initializer calls or is blank, a package clause change or a parse failure SHALL be an
   initialization change, which keeps whole every test binary linking that package and bears on no
-  other. A changed name absent at head (removed) SHALL count every declaration of its package as
+  other. Before narrowing, the changed files' base bytes SHALL also be type-checked over the
+  current source closure, omitting files absent at base, without modifying the worktree. An
+  unreadable, constrained, deleted or incompatible base closure keeps the package whole with
+  `BASE_SOURCE_UNPROVED`. If any changed function or method present at base, or a method of a
+  changed type, can write any shared state, start a process or call a process-wide setter, the
+  package SHALL stay whole with `BASE_MAY_WRITE_SHARED_STATE`, naming the declaration. This
+  conservative check includes calls and held values: state the edit stopped writing still counts.
+  The measurement tool SHALL apply this same base check. A changed name absent at head (removed)
+  SHALL count every declaration of its package as
   changed; an added or removed method counts its receiver type as changed. An import change SHALL
   count every declaration of the file using a path imported under a new name, or newly imported,
   as changed; an added path no other file of the package imports, or a removed path the binary no
