@@ -4472,5 +4472,41 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/batch-integration-checks-v0.md",
+    "title": "Batch Integration Checks V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Batch integration scripts attribute a failure the diff cannot have caused and state the scope limit of the requirement-ID collision screen.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-self-development-selection-v0.md",
+    "title": "Corvint Self-Development Selection Correctness V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "per requirement, each experimental under the standing lane auto-accept (2026-11-03)",
+    "delivery": "experimental",
+    "claim": "heavy.sh admits new packages, suggests an accepted manifest path and keeps every darwin-only command local; batch-precheck uses the CI allowlist.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/lane-dogfood-tooling-v0.md",
+    "title": "Lane Dogfood Tooling V0",
+    "reqPrefix": "DTL-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Lane tooling preserves evidence boundaries while making verification, diagnostics and local scratch predictable.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

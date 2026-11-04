@@ -2682,6 +2682,24 @@ to the exact behavior-test anchor. Policy-owned worker/retry/environment-class/f
 remain attributed declarations bound by the policy and receipt digests, not independent runtime
 discovery.
 
+Environment digest preimage (V1-0623, 2026-11-01; a clarification of the delivered reader, no wire
+or admission change). A contribution's `identity.environment_sha256` is compared with the SHA-256
+of the receipt's `identity.environment` after decoding, not of its raw bytes: the receipt member
+decodes into the native string map, which is serialized through the corpus deterministic JSON
+encoding (`Encode`/`hashValue` in `internal/doccorpus/encoding.go`, called from the identity check
+in `internal/doccorpus/stability.go`), followed by one LF. A receipt whose `environment` is JSON
+`null` decodes to a nil map, and the corpus encoding writes a nil map as the empty object, so its
+preimage is `{}` plus LF (`ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356`), not
+`null` plus LF (`38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed`); a non-empty
+map is written with its keys sorted. A provider author in another language reproduces the digest
+by encoding the decoded map that way, never by hashing the receipt's member text. This
+decoded-map digest is distinct from the effective-use fixture digest, which is the SHA-256 of the
+exact raw Playwright project `use` bytes (`identity.fixture_sha256`). The clarification does not
+make `null` a different identity from `{}`, accept malformed identity, change frozen receipt
+bytes, or qualify any present-stability run: live browser, authentication, adequacy and runtime
+qualification stay unobserved, and the original issue-399 acceptance (V1-0546) is unchanged.
+`TestStabilityEnvironmentDigestPreimage` pins both example digests and the null reading.
+
 Qualified `corvint-playwright-external/1` contributions bind the application revision through the
 fully validated before/after application attestation, including a distinct application repository.
 The `/0` profile retains its declared application identity and corpus-revision admission. Invalid

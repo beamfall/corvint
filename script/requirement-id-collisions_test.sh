@@ -173,4 +173,20 @@ for bad in '--block ASD-V0 9 1' '--block asd 1 2' '--base no-such-ref' '--bogus'
   test "$status" = 2 || fail "bad input '$bad' did not exit 2"
 done
 
+# ASD-V0-080 (V1-4110): a build log that names an ID before any spec defines it is prose, not a
+# definition, so the block still reads free; the verdict states that limit and names the git grep
+# that finds the prose mention.
+mkdir -p "$repo/docs/build-log"
+printf 'Forward reference: this lane will define ASD-V0-055 next.\n' > "$repo/docs/build-log/2026-11-01-prose.md"
+g add -- docs/build-log
+g commit -q -m 'prose-only forward reference'
+g branch -q -f main HEAD
+output=$(check --block ASD-V0 050 059) || fail "a prose-only forward reference made the block used: $output"
+want="requirement-id-collisions: NOTE scope: only docs/specs/REQUIREMENTS.tsv definitions were compared; IDs named only in prose (build logs, charters, tickets) are not scanned; find them with: git grep -nE 'ASD-V0-[0-9]{3}' main -- docs/build-log"
+case $output in *"$want"*) ;; *) fail "the block verdict does not state the prose limit: $output" ;; esac
+(cd "$repo" && git grep -nE 'ASD-V0-[0-9]{3}' main -- docs/build-log) | grep -q 'ASD-V0-055' ||
+  fail "the named git grep does not find the prose mention"
+output=$(check) || true
+case $output in *'NOTE scope: only docs/specs/REQUIREMENTS.tsv definitions were compared'*) ;; *) fail "the collision verdict does not state the prose limit: $output" ;; esac
+
 printf 'requirement-id-collisions_test.sh: ok\n'

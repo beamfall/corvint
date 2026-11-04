@@ -398,7 +398,7 @@ two requirements make its version name its content and make each receipt carry i
   `make unbounded-readers-check` before merge and never narrows a run silently. Falsifier: a
   dirty path whose plan-selected `UNBOUNDED_READER` package is absent from the `--dry-run` run
   set, or a `--dry-run` run set that lacks a package `gateselect.Select` attributes by rules (a)
-  to (c). Rollback: call `gateselect.Select` from `testFillPlan` again.
+  to (c). Rollback: call `gateselect.Select` from `testFillPlan` again. Amended by AFP-V0-2402 (`docs/specs/affected-plan-selection-v0.md`, V1-4363): a `run` verdict runs only the plan's own Go selection; the attribution still decides FALLBACK and NOTHING.
 - `STR-V0-062`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2808) An `invalid-arguments`
   refusal of `corvint test` for an unknown flag, a flag without its value or a stray positional
   argument SHALL name the word at fault before the usage line (`flag provided but not defined:

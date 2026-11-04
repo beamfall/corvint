@@ -91,7 +91,11 @@ judge && exit 0
 ((rebuild)) || exit 1
 [[ $(git -C "$dir" rev-parse HEAD) == "$head" ]] || refuse "rebuild-ref-not-head $against; fix: run --rebuild in a clean checkout at $against, then retry lane setup"
 [[ -z $(git -C "$dir" status --porcelain --untracked-files=normal) ]] || refuse "dirty-checkout $dir (the build would record vcs.modified=true); fix: commit or move aside the checkout changes, then rerun with --rebuild"
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/lane-binary-check.XXXXXX") || refuse "temp-dir-failed; fix: set TMPDIR to a writable directory with free space, then rerun with --rebuild"
+# DTL-V0-014: keep large lane scratch on a configurable disk and remove only this run's directory.
+# Only the derived default is created; an explicit TMPDIR must already exist (temp-dir-failed).
+scratch_parent=${TMPDIR:-${CORVINT_SCRATCH_ROOT:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-heavy}/tmp}
+[[ -n ${TMPDIR-} ]] || mkdir -p "$scratch_parent" || { printf 'lane scratch unavailable; fix: set TMPDIR to a writable disk directory\n' >&2; exit 2; }
+tmp=$(mktemp -d "$scratch_parent/lane-binary-check.XXXXXX") || refuse "temp-dir-failed; fix: set TMPDIR to a writable directory with free space, then rerun with --rebuild"
 trap '/bin/rm -rf "$tmp"' EXIT INT TERM
 build=$(git -C "$dir" rev-list --first-parent --count HEAD)
 (cd "$dir" && GOTOOLCHAIN=local "${GO:-go}" build -o "$tmp/corvint" -ldflags "-X main.build=$build" ./cmd/corvint) || refuse "build-failed in $dir; fix: resolve the Go build error above (GO selects the toolchain), then rerun with --rebuild"

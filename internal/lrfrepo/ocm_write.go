@@ -861,9 +861,22 @@ func claimSelectorMissMessage(selector string) string {
 	}
 	normalized := selectorFragment(suffix)
 	if normalized != suffix {
-		message += "; normalized case fragment: " + normalized
+		// OCM-V0-700 (V1-3693): name what was given beside what was searched.
+		message += "; given case fragment: " + boundedFragment(suffix) + "; normalized case fragment: " + normalized + claimSelectorNormalization
 	}
 	return message + goCaseAnchorShapes + claimSelectorRecovery
+}
+
+// claimSelectorNormalization points a normalized miss at the fragment grammar (OCM-V0-700).
+const claimSelectorNormalization = " (lower-cased, plural s/ies folded, digit-only words dropped; grammar: docs/specs/ocm-v0-dogfood.md OCM-V0-007 clarification)"
+
+// boundedFragment quotes at most 96 bytes of a caller-supplied case suffix, so the
+// diagnostic stays bounded and control bytes print escaped.
+func boundedFragment(suffix string) string {
+	if len(suffix) > 96 {
+		suffix = strings.ToValidUTF8(suffix[:96], "") + "..."
+	}
+	return strconv.QuoteToASCII(suffix)
 }
 
 // claimSelectorRecovery names where a valid selector comes from (V1-3659): the

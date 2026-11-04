@@ -57,25 +57,29 @@ func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, st
 	return emitAdapterOutput(stdout, compactionPlainOutput(arguments, watchedHostAdapterOutput(ctx, deadline, arguments, stdin)))
 }
 
-// AHI-017: the kill each shipped hooks.json declares for an adapter invocation, keyed by the
-// arguments after "adapter". An invocation absent here declares no kill and gets no watchdog.
-var adapterDeclaredHostKill = map[string]time.Duration{
-	"codex":                     2 * time.Second,
-	"claude-code session-start": 2 * time.Second,
-	"claude-code user-prompt":   2 * time.Second,
-	"claude-code post-tool":     2 * time.Second,
-	"claude-code stop":          2 * time.Second,
-	"claude-code session-end":   time.Second,
-	"claude-code pre-compact":   2 * time.Second,
-	"claude-code post-compact":  2 * time.Second,
+// adapterHostKill is one AHI-017 watchdog entry: the host kill for an adapter invocation and
+// whether the invocation is opt-in, so no shipped hooks.json registers it.
+type adapterHostKill struct {
+	kill  time.Duration
+	optIn bool
 }
 
-// adapterOptInHostKill bounds the opt-in events no shipped hooks.json registers (AHI-804, AHI-805):
-// an operator who wires one under a host timeout gets the same 2 s watchdog and degradation as a
-// registered event. It is kept apart from adapterDeclaredHostKill, which AHI-017 pins to hooks.json.
-var adapterOptInHostKill = map[string]time.Duration{
-	"claude-code subagent-start": 2 * time.Second,
-	"claude-code pre-tool":       2 * time.Second,
+// AHI-017: the kill for each adapter invocation, keyed by the arguments after "adapter". A
+// shipped entry is the kill its hooks.json declares; an opt-in entry (AHI-804, AHI-805) bounds an
+// event an operator wires themselves, which gets the same watchdog and degradation (V1-3946). An
+// invocation absent here declares no kill and gets no watchdog.
+var adapterDeclaredHostKill = map[string]adapterHostKill{
+	"codex":                      {kill: 2 * time.Second},
+	"claude-code session-start":  {kill: 2 * time.Second},
+	"claude-code user-prompt":    {kill: 2 * time.Second},
+	"claude-code post-tool":      {kill: 2 * time.Second},
+	"claude-code stop":           {kill: 2 * time.Second},
+	"claude-code stop-done-list": {kill: 10 * time.Second}, // AHI-194
+	"claude-code session-end":    {kill: time.Second},
+	"claude-code pre-compact":    {kill: 2 * time.Second},
+	"claude-code post-compact":   {kill: 2 * time.Second},
+	"claude-code subagent-start": {kill: 2 * time.Second, optIn: true},
+	"claude-code pre-tool":       {kill: 2 * time.Second, optIn: true},
 }
 
 const (
@@ -101,15 +105,11 @@ func adapterHostKillContext(parent context.Context, arguments []string, start ti
 	if len(arguments) < 2 || arguments[0] != "adapter" {
 		return parent, func() {}
 	}
-	key := strings.Join(arguments[1:], " ")
-	kill, ok := adapterDeclaredHostKill[key]
-	if !ok {
-		kill, ok = adapterOptInHostKill[key]
-	}
+	entry, ok := adapterDeclaredHostKill[strings.Join(arguments[1:], " ")]
 	if !ok {
 		return parent, func() {}
 	}
-	return context.WithDeadline(parent, start.Add(kill-adapterProcessReserve))
+	return context.WithDeadline(parent, start.Add(entry.kill-adapterProcessReserve))
 }
 
 // watchedHostAdapterOutput returns the adapter's own output, or a degradation once the
@@ -812,7 +812,13 @@ func claudeReceiptOutput(event string, result map[string]any) map[string]any {
 	if !ok {
 		return map[string]any{}
 	}
-	return claudeContextOutput(name, "Corvint FALLBACK "+fmt.Sprint(result["receiptId"])+claudeNamedCodes(result["degradations"]))
+	text := "Corvint FALLBACK " + fmt.Sprint(result["receiptId"]) + claudeNamedCodes(result["degradations"])
+	codes, _ := result["degradations"].([]any)
+	for _, raw := range hookDegradationDiagnostics(codes) {
+		row := raw.(map[string]any)
+		text += "\ncause: " + row["cause"].(string) + "\nfix: " + row["fix"].(string)
+	}
+	return claudeContextOutput(name, text)
 }
 
 // claudeRecognisedDegradation is receiptDegradationPolicy.recognised in
@@ -899,11 +905,11 @@ func snapshotRemediations(ctx context.Context, root string) (string, string) {
 	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
 	status, previous := startSnapshotRefreshReporting(ctx, root)
 	if status == "disabled" {
-		text := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+		text := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. cause: index-snapshot-missing\nfix: refresh once outside the hook:\n" + string(refresh)
 		return text, text
 	}
 	lead := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh " + status + "."
-	tail := " Manual fallback, outside the hook:\n" + string(refresh)
+	tail := "\ncause: index-snapshot-missing\nfix: refresh outside the hook:\n" + string(refresh)
 	if previous == "" {
 		return lead + tail, lead + tail
 	}
@@ -1032,7 +1038,11 @@ func causeRemediation(root, reason string) string {
 			cause = line
 		}
 	}
-	return "\n" + cause + recovery + string(query)
+	code := reason
+	if reason == claudeUnavailableReason {
+		code = "event-read-unavailable"
+	}
+	return "\ncause: " + code + "\n" + cause + recovery + "fix: " + string(query)
 }
 
 // alternatesCauseLine is the AHI-802 cause line for an unavailable read in a clone that borrows
@@ -1419,11 +1429,13 @@ func codexDegraded(event, reason string) map[string]any {
 	return map[string]any{"systemMessage": message}
 }
 func emitAdapterOutput(stdout io.Writer, value map[string]any) int {
+	value = withFallbackDiagnostics(value)
 	raw, err := json.Marshal(value)
-	if err != nil || len(raw)+1 > adapterOutputLimit {
-		raw, _ = json.Marshal(degradedAdapterOutput("corvint-output-too-large"))
+	overflow := err != nil || len(raw)+1 > adapterOutputLimit
+	if overflow {
+		raw, _ = json.Marshal(withFallbackDiagnostics(degradedAdapterOutput("corvint-output-too-large")))
 	}
-	if text, ok := value[adapterPlainStdoutKey].(string); ok && err == nil && len(raw)+1 <= adapterOutputLimit {
+	if text, ok := value[adapterPlainStdoutKey].(string); ok && !overflow {
 		raw = []byte(text) // the host reads this event's stdout as text, not hook JSON (decision 0340)
 	}
 	raw = append(raw, '\n')

@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:471@e23d2d1f`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:474@e23d2d1f`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
   Amended 2026-11-01 by SRG-V0-790 (V1-3793): the token accepts three or more digits, and an ID of
@@ -657,6 +657,68 @@ No requirement below diverges from the implementation.
   prove two individually admitted lane fixtures overflow when combined, in both OCM and the
   generator; it MUST prove the base difference attributes only the added lane's IDs, an unchanged
   exact-256 spec warns and passes with BASE, and filling a spec to 256 since BASE fails capacity.
+- `SRG-V0-082`: (experimental under the standing lane auto-accept (2026-11-01); V1-4124) An `## Agent digest` field outside `Blocked on`, `Claim`,
+  `Exists`, `Read next`, `Status`, `Successor` and `Why` MUST be refused in every mode, naming
+  `path:line`, the field and the allowed set, so it fails at `make spec-requirements` instead of only
+  at `spec-requirements-check`; which subset a live or superseded spec needs stays the
+  `internal/specindex` check. Rollback: drop the refusal.
+- `SRG-V0-083`: (experimental under the standing lane auto-accept (2026-11-01); V1-3881; refines SRG-V0-980) Each SRG-V0-980 frozen-line
+  refusal MUST also name its ledger row in `docs/specs/INTENT-STATUS-FROZEN.tsv` (its character
+  allowance and number of listed IDs) or say the spec has none, and state the supported way to
+  change status: in the leading note of the requirement's own definition line, the frozen line
+  only shortened or losing an ID. The existing message text is kept as a prefix. Rollback: drop the
+  two appended clauses.
+- `SRG-V0-084`: (experimental under the standing lane auto-accept (2026-11-01); V1-4150; refines SRG-V0-012) The README claim projection MUST replace
+  the leading claim once: a description that starts with the current claim, or with the claim
+  INDEX.json last recorded, loses exactly that text, any further leading copy of either is dropped,
+  and only otherwise is the first sentence cut, so regeneration is idempotent and never repeats a
+  sentence. Rollback: restore the first-sentence cut alone.
+- `SRG-V0-085`: (experimental under the standing lane auto-accept (2026-11-01); V1-3906) Every `--write` and `--check` exit path (a
+  refusal, a failed write, a signal or a success) MUST remove the private `mktemp` directory, and
+  `script/gen-spec-requirements_test.sh` MUST force a refusal in each mode under a private `TMPDIR`
+  and assert that no `gen-spec-requirements.*` directory remains. Rollback: drop the test case; the
+  EXIT trap stays.
+- `SRG-V0-086`: (experimental under the standing lane auto-accept (2026-11-01); V1-4127) When `--write` rewrites `docs/specs/README.md` and a tracked
+  Markdown file cites it by line (`docs/specs/README.md:N`), the run MUST name the citing files and
+  print the exact repin command, `script/check-line-citations.sh --repin --changed --base HEAD`, to
+  run once the regenerated file is staged. Rollback: drop the two lines.
+- `SRG-V0-087`: (experimental under the standing lane auto-accept (2026-11-01); V1-4135) `script/gen-spec-requirements_test.sh` MUST fail when two of
+  its numbered `# N.` cases share a number, so a merge of two lanes that each add the next case is
+  caught. Rollback: drop the self-check.
+- `SRG-V0-750`: (experimental under the owner's standing auto-accept (2026-11-01); V1-2299) The
+  SRG-V0-011 header tail has one deterministic rule: it never grows. The SRG-V0-980 refusal MUST
+  also cover the header `Delivery status:`, read and named as `Delivery status` in the refusal: a
+  requirement ID (with its `..NNN` and `/NNN` reach) there that the spec's
+  `docs/specs/INTENT-STATUS-FROZEN.tsv` row does not list is refused in every mode, so no lane
+  appends a segment to any of the three status lines and there is no order or merge of segments to
+  define. A lane records each acceptance or amendment on the requirement's own definition line
+  (SRG-V0-009, SRG-V0-981), where two lanes on different requirements touch different lines. The
+  Delivery status check is ID-only: no length rule applies, because the frozen file records only
+  the Intent status length (six Delivery status lines exceed 160 characters today). At the change,
+  no tracked spec's Delivery status names an ID its frozen row lacks. Failure mode: before this, an
+  ID appended to the Delivery status alone passed the generator, and only the SRG-V0-014 specindex
+  test noticed the digest no longer matched, after both lanes had already conflicted on the line.
+  Evidence: `script/gen-spec-requirements_test.sh` case 13. Rollback: drop the third field of the
+  refusal loop.
+- `SRG-V0-751`: (experimental under the owner's standing auto-accept (2026-11-01); V1-4126)
+  Requirement definitions MAY appear in any order inside a spec's `## Requirements` section; no
+  check sorts or refuses them by number. `REQUIREMENTS.tsv` keeps definition order (SRG-V0-015)
+  and `--lines` prints id order, so a reader wanting numeric order uses `--lines`. Decision
+  (V1-4126, 2026-11-01): the 95 out-of-order ASD-V0 definitions stay where they are, because
+  sorting a heavily edited spec moves every definition between the moved ones, conflicts with each
+  open lane on that spec and changes no indexed field. Evidence:
+  `script/gen-spec-requirements_test.sh` case 26. Rollback: drop this requirement; nothing reads it.
+- `SRG-V0-752`: (experimental under the owner's standing auto-accept (2026-11-01); V1-2392) It
+  narrows SRG-V0-016 for README.md: two changes that each move the SRG-V0-043 range of a different
+  spec, where those specs' README rows are adjacent, conflict in `README.md` (git merges adjacent
+  changed lines as one hunk), and only there; `make spec-requirements-resolve` MUST finish that
+  merge, with every merged generated file equal to its regeneration. A lane that adds an ID above a
+  spec's highest moves that spec's range, so lanes that take ID blocks under neighbouring specs meet
+  this conflict. Measured 2026-11-01 at the lane base: 70 of the 262 README table lines carry a
+  range, and adjacent range rows exist (for example `process-group-owner-v0.md` and
+  `authoring-step-scope-v0.md`). Non-goal: dropping the ranges, which SRG-V0-043 checks against the
+  index. Evidence: the SRG-V0-752 case of `script/spec-requirements-conflict_test.sh` (both merge
+  orders). Rollback: drop the case and this requirement; the conflict and its resolve are unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -784,6 +846,12 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-820 | `script/gen-spec-requirements_test.sh` case 17: `--write` stages the regenerated files and prints the `staged` line |
 | SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 248 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing; unavailable BASE/SPEC_REQUIREMENTS_BASE preserves the over-cap file/count/cap with an unavailable note; baseline generation succeeds under either unavailable base variable |
 | SRG-V0-743 | `script/gen-spec-requirements_test.sh` case 51: a fixture with specs but no README prints the TSV and is refused in `--readme` naming the layout comment |
+| SRG-V0-082 | `script/gen-spec-requirements_test.sh` case 21: an `Owner:` digest field is refused naming `path:line` and the allowed fields; the committed corpus regenerates unchanged |
+| SRG-V0-083 | `script/gen-spec-requirements_test.sh` case 22: the frozen refusal names the missing ledger row, then the row's allowance and ID count, and the supported way to change status; case 13's existing messages still match |
+| SRG-V0-084 | `script/gen-spec-requirements_test.sh` case 23: a row hand-edited to the new claim before the old one keeps neither, a doubled claim collapses, and a second `--write` prints `no changes`; the committed README regenerates unchanged |
+| SRG-V0-085 | `script/gen-spec-requirements_test.sh` case 20: a refused `--check` and `--write` and a successful `--write` leave no `gen-spec-requirements.*` under a private `TMPDIR` |
+| SRG-V0-086 | `script/gen-spec-requirements_test.sh` case 24: a `--write` that rewrites README.md cited by line from a tracked note names the note and the repin command |
+| SRG-V0-087 | `script/gen-spec-requirements_test.sh` case 25: the file's `# N.` case numbers are unique |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 | SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
@@ -806,8 +874,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-921 | `script/spec-requirements-conflict_test.sh`: two lanes that each add a new spec and repin a different receipt conflict in INDEX.json and the ledger; the resolve alone finishes the merge, every generated file equals the regenerated one, both new requirements are rows and both receipts are current |
 | SRG-V0-922 | `script/spec-requirements-conflict_test.sh`: in that merge `make spec-requirements` refuses with one line naming INDEX.json and `make spec-requirements-resolve`, and again once INDEX.json is staged with its markers |
 | SRG-V0-923 | `script/spec-requirements-worktree-check_test.sh`: a staged spec edit whose regenerated INDEX.json is left unstaged fails naming INDEX.json and the fix; staging it passes |
-| SRG-V0-790 | `script/gen-spec-requirements_test.sh` case 16: `- **CIN-V0-1010:** x` beside `CIN-V0-999` yields a `CIN-V0-1010` row after `CIN-V0-999` in the TSV and `--lines` modes, while `V1-0789` and `DR-0046` table rows of prefixes without a three-digit definition yield none; `--readme` over `CIN-V0-001`, `CIN-V0-0001`, `CIN-V0-999` and `CIN-V0-1010` writes the range `CIN-V0-0001..1010` in ten of ten runs; the case fails on the pre-change generator. The committed corpus regenerates unchanged |
-| SRG-V0-791 | `script/gen-spec-requirements_test.sh` case 16: `- **CIN-V0-01:** x`, `- **CIN-V0-1010a:** x` and `- **CIN-V0-1010-bad:** x` are refused in the TSV and `--all` modes naming `SPEC:LINE` and the ID, and `--all` writes nothing; a lettered `- **CIN-V0-999A:** x` passes; the case fails on the pre-change generator |
+| SRG-V0-790 | `script/gen-spec-requirements_test.sh` case 52: `- **CIN-V0-1010:** x` beside `CIN-V0-999` yields a `CIN-V0-1010` row after `CIN-V0-999` in the TSV and `--lines` modes, while `V1-0789` and `DR-0046` table rows of prefixes without a three-digit definition yield none; `--readme` over `CIN-V0-001`, `CIN-V0-0001`, `CIN-V0-999` and `CIN-V0-1010` writes the range `CIN-V0-0001..1010` in ten of ten runs; the case fails on the pre-change generator. The committed corpus regenerates unchanged |
+| SRG-V0-791 | `script/gen-spec-requirements_test.sh` case 52: `- **CIN-V0-01:** x`, `- **CIN-V0-1010a:** x` and `- **CIN-V0-1010-bad:** x` are refused in the TSV and `--all` modes naming `SPEC:LINE` and the ID, and `--all` writes nothing; a lettered `- **CIN-V0-999A:** x` passes; the case fails on the pre-change generator |
 
 ## Traceability
 
@@ -907,6 +975,7 @@ SRG-V0-979 rolls back by removing the `successor_path` projection and
 equals its projection, so no generated file moves.
 SRG-V0-740 rolls back by removing the obligation count, its warning and refusal, and case 50.
 SRG-V0-743 rolls back by reverting the layout comment, the README refusal text and case 51.
+SRG-V0-082..087 roll back as one revert of their commit (lane sgd-u25): each requirement names its own rollback, and no generated file moves.
 
 SRG-V0-965..967 roll back as one revert of their commit: the recipe loses its bound check and its
 summary line, and a rollback-section line ranks as before.
