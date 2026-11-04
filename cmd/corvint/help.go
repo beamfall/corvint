@@ -2170,6 +2170,12 @@ verifiers run as this executable unless an option names another one; this binary
 never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
 DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings.
+For seal, DOGFOOD_REVIEW=FILE attaches an external report (at most 1 MiB) with
+one header: dogfood-review: reviewed-head=FULL_SHA verdict=PASS. It must name
+exact pre-seal HEAD; a malformed, nonpassing or different-head report refuses.
+The seal records its path, digest, verdict and head; absent review stays
+NOT_OBSERVED. Example: DOGFOOD_REVIEW=/tmp/review.txt corvint dogfood seal BASE.
+Existing pinned reviewer output also works with metadata-only descendants.
 DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST[,...] lets the plan replace the earlier
 citations of each named, already cited hunk, and only those; the digest is the one
 the citation-plan-recites-cited-hunk fix line prints, so a stale one cites

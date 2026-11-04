@@ -105,5 +105,33 @@ out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/seal-review.txt script/dogfood-seal.sh H
 out=$(cd "$seal" && script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
 [[ $rc == 7 && $out == *'dogfood-seal: NOTE review-before-seal NOT_OBSERVED'* ]] || fail "seal without a review: rc=$rc out=$out"
 
+# DWC-V0-046: an orchestrator's external report binds exact HEAD plus verdict.
+sealhead=$(git -C "$seal" rev-parse HEAD)
+printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review report.\n' "$sealhead" > "$tmp/external-review.txt"
+out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
+[[ $rc == 7 && $out == *"review-before-seal OBSERVED"* && $out == *"reviewed-head=$sealhead"* && $out == *'verdict=PASS'* ]] || fail "external review: rc=$rc out=$out"
+printf 'dogfood-review: reviewed-head=%s verdict=FAIL\n' "$sealhead" > "$tmp/external-review.txt"
+: > "$tmp/check.log"
+out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
+[[ $rc == 2 && ! -s $tmp/check.log ]] || fail "nonpassing external review ran check: $out"
+printf 'dogfood-review: reviewed-head=%s verdict=PASS\n' "$(git -C "$seal" rev-parse HEAD~1)" > "$tmp/external-review.txt"
+out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
+[[ $rc == 2 && $out == *'external-review-head-mismatch'* && ! -s $tmp/check.log ]] || fail "wrong external head: $out"
+# Finish a fixture seal, asserting durable review evidence and a rename-only tree.
+mkdir -p "$seal/.corvint"
+printf 'bound evidence\n' > "$seal/.corvint/change.cem.json"
+git -C "$seal" add -A && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m bind
+sealhead=$(git -C "$seal" rev-parse HEAD)
+printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review.\n' "$sealhead" > "$tmp/external-review.txt"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$seal/script/dogfood-check.sh"
+# Restore the stub in the tracked tree so the seal stays rename-only.
+git -C "$seal" add script/dogfood-check.sh && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m check-stub
+sealhead=$(git -C "$seal" rev-parse HEAD)
+printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review.\n' "$sealhead" > "$tmp/external-review.txt"
+out=$(cd "$seal" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
+message=$(git -C "$seal" log -1 --format=%B)
+changes=$(git -C "$seal" diff --name-status -M HEAD^ HEAD)
+[[ $rc == 0 && $out == *'dogfood-seal: PASS'* && $message == *"review-before-seal OBSERVED"* && $message == *"reviewed-head=$sealhead"* && $changes == R100$'\t'*.cem.json$'\t'*.cem.json ]] || fail "durable external review seal: rc=$rc out=$out message=$message changes=$changes"
+
 [[ $failed == 0 ]] || exit 1
 echo "review-head-check_test.sh: ok"

@@ -404,7 +404,8 @@
     "internal/docviews": [],
     "internal/dogfoodflow": [
       "docs/DOGFOOD.md",
-      "protocol/cem-1.0/stable/repository-envelope-packet/"
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "script/lane-handback.sh"
     ],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",

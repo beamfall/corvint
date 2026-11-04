@@ -62,6 +62,7 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 | `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
 | `DOGFOOD_OUTPUT_CHANGE` | Optional, `dogfood-check` and `dogfood-seal` only. One requirement ID, set only when the change alters the canonical `cem status` output by construction, so the base verifier cannot agree (`DCW-V0-047`). Admitted only when `docs/specs/REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that `BASE..HEAD` modifies; the `cem status` comparison, and the `dogfood-ocm status` comparison, then run the tree verifier in both roles, and it records `base-independence=NOT_PROVED` with both stdout digests. Unset, the check is unchanged | `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047` |
+| `DOGFOOD_REVIEW` | Optional seal input: path to a regular external report of at most 1 MiB with exactly one `dogfood-review: reviewed-head=FULL_SHA verdict=PASS` header. It must name the exact pre-seal HEAD; missing, malformed, failed or mismatched supplied reports refuse before check. The existing pinned reviewer-output format also works, retaining its metadata-only descendant rule. No report means review-before-seal `NOT_OBSERVED`. A seal records path, reviewed head, digest and verdict in output and its commit message (`DWC-V0-046`). | `DOGFOOD_REVIEW=/absolute/review.txt make dogfood-seal BASE=$BASE` |
 
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
@@ -490,6 +491,14 @@ The `dogfood-change` and `dogfood-bind-range` shell tests assert on their own ev
 (`script/test-rg-fallback.sh`, `DCW-V0-811`). Only a host whose grep also lacks `-P` gets a
 `REFUSE unsupported-environment-missing-rg` line instead of a misleading failure partway through
 the run.
+
+A standalone rebind over an already committed CEM may need another CEM commit. When preparing
+and citing succeed and only the CEM is dirty, change stops before the downstream status cascade
+with `commit-rebind-required`: commit the rebound `.corvint/change.cem.json` and rerun the same
+change command and base (`DWC-V0-044`). Its report remains incomplete until that rerun succeeds.
+`propose-citations --refresh` preserves matched rows, but drafts unmatched hunks from their own
+content; another hunk's citation is never a same-file placeholder (`DWC-V0-045`, amends
+`DCW-V0-842`). Review every new proposal.
 
 First-run order (`DCW-V0-802`). Each command needs only the inputs named here, so supply them in
 this order:
