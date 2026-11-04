@@ -16,9 +16,9 @@ build-log entry `2026-11-03-reuse-verified-results`.
 
 ## Agent digest
 - Claim: `corvint test reuse` reuses a Go pass whose input-closure digest is unchanged; `corvint affected jobs` decides RUN or SKIP for declared CI jobs.
-- Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental; the CI wiring stays dark until the owner's `ci-control-plane` review and the `CORVINT_PR_REUSE` / `CORVINT_PR_JOB_PLAN` variables.
+- Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental; CI reuse is hard-disabled pending a protected execution-evidence collector; job skips stay dark until control-plane review and opt-in.
 - Exists: `internal/testreuse` (`DigestPackage`, `Observe`, `BuildRecord`, `Decide`), `cmd/corvint/test_reuse.go`, `HEAVY_REUSE` in `script/heavy.sh`, `internal/jobinputs` (`Parse`, `Evaluate`, `GoDirectories`), `cmd/corvint/affected_jobs.go`, `.corvint/ci-job-inputs.json`, `tools/ci-reuse-replay`
-- Blocked on: the owner's `ci-control-plane` review of the `.github` commit; hosted reuse and skips are `NOT_OBSERVED`.
+- Blocked on: a protected execution-evidence collector and the owner's `ci-control-plane` review; hosted reuse and skips are `NOT_OBSERVED`.
 - Read next: Requirements; Failure modes; Rollback.
 
 ## User and current state
@@ -54,20 +54,26 @@ per package, and skip per job, only where the inputs the result depends on are p
   package `go list -deps -test` puts in P's test binary (P itself when it has no test files).
   Blob ids come from HEAD's tree. The digest is a `DIGEST_ERROR` with a named detail when an input
   is untracked (`untracked-input`), not a regular file blob (`irregular-input`), dirty, or has a
-  modified, untracked or ignored worktree path at or below it (`dirty-input`); when a closure
+  modified, untracked or ignored worktree path at or below it (`dirty-input`), including inputs hidden by assume-unchanged or skip-worktree index flags; when a closure
   package is outside the repository (`external-package`) or uses cgo (`cgo-input`); when
   `go list` reports an error for any closure package (`go-list-error`, `closure-unlisted`,
   `package-unlisted`); or when a declared entry's form disagrees with the tree (`scope-form`).
 - **AFP-V0-2322:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
   The identity is the canonical `corvint-test-reuse-identity/0` of the `go env` values of `CC`,
-  `CGO_CFLAGS`, `CGO_CPPFLAGS`, `CGO_CXXFLAGS`, `CGO_ENABLED`, `CGO_LDFLAGS`, `CXX`, `GOAMD64`,
-  `GOARCH`, `GOARM64`, `GODEBUG`, `GOEXPERIMENT`, `GOFLAGS`, `GOOS`, `GOTOOLCHAIN`, `GOVERSION` and
-  `GOWORK`;
+  `CGO_CFLAGS`, `CGO_CPPFLAGS`, `CGO_CXXFLAGS`, `CGO_ENABLED`, `CGO_LDFLAGS`, `CXX`, `GO386`, `GOAMD64`,
+  `GOARCH`, `GOARM`, `GOARM64`, `GODEBUG`, `GOEXPERIMENT`, `GOFLAGS`, `GOMIPS`, `GOMIPS64`, `GOOS`,
+  `GOPPC64`, `GORISCV64`, `GOTOOLCHAIN`, `GOVERSION`, `GOWASM` and `GOWORK`;
   the caller's `--argv` words; and the `(path, mode, blob)` of every tracked file of each
-  `--harness` path, which must be clean. The argv MUST carry `-count=1` and MUST NOT carry `-run`,
+  `--harness` path, which must be clean. Harness directories carry a `dir` marker so local
+  re-evaluation also discovers added files. The argv MUST carry `-count=1` and MUST NOT carry `-run`,
   `-skip`, `-list`, `-short`, `-failfast`, `-shuffle`, `-bench` or `-fuzz` (with or without the
   `test.` prefix): a partial or cached run is never a package pass. A record matches only an equal
-  identity digest; otherwise the unit runs with `IDENTITY_CHANGED`.
+  identity digest; otherwise the unit runs with `IDENTITY_CHANGED`. Closure discovery receives the
+  argv's build flags. Supported boolean build flags are `race`, `msan`, `asan`, `cover` and
+  `trimpath`; supported valued build flags are `tags`, `covermode` and `coverpkg`; supported
+  valued execution flags are `timeout`, `p`, `parallel` and `cpu`; supported boolean execution
+  flags are `v` and `json`. `GOFLAGS` is checked against the same allowlist. Unknown flags,
+  file-valued compiler overrides, partial execution flags and invalid values refuse reuse.
 - **AFP-V0-2323:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
   `corvint test reuse record` writes one `corvint-test-reuse-record/0` to `--out`: the source
   (`kind` `main`, `pull_request` with its number, or `local`; run id and attempt; commit and tree,
@@ -94,15 +100,24 @@ per package, and skip per job, only where the inputs the result depends on are p
   writes the RUN packages. When no decision can be produced (no snapshot, no identity, an
   unwritable output) it exits 3, `test-reuse-incomplete`, and the caller runs its full plan.
 - **AFP-V0-2326:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097)
-  The local runner honours the same decisions: `script/heavy.sh --plan M` with `HEAVY_REUSE=D`
+  The local runner re-evaluates the saved decision against current inputs and identity: `script/heavy.sh --plan M` with `HEAVY_REUSE=D`
   prints `# reused go:P: passed at COMMIT (KIND record NAME), digest DIGEST (AFP-V0-2326)` in
   place of every command of a package D decides `REUSE` with `RECORD_DIGEST_EQUAL` and a witness,
-  and counts them on its summary line. A decision whose head is not M's `source.head`, an
+  and counts them on its summary line. Before suppressing commands it invokes
+  `${CORVINT_BIN:-corvint} test reuse decide` with the saved decision's admitted record paths and
+  harness paths (record names preserve the caller's paths), and the printed plan's argv `-count=1 -timeout 30m`. The caller trusts these local
+  paths as it trusts the original decision. Missing records run the package; a failed re-evaluation
+  prints `reuse re-evaluation failed` and the full plan. A decision whose head is not M's `source.head`, an
   unreadable one or one of another profile is not applied: one `heavy.sh: HEAVY_REUSE=PATH not
   applied: REASON` line and the full plan. `corvint test reuse record --go-test-json` records a
   local run (`--source-kind local`).
 - **AFP-V0-2327:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1097;
-  effective only after the owner's `ci-control-plane` review) In `.github/workflows/ci.yml`, only
+  effective only after the owner's `ci-control-plane` review and a protected execution-evidence
+  collector) The CI reuse producer and consumer are hard-disabled (`if: false && ...`), with hold
+  `UNAUTHENTICATED_EXECUTION`: PR test processes can write the recorder and outcomes in their
+  runner, so those artifacts do not establish trusted execution. A repository variable alone MUST
+  NOT enable this path. Removing the hold requires a separately reviewed collector boundary that
+  tested code cannot write and its falsification evidence. The dormant wiring is as follows. In `.github/workflows/ci.yml`, only
   while the repository variable `CORVINT_PR_REUSE` is `on`: (1) a `pull_request` or `merge_group`
   shard that ran its whole partition writes `ci-test-reuse-record-SHARD` from its own outcomes
   with the CI argv `-race -count=1 -timeout 50m` and harness `.github/cishards/test-commands.json`,
@@ -145,8 +160,8 @@ per package, and skip per job, only where the inputs the result depends on are p
   `INPUT_PATH_CHANGED` (a declared file or a path below a declared `DIR/`, or the directory
   itself), `GO_MODULE_CHANGED` (`go.mod`, `go.sum`, `go.work` or `go.work.sum`, for a job with
   `goPackages` or `goTests`), `GO_PACKAGE_DIRECTORY_CHANGED` (a changed path, deleted ones
-  included, directly in the directory of a non-standard package `go list -deps` lists for any
-  declared platform with cgo off or on), `GO_TEST_SELECTED` (the plan selects a `goTests` unit),
+  included, at or below the directory of a non-standard package `go list -deps` lists for any
+  declared platform with cgo off or on, so an embedded subtree counts), `GO_TEST_SELECTED` (the plan selects a `goTests` unit),
   `PLAN_SCOPE_UNKNOWN` (a `goTests` job whose plan scope is not `BOUNDED`), the AFP-V0-2343 tree
   reasons, or `EVALUATION_ERROR` (a failed `go list`, a package outside the repository, a failed
   plan or no root module). Otherwise it is `SKIP` with `NO_DECLARED_INPUT_CHANGED` and one
@@ -203,8 +218,8 @@ any decision it cannot apply.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-2320 | `DigestPackage` eligibility checks in `internal/testreuse/testreuse.go`; `readDeclarations` in `observe.go`; `testReuseObserve` in `cmd/corvint/test_reuse.go` | `TestRecordCarriesOnlyEligiblePasses`, `TestUnboundedAndSlicedUnitsRun`, `TestDirtyOrUntrackedInputRuns` in `internal/testreuse/testreuse_test.go` |
-| AFP-V0-2321 | `DigestPackage`, `Snapshot.closure`, `Snapshot.dirtyWithin`, `Observe` in `internal/testreuse` | `TestDigestNegativeControls` (ten controls), `TestDirtyOrUntrackedInputRuns`, `TestFaultInjectionIsSelectedAndFails` |
-| AFP-V0-2322 | `Identity`, `CheckArgv`, `ObserveIdentity` in `internal/testreuse` | `TestCheckArgv`, `TestIdentityAndTrust` |
+| AFP-V0-2321 | `DigestPackage`, `Snapshot.closure`, `Snapshot.dirtyWithin`, `Observe` in `internal/testreuse` | `TestDigestNegativeControls` (ten controls), `TestDirtyOrUntrackedInputRuns`, `TestFaultInjectionIsSelectedAndFails`, `TestBuildFlagsReachTheClosure`, `TestHiddenIndexFlagsAreDirty` |
+| AFP-V0-2322 | `Identity`, `CheckArgv`, `ObserveIdentity` in `internal/testreuse` | `TestCheckArgv`, `TestIdentityAndTrust`, `TestArgvFlagsAreClassified` |
 | AFP-V0-2323 | `BuildRecord`, `ParseOutcomes`, `MergeOutcomes`, `ParseTestJSON` in `internal/testreuse/record.go`; `testReuseRecord` | `TestRecordCarriesOnlyEligiblePasses`, `TestMergeOutcomesRefusesAnotherCommit`, `TestParseTestJSON` |
 | AFP-V0-2324 | `ParseRecord` in `record.go`; record admission in `Decide` (`decide.go`) | `TestIdentityAndTrust` |
 | AFP-V0-2325 | `Decide`; `testReuseDecide` in `cmd/corvint/test_reuse.go` | `TestDigestNegativeControls`, `TestFaultInjectionIsSelectedAndFails` |
@@ -220,7 +235,7 @@ any decision it cannot apply.
 
 ## Rollback
 
-For the CI paths, unset `CORVINT_PR_REUSE` or `CORVINT_PR_JOB_PLAN` (every shard and job then
+The CI reuse path remains held as `UNAUTHENTICATED_EXECUTION`. For the CI paths, unset `CORVINT_PR_REUSE` or `CORVINT_PR_JOB_PLAN` (every shard and job then
 runs as before), or revert the `.github` commit. For the product, revert the lane's commits:
 delete `internal/testreuse`, `internal/jobinputs`, `cmd/corvint/test_reuse.go`,
 `cmd/corvint/affected_jobs.go`, `.corvint/ci-job-inputs.json` and `tools/ci-reuse-replay`, drop
