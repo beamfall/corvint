@@ -81,22 +81,31 @@ func TestProposeCitationsDWCV0927NoHeadings(t *testing.T) {
 // DWC-V0-928: use the unchanged BASE definition rather than edited body text,
 // including a definition in hunk context. Removed definitions remain uncertain.
 func TestProposeCitationsDWCV0928BaseGoverningDefinition(t *testing.T) {
-	for _, mode := range []string{"stable", "rewrite", "repeat"} {
+	for _, mode := range []string{"stable", "continuation", "rewrite", "repeat"} {
 		t.Run(mode, func(t *testing.T) {
 			spec := "# Widgets\n\n## Requirements\n\n- `XYZ-V0-001`: widgets MUST frob.\n  XYZ-V0-001 currently frobs once.\n  Further details stay here.\n"
 			changed := strings.Replace(spec, "currently frobs once", "now frobs twice", 1)
+			if mode == "continuation" {
+				changed = strings.Replace(changed, "XYZ-V0-001 now", "It now", 1)
+			}
 			if mode == "rewrite" {
 				changed = strings.Replace(changed, "widgets MUST frob.", "widgets MUST frob twice.", 1)
 			}
 			if mode == "repeat" {
 				changed += "\n- `XYZ-V0-001`: widgets MUST frob.\n"
 			}
-			out, _ := anchoredDraft(t, map[string]string{"docs/specs/widget.md": spec}, map[string]string{"docs/specs/widget.md": changed})
+			out, notes := anchoredDraft(t, map[string]string{"docs/specs/widget.md": spec}, map[string]string{"docs/specs/widget.md": changed})
 			fields := strings.Split(strings.TrimSpace(out), "\t")
-			if mode == "stable" && (fields[1] != "docs/specs/widget.md" || fields[2] != "5:5") {
+			if (mode == "stable" || mode == "continuation") && (fields[1] != "docs/specs/widget.md" || fields[2] != "5:5") {
 				t.Fatalf("definition: %s", out)
 			}
-			if mode != "stable" && fields[1] != "unknown" {
+			if mode == "continuation" && (!strings.Contains(notes, "CEM-V1-081 cannot anchor") || !strings.Contains(notes, "XYZ-V0-001")) {
+				t.Fatalf("missing honest governing note: %s", notes)
+			}
+			if mode == "rewrite" && (!strings.Contains(notes, "governing requirement XYZ-V0-001") || !strings.Contains(notes, "review note only")) {
+				t.Fatalf("missing rewritten-definition note: %s", notes)
+			}
+			if (mode == "rewrite" || mode == "repeat") && fields[1] == "docs/specs/widget.md" && fields[2] == "5:5" {
 				t.Fatalf("edited definition: %s", out)
 			}
 		})
@@ -117,6 +126,7 @@ func assertAnchoredDraft(t *testing.T, root, base, draft string) {
 	if len(rows) != len(parsed.Hunks) {
 		t.Fatalf("%d rows for %d hunks: %s", len(rows), len(parsed.Hunks), draft)
 	}
+	cites := 0
 	for index, row := range rows {
 		f := strings.Split(row, "\t")
 		if len(f) != 4 {
@@ -132,17 +142,100 @@ func assertAnchoredDraft(t *testing.T, root, base, draft string) {
 			}
 			continue
 		}
+		cites++
 		blob := []byte(testGit(t, root, "show", base+":"+f[1]) + "\n")
 		byteSpan, ok := lineByteSpan(blob, f[2])
 		if !ok {
 			t.Fatalf("invalid BASE span: %q", row)
 		}
 		span := spanBytes(blob, byteSpan)
-		if kinds, _ := verify.SpanAnchors(h, span); len(kinds) == 0 {
+		if kinds, _ := verify.SpanAnchors(h, span); len(kinds) == 0 && f[1] != h.DisplayPath && !sealedCEMPath.MatchString(h.DisplayPath) {
 			t.Errorf("unanchored guess: %q cites %q", row, span)
 		}
 		if strings.HasPrefix(strings.TrimSpace(string(span)), "#") && strings.HasSuffix(f[1], ".md") {
 			t.Errorf("bare heading: %q", row)
 		}
+	} // A fully unknown draft must not vacuously satisfy this helper when
+	// actual stable BASE naming evidence exists.
+	if cites == 0 {
+		for _, name := range strings.Fields(testGit(t, root, "ls-tree", "-r", "--name-only", base)) {
+			blob := []byte(testGit(t, root, "show", base+":"+name) + "\n")
+			for _, h := range parsed.Hunks {
+				if kinds, _ := verify.SpanAnchors(h, blob); len(kinds) > 0 {
+					t.Fatalf("all rows unknown despite BASE anchor in %s: %s", name, draft)
+				}
+			}
+		}
+	}
+
+}
+
+// DWC-V0-927: Markdown-looking source inside fences is content; list items
+// and YAML keys cannot become setext paragraphs merely by preceding dashes.
+func TestProposeCitationsDWCV0927MarkdownContexts(t *testing.T) {
+	for _, evidence := range []string{
+		"- src/widget.go\n---\n", "widget: src/widget.go\n---\n",
+		"```sh\n# src/widget.go\n```\n", "~~~md\n# src/widget.go\n~~~\n",
+		"1. src/widget.go\n---\n",
+	} {
+		out, _ := anchoredDraft(t, map[string]string{"src/widget.go": "old one\nold two\n", "docs/contract.md": evidence}, map[string]string{"src/widget.go": "new one\nnew two\n"})
+		if !strings.Contains(out, "\tdocs/contract.md\t") {
+			t.Fatalf("substantive content suppressed: %q: %s", evidence, out)
+		}
+	}
+}
+
+// DWC-V0-928 / DCW-V0-382: two separated continuation edits in one entry
+// cannot consume the same governing definition twice.
+func TestProposeCitationsDWCV0928DistinctGoverningSpans(t *testing.T) {
+	spec := "# Widget\n\n## Requirements\n\n- `XYZ-V0-001`: widgets MUST frob.\n" + numbered("  detail", 35)
+	after := strings.NewReplacer("  detail line 5\n", "  detail line 5 changed XYZ-V0-001\n", "  detail line 28\n", "  detail line 28 changed XYZ-V0-001\n").Replace(spec)
+	out, notes := anchoredDraft(t, map[string]string{"docs/specs/widget.md": spec}, map[string]string{"docs/specs/widget.md": after})
+	rows := textLines([]byte(out))
+	if len(rows) != 2 {
+		t.Fatalf("want two hunks: %s", out)
+	}
+	seen := map[string]bool{}
+	for _, row := range rows {
+		f := strings.Split(row, "\t")
+		if f[1] == "unknown" {
+			continue
+		}
+		key := f[1] + ":" + f[2]
+		if seen[key] {
+			t.Fatalf("duplicate governing span: %s\n%s", out, notes)
+		}
+		seen[key] = true
+	}
+	if !seen["docs/specs/widget.md:5:5"] {
+		t.Fatalf("governing anchor missing: %s", out)
+	}
+}
+
+// DWC-V0-926/928, DCW-V0-805/809: decision evidence may serve a rewritten
+// definition when it names the exact spec, rather than sharing topic words.
+func TestProposeCitationsDWCV0928DecisionNamesExactSpec(t *testing.T) {
+	spec := "# Widgets\n\n## Requirements\n\n- `XYZ-V0-001`: (accepted, decision 0388) widgets MUST frob.\n  Frob within 20 seconds.\n"
+	for _, text := range []string{"The contract for docs/specs/widget.md requires frobbing.\n", "- `XYZ-V0-001`: widgets MUST frob.\n"} {
+		out, notes := anchoredDraft(t, map[string]string{
+			"docs/specs/widget.md":          spec,
+			"docs/decisions/0388-widget.md": "# Decision\n\n" + text,
+		}, map[string]string{"docs/specs/widget.md": strings.Replace(spec, "widgets MUST frob.", "widgets MUST frob twice.", 1)})
+		if !strings.Contains(out, "\tdocs/decisions/0388-widget.md\t3:3\tdecision") || !strings.Contains(notes, "governing requirement XYZ-V0-001") {
+			t.Fatalf("lost evidenced decision: %s\n%s", out, notes)
+		}
+	}
+}
+
+// DWC-V0-926 / DCW-V0-962: a same-change ID reference cannot erase stable
+// context in an existing file. The new definition still stays unknown.
+func TestProposeCitationsDWCV0926SameChangeReferenceKeepsOwnContext(t *testing.T) {
+	source := "package widget\n\nfunc Widget() {\n" + numbered(" // detail", 20) + "}\n"
+	out, notes := anchoredDraft(t, map[string]string{"src/widget.go": source}, map[string]string{
+		"src/widget.go":        strings.Replace(source, " // detail line 10\n", " // detail line 10 implements XYZ-V0-001\n", 1),
+		"docs/specs/widget.md": "# Widget\n\n## Requirements\n\n- `XYZ-V0-001`: widgets MUST frob.\n",
+	})
+	if !strings.Contains(out, "\tsrc/widget.go\t") || !strings.Contains(out, "\tunknown\t") || !strings.Contains(notes, "drafted proposal:") {
+		t.Fatalf("lost surviving context or new-intent uncertainty: %s\n%s", out, notes)
 	}
 }

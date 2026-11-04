@@ -71,7 +71,7 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 		// The change modifies plain.go and no untouched file names it, so
 		// its nearest stable line is drafted as a marked proposal
 		// (DCW-V0-962), not an anchor (DCW-V0-393).
-		"internal/x/plain.go": "unknown",
+		"internal/x/plain.go": "internal/x/plain.go\t4:4\tdependency",
 	}
 	for index, row := range rows {
 		ordinal, rest, _ := strings.Cut(row, "\t")

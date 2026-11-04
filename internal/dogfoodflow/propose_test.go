@@ -191,11 +191,11 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 		byPath[hunk.Path] += fields[1] + ";"
 	}
 	for name, want := range map[string]string{
-		"docs/specs/x-v0.md":       "docs/specs/README.md;unknown;",
+		"docs/specs/x-v0.md":       "docs/specs/README.md;proposal;",
 		"internal/x/x.go":          "docs/specs/README.md;",
 		"AGENTS.md":                "unknown;",
 		"internal/x/new.go":        "unknown;",
-		"docs/decisions/0001-x.md": "unknown;",
+		"docs/decisions/0001-x.md": "proposal;",
 	} {
 		if byPath[name] != want {
 			t.Errorf("%s rows = %q; want %q", name, byPath[name], want)

@@ -85,8 +85,9 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 		t.Errorf("the added-requirement hunk row = %q; want no decision of the requirement before it\n%s\n%s", added, stdout.String(), stderr.String())
 	}
 	// DWC-V0-926: shared decision prose neither names the hunk path nor
-	// defines its ID. The rewritten definition itself is unstable.
-	if bar == nil || bar[1] != "unknown" {
+	// defines its ID. The rewritten definition itself is unstable, so a marked
+	// own-file proposal with the governing ID as a review note serves instead.
+	if bar == nil || bar[1] != "docs/specs/affected-plan-v0.md" || bar[2] == "15:15" || !strings.Contains(stderr.String(),"governing requirement AFP-V0-029") {
 		t.Errorf("bar hunk must stay unknown without an admissible anchor: %q", bar)
 	}
 

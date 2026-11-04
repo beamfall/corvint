@@ -50,6 +50,8 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
+	rootOriginalCwd   string
+	rootSelected      bool
 	batchWriteContext context.Context
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
@@ -524,7 +526,18 @@ func globalRoot(env *Env) *wire.Result {
 	if dir == "" || strings.HasPrefix(dir, "--") {
 		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
 	}
-	dir = commandPath(env.Cwd, dir)
+	cwd := env.Cwd
+	if env.rootSelected {
+		cwd = env.rootOriginalCwd
+	}
+	dir = commandPath(cwd, dir)
+	if env.rootSelected && dir != env.Cwd {
+		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "conflicting --root directories: pass one --root DIR relative to the original working directory"))
+	}
+	if !env.rootSelected {
+		env.rootOriginalCwd = env.Cwd
+	}
+	env.rootSelected = true
 	env.Cwd, env.Args = dir, rest
 	return nil
 }

@@ -31,7 +31,7 @@ func TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".corvint", "dogfood-report.json"), []byte("{\"profile\":\"corvint-dogfood-change/0\",\"localOutcomeEvidenceSha256\":null}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/dogfood-report.json\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	change := func() string {

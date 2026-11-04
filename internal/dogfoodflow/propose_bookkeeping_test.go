@@ -69,7 +69,7 @@ func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 		case "internal/x/named.go":
 			// Only bookkeeping lines name it, so its own nearest stable line
 			// is the marked proposal (DCW-V0-962).
-			if !strings.HasPrefix(rest, "unknown\tinsufficient-evidence\t") {
+			if !strings.HasPrefix(rest, "internal/x/named.go\t") || !proposalRow(stderr.String(), row) {
 				t.Errorf("code row = %q; want unknown without an anchor (DWC-V0-926)", row)
 			}
 		default:

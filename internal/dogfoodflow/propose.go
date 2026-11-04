@@ -545,20 +545,27 @@ func (p *proposal) proposeUnchecked(hunk proposedHunk, edited map[string][][2]in
 	}
 	// A hunk that only repins line citations cites the rule that rewrote it,
 	// not its own file (DCW-V0-548).
-	if row, cite, note := p.repinProposal(hunk, ordinal, edited, used); row != "" {
+	if row, cite, note := p.repinProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 		return row, cite, note
 	}
 	// Checked before any anchor: a BASE line that happens to name the path
 	// must not displace the mandatory unknown row (DCW-V0-440).
 	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
-		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
+		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 			return row, cite, ""
 		}
 		// A new file following a BASE sibling's pattern is proposed that
 		// sibling's contract (DCW-V0-841, amending DCW-V0-440).
-		if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+		if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 			p.reasons[ordinal] = "the hunk names requirement " + id + ", which this change itself adds in " + where + " (DCW-V0-440); " + p.reasons[ordinal]
 			return row, cite, ""
+		}
+		// A reference to same-change intent is not itself BASE evidence, but
+		// surviving context in an existing file remains a marked proposal.
+		if len(p.definedRequirements(hunk)) == 0 {
+			if row, cite := p.nearestOwnProposal(hunk, ordinal, edited, used); row != "" {
+				return row, cite, ""
+			}
 		}
 		return p.unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
@@ -570,20 +577,20 @@ func (p *proposal) proposeUnchecked(hunk proposedHunk, edited map[string][][2]in
 		// The BASE requirement the new entry refines, amends or names is a
 		// drafted proposal; unknown only without one (DCW-V0-906).
 		for _, defined := range append(p.definedRequirements(hunk), id) {
-			if row, cite := p.refinedProposal(hunk, ordinal, defined, edited, used); row != "" {
+			if row, cite := p.refinedProposal(hunk, ordinal, defined, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 				return row, cite, ""
 			}
 		}
 		return p.unknownProposal(hunk, ordinal, "the hunk adds requirement "+id+" or rows naming it, which this change itself defines in "+hunk.path+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440, DCW-V0-809): keep this row unknown"), "", ""
 	}
-	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
+	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 		return row, cite, note
 	}
-	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" {
+	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 		return row, cite, note
 	}
-	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
+	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 		return row, cite, note
 	}
 	row, cite, filtered := p.anchoredProposal(hunk, ordinal, edited, used)
@@ -601,7 +608,7 @@ func (p *proposal) proposeUnchecked(hunk proposedHunk, edited map[string][][2]in
 	if dataPath(hunk.path) {
 		missing += "; a data record is never cited, so cite the BASE contract of the code that writes or reads it (DCW-V0-841)"
 	}
-	if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+	if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 		return row, cite, ""
 	}
 	if _, ok := p.blob(p.base, hunk.path); !ok {
@@ -617,34 +624,16 @@ func (p *proposal) proposeUnchecked(hunk proposedHunk, edited map[string][][2]in
 	// still defines a requirement here cites only what it refines.
 	if defined := p.definedRequirements(hunk); len(defined) > 0 {
 		for _, id := range defined {
-			if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
+			if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" && p.allowedDraftRow(hunk, row) {
 				return row, cite, ""
 			}
 		}
 		return p.unknownProposal(hunk, ordinal, "the hunk defines requirement "+strings.Join(defined, ", ")+", which is same-change intent, not BASE evidence (DCW-V0-440), and its entry names no BASE requirement it refines or amends with a stable definition line; cite the BASE contract it refines (DCW-V0-967)"), "", ""
 	}
-	if lines := p.baseLines(hunk.path); len(lines) > 1 && !dataPath(hunk.path) {
-		anchor := min(max(hunk.oldStart, 1), len(lines))
-		relation, preferred := proposalRelation(hunk.path), preferredAnchor(hunk.path)
-		// A hunk editing a requirement's entry proposes that requirement's
-		// own definition line first (DCW-V0-967).
-		candidates := p.ownDefinitionLines(hunk)
-		for line := anchor; line >= 1; line-- {
-			if preferred(string(lines[line-1])) {
-				candidates = append(candidates, line)
-			}
-		}
-		for distance := 1; distance <= len(lines); distance++ {
-			candidates = append(candidates, anchor-distance, anchor+hunk.oldCount+distance-1)
-		}
-		for _, line := range candidates {
-			cite := fmt.Sprintf("%s:%d:%d", hunk.path, line, line)
-			if !used[cite] && p.stable(hunk.path, line, edited) {
-				p.proposals[ordinal] = true
-				return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, hunk.path, line, line, relation), cite, ""
-			}
-		}
+	if row, cite := p.nearestOwnProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, ""
 	}
+
 	return p.unknownProposal(hunk, ordinal, missing+p.editedDefinitions(hunk, edited)+"; the change modifies "+hunk.path+" and no stable line of it is left to propose; name the BASE contract the hunk depends on or implements"), "", ""
 }
 
@@ -748,7 +737,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 			continue
 		}
 		text := lines[candidate.line-1]
-		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 {
+		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 || p.headingLine(candidate.path, candidate.line) {
 			continue
 		}
 		// A mention inside a test or data file is not an anchor (DCW-V0-847).
@@ -1426,4 +1415,32 @@ func spanOccurrences(data, needle []byte) int {
 		offset += index + 1
 	}
 	return count
+}
+
+// nearestOwnProposal cites surviving context, not same-change intent. Merely
+// mentioning a newly introduced ID must not suppress existing-file evidence.
+func (p *proposal) nearestOwnProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string) {
+	if lines := p.baseLines(hunk.path); len(lines) > 1 && !dataPath(hunk.path) {
+		anchor := min(max(hunk.oldStart, 1), len(lines))
+		relation, preferred := proposalRelation(hunk.path), preferredAnchor(hunk.path)
+		// A hunk editing a requirement's entry proposes that requirement's
+		// own definition line first (DCW-V0-967).
+		candidates := p.ownDefinitionLines(hunk)
+		for line := anchor; line >= 1; line-- {
+			if preferred(string(lines[line-1])) {
+				candidates = append(candidates, line)
+			}
+		}
+		for distance := 1; distance <= len(lines); distance++ {
+			candidates = append(candidates, anchor-distance, anchor+hunk.oldCount+distance-1)
+		}
+		for _, line := range candidates {
+			cite := fmt.Sprintf("%s:%d:%d", hunk.path, line, line)
+			if !used[cite] && p.stable(hunk.path, line, edited) && !p.headingLine(hunk.path, line) && len(bytes.TrimSpace(lines[line-1])) > 0 {
+				p.proposals[ordinal] = true
+				return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, hunk.path, line, line, relation), cite
+			}
+		}
+	}
+	return "", ""
 }

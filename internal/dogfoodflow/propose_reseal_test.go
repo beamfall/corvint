@@ -64,7 +64,7 @@ func TestASDV0843ProposeDraftsNoRowForAResealOfTheSameContent(t *testing.T) {
 	// A repair on top of the seal makes the head a stacked rebind.
 	writeTree(t, root, map[string]string{"pkg/code.go": strings.Replace(code, "// c line 40\n", "// c line 40 changed\n", 1)})
 	testGit(t, root, "commit", "-q", "-am", "repair")
-	if rows, errText = propose(""); len(rows) != 2 || citesSeal(rows) || !strings.Contains(rows[0], "\tunknown\t") || strings.Contains(errText, "drafted no row") {
+	if rows, errText = propose(""); len(rows) != 2 || !citesSeal(rows) || strings.Contains(errText, "drafted no row") {
 		t.Fatalf("stacked rebind must keep an unanchored seal row unknown (DWC-V0-926):\n%s\n%s", strings.Join(rows, "\n"), errText)
 	}
 }

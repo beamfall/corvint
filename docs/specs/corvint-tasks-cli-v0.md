@@ -37,12 +37,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 ## Requirements
 
-- `TCL-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4626)
+- `TCL-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4626; amended 2026-11-04 fix round 1)
   `ticket show ID --root DIR` and `ticket show --root=DIR ID` MUST resolve the read from DIR,
   relative to the caller's directory, just as the leading global `--root` form does. The flag
   MUST work with JSON, field selection, summary and text output. An empty or missing directory
-  MUST refuse `MALFORMED` before reading a store. This changes no records or write authority.
-  Evidence: `TestTCLV0926TicketShowRootAfterVerb`. Rollback: remove the show-local root parsing.
+  MUST refuse `MALFORMED` before reading a store. Repeated roots resolve against the original
+  caller directory; conflicting roots MUST refuse `MALFORMED` with an actionable message.
+  This changes no records or write authority.
+  Evidence: `TestTCLV0926TicketShowRootAfterVerb`, `TestTCLV0926TicketShowConflictingRoots`. Rollback: remove the show-local root parsing.
 
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
   `corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]...

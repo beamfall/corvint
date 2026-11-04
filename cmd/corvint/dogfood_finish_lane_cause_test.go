@@ -24,7 +24,7 @@ func TestFinishLaneDCWV0806NamesTheOriginatingRefusal(t *testing.T) {
 		t.Fatal(err)
 	}
 	cemWrite(t, root, "a.txt", "base\n")
-	cemWrite(t, root, ".gitignore", ".corvint/change.ocm.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.[0-9][0-9][0-9].json\n.corvint/self-observations.jsonl\n.corvint/dogfood-report.json\n")
+	cemWrite(t, root, ".gitignore", ".corvint/change.ocm.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.[0-9][0-9][0-9].json\n.corvint/self-observations.jsonl\n.corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n")
 	cemGit(t, root, "init", "-q", "-b", "main")
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "base")
@@ -88,7 +88,7 @@ func TestFinishLaneDCWV0806CauseNamesABindTimeRefusal(t *testing.T) {
 		t.Fatal(err)
 	}
 	cemWrite(t, root, "a.txt", "base\n")
-	cemWrite(t, root, ".gitignore", ".corvint/change.ocm.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.[0-9][0-9][0-9].json\n.corvint/self-observations.jsonl\n.corvint/dogfood-report.json\n")
+	cemWrite(t, root, ".gitignore", ".corvint/change.ocm.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.[0-9][0-9][0-9].json\n.corvint/self-observations.jsonl\n.corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n")
 	cemGit(t, root, "init", "-q", "-b", "main")
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "base")

@@ -28,7 +28,7 @@ func ticketShowCommand(env Env, args []string) int {
 				return emit(env.Stdout, res)
 			}
 			i += len(args[i:]) - len(rootEnv.Args) - 1
-			env.Cwd = rootEnv.Cwd
+			env.Cwd, env.rootOriginalCwd, env.rootSelected = rootEnv.Cwd, rootEnv.rootOriginalCwd, rootEnv.rootSelected
 		case a == "--format":
 			if i+1 >= len(args) {
 				return emit(env.Stdout, usage(cmd, "--format needs json or text"))
