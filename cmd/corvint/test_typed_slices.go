@@ -93,7 +93,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 				before = blob.content
 			}
 			baseFiles[file] = before
-			declarations = append(declarations, typedreach.DiffFile(file, before, head).Declarations(module+"/"+path.Dir(file))...)
+			declarations = append(declarations, typedreach.DiffFile(file, before, head).Declarations(typedreach.ImportPath(module, file))...)
 		}
 		if unreadable != "" {
 			whole(unreadable)

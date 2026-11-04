@@ -357,7 +357,9 @@ var (
 	stateWriters = map[string]*types.Var{
 		"os.Setenv": environment, "os.Unsetenv": environment, "os.Clearenv": environment,
 		"syscall.Setenv": environment, "syscall.Unsetenv": environment, "syscall.Clearenv": environment,
-		"os/signal.Notify": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals,
+		// Stop deregisters a channel: a later signal another test sends
+		// itself can then take the default action (AFP-V0-2374).
+		"os/signal.Notify": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals, "os/signal.Stop": signals,
 		"log.SetOutput": logDefault, "log.SetFlags": logDefault, "log.SetPrefix": logDefault,
 		"(*log.Logger).SetOutput": logDefault, "(*log.Logger).SetFlags": logDefault, "(*log.Logger).SetPrefix": logDefault,
 		"log/slog.SetDefault": slogDefault, "os/signal.NotifyContext": signals, "log/slog.SetLogLoggerLevel": slogDefault,
@@ -1230,7 +1232,19 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 	if state := stateWriters[f.FullName()]; state != nil {
 		n.writes[state] = true
 	}
+	// A stored method value or method expression reads what its call
+	// reads, wherever the value is later called.
+	for _, v := range g.implicitReads(f) {
+		n.reads[v] = true
+	}
 	if f.Signature().Recv() != nil {
+		switch {
+		case strings.HasPrefix(f.FullName(), "(*os.Process)."):
+			n.reads[signals] = true
+		case strings.HasPrefix(f.FullName(), "(*os.Root)."):
+			n.reads[files] = true
+			n.writes[files] = true
+		}
 		return
 	}
 	name := f.Pkg().Path() + "." + f.Name()
@@ -1242,9 +1256,6 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 		n.writes[v] = true
 	}
 	if v := stateReaders[name]; v != nil {
-		n.reads[v] = true
-	}
-	for _, v := range g.implicitReads(f) {
 		n.reads[v] = true
 	}
 	if name == "log/slog.SetDefault" {

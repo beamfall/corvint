@@ -25,7 +25,6 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -122,7 +121,7 @@ func measure(root, base, pkg string, runOracle bool, runTimeout time.Duration) (
 		if err != nil {
 			after = nil
 		}
-		importPath := module + "/" + path.Dir(name)
+		importPath := typedreach.ImportPath(module, name)
 		for _, declared := range typedreach.DiffFile(name, before, after).Declarations(importPath) {
 			changed = append(changed, declared)
 			out.Changed = append(out.Changed, importPath+"."+declared.Name)

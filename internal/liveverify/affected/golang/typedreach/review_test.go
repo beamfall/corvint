@@ -162,3 +162,59 @@ func TestAFPV02374SignalCleanupCannotEraseWrites(t *testing.T) {
 		})
 	}
 }
+
+func TestAFPV02374StoredMethodValuesCarryImplicitReads(t *testing.T) {
+	for _, tc := range []struct{ name, holder, read string }{
+		{"bound method value", "var prefix = log.Default().Prefix", "prefix()"},
+		{"method expression", "var prefix = (*log.Logger).Prefix\nvar logger = log.Default()", "prefix(logger)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := reviewFixture(t, map[string]string{
+				"lib/lib.go":  "package lib\nfunc A() int { return 1 }\n",
+				"p/p_test.go": "package p\nimport (\"testing\"; \"log\"; \"strconv\"; \"example.com/review/lib\")\n" + tc.holder + "\nfunc TestAWriter(t *testing.T) { log.SetPrefix(strconv.Itoa(lib.A())) }\nfunc TestBReader(t *testing.T) { if " + tc.read + " != \"1\" { t.Fatal(" + tc.read + ") } }\nfunc TestControl(t *testing.T) {}\n",
+			})
+			program, err := Load(root, "example.com/review", "p")
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := Analyze(program, []Declaration{{Package: "example.com/review/lib", Name: "A"}}, nil)
+			if result.Whole != "" || keptCodes(result)["TestBReader"] != KeptReadsSharedState || !slices.Contains(result.Dropped, "TestControl") {
+				t.Fatalf("stored logger method value: %+v", result)
+			}
+		})
+	}
+}
+
+func TestAFPV02374SignalStopWritesSignalState(t *testing.T) {
+	for _, cleanup := range []string{
+		"if lib.A() != 0 { signal.Stop(ch) }",
+		"stop := signal.Stop; if lib.A() != 0 { stop(ch) }",
+	} {
+		t.Run(cleanup, func(t *testing.T) {
+			root := reviewFixture(t, map[string]string{
+				"lib/lib.go":  "package lib\nfunc A() int { return 1 }\n",
+				"p/p_test.go": "package p\nimport (\"testing\"; \"os\"; \"os/signal\"; \"syscall\"; \"example.com/review/lib\")\nvar ch = make(chan os.Signal, 1)\nfunc TestMain(m *testing.M) { signal.Notify(ch, syscall.SIGTERM); os.Exit(m.Run()) }\nfunc TestAStop(t *testing.T) { " + cleanup + " }\nfunc TestBSignal(t *testing.T) { self, _ := os.FindProcess(os.Getpid()); if err := self.Signal(syscall.SIGTERM); err != nil { t.Fatal(err) } }\nfunc TestControl(t *testing.T) {}\n",
+			})
+			program, err := Load(root, "example.com/review", "p")
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := Analyze(program, []Declaration{{Package: "example.com/review/lib", Name: "A"}}, nil)
+			if result.Whole != "" || keptCodes(result)["TestBSignal"] != KeptReadsSharedState || !slices.Contains(result.Dropped, "TestControl") {
+				t.Fatalf("signal.Stop must write signal dispositions: %+v", result)
+			}
+		})
+	}
+}
+
+func TestAFPV02376ImportPathOfRootPackageFiles(t *testing.T) {
+	for file, want := range map[string]string{
+		"lib.go":         "example.com/review",
+		"lib/lib.go":     "example.com/review/lib",
+		"a/b/c/thing.go": "example.com/review/a/b/c",
+	} {
+		if got := ImportPath("example.com/review", file); got != want {
+			t.Fatalf("ImportPath(%q) = %q, want %q", file, got, want)
+		}
+	}
+}

@@ -37,56 +37,8 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 		"o/o_test.go":               "package o\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestO(t *testing.T) { _ = lib.A() }\n",
 		sessiontest.DeclarationPath: sessionDeclaration(""),
 	}
-	for name, body := range files {
-		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, arguments := range [][]string{
-		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
-		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"}, {"add", "."}, {"commit", "-qm", "base"},
-	} {
-		affectedGit(t, root, arguments...)
-	}
-	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	bin := t.TempDir()
-	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("SESSION_FAKE_LOG", filepath.Join(t.TempDir(), "runners.log"))
-	t.Setenv("SESSION_FAKE_MODE", "pass")
-	planFiles := func(t *testing.T, edits map[string]string) map[string]sessiontest.Unit {
-		t.Helper()
-		affectedGit(t, root, "checkout", "-q", "--", ".")
-		for name, body := range edits {
-			if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
-				t.Fatal(err)
-			}
-		}
-		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
-		if code != 0 {
-			t.Fatalf("code %d stderr %q", code, stderr)
-		}
-		var printed struct {
-			Invocations []struct {
-				Units []sessiontest.Unit `json:"units"`
-			} `json:"invocations"`
-		}
-		if err := json.Unmarshal([]byte(stdout), &printed); err != nil {
-			t.Fatal(err)
-		}
-		units := map[string]sessiontest.Unit{}
-		for _, invocation := range printed.Invocations {
-			for _, unit := range invocation.Units {
-				units[unit.Unit] = unit
-			}
-		}
-		return units
-	}
+	fixture := newTypedSliceFixture(t, root, files)
+	planFiles := fixture.plan
 	plan := func(t *testing.T, libSource string) map[string]sessiontest.Unit {
 		t.Helper()
 		return planFiles(t, map[string]string{"lib/lib.go": libSource})
@@ -154,10 +106,104 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 		}
 		affectedGit(t, root, "add", ".")
 		affectedGit(t, root, "commit", "-qm", "shared-write baseline")
-		base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+		fixture.base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 		got := plan(t, strings.Replace(before, "Shared = 1; ", "", 1))["go:example.test/m/p"]
 		if got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, "BASE_MAY_WRITE_SHARED_STATE") {
 			t.Fatalf("removed write: %+v, want whole with the base-effect reason", got)
+		}
+	})
+}
+
+// typedSliceFixture is a committed module under root whose `corvint test
+// --dry-run` plans are read per unit after a set of edits.
+type typedSliceFixture struct {
+	root, base string
+}
+
+func newTypedSliceFixture(t *testing.T, root string, files map[string]string) *typedSliceFixture {
+	t.Helper()
+	for name, body := range files {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, arguments := range [][]string{
+		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
+		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"}, {"add", "."}, {"commit", "-qm", "base"},
+	} {
+		affectedGit(t, root, arguments...)
+	}
+	bin := t.TempDir()
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("SESSION_FAKE_LOG", filepath.Join(t.TempDir(), "runners.log"))
+	t.Setenv("SESSION_FAKE_MODE", "pass")
+	return &typedSliceFixture{root: root, base: strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))}
+}
+
+// plan restores the committed tree, applies edits and returns the dry-run
+// units by ID.
+func (f *typedSliceFixture) plan(t *testing.T, edits map[string]string) map[string]sessiontest.Unit {
+	t.Helper()
+	affectedGit(t, f.root, "checkout", "-q", "--", ".")
+	for name, body := range edits {
+		if err := os.WriteFile(filepath.Join(f.root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, stdout, stderr := runCLI(t, "--root", f.root, "test", "--base", f.base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	var printed struct {
+		Invocations []struct {
+			Units []sessiontest.Unit `json:"units"`
+		} `json:"invocations"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &printed); err != nil {
+		t.Fatal(err)
+	}
+	units := map[string]sessiontest.Unit{}
+	for _, invocation := range printed.Invocations {
+		for _, unit := range invocation.Units {
+			units[unit.Unit] = unit
+		}
+	}
+	return units
+}
+
+// TestAFPV02376DryRunReadsRootPackageChanges edits the module's root
+// package, whose files sit beside go.mod: the changed declarations belong
+// to the module path itself, so an edit of B narrows the allow-listed
+// dependent p to TestB rather than to no test, and an edit of A, which
+// writes shared state at base, keeps p whole (AFP-V0-2376).
+func TestAFPV02376DryRunReadsRootPackageChanges(t *testing.T) {
+	saved := typedReachPackages
+	typedReachPackages = map[string]bool{"p": true}
+	t.Cleanup(func() { typedReachPackages = saved })
+	lib := "package m\n\nvar Shared int\n\nfunc A() int { Shared = 1; return 1 }\n\nfunc B() int { return 2 }\n"
+	fixture := newTypedSliceFixture(t, t.TempDir(), map[string]string{
+		"go.mod":                    "module example.test/m\n\ngo 1.27\n",
+		"lib.go":                    lib,
+		"p/p.go":                    "package p\n",
+		"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m\"\n)\n\nfunc TestA(t *testing.T) { _ = m.A() }\n\nfunc TestB(t *testing.T) { _ = m.B() }\n\nfunc TestControl(t *testing.T) {}\n",
+		sessiontest.DeclarationPath: sessionDeclaration(""),
+	})
+	t.Run("edit of B narrows to TestB", func(t *testing.T) {
+		got, ok := fixture.plan(t, map[string]string{"lib.go": strings.Replace(lib, "return 2", "return 4", 1)})["go:example.test/m/p"]
+		if !ok || got.Slice != sessiontest.SliceSelected || got.Pattern != "^(TestB)$" {
+			t.Fatalf("p %+v (selected %v), want pattern ^(TestB)$", got, ok)
+		}
+	})
+	t.Run("edit of a base shared writer keeps p whole", func(t *testing.T) {
+		got, ok := fixture.plan(t, map[string]string{"lib.go": strings.Replace(lib, "return 1", "return 3", 1)})["go:example.test/m/p"]
+		if !ok || got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, "BASE_MAY_WRITE_SHARED_STATE") {
+			t.Fatalf("p %+v (selected %v), want whole with the base-effect reason", got, ok)
 		}
 	})
 }

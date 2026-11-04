@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"path"
 	"sort"
 	"strings"
 )
@@ -24,6 +25,13 @@ type FileChange struct {
 	// import paths only one side has (AFP-V0-2376).
 	File                   string
 	Mapped, Added, Removed []string
+}
+
+// ImportPath is the import path of the module package holding file, a
+// slash path relative to the module root: the module path itself for a file
+// beside go.mod, never module+"/." (AFP-V0-2376).
+func ImportPath(module, file string) string {
+	return path.Join(module, path.Dir(file))
 }
 
 // Declarations returns the change as declarations of the package at
