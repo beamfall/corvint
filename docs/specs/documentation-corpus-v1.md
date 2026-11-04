@@ -1481,7 +1481,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-317`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1554;
   V1-2434) The `DCP-V1-281` acceptance fixture includes an additional checkout with more than
   10,000 tracked files (4,000, 12,000 and 1,000 files; 17,001 pinned inputs) and meets the same
-  bounds: median warm `freshness_ms` under 100 ms and p95 warm `total_ms` under 1 s. Acceptance:
+  bounds: median warm `freshness_ms` under 100 ms and nearest-rank p95 warm `total_ms` under 1 s
+  (DCR-V1-7100). Acceptance:
   `TestDCPV1281AdditionalRepositoryWarmCallsAtScale`.
 - `DCP-V1-318`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1556;
   V1-2436) `claims` (`corvint.docs_claims`, `corvint docs corpus claims`) takes, in place of a

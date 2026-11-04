@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -45,7 +46,10 @@ func TestCALV0302_CompactedStepsKeepTheirPostState(t *testing.T) {
 		if show.code != 0 || len(show.res.Items) != 1 {
 			t.Fatalf("attempt show: %s", show.stdout)
 		}
-		return append(out, string(wire.EncodeFile(show.res.Items[0])))
+		// LGL-V0-7100: observedAt is a live read observation, not part of
+		// the immutable post state. Keep every other byte in the comparison.
+		canonical := regexp.MustCompile(`"observedAt":"[^"]*"`).ReplaceAll(wire.EncodeFile(show.res.Items[0]), []byte(`"observedAt":""`))
+		return append(out, string(canonical))
 	}
 	before := recorded()
 	compact := atm(t, root, nil, "receipt", "compact")

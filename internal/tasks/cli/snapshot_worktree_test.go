@@ -117,3 +117,44 @@ func TestTCLV0869_SnapshotValidatesAWorktreeStore(t *testing.T) {
 		t.Fatalf("a refused snapshot wrote %s: %v", badOut, err)
 	}
 }
+
+// TCL-V0-7102: audit the explicitly selected projection against its owning
+// journal. A divergent copy must not be silently replaced by the primary's.
+func TestTCLV07102_AuditExplicitWorktreeProjection(t *testing.T) {
+	r, local, _ := papercutRepo(t)
+	wt := t.TempDir()
+	copyIntentDir(t, r.IntentDir, wt)
+	canonical, err := filepath.EvalSymlinks(wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := fixture.TreeSnapshot(t, r.CommonDir)
+	help := atm(t, r.Root, nil, "receipt", "audit", "--help")
+	if !strings.Contains(string(help.stdout), "owning journal") || !strings.Contains(string(help.stdout), "receipt audit --worktree ../candidate") {
+		t.Fatalf("worktree help: %s", help.stdout)
+	}
+	good := atm(t, r.Root, nil, "receipt", "audit", "--worktree", wt)
+	if good.code != 0 || len(good.res.Items) != 1 || field(good.res.Items[0], "projectionAgreement").Str != "AGREES" || field(good.res.Items[0], "worktree").Str != canonical {
+		t.Fatalf("explicit projection: %s", good.stdout)
+	}
+	file := filepath.Join(wt, ".taskman", "tickets", local+".json")
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = bytes.Replace(raw, []byte("Console ticket"), []byte("Changed ticket"), 1)
+	fixture.Write(t, file, raw)
+	bad := atm(t, r.Root, nil, "receipt", "audit", "--worktree", wt)
+	if bad.code == 0 || !hasCode(bad.res, wire.CodeIntentDiverged) {
+		t.Fatalf("divergent projection hidden: %s", bad.stdout)
+	}
+	if x := atm(t, r.Root, nil, "receipt", "audit"); x.code != 0 {
+		t.Fatalf("primary audit: %s", x.stdout)
+	}
+	if x := atm(t, r.Root, nil, "receipt", "audit", "--through", "1", "--worktree", wt); !hasCode(x.res, wire.CodeMalformed) {
+		t.Fatalf("partial projection validation admitted: %s", x.stdout)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.CommonDir)) {
+		t.Fatal("read changed journal")
+	}
+}

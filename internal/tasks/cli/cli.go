@@ -749,6 +749,12 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	if err != nil {
 		return nil, err
 	}
+	return withResolvedStore(env, repo, body)
+}
+
+// withResolvedStore applies the same snapshot protocol to a selected read-only
+// projection while keeping its journal and primary identity unchanged.
+func withResolvedStore(env Env, repo *intent.Repository, body func(*readCtx) error) (*readCtx, error) {
 	rc := &readCtx{repo: repo}
 	idx := closedIndexFor(env, repo)
 	// probed is the tree the latest probe hashed. Reader.Read runs probe,

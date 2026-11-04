@@ -1,0 +1,275 @@
+File: transaction.test
+Build ID: 33634aec22240325aedda1a34c3c72e6b2eda114
+Type: cpu
+Time: 2026-11-04 14:44:47 EST
+Duration: 21.36s, Total samples = 47.13s (220.61%)
+Showing nodes accounting for 37.03s, 78.57% of 47.13s total
+Dropped 538 nodes (cum <= 0.24s)
+      flat  flat%   sum%        cum   cum%
+     2.56s  5.43%  5.43%      2.56s  5.43%  runtime.futex
+     2.29s  4.86% 10.29%      2.29s  4.86%  runtime.spanClass.sizeclass (inline)
+     2.28s  4.84% 15.13%      5.08s 10.78%  runtime.tryDeferToSpanScan
+     1.56s  3.31% 18.44%      2.77s  5.88%  github.com/Beamfall/corvint/internal/tasks/wire.appendString
+     1.41s  2.99% 21.43%      1.41s  2.99%  runtime.memclrNoHeapPointers
+     1.38s  2.93% 24.36%      1.38s  2.93%  runtime.memmove
+     1.34s  2.84% 27.20%      4.23s  8.98%  runtime.scanObjectsSmall
+     1.24s  2.63% 29.83%      1.24s  2.63%  internal/runtime/maps.memHashAES
+     1.10s  2.33% 32.17%      1.14s  2.42%  runtime.heapSetTypeSmallHeader (inline)
+     1.01s  2.14% 34.31%      3.52s  7.47%  runtime.scanObject
+     0.86s  1.82% 36.13%      2.49s  5.28%  runtime.mapaccess2_faststr
+     0.56s  1.19% 37.32%      0.56s  1.19%  cmpbody
+     0.55s  1.17% 38.49%      6.28s 13.32%  github.com/Beamfall/corvint/internal/tasks/wire.appendValue
+     0.51s  1.08% 39.57%      6.32s 13.41%  runtime.mapassign_faststr
+     0.50s  1.06% 40.63%      0.50s  1.06%  github.com/Beamfall/corvint/internal/tasks/wire.isLowerHex (inline)
+     0.50s  1.06% 41.69%      1.62s  3.44%  runtime.sweepone
+     0.49s  1.04% 42.73%      0.49s  1.04%  runtime.madvise
+     0.45s  0.95% 43.69%      9.96s 21.13%  runtime.mallocgc
+     0.42s  0.89% 44.58%      1.05s  2.23%  github.com/Beamfall/corvint/internal/tasks/wire.(*parser).str
+     0.41s  0.87% 45.45%      1.24s  2.63%  runtime.(*sweepLocked).sweep
+     0.40s  0.85% 46.30%      0.42s  0.89%  runtime.(*bucket).mp
+     0.40s  0.85% 47.15%      1.10s  2.33%  runtime.concatstrings
+     0.35s  0.74% 47.89%      0.35s  0.74%  memeqbody
+     0.34s  0.72% 48.61%      0.69s  1.46%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.34s  0.72% 49.33%      0.79s  1.68%  runtime.mallocgcTinySC2
+     0.33s   0.7% 50.03%      0.34s  0.72%  archive/tar.(*block).computeChecksum (inline)
+     0.33s   0.7% 50.73%      1.20s  2.55%  runtime.bulkBarrierPreWrite
+     0.33s   0.7% 51.43%      0.39s  0.83%  runtime.heapArenaOf (inline)
+     0.31s  0.66% 52.09%      8.53s 18.10%  github.com/Beamfall/corvint/internal/tasks/wire.(*Object).Set (inline)
+     0.31s  0.66% 52.75%      1.35s  2.86%  runtime.typedmemmove
+     0.30s  0.64% 53.38%      0.57s  1.21%  runtime.mallocgcSmallScanNoHeaderSC5
+     0.30s  0.64% 54.02%      0.30s  0.64%  runtime.tgkill
+     0.30s  0.64% 54.66%      0.48s  1.02%  runtime.typePointers.next
+     0.29s  0.62% 55.27%      0.29s  0.62%  crypto/internal/fips140/sha256.blockSHANI
+     0.29s  0.62% 55.89%      0.29s  0.62%  internal/runtime/maps.(*ctrlGroup).setEmpty (inline)
+     0.29s  0.62% 56.50%      0.29s  0.62%  runtime.nextFreeFast (inline)
+     0.29s  0.62% 57.12%      0.29s  0.62%  runtime.typePointers.nextFast (inline)
+     0.28s  0.59% 57.71%      0.29s  0.62%  internal/strconv.ParseUint
+     0.28s  0.59% 58.31%      0.28s  0.59%  runtime.(*mspan).base (inline)
+     0.28s  0.59% 58.90%      3.47s  7.36%  runtime.growslice
+     0.27s  0.57% 59.47%      0.38s  0.81%  runtime.findObject
+     0.26s  0.55% 60.03%      1.92s  4.07%  github.com/Beamfall/corvint/internal/tasks/wire.(*Reader).child (inline)
+     0.26s  0.55% 60.58%      0.40s  0.85%  internal/runtime/maps.(*Map).putSlotSmallFastStr
+     0.25s  0.53% 61.11%      0.25s  0.53%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.25s  0.53% 61.64%      0.25s  0.53%  runtime.(*mspan).moveInlineMarks
+     0.23s  0.49% 62.13%      0.69s  1.46%  runtime.gcmarknewobject
+     0.22s  0.47% 62.59%      0.72s  1.53%  archive/tar.Header.allowedFormats
+     0.22s  0.47% 63.06%      5.93s 12.58%  github.com/Beamfall/corvint/internal/tasks/wire.(*parser).object
+     0.21s  0.45% 63.51%      4.18s  8.87%  runtime.mallocgcSmallScanHeader
+     0.21s  0.45% 63.95%      0.48s  1.02%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.20s  0.42% 64.38%      0.28s  0.59%  runtime.(*spanSet).push
+     0.17s  0.36% 64.74%      0.88s  1.87%  runtime.wbBufFlush1
+     0.17s  0.36% 65.10%      0.40s  0.85%  slices.insertionSortOrdered[go.shape.string]
+     0.16s  0.34% 65.44%      1.27s  2.69%  sort.symMerge_func
+     0.15s  0.32% 65.75%      0.46s  0.98%  gcWriteBarrier
+     0.15s  0.32% 66.07%      5.95s 12.62%  github.com/Beamfall/corvint/internal/tasks/wire.(*parser).value
+     0.15s  0.32% 66.39%      0.31s  0.66%  runtime.mallocgcTinySlowPath
+     0.15s  0.32% 66.71%      1.13s  2.40%  runtime.slicebytetostring
+     0.14s   0.3% 67.01%      1.02s  2.16%  internal/reflectlite.Swapper.func9
+     0.14s   0.3% 67.30%      0.34s  0.72%  internal/stringslite.HasPrefix (inline)
+     0.13s  0.28% 67.58%      0.83s  1.76%  internal/reflectlite.typedmemmove
+     0.13s  0.28% 67.85%         1s  2.12%  internal/runtime/maps.(*table).uncheckedPutSlot
+     0.13s  0.28% 68.13%      2.69s  5.71%  runtime.(*mcache).refill
+     0.13s  0.28% 68.41%      0.62s  1.32%  runtime.(*wbBuf).get2 (inline)
+     0.13s  0.28% 68.68%      0.52s  1.10%  runtime.mallocgcSmallScanSlowPath
+     0.12s  0.25% 68.94%      5.07s 10.76%  github.com/Beamfall/corvint/internal/tasks/archive.SortFiles
+     0.12s  0.25% 69.19%      0.48s  1.02%  runtime.lock2
+     0.12s  0.25% 69.45%      0.31s  0.66%  runtime.mallocgcSmallNoScanSC3
+     0.11s  0.23% 69.68%      2.51s  5.33%  internal/runtime/maps.(*table).grow
+     0.11s  0.23% 69.91%      9.17s 19.46%  runtime.gcDrain
+     0.11s  0.23% 70.15%      0.39s  0.83%  runtime.mallocgcSmallScanNoHeaderSC6
+     0.11s  0.23% 70.38%      0.37s  0.79%  runtime.pcvalue
+     0.11s  0.23% 70.61%      4.49s  9.53%  runtime.scanSpan
+     0.11s  0.23% 70.85%      0.24s  0.51%  runtime.scanblock
+     0.11s  0.23% 71.08%      0.35s  0.74%  strings.Repeat
+     0.10s  0.21% 71.29%      1.10s  2.33%  runtime.mallocgcSmallNoscan
+     0.10s  0.21% 71.50%      2.09s  4.43%  runtime.newobject
+     0.09s  0.19% 71.70%      3.12s  6.62%  github.com/Beamfall/corvint/internal/tasks/ticket.(*Record).Value
+     0.09s  0.19% 71.89%      0.74s  1.57%  internal/runtime/maps.typedmemmove
+     0.09s  0.19% 72.08%      2.16s  4.58%  runtime.(*mcentral).cacheSpan
+     0.09s  0.19% 72.27%      0.48s  1.02%  runtime.(*mheap).initSpan
+     0.08s  0.17% 72.44%      0.45s  0.95%  github.com/Beamfall/corvint/internal/tasks/archive.SortFiles.func1
+     0.08s  0.17% 72.61%      2.04s  4.33%  internal/runtime/maps.(*table).reset
+     0.08s  0.17% 72.78%      0.25s  0.53%  runtime.mallocgcSmallNoScanSlowPath
+     0.08s  0.17% 72.95%      0.78s  1.65%  slices.pdqsortOrdered[go.shape.string]
+     0.07s  0.15% 73.10%      4.30s  9.12%  github.com/Beamfall/corvint/internal/tasks/ticket.FromValue
+     0.07s  0.15% 73.24%      0.46s  0.98%  runtime.concatstring2
+     0.07s  0.15% 73.39%      0.78s  1.65%  runtime.concatstring3
+     0.07s  0.15% 73.54%      0.60s  1.27%  runtime.mProf_FlushLocked
+     0.07s  0.15% 73.69%      0.55s  1.17%  runtime.unlock2
+     0.07s  0.15% 73.84%      0.33s   0.7%  strconv.ParseUint
+     0.06s  0.13% 73.97%      0.95s  2.02%  archive/tar.(*Writer).templateV7Plus
+     0.06s  0.13% 74.09%      0.24s  0.51%  archive/tar.Header.allowedFormats.func1
+     0.06s  0.13% 74.22%      2.26s  4.80%  github.com/Beamfall/corvint/internal/tasks/archive.entryValue
+     0.06s  0.13% 74.35%      1.48s  3.14%  github.com/Beamfall/corvint/internal/tasks/wire.(*Object).SortedKeys (inline)
+     0.06s  0.13% 74.47%      0.71s  1.51%  github.com/Beamfall/corvint/internal/tasks/wire.(*parser).array
+     0.06s  0.13% 74.60%      2.83s  6.00%  runtime.(*mcache).nextFree
+     0.06s  0.13% 74.73%      0.27s  0.57%  runtime.(*unwinder).resolveInternal
+     0.06s  0.13% 74.86%      1.17s  2.48%  runtime.mallocgcSmallScanNoHeader
+     0.06s  0.13% 74.98%      1.11s  2.36%  runtime.mapaccess1_faststr
+     0.05s  0.11% 75.09%      2.39s  5.07%  archive/tar.(*Writer).WriteHeader
+     0.05s  0.11% 75.20%      2.44s  5.18%  github.com/Beamfall/corvint/internal/tasks/archive.measureManifestBytes
+     0.05s  0.11% 75.30%     13.30s 28.22%  github.com/Beamfall/corvint/internal/tasks/transaction.loadTickets.func1
+     0.05s  0.11% 75.41%      2.09s  4.43%  github.com/Beamfall/corvint/internal/tasks/wire.(*Reader).Field
+     0.05s  0.11% 75.51%      0.93s  1.97%  runtime.(*mheap).allocSpan
+     0.05s  0.11% 75.62%      0.88s  1.87%  runtime.makeslice
+     0.05s  0.11% 75.73%      0.60s  1.27%  runtime.rawstringtmp
+     0.05s  0.11% 75.83%      0.77s  1.63%  sort.rotate_func
+     0.04s 0.085% 75.92%      0.99s  2.10%  archive/tar.(*formatter).formatOctal
+     0.04s 0.085% 76.00%      0.91s  1.93%  github.com/Beamfall/corvint/internal/tasks/wire.(*Reader).Closed
+     0.04s 0.085% 76.09%      7.27s 15.43%  github.com/Beamfall/corvint/internal/tasks/wire.ParseWith
+     0.04s 0.085% 76.17%      1.57s  3.33%  internal/runtime/maps.(*Map).growToSmall
+     0.04s 0.085% 76.26%      3.16s  6.70%  runtime.newarray
+     0.04s 0.085% 76.34%      2.06s  4.37%  runtime.schedule
+     0.04s 0.085% 76.43%      0.59s  1.25%  runtime.wbMove
+     0.04s 0.085% 76.51%      0.82s  1.74%  slices.Sort[go.shape.[]string,go.shape.string] (inline)
+     0.04s 0.085% 76.60%      0.86s  1.82%  sort.Strings
+     0.03s 0.064% 76.66%      0.26s  0.55%  cmp.Less[go.shape.string] (inline)
+     0.03s 0.064% 76.72%      0.25s  0.53%  fmt.(*pp).doPrintf
+     0.03s 0.064% 76.79%      0.26s  0.55%  github.com/Beamfall/corvint/internal/tasks/archive.archiveHeader
+     0.03s 0.064% 76.85%      3.17s  6.73%  github.com/Beamfall/corvint/internal/tasks/archive.measureTarBytes
+     0.03s 0.064% 76.91%      5.24s 11.12%  github.com/Beamfall/corvint/internal/tasks/wire.Encode (inline)
+     0.03s 0.064% 76.98%      0.72s  1.53%  github.com/Beamfall/corvint/internal/tasks/wire.NewObject (inline)
+     0.03s 0.064% 77.04%      0.24s  0.51%  github.com/Beamfall/corvint/internal/tasks/wire.checkHostile
+     0.03s 0.064% 77.11%     13.42s 28.47%  runtime.systemstack
+     0.03s 0.064% 77.17%      0.72s  1.53%  sort.swapRange_func (inline)
+     0.02s 0.042% 77.21%      0.31s  0.66%  crypto/internal/fips140/sha256.(*Digest).Write
+     0.02s 0.042% 77.25%      1.34s  2.84%  github.com/Beamfall/corvint/internal/tasks/archive.validateManifestFiles
+     0.02s 0.042% 77.30%     13.78s 29.24%  github.com/Beamfall/corvint/internal/tasks/transaction.measure
+     0.02s 0.042% 77.34%      0.68s  1.44%  internal/runtime/maps.(*Map).growToTable
+     0.02s 0.042% 77.38%      0.29s  0.62%  internal/strconv.FormatInt
+     0.02s 0.042% 77.42%      0.40s  0.85%  runtime.(*mheap).freeSpan (inline)
+     0.02s 0.042% 77.47%      1.75s  3.71%  runtime.bgsweep
+     0.02s 0.042% 77.51%      0.34s  0.72%  runtime.callers
+     0.02s 0.042% 77.55%      1.20s  2.55%  runtime.findRunnable
+     0.02s 0.042% 77.59%      0.68s  1.44%  runtime.markroot
+     0.02s 0.042% 77.64%      0.42s  0.89%  runtime.notesleep
+     0.02s 0.042% 77.68%      1.14s  2.42%  runtime.startm
+     0.02s 0.042% 77.72%      0.33s   0.7%  runtime.typedslicecopy
+     0.02s 0.042% 77.76%      0.47s     1%  sort.insertionSort_func
+     0.01s 0.021% 77.78%      0.43s  0.91%  archive/tar.NewWriter (inline)
+     0.01s 0.021% 77.81%      0.25s  0.53%  crypto/sha256.Sum256
+     0.01s 0.021% 77.83%      0.40s  0.85%  fmt.Fprintf
+     0.01s 0.021% 77.85%      0.27s  0.57%  github.com/Beamfall/corvint/internal/tasks/archive.ParseManifestDocument
+     0.01s 0.021% 77.87%      9.72s 20.62%  github.com/Beamfall/corvint/internal/tasks/ticket.Decode
+     0.01s 0.021% 77.89%      0.31s  0.66%  github.com/Beamfall/corvint/internal/tasks/ticket.NewLazyInventory
+     0.01s 0.021% 77.91%      0.71s  1.51%  github.com/Beamfall/corvint/internal/tasks/transaction.(*ImportSequence).posts
+     0.01s 0.021% 77.93%      0.85s  1.80%  github.com/Beamfall/corvint/internal/tasks/transaction.(*importCost).measure
+     0.01s 0.021% 77.95%      0.61s  1.29%  github.com/Beamfall/corvint/internal/tasks/transaction.checkClock
+     0.01s 0.021% 77.98%     17.09s 36.26%  github.com/Beamfall/corvint/internal/tasks/transaction.model
+     0.01s 0.021% 78.00%      0.35s  0.74%  github.com/Beamfall/corvint/internal/tasks/wire.(*Reader).Timestamp
+     0.01s 0.021% 78.02%      0.30s  0.64%  github.com/Beamfall/corvint/internal/tasks/wire.OptionalKeys (inline)
+     0.01s 0.021% 78.04%      0.51s  1.08%  github.com/Beamfall/corvint/internal/tasks/wire.ParseDigest
+     0.01s 0.021% 78.06%      0.36s  0.76%  github.com/Beamfall/corvint/internal/tasks/wire.Sum
+     0.01s 0.021% 78.08%      3.18s  6.75%  internal/runtime/maps.newGroups (inline)
+     0.01s 0.021% 78.10%      2.16s  4.58%  internal/runtime/maps.newTable
+     0.01s 0.021% 78.12%      3.17s  6.73%  internal/runtime/maps.newarray
+     0.01s 0.021% 78.15%      0.28s  0.59%  runtime.(*gcControllerState).enlistWorker
+     0.01s 0.021% 78.17%      1.40s  2.97%  runtime.(*mcentral).grow
+     0.01s 0.021% 78.19%      0.32s  0.68%  runtime.(*mcentral).uncacheSpan
+     0.01s 0.021% 78.21%      0.38s  0.81%  runtime.(*mheap).freeSpan.func1
+     0.01s 0.021% 78.23%      0.32s  0.68%  runtime.(*mspan).initHeapBits
+     0.01s 0.021% 78.25%      0.29s  0.62%  runtime.(*unwinder).next
+     0.01s 0.021% 78.27%      0.43s  0.91%  runtime.forEachPInternal
+     0.01s 0.021% 78.29%      0.61s  1.29%  runtime.futexsleep
+     0.01s 0.021% 78.32%     10.31s 21.88%  runtime.gcBgMarkWorker
+     0.01s 0.021% 78.34%      0.55s  1.17%  runtime.gcStart
+     0.01s 0.021% 78.36%      0.37s  0.79%  runtime.mProf_Malloc
+     0.01s 0.021% 78.38%      1.52s  3.23%  runtime.notewakeup
+     0.01s 0.021% 78.40%      1.71s  3.63%  runtime.park_m
+     0.01s 0.021% 78.42%      0.33s   0.7%  runtime.preemptone
+     0.01s 0.021% 78.44%      0.46s  0.98%  runtime.semawakeup (inline)
+     0.01s 0.021% 78.46%      0.50s  1.06%  runtime.sysUnused (inline)
+     0.01s 0.021% 78.49%      0.32s  0.68%  runtime.tracebackPCs
+     0.01s 0.021% 78.51%      0.56s  1.19%  runtime.unlockWithRank (inline)
+     0.01s 0.021% 78.53%      0.24s  0.51%  strconv.FormatInt (inline)
+     0.01s 0.021% 78.55%      0.34s  0.72%  strings.HasPrefix (inline)
+     0.01s 0.021% 78.57%      0.26s  0.55%  strings.genSplit
+         0     0% 78.57%      1.51s  3.20%  archive/tar.(*Writer).writeUSTARHeader
+         0     0% 78.57%      0.49s  1.04%  archive/tar.(*block).setFormat
+         0     0% 78.57%      0.29s  0.62%  crypto/internal/fips140/sha256.block
+         0     0% 78.57%      0.29s  0.62%  github.com/Beamfall/corvint/internal/tasks/archive.(*Manifest).Encode
+         0     0% 78.57%      0.47s     1%  github.com/Beamfall/corvint/internal/tasks/archive.DecodeManifest
+         0     0% 78.57%      7.07s 15.00%  github.com/Beamfall/corvint/internal/tasks/archive.MeasureManifestEncoding
+         0     0% 78.57%      7.80s 16.55%  github.com/Beamfall/corvint/internal/tasks/archive.MeasureManifestEncodingWith
+         0     0% 78.57%      3.10s  6.58%  github.com/Beamfall/corvint/internal/tasks/archive.measureHeaderBytes
+         0     0% 78.57%      0.79s  1.68%  github.com/Beamfall/corvint/internal/tasks/archive.validateManifestMetadata
+         0     0% 78.57%      0.96s  2.04%  github.com/Beamfall/corvint/internal/tasks/snapshot.DecodeReceipt
+         0     0% 78.57%      0.30s  0.64%  github.com/Beamfall/corvint/internal/tasks/snapshot.decodeReceiptValue
+         0     0% 78.57%      4.70s  9.97%  github.com/Beamfall/corvint/internal/tasks/ticket.(*Record).Encode
+         0     0% 78.57%      4.41s  9.36%  github.com/Beamfall/corvint/internal/tasks/ticket.(*Record).FileDigest
+         0     0% 78.57%      4.17s  8.85%  github.com/Beamfall/corvint/internal/tasks/transaction.(*ImportSequence).Prepare
+         0     0% 78.57%      5.14s 10.91%  github.com/Beamfall/corvint/internal/tasks/transaction.(*Inventory).explicitFiles
+         0     0% 78.57%      1.57s  3.33%  github.com/Beamfall/corvint/internal/tasks/transaction.BenchmarkCALV0018_ImportBatchModel
+         0     0% 78.57%     12.07s 25.61%  github.com/Beamfall/corvint/internal/tasks/transaction.BenchmarkCALV0018_ImportBatchModel.func1
+         0     0% 78.57%     13.41s 28.45%  github.com/Beamfall/corvint/internal/tasks/transaction.CheckCapacity
+         0     0% 78.57%      0.94s  1.99%  github.com/Beamfall/corvint/internal/tasks/transaction.Digest
+         0     0% 78.57%     12.93s 27.43%  github.com/Beamfall/corvint/internal/tasks/transaction.Model (inline)
+         0     0% 78.57%      0.64s  1.36%  github.com/Beamfall/corvint/internal/tasks/transaction.canonical
+         0     0% 78.57%     14.01s 29.73%  github.com/Beamfall/corvint/internal/tasks/transaction.checkCapacity
+         0     0% 78.57%     12.46s 26.44%  github.com/Beamfall/corvint/internal/tasks/transaction.checkCapacity.func1
+         0     0% 78.57%     13.30s 28.22%  github.com/Beamfall/corvint/internal/tasks/transaction.forEachTicket.func1
+         0     0% 78.57%      1.13s  2.40%  github.com/Beamfall/corvint/internal/tasks/transaction.freeze
+         0     0% 78.57%      4.49s  9.53%  github.com/Beamfall/corvint/internal/tasks/transaction.importBenchStore
+         0     0% 78.57%     13.24s 28.09%  github.com/Beamfall/corvint/internal/tasks/transaction.loadTicket
+         0     0% 78.57%      0.77s  1.63%  github.com/Beamfall/corvint/internal/tasks/transaction.testCALV0018CapacityPrefixes.func1
+         0     0% 78.57%      3.68s  7.81%  github.com/Beamfall/corvint/internal/tasks/transaction.testCALV0018InventoryBoundaries.func2
+         0     0% 78.57%      0.24s  0.51%  github.com/Beamfall/corvint/internal/tasks/transaction.validateInput
+         0     0% 78.57%      2.12s  4.50%  github.com/Beamfall/corvint/internal/tasks/wire.EncodeFile (inline)
+         0     0% 78.57%      7.01s 14.87%  github.com/Beamfall/corvint/internal/tasks/wire.Parse (inline)
+         0     0% 78.57%      0.34s  0.72%  github.com/Beamfall/corvint/internal/tasks/wire.ParseTimestamp
+         0     0% 78.57%      0.29s  0.62%  github.com/Beamfall/corvint/internal/tasks/wire.Size.Uint64 (inline)
+         0     0% 78.57%      2.57s  5.45%  internal/runtime/maps.(*table).rehash
+         0     0% 78.57%      0.52s  1.10%  internal/runtime/maps.NewEmptyMap (inline)
+         0     0% 78.57%      0.30s  0.64%  internal/runtime/maps.NewMap
+         0     0% 78.57%      0.70s  1.49%  reflect.typedmemmove (inline)
+         0     0% 78.57%      1.07s  2.27%  runtime.(*mheap).alloc
+         0     0% 78.57%      1.07s  2.27%  runtime.(*mheap).alloc.func1
+         0     0% 78.57%      0.50s  1.06%  runtime.(*pageAlloc).scavenge
+         0     0% 78.57%      0.50s  1.06%  runtime.(*pageAlloc).scavenge.func1
+         0     0% 78.57%      0.50s  1.06%  runtime.(*pageAlloc).scavengeOne
+         0     0% 78.57%      0.50s  1.06%  runtime.(*scavengerState).init.func2
+         0     0% 78.57%      0.50s  1.06%  runtime.(*scavengerState).run
+         0     0% 78.57%      0.50s  1.06%  runtime.bgscavenge
+         0     0% 78.57%      0.32s  0.68%  runtime.callers.func1
+         0     0% 78.57%      0.43s  0.91%  runtime.forEachP (inline)
+         0     0% 78.57%      0.43s  0.91%  runtime.forEachP.func1
+         0     0% 78.57%      1.96s  4.16%  runtime.futexwakeup
+         0     0% 78.57%      9.18s 19.48%  runtime.gcBgMarkWorker.func2
+         0     0% 78.57%      7.97s 16.91%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0% 78.57%      1.20s  2.55%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0% 78.57%      1.16s  2.46%  runtime.gcMarkDone
+         0     0% 78.57%      0.89s  1.89%  runtime.gcMarkTermination
+         0     0% 78.57%      0.33s   0.7%  runtime.gcStart.func4
+         0     0% 78.57%      0.76s  1.61%  runtime.gopreempt_m (inline)
+         0     0% 78.57%      0.88s  1.87%  runtime.goschedImpl
+         0     0% 78.57%      0.48s  1.02%  runtime.lock (partial-inline)
+         0     0% 78.57%      0.48s  1.02%  runtime.lockWithRank (inline)
+         0     0% 78.57%      0.42s  0.89%  runtime.mPark (inline)
+         0     0% 78.57%      0.60s  1.27%  runtime.mProf_Flush
+         0     0% 78.57%      0.30s  0.64%  runtime.makemap
+         0     0% 78.57%      0.52s  1.10%  runtime.makemap_small
+         0     0% 78.57%      0.48s  1.02%  runtime.markroot.func1
+         0     0% 78.57%      1.85s  3.93%  runtime.mcall
+         0     0% 78.57%      0.76s  1.61%  runtime.morestack
+         0     0% 78.57%      0.78s  1.65%  runtime.newstack
+         0     0% 78.57%      0.33s   0.7%  runtime.preemptM (inline)
+         0     0% 78.57%      0.38s  0.81%  runtime.profilealloc
+         0     0% 78.57%      0.55s  1.17%  runtime.rawstring (inline)
+         0     0% 78.57%      0.75s  1.59%  runtime.resetspinning
+         0     0% 78.57%      0.35s  0.74%  runtime.scanstack
+         0     0% 78.57%      0.33s   0.7%  runtime.signalM
+         0     0% 78.57%      0.38s  0.81%  runtime.startTheWorldWithSema
+         0     0% 78.57%      0.57s  1.21%  runtime.stopm
+         0     0% 78.57%      0.49s  1.04%  runtime.sysUnusedOS
+         0     0% 78.57%      0.56s  1.19%  runtime.unlock (partial-inline)
+         0     0% 78.57%      0.48s  1.02%  runtime.unlock2Wake
+         0     0% 78.57%      1.16s  2.46%  runtime.wakep
+         0     0% 78.57%      0.88s  1.87%  runtime.wbBufFlush
+         0     0% 78.57%      0.88s  1.87%  runtime.wbBufFlush.func1
+         0     0% 78.57%      1.75s  3.71%  sort.SliceStable
+         0     0% 78.57%      1.73s  3.67%  sort.stable_func
+         0     0% 78.57%      0.26s  0.55%  strings.Split (inline)
+         0     0% 78.57%     11.76s 24.95%  testing.(*B).launch
+         0     0% 78.57%      2.13s  4.52%  testing.(*B).run1.func1
+         0     0% 78.57%     13.89s 29.47%  testing.(*B).runN
+         0     0% 78.57%      4.70s  9.97%  testing.tRunner

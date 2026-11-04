@@ -38,6 +38,21 @@ other clause are unchanged. The owner accepted this amendment on 2026-10-04; the
 
 ## Requirements
 
+- `CTW-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4260)
+  Chunked mutation batches MUST share the existing bounded native planning captures of
+  TCX-V0-977..979 across entries, while each entry independently hashes live content before
+  publication. Each entry MAY use the existing bounded concurrent artifact preparation and
+  phase-local directory sync overlap of LGL-V0-013 and LGL-V0-016: every artifact retains its own
+  file sync, the receipt is durable before any post, every post is durable before the head, and
+  the head is durable before return. CAS, refusal order, per-entry receipts, request replay, redo,
+  chunk bounds and yields remain CTW-V0-013's. A failed publication MUST clean stages and preserve
+  ordinary pending-receipt recovery. An opt-in 369-entry labels-only profile MUST retain per-chunk
+  wall, lock, observe, model, bind, publication and checkpoint costs, with host load; a Linux result
+  does not qualify the ticket's <=20 s Mac target. Acceptance: `TestCTWV07100_BatchRefineProfile`,
+  `TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering`, the CTW-V0-013 CAS/replay/redo tests,
+  and `TestTCXV0977_PreEffectTamperRefused`.
+
+
 - `CTW-V0-001`: The intent root is the checkout whose `.taskman/` is the intent projection. Every
   read audit, intent-file write, `TM-V0-007` branch check, intent tree digest and publication
   observation that TCP-00 assigns to the primary worktree uses the intent root. The intent root is
@@ -236,8 +251,8 @@ single-ticket `ticket refine` unchanged.
   `--payload` and `--payload-stdin` alike.
 
 Non-goals: batch forms of other verbs; one atomic all-or-nothing batch; fairness for the polling
-writer lock beyond the yield; any change to per-entry audit cost (each entry still audits the store,
-and only process start, lock acquisition, guards and redo are shared per chunk); and a default
+writer lock beyond the yield; bypassing per-entry content binding (CTW-V0-7100 shares planning captures and overlaps only
+independent syncs); and a default
 `issuedAt` that a retry can reproduce. A retry MUST pass the `issuedAt` that the first result
 reports.
 
