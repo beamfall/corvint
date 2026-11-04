@@ -196,6 +196,14 @@ func SetStoreClockForTest(stateDir string, clock func() time.Time) (restore func
 	return func() { testClocks.Delete(stateDir) }
 }
 
+// SetWatchTimingForTest sets the stage watcher's heartbeat renewal interval
+// and failure tolerance for supervised stages over the store at stateDir,
+// until restore runs (V1-1493).
+func SetWatchTimingForTest(stateDir string, renewEvery, tolerance time.Duration) (restore func()) {
+	watchTimings.Store(stateDir, [2]time.Duration{renewEvery, tolerance})
+	return func() { watchTimings.Delete(stateDir) }
+}
+
 // SetStageWallForTest makes every supervised stage over the store at stateDir
 // derive its own wall from the context wall returns, until restore runs
 // (V1-3046). The program wall is unaffected.

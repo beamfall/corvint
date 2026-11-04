@@ -176,7 +176,7 @@ func decodeAttestation(r *wire.Reader) Attestation {
 	}
 	if withArgv {
 		f := r.Field("argv")
-		if a.Argv = f.Strings(wire.MaxGateArgv, true, (*wire.Reader).Identifier); f.Err() == nil && len(a.Argv) == 0 {
+		if a.Argv = f.Strings(wire.MaxGateArgv, true, (*wire.Reader).GateArg); f.Err() == nil && len(a.Argv) == 0 {
 			f.Fail(wire.CodeMalformed, "attestation argv must name at least one element; omit it when no command produced the attestation (TRM-V0-803)")
 		}
 	}

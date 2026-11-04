@@ -611,7 +611,8 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 	go func() {
 		defer close(watcherDone)
 		lastRenew := time.Now()
-		var readFailedSince time.Time
+		renewEvery, tolerance := watchTimingFor(w.repo)
+		var readFailedSince, renewFailedSince time.Time
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for {
@@ -632,7 +633,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 					if readFailedSince.IsZero() {
 						readFailedSince = time.Now()
 					}
-					if time.Since(readFailedSince) >= watchReadTolerance {
+					if time.Since(readFailedSince) >= tolerance {
 						cancel()
 						return
 					}
@@ -644,12 +645,29 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 						cancel()
 						return
 					}
-					if p.ID == w.program.ID && p.Phase == "RUNNING" && time.Since(lastRenew) >= 30*time.Second {
-						r, e := SupervisorTransition(deadline, w.repo, w.actor, w.queue.QueueID.Raw, w.program.ID+"-heartbeat-"+strconv.FormatInt(time.Now().UnixNano(), 10), p.CurrentAttempt, wire.Size(p.CurrentGeneration), transaction.SupervisorChange{Action: "HEARTBEAT", ProgramID: p.ID, OwnerPID: p.OwnerPID, OwnerStarted: p.OwnerStarted})
-						if transitionOK(r, e) != nil {
-							cancel()
-							return
+					if p.ID == w.program.ID && p.Phase == "RUNNING" && time.Since(lastRenew) >= renewEvery {
+						e := fault(w.repo, "heartbeat")
+						if e == nil {
+							r, te := SupervisorTransition(deadline, w.repo, w.actor, w.queue.QueueID.Raw, w.program.ID+"-heartbeat-"+strconv.FormatInt(time.Now().UnixNano(), 10), p.CurrentAttempt, wire.Size(p.CurrentGeneration), transaction.SupervisorChange{Action: "HEARTBEAT", ProgramID: p.ID, OwnerPID: p.OwnerPID, OwnerStarted: p.OwnerStarted})
+							e = transitionOK(r, te)
 						}
+						if e != nil {
+							// A renewal that wrote nothing and may succeed
+							// on retry (LOCK_TIMEOUT under a loaded host)
+							// is retried on the next tick until it has
+							// failed for the tolerance, well inside the
+							// 60-minute lease it extends; any other refusal
+							// stops the stage at once (ATR-V0-532, V1-1493).
+							if renewFailedSince.IsZero() {
+								renewFailedSince = time.Now()
+							}
+							if !wire.RetryOf(wire.CodeOf(e)).Retryable || wire.RetryForbidden(e) || time.Since(renewFailedSince) >= tolerance {
+								cancel()
+								return
+							}
+							continue
+						}
+						renewFailedSince = time.Time{}
 						lastRenew = time.Now()
 					}
 				}
@@ -1005,8 +1023,25 @@ var runFaults sync.Map // state directory -> func(point string) error
 var stageWalls sync.Map // state directory -> func(context.Context) (context.Context, func())
 
 // watchReadTolerance bounds how long the stage watcher tolerates failing
-// unlocked program reads before it stops the stage.
-const watchReadTolerance = 30 * time.Second
+// unlocked program reads, or retryable failing heartbeat renewals, before it
+// stops the stage; watchRenewEvery is how often a RUNNING stage renews.
+const (
+	watchReadTolerance = 30 * time.Second
+	watchRenewEvery    = 30 * time.Second
+)
+
+// watchTimings holds, per store state directory, a package test's shorter
+// renewal interval and tolerance for the stage watcher (V1-1493), so a test
+// need not run a stage for 30 s to reach a renewal. It is empty in production.
+var watchTimings sync.Map // state directory -> [2]time.Duration{renewEvery, tolerance}
+
+func watchTimingFor(repo *intent.Repository) (renewEvery, tolerance time.Duration) {
+	if v, ok := watchTimings.Load(repo.StateDir); ok {
+		t := v.([2]time.Duration)
+		return t[0], t[1]
+	}
+	return watchRenewEvery, watchReadTolerance
+}
 
 func fault(repo *intent.Repository, point string) error {
 	f, ok := runFaults.Load(repo.StateDir)
