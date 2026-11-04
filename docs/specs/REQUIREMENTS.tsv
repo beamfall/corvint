@@ -2161,6 +2161,7 @@ ASD-V0-582	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-583	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3373) `make li	standing	2026-10-31; V1-3373
 ASD-V0-584	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3374; refines	standing	2026-10-31; V1-3374
 ASD-V0-900	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane fri	standing	2026-10-31
+ASD-V0-3720	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3257; amends `	standing	2026-11-01; V1-3257
 ASD-V0-901	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3431; amends `	standing	2026-10-31; V1-3431
 ASD-V0-902	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3481; refines	standing	2026-10-31; V1-3481
 ASD-V0-903	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3482; refines	standing	2026-10-31; V1-3482
@@ -3600,6 +3601,19 @@ BKM-V0-710	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-ac
 DWC-V0-001	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines	standing	2026-11-02; V1-1467
 DWC-V0-002	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467)	standing	2026-11-02; V1-1467
 DWC-V0-003	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends	standing	2026-11-02; V1-4318
+DWC-V0-3720	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4131; refines	standing	2026-11-01; V1-4131
+DWC-V0-3721	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4106; refines	standing	2026-11-01; V1-4106
+DWC-V0-3722	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4105; refines	standing	2026-11-01; V1-4105
+DWC-V0-3723	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2372; decision	standing	2026-11-01; V1-2372
+DWC-V0-3724	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4115; refines	standing	2026-11-01; V1-4115
+DWC-V0-3725	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4163) In a rep	standing	2026-11-01; V1-4163
+DWC-V0-3726	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4169; refines	standing	2026-11-01; V1-4169
+DWC-V0-3727	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4108) A passin	standing	2026-11-01; V1-4108
+DWC-V0-3728	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3683; records	standing	2026-11-01; V1-3683
+DWC-V0-3729	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-0683) When `lo	standing	2026-11-01; V1-0683
+DWC-V0-3730	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3261) A non-em	standing	2026-11-01; V1-3261
+DWC-V0-3731	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2275; refines	standing	2026-11-01; V1-2275
+DWC-V0-3732	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4095; refines	standing	2026-11-01; V1-4095
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-

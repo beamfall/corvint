@@ -3663,6 +3663,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   and the inputs pre-flight accepts it unchanged; a later code-only change drafts the no-intent
   manifest. Rollback: drop the option and `internal/dogfoodflow/propose_intents.go`.
 
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step

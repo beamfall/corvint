@@ -249,6 +249,22 @@ func subtestRunForm(line, word string) string {
 	return form
 }
 
+// unquotedCaretRun is a verify line's unquoted -run word that holds one test
+// name with a ^ or $ anchor, such as -run ^TestA or -run ^TestA$ (DWC-V0-3722).
+var unquotedCaretRun = regexp.MustCompile(` -run(?:=| )(\^?)(` + runName + `)(\$?)(?: |$)`)
+
+// caretRunRefusal names the quoting a refused verify line's unquoted
+// anchored -run name needs: ^ and $ are shell-safe only inside quotes, and
+// a quoted name is admitted anchored at both ends or bare (DWC-V0-3722). It
+// is "" for a line with no unquoted anchored -run name.
+func caretRunRefusal(line string) string {
+	match := unquotedCaretRun.FindStringSubmatch(line)
+	if match == nil || match[1] == "" && match[3] == "" {
+		return ""
+	}
+	return fmt.Sprintf("the -run word %s is unquoted, and ^ and $ are admitted only inside quotes: write -run '^%s$' for the one exact name, or -run %s for every test whose name contains %s (DWC-V0-3722)", match[1]+match[2]+match[3], match[2], match[2], match[2])
+}
+
 // ValidateVerifyLine reports whether one verify-file line is a command the
 // dogfood verify input admits, as finish-lane's pre-flight checks it; a
 // repository document that lists verify commands tests its lines with it

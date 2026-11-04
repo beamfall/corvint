@@ -339,6 +339,36 @@ rmdir internal/dogfoodflow internal
 : > "$TEST_FLOW_LOG"
 CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
 rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || exit 1
+# ASD-V0-3720 (V1-3257): the tooling set holds internal/dogfoodflow's Go import closure, so a change
+# only in a dependency it imports (internal/trace) refuses the override; an unimported package does not.
+# The fake go above refuses go list, so these runs pass go list alone to the host's real go.
+real_go=$(PATH=${PATH#"$root/bin:"} command -v go) || { echo 'dogfood-cache_test.sh: no go on PATH for ASD-V0-3720' >&2; exit 1; }
+mkdir -p "$root/closure-bin"
+printf '#!/bin/sh\n[ "$1" = list ] && exec %q "$@"\nexec %q "$@"\n' "$real_go" "$root/bin/go" > "$root/closure-bin/go"
+chmod +x "$root/closure-bin/go"
+closure_path="$root/closure-bin:$PATH"
+mkdir -p internal/dogfoodflow internal/trace internal/other
+printf 'module example.test/tooling\n\ngo 1.21\n' > go.mod
+printf 'package dogfoodflow\n\nimport _ "example.test/tooling/internal/trace"\n' > internal/dogfoodflow/flow.go
+printf 'package trace\n' > internal/trace/trace.go
+printf 'package other\n' > internal/other/other.go
+git add go.mod internal
+git -c user.name=test -c user.email=test@example.invalid commit -qm closure
+closure_base=$(git rev-parse HEAD)
+printf 'package other\n\nconst X = 1\n' > internal/other/other.go
+git add internal/other/other.go
+: > "$TEST_FLOW_LOG"
+PATH=$closure_path CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$closure_base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || exit 1
+printf 'package trace\n\nconst X = 1\n' > internal/trace/trace.go
+git add internal/trace/trace.go
+status=0
+PATH=$closure_path CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$closure_base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 ]] || { cat "$root/output" >&2; exit 1; }
+rg -qF "REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=$TEST_FAKE_CORVINT changed=internal/trace/trace.go (1 paths)" "$root/output" || { cat "$root/output" >&2; exit 1; }
+git reset -q --soft HEAD^
+git rm -q -r --cached go.mod internal
+/bin/rm -rf go.mod internal
 # DCW-V0-151 (V1-1442): an interrupt during either finish build names the step and the empty
 # NOT_PRODUCED block, exits 128 plus the signal and never reaches finish-lane. set -m gives the
 # wrapper its own process group, so the signal never reaches this test.

@@ -196,7 +196,19 @@ fi
 # the lane-built tree binary may run the steps, so an override is refused before any build.
 # ASD-V0-901 (V1-3431): test files build into no binary, and a binary whose Go build stamp is HEAD,
 # unmodified, with no tooling path changed since HEAD, was built from this change.
-tooling_paths=(internal/dogfoodflow/ internal/cem/ 'cmd/corvint/dogfood_*.go' ':(exclude,glob)**/*_test.go')
+# ASD-V0-3720 (V1-3257): the set also holds each in-module package of internal/dogfoodflow's Go
+# import closure (go list -deps), so a dogfood change made only in a dependency such as
+# internal/trace is detected; a repository where go list fails keeps the fixed paths.
+tooling_paths=(internal/dogfoodflow/ internal/cem/ 'cmd/corvint/dogfood_*.go')
+tooling_closure() {
+  local module pkg
+  [[ -d $repo/internal/dogfoodflow ]] || return 0
+  module=$(cd "$repo" && GOTOOLCHAIN=local go list -m 2> /dev/null) || return 0
+  [[ $module =~ ^[A-Za-z0-9._/-]+$ ]] || return 0
+  while IFS= read -r pkg; do
+    [[ $pkg == "$module"/* && $pkg =~ ^[A-Za-z0-9._/-]+$ ]] && tooling_paths+=(":(glob)${pkg#"$module"/}/*")
+  done < <(cd "$repo" && GOTOOLCHAIN=local go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./internal/dogfoodflow 2> /dev/null)
+}
 tooling_admitted() {
   local stamp revision modified
   [[ -z $(git -C "$repo" diff --name-only HEAD -- "${tooling_paths[@]}") ]] || return 1
@@ -206,6 +218,8 @@ tooling_admitted() {
   [[ -n $revision && $revision == "$(git -C "$repo" rev-parse HEAD)" && $modified == false ]]
 }
 if [[ -n $corvint_bin_set && $corvint_bin != "$git_dir/corvint/corvint" ]]; then
+  tooling_closure
+  tooling_paths+=(':(exclude,glob)**/*_test.go')
   tooling=$(git -C "$repo" diff --name-only "$base" -- "${tooling_paths[@]}") || exit 2
   if [[ -n $tooling ]] && ! tooling_admitted; then
     printf '%s: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=%s changed=%s (%d paths)\n' "$prefix" \

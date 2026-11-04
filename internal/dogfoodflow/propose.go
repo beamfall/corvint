@@ -235,6 +235,11 @@ func (p *proposal) run() int {
 // drafted row's hunk edits, so a reviewer need not rebuild the mapping from
 // git diff; the rows themselves keep the four-field plan grammar (DCW-V0-382).
 func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
+	if len(rows) > 0 {
+		// DWC-V0-3730: stdout stays the four-field plan, which admits no
+		// header row, so the column names are printed here.
+		p.say("  %s\n", planColumnsNote)
+	}
 	if len(p.proposals) > 0 {
 		p.say("  proposals=%d rows are drafted proposals, each marked drafted proposal below with why it was chosen; review each before binding (DCW-V0-962, DCW-V0-967)\n", len(p.proposals))
 	}
@@ -258,6 +263,9 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 		_, _ = fmt.Fprintln(p.stdout, row)
 	}
 }
+
+// planColumnsNote names the plan's columns on stderr (DWC-V0-3730).
+const planColumnsNote = "columns: HUNK<TAB>CITED_PATH<TAB>START:END<TAB>RELATION; CITED_PATH is the BASE file cited as evidence, which may be any file, not the path the hunk edits (each hunk N edits line names that); the plan file takes no header row (DWC-V0-3730)"
 
 // canonicalPatch reads and parses the canonical BASE..HEAD patch the map is
 // derived from, or reports it unreadable within its bound.
@@ -908,6 +916,8 @@ func (p *proposal) parseAnchors() (bool, map[string]bool) {
 			complete, p.patchHunks = true, []*patch.Hunk{}
 		} else if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
+			// One batched read serves every BASE blob the hunks below look up (V1-4095).
+			p.prefetchBlobs(p.base, patchHunkPaths(parsed.Hunks))
 			p.patchHunks = parsed.Hunks
 			for _, hunk := range parsed.Hunks {
 				p.checkpoint()
@@ -1033,6 +1043,10 @@ func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map
 			}
 		}
 	}
+	// The candidates' BASE and HEAD blobs are read in batches, not two git
+	// processes each (V1-4095).
+	p.prefetchBlobs(p.base, matchedPaths(p.matches))
+	p.prefetchBlobs(p.target, matchedPaths(p.matches))
 	// Specifications first, then other documents; git grep's path order
 	// within each (DCW-V0-381). A draft has already dropped every path the
 	// change touches (DCW-V0-393).

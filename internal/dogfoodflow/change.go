@@ -1043,8 +1043,13 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 	for _, evidence := range m.Evidence {
 		spans[evidence.ID] = evidence.Path + ":" + strconv.FormatInt(evidence.Span.Start, 10) + ":" + strconv.FormatInt(evidence.Span.End, 10)
 	}
-	carried := 0
+	carried, counted := 0, 0
 	for index, hunk := range m.Hunks {
+		// DWC-V0-3720: a record hunk is neither counted nor carried.
+		if RecordPath(hunk.Path) {
+			continue
+		}
+		counted++
 		if named[strconv.Itoa(index+1)] || named[hunk.ID] {
 			continue
 		}
@@ -1058,10 +1063,10 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 		}
 		carried++
 	}
-	if carried == 0 {
+	if carried == 0 || counted < 2 {
 		return 0, "", false
 	}
-	return len(m.Hunks), span, true
+	return counted, span, true
 }
 
 // recitesCitedHunk reports, before any cite or mark runs, a plan row that
@@ -2386,6 +2391,22 @@ const uncommittedHint = "the worktree has uncommitted changes (often the prepare
 // hide a path a personal excludes file covers.
 const untrackedHint = "the recorder requires a clean tree and counts these untracked paths as dirty: {paths}; it ignores core.excludesFile, so git status may not show them; move them out of the worktree or list them in the repository .gitignore, then rerun corvint dogfood change {base} (DCW-V0-091)"
 
+// metadataDriftMarker is the gitstatus refusal text for repository metadata
+// (index, HEAD or refs) that changed while the recorder observed it.
+const metadataDriftMarker = "repository metadata changed during observation"
+
+// metadataDriftHint replaces the uncommitted-worktree advice when the
+// recorder's own stderr names metadata drift: the tree may be clean, and the
+// refusal stays fail-closed (DWC-V0-3729).
+const metadataDriftHint = "the recorder refused because repository metadata (index, HEAD or refs) changed while it observed git status, which is often concurrent Git activity such as another worktree's command or an index refresh sharing this .git, not an uncommitted change; nothing was recorded; wait until no other Git command runs against this repository, then rerun corvint dogfood change {base} (DWC-V0-3729)"
+
+// metadataDrifted reports whether the local-outcome stderr kept in evidence
+// names metadata drift (DWC-V0-3729).
+func metadataDrifted(evidence string) bool {
+	data, err := readPrefix(evidence+"/local-outcome.stderr", 64*1024)
+	return err == nil && strings.Contains(string(data), metadataDriftMarker)
+}
+
 // maxNamedUntracked bounds how many untracked paths untrackedHint names.
 const maxNamedUntracked = 8
 
@@ -2580,6 +2601,13 @@ func (c *change) rowValues() string {
 
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
+	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding == "" {
+		// DWC-V0-3724: a plan that passed inputs-check at an earlier HEAD was
+		// built for that HEAD's map; name both and the refresh.
+		if passed := planPassedAt(c.evidence, c.options.Citations); passed != "" && passed != c.target {
+			return fmt.Sprintf("the plan passed inputs-check at HEAD %s, but HEAD is now %s and a later commit changed the map: run ", passed, c.target) + staleHunkIDHint(c.base, c.options.Citations) + " (DWC-V0-3724)"
+		}
+	}
 	if value == "cem-cite:citation-plan-map-mismatch" && strings.Contains(c.mismatchDetail, staleHunkIDMarker) {
 		return staleHunkIDHint(c.base, c.options.Citations)
 	}
@@ -2587,6 +2615,9 @@ func (c *change) fixHint(row step) string {
 		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
 	}
 	if value == "local-outcome:record-index-failed" {
+		if metadataDrifted(c.evidence) {
+			return strings.ReplaceAll(metadataDriftHint, "{base}", c.base)
+		}
 		if paths := c.untrackedPaths(); len(paths) > 0 {
 			named := strings.Join(paths[:min(len(paths), maxNamedUntracked)], ", ")
 			if len(paths) > maxNamedUntracked {
