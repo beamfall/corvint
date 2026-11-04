@@ -88,6 +88,8 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   older than 24 hours whose owner process is demonstrably absent. Live, ambiguous, malformed,
   unmarked, foreign or symlinked directories MUST survive. SIGKILL cannot run cleanup; sweep is
   recovery. Tests MUST use a temporary sweep root, never delete arbitrary /tmp prefixes.
+  Linux markers MUST record the PID namespace; sweep MUST preserve markers when the current
+  namespace cannot be read or does not match, including older markers without that identity.
 - `LVT-V0-010`: (experimental under the standing lane auto-accept, 2026-11-03; owner friction)
   Dogfood finish static precheck MUST use explicit CORVINT_BIN, otherwise SKIP with a reason;
   it MUST NOT let an unrelated installed binary refuse a tree change. Prechange impact failure
