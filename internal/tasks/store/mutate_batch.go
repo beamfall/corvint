@@ -47,6 +47,9 @@ type BatchReport struct {
 // test can commit another writer's transaction at that point.
 type batchStageKey struct{}
 
+// mutationBatchKey limits concurrent publication to entries of MutateBatch.
+type mutationBatchKey struct{}
+
 // WithBatchYieldHook returns ctx with a hook MutateBatch calls after
 // releasing the lock between two chunks and before it waits BatchYield.
 func WithBatchYieldHook(ctx context.Context, hook func(next int)) context.Context {
@@ -64,6 +67,9 @@ func WithBatchYieldHook(ctx context.Context, hook func(next int)) context.Contex
 // an error, or a guard refusal while opening a chunk, stops the batch at that
 // entry and leaves the rest not attempted.
 func MutateBatch(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelopes [][]byte, now wire.Timestamp) (*BatchReport, error) {
+	// CTW-V0-7100: reuse only the existing content-bound planning captures.
+	// Each entry still binds independently to freshly hashed live content.
+	ctx = context.WithValue(WithBatchWrites(ctx), mutationBatchKey{}, true)
 	out := &BatchReport{Entries: make([]BatchEntry, len(envelopes))}
 	if repo == nil {
 		return out, wire.Errorf(wire.CodeMalformed, "", "no repository authority was resolved")
@@ -149,21 +155,28 @@ func mutateChunk(ctx context.Context, repo *intent.Repository, envs []*mutation.
 			refreshWriterCheckpoint(ctx, repo)
 		}
 	}()
+	phase := time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
+	mutationStage(ctx, "batch.lockWait="+time.Since(phase).String())
 	if err != nil {
 		return opened(err)
 	}
 	defer lock.Close()
+	phase = time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
 		return opened(err)
 	}
 	defer session.Close()
+	defer func() { mutationStage(ctx, "batch.fsync="+session.SyncDuration().String()) }()
 	headState, err := writerGuards(repo, transaction.Mutate)
 	if err != nil {
 		return opened(err)
 	}
+	mutationStage(ctx, "batch.guards="+time.Since(phase).String())
+	phase = time.Now()
 	redone, err := redoPending(repo, session)
+	mutationStage(ctx, "batch.redo="+time.Since(phase).String())
 	if err != nil {
 		return opened(err)
 	}

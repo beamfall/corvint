@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -17,8 +18,28 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	cmd := []string{"receipt", "audit"}
 	witnesses := false
 	var through uint64
+	worktree := ""
 	for i := 0; i < len(args); i++ {
 		switch a := args[i]; {
+		case a == "--worktree" && worktree == "":
+			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
+				return usage(cmd, "receipt audit --worktree needs a directory")
+			}
+			var err error
+			worktree, err = filepath.Abs(commandPath(env.Cwd, args[i+1]))
+			if err != nil {
+				return failure(cmd, nil, err)
+			}
+			// Resolve ancestor aliases such as macOS /tmp and /var before
+			// the native closed-layout reader checks the selected store.
+			worktree, err = filepath.EvalSymlinks(worktree)
+			if err != nil {
+				return failure(cmd, nil, err)
+			}
+			if err = intent.CheckNoSymlink(worktree); err != nil {
+				return failure(cmd, nil, err)
+			}
+			i++
 		case a == "--witness-receipts" && !witnesses:
 			witnesses = true
 		case a == "--through" && through == 0:
@@ -33,11 +54,11 @@ func receiptAudit(env Env, args []string) *wire.Result {
 			}
 			through, i = n, i+1
 		default:
-			return usage(cmd, "receipt audit accepts only --witness-receipts or --through SEQ")
+			return usage(cmd, "receipt audit accepts --worktree DIR, --witness-receipts or --through SEQ")
 		}
 	}
-	if witnesses && through != 0 {
-		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--through", "receipt audit --through cannot be combined with --witness-receipts"))
+	if (witnesses || worktree != "") && through != 0 {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--through", "receipt audit --through cannot be combined with --witness-receipts or --worktree"))
 	}
 	var observed *journal.Result
 	var scan *witnessReceiptScan
@@ -96,6 +117,13 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		if rc, err = boundedAuditCtx(env); err == nil {
 			err = body(rc)
 		}
+	} else if worktree != "" {
+		var repo *intent.Repository
+		repo, err = intent.Resolve(env.Cwd)
+		if err == nil {
+			repo.IntentWorktree, repo.IntentFix = worktree, ""
+			rc, err = withResolvedStore(env, repo, body)
+		}
 	} else {
 		rc, err = withStore(env, body)
 	}
@@ -103,6 +131,9 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		return failure(cmd, rc, err)
 	}
 	item := wire.NewObject()
+	if worktree != "" {
+		item.Set("worktree", wire.String(worktree))
+	}
 	item.Set("headSeq", wire.String(string(observed.LastSeq)))
 	item.Set("lastReceiptSha256", wire.String(string(observed.LastReceiptSha256)))
 	item.Set("structuralConsistency", wire.String(observed.StructuralConsistency))

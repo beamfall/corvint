@@ -37,6 +37,30 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 ## Requirements
 
+- `TCL-V0-7102`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3173)
+  `receipt audit --worktree DIR` MUST run the complete owning-journal audit against `DIR/.taskman`
+  as the projection, preserving the command repository's journal, lock and primary identity.
+  It MUST name the selected absolute `worktree` in its result, independently bind the selected
+  tree through the ordinary read snapshot protocol, and report its divergence rather than read
+  the primary projection in its place. It writes nothing and MUST refuse `--through` combined
+  with `--worktree`, because a prefix audit cannot establish current projection agreement.
+  Help MUST explain that `queue snapshot --worktree DIR` and snapshot `ticket blockers` validate
+  dependency closure separately, and include a literal example. A snapshot contains no journal
+  and still refuses receipt audit under TCL-V0-012. Acceptance:
+  `TestTCLV07102_AuditExplicitWorktreeProjection`, `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
+
+
+- `TCL-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4061)
+  `receipt put FILE` MUST resolve relative file arguments against `Env.Cwd` through `commandPath`,
+  as other CLI file readers do, without changing the process working directory. The stored digest
+  MUST identify those exact bytes. Acceptance: `TestTCLV07100_ReceiptPutResolvesEnvCwd`.
+- `TCL-V0-7101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4164)
+  A gate argv entry longer than the existing 128-byte Identifier bound MUST refuse
+  `LIMIT_EXCEEDED`, identifying its argv element and the byte bound before execution. This retains
+  the existing wire grammar; long fixture paths must use a shorter path or relative argument.
+  Acceptance: `TestTCLV07101_GateArgumentNamesLimit` (`internal/tasks/cli`).
+
+
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
   `corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]...
   [--limit N] [--digest FILE]` MUST rank tickets against the query by BM25 (k1 1.2, b 0.3, the

@@ -32,6 +32,15 @@ read start. Former IDs: DCP-V1-NNN is DCR-V1-NNN for every ID listed here.
 
 ## Requirements
 
+- `DCR-V1-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4264)
+  The DCP-V1-317 warm-call qualification MUST use nearest-rank p95 (rank ceil(0.95*n),
+  one-based), not the zero-based floor(0.95*n) index. At 20 samples one isolated scheduling
+  outlier is tolerated and two samples at or over 1 s still fail; the 100 ms freshness median,
+  1 s total p95 budget, fixture and freshness assertions stay unchanged. The Git fallback uses
+  the same statistic. Acceptance: `TestDCRV17100_WarmP95KeepsRegressionPower`,
+  `TestDCPV1281AdditionalRepositoryWarmCallsAtScale` (`internal/mcp/corpusbridge`).
+
+
 ### Verified fast corpus reads (GitHub #1598)
 
 Every CLI read used to rederive the whole artifact (`DCP-V1-011`) and then index each live

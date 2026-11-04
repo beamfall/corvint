@@ -32,6 +32,14 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
 
 ## Requirements
 
+- `LGL-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4306)
+  Compaction's post-state regression MUST compare every replay and stored attempt field while
+  excluding only `attempt show`'s derived live `observedAt` timestamp. Crossing a second boundary
+  is not a stored-state change. Live holder status, heartbeat TTL and all other observations
+  remain compared. Acceptance: `TestCALV0302_CompactedStepsKeepTheirPostState`
+  (`internal/tasks/cli`), repeated 20 times alongside `TestERGV0017_ReviewPacketAcrossRounds`.
+
+
 - `LGL-V0-001`: (proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup
   lock before the preparation gate only when its writer-checkpoint route is not ready. When the
   route is ready the round MUST enter it with no cleanup lock; the route, holding the gate and the
