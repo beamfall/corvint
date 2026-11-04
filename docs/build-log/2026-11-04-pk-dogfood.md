@@ -141,3 +141,11 @@ anchor grammar change `25164d1ac` and canonical wire string-run optimization `3f
 to distinguish candidate narrowing from broad dispatcher/fixture reach. These are additional
 qualification observations, not replacements for the limiting controls. No speedup is
 promoted merely from smaller candidate lists or the censored large-control median.
+
+The VERIFY-anchor pair completed with a 7.94% median reduction (139.679 to 128.593
+seconds). The wire pair is a flat control: 10.413 to 10.693 seconds despite 108 to 99
+candidate edges. Retain all six wire rows; smaller candidate counts alone are not timing
+qualification. Add the recorded documented-VERIFY-forms change `ed4c714ee`, whose
+quoted-run diagnostics exercise the same dogfood package namespace, as another bounded
+observation. This selection follows the failed wire qualification and is recorded explicitly;
+no wire row is removed and no algorithm changes between these observations.
