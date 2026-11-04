@@ -335,7 +335,8 @@ AFP-V0-734 exact reuse; no repin of `CORVINT_PR_TOOL_SOURCE`; no change to `narr
   `tools/ci-reuse-plan routes` SHALL read retained run listings and each run's latest jobs listing
   (with steps) and report, for each fast route (DOCS, REUSE, NARROWED, INTEGRITY_REUSE,
   DOC_GATES_REUSE), its eligible runs and hits over the newest `--window` eligible runs, from job and
-  step conclusions alone. A route with at least `--min-eligible` eligible runs and no hit is `DEAD`
+  step conclusions alone; a run id listed more than once counts once. A route with at least
+  `--min-eligible` eligible runs and no hit is `DEAD`
   and the tool exits 1; fewer eligible runs is `NOT_OBSERVED`, never healthy; a route whose signal
   step is missing from every eligible run is `SIGNAL_MISSING` and also exits 1. It reads no log and
   no artifact.

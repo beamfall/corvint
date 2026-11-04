@@ -56,7 +56,8 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   immutable BASE constraint and the new requirement's defining spec.
 - `DTL-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3790; refines DCW-V0-813)
   Doc gates MAY run independent targets with bounded concurrency (default four, configurable
-  `DOC_GATE_JOBS`); every target MUST still run and failures MUST propagate. Each target MUST
+  `DOC_GATE_JOBS`; an empty or non-positive-integer value MUST be refused before any gate runs,
+  never widened to an unbounded `-j`); every target MUST still run and failures MUST propagate. Each target MUST
   print elapsed seconds and status. A serial override MUST retain identical gate inventory. Selection-baseline replay defaults
   to at most eight independent workers, bounded by CPUs and the change count; its existing
   SELECTION_BASELINE_JOBS override remains explicit. Every immutable range and result MUST still
@@ -151,7 +152,7 @@ handback. Full repository and external interoperability qualification are outsid
 | DTL-V0-003 | script/lane-corvint.sh; docs/LANE-ORCHESTRATION.md | TestDTLV0003WorktreeBuild; retained worktree binary and path-control receipts |
 | DTL-V0-004 | internal/dogfoodflow/finishlane.go; finishlane_entry.go; cmd/corvint/dogfood_flow.go; script/dogfood-finish.sh; Makefile | TestDTLV0004FinishStopsAfterCheck; TestDTLV0004RetryKeepsStopBeforeSeal; script/dogfood-cache_test.sh |
 | DTL-V0-005 | internal/dogfoodflow/propose.go; propose_refresh.go | TestDTLV0005SameChangeRefinementNewFiles |
-| DTL-V0-006 | Makefile; script/doc-gate-timed.sh | TestDTLV0006TimingPreservesFailure; measured per-target timings |
+| DTL-V0-006 | Makefile; script/doc-gate-timed.sh; script/doc-gates-summary.sh (DOC_GATE_JOBS guard) | TestDTLV0006TimingPreservesFailure; `make batch-precheck-test` group `8b` (empty/zero/non-integer DOC_GATE_JOBS refused); measured per-target timings |
 | DTL-V0-007 | script/go-test-shard.sh; script/heavy.sh | TestDTLV0007ShardCoverageAndFailure; TestDTLV0007ShardInventoryRealPolicy; TestDTLV0007InheritedGoflagsKeepCoverage; TestDTLV0007ListAliasAndArgsRefused (including `--` after `go test`); retained real selected-failure control |
 | DTL-V0-008 | .corvint/unbounded-readers.json | Source audit in docs/build-log/2026-11-03-dogtools.md; confined admission NOT_PRODUCED |
 | DTL-V0-009 | cmd/corvint/test.go | TestDTLV0009TestFormatJSON |

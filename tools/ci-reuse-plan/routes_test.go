@@ -167,6 +167,39 @@ func TestAFPV0105WindowsThresholdsAndSignals(t *testing.T) {
 	}
 }
 
+// TestAFPV0105RepeatedRunIDsCountOnce: overlapping repeatable --runs listings may name a run more
+// than once; each run id counts once (its first listing), so one run copied ten times never meets
+// --min-eligible=10.
+func TestAFPV0105RepeatedRunIDsCountOnce(t *testing.T) {
+	listed := map[int64][]stepJob{7: prRunJobs(false)}
+	jobs := func(id int64) ([]stepJob, bool) { j, ok := listed[id]; return j, ok }
+	var copies []run
+	for i := 0; i < 10; i++ {
+		copies = append(copies, routeRun(7, "pull_request"))
+	}
+	if docs := routeOf(t, RouteHealth(testRepo, copies, jobs, 30, 10), "DOCS"); docs.Status != "NOT_OBSERVED" || docs.Eligible != 1 {
+		t.Fatalf("one run listed 10x: DOCS = %+v, want NOT_OBSERVED over 1 eligible run", docs)
+	}
+	// Two overlapping listings (runs 1-6 and 4-9) are nine distinct runs, not twelve.
+	var overlap []run
+	for _, span := range [][2]int64{{1, 6}, {4, 9}} {
+		for id := span[0]; id <= span[1]; id++ {
+			overlap = append(overlap, routeRun(id, "pull_request"))
+			listed[id] = prRunJobs(false)
+		}
+	}
+	if docs := routeOf(t, RouteHealth(testRepo, overlap, jobs, 30, 10), "DOCS"); docs.Status != "NOT_OBSERVED" || docs.Eligible != 9 {
+		t.Fatalf("overlapping listings: DOCS = %+v, want NOT_OBSERVED over 9 eligible runs", docs)
+	}
+	// The first listing of a repeated id is the one counted.
+	stale := routeRun(10, "pull_request")
+	stale.Status = "in_progress"
+	listed[10] = prRunJobs(false)
+	if docs := routeOf(t, RouteHealth(testRepo, append(append([]run{stale}, overlap...), routeRun(10, "pull_request")), jobs, 30, 10), "DOCS"); docs.Eligible != 9 {
+		t.Fatalf("first listing in_progress: DOCS = %+v, want 9 eligible runs", docs)
+	}
+}
+
 // TestAFPV0105RoutesCommand: the subcommand reads retained listings, prints the report, exits 1
 // on a DEAD route, 0 when every route is healthy or not observed, and 2 on a usage error; its
 // help names the inputs and an example.

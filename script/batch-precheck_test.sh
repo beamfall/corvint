@@ -1418,6 +1418,18 @@ printf '#!/bin/sh\necho boom >&2\nexit 3\n' > "$dgs/make"
 "$script/doc-gates-summary.sh" "$dgs/make" alpha.check 2> "$dgs/err"
 [[ $? == 3 && $(tail -n 1 "$dgs/err") == 'doc-gates-summary: FAIL exit 3 naming no doc gate; read the output above' ]] || fail "unnamed failure: $(cat "$dgs/err")"
 "$script/doc-gates-summary.sh" true alpha.check > "$dgs/out" 2>&1 && [[ ! -s $dgs/out ]] || fail "a passing run printed a summary: $(cat "$dgs/out")"
+# DTL-V0-006: an empty, zero or non-integer DOC_GATE_JOBS (`-j`, `-j0`, `-jx`) is refused before
+# CMD runs, so it never becomes make's unbounded bare -j; a positive count still runs.
+for j in -j -j0 -j04x -jx '-j-1'; do
+  "$script/doc-gates-summary.sh" "$dgs/make" --keep-going "$j" alpha.check > "$dgs/out" 2> "$dgs/err"
+  [[ $? == 2 && ! -s $dgs/out ]] && grep -q 'DOC_GATE_JOBS must be a positive integer' "$dgs/err" && ! grep -q boom "$dgs/err" ||
+    fail "doc-gates-summary accepted $j: $(cat "$dgs/err")"
+done
+"$script/doc-gates-summary.sh" true --keep-going -j4 alpha.check > "$dgs/out" 2>&1 && [[ ! -s $dgs/out ]] || fail "-j4 refused: $(cat "$dgs/out")"
+# The real recipe: `make -n` runs its $(MAKE) line, and an empty DOC_GATE_JOBS stops at the wrapper.
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= DOC_GATE_JOBS= doc-gates) > "$tmp/out" 2>&1 &&
+  fail "make doc-gates DOC_GATE_JOBS= passed: $(cat "$tmp/out")"
+grep -q "DOC_GATE_JOBS must be a positive integer, got '' (from -j)" "$tmp/out" || fail "make doc-gates DOC_GATE_JOBS= not refused: $(cat "$tmp/out")"
 # V1-4137, V1-3734: a `## help` comment on the doc-gates target line still expands.
 printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
