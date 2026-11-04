@@ -224,7 +224,9 @@ separate exact extension tuple remains governed by AHI-024.
   CLI hook subtracts `performance.now()` at invocation, so a slow Node start shortens the Corvint
   budget; under the declared kill its non-query hang detector applies when it is below that budget, and
   `compatibility.json` publishes the resulting query ceiling. The Claude Code and Codex adapters
-  bound the invocation by a declared-kill table that MUST equal their `hooks.json`; a watchdog
+  bound the invocation by one declared-kill table whose shipped entries MUST equal their `hooks.json`;
+  its opt-in entries (an event the adapter accepts but no shipped `hooks.json` registers, V1-3946)
+  MUST be absent from every shipped `hooks.json`; a watchdog
   emits `adapter-host-kill-deadline` at the derived deadline while the work is still running, and
   the work context expires 100 ms earlier so a promptly cancelled event keeps its own reason. A panic
   inside an adapter invocation is recovered and degrades as `adapter-internal-error`, so a defect
@@ -777,7 +779,7 @@ separate exact extension tuple remains governed by AHI-024.
   `subagent-start` (`AHI-630`). Live receipt (Claude Code 2.1.316, 2026-11-01): the host's
   SubagentStart payload carried `agent_id`, `agent_type`, `cwd`, `prompt_id`, `scratchpad_dir`,
   `session_id` and `transcript_path` and no task text; the adapter answered `{}` in 77 ms and the
-  spawn ran unchanged, so the registration stays unshipped (`docs/build-log/2026-11-01-hst-m27.md`). The event runs under the 2 s opt-in adapter host kill (`AHI-017`, `adapterOptInHostKill`).
+  spawn ran unchanged, so the registration stays unshipped (`docs/build-log/2026-11-01-hst-m27.md`). The event runs under the 2 s opt-in adapter host kill (an `AHI-017` opt-in entry of `adapterDeclaredHostKill`).
   Evidence:
   `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`,
   `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently` and
@@ -792,7 +794,7 @@ separate exact extension tuple remains governed by AHI-024.
   (not the root itself) is compiled as a one-path `user-prompt` anchor and its packet or named
   degradation is the `additionalContext` under `hookEventName` `PreToolUse`; another tool, an
   absent path or an outside path gets `{}`, so the host's own permission flow runs unchanged. The
-  event runs under the 2 s opt-in adapter host kill (`AHI-017`, `adapterOptInHostKill`), whose
+  event runs under the 2 s opt-in adapter host kill (an `AHI-017` opt-in entry of `adapterDeclaredHostKill`), whose
   expiry is a degradation without a decision. Invariant 4 decision: hook-driven unplanned-read recording is NOT admitted; the
   event writes only what the `user-prompt` path already writes, so unplanned-read rows stay gated
   on the operator marker (`SOL-V0-010`; decision recorded in
@@ -2975,7 +2977,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-801` (experimental under the standing lane auto-accept (2026-11-01); V1-3556) | `cmd/corvint/host_adapter_deadline.go` (`withReducedPacket`) | `TestAHI801CompactSessionStartDeadlineEmitsReducedPacket`, `TestAHI801UserPromptDeadlineEmitsReducedPacket` |
 | `AHI-802` (experimental under the standing lane auto-accept (2026-11-01); V1-3676) | `cmd/corvint/host_adapter.go` (`alternatesCauseLine`) | `TestAHI802SharedCloneFallbackNamesObjectAlternates` |
 | `AHI-803` (experimental under the standing lane auto-accept (2026-11-01); V1-3728) | `cmd/corvint/host_adapter.go` (`postToolOwningRepository`, `invokeSiblingClaudePostTool`) | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner`, `TestAHI803SiblingRepositoryRootStaysRepositoryData` |
-| `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`), `cmd/corvint/host_adapter.go` (`adapterOptInHostKill`) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`, `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently`, `TestAHI804OptInEventsRunUnderTheHostKill` |
+| `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`), `cmd/corvint/host_adapter.go` (`adapterDeclaredHostKill` opt-in entry) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`, `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently`, `TestAHI804OptInEventsRunUnderTheHostKill` |
 | `AHI-805` (experimental under the standing lane auto-accept (2026-11-01); V1-0402) | `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`, `preToolReadTarget`) | `TestAHI805PreToolReadNeverDecidesPermission`, `TestAHI804OptInEventsRunUnderTheHostKill` |
 | `AHI-806` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_pretool.go` (`preToolPrompt`) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases) |
 | `AHI-630` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `internal/observations/observations.go` (`admittedAdapterEvents`) | `TestAHI630OptInAbstentionReachesTheLedger` |

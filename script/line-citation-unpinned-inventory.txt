@@ -582,7 +582,6 @@ docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:614
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:68
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:863
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:911
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:930
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:94
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:26
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:32

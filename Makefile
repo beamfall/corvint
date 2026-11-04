@@ -1147,7 +1147,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
@@ -1243,10 +1243,13 @@ requirement-id-collisions:
 dogfood-change-runs:
 	@script/dogfood-change-runs.sh $(if $(SINCE),"$(SINCE)")
 
-# The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
+# The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018) and the .github split
+# check (ASD-V0-706); no Go build.
 .PHONY: lane-scripts-test
 lane-scripts-test: lane-screen-test
 	@script/lane-scripts_test.sh
+	@script/lane-host-tools_test.sh
+	@script/github-split-check_test.sh
 
 .PHONY: lane-screen-test
 lane-screen-test:

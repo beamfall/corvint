@@ -43,7 +43,15 @@ var companionHelp = sync.OnceValue(func() clitree.Help {
 	return clitree.Help{Tree: tree, Title: "the read-only work-queue observation producer"}
 })
 
-// serveHelp answers corvint-work-queue's help invocations before its own dispatch.
+// serveHelp answers corvint-work-queue's help invocations before its own dispatch. An unknown
+// verb is left to that dispatch, whose `unsupported operation` refusal WQO-V0-007 and WQO-V0-030
+// pin, so the shared unknown-verb envelope does not apply here (ACX-V0-904).
 func serveHelp(args []string, stdout, stderr io.Writer) (int, bool) {
-	return companionHelp().Serve(args, stdout, stderr)
+	help := companionHelp()
+	if _, unknown := clitree.UnknownVerb(help.Tree, args); unknown {
+		if handled, _ := clitree.Answer(help.Tree, args, help.Root(), io.Discard); !handled {
+			return 0, false
+		}
+	}
+	return help.Serve(args, stdout, stderr)
 }

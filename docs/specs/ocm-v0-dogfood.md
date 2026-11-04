@@ -409,6 +409,17 @@ claim, and mutation ordering deltas below.
   later row silently replacing an earlier different-path row now keeps both. Evidence:
   `TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles`. Rollback: drop `--accumulate` and the
   plan's per-obligation flag.
+- `OCM-V0-700`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3693; refines
+  the `OCM-V0-007` native selector diagnostic) When a `/case:` claim selector misses and its suffix
+  normalizes to a different fragment, the `claim-selector-out-of-range` message MUST name both the
+  given suffix (`given case fragment:`, ASCII-quoted, at most 96 bytes then `...`) and the
+  normalized fragment that was searched (`normalized case fragment:`), followed by a short
+  normalization note that points to the `OCM-V0-007` clarification below, which states the
+  fragment grammar. Selection stays exact; the note neither selects a claim nor promises a match.
+  Failure mode: a lane wrote `case:keeps`, the selector searched `keep`, and the miss did not show
+  what was given beside it. Non-goals: changing the grammar or matching a normalized selector.
+  Evidence: `TestOCMClaimSelectorMiss` (`OCM-V0-700` case). Rollback: drop the given fragment and
+  the note; the `OCM-V0-007` hint remains.
 
 ## Wire profile
 
@@ -535,7 +546,7 @@ what the row asserts.
 | `bootstrap-intent-not-unknown` | `internal/lrfrepo/ocm.go:716` | "bootstrap intent hunk must remain unknown" |
 | `cem-map-digest-mismatch` | `internal/lrfrepo/ocm.go:424` | "CEM map digest does not match" |
 | `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:411` | "CEM patch digest does not match" |
-| `claim-conflict` | `internal/lrfrepo/ocm_write.go:1055@1c03b150` | "claim ID has conflicting fields" |
+| `claim-conflict` | `internal/lrfrepo/ocm_write.go:1068@1c03b150` | "claim ID has conflicting fields" |
 | `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
 | `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:842@df280c84` | "claim selectors must be unique" |
 | `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:787@c947a99d` | "hunk selectors must be unique" |
@@ -549,7 +560,7 @@ what the row asserts.
 | `invalid-cem-digest` | `internal/lrfrepo/ocm.go:173` | "CEM binding digest is invalid" |
 | `invalid-claim-blob` | `internal/lrfrepo/ocm.go:266` | "claim blob OID is invalid" |
 | `invalid-claim-extractor` | `internal/lrfrepo/ocm.go:262` | "claim extractor is unsupported" |
-| `invalid-claim-references` | `internal/lrfrepo/ocm_write.go:930` | "claim references must be non-empty and unique" |
+| `invalid-claim-references` | `internal/lrfrepo/ocm_write.go:932@ba1bd8c4` | "claim references must be non-empty and unique" |
 | `invalid-claims` | `internal/lrfrepo/ocm.go:239` | "claims must be a bounded array" |
 | `invalid-field` | `internal/lrfrepo/ocm.go:355` | "<value> must be a string" |
 | `invalid-hunk-references` | `internal/lrfrepo/ocm_write.go:911` | "hunk references must be non-empty and unique" |
@@ -720,6 +731,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-950 | `internal/dogfoodflow/ocm_coverage.go` (`rangeNamesRequirement`, `namesRequirementSuffix`, `testsNaming`, `tracedForms`) | `internal/dogfoodflow/check_test.go:TestOCMV0950TracesTestNameSuffixesAndTableRanges` |
 | OCM-V0-951 | `internal/lrfrepo/ocm_write.go` (`linkObligation`, `existingClaimPaths`) | `internal/lrfrepo/ocm_multifile_test.go:TestOCMV0951LinkKeepsOtherTestPaths` |
 | OCM-V0-952 | `internal/lrfrepo/ocm.go` (`requirementID`), `internal/lrf/terms.go` (`obligationIDPattern`), `internal/dogfoodflow/ocm_coverage.go` (`requirementLine`), `internal/console/chain.go` (`requirementLine`) | `internal/lrfrepo/ocm_requirement_digits_test.go:TestOCMV0952IntentAcceptsFourDigitRequirementIDs`, `internal/lrf/obligation_id_test.go:TestOCMV0952ObligationIDsAcceptFourDigits`, `internal/dogfoodflow/ocm_requirement_digits_test.go:TestOCMV0952CoverageReadsFourDigitRequirementLines`, `internal/console/chain_requirement_digits_test.go:TestOCMV0952ChainShowsFourDigitRequirementLines` |
+| OCM-V0-700 | `internal/lrfrepo/ocm_write.go` (`claimSelectorMissMessage`, `boundedFragment`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMClaimSelectorMiss` |
 | OCM-V0-940 | `internal/lrfrepo/ocm_write.go` (`LinkOCM`, `linkObligation`, `existingClaimPaths`), `cmd/corvint/ocm.go` (`parseOCMLinkFlags`), `internal/dogfoodflow/change.go` (`runOCMLinks`) | `internal/lrfrepo/ocm_accumulate_test.go:TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
 | OCM-V0-880 | `internal/dogfoodflow/ocm_coverage.go` (`parseRequirements`, `changeCoverage`, `outsideNote`) | `internal/dogfoodflow/ocm_outside_test.go:TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection` |
@@ -748,7 +760,7 @@ maximal `[A-Za-z][A-Za-z0-9]*` runs, so a digit run not preceded by a letter, pu
 non-ASCII text are dropped; each word is lower-cased, then a word longer than five bytes ending
 `ies` ends `y` instead, else a word longer than four bytes ending in `s` but not `ss` loses that
 `s`; words join with `-`, the result is cut to 96 bytes and trimmed of `-`, and an empty result is
-`unnamed`. For example, `PTR-V0-003 two bound checks versions is tampered` becomes
+`unnamed`. A miss whose suffix normalizes differently names both forms (`OCM-V0-700`). For example, `PTR-V0-003 two bound checks versions is tampered` becomes
 `case:ptr-v0-two-bound-check-version-is-tampered`. Two cases of one test whose names differ only in
 dropped or folded text derive one selector, so neither is extracted (the `TCQ-V0-018` ambiguity
 rule).

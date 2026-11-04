@@ -6,7 +6,9 @@
 # user's own Python project, the `corvint-analyzer-python` Go tool family (its name embeds
 # "python" but it is Go source that analyzes Python as fixture data, not a Python interpreter
 # dependency of Corvint's own build/tests/hooks/packaging), and this check's own name, which the
-# Makefile's gate step must spell. One file is exempt by exact repository path: the named
+# Makefile's gate step must spell. In Makefile and script/*.sh, full-line # comments other than
+# #! lines are prose and are skipped too (V1-3842); in .mjs a leading # begins a private field, so
+# nothing there is skipped. One file is exempt by exact repository path: the named
 # external-conformance script script/spec-toolchain-conformance.sh (STA-V0-011), which installs
 # third-party Spec Kit into a throwaway venv to compare upstream's view with Corvint's. It is not
 # Corvint's build/test/hook/packaging path, so the check also fails if any gate step or other
@@ -23,8 +25,12 @@ external_conformance='script/spec-toolchain-conformance.sh'
 # dropped and the two allowed names are masked, so an allowed name elsewhere on a line or in its
 # path never hides a real invocation. Paths are repository-relative so the checkout path cannot
 # match or exempt anything.
+# A full-line # comment other than a #! interpreter line is prose, never an invocation (V1-3842),
+# but only in the Makefile or a .sh file (or a pathless self-test line): in JavaScript a leading #
+# starts a private field, which can run code. The opt-in drop is textual: any line naming the token
+# is dropped, whatever else it runs.
 unexempted() {
-  grep -v "$opt_in" | sed -E "s/$names/[allowed-name]/g" | grep -E "$pattern"
+  grep -vE '^(([^:]*/)?Makefile:|[^:]*\.sh:)?[0-9]+:[[:space:]]*#([^!]|$)' | grep -v "$opt_in" | sed -E "s/$names/[allowed-name]/g" | grep -E "$pattern"
 }
 
 # mask_fixture_data blanks the quoted arguments of a printf or echo command (V1-3971): text a shell
@@ -173,6 +179,29 @@ if ! printf '%s\n' "$targets" | grep -qx script/check-bash32_test.sh; then
 fi
 if ! fires 'script/example_test.sh:12:  out=$(python3 -c "print(1)")'; then
   echo "self-test: a python3 call in a script/*_test.sh shell test was not detected" >&2
+  exit 1
+fi
+
+# V1-3842: a full-line comment naming an interpreter is skipped; a #! interpreter line, a trailing
+# comment after a call and an indented call are not. The opt-in drop is textual, so a line that only
+# names the token in a comment passes; this pins that limit, which the GOC-V0-008 trace states.
+for line in "script/x.sh:3:# python3 is deliberately not required" "script/x.sh:4:  # pip install is never run" "Makefile:9:#"; do
+  if fires "$line"; then
+    echo "self-test: a full-line comment was flagged: $line" >&2
+    exit 1
+  fi
+done
+# In .mjs a leading # is a private field, not a comment, so the same shape is still scanned there.
+for line in "script/x.sh:1:#!/usr/bin/env python3" "script/x.sh:5:make x # python3" "script/x.sh:6:  python3 -c 1" \
+  'integrations/x/hook.mjs:7:  #result = execFileSync("python3", ["-c", "1"]);' \
+  'integrations/x/hook.sh.mjs:8:#run = () => execFileSync("pip", ["install", "x"]);'; do
+  if ! fires "$line"; then
+    echo "self-test: a genuine invocation was hidden as a comment: $line" >&2
+    exit 1
+  fi
+done
+if fires "script/x.sh:7:python3 -c 1 # $opt_in"; then
+  echo "self-test: the textual opt-in drop changed; update the GOC-V0-008 trace" >&2
   exit 1
 fi
 

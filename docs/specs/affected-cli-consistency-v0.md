@@ -6,7 +6,7 @@ Requirement prefix: `ACX-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12)
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3583, V1-3327, V1-3578, V1-3726, V1-3727, V1-3045,
-V1-2907, V1-3734, V1-3731 and V1-3736; lane aff-w42 (2026-11-02) adds V1-4214, V1-4039,
+V1-2907, V1-3734, V1-3731, V1-3736 and V1-3878; lane aff-w42 (2026-11-02) adds V1-4214, V1-4039,
 V1-4008 and the orchestrator's NEW-C1 and NEW-C3 items. These requirements refine the
 [affected plan](affected-plan-v0.md) and the command-line surface around it; they live here to
 keep that spec's Requirements section under the 256-obligation OCM limit (`maxObligations`).
@@ -110,9 +110,11 @@ driving Corvint from scripts.
   SHALL build every binary that has a command tree in `internal/capcatalog/trees/`, run each one
   with an unknown verb, and check its exit code, output stream and envelope against a declared
   row for that binary. A binary without a row, or a row without a binary, SHALL fail the test.
-  Making the binaries' envelopes identical is out of scope; each row records the current contract.
+  Making the binaries' envelopes identical is out of scope here; `ACX-V0-904` unifies the companions.
 - **ACX-V0-664:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
-  V1-3736 AC2) Every catalog binary's unknown-verb refusal SHALL carry a stable code and name the
+  V1-3736 AC2; amended by ACX-V0-904) Every catalog binary's unknown-verb refusal SHALL carry a
+  stable code and name the typed word. Until ACX-V0-904 each refusal kept the stream and exit
+  code its row records, and named the
   typed word, on the stream and with the exit code its row already records. Binaries whose refusal
   had no code (`corvint-cem-candidate`, `corvint-cem-experiments`, `corvint-corpus-republish`,
   `corvint-gateway`, `corvint-js-test-provider`, `corvint-ruby-test-provider`,
@@ -122,6 +124,8 @@ driving Corvint from scripts.
   reads any input. The conformance test SHALL fail when a row is silent or unchecked. The
   `corvint-work-queue` row is the one exception: WQO-V0-007 and WQO-V0-030 pin its refusal to the
   exact text `unsupported operation`, so its row checks that text until those requirements change.
+  ACX-V0-904 replaces the `UNKNOWN_COMMAND` and `unknown-operation` refusals of the companions with
+  the shared `unknown-verb` envelope, which keeps the stable code and the typed word.
 - **ACX-V0-750:** (experimental, amending AFP-V0-846 and AFP-V0-871, under the owner's standing
   lane auto-accept, 2026-10-11; V1-4214, NEW-C1) When `corvint affected` judges its own binary
   `self-binary-stale` or `self-binary-unverified`, every output form SHALL carry the notice its
@@ -158,6 +162,23 @@ driving Corvint from scripts.
   `--base`. Planning a worktree-derived path list against a base inside one invocation is a
   non-goal: `--base` alone already covers the range with the working tree, and a second change
   set beside `--path` stays refused (AFP-V0-764).
+- **ACX-V0-904:** (experimental, under the owner's standing lane auto-accept, 2026-11-01;
+  V1-3878) Every catalog companion binary (every `internal/capcatalog/trees/` binary except
+  `corvint`, `corvint-tasks` and `corvint-work-queue`) SHALL refuse a first argument that is an operation word naming
+  none of its top-level command-tree nodes or internal entry points with exit 2, nothing on
+  stdout and one JSON line on stderr whose fields are exactly `binary`, `code` `unknown-verb`,
+  `error` `unknown command "WORD"`, `help` `BINARY --help` and `ok` false, before its own
+  dispatch parses anything. `clitree.Help.Serve` applies it after help, and the binaries that
+  answer help with `clitree.Answer` (`corvint-cem-candidate`, `corvint-cem-experiments`) or their
+  own help (`corvint-test`) call `clitree.RefuseIfUnknownVerb`. Decision: `corvint` keeps the
+  argparse-parity `invalid-arguments` envelope (`ACX-V0-859`) and `corvint-tasks` its
+  `taskman-command-result/0` `MALFORMED` result on stdout, the Tasks wire contract (CAP-V0-820),
+  and `corvint-work-queue` the exact `unsupported operation` text that WQO-V0-007 and WQO-V0-030
+  pin (its `serveHelp` leaves an unknown verb to its dispatch), so their rows stay. Non-goals: unifying any other refusal (a bad flag or a missing input keeps
+  each binary's own envelope); a verb after preamble options such as `--root PATH`. Failure
+  modes: a word a binary dispatches but its tree omits would be refused; the catalog tree check
+  keeps dispatched words in the tree, and the conformance rows run every binary. Rollback: restore
+  the `!handled` return in `Help.Serve`, drop the three direct calls and the `corvint-work-queue` skip, and restore the rows.
 
 ## Non-goals
 
@@ -197,6 +218,7 @@ current source computes, so a stale binary still yields uncertainty, not invente
 | ACX-V0-857 | `.DEFAULT_GOAL`, `BASE` and `help` in `Makefile` | `TestMakeDefaultGoalIsHelp_ACXV0857` |
 | ACX-V0-859 | `suggestChoices` in `cmd/corvint/suggest.go`; `conformance/cli-errors-v0` | `TestUnknownCommandSuggestsNearChoices_ACXV0859`; `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-664 | the unknown-verb refusals in `main.go` of the eight named binaries and `run` in `cmd/corvint-postmerge-connect/main.go`; the coded-row check in `conformance/cli-errors-v0/contract_test.go` | `TestCLIErrorContracts_ACXV0859` |
+| ACX-V0-904 | `UnknownVerb`, `RefuseUnknownVerb`, `RefuseIfUnknownVerb` in `internal/clitree/unknownverb.go`; `Help.Serve` in `internal/clitree/help.go`; `serveHelp` in `cmd/corvint-work-queue/help.go`; `conformance/cli-errors-v0` `companion` rows | `TestACXV0904UnknownVerbRefusal`; `TestACXV0904HelpServeRefusesUnknownVerb`; `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
 | ACX-V0-750 | `selfBinaryNotice` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` in `cmd/corvint/affected.go`; `writeAffectedDegradations` in `cmd/corvint/affected_text.go`; the `DegradationDetails` members in `affected_compact.go`, `affected_verdict.go` and `affected_by_path.go`; the `corvint-test: DEGRADED` line in `cmd/corvint/test.go` | `TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750`; `TestAFPV0825StaleCheckReusesThePlanHEAD` |
 | ACX-V0-751 | `degradeStaleAffected` in `cmd/corvint/affected.go`; the stale check in `runTest` in `cmd/corvint/test.go` | `TestStaleBinaryNoticeOncePerInvocation_ACXV0751` |
