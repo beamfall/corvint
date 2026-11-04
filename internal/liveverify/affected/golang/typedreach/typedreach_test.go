@@ -248,6 +248,54 @@ func TestAFPV02373RoundThreeRegressions(t *testing.T) {
 	}
 }
 
+// TestAFPV02374RoundFourRegressions holds the fourth review's cases: a
+// write through a type assertion on an interface-held reference, a path made
+// "private" by an argument the helper discards, a write through a shared
+// os.File handle, net/http's implicit defaults, and a fixed-port listener.
+func TestAFPV02374RoundFourRegressions(t *testing.T) {
+	result := analyzePackage(t, "t4", lib("A"))
+	if result.Whole != "" {
+		t.Fatalf("whole: %s", result.Whole)
+	}
+	for _, test := range []string{"TestIfaceRead", "TestFileReader", "TestHTTPRead", "TestListenB"} {
+		if keptCodes(result)[test] != KeptReadsSharedState {
+			t.Fatalf("%s: kept=%v", test, result.Kept)
+		}
+	}
+	if keptCodes(result)["TestPure"] != "" {
+		t.Fatalf("a test using only pure code is kept: %v", result.Kept)
+	}
+	program, err := Load(filepath.Join("testdata", "mod"), fixtureModule, "t4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := buildGraph(program)
+	roots := map[string]*node{}
+	for _, test := range g.tests {
+		roots[test.name] = test.node
+	}
+	written := func(n *node, name string) bool {
+		for v := range n.writes {
+			if v.Name() == name {
+				return true
+			}
+		}
+		return false
+	}
+	switch {
+	case !written(roots["TestIfaceWrite"], "shared"):
+		t.Fatal("a write through shared.(*box) is not a write of shared")
+	case !roots["TestFakePrivateWrite"].writes[files]:
+		t.Fatal("a path a helper builds while discarding t.TempDir() is treated as private")
+	case roots["TestPrivateJoin"].writes[files]:
+		t.Fatal("filepath.Join(t.TempDir(), \"x\") is not private")
+	case len(roots["TestHandleWrite"].unknown) == 0:
+		t.Fatal("(*os.File).Write is not an unmodelled standard-library use")
+	case len(roots["TestHTTPRead"].unknown) == 0 || len(roots["TestListenB"].unknown) == 0:
+		t.Fatal("net/http.Get or net.Listen is treated as pure")
+	}
+}
+
 func maps(got, want map[string]string) bool {
 	if len(got) != len(want) {
 		return false

@@ -41,6 +41,9 @@ type node struct {
 	// resets marks a body calling signal.Ignore or signal.Reset, which
 	// signal.Stop does not undo.
 	resets bool
+	// unknown labels each standard-library function the body uses that is
+	// neither modelled nor on the pure list (AFP-V0-2374).
+	unknown []string
 }
 
 func newNode(label string, pkg *Package) *node {
@@ -111,11 +114,92 @@ var (
 	slogDefault = types.NewVar(token.NoPos, processPackage, "slogDefault", types.Typ[types.String])
 )
 
+// unknown is the state of everything the model does not follow: a closure
+// that uses an unmodelled standard-library function, starts a process or
+// writes a standard-library variable reads and writes it, and it conflicts
+// with every pseudo or standard-library variable (AFP-V0-2374).
+var unknown = types.NewVar(token.NoPos, processPackage, "unknown", types.Typ[types.String])
+
+// purePackages are standard-library packages whose functions and methods act
+// only on their arguments and receivers (and on state modelled elsewhere:
+// fmt's and log's output, time.Local), less impureFunctions.
+var purePackages = map[string]bool{
+	"strings": true, "strconv": true, "bytes": true, "unicode": true, "unicode/utf8": true, "unicode/utf16": true,
+	"errors": true, "sort": true, "slices": true, "maps": true, "cmp": true, "iter": true,
+	"container/list": true, "container/heap": true, "container/ring": true, "math": true, "math/bits": true,
+	"math/big": true, "math/cmplx": true, "path": true, "path/filepath": true, "regexp": true, "regexp/syntax": true,
+	"encoding": true, "encoding/json": true, "encoding/hex": true, "encoding/base64": true, "encoding/base32": true,
+	"encoding/binary": true, "encoding/csv": true, "encoding/xml": true, "encoding/pem": true, "encoding/asn1": true,
+	"hash": true, "hash/crc32": true, "hash/crc64": true, "hash/fnv": true, "hash/adler32": true, "hash/maphash": true,
+	"crypto": true, "crypto/sha256": true, "crypto/sha1": true, "crypto/sha512": true, "crypto/md5": true,
+	"crypto/hmac": true, "crypto/subtle": true, "crypto/ed25519": true,
+	"fmt": true, "io": true, "io/fs": true, "bufio": true, "context": true, "sync": true, "sync/atomic": true,
+	"time": true, "testing": true, "testing/fstest": true, "testing/iotest": true, "reflect": true,
+	"text/template": true, "text/template/parse": true, "html/template": true, "html": true, "text/tabwriter": true,
+	"text/scanner": true, "go/ast": true, "go/token": true, "go/parser": true, "go/printer": true, "go/format": true,
+	"go/scanner": true, "go/types": true, "go/constant": true, "go/doc/comment": true, "go/build/constraint": true,
+	"archive/tar": true, "archive/zip": true, "compress/gzip": true, "compress/flate": true, "compress/zlib": true,
+	"net/url": true, "net/netip": true, "unsafe": true, "embed": true, "runtime": true, "log": true, "log/slog": true,
+	"os/signal": true,
+}
+
+// impureFunctions are functions of purePackages that touch state the model
+// does not follow.
+var impureFunctions = map[string]bool{
+	"archive/zip.OpenReader": true, "path/filepath.Abs": true, "runtime.SetFinalizer": true,
+	"runtime.LockOSThread": true, "runtime.Goexit": true, "time.AfterFunc": true,
+}
+
+// pureOS are the os functions that read no state a test can change, or only
+// state modelled elsewhere.
+var pureOS = map[string]bool{
+	"Exit": true, "Getpid": true, "Getppid": true, "Getuid": true, "Geteuid": true, "Getgid": true,
+	"Getegid": true, "Getpagesize": true, "Hostname": true, "Getwd": true, "TempDir": true, "Executable": true,
+	"IsExist": true, "IsNotExist": true, "IsPermission": true, "IsTimeout": true, "IsPathSeparator": true,
+	"NewSyscallError": true, "Expand": true, "SameFile": true, "UserHomeDir": true, "UserCacheDir": true,
+	"UserConfigDir": true,
+}
+
+// moduleFunc reports a function of a module package.
+func (g *graph) moduleFunc(f *types.Func) bool {
+	pkg := g.program.byPath[f.Pkg().Path()]
+	return pkg != nil && pkg.Module
+}
+
+// stdModelled reports a standard-library function whose effect the model
+// records itself.
+func stdModelled(f *types.Func) bool {
+	name := f.Pkg().Path() + "." + f.Name()
+	if f.Signature().Recv() != nil {
+		return strings.HasPrefix(f.FullName(), "(*os.Root).") || strings.HasPrefix(f.FullName(), "(*os.Process).")
+	}
+	_, writes := fileWriters[name]
+	_, starts := processStarters[name]
+	return writes || starts || fileReaders[name] || tempSources[f.FullName()] || stateWriters[name] != nil ||
+		stateReaders[name] != nil || processState[name] || name == "os.OpenRoot" || name == "os.OpenInRoot"
+}
+
+// stdPure reports a standard-library function or method on the pure list.
+func stdPure(f *types.Func) bool {
+	path := f.Pkg().Path()
+	if path == "os" && f.Signature().Recv() == nil {
+		return pureOS[f.Name()]
+	}
+	if impureFunctions[path+"."+f.Name()] || (path == "math/rand" || path == "math/rand/v2") && f.Signature().Recv() == nil {
+		return false
+	}
+	if path == "math/rand" || path == "math/rand/v2" {
+		return true
+	}
+	return purePackages[path]
+}
+
 // implicitReads returns the standard-library state a call into package
-// path reads without naming it (AFP-V0-2374): fmt and log print to os.Stdout
-// or os.Stderr, log and log/slog use their default loggers, time uses
+// path reads without naming it (AFP-V0-2374): fmt's Print* and Scan* use
+// os.Stdout and os.Stdin, log prints to os.Stderr, log and log/slog use their default loggers, time uses
 // time.Local.
-func (g *graph) implicitReads(path string) []*types.Var {
+func (g *graph) implicitReads(callee *types.Func) []*types.Var {
+	path := callee.Pkg().Path()
 	lookup := func(pkg, name string) *types.Var {
 		if loaded := g.program.byPath[pkg]; loaded != nil {
 			v, _ := loaded.Types.Scope().Lookup(name).(*types.Var)
@@ -133,7 +217,14 @@ func (g *graph) implicitReads(path string) []*types.Var {
 	}
 	switch path {
 	case "fmt":
-		add(lookup("os", "Stdout"), lookup("os", "Stderr"))
+		// Only Print* and Scan* use the process streams; Sprint, Errorf,
+		// Fprint and Sscan act on their arguments.
+		if strings.HasPrefix(callee.Name(), "Print") {
+			add(lookup("os", "Stdout"))
+		}
+		if strings.HasPrefix(callee.Name(), "Scan") {
+			add(lookup("os", "Stdin"))
+		}
 	case "log":
 		add(lookup("os", "Stderr"), logDefault)
 	case "log/slog":
@@ -570,6 +661,7 @@ func (g *graph) merge(into, from *node) {
 	}
 	into.starts = append(into.starts, from.starts...)
 	into.process = append(into.process, from.process...)
+	into.unknown = append(into.unknown, from.unknown...)
 }
 
 // bodyVisitor walks one body, carrying the signature of the innermost
@@ -638,6 +730,9 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 		}
 		switch object := info.Uses[x].(type) {
 		case *types.Func:
+			if object.Pkg() != nil && !g.moduleFunc(object) && !stdModelled(object) && !stdPure(object) {
+				n.unknown = append(n.unknown, g.position(x.Pos())+" "+object.FullName())
+			}
 			n.calls[object.Origin()] = true
 			if !g.called[x] {
 				g.valueEffects(n, object, x)
@@ -787,7 +882,7 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 			n.reads[files] = true
 			n.writes[files] = true
 		}
-		for _, v := range g.implicitReads(callee.Pkg().Path()) {
+		for _, v := range g.implicitReads(callee) {
 			n.reads[v] = true
 		}
 		if selector, ok := fun.(*ast.SelectorExpr); ok {
@@ -921,21 +1016,55 @@ func (g *graph) packagePathVars(n *node, pkg *Package, path ast.Expr) {
 // privatePath reports a path expression that calls a temporary-directory
 // source or names a local variable a body assigned from one.
 func (g *graph) privatePath(pkg *Package, path ast.Expr) bool {
-	private := false
-	ast.Inspect(path, func(x ast.Node) bool {
-		switch typed := x.(type) {
-		case *ast.CallExpr:
-			if f := calleeOf(pkg.Info, unparen(typed.Fun)); f != nil && tempSources[f.FullName()] {
-				private = true
-			}
-		case *ast.Ident:
-			if v, ok := pkg.Info.Uses[typed].(*types.Var); ok && g.private[v] {
-				private = true
-			}
+	switch typed := unparen(path).(type) {
+	case *ast.Ident:
+		v, ok := pkg.Info.Uses[typed].(*types.Var)
+		return ok && g.private[v]
+	case *ast.CallExpr:
+		f := calleeOf(pkg.Info, unparen(typed.Fun))
+		if f == nil {
+			return false
 		}
-		return !private
-	})
-	return private
+		if tempSources[f.FullName()] {
+			return true
+		}
+		// A join stays inside its first element when every later element
+		// is a constant that climbs nowhere.
+		if (isFunc(f, "path/filepath", "Join") || isFunc(f, "path", "Join")) && len(typed.Args) > 0 && typed.Ellipsis == token.NoPos {
+			if !g.privatePath(pkg, typed.Args[0]) {
+				return false
+			}
+			for _, arg := range typed.Args[1:] {
+				if !containedConstant(pkg.Info, arg, false) {
+					return false
+				}
+			}
+			return true
+		}
+	case *ast.BinaryExpr:
+		// dir + "/name" stays inside dir.
+		return typed.Op == token.ADD && g.privatePath(pkg, typed.X) && containedConstant(pkg.Info, typed.Y, true)
+	}
+	return false
+}
+
+// containedConstant reports a constant string path element that names no
+// parent directory and, when slash is set, starts with a separator.
+func containedConstant(info *types.Info, expr ast.Expr, slash bool) bool {
+	value := info.Types[expr].Value
+	if value == nil || value.Kind() != constant.String {
+		return false
+	}
+	element := constant.StringVal(value)
+	if slash && !strings.HasPrefix(element, "/") {
+		return false
+	}
+	for _, part := range strings.Split(filepath.ToSlash(element), "/") {
+		if part == ".." {
+			return false
+		}
+	}
+	return !filepath.IsAbs(strings.TrimPrefix(element, "/")) && element != ""
 }
 
 // markPrivate marks the local variables a body assigns, to a fixed point,
@@ -1231,6 +1360,8 @@ func rootVar(info *types.Info, expr ast.Expr) *types.Var {
 			expr = typed.X
 		case *ast.StarExpr:
 			expr = typed.X
+		case *ast.TypeAssertExpr:
+			expr = typed.X
 		case *ast.Ident:
 			if object, ok := info.Uses[typed].(*types.Var); ok && isPackageVar(object) {
 				return object
@@ -1265,7 +1396,7 @@ func holdsReference(t types.Type, seen map[types.Type]bool) bool {
 	}
 	seen[t] = true
 	switch typed := underlying(t).(type) {
-	case *types.Map, *types.Slice, *types.Pointer, *types.Chan:
+	case *types.Map, *types.Slice, *types.Pointer, *types.Chan, *types.Interface:
 		return true
 	case *types.Struct:
 		for i := 0; i < typed.NumFields(); i++ {

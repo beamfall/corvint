@@ -100,7 +100,7 @@ func Analyze(program *Program, changed []Declaration, wholePackages []string) Re
 			if _, kept := result.Kept[test.name]; kept {
 				continue
 			}
-			if shared := sharedVar(closures[i].reads, writes); shared != nil {
+			if shared := a.conflict(closures[i].reads, writes); shared != nil {
 				result.Kept[test.name] = KeptReadsSharedState + ": " + shared.Pkg().Path() + "." + shared.Name()
 				if len(closures[i].process) > 0 {
 					result.Whole = WholeProcessState + ": " + test.name + ": " + closures[i].process[0]
@@ -123,6 +123,31 @@ func Analyze(program *Program, changed []Declaration, wholePackages []string) Re
 		result.Whole = WholeEveryTestKept
 	}
 	return result
+}
+
+// conflict returns the state a dropped test's reads share with the kept
+// tests' writes: one variable both name, or the unknown state against any
+// pseudo or standard-library variable on the other side (AFP-V0-2374).
+func (a *analysis) conflict(reads, writes map[*types.Var]bool) *types.Var {
+	if shared := sharedVar(reads, writes); shared != nil {
+		return shared
+	}
+	opaque := func(v *types.Var) bool { return v.Pkg() == processPackage || !a.g.moduleVar(v) }
+	if writes[unknown] {
+		for v := range reads {
+			if opaque(v) {
+				return unknown
+			}
+		}
+	}
+	if reads[unknown] {
+		for v := range writes {
+			if opaque(v) {
+				return unknown
+			}
+		}
+	}
+	return nil
 }
 
 func sharedVar(reads, writes map[*types.Var]bool) *types.Var {
@@ -307,6 +332,8 @@ type closure struct {
 	process []string
 	reads   map[*types.Var]bool
 	writes  map[*types.Var]bool
+	// unknownStd labels the first unmodelled standard-library use.
+	unknownStd string
 }
 
 func (a *analysis) reach(roots []*node) closure {
@@ -334,6 +361,9 @@ func (a *analysis) reach(roots []*node) closure {
 			}
 		}
 		out.starts = append(out.starts, n.starts...)
+		if out.unknownStd == "" && len(n.unknown) > 0 {
+			out.unknownStd = n.unknown[0]
+		}
 		out.process = append(out.process, n.process...)
 		for v := range n.reads {
 			out.reads[v] = true
@@ -367,6 +397,15 @@ func (a *analysis) reach(roots []*node) closure {
 		out.writes[files] = true
 		out.writes[environment] = true
 		out.writes[signals] = true
+	}
+	if len(out.starts) > 0 || out.unknownStd != "" {
+		out.reads[unknown] = true
+		out.writes[unknown] = true
+	}
+	for v := range out.writes {
+		if v.Pkg() != processPackage && !a.g.moduleVar(v) {
+			out.writes[unknown] = true
+		}
 	}
 	sort.Strings(out.starts)
 	sort.Strings(out.process)
