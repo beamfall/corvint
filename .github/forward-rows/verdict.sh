@@ -40,6 +40,14 @@ covered=$exhausted
 [ -z "$reached" ] || covered=1
 bar=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --arg exhausted "$covered" --arg format json --rawfile reclassified "$here/infra-reclassified.txt" -f "$here/bar.jq" < "$dir/names") ||
   bar='{"status":"NOT ESTABLISHED","error":"the artifact names could not be classified"}'
+# CIN-V0-861 (V1-3332): runs the collector named NOROW (a shadow-selection outage writes no row)
+# trip the AFP-V0-030 kill switch through absence.jq, beside bar.jq's row count. An absence count
+# that cannot be computed or joined trips it too.
+absence=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" -f "$here/absence.jq" < "$dir/names" 2> /dev/null) ||
+  absence='{"killSwitch":"TRIPPED","error":"the artifact names could not be counted for row absence"}'
+bar=$(printf '%s' "$bar" | jq -c --argjson absence "$absence" \
+  '.rowAbsence = $absence | if $absence.killSwitch != "clear" then .killSwitch = "TRIPPED" else . end' 2> /dev/null) ||
+  bar='{"status":"NOT ESTABLISHED","killSwitch":"TRIPPED","error":"the row-absence count could not be joined to the bar"}'
 # The epoch's start as listed: the creation time of its oldest listed forward row.
 start=$(grep -E " ci-forward-[A-Z]+-pr[0-9]+-[0-9a-f]{40}-e$FORWARD_EPOCH-f[01]\$" "$dir/times" | cut -d' ' -f1 | grep -v '^-$' | sort | head -n 1)
 jq -n -c --argjson bar "$bar" --arg epoch "$FORWARD_EPOCH" --arg start "$start" --arg pages "$pages_read" \
@@ -56,6 +64,7 @@ jq -n -c --argjson bar "$bar" --arg epoch "$FORWARD_EPOCH" --arg start "$start" 
     counts: ($bar.epochRows // null),
     window: ($bar.window // null),
     killSwitch: ($bar.killSwitch // null),
+    rowAbsence: ($bar.rowAbsence // null),
     narrowed: ($bar.narrowed // null),
     shadowCost: ($bar.shadowCost // null),
     pages: ($pages | num),
@@ -72,5 +81,5 @@ jq -n -c --argjson bar "$bar" --arg epoch "$FORWARD_EPOCH" --arg start "$start" 
     runAttempt: ($runAttempt | num),
     mainSha: $mainSha,
     computedAt: $computedAt}' > "$dir/verdict.json"
-jq -r '"### AFP-V0-097 shadow-bar verdict, epoch \(.epoch)\n\n\(.status): \(.counts.complete // 0)/8 complete, \(.counts.failing // 0)/1 failing, \(.counts.miss // 0) MISS in the epoch; kill switch \(.killSwitch // "unknown"); \(.pages) page(s)\(if .exhausted then ", every artifact" elif .reachedEpochSince then ", back to \(.epochSince)" else "" end)\(if .limit then "; " + .limit else "" end)."' \
+jq -r '"### AFP-V0-097 shadow-bar verdict, epoch \(.epoch)\n\n\(.status): \(.counts.complete // 0)/8 complete, \(.counts.failing // 0)/1 failing, \(.counts.miss // 0) MISS in the epoch; kill switch \(.killSwitch // "unknown")\(if (.rowAbsence | type) == "object" then " (\(.rowAbsence.absent // "?") of \(.rowAbsence.window // "?") window runs wrote no row\(if .rowAbsence.error then ": " + .rowAbsence.error else "" end))" else "" end); \(.pages) page(s)\(if .exhausted then ", every artifact" elif .reachedEpochSince then ", back to \(.epochSince)" else "" end)\(if .limit then "; " + .limit else "" end)."' \
   "$dir/verdict.json" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
