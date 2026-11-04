@@ -1219,8 +1219,8 @@ above stands with that substitution.
   and names the alone run's limit. The alarm line is detected while the output streams, so a run
   whose output exceeded the 64 KiB detail buffer before the alarm is still classified. A baseline
   with a reported test failure and no alarm keeps `baseline tests fail before mutation: T`.
-  Non-goals: a mutant run that the alarm ends still counts as a kill, as `runGrace` intends, and
-  the Python and Ruby runners are unchanged. Rollback: revert `testTimeoutMarker`,
+  Non-goals: the Python and Ruby runners are unchanged. (A mutant run that the alarm ends was
+  left a kill here; `FPK-V0-740` narrows that, V1-2382.) Rollback: revert `testTimeoutMarker`,
   `baselineFailure`, the sink's `timeout` field and the two tests. A timed-out baseline is then
   reported as a red baseline again.
 
@@ -1690,6 +1690,26 @@ its experimental label, and its 19-of-20 replay acceptance are unchanged and rem
   stdout. Evidence: `TestProveStatusDeadlineRefusesWithTheTimeoutCode`. Rollback: map the timeout
   back to `unsupported-prove-history`.
 
+- `FPK-V0-740`: (experimental under the owner's standing auto-accept (2026-11-01); V1-2382) A Go
+  mutant run of a single claim (the `Judge` path, or a claim the grouped path re-runs alone) whose
+  test binary go test's own `-timeout` alarm ended (`panic: test timed out after T`), with no test
+  function's `fail` event reported first, MUST NOT count as a kill. The runner reports it as the
+  per-run limit, exactly as its own per-run kill under `FPK-V0-142`: the claim is
+  `BUDGET_EXCEEDED` with `detail` `per-run limit of T reached after N of M mutants`, keeping the
+  mutants already judged. A function that failed before the alarm still kills the mutant, including
+  through a subtest's `fail` event, which counts against its top-level function even when that
+  function then hangs and reports no result of its own. A grouped package run that the alarm ends is not judged as a whole: claims whose functions all
+  passed are credited from it, and the hung claim has no outcome and is re-run alone under this
+  rule. Decision (2026-11-01): the alarm fires `runGrace` before the runner's own kill, so before
+  this rule the same overrun was a kill or `BUDGET_EXCEEDED` depending on which deadline came
+  first, and on a loaded host a passing mutant can outlast a limit its baseline met; an overrun is
+  missing evidence (invariant 2), not a behavioural kill. Non-goals: crediting a hang-only mutant,
+  such as one that makes a loop never end, as a kill (`CORVINT_MUTATE_TEST_BUDGET` raises the
+  limit); the Python and Ruby runners. Failure modes: a mutant that only hangs now ends the claim
+  `BUDGET_EXCEEDED` rather than `FALSIFIABLE`. Evidence:
+  `TestFPKV0740MutantAlarmIsNotAKill`, `TestFPKV0740GroupedMutantAlarmIsNotAKill`. Rollback:
+  remove `alarmEnded` and its two calls; the alarm's package `FAIL` line then scores a kill again.
+
 V1-0408 implementation plan and limits (accepted, decision 0515):
 `internal/revieworder` owns the experimental pure join over `internal/cem/patch`,
 `internal/cem/wire`, `internal/witness`, and Git AI note bytes. Parsing follows the upstream [authorship/3.0.0 standard](https://github.com/git-ai-project/git-ai/blob/0670e7ef27590af0e8ff5409267f3f4b09b8fcb4/specs/git_ai_standard_v3.0.0.md)
@@ -2010,6 +2030,7 @@ which is the whole of what the row asserts.
 | FPK-V0-048 | experimental prototype: `proofCounts` (`cmd/corvint/prove_observe.go`) | `TestProveObserveRefusesHistoricalDocuments` (bundle, replay report, and a receipt marked `historical: true` or `historical: null` refused with no ledger row; the unmarked receipt accepted) |
 | FPK-V0-049 | scope and rollback statement | the rollback list in FPK-V0-049; no bundle member feeds ranking, learning, or authority (`prove_bundle.go` imports no learning package) |
 | FPK-V0-920 | `proveStatusRefusal` (`cmd/corvint/prove.go`) at each status read | `cmd/corvint/prove_status_timeout_test.go:TestProveStatusDeadlineRefusesWithTheTimeoutCode` |
+| FPK-V0-740 | `alarmEnded`, `runTests`, `judgeMutants` (`internal/liveverify/mutate`) | `TestFPKV0740MutantAlarmIsNotAKill`, `TestFPKV0740GroupedMutantAlarmIsNotAKill` |
 
 ### 2026-09-12 literal marker audit
 

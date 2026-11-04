@@ -4472,5 +4472,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/batch-integration-checks-v0.md",
+    "title": "Batch Integration Checks V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Batch integration scripts attribute a failure the diff cannot have caused and state the scope limit of the requirement-ID collision screen.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

@@ -976,6 +976,8 @@ ATI-V0-009	docs/specs/authority-trigger-index-v0.md	The table MUST be bounded by
 ATI-V0-010	docs/specs/authority-trigger-index-v0.md	The result MUST separately name its two blind spots: every requested path the in	unrecorded	-
 ATI-V0-011	docs/specs/authority-trigger-index-v0.md	The command MUST be read-only over repository and trace state, MUST refuse a pat	unrecorded	-
 ATI-V0-012	docs/specs/authority-trigger-index-v0.md	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that	unrecorded	-
+ASD-V0-110	docs/specs/batch-integration-checks-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4153; refines	standing	2026-11-01; V1-4153
+ASD-V0-080	docs/specs/batch-integration-checks-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-4110; exte	standing	2026-11-01; V1-4110
 BSD-001	docs/specs/beamfall-shadow-dogfood-v1.md	`beamfall-shadow-dogfood/2` is a canonical, language-neutral	unrecorded	-
 BSD-002	docs/specs/beamfall-shadow-dogfood-v1.md	`corvint-analyzer-candidate/experimental` remains the exact frozen	unrecorded	-
 BSD-003	docs/specs/beamfall-shadow-dogfood-v1.md	Every run response and terminal receipt binds plugin ID, release,	unrecorded	-
@@ -1086,6 +1088,7 @@ CAP-V0-965	docs/specs/capability-catalog-v0.md	(experimental under the standing 
 CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-	standing	2026-10-11; V1-3730; 2026-11-01
 CAP-V0-979	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines	standing	2026-11-01; V1-3679
 CAP-V0-780	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3886) A	standing	2026-11-01; V1-3886
+CAP-V0-080	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3887) CAP-V0-	standing	2026-11-01; V1-3887
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1819,6 +1822,7 @@ CCE-V0-236	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) A change
 CCE-V0-237	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) `exclusion` records the effective directory rule:	unrecorded	-
 CCE-V0-238	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) `--map FILE` reads a `cem/1.0` map (at most 4 MiB, throu	unrecorded	-
 CCE-V0-684	docs/specs/change-compiled-e2e-v0.md	(standing lane auto-accept, 2026-11-01; V1-2882) The test side of	standing	2026-11-01; V1-2882
+CCE-V0-740	docs/specs/change-compiled-e2e-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2375) The	standing	2026-11-01; V1-2375
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
@@ -4785,6 +4789,7 @@ FPK-V0-054	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experim
 FPK-V0-055	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-056	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-920	docs/specs/falsifiable-packet-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3042) a `prov	standing	2026-10-31; V1-3042
+FPK-V0-740	docs/specs/falsifiable-packet-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2382) A Go	standing	2026-11-01; V1-2382
 FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	`flows docs maintain --preview` MUST write nothing, returning proposed page and	unrecorded	-
 FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse	unrecorded	-
 FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	Both outputs absent permits exclusive creation. Both present requires an explici	unrecorded	-
@@ -4933,6 +4938,7 @@ GOC-V0-008	docs/specs/go-only-cutover-v0.md	Maintained Corvint adapters and deve
 GOC-V0-009	docs/specs/go-only-cutover-v0.md	The cutover's final coordinator MAY complete with `prechange-impact` visibly	unrecorded	-
 GOC-V0-010	docs/specs/go-only-cutover-v0.md	A complete `make gate` MUST first remove the private receipt	unrecorded	-
 GOC-V0-011	docs/specs/go-only-cutover-v0.md	`script/spec-toolchain-conformance.sh` (`STA-V0-011`) MAY run Python and `pip` t	unrecorded	-
+GOC-V0-081	docs/specs/go-only-cutover-v0.md	`make doc-gates` MUST run `no-python-runtime-dependency-test`, so a pull request	unrecorded	-
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	The migration MUST preserve the complete CLI surface present at the pinned	unrecorded	-
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	For every supported parity case, Go and the Python oracle MUST produce the exact	unrecorded	-
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage	unrecorded	-
@@ -6076,6 +6082,7 @@ OCM-V0-009	docs/specs/ocm-v0-dogfood.md	same-change proposed intent MAY be an OC
 OCM-V0-010	docs/specs/ocm-v0-dogfood.md	default solo use MUST allow visible unknown obligations; a repository MAY opt in	unrecorded	-
 OCM-V0-011	docs/specs/ocm-v0-dogfood.md	maps and reports MUST contain no source, diff, prompt, command-output, ticket-bo	unrecorded	-
 OCM-V0-012	docs/specs/ocm-v0-dogfood.md	parsing, Git access, counts, spans, paths, files, and subprocesses MUST be bound	unrecorded	-
+OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 OCM-V0-014	docs/specs/ocm-v0-dogfood.md	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite	unrecorded	-
 OCM-V0-015	docs/specs/ocm-v0-dogfood.md	from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file unde	unrecorded	-
 OCM-V0-016	docs/specs/ocm-v0-dogfood.md	(accepted 2026-09-25 by decision 0392, V1-0273) when the `OCM-V0-013` dogfood	owner	2026-09-25; decision 0392; V1-0273
@@ -6097,9 +6104,9 @@ OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane au
 OCM-V0-950	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3455;	standing	2026-11-01; V1-3455
 OCM-V0-951	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-0585)	standing	2026-11-01; V1-0585
 OCM-V0-952	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-03); V1-4347;	standing	2026-11-03; V1-4347
+OCM-V0-080	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4140) An	standing	2026-11-01; V1-4140
 OCM-V0-940	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-0585) `ocm link` has an	standing	V1-0585
 OCM-V0-700	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3693; refines	standing	2026-11-01; V1-3693
-OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
 UPD-V0-003	docs/specs/operator-update-v0.md	Downloads, release discovery, extracted bytes/members and subprocess output/time	unrecorded	-
@@ -7160,6 +7167,15 @@ SRG-V0-740	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-743	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The	standing	2026-11-01; V1-3388
 SRG-V0-744	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
 SRG-V0-745	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-11-02); V1-4331)	standing	2026-11-02; V1-4331
+SRG-V0-082	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4124) An `##	standing	2026-11-01; V1-4124
+SRG-V0-083	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3881; refines	standing	2026-11-01; V1-3881
+SRG-V0-084	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4150; refines	standing	2026-11-01; V1-4150
+SRG-V0-085	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3906) Every `	standing	2026-11-01; V1-3906
+SRG-V0-086	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4127) When `-	standing	2026-11-01; V1-4127
+SRG-V0-087	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4135) `script	standing	2026-11-01; V1-4135
+SRG-V0-750	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2299) The	standing	2026-11-01; V1-2299
+SRG-V0-751	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-4126)	standing	2026-11-01; V1-4126
+SRG-V0-752	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2392) It	standing	2026-11-01; V1-2392
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -7175,6 +7191,7 @@ STA-V0-012	docs/specs/spec-toolchain-adapters-v0.md	`script/spec-toolchain-lates
 STA-V0-013	docs/specs/spec-toolchain-adapters-v0.md	`docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrati	unrecorded	-
 STA-V0-014	docs/specs/spec-toolchain-adapters-v0.md	A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding th	unrecorded	-
 STA-V0-965	docs/specs/spec-toolchain-adapters-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3657) `script/	standing	2026-11-01; V1-3657
+STA-V0-740	docs/specs/spec-toolchain-adapters-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-1706) The	standing	2026-11-01; V1-1706
 SNR-V0-001	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST refuse a concurrent invocation. It MUST take an exclusive lock via	unrecorded	-
 SNR-V0-002	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST support a test-only lock-hold mode selected by the	unrecorded	-
 SNR-V0-003	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST discover the toolchain root as `GOTOOLCHAIN=local go env GOROOT` a	unrecorded	-
