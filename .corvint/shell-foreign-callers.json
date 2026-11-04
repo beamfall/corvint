@@ -122,6 +122,7 @@
     },
     "script/heavy.sh": {
       "callers": [
+        ".github/workflows/ci.yml",
         "Makefile",
         "internal/liveverify/affected/golang/golang_test.go",
         "script/analyzer-schema.sh",
@@ -132,6 +133,7 @@
         "script/lane-scripts_test.sh"
       ],
       "mentions": [
+        ".github/macos/select_test.py",
         "cmd/corvint/session_test_command_unix_test.go",
         "cmd/corvint/test.go",
         "cmd/corvint/test_module_strv0064_unix_test.go",

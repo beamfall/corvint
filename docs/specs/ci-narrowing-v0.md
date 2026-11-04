@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
-Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
+Authoritative inputs: V1-4625 lane charter (2026-11-04); native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
 V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861, CIN-V0-2301, CIN-V0-2302: V1-3332; CIN-V0-2300: V1-4446; CIN-V0-2303: V1-4445; CIN-V0-2304: V1-2805; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
@@ -273,6 +273,34 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
   reach the merge queue.
 
+- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625)
+  Every pull request SHALL start one GitHub-hosted `macos-15` job, `go-macos`, using the pinned
+  production Go toolchain and nightly macOS host provisioning. A verified `docs-plan` DOCS decision
+  MAY skip its tests; a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
+  `go list` metadata for the root module and CI's existing nested modules `tools/local-authority`
+  and `interop/cem01-go`, the job SHALL select packages containing Darwin filename/build constraints,
+  `GOOS` comparisons with `"darwin"` in code or tests, or `/private/var` or `/var/folders` path-alias
+  witnesses. Source and test files, including ignored platform files, SHALL be rescanned on every
+  run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
+  package and the file/reason for inclusion. Tests SHALL run per package, without the full-suite
+  gate or a race run, sequentially with two build workers and two test workers. The job SHALL
+  occupy at most one hosted runner, have a 180-minute timeout, and retain selection evidence even
+  after failure. Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
+  execution; Linux cost history is an estimate, never a native measurement.
+- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625)
+  `go-macos` MAY intersect its root-module inventory with a native narrowed selection only after
+  the existing `narrowing-verdict` reports MET and the existing trusted `narrow.sh` guards admit
+  it: protected main-parent tools built for Darwin, native driver and shadow, matching event/base/
+  head/target, merge-queue rule, no `.github/` change, complete selection and shadow-superset proof.
+  Linux package artifacts SHALL NOT drive this intersection. An absent, failed, malformed or
+  mismatched native record SHALL run the entire Darwin inventory, never silently omit packages;
+  nested modules SHALL always retain their full Darwin inventory because the root planner does
+  not own them. The existing required `go-product` aggregate SHALL require `go-macos` success on
+  every PR, before its batched-label early exit; outside PRs it SHALL require the intentional job
+  skip. Its artifact SHALL use a distinct name outside the Linux shard record/coverage patterns,
+  so it cannot change their denominator. Activation remains subject to `ci-control-plane` admin
+  review; no branch-protection change or new required status context is necessary.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -282,6 +310,26 @@ changes and needs a trusted artifact handoff); reusing a narrowed queue record f
 (rejected, CIN-V0-005); planner selection of a `tools/local-authority` unit, which belongs to the
 affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
 `BOUNDED` scope check of `mq-narrow.sh`; adding `infra-reclassified.txt` keys (AFP-V0-463).
+
+## Darwin PR job boundaries and maintenance
+
+The smaller baseline is the nightly full macOS gate; it remains unchanged and catches
+non-Darwin-specific regressions outside this inventory. This PR leg is not a full macOS
+qualification, race run, release gate or language-provider live qualification. One runner avoids
+adding another shard matrix to the roughly four-run Actions capacity. Native narrowing reuses
+AFP-V0-098 guards rather than granting advisory affected output authority to skip tests.
+The Linux forward bar is reused as the existing enablement control, not claimed as a native
+cost or miss-rate measurement. Unqualified/missing narrowing inputs retain the full inventory.
+
+The selector is lexical and conservative: comments and negated build tags may overselect; computed
+OS checks, imported aliases of `GOOS`, and path-sensitive behavior without a path witness can be
+missed. Add a Darwin/platform test or an explicit `/private/var` regression witness when such a
+failure is found. The nightly full gate remains the backstop. New independent nested Go modules
+need explicit job provisioning; fixture modules under testdata are not product packages. Missing
+host tools, metadata errors, native test failures and timeout fail the required aggregate. The
+180-minute ceiling is a hang/resource bound, not a latency promise; full fallback is expensive.
+Normal narrowed changes are estimated at 5–15 runner minutes (setup/planning and selected packages),
+while full fallback is conservatively budgeted up to 180; actual macOS timings are NOT_OBSERVED.
 
 ## Failure modes
 
@@ -351,7 +399,13 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
 
+| CIN-V0-4625 | `go-macos` in `.github/workflows/ci.yml`; `.github/macos/select.py` | `python3 -B .github/macos/select_test.py` (native-file, tag, multiline/reversed OS comparison, path-alias, inventory drift and metadata-error fixtures); hosted Darwin run NOT_RUN locally |
+| CIN-V0-4626 | native invocation of `.github/forward-rows/narrow.sh`; selector record validation and nested-module boundary; `go-product` dependency/result check | `python3 -B .github/macos/select_test.py` (wrong identity/mode/run/shard, malformed selection, FULL fallback, empty intersection, nested module retention and required-job wiring); existing narrowing guard tests in `tools/ci-forward-row` |
+
 ## Rollback
+
+CIN-V0-4625/4626: revert `go-macos`, its aggregate dependency/result check and `.github/macos/`.
+The nightly macOS gate and existing Linux narrowing remain operative; no persistent data migrates.
 
 CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
 no persisted state. Hosted wiring is pending; no existing workflow rollback is required. Its

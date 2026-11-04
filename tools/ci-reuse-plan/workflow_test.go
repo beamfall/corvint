@@ -391,7 +391,7 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		wantLine(t, job, b, cond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse]")
+	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, go-macos]")
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
 	wantLine(t, "go-product", gp, `            test "$SHARDS_RESULT" = success`)
@@ -590,7 +590,7 @@ func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
 			}
 		}
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
+		cmd.Env = append(os.Environ(), "BATCHED="+batched, "MACOS_RESULT=success", "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
 			"STATIC_REUSE=", "DOCS_RESULT="+docs, "DOCS_MODE=FULL", "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7",
 			"GITHUB_RUN_ATTEMPT=1", "GITHUB_EVENT_NAME=pull_request", "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1037,7 +1037,7 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 		t.Helper()
 		dir := t.TempDir()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
+		cmd.Env = append(os.Environ(), "BATCHED=false", "MACOS_RESULT="+map[bool]string{true: "success", false: "skipped"}[event == "pull_request"], "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
 			"DOCS_RESULT="+docs, "DOCS_MODE="+mode, "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7", "GITHUB_RUN_ATTEMPT=1",
 			"GITHUB_EVENT_NAME="+event, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
