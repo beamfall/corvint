@@ -29,7 +29,11 @@ func TestPKGuardRecordedPairs(t *testing.T) {
 		}
 		return b
 	}
-	for _, pair := range [][2]string{{"85ba6321a", "95622955d"}, {"3465dd98c^1", "3465dd98c"}, {"6e0ce750c^1", "6e0ce750c"}} {
+	pairs := [][2]string{{"85ba6321a", "95622955d"}, {"3465dd98c^1", "3465dd98c"}, {"6e0ce750c^1", "6e0ce750c"}}
+	if os.Getenv("PK_GUARD_ADDITIONAL") == "1" {
+		pairs = [][2]string{{"25164d1ac^1", "25164d1ac"}, {"3fb719f93^1", "3fb719f93"}}
+	}
+	for _, pair := range pairs {
 		base := strings.TrimSpace(string(git("rev-parse", pair[0])))
 		target := strings.TrimSpace(string(git("rev-parse", pair[1])))
 		raw := git("diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--full-index", "--unified=3", base, target, "--", ".", ":(exclude).corvint/change.cem.json")

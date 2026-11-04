@@ -125,3 +125,19 @@ CEM binding/checking follows the committed measurement evidence and stops at a p
 the handback retains the actual receipt. Sealing and independent review are reserved to the
 orchestrator. Native ticket completion writes are explicitly forbidden in this
 lane, so tickets remain open in the authoritative store regardless of implementation disposition.
+
+
+## Qualification design fork
+
+The large command/CEM and Tasks merge controls remain at their time ceilings. A roughly
+one-second median shift at a 1200-second ceiling is not treated as meaningful speedup.
+One command/CEM after repetition at load 44.04 also misses the old guards under timeout and
+total-limit; their candidate identities remain present and another repetition observes them.
+The stricter every-repetition diagnostic is retained as failed, so repeatability stays
+NOT_ESTABLISHED. Median-run and aggregate observed identities are reported separately.
+
+Keep both large controls and every raw row. Add two recorded, bounded changes (the VERIFY
+anchor grammar change `25164d1ac` and canonical wire string-run optimization `3fb719f93`)
+to distinguish candidate narrowing from broad dispatcher/fixture reach. These are additional
+qualification observations, not replacements for the limiting controls. No speedup is
+promoted merely from smaller candidate lists or the censored large-control median.
