@@ -43,7 +43,7 @@ bar=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --arg exhausted "$covered" --arg 
 # CIN-V0-861 (V1-3332): runs the collector named NOROW (a shadow-selection outage writes no row)
 # trip the AFP-V0-030 kill switch through absence.jq, beside bar.jq's row count. An absence count
 # that cannot be computed or joined trips it too.
-absence=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" -f "$here/absence.jq" < "$dir/names" 2> /dev/null) ||
+absence=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --rawfile reclassified "$here/infra-reclassified.txt" -f "$here/absence.jq" < "$dir/names" 2> /dev/null) ||
   absence='{"killSwitch":"TRIPPED","error":"the artifact names could not be counted for row absence"}'
 bar=$(printf '%s' "$bar" | jq -c --argjson absence "$absence" \
   '.rowAbsence = $absence | if $absence.killSwitch != "clear" then .killSwitch = "TRIPPED" else . end' 2> /dev/null) ||

@@ -1022,9 +1022,27 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	comparisons = nil
 	f = prFixture(t)
 	f.sel[0]["target"] = prHead
-	if r := collect(t, f, prRun, "pull_request", "claude/x", "868", nil); r.name != "" || !strings.Contains(r.summary, "pr-base-target-unreadable") {
+	// CIN-V0-2301 (V1-3332): a run that stops here writes no row but is named for the
+	// row-absence count, so a shadow-selection outage is never silent: target when the
+	// documents name no single tested merge, nodoc when no document was retained.
+	if r := collect(t, f, prRun, "pull_request", "claude/x", "868", nil); r.name != "ci-forward-NOROW-pr868-"+prHead+"-e1-rtarget" ||
+		r.cost != "" || !strings.Contains(r.summary, "pr-base-target-unreadable") {
 		t.Fatalf("mixed targets: %+v", r)
 	}
+	f = prFixture(t)
+	f.sel = map[int]doc{}
+	if r := collect(t, f, prRun, "pull_request", "claude/x", "868", nil); r.name != "ci-forward-NOROW-pr868-"+prHead+"-e1-rnodoc" ||
+		r.cost != "" || !strings.Contains(r.summary, "pr-base-target-unreadable") {
+		t.Fatalf("shadow outage: %+v", r)
+	}
+	// A pull request that edits .github/ could drop its own shadow: it is never named.
+	changed = []any{doc{"filename": ".github/workflows/ci.yml"}}
+	f = prFixture(t)
+	f.sel = map[int]doc{}
+	if r := collect(t, f, prRun, "pull_request", "claude/x", "868", nil); r.name != "" || !strings.Contains(r.summary, "pr-base-target-unreadable") {
+		t.Fatalf("a .github/ pull request's missing shadow was named: %+v", r)
+	}
+	changed = []any{doc{"filename": "internal/contextindex/index.go"}}
 
 	// CIN-V0-001 (Codex P2): the row's epoch is its producing run's, never the collector's. The
 	// retained artifacts, produced before any run stamped an epoch, replayed under collector
@@ -1033,17 +1051,27 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	t.Run("producer epoch names the row", func(t *testing.T) {
 		defer func() { producerEpoch, collectorEpoch = 1, "1" }()
 		collectorEpoch = "2"
-		excluded := func(name string, f *fixture, runID, event, branch, pr string, reuse doc) {
+		// CIN-V0-861: no row, but a marker name: EPOCH for an earlier epoch (excluded on
+		// purpose), NOROW for an outage (rnodoc: no document; rmixed: any other epoch).
+		excluded := func(name, want string, f *fixture, runID, event, branch, pr string, reuse doc) {
 			t.Helper()
-			if r := collect(t, f, runID, event, branch, pr, reuse); r.name != "" || r.cost != "" ||
-				!strings.Contains(r.summary, "stamped no single forward epoch") {
-				t.Errorf("%s: row %q cost %q\n%s", name, r.name, r.cost, r.summary)
+			if r := collect(t, f, runID, event, branch, pr, reuse); r.name != want || r.cost != "" || r.sample != "" ||
+				!strings.Contains(r.summary, "stamped no single forward epoch") || !strings.Contains(r.summary, "row-absence count") {
+				t.Errorf("%s: name %q, want %q, cost %q\n%s", name, r.name, want, r.cost, r.summary)
 			}
 		}
 		for name, epoch := range map[string]any{"retained, unstamped": nil, "epoch 1": 1, "epoch \"2\"": "2", "epoch 2.5": 2.5, "epoch -2": -2} {
 			producerEpoch = epoch
-			excluded(name+" queue", queueFixture(t), queueRun, "merge_group", queueBranch, "", full)
-			excluded(name+" pull request", prFixture(t), prRun, "pull_request", "claude/x", "868", nil)
+			suffix := "-e2-rmixed"
+			if epoch == 1 {
+				suffix = "-e1"
+			}
+			kind := "NOROW"
+			if epoch == 1 {
+				kind = "EPOCH"
+			}
+			excluded(name+" queue", "ci-forward-"+kind+"-pr868-"+queueSHA+suffix, queueFixture(t), queueRun, "merge_group", queueBranch, "", full)
+			excluded(name+" pull request", "ci-forward-"+kind+"-pr868-"+prHead+suffix, prFixture(t), prRun, "pull_request", "claude/x", "868", nil)
 		}
 		producerEpoch = nil
 		f := queueFixture(t)
@@ -1053,10 +1081,10 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 				d["forwardEpoch"] = 1
 			}
 		}
-		excluded("mixed", f, queueRun, "merge_group", queueBranch, "", full)
+		excluded("mixed", "ci-forward-NOROW-pr868-"+queueSHA+"-e2-rmixed", f, queueRun, "merge_group", queueBranch, "", full)
 		f = queueFixture(t)
 		f.sel = map[int]doc{}
-		excluded("no selection", f, queueRun, "merge_group", queueBranch, "", full)
+		excluded("no selection", "ci-forward-NOROW-pr868-"+queueSHA+"-e2-rnodoc", f, queueRun, "merge_group", queueBranch, "", full)
 		producerEpoch = 2
 		if r := collect(t, queueFixture(t), queueRun, "merge_group", queueBranch, "", full); r.name != "ci-forward-CLEAN-pr868-"+queueSHA+"-e2-f0" ||
 			!strings.HasPrefix(r.cost, "ci-forward-cost-pr868-"+queueSHA+"-e2-CLEAN-f0-") {
@@ -1064,7 +1092,7 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		}
 		// An epoch-2 producer read by a collector still on epoch 1 is not relabelled either.
 		collectorEpoch = "1"
-		excluded("epoch-2 producer, collector 1", queueFixture(t), queueRun, "merge_group", queueBranch, "", full)
+		excluded("epoch-2 producer, collector 1", "ci-forward-NOROW-pr868-"+queueSHA+"-e1-rmixed", queueFixture(t), queueRun, "merge_group", queueBranch, "", full)
 	})
 }
 

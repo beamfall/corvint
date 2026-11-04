@@ -47,7 +47,7 @@ decide() { # VERDICT REASON [RUN]
 # marker twice, never too few. Anything but a clear answer under 3, including an absence count
 # that cannot be computed, is FULL.
 absent() {
-  absence=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" -f "$here/absence.jq" < "$dir/names" 2> /dev/null) || absence=""
+  absence=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --rawfile reclassified "$here/infra-reclassified.txt" -f "$here/absence.jq" < "$dir/names" 2> /dev/null) || absence=""
   total=$(printf '%s' "$absence" | jq -r --argjson carried "$2" \
     'if (.absent | type) == "number" then .absent + $carried else "unreadable" end' 2> /dev/null) || total=unreadable
   switch=$(printf '%s' "$absence" | jq -r '.killSwitch' 2> /dev/null) || switch=""

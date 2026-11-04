@@ -163,6 +163,11 @@ func barNames(class string, pr int, epoch, f string) string {
 
 // metNames are 22 complete rows of epoch 1, five of them failing, and one row of epoch 0, so
 // the listing reaches the epoch's start: the bar is MET.
+// noRow is the collector's CIN-V0-861 NOROW marker name of a run with no selection document.
+func noRow(pr int, epoch string) string {
+	return fmt.Sprintf("ci-forward-NOROW-pr%d-%040x-e%s-rnodoc", pr, pr, epoch)
+}
+
 func metNames() []string {
 	var names []string
 	for pr := 1; pr <= 22; pr++ {
@@ -278,6 +283,7 @@ func TestAFPV0463ReclassifiedRowsAreInfra(t *testing.T) {
 }
 
 func TestAFPV0097VerdictWrittenOnMain(t *testing.T) {
+	verdictScript := script(t, "verdict.sh")
 	verdict := func(t *testing.T, ref string, names []string) (doc, error) {
 		dir := t.TempDir()
 		gh := fakeGH(t, dir)
@@ -288,7 +294,7 @@ func TestAFPV0097VerdictWrittenOnMain(t *testing.T) {
 				"workflow_run": doc{"head_branch": "main", "repository_id": 1, "head_repository_id": 1}})
 		}
 		writeDoc(t, filepath.Join(dir, "all-artifacts.json"), doc{"artifacts": all})
-		cmd := exec.Command("sh", script(t, "verdict.sh"))
+		cmd := exec.Command("sh", verdictScript)
 		cmd.Env = []string{"PATH=" + gh + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + dir,
 			"GH_TOKEN=x", "REPO=beamfall/corvint", "FORWARD_EPOCH=1", "RUNNER_TEMP=" + dir, "GITHUB_REF=" + ref,
 			"GITHUB_SHA=" + queueSHA, "GITHUB_RUN_ID=4242", "GITHUB_RUN_ATTEMPT=1",
@@ -318,6 +324,39 @@ func TestAFPV0097VerdictWrittenOnMain(t *testing.T) {
 	}
 	if v["status"] != "NOT MET" {
 		t.Fatalf("verdict with a MISS in the epoch = %v", v["status"])
+	}
+	// CIN-V0-861 (V1-3332): three runs the collector named NOROW among the latest 20 trip the
+	// kill switch, which accept.sh then refuses, and the verdict records the count; two do not.
+	v, err = verdict(t, "refs/heads/main", append([]string{noRow(501, "1"), noRow(502, "1"), noRow(503, "1")}, metNames()...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absence := sub(v, "rowAbsence"); v["killSwitch"] != "TRIPPED" || num(absence["absent"]) != 3 || absence["killSwitch"] != "TRIPPED" {
+		t.Fatalf("verdict with three runs without a row = %v", v)
+	}
+	v, err = verdict(t, "refs/heads/main", append([]string{noRow(501, "1"), noRow(502, "1")}, metNames()...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v["killSwitch"] != "clear" || v["status"] != "MET" || num(sub(v, "rowAbsence")["absent"]) != 2 {
+		t.Fatalf("verdict with two runs without a row = %v", v)
+	}
+	// Fault injection: a trusted checkout without absence.jq cannot count absence, so it trips.
+	scripts := t.TempDir()
+	for _, name := range []string{"verdict.sh", "names.sh", "bar.jq", "infra-reclassified.txt"} {
+		b, err := os.ReadFile(script(t, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(scripts, name), b)
+	}
+	verdictScript = filepath.Join(scripts, "verdict.sh")
+	v, err = verdict(t, "refs/heads/main", metNames())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absence := sub(v, "rowAbsence"); v["killSwitch"] != "TRIPPED" || !strings.Contains(fmt.Sprint(absence["error"]), "could not be counted") {
+		t.Fatalf("verdict without absence.jq = %v", v)
 	}
 }
 
@@ -515,6 +554,20 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 			s.killPages = "1"
 			s.pages = [][]any{listed(append([]string{barNames("MISS", 400, "1", "1")}, epochRows(25)...), time.Hour, true, 100)}
 		}},
+		// CIN-V0-2302 (V1-3332): a shadow-selection outage since the verdict writes no rows, so the
+		// row kill switch stays clear; three NOROW markers among the latest 20 runs refuse. Two do
+		// not (the negative control), and markers of another epoch take no place.
+		{"three runs without a row since the verdict", "wrote no row (CIN-V0-2302): 3 (", func(s *setup) {
+			s.rows = append([]string{noRow(501, "1"), noRow(502, "1"), noRow(503, "1")}, s.rows...)
+		}},
+		{"MET with two runs without a row", "MET", func(s *setup) { s.rows = append([]string{noRow(501, "1"), noRow(502, "1")}, s.rows...) }},
+		{"MET with three runs without a row of another epoch", "MET", func(s *setup) {
+			s.rows = append([]string{noRow(501, "0"), noRow(502, "0"), noRow(503, "0")}, s.rows...)
+		}},
+		{"three runs without a row within the scanned pages", "wrote no row (CIN-V0-2302)", func(s *setup) {
+			s.killPages = "1"
+			s.pages = [][]any{listed(append([]string{noRow(501, "1"), noRow(502, "1"), noRow(503, "1")}, epochRows(25)...), time.Hour, true, 100)}
+		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -541,6 +594,7 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 	incremental := func(s *setup) {
 		s.verdict.(doc)["listedAt"] = now.Add(-2 * time.Hour).Format(time.RFC3339)
 		s.verdict.(doc)["windowNames"] = window
+		s.verdict.(doc)["rowAbsence"] = doc{"killSwitch": "clear", "absent": 0, "window": 20}
 	}
 	replay := func(fresh ...string) func(*setup) {
 		return func(s *setup) {
@@ -575,6 +629,26 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 			replay(barNames("INCOMPLETE", 2005, "1", "0"), barNames("INCOMPLETE", 2006, "1", "0"))(s)
 			incremental(s)
 			s.verdict.(doc)["windowNames"] = append([]string{barNames("INCOMPLETE", 2007, "1", "0")}, window[1:]...)
+		}},
+		// CIN-V0-2302: an outage since the verdict's listing is counted on the incremental path.
+		{"three runs without a row since the verdict's listing", "wrote no row (CIN-V0-2302): 3 (", 2, func(s *setup) {
+			replay(noRow(2011, "1"), noRow(2012, "1"), noRow(2013, "1"))(s)
+			incremental(s)
+		}},
+		{"MET with two runs without a row since the verdict's listing", "MET", 2, func(s *setup) {
+			replay(noRow(2011, "1"), noRow(2012, "1"))(s)
+			incremental(s)
+		}},
+		// The verdict's window markers are not in its windowNames, so its own count is carried.
+		{"two runs without a row in the verdict's window and one since", "wrote no row (CIN-V0-2302): 3 (", 2, func(s *setup) {
+			replay(noRow(2011, "1"))(s)
+			incremental(s)
+			sub(s.verdict.(doc), "rowAbsence")["absent"] = 2
+		}},
+		{"an incremental verdict without a row-absence count", "records no row-absence count", 2, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			delete(s.verdict.(doc), "rowAbsence")
 		}},
 		{"a re-run row replaces its window row", "show a MISS", 2, func(s *setup) {
 			replay(barNames("MISS", 1003, "1", "0"))(s)
@@ -1082,6 +1156,65 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 			}
 		})
 	}
+	// CIN-V0-2300 (V1-4446, run 41714153849): a driver fallback admits no base, so the record had
+	// base "", an unreadable .github/ check and no shadow plan. narrow.sh now proves parent 0 itself
+	// and keeps it; the record stays FULL on the driver's reason alone. Each failed proof step
+	// (head mismatch, event base not an ancestor, an octopus merge, unreadable parents) keeps "".
+	fallback := "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\n" +
+		"jq '.Reason = \"selector: FALLBACK the plan names the unknown UNINDEXED_SOURCE_PATH, which the selector cannot attribute\" | .Packages = [\"./...\"]' \"$FAKE/selection.json\" > \"$o/selection.json\"\n"
+	proofGit := func(parents, ancestor string) string {
+		return "#!/bin/sh\ncase \"$*\" in\n" +
+			"'rev-list --parents -n 1 " + target + "') " + parents + " ;;\n" +
+			"'merge-base --is-ancestor '*) [ \"$3\" = " + base + " ] && [ \"$4\" = " + ancestor + " ] ;;\n" +
+			"'diff --quiet --no-renames '*) [ \"$4\" = " + ancestor + " ] ;;\n" +
+			"*) exit 1 ;;\nesac\n"
+	}
+	shadowAt := func(at string) string {
+		return "#!/bin/sh\ncase \"$*\" in *'--base " + at + " '*) cat \"$FAKE/shadow.json\" ;; *) exit 1 ;; esac\n"
+	}
+	for _, tc := range []struct{ name, at, parents string }{
+		{"a driver fallback keeps the proven parent", base, "echo " + target + " " + base + " " + head},
+		{"a driver fallback keeps a stale event base's proven parent", strings.Repeat("b", 40), "echo " + target + " " + strings.Repeat("b", 40) + " " + head},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mode, out := narrow(t, false, map[string]string{"driver": fallback, "git": proofGit(tc.parents, tc.at), "shadow": shadowAt(tc.at)})
+			v := readDoc(t, filepath.Join(out, "narrowing.json"))
+			reasons := fmt.Sprint(v["reasons"])
+			if mode != "FULL" || v["base"] != tc.at || v["effectiveBase"] != tc.at || v["eventBase"] != base ||
+				!strings.Contains(reasons, "driver: selector: FALLBACK") || v["shadowScope"] != "NARROWED" {
+				t.Fatalf("fallback base: mode=%s record=%v", mode, v)
+			}
+			for _, absent := range []string{"not a full commit id", "the change set is unreadable", "the shadow wrote no plan"} {
+				if strings.Contains(reasons, absent) {
+					t.Fatalf("fallback record still says %q: %v", absent, reasons)
+				}
+			}
+		})
+	}
+	// A selection with no Reason whose identity mismatches keeps "": the proof is for fallbacks only.
+	t.Run("an identity mismatch without a Reason keeps no base", func(t *testing.T) {
+		mismatch := "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\njq '.EventBase = .Head' \"$FAKE/selection.json\" > \"$o/selection.json\"\n"
+		mode, out := narrow(t, false, map[string]string{"driver": mismatch, "git": proofGit("echo "+target+" "+base+" "+head, base), "shadow": shadowAt(base)})
+		v := readDoc(t, filepath.Join(out, "narrowing.json"))
+		if mode != "FULL" || v["base"] != "" || v["effectiveBase"] != "" {
+			t.Fatalf("identity mismatch: mode=%s record=%v", mode, v)
+		}
+	})
+	for _, tc := range []struct{ name, parents, ancestor string }{
+		{"head mismatch", "echo " + target + " " + base + " " + strings.Repeat("c", 40), base},
+		{"event base not an ancestor", "echo " + target + " " + base + " " + head, strings.Repeat("d", 40)},
+		{"octopus merge", "echo " + target + " " + base + " " + head + " " + strings.Repeat("e", 40), base},
+		{"unreadable parents", "exit 128", base},
+	} {
+		t.Run("fallback proof refused: "+tc.name, func(t *testing.T) {
+			mode, out := narrow(t, false, map[string]string{"driver": fallback, "git": proofGit(tc.parents, tc.ancestor)})
+			v := readDoc(t, filepath.Join(out, "narrowing.json"))
+			if mode != "FULL" || v["base"] != "" || v["effectiveBase"] != "" ||
+				!strings.Contains(fmt.Sprint(v["reasons"]), "the base, head or target is not a full commit id") {
+				t.Fatalf("refused proof: mode=%s record=%v", mode, v)
+			}
+		})
+	}
 	t.Run("a sidecar that cannot be written is FULL without a record", func(t *testing.T) {
 		mode, out := narrow(t, true, nil)
 		if _, err := os.Stat(filepath.Join(out, "narrowing.json")); mode != "FULL" || !os.IsNotExist(err) {
@@ -1356,6 +1489,52 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	}
 }
 
+// actionsWrite matches a permissions entry granting actions: write.
+var actionsWrite = regexp.MustCompile(`(?m)^\s*actions:\s*write\s*(#.*)?$`)
+
+// CIN-V0-2303 (V1-4445): cache-prune runs when each CodeQL default-setup run on main completes,
+// keeps its hourly schedule as the backstop and a manual dispatch, and its job runs for a
+// workflow_run only when that run is this repository's own dynamic CodeQL run on main. No other
+// workflow grants actions: write; the matcher itself is checked on a planted grant first.
+func TestCINV02303CachePruneFollowsCodeQL(t *testing.T) {
+	b, err := os.ReadFile("../../.github/workflows/cache-prune.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wf := string(b)
+	for _, want := range []string{
+		"on:\n  workflow_run:\n    workflows: [CodeQL]\n    types: [completed]\n    branches: [main]\n  schedule:\n    - cron: \"47 * * * *\"\n  workflow_dispatch:\n",
+		"github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||",
+		"(github.event.workflow_run.head_branch == 'main' &&",
+		"github.event.workflow_run.head_repository.full_name == github.repository &&",
+		"startsWith(github.event.workflow_run.path, 'dynamic/github-code-scanning/')))",
+	} {
+		if !strings.Contains(wf, want) {
+			t.Fatalf("cache-prune.yml lacks %q", want)
+		}
+	}
+	if !actionsWrite.MatchString("    permissions:\n      actions: write\n") || actionsWrite.MatchString("      actions: read\n") {
+		t.Fatal("the actions: write matcher does not tell a grant from a read")
+	}
+	entries, err := os.ReadDir("../../.github/workflows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	granted := []string{}
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join("../../.github/workflows", e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if actionsWrite.Match(b) {
+			granted = append(granted, e.Name())
+		}
+	}
+	if fmt.Sprint(granted) != "[cache-prune.yml]" {
+		t.Fatalf("workflows granting actions: write = %v, want only cache-prune.yml", granted)
+	}
+}
+
 // AFP-V0-097 (V1-4360): the cache-prune workflow alone holds actions: write, runs only on main,
 // and deletes every CodeQL overlay entry but the newest per language prefix. The whole step runs
 // against raw cache records through a stand-in gh that applies the step's own --jq expression.
@@ -1369,7 +1548,7 @@ func TestAFPV0097CachePruneKeepsNewestOverlay(t *testing.T) {
 		t.Fatal(err)
 	}
 	wf := string(b)
-	for _, want := range []string{"if: github.ref == 'refs/heads/main'", "permissions:\n  contents: read",
+	for _, want := range []string{"if: >-\n      github.ref == 'refs/heads/main' && ", "permissions:\n  contents: read",
 		"    permissions:\n      actions: write", "key=codeql-overlay-base-database-"} {
 		if !strings.Contains(wf, want) {
 			t.Fatalf("cache-prune.yml lacks %q", want)
