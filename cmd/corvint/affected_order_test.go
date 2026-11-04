@@ -3,6 +3,8 @@
 package main
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -216,4 +218,63 @@ func orderedUnits(order map[string]any) []string {
 		units = append(units, raw.(map[string]any)["unitId"].(string))
 	}
 	return units
+}
+
+// TSP-V0-7305: content time beats equal filesystem timestamps, including the unsharded name.
+func TestFailFastContentTimeSurvivesTimestampTies(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < maxFailFastReceipts+1; i++ {
+		name := fmt.Sprintf("test-run.%d.json", i)
+		stamp := "2026-11-01T00:00:00Z"
+		if i == maxFailFastReceipts {
+			name = "test-run.json"
+			stamp = "2026-11-04T00:00:00Z"
+		}
+		body, err := sessiontest.Encode(sessiontest.Receipt{Profile: sessiontest.ReceiptProfile, CompletedAt: stamp})
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFailFastFile(t, root, name, body)
+		file := filepath.Join(root, ".git", "corvint", name)
+		if err := os.Chtimes(file, time.Unix(1, 0), time.Unix(1, 0)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	receipts, detail := readFailFastReceipts(filepath.Join(root, ".git"))
+	if detail != "" {
+		t.Fatal(detail)
+	}
+	for _, r := range receipts {
+		if r.Path == "corvint/test-run.json" {
+			return
+		}
+	}
+	t.Fatal("newest receipt was discarded on a timestamp tie")
+}
+
+type failingInfoEntry struct{ fs.DirEntry }
+
+func (e failingInfoEntry) Info() (fs.FileInfo, error) { return nil, fs.ErrPermission }
+
+// TSP-V0-7305: an Info failure is disclosed even when it falls outside the retained 64.
+func TestFailFastDroppedInfoFailureIsDisclosed(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < maxFailFastReceipts+1; i++ {
+		writeFailFastReceipt(t, root, fmt.Sprintf("test-run.%d.json", i))
+	}
+	saved := readFailFastDirectory
+	t.Cleanup(func() { readFailFastDirectory = saved })
+	readFailFastDirectory = func(dir string) ([]os.DirEntry, error) {
+		entries, err := os.ReadDir(dir)
+		for i, e := range entries {
+			if e.Name() == "test-run.0.json" {
+				entries[i] = failingInfoEntry{e}
+			}
+		}
+		return entries, err
+	}
+	_, detail := readFailFastReceipts(filepath.Join(root, ".git"))
+	if !strings.Contains(detail, "test-run.0.json") {
+		t.Fatalf("missing disclosure: %q", detail)
+	}
 }

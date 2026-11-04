@@ -67,18 +67,18 @@ func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
 	var best selectionRound
 	for attempt := 1; attempt <= selectionBudgetRounds; attempt++ {
 		round := measureIncrementalSelection(graph, edits)
-		t.Logf("round %d: incremental select over %d units: n=%d p50=%s p95=%s max=%s widest-plan=%d units; probe p50=%s p95=%s",
-			attempt, len(graph.UnitIDs()), round.n, round.p50, round.p95, round.max, round.widest, round.probe50, round.probe95)
+		t.Logf("round %d: incremental select over %d units: n=%d p50=%s p95=%s max=%s widest-plan=%d units; probe p50=%s p95=%s calibrated-p95=%s",
+			attempt, len(graph.UnitIDs()), round.n, round.p50, round.p95, round.max, round.widest, round.probe50, round.probe95, round.normalized95)
 		if attempt == 1 || round.ratio() < best.ratio() {
 			best = round
 		}
-		if exceeded, _, _ := selectionBudgetExceeded(round.p95, round.probe95, referenceProbeP95, IncrementalBudget); !exceeded {
+		if exceeded, _, _ := selectionBudgetExceeded(round.p95, round.budgetProbe(), referenceProbeP95, IncrementalBudget); !exceeded {
 			break
 		}
 	}
-	// Both p95s come from interleaved samples, so a contended tail inflates
-	// both alike. On the reference host the ratio measures about 1.3.
-	enforceSelectionBudget(t, "incremental select p95", best.p95, best.probe95, referenceProbeP95, IncrementalBudget)
+	// The enforced statistic is the p95 of paired calibrated samples, not
+	// a quotient of independent percentiles (TSP-V0-7318).
+	enforceSelectionBudget(t, "incremental select p95", best.p95, best.budgetProbe(), referenceProbeP95, IncrementalBudget)
 }
 
 // selectionBudgetRounds is how many measurement rounds the incremental
@@ -90,31 +90,45 @@ type selectionRound struct {
 	n, widest        int
 	p50, p95, max    time.Duration
 	probe50, probe95 time.Duration
+	normalized95     time.Duration
 }
 
-func (r selectionRound) ratio() float64 { return float64(r.p95) / float64(max(r.probe95, 1)) }
+func (r selectionRound) ratio() float64 { return float64(r.normalized95) / float64(referenceProbeP95) }
+func (r selectionRound) budgetProbe() time.Duration {
+	if r.normalized95 <= 0 {
+		return r.probe95
+	}
+	return time.Duration(float64(r.p95) * float64(referenceProbeP95) / float64(r.normalized95))
+}
 
 // measureIncrementalSelection times 32 rounds of Select over each edit, with a
 // calibration probe interleaved before each selection.
 func measureIncrementalSelection(graph *affected.Graph, edits []string) selectionRound {
 	samples := make([]time.Duration, 0, len(edits)*32)
+	normalized := make([]time.Duration, 0, len(edits)*32)
 	probes := make([]time.Duration, 0, len(edits)*32)
 	var widest int
 	for round := 0; round < 32; round++ {
 		for _, edit := range edits {
-			probes = append(probes, timeCalibrationProbe())
+			before := timeCalibrationProbe()
+			probes = append(probes, before)
 			start := time.Now()
 			plan := affected.Select(graph, []string{edit})
-			samples = append(samples, time.Since(start))
+			elapsed := time.Since(start)
+			after := timeCalibrationProbe()
+			probes = append(probes, after)
+			samples = append(samples, elapsed)
+			normalized = append(normalized, calibratedSelection(elapsed, before, after))
 			if count := len(plan.Selected); count > widest {
 				widest = count
 			}
 		}
 	}
 	sortDurations(samples)
+	sortDurations(normalized)
 	sortDurations(probes)
 	return selectionRound{
-		n: len(samples), widest: widest,
+		n: len(samples), widest: widest, normalized95: normalized[len(normalized)*95/100],
 		p50: samples[len(samples)/2], p95: samples[len(samples)*95/100], max: samples[len(samples)-1],
 		probe50: probes[len(probes)/2], probe95: probes[len(probes)*95/100],
 	}
@@ -662,4 +676,19 @@ func TestPythonSelectionNarrowsARealCorpus(t *testing.T) {
 	}
 	t.Logf("python: editing %s selects %d of %d tests (%.0f%% narrowed)",
 		edited, len(selected), total, 100*(1-float64(len(selected))/float64(total)))
+}
+
+// TSP-V0-7318: a load change between the probe and selection is calibrated
+// by the adjacent probe after it too; sustained selection regressions still fail.
+func TestSelectionCalibrationBracketsLoadChanges(t *testing.T) {
+	if got := calibratedSelection(120*time.Millisecond, 20*time.Millisecond, 40*time.Millisecond); got != 60*time.Millisecond {
+		t.Fatalf("load transition normalized to %s, want 60ms", got)
+	}
+	if got := calibratedSelection(240*time.Millisecond, 20*time.Millisecond, 40*time.Millisecond); got <= IncrementalBudget {
+		t.Fatalf("sustained regression disappeared: %s", got)
+	}
+}
+
+func calibratedSelection(elapsed, before, after time.Duration) time.Duration {
+	return time.Duration(float64(elapsed) * float64(referenceProbeP95) / float64(max(before, after, time.Nanosecond)))
 }

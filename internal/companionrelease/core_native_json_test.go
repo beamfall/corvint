@@ -10,6 +10,7 @@ import (
 )
 
 func TestCoreNativeJSONNumberBoundary(t *testing.T) {
+	t.Parallel()
 	for _, raw := range []string{`{"durationMs":1202.922583}`, `{"nativeNegative":-1}`, `{"durationMs":1.2e3}`, `{"s":"\\uD800","durationMs":0.5}`, `{"s":"\uD83D\uDE00","durationMs":0.5}`} {
 		before := []byte(raw)
 		input := append([]byte(nil), before...)
@@ -37,6 +38,7 @@ func TestCoreNativeJSONNumberBoundary(t *testing.T) {
 }
 
 func TestCoreCompleteReportReplay(t *testing.T) {
+	t.Parallel()
 	path := os.Getenv("CORVINT_TEST_CORE_FULL_REPORT")
 	if path == "" {
 		t.Skip("retained or explicitly reconstructed diagnostic report required")

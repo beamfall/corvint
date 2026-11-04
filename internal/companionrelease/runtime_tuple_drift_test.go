@@ -80,6 +80,7 @@ func checkLockedTuple(t *testing.T, path, direct string, names ...string) {
 // V1-2690: every pinned copy of the runtime tuple names the declared tuple,
 // and the shared Playwright table admits it for the bundled external profile.
 func TestV12690DeclaredRuntimeTupleDrift(t *testing.T) {
+	t.Parallel()
 	if m := jstestprovider.AdmittedRuntimeTupleMismatch(jstestprovider.ExternalProfile, declaredPlaywrightVersion, requiredNodeVersion, jstestprovider.BrowserSourceBundled); m != nil {
 		t.Fatalf("declared tuple is not an admitted row: %+v", m)
 	}

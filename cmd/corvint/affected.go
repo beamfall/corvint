@@ -20,6 +20,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/extevidence"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
@@ -915,7 +916,7 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	}
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return playwrightAffectedReceipt{}, affectedStatusError(err)
 	}
 	if invocation.RequireClean && len(dirty) != 0 {
 		return playwrightAffectedReceipt{}, affectedMixedWorktreeRefusal(revision, dirty)
@@ -944,7 +945,7 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	}
 	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return playwrightAffectedReceipt{}, affectedStatusError(err)
 	}
 	if !equalStringSlices(dirty, recheck) {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
@@ -1055,7 +1056,7 @@ func holdPlaywrightIgnored(ctx context.Context, gitExecutable, root string, extr
 	}
 	release, err := affected.HoldIgnoredExclusion(root, entries)
 	if err != nil {
-		return nil, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return nil, nil, affectedStatusError(err)
 	}
 	return held, release, nil
 }
@@ -1084,11 +1085,11 @@ func refuseTrackedPlaywrightWrapper(ctx context.Context, gitExecutable, root, re
 func playwrightHeldPaths(ctx context.Context, gitExecutable, root string) ([]string, error) {
 	ignored, err := affected.IgnoredPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return nil, affectedStatusError(err)
 	}
 	_, generated, err := affected.ReadGeneratedDeclaration(root)
 	if err != nil {
-		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return nil, affectedStatusError(err)
 	}
 	return append(slices.Clone(ignored), generated...), nil
 }
@@ -1190,7 +1191,7 @@ func affectedObserve(ctx context.Context, gitExecutable, root string) (*affected
 	}
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return nil, affectedStatusError(err)
 	}
 	return &affectedObservation{revision: revision, dirty: dirty}, nil
 }
@@ -1274,7 +1275,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	// (AFP-V0-150, V1-1087).
 	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return affectedReceipt{}, nil, affectedStatusError(err)
 	}
 	if !equalStringSlices(dirty, recheck) {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
@@ -1517,7 +1518,7 @@ func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) (
 	}
 	paths, err := affected.RangePaths(ctx, gitExecutable, root, base)
 	if err != nil {
-		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return nil, affectedStatusError(err)
 	}
 	return paths, nil
 }
@@ -1533,12 +1534,12 @@ func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) (
 func affectedPathListGraph(ctx context.Context, gitExecutable, root, revision string, invocation affectedInvocation, graph *affected.Graph) (*affected.Graph, []string, error) {
 	ignored, err := affected.IgnoredPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return nil, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return nil, nil, affectedStatusError(err)
 	}
 	if affectedGraphListsIgnored(graph, ignored) {
 		release, err := affected.HoldIgnoredExclusion(root, ignored)
 		if err != nil {
-			return nil, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+			return nil, nil, affectedStatusError(err)
 		}
 		rebuilt, err := affected.Build(affectedGraphContext(ctx), root, affectedLanguages()...)
 		release()
@@ -2246,4 +2247,12 @@ func affectedSelect(graph *affected.Graph, changed []string, shared bool) affect
 
 func snapshotAffectedError() error {
 	return &gokernel.Error{Code: "unsupported-planning-snapshot", Message: "immutable planning snapshot is missing, mismatched, incomplete or unsupported"}
+}
+
+// affectedStatusError preserves the scratch refusal class at the CLI boundary (TSP-V0-7301).
+func affectedStatusError(err error) error {
+	if gitstatus.RefusalClass(err) == "scratch-dir" {
+		return &gokernel.Error{Code: "unsupported-affected-temp", Message: "temporary path " + os.TempDir() + ": " + gitstatus.RefusalMessage(err) + "; set TMPDIR to a writable directory with free space outside the repository"}
+	}
+	return &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 }

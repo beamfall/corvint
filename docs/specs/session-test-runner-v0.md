@@ -49,6 +49,12 @@ of every requirement below and the binding gate until this spec is promoted.
 
 ## Requirements
 
+- `STR-V0-7305`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard executed by the session runner MUST record its completion wall time as optional RFC3339Nano completedAt. Legacy receipts without that field remain admissible. It is ordering advice, never an execution, revision or evidence-validity assertion.
+  Acceptance evidence: `TestFailFastContentTimeSurvivesTimestampTies` in `cmd/corvint/affected_order_test.go` and the session-runner round-trip tests.
+
+- `STR-V0-7313`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3424) The default local-profile test --dry-run output MUST be the existing bounded summary (at most 4096 bytes), including counts, selection and fallback reasons sufficient to justify HEAVY_WHOLE_REASON. --full MUST request the complete JSON argv listing. --summary remains an explicit synonym for the local default; the CI profile retains its JSON default for pinned shadow consumers, and --pins retains its own output. All forms write identical manifests. --full outside --dry-run or with --summary or --pins MUST refuse. This amends STR-V0-800's output default, not planning or execution.
+  Acceptance evidence: `TestDryRunDefaultsToBoundedSummary`, `TestSTRV0800DryRunSummaryIsBounded` and `TestSTRV0800CLIDryRunSummary` in `cmd/corvint`.
+
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
   [--dry-run] [--receipt PATH]` SHALL plan in process through the same code and profile as
   `corvint affected --base` and record that plan's graph and plan digests and the STR-V0-017
@@ -855,3 +861,10 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 - Whether the Playwright profile's file commands become the first non-Go adapter or stay separate.
 - Adapter order after Go, likely by the languages adopters run most.
 - Whether balanced placement should ever become the default.
+
+### pk-affected boundaries and rollback
+
+These refinements change diagnostics, ordering advice, output projection and test measurement only.
+They grant no new narrowing authority. Missing or invalid evidence keeps the existing uncertainty.
+Revert the corresponding implementation and requirement together to restore the prior behavior.
+Qualification limits and explicit exclusions are retained in `docs/build-log/2026-11-04-pk-affected.md`.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -71,5 +72,18 @@ func TestForeignCallersScanVerdict_TSP_V0_943(t *testing.T) {
 		if foreignCallersComplete(source, declared, nil) {
 			t.Errorf("%s: an unreadable listed candidate still verifies", name)
 		}
+	}
+}
+
+// TSP-V0-7302: a comment still needs a mention declaration, but its refusal names file:line.
+func TestForeignCallerCommentDiagnostic(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "run/run.sh", "#!/bin/sh\ntrue\n")
+	write(t, root, "caller.go", "package c\nvar script = \"run.sh\"\n")
+	write(t, root, "notes.go", "package c\n\n// run.sh is only documentation\n")
+	write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{"callers":["caller.go"],"reason":"computed"}}}`)
+	result := units(t, root)
+	if !strings.Contains(strings.Join(result.Frontier, "\n"), "notes.go:3") {
+		t.Fatalf("comment refusal does not identify caller: %v", result.Frontier)
 	}
 }

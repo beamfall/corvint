@@ -11,6 +11,7 @@ import (
 )
 
 func TestDeltaInternalCLIExplicitImmutableNoOp(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-010 read-only CLI no-op", testDeltaInternalCLIExplicitImmutableNoOp)
 }
 func testDeltaInternalCLIExplicitImmutableNoOp(t *testing.T) {
@@ -78,6 +79,7 @@ func TestDeltaPublicHelp(t *testing.T) {
 }
 
 func TestDeltaCLIPreservesClosedRefusalCodes(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-010 compiler refusal codes reach the CLI unchanged", testDeltaCLIPreservesClosedRefusalCodes)
 }
 func testDeltaCLIPreservesClosedRefusalCodes(t *testing.T) {

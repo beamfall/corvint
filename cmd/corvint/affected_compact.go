@@ -119,12 +119,13 @@ type affectedCompactSelection struct {
 // reverse. Via carries the whole chain only for a chain plan.viaLinks cannot
 // state, one that disagrees with a link an earlier selection recorded.
 type affectedCompactWitness struct {
-	Kind      string                   `json:"kind"`
-	DirtyPath string                   `json:"dirtyPath"`
-	ViaLength int                      `json:"viaLength"`
-	Via       []string                 `json:"via,omitempty"`
-	Cause     *affected.UnboundedCause `json:"cause,omitempty"`
-	Glob      string                   `json:"glob,omitempty"`
+	AnyDirtyPath bool                     `json:"anyDirtyPath,omitempty"`
+	Kind         string                   `json:"kind"`
+	DirtyPath    string                   `json:"dirtyPath"`
+	ViaLength    int                      `json:"viaLength"`
+	Via          []string                 `json:"via,omitempty"`
+	Cause        *affected.UnboundedCause `json:"cause,omitempty"`
+	Glob         string                   `json:"glob,omitempty"`
 }
 
 // affectedExcludedSummary counts the exclusions and binds them by digest to
@@ -213,7 +214,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 	prefixes := map[string]affected.ViaStep{}
 	for _, selection := range selections {
 		witness := selection.Witness
-		compact := affectedCompactWitness{Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob}
+		compact := compactWitness(witness)
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}
@@ -353,4 +354,9 @@ func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []st
 		return unknown
 	}
 	return sortedUniqueStrings(append(kept, fmt.Sprintf(affectedPlanUnknownReference, len(planUnknown))))
+}
+
+// compactWitness is the object shape shared by compact and by-path plans (TSP-V0-7311).
+func compactWitness(witness affected.Witness) affectedCompactWitness {
+	return affectedCompactWitness{AnyDirtyPath: witness.Kind == affected.WitnessUnboundedReader, Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob}
 }

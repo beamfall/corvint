@@ -29,6 +29,7 @@ var guidancePrefilterSeeds = []string{
 // The prefilter skips no seed either pattern matches; the seeds exercise
 // case folding and every registration name, and the fuzz target widens them.
 func TestGuidancePrefilterIsANecessaryCondition(t *testing.T) {
+	t.Parallel()
 	matched := 0
 	for _, line := range guidancePrefilterSeeds {
 		guidancePrefilterHolds(t, line)

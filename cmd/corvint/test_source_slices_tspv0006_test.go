@@ -14,6 +14,7 @@ import (
 // a selector qualified by an import counts as no use unless a package-level
 // declaration or any other identifier of the file shadows the import name.
 func TestTSPV0006PlainFunctionsAndQualifiers(t *testing.T) {
+	t.Parallel()
 	parse := func(t *testing.T, source string) (*ast.File, *token.FileSet) {
 		t.Helper()
 		fileSet := token.NewFileSet()
@@ -86,6 +87,7 @@ func TestTSPV0006PlainFunctionsAndQualifiers(t *testing.T) {
 // TSP-V0-006: a changed function's signature carries only predeclared basic
 // value types, and a write the lexical model cannot prove local is named.
 func TestTSPV0006ReferenceSignatureAndWrites(t *testing.T) {
+	t.Parallel()
 	function := func(t *testing.T, source string) *ast.FuncDecl {
 		t.Helper()
 		file, err := parser.ParseFile(token.NewFileSet(), "f.go", "package p\n\n"+source+"\n", parser.SkipObjectResolution)

@@ -192,6 +192,7 @@ func TestRunsIdentitySetupProjectPools(t *testing.T) {
 }
 
 func TestSplitProjectTestDir(t *testing.T) {
+	t.Parallel()
 	for in, want := range map[string][3]string{
 		"setup":              {"setup", "", "true"},
 		`setup:\.setup\.ts$`: {"setup", `\.setup\.ts$`, "true"},

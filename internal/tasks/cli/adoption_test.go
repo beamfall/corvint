@@ -12,6 +12,7 @@ import (
 )
 
 func TestExternalAgentTemplatesRequireQualification(t *testing.T) {
+	t.Parallel()
 	t.Run("CTS-V0-005 fresh external-agent templates retain qualification", func(t *testing.T) {
 		r := fixture.TempRepo(t)
 		git(t, r.Root, "init", "-q", "-b", "main")
@@ -51,6 +52,7 @@ func TestExternalAgentTemplatesRequireQualification(t *testing.T) {
 }
 
 func TestExternalAgentHelpNamesAdmissionAndPayloadRules(t *testing.T) {
+	t.Parallel()
 	r := fixture.TempRepo(t)
 	x := atm(t, r.Root, nil, "help")
 	for _, want := range []string{"claim --next", "cutover --execution", "plan preview", "submit --attempt", "gate run --attempt", "complete --attempt"} {

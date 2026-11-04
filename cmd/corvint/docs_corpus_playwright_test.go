@@ -170,6 +170,7 @@ func TestDocsHelpNamesPlaywrightReceiptProducer(t *testing.T) {
 // the missing-annotation order and the shipped producer. The lists come from the code, so the
 // help cannot drift from it silently.
 func TestDocsHelpNamesBehaviorAnnotationContract(t *testing.T) {
+	t.Parallel()
 	want := []string{"DCP-V1-080", "DCP-V1-081", "DCP-V1-082", "at most 4096 events", "exactly one, after the cleanup ran: passed",
 		"in the order events, cleanup, fixture, role", "internal/doccorpus/behavior-events.cjs", "Playwright behavior witness walkthrough",
 		doccorpus.PlaywrightEventAnnotation, doccorpus.PlaywrightCleanupAnnotation, doccorpus.PlaywrightFixtureAnnotation, doccorpus.PlaywrightRoleAnnotation,

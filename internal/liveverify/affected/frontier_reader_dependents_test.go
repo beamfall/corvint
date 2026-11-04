@@ -50,3 +50,32 @@ func TestOwnedPathReaderWithUnmodelledInvokersKeepsItsFrontier_AFP_V0_581(t *tes
 		t.Fatalf("neither the frontier nor the invoker: scope %s selected %v unknown %v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
+
+// V1-4392: an unreferenced leaf and documentation do not acquire a shell frontier.
+func TestNewLeafPackageWithoutShellCallerIsBounded(t *testing.T) {
+	root := t.TempDir()
+	for name, body := range map[string]string{
+		"go.mod":                            "module example.test/m\n\ngo 1.27.0\n",
+		"internal/leaf/leaf.go":             "package leaf\nfunc Value() int {return 1}\n",
+		"internal/leaf/leaf_test.go":        "package leaf\nimport \"testing\"\nfunc TestValue(t *testing.T) {if Value()!=1 {t.Fatal(Value())}}\n",
+		"script/unrelated.sh":               "#!/bin/sh\necho hello\n",
+		".corvint/documentation-paths.json": `{"profile":"corvint-documentation-paths/0","paths":["docs/"]}`,
+		"docs/specs/leaf-v0.md":             "# Leaf\n\n## Requirements\n- leaf\n",
+	} {
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New(), shell.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"internal/leaf/leaf.go", "internal/leaf/leaf_test.go", "docs/specs/leaf-v0.md"})
+	if plan.Scope != affected.ScopeBounded || !slices.Equal(plan.SelectedTests(), []string{"internal/leaf/leaf_test.go"}) {
+		t.Fatalf("unrelated shell widens leaf: scope=%s tests=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}

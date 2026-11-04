@@ -13,6 +13,7 @@ import (
 )
 
 func TestBreakageCLIRejectsMissingAndAmbiguousBindings(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{}, {"--manifest", "/missing", "--api", "repo:path:Name"}, {"--manifest", "/missing", "--api", "repo:path:Name", "--repository", "r=a", "--repository", "r=b"}} {
 		var out, diagnostic bytes.Buffer
 		if code := runBreakage(context.Background(), ".", args, &out, &diagnostic); code != 2 || out.Len() != 0 || diagnostic.Len() == 0 {

@@ -10,6 +10,7 @@ import (
 )
 
 func TestCoreClosedStageRequiresExactNonNullableFields(t *testing.T) {
+	t.Parallel()
 	stage := CoreInstalledStage{Name: "console", StdoutSHA256: sha256Hex(nil), StderrSHA256: sha256Hex(nil), Stdout: "", Stderr: ""}
 	raw, _ := json.Marshal(stage)
 	var decoded CoreInstalledStage
@@ -30,6 +31,7 @@ func TestCoreClosedStageRequiresExactNonNullableFields(t *testing.T) {
 }
 
 func TestCoreRequiredBooleanAndNativeFalseAreTyped(t *testing.T) {
+	t.Parallel()
 	var value struct {
 		Observed bool `json:"observed"`
 	}
@@ -60,6 +62,7 @@ func TestCoreRequiredBooleanAndNativeFalseAreTyped(t *testing.T) {
 }
 
 func TestCoreProfileSelectionPreservesOriginalLineBytes(t *testing.T) {
+	t.Parallel()
 	original := []byte(" {\"profile\":\"corvint-core-console-proof/0\",\"x\":1} \n")
 	got, err := selectCoreProfile(append([]byte("diagnostic\n"), original...), "corvint-core-console-proof/0")
 	if err != nil || !bytes.Equal(got, original) {
@@ -71,6 +74,7 @@ func TestCoreProfileSelectionPreservesOriginalLineBytes(t *testing.T) {
 }
 
 func TestCoreReaderRejectsHistoricalAndMixedShapes(t *testing.T) {
+	t.Parallel()
 	for _, raw := range []string{`{"profile":"corvint-public-release-installed/0"}`, `{"profile":"corvint-public-release-core-installed/0","editor":{}}`, `null`} {
 		if err := ValidateCoreInstalledReport([]byte(raw)); err == nil {
 			t.Fatalf("accepted %s", raw)

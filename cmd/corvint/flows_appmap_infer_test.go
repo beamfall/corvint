@@ -112,6 +112,7 @@ func TestSKHV0_126_InferCLIAndImport(t *testing.T) {
 // SKH-V0-126 SKH-V0-052: only joined records on the corpus repository become trust inputs, with
 // their test anchor span, trust level, verdict, selection and gap.
 func TestSKHV0_126_TrustFromJoins(t *testing.T) {
+	t.Parallel()
 	repo := strings.Repeat("a", 40)
 	record := func(path string, repository string) doccorpus.TestKnowledgeRecord {
 		return doccorpus.TestKnowledgeRecord{Test: doccorpus.Anchor{Repository: repository, Path: path, Start: 3, End: 9}, Gap: "g"}

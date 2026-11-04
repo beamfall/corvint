@@ -562,6 +562,7 @@ func TestATRV0005_OutcomeBindsItsAttemptGeneration(t *testing.T) {
 // TestATRV0005_OutcomeDocumentIsClosed: non-canonical, unknown-key and
 // contradictory documents are refused.
 func TestATRV0005_OutcomeDocumentIsClosed(t *testing.T) {
+	t.Parallel()
 	started := "2026-10-04T00:00:00Z"
 	code := 0
 	base := transaction.RunOutcome{Profile: transaction.RunOutcomeProfile, RunID: "r1", AttemptID: "a", Generation: "1", ArgvSha256: strings.Repeat("a", 64), TimeoutSeconds: 1, StartedAt: &started, EndedAt: started, Class: transaction.RunExit, ExitCode: &code, Cleanup: transaction.CleanupReleased}

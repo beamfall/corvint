@@ -79,6 +79,7 @@ func TestAFPV0162AffectedTiersRankTheFullSelection(t *testing.T) {
 }
 
 func TestAFPV0162EmptySelectionOmitsTiers(t *testing.T) {
+	t.Parallel()
 	if tiers := tierAffectedSelections(nil); tiers != nil {
 		t.Fatalf("empty selection tiers = %v, want nil", tiers)
 	}
@@ -87,6 +88,7 @@ func TestAFPV0162EmptySelectionOmitsTiers(t *testing.T) {
 // AFP-V0-162: a changed package directly under a top-level directory makes
 // no siblings, so internal/* does not flood tier 1.
 func TestAFPV0162TopLevelParentHasNoSiblings(t *testing.T) {
+	t.Parallel()
 	tiers := tierAffectedSelections([]affected.Selection{
 		{UnitID: "go:example.com/m/internal/changed", Witness: affected.Witness{Kind: affected.WitnessDirectSource, DirtyPath: "internal/changed/a.go", Via: []string{"go:example.com/m/internal/changed"}}},
 		{UnitID: "go:example.com/m/internal/other", Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "internal/changed/a.go", Via: []string{"go:example.com/m/internal/changed", "go:example.com/m/internal/mid", "go:example.com/m/internal/other"}}},

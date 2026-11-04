@@ -859,6 +859,7 @@ func aggregateQualificationOwnedCleanup(worker, observed string, forbidden []str
 }
 
 func TestAggregateQualificationOwnedCleanup(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, worker, observed string
 		callers                []string

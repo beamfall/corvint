@@ -56,6 +56,7 @@ func TestURE997EvalFrictionReportsWithoutMutating(t *testing.T) {
 // TestURE997OnlyTheEvalCommandImportsFrictionMetric keeps the metrics out of
 // ranking, retrieval, evidence, authority and learning code paths.
 func TestURE997OnlyTheEvalCommandImportsFrictionMetric(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)

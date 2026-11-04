@@ -34,10 +34,12 @@ func TestSnapshotMissNoticeNamesTheBuild(t *testing.T) {
 	invoke := func(threshold time.Duration, arguments ...string) (string, string) {
 		t.Helper()
 		snapshotMissNoticeAfter = threshold
+		started := time.Now()
 		var stdout, stderr bytes.Buffer
 		if code := runContext(context.Background(), append([]string{"--root", root}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 0 {
 			t.Fatalf("%v: exit %d stderr %q", arguments, code, stderr.String())
 		}
+		t.Logf("%s snapshot notice=%v elapsed=%s", arguments[0], stderr.Len() != 0, time.Since(started))
 		return stdout.String(), stderr.String()
 	}
 	contextArgs := []string{"context", "--task", "where is ParseToken defined", "--limit", "3"}

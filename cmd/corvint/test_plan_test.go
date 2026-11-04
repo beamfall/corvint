@@ -26,6 +26,9 @@ func mustRead(t *testing.T, path string) []byte {
 
 func runTestPlanCLI(t *testing.T, arguments ...string) (int, string, string) {
 	t.Helper()
+	if hasTestArg(arguments, "--dry-run") && !hasTestArg(arguments, "--summary") && !hasTestArg(arguments, "--pins") && !hasTestArg(arguments, "--full") {
+		arguments = append(arguments, "--full")
+	}
 	var stdout, stderr bytes.Buffer
 	code := run(arguments, strings.NewReader(""), &stdout, &stderr)
 	return code, stdout.String(), stderr.String()
@@ -252,4 +255,13 @@ func TestTestPlanHelp(t *testing.T) {
 	if code != 0 || !strings.Contains(stdout, "test-plan consolidate --input FILE") || !strings.Contains(rootHelp, "test-plan") {
 		t.Fatalf("exit %d help %q", code, stdout)
 	}
+}
+
+func hasTestArg(arguments []string, wanted string) bool {
+	for _, value := range arguments {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }

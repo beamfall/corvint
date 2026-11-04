@@ -30,6 +30,7 @@ func readCodexPackageFile(t *testing.T, parts ...string) string {
 // A trusted project config layers above a profile, so the README's invocation repeats exactly the
 // same keys as -c overrides, which outrank it.
 func TestAHI206CodexReviewProfileClosesBothWriteDoors(t *testing.T) {
+	t.Parallel()
 	section, values := "", map[string]string{}
 	for _, line := range strings.Split(readCodexPackageFile(t, "profiles", "corvint-review.config.toml"), "\n") {
 		line = strings.TrimSpace(line)
@@ -76,6 +77,7 @@ func TestAHI206CodexReviewProfileClosesBothWriteDoors(t *testing.T) {
 // AHI-207, AHI-373: the plugin declares one read-only `corvint mcp` server that binds the launch directory's
 // Git worktree with the legacy protocol, and refuses before exec outside a worktree.
 func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("the Codex plugin package is qualified on macOS only")
 	}
@@ -146,6 +148,7 @@ func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
 // one bounded `corvint adapter codex` handler and its applicable matcher; the other native events
 // stay unregistered.
 func TestAHI208CodexHooksRegisterOnlyMappedEvents(t *testing.T) {
+	t.Parallel()
 	raw := []byte(readCodexPackageFile(t, "plugins", "corvint", "hooks", "hooks.json"))
 	if problem := codexHookRegistrationProblem(raw); problem != "" {
 		t.Fatalf("shipped hooks.json: %s", problem)
@@ -224,6 +227,7 @@ func codexHookRegistrationProblem(raw []byte) string {
 // AHI-209: the Codex package tells agents and operators that only a root-thread user message
 // authorizes an escalation, that the exact action must not drift, and where decisions are recorded.
 func TestAHI209CodexApprovalGuidanceNamesRootGrantAndRecord(t *testing.T) {
+	t.Parallel()
 	skill := strings.Join(strings.Fields(readCodexPackageFile(t, "plugins", "corvint", "skills", "corvint", "SKILL.md")), " ")
 	for _, phrase := range []string{
 		"A human approval reaches automatic approval review only as a user message in the root thread.",

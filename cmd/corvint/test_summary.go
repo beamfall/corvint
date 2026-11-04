@@ -67,7 +67,7 @@ func testDryRunSummary(m sessiontest.Manifest, digest string, invocations []sess
 	}
 	fmt.Fprintf(&b, "  units: %d; %s; invocations=%d\n", len(units), strings.Join(parts, ", "), len(invocations))
 	fmt.Fprintf(&b, "  checks still required: %d; no-suite languages: %d; incomplete: %d\n", len(m.Checks), len(m.NoSuite), len(m.Incomplete))
-	tail := "  full plan: rerun without --summary for the JSON argv\n"
+	tail := "  full plan: rerun with --full for the JSON argv\n"
 	incomplete := make([]string, 0, len(m.Incomplete))
 	for _, entry := range m.Incomplete {
 		incomplete = append(incomplete, summaryClip(entry, testSummaryItem))

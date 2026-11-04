@@ -38,6 +38,7 @@ func directTestEnvelope(event string, candidate bool) map[string]any {
 	return result
 }
 func TestDirectQualifiedWireAndBudget(t *testing.T) {
+	t.Parallel()
 	t.Run("DCLI-V0-004 caller asserted unattributed native output", func(t *testing.T) {
 		for _, event := range []string{"session-start", "user-prompt", "session-end"} {
 			c := directTestEnvelope(event, true)

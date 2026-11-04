@@ -36,6 +36,7 @@ func papercutRepo(t *testing.T) (*fixture.Repo, string, string) {
 // current submits the read revision for one target and is refused with
 // several.
 func TestTCLV0860_PositionalAndCurrentRevision(t *testing.T) {
+	t.Parallel()
 	r, local, revision := papercutRepo(t)
 	pos := atm(t, r.Root, nil, "ticket", "prioritize", local, "--request-id", "p1", "--payload", `{"order":"1","priority":"P1"}`)
 	if pos.code == 0 || pos.res.Outcome != wire.OutcomeError || !hasCode(pos.res, wire.CodeMalformed) {
@@ -88,6 +89,7 @@ func examples(v any, out map[string]string) {
 // example names --target and --expected-revision, and prioritize's example
 // with its placeholders filled runs.
 func TestTCLV0861_MutationExamplesRun(t *testing.T) {
+	t.Parallel()
 	r, local, revision := papercutRepo(t)
 	var out bytes.Buffer
 	if code := cli.Run(cli.Env{Cwd: r.Root, Args: []string{"help", "--json"}, Stdout: &out, Stderr: &out}); code != 0 {
@@ -136,6 +138,7 @@ func papercutStore(t *testing.T) *fixture.Repo {
 // TestTCLV0862_ListFieldsAcceptShowKeys: list and search --fields take show
 // keys, record.* included, and stay CAL-V0-173 list items without one.
 func TestTCLV0862_ListFieldsAcceptShowKeys(t *testing.T) {
+	t.Parallel()
 	r := papercutStore(t)
 	for _, argv := range [][]string{
 		{"ticket", "list", "--fields", "ticketId,record.labels,claimable"},
@@ -173,6 +176,7 @@ func TestTCLV0862_ListFieldsAcceptShowKeys(t *testing.T) {
 
 // TestTCLV0863_SearchQueryNamesText: --query refuses MALFORMED naming --text.
 func TestTCLV0863_SearchQueryNamesText(t *testing.T) {
+	t.Parallel()
 	r := papercutStore(t)
 	for _, argv := range [][]string{{"ticket", "search", "--query", "x"}, {"ticket", "search", "--query=x"}} {
 		x := atm(t, r.Root, nil, argv...)

@@ -10,6 +10,7 @@ import (
 // EEP-V0-770: a grafted or shallow checkout cannot place the baseline against the branch point,
 // so staleness is NOT_OBSERVED BRANCH_POINT_UNRESOLVED rather than a FRESH or STALE count.
 func TestRunsBaselineStalenessDistrustsRewrittenAncestry_EEPV0770(t *testing.T) {
+	t.Parallel()
 	repo := t.TempDir()
 	reuseGit(t, repo, "init", "-q")
 	reuseGit(t, repo, "config", "user.email", "corvint@example.test")

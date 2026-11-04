@@ -37,6 +37,7 @@ func TestInstalledQualificationRefusesOutputBeforeScratchWrite(t *testing.T) {
 }
 
 func TestCopyBoundedTreeRejectsSymlink(t *testing.T) {
+	t.Parallel()
 	source := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "outside")
 	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
@@ -51,6 +52,7 @@ func TestCopyBoundedTreeRejectsSymlink(t *testing.T) {
 }
 
 func TestCopyBoundedTreePreservesOnlyInternalBrowserSymlink(t *testing.T) {
+	t.Parallel()
 	source := t.TempDir()
 	if err := os.Mkdir(filepath.Join(source, "Versions"), 0o700); err != nil {
 		t.Fatal(err)
@@ -81,6 +83,7 @@ func TestCopyBoundedTreePreservesOnlyInternalBrowserSymlink(t *testing.T) {
 }
 
 func TestCopyBoundedTreeHonorsCancellation(t *testing.T) {
+	t.Parallel()
 	source := t.TempDir()
 	if err := os.WriteFile(filepath.Join(source, "file"), []byte("data"), 0o600); err != nil {
 		t.Fatal(err)
@@ -93,6 +96,7 @@ func TestCopyBoundedTreeHonorsCancellation(t *testing.T) {
 }
 
 func TestCopyBoundedTreeLaunchesPinnedBrowser(t *testing.T) {
+	t.Parallel()
 	source := os.Getenv("CORVINT_TEST_BROWSER_CACHE")
 	if source == "" {
 		t.Skip("set CORVINT_TEST_BROWSER_CACHE for installed browser proof")
@@ -125,6 +129,7 @@ func TestCopyBoundedTreeLaunchesPinnedBrowser(t *testing.T) {
 }
 
 func TestWriteExclusiveAtomicNeverOverwrites(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "result.json")
 	if err := os.WriteFile(path, []byte("first"), 0o600); err != nil {
 		t.Fatal(err)
@@ -139,6 +144,7 @@ func TestWriteExclusiveAtomicNeverOverwrites(t *testing.T) {
 }
 
 func TestInstalledAdmissionRejectsInputOutputOverlap(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	tool := filepath.Join(root, "tool")
 	if err := execfile.WriteFile(tool, []byte("tool"), 0o700); err != nil {
@@ -156,6 +162,7 @@ func TestInstalledAdmissionRejectsInputOutputOverlap(t *testing.T) {
 }
 
 func TestRehashRetainedRejectsEquivalentSidecarRewrite(t *testing.T) {
+	t.Parallel()
 	dir := makeRetainedFixture(t)
 	verified, err := VerifyRetainedBundle(dir)
 	if err != nil {
@@ -182,6 +189,7 @@ func TestRehashRetainedRejectsEquivalentSidecarRewrite(t *testing.T) {
 }
 
 func TestSelectProfileRequiresOnePassingRecord(t *testing.T) {
+	t.Parallel()
 	good := []byte("noise\n{\"profile\":\"wanted/0\",\"status\":\"PASS\",\"value\":1}\n")
 	if got, err := selectProfile(good, "wanted/0"); err != nil || len(got) == 0 {
 		t.Fatalf("select profile: %s %v", got, err)
@@ -195,6 +203,7 @@ func TestSelectProfileRequiresOnePassingRecord(t *testing.T) {
 }
 
 func TestInstalledEvidenceSerializationPreservesRawBytes(t *testing.T) {
+	t.Parallel()
 	raw := "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n"
 	report := InstalledReport{Docs: []InstalledEvidence{{Name: "mcp.json", SHA256: sha256Hex([]byte(raw)), Raw: raw}}}
 	body, err := json.MarshalIndent(report, "", "  ")

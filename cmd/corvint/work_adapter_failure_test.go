@@ -13,6 +13,7 @@ import (
 // WQO-V0-684 (V1-2586): an ADAPTER_FAILED error names its operation and a
 // fixed cause on one stderr line, and the cause never echoes adapter bytes.
 func TestWQOV0684AdapterFailedNamesItsCause(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		err  error
 		want string

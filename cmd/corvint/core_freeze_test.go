@@ -980,6 +980,7 @@ func (observer *coreEnumerationObserver) unreached() (rows []coreEnumeration, co
 // V1-3908: register coverage is judged only when every declared frozen mode ran, so a filtered
 // golden regeneration passes, while a full run still names each unreached row.
 func TestCoreEnumerationCoverageNeedsEveryMode(t *testing.T) {
+	t.Parallel()
 	observer := &coreEnumerationObserver{rows: []coreEnumeration{{member: "a"}, {member: "b"}}, reached: map[int]bool{0: true}, modes: 2}
 	observer.modeRan()
 	if rows, complete := observer.unreached(); complete || len(rows) != 0 {

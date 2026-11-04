@@ -90,6 +90,7 @@ func TestImpactRequireCleanCLI(t *testing.T) {
 }
 
 func TestImpactRequireCleanArguments(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"--require-clean=true", "pkg/main.go"},
 		{"--require-clean", "--require-clean", "pkg/main.go"},

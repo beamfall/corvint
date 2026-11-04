@@ -28,6 +28,7 @@ func qualifiedPiTestScope(root string, candidate bool) authoritystore.LifecycleS
 	return s
 }
 func TestPiQualifiedLifecycleWireAndBudget(t *testing.T) {
+	t.Parallel()
 	t.Run("PPI-V0-005 closed Pi host and profile", func(t *testing.T) {
 		request := `{"profile":"corvint-qualified-lifecycle/2","event":"stop","input":{"stopHookActive":false}}`
 		if _, err := parseQualifiedRequest([]byte(request)); err != nil {
@@ -85,6 +86,7 @@ func TestPiQualifiedLifecycleWireAndBudget(t *testing.T) {
 	})
 }
 func TestPiQualifiedStopComposition(t *testing.T) {
+	t.Parallel()
 	t.Run("PPI-V0-006 EMPTY preserves local policy and recursive OPEN releases", func(t *testing.T) {
 		for _, state := range []string{"OPEN", "EMPTY"} {
 			for _, recursive := range []bool{false, true} {

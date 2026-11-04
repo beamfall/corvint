@@ -133,6 +133,7 @@ func TestPRBV0006UnusableKnobRefusesCommand(t *testing.T) {
 // PRB-V0-008: the bracket is the only CPU profiler start in the binary, so no command can
 // collide with it ("cpu profiling already in use") or bypass it.
 func TestPRBV0008NoNestedProfilerStart(t *testing.T) {
+	t.Parallel()
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)

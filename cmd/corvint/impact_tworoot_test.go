@@ -185,6 +185,7 @@ func TestANLV0064TwoRootImpactRefusesInvalidLayout(t *testing.T) {
 
 // ANL-V0-065: a reported change that selected no spec file is never an empty targeted answer.
 func TestANLV0065TwoRootImpactNeverEmptyForAChange(t *testing.T) {
+	t.Parallel()
 	pin := &appmap.RootPin{Repo: "e2e", Revision: "r"}
 	r := twoRootImpactVerdict(appmap.ImpactReport{App: "admin", Verdict: appmap.VerdictTargeted, Changed: 1, TestRoot: pin}, 0, false)
 	if r.Verdict != appmap.VerdictFullSuite || !slices.Contains(r.Reasons, "change-selected-no-spec-files") || len(r.Unknown) != 1 || len(r.SpecFiles) != 0 {
@@ -198,6 +199,7 @@ func TestANLV0065TwoRootImpactNeverEmptyForAChange(t *testing.T) {
 
 // ANL-V0-072: an unknown path's line names the file and line, or the bound, behind its reason.
 func TestANLV0072TwoRootUnknownNamesItsDetail(t *testing.T) {
+	t.Parallel()
 	pin := &appmap.RootPin{Repo: "e2e", Revision: "r"}
 	r := twoRootImpactVerdict(appmap.ImpactReport{App: "admin", Verdict: appmap.VerdictFullSuite, Changed: 2, TestRoot: pin, Unknown: []appmap.ImpactUnknown{
 		{Path: "app/a.html", Reason: "unresolved-reference", Detail: "app/b.js:7"},
@@ -286,6 +288,7 @@ func TestANLV0067AffectedChecksTestRootPin(t *testing.T) {
 // ANL-V0-066: the final recheck refuses a test-root worktree that changed after the map was built,
 // and a stated --at whose commit is not the one the map and the diff read.
 func TestANLV0066TwoRootImpactDriftRecheck(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	ctx := context.Background()
 	pinned := func() *appmap.ImpactReport {

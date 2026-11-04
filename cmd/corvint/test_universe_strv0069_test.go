@@ -21,6 +21,7 @@ import (
 // that listing and the runner's universe check passes, and the verdict names
 // the exclusion.
 func TestSTRV0069NestedModuleRequiringTheRootLeavesTheGoUniverse(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	for name, body := range map[string]string{
 		"go.mod":            "module example.test/root\n\ngo 1.26\n",

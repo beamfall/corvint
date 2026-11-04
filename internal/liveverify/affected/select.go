@@ -100,6 +100,16 @@ type Witness struct {
 	link *viaLink
 }
 
+// MarshalJSON labels the representative unbounded dirty path as any path (TSP-V0-7303).
+func (witness Witness) MarshalJSON() ([]byte, error) {
+	type wire Witness
+	return json.Marshal(struct {
+		wire
+		AnyDirtyPath bool `json:"anyDirtyPath,omitempty"`
+		ViaLength    int  `json:"viaLength"`
+	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader, ViaLength: witness.ViaLength()})
+}
+
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
 // Unit is the unit itself, or the root-locating unit it depends on or whose
 // dependent its tests import, and Reads is that unit's unboundedReads.

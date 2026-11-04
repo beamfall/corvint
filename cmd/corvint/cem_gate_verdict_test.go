@@ -21,6 +21,7 @@ import (
 // stderr code and no document and exits 2, and a bare word before cem leaves
 // the arguments to the command that owns them.
 func TestTCBV0016GateVerdictArgvIsClosed(t *testing.T) {
+	t.Parallel()
 	oid := strings.Repeat("a", 40)
 	flags := []string{"--base", oid, "--candidate", oid, "--predicate", "touched-anchored", "--touch-paths", `["src/"]`, "--portable-consumer", "/bin/false"}
 	with := func(lead []string, tail ...string) []string {
@@ -142,6 +143,7 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 // at `repository` / `git-diff-failed`, and the gate refuses under the route's
 // name with that code pinned. Either way the document names the host fact.
 func TestTCBV0042PortableConsumerUnderBareHostPath(t *testing.T) {
+	t.Parallel()
 	stablefixture.RequireStableHost(t)
 	if runtime.GOOS == "linux" && runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
 		t.Skip("NOT_RUN: interop/cem01-go process containment is not qualified on linux/" + runtime.GOARCH)

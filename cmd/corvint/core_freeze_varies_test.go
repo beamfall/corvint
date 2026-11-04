@@ -9,6 +9,7 @@ import (
 // varying value (build_ms 12 in both) must not freeze it over the golden's placeholder, while a
 // placeholder whose type no longer matches, and every pinned value, follow the new runs.
 func TestCCFV1620GoldenRegenKeepsAPreviousVariesLeaf(t *testing.T) {
+	t.Parallel()
 	previous := map[string]any{
 		"build_ms": "<varies:number>",
 		"commit":   "<varies:string>",

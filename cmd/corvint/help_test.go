@@ -632,6 +632,7 @@ func TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery(t *testing.T) {
 // V1-1643: the CPU-profile help note names the variable runtimeenv resolves
 // for the "CPUPROFILE" suffix that main.go and taskcontext.go read.
 func TestCPUProfileHelpNamesResolvedVariable(t *testing.T) {
+	t.Parallel()
 	var asked []string
 	runtimeenv.Resolve(func(name string) (string, bool) {
 		asked = append(asked, name)
