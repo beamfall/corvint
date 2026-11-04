@@ -124,3 +124,20 @@ Revert the corresponding implementation and requirement together. Reverting outp
 restores the previous wires without changing selection. Reverting parallel admissions restores
 serial scheduling. Keep the recorded failures and qualification limits; never turn a SKIP or a
 missing external outcome into a pass.
+
+
+## Observed final-check blocker: split report mounts
+
+The first clean bind reached independent verifier agreement, then refused `dogfood-report-write`.
+The report and its parent were writable. A minimal write/rename probe showed `EXDEV` between
+`/home/russell/projects/corvint/.git/worktrees/pk-affected/` and the worktree's `.corvint/`:
+the sandbox exposes separate writable mounts even though `stat` reports the same device ID.
+This is a required delivery blocker, so fix publication rather than weaken the checker or manually
+edit its report. DWC-V0-7319 in the existing daily-workflow companion records the decision.
+The original Git-stage path is preferred; only EXDEV permits a complete sibling stage and atomic
+rename on the destination mount. Unrelated and final publication errors preserve the previous
+report and fail normally; temporary files are cleaned. No agreement or completion rule changes.
+`TestCheckReportPublicationAcrossMounts` failed without the fallback (cross-device and destination
+cases), then passed, alongside existing output-declaration and zero-match refusal checks.
+The additional affected plan selects internal/dogfoodflow. The generated requirements check passed.
+The old bind remains historical; the final binding must include this repair and rerun the checker.

@@ -273,6 +273,43 @@
         "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=9.7s rc=0"
       ],
       "purpose": "Exercise actual failed MkdirTemp on an unwritable parent and report both scratch candidates honestly."
+    },
+    {
+      "command": "script/heavy.sh go test -count=1 -run 'TestCheckReportPublicationAcrossMounts|TestCheckDCWV0047|TestDCWV0922VerifyRunMatchingNoTestIsRefused' -v ./internal/dogfoodflow",
+      "exit": 0,
+      "log": "/tmp/pk-affected-evidence/report-publish-green-final.log",
+      "sha256": "2d86d708fb6ae9a4500c0b73c5f887880be6f2b34a312e0e81e026c50df110f1",
+      "excerpt": [
+        "heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh",
+        "heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env",
+        "heavy.sh: running locally at 427fa71718f9b716f76cfb7f222ebf070f54591a tree=a192716a43c58f63dd4f0b4bb4e802d560f54435 dirty=6",
+        "heavy.sh: slot 2/8 after 0s",
+        "=== RUN   TestCheckDCWV0047DeclaredOutputChange",
+        "--- PASS: TestCheckDCWV0047DeclaredOutputChange (0.14s)",
+        "=== RUN   TestCheckDCWV0047RefusedBaseNotProduced",
+        "=== RUN   TestCheckDCWV0047RefusedBaseNotProduced/refused",
+        "=== RUN   TestCheckDCWV0047RefusedBaseNotProduced/refused_without_a_code",
+        "=== RUN   TestCheckDCWV0047RefusedBaseNotProduced/rejected",
+        "--- PASS: TestCheckDCWV0047RefusedBaseNotProduced (0.01s)",
+        "    --- PASS: TestCheckDCWV0047RefusedBaseNotProduced/refused (0.00s)",
+        "    --- PASS: TestCheckDCWV0047RefusedBaseNotProduced/refused_without_a_code (0.00s)",
+        "    --- PASS: TestCheckDCWV0047RefusedBaseNotProduced/rejected (0.00s)",
+        "=== RUN   TestCheckReportPublicationAcrossMounts",
+        "=== PAUSE TestCheckReportPublicationAcrossMounts",
+        "=== RUN   TestDCWV0922VerifyRunMatchingNoTestIsRefused",
+        "--- PASS: TestDCWV0922VerifyRunMatchingNoTestIsRefused (0.00s)",
+        "=== CONT  TestCheckReportPublicationAcrossMounts",
+        "=== RUN   TestCheckReportPublicationAcrossMounts/cross-device",
+        "=== RUN   TestCheckReportPublicationAcrossMounts/unrelated",
+        "=== RUN   TestCheckReportPublicationAcrossMounts/destination",
+        "--- PASS: TestCheckReportPublicationAcrossMounts (0.00s)",
+        "    --- PASS: TestCheckReportPublicationAcrossMounts/cross-device (0.00s)",
+        "    --- PASS: TestCheckReportPublicationAcrossMounts/unrelated (0.00s)",
+        "    --- PASS: TestCheckReportPublicationAcrossMounts/destination (0.00s)",
+        "PASS",
+        "ok  \tgithub.com/Beamfall/corvint/internal/dogfoodflow\t0.172s",
+        "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=2.5s rc=0"
+      ]
     }
   ],
   "regressionFailuresBeforeFix": [
@@ -485,6 +522,35 @@
         "FAIL\tgithub.com/Beamfall/corvint/cmd/corvint\t0.043s",
         "FAIL",
         "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=10.2s rc=1",
+        "heavy.sh: exit rc=1 cause=command cmd=go"
+      ]
+    },
+    {
+      "command": "script/heavy.sh go test -count=1 -run TestCheckReportPublicationAcrossMounts -v ./internal/dogfoodflow",
+      "exit": 1,
+      "log": "/tmp/pk-affected-evidence/report-publish-red.log",
+      "sha256": "827f52a8ddcd2f066e0003e66c47f63589e1f8765e09d24af2cccac108936131",
+      "excerpt": [
+        "heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh",
+        "heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env",
+        "heavy.sh: running locally at 427fa71718f9b716f76cfb7f222ebf070f54591a tree=a20f6c34478d06eab97e9faad6859ef1e55c340e dirty=3",
+        "heavy.sh: slot 2/8 after 0s",
+        "=== RUN   TestCheckReportPublicationAcrossMounts",
+        "=== PAUSE TestCheckReportPublicationAcrossMounts",
+        "=== CONT  TestCheckReportPublicationAcrossMounts",
+        "=== RUN   TestCheckReportPublicationAcrossMounts/cross-device",
+        "    check_report_publish_test.go:46: rename /home/russell/.cache/pk-affected-tmp/heavy-run.clMlFw/TestCheckReportPublicationAcrossMountscross-device3484728623/001/git-stage /home/russell/.cache/pk-affected-tmp/heavy-run.clMlFw/TestCheckReportPublicationAcrossMountscross-device3484728623/001/report.json: invalid cross-device link",
+        "=== RUN   TestCheckReportPublicationAcrossMounts/unrelated",
+        "=== RUN   TestCheckReportPublicationAcrossMounts/destination",
+        "    check_report_publish_test.go:50: publication error=rename /home/russell/.cache/pk-affected-tmp/heavy-run.clMlFw/TestCheckReportPublicationAcrossMountsdestination1795693746/001/git-stage /home/russell/.cache/pk-affected-tmp/heavy-run.clMlFw/TestCheckReportPublicationAcrossMountsdestination1795693746/001/report.json: invalid cross-device link, want original failure",
+        "--- FAIL: TestCheckReportPublicationAcrossMounts (0.00s)",
+        "    --- FAIL: TestCheckReportPublicationAcrossMounts/cross-device (0.00s)",
+        "    --- PASS: TestCheckReportPublicationAcrossMounts/unrelated (0.00s)",
+        "    --- FAIL: TestCheckReportPublicationAcrossMounts/destination (0.00s)",
+        "FAIL",
+        "FAIL\tgithub.com/Beamfall/corvint/internal/dogfoodflow\t0.017s",
+        "FAIL",
+        "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=2.7s rc=1",
         "heavy.sh: exit rc=1 cause=command cmd=go"
       ]
     }
@@ -904,5 +970,22 @@
     "selectedUnits": 221,
     "selectedGoUnits": 219,
     "stdoutSHA256": "66ee81a195edba935f2fe0babacce366d3bc4cc6dc4f1e634feb3d8a7993dcae"
+  },
+  "reportPublicationBlocker": {
+    "firstCheck": {
+      "command": "make dogfood-check BASE=6c33df33bc5670131482f5263b410cb980580657",
+      "exit": 2,
+      "log": "/tmp/pk-affected-evidence/dogfood-check-final.log",
+      "sha256": "a838ad6efe9cc6af86d69a489a4fabed30a998247cd848efd2cabf67fec6a7fa",
+      "excerpt": [
+        "dogfood-check: NOTE unbound-commits count=1 window=f13f52b1607222033b089144a744fedae0d35239..6c33df33bc5670131482f5263b410cb980580657 window-start=cem-base-of:6579b33f0767db05964a3f8d918e6a1b7ead399c newest=a5f5a92bc77840c012d7b62202a61f4d80dc85e3 oldest=a5f5a92bc77840c012d7b62202a61f4d80dc85e3 before-base list=/home/russell/projects/corvint/.git/worktrees/pk-affected/corvint/dogfood-check.unbound-commits",
+        "dogfood-check: FAIL dogfood-report-write",
+        "  fix: make .corvint and the report path writable, then rerun dogfood check",
+        "make: *** [Makefile:1076: dogfood-check] Error 1"
+      ]
+    },
+    "cause": "EXDEV on rename from private Git staging to worktree report across sandbox mount boundaries; exact probe retained in handback",
+    "requirement": "DWC-V0-7319",
+    "change": "Atomic sibling-stage fallback only for EXDEV; no verifier or completion rule changes."
   }
 }
