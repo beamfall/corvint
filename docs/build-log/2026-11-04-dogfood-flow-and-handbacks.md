@@ -87,3 +87,10 @@ removed and an unsuccessful publication leaves the old report intact. Other fail
 still refuse. `TestDWCV0048ReportPublicationAcrossMounts` covers success and a refused
 second rename without truncation. This fixes the observed lane blocker; it grants no
 verification exception and does not change CEM wire semantics.
+
+The repair rebind also exercised V1-4545 live: input preflight had already rewritten the
+committed CEM, so coordination-time impact refused its clean-worktree requirement before
+the rebind shortcut. The shortcut now admits that one exact refusal when only the CEM is
+dirty, retaining it in the incomplete report. All unrelated prior failures still keep their
+diagnostics. The focused regression now reproduces this refusal and requires exactly one
+printed remediation line, not only absence of OCM/status calls.
