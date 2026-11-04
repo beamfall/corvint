@@ -156,6 +156,10 @@ func TestEventSinkLeavesAnUnfinishedFunctionUnattributed(t *testing.T) {
 {"Action":"fail","Package":"p","Test":"TestPanic","Elapsed":0}
 {"Action":"run","Package":"p","Test":"TestSub/case"}
 {"Action":"fail","Package":"p","Test":"TestSub/case","Elapsed":0}
+{"Action":"run","Package":"p","Test":"TestHang/case"}
+{"Action":"pass","Package":"p","Test":"TestHang/case","Elapsed":0}
+{"Action":"skip","Package":"p","Test":"TestHang/other","Elapsed":0}
+{"Action":"fail","Package":"p","Test":"TestDeep/a/b","Elapsed":0}
 not an event
 {"Action":"fail","Package":"p","Elapsed":0.2}
 `
@@ -166,8 +170,12 @@ not an event
 			t.Fatal(err)
 		}
 	}
+	// A failed subtest fails its top-level function, which reports no result
+	// of its own when it then hangs (FPK-V0-740); a subtest's pass or skip
+	// leaves the function unattributed.
 	outcomes := sink.outcomes
-	if len(outcomes) != 2 || outcomes["TestPass"] != runPassed || outcomes["TestPanic"] != runFailed {
+	if len(outcomes) != 4 || outcomes["TestPass"] != runPassed || outcomes["TestPanic"] != runFailed ||
+		outcomes["TestSub"] != runFailed || outcomes["TestDeep"] != runFailed {
 		t.Fatalf("outcomes = %v", outcomes)
 	}
 	if got := sink.classify(errExit); got != runFailed {
@@ -178,5 +186,10 @@ not an event
 	unrun := &claim{names: []string{"TestAfter"}}
 	if passing.outcome(outcomes) != runPassed || panicking.outcome(outcomes) != runFailed || unrun.outcome(outcomes) != runUnattributed {
 		t.Fatalf("folded = %d %d %d", passing.outcome(outcomes), panicking.outcome(outcomes), unrun.outcome(outcomes))
+	}
+	subtestFailed := &claim{names: []string{"TestPass", "TestSub"}}
+	hung := &claim{names: []string{"TestHang"}}
+	if subtestFailed.outcome(outcomes) != runFailed || hung.outcome(outcomes) != runUnattributed {
+		t.Fatalf("folded subtests = %d %d", subtestFailed.outcome(outcomes), hung.outcome(outcomes))
 	}
 }

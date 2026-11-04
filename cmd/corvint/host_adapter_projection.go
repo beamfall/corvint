@@ -54,6 +54,7 @@ func hookContextProjection(event string, result map[string]any, full bool) map[s
 	}
 	if codes := hookDegradations(result["degradations"], full); len(codes) > 0 {
 		add("degradations", codes, true)
+		add("degradationDiagnostics", hookDegradationDiagnostics(codes), false)
 	}
 	if compaction, ok := packet["compaction"].(map[string]any); ok {
 		add("compaction", hookCompaction(compaction), true)

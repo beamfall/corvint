@@ -284,12 +284,6 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
 	}
-	if len(graph.sites) != 0 {
-		plan.FrontierSites = make(map[string]int, len(graph.sites))
-		for reason, count := range graph.sites {
-			plan.FrontierSites[reason] = count
-		}
-	}
 	reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt := graph.reach(normalized, true)
 	plan.GoAdditive = additiveSummary(additive)
 	through := graph.additiveExclusions(normalized, additive)
@@ -305,7 +299,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	frontierNonSource := append(slices.Clip(plan.NonSource), declaration...)
 	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
+	frontier, excluded, bearers, involved := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
@@ -315,6 +309,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
+	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
@@ -352,6 +347,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
 	instructionHints(plan.Unknown)
+	driverInputHints(plan.Unknown)
+	plan.FrontierSites = graph.planFrontierSites(involved, plan.Unknown)
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
 	}
@@ -585,7 +582,7 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // plugin out that way, and a unit the plan follows the dependents of
 // (AFP-V0-581) is no terminal selection. It last returns, for each named
 // entry, the sources that made it bear (TSP-V0-942).
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer) {
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer, []string) {
 	reasons := make(map[string]bool)
 	sources := make(map[string][]FrontierBearer)
 	bear := func(source FrontierBearer) {
@@ -697,7 +694,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		sort.Strings(units)
 		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
 	}
-	return unknown, excluded, frontierBearerList(sources)
+	return unknown, excluded, frontierBearerList(sources), involved
 }
 
 // frontierBearerList orders each entry's sources (by Via, Language, Unit,

@@ -233,6 +233,12 @@ func TestAFPV0170ReuseStepRefusesForgedArtifacts(t *testing.T) {
 	git("init", "-q", "-b", "main")
 	put("go.mod", "module github.com/Beamfall/corvint\n\ngo 1.27\n")
 	put("tools/ci-reuse-plan/main.go", string(src))
+	// The workflow archives the whole tool directory; main.go dispatches to routes.go.
+	routes, err := os.ReadFile("routes.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	put("tools/ci-reuse-plan/routes.go", string(routes))
 	git("add", "-A")
 	git("commit", "-q", "-m", "base")
 	base := git("rev-parse", "HEAD")

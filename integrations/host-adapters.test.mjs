@@ -15,8 +15,18 @@ const here = dirname(fileURLToPath(import.meta.url))
 const hook = join(here, 'gemini-cli/hooks/corvint-hook.mjs')
 const sha = value => createHash('sha256').update(value).digest('hex')
 const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : value !== null && typeof value === 'object' ? `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonical(value[k])}`).join(',')}}` : JSON.stringify(value)
+// ASD-V0-773 (V1-3653): run directly (`node --test integrations/host-adapters.test.mjs`), the file
+// builds the native fixture and the real binary itself, as TestHostAdapterJavaScriptHosts does, so no
+// hand-set environment is needed; values the Go harness passes are kept.
+if (!process.env.CORVINT_TEST_NATIVE_FIXTURE || !process.env.CORVINT_TEST_REAL_BINARY) {
+  const built = mkdtempSync(join(tmpdir(), 'corvint-host-adapters-'))
+  after(() => rmSync(built, { recursive: true, force: true }))
+  const goBuild = (out, pkg) => execFileSync('go', ['build', '-o', out, pkg], { cwd: resolve(here, '..'), env: { ...process.env, GOTOOLCHAIN: process.env.GOTOOLCHAIN || 'local' }, stdio: ['ignore', 'ignore', 'inherit'] })
+  if (!process.env.CORVINT_TEST_NATIVE_FIXTURE) { goBuild(join(built, 'testfixture'), './integrations/testfixture'); process.env.CORVINT_TEST_NATIVE_FIXTURE = join(built, 'testfixture') }
+  if (!process.env.CORVINT_TEST_REAL_BINARY) { goBuild(join(built, 'corvint'), './cmd/corvint'); process.env.CORVINT_TEST_REAL_BINARY = join(built, 'corvint') }
+}
 const nativeFixture = process.env.CORVINT_TEST_NATIVE_FIXTURE
-assert.ok(nativeFixture && existsSync(nativeFixture), 'Run through TestHostAdapterJavaScriptHosts with its native fixture')
+assert.ok(nativeFixture && existsSync(nativeFixture), 'the native fixture did not build; run `go build ./integrations/testfixture` to see why')
 const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'"
 const shutdown = new AbortController()
 const activeGemini = new Set()

@@ -944,6 +944,20 @@ selection-baseline-check: ## Check the test-selection baseline
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
+# shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
+# (AFP-V0-2401, V1-3489): it builds corvint and tools/shell-test-select from this checkout, plans
+# with `corvint affected --base BASE` and runs the printed steps with --keep-going. A plan that
+# cannot narrow them (unreadable, a dirty Makefile, an unknown outside the shell allowlist) runs
+# every step and says why. Example: make shell-test-affected BASE=$$(git merge-base HEAD origin/main)
+.PHONY: shell-test-affected
+shell-test-affected: go-version ## Run the shell-test steps the affected plan selects (BASE=sha)
+	@test -n "$(BASE)" || { echo "usage: make shell-test-affected BASE=FULL_SHA" >&2; exit 2; }
+	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/shell-test-select && \
+	{ "$$d/corvint" affected --base "$(BASE)" > "$$d/plan.json" 2> "$$d/plan.err" || echo "shell-test-affected: corvint affected exited $$? ($$(head -c 200 "$$d/plan.err"))" >&2; } && \
+	targets=$$("$$d/shell-test-select" --plan "$$d/plan.json" --makefile Makefile) && \
+	if [ -n "$$targets" ]; then $(MAKE) --no-print-directory --keep-going $$targets; else echo "shell-test-affected: no shell-test step selected"; fi
+
 .PHONY: ai-coauthor-trailers-test
 ai-coauthor-trailers-test:
 	@script/check-ai-coauthor-trailers_test.sh
@@ -1089,23 +1103,24 @@ dogfood_finish_quote = '$(subst ','\'',$(1))'
 # (ICL-V0-030).
 .PHONY: dogfood-finish
 dogfood-finish:
-	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
 # checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first,
 # unadmitted line also runs the static input pre-check (DCW-V0-731); its second admits on heavy.sh's
-# light pool (ASD-V0-732).
+# light pool (ASD-V0-732). SEAL reaches it only so a dogfood-closeout SEAL=0 retry keeps SEAL=0
+# (DTL-V0-004); the pre-flight itself never seals.
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
-	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT_LIGHT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT_LIGHT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
@@ -1147,12 +1162,23 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
+# DTL-V0-006: independent gates share the enclosing admission and a bounded job pool.
+DOC_GATE_JOBS ?= 4
+.PHONY: doc-gate-force
+doc-gate-force:
+doc-gate/%: doc-gate-force
+	+@script/doc-gate-timed.sh "$*" $(MAKE) --no-print-directory "$*"
+
+.PHONY: tracked-ignored-check
+tracked-ignored-check:
+	@script/tracked-ignored-check.sh
+
 .PHONY: doc-gates
 doc-gates: ## Run the documentation gates
-	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
+	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going -j$(DOC_GATE_JOBS) $(addprefix doc-gate/,$(DOC_GATE_TARGETS))
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
@@ -1243,10 +1269,13 @@ requirement-id-collisions:
 dogfood-change-runs:
 	@script/dogfood-change-runs.sh $(if $(SINCE),"$(SINCE)")
 
-# The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
+# The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018) and the .github split
+# check (ASD-V0-706); no Go build.
 .PHONY: lane-scripts-test
 lane-scripts-test: lane-screen-test
 	@script/lane-scripts_test.sh
+	@script/lane-host-tools_test.sh
+	@script/github-split-check_test.sh
 
 .PHONY: lane-screen-test
 lane-screen-test:
@@ -1307,6 +1336,13 @@ runtime-environment-test:
 # cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
 # loaded host exceeds; release-env-compat-test already runs in companion-release-gate-test; and
 # seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
+# Outside the gate: host-adapters-test-test cancels script/host-adapters-test.sh and waits out a
+# 1-second SIGKILL grace for a TERM-ignoring grandchild, a process-timing check a loaded host can
+# disturb (V1-4147).
+.PHONY: host-adapters-test-test
+host-adapters-test-test:
+	@script/host-adapters-test_test.sh
+
 .PHONY: public-release-check-test
 public-release-check-test:
 	@script/public-release-check_test.sh

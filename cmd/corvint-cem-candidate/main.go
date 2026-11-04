@@ -34,6 +34,9 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		}
 		return 0
 	}
+	if exit, refused := clitree.RefuseIfUnknownVerb(tree, args, errout); refused {
+		return exit
+	}
 	if len(args) > 0 && args[0] == "assemble-stable" {
 		return stableCommand(ctx, args[1:], out, errout)
 	}

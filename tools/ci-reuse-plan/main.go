@@ -94,6 +94,37 @@ type delta struct {
 	Target      string `json:"target"`
 	Base        string `json:"base"`
 	Head        string `json:"head"`
+	// Scope is FULL for an AFP-V0-100 full-record candidate, whose base is the first parent of
+	// the record's target read from a retained commit response; an AFP-V0-812 narrowed candidate
+	// carries no scope, so its decision is byte-identical to the previous tool's.
+	Scope string `json:"scope,omitempty"`
+}
+
+// commit is the part of a retained commits API response AFP-V0-100 reads.
+type commit struct {
+	SHA     string `json:"sha"`
+	Parents []struct {
+		SHA string `json:"sha"`
+	} `json:"parents"`
+}
+
+// fullRecordDelta returns the AFP-V0-100 candidate of pull-request run r: its one latest
+// ci-tested-tree-record line names head and shards but not tree, and the retained response of
+// that line's target names exactly two parents, the second head; the first is the record base.
+// Anything else, and any run but a pull-request run, is nil.
+func fullRecordDelta(r run, tree, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool), commits func(string) (commit, bool)) *delta {
+	if r.Event != "pull_request" || commits == nil {
+		return nil
+	}
+	id, found := recordJobLine(r, RecordJob, recordLine, jobs, logs)
+	if found == nil || found[1] == tree || found[3] != head || found[4] != strconv.Itoa(shards) {
+		return nil
+	}
+	c, ok := commits(found[2])
+	if !ok || c.SHA != found[2] || len(c.Parents) != 2 || c.Parents[1].SHA != head || !oidPattern.MatchString(c.Parents[0].SHA) {
+		return nil
+	}
+	return &delta{RunID: r.ID, RecordJobID: id, Tree: found[1], Target: found[2], Base: c.Parents[0].SHA, Head: head, Scope: "FULL"}
 }
 
 // RecordName names one shard of the full pull-request or merge-queue run whose record job
@@ -201,11 +232,18 @@ func recordJobLine(r run, name string, line *regexp.Regexp, jobs func(int64) ([]
 // entry whose first parent is base, a pull-request run's AFP-V0-734 narrowed record of the same
 // tree, head and base also vouches (scope NARROWED); a full record of the same run is preferred.
 // A main push never reuses a narrowed record. A merge-queue FULL decision made with a base also
-// names, as Delta, the first admitted narrowed record of head and the shard count (AFP-V0-812).
+// names, as Delta, the first admitted narrowed record of head and the shard count (AFP-V0-812),
+// or, with no such record and a commits reader, the first admitted full record of head and the
+// shard count of another tree (AFP-V0-100).
 func Decide(repository, event, tree, head, target, base string, shards int, runs []run, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) decision {
+	return decideWith(repository, event, tree, head, target, base, shards, runs, jobs, logs, nil)
+}
+
+// decideWith is Decide with an optional reader of retained commits API responses (AFP-V0-100).
+func decideWith(repository, event, tree, head, target, base string, shards int, runs []run, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool), commits func(string) (commit, bool)) decision {
 	d := decision{Profile: profile, Mode: "FULL", Tree: tree, Head: head, Shards: shards, Records: []string{}}
 	admitted := 0
-	var candidate *delta
+	var candidate, full *delta
 	for _, r := range runs {
 		if !admits(r, repository, event, head, target) {
 			continue
@@ -215,6 +253,9 @@ func Decide(repository, event, tree, head, target, base string, shards int, runs
 			if id, found := narrowedRecordOf(r, head, shards, jobs, logs); found != nil {
 				candidate = &delta{RunID: r.ID, RecordJobID: id, Tree: found[1], Target: found[2], Base: found[3], Head: found[4]}
 			}
+		}
+		if full == nil && event == "merge_group" && oidPattern.MatchString(base) {
+			full = fullRecordDelta(r, tree, head, shards, jobs, logs, commits)
 		}
 		scope := "FULL"
 		jobID := recorded(r, tree, head, shards, jobs, logs)
@@ -246,6 +287,9 @@ func Decide(repository, event, tree, head, target, base string, shards int, runs
 		d.Reason = "no admitted run's record job named this exact tree for every shard"
 	}
 	d.Delta = candidate
+	if d.Delta == nil {
+		d.Delta = full
+	}
 	return d
 }
 
@@ -294,6 +338,10 @@ func (p *pathList) Set(v string) error {
 }
 
 func main() {
+	// AFP-V0-105: the fast-route liveness report is its own subcommand.
+	if len(os.Args) > 1 && os.Args[1] == "routes" {
+		os.Exit(routesMain(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	repository := flag.String("repository", "", "OWNER/NAME of this repository")
 	event := flag.String("event", "", "event of the deciding run: push or merge_group")
 	tree := flag.String("tree", "", "full tree id of the tested commit")
@@ -305,18 +353,29 @@ func main() {
 	flag.Var(&runsPaths, "runs", "retained workflow-runs API response (repeatable)")
 	jobsDir := flag.String("jobs", "", "directory of retained RUN_ID.json latest run-jobs API responses")
 	logsDir := flag.String("logs", "", "directory of retained JOB_ID.txt job logs")
+	commitsDir := flag.String("commits", "", "merge_group only: directory of retained COMMIT.json commits API responses of full-record targets (AFP-V0-100)")
 	flag.Parse()
 	if flag.NArg() != 0 || *repository == "" || (*event != "push" && *event != "merge_group") || !oidPattern.MatchString(*tree) ||
 		!oidPattern.MatchString(*head) || !oidPattern.MatchString(*target) || *shards < 1 || *shards > maxShards || len(runsPaths) == 0 || *jobsDir == "" || *logsDir == "" ||
-		(*base != "" && (*event != "merge_group" || !oidPattern.MatchString(*base))) {
-		fmt.Fprintln(os.Stderr, "usage: ci-reuse-plan --repository OWNER/NAME --event push|merge_group --tree TREE --head COMMIT --target COMMIT [--base COMMIT] --shards N --runs FILE [--runs FILE] --jobs DIR --logs DIR")
+		(*base != "" && (*event != "merge_group" || !oidPattern.MatchString(*base))) || (*commitsDir != "" && *event != "merge_group") {
+		fmt.Fprintln(os.Stderr, "usage: ci-reuse-plan --repository OWNER/NAME --event push|merge_group --tree TREE --head COMMIT --target COMMIT [--base COMMIT] [--commits DIR] --shards N --runs FILE [--runs FILE] --jobs DIR --logs DIR")
 		os.Exit(2)
 	}
 	var d decision
 	if runs, ok := readRuns(runsPaths); !ok {
 		d = decision{Profile: profile, Mode: "FULL", Reason: "workflow runs response unavailable", Tree: *tree, Head: *head, Shards: *shards, Records: []string{}}
 	} else {
-		d = Decide(*repository, *event, *tree, *head, *target, *base, *shards, runs, func(id int64) ([]job, bool) {
+		var commits func(string) (commit, bool)
+		if *commitsDir != "" {
+			commits = func(sha string) (commit, bool) {
+				var c commit
+				if !oidPattern.MatchString(sha) {
+					return c, false
+				}
+				return c, readBounded(filepath.Join(*commitsDir, sha+".json"), &c)
+			}
+		}
+		d = decideWith(*repository, *event, *tree, *head, *target, *base, *shards, runs, func(id int64) ([]job, bool) {
 			var page struct {
 				Jobs []job `json:"jobs"`
 			}
@@ -324,7 +383,7 @@ func main() {
 			return page.Jobs, ok
 		}, func(id int64) ([]byte, bool) {
 			return readFile(filepath.Join(*logsDir, strconv.FormatInt(id, 10)+".txt"))
-		})
+		}, commits)
 	}
 	if e := json.NewEncoder(os.Stdout).Encode(d); e != nil {
 		os.Exit(1)
