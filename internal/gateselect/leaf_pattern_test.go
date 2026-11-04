@@ -77,6 +77,8 @@ func TestLeafPackagePatternParity_AFPV02542(t *testing.T) {
 		"flagged/flagged_test.go":       command("flagged", `exec.Command("go", "-C", root, "vet", "./...")`),
 		"shell/shell.go":                pkg("shell"),
 		"shell/shell_test.go":           command("shell", `exec.Command("sh", "-c", "cd \"$ROOT\" && go vet ./...")`),
+		"multi/multi.go":                pkg("multi"),
+		"multi/multi_test.go":           command("multi", `exec.Command("go", "vet", "./...")`+"\n\tcmd.Dir, cmd.Env = root, nil"),
 		"dotted/dotted.go":              pkg("dotted"),
 		"dotted/dotted_test.go":         command("dotted", `exec.Command("go", "vet", "./...")`+"\n\tcmd.Dir = \".\"\n\t_ = filepath.Dir(root)"),
 	})
@@ -96,7 +98,7 @@ func TestLeafPackagePatternParity_AFPV02542(t *testing.T) {
 	}
 	sort.Strings(planner)
 	unresolved := sortedKeys(index.unresolved())
-	want := []string{"chdir", "climber", "deep", "flagged", "helper", "imported", "keyed", "outer", "parent", "rooted", "shell", "wildcard"}
+	want := []string{"chdir", "climber", "deep", "flagged", "helper", "imported", "keyed", "multi", "outer", "parent", "rooted", "shell", "wildcard"}
 	if !reflect.DeepEqual(unresolved, want) {
 		t.Errorf("gateselect rule (d) = %v, want %v", unresolved, want)
 	}
