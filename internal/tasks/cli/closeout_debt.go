@@ -3,6 +3,7 @@ package cli
 import (
 	"container/heap"
 	"errors"
+	"maps"
 	"regexp"
 	"slices"
 	"sort"
@@ -33,7 +34,8 @@ const (
 	citeIssue    = "issue-link"
 	citeUmbrella = "umbrella"
 	// citeProgressHead marks a row whose OPEN ticket's effective progress
-	// names a scanned commit as its head (TLF-V0-883).
+	// names a scanned commit as its head in a delivery phase (TLF-V0-883,
+	// TCD-V0-2400).
 	citeProgressHead = "progress-head"
 
 	stepNoAttempt       = "NO_ATTEMPT"
@@ -51,7 +53,32 @@ const (
 	// Why a cited OPEN ticket is no candidate (TCD-V0-741).
 	excludeMarked       = "MARKED_NOT_DELIVERED"
 	excludeBuildLogOnly = "BUILD_LOG_ONLY"
+	// Why a scanned progress head is no citation (TCD-V0-2400).
+	excludeProgressInProgress = "PROGRESS_IN_PROGRESS"
+	excludeProgressBlocked    = "PROGRESS_BLOCKED"
+	excludeProgressOther      = "PROGRESS_NOT_DELIVERY"
 )
+
+// progressHead is an OPEN ticket whose effective progress names a head, and
+// why that head is no delivery citation, or "".
+type progressHead struct{ id, exclusion string }
+
+// progressHeadExclusion is why a progress head in phase is no citation
+// (TCD-V0-2400): a head cites only in the phases through which
+// batch-delivered and batch-close deliver (TLF-V0-1101), an allowlist, so a
+// phase this build does not know is excluded, never cited. An IN_PROGRESS
+// head is a lane's dispatch base and a BLOCKED one names no delivered work.
+func progressHeadExclusion(phase string) string {
+	switch phase {
+	case ticket.PhaseDeliveredOnBranch, ticket.PhaseInReview, ticket.PhaseInMergeQueue, ticket.PhaseMergedAwaitingCloseout:
+		return ""
+	case ticket.PhaseInProgress:
+		return excludeProgressInProgress
+	case ticket.PhaseBlocked:
+		return excludeProgressBlocked
+	}
+	return excludeProgressOther
+}
 
 var (
 	// closeoutWord is one message word (TCD-V0-004): ticket IDs, local
@@ -184,6 +211,27 @@ func (x *closeoutIndex) markedNotDelivered(text, id string) bool {
 type closeoutExcluded struct {
 	ticketID, local, reason string
 	commits                 []string
+	// causes is every distinct exclusion reason with its commits, so a
+	// ticket excluded for more than one reason shows each (TCD-V0-2400).
+	causes map[string][]string
+}
+
+// add records commit as excluded for why. The primary reason is the first
+// seen, with MARKED_NOT_DELIVERED winning (TCD-V0-741). A commit is listed
+// once in commits however many causes cite it, and once per cause.
+func (e *closeoutExcluded) add(why, commit string) {
+	if e.reason == "" || why == excludeMarked {
+		e.reason = why
+	}
+	if e.causes == nil {
+		e.causes = map[string][]string{}
+	}
+	if !slices.Contains(e.causes[why], commit) {
+		e.causes[why] = append(e.causes[why], commit)
+	}
+	if !slices.Contains(e.commits, commit) {
+		e.commits = append(e.commits, commit)
+	}
 }
 
 // closeoutRow is one candidate (TCD-V0-007).
@@ -363,20 +411,20 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	var (
 		index    *closeoutIndex
 		locals   map[string]string            // OPEN tickets only
-		heads    map[string][]string          // progress head -> OPEN ticket IDs
+		heads    map[string][]progressHead    // progress head -> OPEN tickets
 		attempts map[string]*snapshot.Attempt // nil = NOT_OBSERVED
 		branch   string
 	)
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}, origin: store.OriginSlug(rc.repo.PrimaryWorktree)}
-		locals, heads, attempts, branch = map[string]string{}, map[string][]string{}, nil, rc.store.Queue.IntentBranch
+		locals, heads, attempts, branch = map[string]string{}, map[string][]progressHead{}, nil, rc.store.Queue.IntentBranch
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
 			index.add(rec)
 			if rec.Status == ticket.StatusOpen {
 				locals[id] = rec.TicketID.Local
 				if p := rec.EffectiveProgress(); p != nil && p.Head != nil {
-					heads[*p.Head] = append(heads[*p.Head], id)
+					heads[*p.Head] = append(heads[*p.Head], progressHead{id: id, exclusion: progressHeadExclusion(p.Phase)})
 				}
 			}
 		}
@@ -500,13 +548,10 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 				if why := noDelivery(c, cite.ticketID); why != "" {
 					e := excludedBy[cite.ticketID]
 					if e == nil {
-						e = &closeoutExcluded{ticketID: cite.ticketID, local: local, reason: why}
+						e = &closeoutExcluded{ticketID: cite.ticketID, local: local}
 						excludedBy[cite.ticketID] = e
 					}
-					if why == excludeMarked {
-						e.reason = why
-					}
-					e.commits = append(e.commits, c.Commit)
+					e.add(why, c.Commit)
 					continue
 				}
 				listed[cite.ticketID] = true
@@ -517,9 +562,18 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 					delivers: refs[cite.ticketID] == refDelivered})
 			}
 		}
-		for _, id := range heads[c.Commit] {
-			listed[id] = true
-			collected.add(closeoutRow{ticketID: id, local: locals[id], commit: c.Commit, subject: subject, kind: citeProgressHead})
+		for _, h := range heads[c.Commit] {
+			if h.exclusion != "" {
+				e := excludedBy[h.id]
+				if e == nil {
+					e = &closeoutExcluded{ticketID: h.id, local: locals[h.id]}
+					excludedBy[h.id] = e
+				}
+				e.add(h.exclusion, c.Commit)
+				continue
+			}
+			listed[h.id] = true
+			collected.add(closeoutRow{ticketID: h.id, local: locals[h.id], commit: c.Commit, subject: subject, kind: citeProgressHead})
 		}
 	}
 	type stepOf struct{ step, gate string }
@@ -774,8 +828,18 @@ func setExcluded(item wire.Value, excluded []closeoutExcluded) {
 		o.Set("local", wire.String(e.local))
 		o.Set("reason", wire.String(e.reason))
 		o.Set("commits", wire.Strings(e.commits))
+		reasons := slices.Sorted(maps.Keys(e.causes))
+		causes := make([]wire.Value, 0, len(reasons))
+		for _, r := range reasons {
+			causes = append(causes, wire.ObjectValue(wire.NewObject().Set("reason", wire.String(r)).Set("commits", wire.Strings(e.causes[r]))))
+		}
+		o.Set("causes", wire.Array(causes...))
 		vals = append(vals, wire.ObjectValue(o))
-		lines = append(lines, wire.String(e.local+" excluded "+e.reason+" via "+strconv.Itoa(len(e.commits))+" commit(s)"))
+		line := e.local + " excluded " + e.reason + " via " + strconv.Itoa(len(e.commits)) + " commit(s)"
+		if len(reasons) > 1 {
+			line += " (causes " + strings.Join(reasons, ", ") + ")"
+		}
+		lines = append(lines, wire.String(line))
 	}
 	item.Obj.Set("excludedCandidates", wire.Array(vals...))
 	item.Obj.Set("human", wire.Array(lines...))
