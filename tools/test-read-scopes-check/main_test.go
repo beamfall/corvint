@@ -703,3 +703,57 @@ func TestAssertionLiteralNamesNoRead_ASD_V0_613(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-2541 (V1-4532): dropping a declared package whose tests then read
+// outside it is reported here, naming the unbounded-readers record to edit,
+// unless that record already lists the package or no commit declares it.
+func TestDroppedDeclarationNamesTheRatchetEntry_AFP_V0_2541(t *testing.T) {
+	const entries = `"protocol/cem-1.0/stable/tamper-matrix/","testdata/case.json"`
+	const want = "package internal/cem/verify is declared in " + ".corvint/test-read-scopes.json at HEAD and not in the working tree"
+	root := repository(t, entries, "")
+	git := func(args ...string) {
+		t.Helper()
+		command := exec.Command("git", append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "commit.gpgsign=false"}, args...)...)
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(state string, code int, want string) string {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		got := run(root, &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if got != code || !strings.Contains(output, want) {
+			t.Fatalf("%s: code=%d want %d; output %q lacks %q", state, got, code, output, want)
+		}
+		return output
+	}
+	dropped := `{"profile":"corvint-test-read-scopes/0","packages":{"fixtures/f":[]}}`
+	write(".corvint/test-read-scopes.json", dropped)
+	check("no commit", 0, "test-read-scopes-check: ok")
+	write(".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"fixtures/f":[],"internal/cem/verify":[`+entries+`]}}`)
+	git("add", "-A")
+	git("commit", "-q", "-m", "declared")
+	check("declared at HEAD", 0, "test-read-scopes-check: ok")
+	write(".corvint/test-read-scopes.json", dropped)
+	output := check("dropped", 1, want)
+	for _, name := range []string{unboundedPath, `add "internal/cem/verify" to units`, "AFP-V0-2541"} {
+		if !strings.Contains(output, name) {
+			t.Errorf("the dropped-declaration report lacks %q: %s", name, output)
+		}
+	}
+	write(unboundedPath, `{"profile":"corvint-unbounded-reader-set/0","units":["internal/cem/verify"],"reasons":{"internal/cem/verify":"reaches the root"}}`)
+	check("recorded in the ratchet", 0, "test-read-scopes-check: ok")
+	// A dropped package whose tests stay inside it is bounded, so nothing is reported.
+	write(".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"internal/cem/verify":[`+entries+`]}}`)
+	if output := check("bounded package dropped", 0, "test-read-scopes-check: ok"); strings.Contains(output, "fixtures/f is declared") {
+		t.Fatalf("a bounded dropped package was reported: %s", output)
+	}
+}

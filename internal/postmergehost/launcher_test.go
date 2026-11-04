@@ -611,6 +611,24 @@ func TestHostCandidateMountsRefuseAuthorityAliases(t *testing.T) {
 	if _, err := hostCandidateMounts(r, d); err == nil {
 		t.Fatal("guard hardlink accepted")
 	}
+	// ASD-V0-2476 (V1-4511): a .git file is refused, not skipped with the
+	// root entries after it.
+	os.Remove(filepath.Join(root, "docs/.keep"))
+	if err := os.WriteFile(filepath.Join(root, "docs/.keep"), []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hostCandidateMounts(r, d); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git"), []byte("gitdir: /elsewhere\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hostCandidateMounts(r, d); err == nil {
+		t.Fatal("a .git file accepted")
+	}
 }
 
 func hostTestNativeControlBinding(t *testing.T, ctx context.Context, root, base, head, tree string) func() {

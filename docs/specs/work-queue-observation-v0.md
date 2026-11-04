@@ -799,6 +799,13 @@ Explicit unknowns for an adopted repository:
   stays green; 21 consecutive loaded `TestWorkFinalCheckCaptureBinding` runs are retained in
   `docs/build-log/2026-10-31-cmd-w1-bugs.md`. Rollback: restore the single 250 ms wall timer in
   `run`.
+- `WQO-V0-971`: (experimental under the standing lane auto-accept, 2026-11-04; V1-4511)
+  Materialized-tree verification (`verifyMaterializedTree`, called by the run's `Verify`) skips the
+  run root's `.git` subtree only when `.git` is a directory. A `.git` file, as in a linked worktree,
+  is passed over and every later root entry is still compared, so an unexpected or missing entry
+  after it fails verification. Before the change `SkipDir` for a `.git` file skipped every later
+  root entry (ASD-V0-2476). Rollback: return `fs.SkipDir` for any `.git` again, which reintroduces
+  the defect.
 
 - `WQO-V0-684`: (standing lane auto-accept, 2026-11-01; V1-2586) An `ADAPTER_FAILED` command
   error MUST name its cause: before the JSON error result, the command writes exactly one stderr
@@ -908,6 +915,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050`; the `group-writable-0775` and `world-writable-0777` cases of `TestWorkInitRejectsUnqualifiedExecutableWQOV0049` refuse group/world-writable executable bytes, and every fixture sets its executable and parent modes explicitly (`workMkdirAll`, `workFixtureRoot`, `workBuildExecutable`), so the tests pass under `umask 0002` (V1-3220) |
 | Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051`, `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr` |
 | Adapter capture drain detector | WQO-V0-920 | `cmd/corvint/work_runner.go` `workDrainCapture`, `run`; `cmd/corvint/work_runner_drain_test.go` `TestWorkDrainCaptureIgnoresHostStalls`, `TestWorkDrainCaptureExpiresWhileAwake`, `TestWorkDrainCaptureHangDetector`, `TestWorkDrainCaptureStopsOnCancellation`, `TestWorkDrainCaptureCopyError`; `TestWorkRunnerEscapedPipeHolder` |
+| Materialized tree with a `.git` file | WQO-V0-971 | `cmd/corvint/work_materialization.go` `verifyMaterializedTree`; `TestVerifyMaterializedTreeGitFileKeepsSiblings` (a `.git` file with later siblings passes, an extra entry after it fails naming it, a `.git` directory control; it fails with the `6c33df33` walk) |
 | Adapter failure cause line | WQO-V0-684 | `cmd/corvint/work_runner.go` `commandError`, `workAdapterFailure`; `TestWQOV0684AdapterFailedNamesItsCause`, `TestWorkFinalCheckCommandFailures` |
 | Killed-producer Git groups | WQO-V0-052 | `internal/worksource/process_unix.go` `recordGitGroup`, `RetireGitGroups`; `internal/groupreap/argv.go` `GroupLeadersWithArgument`, `StopKillGroup`; `cmd/corvint/work_materialization.go` `Close`; `TestRetireGitGroupsAfterProducerKill`, `TestRetireGitGroupsAfterProducerDiesAtGitStart`, `TestRetireGitGroupsNeverSignalsAnUnpinnedGroup`, `TestRetireGitGroupsLeavesFinishedRecords`, `TestGitRunRemovesItsGroupRecord`, `TestGroupLeadersWithArgumentAndStopKillGroup`, `TestWorkCloseRetiresKilledProducerGit`, `TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed` |
 | Fork-safe executable materialization | WQO-V0-093 | `internal/execfile/execfile.go` `Guard`, `WriteFile`; `cmd/corvint/work_materialization.go` `writeEntries`, `workWriteEntry`; `TestWriteFileExcludesForkInheritance`, `TestWriteFileMatchesOSWriteFile` |
