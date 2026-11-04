@@ -263,9 +263,14 @@ func TestAFPV0170ReuseStepRefusesForgedArtifacts(t *testing.T) {
 		return fmt.Sprintf("2026-10-21T10:00:00.0000000Z corvint-ci-tested-tree/1 tree=%s target=%s head=%s shards=8\n",
 			tree, strings.Repeat("e", 40), head)
 	}
+	// commitFiles are the retained commits API responses the stub serves (AFP-V0-100).
+	commitFiles := map[string]any{}
 	decide := func(event string, jobs []map[string]any, log string) (string, string) {
 		t.Helper()
 		dir := t.TempDir()
+		for sha, body := range commitFiles {
+			writeJSON(t, filepath.Join(dir, "commit-"+sha+".json"), body)
+		}
 		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": []any{map[string]any{
 			"id": runID, "head_sha": head, "event": "pull_request", "status": "completed", "conclusion": "success",
 			"path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repoName}}}})
@@ -299,6 +304,7 @@ case "$url" in
   "$STUB_API/runs/"*"/artifacts?per_page=100") id=${url#"$STUB_API/runs/"}; f=artifacts-${id%%/*}.json ;;
   "$STUB_API/runs/"*"/jobs?filter=latest&per_page=100") id=${url#"$STUB_API/runs/"}; f=jobs-${id%%/*}.json ;;
   "$STUB_API/jobs/"*"/logs") id=${url#"$STUB_API/jobs/"}; f=log-${id%%/*}.txt ;;
+  "$STUB_REPO_API/commits/"*) f=commit-${url#"$STUB_REPO_API/commits/"}.json ;;
   *) exit 22 ;;
 esac
 [ -f "$STUB_DIR/$f" ] || exit 22
@@ -315,7 +321,7 @@ cat "$STUB_DIR/$f" > "$out"
 			"GITHUB_API_URL=https://api.github.test", "GITHUB_REPOSITORY="+repoName, "GITHUB_SHA="+target,
 			"GITHUB_WORKSPACE="+ws, "RUNNER_TEMP="+dir, "GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary,
 			"GH_TOKEN=t", "REUSE_SHARDS=8", "STUB_DIR="+dir, "STUB_HEAD="+head,
-			"STUB_API=https://api.github.test/repos/"+repoName+"/actions",
+			"STUB_API=https://api.github.test/repos/"+repoName+"/actions", "STUB_REPO_API=https://api.github.test/repos/"+repoName,
 			"GOTOOLCHAIN=local", "GOPROXY=off", "GOWORK=off", "GOFLAGS=", "GOCACHE="+goEnv["GOCACHE"],
 			"GOMODCACHE="+goEnv["GOMODCACHE"], "GOPATH="+goEnv["GOPATH"])
 		combined, _ := cmd.CombinedOutput() // continue-on-error in the workflow; only the output binds
@@ -363,6 +369,53 @@ cat "$STUB_DIR/$f" > "$out"
 	}
 	if out, log := decide("push", append(shards[:8:8], narrowedJob), narrowed(base)); out != "" {
 		t.Errorf("push: a narrowed record decided %q, want nothing\n%s", out, log)
+	}
+	fullDelta(t, decide, git, put, commitFiles, &target, &tree, append(shards[:8:8], recordJob), line, head, base, runID, recordID)
+}
+
+// fullDelta (AFP-V0-100, AFP-V0-101): a full record of another tree hands mq-narrow.sh a FULL-scope
+// delta whose base is the first parent of the record's target, read from the retained commit; a
+// missing commit response hands nothing; a stacked entry, whose queue base is not on main, never
+// decides REUSE, even for its exact tree, and still hands on the delta.
+func fullDelta(t *testing.T, decide func(string, []map[string]any, string) (string, string), git func(...string) string,
+	put func(string, string), commitFiles map[string]any, target, tree *string, jobs []map[string]any, line func(string) string,
+	head, base string, runID, recordID int64) {
+	t.Helper()
+	other := strings.Repeat("0", 40)
+	recordTarget := strings.Repeat("e", 40)
+	parse := func(out string) delta {
+		t.Helper()
+		var got delta
+		if !strings.HasPrefix(out, "delta=") || strings.Count(out, "\n") != 1 ||
+			json.Unmarshal([]byte(strings.TrimPrefix(strings.TrimSpace(out), "delta=")), &got) != nil {
+			t.Fatalf("output %q, want one delta line", out)
+		}
+		return got
+	}
+	if out, log := decide("merge_group", jobs, line(other)); out != "" {
+		t.Errorf("merge_group: a full record of another tree with no commit response: output %q, want nothing\n%s", out, log)
+	}
+	commitFiles[recordTarget] = map[string]any{"sha": recordTarget, "parents": []any{map[string]any{"sha": base}, map[string]any{"sha": head}}}
+	want := delta{RunID: runID, RecordJobID: recordID, Tree: other, Target: recordTarget, Base: base, Head: head, Scope: "FULL"}
+	out, log := decide("merge_group", jobs, line(other))
+	if got := parse(out); got != want {
+		t.Errorf("merge_group: full-record delta = %+v, want %+v\n%s", got, want, log)
+	}
+	// A stacked entry: the queue base is an earlier entry that main does not contain yet.
+	git("checkout", "-q", "-b", "ahead", base)
+	put("ahead.txt", "earlier queue entry\n")
+	git("add", "-A")
+	git("commit", "-q", "-m", "ahead")
+	git("checkout", "-q", "--detach", "HEAD")
+	git("merge", "-q", "--no-ff", "-m", "stacked entry", head)
+	*target = git("rev-parse", "HEAD")
+	*tree = git("rev-parse", *target+"^{tree}")
+	if out, log := decide("merge_group", jobs, line(*tree)); strings.Contains(out, "mode=REUSE") {
+		t.Errorf("stacked entry: an exact-tree record decided REUSE\n%s", log)
+	}
+	out, log = decide("merge_group", jobs, line(other))
+	if got := parse(out); got != want || !strings.Contains(log, "Stacked entry") {
+		t.Errorf("stacked entry: delta = %+v, want %+v\n%s", got, want, log)
 	}
 }
 

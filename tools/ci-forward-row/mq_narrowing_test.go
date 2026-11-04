@@ -514,6 +514,41 @@ func TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 			t.Fatalf("mode %s, record %v\n%s", r.mode, r.record, r.summary)
 		}
 	})
+	// AFP-V0-102 (V1-4232): a full record ran every package of its tree, so only the packages the
+	// main delta reaches run; the record-range plan is not consulted.
+	t.Run("a full record of a moved base reuses every package the main delta cannot change", func(t *testing.T) {
+		r, _, queueBase := narrow(t, "", func(env map[string]string, _ map[string]string, _, _, _, _, _ string) {
+			env["MQ_DELTA"] = strings.TrimSuffix(env["MQ_DELTA"], "}") + `,"scope":"FULL"}`
+		})
+		reuse, _ := r.record["reuse"].(doc)
+		if r.mode != "NARROWED" || fmt.Sprint(r.record["selected"]) != fmt.Sprint([]string{b}) ||
+			fmt.Sprint(r.record["reused"]) != fmt.Sprint([]string{a, c}) || fmt.Sprint(r.record["executed"]) != fmt.Sprint([]string{b}) ||
+			reuse == nil || reuse["applied"] != true || reuse["recordScope"] != "FULL" || reuse["recordSelected"] != float64(3) ||
+			reuse["intersection"] != float64(1) || reuse["reused"] != float64(2) {
+			t.Fatalf("mode %s, record %v\n%s", r.mode, r.record, r.summary)
+		}
+		if planned := strings.Split(r.planned, "\n"); len(planned) != 2 || planned[0] != queueBase || planned[1] != reuse["deltaBase"] {
+			t.Fatalf("planner bases %q, want the queue base and the delta base only", planned)
+		}
+	})
+	t.Run("a narrowed reuse record carries no record scope", func(t *testing.T) {
+		r, _, _ := narrow(t, "", nil)
+		if reuse, _ := r.record["reuse"].(doc); reuse == nil || reuse["applied"] != true {
+			t.Fatalf("record %v", r.record)
+		} else if _, ok := reuse["recordScope"]; ok {
+			t.Fatalf("a narrowed reuse names a record scope: %v", reuse)
+		}
+	})
+	t.Run("an offered scope other than FULL refuses reuse", func(t *testing.T) {
+		r, _, _ := narrow(t, "", func(env map[string]string, _ map[string]string, _, _, _, _, _ string) {
+			env["MQ_DELTA"] = strings.TrimSuffix(env["MQ_DELTA"], "}") + `,"scope":"NARROWED"}`
+		})
+		reuse, _ := r.record["reuse"].(doc)
+		if reuse == nil || reuse["applied"] != false || reuse["reason"] != "the offered record scope is neither narrowed nor FULL" ||
+			fmt.Sprint(r.record["reused"]) != "[]" {
+			t.Fatalf("mode %s, record %v\n%s", r.mode, r.record, r.summary)
+		}
+	})
 	t.Run("a main delta that selects nothing reuses the whole record range", func(t *testing.T) {
 		r, _, _ := narrow(t, "", func(_ map[string]string, tools map[string]string, recordBase, _, queueBase, _, _ string) {
 			tools["selector"] = selector(queueBase, recordBase, "NOTHING no dirty or committed path; no Go package to test")
