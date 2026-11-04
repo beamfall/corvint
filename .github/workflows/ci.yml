@@ -376,8 +376,99 @@ jobs:
           KILL_PAGES: "60"
         run: sh trusted/.github/forward-rows/accept.sh
 
+  test-reuse-plan:
+    # AFP-V0-2327 (V1-1097): only while the owner's repository variable CORVINT_PR_REUSE is on, a
+    # pull request decides once which Go packages a trusted earlier run already passed on the
+    # same input-closure digest: an earlier run of this pull request, or a successful merge-queue
+    # run whose tested commit is on this merge's first parent (main). `corvint test reuse decide`
+    # is built from that first parent, so a pull request cannot change its own decision; it
+    # reuses only packages whose declared read scope the test-confine wrapper enforces. Every
+    # shard of this run then runs its part of the cost-balanced placement of the run list. Any
+    # failure leaves `mode` empty and every shard on its existing path. A reused run writes no
+    # AFP-V0-170 or AFP-V0-734 record, so its merge-queue entry runs in full.
+    if: github.event_name == 'pull_request' && vars.CORVINT_PR_REUSE == 'on' && !contains(github.event.pull_request.labels.*.name, 'ci:batched')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      mode: ${{ steps.decide.outputs.mode }}
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Decide which packages a trusted earlier run passed on the same digest
+        id: decide
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          test "$(go env GOVERSION)" = "go1.27.3"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          base=$(git rev-parse --verify -q "$GITHUB_SHA^1")
+          git rev-parse --verify -q "$GITHUB_SHA^2" > /dev/null
+          d="$RUNNER_TEMP/ci-test-reuse"
+          mkdir -p "$d/records"
+          git worktree add -q --detach "$RUNNER_TEMP/reuse-tool" "$base"
+          (cd "$RUNNER_TEMP/reuse-tool" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-reuse" ./cmd/corvint)
+          # The newest five completed earlier runs of this branch from the same head repository;
+          # decide admits a record only when it names this pull request's number.
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=pull_request&branch=$(jq -rn --arg b "$HEAD_REF" '$b|@uri')&per_page=30" > "$d/pr-runs.json"
+          jq -r --arg repo "$HEAD_REPO" --argjson self "$GITHUB_RUN_ID" '[.workflow_runs[]? | select(.status == "completed" and .id != $self
+              and .path == ".github/workflows/ci.yml" and .head_repository.full_name == $repo and (.id | type == "number"))] | .[:5][] | .id' "$d/pr-runs.json" > "$d/ids"
+          # The newest three successful merge-queue runs whose tested commit main now holds.
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=merge_group&status=success&per_page=10" > "$d/queue-runs.json"
+          jq -r --arg repo "$GITHUB_REPOSITORY" '.workflow_runs[]? | select(.conclusion == "success" and .path == ".github/workflows/ci.yml"
+              and .head_repository.full_name == $repo and (.head_sha | test("^[0-9a-f]{40}$"))) | "\(.id) \(.head_sha)"' "$d/queue-runs.json" |
+            while read -r id sha; do
+              if git merge-base --is-ancestor "$sha" "$base" 2> /dev/null; then echo "$id"; fi
+            done | head -n 3 >> "$d/ids"
+          while read -r id; do
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'ci-test-reuse-record-*' -D "$d/records/$id" > /dev/null 2>&1 || continue
+          done < "$d/ids"
+          args=()
+          while IFS= read -r -d '' record; do
+            args+=(--records "$record")
+          done < <(find "$d/records" -type f -name record.json -print0 | sort -z)
+          "$RUNNER_TEMP/corvint-reuse" test reuse decide --argv "-race -count=1 -timeout 50m" \
+            --harness .github/cishards/test-commands.json --harness .github/testconfine --harness .github/workflows/ci.yml \
+            --trust main,pull_request --pull-request "$PR_NUMBER" "${args[@]}" --out "$d/decision.json" --run-list "$d/run-list"
+          reused=$(jq -r --arg head "$GITHUB_SHA" 'select(.profile == "corvint-test-reuse-decision/0" and .head == $head) | .reused | length' "$d/decision.json")
+          echo "Test reuse (AFP-V0-2327): ${reused:-0} package(s) reused from $(( ${#args[@]} / 2 )) record(s); $(wc -l < "$d/run-list") to run." >> "$GITHUB_STEP_SUMMARY"
+          if [ "${reused:-0}" -gt 0 ]; then
+            echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Retain the test reuse decision
+        if: steps.decide.outputs.mode == 'REUSE'
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-test-reuse
+          path: |
+            ${{ runner.temp }}/ci-test-reuse/decision.json
+            ${{ runner.temp }}/ci-test-reuse/run-list
+          if-no-files-found: error
+
   go-product-shard:
-    needs: [docs-plan, narrowing-verdict]
+    needs: [docs-plan, narrowing-verdict, test-reuse-plan]
     # AFP-V0-027: a pull request labelled ci:batched is a constituent of a batch pull request
     # that runs this suite on the combined tree, so its own race shards never start. go-product
     # below passes with a notice (V1-2265); the label never lands a PR untested, because every
@@ -416,24 +507,25 @@ jobs:
     # its tests step passed without a NARROWED narrowing gate, the one route to a narrowed shard.
     # The gate's output is fixed before any repository test runs, and no tests-step output is
     # read. Matrix outputs are last-writer-wins, so each name is non-empty in one shard only; a
-    # missing or overwritten value records no tree, and the queue runs FULL.
+    # missing or overwritten value records no tree, and the queue runs FULL. AFP-V0-2327: a run whose
+    # test-reuse-plan reused any package records no tree either.
     outputs:
-      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
+      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}
     # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
     # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
     # V1-2707 (owner ci-control-plane OK 2026-10-25): the reviewed origin/main commit the
@@ -926,6 +1018,14 @@ jobs:
           path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
           if-no-files-found: error
           retention-days: 90
+      - name: Fetch the test reuse decision (AFP-V0-2327)
+        if: needs.test-reuse-plan.outputs.mode == 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ci-test-reuse
+          path: ${{ runner.temp }}/ci-test-reuse
       - name: Go tests (full until matching shadow qualification)
         id: tests
         # DOCS (DCI-V0) and REUSE (AFP-V0-024) are the only modes that omit this invocation.
@@ -942,6 +1042,8 @@ jobs:
           # when its record was retained (AFP-V0-099). Anything else runs the whole shard.
           NARROW_MODE: ${{ steps.narrow.outputs.mode }}
           NARROW_RECORDED: ${{ steps.narrow-record.outcome }}
+          # AFP-V0-2327: REUSE when the run's test-reuse-plan reused a package.
+          REUSE_MODE: ${{ needs.test-reuse-plan.outputs.mode }}
           # AFP-V0-441: the bound on the one rerun of a failed shard's invocations, all together.
           RERUN_MINUTES: "15"
           # AFP-V0-540 (V1-2890): a self-hosted pull-request shard runs up to 4 test binaries at
@@ -1019,6 +1121,25 @@ jobs:
               fi
             else
               echo "::warning::shard $SHARD: the narrowing record or its executed list is missing, unreadable or disagrees; running the whole shard"
+            fi
+          fi
+          # AFP-V0-2327: a pull-request shard the narrowing gate did not narrow, in a run whose
+          # test-reuse-plan reused packages, runs its part of the cost-balanced placement of that
+          # decision's run list, recomputed here by ci-shards --select, so the packages still to
+          # run spread over every shard. The decision must name this tested merge. Anything
+          # unreadable runs the whole partition; AFP-V0-591 then fails the mixed placement.
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$REUSE_MODE" = REUSE ] && [ -z "$narrowed" ]; then
+            list="$RUNNER_TEMP/ci-test-reuse/run-list"
+            if [ -f "$list" ] && jq -e --arg head "$GITHUB_SHA" '.profile == "corvint-test-reuse-decision/0" and .head == $head' "$RUNNER_TEMP/ci-test-reuse/decision.json" > /dev/null 2>&1 &&
+              reuse_packages=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --select "$list" --order "$RUNNER_TEMP/affected-order/plan.json" < "$RUNNER_TEMP/ci-package-universe") &&
+              reuse_slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --select "$list" --slices < "$RUNNER_TEMP/ci-package-universe") &&
+              mkdir -p "$(dirname "$chosen")" && cp -- "$list" "$chosen"; then
+              placement=BALANCED
+              packages=$reuse_packages
+              slices=$reuse_slices
+              echo "AFP-V0-2327: shard $SHARD runs its part of $(sed '/^$/d' "$list" | wc -l) package(s) still to run; $(jq '.reused | length' "$RUNNER_TEMP/ci-test-reuse/decision.json") passed on the same digest in a trusted earlier run; the full suite runs in the merge queue"
+            else
+              echo "::warning::shard $SHARD: the test reuse decision is missing or unreadable; running the whole shard"
             fi
           fi
           [ "$placement" = BALANCED ] || chosen=/dev/null
@@ -1312,6 +1433,40 @@ jobs:
           path: ${{ runner.temp }}/forward-outcomes/outcomes.json
           if-no-files-found: ignore
           overwrite: true
+      - name: Record this shard's passed packages for test reuse (AFP-V0-2327)
+        # Only while CORVINT_PR_REUSE is on. The trusted main-built corvint digests each package
+        # this shard passed in its first run at this tested merge; it records nothing it cannot
+        # bind to the tree. It never changes the shard's status.
+        if: always() && vars.CORVINT_PR_REUSE == 'on' && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.pin-tool-build.outcome == 'success'
+        id: reuse-record
+        continue-on-error: true
+        timeout-minutes: 5
+        working-directory: source
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          outcomes="$RUNNER_TEMP/forward-outcomes/outcomes.json"
+          test -f "$outcomes"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          source=(--source-kind main)
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            source=(--source-kind pull_request --pull-request "$PR_NUMBER")
+          fi
+          mkdir -p "$RUNNER_TEMP/test-reuse"
+          "$RUNNER_TEMP/corvint-pr-bin/corvint" test reuse record --outcomes "$outcomes" --argv "-race -count=1 -timeout 50m" \
+            --harness .github/cishards/test-commands.json --harness .github/testconfine --harness .github/workflows/ci.yml \
+            "${source[@]}" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --out "$RUNNER_TEMP/test-reuse/record.json"
+      - name: Retain this shard's test reuse record (AFP-V0-2327)
+        if: always() && steps.reuse-record.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-test-reuse-record-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/test-reuse/record.json
+          if-no-files-found: ignore
+          overwrite: true
       - name: Classify a failed main shard's packages for the main-miss link (AFP-V0-983)
         # V1-3750: a failed full push shard of main keeps failed.jq's classification of its
         # capture, so the ci-control-plane main-miss job can link the failed packages back to the
@@ -1446,8 +1601,8 @@ jobs:
     # job can write that log. Only ci.yml, which the ci-control-plane admin review gates and
     # which is part of the tree a reusing commit must equal, changes what it prints. Any
     # mismatch prints no record, and the reusing run runs FULL; this job never fails CI.
-    needs: [docs-plan, narrowing-verdict, go-product-shard]
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
+    needs: [docs-plan, narrowing-verdict, go-product-shard, test-reuse-plan]
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && needs.test-reuse-plan.outputs.mode != 'REUSE' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -1486,8 +1641,8 @@ jobs:
     # ci.yml changes what it prints. A merge-queue entry reuses that run only when its own tree
     # and first parent equal the record's (tools/ci-reuse-plan), so the selection covered the
     # same range; a main push never reuses it. Any mismatch prints no record; it never fails CI.
-    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.go-product.result == 'success' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
+    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product, test-reuse-plan]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.go-product.result == 'success' && needs.test-reuse-plan.outputs.mode != 'REUSE' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -1905,14 +2060,64 @@ jobs:
           fi
           printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s. No finding is reported for this run.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
 
+  job-plan:
+    # AFP-V0-2344 (V1-1099, amends AFP-V0-013): only while the owner's repository variable
+    # CORVINT_PR_JOB_PLAN is on, a pull request evaluates .corvint/ci-job-inputs.json over its
+    # tested merge (FIRST_PARENT..MERGE) with `corvint affected jobs`, built from the first parent
+    # so a pull request cannot change its own plan. go-interop and artifact-integrity skip only on
+    # a SKIP decision; a missing, failed or unreadable plan leaves the output empty and the job
+    # runs. A change to the declaration or to this workflow runs every declared job. Merge-queue,
+    # push and release runs never evaluate it.
+    if: github.event_name == 'pull_request' && vars.CORVINT_PR_JOB_PLAN == 'on'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      go-interop: ${{ steps.plan.outputs.go-interop }}
+      artifact-integrity: ${{ steps.plan.outputs.artifact-integrity }}
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Plan the declared jobs over the tested merge
+        id: plan
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          test "$(go env GOVERSION)" = "go1.27.3"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          base=$(git rev-parse --verify -q "$GITHUB_SHA^1")
+          git rev-parse --verify -q "$GITHUB_SHA^2" > /dev/null
+          git worktree add -q --detach "$RUNNER_TEMP/job-plan-tool" "$base"
+          (cd "$RUNNER_TEMP/job-plan-tool" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-job-plan" ./cmd/corvint)
+          "$RUNNER_TEMP/corvint-job-plan" affected jobs --base "$base" > "$RUNNER_TEMP/job-plan.json"
+          for job in go-interop artifact-integrity; do
+            decision=$(jq -r --arg job "$job" --arg base "$base" '[select(.profile == "corvint-ci-job-plan/0" and .ok == true and .base == $base)
+                | .jobs[] | select(.workflow == ".github/workflows/ci.yml" and .job == $job)]
+              | if length == 1 and .[0].decision == "SKIP" and .[0].reason == "NO_DECLARED_INPUT_CHANGED" then "SKIP" else "RUN" end' "$RUNNER_TEMP/job-plan.json")
+            echo "$job=$decision" >> "$GITHUB_OUTPUT"
+            echo "Job plan (AFP-V0-2344): $job $decision" >> "$GITHUB_STEP_SUMMARY"
+          done
+
   go-interop:
     # Not a required check. AFP-V0-081: a ci:batched constituent never starts it (its batch pull
     # request and queue entry run it on the combined tree); AFP-V0-080: a main push reuses the
     # passed merge-queue run of the same commit. AFP-V0-380 (V1-1103): interop/cem01-go's tests
     # and vet run once, in go-static (which go-product needs); this job keeps only the formatting
-    # and Windows build checks go-static does not run for that module.
-    needs: static-reuse
-    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
+    # and Windows build checks go-static does not run for that module. AFP-V0-2344: a pull request
+    # whose job plan decided SKIP does not start it.
+    needs: [static-reuse, job-plan]
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' && needs.job-plan.outputs.go-interop != 'SKIP' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -1935,7 +2140,7 @@ jobs:
           GOOS=windows GOARCH=amd64 go build ./...
 
   artifact-integrity:
-    # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081).
+    # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081, AFP-V0-2344).
     # AFP-V0-163 (V1-2113): a merge-queue entry whose tree a successful pull-request run of its
     # second parent already verified skips the archive gate and still concludes success, so the
     # AFP-V0-080 push reuse keeps working. The tree holds ci.yml, the Makefile, go.mod and every
@@ -1943,8 +2148,8 @@ jobs:
     # verdict. The tested tree is read only from the log of that run's artifact-integrity-record
     # job, which no repository code writes; artifact names are never trusted. Any mismatch,
     # refusal or unreadable listing or log runs the gate in full.
-    needs: static-reuse
-    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
+    needs: [static-reuse, job-plan]
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' && needs.job-plan.outputs.artifact-integrity != 'SKIP' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

@@ -385,10 +385,13 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		t.Error("static-reuse must read listings only, with the workflow's permissions")
 	}
 	cond := "    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}"
-	for _, job := range []string{"go-static", "go-interop", "artifact-integrity"} {
+	wantLine(t, "go-static", jobBlock(t, ci, "go-static"), "    needs: static-reuse")
+	wantLine(t, "go-static", jobBlock(t, ci, "go-static"), cond)
+	// AFP-V0-2344: go-interop and artifact-integrity also skip on their job plan's SKIP.
+	for _, job := range []string{"go-interop", "artifact-integrity"} {
 		b := jobBlock(t, ci, job)
-		wantLine(t, job, b, "    needs: static-reuse")
-		wantLine(t, job, b, cond)
+		wantLine(t, job, b, "    needs: [static-reuse, job-plan]")
+		wantLine(t, job, b, strings.TrimSuffix(cond, " }}")+" && needs.job-plan.outputs."+job+" != 'SKIP' }}")
 	}
 	gp := jobBlock(t, ci, "go-product")
 	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse]")
