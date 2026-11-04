@@ -191,7 +191,9 @@ of every requirement below and the binding gate until this spec is promoted.
   execution unit terminal outcome. A narrowed run SHALL summarise as "selected units passed: N of M"
   and name where the full suite runs, never "suite passed".
 - `STR-V0-011`: Receipts are evidence only. They MUST NOT feed ranking, selection, learning or
-  authority; a later CEM citation needs its own accepted requirement.
+  authority; a later CEM citation needs its own accepted requirement. The one accepted reader
+  besides `verify-shards` is AFP-V0-2487's advisory `--fail-fast-order`, which reorders the
+  disclosed plan for its reader and changes no selection, run order, shard or authority.
 - `STR-V0-012`: Local and CI SHALL run the same binary code path. The CI profile adds only
   admission: planner and runner built outside the PR checkout from the reviewed pinned source
   (AFP-V0-013/028), the merge-queue backstop and the forward-qualification trip and kill switch
