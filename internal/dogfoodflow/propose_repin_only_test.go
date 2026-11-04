@@ -40,12 +40,10 @@ func TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule(t *testing.T) {
 		t.Fatalf("draft has %d rows; want 2:\n%s\n%s", len(rows), stdout.String(), stderr.String())
 	}
 	repin, prose := strings.Split(rows[0], "\t"), strings.Split(rows[1], "\t")
-	if repin[1] != "docs/specs/documentation-citation-gate-v0.md" || repin[2] != "8:8" || repin[3] != "specification" {
-		t.Errorf("repin-only hunk row = %q; want the DCG-V0-045 definition 8:8\n%s", repin, stderr.String())
+	if repin[1] != "unknown" {
+		t.Errorf("a repin-only hunk without a named ID/path must stay unknown (DWC-V0-926): %q", repin)
 	}
-	if !strings.Contains(stderr.String(), "changes only line-citation pins") || !strings.Contains(stderr.String(), "(DCW-V0-548)") {
-		t.Errorf("stderr does not explain the repin draft:\n%s", stderr.String())
-	}
+
 	if prose[1] == "docs/specs/documentation-citation-gate-v0.md" {
 		t.Errorf("a hunk that also edits prose was drafted to the repin rule: %q", prose)
 	}

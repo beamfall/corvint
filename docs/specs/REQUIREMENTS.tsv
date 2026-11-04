@@ -2780,6 +2780,7 @@ TBS-V1-457	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under th
 TBS-V1-458	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-459	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-460	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
+TCL-V0-926	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4626)	standing	2026-10-11; V1-4626
 TCL-V0-001	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237)	standing	2026-10-11; V1-3237
 TCL-V0-002	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) Each	standing	2026-10-11; V1-3237
 TCL-V0-003	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) The	standing	2026-10-11; V1-3237
@@ -3612,6 +3613,9 @@ BKM-V0-094	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-ac
 BKM-V0-099	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) With `--base`, the report MUST	standing	2026-10-28; V1-2915
 BKM-V0-955	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go	standing	2026-11-01; V1-3529
 BKM-V0-710	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When the selected Go API's boun	standing	2026-11-01; V1-3529
+DWC-V0-926	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4628;	standing	2026-10-11; V1-4628
+DWC-V0-927	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4628;	standing	2026-10-11; V1-4628
+DWC-V0-928	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4628;	standing	2026-10-11; V1-4628
 DWC-V0-001	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines	standing	2026-11-02; V1-1467
 DWC-V0-002	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467)	standing	2026-11-02; V1-1467
 DWC-V0-003	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends	standing	2026-11-02; V1-4318

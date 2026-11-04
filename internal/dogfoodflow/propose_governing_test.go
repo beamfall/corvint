@@ -84,21 +84,17 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 	if added == nil || strings.Contains(added[1], "/0509-") || strings.Contains(added[1], "/0431-") || strings.Contains(stderr.String(), "amends requirement AFP-V0-030") {
 		t.Errorf("the added-requirement hunk row = %q; want no decision of the requirement before it\n%s\n%s", added, stdout.String(), stderr.String())
 	}
-	// The bar hunk cites the "Shadow first" paragraph (lines 5-10) on its
-	// line sharing most words with the amended text, the line naming the
-	// 20 complete shadow rows.
-	if bar == nil || bar[1] != "docs/decisions/0431-merge-queue-backstops-pr-test-selection-2026-10-05.md" || bar[2] != "9:9" || bar[3] != "decision" {
-		t.Errorf("bar hunk row = %q; want decision 0431 9:9 (the Shadow first paragraph)\n%s", bar, stdout.String())
+	// DWC-V0-926: shared decision prose neither names the hunk path nor
+	// defines its ID. The rewritten definition itself is unstable.
+	if bar == nil || bar[1] != "unknown" {
+		t.Errorf("bar hunk must stay unknown without an admissible anchor: %q", bar)
 	}
-	if !strings.Contains(stderr.String(), "the hunk amends requirement AFP-V0-029, defined at BASE docs/specs/affected-plan-v0.md:") ||
-		!strings.Contains(stderr.String(), "(DCW-V0-805)") {
-		t.Errorf("stderr does not name the amended requirement row:\n%s", stderr.String())
-	}
+
 	// A hunk outside every requirement keeps the DCW-V0-161 path anchor.
 	if prose == nil || prose[1] != "docs/specs/documentation-ci-v0.md" {
 		t.Errorf("prose hunk row = %q; want the unchanged path anchor\n%s", prose, stdout.String())
 	}
-	if strings.Contains(bar[1], "0131") || strings.Contains(prose[1], "0131") {
+	if bar != nil && strings.Contains(bar[1], "0131") || strings.Contains(prose[1], "0131") {
 		t.Errorf("draft cites the unrelated decision 0131:\n%s", stdout.String())
 	}
 }
@@ -184,10 +180,8 @@ func TestProposeCitationsDCWV0809AmendedDefinitionReachesItsDecision(t *testing.
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())
-	if len(rows) != 1 || !strings.Contains(rows[0], "docs/decisions/0388-accept-xyz-v0-001-2026-09-25.md\t3:3\tdecision") {
-		t.Fatalf("the amended definition was not drafted to its decision:\n%s\n%s", stdout.String(), stderr.String())
+	if len(rows) != 1 || !strings.Contains(rows[0], "\tunknown\t") {
+		t.Fatalf("rewritten definition has no anchored BASE decision span (DWC-V0-926): %s", stdout.String())
 	}
-	if strings.Contains(stderr.String(), "which this change itself defines") || !strings.Contains(stderr.String(), "the hunk amends requirement XYZ-V0-001") {
-		t.Errorf("the note does not name the amendment:\n%s", stderr.String())
-	}
+
 }

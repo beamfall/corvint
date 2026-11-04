@@ -445,6 +445,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	if !skip {
 		p.governing = p.governingSpecs(owed)
 	}
+	drafted := map[string]proposedHunk{}
 	rows, notes := []string{}, append([]string{}, p.carryNotes...)
 	cited := 0
 	lastCite := ""
@@ -474,6 +475,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			ordinal = hunk.id
 		}
 		if row, cite = p.carriedForward(hunk, ordinal); row == "" {
+			drafted[ordinal] = hunk
 			row, cite, fellBack = p.propose(hunk, edited, used)
 			// A drafted cite the author removed for this edit is never drafted
 			// again; the hunk keeps the unknown fallback (CKC-V0-007).
@@ -510,6 +512,17 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	}
 	rows, refused := p.vetRows(owed, rows)
 	notes = append(notes, refused...)
+	// Re-pinning during vetting must not turn an anchored draft into a guess.
+	for i, row := range rows {
+		f := strings.Split(row, "\t")
+		if len(f) == 4 && f[1] != "unknown" {
+			if hunk, ok := drafted[f[0]]; ok && !p.draftSpanAllowed(hunk, f[1], f[2]) {
+				delete(p.proposals, f[0])
+				delete(p.reasons, f[0])
+				rows[i] = p.unknownProposal(hunk, f[0], "no substantive BASE span anchors this hunk (DWC-V0-926, DWC-V0-927)")
+			}
+		}
+	}
 	notes = append(notes, p.weak...)
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
@@ -519,7 +532,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 
 // propose returns one row for hunk, the PATH:START:END it cites, or "" for an
 // unknown row, and, for a cite row that is not anchored, why it fell back.
-func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used map[string]bool) (string, string, string) {
+func (p *proposal) proposeUnchecked(hunk proposedHunk, edited map[string][][2]int, used map[string]bool) (string, string, string) {
 	ordinal := fmt.Sprint(hunk.ordinal)
 	if p.keyByID {
 		ordinal = hunk.id
@@ -717,7 +730,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		// check's anchor search keeps its order.
 		candidates = append(candidates, p.rankAnchors(p.matches[anchorPath(derived)])...)
 	}
-	if name := anchorBasename(derived); p.basenames && name != "" {
+	if name := anchorBasename(derived); name != "" {
 		candidates = append(candidates, p.matches[name]...)
 	}
 	for index, candidate := range candidates {
@@ -744,7 +757,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		}
 		// A path match inside a longer path, such as README.md within
 		// docs/specs/README.md, names another file (DCW-V0-381).
-		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
+		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) && !namesWholePath(text, anchorBasename(derived)) {
 			continue
 		}
 		// A hunk that names a requirement family is anchored only by a
@@ -959,7 +972,7 @@ func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map
 		if name := anchorPath(derived); name != "" {
 			patterns[name] = true
 		}
-		if name := anchorBasename(derived); p.basenames && name != "" {
+		if name := anchorBasename(derived); name != "" {
 			patterns[name] = true
 		}
 		_, ids := verify.SpanAnchors(derived, nil)
@@ -1178,7 +1191,7 @@ func (p *proposal) stable(name string, line int, edited map[string][][2]int) boo
 		}
 	}
 	lines := p.baseLines(name)
-	if line < 1 || line > len(lines) || strings.TrimSpace(string(lines[line-1])) == "" {
+	if line < 1 || line > len(lines) || strings.TrimSpace(string(lines[line-1])) == "" || !p.basenames && p.headingLine(name, line) {
 		return false
 	}
 	// cem cite refuses a span over wire.MaxCitationSpanBytes, such as the
