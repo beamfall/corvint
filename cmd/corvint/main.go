@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"math/big"
 	"os"
@@ -22,12 +24,13 @@ import (
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/observations"
+	"github.com/Beamfall/corvint/internal/versionline"
 	"github.com/Beamfall/corvint/internal/worktreeimpact"
 
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-const version = "1.0.0-rc.3"
+const version = versionline.Release
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
@@ -1785,6 +1788,10 @@ func pythonJSONString(value string) string {
 }
 
 func main() {
+	if code, handled := cliapp.Answer("corvint", os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+
 	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
 		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound, snapshotRefreshCPUBudget))
 	}
@@ -1801,7 +1808,10 @@ func main() {
 	defer cancel()
 	ctx, release := adapterHostKillContext(signalled, os.Args[1:], adapterProcessStart)
 	defer release()
-	exitProcess(runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
+	streams := &clierror.Streams{Binary: "corvint", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+	status := runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, streams.Stdout(), streams.Stderr(), os.LookupEnv)
+	exitProcess(streams.Status(status))
 }
 
 // sharedIndexedContextFromEnvironment enables the shared bracket only under

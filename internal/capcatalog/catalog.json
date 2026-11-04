@@ -4658,9 +4658,89 @@
   },
   "commandTrees": [
     {
-      "binary": "corvint",
-      "command": "corvint help --tree",
-      "snapshot": "internal/capcatalog/trees/corvint.json"
+      "binary": "corvint-analyzer-c-jni",
+      "command": "corvint-analyzer-c-jni help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-c-jni.json"
+    },
+    {
+      "binary": "corvint-analyzer-dotnet",
+      "command": "corvint-analyzer-dotnet help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-dotnet.json"
+    },
+    {
+      "binary": "corvint-analyzer-go",
+      "command": "corvint-analyzer-go help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-go.json"
+    },
+    {
+      "binary": "corvint-analyzer-html-css",
+      "command": "corvint-analyzer-html-css help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-html-css.json"
+    },
+    {
+      "binary": "corvint-analyzer-java",
+      "command": "corvint-analyzer-java help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-java.json"
+    },
+    {
+      "binary": "corvint-analyzer-js",
+      "command": "corvint-analyzer-js help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-js.json"
+    },
+    {
+      "binary": "corvint-analyzer-kotlin-android",
+      "command": "corvint-analyzer-kotlin-android help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-kotlin-android.json"
+    },
+    {
+      "binary": "corvint-analyzer-objective-c",
+      "command": "corvint-analyzer-objective-c help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-objective-c.json"
+    },
+    {
+      "binary": "corvint-analyzer-python",
+      "command": "corvint-analyzer-python help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-python.json"
+    },
+    {
+      "binary": "corvint-analyzer-ruby",
+      "command": "corvint-analyzer-ruby help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-ruby.json"
+    },
+    {
+      "binary": "corvint-analyzer-rust",
+      "command": "corvint-analyzer-rust help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-rust.json"
+    },
+    {
+      "binary": "corvint-analyzer-shader",
+      "command": "corvint-analyzer-shader help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-shader.json"
+    },
+    {
+      "binary": "corvint-analyzer-shell",
+      "command": "corvint-analyzer-shell help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-shell.json"
+    },
+    {
+      "binary": "corvint-analyzer-sql-native",
+      "command": "corvint-analyzer-sql-native help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-sql-native.json"
+    },
+    {
+      "binary": "corvint-analyzer-structured-data",
+      "command": "corvint-analyzer-structured-data help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-structured-data.json"
+    },
+    {
+      "binary": "corvint-analyzer-swift",
+      "command": "corvint-analyzer-swift help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-swift.json"
+    },
+    {
+      "binary": "corvint-behavior-falsify",
+      "command": "corvint-behavior-falsify help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-behavior-falsify.json"
     },
     {
       "binary": "corvint-cem-candidate",
@@ -4673,6 +4753,31 @@
       "snapshot": "internal/capcatalog/trees/corvint-cem-experiments.json"
     },
     {
+      "binary": "corvint-companion-release",
+      "command": "corvint-companion-release help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-companion-release.json"
+    },
+    {
+      "binary": "corvint-console",
+      "command": "corvint-console help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-console.json"
+    },
+    {
+      "binary": "corvint-corpus-http",
+      "command": "corvint-corpus-http help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-http.json"
+    },
+    {
+      "binary": "corvint-corpus-mcp",
+      "command": "corvint-corpus-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-mcp.json"
+    },
+    {
+      "binary": "corvint-corpus-parity",
+      "command": "corvint-corpus-parity help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-parity.json"
+    },
+    {
       "binary": "corvint-corpus-republish",
       "command": "corvint-corpus-republish help --json",
       "snapshot": "internal/capcatalog/trees/corvint-corpus-republish.json"
@@ -4681,6 +4786,11 @@
       "binary": "corvint-dashboard-snapshot",
       "command": "corvint-dashboard-snapshot help --json",
       "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
+    },
+    {
+      "binary": "corvint-docs-mcp",
+      "command": "corvint-docs-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-docs-mcp.json"
     },
     {
       "binary": "corvint-gateway",
@@ -4693,6 +4803,11 @@
       "snapshot": "internal/capcatalog/trees/corvint-go-test-provider.json"
     },
     {
+      "binary": "corvint-go-toolchain-receipt",
+      "command": "corvint-go-toolchain-receipt help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-go-toolchain-receipt.json"
+    },
+    {
       "binary": "corvint-intake",
       "command": "corvint-intake help --json",
       "snapshot": "internal/capcatalog/trees/corvint-intake.json"
@@ -4703,9 +4818,29 @@
       "snapshot": "internal/capcatalog/trees/corvint-js-test-provider.json"
     },
     {
+      "binary": "corvint-lsp",
+      "command": "corvint-lsp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-lsp.json"
+    },
+    {
+      "binary": "corvint-mcp",
+      "command": "corvint-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-mcp.json"
+    },
+    {
+      "binary": "corvint-playwright-minimize",
+      "command": "corvint-playwright-minimize help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-playwright-minimize.json"
+    },
+    {
       "binary": "corvint-postmerge-connect",
       "command": "corvint-postmerge-connect help --json",
       "snapshot": "internal/capcatalog/trees/corvint-postmerge-connect.json"
+    },
+    {
+      "binary": "corvint-postmerge-host-launcher",
+      "command": "corvint-postmerge-host-launcher help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-host-launcher.json"
     },
     {
       "binary": "corvint-postmerge-metrics",
@@ -4718,9 +4853,39 @@
       "snapshot": "internal/capcatalog/trees/corvint-postmerge-workflow.json"
     },
     {
+      "binary": "corvint-public-release-check",
+      "command": "corvint-public-release-check help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-public-release-check.json"
+    },
+    {
       "binary": "corvint-pulse",
       "command": "corvint-pulse help --json",
       "snapshot": "internal/capcatalog/trees/corvint-pulse.json"
+    },
+    {
+      "binary": "corvint-readiness-record",
+      "command": "corvint-readiness-record help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-readiness-record.json"
+    },
+    {
+      "binary": "corvint-release-candidate",
+      "command": "corvint-release-candidate help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-release-candidate.json"
+    },
+    {
+      "binary": "corvint-release-gate",
+      "command": "corvint-release-gate help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-release-gate.json"
+    },
+    {
+      "binary": "corvint-release-install",
+      "command": "corvint-release-install help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-release-install.json"
+    },
+    {
+      "binary": "corvint-remote-provider",
+      "command": "corvint-remote-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-remote-provider.json"
     },
     {
       "binary": "corvint-ruby-test-provider",
@@ -4733,9 +4898,24 @@
       "snapshot": "internal/capcatalog/trees/corvint-tasks.json"
     },
     {
+      "binary": "corvint-test-runner",
+      "command": "corvint-test-runner help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-test-runner.json"
+    },
+    {
+      "binary": "corvint-test-validity-mcp",
+      "command": "corvint-test-validity-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-test-validity-mcp.json"
+    },
+    {
       "binary": "corvint-test",
       "command": "corvint-test help --json",
       "snapshot": "internal/capcatalog/trees/corvint-test.json"
+    },
+    {
+      "binary": "corvint-tests-accept",
+      "command": "corvint-tests-accept help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-tests-accept.json"
     },
     {
       "binary": "corvint-update",
@@ -4743,9 +4923,19 @@
       "snapshot": "internal/capcatalog/trees/corvint-update.json"
     },
     {
+      "binary": "corvint-web-flows",
+      "command": "corvint-web-flows help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-web-flows.json"
+    },
+    {
       "binary": "corvint-work-queue",
       "command": "corvint-work-queue help --json",
       "snapshot": "internal/capcatalog/trees/corvint-work-queue.json"
+    },
+    {
+      "binary": "corvint",
+      "command": "corvint help --tree",
+      "snapshot": "internal/capcatalog/trees/corvint.json"
     }
   ]
 }

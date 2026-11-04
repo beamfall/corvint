@@ -7,6 +7,7 @@ package companioncli
 
 import (
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/versionline"
 	"io"
 	"runtime/debug"
 	"strings"
@@ -16,9 +17,9 @@ const (
 	// HelpProfile and VersionProfile name the two JSON documents.
 	HelpProfile    = "corvint-companion-help/0"
 	VersionProfile = "corvint-companion-version/0"
-	// ExperimentalVersion is the version every companion reports until it
-	// ships its own release line.
-	ExperimentalVersion = "0.1.0-experimental"
+	// ExperimentalVersion is the common development release line of every
+	// companion; delivery maturity remains separate from the release version.
+	ExperimentalVersion = versionline.Development
 )
 
 // Spec names one companion: its binary name, version and usage text.

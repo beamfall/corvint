@@ -27,6 +27,18 @@ func importViolation(rel, path string) string {
 		return ""
 	}
 	tasksSide := strings.HasPrefix(rel, "internal/tasks/") || strings.HasPrefix(rel, "cmd/corvint-tasks/")
+	// TCL-V0-7703/ACX-V0-7707: process help, release metadata and error framing
+	// are standard-library-only shared boundary utilities, not Core execution.
+	if rel == "cmd/corvint-tasks/main.go" && (path == modulePrefix+"internal/cliapp" || path == modulePrefix+"internal/clierror") {
+		return ""
+	}
+	if rel == "internal/tasks/cli/cli.go" && path == modulePrefix+"internal/versionline" {
+		return ""
+	}
+	if rel == "internal/tasks/cli/clicontract_test.go" && path == modulePrefix+"internal/cliconformance" {
+		return ""
+	}
+
 	if strings.HasPrefix(rel, "internal/tasks/wire/") {
 		return "the Tasks wire package imports no module package"
 	}

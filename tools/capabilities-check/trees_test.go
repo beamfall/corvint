@@ -229,3 +229,71 @@ func TestCAPV0050AgentsRuleNamesHelpCatalogAndGate(t *testing.T) {
 		}
 	}
 }
+
+// TestCAPV07700EveryBinaryHasTree closes the legacy exception: every shipped
+// executable has a catalog, including protocol-only and single-mode tools.
+func TestCAPV07700EveryBinaryHasTree(t *testing.T) {
+	inv, _, _ := load(t)
+	trees, err := readTrees("../../" + treesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	covered := map[string]bool{}
+	for _, tree := range trees {
+		covered[tree.Binary] = true
+	}
+	for _, binary := range inv.Binaries {
+		if !covered[binary] {
+			t.Errorf("%s has no help/catalog tree", binary)
+		}
+	}
+}
+
+func TestCAPV07700NodeCatalog(t *testing.T) {
+	for _, f := range CheckNodeCatalog("../..") {
+		t.Error(f)
+	}
+	root := t.TempDir()
+	trees, err := readTrees("../../" + treesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{}
+	for _, tree := range trees {
+		data, err := clitree.Encode(tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[treesDir+"/"+tree.Binary+".json"] = string(data)
+	}
+	data, err := os.ReadFile("../../docs/CAPABILITIES.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files["docs/CAPABILITIES.md"] = strings.Replace(string(data), "| `corvint-tasks ticket search` |", "| `corvint-tasks ticket absent` |", 1)
+	writeFiles(t, root, files)
+	if len(CheckNodeCatalog(root)) == 0 {
+		t.Fatal("an omitted Tasks verb did not fail the gate")
+	}
+}
+
+// A route composed entirely of known words must still have its own node.
+func TestCAPV07700NestedRouteDrift(t *testing.T) {
+	dispatch := strings.Replace(syntheticDispatch, `case "alpha":`, `case "alpha":
+  switch args[1] {case "help":}`, 1)
+	found := treeFindings(t, syntheticTreeRepository(t, dispatch), []string{"corvint-x"})
+	if !slices.Contains(found["subcommand-unlisted"], "corvint-x alpha help") {
+		t.Fatalf("missing nested route was hidden by known words: %v", found)
+	}
+}
+
+func TestCAPV07700MCPNamespaceDoesNotHideTool(t *testing.T) {
+	root := t.TempDir()
+	files := syntheticRepository()
+	files["cmd/corvint-serve/main.go"] = "package main\nconst method=\"tools/list\"\nvar tool=map[string]any{\"name\":\"auxiliary_ping\",\"inputSchema\":map[string]any{}}\n"
+	writeFiles(t, root, files)
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), `missing mcp-tools "auxiliary_ping"`) {
+		t.Fatalf("unlisted non-corvint tool: %d %s", code, stderr.String())
+	}
+}

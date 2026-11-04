@@ -7,6 +7,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
+	"io"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -16,10 +19,20 @@ import (
 	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
-func main() { os.Exit(run(os.Args[1:])) }
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-public-release-check", Out: os.Stdout, Err: os.Stderr}
+	processStdout, processStderr = streams.Stdout(), streams.Stderr()
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-public-release-check", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run(os.Args[1:])))
+}
 
 func run(args []string) int {
 	fs := flag.NewFlagSet("corvint-public-release-check", flag.ContinueOnError)
+	fs.SetOutput(processStderr)
 	qualification := fs.String("qualification", "editor", "qualification profile: editor or core")
 	nodeSHA := fs.String("node-sha256", "", "core: frozen Node executable SHA-256")
 	npmSHA := fs.String("npm-sha256", "", "core: frozen npm CLI SHA-256")
@@ -40,15 +53,15 @@ func run(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 0 || *sourceRoot == "" || *bundle == "" || *scratch == "" || *output == "" || *cache == "" || *browserCache == "" || *node == "" || *python == "" || *pythonSHA == "" || *commit == "" || *tree == "" {
-		fmt.Fprintln(os.Stderr, "corvint-public-release-check: all named arguments are required")
+		fmt.Fprintln(processStderr, "corvint-public-release-check: all named arguments are required")
 		return 2
 	}
 	if (*qualification != "core" && *qualification != "editor") || (*qualification == "core" && (*nodeSHA == "" || *npmSHA == "" || *authority == "" || *authoritySHA == "")) || (*qualification == "editor" && (*nodeSHA != "" || *npmSHA != "" || *authority != "" || *authoritySHA != "")) {
-		fmt.Fprintln(os.Stderr, "corvint-public-release-check: core requires all four core runtime/authority arguments; editor rejects them")
+		fmt.Fprintln(processStderr, "corvint-public-release-check: core requires all four core runtime/authority arguments; editor rejects them")
 		return 2
 	}
 	if err := verifySelf(*commit); err != nil {
-		fmt.Fprintf(os.Stderr, "corvint-public-release-check: %v\n", err)
+		fmt.Fprintf(processStderr, "corvint-public-release-check: %v\n", err)
 		return 1
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -68,10 +81,10 @@ func run(args []string) int {
 		bundleSHA, sourceCommit, sourceTree = report.BundleSHA256, report.SourceCommit, report.SourceTree
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "corvint-public-release-check: %v\n", err)
+		fmt.Fprintf(processStderr, "corvint-public-release-check: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(os.Stdout, "installed qualification PASS bundle=%s source=%s tree=%s result=%s\n", bundleSHA, sourceCommit, sourceTree, *output)
+	fmt.Fprintf(processStdout, "installed qualification PASS bundle=%s source=%s tree=%s result=%s\n", bundleSHA, sourceCommit, sourceTree, *output)
 	return 0
 }
 
@@ -89,3 +102,6 @@ func verifySelf(expectedCommit string) error {
 	}
 	return nil
 }
+
+var processStdout io.Writer = os.Stdout
+var processStderr io.Writer = os.Stderr

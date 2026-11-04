@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
+	"strings"
 )
 
 // UnknownVerbCode is the stable code of a companion binary's unknown-verb refusal (ACX-V0-904).
@@ -32,10 +34,15 @@ func UnknownVerb(tree Tree, args []string) (string, bool) {
 // RefuseUnknownVerb writes the one shared unknown-verb envelope as a single JSON line on stderr
 // and returns exit 2 (ACX-V0-904): {"binary", "code": "unknown-verb", "error", "help", "ok": false}.
 func RefuseUnknownVerb(stderr io.Writer, binary, verb string) int {
+	word, hint, _ := strings.Cut(verb, "\n")
+	message := fmt.Sprintf("unknown command %q", word)
+	if hint != "" {
+		message += "; " + hint
+	}
 	line, err := json.Marshal(map[string]any{
 		"binary": binary,
 		"code":   UnknownVerbCode,
-		"error":  fmt.Sprintf("unknown command %q", verb),
+		"error":  message,
 		"help":   binary + " --help",
 		"ok":     false,
 	})
@@ -51,5 +58,50 @@ func RefuseIfUnknownVerb(tree Tree, args []string, stderr io.Writer) (exit int, 
 	if !unknown {
 		return 0, false
 	}
-	return RefuseUnknownVerb(stderr, tree.Binary, verb), true
+	return RefuseUnknownVerb(stderr, tree.Binary, Suggestion(tree, verb)), true
+}
+
+// Suggestion uses the actual command tree, with a bounded edit distance and one
+// deterministic result. The newline is an internal separator, never user text.
+func Suggestion(tree Tree, word string) string {
+	if len(word) > 64 {
+		return word
+	}
+	best, choice := 3, ""
+	var names []string
+	for _, node := range tree.Nodes {
+		if len(node.Path) > 0 {
+			names = append(names, node.Path[0])
+		}
+	}
+	slices.Sort(names)
+	for _, name := range slices.Compact(names) {
+		d := distance(word, name)
+		if d < best {
+			best, choice = d, name
+		}
+	}
+	if choice != "" {
+		return word + "\n" + "did you mean `" + tree.Binary + " " + choice + "`?"
+	}
+	return word
+}
+func distance(a, b string) int {
+	row := make([]int, len(b)+1)
+	for j := range row {
+		row[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		next := make([]int, len(b)+1)
+		next[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 0
+			if a[i-1] != b[j-1] {
+				cost = 1
+			}
+			next[j] = min(row[j]+1, next[j-1]+1, row[j-1]+cost)
+		}
+		row = next
+	}
+	return row[len(b)]
 }

@@ -1,0 +1,46 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-analyzer-structured-data",
+  "helpJson": "corvint-analyzer-structured-data help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-analyzer-structured-data"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-analyzer-structured-data",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-analyzer-structured-data [--descriptor] [--version]"
+      ],
+      "flags": [
+        "--descriptor",
+        "--version"
+      ],
+      "required": [],
+      "example": "corvint-analyzer-structured-data",
+      "help": "corvint-analyzer-structured-data --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-analyzer-structured-data help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-analyzer-structured-data help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-analyzer-structured-data help --json",
+      "help": "corvint-analyzer-structured-data help --help"
+    }
+  ]
+}

@@ -1,226 +1,162 @@
-package clierrors
+// SPDX-License-Identifier: Apache-2.0
+package clierrors_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/capcatalog"
+	"github.com/Beamfall/corvint/internal/cliconformance"
+	"github.com/Beamfall/corvint/internal/clierror"
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
-const unknownVerb = "zz-no-such-verb"
-
-// contract is one binary's refusal of an unknown verb: the exit code, the
-// stream that carries the envelope (the other stays empty; "" means both are
-// empty) and the envelope check.
-type contract struct {
-	pkg    string
-	exit   int
-	stream string
-	check  func(out string) error
-}
-
-// contracts is keyed by binary name; the package path literal is the build
-// input (AFP-V0-037). Every companion refuses with the one shared envelope
-// (ACX-V0-904, V1-3878); corvint keeps its argparse-parity invalid-arguments
-// envelope (ACX-V0-859), corvint-tasks its Tasks command result on stdout
-// and corvint-work-queue the exact text WQO-V0-007 and WQO-V0-030 pin.
-var contracts = map[string]contract{
-	"corvint":                    {"./cmd/corvint", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "argument command: invalid choice: '"+unknownVerb+"'")},
-	"corvint-cem-candidate":      companion("./cmd/corvint-cem-candidate"),
-	"corvint-cem-experiments":    companion("./cmd/corvint-cem-experiments"),
-	"corvint-corpus-republish":   companion("./cmd/corvint-corpus-republish"),
-	"corvint-dashboard-snapshot": companion("./cmd/corvint-dashboard-snapshot"),
-	"corvint-gateway":            companion("./cmd/corvint-gateway"),
-	"corvint-go-test-provider":   companion("./cmd/corvint-go-test-provider"),
-	"corvint-intake":             companion("./cmd/corvint-intake"),
-	"corvint-js-test-provider":   companion("./cmd/corvint-js-test-provider"),
-	"corvint-postmerge-connect":  companion("./cmd/corvint-postmerge-connect"),
-	"corvint-postmerge-metrics":  companion("./cmd/corvint-postmerge-metrics"),
-	"corvint-postmerge-workflow": companion("./cmd/corvint-postmerge-workflow"),
-	"corvint-pulse":              companion("./cmd/corvint-pulse"),
-	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),
-	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
-	"corvint-test":               companion("./cmd/corvint-test"),
-	"corvint-update":             companion("./cmd/corvint-update"),
-	"corvint-work-queue":         {"./cmd/corvint-work-queue", 2, "stderr", text("unsupported operation")},
-}
-
-// companion is the shared unknown-verb refusal row (ACX-V0-904): exit 2 and
-// one JSON line on stderr naming the binary, the unknown-verb code and the word.
-func companion(pkg string) contract {
-	binary := pkg[len("./cmd/"):]
-	return contract{pkg, 2, "stderr", envelope(map[string]any{
-		"binary": binary, "code": "unknown-verb", "error": `unknown command "` + unknownVerb + `"`,
-		"help": binary + " --help", "ok": false,
-	})}
-}
-
-// TestCLIErrorContracts_ACXV0859 (ACX-V0-859, TCL-V0-859; V1-3736) builds
-// every catalog binary and checks its unknown-verb refusal against its row,
-// then the near-verb suggestions of corvint and corvint-tasks.
-func TestCLIErrorContracts_ACXV0859(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the rows record the POSIX refusals; Windows runs the commands' own tests")
-	}
-	root := filepath.Clean(filepath.Join("..", ".."))
-	trees, err := filepath.Glob(filepath.Join(root, "internal", "capcatalog", "trees", "*.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var catalog, declared []string
-	for _, tree := range trees {
-		catalog = append(catalog, strings.TrimSuffix(filepath.Base(tree), ".json"))
-	}
-	for name := range contracts {
-		declared = append(declared, name)
-	}
-	slices.Sort(catalog)
-	slices.Sort(declared)
-	if !slices.Equal(catalog, declared) {
-		t.Fatalf("catalog binaries %v, declared rows %v", catalog, declared)
-	}
-	// ACX-V0-664: every unknown-verb refusal carries a code, so no row may be
-	// silent or unchecked.
-	for _, name := range declared {
-		if row := contracts[name]; row.stream == "" || row.check == nil {
-			t.Errorf("%s: unknown-verb refusal has no checked, coded envelope", name)
-		}
-	}
-	bin := t.TempDir()
-	build := exec.Command("go", "build", "-trimpath", "-o", bin+string(filepath.Separator))
-	for _, name := range declared {
-		build.Args = append(build.Args, contracts[name].pkg)
-	}
-	build.Dir = root
-	build.Env = append(os.Environ(), "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOWORK=off")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v: %s", err, output)
-	}
-	work := t.TempDir()
-	for _, name := range declared {
-		row := contracts[name]
-		code, stdout, stderr := launch(t, filepath.Join(bin, name), work, unknownVerb)
-		if code != row.exit {
-			t.Errorf("%s: exit %d, want %d (stdout %q stderr %q)", name, code, row.exit, stdout, stderr)
-			continue
-		}
-		var out, other string
-		switch row.stream {
-		case "stdout":
-			out, other = stdout, stderr
-		case "stderr":
-			out, other = stderr, stdout
-		default:
-			other = stdout + stderr
-		}
-		if other != "" || (row.stream != "" && out == "") {
-			t.Errorf("%s: want the envelope on %q only; stdout %q stderr %q", name, row.stream, stdout, stderr)
-			continue
-		}
-		if row.check != nil {
-			if err := row.check(out); err != nil {
-				t.Errorf("%s: %v: %q", name, err, out)
-			}
-		}
-	}
-	if _, _, stderr := launch(t, filepath.Join(bin, "corvint"), work, "contxt"); !strings.Contains(stderr, "; did you mean 'context'?") {
-		t.Errorf("corvint contxt: no suggestion: %q", stderr)
-	}
-	if _, stdout, _ := launch(t, filepath.Join(bin, "corvint-tasks"), work, "tikcet", "show"); !strings.Contains(stdout, "did you mean `corvint-tasks ticket --help`") {
-		t.Errorf("corvint-tasks tikcet: no suggestion: %q", stdout)
-	}
-}
-
-func launch(t *testing.T, binary, dir string, args ...string) (int, string, string) {
+func binaries(t *testing.T) string {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
-	command := exec.Command(binary, args...)
-	command.Dir = dir
-	command.Stdin = strings.NewReader("")
-	command.Stdout, command.Stderr = &stdout, &stderr
-	err := command.Run()
-	if exit, ok := err.(*exec.ExitError); ok {
-		return exit.ExitCode(), stdout.String(), stderr.String()
-	} else if err != nil {
-		t.Fatalf("%s: %v", binary, err)
+	if dir := os.Getenv("CORVINT_CLI_BIN_DIR"); dir != "" {
+		return dir
 	}
-	return 0, stdout.String(), stderr.String()
+	dir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", dir+string(os.PathSeparator), "./cmd/...")
+	cmd.Dir = "../.."
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build shipped binaries: %v %s", err, out)
+	}
+	return dir
 }
 
-// text checks that a plain-text refusal contains want.
-func text(want string) func(string) error {
-	return func(out string) error {
-		if !strings.Contains(out, want) {
-			return fmt.Errorf("text does not contain %q", want)
-		}
-		return nil
-	}
-}
-
-// jsonFields checks one JSON object whose fields include want and, when
-// errorPrefix is set, whose "error" string starts with it.
-func jsonFields(want map[string]any, errorPrefix string) func(string) error {
-	return func(out string) error {
-		var got map[string]any
-		if err := json.Unmarshal([]byte(out), &got); err != nil {
-			return fmt.Errorf("not one JSON object: %v", err)
-		}
-		for key, value := range want {
-			if got[key] != value {
-				return fmt.Errorf("field %s = %v, want %v", key, got[key], value)
+// TestCAPV07700ShippedHelp launches every shipped binary and every command node,
+// with both help spellings. stdin is absent and cwd has no repository.
+func TestCAPV07700ShippedHelp(t *testing.T) {
+	dir := binaries(t)
+	for _, ref := range capcatalog.TreeReferences() {
+		t.Run(ref.Binary, func(t *testing.T) {
+			tree, ok := capcatalog.TreeSnapshot(ref.Binary)
+			if !ok {
+				t.Fatal("missing snapshot")
 			}
-		}
-		if message, _ := got["error"].(string); errorPrefix != "" && !strings.HasPrefix(message, errorPrefix) {
-			return fmt.Errorf("error %q does not start with %q", message, errorPrefix)
-		}
-		return nil
-	}
-}
-
-// envelope checks one JSON line whose fields are exactly want.
-func envelope(want map[string]any) func(string) error {
-	return func(out string) error {
-		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
-			return fmt.Errorf("want one line")
-		}
-		var got map[string]any
-		if err := json.Unmarshal([]byte(out), &got); err != nil {
-			return fmt.Errorf("not one JSON object: %v", err)
-		}
-		if len(got) != len(want) {
-			return fmt.Errorf("fields %v, want %v", got, want)
-		}
-		for key, value := range want {
-			if got[key] != value {
-				return fmt.Errorf("field %s = %v, want %v", key, got[key], value)
+			binary := filepath.Join(dir, ref.Binary)
+			for _, node := range tree.Nodes {
+				for _, flag := range []string{"--help", "-h"} {
+					args := append(append([]string{}, node.Path...), flag)
+					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					cmd := exec.CommandContext(ctx, binary, args...)
+					cmd.Dir = t.TempDir()
+					var out, errout bytes.Buffer
+					cmd.Stdout = &out
+					cmd.Stderr = &errout
+					err := cmd.Run()
+					cancel()
+					if err != nil || errout.Len() != 0 || out.Len() == 0 {
+						t.Fatalf("%v: %v stderr=%q stdout=%q", args, err, errout.String(), out.String())
+					}
+					if ref.Binary == "corvint-tasks" {
+						var native map[string]any
+						if json.Unmarshal(out.Bytes(), &native) != nil || native["profile"] != "taskman-command-result/0" {
+							t.Fatalf("%v corrupted native help JSON: %s", args, out.String())
+						}
+					}
+					text := strings.ToLower(out.String())
+					if !strings.Contains(text, "usage") || !strings.Contains(text, "example") || (!strings.Contains(text, "required") && !strings.Contains(text, "inputs")) {
+						t.Fatalf("%v lacks usage, example or required inputs: %s", args, out.String())
+					}
+				}
 			}
-		}
-		return nil
+			if ref.Binary != "corvint" {
+				cmd := exec.Command(binary, "help", "--json")
+				out, err := cmd.Output()
+				if err != nil {
+					t.Fatal(err)
+				}
+				want, _ := json.Marshal(tree)
+				var got any
+				if json.Unmarshal(out, &got) != nil {
+					t.Fatal("non-json tree")
+				}
+				canonical, _ := json.Marshal(got)
+				if !bytes.Equal(want, canonical) { // Compare semantically: field order is an encoding detail here.
+					var wanted any
+					_ = json.Unmarshal(want, &wanted)
+					want, _ = json.Marshal(wanted)
+					if !bytes.Equal(want, canonical) {
+						t.Fatal("binary catalog differs from snapshot; make capability-catalog")
+					}
+				}
+			}
+		})
 	}
 }
 
-// tasksResult checks a taskman-command-result/0 ERROR envelope that carries
-// code and a warning containing warning.
-func tasksResult(code, warning string) func(string) error {
-	return func(out string) error {
-		var got struct {
-			Profile  string   `json:"profile"`
-			Outcome  string   `json:"outcome"`
-			Codes    []string `json:"codes"`
-			Warnings []string `json:"warnings"`
+func TestCLIErrorContracts_ACXV0859(t *testing.T) {
+	dir := binaries(t)
+	for _, ref := range capcatalog.TreeReferences() {
+		t.Run(ref.Binary, func(t *testing.T) {
+			binary := filepath.Join(dir, ref.Binary)
+			version := exec.Command(binary, "--version")
+			versionOut, err := version.Output()
+			if err != nil || !strings.Contains(string(versionOut), versionline.Release) || strings.Contains(string(versionOut), "tcp01-unverified") {
+				t.Fatalf("version scheme: %v %s", err, versionOut)
+			}
+			tree, _ := capcatalog.TreeSnapshot(ref.Binary)
+			if tree.AllFlags()["--root"] {
+				cliconformance.Failure(t, binary, []string{"--root"}, 2)
+			}
+			for _, args := range [][]string{{"zz-no-such-command"}, {"--zz-no-such-option"}, {"help", "zz-no-such-topic"}} {
+				e := cliconformance.Failure(t, binary, args, 2)
+				if e.Binary != ref.Binary || e.Help == "" {
+					t.Fatalf("missing binary/help attribution: %+v", e)
+				}
+			}
+		})
+	}
+	for _, tc := range []struct{ binary, typo, want string }{{"corvint", "contxt", "context"}, {"corvint-tasks", "tikcet", "ticket"}} {
+		e := cliconformance.Failure(t, filepath.Join(dir, tc.binary), []string{tc.typo}, 2)
+		if !strings.Contains(e.Error, "did you mean") || !strings.Contains(e.Error, tc.want) {
+			t.Fatalf("typo has no remedy: %+v", e)
 		}
-		if err := json.Unmarshal([]byte(out), &got); err != nil {
-			return fmt.Errorf("not one JSON object: %v", err)
-		}
-		if got.Profile != "taskman-command-result/0" || got.Outcome != "ERROR" || !slices.Contains(got.Codes, code) || !strings.Contains(strings.Join(got.Warnings, ";"), warning) {
-			return fmt.Errorf("want an ERROR result with code %s and a %q warning", code, warning)
-		}
-		return nil
+	}
+	// Plain flag-parser and command errors use the same envelope too.
+	cliconformance.Failure(t, filepath.Join(dir, "corvint-companion-release"), nil, 2)
+	cliconformance.Failure(t, filepath.Join(dir, "corvint-public-release-check"), nil, 2)
+	cliconformance.Failure(t, filepath.Join(dir, "corvint-postmerge-workflow"), []string{"encode-id"}, 2)
+	// Exercise the native serializers too, rather than only common preflight.
+	for _, args := range [][]string{{"test-validity", "--receipt", "/no/such/clicontract-receipt.json"}, {"ocm", "status", "--map", "/no/such/clicontract-map.json"}, {"prove", "--cem", "/no/such/clicontract-map.json"}} {
+		cliconformance.Failure(t, filepath.Join(dir, "corvint"), args, 2)
+	}
+	// ACX-V0-7707: an RPC error with an explicit --root is protocol traffic,
+	// never a CLI failure. The old argv-length escape corrupted this response.
+	root := t.TempDir()
+	init := exec.Command("git", "init", "-q", root)
+	if out, err := init.CombinedOutput(); err != nil {
+		t.Fatalf("RPC fixture: %v %s", err, out)
+	}
+	rpc := exec.Command(filepath.Join(dir, "corvint-docs-mcp"), "--root", root)
+	rpc.Stdin = strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"zz-no-such-method"}` + "\n")
+	var rpcOut, rpcErr bytes.Buffer
+	rpc.Stdout = &rpcOut
+	rpc.Stderr = &rpcErr
+	if err := rpc.Run(); err != nil || rpcErr.Len() != 0 {
+		t.Fatalf("RPC process: %v %s %s", err, rpcOut.Bytes(), rpcErr.Bytes())
+	}
+	var response map[string]any
+	if json.Unmarshal(bytes.TrimSpace(rpcOut.Bytes()), &response) != nil || response["jsonrpc"] != "2.0" || response["error"] == nil || response["binary"] != nil {
+		t.Fatalf("RPC error was rewritten: %s", rpcOut.Bytes())
+	}
+	// An isolated initialized queue is supplied by the native fixture in the focused Tasks tests;
+	// the all-binary test also proves codeless serializers are normalized by the shared writer.
+}
+
+func TestCAPV07707MessageCodeLint(t *testing.T) {
+	if clierror.Validate(clierror.Envelope{Code: "missing-input", Error: "missing-input"}) == nil {
+		t.Fatal("message-equals-code lint failed to reject")
 	}
 }

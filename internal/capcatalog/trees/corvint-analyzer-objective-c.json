@@ -1,0 +1,45 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-analyzer-objective-c",
+  "helpJson": "corvint-analyzer-objective-c help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-analyzer-objective-c"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-analyzer-objective-c",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-analyzer-objective-c < REQUEST.json"
+      ],
+      "flags": [],
+      "required": [
+        "stdin: protocol request JSON"
+      ],
+      "example": "corvint-analyzer-objective-c < REQUEST.json",
+      "help": "corvint-analyzer-objective-c --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-analyzer-objective-c help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-analyzer-objective-c help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-analyzer-objective-c help --json",
+      "help": "corvint-analyzer-objective-c help --help"
+    }
+  ]
+}

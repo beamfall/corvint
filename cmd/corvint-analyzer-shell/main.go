@@ -3,11 +3,21 @@ package main
 
 import (
 	"github.com/Beamfall/corvint/internal/analyzershell"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 )
 
-func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout)) }
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-analyzer-shell", Protocol: true, Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-analyzer-shell", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run(os.Args[1:], os.Stdin, streams.Stdout())))
+}
 func run(args []string, in io.Reader, out io.Writer) int {
 	if len(args) != 0 {
 		return writeResponse(out, analyzershell.AnalyzeCanonical(nil), 0)

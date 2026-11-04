@@ -24,7 +24,7 @@ const (
 	// ratchetCeiling is the committed size of the ratchet. It may only fall: the check fails
 	// when the file grows past it, and when the file shrinks the ceiling must follow, so a
 	// removed row cannot quietly be re-added later.
-	ratchetCeiling = 38
+	ratchetCeiling = 0
 )
 
 // ratchetBaseline is every binary the ratchet held when it was introduced (V1-2685). A row must
@@ -115,7 +115,16 @@ func treeDrift(root string, tree clitree.Tree) []Finding {
 		return []Finding{{"malformed", sectionTrees, tree.Binary, err.Error()}}
 	}
 	words, flags := tree.Words(), tree.AllFlags()
-	var findings []Finding
+	var pathFindings []Finding
+	for _, route := range scan.Paths {
+		path := strings.Fields(route.Value)
+		node, found := tree.Find(path)
+		if !found || len(node.Path) != len(path) {
+			pathFindings = append(pathFindings, Finding{"subcommand-unlisted", sectionTrees, tree.Binary + " " + route.Value, "nested dispatch at " + route.At + " has no exact node"})
+		}
+	}
+
+	findings := pathFindings
 	for _, word := range scan.Words {
 		if !words[word.Value] {
 			findings = append(findings, Finding{"subcommand-unlisted", sectionTrees, tree.Binary + " " + word.Value,

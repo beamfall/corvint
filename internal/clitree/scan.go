@@ -25,6 +25,7 @@ type Literal struct {
 type Scan struct {
 	Words []Literal
 	Flags []Literal
+	Paths []Literal
 }
 
 // argumentSlice reports whether a name holds command-line arguments.
@@ -92,7 +93,7 @@ var flagSetMethods = map[string]int{
 // ScanDirs reads the non-test Go files of each directory (not recursively)
 // and returns their dispatch literals. It reads only those files.
 func ScanDirs(dirs ...string) (Scan, error) {
-	words, flags := map[string]string{}, map[string]string{}
+	words, flags, paths := map[string]string{}, map[string]string{}, map[string]string{}
 	fset := token.NewFileSet()
 	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)
@@ -112,8 +113,9 @@ func ScanDirs(dirs ...string) (Scan, error) {
 			files = append(files, file)
 		}
 		scanPackage(fset, files, words, flags)
+		dispatchPaths(fset, files, paths)
 	}
-	return Scan{Words: literals(words), Flags: literals(flags)}, nil
+	return Scan{Words: literals(words), Flags: literals(flags), Paths: literals(paths)}, nil
 }
 
 func literals(found map[string]string) []Literal {

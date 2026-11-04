@@ -27,6 +27,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -217,65 +219,73 @@ func printSubcommandUsage(w io.Writer, show func()) {
 }
 
 func main() {
-	if code, handled := companionHelp().Serve(os.Args[1:], os.Stdout, os.Stderr); handled {
-		os.Exit(code)
+	streams := &clierror.Streams{Binary: "corvint-js-test-provider", Out: os.Stdout, Err: os.Stderr}
+	processStdout, processStderr = streams.Stdout(), streams.Stderr()
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-js-test-provider", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	if code, handled := companionHelp().Serve(os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|bun|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
-		os.Exit(2)
+		fmt.Fprintln(streams.Stderr(), "usage: corvint-js-test-provider <unit|bun|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
+		os.Exit(streams.Status(2))
 	}
 	var err error
 	switch os.Args[1] {
 	case "help", "-h", "-help", "--help":
-		printUsage(os.Stdout)
+		printUsage(streams.Stdout())
 		return
 	case "unit":
 		err = runUnit(os.Args[2:])
 	case "bun":
-		err = runBun(os.Args[2:], os.Stdout, os.Stderr)
+		err = runBun(os.Args[2:], streams.Stdout(), streams.Stderr())
 		if line, refused := bunRefusalLine(err); refused {
-			fmt.Fprintln(os.Stderr, line)
-			os.Exit(exitAdmissionRefused)
+			fmt.Fprintln(streams.Stderr(), line)
+			os.Exit(streams.Status(exitAdmissionRefused))
 		}
 	case "e2e":
 		err = runE2E(os.Args[2:])
 		if line, refused := admissionRefusalLine(err); refused {
-			fmt.Fprintln(os.Stderr, line)
-			os.Exit(exitAdmissionRefused)
+			fmt.Fprintln(streams.Stderr(), line)
+			os.Exit(streams.Status(exitAdmissionRefused))
 		}
 	case "negate":
 		if isHelpRequest(os.Args[2:]) {
-			printSubcommandUsage(os.Stdout, func() { _, _ = parseNegate([]string{"-h"}) })
+			printSubcommandUsage(streams.Stdout(), func() { _, _ = parseNegate([]string{"-h"}) })
 			return
 		}
 		ctx, cancel := interruptContext()
-		err = runNegate(ctx, os.Args[2:], os.Stdout)
+		err = runNegate(ctx, os.Args[2:], streams.Stdout())
 		cancel()
 		if errors.Is(err, errRefused) {
-			os.Exit(2)
+			os.Exit(streams.Status(2))
 		}
 	case "qualify-keep-reporters":
 		err = runQualifyKeepReporters(os.Args[2:])
 	case "external-origins":
 		if isHelpRequest(os.Args[2:]) {
-			printSubcommandUsage(os.Stdout, func() { _, _, _ = parseExternalOrigins([]string{"-h"}) })
+			printSubcommandUsage(streams.Stdout(), func() { _, _, _ = parseExternalOrigins([]string{"-h"}) })
 			return
 		}
-		err = runExternalOrigins(os.Args[2:], os.Stdout, os.Stderr)
+		err = runExternalOrigins(os.Args[2:], streams.Stdout(), streams.Stderr())
 		if errors.Is(err, errExternalOriginsRefused) {
-			os.Exit(2)
+			os.Exit(streams.Status(2))
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "UNKNOWN_COMMAND: unknown subcommand %q\n", os.Args[1])
-		os.Exit(2)
+		fmt.Fprintf(streams.Stderr(), "UNKNOWN_COMMAND: unknown subcommand %q\n", os.Args[1])
+		os.Exit(streams.Status(2))
 	}
 	if errors.Is(err, errRetention) || errors.Is(err, errNotQualified) {
-		os.Exit(1)
+		os.Exit(streams.Status(1))
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "infrastructure failure:", err)
-		reportSecretShapedMember(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(streams.Stderr(), "infrastructure failure:", err)
+		reportSecretShapedMember(streams.Stderr(), err)
+		os.Exit(streams.Status(1))
 	}
 }
 
@@ -381,7 +391,7 @@ func runUnit(args []string) error {
 	defer cancel()
 
 	if watch != nil {
-		return runUnitWatch(ctx, cfg, retain, watch, os.Stdout, os.Stderr)
+		return runUnitWatch(ctx, cfg, retain, watch, processStdout, processStderr)
 	}
 
 	start := observeRetainedStart(ctx, retain, cfg.Dir)
@@ -389,7 +399,7 @@ func runUnit(args []string) error {
 	if err != nil {
 		return err
 	}
-	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(retain, cfg.Dir))
+	return emit(processStdout, processStderr, withRetainedRevision(receipt, start), retainFrom(retain, cfg.Dir))
 }
 
 // parseBunConfig parses the `bun` subcommand's flags (LPCV-V0-254). Paths are resolved to absolute
@@ -496,7 +506,7 @@ func runE2EMode(mode string, args []string) error {
 	// document to stdout (PWP-V0-034); watch and qualify-keep-reporters do not.
 	refuse := func(err error) error {
 		if mode == "e2e" && watch == nil {
-			return writeE2ERefusal(os.Stdout, err)
+			return writeE2ERefusal(processStdout, err)
 		}
 		return err
 	}
@@ -599,7 +609,7 @@ func runE2EMode(mode string, args []string) error {
 		}
 	}
 
-	runnerOutput, closeRunnerOutput, err := openRunnerOutput(*runnerOutputPath, os.Stderr)
+	runnerOutput, closeRunnerOutput, err := openRunnerOutput(*runnerOutputPath, processStderr)
 	if err != nil {
 		return refuse(err)
 	}
@@ -644,20 +654,20 @@ func runE2EMode(mode string, args []string) error {
 		if watch != nil || *keepReporters || !*externalServer {
 			return errors.New("qualify-keep-reporters is one-shot, external-server only and selects both reporter modes itself")
 		}
-		return qualifyKeepReporters(ctx, cfg, os.Stdout, os.Stderr, retainFrom(*retain, resolvedDir))
+		return qualifyKeepReporters(ctx, cfg, processStdout, processStderr, retainFrom(*retain, resolvedDir))
 	}
 	if watch != nil {
 		if attestationProvider != nil {
 			return errors.New("application attestation is one-shot only")
 		}
-		return runE2EWatch(ctx, cfg, *retain, watch, os.Stdout, os.Stderr)
+		return runE2EWatch(ctx, cfg, *retain, watch, processStdout, processStderr)
 	}
 	start := observeRetainedStart(ctx, *retain, resolvedDir)
 	receipt, err := runE2EReceipt(ctx, cfg)
 	if err != nil {
 		return refuse(err)
 	}
-	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(*retain, resolvedDir))
+	return emit(processStdout, processStderr, withRetainedRevision(receipt, start), retainFrom(*retain, resolvedDir))
 }
 
 // writeE2ERefusal writes the typed corvint-playwright-e2e-refusal/0 document
@@ -874,3 +884,6 @@ func enclosingWorktree(dir string) (string, error) {
 		current = parent
 	}
 }
+
+var processStdout io.Writer = os.Stdout
+var processStderr io.Writer = os.Stderr

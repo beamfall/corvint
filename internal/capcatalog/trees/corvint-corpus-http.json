@@ -1,0 +1,50 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-corpus-http",
+  "helpJson": "corvint-corpus-http help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-corpus-http"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-corpus-http",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--allow-remote: operator declares external TLS/auth boundary; external qualification NOT_OBSERVED\n--index: embedded index artifact\n--listen: explicit companion listener\n--sha256: required operator-pinned SHA256",
+      "usage": [
+        "corvint-corpus-http [--allow-remote] [--index VALUE] [--listen VALUE] --sha256 VALUE"
+      ],
+      "flags": [
+        "--allow-remote",
+        "--index",
+        "--listen",
+        "--sha256"
+      ],
+      "required": [
+        "--sha256 VALUE"
+      ],
+      "example": "corvint-corpus-http --sha256 VALUE",
+      "help": "corvint-corpus-http --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-corpus-http help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-corpus-http help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-corpus-http help --json",
+      "help": "corvint-corpus-http help --help"
+    }
+  ]
+}

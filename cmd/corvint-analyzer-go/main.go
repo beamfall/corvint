@@ -2,6 +2,8 @@
 package main
 
 import (
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 
@@ -9,8 +11,15 @@ import (
 )
 
 func main() {
-	if run(os.Args[1:], os.Stdin, os.Stdout) != 0 {
-		os.Exit(2)
+	streams := &clierror.Streams{Binary: "corvint-analyzer-go", Protocol: true, Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-analyzer-go", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	if run(os.Args[1:], os.Stdin, streams.Stdout()) != 0 {
+		os.Exit(streams.Status(2))
 	}
 }
 

@@ -1,0 +1,46 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-release-install",
+  "helpJson": "corvint-release-install help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-release-install"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-release-install",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--candidate: verified qualified candidate directory\n--store: versioned install store",
+      "usage": [
+        "corvint-release-install [--candidate VALUE] [--store VALUE]"
+      ],
+      "flags": [
+        "--candidate",
+        "--store"
+      ],
+      "required": [],
+      "example": "corvint-release-install",
+      "help": "corvint-release-install --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-release-install help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-release-install help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-release-install help --json",
+      "help": "corvint-release-install help --help"
+    }
+  ]
+}

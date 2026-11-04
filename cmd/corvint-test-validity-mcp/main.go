@@ -16,6 +16,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -47,12 +49,19 @@ const usage = "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 
 	"Example: corvint-test-validity-mcp --root /absolute/repo"
 
 func main() {
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-test-validity-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
-		os.Exit(code)
+	streams := &clierror.Streams{Binary: "corvint-test-validity-mcp", Protocol: true, Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-test-validity-mcp", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-test-validity-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled { // CAP-V0-700
+		os.Exit(streams.Status(code))
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
-	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
+	os.Exit(streams.Status(runProfiled(ctx, os.Args[1:], os.Stdin, streams.Stdout(), streams.Stderr(), os.LookupEnv)))
 }
 
 // runProfiled is run under the CORVINT_CPUPROFILE and CORVINT_MEMPROFILE bracket (PRB-V0-010):

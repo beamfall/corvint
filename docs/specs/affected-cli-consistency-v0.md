@@ -27,6 +27,24 @@ driving Corvint from scripts.
 
 ## Requirements
 
+- `ACX-V0-7707`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3736)
+  Shipped executables MUST share a process-level CLI failure envelope on stderr: `binary`,
+  nonempty `code`, explanatory string `error`, `help`, and `ok:false`. Structured native refusal
+  fields MUST remain available, including the original immutable-evidence document in `details`;
+  a Tasks native result keeps its profile, codes and warnings as additive fields, and its decoder
+  accepts the additive CLI metadata. Successful documents and protocol-only analyzer/MCP/LSP
+  traffic MUST retain their owned wire shapes. Invalid CLI input, unknown verbs and unknown help
+  topics exit 2; operational refusal exits 1; explicitly invalid native inputs retain exit 2; success exits 0; documented domain advisories retain
+  their exit semantics. Unknown verbs and missing tickets MUST carry a code. A bounded
+  deterministic spelling suggestion MUST name the nearest actual tree command for `contxt` and
+  `tikcet`. Shared conformance tests MUST launch every shipped binary and check error envelope,
+  stream and exit status; lint MUST reject a message equal to its code. The standard-library-only
+  framing and metadata helpers may cross the Tasks boundary only at the explicitly enumerated
+  process/help/version files, and the Tasks source export MUST retain their complete closure.
+  Tests: `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`,
+  `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess`.
+
+
 - **ACX-V0-850:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)
   `Source.Files` and `Source.FilesIncluding` SHALL call `accept` with each walked file's
   repository-relative slash path and its base name, on a supplied filesystem, a disk source and a
@@ -228,3 +246,11 @@ current source computes, so a stale binary still yields uncertainty, not invente
 
 Revert the commits naming these requirements; each is local to its ticket's files and no stored
 state depends on them.
+
+| ACX-V0-7707 | `internal/clierror`, `internal/cliconformance`, executable entrypoints and the additive Tasks result decoder | `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`, `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess` |
+
+ACX-V0-7707 supersedes the per-binary process-envelope, stream and unknown-verb exit exceptions
+of ACX-V0-859, ACX-V0-904 and TCL-V0-859. Their in-process protocol serializers retain their
+contracts. The all-binary test now derives its rows from every shipped tree. No new network,
+service, Tasks mutation or ranking authority is introduced. Rollback restores the former process
+writers and their per-binary conformance rows together; persisted records need no migration.

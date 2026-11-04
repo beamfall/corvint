@@ -1,18 +1,16 @@
-# CLI error contracts v0
+# CLI error and help conformance
 
-`contract_test.go` builds every binary that has a command tree in `internal/capcatalog/trees/`,
-runs each one with the unknown verb `zz-no-such-verb`, and checks the exit code, the output stream
-and the envelope against that binary's row (ACX-V0-859, TCL-V0-859). A binary without a row, or a
-row without a binary, fails the test. Every row names a stream and a check, because each unknown-verb
-refusal carries a code (ACX-V0-664). It also checks the near-verb suggestion of `corvint` and
-`corvint-tasks`.
+`contract_test.go` builds every shipped `cmd/` binary and derives its inventory from the
+committed command trees, with no per-binary exemptions or hand-maintained rows. It launches
+every public node with both help spellings, checks offline usage/required inputs/examples,
+pins catalog parity, and requires one coded explanatory stderr refusal with exit 2 for
+unknown verbs, unknown flags and unknown help topics. It also exercises native Core/Tasks
+and plain companion failures, shared version lines, typo suggestions and message/code lint.
 
-Every companion binary refuses an unknown verb with one shared envelope (ACX-V0-904): exit 2,
-nothing on stdout, and one JSON line on stderr with `binary`, `code` `unknown-verb`, `error`
-naming the word, `help` and `ok` false. `corvint` keeps its argparse-parity `invalid-arguments`
-envelope (ACX-V0-859) and `corvint-tasks` its Tasks command result on stdout. Changing a
-binary's refusal is a reviewed edit of its row.
+CAP-V0-7700 and ACX-V0-7707 supersede the earlier per-binary refusal exceptions. Structured
+native error evidence is retained; successful JSON help and analyzer/MCP protocols keep their
+owned shapes. Builds disable VCS stamping so the existing confined source-read scope is enough.
 
 ```sh
-GOTOOLCHAIN=local go test -count=1 ./conformance/cli-errors-v0
+script/heavy.sh go test -count=1 -run '^(TestCAPV0(7700|7707)|TestCLIErrorContracts_ACXV0859)' ./conformance/cli-errors-v0
 ```

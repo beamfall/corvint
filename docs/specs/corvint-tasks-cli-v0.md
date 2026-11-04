@@ -37,6 +37,20 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 ## Requirements
 
+- `TCL-V0-7703`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3738)
+  Every ticket mutation's terse and verbose help MUST list its closed payload keys and each
+  key's type, enum and nullability; every mutation MUST have a read-only `--template` with a
+  decodable payload and typed field table. This retains TCL-V0-610/611 delivery.
+  Tests: `TestTCLV0610_HelpNamesPayloadKeyTypes`, `TestTCLV0611_EveryMutationTemplateRuns`.
+- `TCL-V0-7704`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3976)
+  `attempt show --fields` MUST accept actual top-level attempt keys or list the valid keys,
+  including a route to the nested lease when `leaseExpiresAt` is not top-level. A positional
+  `ticket search` query MUST either act as `--text` or refuse with an explicit `--text T` remedy.
+  `gate history` MUST accept the same queue-local ticket token as `ticket show`. Terse
+  `ticket progress --help` MUST identify all required payload keys, their nullability and the
+  closed phase enum; invalid phases MUST name the enum. Test: `TestTCLV07704ReadPapercuts`.
+
+
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
   `corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]...
   [--limit N] [--digest FILE]` MUST rank tickets against the query by BM25 (k1 1.2, b 0.3, the
@@ -608,3 +622,15 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 Revert the change. The new verbs, the guard and the snapshot environment variable disappear;
 recurrence lines already written stay as ordinary body text. No stored state, receipt or wire
 contract depends on these requirements.
+
+
+## Clicontract acceptance evidence and rollback
+
+`TestTCLV07704ReadPapercuts` covers all four reported read/help cases; the positional-search
+remedy is the only newly repaired read behavior. Existing template/type tests retain the
+already implemented mutation contract. No mutation or queue lifecycle semantics change.
+A failure is an unhelpful refusal or a template that cannot decode. Rollback restores the
+previous CLI hint and common version reference; retained native ticket records are unchanged.
+CAP-V0-7702 and ACX-V0-7707 own installation, common version metadata and executable framing.
+The enumerated boundary exceptions admit standard-library-only presentation helpers, with no
+Core query, ranking, network or authority edge.

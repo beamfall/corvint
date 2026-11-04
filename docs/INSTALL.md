@@ -7,6 +7,16 @@ and installed qualification evidence to determine which platforms and optional w
 tested; absence of that evidence is not qualification. To try the source directly, use the
 [README source example](../README.md#try-it-in-sixty-seconds).
 
+## Install all native tools from source
+
+With the pinned Go toolchain, run `make install-local` from the source checkout. It builds every
+native `cmd/` executable from that tree and installs them into `~/.local/bin`, including
+`corvint-test`, all provider tools and `corvint-tasks`. Override the destination with
+`make install-local LOCAL_BIN_DIR=/absolute/bin` and add that directory to `PATH`. Existing
+binaries are replaced atomically with one bounded rollback copy per tool. Historical `.bak-*`
+files made by other installers are not owned or removed by this command. Core and companions
+share the `VERSION` release line; experimental delivery is still stated by their catalogs.
+
 ## Core archive
 
 Running the core needs Git and a supported local Git repository. A Go compiler is needed only

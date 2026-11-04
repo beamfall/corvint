@@ -1,0 +1,51 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-release-gate",
+  "helpJson": "corvint-release-gate help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-release-gate"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-release-gate",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-release-gate [--commit] [--git] [--git-sha256] [--manifest] [--policy] [--policy-sha256] [--root]"
+      ],
+      "flags": [
+        "--commit",
+        "--git",
+        "--git-sha256",
+        "--manifest",
+        "--policy",
+        "--policy-sha256",
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-release-gate",
+      "help": "corvint-release-gate --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-release-gate help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-release-gate help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-release-gate help --json",
+      "help": "corvint-release-gate help --help"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # usage: script/install-local-bin.sh [--keep N] SOURCE DEST
 #        script/install-local-bin.sh [--keep N] --rollback DEST
+#        script/install-local-bin.sh --all SOURCE_DIR DEST_DIR
 #
 # Installs a locally built executable over DEST with a bounded rollback set (ASD-V0-025, V1-1979).
 # SOURCE is copied to a sibling temporary file in DEST's directory and renamed over DEST, so a
@@ -13,6 +14,28 @@
 # source or backup, and a DEST that is not a regular file.
 set -uo pipefail
 export LC_ALL=C
+
+# --all installs a complete already-built cmd/ set, including corvint-test.
+# Validate the whole source set before replacing the first installed executable.
+if [[ ${1-} == --all ]]; then
+  [[ $# == 3 ]] || { printf 'usage: install-local-bin.sh --all SOURCE_DIR DEST_DIR\n' >&2; exit 2; }
+  script_dir=$(cd "$(dirname "$0")" && pwd)
+  repo_dir=$(cd "$script_dir/.." && pwd)
+  source_dir=$2
+  dest_dir=$3
+  for command_dir in "$repo_dir"/cmd/*; do
+    [[ -d $command_dir ]] || continue
+    command_name=${command_dir##*/}
+    [[ -f $source_dir/$command_name && -x $source_dir/$command_name ]] || { printf 'install-local-bin: REFUSE missing-binary %s\n' "$source_dir/$command_name" >&2; exit 2; }
+  done
+  mkdir -p "$dest_dir" || exit 2
+  for command_dir in "$repo_dir"/cmd/*; do
+    [[ -d $command_dir ]] || continue
+    command_name=${command_dir##*/}
+    bash "$0" "$source_dir/$command_name" "$dest_dir/$command_name" || exit $?
+  done
+  exit 0
+fi
 
 keep=1
 rollback=0

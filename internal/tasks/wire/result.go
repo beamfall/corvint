@@ -231,7 +231,25 @@ func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
 	if err := rd.Profile(ProfileCommandResult); err != nil {
 		return nil, err
 	}
-	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable", "facets")...)
+	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable", "facets", "binary", "code", "error", "help", "ok", "details")...)
+	if err := rd.Err(); err != nil {
+		return nil, err
+	}
+	if Has(v, "binary") {
+		rd.Field("binary").String()
+	}
+	if Has(v, "code") {
+		rd.Field("code").String()
+	}
+	if Has(v, "error") {
+		rd.Field("error").String()
+	}
+	if Has(v, "help") {
+		rd.Field("help").String()
+	}
+	if Has(v, "ok") && rd.Field("ok").Bool() {
+		rd.Field("ok").Fail(CodeMalformed, "CLI refusal metadata must have ok:false")
+	}
 	if err := rd.Err(); err != nil {
 		return nil, err
 	}

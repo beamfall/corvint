@@ -1,0 +1,50 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-release-candidate",
+  "helpJson": "corvint-release-candidate help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-release-candidate"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-release-candidate",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--companion-dir: verified companion retained directory (omit for a Core-only candidate)\n--core-dir: verified core archive-gate directory\n--output-parent: parent for the fresh versioned candidate\n--scratch: private scratch directory\n--source-root: Corvint Git checkout containing the exact built commit\n--version: exact release version MAJOR.MINOR.PATCH, MAJOR.MINOR.PATCH-rc.N or MAJOR.MINOR.PATCHaN, without a v prefix",
+      "usage": [
+        "corvint-release-candidate [--companion-dir VALUE] [--core-dir VALUE] [--output-parent VALUE] [--scratch VALUE] [--source-root VALUE] [--version VALUE]"
+      ],
+      "flags": [
+        "--companion-dir",
+        "--core-dir",
+        "--output-parent",
+        "--scratch",
+        "--source-root",
+        "--version"
+      ],
+      "required": [],
+      "example": "corvint-release-candidate",
+      "help": "corvint-release-candidate --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-release-candidate help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-release-candidate help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-release-candidate help --json",
+      "help": "corvint-release-candidate help --help"
+    }
+  ]
+}

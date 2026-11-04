@@ -1,0 +1,51 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-readiness-record",
+  "helpJson": "corvint-readiness-record help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-readiness-record"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-readiness-record",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.\n--candidate: verified release candidate directory\n--evidence-file: TSV of ROW, STATUS, PATH, DECISION and REASON, one supplied row per line\n--output: new file for the record; an existing file is refused (build mode)\n--source-root: Corvint Git checkout containing the candidate commit (build mode)\n--store-candidate-sha256: task-store candidate SHA-256 (build mode, optional)\n--store-release: task-store release id (build mode, optional)\n--verify: readiness record to verify; selects verify mode, which writes nothing",
+      "usage": [
+        "corvint-readiness-record [--candidate VALUE] [--evidence-file VALUE] [--output VALUE] [--source-root VALUE] [--store-candidate-sha256 VALUE] [--store-release VALUE] [--verify VALUE]"
+      ],
+      "flags": [
+        "--candidate",
+        "--evidence-file",
+        "--output",
+        "--source-root",
+        "--store-candidate-sha256",
+        "--store-release",
+        "--verify"
+      ],
+      "required": [],
+      "example": "corvint-readiness-record",
+      "help": "corvint-readiness-record --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-readiness-record help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-readiness-record help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-readiness-record help --json",
+      "help": "corvint-readiness-record help --help"
+    }
+  ]
+}

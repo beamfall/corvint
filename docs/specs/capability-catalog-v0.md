@@ -11,7 +11,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: the 38 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, the ten subcommand companions of CAP-V0-972 under that requirement, and `corvint-update` and `corvint-work-queue` under CAP-V0-726); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Blocked on: no legacy binary is exempt from the command-tree gate. Profile membership, prose accuracy and semantic flag preconditions remain outside the lexical inventory; `requiredFlagsCoverage` stays `partial`. The guide remains embedded rather than a release-archive member. Drift and compiled CLI conformance run in existing required Go test shards; no separate CI step is needed. Other MCP servers expose offline CLI catalogs; only `corvint-mcp` exposes the guide through `corvint.help`.
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -24,6 +24,43 @@ the spec index by hand. The job is one dense page that is checked against the co
 cannot silently go missing or outlive its command.
 
 ## Requirements
+
+- `CAP-V0-7700`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685)
+  Every shipped `cmd/` binary MUST have an offline command-tree catalog, including a root node
+  for single-mode tools and the protocol-only analyzers; the CLI ratchet MUST be empty. Every
+  public node at every depth MUST answer `--help` and `-h`, exit 0, and expose its own usage,
+  flags, required inputs and example before any stdin, repository, listener or network access.
+  Root `corvint help --json`, `llms.txt` and the gated full-node table in `docs/CAPABILITIES.md`
+  MUST link all trees and public nodes. The dispatch/flag/MCP inventory MUST remain code-derived;
+  synthetic omissions of a command, option, binary or MCP tool MUST fail the required Go drift
+  gate. Existing authored trees remain authoritative; single-mode root trees derive from their
+  parser declarations and authored usage, and folded shims reuse their owning group's tree.
+  Tests: `TestCAPV07700EveryBinaryHasTree`, `TestCAPV0047SyntheticDriftFails`,
+  `TestCAPV07700NodeCatalog`, `TestCAPV07700NestedRouteDrift`, `TestCAPV07700ShippedHelp`.
+
+
+- `CAP-V0-7701`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3781)
+  Synopsis preambles MUST accept required leading option/value pairs, including
+  `corvint-pulse --root ROOT serve`, preserve the required input and example, and leave existing
+  bracketed-option and flag-only forms unchanged. This freezes the already implemented
+  CAP-V0-972 behavior. Test: `TestCAPV07701PulseRequiredPreamble` and
+  `TestCAPV0972RequiredLeadingOptions`.
+- `CAP-V0-7702`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3738)
+  Core and every companion MUST use the release line pinned by `VERSION`, with its common
+  development prerelease suffix for unreleased companions and the existing Tasks build stamp.
+  `make install-local LOCAL_BIN_DIR=DIR` MUST build and install every native `cmd/` executable,
+  including `corvint-test`, to the selected PATH directory through the atomic bounded local
+  installer. Its `--all SOURCE_DIR DEST_DIR` mode MUST validate all source executables before
+  replacing any destination. Repeated updates retain one updater-owned rollback executable per
+  binary; unrelated historical `.bak-*` files MUST NOT be deleted as if updater-owned.
+  Tests: `TestTCLV07703ReleaseLine`, `TestTCLV07703CompleteBoundedInstall`,
+  `TestCLIErrorContracts_ACXV0859` (all binary launches).
+- `CAP-V0-7706`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3277)
+  The full-node table in `docs/CAPABILITIES.md` MUST include each `corvint-tasks` verb and nested
+  verb, with its purpose, minimal example, exact help command and machine catalog link. The
+  capabilities check MUST reject missing, stale, duplicate or changed generated rows, deriving
+  their inventory from the existing command registry and trees. Test:
+  `TestCAPV07700NodeCatalog`, including a synthetic missing Tasks verb.
 
 - `CAP-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2008)
   `docs/CAPABILITIES.md` MUST open with a "Start here" list of 10 to 15 task-to-command workflows,
@@ -365,6 +402,9 @@ cannot silently go missing or outlive its command.
   servers' existing `--version` bytes are unchanged. Non-goals: command trees for these binaries
   (`CLI-RATCHET.tsv` keeps them); per-subcommand help. Falsifier: a companion that starts work,
   exits non-zero or writes stderr on one of the five forms.
+  CAP-V0-7700 supersedes the legacy `corvint-companion-help/0` root help document with the universal
+  command tree; CAP-V0-7702 supersedes the independent `0.1.0-experimental` release line.
+  The two version forms retain their shape.
 - `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended by
   ACX-V0-904) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
   and exit 2 before it reads a repository or listens; `corvint-update` MUST refuse an action other
@@ -549,10 +589,10 @@ cannot silently go missing or outlive its command.
 
 ## Boundaries and failure modes
 
-Non-goals: generating `docs/CAPABILITIES.md` from code (the CAP-V0-015 catalog is a separate generated document; the page stays hand-written and checked); checking flags, output schemas or the prose of a row; running any listed command; ranking capabilities; replacing a spec, a help page or
+Non-goals: generating the authored capability descriptions from code (CAP-V0-7700 adds a separate generated full-node table to the same page); checking semantic flag preconditions, output schemas or the truth of prose; running any listed command; ranking capabilities; replacing a spec, a help page or
 the deep guides the catalog links to.
 
-Failure modes: subcommands are checked to depth two only (`VERB SUB`, CAP-V0-960); deeper nodes
+Historical boundary, superseded by CAP-V0-7700: subcommands were checked to depth two only (`VERB SUB`, CAP-V0-960); deeper nodes
 such as `docs corpus build` are left to the command tree (CAP-V0-047); a removed subcommand stays
 listed unnoticed when the row names it outside its `Subcommands` sentence (CAP-V0-961); a subcommand word that appears in
 some other backticked span of the row counts as listed; MCP profile membership and binary class are prose and unchecked;
@@ -606,7 +646,7 @@ CAP-V0-019 until `make capability-catalog` is rerun. The guide check verifies na
 a correct command with a wrong description passes. A closed tracking issue is detected only
 through the CAP-V0-025 status table.
 
-CAP-V0-040 to CAP-V0-050 non-goals: command trees for the binaries on the CLI ratchet (each leaves
+Historical CAP-V0-040 to CAP-V0-050 non-goals, superseded by CAP-V0-7700: command trees for the binaries on the CLI ratchet (each leaves
 it by shipping `help --json` and a snapshot); output schemas, exit codes or flag value types in a
 node; generating help text; checking that a node's summary or example is true; a CI step (the
 check runs in the existing Go test shards).
@@ -622,8 +662,7 @@ help calls required only in prose is not listed (as CAP-V0-023). A derived examp
 invocation the first synopsis allows, with placeholders, so it is runnable only after the
 placeholders are filled. A node's help is the authored topic when one exists, so a topic that
 documents several subcommands answers each of them with its whole text and a pointer, not a
-per-subcommand page. The ratchet's binaries are gated only for MCP tools and catalog rows, not for
-their subcommands or flags. A help change in any lane changes a snapshot, so a merge that changes
+per-subcommand page. CAP-V0-7700 now places an exact node synopsis before authored detail at the process boundary and covers every former ratchet binary. The full-node table is compared byte-for-byte at every depth; nested fixed-position branches also retain their complete route, so reusing a known word cannot hide that route. A help change in any lane changes a snapshot, so a merge that changes
 help without regenerating fails CAP-V0-045 until `make capability-catalog` is rerun. `llms.txt` is
 checked for the views it names, not for the prose around them.
 
@@ -718,3 +757,9 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |
 | CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint) |
 | CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint) |
+
+| CAP-V0-7700 | `internal/cliapp`, `tools/cli-discovery-gen`, `internal/capcatalog/trees.go`, all companion roots, full-node catalog | `TestCAPV07700EveryBinaryHasTree`, `TestCAPV07700NodeCatalog`, `TestCAPV07700ShippedHelp` |
+
+| CAP-V0-7701 | `internal/clitree` required option preamble | `TestCAPV07701PulseRequiredPreamble`, `TestCAPV0972RequiredLeadingOptions` |
+| CAP-V0-7702 | `internal/versionline`, `internal/cliapp`, `install-local`, `script/install-local-bin.sh --all` | `TestTCLV07703ReleaseLine`, `TestTCLV07703CompleteBoundedInstall` |
+| CAP-V0-7706 | full-depth `docs/CAPABILITIES.md` node table, `CheckNodeCatalog` | `TestCAPV07700NodeCatalog` |

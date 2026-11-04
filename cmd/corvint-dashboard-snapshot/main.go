@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -303,12 +305,19 @@ func runProcess(arguments []string, stdout, stderr io.Writer, compile compiler) 
 }
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-dashboard-snapshot", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-dashboard-snapshot", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	// The command tree answers the help forms (CAP-V0-972); the companion
 	// contract answers only --version and --version --json (CAP-V0-700).
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-dashboard-snapshot", Version: companioncli.ExperimentalVersion}, os.Args[1:], os.Stdout); handled {
-			os.Exit(code)
+		if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-dashboard-snapshot", Version: companioncli.ExperimentalVersion}, os.Args[1:], streams.Stdout()); handled {
+			os.Exit(streams.Status(code))
 		}
 	}
-	os.Exit(runProcess(os.Args[1:], os.Stdout, os.Stderr, compileSnapshot))
+	os.Exit(streams.Status(runProcess(os.Args[1:], streams.Stdout(), streams.Stderr(), compileSnapshot)))
 }

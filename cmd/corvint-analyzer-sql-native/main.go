@@ -2,13 +2,23 @@ package main
 
 import (
 	"errors"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 
 	"github.com/Beamfall/corvint/experimental/analyzers/sqlnative"
 )
 
-func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout)) }
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-analyzer-sql-native", Protocol: true, Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-analyzer-sql-native", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run(os.Args[1:], os.Stdin, streams.Stdout())))
+}
 
 // An unexpected argv rejects like a malformed request instead of silently
 // analyzing stdin, matching the sibling candidates in the same

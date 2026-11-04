@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/companioncli"
 )
 
@@ -23,7 +24,13 @@ var contractCompanions = []string{
 
 // treeCompanions answer the help forms from their command tree (CAP-V0-972) and
 // take only the --version forms from the companion contract.
-var treeCompanions = map[string]bool{"corvint-dashboard-snapshot": true, "corvint-update": true}
+var treeCompanions = func() map[string]bool {
+	out := map[string]bool{}
+	for _, name := range contractCompanions {
+		out[name] = true
+	}
+	return out
+}()
 
 func buildContractCompanions(t *testing.T) string {
 	t.Helper()
@@ -63,7 +70,7 @@ func runContractCompanion(t *testing.T, binary, dir string, arguments ...string)
 }
 
 // CAP-V0-700: every companion answers --help, -h and help with its usage,
-// help --json with corvint-companion-help/0, --version with one
+// help --json with corvint-command-tree/0 (CAP-V0-7700), --version with one
 // `BINARY VERSION` line and --version --json with corvint-companion-version/0,
 // each exit 0 on stdout, from a directory that is not a repository.
 func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {
@@ -125,17 +132,20 @@ func TestCAPV0701CompanionsRefuseStrayArgumentsFirst(t *testing.T) {
 	bin := buildContractCompanions(t)
 	outside := t.TempDir()
 	code, stdout, stderr := runContractCompanion(t, filepath.Join(bin, "corvint-console"), outside, "-addr", "127.0.0.1:0", "help", "--json", "extra")
-	if code != 2 || stdout != "" || !strings.Contains(stderr, `unexpected argument "help"`) || strings.Contains(stderr, "Git repository") {
+
+	var refusal clierror.Envelope
+	if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &refusal) != nil || !strings.Contains(refusal.Error, `unexpected argument "help"`) || strings.Contains(refusal.Error, "Git repository") {
 		t.Fatalf("console stray positional: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	code, stdout, stderr = runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "bogus")
-	if code != 2 || stdout != "" || stderr != `{"binary":"corvint-update","code":"unknown-verb","error":"unknown command \"bogus\"","help":"corvint-update --help","ok":false}`+"\n" {
+	if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &refusal) != nil || refusal.Code != "unknown-verb" || refusal.Error != `unknown command "bogus"` {
 		t.Fatalf("update unknown action: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	code, stdout, stderr = runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside)
-	if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "usage: corvint-update") {
-		t.Fatalf("update without an action: exit %d stdout %q stderr %q", code, stdout, stderr)
+	if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &refusal) != nil || !strings.Contains(refusal.Error, "usage: corvint-update") {
+		t.Fatalf("update missing action: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
+
 	_, usage, _ := runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "--help")
 	for _, word := range []string{"check", "apply", "rollback", "--allow-network", "--component core|tasks"} {
 		if !strings.Contains(usage, word) {

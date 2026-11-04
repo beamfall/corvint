@@ -31,7 +31,13 @@ func TestATRV0801_CompiledBinaryAdmitsDistinctBuildLogFiles(t *testing.T) {
 		t.Helper()
 		c := exec.Command(binary, args...)
 		c.Dir = dir
-		raw, _ = c.Output()
+		var stderr strings.Builder
+		c.Stderr = &stderr
+		var err error
+		raw, err = c.Output()
+		if len(raw) == 0 && err != nil {
+			raw = []byte(stderr.String())
+		}
 		result, err := wire.DecodeResult(raw)
 		if err != nil {
 			t.Fatalf("%v: %v %s", args, err, raw)

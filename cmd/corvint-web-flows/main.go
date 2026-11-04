@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -91,11 +93,18 @@ owned local server and browser.
 Example: corvint-web-flows --experimental --trusted-local --manifest flows.json --assets ~/.local/share/corvint/web-flows`
 
 func main() {
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-web-flows", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
-		os.Exit(code)
+	streams := &clierror.Streams{Binary: "corvint-web-flows", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-web-flows", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-web-flows", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
+		os.Exit(streams.Status(code))
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	code := run(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())
 	stop()
-	os.Exit(code)
+	os.Exit(streams.Status(code))
 }

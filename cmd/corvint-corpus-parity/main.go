@@ -5,6 +5,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"io"
@@ -14,9 +16,16 @@ import (
 )
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-corpus-parity", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-corpus-parity", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(streams.Status(run(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
 	f := flag.NewFlagSet("corvint-corpus-parity", flag.ContinueOnError)

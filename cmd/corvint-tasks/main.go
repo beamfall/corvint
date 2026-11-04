@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"os"
 	"os/signal"
@@ -19,6 +21,10 @@ import (
 var build = "0"
 
 func main() {
+	if code, handled := cliapp.Answer("corvint-tasks", os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+
 	if len(os.Args) == 6 && os.Args[1] == "lane-leader" && os.Args[2] == "--directory" && os.Args[4] == "--capsule" {
 		if e := supervisor.Leader(context.Background(), os.Args[3], os.Args[5]); e != nil {
 			fmt.Fprintln(os.Stderr, e)
@@ -35,5 +41,8 @@ func main() {
 	if err != nil {
 		cwd = "."
 	}
-	os.Exit(cli.Run(cli.Env{Cwd: cwd, Args: os.Args[1:], Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}))
+	streams := &clierror.Streams{Binary: "corvint-tasks", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+	status := cli.Run(cli.Env{Cwd: cwd, Args: os.Args[1:], Stdin: os.Stdin, Stdout: streams.Stdout(), Stderr: streams.Stderr()})
+	os.Exit(streams.Status(status))
 }

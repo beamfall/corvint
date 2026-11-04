@@ -529,6 +529,43 @@ func scanTools(dirs []string) ([]string, error) {
 // toolNames returns the corvint.* string literals in one Go source file.
 func toolNames(src []byte) []string {
 	var out []string
+	// A tool descriptor's name is not required to start with corvint. Namespace
+	// conventions cannot hide a new MCP tool from the drift gate.
+	if file, err := parser.ParseFile(token.NewFileSet(), "tools.go", src, parser.SkipObjectResolution); err == nil {
+		ast.Inspect(file, func(n ast.Node) bool {
+			object, ok := n.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+			name, schema := "", false
+			for _, elt := range object.Elts {
+				kv, ok := elt.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				key := ""
+				switch k := kv.Key.(type) {
+				case *ast.Ident:
+					key = k.Name
+				case *ast.BasicLit:
+					key, _ = strconv.Unquote(k.Value)
+				}
+				if key == "inputSchema" || key == "InputSchema" {
+					schema = true
+				}
+				if key == "name" || key == "Name" {
+					if value, ok := kv.Value.(*ast.BasicLit); ok && value.Kind == token.STRING {
+						name, _ = strconv.Unquote(value.Value)
+					}
+				}
+			}
+			if schema && name != "" {
+				out = append(out, name)
+			}
+			return true
+		})
+	}
+
 	for _, m := range toolLiteral.FindAllSubmatch(src, -1) {
 		out = append(out, strings.TrimRight(string(m[1]), ".-"))
 	}

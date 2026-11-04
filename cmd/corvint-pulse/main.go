@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -60,11 +62,18 @@ func run(arguments []string, input io.Reader, output, errorOutput io.Writer) int
 }
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-pulse", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-pulse", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer stop()
 	go func() {
 		<-ctx.Done()
 		_ = os.Stdin.Close()
 	}()
-	os.Exit(runContext(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, newWorkspaceActor))
+	os.Exit(streams.Status(runContext(ctx, os.Args[1:], os.Stdin, streams.Stdout(), streams.Stderr(), newWorkspaceActor)))
 }

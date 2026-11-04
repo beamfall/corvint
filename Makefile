@@ -610,6 +610,7 @@ capabilities-check:
 CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
 capcatalog_write = $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
+	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
 	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
@@ -629,6 +630,7 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./cmd/corvint-update help --json,internal/capcatalog/trees/corvint-update.json)
 	$(call capcatalog_write,./cmd/corvint-work-queue help --json,internal/capcatalog/trees/corvint-work-queue.json)
+	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen --docs
 
 .PHONY: capability-catalog-test
 capability-catalog-test:
@@ -1520,3 +1522,12 @@ CCE_LIVE_PARALLEL ?= 3
 .PHONY: cce-live
 cce-live:
 	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local sh internal/changee2e/cce-live.sh $(CCE_LIVE_PARALLEL) $(GO_TEST_TIMEOUT)
+
+# TCL-V0-7703: install every shipped native companion from one source/build set.
+LOCAL_BIN_DIR ?= $(HOME)/.local/bin
+.PHONY: install-local
+install-local: ## Build and install all native binaries; add LOCAL_BIN_DIR to PATH
+	@work=$$(mktemp -d "$${TMPDIR:-/tmp}/corvint-install.XXXXXX") && \
+	trap 'rm -rf "$$work"' EXIT && \
+	$(HEAVY_ADMIT) env GOTOOLCHAIN=local go build -o "$$work/" ./cmd/... && \
+	bash script/install-local-bin.sh --all "$$work" "$(LOCAL_BIN_DIR)"

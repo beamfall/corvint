@@ -37,11 +37,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 // Version is the binary's version label. It is a delivery label, not a
 // claim that any gate has run.
-const Version = "0.0.0-tcp01-unverified"
+const Version = versionline.Development
 
 // Build is the first-parent commit count of the Corvint commit this binary
 // was built from. cmd/corvint-tasks sets it from its -ldflags
@@ -585,6 +586,9 @@ func notRun(cmd []string) *wire.Result {
 
 func helpResult() *wire.Result {
 	o := wire.NewObject()
+	o.Set("required", wire.Strings([]string{}))
+	o.Set("example", wire.String("corvint-tasks help --json"))
+	o.Set("flags", wire.Strings([]string{"--help", "-h", "--json", "--tree"}))
 	o.Set("implemented", wire.Strings(ReadVerbs))
 	o.Set("omitted", wire.Strings(OmittedVerbs))
 	// The §3.1 status and §3.2 eligibility vocabularies, so a consumer
@@ -1486,6 +1490,9 @@ func ticketSearch(env Env, args []string) *wire.Result {
 		return failure(cmd, nil, err)
 	}
 	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle", "supersedes")
+	if err != nil {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "%v; search text with --text T, for example: corvint-tasks ticket search --text query", err))
+	}
 	if err == nil {
 		err = fm.checkCount(fl)
 	}

@@ -1,0 +1,46 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-postmerge-host-launcher",
+  "helpJson": "corvint-postmerge-host-launcher help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-postmerge-host-launcher"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-postmerge-host-launcher",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-postmerge-host-launcher [--internal-envelope] [--internal-process-observer]"
+      ],
+      "flags": [
+        "--internal-envelope",
+        "--internal-process-observer"
+      ],
+      "required": [],
+      "example": "corvint-postmerge-host-launcher",
+      "help": "corvint-postmerge-host-launcher --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-postmerge-host-launcher help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-postmerge-host-launcher help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-postmerge-host-launcher help --json",
+      "help": "corvint-postmerge-host-launcher help --help"
+    }
+  ]
+}

@@ -13,6 +13,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"net"
 	"os"
@@ -39,16 +41,23 @@ a non-loopback -addr is refused and any positional argument is refused before an
 Example: corvint-console -repo /absolute/repo -addr 127.0.0.1:7777`
 
 func main() {
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-console", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
-		os.Exit(code)
+	streams := &clierror.Streams{Binary: "corvint-console", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-console", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
 	}
-	parsed, err := parseOptions(os.Args[1:], os.Stderr)
+
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-console", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
+		os.Exit(streams.Status(code))
+	}
+	parsed, err := parseOptions(os.Args[1:], streams.Stderr())
 	if err == flag.ErrHelp {
 		return
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "corvint-console: %v\n", err)
-		os.Exit(2)
+		fmt.Fprintf(streams.Stderr(), "corvint-console: %v\n", err)
+		os.Exit(streams.Status(2))
 	}
 
 	root, err := filepath.Abs(parsed.repo)
@@ -92,15 +101,15 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Fprintf(os.Stderr, "Corvint Console on http://%s administering %s\n", listener.Addr(), root)
-	fmt.Fprintf(os.Stderr, "loopback only, no account, no database, no outbound connection; ^C to stop\n")
+	fmt.Fprintf(streams.Diagnostic(), "Corvint Console on http://%s administering %s\n", listener.Addr(), root)
+	fmt.Fprintf(streams.Diagnostic(), "loopback only, no account, no database, no outbound connection; ^C to stop\n")
 	if err := server.Serve(ctx, listener); err != nil {
 		fail("%v", err)
 	}
 }
 
 func fail(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "corvint-console: "+format+"\n", args...)
+	clierror.Write(os.Stderr, "corvint-console", "command-failed", fmt.Sprintf(format, args...), nil)
 	os.Exit(1)
 }
 

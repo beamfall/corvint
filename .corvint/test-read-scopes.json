@@ -17,7 +17,13 @@
     ],
     "cmd/corvint-analyzer-c-jni": [
       "go.mod",
-      "internal/analyzernativebridge/"
+      "internal/analyzernativebridge/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-go": [
       "go.mod",
@@ -25,19 +31,43 @@
     ],
     "cmd/corvint-analyzer-html-css": [
       "go.mod",
-      "internal/analyzerhtmlcss/"
+      "internal/analyzerhtmlcss/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-java": [
       "go.mod",
-      "internal/analyzernativebridge/"
+      "internal/analyzernativebridge/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-js": [
       "go.mod",
-      "internal/analyzerjs/"
+      "internal/analyzerjs/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-objective-c": [
       "go.mod",
-      "internal/analyzernativebridge/"
+      "internal/analyzernativebridge/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-rust": [
       ".github/cishards/",
@@ -55,11 +85,23 @@
     ],
     "cmd/corvint-analyzer-structured-data": [
       "go.mod",
-      "internal/analyzerstructured/"
+      "internal/analyzerstructured/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-swift": [
       "go.mod",
-      "internal/analyzerswift/"
+      "internal/analyzerswift/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-cem-candidate": [
       "internal/capcatalog/trees/corvint-cem-candidate.json",
@@ -145,6 +187,7 @@
     "conformance/cli-errors-v0": [
       ".github/cishards/",
       "cmd/",
+      "experimental/analyzers/sqlnative/",
       "go.mod",
       "go.sum",
       "internal/"
@@ -159,8 +202,12 @@
     "conformance/go-live-test-v0": [
       "cmd/corvint-go-test-provider/",
       "go.mod",
+      "internal/capcatalog/",
       "internal/cem/",
+      "internal/cliapp/",
+      "internal/clierror/",
       "internal/clitree/",
+      "internal/companioncli/",
       "internal/gitstatus/",
       "internal/gotestrun/",
       "internal/groupreap/",
@@ -173,7 +220,8 @@
       "internal/taskprojection/",
       "internal/tcq/",
       "internal/testevidence/",
-      "internal/testvalidity/"
+      "internal/testvalidity/",
+      "internal/versionline/"
     ],
     "conformance/host-lifecycle-v1": [
       "cmd/corvint/host_adapter.go",
@@ -279,7 +327,13 @@
     ],
     "internal/analyzerswift": [
       "cmd/corvint-analyzer-swift/",
-      "go.mod"
+      "go.mod",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "internal/appflows": [],
     "internal/appmap": [
@@ -415,7 +469,6 @@
     "internal/extmutate": [],
     "internal/flowcoverage": [],
     "internal/flowdocs": [],
-    "internal/funclink": [],
     "internal/frontier": [
       "benchmarks/expert-audit-followup/finite-policy.json",
       "protocol/cem-1.0/stable/RESULT.schema.json"
@@ -423,6 +476,7 @@
     "internal/frontierrepo": [
       "conformance/tcq-0/"
     ],
+    "internal/funclink": [],
     "internal/gateselect": [],
     "internal/genesis": [],
     "internal/gitnotes": [
@@ -604,9 +658,14 @@
       "go.mod",
       "go.sum",
       "internal/behaviorfalsify/",
+      "internal/capcatalog/",
       "internal/cem/cemcode/",
       "internal/cem/gitrun/",
       "internal/cem/wire/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
       "internal/groupreap/",
       "internal/jstestprovider/",
       "internal/liveverify/mutate/",
@@ -615,7 +674,8 @@
       "internal/secretscreen/",
       "internal/stepnegation/",
       "internal/tcq/",
-      "internal/testvalidity/"
+      "internal/testvalidity/",
+      "internal/versionline/"
     ],
     "internal/testevidence": [],
     "internal/testplan": [
@@ -697,6 +757,11 @@
     ],
     "tools/ci-forward-row": [
       ".github/"
+    ],
+    "tools/cli-discovery-gen": [
+      "VERSION",
+      "cmd/",
+      "script/install-local-bin.sh"
     ],
     "tools/compat-trial": [
       "go.mod",
