@@ -819,15 +819,22 @@ closeout step is missing.
   `TLF-V0-883`) `ticket closeout-debt` MUST cite an OPEN ticket's effective progress head as a
   `progress-head` candidate only when the entry's phase claims delivery: `DELIVERED_ON_BRANCH`,
   `IN_REVIEW`, `IN_MERGE_QUEUE` or `MERGED_AWAITING_CLOSEOUT`, the phases through which
-  batch-delivered and batch-close can deliver (`TLF-V0-1101`). An `IN_PROGRESS` head (a lane's
-  dispatch base) or a `BLOCKED` head reachable in the scanned ref MUST NOT produce a candidate row
-  and MUST NOT count as debt; when no other citation lists the ticket, it MUST appear in
-  `excludedCandidates` with reason `PROGRESS_IN_PROGRESS` or `PROGRESS_BLOCKED` and that head as its
-  commit, so the miss is visible and named. A commit-message or PR citation of the same ticket keeps
-  its row. Non-goals: phase checks on message citations; changing batch-delivered or batch-close,
+  batch-delivered and batch-close can deliver (`TLF-V0-1101`). This is an allowlist: a head in any
+  other phase reachable in the scanned ref, an `IN_PROGRESS` one (a lane's dispatch base), a
+  `BLOCKED` one, or a phase this build does not know, MUST NOT produce a candidate row and MUST NOT
+  count as debt; when no other citation lists the ticket, it MUST appear in `excludedCandidates`
+  with that head as a commit and the cause `PROGRESS_IN_PROGRESS`, `PROGRESS_BLOCKED` or, for any
+  other phase, `PROGRESS_NOT_DELIVERY`, so the miss is visible and named. Amending `TCD-V0-741`,
+  each `excludedCandidates` entry MUST also carry `causes`, one `{reason, commits}` per distinct
+  exclusion cause sorted by reason, so a ticket excluded both by a `TCD-V0-741` citation and by a
+  progress head keeps each cause and its commits visible; `reason` stays the primary cause
+  (`MARKED_NOT_DELIVERED` winning, else the first scanned), `commits` all of them, and the human
+  line appends `(causes A, B)` when there is more than one. A commit-message or PR citation of the
+  same ticket keeps its row. Non-goals: phase checks on message citations; changing batch-delivered or batch-close,
   which already apply the delivery phases. Failure mode: a lane that merged without advancing its
   marker past `IN_PROGRESS` is no longer reported through its head; its Delivers trailer, PR body or
-  a later marker still cites it. Evidence: `TestTCDV02400_InProgressHeadIsExcludedNotDebt`; the
+  a later marker still cites it. Evidence: `TestTCDV02400_InProgressHeadIsExcludedNotDebt`,
+  `TestTCDV02400_MixedExclusionCausesStayVisible`, `TestTCDV02400_ProgressHeadPhaseAllowlist`; the
   origin/main candidate counts before and after in `docs/build-log/2026-11-03-tasksfix.md`.
   Rollback: revert; every effective progress head cites again.
 - `TCD-V0-2401`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4449; refines
@@ -835,8 +842,12 @@ closeout step is missing.
   latest-N window: after the debt report, for each distinct merge commit of a proposal and that
   proposal PR's `headRefOid` in the PR export, it MUST run `gh run list --commit SHA --limit 100
   --json databaseId,headSha,conclusion,url,workflowName,event,updatedAt` and retain the union, one
-  entry per `databaseId`, as `runs.json` (`[]` when there is no proposal). A failed per-commit export
-  MUST exit 2 naming the commit and apply nothing. A proposal whose merge has a green run older than
+  entry per `databaseId`, as `runs.json` (`[]` when there is no proposal). A failed per-commit export,
+  or one that is not a JSON array (`null` and empty output included), MUST exit 2 naming the commit
+  and apply nothing. A `runs.json` left by an earlier reconcile of the same ref commit MUST be removed
+  before any export, the new one MUST be written by a rename once every export has succeeded, and
+  the report's human lines, each proposal command with `--runs RUNS` filled in as that file, MUST
+  print only after it is written, so a failed export leaves no `runs.json` and prints no command. A proposal whose merge has a green run older than
   any window then passes batch-close's green-run check, and a proposal whose merge and head have no
   green run still refuses `PREREQUISITE_UNSATISFIED`. The fields include `workflowName`, `event` and
   `updatedAt`, so a gated close can derive CI gate evidence (`TCD-V0-770`). Non-goals: paging past
@@ -1096,8 +1107,8 @@ closeout step is missing.
 | TCD-V0-772 | NEW-D2 | `internal/tasks/cli` (`gatedRowValue`, `ciRunFile`, `cleanup`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (`ciRunId` `7` on the dry run and after the close, null on the `LOCAL` gate; no `corvint-batch-close-ci-*` directory left behind) | none |
 | TCD-V0-773 | NEW-D7 | `internal/tasks/cli` (`unauditedScreen`, `rawTicketID`, `deliveryScreenCommand`, `readOnlyVerbs`), `internal/tasks/intent` (`ResolveCommonDir`) | `TestTCDV0773_UnauditedScreensRawIDsWithoutStore` (a repository with no store: qualified ref commit `DELIVERED`, qualified lane commit `DELIVERED_ON_LANE`, unnamed ID `CLEAR`, repeated ID one row, `audited` false, `ticketState`, `status`, `holds` and note `NOT_OBSERVED`, a cut scan `TRUNCATED`, `../V1-9001` refused `MALFORMED`, the audited screen refused); `TestTCDV0773_UnauditedQualifiedPRReferences` (case folding, qualified PR delivery, veto and look-alikes); `TestTCDV0773_UnauditedNeverOpensQueue` (Linux open-event watch with positive read control) | none |
 | TCD-V0-774 | NEW-D7 | `internal/tasks/store` (`LaneHeads`, `ScanLaneMentions`), `internal/tasks/cli` (`scanLaneHeads`) | `TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes` (a `refs/lanes/` head delivers, `commitsMatched` 1, 0 and 2 per head); `TestTLFV0887_TruncatedLaneScanIsNotClear` (a walk cut at `--limit 1` keeps the tip mention and leaves the earlier delivery `TRUNCATED`); `TestTCDV0774_LaneScanUsesCapturedCommits` (moved and deleted refs, duplicate pins keep first attribution) | wsl-lanes timing in `docs/build-log/2026-11-02-bat-w43.md` |
-| TCD-V0-2400 | V1-4448 | `internal/tasks/cli` (`progressHeadExclusion`, `scanCloseoutDebt` head rows) | `TestTCDV02400_InProgressHeadIsExcludedNotDebt` (an IN_PROGRESS head at the ref commit excluded `PROGRESS_IN_PROGRESS`, exit 0; a DELIVERED_ON_BRANCH head at a later merged commit the only candidate; a BLOCKED head excluded; an IN_PROGRESS ticket also cited by a message keeps its message row) | origin/main candidate counts before and after: `docs/build-log/2026-11-03-tasksfix.md` |
-| TCD-V0-2401 | V1-4449 | `script/tasks-reconcile.sh` | `TestTCDV02401_ReconcileExportsRunsPerProposalCommit` (stub `gh` whose window omits the merge run: per-commit export finds it and the dry run is OK; with no green run the apply refuses `PREREQUISITE_UNSATISFIED`; a failed `gh run list` exits 2 naming the commit) | none |
+| TCD-V0-2400 | V1-4448 | `internal/tasks/cli` (`progressHeadExclusion`, `scanCloseoutDebt` head rows) | `TestTCDV02400_InProgressHeadIsExcludedNotDebt` (an IN_PROGRESS head at the ref commit excluded `PROGRESS_IN_PROGRESS`, exit 0; a DELIVERED_ON_BRANCH head at a later merged commit the only candidate; a BLOCKED head excluded; an IN_PROGRESS ticket also cited by a message keeps its message row), `TestTCDV02400_MixedExclusionCausesStayVisible` (a build-log-only citation plus an IN_PROGRESS head: both causes with their commits), `TestTCDV02400_ProgressHeadPhaseAllowlist` (CLEARED, empty and unknown phases `PROGRESS_NOT_DELIVERY`) | origin/main candidate counts before and after: `docs/build-log/2026-11-03-tasksfix.md` |
+| TCD-V0-2401 | V1-4449 | `script/tasks-reconcile.sh` | `TestTCDV02401_ReconcileExportsRunsPerProposalCommit` (stub `gh` whose window omits the merge run: per-commit export finds it and the dry run is OK; with no green run the apply refuses `PREREQUISITE_UNSATISFIED`; a failed `gh run list` exits 2 naming the commit; a `null`, empty or non-array export of one commit exits 2 although the other is an array; each failure leaves no earlier `runs.json` and prints no proposal; the printed proposal names the written `runs.json`) | none |
 
 ## Rollout and rollback
 
