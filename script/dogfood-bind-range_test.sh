@@ -417,7 +417,7 @@ printf 'i\n' > "$cov/i"; cov_commit side2 >/dev/null
 printf '{"baseRevision":"%s","hunks":[]}\n' "$mm1" > "$cov/.corvint/change.cem.json"; cov_commit bind-side2 >/dev/null
 git -C "$cov" checkout -q main
 printf 'h2\n' > "$cov/h"; me=$(cov_commit main-change-2)
-(cd "$cov" && git merge -q --no-ff --no-commit side2 && printf 'resolution only\n' >> h)
+(cd "$cov" && git -c user.name=t -c user.email=t@example.invalid merge -q --no-ff --no-commit side2 && printf 'resolution only\n' >> h)
 mm2=$(cov_commit "merge side2 with a resolution edit")
 output=$(cd "$cov" && "$source_root/script/dogfood-bind-coverage.sh" "$m" "$mm2")
 test "$output" = "$(printf '%s\t%s\n' "$c3" "bind:$k3" "$k3" "bind:$k3" "$x" UNBOUND "$mc" UNBOUND \
