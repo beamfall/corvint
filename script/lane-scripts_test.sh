@@ -1817,7 +1817,9 @@ HEAVY_REFUSE_FREE_GB=x tv true > /dev/null
 # that one (ASD-V0-734), and CORVINT_GOCACHE stays the cache a Makefile derives from it.
 tf=$tmp/tmpfs
 mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=${TMPDIR%%/heavy-run.*} cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
-tfv() { (cd "$to" && env -u TMPDIR -u GOCACHE -u CORVINT_GOCACHE PATH="$tf/bin:$to/bin:$PATH" XDG_CACHE_HOME="$tf/xdg" HEAVY_LOCK_DIR="$to/slots" HEAVY_SLOTS=1 "$@" "$heavy" go vet ./x 2> "$tf/err"); }
+# HEAVY_TMP_ROOT names a directory none of the fixture paths lie below, so a host /tmp holding
+# $tmp never decides a result; the V1-2691 cases below name the root they mean.
+tfv() { (cd "$to" && env -u TMPDIR -u GOCACHE -u CORVINT_GOCACHE PATH="$tf/bin:$to/bin:$PATH" XDG_CACHE_HOME="$tf/xdg" HEAVY_TMP_ROOT="$tf/no-tmpfs-root" HEAVY_LOCK_DIR="$to/slots" HEAVY_SLOTS=1 "$@" "$heavy" go vet ./x 2> "$tf/err"); }
 x=$tf/xdg
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs) == "tmp=$x/corvint-tmp cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" && -d $x/corvint-tmp ]] &&
   grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache TMPDIR=$x/corvint-tmp" "$tf/err" ||
@@ -1826,6 +1828,33 @@ x=$tf/xdg
   [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE="$tf/g") == "tmp=$tf cache=$tf/g corvint=$tf/corvint-go-build-cache" ]] &&
   [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3 TMPDIR="$tf/disk") == "tmp=$tf/disk cache=$tf/disk/corvint-go-build-cache corvint=$tf/disk/corvint-go-build-cache" ]] ||
   fail "heavy.sh tmpfs defaults overrode a caller or a disk /tmp: $(cat "$tf/err")"
+# ASD-V0-061 (V1-2691): a caller's Go cache below the tmpfs root, and a CORVINT_GOCACHE derived from
+# a TMPDIR there, move to the home-disk cache, one named line each; TMPDIR itself stays. A disk
+# root and a sibling path that only shares the root's prefix keep theirs (negative controls).
+r=$tf/ram
+[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs HEAVY_TMP_ROOT="$r/" TMPDIR="$r" GOCACHE="$r/lane-go-cache") == "tmp=$r cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" ]] &&
+  grep -qxF "heavy.sh: /tmp is a tmpfs; the caller's GOCACHE=$r/lane-go-cache moves to $x/corvint-go-build-cache (V1-2691)" "$tf/err" &&
+  grep -qxF "heavy.sh: /tmp is a tmpfs; CORVINT_GOCACHE moves from below TMPDIR=$r to $x/corvint-go-build-cache (V1-2691)" "$tf/err" ||
+  fail "heavy.sh kept a caller GOCACHE on the tmpfs: $(cat "$tf/err")"
+[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs HEAVY_TMP_ROOT="$r" TMPDIR="$tf" CORVINT_GOCACHE="$r") == "tmp=$tf cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" ]] &&
+  grep -qxF "heavy.sh: /tmp is a tmpfs; the caller's CORVINT_GOCACHE=$r moves to $x/corvint-go-build-cache (V1-2691)" "$tf/err" ||
+  fail "heavy.sh kept a caller CORVINT_GOCACHE at the tmpfs root: $(cat "$tf/err")"
+[[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3 HEAVY_TMP_ROOT="$r" TMPDIR="$r" GOCACHE="$r/g") == "tmp=$r cache=$r/g corvint=$r/corvint-go-build-cache" ]] &&
+  ! grep -q 'V1-2691' "$tf/err" &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs HEAVY_TMP_ROOT="$r" TMPDIR="$tf" GOCACHE="$r-disk/g") == "tmp=$tf cache=$r-disk/g corvint=$tf/corvint-go-build-cache" ]] &&
+  ! grep -q 'V1-2691' "$tf/err" ||
+  fail "heavy.sh moved a cache off a disk root or a sibling of the tmpfs root: $(cat "$tf/err")"
+# ASD-V0-061 (V1-2691): `make windows-vet`, run directly, takes WINDOWS_VET_GOCACHE: the home-disk
+# cache when a fake stat answers tmpfs for the CORVINT_GOCACHE default directory (TMPDIR here), the
+# default under TMPDIR on disk, and a caller's CORVINT_GOCACHE either way. make -n runs nothing.
+mv=$tmp/wvet-cache
+mkdir -p "$mv/bin" && printf '#!/bin/sh\n[ "$1 $2 $3" = "-f -c %%T" ] && [ "$4" = "%s" ] && { echo "$LANE_TEST_FSTYPE"; exit 0; }\nexit 1\n' "$mv/scratch" > "$mv/bin/stat" &&
+  chmod +x "$mv/bin/stat" || fail "windows-vet cache fixture"
+wvc() { (cd "$script/.." && env -u CORVINT_GOCACHE -u WINDOWS_VET_GOCACHE -u MAKEFLAGS -u MFLAGS -u MAKELEVEL PATH="$mv/bin:$PATH" TMPDIR="$mv/scratch/" XDG_CACHE_HOME="$mv/xdg" "$@" make -n -s --no-print-directory windows-vet 2> /dev/null | grep -o 'GOCACHE=[^ ]*' | sort -u); }
+[[ $(wvc LANE_TEST_FSTYPE=tmpfs) == "GOCACHE=$mv/xdg/corvint-go-build-cache" &&
+  $(wvc LANE_TEST_FSTYPE=ext2/ext3) == "GOCACHE=$mv/scratch/corvint-go-build-cache" &&
+  $(wvc LANE_TEST_FSTYPE=tmpfs CORVINT_GOCACHE="$mv/own") == "GOCACHE=$mv/own" ]] ||
+  fail "make windows-vet cache: tmpfs=$(wvc LANE_TEST_FSTYPE=tmpfs) disk=$(wvc LANE_TEST_FSTYPE=ext2/ext3) own=$(wvc LANE_TEST_FSTYPE=tmpfs CORVINT_GOCACHE="$mv/own")"
 # ASD-V0-1972 (V1-4328): mkdir succeeds on existing read-only sandbox paths, but the actual write
 # probe must refuse before running anything, name every override once and permit a corrected run.
 wp=$tmp/writable-paths
@@ -1919,7 +1948,7 @@ cat > "$fs/bin/uname" << FAKEUNAME || fail "fake uname"
 exec "$real_uname" "\$@"
 FAKEUNAME
 chmod +x "$fs/bin/stat" "$fs/bin/uname" || fail "fstype stubs"
-fsv() { tfv env -u HEAVY_TMP_FSTYPE PATH="$fs/bin:$tf/bin:$to/bin:$PATH" LANE_TEST_FSTYPE="$1" TMPDIR="$fs/disk"; }
+fsv() { tfv env -u HEAVY_TMP_FSTYPE -u HEAVY_TMP_ROOT PATH="$fs/bin:$tf/bin:$to/bin:$PATH" LANE_TEST_FSTYPE="$1" TMPDIR="$fs/disk"; }
 : > "$fs/probe.log"
 out=$(fsv tmpfs)
 [[ $out == "tmp=$fs/disk cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" ]] &&
@@ -1954,6 +1983,17 @@ touch -t "$ctold" "$ct/slots/cache-trim.stamp" && ctrun && [[ ! -e $ct/cache/0a/
   fail "heavy.sh did not trim after the interval: $(cat "$ct/err")"
 CT=6h ctrun
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-cache-trim HEAVY_CACHE_TRIM_HOURS=6h' "$ct/err" || fail "heavy.sh accepted HEAVY_CACHE_TRIM_HOURS=6h: $(cat "$ct/err")"
+# V1-2691: on a tmpfs, the same trim bounds the Makefile's default cache below the tmpfs root, which
+# a make recipe run outside heavy.sh fills, to HEAVY_TMPFS_CACHE_GIB of entries over an hour old.
+# A disk root leaves it alone (negative control).
+mkdir -p "$ct/ram/corvint-go-build-cache/0b" && cp "$ct/cache/README" "$ct/ram/corvint-go-build-cache/README" || fail "tmpfs cache fixture"
+ctram() { dd if=/dev/zero of="$ct/ram/corvint-go-build-cache/0b/old-r" bs=1048576 count=1 2> /dev/null && touch -t "$ctold" "$ct/ram/corvint-go-build-cache/0b/old-r"; }
+ctram && /bin/rm -f "$ct/slots/cache-trim.stamp" && HEAVY_TMP_FSTYPE=ext2/ext3 HEAVY_TMP_ROOT=$ct/ram ctrun &&
+  [[ -f $ct/ram/corvint-go-build-cache/0b/old-r ]] && ! grep -q 'tmpfs cache trim' "$ct/err" ||
+  fail "heavy.sh trimmed a disk root's cache as a tmpfs one: $(cat "$ct/err")"
+/bin/rm -f "$ct/slots/cache-trim.stamp" && HEAVY_TMP_FSTYPE=tmpfs HEAVY_TMP_ROOT=$ct/ram HEAVY_TMPFS_CACHE_GIB=0 ctrun &&
+  [[ ! -e $ct/ram/corvint-go-build-cache/0b/old-r ]] && grep -q '^heavy.sh: tmpfs cache trim: TRIMMED cache .*/ram/corvint-go-build-cache entries=1 ' "$ct/err" ||
+  fail "heavy.sh did not trim the tmpfs root's Go cache: $(cat "$ct/err")"
 out=$(tv --admit-only sh -c 'echo "go test ./x | tail"; exit 4')
 [[ $? == 4 && $out == 'go test ./x | tail' ]] && grep -q '^heavy.sh: slot 1/1 ' "$to/err" || fail "heavy.sh --admit-only read its command: $out $(cat "$to/err")"
 out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY_LOCK_DIR=$to/slots "$script/codex-review.sh" 'review the diff; run go test ./internal/x' 2> "$to/err")
@@ -3241,6 +3281,27 @@ git init -q "$ld/repo" && git -C "$ld/repo" -c user.name=t -c user.email=t@t com
 lbase=$(git -C "$ld/repo" rev-parse HEAD)
 cat > "$ld/bin/tasks" << 'STUB'
 #!/bin/sh
+if [ -n "$CORVINT_TASKS_SNAPSHOT" ]; then
+  # As corvint-tasks: a snapshot host serves only the snapshot verbs, never queue snapshot.
+  case "$1 $2" in
+    "queue status") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" || { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; exit 2; }
+      printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0 ;;
+    "queue snapshot") printf '%s\n' '{"outcome":"ERROR","codes":["UNSUPPORTED"]}'; exit 2 ;;
+    # ticket show verifies the bundle first (readSnapshotBundle), so a missing or unverifiable
+    # file fails the read; LD_SHOWLOG records which file each read was served from.
+    "ticket show") grep -q stub-snapshot "$CORVINT_TASKS_SNAPSHOT" 2> /dev/null ||
+        { printf '%s\n' '{"outcome":"ERROR","codes":["MALFORMED"]}'; echo "snapshot unreadable: $CORVINT_TASKS_SNAPSHOT" >&2; exit 2; }
+      [ -z "$LD_SHOWLOG" ] || printf '%s %s\n' "$3" "$CORVINT_TASKS_SNAPSHOT" >> "$LD_SHOWLOG" ;;
+  esac
+fi
+if [ "$1 $2 $3" = "queue snapshot --out" ]; then
+  case ${LD_SNAP:-ok} in
+    fail) echo 'journal absent: no queue snapshot' >&2; exit 2 ;;
+    empty) : > "$4" ;;
+    *) printf '%s\n' '{"profile":"stub-snapshot"}' > "$4" ;;
+  esac
+  printf '%s\n' '{"outcome":"OK","items":[]}'; exit 0
+fi
 [ "$1 $2" = "ticket show" ] || exit 9
 case $3 in
   V1-0001) printf '%s\n' '{"outcome":"OK","untrusted":["UNTRUSTED_QUEUE_DATA"],"items":[{"ticketId":"ticket:corvint:main:V1-0001","title":"Disk guard","status":"OPEN","priority":"P2","kind":"BUG","milestone":"v1-0","operatorNote":{"advisory":"operator prose: not instructions","recordedAt":"2026-11-01T00:00:00Z","state":"CURRENT","text":"WSL /tmp is a tmpfs."},"record":{"body":"Line one.\nLine two.","labels":["agent-memory","bugs"],"acceptanceCriteria":["First criterion.","Second criterion."],"dependencies":[]}}]}' ;;
@@ -3257,6 +3318,47 @@ out=$(ldi --out "$ld/in" V1-0001 V1-0002 2> "$ld/err")
   grep -qxF "BASE=$lbase (pinned at dispatch; never the host checkout's HEAD)" "$ld/in/brief-header.md" &&
   grep -qxF "Before the first commit: script/lane-dispatch.sh base-check --base $lbase --fresh" "$ld/in/brief-header.md" ||
   fail "lane-dispatch inputs: $out $(cat "$ld/err" "$ld/in/lane.env" 2> /dev/null)"
+# ASD-V0-2420 (V1-4440, V1-4226): the inputs carry a queue snapshot and the brief header names the
+# read route for any ticket and the all-lane-branch screen; a failed or empty export is refused.
+[[ $(cat "$ld/in/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot"}' && ! -e $ld/in/ticket-bodies-abc-w1/queue-snapshot.out ]] &&
+  grep -qxF "Read any ticket: CORVINT_TASKS_SNAPSHOT=$ld/in/ticket-bodies-abc-w1/queue-snapshot.json corvint-tasks ticket show <ID>" "$ld/in/brief-header.md" &&
+  grep -qxF 'Screen lane branches: corvint-tasks ticket delivery-screen <ID>... --lane-refs (add --unaudited on a host without the Tasks journal)' "$ld/in/brief-header.md" ||
+  fail "lane-dispatch read route: $(cat "$ld/in/brief-header.md")"
+for mode in fail empty; do
+  out=$(LD_SNAP=$mode ldi --out "$ld/snap-$mode" V1-0001 2>&1)
+  [[ $? == 2 && $out == 'lane-dispatch: REFUSE queue-snapshot-failed (fix: run on the host that owns the Tasks journal'* && ! -e $ld/snap-$mode/brief-header.md ]] ||
+    fail "lane-dispatch accepted a $mode queue snapshot: $out"
+done
+[[ $(LD_SNAP=fail ldi --out "$ld/snap-fail2" V1-0001 2>&1) == *'journal absent: no queue snapshot'* ]] || fail "queue-snapshot-failed hides the export error"
+# On a snapshot host (CORVINT_TASKS_SNAPSHOT set, queue snapshot refused) the named file is copied
+# and verified; an absent or unverifiable one is refused queue-snapshot-failed.
+printf '%s\n' '{"profile":"stub-snapshot","host":"journal"}' > "$ld/staged.json"
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/staged.json LD_SHOWLOG=$ld/showlog ldi --out "$ld/snap-host" V1-0001 V1-0002 2>&1)
+rc=$? sh_snap=$(cd "$ld/snap-host/ticket-bodies-abc-w1" 2> /dev/null && pwd -P)/queue-snapshot.json
+[[ $rc == 0 && $(cat "$ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"journal"}' &&
+  ! -e $ld/snap-host/ticket-bodies-abc-w1/queue-snapshot.out &&
+  $(cat "$ld/showlog") == "V1-0001 $sh_snap"$'\n'"V1-0002 $sh_snap" ]] ||
+  fail "lane-dispatch on a snapshot host (ticket reads must come from the verified copy): $out $(cat "$ld/showlog" 2> /dev/null)"
+# A relative CORVINT_TASKS_SNAPSHOT resolves in REPO, not the caller's directory.
+printf '%s\n' '{"profile":"stub-snapshot","host":"rel"}' > "$ld/repo/rel-staged.json"
+out=$(cd "$ld" && CORVINT_TASKS_SNAPSHOT=rel-staged.json LANE_DISPATCH_TASKS=$ld/bin/tasks LANE_DISPATCH_SSH=$ld/bin/ssh "$script/lane-dispatch.sh" inputs \
+  --lane abc-w1 --base origin/main --date 2026-11-01 --repo "$ld/repo" --out "$ld/snap-rel" V1-0001 2>&1)
+[[ $? == 0 && $(cat "$ld/snap-rel/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot","host":"rel"}' ]] ||
+  fail "lane-dispatch with a relative snapshot: $out"
+/bin/rm -f "$ld/repo/rel-staged.json"
+# A rerun into the same --out naming this run's own staged copy verifies it in place.
+out=$(ldi --out "$ld/snap-rerun" V1-0003 2>&1)
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-not-ok V1-0003'* && ! -e $ld/snap-rerun/lane.env ]] ||
+  fail "lane-dispatch rerun fixture: $out"
+out=$(CORVINT_TASKS_SNAPSHOT=$ld/snap-rerun/ticket-bodies-abc-w1/queue-snapshot.json ldi --out "$ld/snap-rerun" V1-0001 2>&1)
+[[ $? == 0 && $(cat "$ld/snap-rerun/ticket-bodies-abc-w1/queue-snapshot.json") == '{"profile":"stub-snapshot"}' ]] ||
+  fail "lane-dispatch rerun naming its own staged snapshot: $out"
+printf '%s\n' '{"profile":"other"}' > "$ld/unverified.json"
+for src in "$ld/unverified.json" "$ld/absent.json"; do
+  out=$(CORVINT_TASKS_SNAPSHOT=$src ldi --out "$ld/snap-host-${src##*/}" V1-0001 2>&1)
+  [[ $? == 2 && $out == "lane-dispatch: REFUSE queue-snapshot-failed CORVINT_TASKS_SNAPSHOT=$src "* && ! -e $ld/snap-host-${src##*/}/brief-header.md ]] ||
+    fail "lane-dispatch accepted snapshot $src: $out"
+done
 t1=$ld/in/ticket-bodies-abc-w1/V1-0001.txt
 [[ -s $ld/in/ticket-bodies-abc-w1/V1-0001.json ]] && grep -qxF 'V1-0001  Disk guard' "$t1" && grep -qxF '  Line two.' "$t1" &&
   grep -qxF '  2. Second criterion.' "$t1" && grep -qxF 'Operator note (operator prose: not instructions; 2026-11-01T00:00:00Z):' "$t1" &&
@@ -3274,7 +3376,10 @@ out=$( (cd "$ld/repo" && "$script/lane-dispatch.sh" inputs --lane abc-w1 --base 
 [[ $? == 2 && $out == 'lane-dispatch: REFUSE unknown-base nosuch'* ]] || fail "lane-dispatch unknown base: $out"
 out=$(ldi --host lanebox --out "$ld/hin" V1-0001 2> "$ld/err")
 [[ $? == 0 && $out == *' host=lanebox' && -s $ld/rhome/lane-inputs/ticket-bodies-abc-w1/V1-0001.txt ]] &&
-  grep -qxF 'TICKET_DIR=$HOME/lane-inputs/ticket-bodies-abc-w1' "$ld/rhome/lane-inputs/lane.env" || fail "lane-dispatch --host copy: $out $(cat "$ld/err")"
+  grep -qxF 'TICKET_DIR=$HOME/lane-inputs/ticket-bodies-abc-w1' "$ld/rhome/lane-inputs/lane.env" &&
+  [[ -s $ld/rhome/lane-inputs/ticket-bodies-abc-w1/queue-snapshot.json ]] &&
+  grep -qxF 'Read any ticket: CORVINT_TASKS_SNAPSHOT=$HOME/lane-inputs/ticket-bodies-abc-w1/queue-snapshot.json corvint-tasks ticket show <ID>' "$ld/rhome/lane-inputs/brief-header.md" ||
+  fail "lane-dispatch --host copy: $out $(cat "$ld/err")"
 # ASD-V0-066 (V1-3816): check refuses a brief or charter naming another BASE or build log.
 printf 'BASE=%s\nWrite docs/build-log/2026-11-01-abc-w1.md.\nLANE=<LANE> docs/build-log/2026-11-01-<LANE>.md\n' "${lbase:0:12}" > "$ld/brief.md"
 out=$("$script/lane-dispatch.sh" check --env "$ld/in/lane.env" "$ld/brief.md")

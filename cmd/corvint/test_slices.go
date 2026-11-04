@@ -55,6 +55,14 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 		if !ok {
 			continue
 		}
+		if reason := testMustRunReason(plan, selection.UnitID); reason != "" {
+			sliced[pkg] = sessiontest.GoSlice{Reason: reason}
+			continue
+		}
+		if reason := testDeclaredOwnerReason(plan, selection.UnitID); reason != "" {
+			sliced[pkg] = sessiontest.GoSlice{Reason: reason}
+			continue
+		}
 		candidate, reason := testSliceCandidateOf(plan, graph, selection)
 		if selection.Witness.Kind == affected.WitnessDirectSource {
 			if unit, ok := graph.Unit(selection.UnitID); ok {
@@ -95,6 +103,35 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 		sliced[candidate.pkg] = testSourceSlice(root, candidate, blobs)
 	}
 	return sliced
+}
+
+// testMustRunReason is the whole-package reason of a declared must-run unit,
+// or "" for any other unit: the project pins every test of it, so no slice
+// may narrow it (AFP-V0-2485).
+func testMustRunReason(plan affected.Plan, id string) string {
+	var reasons []string
+	for _, entry := range plan.MustRun {
+		if entry.UnitID == id {
+			reasons = append(reasons, entry.Reason)
+		}
+	}
+	if len(reasons) == 0 {
+		return ""
+	}
+	return "whole: " + affected.WitnessMustRun + " (" + strings.Join(reasons, "; ") + ")"
+}
+
+// testDeclaredOwnerReason is the whole-package reason of a unit a declared
+// owner pattern selects, or "" for any other unit: the project named every
+// test of it for the dirty path, so a slice built from the package's own
+// changed test files could skip one (AFP-V0-2485).
+func testDeclaredOwnerReason(plan affected.Plan, id string) string {
+	for _, owner := range plan.DeclaredOwners {
+		if owner.UnitID == id {
+			return "whole: " + affected.WitnessDeclaredTestOwner + " via " + owner.DirtyPath
+		}
+	}
+	return ""
 }
 
 // testSliceSelect and testSliceReach are the plan walks test slicing makes,

@@ -3,7 +3,9 @@
 package cli_test
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -168,5 +170,211 @@ func TestTLFV0883_CloseoutDebtReportsMergedProgressHead(t *testing.T) {
 	if code, res = tcdRun(t, root); code != 0 {
 		_, rows = tcdRows(t, res)
 		t.Fatalf("cleared marker still reported (exit %d): %+v", code, rows)
+	}
+}
+
+// TestTCDV02400_InProgressHeadIsExcludedNotDebt covers V1-4448: only a
+// delivery-phase progress head cites. A lane's IN_PROGRESS dispatch base and
+// a BLOCKED head reachable in the ref are excluded with a named reason and
+// are no debt; a DELIVERED_ON_BRANCH head at a later merged commit is the
+// only head candidate; a message citation of an IN_PROGRESS ticket keeps its
+// row (negative control).
+func TestTCDV02400_InProgressHeadIsExcludedNotDebt(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	parked, parkedLocal := tcdTicket(t, root, "parked", "")
+	moved, _ := tcdTicket(t, root, "moved", "")
+	blocked, blockedLocal := tcdTicket(t, root, "blocked", "")
+	tcdCommit(t, root, "dispatch base with no ticket citation")
+	base := revParse(t, root, "HEAD")
+	mark := func(id, req, rev, payload string) {
+		t.Helper()
+		x := atm(t, root, nil, "ticket", "progress", "--target", id, "--expected-revision", rev,
+			"--request-id", req, "--issued-at", "2026-11-03T12:00:00Z", "--payload", payload)
+		if x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("progress %s: %s", id, x.stdout)
+		}
+	}
+	mark(parked, "p-parked", "1", progressPayload("IN_PROGRESS", "lane/x", base, "", ""))
+	mark(moved, "p-moved", "1", progressPayload("IN_PROGRESS", "lane/x", base, "", ""))
+	mark(blocked, "p-blocked", "1", progressPayload("BLOCKED", "lane/x", base, "", "waits on the owner"))
+
+	// Only IN_PROGRESS and BLOCKED heads at the ref commit: no debt, each
+	// excluded with its reason and the head as its commit.
+	code, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	if code != 0 || len(rows) != 0 {
+		t.Fatalf("IN_PROGRESS and BLOCKED heads are debt (exit %d): %+v", code, rows)
+	}
+	got := map[string]string{}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		var commits []string
+		for _, c := range field(e, "commits").Arr {
+			commits = append(commits, c.Str)
+		}
+		got[field(e, "ticketId").Str] = field(e, "reason").Str + " " + strings.Join(commits, ",")
+	}
+	want := map[string]string{parked: "PROGRESS_IN_PROGRESS " + base, moved: "PROGRESS_IN_PROGRESS " + base, blocked: "PROGRESS_BLOCKED " + base}
+	if len(got) != len(want) || got[parked] != want[parked] || got[moved] != want[moved] || got[blocked] != want[blocked] {
+		t.Fatalf("excludedCandidates %v, want %v", got, want)
+	}
+	human := wire.Encode(field(item, "human"))
+	for _, line := range []string{parkedLocal + " excluded PROGRESS_IN_PROGRESS via 1 commit(s)", blockedLocal + " excluded PROGRESS_BLOCKED via 1 commit(s)"} {
+		if !strings.Contains(string(human), line) {
+			t.Fatalf("human lacks %q: %s", line, human)
+		}
+	}
+
+	// The lane merges later and marks DELIVERED_ON_BRANCH at its head: that
+	// head is the one candidate; the parked dispatch base stays excluded.
+	git(t, root, "checkout", "-q", "-b", "lane")
+	tcdCommit(t, root, "lane work with no ticket citation")
+	laneHead := revParse(t, root, "HEAD")
+	git(t, root, "checkout", "-q", "main")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "Merge lane", "lane")
+	mark(moved, "p-moved-delivered", "2", progressPayload("DELIVERED_ON_BRANCH", "lane/x", laneHead, "", ""))
+	code, res = tcdRun(t, root)
+	item, rows = tcdRows(t, res)
+	if code != 1 || len(rows) != 1 || rows[0].ticket != moved || rows[0].citation != "progress-head" || rows[0].subject != "lane work with no ticket citation" {
+		t.Fatalf("closeout-debt rows (exit %d): %+v", code, rows)
+	}
+	if c := field(item, "candidates").Arr[0]; field(c, "commit").Str != laneHead {
+		t.Fatalf("the candidate cites %s, want the delivered head %s", field(c, "commit").Str, laneHead)
+	}
+	if ex := wire.Encode(field(item, "excludedCandidates")); strings.Contains(string(ex), moved) || !strings.Contains(string(ex), parked) {
+		t.Fatalf("excludedCandidates after delivery: %s", ex)
+	}
+
+	// Negative control: a message citation of the IN_PROGRESS ticket is
+	// still a candidate, and the ticket is then not excluded.
+	tcdCommit(t, root, "fix: finish the parked work ("+parkedLocal+")")
+	code, res = tcdRun(t, root)
+	item, rows = tcdRows(t, res)
+	cited := false
+	for _, r := range rows {
+		if r.ticket == parked {
+			cited = cited || r.citation == "direct-id"
+			if r.citation == "progress-head" {
+				t.Fatalf("the IN_PROGRESS head cited: %+v", rows)
+			}
+		}
+	}
+	if code != 1 || !cited || strings.Contains(string(wire.Encode(field(item, "excludedCandidates"))), parked) {
+		t.Fatalf("message-cited IN_PROGRESS ticket (exit %d): %+v excluded %s", code, rows, wire.Encode(field(item, "excludedCandidates")))
+	}
+}
+
+// TestTCDV02400_MixedExclusionCausesStayVisible: a ticket excluded both by a
+// build-log-only citation and by an IN_PROGRESS head keeps each cause with
+// its own commit in causes, and the human line names both; a single-cause
+// ticket has one cause.
+func TestTCDV02400_MixedExclusionCausesStayVisible(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	mixed, mixedLocal := tcdTicket(t, root, "mixed", "")
+	single, _ := tcdTicket(t, root, "single", "")
+	tcdCommit(t, root, "dispatch base with no ticket citation")
+	base := revParse(t, root, "HEAD")
+	for _, id := range []string{mixed, single} {
+		x := atm(t, root, nil, "ticket", "progress", "--target", id, "--expected-revision", "1",
+			"--request-id", "p-"+id, "--issued-at", "2026-11-03T12:00:00Z", "--payload", progressPayload("IN_PROGRESS", "lane/x", base, "", ""))
+		if x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("progress %s: %s", id, x.stdout)
+		}
+	}
+	logPath := filepath.Join(root, "docs", "build-log", "2026-11-03-lane.md")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logPath, []byte("# lane\n\n- "+mixedLocal+" reviewed.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "--", "docs/build-log/2026-11-03-lane.md")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "docs(build-log): review notes "+mixedLocal)
+	logCommit := revParse(t, root, "HEAD")
+
+	code, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	if code != 0 || len(rows) != 0 {
+		t.Fatalf("excluded tickets are debt (exit %d): %+v", code, rows)
+	}
+	got := map[string]string{}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		var causes []string
+		for _, c := range field(e, "causes").Arr {
+			var commits []string
+			for _, x := range field(c, "commits").Arr {
+				commits = append(commits, x.Str)
+			}
+			causes = append(causes, field(c, "reason").Str+"="+strings.Join(commits, ","))
+		}
+		got[field(e, "ticketId").Str] = field(e, "reason").Str + " " + strings.Join(causes, " ")
+	}
+	want := map[string]string{
+		mixed:  "BUILD_LOG_ONLY BUILD_LOG_ONLY=" + logCommit + " PROGRESS_IN_PROGRESS=" + base,
+		single: "PROGRESS_IN_PROGRESS PROGRESS_IN_PROGRESS=" + base,
+	}
+	if len(got) != len(want) || got[mixed] != want[mixed] || got[single] != want[single] {
+		t.Fatalf("excludedCandidates %v, want %v", got, want)
+	}
+	line := mixedLocal + " excluded BUILD_LOG_ONLY via 2 commit(s) (causes BUILD_LOG_ONLY, PROGRESS_IN_PROGRESS)"
+	if human := wire.Encode(field(item, "human")); !strings.Contains(string(human), line) {
+		t.Fatalf("human lacks %q: %s", line, human)
+	}
+}
+
+// TestTCDV02400_OneCommitUnderTwoCausesCountsOnce checks that a commit
+// excluded for two causes (a build-log-only commit that is also the ticket's
+// IN_PROGRESS head) is listed once in commits and in the human count, and
+// once under each cause.
+func TestTCDV02400_OneCommitUnderTwoCausesCountsOnce(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	id, local := tcdTicket(t, root, "twice", "")
+	logPath := filepath.Join(root, "docs", "build-log", "2026-11-03-lane.md")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logPath, []byte("# lane\n\n- "+local+" dispatched.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "--", "docs/build-log/2026-11-03-lane.md")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "docs(build-log): dispatch "+local)
+	logCommit := revParse(t, root, "HEAD")
+	x := atm(t, root, nil, "ticket", "progress", "--target", id, "--expected-revision", "1",
+		"--request-id", "p-"+id, "--issued-at", "2026-11-03T12:00:00Z", "--payload", progressPayload("IN_PROGRESS", "lane/x", logCommit, "", ""))
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("progress: %s", x.stdout)
+	}
+
+	code, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	if code != 0 || len(rows) != 0 {
+		t.Fatalf("excluded ticket is debt (exit %d): %+v", code, rows)
+	}
+	ex := field(item, "excludedCandidates").Arr
+	if len(ex) != 1 {
+		t.Fatalf("excludedCandidates %s", wire.Encode(field(item, "excludedCandidates")))
+	}
+	var commits, causes []string
+	for _, c := range field(ex[0], "commits").Arr {
+		commits = append(commits, c.Str)
+	}
+	for _, c := range field(ex[0], "causes").Arr {
+		var cc []string
+		for _, x := range field(c, "commits").Arr {
+			cc = append(cc, x.Str)
+		}
+		causes = append(causes, field(c, "reason").Str+"="+strings.Join(cc, ","))
+	}
+	if got, want := strings.Join(commits, ","), logCommit; got != want {
+		t.Fatalf("commits %q, want %q (one commit under two causes counts once)", got, want)
+	}
+	if got, want := strings.Join(causes, " "), "BUILD_LOG_ONLY="+logCommit+" PROGRESS_IN_PROGRESS="+logCommit; got != want {
+		t.Fatalf("causes %q, want %q", got, want)
+	}
+	line := local + " excluded BUILD_LOG_ONLY via 1 commit(s) (causes BUILD_LOG_ONLY, PROGRESS_IN_PROGRESS)"
+	if human := wire.Encode(field(item, "human")); !strings.Contains(string(human), line) {
+		t.Fatalf("human lacks %q: %s", line, human)
 	}
 }
