@@ -39,9 +39,13 @@ if [[ -n ${DOGFOOD_REVIEW-} ]]; then
     digest=$(shasum -a 256 < "$review_snapshot") || exit 2
   fi
   digest=${digest%% *}
-  reviewed=$(sed -n -E 's/^(dogfood-review|codex-review): reviewed-head=([0-9a-f]{40}).*/\2/p' "$review_snapshot")
   verdict=NOT_OBSERVED
-  grep -q '^dogfood-review:' "$review_snapshot" && verdict=PASS
+  if grep -q '^dogfood-review:' "$review_snapshot"; then
+    reviewed=$(sed -n -E '/^dogfood-review:/ { s/^dogfood-review: reviewed-head=([0-9a-f]{40}).*/\1/p; q; }' "$review_snapshot")
+    verdict=PASS
+  else
+    reviewed=$(sed -n -E 's/^codex-review: reviewed-head=([0-9a-f]{40}).*/\1/p' "$review_snapshot")
+  fi
   printf -v review_evidence 'review-before-seal OBSERVED path=%q reviewed-head=%s sha256=sha256:%s verdict=%s' "$DOGFOOD_REVIEW" "$reviewed" "$digest" "$verdict"
   printf 'dogfood-seal: %s\n' "$review_evidence"
 else

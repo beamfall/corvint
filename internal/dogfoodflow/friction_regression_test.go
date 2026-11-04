@@ -98,7 +98,7 @@ func TestDWCV0045RefreshDraftsNewHunkFromItsOwnContent(t *testing.T) {
 }
 
 func TestDWCV0046ExternalReviewSeal(t *testing.T) {
-	for _, kind := range []string{"pass", "wrong-head", "failed", "duplicate", "missing", "absent", "oversized", "malformed", "nonregular", "moved-during-check"} {
+	for _, kind := range []string{"pass", "legacy", "legacy-duplicate", "external-with-legacy", "wrong-head", "failed", "duplicate", "missing", "absent", "oversized", "malformed", "nonregular", "moved-during-check"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()
 			testGit(t, root, "init", "-q")
@@ -112,6 +112,13 @@ func TestDWCV0046ExternalReviewSeal(t *testing.T) {
 			head := testGit(t, root, "rev-parse", "HEAD")
 			raw := "dogfood-review: reviewed-head=" + head + " verdict=PASS\nIndependent external report.\n"
 			switch kind {
+			case "legacy", "legacy-duplicate":
+				raw = "codex-review: reviewed-head=" + base + " tree=x dirty=no\nLegacy report.\n"
+				if kind == "legacy-duplicate" {
+					raw += raw
+				}
+			case "external-with-legacy":
+				raw += "codex-review: reviewed-head=" + base + " tree=x dirty=no\n"
 			case "wrong-head":
 				raw = strings.Replace(raw, head, base, 1)
 			case "failed":
@@ -141,7 +148,7 @@ func TestDWCV0046ExternalReviewSeal(t *testing.T) {
 			var out, stderr bytes.Buffer
 			c := newCheck(context.Background(), "dogfood-seal", CheckOptions{Root: root}, &out, &stderr)
 			c.base = base
-			valid := kind == "pass" || kind == "absent"
+			valid := kind == "pass" || kind == "legacy" || kind == "external-with-legacy" || kind == "absent"
 			var rc int
 			var err error
 			if kind == "moved-during-check" {
@@ -176,13 +183,17 @@ func TestDWCV0046ExternalReviewSeal(t *testing.T) {
 			if rc != 0 {
 				t.Fatalf("seal %d %s%s", rc, &out, &stderr)
 			}
-			if kind == "pass" {
+			if kind == "pass" || kind == "legacy" || kind == "external-with-legacy" {
+				reviewed, verdict := head, "PASS"
+				if kind == "legacy" {
+					reviewed, verdict = base, "NOT_OBSERVED"
+				}
 				message := testGit(t, root, "log", "-1", "--format=%B")
 				want := "review-before-seal OBSERVED path="
-				if !strings.Contains(message, want) || !strings.Contains(message, "reviewed-head="+head) || !strings.Contains(message, "sha256=sha256:"+sha256Hex([]byte(raw))) {
+				if !strings.Contains(message, want) || !strings.Contains(message, "reviewed-head="+reviewed) || !strings.Contains(message, "verdict="+verdict) || !strings.Contains(message, "sha256=sha256:"+sha256Hex([]byte(raw))) {
 					t.Fatal(message)
 				}
-				if !strings.Contains(stderr.String(), want) {
+				if !strings.Contains(stderr.String(), want) || !strings.Contains(stderr.String(), "verdict="+verdict) {
 					t.Fatal(stderr.String())
 				}
 			} else if !strings.Contains(stderr.String(), "review-before-seal NOT_OBSERVED") {
@@ -229,6 +240,8 @@ func TestDWCV0047HandbackCumulativeTickets(t *testing.T) {
 		pass       bool
 	}{
 		{"valid", next, true},
+		{"general-ticket-ids", strings.Replace(next, "V1-4545 V1-4546", "V1-4545 V1-4546 CORE-FOO-1 BUG-X-0930 OSC-Y-1", 1), true},
+		{"lowercase-ticket-id", strings.Replace(next, "V1-4545 V1-4546", "V1-4545 V1-4546 bug-X-1", 1), false},
 		{"no-sealed-head", strings.Replace(next, "Sealed head: NOT_PRODUCED seal pending\n", "", 1), false},
 		{"empty-tickets", strings.Replace(next, "Delivered tickets: V1-4545 V1-4546", "Delivered tickets: ", 1), false},
 		{"lost-cumulative-ticket", strings.Replace(next, "V1-4545 V1-4546", "V1-4546", 1), false},

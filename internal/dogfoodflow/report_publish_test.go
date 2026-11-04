@@ -17,6 +17,16 @@ func TestDWCV0048ReportPublicationAcrossMounts(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			metadata, dir := t.TempDir(), t.TempDir()
+			// Compare with the actual normal publication path under this process's
+			// umask, without changing global process state.
+			normal := filepath.Join(metadata, "normal.json")
+			if err := publishDogfoodReport(filepath.Join(metadata, "normal.tmp"), normal, []byte("report\n"), os.Rename); err != nil {
+				t.Fatal(err)
+			}
+			normalInfo, err := os.Stat(normal)
+			if err != nil {
+				t.Fatal(err)
+			}
 			staged, target := filepath.Join(metadata, "report.tmp"), filepath.Join(dir, "report.json")
 			if err := os.WriteFile(target, []byte("prior report\n"), 0600); err != nil {
 				t.Fatal(err)
@@ -35,7 +45,7 @@ func TestDWCV0048ReportPublicationAcrossMounts(t *testing.T) {
 				}
 				return os.Rename(src, dst)
 			}
-			err := publishDogfoodReport(staged, target, []byte("checked report\n"), rename)
+			err = publishDogfoodReport(staged, target, []byte("checked report\n"), rename)
 			want := "checked report\n"
 			if fail {
 				want = "prior report\n"
@@ -44,6 +54,8 @@ func TestDWCV0048ReportPublicationAcrossMounts(t *testing.T) {
 				}
 			} else if err != nil {
 				t.Fatal(err)
+			} else if info, err := os.Stat(target); err != nil || info.Mode().Perm() != normalInfo.Mode().Perm() {
+				t.Fatalf("fallback mode differs from normal %v: %v %v", normalInfo.Mode(), info, err)
 			}
 			got, err := os.ReadFile(target)
 			if err != nil || string(got) != want {

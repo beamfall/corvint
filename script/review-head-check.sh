@@ -52,6 +52,7 @@ if grep -q 'dogfood-review:' "$review"; then
   exit 0
 fi
 
+[[ $(grep -c -E '^codex-review: reviewed-head=' "$review") -le 1 ]] || refuse 'invalid-legacy-review duplicate pins'
 pin=$(grep -m 1 -E '^codex-review: reviewed-head=' "$review")
 if [[ -z $pinned ]]; then
   [[ -n $pin ]] || refuse "unpinned-review $review (no codex-review: reviewed-head= line); fix: run the review through script/codex-review.sh, which pins the head, or pass --reviewed-head with the commit the reviewer read"

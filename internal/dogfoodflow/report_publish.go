@@ -20,12 +20,22 @@ func publishDogfoodReport(staged, target string, data []byte, rename func(string
 	if !errors.Is(err, syscall.EXDEV) {
 		return err
 	}
+	stagedInfo, err := os.Stat(staged)
+	if err != nil {
+		return err
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(target), ".dogfood-report.*.tmp")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmp.Name())
 	if _, err = tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	// CreateTemp starts private; publish with the same umask-filtered mode as
+	// the normal staging path, without reading or changing the process umask.
+	if err = tmp.Chmod(stagedInfo.Mode().Perm()); err != nil {
 		_ = tmp.Close()
 		return err
 	}
