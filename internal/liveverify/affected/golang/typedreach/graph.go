@@ -64,6 +64,9 @@ type graph struct {
 	plainRead map[*ast.Ident]bool
 	// private are the local variables naming a private temporary path.
 	private map[*types.Var]bool
+	// derived maps a constant or type to the constants, types and variables
+	// declared from it.
+	derived map[types.Object][]types.Object
 	// methods indexes every module method by name, for calls on a type
 	// parameter.
 	methods map[string][]*types.Func
@@ -85,8 +88,7 @@ var externalTools = map[string]bool{}
 var processState = map[string]bool{
 	"os.Chdir":        true,
 	"syscall.Chdir":   true,
-	"net/http.Handle": true, "net/http.HandleFunc": true, "log.SetOutput": true, "log.SetFlags": true,
-	"log.SetPrefix":      true,
+	"net/http.Handle": true, "net/http.HandleFunc": true,
 	"runtime.GOMAXPROCS": true, "runtime/debug.SetGCPercent": true, "runtime/debug.SetMemoryLimit": true,
 	"runtime/debug.SetMaxStack": true, "runtime/debug.SetMaxThreads": true,
 	"runtime/debug.SetTraceback": true, "flag.Set": true, "flag.Parse": true, "math/rand.Seed": true,
@@ -103,7 +105,44 @@ var (
 	// files is the file system outside the paths a body derives from a
 	// temporary-directory call (AFP-V0-2374).
 	files = types.NewVar(token.NoPos, processPackage, "files", types.Typ[types.String])
+	// logDefault and slogDefault are the log and log/slog packages' default
+	// loggers.
+	logDefault  = types.NewVar(token.NoPos, processPackage, "logDefault", types.Typ[types.String])
+	slogDefault = types.NewVar(token.NoPos, processPackage, "slogDefault", types.Typ[types.String])
 )
+
+// implicitReads returns the standard-library state a call into package
+// path reads without naming it (AFP-V0-2374): fmt and log print to os.Stdout
+// or os.Stderr, log and log/slog use their default loggers, time uses
+// time.Local.
+func (g *graph) implicitReads(path string) []*types.Var {
+	lookup := func(pkg, name string) *types.Var {
+		if loaded := g.program.byPath[pkg]; loaded != nil {
+			v, _ := loaded.Types.Scope().Lookup(name).(*types.Var)
+			return v
+		}
+		return nil
+	}
+	var out []*types.Var
+	add := func(vs ...*types.Var) {
+		for _, v := range vs {
+			if v != nil {
+				out = append(out, v)
+			}
+		}
+	}
+	switch path {
+	case "fmt":
+		add(lookup("os", "Stdout"), lookup("os", "Stderr"))
+	case "log":
+		add(lookup("os", "Stderr"), logDefault)
+	case "log/slog":
+		add(lookup("os", "Stderr"), logDefault, slogDefault)
+	case "time":
+		add(lookup("time", "Local"))
+	}
+	return out
+}
 
 // fileReaders are the standard-library functions that read the file or
 // directory named by their first argument.
@@ -111,11 +150,13 @@ var fileReaders = map[string]bool{
 	"os.ReadFile": true, "os.Open": true, "os.Stat": true, "os.Lstat": true, "os.ReadDir": true,
 	"os.Readlink": true, "os.DirFS": true, "path/filepath.Walk": true, "path/filepath.WalkDir": true,
 	"path/filepath.Glob": true, "path/filepath.EvalSymlinks": true, "io/fs.ReadFile": true,
+	"io/ioutil.ReadFile": true, "io/ioutil.ReadDir": true,
 }
 
 // tempSources are the calls whose result names a private temporary path.
 var tempSources = map[string]bool{
 	"(*testing.common).TempDir": true, "os.MkdirTemp": true, "os.CreateTemp": true,
+	"io/ioutil.TempDir": true, "io/ioutil.TempFile": true,
 }
 
 // stateWriters and stateReaders map standard-library functions to the
@@ -125,6 +166,8 @@ var (
 		"os.Setenv": environment, "os.Unsetenv": environment, "os.Clearenv": environment,
 		"syscall.Setenv": environment, "syscall.Unsetenv": environment, "syscall.Clearenv": environment,
 		"os/signal.Notify": signals, "os/signal.Ignore": signals, "os/signal.Reset": signals,
+		"log.SetOutput": logDefault, "log.SetFlags": logDefault, "log.SetPrefix": logDefault,
+		"log/slog.SetDefault": slogDefault, "log/slog.SetLogLoggerLevel": slogDefault,
 	}
 	stateReaders = map[string]*types.Var{
 		"os.Getenv": environment, "os.LookupEnv": environment, "os.Environ": environment, "os.ExpandEnv": environment,
@@ -150,7 +193,7 @@ var exemptStateMethods = map[string]bool{
 }
 
 func buildGraph(program *Program) *graph {
-	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}, private: map[*types.Var]bool{}}
+	g := &graph{program: program, funcs: map[*types.Func]*node{}, held: map[*types.Var]*node{}, methods: map[string][]*types.Func{}, called: map[*ast.Ident]bool{}, plainRead: map[*ast.Ident]bool{}, private: map[*types.Var]bool{}, derived: map[types.Object][]types.Object{}}
 	for _, pkg := range program.Packages() {
 		initialization := newNode(program.relative(pkg)+": package initialization", pkg)
 		g.always = append(g.always, initialization)
@@ -160,6 +203,7 @@ func buildGraph(program *Program) *graph {
 				case *ast.FuncDecl:
 					g.funcDecl(pkg, file, decl, initialization)
 				case *ast.GenDecl:
+					g.derive(pkg, decl)
 					if decl.Tok != token.VAR {
 						continue
 					}
@@ -171,6 +215,72 @@ func buildGraph(program *Program) *graph {
 		}
 	}
 	return g
+}
+
+// derive records, for each constant, type and variable a declaration
+// defines, the constants and types its type, value or type parameters name
+// (AFP-V0-2373): a changed constant or type changes every constant, type
+// and variable built from it, in any package.
+func (g *graph) derive(pkg *Package, decl *ast.GenDecl) {
+	if decl.Tok == token.IMPORT {
+		return
+	}
+	for _, spec := range decl.Specs {
+		var defined []*ast.Ident
+		var parts []ast.Node
+		switch typed := spec.(type) {
+		case *ast.ValueSpec:
+			defined = typed.Names
+			if typed.Type != nil {
+				parts = append(parts, typed.Type)
+			}
+			if decl.Tok == token.CONST {
+				for _, value := range typed.Values {
+					parts = append(parts, value)
+				}
+			}
+		case *ast.TypeSpec:
+			defined = []*ast.Ident{typed.Name}
+			parts = append(parts, typed.Type)
+			if typed.TypeParams != nil {
+				parts = append(parts, typed.TypeParams)
+			}
+		}
+		for _, part := range parts {
+			ast.Inspect(part, func(x ast.Node) bool {
+				ident, ok := x.(*ast.Ident)
+				if !ok {
+					return true
+				}
+				switch used := pkg.Info.Uses[ident].(type) {
+				case *types.Const, *types.TypeName:
+					for _, name := range defined {
+						if object := pkg.Info.Defs[name]; object != nil {
+							g.derived[used] = append(g.derived[used], object)
+						}
+					}
+				}
+				return true
+			})
+		}
+	}
+	// An iota group's later members repeat its earlier values: a change of
+	// one member is a change of every later one.
+	if decl.Tok == token.CONST {
+		var previous []types.Object
+		for _, spec := range decl.Specs {
+			for _, name := range spec.(*ast.ValueSpec).Names {
+				object := pkg.Info.Defs[name]
+				if object == nil {
+					continue
+				}
+				for _, earlier := range previous {
+					g.derived[earlier] = append(g.derived[earlier], object)
+				}
+				previous = append(previous, object)
+			}
+		}
+	}
 }
 
 func (g *graph) funcDecl(pkg *Package, file *ast.File, decl *ast.FuncDecl, initialization *node) {
@@ -209,6 +319,12 @@ func (g *graph) funcDecl(pkg *Package, file *ast.File, decl *ast.FuncDecl, initi
 		}
 		g.always = append(g.always, n)
 		return
+	}
+	// The signature's types and constants (an array length) are part of
+	// what the function does.
+	g.walk(n, pkg, decl.Type, nil)
+	if decl.Recv != nil {
+		g.walk(n, pkg, decl.Recv, nil)
 	}
 	if decl.Body != nil {
 		g.walk(n, pkg, decl.Body, signatureOf(object))
@@ -508,6 +624,18 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 	}
 	switch x := x.(type) {
 	case *ast.Ident:
+		if object := info.Uses[x]; object != nil && object.Pkg() != nil && object.Pkg().Path() == "os/exec" {
+			// Any use of os/exec (a Cmd however made, its Start, Run,
+			// Output or CombinedOutput) may start a process (AFP-V0-2373).
+			n.starts = append(n.starts, g.position(x.Pos())+" uses os/exec."+object.Name())
+			n.reads[environment] = true
+		}
+		if object := info.Uses[x]; object != nil && object.Pkg() != nil && object.Pkg().Path() == "os" && (object.Name() == "Root" || object.Name() == "OpenRoot" || object.Name() == "OpenInRoot") {
+			// An os.Root names files relative to a root the model does not
+			// follow: every use reads and writes the file system.
+			n.reads[files] = true
+			n.writes[files] = true
+		}
 		switch object := info.Uses[x].(type) {
 		case *types.Func:
 			n.calls[object.Origin()] = true
@@ -655,6 +783,12 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 			}
 		} else if strings.HasPrefix(callee.FullName(), "(*os.Process).") {
 			n.reads[signals] = true
+		} else if strings.HasPrefix(callee.FullName(), "(*os.Root).") {
+			n.reads[files] = true
+			n.writes[files] = true
+		}
+		for _, v := range g.implicitReads(callee.Pkg().Path()) {
+			n.reads[v] = true
 		}
 		if selector, ok := fun.(*ast.SelectorExpr); ok {
 			if selection := info.Selections[selector]; selection != nil && selection.Kind() == types.MethodVal {
@@ -734,6 +868,7 @@ var fileWriters = map[string][]int{
 	"os.WriteFile": {0}, "os.Create": {0}, "os.OpenFile": {0}, "os.Mkdir": {0}, "os.MkdirAll": {0},
 	"os.Remove": {0}, "os.RemoveAll": {0}, "os.Rename": {0, 1}, "os.Symlink": {1}, "os.Link": {1},
 	"os.Chmod": {0}, "os.Chtimes": {0}, "os.Truncate": {0}, "os.Lchown": {0}, "os.Chown": {0},
+	"os.CopyFS": {0}, "io/ioutil.WriteFile": {0},
 }
 
 // readOnlyOpen reports os.OpenFile with constant flags that neither write,

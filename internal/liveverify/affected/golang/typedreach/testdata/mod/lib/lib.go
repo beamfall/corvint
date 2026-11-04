@@ -47,3 +47,14 @@ var Shared = struct{ P *int }{new(int)}
 var State int
 
 func Guard() bool { State = 1; return true }
+
+// CA and CB are separate constant declarations; CB is built from CA.
+const CA = 1
+
+const CB = CA + 1
+
+// Arr's length is CA.
+type Arr [CA]int
+
+// Child is what the test binary runs when started as a child.
+func Child() int { return 7 }

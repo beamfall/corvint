@@ -56,6 +56,7 @@ type change struct {
 func Analyze(program *Program, changed []Declaration, wholePackages []string) Result {
 	g := buildGraph(program)
 	c := resolve(program, changed, wholePackages)
+	deriveChanges(g, &c)
 	a := &analysis{g: g, c: c, structural: map[types.Type][]*types.Named{}}
 	result := Result{Kept: map[string]string{}, Tests: len(g.tests)}
 	if c.initialization != "" {
@@ -257,6 +258,42 @@ func resolveImport(program *Program, pkg *Package, kind, file, path string, c *c
 	}
 }
 
+// deriveChanges closes the change set over g.derived: a constant, type or
+// variable declared from a changed constant or type is changed too.
+func deriveChanges(g *graph, c *change) {
+	changed := func(object types.Object) bool {
+		if c.objects[object] || (object.Pkg() != nil && c.packages[object.Pkg().Path()]) {
+			return true
+		}
+		if name, ok := object.(*types.TypeName); ok {
+			if named, ok := types.Unalias(name.Type()).(*types.Named); ok && c.types[named.Origin()] {
+				return true
+			}
+		}
+		return false
+	}
+	for grown := true; grown; {
+		grown = false
+		for used, defined := range g.derived {
+			if !changed(used) {
+				continue
+			}
+			for _, object := range defined {
+				if changed(object) {
+					continue
+				}
+				c.objects[object] = true
+				if name, ok := object.(*types.TypeName); ok {
+					if named, ok := types.Unalias(name.Type()).(*types.Named); ok {
+						c.types[named.Origin()] = true
+					}
+				}
+				grown = true
+			}
+		}
+	}
+}
+
 type analysis struct {
 	g          *graph
 	c          change
@@ -323,6 +360,13 @@ func (a *analysis) reach(roots []*node) closure {
 				visitFunc(n, f)
 			}
 		}
+	}
+	if len(out.starts) > 0 {
+		// A started process may write any file, the environment it hands
+		// on, or signal this one; its writes are not bounded (AFP-V0-2374).
+		out.writes[files] = true
+		out.writes[environment] = true
+		out.writes[signals] = true
 	}
 	sort.Strings(out.starts)
 	sort.Strings(out.process)

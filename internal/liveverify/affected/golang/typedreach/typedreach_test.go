@@ -209,6 +209,45 @@ func TestAFPV02374ReReviewRegressions(t *testing.T) {
 	}
 }
 
+// TestAFPV02373RoundThreeRegressions holds the third review's cases: a
+// constant built from a changed constant and a type whose length is one; a
+// test starting a process through a Cmd made by new or declared as a
+// variable; a process-starting test's unbounded writes reaching a test that
+// reads a shared file; ioutil and os.Root file effects; and os.Stdout
+// written by a kept test while a dropped test prints through fmt.
+func TestAFPV02373RoundThreeRegressions(t *testing.T) {
+	constant := analyzePackage(t, "t3", lib("CA"))
+	if constant.Whole != "" || keptCodes(constant)["TestConst"] != KeptReachesChange || keptCodes(constant)["TestArr"] != KeptReachesChange {
+		t.Fatalf("constant: whole=%q kept=%v", constant.Whole, constant.Kept)
+	}
+	child := analyzePackage(t, "t3", lib("Child"))
+	if keptCodes(child)["TestSelf"] != KeptStartsProcess || keptCodes(child)["TestSpawnA"] != KeptStartsProcess {
+		t.Fatalf("exec.Cmd by new or var: whole=%q kept=%v", child.Whole, child.Kept)
+	}
+	if keptCodes(child)["TestReadShared"] != KeptReadsSharedState {
+		t.Fatalf("a started process writes files a reader sees: kept=%v", child.Kept)
+	}
+	a := analyzePackage(t, "t3", lib("A"))
+	if keptCodes(a)["TestStdoutA"] != KeptReachesChange || keptCodes(a)["TestPrint"] != KeptReadsSharedState {
+		t.Fatalf("os.Stdout and fmt: whole=%q kept=%v", a.Whole, a.Kept)
+	}
+	program, err := Load(filepath.Join("testdata", "mod"), fixtureModule, "t3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := buildGraph(program)
+	roots := map[string]*node{}
+	for _, test := range g.tests {
+		roots[test.name] = test.node
+	}
+	if n := roots["TestIoutil"]; n == nil || !n.writes[files] {
+		t.Fatalf("ioutil.WriteFile of a shared path does not write files")
+	}
+	if n := roots["TestRoot"]; n == nil || !n.writes[files] || !n.reads[files] {
+		t.Fatalf("os.OpenRoot does not read and write files")
+	}
+}
+
 func maps(got, want map[string]string) bool {
 	if len(got) != len(want) {
 		return false

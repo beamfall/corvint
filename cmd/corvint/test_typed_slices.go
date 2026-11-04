@@ -97,6 +97,12 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			whole(unreadable)
 			continue
 		}
+		if len(declarations) == 0 {
+			// The plan reached the package through a change no declaration
+			// shows: never slice on an empty change set.
+			whole("no changed Go declaration was read")
+			continue
+		}
 		relative := strings.TrimPrefix(strings.TrimPrefix(pkg, module), "/")
 		program, err := typedReachLoad(root, module, relative)
 		if err != nil {
@@ -128,22 +134,49 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 }
 
 // typedReachChangedPaths returns the dirty paths that change code a test
-// binary can link: non-test Go source files of Go units. Another package's
-// test files, test data and every other non-Go path are never compiled into
-// a binary unless a package embeds files, so they are left out; a reader of
-// them by path is refused per package (typedReachUnitRefusal). A non-Go path
-// of a package that embeds files is the reason no slice is proved.
+// binary can link: non-test Go source files of Go units (AFP-V0-2377).
+// Another package's test file is never linked and is left out. Any other
+// dirty path in or under the directory of a Go package (embedded, or read at
+// run time relative to the package's source), and any path under a package
+// that embeds files, is the reason no slice is proved; a path outside every
+// Go package directory can reach a test only by a read the per-package
+// refusals check (typedReachUnitRefusal).
 func typedReachChangedPaths(graph *affected.Graph, dirty []string) ([]string, string) {
+	directories, embedding := map[string]bool{}, map[string]bool{}
+	for _, id := range graph.UnitIDs() {
+		unit, ok := graph.Unit(id)
+		files := append(slices.Clone(unit.Sources), unit.Tests...)
+		if !ok || !strings.HasPrefix(id, "go:") || len(files) == 0 {
+			continue
+		}
+		directory := path.Dir(files[0])
+		directories[directory] = true
+		embedding[directory] = embedding[directory] || unit.Embeds || len(unit.EmbedFiles) > 0
+	}
+	under := func(file string, set map[string]bool) string {
+		for directory := path.Dir(file); ; directory = path.Dir(directory) {
+			if set[directory] {
+				return directory
+			}
+			if directory == "." || directory == "/" {
+				return ""
+			}
+		}
+	}
 	var changed []string
 	for _, file := range dirty {
+		if directory := under(file, embedding); directory != "" {
+			return nil, file + " may be embedded by the package in " + directory
+		}
 		owner, owned := graph.OwnerOf(file)
-		unit, _ := graph.Unit(owner)
-		goUnit := owned && strings.HasPrefix(owner, "go:")
 		switch {
-		case goUnit && strings.HasSuffix(file, ".go") && !strings.HasSuffix(file, "_test.go") && !strings.Contains("/"+file, "/testdata/"):
+		case owned && strings.HasPrefix(owner, "go:") && strings.HasSuffix(file, ".go") && !strings.HasSuffix(file, "_test.go") && !strings.Contains("/"+file, "/testdata/"):
 			changed = append(changed, file)
-		case goUnit && unit.Embeds && !strings.HasSuffix(file, ".go"):
-			return nil, file + " may be embedded by " + owner
+		case owned && strings.HasPrefix(owner, "go:") && strings.HasSuffix(file, "_test.go"):
+		default:
+			if directory := under(file, directories); directory != "" {
+				return nil, file + " is a data file under the Go package directory " + directory
+			}
 		}
 	}
 	return changed, ""
