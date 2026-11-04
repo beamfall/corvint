@@ -133,6 +133,7 @@ make windows-vet
 ## Agent routing
 
 Use the matching row in `docs/AGENT-ROUTES.md` for a bounded route from question to original evidence.
+Code search excludes tracked change evidence: `git grep -n 'TEXT' -- . ':!.agent-evidence' ':!.corvint/changes'`.
 What Corvint can do (every command, binary and MCP tool, with maturity and refusals): `docs/CAPABILITIES.md`.
 New functionality ships with its help and its catalog entry: every new subcommand, flag, binary or MCP
 tool needs `--help` text (usage, required inputs, an example), its command-tree snapshot

@@ -58,6 +58,7 @@ type repositoryIndex struct {
 	module         string
 	packages       map[string]*goPackage // by repository-relative directory, "" for the root
 	nested         []string              // directories holding a nested go.mod
+	goDirectories  []string              // directories leafPattern counts: Go files outside testdata, nested go.mod
 	holders        map[string][]string   // path token -> directories whose files carry it
 	nonTestHolders map[string][]string   // path token -> directories whose non-test files carry it
 	importers      map[string][]string   // directory -> directories whose non-test files import it
@@ -113,6 +114,16 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	// recorded in walk order, so the index and the first error are those of
 	// the serial pass: a file's scan error precedes any walk error after it.
 	imports := map[string]map[string]bool{}
+	for _, file := range files {
+		if directory := parentDirectory(file.relative); !inTestdataComponent(directory) {
+			index.goDirectories = append(index.goDirectories, directory)
+		}
+	}
+	for _, directory := range index.nested {
+		if !inTestdataComponent(directory) {
+			index.goDirectories = append(index.goDirectories, directory)
+		}
+	}
 	recalled := memo.load(root, module)
 	results := scanFiles(root, module, files, recalled)
 	for _, scanned := range results {
@@ -243,7 +254,7 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			if !test {
 				index.nonTestHolders[value] = appendOnce(index.nonTestHolders[value], directory)
 			}
-			if reason := escapesPackage(directory, value, test); reason != "" {
+			if reason := escapesPackage(directory, value, test); reason != "" && !leafPattern(directory, value, test, index.goDirectories) {
 				pkg.markUnresolved(relative+" "+reason, test)
 			}
 		}
@@ -427,6 +438,37 @@ func escapesPackage(directory, value string, test bool) string {
 		return fmt.Sprintf("carries the literal %q, which reaches the repository root", value)
 	}
 	return ""
+}
+
+// leafPattern reports whether value, a token of a test file in directory, is a
+// relative package pattern ("./..." or "./NAME/...") whose subtree holds no
+// directory of packages but directory itself (AFP-V0-2542, V1-4512). With the
+// package directory as the working directory, such a pattern reaches what "."
+// reaches, so rule (d) does not make it an unbounded read. packages lists every
+// directory that holds a Go file outside testdata or a nested go.mod; it mirrors the Go plugin's leafPattern.
+func leafPattern(directory, value string, test bool, packages []string) bool {
+	inner, pattern := strings.CutSuffix(value, "/...")
+	if !test || !pattern || (inner != "." && !strings.HasPrefix(inner, "./")) {
+		return false
+	}
+	for _, component := range strings.Split(inner, "/")[1:] {
+		if component == "" || component == "." || component == ".." || strings.Contains(component, "...") {
+			return false
+		}
+	}
+	if directory == "" {
+		directory = "."
+	}
+	subtree := path.Join(directory, inner)
+	for _, candidate := range packages {
+		if candidate == "" {
+			candidate = "."
+		}
+		if candidate != directory && (subtree == "." || candidate == subtree || strings.HasPrefix(candidate, subtree+"/")) {
+			return false
+		}
+	}
+	return true
 }
 
 func appendOnce(values []string, value string) []string {

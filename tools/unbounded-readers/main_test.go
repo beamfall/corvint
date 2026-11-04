@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // repository writes a module with one bounded and one unbounded test package.
@@ -352,4 +353,96 @@ func TestInvalidShellReadScopeEntryRefused_TSP_V0_831(t *testing.T) {
 	if want := "shell:read-scopes-invalid:script/plain_test.sh runs no toolchain"; !strings.Contains(stderr.String(), want) {
 		t.Fatalf("refusal does not name the entry %q:\n%s", want, stderr.String())
 	}
+}
+
+// AFP-V0-2540 (V1-4532): a package whose test-read-scopes declaration the
+// working tree drops is unbounded again, and the refusal names that removal as
+// the likely cause; an unrecorded package that HEAD never declared gets no such
+// line, and with no commit to compare the refusal is unchanged.
+func TestAFPV2540RefusalNamesTheDroppedDeclaration(t *testing.T) {
+	const record = `{"profile":"corvint-unbounded-reader-set/0","units":[],"reasons":{}}`
+	const likely = "reader: likely cause: its entry in " + affected.ReadScopesPath + ", declared at HEAD, was removed"
+	root := repository(t, record)
+	declare := func(packages string) {
+		t.Helper()
+		body := `{"profile":"corvint-test-read-scopes/0","packages":{` + packages + `}}`
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath)), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(state string, want int) string {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		if code := run(root, &stdout, &stderr); code != want {
+			t.Fatalf("%s: code=%d want %d; %s %s", state, code, want, stdout.String(), stderr.String())
+		}
+		return stderr.String()
+	}
+	declare(`"reader":[]`)
+	if got := check("no commit, declared", 0); strings.Contains(got, "likely cause") {
+		t.Fatalf("a declared package named a cause: %s", got)
+	}
+	declare("")
+	if got := check("no commit, dropped", 1); strings.Contains(got, "likely cause") {
+		t.Fatalf("a cause named without a commit to compare: %s", got)
+	}
+	declare(`"reader":[]`)
+	git := func(args ...string) {
+		t.Helper()
+		command := exec.Command("git", append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "commit.gpgsign=false"}, args...)...)
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("add", "-A")
+	git("commit", "-q", "-m", "declared")
+	check("declared at HEAD", 0)
+	declare("")
+	if got := check("dropped", 1); !strings.Contains(got, likely) || !strings.Contains(got, "[reader] are selected on every change") {
+		t.Fatalf("the dropped declaration is not named as the likely cause: %s", got)
+	}
+	// A package HEAD never declared is unrecorded for another reason.
+	declare(`"reader":[]`)
+	if err := os.MkdirAll(filepath.Join(root, "late"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "late", "l_test.go"), []byte("package late\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestL(t *testing.T) { _, _ = os.Getwd() }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := check("never declared", 1); strings.Contains(got, "likely cause") {
+		t.Fatalf("a never-declared package named a dropped declaration: %s", got)
+	}
+}
+
+// AFP-V0-2542 (V1-4512): a "./..." package pattern in a test of a package with no
+// package below it is no unbounded read, so the check passes on the recorded set;
+// once a package sits below it, the pattern reaches that package and the check
+// fails on the unrecorded unit again. The recorded os.Getwd reader still counts.
+func TestAFPV2542LeafPackagePatternIsNoUnboundedRead(t *testing.T) {
+	const record = `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`
+	root := repository(t, record)
+	write := func(name, content string) {
+		t.Helper()
+		file := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(state string, want int, text string) {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		if code := run(root, &stdout, &stderr); code != want || !strings.Contains(stdout.String()+stderr.String(), text) {
+			t.Fatalf("%s: code=%d want %d, want %q in %s %s", state, code, want, text, stdout.String(), stderr.String())
+		}
+	}
+	write("leaf/l.go", "package leaf\n")
+	write("leaf/l_test.go", "package leaf\n\nimport \"testing\"\n\nfunc TestL(t *testing.T) { _ = []string{\"go\", \"test\", \"./...\"} }\n")
+	check("leaf package", 0, `"count": 1`)
+	write("leaf/sub/s.go", "package sub\n")
+	check("package below", 1, "[leaf] are selected on every change")
 }

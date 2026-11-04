@@ -17,12 +17,13 @@ V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see 
 V1-1184, V1-1189, V1-2277) adds AFP-V0-2480 to AFP-V0-2489 here for the same reason; see
 build-log entry `2026-11-03-selmark-owned-selection`. V1-1184 and V1-1189 name the e2e-safe
 profile's AFU-V1-019 to AFU-V1-023; their must-run and order rules apply to the unit plan every
-consumer reads, so they live here, and AFP-V0-2486 carries must-run into that profile.
+consumer reads, so they live here, and AFP-V0-2486 carries must-run into that profile. Lane
+fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
 - Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`.
+- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`.
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
@@ -373,6 +374,30 @@ measure. None of them drops a unit the change can reach.
   fixtures made the CI selector fall back to every shard (run 41714153849). The Go toolchain builds
   nothing below `testdata`; the hosting package's tests read the files as bytes, which the CI
   selector's rules (b) to (d) attribute to Go packages as they do for an unowned path.
+- **AFP-V0-2540:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4532)
+  When `unbounded-readers-check` reports a package unrecorded and HEAD's committed
+  `.corvint/test-read-scopes.json` declares it while the working tree's copy does not, the report
+  SHALL add a `likely cause` line naming the removed declaration and both repairs: restore the
+  entry, or record the package. Other unrecorded packages keep the existing report, and without
+  Git, a commit or a readable committed declaration no line is added. Motivation: the refusal named
+  only the unbounded-readers record, so a lane that dropped a declaration edited the wrong file.
+- **AFP-V0-2541:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4532)
+  `test-read-scopes-check` SHALL fail for each package that HEAD's committed declaration lists and
+  the working tree's copy does not, when the package's Go tests are now unbounded readers and
+  `units` of `.corvint/unbounded-readers.json` does not list it. The failure names the package, both
+  files and both repairs, citing AFP-V0-025, whose ratchet compares sets. A listed package, a
+  package no commit declares, and an unreadable record (left to `unbounded-readers-check`) are not
+  reported.
+- **AFP-V0-2542:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4512)
+  AFP-V0-012 rule (d) SHALL NOT make a Go test file an unbounded reader for a relative package
+  pattern, `"./..."` or `"./NAME/..."` whose components are plain names, when the pattern's subtree,
+  resolved against the test's package directory, holds no other directory with a Go file outside
+  `testdata` and no nested `go.mod`. Such a pattern reaches no more than `"."`, which rule (d)
+  already accepts. The planner's Go plugin and the CI selector (`internal/gateselect`) SHALL apply
+  the same rule and agree on every fixture case. A subtree with another package or a nested module,
+  an import-path pattern, a component that is empty, `.`, `..` or holds `...`, and any non-test file
+  keep rule (d). Motivation: a leaf package whose test passed `./...` to a Go command was selected
+  on every change, though the pattern reaches nothing outside the package directory.
 
 ## Non-goals
 
@@ -392,7 +417,9 @@ test file or directory, so a Go entry selects the whole package that holds it. A
 matches no file is not refused, because an owner may be declared before the files it owns exist.
 AFP-V0-2487 does not change what `corvint test` runs or in which order; it orders the plan for a
 runner or agent that reads it. It reads no CI history and no remote failure data, learns no
-weights, and does not order the e2e-safe `selected` list.
+weights, and does not order the e2e-safe `selected` list. AFP-V0-2542 does not narrow an
+import-path or climbing pattern, and the nested-module reader path (`nested.go`) keeps rule (d) for
+every `/...` token.
 
 ## Failure modes
 
@@ -412,7 +439,9 @@ owns is an author error: the path's real readers are still selected by the reade
 the unowned-path unknown is lifted, as for a documentation declaration (AFP-V0-160). A mapping
 whose tests no longer exist refuses the build (AFP-V0-2483). A must-run entry makes every plan
 larger; it never makes one smaller. An unreadable `corvint test` receipt leaves the order with
-that receipt `UNREADABLE` and contributes no failure; it never fails the plan.
+that receipt `UNREADABLE` and contributes no failure; it never fails the plan. A package added
+below a leaf package makes the leaf's pattern an unbounded read again, so `unbounded-readers-check`
+fails on the unrecorded unit until the record or the test changes (AFP-V0-2542).
 
 ## Acceptance evidence and traceability
 
@@ -443,6 +472,9 @@ that receipt `UNREADABLE` and contributes no failure; it never fails the plan.
 | AFP-V0-2485 | the tier-0 case of `tierAffectedSelections` (`cmd/corvint/affected_tiers.go`); `MustRun` in `affectedCompactPlan`; the must-run and declared-owner branches of `testGoSlices`, `testDeclaredOwnerReason` (`cmd/corvint/test_slices.go`) | `TestMustRunAndOwnerAreTierZero_AFPV02485` in `cmd/corvint/affected_testselection_test.go`; `TestMustRunUnitRunsWhole_AFPV02485`; `TestDeclaredOwnerUnitRunsWhole_AFPV02485` (undeclared control) |
 | AFP-V0-2486 | the `declared-must-run` reason and the `mustRun` skip of `selected` in `internal/appflows/selection.go` | `TestE2ESafeKeepsMustRunTests_AFPV02486` in `internal/appflows/selection_mustrun_test.go` |
 | AFP-V0-2487 | `affectedFailFastOrder`, `readFailFastReceipts` in `cmd/corvint/affected_order.go`; the `--fail-fast-order` parse and its refusals in `cmd/corvint/affected.go`; `Order` in `affectedCompactReceipt` | `TestFailFastOrderPutsRecentFailuresFirst_AFPV02487`, `TestFailFastOrderKeepsTheMostRecentReceipts_AFPV02487` (the 64 newest by time, ties by name) and `TestFailFastOrderUnlistableDirectoryIsUnreadable_AFPV02487` (absent-directory control) in `cmd/corvint/affected_order_test.go` |
+| AFP-V0-2540 | `droppedDeclarations` and the `likely cause` line of `run` in `tools/unbounded-readers/main.go` | `TestAFPV2540RefusalNamesTheDroppedDeclaration` in `tools/unbounded-readers/main_test.go` (a dropped declaration; controls: a package HEAD never declared, no commit) |
+| AFP-V0-2541 | `droppedUnrecorded`, `droppedDeclarations` and the `dropped` report of `run` in `tools/test-read-scopes-check/main.go` | `TestDroppedDeclarationNamesTheRatchetEntry_AFP_V0_2541` in `tools/test-read-scopes-check/main_test.go` (controls: a package the record lists, no commit) |
+| AFP-V0-2542 | `leafPattern` and `packageDirectories` in `internal/liveverify/affected/golang/unbounded.go`, its call in `observeDirectory` (`golang.go`); `leafPattern`, `goDirectories` and its call in `record` in `internal/gateselect/readers.go` | `TestLeafPackagePatternParity_AFPV02542` in `internal/gateselect/leaf_pattern_test.go` (both analyzers agree; bounded: a leaf, a data-only subtree, Go files only under `testdata`; unbounded: a package below, a nested module, an import-path, a climbing, a deep and a wildcard pattern) and `TestAFPV2542LeafPackagePatternIsNoUnboundedRead` in `tools/unbounded-readers/main_test.go` (a package added below makes the read unbounded again) |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 | AFP-V0-2440 | `unownedUnknown` and `fixtureOnlyClaim` in `internal/liveverify/affected/select.go` | `TestFixtureOnlyClaimIsNoUnindexedSource_AFPV2440` in `internal/liveverify/affected/fixtures_test.go` (two reclassified shapes; five kept: unhosted, indexed below, outside testdata, a Go claim, a second indexing claimant); `TestRubyFixturesOfANewGoPackageAreNoUnindexedSource_V14446` in `internal/liveverify/affected/replay_v14446_test.go` (real plugins; a no-`go.mod` negative control); both fail with the rule disabled; live replay of PR 85 in build log `2026-11-03-mqfix` |
 
@@ -463,4 +495,7 @@ from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`. For AFP-V0-
 `selectPlan` hooks, `Plan.MustRun`, `Plan.DeclaredOwners`, `tierAffectedPlan` and the e2e-safe reason; a repository's
 `.corvint/test-selection.json` then refuses nothing and selects nothing, because no reader reads it,
 and its paths fall back to `UNOWNED_DIRTY_PATH`. For AFP-V0-2487, drop the flag and
-`cmd/corvint/affected_order.go`; plans without the flag are unchanged either way.
+`cmd/corvint/affected_order.go`; plans without the flag are unchanged either way. For AFP-V0-2540
+and AFP-V0-2541, delete `droppedDeclarations` from both tools and `droppedUnrecorded`; the refusals
+then name only the unbounded-readers record again. For AFP-V0-2542, delete both `leafPattern`
+functions, `packageDirectories` and `goDirectories`; such patterns are unbounded reads again.
