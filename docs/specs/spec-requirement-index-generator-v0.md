@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:471@e23d2d1f`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:531@e23d2d1f`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
   Amended 2026-11-01 by SRG-V0-790 (V1-3793): the token accepts three or more digits, and an ID of
@@ -331,7 +331,7 @@ No requirement below diverges from the implementation.
   check cannot find reports line 0 beside the existing missing-header finding. Rollback: revert
   `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` and delete
   `internal/specindex/status_drift_test.go`; the check reports the previous one-line message.
-- `SRG-V0-970`: (experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`)
+- `SRG-V0-970`: (experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`; amended under the owner's standing auto-accept (2026-11-04); V1-4539)
   The SRG-V0-047 finding MUST also name the expected digest line, `- Status: INTENT / DELIVERY`
   built from the two header values, and say that an acceptance or amendment clause belongs on the
   requirement's own definition line (`SRG-V0-011`, `SRG-V0-981`), not in either status field.
@@ -340,6 +340,12 @@ No requirement below diverges from the implementation.
   header must be repeated in the digest, and neither field takes a new clause. Non-goal: the
   agreement rule itself is unchanged, so every existing spec passes unchanged. Rollback: revert
   `statusDriftMessage` to the SRG-V0-047 wording and drop the sentence.
+  The staged generator's `--status-check` mode MUST also reject this mismatch
+  before Go tests, naming the spec and digest line, actual status, both headers and expected
+  `- Status: INTENT / DELIVERY`. This includes an omitted trailing Intent parenthetical.
+  `make spec-status-check`, the prerequisite of `doc-gates`, and batch-precheck's cheap static
+  spec phase MUST expose the same diagnostic. Superseded successor-only digests stay exempt.
+  Regression: `script/gen-spec-requirements_test.sh` status preflight fixture.
 - `SRG-V0-547`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)
   When the staged specs hold more than one unwrapped rank 0 definition line for one requirement
   id, in one spec or across specs, the generator MUST exit non-zero in every mode, before writing
@@ -407,12 +413,16 @@ No requirement below diverges from the implementation.
   SRG-V0-009 reader classifies it and REQUIREMENTS.tsv carries its anchors in `acceptedBy`. An
   `owner` requirement amended under the standing approval therefore reads `standing` until the owner
   reads the amendment back. Rollback: none needed; the rule only names where the record goes.
-- `SRG-V0-982`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458) The
+- `SRG-V0-982`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458; amended under the owner's standing auto-accept (2026-11-04); V1-4542) The
   repository `Makefile` MUST declare each phony target on its own `.PHONY:` line, placed with that
   target's rule (kept by review, not checked), and `make spec-requirements-test` MUST fail naming
   each `.PHONY:` line that lists more than one target. Failure mode: one shared `.PHONY:` line of about 1,560 characters took a
   word from every lane that added a target, so any two such lanes conflicted on it. Rollback:
   rejoin the lines and drop the check.
+  `DOC_GATE_TARGETS` MUST likewise list one target per continuation line in bytewise sorted,
+  duplicate-free order. `make spec-status-check` MUST check this shape; splitting the list MUST
+  preserve the target set and batch-precheck's expansion into individual steps. Regression:
+  `script/batch-precheck_test.sh` case 5 checks sorting; cases 1 and 2 check expansion.
 - `SRG-V0-983`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458)
   `script/spec-requirements-conflict_test.sh` MUST replay two branches of one synthetic repository
   that each amend a different requirement of one spec under SRG-V0-981 and each add a different
@@ -644,7 +654,7 @@ No requirement below diverges from the implementation.
   a new spec file with a new requirement prefix, registered in README.md and INDEX.json according
   to AGENTS.md and SPEC-DRIVEN-DEVELOPMENT.md. It MUST write no generated file. Invalid margins
   fail closed. OCM's wire bound and generation's admission of exactly 256 remain unchanged.
-- `SRG-V0-745`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4331)
+- `SRG-V0-745`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4331; amended under the owner's standing auto-accept (2026-11-04); V1-4538)
   When generation refuses an over-cap spec or capacity reports a near/full spec, optional
   `BASE=<rev>` MUST report the sorted requirement IDs present in its staged Requirements section
   but absent from that spec at the immutable base commit. New specs treat the absent base file
@@ -657,6 +667,16 @@ No requirement below diverges from the implementation.
   prove two individually admitted lane fixtures overflow when combined, in both OCM and the
   generator; it MUST prove the base difference attributes only the added lane's IDs, an unchanged
   exact-256 spec warns and passes with BASE, and filling a spec to 256 since BASE fails capacity.
+
+  Before merging lanes, `make spec-batch-capacity-check BASE=origin/main LANES="REF..."`
+  MUST report each spec's base count plus distinct new OCM obligation IDs across the named
+  immutable lane commits. Above 256 MUST fail, naming the spec, counts and contributing lane
+  refs/commits; missing revisions or unreadable Git data MUST fail closed. The read-only
+  `--batch-capacity BASE REF...` generator mode MUST use the same OCM section reader as
+  `--capacity`, deduplicate shared IDs, and conservatively keep base IDs even if a lane deletes
+  them. Lane ancestry must contain BASE. This is a capacity estimate, not a merge or collision
+  proof. Rollback: remove the mode and target; retain single-tree capacity checks. Regression:
+  `script/gen-spec-requirements_test.sh` creates two admitted lanes whose union exceeds 256.
 
 ## Non-goals and simpler baseline
 
@@ -770,12 +790,12 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-041 | `script/spec-requirements-conflict_test.sh`: the target refuses while the one-section spec is still conflicted and resolves the TSV once it is staged; two new specs conflict only in generated files and resolve in both merge orders to the fresh generation with both specs indexed |
 | SRG-V0-045 | `TestSRGV0045SpecMetadataStaysInSelectedScope` over the committed `.corvint/test-read-scopes.json` and INDEX.json; `TestSRGV0045IndexCheckWitnesses`: the mismatched fixture reports exactly the length, digest and README findings, the aligned one none; on the repository, an INDEX-only 217-character claim is selected by `corvint affected` and fails `TestIndexCoversSpecsAndHeaders` with the same three findings, and the aligned claim in all three files is selected and passes (V1-0515 PR evidence) |
 | SRG-V0-047 | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: a fixture whose digest Status says `accepted` under an `Intent status: proposed` header yields exactly one finding, pinned byte for byte, naming `fixture-v0.md:7`, `:3` and `:4` and saying to edit the fields together |
-| SRG-V0-970 | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: the same finding names `- Status: proposed / experimental` and the requirement-line rule |
+| SRG-V0-970 | `script/gen-spec-requirements_test.sh` status preflight fixture rejects an omitted Intent parenthetical with the exact replacement before Go; `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: the same finding names `- Status: proposed / experimental` and the requirement-line rule |
 | SRG-V0-044 | `script/gen-spec-requirements_test.sh` case 11: a definition line ending in `Status: (accepted, decision 0481; GitHub #715).` is refused with its line and id; the case fails on the pre-change generator |
 | SRG-V0-547 | `script/gen-spec-requirements_test.sh` case 12: `DUP-V0-001` defined in two specs and `DUP-V0-002` twice in one are refused in the TSV, `--lines`, `--index` and `--readme` modes naming both `path:line` locations, and `--all` writes nothing; the case fails on the pre-change generator |
 | SRG-V0-548 | `script/gen-spec-requirements_test.sh` case 12: a wrapped `` `DUP-V0-001`. `` citation before the real definition is neither refused nor chosen as the row; regenerating the committed index moves only the `AHI-246` and `DCI-V1-030` rows to their real definitions |
 | SRG-V0-744 | `make spec-capacity-check`; `script/gen-spec-requirements_test.sh` case 50 (isolated invalid margins/BASE, staging, every near spec, 256 without BASE warns, unchanged 256 with BASE warns, filled-to-256 fails, 257 fails); `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (OCM parity for four-digit IDs and fenced definitions/headings, generation compatibility) |
-| SRG-V0-745 | `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (two admitted fixtures, union 257, exact base additions, unchanged versus newly filled 256); `script/gen-spec-requirements_test.sh` case 50 (invalid base, 255-to-256 attribution) |
+| SRG-V0-745 | `script/gen-spec-requirements_test.sh` batch preflight fixture (254 base + two admitted 2-ID lanes = 258, shared-ID deduplication, invalid refs, conservative deletion, no mutations); `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (two admitted fixtures, union 257, exact base additions, unchanged versus newly filled 256); `script/gen-spec-requirements_test.sh` case 50 (invalid base, 255-to-256 attribution) |
 | SRG-V0-965 | the `spec-requirements` recipe in `Makefile` runs `TestSpecsStayWithinTheOCMObligationBound` after writing; `script/gen-spec-requirements_test.sh` case 15 checks the recipe names it |
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
@@ -798,7 +818,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-763 | `script/gen-spec-requirements_test.sh` the SRG-V0-040 long-claim checks and case 15: the long-Claim refusal names `two.md:8` and `multi.md:7` |
 | SRG-V0-764 | `script/requirement-next-id_test.sh`, run by `spec-requirements-test`: the next ID follows the highest definition, not the last line, two out-of-order definitions are named by line, an unused prefix starts at 001, and a bad prefix exits 2 |
 | SRG-V0-981 | `script/spec-requirements-conflict_test.sh` replay: each branch's amended note yields a `standing` row whose `acceptedBy` carries the amendment's date and ticket |
-| SRG-V0-982 | `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
+| SRG-V0-982 | `script/batch-precheck_test.sh` families 2 and 5 check multiline expansion, sorted targets and refusal/acceptance of fixture orders; `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
 | SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
 | SRG-V0-890 | `script/gen-spec-requirements_test.sh` case 13: the Intent status refusal names line 3 of the fixture spec `frozen.md`, the frozen file and the Requirements section `(lines 10..13)`; the digest refusal names its line 8. |
 | SRG-V0-891 | `script/gen-spec-requirements_test.sh` case 14: a definition after the section is refused in the TSV and `--all` modes naming line 13 of the fixture spec `placed.md`, `PLC-V0-002` and the section `(lines 3..6)`; the inside and fenced definitions are not named; a baselined one and a spec without the section pass. |

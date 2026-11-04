@@ -58,6 +58,7 @@ if [[ $base_arg == --bound-base ]]; then
   printf 'dogfood-check: BASE=%s from the CEM bound at HEAD (.corvint/change.cem.json baseRevision)\n' "$base_arg" >&2
 fi
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
+(cd "$repo" && "$repo/script/check-lane-script-tests.sh" "$base") || exit $?
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 evidence="$git_dir/corvint"
 override=()

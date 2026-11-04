@@ -30,6 +30,19 @@ for sh_mode in sh 'bash --posix'; do
   rc=$?
   [[ $rc == 2 && $out == *'REFUSE not-bash'* ]] || { printf 'batch-precheck_test: FAIL %s did not refuse (exit %s): %s\n' "$sh_mode" "$rc" "$out" >&2; exit 1; }
 done
+# CASES selects independent fixture families, comma-separated (default: all):
+#   1 source/static-spec and adapter checks; 2 workflow/runner/regen;
+#   3 affected selection and receipts; 4 static build/vet; 5 lane/doc-target regressions.
+# Example: CASES=4 bash script/batch-precheck_test.sh (well under 180 s).
+# Existing numbered scenario comments identify assertions within these fixture families.
+# BATCH_PRECHECK_TEST_STATIC_ONLY=1 remains an alias for the static part of family 1.
+selected_cases=${CASES-1,2,3,4,5}
+[[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || selected_cases=1
+if [[ ! $selected_cases =~ ^[1-5](,[1-5])*$ ]]; then
+  printf 'batch-precheck_test: REFUSE bad CASES=%q; use CASES=1,2,3,4,5 (or a subset)\n' "$selected_cases" >&2
+  exit 2
+fi
+wanted() { [[ ,$selected_cases, == *,$1,* ]]; }
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") ||
   { printf 'batch-precheck_test: FAIL mktemp under %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2; exit 1; }
 # batch-precheck resolves the step TMPDIR with `cd && pwd`; macOS TMPDIR ends in `/`, so the
@@ -87,11 +100,6 @@ on_exit() {
 trap on_exit EXIT
 avail=$(tmp_avail)
 [[ $avail =~ ^[0-9]+$ ]] && ((avail < need_kib)) && host_refuse "checked before the first case"
-# ASD-V0-913: a floor above the free space refuses with exit 3, naming the directory and the KiB.
-out=$(BATCH_PRECHECK_TEST_MIN_KIB=999999999999 bash "$script/batch-precheck_test.sh" 2>&1)
-rc=$?
-[[ $rc == 3 && $out == *"REFUSE host-resource: TMPDIR ${TMPDIR:-/tmp} has "*"KiB free; this test needs at least 999999999999KiB there"* ]] ||
-  fail "a short TMPDIR was not a host-resource refusal (exit $rc): $out"
 # The precheck's step TMPDIR (ASD-V0-055) stays inside this test's scratch unless a case sets it.
 export BATCH_PRECHECK_TMPDIR=$tmp/step-tmp
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
@@ -108,6 +116,68 @@ if [[ ${BATCH_PRECHECK_TEST_SEED-} == 1 ]]; then
   (false || fail "seeded failure two")
   finish
 fi
+doc_targets() {
+  awk '/^DOC_GATE_TARGETS :=/ { on=1; next } on { line=$0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' "$script/../Makefile"
+}
+
+setup_workflow() {
+# 2. A fixture repository, workflow and packages.
+repo=$tmp/repo
+mkdir -p "$repo/.github/workflows" "$repo/pkg" "$repo/interop/cem01-go"
+git init -q "$repo" || fail "git init"
+printf 'package pkg\n\nimport "testing"\n\nfunc TestDriftOne(t *testing.T) {}\n' > "$repo/pkg/a_test.go"
+cat > "$tmp/regen-stub" <<'EOF'
+#!/bin/sh
+case $1 in
+  --golden-tests) printf '%s\n' ${STUB_GOLDENS:-} | sed 's/:/ /' ;;
+  --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt
+    [ -n "${STUB_REPIN_STAGE:-}" ] && git add derived.txt
+    [ -n "${STUB_REPIN_TERM:-}" ] && kill -TERM "$PPID"
+    exit 0 ;;
+esac
+EOF
+chmod +x "$tmp/regen-stub"
+write_ci() {
+  cat > "$repo/.github/workflows/ci.yml" <<EOF
+jobs:
+  doc-gates:
+    env:
+      GOPROXY: off
+      GOFLAGS: ""
+    steps:
+      - name: Documentation gate steps
+        run: make -s spec-requirements-check $1
+      - name: Receipts
+        run: |
+          # a comment
+          make -s use-case-receipts-check \\
+            use-case-receipts-test
+          go run ${2:-./conformance/use-cases-v0}
+${4:-}
+  go-static:
+    steps:
+      - run: |
+          test -z "\$(gofmt -l ${3:-cmd internal tools .github/cishards .github/testconfine})"
+  go-interop:
+    steps:
+      - run: |
+          test -z "\$(gofmt -l .)"
+  other:
+    steps:
+      - run: make -s not-a-doc-gate
+EOF
+}
+fixture() { BATCH_PRECHECK_ROOT=$repo BATCH_PRECHECK_REGEN=$tmp/regen-stub BATCH_PRECHECK_DRIFT=${drift:-"./pkg TestDrift"} "$pre" "$@" > "$tmp/out" 2>&1; }
+
+}
+
+if wanted 1; then (
+  printf 'batch-precheck_test: CASE 1\n'
+# ASD-V0-913: a floor above the free space refuses with exit 3, naming the directory and the KiB.
+out=$(BATCH_PRECHECK_TEST_MIN_KIB=999999999999 bash "$script/batch-precheck_test.sh" 2>&1)
+rc=$?
+[[ $rc == 3 && $out == *"REFUSE host-resource: TMPDIR ${TMPDIR:-/tmp} has "*"KiB free; this test needs at least 999999999999KiB there"* ]] ||
+  fail "a short TMPDIR was not a host-resource refusal (exit $rc): $out"
 # 0c. ASD-V0-780: a failing case does not stop the run; the summary names every failed case.
 BATCH_PRECHECK_TEST_SEED=1 "$script/batch-precheck_test.sh" > "$tmp/out" 2>&1
 seed_rc=$?
@@ -127,7 +197,7 @@ grep -q '^  - case "0a\. ASD-V0-780 seeded failure one.*seeded failure one$' "$t
 grep -qx 'make line-citations-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" ||
   fail "derived doc-gates not expanded into their targets: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && fail "doc-gates still runs as one step: $(cat "$tmp/out")"
-for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
+for t in $(doc_targets); do
   grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
 done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
@@ -142,7 +212,7 @@ mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
 git -C "$static_repo" init -q
 printf '[{"path":"docs/specs/one.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
-printf '# One\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
+printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
 static_row='| One | [`one.md`](one.md) ONE-V0-001 | proposed | experimental | One claim. |'
 printf '# Specs\n%s\n%s\n' "$static_row" "$static_row" > "$static_repo/docs/specs/README.md"
 git -C "$static_repo" add docs/specs
@@ -181,7 +251,7 @@ printf '# Specs\n' > "$static_repo/docs/specs/README.md"
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "missing row passed"
 grep -qF 'lines (missing)' "$tmp/out" || fail "missing row lacked repair: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
-{ printf '# Untouched\n\n## Requirements\n\n'
+{ printf '# Untouched\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n'
   for ((i=1; i<=256; i++)); do printf -- '- `UNTOUCHED-V0-%03d`: (proposed) Clause.\n' "$i"; done
 } > "$static_repo/docs/specs/untouched.md"
 printf '[{"path":"docs/specs/one.md"},{"path":"docs/specs/untouched.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
@@ -194,7 +264,7 @@ for static_base_env in BATCH_PRECHECK_BASE DOGFOOD_BASE; do
   grep -qF 'docs/specs/untouched.md: warning:' "$tmp/out" || fail "untouched full spec lacked warning: $(cat "$tmp/out")"
   grep -qF "requirement IDs added since BASE=$static_base ($static_base): (none)" "$tmp/out" || fail "untouched spec lost $static_base_env attribution: $(cat "$tmp/out")"
 done
-{ printf '# One\n\n## Requirements\n\n'
+{ printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n'
   for ((i=1; i<=256; i++)); do printf -- '- `ONE-V0-%03d`: (proposed) Clause.\n' "$i"; done
 } > "$static_repo/docs/specs/one.md"
 git -C "$static_repo" add docs/specs
@@ -250,54 +320,13 @@ grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple
 grep -q "adapterVersion: '0.0.0-stale'" "$tmp/out" || fail "stale tuple assertion did not name its adapter version: $(tail -40 "$tmp/out")"
 fi
 
-# 2. A fixture repository, workflow and packages.
-repo=$tmp/repo
-mkdir -p "$repo/.github/workflows" "$repo/pkg" "$repo/interop/cem01-go"
-git init -q "$repo" || fail "git init"
-printf 'package pkg\n\nimport "testing"\n\nfunc TestDriftOne(t *testing.T) {}\n' > "$repo/pkg/a_test.go"
-cat > "$tmp/regen-stub" <<'EOF'
-#!/bin/sh
-case $1 in
-  --golden-tests) printf '%s\n' ${STUB_GOLDENS:-} | sed 's/:/ /' ;;
-  --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt
-    [ -n "${STUB_REPIN_STAGE:-}" ] && git add derived.txt
-    [ -n "${STUB_REPIN_TERM:-}" ] && kill -TERM "$PPID"
-    exit 0 ;;
-esac
-EOF
-chmod +x "$tmp/regen-stub"
-write_ci() {
-  cat > "$repo/.github/workflows/ci.yml" <<EOF
-jobs:
-  doc-gates:
-    env:
-      GOPROXY: off
-      GOFLAGS: ""
-    steps:
-      - name: Documentation gate steps
-        run: make -s spec-requirements-check $1
-      - name: Receipts
-        run: |
-          # a comment
-          make -s use-case-receipts-check \\
-            use-case-receipts-test
-          go run ${2:-./conformance/use-cases-v0}
-${4:-}
-  go-static:
-    steps:
-      - run: |
-          test -z "\$(gofmt -l ${3:-cmd internal tools .github/cishards .github/testconfine})"
-  go-interop:
-    steps:
-      - run: |
-          test -z "\$(gofmt -l .)"
-  other:
-    steps:
-      - run: make -s not-a-doc-gate
-EOF
-}
-fixture() { BATCH_PRECHECK_ROOT=$repo BATCH_PRECHECK_REGEN=$tmp/regen-stub BATCH_PRECHECK_DRIFT=${drift:-"./pkg TestDrift"} "$pre" "$@" > "$tmp/out" 2>&1; }
 
+exit 0
+) || fail "fixture family 1 exited unexpectedly"; fi
+
+if wanted 2; then (
+  printf 'batch-precheck_test: CASE 2\n'
+setup_workflow
 write_ci ""
 fixture --sync-check || fail "matching fixture refused: $(cat "$tmp/out")"
 fixture --list || fail "--list: $(cat "$tmp/out")"
@@ -937,221 +966,6 @@ printf 'fixture_test.go:41:1: inherited mismatch 42\n' > "$crepo/fail-test-comma
 crun --base "$twobase" || fail "fewer inherited occurrences classified introduced: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "fewer occurrences: $(cat "$tmp/out")"
 
-# 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
-# real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input
-# runs no go test and skips the catalog check, printing the skipped set; a changed golden runs its
-# package and fails on the real drift; a changed declared spec runs its test without the plan; a
-# changed catalog input runs the catalog check, which still fails on drift; an UNKNOWN, failed,
-# malformed or missing plan, a new frontier kind, a quoted path and a missing base run everything,
-# as do a plan bound to another base, an unmappable or empty selection under a Go change; a quoted
-# module directive still maps.
-srepo=$tmp/srepo
-mkdir -p "$srepo/.github/workflows" "$srepo/interop/cem01-go" "$srepo/conformance/use-cases-v0" "$srepo/golden/testdata" "$srepo/other" "$srepo/docs/specs"
-cp "$repo/.github/workflows/ci.yml" "$srepo/.github/workflows/ci.yml"
-printf 'module example.test/sel\n\ngo 1.21\n' > "$srepo/go.mod"
-printf 'package main\n\nfunc main() {}\n' > "$srepo/conformance/use-cases-v0/main.go"
-cat > "$srepo/golden/golden_test.go" <<'EOF2'
-package golden
-
-import (
-	"os"
-	"strings"
-	"testing"
-)
-
-func TestGoldenDrift(t *testing.T) {
-	b, err := os.ReadFile("testdata/want.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := strings.TrimSpace(string(b)); got != "v1" {
-		t.Fatalf("golden drift: want v1, got %s", got)
-	}
-}
-
-func TestFreeze(t *testing.T) {}
-EOF2
-printf 'v1\n' > "$srepo/golden/testdata/want.txt"
-printf 'package other\n\nimport "testing"\n\nfunc TestOtherDrift(t *testing.T) {}\n' > "$srepo/other/other_test.go"
-printf '# freeze\n' > "$srepo/docs/specs/freeze.md"
-printf '# guide\n' > "$srepo/docs/guide.md"
-printf 'capability-catalog-check:\n\t$(GO_TEST_COMMAND) -run x ./golden\n' > "$srepo/Makefile"
-git -C "$srepo" init -q && git -C "$srepo" add -A && git -C "$srepo" commit -qm base || fail "selection fixture commit"
-sbase=$(git -C "$srepo" rev-parse HEAD)
-sbin=$tmp/sbin
-mkdir -p "$sbin"
-printf '#!/bin/sh\necho "make $*" >> "%s/scalls"\n[ "$2" = capability-catalog-check ] && [ -n "${STUB_CATALOG_FAIL:-}" ] && grep -q changed docs/guide.md && { echo "catalog drift"; exit 1; }\nexit 0\n' "$tmp" > "$sbin/make"
-printf '#!/bin/sh\nexit 0\n' > "$sbin/gofmt"
-printf '#!/bin/sh\necho "planner $*" >> "%s/scalls"\n[ -z "${STUB_PLAN_RC:-}" ] || { echo "{\\"ok\\":false,\\"code\\":\\"boom\\"}"; exit "$STUB_PLAN_RC"; }\ncat "%s/plan.json"\n' "$tmp" "$tmp" > "$tmp/planner"
-chmod +x "$sbin"/* "$tmp/planner"
-frontier='{"reason":"LANGUAGE_FRONTIER","detail":"go:build-constraint-variants"},{"reason":"LANGUAGE_FRONTIER","detail":"shell:foreign-invocation-unmodelled"}'
-# plan_sel UNKNOWNS SELECTED writes a runnable affected-plan/1 bound to $pbase (default the
-# fixture base) with the raw selected entries; plan UNKNOWNS PKG... selects each PKG.
-plan_sel() {
-  printf '{"ok":true,"profile":"affected-plan/1","range":{"base":"%s"},"summary":{"line":"scope=UNKNOWN"},"provider":{"go":{"state":"RUNNABLE"}},"plan":{"selected":[%s],"unknown":[%s]}}\n' "${pbase:-$sbase}" "$2" "$1" > "$tmp/plan.json"
-}
-plan() {
-  local sel='' p
-  for p in "${@:2}"; do sel+="${sel:+,}{\"unitId\":\"go:example.test/sel/$p\",\"witness\":{\"kind\":\"UNBOUNDED_READER\"}}"; done
-  plan_sel "$1" "$sel"
-}
-sdrift='./golden TestGoldenDrift @go
-./other TestOtherDrift
-./golden TestFreeze @go docs/specs/freeze.md'
-srun() { (unset GOFLAGS; PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$srepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=${planner-$tmp/planner} BATCH_PRECHECK_DRIFT=$sdrift "$pre" "$@") > "$tmp/out" 2>&1; }
-row_is() { grep -q "^batch-precheck: | $1 | *[0-9]*s | $2\$" "$tmp/out" || fail "row $1 $2: $(cat "$tmp/out")"; }
-# A path outside every drift and catalog input: nothing runs, the skipped set is printed.
-plan "$frontier" golden
-mkdir -p "$srepo/notes" && printf 'n\n' > "$srepo/notes/a.txt"
-: > "$tmp/scalls"
-STUB_CATALOG_FAIL=1 srun --base "$sbase" || fail "an unreachable diff failed: $(cat "$tmp/out")"
-grep -qx "planner affected --base $sbase" "$tmp/scalls" || fail "planner not asked with the full base: $(cat "$tmp/scalls")"
-grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase (1 changed paths)\$" "$tmp/out" || fail "zero selection line: $(cat "$tmp/out")"
-grep -qx 'batch-precheck:   skipped ./golden TestGoldenDrift (no Go input and no declared input changed)' "$tmp/out" || fail "skipped golden: $(cat "$tmp/out")"
-grep -qx 'batch-precheck:   skipped ./other TestOtherDrift (the plan does not select its package)' "$tmp/out" || fail "skipped other: $(cat "$tmp/out")"
-grep -qx 'batch-precheck:   skipped ./golden TestFreeze (no Go input and no declared input changed)' "$tmp/out" || fail "skipped freeze: $(cat "$tmp/out")"
-grep -q "^batch-precheck: capability-catalog-check skipped: no catalog input changed since $sbase" "$tmp/out" || fail "catalog not skipped: $(cat "$tmp/out")"
-row_is PASS 'batch-drift (0 of 3 tests)'
-row_is PASS 'make capability-catalog-check'
-grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
-# ASD-V0-912 (V1-3804): the non-Go frontier details every real plan carries (the TypeScript,
-# C-family, .NET, Python, Ruby and Swift adapters' own gaps) do not widen a doc-only diff.
-plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
-srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
-grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
-  fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"
-plan "$frontier" golden
-# ASD-V0-892 (V1-3572, V1-3818): the skipped catalog check is a print-only row, which never goes
-# through the ledger: on a rerun on identical inputs it is a PASS while the listed steps reuse.
-sledger() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/sledger BATCH_PRECHECK_LEDGER=$tmp/gate-ledger srun "$@"; }
-sledger --base "$sbase" || fail "first selection ledger run failed: $(cat "$tmp/out")"
-sledger --base "$sbase" || fail "selection ledger rerun failed: $(cat "$tmp/out")"
-row_is PASS 'make capability-catalog-check'
-row_is REUSE 'sync-check'
-grep -q '^batch-precheck: | REUSE | *[0-9]*s | make capability-catalog-check$' "$tmp/out" && fail "print-only row went through the ledger: $(cat "$tmp/out")"
-# ASD-V0-640 (V1-3744): no script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path
-# changed, so lane-scripts-test is a print-only skip; a new file under script/ runs it, and so does a
-# change to the retained-data manifest alone, which the ASD-V0-646 group validates.
-grep -q "^batch-precheck: lane-scripts-test skipped: no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md, benchmarks/retained-data.tsv) changed since $sbase\$" "$tmp/out" || fail "lane-scripts-test not skipped: $(cat "$tmp/out")"
-row_is PASS 'make lane-scripts-test'
-grep -q 'lane-scripts-test' "$tmp/scalls" && fail "a skipped lane-scripts-test ran: $(cat "$tmp/scalls")"
-mkdir -p "$srepo/script" && printf '#!/bin/sh\n' > "$srepo/script/new.sh"
-: > "$tmp/scalls"
-srun --base "$sbase" || fail "a script/ change failed: $(cat "$tmp/out")"
-grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
-grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a script/ change: $(cat "$tmp/scalls")"
-/bin/rm -rf "$srepo/script"
-mkdir -p "$srepo/benchmarks" && printf 'id\n' > "$srepo/benchmarks/retained-data.tsv"
-: > "$tmp/scalls"
-srun --base "$sbase" || fail "a retained-data manifest change failed: $(cat "$tmp/out")"
-grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" ||
-  fail "lane-scripts-test skipped for a manifest-only change: $(cat "$tmp/out")"
-grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a manifest-only change: $(cat "$tmp/scalls")"
-/bin/rm -rf "$srepo/benchmarks"
-# A changed golden (a non-Go file in a Go package directory) runs that package and fails on the
-# real drift, introduced since the base.
-printf 'v2\n' > "$srepo/golden/testdata/want.txt"
-srun --base "$sbase" && fail "real golden drift passed"
-grep -q "^batch-precheck: batch-drift runs 2 of 3 drift tests" "$tmp/out" || fail "golden selection: $(cat "$tmp/out")"
-row_is FAIL 'batch-drift (1 packages, 2 of 3 tests)'
-grep -q 'golden drift: want v1, got v2' "$tmp/out" || fail "drift output not shown: $(cat "$tmp/out")"
-grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || fail "drift not introduced: $(cat "$tmp/out")"
-grep -q '^batch-precheck: capability-catalog-check runs (a catalog input changed' "$tmp/out" || fail "catalog not run on a Go input: $(cat "$tmp/out")"
-git -C "$srepo" checkout -q -- golden/testdata/want.txt
-# A changed declared spec runs its test even when the plan selects nothing; a nested docs path is
-# not a top-level docs/*.md catalog input.
-plan "$frontier"
-printf 'changed\n' >> "$srepo/docs/specs/freeze.md"
-srun --base "$sbase" || fail "declared spec run failed: $(cat "$tmp/out")"
-row_is PASS 'batch-drift (1 packages, 1 of 3 tests)'
-grep -q '^batch-precheck: capability-catalog-check skipped' "$tmp/out" || fail "nested docs path ran the catalog: $(cat "$tmp/out")"
-git -C "$srepo" checkout -q -- docs/specs/freeze.md
-# A changed top-level doc runs the catalog check, which still fails on drift.
-printf 'changed\n' >> "$srepo/docs/guide.md"
-: > "$tmp/scalls"
-STUB_CATALOG_FAIL=1 srun --base "$sbase" && fail "catalog drift passed: $(cat "$tmp/out")"
-row_is FAIL 'make capability-catalog-check'
-grep -q '^batch-precheck: FAIL make capability-catalog-check .* introduced' "$tmp/out" || fail "catalog drift not introduced: $(cat "$tmp/out")"
-grep -q '^make -s capability-catalog-check$' "$tmp/scalls" || fail "catalog not run: $(cat "$tmp/scalls")"
-grep -q '^  | catalog drift' "$tmp/out" || fail "catalog output: $(cat "$tmp/out")"
-git -C "$srepo" checkout -q -- docs/guide.md
-# Everything runs, naming why, for an UNKNOWN plan, a new frontier kind, a failing, malformed or
-# missing planner, a path that needs quoting and no base.
-full() {
-  grep -q "^batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (.*$1" "$tmp/out" || fail "full union for $1: $(cat "$tmp/out")"
-  row_is PASS 'batch-drift (2 packages)'
-  grep -q '^make -s capability-catalog-check$' "$tmp/scalls" || fail "catalog skipped for $1: $(cat "$tmp/scalls")"
-}
-run_full() { : > "$tmp/scalls"; srun "$@" || fail "full run failed: $(cat "$tmp/out")"; }
-plan '{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"}' golden
-run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNOWNED_DIRTY_PATH notes/a.txt; all in '
-# ASD-V0-893 (V1-3260): many unknowns print a count, the first and the retained file, not the list.
-many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"go:fake-frontier %s"}' "$i"; done)
-plan "$frontier$many" golden
-run_full --base "$sbase"; full 'the plan has 300 unknowns, first: LANGUAGE_FRONTIER go:fake-frontier 1; all in '
-ufile=$(git -C "$srepo" rev-parse --path-format=absolute --git-path batch-precheck-unknowns.txt)
-[[ $(grep -c . "$ufile") == 300 ]] && grep -qx 'LANGUAGE_FRONTIER go:fake-frontier 299' "$ufile" &&
-  grep -qF "all in $ufile)" "$tmp/out" || fail "unknowns file $ufile: $(head -c 300 "$ufile" 2>&1)"
-(($(awk '{ if (length > m) m = length } END { print m + 0 }' "$tmp/out") < 600)) || fail "an output line still carries the unknown list"
-plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"go:cgo"}' golden
-run_full --base "$sbase"; full 'LANGUAGE_FRONTIER go:cgo'
-plan "$frontier" golden
-STUB_PLAN_RC=3 run_full --base "$sbase"; full 'affected exited 3'
-printf '{"ok":true,"profile":"affected-plan/2"}\n' > "$tmp/plan.json"
-run_full --base "$sbase"; full 'the plan is not a runnable affected-plan/1'
-plan "$frontier" golden
-planner=$tmp/no-such-planner run_full --base "$sbase"; full 'no-such-planner affected exited 127'
-# A plan bound to another base, an entry without a string unitId, a Go unit outside the module, and
-# an empty selection while a Go input changed each run everything (the review's P1 cases).
-pbase=0123456789abcdef0123456789abcdef01234567 plan "$frontier" golden
-run_full --base "$sbase"; full "the plan is bound to base 0123456789abcdef0123456789abcdef01234567, not $sbase"
-plan_sel "$frontier" '{}'
-run_full --base "$sbase"; full 'the plan selection cannot be mapped: an entry without a string unitId'
-plan_sel "$frontier" '{"unitId":7},{"unitId":"go:example.test/sel/golden"}'
-run_full --base "$sbase"; full 'the plan selection cannot be mapped: an entry without a string unitId'
-plan_sel "$frontier" '{"unitId":"go:example.test/elsewhere/x"},{"unitId":"go:example.test/sel/golden"}'
-run_full --base "$sbase"; full 'go unit go:example.test/elsewhere/x is outside module example.test/sel'
-plan "$frontier"
-printf 'package other\n' > "$srepo/other/extra.go"
-run_full --base "$sbase"; full 'a Go input changed but the plan selects no Go package'
-/bin/rm -f "$srepo/other/extra.go"
-# A quoted module directive (P2) still maps the plan's units into the module.
-printf 'module "example.test/sel"\n\ngo 1.21\n' > "$srepo/go.mod"
-plan "$frontier" golden
-srun --base "$sbase" || fail "quoted module run failed: $(cat "$tmp/out")"
-grep -q '^batch-precheck: batch-drift runs 2 of 3 drift tests' "$tmp/out" || fail "quoted module selection: $(cat "$tmp/out")"
-grep -qx 'batch-precheck:   skipped ./other TestOtherDrift (the plan does not select its package)' "$tmp/out" || fail "quoted module skip: $(cat "$tmp/out")"
-git -C "$srepo" checkout -q -- go.mod
-printf 'q\n' > "$srepo/notes/a\"b.txt"
-run_full --base "$sbase"; full 'a changed path needs quoting'
-/bin/rm -f "$srepo/notes/a\"b.txt"
-run_full; full 'no --base or BATCH_PRECHECK_BASE'
-/bin/rm -rf "$srepo/notes"
-# ASD-V0-904 (V1-3441): a docs-only diff under a planner that cannot narrow the run still skips each
-# @go entry, naming why, unless a declared input of it changed (TestFreeze's spec); a Go change runs
-# them again.
-printf 'changed\n' >> "$srepo/docs/specs/freeze.md"
-STUB_PLAN_RC=3 srun --base "$sbase" || fail "docs-only fallback run failed: $(cat "$tmp/out")"
-grep -q '^batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (.*affected exited 3' "$tmp/out" || fail "docs-only fallback reason: $(cat "$tmp/out")"
-grep -qx "batch-precheck:   NOT_RUN ./golden TestGoldenDrift (docs-only diff: no Go input changed since $sbase)" "$tmp/out" || fail "docs-only golden not skipped: $(cat "$tmp/out")"
-grep -q 'NOT_RUN ./golden TestFreeze' "$tmp/out" && fail "docs-only diff skipped TestFreeze, whose declared input changed: $(cat "$tmp/out")"
-row_is PASS 'batch-drift (2 packages, 2 of 3 tests)'
-printf 'package golden\n' > "$srepo/golden/extra.go"
-: > "$tmp/scalls"
-STUB_PLAN_RC=3 srun --base "$sbase" || fail "Go fallback run failed: $(cat "$tmp/out")"
-grep -q 'NOT_RUN' "$tmp/out" && fail "a Go change skipped an @go entry: $(cat "$tmp/out")"
-row_is PASS 'batch-drift (2 packages)'
-/bin/rm -f "$srepo/golden/extra.go"
-# A docs change beside many non-documentation paths is not docs-only: the check must not read a
-# pipe whose writer a SIGPIPE killed under pipefail as "no such path" (review of V1-3441).
-mkdir -p "$srepo/notes"
-(cd "$srepo/notes" && seq -f 'n%05g.txt' 1 10000 | xargs touch)
-: > "$tmp/scalls"
-STUB_PLAN_RC=3 srun --base "$sbase" || fail "many-path fallback run failed: $(cat "$tmp/out")"
-grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @go entry: $(cat "$tmp/out")"
-/bin/rm -rf "$srepo/notes"
-git -C "$srepo" checkout -q -- docs/specs/freeze.md
-
 # 8. ASD-V0-046 (V1-3122): a failed step reruns once before it is classified. A pass on the rerun
 # is FLAKY (counted passed, both attempts named, attempt 1's failing test named); a second failure
 # names both attempts and the failing go subtest and node test names.
@@ -1358,6 +1172,10 @@ printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gat
 elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
   fail "the doc-gates target with a ## help comment was not expanded: $(cat "$tmp/out")"
+# SRG-V0-982 / V1-4542: the sorted continuation form expands through the status prerequisite.
+printf 'DOC_GATE_TARGETS := \\\n  alpha-check \\\n  beta-test\ndoc-gates: spec-status-check ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "continuation expansion --list: $(cat "$tmp/out")"
+grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" || fail "continuation targets were not expanded"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
@@ -1447,7 +1265,7 @@ grep -q '^check-legal-file-pins: FAIL legal-file-missing LICENSE' "$tmp/out" || 
 (cd "$script/.." && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "this checkout's legal pins are stale: $(cat "$tmp/out")"
 # ASD-V0-584 (V1-3374): the same refusal runs in make doc-gates, before bind and seal: the
 # legal-file-pins-check target is a doc gate, and on the fixture it refuses an edited LICENSING.md.
-grep -qE '^DOC_GATE_TARGETS := (.* )?legal-file-pins-check( |$)' "$script/../Makefile" || fail "legal-file-pins-check is not a doc gate"
+doc_targets | grep -qxF legal-file-pins-check || fail "legal-file-pins-check is not a doc gate"
 printf 'Apache\n' > "$lrepo/LICENSE"
 mkdir -p "$lrepo/script" && /bin/cp -f "$script/check-legal-file-pins.sh" "$lrepo/script/"
 (cd "$lrepo" && make -s -f "$script/../Makefile" legal-file-pins-check) > "$tmp/out" 2>&1 &&
@@ -1519,12 +1337,12 @@ git -C "$brepo" add -f NOTICE
 
 # ASD-V0-846 (V1-2432): the capability catalog drift check is a doc gate, so the local doc gates catch
 # a new command, binary or MCP tool that has no docs/CAPABILITIES.md row.
-grep -qE '^DOC_GATE_TARGETS := (.* )?capabilities-check( |$)' "$script/../Makefile" || fail "capabilities-check is not a doc gate"
+doc_targets | grep -qxF capabilities-check || fail "capabilities-check is not a doc gate"
 
 # ASD-V0-720 (V1-3847): fixed-tmp-paths-check is a doc gate; it refuses a test that writes under
 # the fixed /tmp or exports TMPDIR=/tmp, and passes t.TempDir() and a `// fixed-tmp:` line or the
 # line after one, for a quoted or raw literal and for a call whose argument is on the next line.
-grep -qE '^DOC_GATE_TARGETS := (.* )?fixed-tmp-paths-check( |$)' "$script/../Makefile" || fail "fixed-tmp-paths-check is not a doc gate"
+doc_targets | grep -qxF fixed-tmp-paths-check || fail "fixed-tmp-paths-check is not a doc gate"
 trepo=$tmp/tmprepo
 mkdir -p "$trepo/pkg"
 git -C "$trepo" init -q -b main
@@ -1550,7 +1368,7 @@ grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:4: ' "$tmp/out" &&
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
 # suffix pass.
 for t in license-headers-check mkfifo-build-tags-check; do
-  grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
+  doc_targets | grep -qxF "$t" || fail "$t is not a doc gate"
 done
 frepo=$tmp/frepo
 mkdir -p "$frepo/pkg"
@@ -1570,6 +1388,246 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
   grep -q '^check-mkfifo-build-tags: FAIL pkg/untagged_test.go: calls syscall.Mkfifo with no //go:build constraint' "$tmp/out" ||
   fail "the unix-tagged and untagged Mkfifo files were not both named: $(cat "$tmp/out")"
 [[ $(grep -c FAIL "$tmp/out") == 2 ]] || fail "an allowed Mkfifo file was refused: $(cat "$tmp/out")"
+
+
+exit 0
+) || fail "fixture family 2 exited unexpectedly"; fi
+
+if wanted 3; then (
+  printf 'batch-precheck_test: CASE 3\n'
+setup_workflow
+write_ci "test-commands-check"
+(cd "$script/.." && GOTOOLCHAIN=local go build -o "$tmp/gate-ledger" ./tools/gate-ledger) > "$tmp/out" 2>&1 || fail "gate-ledger build: $(cat "$tmp/out")"
+real_make=$(command -v make)
+# 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
+# real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input
+# runs no go test and skips the catalog check, printing the skipped set; a changed golden runs its
+# package and fails on the real drift; a changed declared spec runs its test without the plan; a
+# changed catalog input runs the catalog check, which still fails on drift; an UNKNOWN, failed,
+# malformed or missing plan, a new frontier kind, a quoted path and a missing base run everything,
+# as do a plan bound to another base, an unmappable or empty selection under a Go change; a quoted
+# module directive still maps.
+srepo=$tmp/srepo
+mkdir -p "$srepo/.github/workflows" "$srepo/interop/cem01-go" "$srepo/conformance/use-cases-v0" "$srepo/golden/testdata" "$srepo/other" "$srepo/docs/specs"
+cp "$repo/.github/workflows/ci.yml" "$srepo/.github/workflows/ci.yml"
+printf 'module example.test/sel\n\ngo 1.21\n' > "$srepo/go.mod"
+printf 'package main\n\nfunc main() {}\n' > "$srepo/conformance/use-cases-v0/main.go"
+cat > "$srepo/golden/golden_test.go" <<'EOF2'
+package golden
+
+import (
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestGoldenDrift(t *testing.T) {
+	b, err := os.ReadFile("testdata/want.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(b)); got != "v1" {
+		t.Fatalf("golden drift: want v1, got %s", got)
+	}
+}
+
+func TestFreeze(t *testing.T) {}
+EOF2
+printf 'v1\n' > "$srepo/golden/testdata/want.txt"
+printf 'package other\n\nimport "testing"\n\nfunc TestOtherDrift(t *testing.T) {}\n' > "$srepo/other/other_test.go"
+printf '# freeze\n' > "$srepo/docs/specs/freeze.md"
+printf '# guide\n' > "$srepo/docs/guide.md"
+printf 'capability-catalog-check:\n\t$(GO_TEST_COMMAND) -run x ./golden\n' > "$srepo/Makefile"
+git -C "$srepo" init -q && git -C "$srepo" add -A && git -C "$srepo" commit -qm base || fail "selection fixture commit"
+sbase=$(git -C "$srepo" rev-parse HEAD)
+sbin=$tmp/sbin
+mkdir -p "$sbin"
+printf '#!/bin/sh\necho "make $*" >> "%s/scalls"\n[ "$2" = capability-catalog-check ] && [ -n "${STUB_CATALOG_FAIL:-}" ] && grep -q changed docs/guide.md && { echo "catalog drift"; exit 1; }\nexit 0\n' "$tmp" > "$sbin/make"
+printf '#!/bin/sh\nexit 0\n' > "$sbin/gofmt"
+printf '#!/bin/sh\necho "planner $*" >> "%s/scalls"\n[ -z "${STUB_PLAN_RC:-}" ] || { echo "{\\"ok\\":false,\\"code\\":\\"boom\\"}"; exit "$STUB_PLAN_RC"; }\ncat "%s/plan.json"\n' "$tmp" "$tmp" > "$tmp/planner"
+real_go=$(command -v go)
+cat > "$sbin/go" <<'HEAVY_GO'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ${1-} != test ]]; then exec "$FIXTURE_REAL_GO" "$@"; fi
+args=() packages=()
+for arg in "$@"; do
+  if [[ $arg == ./* ]]; then packages+=("$arg"); else args+=("$arg"); fi
+done
+for package in "${packages[@]}"; do
+  HEAVY_REMOTE=0 HEAVY_LOCAL_REASON='private batch-precheck fixture repository' HEAVY_CACHE_TRIM_HOURS=0 \
+    "$FIXTURE_HEAVY" "$FIXTURE_REAL_GO" "${args[@]}" "$package"
+done
+HEAVY_GO
+export FIXTURE_REAL_GO=$real_go FIXTURE_HEAVY=$script/heavy.sh
+chmod +x "$sbin"/* "$tmp/planner"
+frontier='{"reason":"LANGUAGE_FRONTIER","detail":"go:build-constraint-variants"},{"reason":"LANGUAGE_FRONTIER","detail":"shell:foreign-invocation-unmodelled"}'
+# plan_sel UNKNOWNS SELECTED writes a runnable affected-plan/1 bound to $pbase (default the
+# fixture base) with the raw selected entries; plan UNKNOWNS PKG... selects each PKG.
+plan_sel() {
+  printf '{"ok":true,"profile":"affected-plan/1","range":{"base":"%s"},"summary":{"line":"scope=UNKNOWN"},"provider":{"go":{"state":"RUNNABLE"}},"plan":{"selected":[%s],"unknown":[%s]}}\n' "${pbase:-$sbase}" "$2" "$1" > "$tmp/plan.json"
+}
+plan() {
+  local sel='' p
+  for p in "${@:2}"; do sel+="${sel:+,}{\"unitId\":\"go:example.test/sel/$p\",\"witness\":{\"kind\":\"UNBOUNDED_READER\"}}"; done
+  plan_sel "$1" "$sel"
+}
+sdrift='./golden TestGoldenDrift @go
+./other TestOtherDrift
+./golden TestFreeze @go docs/specs/freeze.md'
+srun() { (unset GOFLAGS; PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$srepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=${planner-$tmp/planner} BATCH_PRECHECK_DRIFT=$sdrift "$pre" "$@") > "$tmp/out" 2>&1; }
+row_is() { grep -q "^batch-precheck: | $1 | *[0-9]*s | $2\$" "$tmp/out" || fail "row $1 $2: $(cat "$tmp/out")"; }
+# A path outside every drift and catalog input: nothing runs, the skipped set is printed.
+plan "$frontier" golden
+mkdir -p "$srepo/notes" && printf 'n\n' > "$srepo/notes/a.txt"
+: > "$tmp/scalls"
+STUB_CATALOG_FAIL=1 srun --base "$sbase" || fail "an unreachable diff failed: $(cat "$tmp/out")"
+grep -qx "planner affected --base $sbase" "$tmp/scalls" || fail "planner not asked with the full base: $(cat "$tmp/scalls")"
+grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase (1 changed paths)\$" "$tmp/out" || fail "zero selection line: $(cat "$tmp/out")"
+grep -qx 'batch-precheck:   skipped ./golden TestGoldenDrift (no Go input and no declared input changed)' "$tmp/out" || fail "skipped golden: $(cat "$tmp/out")"
+grep -qx 'batch-precheck:   skipped ./other TestOtherDrift (the plan does not select its package)' "$tmp/out" || fail "skipped other: $(cat "$tmp/out")"
+grep -qx 'batch-precheck:   skipped ./golden TestFreeze (no Go input and no declared input changed)' "$tmp/out" || fail "skipped freeze: $(cat "$tmp/out")"
+grep -q "^batch-precheck: capability-catalog-check skipped: no catalog input changed since $sbase" "$tmp/out" || fail "catalog not skipped: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (0 of 3 tests)'
+row_is PASS 'make capability-catalog-check'
+grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
+# ASD-V0-912 (V1-3804): the non-Go frontier details every real plan carries (the TypeScript,
+# C-family, .NET, Python, Ruby and Swift adapters' own gaps) do not widen a doc-only diff.
+plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
+srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
+  fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"
+plan "$frontier" golden
+# ASD-V0-892 (V1-3572, V1-3818): the skipped catalog check is a print-only row, which never goes
+# through the ledger: on a rerun on identical inputs it is a PASS while the listed steps reuse.
+sledger() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/sledger BATCH_PRECHECK_LEDGER=$tmp/gate-ledger srun "$@"; }
+sledger --base "$sbase" || fail "first selection ledger run failed: $(cat "$tmp/out")"
+sledger --base "$sbase" || fail "selection ledger rerun failed: $(cat "$tmp/out")"
+row_is PASS 'make capability-catalog-check'
+row_is REUSE 'sync-check'
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make capability-catalog-check$' "$tmp/out" && fail "print-only row went through the ledger: $(cat "$tmp/out")"
+# ASD-V0-640 (V1-3744): no script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path
+# changed, so lane-scripts-test is a print-only skip; a new file under script/ runs it, and so does a
+# change to the retained-data manifest alone, which the ASD-V0-646 group validates.
+grep -q "^batch-precheck: lane-scripts-test skipped: no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md, benchmarks/retained-data.tsv) changed since $sbase\$" "$tmp/out" || fail "lane-scripts-test not skipped: $(cat "$tmp/out")"
+row_is PASS 'make lane-scripts-test'
+grep -q 'lane-scripts-test' "$tmp/scalls" && fail "a skipped lane-scripts-test ran: $(cat "$tmp/scalls")"
+mkdir -p "$srepo/script" && printf '#!/bin/sh\n' > "$srepo/script/new.sh"
+: > "$tmp/scalls"
+srun --base "$sbase" || fail "a script/ change failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
+grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a script/ change: $(cat "$tmp/scalls")"
+/bin/rm -rf "$srepo/script"
+mkdir -p "$srepo/benchmarks" && printf 'id\n' > "$srepo/benchmarks/retained-data.tsv"
+: > "$tmp/scalls"
+srun --base "$sbase" || fail "a retained-data manifest change failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" ||
+  fail "lane-scripts-test skipped for a manifest-only change: $(cat "$tmp/out")"
+grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a manifest-only change: $(cat "$tmp/scalls")"
+/bin/rm -rf "$srepo/benchmarks"
+# A changed golden (a non-Go file in a Go package directory) runs that package and fails on the
+# real drift, introduced since the base.
+printf 'v2\n' > "$srepo/golden/testdata/want.txt"
+srun --base "$sbase" && fail "real golden drift passed"
+grep -q "^batch-precheck: batch-drift runs 2 of 3 drift tests" "$tmp/out" || fail "golden selection: $(cat "$tmp/out")"
+row_is FAIL 'batch-drift (1 packages, 2 of 3 tests)'
+grep -q 'golden drift: want v1, got v2' "$tmp/out" || fail "drift output not shown: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || fail "drift not introduced: $(cat "$tmp/out")"
+grep -q '^batch-precheck: capability-catalog-check runs (a catalog input changed' "$tmp/out" || fail "catalog not run on a Go input: $(cat "$tmp/out")"
+git -C "$srepo" checkout -q -- golden/testdata/want.txt
+# A changed declared spec runs its test even when the plan selects nothing; a nested docs path is
+# not a top-level docs/*.md catalog input.
+plan "$frontier"
+printf 'changed\n' >> "$srepo/docs/specs/freeze.md"
+srun --base "$sbase" || fail "declared spec run failed: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (1 packages, 1 of 3 tests)'
+grep -q '^batch-precheck: capability-catalog-check skipped' "$tmp/out" || fail "nested docs path ran the catalog: $(cat "$tmp/out")"
+git -C "$srepo" checkout -q -- docs/specs/freeze.md
+# A changed top-level doc runs the catalog check, which still fails on drift.
+printf 'changed\n' >> "$srepo/docs/guide.md"
+: > "$tmp/scalls"
+STUB_CATALOG_FAIL=1 srun --base "$sbase" && fail "catalog drift passed: $(cat "$tmp/out")"
+row_is FAIL 'make capability-catalog-check'
+grep -q '^batch-precheck: FAIL make capability-catalog-check .* introduced' "$tmp/out" || fail "catalog drift not introduced: $(cat "$tmp/out")"
+grep -q '^make -s capability-catalog-check$' "$tmp/scalls" || fail "catalog not run: $(cat "$tmp/scalls")"
+grep -q '^  | catalog drift' "$tmp/out" || fail "catalog output: $(cat "$tmp/out")"
+git -C "$srepo" checkout -q -- docs/guide.md
+# Everything runs, naming why, for an UNKNOWN plan, a new frontier kind, a failing, malformed or
+# missing planner, a path that needs quoting and no base.
+full() {
+  grep -q "^batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (.*$1" "$tmp/out" || fail "full union for $1: $(cat "$tmp/out")"
+  row_is PASS 'batch-drift (2 packages)'
+  grep -q '^make -s capability-catalog-check$' "$tmp/scalls" || fail "catalog skipped for $1: $(cat "$tmp/scalls")"
+}
+run_full() { : > "$tmp/scalls"; srun "$@" || fail "full run failed: $(cat "$tmp/out")"; }
+plan '{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"}' golden
+run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNOWNED_DIRTY_PATH notes/a.txt; all in '
+# ASD-V0-893 (V1-3260): many unknowns print a count, the first and the retained file, not the list.
+many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"go:fake-frontier %s"}' "$i"; done)
+plan "$frontier$many" golden
+run_full --base "$sbase"; full 'the plan has 300 unknowns, first: LANGUAGE_FRONTIER go:fake-frontier 1; all in '
+ufile=$(git -C "$srepo" rev-parse --path-format=absolute --git-path batch-precheck-unknowns.txt)
+[[ $(grep -c . "$ufile") == 300 ]] && grep -qx 'LANGUAGE_FRONTIER go:fake-frontier 299' "$ufile" &&
+  grep -qF "all in $ufile)" "$tmp/out" || fail "unknowns file $ufile: $(head -c 300 "$ufile" 2>&1)"
+(($(awk '{ if (length > m) m = length } END { print m + 0 }' "$tmp/out") < 600)) || fail "an output line still carries the unknown list"
+plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"go:cgo"}' golden
+run_full --base "$sbase"; full 'LANGUAGE_FRONTIER go:cgo'
+plan "$frontier" golden
+STUB_PLAN_RC=3 run_full --base "$sbase"; full 'affected exited 3'
+printf '{"ok":true,"profile":"affected-plan/2"}\n' > "$tmp/plan.json"
+run_full --base "$sbase"; full 'the plan is not a runnable affected-plan/1'
+plan "$frontier" golden
+planner=$tmp/no-such-planner run_full --base "$sbase"; full 'no-such-planner affected exited 127'
+# A plan bound to another base, an entry without a string unitId, a Go unit outside the module, and
+# an empty selection while a Go input changed each run everything (the review's P1 cases).
+pbase=0123456789abcdef0123456789abcdef01234567 plan "$frontier" golden
+run_full --base "$sbase"; full "the plan is bound to base 0123456789abcdef0123456789abcdef01234567, not $sbase"
+plan_sel "$frontier" '{}'
+run_full --base "$sbase"; full 'the plan selection cannot be mapped: an entry without a string unitId'
+plan_sel "$frontier" '{"unitId":7},{"unitId":"go:example.test/sel/golden"}'
+run_full --base "$sbase"; full 'the plan selection cannot be mapped: an entry without a string unitId'
+plan_sel "$frontier" '{"unitId":"go:example.test/elsewhere/x"},{"unitId":"go:example.test/sel/golden"}'
+run_full --base "$sbase"; full 'go unit go:example.test/elsewhere/x is outside module example.test/sel'
+plan "$frontier"
+printf 'package other\n' > "$srepo/other/extra.go"
+run_full --base "$sbase"; full 'a Go input changed but the plan selects no Go package'
+/bin/rm -f "$srepo/other/extra.go"
+# A quoted module directive (P2) still maps the plan's units into the module.
+printf 'module "example.test/sel"\n\ngo 1.21\n' > "$srepo/go.mod"
+plan "$frontier" golden
+srun --base "$sbase" || fail "quoted module run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: batch-drift runs 2 of 3 drift tests' "$tmp/out" || fail "quoted module selection: $(cat "$tmp/out")"
+grep -qx 'batch-precheck:   skipped ./other TestOtherDrift (the plan does not select its package)' "$tmp/out" || fail "quoted module skip: $(cat "$tmp/out")"
+git -C "$srepo" checkout -q -- go.mod
+printf 'q\n' > "$srepo/notes/a\"b.txt"
+run_full --base "$sbase"; full 'a changed path needs quoting'
+/bin/rm -f "$srepo/notes/a\"b.txt"
+run_full; full 'no --base or BATCH_PRECHECK_BASE'
+/bin/rm -rf "$srepo/notes"
+# ASD-V0-904 (V1-3441): a docs-only diff under a planner that cannot narrow the run still skips each
+# @go entry, naming why, unless a declared input of it changed (TestFreeze's spec); a Go change runs
+# them again.
+printf 'changed\n' >> "$srepo/docs/specs/freeze.md"
+STUB_PLAN_RC=3 srun --base "$sbase" || fail "docs-only fallback run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (.*affected exited 3' "$tmp/out" || fail "docs-only fallback reason: $(cat "$tmp/out")"
+grep -qx "batch-precheck:   NOT_RUN ./golden TestGoldenDrift (docs-only diff: no Go input changed since $sbase)" "$tmp/out" || fail "docs-only golden not skipped: $(cat "$tmp/out")"
+grep -q 'NOT_RUN ./golden TestFreeze' "$tmp/out" && fail "docs-only diff skipped TestFreeze, whose declared input changed: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages, 2 of 3 tests)'
+printf 'package golden\n' > "$srepo/golden/extra.go"
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 srun --base "$sbase" || fail "Go fallback run failed: $(cat "$tmp/out")"
+grep -q 'NOT_RUN' "$tmp/out" && fail "a Go change skipped an @go entry: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages)'
+/bin/rm -f "$srepo/golden/extra.go"
+# A docs change beside many non-documentation paths is not docs-only: the check must not read a
+# pipe whose writer a SIGPIPE killed under pipefail as "no such path" (review of V1-3441).
+mkdir -p "$srepo/notes"
+(cd "$srepo/notes" && seq -f 'n%05g.txt' 1 10000 | xargs touch)
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 srun --base "$sbase" || fail "many-path fallback run failed: $(cat "$tmp/out")"
+grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @go entry: $(cat "$tmp/out")"
+/bin/rm -rf "$srepo/notes"
+git -C "$srepo" checkout -q -- docs/specs/freeze.md
 
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
@@ -1852,6 +1910,12 @@ grep -qE '^make -s (doc-gates|selection-baseline-check)$' "$tmp/scalls" && fail 
 : > "$tmp/scalls"
 LANE=0 rrun --base "$rbase" || fail "opaque doc-gates non-lane run: $(cat "$tmp/out")"
 grep -qx 'make -s doc-gates' "$tmp/scalls" || fail "non-lane aggregate fallback changed"
+
+exit 0
+) || fail "fixture family 3 exited unexpectedly"; fi
+
+if wanted 4; then (
+  printf 'batch-precheck_test: CASE 4\n'
 # 18. ASD-V0-1923 (V1-4317): --static runs the static doc gates and go build/vet of the changed
 # packages first, one at a time; the first failure prints `FAIL static GATE`, its output and a
 # `fix:` line and nothing later runs, well inside 60 s. A full run starts with the same phase and
@@ -1969,5 +2033,79 @@ for mode in --static ''; do
   grep -qx 'go vet ./pkg' "$tmp/stcalls" || fail "test-only package not vetted: $(cat "$tmp/stcalls")"
 done
 strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base without REV was accepted"
+
+exit 0
+) || fail "fixture family 4 exited unexpectedly"; fi
+
+if wanted 5; then (
+  printf 'batch-precheck_test: CASE 5\n'
+# ASD-V0-780 / V1-4543: selection excludes other families and rejects invalid lists.
+selector_started=$SECONDS
+CASES=4 "$script/batch-precheck_test.sh" > "$tmp/selector-out" 2>&1 || fail "selected static family failed: $(cat "$tmp/selector-out")"
+[[ $(grep '^batch-precheck_test: CASE ' "$tmp/selector-out") == 'batch-precheck_test: CASE 4' ]] || fail "selector ran an unrequested family"
+((SECONDS - selector_started < 180)) || fail "one selected case exceeded 180 seconds"
+for bad_selection in '' 0 6 1, x; do
+  CASES=$bad_selection "$script/batch-precheck_test.sh" > "$tmp/selector-out" 2>&1
+  [[ $? == 2 ]] || fail "invalid CASES=$bad_selection accepted"
+done
+# SRG-V0-982 / V1-4542: sorted targets are individually expanded (family 1) and checked.
+[[ $(doc_targets | sort -u) == $(doc_targets) ]] || fail "doc gate targets unsorted or repeated"
+# Exercise the checker against malformed and corrected staged Makefiles.
+order_repo=$tmp/target-order
+mkdir -p "$order_repo"
+git -C "$order_repo" init -q
+printf 'DOC_GATE_TARGETS := \\\n  z-check \\\n  a-check\n' > "$order_repo/Makefile"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "unsorted doc targets accepted"
+grep -q 'bytewise sorted' "$tmp/out" || fail "unsorted refusal missing"
+printf 'DOC_GATE_TARGETS := \\\n  a-check \\\n  z-check\n' > "$order_repo/Makefile"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "sorted doc targets refused: $(cat "$tmp/out")"
+
+grep -q '^doc-gates: spec-status-check' "$script/../Makefile" || fail "doc-gates lost its fast status prerequisite"
+
+# ASD-V0-640 / V1-4540: wrapper checks committed lane script changes, with no selector leak.
+lane_repo=$tmp/lane-test-selection
+mkdir -p "$lane_repo/script" "$lane_repo/bin"
+git -C "$lane_repo" init -q
+printf '# lane binary check\n' > "$lane_repo/script/lane-binary-check.sh"
+git -C "$lane_repo" add script
+git -C "$lane_repo" commit -qm base
+lane_base=$(git -C "$lane_repo" rev-parse HEAD)
+cat > "$lane_repo/bin/make" <<'STUB'
+#!/bin/sh
+[ -z "${LANE_SCRIPTS_GROUPS+x}" ] || exit 9
+printf '%s\n' "$*" >> "$LANE_CALLS"
+exit "${LANE_TEST_RC:-0}"
+STUB
+chmod +x "$lane_repo/bin/make"
+lane_check() { (cd "$lane_repo" && PATH="$lane_repo/bin:$PATH" LANE_CALLS="$tmp/lane-calls" LANE_SCRIPTS_GROUPS=tools "$script/check-lane-script-tests.sh" "$lane_base") > "$tmp/out" 2>&1; }
+printf 'unrelated\n' > "$lane_repo/note.txt"
+lane_check || fail "unrelated diff refused"
+[[ ! -e $tmp/lane-calls ]] || fail "unrelated path selected lane scripts"
+printf '# changed\n' >> "$lane_repo/script/lane-binary-check.sh"
+git -C "$lane_repo" commit -qam 'lane binary fix'
+lane_check || fail "committed lane binary change refused: $(cat "$tmp/out")"
+grep -qx -- '--no-print-directory lane-scripts-test LANE_SCRIPTS_GROUPS=all' "$tmp/lane-calls" || fail "lane binary diff did not select lane-scripts-test"
+LANE_TEST_RC=1 lane_check && fail "failed lane scripts admitted"
+grep -q 'REFUSE lane-scripts-test failed' "$tmp/out" || fail "lane test failure missing"
+# Staged/unstaged/untracked lane tests and invalid bases fail or select conservatively.
+git -C "$lane_repo" reset -q --hard "$lane_base"
+printf '# new test\n' > "$lane_repo/script/lane-new_test.sh"
+lane_check || fail "untracked lane test refused"
+/bin/rm -f "$lane_repo/script/lane-new_test.sh"
+: > "$tmp/lane-calls"
+printf '# unstaged\n' >> "$lane_repo/script/lane-binary-check.sh"
+lane_check || fail "unstaged lane diff refused"
+[[ -s $tmp/lane-calls ]] || fail "unstaged lane diff skipped"
+git -C "$lane_repo" add script
+lane_check || fail "staged lane diff refused"
+(cd "$lane_repo" && "$script/check-lane-script-tests.sh" missing-base) > "$tmp/out" 2>&1 && fail "invalid base admitted"
+grep -q 'check-lane-script-tests.sh' "$script/dogfood-check.sh" || fail "dogfood-check lost lane script preflight"
+grep -q 'script/dogfood-check.sh' "$script/dogfood-seal.sh" || fail "seal lost required check wrapper"
+
+
+exit 0
+) || fail "fixture family 5 exited unexpectedly"; fi
 
 finish
