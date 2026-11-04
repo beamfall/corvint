@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"io"
 	"reflect"
@@ -44,7 +45,7 @@ type splitArray struct {
 	field       int
 	open, close int64 // offsets of '[' and of the byte after ']'
 	elements    []byteSpan
-	chunks      []reflect.Value // decoded elements, in order, one slice per dispatched chunk
+	chunks      []*reflect.Value // decoded elements, in order, allocated by their decode worker
 }
 
 // splitChunk is the number of split elements one decode job takes at most; a job also ends at
@@ -308,7 +309,12 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	for range runtime.GOMAXPROCS(0) {
 		workers.Go(func() {
 			options := json.RejectUnknownMembers(true)
+			var comparison elementEncodingComparer
+			encoder := jsontext.NewEncoder(&comparison, json.Deterministic(true))
 			for job := range jobs {
+				// Allocate the large element storage on the worker, so dispatch does not
+				// serially fault in every chunk before any worker can decode it.
+				*job.chunk = reflect.MakeSlice(job.typ, len(job.raws), len(job.raws))
 				verified := true
 				for i, raw := range job.raws {
 					if stop.Load() {
@@ -328,8 +334,9 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 					if !verified {
 						continue
 					}
-					c := encodingComparer{want: raw}
-					if _, err := EncodeTo(&c, element.Addr().Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
+					comparison = elementEncodingComparer{encodingComparer: encodingComparer{want: raw}}
+					encoder.Reset(&comparison, json.Deterministic(true))
+					if err := json.MarshalEncode(encoder, element.Addr().Interface()); err != nil || !comparison.equalElement() {
 						mismatched.Store(true)
 						verified = false
 					}
@@ -354,10 +361,10 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 		finish()
 	}()
 	d.dispatch = func(s *splitArray, raws [][]byte) {
-		chunk := reflect.MakeSlice(value.Field(s.field).Type(), len(raws), len(raws))
+		chunk := new(reflect.Value)
 		s.chunks = append(s.chunks, chunk)
 		d.cur.hold()
-		job := decodeJob{chunk: chunk, raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
+		job := decodeJob{chunk: chunk, typ: value.Field(s.field).Type(), raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
 		if s.field == claimsField {
 			job.claims = claims
 		}
@@ -516,6 +523,33 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	return &a, tail, nil
 }
 
+// elementEncodingComparer compares the exact element bytes and the one newline
+// MarshalEncode adds at top level. That newline is encoder framing, and is never
+// part of the element. Reusing a worker's encoder avoids its per-element setup
+// without relaxing the canonical byte comparison (DCR-V1-7801).
+type elementEncodingComparer struct {
+	encodingComparer
+	newline bool
+}
+
+func (c *elementEncodingComparer) Write(p []byte) (int, error) {
+	n := len(p)
+	left := len(c.want) - int(c.n)
+	if len(p) > left {
+		if c.newline || len(p) != left+1 || p[left] != '\n' {
+			c.differ = true
+		}
+		c.newline = true
+		p = p[:left]
+	}
+	c.encodingComparer.Write(p)
+	return n, nil
+}
+
+func (c *elementEncodingComparer) equalElement() bool {
+	return c.newline && !c.differ && c.n == int64(len(c.want))
+}
+
 // copyChunks sets each split member of the artifact value to its decoded chunks, in order. The
 // chunks are copied in contiguous runs, one goroutine per run, and each chunk is dropped once
 // copied.
@@ -534,8 +568,8 @@ func copyChunks(value reflect.Value, splits []*splitArray) {
 			hi := min(lo+per, len(s.chunks))
 			wg.Go(func() {
 				for i := lo; i < hi; i++ {
-					reflect.Copy(slice.Slice(starts[i], starts[i+1]), s.chunks[i])
-					s.chunks[i] = reflect.Value{}
+					reflect.Copy(slice.Slice(starts[i], starts[i+1]), *s.chunks[i])
+					s.chunks[i] = nil
 				}
 			})
 		}
@@ -546,7 +580,8 @@ func copyChunks(value reflect.Value, splits []*splitArray) {
 // decodeJob is one batch of consecutive split elements, the slice they decode into and the
 // offset of the first; claims is set for a batch of claims.
 type decodeJob struct {
-	chunk  reflect.Value
+	chunk  *reflect.Value
+	typ    reflect.Type
 	raws   [][]byte
 	lo     int
 	claims func(lo int, chunk []Claim)

@@ -35,6 +35,27 @@ what any packet says.
 ## Requirements
 
 - `IDX-SNAP-V0-7560`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4553) A lazy mapped gob-body read MUST check the size of its exact backing inode before copying uncached bytes. A truncation MUST refuse even on systems whose private mapped pages remain readable. The mapping MUST retain a close-on-exec descriptor independent of the opening reader, and release it with its last mapping lease. Verified heap-cache hits need no further backing read.
+- `IDX-SNAP-V0-7803`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2746)
+  Document path-reference and generic import extraction MUST use linear scans with the frozen
+  regexes retained only as differential test oracles. Every result over the self corpus and
+  adversarial edge fixtures MUST equal the oracle, including non-overlapping match consumption,
+  Unicode whitespace and word boundaries. Whole-checkout build profiles and race timings remain
+  measured evidence, never a reason to shrink the self-documentation fixture.
+- `IDX-SNAP-V0-7804`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4199)
+  Evaluating a non-gob snapshot body MUST retain a same-host interleaved format-gate record
+  against `corvint-index-snapshot/3`, reporting bytes, cold/reuse index, context p50/p95, RSS,
+  CPU, decode share and hook latency, with byte-identical consumer outputs. Existing experimental
+  encodings MAY be challengers. The default format MUST NOT change unless decode's context CPU
+  share is at least halved and the DNIP benchmark/format gate passes. A losing or unqualified
+  challenger stays experimental; a new format must make old headers a rebuild miss. Rollback
+  selects the previous writer and its separate engine namespace without rewriting old files.
+
+Traceability for the 2026-11-04 evaluation:
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| IDX-SNAP-V0-7803 | `reference_scan.go`, `sourceImports` | `TestReferenceScannersMatchTheirRegexes`; `docs/build-log/2026-11-04-docperf.md` |
+| IDX-SNAP-V0-7804 | existing experimental pack reader/writer; default format unchanged | `TestDocperfPackSelfCorpusParity`, `TestDocperfSnapshotProfile`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`; `docs/build-log/2026-11-04-docperf.md` |
 
 - `IDX-SNAP-V0-001`: `corvint [--root PATH] index` builds the index of the committed tree exactly as
   `context` would and writes it under `.corvint/index/` as
