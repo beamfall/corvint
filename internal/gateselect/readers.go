@@ -502,7 +502,8 @@ func leafPattern(directory, value string, test bool, packages []string) bool {
 // directoryMove recognizes, over one file's tokens outside its imports, a
 // change of the working directory a command runs in, which voids leafPattern's
 // premise that a pattern resolves against the package directory
-// (AFP-V0-2542): a `Dir` assigned or keyed to anything but the literal "." or
+// (AFP-V0-2542): a `Dir` followed by a comma, a `Dir` assigned or keyed to
+// anything but the literal "." or
 // "", a `Chdir` or `Fchdir` identifier, or a string literal with a `cd` or
 // `pushd` word or a `-C` or `--chdir` option. It mirrors the Go plugin's
 // directoryMove.
@@ -515,6 +516,10 @@ func (move *directoryMove) observe(kind token.Token, text string) {
 	state := move.state
 	move.state = 0
 	switch {
+	case state == 1 && kind == token.COMMA:
+		// A `Dir` in an assignment or key list, as in `cmd.Dir, cmd.Env = root, nil`,
+		// is counted as a move without pairing it with its value (conservative).
+		move.moved = true
 	case state == 1 && (kind == token.ASSIGN || kind == token.DEFINE || kind == token.COLON):
 		move.state = 2
 		return
