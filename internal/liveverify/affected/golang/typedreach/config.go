@@ -66,10 +66,9 @@ func BuildFlags(flags []string) ([]string, string) {
 		name, value, inline := strings.Cut(flag, "=")
 		name = "-" + strings.TrimLeft(name, "-")
 		switch {
-		case selectingSwitches[name] && (!inline || value == "true"):
+		// An explicit value (-race=false) is not modelled (disabled for 1.0).
+		case selectingSwitches[name] && !inline:
 			switches[name] = true
-		case selectingSwitches[name] && value == "false":
-			switches[name] = false
 		case testOnlySwitches[name]:
 		case selectingFlags[name] || testOnlyFlags[name] || name == "-mod":
 			if !inline {
@@ -101,6 +100,31 @@ func BuildFlags(flags []string) ([]string, string) {
 	return out, ""
 }
 
+// sharedBuildSwitch returns a build-selecting flag name that both a and b
+// set, or "".
+func sharedBuildSwitch(a, b []string) string {
+	names := func(flags []string) map[string]bool {
+		set := map[string]bool{}
+		for _, flag := range flags {
+			name, _, _ := strings.Cut(flag, "=")
+			name = "-" + strings.TrimLeft(name, "-")
+			if selectingSwitches[name] || selectingFlags[name] {
+				set[name] = true
+			}
+		}
+		return set
+	}
+	inB := names(b)
+	for _, flag := range a {
+		name, _, _ := strings.Cut(flag, "=")
+		name = "-" + strings.TrimLeft(name, "-")
+		if inB[name] {
+			return name
+		}
+	}
+	return ""
+}
+
 // ProbeConfig reads the build context the go command uses in dir under env
 // (the executor's complete environment) and flags (its go test flags). Any
 // flag, in flags or in the effective GOFLAGS, the model does not know is an
@@ -121,12 +145,17 @@ func ProbeConfig(ctx context.Context, dir string, env, flags []string) (Config, 
 	if err != nil {
 		return Config{}, err
 	}
-	if _, unknown := BuildFlags(strings.Fields(string(goflags))); unknown != "" {
+	fromEnv := strings.Fields(string(goflags))
+	if _, unknown := BuildFlags(fromEnv); unknown != "" {
 		return Config{}, fmt.Errorf("GOFLAGS holds %s, which the model does not know", unknown)
 	}
 	selecting, unknown := BuildFlags(flags)
 	if unknown != "" {
 		return Config{}, fmt.Errorf("the executor flag %s is not modelled", unknown)
+	}
+	// A build switch set in both places is not modelled (disabled for 1.0).
+	if both := sharedBuildSwitch(fromEnv, flags); both != "" {
+		return Config{}, fmt.Errorf("the build switch %s is set in both GOFLAGS and the executor flags", both)
 	}
 	// The go list template has no json function: the context is printed as
 	// tab-separated fields, its tag lists joined by commas, which no tag holds.

@@ -1276,12 +1276,21 @@ func (g *graph) assignedElsewhere(pkg *Package, body ast.Node, v *types.Var, own
 				if ident, ok := lhs.(*ast.Ident); ok && (pkg.Info.Defs[ident] == v || pkg.Info.Uses[ident] == v) {
 					other = true
 				}
+				// A parenthesized target is not modelled: it ends privacy.
+				if _, paren := lhs.(*ast.ParenExpr); paren {
+					other = true
+				}
 			}
 		}
-		// A range statement assigns its key and value on every iteration.
+		// A range statement assigns its key and value on every iteration; a
+		// target that is not a bare identifier is not modelled and ends
+		// privacy.
 		if loop, ok := x.(*ast.RangeStmt); ok {
 			for _, lhs := range []ast.Expr{loop.Key, loop.Value} {
-				if ident, ok := lhs.(*ast.Ident); ok && (pkg.Info.Defs[ident] == v || pkg.Info.Uses[ident] == v) {
+				if lhs == nil {
+					continue
+				}
+				if ident, ok := lhs.(*ast.Ident); !ok || pkg.Info.Defs[ident] == v || pkg.Info.Uses[ident] == v {
 					other = true
 				}
 			}

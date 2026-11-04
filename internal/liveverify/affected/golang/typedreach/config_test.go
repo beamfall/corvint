@@ -96,7 +96,7 @@ func TestAFPV02372BuildFlagsClassifiesExecutorFlags(t *testing.T) {
 		t.Fatalf("selecting %q unknown %q", selecting, unknown)
 	}
 	// The last occurrence wins, as in the go command.
-	if selecting, unknown := BuildFlags([]string{"-race", "-tags=a", "-race=false", "-tags=b"}); unknown != "" || !slices.Equal(selecting, []string{"-tags=b"}) {
+	if selecting, unknown := BuildFlags([]string{"-race", "-tags=a", "-race", "-tags=b"}); unknown != "" || !slices.Equal(selecting, []string{"-tags=b", "-race"}) {
 		t.Fatalf("last wins: selecting %q unknown %q", selecting, unknown)
 	}
 	for _, flag := range []string{"-toolexec=x", "-overlay=o.json", "-gcflags=all=-N", "-pgo=auto", "-coverpkg=all", "-mod=vendor", "-race=1", "./cmd"} {
@@ -151,5 +151,33 @@ func TestAFPV02372ProbeConfigReadsTheExecutorEnvironment(t *testing.T) {
 	v3 := executorConfig(t, root, []string{"GOARCH=amd64", "GOAMD64=v3"}, nil)
 	if !slices.Contains(v3.ToolTags, "amd64.v3") || v1.Identity() == v3.Identity() {
 		t.Fatalf("GOAMD64 not bound: %+v / %+v", v1, v3)
+	}
+}
+
+// TestAFPV02372ExplicitSwitchValueRefuses keeps the conservative plan when an
+// instrumentation switch carries an explicit value, or a build switch is set
+// both in GOFLAGS and in the executor flags: the model does not combine them
+// (AFP-V0-2371, disabled for 1.0).
+func TestAFPV02372ExplicitSwitchValueRefuses(t *testing.T) {
+	for _, flag := range []string{"-race=false", "-race=true", "-msan=false", "-asan=true"} {
+		if _, unknown := BuildFlags([]string{"-count=1", flag}); unknown != flag {
+			t.Fatalf("%s: unknown %q", flag, unknown)
+		}
+	}
+	root := reviewFixture(t, map[string]string{"p/p.go": "package p\n"})
+	env := func(goflags string) []string {
+		return append(slices.DeleteFunc(os.Environ(), func(entry string) bool { return strings.HasPrefix(entry, "GOFLAGS=") }), "GOFLAGS="+goflags, "CGO_ENABLED=1")
+	}
+	// The review repro: GOFLAGS enables race, the declaration disables it.
+	if config, err := ProbeConfig(context.Background(), root, env("-race"), []string{"-race=false"}); err == nil || !strings.Contains(err.Error(), "-race=false") {
+		t.Fatalf("GOFLAGS=-race with -race=false must refuse: %+v %v", config, err)
+	}
+	if config, err := ProbeConfig(context.Background(), root, env("-race=false"), []string{"-race"}); err == nil || !strings.Contains(err.Error(), "-race=false") {
+		t.Fatalf("GOFLAGS=-race=false must refuse: %+v %v", config, err)
+	}
+	for _, both := range [][2]string{{"-race", "-race"}, {"-tags=a", "-tags=b"}} {
+		if config, err := ProbeConfig(context.Background(), root, env(both[0]), []string{both[1]}); err == nil || !strings.Contains(err.Error(), "both GOFLAGS and the executor flags") {
+			t.Fatalf("%q in both must refuse: %+v %v", both, config, err)
+		}
 	}
 }

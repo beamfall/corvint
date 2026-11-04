@@ -279,6 +279,11 @@ func TestAFPV02374RangeAssignmentEndsPrivacy(t *testing.T) {
 	for name, loop := range map[string]string{
 		"value": "for _, p = range []string{shared} {}",
 		"key":   "for p = range map[string]int{shared: 0} {}",
+		// A target that is not a bare identifier is not modelled, so it
+		// ends the privacy of every variable in the body.
+		"parenthesized value":      "for _, (p) = range []string{shared} {}",
+		"parenthesized key":        "for (p) = range map[string]int{shared: 0} {}",
+		"parenthesized assignment": "(p) = shared",
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := reviewFixture(t, map[string]string{

@@ -81,6 +81,23 @@ first-parent commits from `f811cbfaf` to `6a2c582ef` touching `internal/tasks/**
 | AC1 | MET | Always-run reach keeps the package whole, and the reason is named. |
 | AC2 | Measured, weak | Recall is retained for the one narrowing, but kept observers were 0/0. |
 
+## Fix-only review: two refusals, disabled for 1.0
+
+The fix-only review of `4ef3e9c88` found two more soundness gaps. Both are closed by refusing, with
+no new modelling:
+- **Non-identifier assignment targets.** `assignedElsewhere` matched only bare identifiers, so
+  `for _, (p) = range ...` kept `p` private. Now any range key or value that is not a bare
+  identifier, and any parenthesized assignment target, ends the privacy of every variable in the
+  body. Regression: `TestAFPV02374RangeAssignmentEndsPrivacy` subtests parenthesized value, key and
+  assignment. All three failed before the fix and pass after it.
+- **Explicit switch values and switches set twice.** `BuildFlags` dropped `-race=false` from the
+  probe, so `GOFLAGS=-race` with a declared `-race=false` probed with race while the run went
+  without it. Now a switch with an explicit value, in the flags or in `GOFLAGS`, is unmodelled. A
+  build switch (`-tags`, `-race`, `-msan`, `-asan`) set in both `GOFLAGS` and the flags also
+  refuses. Either case keeps the conservative plan, naming that the executor build configuration
+  cannot be read. Regression: `TestAFPV02372ExplicitSwitchValueRefuses`. It failed before the fix,
+  and fails again with the both-places check mutated off.
+
 ## Rollback
 
 Revert the lane commit.
