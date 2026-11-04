@@ -15,7 +15,8 @@
 # and the newest KILL_PAGES pages of forward rows show no MISS of the epoch and
 # no tripped kill switch since, where those pages either end the listing or reach
 # back to the verdict's creation and hold the latest 20 rows of the epoch (or its
-# start). Anything missing, expired, unparseable, uncovered or not MET writes
+# start), and fewer than 3 runs the collector named NOROW among the latest 20 (absence.jq; on the
+# incremental listing, those since it plus the verdict's own count, CIN-V0-2302). Anything missing, expired, unparseable, uncovered or not MET writes
 # `verdict=FULL` with the reason: the pull request runs full CI.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
@@ -37,6 +38,24 @@ decide() { # VERDICT REASON [RUN]
   echo "::notice title=AFP-V0-097 narrowing verdict::$1 ($2)"
   [ -z "${GITHUB_STEP_SUMMARY:-}" ] || echo "AFP-V0-097 narrowing verdict: $1 ($2)" >> "$GITHUB_STEP_SUMMARY"
   exit 0
+}
+# absent RUN CARRIED: CIN-V0-2302 (V1-3332). The live kill switch below reads rows only, so a
+# shadow-selection outage since the verdict (runs the collector named NOROW, CIN-V0-861) left it
+# clear until the next verdict. absence.jq counts those markers over the same names. The
+# incremental listing carries the verdict's window rows but not its markers, so CARRIED (the
+# verdict's own rowAbsence.absent there, 0 for a whole listing) is added: the sum may count a
+# marker twice, never too few. Anything but a clear answer under 3, including an absence count
+# that cannot be computed, is FULL.
+absent() {
+  absence=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" -f "$here/absence.jq" < "$dir/names" 2> /dev/null) || absence=""
+  total=$(printf '%s' "$absence" | jq -r --argjson carried "$2" \
+    'if (.absent | type) == "number" then .absent + $carried else "unreadable" end' 2> /dev/null) || total=unreadable
+  switch=$(printf '%s' "$absence" | jq -r '.killSwitch' 2> /dev/null) || switch=""
+  case $switch:$total in
+  clear:0 | clear:1 | clear:2) ;;
+  *) decide FULL "the newest forward-row names show runs that wrote no row (CIN-V0-2302): $total ($(printf '%s' "$absence" |
+    jq -r '"\(.absent // "?") of \(.window // "?") window runs listed\(if .error then ", " + .error else "" end)"' 2> /dev/null || echo 'the absence count is unreadable'), $2 carried from the verdict)" "$1" ;;
+  esac
 }
 printf '%s' "$FORWARD_EPOCH" | grep -Eqx '[0-9]+' || decide FULL "forward epoch $FORWARD_EPOCH is not a number"
 # The epoch is digits, so the name is safe inside the filter.
@@ -107,6 +126,10 @@ if [ -n "$listed_at" ]; then
   if [ "$(printf '%s' "$live" | jq -r '.killSwitch')" != clear ] || [ "$(printf '%s' "$live" | jq -r '.epochRows.miss')" != 0 ]; then
     decide FULL "the newest forward rows show a MISS or a tripped kill switch" "$run"
   fi
+  carried=$(jq -r 'if (.rowAbsence.absent | type) == "number" and .rowAbsence.absent >= 0 then .rowAbsence.absent else "" end' \
+    "$dir/$name/verdict.json" 2> /dev/null) || carried=""
+  [ -n "$carried" ] || decide FULL "the verdict of run $run records no row-absence count, so markers in its window cannot be carried (CIN-V0-2302)" "$run"
+  absent "$run" "$carried"
   decide MET "verdict run $run of $created, epoch $FORWARD_EPOCH; $pages_read page(s) back to $stop" "$run"
 fi
 list_names "$pages" "$dir/names" "$dir/times"
@@ -129,4 +152,5 @@ fi
 if [ "$(printf '%s' "$live" | jq -r '.killSwitch')" != clear ] || [ "$(printf '%s' "$live" | jq -r '.epochRows.miss')" != 0 ]; then
   decide FULL "the newest forward rows show a MISS or a tripped kill switch" "$run"
 fi
+absent "$run" 0
 decide MET "verdict run $run of $created, epoch $FORWARD_EPOCH" "$run"

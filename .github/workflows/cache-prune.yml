@@ -5,8 +5,18 @@ name: Cache prune
 # the 10 GB repository cache and evicted the go-build entries the merge queue restores. This is the
 # only workflow with actions: write; ci-forward-bar.yml, whose verdict gates narrowing, stays
 # read-only.
+# CIN-V0-2303 (V1-4445): GitHub ran the hourly schedule twice in 8 hours (2026-11-03), while each
+# CodeQL run on main saves a new overlay entry. The prune therefore runs when each CodeQL default
+# setup run on main completes (workflow_run of the dynamic "CodeQL" workflow); the schedule stays
+# as the backstop for a run GitHub never delivers. Only a run of this repository's own dynamic
+# CodeQL workflow on main triggers it. The prune reads cache metadata only and runs no code of
+# the triggering run, so a triggering run cannot change what it deletes.
 
 on:
+  workflow_run:
+    workflows: [CodeQL]
+    types: [completed]
+    branches: [main]
   schedule:
     - cron: "47 * * * *"
   workflow_dispatch:
@@ -20,7 +30,11 @@ concurrency:
 
 jobs:
   cache-prune:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.path, 'dynamic/github-code-scanning/')))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

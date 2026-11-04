@@ -41,6 +41,26 @@ if [ -z "${SELECTION:-}" ]; then
   effective_base=$(jq -r --arg event "$event_base" --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" \
     'select(.Reason == "" and .EventBase == $event and .Head == $head and .Target == $target) | .Base' \
     "$out/driver/selection.json" 2> /dev/null) || effective_base=""
+  # CIN-V0-2300 (V1-4446): a driver fallback (a non-empty Reason) admits no base above, which left
+  # the FULL record with base "", an unreadable .github/ check and no shadow plan. Prove parent 0
+  # here as AFP-V0-800 does: the tested merge has exactly two parents, the second is the head, and
+  # the event base is an ancestor of the first. Any failed step keeps "" (the record stays FULL and
+  # names it); an admitted driver base is never replaced, and a selection without a Reason that
+  # fails the identity filter keeps "". The mode is unchanged: a driver Reason is FULL in
+  # narrow.jq whatever the base.
+  driver_reason=$(jq -r 'if type == "object" then (.Reason // "") | tostring else "" end' "$out/driver/selection.json" 2> /dev/null) || driver_reason=""
+  if [ -z "$effective_base" ] && [ -n "$driver_reason" ]; then
+    parents=$(git rev-list --parents -n 1 "$TESTED_MERGE" 2> /dev/null) || parents=""
+    set -f
+    # shellcheck disable=SC2086 # the commit and its parents, checked below
+    set -- $parents
+    set +f
+    if [ "$#" = 3 ] && [ "$1" = "$TESTED_MERGE" ] && [ "$3" = "$PR_HEAD" ] &&
+      printf '%s\n' "$2" | grep -Eqx '[0-9a-f]{40}' &&
+      git merge-base --is-ancestor "$event_base" "$2" > /dev/null 2>&1; then
+      effective_base=$2
+    fi
+  fi
 fi
 # --no-renames includes both sides of a rename out of .github/. The exit status, not --name-only
 # text, decides (AFP-V0-933, V1-3109): git quotes a non-ASCII path, so ".github/\303\251.yml" would
