@@ -435,6 +435,9 @@ func ObserveIdentity(ctx context.Context, snapshot *Snapshot, goExecutable strin
 			identity.Env[name] = ""
 		}
 	}
+	if workspace := identity.Env["GOWORK"]; workspace != "" && workspace != "off" && filepath.Clean(workspace) != filepath.Join(snapshot.Root, "go.work") {
+		return Identity{}, fmt.Errorf("unmodeled-workspace: GOWORK %q is not the pinned repository root go.work", workspace)
+	}
 	inputs := map[string]Input{}
 	var directories []string
 	for _, path := range harness {

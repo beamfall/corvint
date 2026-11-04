@@ -511,3 +511,58 @@ func TestHarnessDirectoryReevaluation(t *testing.T) {
 	commitAll(t, root, "new harness input")
 	check(ReasonIdentityChanged)
 }
+
+// TestWorkspaceInputsFailClosed is AFP-V0-2321/2322: only root go.work is
+// hashed, so another workspace must never supply unpinned runtime defaults.
+func TestWorkspaceInputsFailClosed(t *testing.T) {
+	root := fixtureRepo(t)
+	for _, workspace := range []string{filepath.Join(t.TempDir(), "go.work"), filepath.Join(root, "config", "go.work")} {
+		if err := os.MkdirAll(filepath.Dir(workspace), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(workspace, []byte("go 1.27\nuse "+root+"\ngodebug panicnil=0\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		env := append(fixtureEnv(), "GOWORK="+workspace)
+		snapshot, err := Observe(context.Background(), ObserveOptions{Root: root, Env: env})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ObserveIdentity(context.Background(), snapshot, "", env, fixtureArgv, nil); err == nil || !strings.Contains(err.Error(), "unmodeled-workspace") {
+			t.Fatalf("workspace %s: %v", workspace, err)
+		}
+	}
+	writeFixture(t, root, "go.work", "go 1.27\nuse .\ngodebug panicnil=0\n")
+	commitAll(t, root, "root workspace")
+	env := append(fixtureEnv(), "GOWORK="+filepath.Join(root, "go.work"))
+	observeWorkspace := func() (*Snapshot, Identity) {
+		t.Helper()
+		snapshot, err := Observe(context.Background(), ObserveOptions{Root: root, Env: env})
+		if err != nil {
+			t.Fatal(err)
+		}
+		identity, err := ObserveIdentity(context.Background(), snapshot, "", env, fixtureArgv, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return snapshot, identity
+	}
+	snapshot, identity := observeWorkspace()
+	record, err := BuildRecord(snapshot, identity, Source{Kind: SourceLocal, Commit: snapshot.Head, Tree: snapshot.Tree}, allPassed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unit := reasonFor(t, snapshot, identity, body, "a"); unit.Reason != ReasonRecordDigestEqual {
+		t.Fatalf("unchanged root workspace: %+v", unit)
+	}
+	writeFixture(t, root, "go.work", "go 1.27\nuse .\ngodebug panicnil=1\n")
+	commitAll(t, root, "runtime default fault")
+	snapshot, identity = observeWorkspace()
+	if unit := reasonFor(t, snapshot, identity, body, "a"); unit.Reason != ReasonDigestChanged {
+		t.Fatalf("root workspace runtime defaults: %+v", unit)
+	}
+}
