@@ -25,7 +25,7 @@ No index, snapshot, pack, root verb or wire profile changes.
 
 ## User and current state
 
-Human-owned inputs: the six tickets above. `corvint context` admits rows through fixed slots and
+Human-owned inputs: the six tickets above. Before TCP-V0-8200, `corvint context` admits rows through fixed slots and
 orders them by decision 0027's corroboration count; a fixed slot score (definition 800, paired
 test 650) outranks any lexical row, so a test can outrank its source and an all-capital prose
 word such as `CEM` can admit an unrelated declaring file (V1-3710). TCP-V0-048..050 proposed a

@@ -48,8 +48,8 @@ it must read, each with the relation that admitted it, without naming the task's
 
 - `TCP-V0-8200`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3710)
   With both ordering experiments off, final selected `definition` and `test` rows MUST report the
-  lexical band plus the CRK-V0-005 slot bonus and corroboration bonuses as their score
-  with its components. Preserve corroboration order; global additive ordering remains opt-in
+  lexical base plus lexical band, CRK-V0-005 slot bonus and corroboration bonuses as their score
+  with its components, superseding TCP-V0-015's fixed 650 score. Preserve corroboration order; global additive ordering remains opt-in
   under CRK-V0-008. Apply scores after selection so no evidence is displaced; reservations
   and graph positions remain fixed. For a task beginning with `where `, a selected paired
   test MUST follow its selected source. Common acronym filtering remains TCP-V0-961.

@@ -74,7 +74,8 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 ## Requirements
 
 - `AMAP-V0-8206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2651)
-  A test URL matching a childless literal React `Navigate` route MUST resolve through its
+  Superseding AMAP-V0-194's no-URL-resolution clause, a test URL on a literal React `Navigate`
+  route MUST resolve through its
   absolute or route-relative `to` to a unique destination screen, including index routes,
   declared base paths and chains of at most 32 redirects. `relative="path"` uses path segments;
   default `..` uses contributing route ancestors. Redirects remain abstract, never synthetic
