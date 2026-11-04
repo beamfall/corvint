@@ -815,13 +815,37 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		// AFP-V0-2246: `tmp=$(cd "$tmp" && pwd)` after a mktemp that exits on
 		// failure is no new assignment; without the exit an empty name would
 		// canonicalize to the working directory (dash's `cd ""`), and another
-		// name's or an earlier canonicalization is an assignment as before.
+		// name's or an earlier canonicalization is an assignment as before, and so
+		// is any in a file that can override cd, pwd or exit or sources another.
 		{"canonical", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/repo/internal/x/y.json\"\n", false},
 		{"canonical physical", "tmp=$(mktemp -d) || exit\ntmp=$(cd \"${tmp}\" && pwd -P)\ncat \"$tmp/internal/x/y.json\"\n", false},
 		{"canonical without exit", "tmp=$(mktemp -d)\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical other name", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$base\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical exit piped", "tmp=$(mktemp -d) || exit 1 | cat\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical exit aliased", "alias exit=:\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical cd function", "cd(){ :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical pwd function", "pwd(){ echo .; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical pwd alias", "alias pwd='echo .'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit function", "exit(){ :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit function keyword", "function exit { :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit disabled", "enable -n exit\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical builtin function", "builtin(){ :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical command function", "command () { :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical eval", "eval \"$defs\"\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical sourced helper", ". ./helper.sh\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical sourced variable", "source \"$HELPERS\"\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical debug trap", "set -T\ntrap '[ \"$BASH_COMMAND\" = pwd ] && cd \"$OLDPWD\"' DEBUG\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted debug trap", "trap 'cd \"$OLDPWD\"' \"DEBUG\"\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted eval", "ev''al 'pwd() { echo .; }'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted enable", "en''able -n cd\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical computed command", "run=eval\n$run 'pwd() { echo .; }'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted function name", "'pwd'() { echo .; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical mapfile callback", "mapfile -C 'cd /' -c 1 lines < /dev/null\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical aliases array", "BASH_ALIASES[pwd]='echo .'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical shopt", "shopt -s expand_aliases\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical declare", "declare -f pwd\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit trap", "tmp=$(mktemp -d) || exit 1\ntrap 'rm -rf \"$tmp\"' EXIT\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", false},
+		{"canonical path command", "script=$(cd \"$(dirname \"$0\")\" && pwd)/x.sh\n\"$script\" a\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", false},
 		{"canonical first", "tmp=$(cd \"$tmp\" && pwd)\ntmp=$(mktemp -d) || exit 1\ncat \"$tmp/internal/x/y.json\"\n", true},
 	}
 	for _, tc := range cases {
@@ -836,6 +860,22 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		}
 		if kept != tc.kept {
 			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
+		}
+	}
+}
+
+// AFP-V0-2246: a canonicalization is admitted only in a bash, sh or dash script; zsh and ksh have
+// directory hooks and builtin switches (`chpwd`, `disable cd`, `builtin -d cd`) of their own.
+func TestCanonicalizationNeedsAPlainShell_AFPV02246(t *testing.T) {
+	const canon = "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\n"
+	for first, admitted := range map[string]bool{
+		"#!/usr/bin/env bash": true, "#!/bin/sh": true, "#!/bin/dash": true, "#!/bin/bash -e": true,
+		"#!/usr/bin/env zsh": false, "#!/bin/ksh": false, "#!/usr/bin/env ksh93": false, "# no shebang": false,
+	} {
+		text := first + "\n" + canon
+		parsed := parse(text)
+		if got := !canonicalOverride(newResolver("t.sh", parsed.commands), parsed, text); got != admitted {
+			t.Errorf("%q: canonicalization admitted = %v, want %v", first, got, admitted)
 		}
 	}
 }

@@ -6,6 +6,10 @@ Requirements: AFP-V0-2245 (amends AFP-V0-072 (3)), AFP-V0-2246 (amends AFP-V0-22
 AFP-V0-2247 (amends LGP-V0-027) in `docs/specs/affected-plan-selection-v0.md`. All three carry
 out orchestrator-made, owner-delegated decisions (proposals 1 to 3 of round 2).
 
+Superseded in part: round 4 withdrew AFP-V0-2245 and reverted its code (build-log entry
+`2026-11-03-selprec2-round4-withdraw-typescript-anchors`); the TypeScript sections below are
+history.
+
 ## Decisions
 
 - **TypeScript runner directories (AFP-V0-2245).** Round 2 withdrew a TypeScript narrowing

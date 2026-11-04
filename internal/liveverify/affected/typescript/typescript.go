@@ -129,10 +129,6 @@ type packageScope struct {
 	// localSpecifiers holds the dependencies whose file:, link:, portal: or workspace:
 	// specifier names repository source (TJAA-V0-710): they are no external package.
 	localSpecifiers map[string]bool
-	// movesDirectory records a manifest script that changes the working directory a runner
-	// starts in (`cd`, `pushd`, `--prefix`, `--cwd`, `--dir`, `--root`, `-C`), so the
-	// repository's runner directories are not the ones the plugin records (AFP-V0-2245).
-	movesDirectory bool
 }
 
 // Units observes every owned module and every supported test runner that can
@@ -407,7 +403,6 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	bodies := make(map[string]string, len(files))
 	configs := make([]config, 0, 16)
 	scopes := make([]packageScope, 0, 16)
-	movesDirectory := false
 	owned := make([]string, 0, len(files))
 	aliasConfigs := []string{}
 	sites := sourceSites{}
@@ -442,7 +437,6 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 				frontier.raiseToken(FrontierConfig, relative, "package.json")
 				continue
 			}
-			movesDirectory = movesDirectory || scope.movesDirectory
 			if scope.configured[runnerMocha] {
 				frontier.at(FrontierConfig, relative, text, strings.Index(text, `"mocha"`))
 			}
@@ -569,7 +563,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			e2eConfigs = append(e2eConfigs, config.directory)
 		}
 	}
-	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored(), reason, !movesDirectory), frontier, e2eConfigs, nil
+	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored(), reason), frontier, e2eConfigs, nil
 }
 
 // pathAliasMarker returns the offset of the first `"paths"` or `"baseUrl"` key in a tsconfig.
@@ -652,7 +646,7 @@ func tsconfigToken(body string) int {
 	return strings.Index(clean, "tsconfig")
 }
 
-func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet, excluded func(string) bool, aliasReason func(owner, ref string) string, directoriesKnown bool) affected.Result {
+func buildResult(observations []observation, configs []config, scopes []packageScope, sites sourceSites, frontier frontierSet, excluded func(string) bool, aliasReason func(owner, ref string) string) affected.Result {
 	units := make([]affected.Unit, 0, len(observations))
 	pathToID := make(map[string]string, len(observations))
 	refs := make(map[string]map[string]bool, len(observations))
@@ -686,10 +680,6 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		id := unitID(observation.runner, observation.path)
 		unit := affected.Unit{ID: id}
 		unit.PathTokens, unit.PathTokensBounded = pathTokens(observation.body)
-		if words, placed := anchorWords(observation.body); placed && directoriesKnown && !unit.PathTokensBounded {
-			unit.AnchorsPlaced, unit.AnchorWords = true, words
-			unit.RunDirectories = runDirectories(observation.path, configs)
-		}
 		if observation.test {
 			unit.Tests = []string{observation.path}
 		} else {
@@ -721,18 +711,12 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 	}
 
 	packages := newWorkspace(scopes, units)
-	unplaced := map[string]bool{}
 	for index := range units {
 		unit := &units[index]
 		edges := make(map[string]bool)
 		owner := firstPath(*unit)
 		resolved := make(map[string]bool)
 		for ref := range refs[unit.ID] {
-			if isRelativeSpecifier(ref) {
-				if target, _, _ := resolveImport(owner, ref, pathToID, excluded); target == "" {
-					unplaced[unit.ID] = true
-				}
-			}
 			if !packages.link(ref, edges) {
 				site, token := unitRefSite(*unit, sites, ref)
 				frontier.raiseToken(FrontierPathAlias, site, token)
@@ -763,94 +747,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 	}
 	units = append(units, packages.built()...)
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	placeAcrossImports(units, unplaced)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}
-}
-
-// isRelativeSpecifier reports a module specifier that names a repository file by path.
-func isRelativeSpecifier(ref string) bool {
-	return strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "../") || strings.HasPrefix(ref, "/")
-}
-
-// placeAcrossImports widens each certified unit's placement to its local import closure
-// (AFP-V0-2245): a module may join an anchored token to a value an imported module computes
-// (`${APP}/repo` with APP exported by ./dirs.mjs), so the unit keeps its certificate only when
-// every unit of the closure is certified and every relative specifier of the closure resolved
-// to a unit (unplaced holds those that did not), and its words and run directories then hold
-// every closure unit's words, token components, directory and its ancestors, and run
-// directories. A closure over the word bound loses the certificate.
-func placeAcrossImports(units []affected.Unit, unplaced map[string]bool) {
-	byID := make(map[string]int, len(units))
-	for index, unit := range units {
-		byID[unit.ID] = index
-	}
-	type placement struct {
-		ok          bool
-		words, dirs []string
-	}
-	results := make([]placement, len(units))
-	for index, unit := range units {
-		if !unit.AnchorsPlaced {
-			continue
-		}
-		words, dirs := map[string]bool{}, map[string]bool{}
-		ok := true
-		seen := map[string]bool{unit.ID: true}
-		queue := []string{unit.ID}
-		for len(queue) > 0 && ok {
-			id := queue[0]
-			queue = queue[1:]
-			at, known := byID[id]
-			if !known || !units[at].AnchorsPlaced || unplaced[id] {
-				ok = false
-				break
-			}
-			member := units[at]
-			for _, word := range member.AnchorWords {
-				words[word] = true
-			}
-			for _, token := range member.PathTokens {
-				for _, component := range strings.Split(token, "/") {
-					if component != "" {
-						words[component] = true
-					}
-				}
-			}
-			for _, directory := range member.RunDirectories {
-				dirs[directory] = true
-			}
-			if id != unit.ID {
-				for directory := path.Dir(firstPath(member)); directory != "." && directory != "/"; directory = path.Dir(directory) {
-					dirs[directory] = true
-				}
-			}
-			for _, next := range member.Imports {
-				if !seen[next] {
-					seen[next] = true
-					queue = append(queue, next)
-				}
-			}
-		}
-		if ok && len(words) <= maxPathTokens && len(dirs) <= maxPathTokens {
-			results[index] = placement{ok: true, words: sortedKeys(words), dirs: sortedKeys(dirs)}
-		}
-	}
-	for index := range units {
-		if !units[index].AnchorsPlaced {
-			continue
-		}
-		if !results[index].ok {
-			units[index].AnchorsPlaced, units[index].AnchorWords, units[index].RunDirectories = false, nil, nil
-			continue
-		}
-		units[index].AnchorWords, units[index].RunDirectories = results[index].words, results[index].dirs
-		if len(units[index].AnchorWords) == 0 {
-			units[index].AnchorWords = nil
-		}
-		if len(units[index].RunDirectories) == 0 {
-			units[index].RunDirectories = nil
-		}
-	}
 }
 
 // unresolvedSpecifierTokens recomputes a single-module unit's path tokens without the literal
@@ -875,9 +772,6 @@ func unresolvedSpecifierTokens(unit *affected.Unit, sites sourceSites, resolved 
 	}
 	if len(skip) != 0 {
 		unit.PathTokens, unit.PathTokensBounded = pathTokensSkipping(index.body, skip)
-		if unit.PathTokensBounded {
-			unit.AnchorsPlaced, unit.AnchorWords, unit.RunDirectories = false, nil, nil
-		}
 	}
 }
 
@@ -2167,9 +2061,6 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		Mocha                json.RawMessage            `json:"mocha"`
 		Jest                 json.RawMessage            `json:"jest"`
 		Detox                json.RawMessage            `json:"detox"`
-		Scripts              map[string]json.RawMessage `json:"scripts"`
-		Ava                  json.RawMessage            `json:"ava"`
-		Vitest               json.RawMessage            `json:"vitest"`
 	}
 	if err := json.Unmarshal(body, &manifest); err != nil {
 		return packageScope{}, err
@@ -2210,18 +2101,7 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 	if len(manifest.Detox) != 0 && string(manifest.Detox) != "null" {
 		configured[runnerDetox] = true
 	}
-	moves := false
-	for _, raw := range manifest.Scripts {
-		var command string
-		moves = moves || json.Unmarshal(raw, &command) != nil || directoryMove.MatchString(command)
-	}
-	// A runner config embedded in the manifest may own tests outside the package (Jest roots
-	// above <rootDir>), which the manifest's directory does not record.
-	for _, embedded := range []json.RawMessage{manifest.Mocha, manifest.Jest, manifest.Detox, manifest.Ava, manifest.Vitest} {
-		moves = moves || embeddedMove.Match(embedded)
-	}
 	return packageScope{
-		movesDirectory:  moves,
 		directory:       path.Dir(relative),
 		manifest:        relative,
 		name:            manifest.Name,
@@ -2231,15 +2111,6 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		localSpecifiers: local,
 	}, nil
 }
-
-// directoryMove matches a manifest script that may start its runner in another directory or on
-// tests outside the package: a directory change, a parent component, or a root, directory,
-// prefix or config option.
-var directoryMove = regexp.MustCompile(`(^|[\s;&|(])(cd|pushd)(\s|$)|\.\.|--prefix|--cwd|--dir|--root|rootDir|--config|(^|\s)-[Cc](\s|$)`)
-
-// embeddedMove matches a manifest-embedded runner config that may name tests outside its
-// package: a parent component or a root or directory member.
-var embeddedMove = regexp.MustCompile(`\.\.|rootDir|"roots?"|"dir"|"testDir"|"projects"`)
 
 // repositorySpecifier reports a package.json dependency specifier that names repository source
 // rather than an external package (TJAA-V0-710): any workspace: specifier, and a file:, link: or
@@ -2545,101 +2416,6 @@ func nearestScope(relative string, scopes []packageScope) (packageScope, bool) {
 		}
 	}
 	return selected, best >= 0
-}
-
-// runDirectories lists, sorted, the directories other than the repository root and the
-// ancestors of a module from which a runner the plugin records may run it (AFP-V0-2245): every
-// config whose test membership the adapter does not model, and every Playwright config with a
-// literal testDir or project, may own a module outside its own directory and run it from there.
-// A config whose directory holds the module is already an ancestor. A runner also starts in a
-// package root or the repository root, both ancestors or the root. Each such directory's
-// ancestors are listed too: a module may climb from it (`..`, `path.dirname`).
-func runDirectories(relative string, configs []config) []string {
-	directories := map[string]bool{}
-	for _, config := range configs {
-		if config.directory == "." || inside(relative, config.directory) {
-			continue
-		}
-		if (config.membership || config.literalTestDir != "" || len(config.literalProjects) != 0) && !localMembership(config.body) {
-			for directory := config.directory; directory != "." && !directories[directory]; directory = path.Dir(directory) {
-				directories[directory] = true
-			}
-		}
-	}
-	if len(directories) == 0 {
-		return nil
-	}
-	return sortedKeys(directories)
-}
-
-// localMembership reports a config that can own only modules below its own directory: every
-// string literal in its code has no `..` component and starts with neither `/` nor `~`, no
-// template literal substitutes a value, it imports or requires no relative module (whose
-// values the adapter does not read), and its code names nothing that computes a path or moves
-// the root (`process`, `__dirname`, `__filename`, `dirname`, `resolve`, `join`, `cwd`, `URL`,
-// `fileURLToPath`, or a `root` or `dir` member). A config that does not lex is not local.
-func localMembership(body string) bool {
-	clean, err := stripComments(body, false)
-	if err != nil {
-		return false
-	}
-	lexed, ok := playwrightLex(clean)
-	if !ok {
-		return false
-	}
-	previous := ""
-	for start := 0; start < len(clean); {
-		if lexed.code[start] {
-			if !identifierByte(clean[start]) {
-				if clean[start] == '+' || clean[start] == '[' && previous != "" && previous != "," && previous != ":" && previous != "(" && previous != "[" && previous != "=" {
-					// Concatenation or a computed member can build a path the literals do not.
-					return false
-				}
-				if strings.TrimSpace(clean[start:start+1]) != "" {
-					previous = clean[start : start+1]
-				}
-				start++
-				continue
-			}
-			end := start
-			for end < len(clean) && lexed.code[end] && identifierByte(clean[end]) {
-				end++
-			}
-			switch clean[start:end] {
-			case "process", "__dirname", "__filename", "dirname", "resolve", "join", "cwd", "URL", "fileURLToPath", "root", "dir", "rootDir", "roots", "Deno", "Bun", "globalThis", "global":
-				return false
-			}
-			previous = clean[start:end]
-			start = end
-			continue
-		}
-		end := start
-		for end < len(clean) && !lexed.code[end] {
-			end++
-		}
-		literal := clean[start:end]
-		if literal[0] == '`' && strings.Contains(literal, "${") {
-			return false
-		}
-		content, _ := decodeStringEscapes(strings.Trim(literal, "'\"`"))
-		if previous == "from" || previous == "(" || previous == "import" {
-			// Only the runners' own config helpers may be imported: another module's values
-			// are not read.
-			switch content {
-			case "@playwright/test", "playwright/test", "vitest/config", "vitest", "@jest/types":
-			default:
-				return false
-			}
-		}
-		if strings.HasPrefix(content, "/") || strings.HasPrefix(content, "~") || slices.Contains(strings.Split(content, "/"), "..") {
-			if literal[0] != '/' {
-				return false
-			}
-		}
-		previous = ""
-		start = end
-	}
-	return true
 }
 
 func inside(relative, directory string) bool {

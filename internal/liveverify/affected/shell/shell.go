@@ -1090,10 +1090,10 @@ var canonicalPath = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=\$\(cd "\$\{?(
 // canonicalization must be a plain top-level command of its own, after that
 // assignment, which must be followed by `|| exit`: a mktemp that fails would
 // leave the name empty, and `cd ""` succeeds in dash, so pwd would print the
-// working directory. Any other shape leaves the name assigned twice.
+// working directory. Any other shape leaves the name assigned twice, and so
+// does every canonicalization in a file that canonicalOverride does not admit.
 func withoutCanonicalPaths(r *resolver, parsed script, text string) (*resolver, string) {
-	if strings.Contains(text, "alias exit") {
-		// dash expands an alias in a script, so `|| exit` may not exit.
+	if canonicalOverride(r, parsed, text) {
 		return r, text
 	}
 	view := r
@@ -1145,6 +1145,107 @@ func withoutCanonicalPaths(r *resolver, parsed script, text string) (*resolver, 
 // start or end, a newline or a semicolon.
 func separator(boundary string) bool {
 	return boundary == "" || boundary == "\n" || boundary == ";"
+}
+
+// canonicalOverride reports a file in which a canonicalization proves nothing (AFP-V0-2246).
+// The check is an allowlist, since the ways to make `cd`, `pwd` or `exit` run something other
+// than the builtin are open-ended. The canonicalization is accepted only in a file whose first
+// line is a bash, sh or dash shebang (zsh and ksh have hooks and builtin switches of their own)
+// that holds no text `BASH_ALIASES`, defines no function whose name is not a plain identifier or
+// names a builtin it relies on or a shell hook (canonicalFunction), and in which every command,
+// substituted or in a function included, starts with a command word that is a plain literal, or
+// the one expansion of a name assigned once in the file whose value holds a literal `/` (a name
+// with a slash runs a file, never a builtin or function), and is none of `.`, `source`, `eval`,
+// `enable`, `disable`, `alias`, `builtin`, `command`, `mapfile`, `readarray`, `shopt`,
+// `typeset`, `declare`, `functions` or `autoload`, a `trap` on anything but EXIT, INT, TERM, HUP
+// or QUIT, or a `set` that turns on function tracing. A sourced file is refused because this text
+// pass does not read it.
+func canonicalOverride(r *resolver, parsed script, text string) bool {
+	first, _, _ := strings.Cut(text, "\n")
+	if !canonicalShebang.MatchString(first) || strings.Contains(text, "BASH_ALIASES") {
+		return true
+	}
+	for _, match := range functionDefinition.FindAllStringSubmatch(text, -1) {
+		name := match[3] + match[4]
+		if !plainName.MatchString(name) || canonicalFunctions[name] {
+			return true
+		}
+	}
+	for _, cmd := range parsed.commands {
+		words := plainWords(cmd.words)
+		at := 0
+		for at < len(words) && assignment.MatchString(words[at]) {
+			at++
+		}
+		if at == len(words) {
+			continue
+		}
+		word := words[at]
+		if strings.ContainsAny(word, "'\"\\$`") {
+			if !pathCommand(r, text, word) {
+				return true
+			}
+			continue
+		}
+		switch word {
+		case ".", "source", "eval", "enable", "disable", "alias", "builtin", "command", "mapfile", "readarray", "shopt", "typeset", "declare", "functions", "autoload":
+			return true
+		case "trap":
+			// `trap ACTION CONDITION...`: every condition must be harmless; one argument
+			// resets a condition, and -l or -p only lists.
+			args := words[at+1:]
+			if len(args) > 0 && (args[0] == "-l" || args[0] == "-p") {
+				continue
+			}
+			if len(args) > 1 {
+				for _, condition := range args[1:] {
+					if !harmlessTraps[strings.TrimPrefix(unquote(condition), "SIG")] {
+						return true
+					}
+				}
+			}
+		case "set":
+			for _, option := range words[at+1:] {
+				if option == "functrace" || option == "errtrace" || strings.HasPrefix(option, "-") && strings.ContainsAny(option, "TE") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// canonicalShebang matches a first line that runs bash, sh or dash.
+var canonicalShebang = regexp.MustCompile(`^#!\s*(/usr)?/bin/(env\s+)?(bash|sh|dash)(\s|$)`)
+
+// functionDefinition matches a function definition, `NAME() ...` or `function NAME`, with
+// whatever spelling of the name the text holds.
+var functionDefinition = regexp.MustCompile(`(?m)(^|[\s;&|(){}])(function[ \t]+([^\s;&|(){}<>]+)|([^\s;&|(){}<>=]+)[ \t]*\([ \t]*\))`)
+
+// plainName matches a function name made only of identifier bytes.
+var plainName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
+
+// canonicalFunctions are the names a canonicalization relies on, and the shell hooks.
+var canonicalFunctions = map[string]bool{"cd": true, "pwd": true, "exit": true, "builtin": true, "command": true, "trap": true, "eval": true, "source": true, "enable": true, "alias": true, "set": true, "shopt": true, "chpwd": true, "precmd": true, "preexec": true, "command_not_found_handle": true}
+
+// harmlessTraps are the conditions whose trap cannot run between a canonicalization and the
+// reads after it in a script that is not signalled: an EXIT trap runs once the script ends.
+var harmlessTraps = map[string]bool{"EXIT": true, "0": true, "INT": true, "TERM": true, "HUP": true, "QUIT": true, "-": true}
+
+// pathCommand reports a non-literal command word that runs a file: the expansion of a name
+// assigned once in the file, alone or quoted, whose value holds a literal `/` outside its
+// expansions, or a word that holds one itself.
+func pathCommand(r *resolver, text, word string) bool {
+	if strings.Contains(expansion.ReplaceAllString(unquote(word), ""), "/") {
+		return true
+	}
+	match := tempExpansion.FindStringSubmatch(unquote(word))
+	if match == nil || match[0] != unquote(word) || match[3] != "" {
+		return false
+	}
+	name := match[1] + match[2]
+	value, ok := r.values[name]
+	return ok && assignedOnce(text, name) && strings.Contains(expansion.ReplaceAllString(value, ""), "/")
 }
 
 // exitsNext reports whether the first command after commands[at] that is no
