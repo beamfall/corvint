@@ -274,3 +274,63 @@ func TestAFPV02376ImportPathOfRootPackageFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestAFPV02374RangeAssignmentEndsPrivacy(t *testing.T) {
+	for name, loop := range map[string]string{
+		"value": "for _, p = range []string{shared} {}",
+		"key":   "for p = range map[string]int{shared: 0} {}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := reviewFixture(t, map[string]string{
+				"lib/lib.go": "package lib\nfunc A() int { return 1 }\n",
+				"p/p_test.go": "package p\nimport (\"testing\"; \"os\"; \"path/filepath\"; \"strconv\"; \"strings\"; \"example.com/review/lib\")\nvar shared string\n" +
+					"func TestMain(m *testing.M) { dir, _ := os.MkdirTemp(\"\", \"review\"); shared = filepath.Join(dir, \"shared\"); os.WriteFile(shared, []byte(\"value=1\"), 0o600); code := m.Run(); os.RemoveAll(dir); os.Exit(code) }\n" +
+					"func TestAWrite(t *testing.T) { p := t.TempDir(); " + loop + "; os.WriteFile(p, []byte(\"value=\" + strconv.Itoa(lib.A())), 0o600) }\n" +
+					"func TestBReader(t *testing.T) { b, err := os.ReadFile(shared); if err != nil || !strings.Contains(string(b), \"value=1\") { t.Fatalf(\"%q %v\", b, err) } }\n" +
+					"func TestControl(t *testing.T) {}\n",
+			})
+			program, err := Load(root, "example.com/review", "p")
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := Analyze(program, []Declaration{{Package: "example.com/review/lib", Name: "A"}}, nil)
+			if result.Whole != "" || keptCodes(result)["TestBReader"] != KeptReadsSharedState || !slices.Contains(result.Dropped, "TestControl") {
+				t.Fatalf("a range assignment must end the temporary path's privacy: %+v", result)
+			}
+		})
+	}
+}
+
+func TestAFPV02374ScanReadsFiles(t *testing.T) {
+	for name, scan := range map[string]string{
+		"fmt.Scan":         "fmt.Scan(&v)",
+		"fmt.Scanf":        "fmt.Scanf(\"%d\", &v)",
+		"fmt.Scanln value": "s := fmt.Scanln; s(&v)",
+		// Fscan* on a stream needed no change: its io.Reader argument is
+		// opaque, so the reader stays kept as unknown.
+		"fmt.Fscan stdin guard": "fmt.Fscan(os.Stdin, &v)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := reviewFixture(t, map[string]string{
+				"lib/lib.go": "package lib\nfunc A() int { return 1 }\n",
+				"p/p_test.go": "package p\nimport (\"testing\"; \"fmt\"; \"os\"; \"path/filepath\"; \"strconv\"; \"example.com/review/lib\")\nvar in string\n" +
+					"func TestMain(m *testing.M) { dir, _ := os.MkdirTemp(\"\", \"review\"); in = filepath.Join(dir, \"in\"); os.WriteFile(in, []byte(\"1\\n\"), 0o600); f, _ := os.Open(in); os.Stdin = f; code := m.Run(); f.Close(); os.RemoveAll(dir); os.Exit(code) }\n" +
+					"func TestAWrite(t *testing.T) { os.WriteFile(in, []byte(strconv.Itoa(lib.A()) + \"\\n\"), 0o600) }\n" +
+					"func TestBReader(t *testing.T) { var v int; " + scan + "; if v != 1 { t.Fatal(v) } }\n" +
+					"func TestControl(t *testing.T) {}\n",
+			})
+			program, err := Load(root, "example.com/review", "p")
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := Analyze(program, []Declaration{{Package: "example.com/review/lib", Name: "A"}}, nil)
+			want := keptCodes(result)["TestBReader"] == KeptReadsSharedState
+			if strings.HasPrefix(name, "fmt.Fscan") {
+				want = !slices.Contains(result.Dropped, "TestBReader")
+			}
+			if result.Whole != "" || !want || !slices.Contains(result.Dropped, "TestControl") {
+				t.Fatalf("a scan from stdin must read the file system: %+v", result)
+			}
+		})
+	}
+}

@@ -29,16 +29,32 @@ var typedReachPackages = map[string]bool{
 // typedReachLoad and typedReachAnalyze are held in variables so a test can
 // count or replace them.
 var (
-	typedReachLoad    = typedreach.Load
+	typedReachLoad    = typedreach.LoadFor
 	typedReachAnalyze = typedreach.Analyze
 )
+
+// typedReachExecutor is the go test executor of the run: its runner profile,
+// declaration and process environment. The typed-reach model evaluates build
+// constraints under the build configuration that executor selects
+// (AFP-V0-2372).
+type typedReachExecutor struct {
+	profile  string
+	declared sessiontest.Declared
+	environ  []string
+}
+
+// config reads the executor's build configuration in root.
+func (e typedReachExecutor) config(ctx context.Context, root string) (typedreach.Config, error) {
+	env, flags := sessiontest.GoExecutor(e.profile, e.declared, root, "")
+	return typedreach.ProbeConfig(ctx, root, append(slices.Clone(e.environ), env...), flags)
+}
 
 // testTypedSlices replaces, for each allow-listed package the plan selects
 // by DEPENDENCY_PATH, the whole-package reason in sliced with a typed-reach
 // slice, or with that reason extended by why no slice is proved
 // (AFP-V0-2370, AFP-V0-2377). The base reads of the changed files are one
 // batch for all packages.
-func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph, root, base string, sliced map[string]sessiontest.GoSlice) {
+func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph, root, base string, executor typedReachExecutor, sliced map[string]sessiontest.GoSlice) {
 	module, err := golang.ReadModulePath(root)
 	if err != nil {
 		return
@@ -57,10 +73,21 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 		return
 	}
 	changed, refusal := typedReachChangedPaths(graph, plan.Dirty)
+	var config typedreach.Config
+	if refusal == "" {
+		var err error
+		if config, err = executor.config(ctx, root); err != nil {
+			refusal = "the executor build configuration cannot be read: " + err.Error()
+		}
+	}
 	var blobs map[string]testBaseBlob
 	if refusal == "" {
 		blobs = testBaseBlobs(ctx, root, base, changed)
 	}
+	// The slice holds only under the configuration it was computed for; the
+	// identity in its reason binds that configuration into the manifest a
+	// shard recomputes and compares (AFP-V0-2372).
+	bound := "; build configuration " + config.Identity()
 	for _, selection := range candidates {
 		pkg := strings.TrimPrefix(selection.UnitID, "go:")
 		whole := func(why string) {
@@ -106,7 +133,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			continue
 		}
 		relative := strings.TrimPrefix(strings.TrimPrefix(pkg, module), "/")
-		program, err := typedReachLoad(root, module, relative)
+		program, err := typedReachLoad(config, root, module, relative)
 		if err != nil {
 			whole(err.Error())
 			continue
@@ -116,7 +143,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			whole(result.Whole)
 			continue
 		}
-		before, err := typedreach.LoadBase(root, module, relative, baseFiles)
+		before, err := typedreach.LoadBaseFor(config, root, module, relative, baseFiles)
 		if err != nil {
 			whole(typedreach.WholeBaseSource + ": " + err.Error())
 			continue
@@ -132,7 +159,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 		slices.Sort(kept)
 		changedIn := strings.Join(changed, ", ")
 		if len(kept) == 0 {
-			sliced[pkg] = sessiontest.GoSlice{Pattern: "^$", Reason: "selected: no test reaches " + changedIn + "; build and vet only"}
+			sliced[pkg] = sessiontest.GoSlice{Pattern: "^$", Reason: "selected: no test reaches " + changedIn + "; build and vet only" + bound}
 			continue
 		}
 		pattern := "^(" + strings.Join(kept, "|") + ")$"
@@ -140,7 +167,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			whole("the -run pattern of " + strconv.Itoa(len(kept)) + " kept tests exceeds the bound")
 			continue
 		}
-		sliced[pkg] = sessiontest.GoSlice{Pattern: pattern, Reason: "selected: the tests reaching " + changedIn + " (typed reach: " + strconv.Itoa(len(result.Dropped)) + " of " + strconv.Itoa(result.Tests) + " test functions cannot reach it)"}
+		sliced[pkg] = sessiontest.GoSlice{Pattern: pattern, Reason: "selected: the tests reaching " + changedIn + " (typed reach: " + strconv.Itoa(len(result.Dropped)) + " of " + strconv.Itoa(result.Tests) + " test functions cannot reach it" + bound + ")"}
 	}
 }
 

@@ -310,6 +310,14 @@ func streamOutput(f *types.Func) bool {
 	return false
 }
 
+// streamInput reports a fmt Scan* function, which reads os.Stdin. Stdin may
+// be a file an earlier test wrote, so the call, or the function taken as a
+// value, reads the files pseudo variable (AFP-V0-2374). Fscan* on a stream is
+// already unknown through its opaque io.Reader argument.
+func streamInput(f *types.Func) bool {
+	return f.Pkg().Path() == "fmt" && f.Signature().Recv() == nil && strings.HasPrefix(f.Name(), "Scan")
+}
+
 // slogOutput are the log/slog functions and *slog.Logger methods that emit a
 // record, less any Context suffix.
 var slogOutput = map[string]bool{"Debug": true, "Info": true, "Warn": true, "Error": true, "Log": true, "LogAttrs": true}
@@ -1041,6 +1049,9 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 		if streamOutput(callee) {
 			n.writes[files] = true
 		}
+		if streamInput(callee) {
+			n.reads[files] = true
+		}
 		if selector, ok := fun.(*ast.SelectorExpr); ok {
 			if selection := info.Selections[selector]; selection != nil && selection.Kind() == types.MethodVal {
 				if _, pointer := callee.Signature().Recv().Type().(*types.Pointer); pointer && !exemptStateMethods[callee.FullName()] && !readOnlyMethod(callee) {
@@ -1267,6 +1278,14 @@ func (g *graph) assignedElsewhere(pkg *Package, body ast.Node, v *types.Var, own
 				}
 			}
 		}
+		// A range statement assigns its key and value on every iteration.
+		if loop, ok := x.(*ast.RangeStmt); ok {
+			for _, lhs := range []ast.Expr{loop.Key, loop.Value} {
+				if ident, ok := lhs.(*ast.Ident); ok && (pkg.Info.Defs[ident] == v || pkg.Info.Uses[ident] == v) {
+					other = true
+				}
+			}
+		}
 		if unary, ok := x.(*ast.UnaryExpr); ok && unary.Op == token.AND {
 			if ident, ok := unparen(unary.X).(*ast.Ident); ok && pkg.Info.Uses[ident] == v {
 				other = true
@@ -1293,6 +1312,9 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 	}
 	if streamOutput(f) {
 		n.writes[files] = true
+	}
+	if streamInput(f) {
+		n.reads[files] = true
 	}
 	// The value may later be called with any argument: an opaque interface
 	// parameter makes it unknown, as an opaque argument makes the call.

@@ -44,6 +44,7 @@ type report struct {
 	Head       string            `json:"head"`
 	Package    string            `json:"package"`
 	Changed    []string          `json:"changed"`
+	Config     string            `json:"config"`
 	Whole      string            `json:"whole,omitempty"`
 	Tests      int               `json:"tests"`
 	Kept       map[string]string `json:"kept"`
@@ -128,13 +129,20 @@ func measure(root, base, pkg string, runOracle bool, runTimeout time.Duration) (
 		}
 	}
 	start := time.Now()
-	program, err := typedreach.Load(root, module, pkg)
+	// The oracle builds with this process's environment and no flags, so
+	// constraints are evaluated under that configuration (AFP-V0-2372).
+	config, err := typedreach.ProbeConfig(context.Background(), root, os.Environ(), nil)
+	if err != nil {
+		return report{}, err
+	}
+	out.Config = config.Identity()
+	program, err := typedreach.LoadFor(config, root, module, pkg)
 	if err != nil {
 		return report{}, err
 	}
 	result := typedreach.Analyze(program, changed, nil)
 	if result.Whole == "" {
-		before, err := typedreach.LoadBase(root, module, pkg, baseFiles)
+		before, err := typedreach.LoadBaseFor(config, root, module, pkg, baseFiles)
 		if err != nil {
 			result.Whole = typedreach.WholeBaseSource + ": " + err.Error()
 		} else {

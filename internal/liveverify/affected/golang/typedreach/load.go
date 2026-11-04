@@ -51,6 +51,7 @@ type Program struct {
 	order         []*Package
 	overrides     map[string][]byte
 	overridesRead map[string]bool
+	config        *Config
 }
 
 // Packages returns the module packages of the program in load order.
@@ -71,15 +72,24 @@ var (
 )
 
 // Load type-checks the test binary of the package in directory dir (relative
-// to root) for the host platform. Explicit module build constraints refuse
-// narrowing: local and CI runner tags may select different source. Cgo is
-// enabled for discovery so cgo source cannot disappear before refusal.
+// to root) for the host platform. With no executor configuration, explicit
+// module build constraints refuse narrowing: local and CI runner tags may
+// select different source. Cgo is enabled for discovery so cgo source cannot
+// disappear before refusal. LoadFor evaluates the constraints instead.
 // Every module package keeps its function
 // bodies; standard-library packages are checked from GOROOT source without
 // them. A module package with cgo, assembly or a //go:linkname directive, or
 // any type error, is an error wrapping ErrUnmodelled or ErrTypeCheck.
 func Load(root, module, dir string) (*Program, error) {
-	return load(root, module, dir, nil)
+	return load(root, module, dir, nil, nil)
+}
+
+// LoadFor is Load under the executor's build configuration (AFP-V0-2372):
+// build constraints select exactly the source the run compiles, so
+// constrained source is modelled rather than refused. The caller binds
+// config.Identity() into the analysis identity.
+func LoadFor(config Config, root, module, dir string) (*Program, error) {
+	return load(root, module, dir, nil, &config)
 }
 
 // LoadBase checks the changed files at base without writing the worktree
@@ -87,17 +97,32 @@ func Load(root, module, dir string) (*Program, error) {
 // Incompatible head tests, changed build constraints and deleted files fail
 // closed rather than pretending this overlay is a complete historical tree.
 func LoadBase(root, module, dir string, files map[string][]byte) (*Program, error) {
+	return loadBase(root, module, dir, files, nil)
+}
+
+// LoadBaseFor is LoadBase under the executor's build configuration. A base
+// file whose build constraint differs from its head file's fails closed: the
+// two trees could select different source.
+func LoadBaseFor(config Config, root, module, dir string, files map[string][]byte) (*Program, error) {
+	return loadBase(root, module, dir, files, &config)
+}
+
+func loadBase(root, module, dir string, files map[string][]byte, config *Config) (*Program, error) {
 	for name, source := range files {
-		if hasBuildConstraint(source) {
+		if config == nil && hasBuildConstraint(source) {
 			return nil, fmt.Errorf("%w: constrained base file %s", ErrUnmodelled, name)
 		}
 		if source != nil {
-			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(name))); err != nil {
+			head, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
+			if err != nil {
 				return nil, fmt.Errorf("%w: base file %s is absent at head", ErrUnmodelled, name)
+			}
+			if config != nil && !slices.Equal(constraintLines(source), constraintLines(head)) {
+				return nil, fmt.Errorf("%w: base file %s changes its build constraint", ErrUnmodelled, name)
 			}
 		}
 	}
-	program, err := load(root, module, dir, files)
+	program, err := load(root, module, dir, files, config)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +139,7 @@ func LoadBase(root, module, dir string, files map[string][]byte) (*Program, erro
 	return program, nil
 }
 
-func load(root, module, dir string, overrides map[string][]byte) (*Program, error) {
+func load(root, module, dir string, overrides map[string][]byte, config *Config) (*Program, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUnmodelled, err)
@@ -122,8 +147,12 @@ func load(root, module, dir string, overrides map[string][]byte) (*Program, erro
 	ctx := build.Default
 	ctx.CgoEnabled = true
 	ctx.GOOS, ctx.GOARCH = runtime.GOOS, runtime.GOARCH
+	if config != nil {
+		ctx.GOROOT, ctx.GOOS, ctx.GOARCH, ctx.CgoEnabled, ctx.Compiler, ctx.UseAllFiles = config.GOROOT, config.GOOS, config.GOARCH, config.CgoEnabled, config.Compiler, config.UseAllFiles
+		ctx.BuildTags, ctx.ToolTags, ctx.ReleaseTags = slices.Clone(config.BuildTags), slices.Clone(config.ToolTags), slices.Clone(config.ReleaseTags)
+	}
 	ctx.Dir = root
-	program := &Program{Fset: token.NewFileSet(), Module: module, Root: root, Context: ctx, byPath: map[string]*Package{}, loading: map[string]bool{}, overrides: overrides, overridesRead: map[string]bool{}}
+	program := &Program{Fset: token.NewFileSet(), Module: module, Root: root, Context: ctx, byPath: map[string]*Package{}, loading: map[string]bool{}, overrides: overrides, overridesRead: map[string]bool{}, config: config}
 	importPath := module
 	if dir != "." && dir != "" {
 		importPath = module + "/" + filepath.ToSlash(dir)
@@ -138,7 +167,7 @@ func load(root, module, dir string, overrides map[string][]byte) (*Program, erro
 	if err := moduleHazard(bp); err != nil {
 		return nil, err
 	}
-	if err := runnerSourceParity(bp); err != nil {
+	if err := program.runnerSourceParity(bp); err != nil {
 		return nil, err
 	}
 	target, err := program.check(importPath, bp.Dir, bp.Name, append(slices.Clone(bp.GoFiles), bp.TestGoFiles...), bp.TestGoFiles, true)
@@ -156,10 +185,15 @@ func load(root, module, dir string, overrides map[string][]byte) (*Program, erro
 	return program, nil
 }
 
-// runnerSourceParity refuses even currently ignored constrained files. The
-// model does not carry the executor's tags (including CI's -race), so their
-// absence from this graph cannot prove their absence from the test binary.
-func runnerSourceParity(bp *build.Package) error {
+// runnerSourceParity refuses, when the program carries no executor
+// configuration, even currently ignored constrained files: without the
+// executor's tags (including CI's -race), their absence from this graph
+// cannot prove their absence from the test binary. Under a configuration the
+// build context already selected exactly the files the run compiles.
+func (program *Program) runnerSourceParity(bp *build.Package) error {
+	if program.config != nil {
+		return nil
+	}
 	for _, names := range [][]string{bp.GoFiles, bp.TestGoFiles, bp.XTestGoFiles, bp.IgnoredGoFiles} {
 		for _, name := range names {
 			source, err := os.ReadFile(filepath.Join(bp.Dir, name))
@@ -175,13 +209,19 @@ func runnerSourceParity(bp *build.Package) error {
 }
 
 func hasBuildConstraint(source []byte) bool {
+	return len(constraintLines(source)) > 0
+}
+
+// constraintLines returns the //go:build and // +build lines of source.
+func constraintLines(source []byte) []string {
+	var out []string
 	for _, line := range strings.Split(string(source), "\n") {
 		line = strings.TrimSpace(line)
 		if constraint.IsGoBuild(line) || constraint.IsPlusBuild(line) {
-			return true
+			out = append(out, line)
 		}
 	}
-	return false
+	return out
 }
 
 // moduleHazard refuses a module package whose code the model cannot see.
@@ -222,7 +262,7 @@ func (program *Program) ImportFrom(importPath, dir string, _ types.ImportMode) (
 		if err := moduleHazard(bp); err != nil {
 			return nil, err
 		}
-		if err := runnerSourceParity(bp); err != nil {
+		if err := program.runnerSourceParity(bp); err != nil {
 			return nil, err
 		}
 		pkg, err := program.check(importPath, bp.Dir, bp.Name, bp.GoFiles, nil, true)

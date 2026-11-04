@@ -490,6 +490,10 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Costs:  testReadOptional(filepath.Join(root, testPartitionDirectory, "package-costs.json")),
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
+		// The declaration is read independently of the plan, so a planning
+		// failure still finds every declared full command (STR-V0-003); the
+		// typed-reach model reads its build configuration from it (AFP-V0-2372).
+		Declared: sessiontest.ReadDeclared(root),
 	}
 	var pins testPinsResult
 	// The graph comes from the default affected graph cache when one can be
@@ -528,9 +532,6 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		}
 		input.PlanError = message
 	}
-	// The declaration is read independently of the plan, so a planning
-	// failure still finds every declared full command (STR-V0-003).
-	input.Declared = sessiontest.ReadDeclared(root)
 	return input, pins
 }
 
@@ -564,7 +565,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	for _, selection := range receipt.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
 	}
-	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base)
+	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
 	}

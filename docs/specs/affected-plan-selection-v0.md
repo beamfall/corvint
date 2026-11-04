@@ -288,8 +288,8 @@ measure. None of them drops a unit the change can reach.
   Every other package, and every allow-listed package any AFP-V0-2372, AFP-V0-2374 or AFP-V0-2377
   condition refuses, keeps its whole-package selection with the refusal named.
 - **AFP-V0-2371:** (experimental; V1-2744) The graph SHALL load every module package of the test
-  binary from source for the host `GOOS`/`GOARCH`, type-check it with
-  `go/types` (standard-library packages from `GOROOT` without bodies), and give each function or
+  binary from source under the executor's build configuration, type-check it with
+  `go/types` (standard-library packages from that configuration's `GOROOT` without bodies), and give each function or
   method body, with its function literals, an edge to: every function it calls or names as a
   value; every method of every module named type structurally inside a value it converts to an
   interface (call arguments, assignments, returns, composite elements, sends, comparisons,
@@ -298,12 +298,25 @@ measure. None of them drops a unit the change can reach.
   package variable it mentions holds. A package variable initializer's calls run at
   initialization; the functions, literals and converted values it only stores, and those an
   `init` function only assigns to a package variable, are held by that variable. Source discovery
-  SHALL enable cgo so cgo files cannot disappear before AFP-V0-2372's refusal. Until runner
-  configuration parity is proved, every explicit `//go:build` or legacy `// +build` constraint
-  in a linked module package's included or ignored Go source (internal and external tests
-  included) SHALL refuse narrowing with `UNMODELLED_SOURCE`, naming the constrained source and
-  unproved runner configuration parity. This includes CI's race-only tests and custom runner
-  tags: a host graph that omits them cannot justify a runner's `-run` exclusions.
+  SHALL use the configuration's cgo setting; cgo files it selects are refused by AFP-V0-2372.
+  Build constraints (`//go:build`, legacy `// +build`, file-name suffixes) SHALL be evaluated
+  under the executor's exact build configuration (`typedreach.ProbeConfig`): `go env GOFLAGS`
+  and the `context` of `go list -e [-tags, -race, -msan, -asan] unsafe`, run with the
+  environment and `go test` flags the run uses (`sessiontest.GoExecutor`: the declared Go
+  environment and flags, or the CI profile's), so `GOFLAGS` from the environment or from
+  `go env -w`, `CGO_ENABLED`, `GOOS`, `GOARCH`, `GOEXPERIMENT` and feature levels such as
+  `GOAMD64` are read as the go command reads them. The configuration is `GOROOT`, `GOOS`,
+  `GOARCH`, `CgoEnabled`, `Compiler`, `UseAllFiles`, build, tool and release tags; its identity
+  (`sha256:` of its canonical encoding) SHALL be named in every narrowed reason, and the
+  executing shard recomputes the plan under its own environment, so a run whose configuration
+  differs from the planner's refuses the supplied plan. A `go test` flag or `GOFLAGS` entry
+  the model does not classify (any build flag other than `-tags`, `-race`, `-msan`, `-asan` and
+  `-mod=readonly|mod`, such as `-toolexec`, `-overlay`, `-gcflags`, `-pgo`, `-coverpkg`,
+  `-mod=vendor`, a valued switch such as `-race=1`, or a positional argument), a configuration
+  that cannot be read, or a compiler other than `gc` SHALL keep every allow-listed package whole,
+  naming that the executor build configuration cannot be read. As in the go command, a flag's
+  last occurrence wins. Without a configuration (`typedreach.Load`, `LoadBase`) every explicit
+  constraint SHALL still refuse narrowing with `UNMODELLED_SOURCE`.
 - **AFP-V0-2372:** (experimental; V1-2744) The always-run code is every module package's
   initialization (variable initializer calls and `init` bodies) and `TestMain`, less each
   `TestMain` `if` statement without `else` whose condition requires `os.Args[N] == "C"` (N at
@@ -349,7 +362,8 @@ measure. None of them drops a unit the change can reach.
   `Glob`, `EvalSymlinks`, `fs.ReadFile`, `io/ioutil.ReadFile`, `io/ioutil.ReadDir`, a read-only
   `OpenFile`) writes or reads it unless its path is private: a call of `TempDir`, `os.MkdirTemp`,
   `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile`, a local variable a body assigned
-  once from a private path, `filepath.Join` or `path.Join` of a private first element and constant
+  once from a private path (a range clause key or value is an assignment, so a ranged
+  variable is never private), `filepath.Join` or `path.Join` of a private first element and constant
   elements naming no `..`, or a private path plus a constant starting with `/` naming no `..`; any
   other expression, a helper call included, is not private. Temporary creation by `os.MkdirTemp`,
   `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile` also writes the file system unless
@@ -369,7 +383,10 @@ measure. None of them drops a unit the change can reach.
   `Print*`, `Fatal*`, `Panic*` and `Output` functions and `*log.Logger` methods, and the `log/slog`
   `Debug`, `Info`, `Warn`, `Error`, `Log`, `LogAttrs` functions and `*slog.Logger` methods with their
   `Context` forms), called or taken as a value, SHALL write the file-system pseudo variable, since
-  the stream or the logger writer may be a file a later test reads. The standard library is otherwise closed by an allow-list: a use of a
+  the stream or the logger writer may be a file a later test reads. Input from the process
+  standard input (`fmt.Scan`, `Scanf`, `Scanln`, called or taken as a value) SHALL read it,
+  since an earlier test or `TestMain` may have redirected `os.Stdin` to a file; `Fscan*` on
+  `os.Stdin` reads `unknown` through its `io.Reader` argument. The standard library is otherwise closed by an allow-list: a use of a
   standard-library function or method that the model neither records above nor finds in
   `purePackages` (value-only packages such as `strings`, `encoding/json`, `regexp`, `sync`,
   `testing`, `time`, `fmt`, less `impureFunctions` and the package-level `math/rand` functions) or
@@ -429,8 +446,10 @@ measure. None of them drops a unit the change can reach.
   initialization change, which keeps whole every test binary linking that package and bears on no
   other. Before narrowing, the changed files' base bytes SHALL also be type-checked over the
   current source closure, omitting files absent at base, without modifying the worktree. An
-  unreadable, constrained, deleted or incompatible base closure keeps the package whole with
-  `BASE_SOURCE_UNPROVED`. If any changed function or method present at base, or a method of a
+  unreadable, deleted or incompatible base closure, a changed file absent at head, a changed
+  file whose build constraint lines differ between base and head, or (without an executor
+  configuration) any constrained base file keeps the package whole with
+  `BASE_SOURCE_UNPROVED`; the base closure is selected under the same configuration as head. If any changed function or method present at base, or a method of a
   changed type, can write any shared state, start a process or call a process-wide setter, the
   package SHALL stay whole with `BASE_MAY_WRITE_SHARED_STATE`, naming the declaration. This
   conservative check includes calls and held values: state the edit stopped writing still counts.
@@ -522,11 +541,11 @@ error the confined CI shard surfaces.
 | AFP-V0-2363 | the two declarations and `.corvint/unbounded-readers.json` | `make unbounded-readers-check`; planner runs and per-merge saving in build-log entry `2026-11-03-floor-typed-reach` |
 | AFP-V0-2370 | `typedReachPackages`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`; its call in `testGoSlices` | `corvint test --dry-run` replays in build-log entry `2026-11-03-floor-typed-reach` |
 | AFP-V0-2371 | `buildGraph`, `funcDecl`, `packageVar`, `walkInitializer`, `heldAssignment`, `visitExpr`, `call`, `composite`, `convertTo` in `internal/liveverify/affected/golang/typedreach/graph.go`; `Load`, `runnerSourceParity` in `load.go`; `namedIn` in `analyze.go` | `TestAFPV02371ConversionsAndHeldValuesCarryReach`, `TestAFPV02371RunnerConfigurationRefusesHiddenSource` |
-| AFP-V0-2372 | `childOnly`, `moduleHazard`, `hasLinkname`, `Analyze` | `TestAFPV02372AlwaysRunReachKeepsThePackageWhole`, `TestAFPV02372LoadRefusesUnmodelledSource`, `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (negative control) |
+| AFP-V0-2372 | `childOnly`, `moduleHazard`, `hasLinkname`, `Analyze`; `Config`, `BuildFlags`, `ProbeConfig`, `LoadFor`, `LoadBaseFor` in `typedreach`; `sessiontest.GoExecutor`; `typedReachExecutor` in `cmd/corvint/test_typed_slices.go` | `TestAFPV02372AlwaysRunReachKeepsThePackageWhole`, `TestAFPV02372LoadRefusesUnmodelledSource`, `TestAFPV02372ExecutorConfigSelectsConstrainedSource`, `TestAFPV02372BuildFlagsClassifiesExecutorFlags`, `TestAFPV02372ProbeConfigReadsTheExecutorEnvironment`, `TestAFPV02372DryRunBindsExecutorBuildConfiguration`, `TestAFPV02372RunRefusesAnotherConfiguration`, `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (negative control) |
 | AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction`, `TestAFPV02373RoundThreeRegressions` (constants, `os/exec` uses, ioutil and `os.Root`) |
-| AFP-V0-2374 | `sharedVar`, `streamOutput`, `opaqueArguments`, `opaqueParameter`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`), `TestAFPV02374RoundFourRegressions` (interface-held references, discarded-temp privacy, `os.File` handles, `net/http` defaults, fixed-port listeners), `TestAFPV02374AllowListRegressions`, `TestAFPV02374LoggerReceiverSettersKeepOrderedReaders`, `TestAFPV02374SignalCleanupCannotEraseWrites`, `TestAFPV02374StoredMethodValuesCarryImplicitReads`, `TestAFPV02374SignalStopWritesSignalState`, `TestAFPV02374StreamOutputWritesFiles`, `TestAFPV02374IndirectStdCallsKeepOpaqueArguments` |
+| AFP-V0-2374 | `sharedVar`, `streamOutput`, `streamInput`, `assignedElsewhere`, `opaqueArguments`, `opaqueParameter`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`), `TestAFPV02374RoundFourRegressions` (interface-held references, discarded-temp privacy, `os.File` handles, `net/http` defaults, fixed-port listeners), `TestAFPV02374AllowListRegressions`, `TestAFPV02374LoggerReceiverSettersKeepOrderedReaders`, `TestAFPV02374SignalCleanupCannotEraseWrites`, `TestAFPV02374StoredMethodValuesCarryImplicitReads`, `TestAFPV02374SignalStopWritesSignalState`, `TestAFPV02374StreamOutputWritesFiles`, `TestAFPV02374IndirectStdCallsKeepOpaqueArguments`, `TestAFPV02374RangeAssignmentEndsPrivacy`, `TestAFPV02374ScanReadsFiles` |
 | AFP-V0-2375 | the slice and whole forms in `testTypedSlices` | `corvint test --dry-run` replays (build log) |
-| AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `ImportPath`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go`; its use in `testTypedSlices` and `tools/typed-reach-measure` | `TestAFPV02376DiffFileNamesChangedDeclarations`, `TestAFPV02376MovedPositionsKeepDependentReaders`, `TestAFPV02376ImportPathOfRootPackageFiles`, `TestAFPV02376DryRunReadsRootPackageChanges` |
+| AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `ImportPath`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go`; its use in `testTypedSlices` and `tools/typed-reach-measure` | `TestAFPV02376DiffFileNamesChangedDeclarations`, `TestAFPV02376MovedPositionsKeepDependentReaders`, `TestAFPV02376ImportPathOfRootPackageFiles`, `TestAFPV02376DryRunReadsRootPackageChanges`, `TestAFPV02376BaseConstraintChangeRefuses` |
 | AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log); `TestAFPV02370DryRunNarrowsAnAllowListedDependent` (embedded and run-time data files) |
 | AFP-V0-2378 | `tools/typed-reach-measure/main.go` | fault-injection oracle runs in build-log entry `2026-11-03-floor-typed-reach` |
 

@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -53,7 +54,7 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			units := plan(t, tc.edit)
 			got := units["go:example.test/m/p"]
-			if got.Slice != sessiontest.SliceSelected || got.Pattern != tc.pattern || !strings.Contains(got.Reason, "(typed reach: 2 of 3 test functions cannot reach it)") || got.ReasonCode != sessiontest.ReasonSelectedReachingChange {
+			if got.Slice != sessiontest.SliceSelected || got.Pattern != tc.pattern || !strings.Contains(got.Reason, "(typed reach: 2 of 3 test functions cannot reach it; build configuration sha256:") || got.ReasonCode != sessiontest.ReasonSelectedReachingChange {
 				t.Fatalf("p %+v, want pattern %s", got, tc.pattern)
 			}
 			// Symbol-level narrowing (ADN-V0-660) leaves o out when only B
@@ -136,8 +137,15 @@ func newTypedSliceFixture(t *testing.T, root string, files map[string]string) *t
 	} {
 		affectedGit(t, root, arguments...)
 	}
+	// The fake go command answers the runner; the build configuration probe
+	// (AFP-V0-2372) reaches the real one.
+	real, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := "#!/bin/sh\ncase \"$*\" in \"env GOFLAGS\"|*\"{{with context}}\"*) exec '" + real + "' \"$@\";; esac\n" + strings.TrimPrefix(sessionFakeGo, "#!/bin/sh\n")
 	bin := t.TempDir()
-	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(fake), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -206,4 +214,101 @@ func TestAFPV02376DryRunReadsRootPackageChanges(t *testing.T) {
 			t.Fatalf("p %+v (selected %v), want whole with the base-effect reason", got, ok)
 		}
 	})
+}
+
+// typedSliceDeclaration is the fixture declaration with extra go flags and
+// environment entries.
+func typedSliceDeclaration(env, flags string) string {
+	return `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"` + env + `}, "flags": ["-p", "1", "-count=1"` + flags + `]}, "languages": {}}` + "\n"
+}
+
+// TestAFPV02372DryRunBindsExecutorBuildConfiguration plans a package with a
+// test file only a declared build tag compiles: with the tag declared, an
+// edit of A keeps that file's test and the slice names the configuration
+// identity; without it the test is not compiled, the identity differs, and an
+// executor flag the model does not know keeps the package whole
+// (AFP-V0-2372).
+func TestAFPV02372DryRunBindsExecutorBuildConfiguration(t *testing.T) {
+	saved := typedReachPackages
+	typedReachPackages = map[string]bool{"p": true}
+	t.Cleanup(func() { typedReachPackages = saved })
+	lib := "package lib\n\nfunc A() int { return 1 }\n\nfunc B() int { return 2 }\n"
+	edit := strings.Replace(lib, "return 1", "return 3", 1)
+	identity := func(t *testing.T, reason string) string {
+		t.Helper()
+		_, after, ok := strings.Cut(reason, "; build configuration ")
+		if !ok {
+			t.Fatalf("reason %q names no build configuration", reason)
+		}
+		return strings.TrimSuffix(after, ")")
+	}
+	plan := func(t *testing.T, declaration string) sessiontest.Unit {
+		t.Helper()
+		fixture := newTypedSliceFixture(t, t.TempDir(), map[string]string{
+			"go.mod":                    "module example.test/m\n\ngo 1.27\n",
+			"lib/lib.go":                lib,
+			"p/p.go":                    "package p\n",
+			"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n",
+			"p/tagged_test.go":          "//go:build floortag\n\npackage p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestTagged(t *testing.T) { _ = lib.A() }\n",
+			sessiontest.DeclarationPath: declaration,
+		})
+		return fixture.plan(t, map[string]string{"lib/lib.go": edit})["go:example.test/m/p"]
+	}
+	tagged := plan(t, typedSliceDeclaration("", `, "-tags=floortag"`))
+	if tagged.Slice != sessiontest.SliceSelected || tagged.Pattern != "^(TestA|TestTagged)$" || !strings.Contains(tagged.Reason, "(typed reach: 1 of 3 test functions") {
+		t.Fatalf("declared tag: %+v", tagged)
+	}
+	plain := plan(t, typedSliceDeclaration("", ""))
+	if plain.Slice != sessiontest.SliceSelected || plain.Pattern != "^(TestA)$" || !strings.Contains(plain.Reason, "(typed reach: 1 of 2 test functions") {
+		t.Fatalf("no tag: %+v", plain)
+	}
+	if identity(t, tagged.Reason) == identity(t, plain.Reason) {
+		t.Fatalf("the declared tag does not change the identity: %s", tagged.Reason)
+	}
+	for name, declaration := range map[string]string{
+		"an unmodelled flag":    typedSliceDeclaration("", `, "-gcflags=all=-N"`),
+		"an unmodelled GOFLAGS": typedSliceDeclaration(`, "GOFLAGS": "-toolexec=/bin/true"`, ""),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := plan(t, declaration)
+			if got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, "the executor build configuration cannot be read") {
+				t.Fatalf("%s: %+v", name, got)
+			}
+		})
+	}
+}
+
+// TestAFPV02372RunRefusesAnotherConfiguration: the executing shard recomputes
+// the plan under its own environment, so a run whose build configuration
+// differs from the planner's refuses the plan.
+func TestAFPV02372RunRefusesAnotherConfiguration(t *testing.T) {
+	saved := typedReachPackages
+	typedReachPackages = map[string]bool{"p": true}
+	t.Cleanup(func() { typedReachPackages = saved })
+	lib := "package lib\n\nfunc A() int { return 1 }\n\nfunc B() int { return 2 }\n"
+	edit := strings.Replace(lib, "return 1", "return 3", 1)
+	{
+		fixture := newTypedSliceFixture(t, t.TempDir(), map[string]string{
+			"go.mod":                    "module example.test/m\n\ngo 1.27\n",
+			"lib/lib.go":                lib,
+			"p/p.go":                    "package p\n",
+			"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n",
+			"p/tagged_test.go":          "//go:build floortag\n\npackage p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestTagged(t *testing.T) { _ = lib.A() }\n",
+			sessiontest.DeclarationPath: typedSliceDeclaration("", ""),
+		})
+		if err := os.WriteFile(filepath.Join(fixture.root, "lib/lib.go"), []byte(edit), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		manifest := filepath.Join(t.TempDir(), "manifest.json")
+		if code, _, stderr := runCLI(t, "--root", fixture.root, "test", "--base", fixture.base, "--dry-run", "--manifest", manifest); code != 0 {
+			t.Fatalf("dry run %d %s", code, stderr)
+		}
+		// A tag no file names selects the same tests: only the bound
+		// configuration identity tells the runs apart.
+		t.Setenv("GOFLAGS", "-tags=unusedtag")
+		code, _, stderr := runCLI(t, "--root", fixture.root, "test", "--base", fixture.base, "--manifest", manifest, "--receipt", filepath.Join(t.TempDir(), "run.json"))
+		if code != 3 || !strings.Contains(stderr, "it differs from the manifest this shard recomputed") {
+			t.Fatalf("a run under -tags=unusedtag accepted the untagged plan: %d %s", code, stderr)
+		}
+	}
 }

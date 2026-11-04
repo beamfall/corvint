@@ -134,10 +134,9 @@ type Planned struct {
 func Invocations(m Manifest, declared Declared, shard int, root, confine string) []Planned {
 	var whole []Unit
 	var planned []Planned
-	goEnv, goFlags := append([]string{}, declared.GoEnv...), append([]string{}, declared.GoFlags...)
+	goEnv, goFlags := GoExecutor(m.RunnerProfile, declared, root, confine)
 	goPrefix := append([]string{"go", "test", "-json"}, goFlags...)
 	if m.RunnerProfile == ProfileCI {
-		goEnv, goFlags = append([]string{"CORVINT_CONFINE_ROOT=" + root}, ciGoEnv...), append([]string{"-exec", confine}, ciGoFlags...)
 		goPrefix = append([]string{"go", "test", "-exec", confine, "-json"}, ciGoFlags...)
 	}
 	for _, unit := range m.Units {
@@ -179,6 +178,17 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 		}
 	}
 	return planned
+}
+
+// GoExecutor returns the environment entries, appended to the runner's own
+// environment, and the go test flags of every go test invocation under
+// profile: the declaration's, or the CI branch's. The typed-reach model reads
+// its build configuration from the same pair (AFP-V0-2372).
+func GoExecutor(profile string, declared Declared, root, confine string) (env, flags []string) {
+	if profile == ProfileCI {
+		return append([]string{"CORVINT_CONFINE_ROOT=" + root}, ciGoEnv...), append([]string{"-exec", confine}, ciGoFlags...)
+	}
+	return append([]string{}, declared.GoEnv...), append([]string{}, declared.GoFlags...)
 }
 
 // Runner executes one shard of a manifest.
