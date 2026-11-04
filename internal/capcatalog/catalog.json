@@ -3616,6 +3616,7 @@
       "owningSpec": "STR-V0",
       "freezeContract": null,
       "operations": [
+        "reuse",
         "shards",
         "verify-shards"
       ],
@@ -3623,6 +3624,9 @@
       "requiredFlags": {
         "test": [
           "--base"
+        ],
+        "test reuse": [
+          "--argv"
         ],
         "test shards": [
           "--count",
@@ -3633,6 +3637,7 @@
         ]
       },
       "flags": [
+        "--argv",
         "--base",
         "--confine",
         "--count",
@@ -3640,33 +3645,52 @@
         "--durations",
         "--files",
         "--go-parallel",
+        "--go-test-json",
+        "--harness",
         "--manifest",
+        "--out",
+        "--outcomes",
+        "--packages",
         "--pins",
         "--placement",
         "--profile",
+        "--pull-request",
         "--receipt",
+        "--records",
+        "--run-attempt",
+        "--run-id",
+        "--run-list",
         "--runs",
         "--shard",
         "--shard-plan",
+        "--source-kind",
         "--split-allow",
         "--summary",
-        "--test-slices"
+        "--test-slices",
+        "--trust"
       ],
       "schemaIds": [
+        "corvint-ci-outcomes/0",
         "corvint-ci-package-costs/0",
         "corvint-test-manifest/0",
+        "corvint-test-reuse-decision/0",
+        "corvint-test-reuse-record/0",
         "corvint-test-run/0",
         "corvint-test-shards/0"
       ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
-        0
+        0,
+        3
       ],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "It writes only stdout.",
+        "record digests each package a run passed (first-run outcomes of corvint-ci-outcomes/0 documents of HEAD, or a go test -json stream) and writes a corvint-test-reuse-record/0 file to --out.",
+        "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
+        "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--dry-run prints the shard's argv as JSON and runs nothing but Git; --manifest PATH writes the corvint-test-manifest/0 there.",
         "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)."
       ],

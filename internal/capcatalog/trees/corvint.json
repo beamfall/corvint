@@ -6319,6 +6319,92 @@
     {
       "path": [
         "test",
+        "reuse"
+      ],
+      "command": "corvint test reuse",
+      "summary": "",
+      "usage": [
+        "corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]",
+        "corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
+      ],
+      "flags": [
+        "--argv",
+        "--go-test-json",
+        "--harness",
+        "--out",
+        "--outcomes",
+        "--packages",
+        "--pull-request",
+        "--records",
+        "--run-attempt",
+        "--run-id",
+        "--run-list",
+        "--source-kind",
+        "--trust"
+      ],
+      "required": [],
+      "example": "corvint test reuse decide --argv WORDS",
+      "help": "corvint test reuse --help"
+    },
+    {
+      "path": [
+        "test",
+        "reuse",
+        "decide"
+      ],
+      "command": "corvint test reuse decide",
+      "summary": "",
+      "usage": [
+        "corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH] [--run-list PATH]"
+      ],
+      "flags": [
+        "--argv",
+        "--harness",
+        "--out",
+        "--packages",
+        "--pull-request",
+        "--records",
+        "--run-list",
+        "--trust"
+      ],
+      "required": [
+        "--argv WORDS"
+      ],
+      "example": "corvint test reuse decide --argv WORDS",
+      "help": "corvint test reuse decide --help"
+    },
+    {
+      "path": [
+        "test",
+        "reuse",
+        "record"
+      ],
+      "command": "corvint test reuse record",
+      "summary": "",
+      "usage": [
+        "corvint test reuse record (--outcomes PATH... | --go-test-json PATH) --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local] [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH"
+      ],
+      "flags": [
+        "--argv",
+        "--go-test-json",
+        "--harness",
+        "--out",
+        "--outcomes",
+        "--pull-request",
+        "--run-attempt",
+        "--run-id",
+        "--source-kind"
+      ],
+      "required": [
+        "--argv WORDS",
+        "--out PATH"
+      ],
+      "example": "corvint test reuse record --outcomes PATH... --argv WORDS --out PATH",
+      "help": "corvint test reuse record --help"
+    },
+    {
+      "path": [
+        "test",
         "shards"
       ],
       "command": "corvint test shards",

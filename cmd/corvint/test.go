@@ -34,6 +34,12 @@ Usage:
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
+  corvint test reuse record (--outcomes PATH... | --go-test-json PATH)
+      --argv WORDS [--harness PATH]... [--source-kind main|pull_request|local]
+      [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH
+  corvint test reuse decide --argv WORDS [--records PATH]... [--harness PATH]...
+      [--trust KIND[,KIND]] [--pull-request N] [--packages PATH] [--out PATH]
+      [--run-list PATH]
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
 HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
@@ -79,6 +85,24 @@ partition digest. Missing or invalid history prints corvint-test: shards FALLBAC
 <reason> and plans the complete round-robin. With --test-slices and
 --split-allow (both or neither) a package those AFP-V0-041 files split is
 placed as its slices, each on a different shard. It writes only stdout.
+
+reuse (experimental, AFP-V0-2320 to AFP-V0-2327) reuses a verified pass of
+a Go package whose inputs are unchanged. record digests each package a run
+passed (first-run outcomes of corvint-ci-outcomes/0 documents of HEAD, or a
+go test -json stream) and writes a corvint-test-reuse-record/0 file to
+--out. decide digests the packages of HEAD (--packages, default go list
+./...) and prints a corvint-test-reuse-decision/0: REUSE only when an
+admitted record (--trust, default local,main; pull_request needs
+--pull-request N) passed the package under the same identity with the same
+digest; --run-list writes the packages still to run. A digest binds the
+package's directory, its declared read scope (.corvint/test-read-scopes.json),
+the files compiled into its test binary, go.mod and go.sum to their Git
+blobs, plus go env, --argv (which must carry -count=1 and no -run or
+-skip) and each --harness path. An undeclared, UNBOUNDED_READER or split
+package, or a dirty or untracked input, always runs. It writes only the
+named files; exit 3 when no record or decision can be produced.
+Example: corvint test reuse decide --argv "-count=1 -timeout 30m"
+--records /tmp/main-record.json --run-list /tmp/run.txt
 
 --go-parallel N (local profile only, 1 to 64) runs the Go invocations with
 -p N in place of the declared -p, so a focused selection fits a bounded
@@ -264,6 +288,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	}
 	if len(args) > 0 && args[0] == "shards" {
 		return runTestShards(args[1:], stdout, stderr)
+	}
+	if len(args) > 0 && args[0] == "reuse" {
+		return runTestReuse(ctx, root, args[1:], stdout, stderr)
 	}
 	options, err := parseTestOptions(args)
 	if err != nil {

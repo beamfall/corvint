@@ -53,6 +53,10 @@
 #                        A relative .git/REL resolves to Git's path (linked worktrees); when M
 #                        admits nothing, one `HEAVY_SELECTION=M not admitted: REASON` line says why
 #                        (ASD-V0-722). A `go test -c` only compiles and needs no reason (ASD-V0-721).
+#   HEAVY_REUSE          a `corvint test reuse decide --out D` decision of HEAD; `--plan M` then prints
+#                        `# reused go:P: ...` instead of a command for each package D decides REUSE
+#                        (AFP-V0-2326). A decision of another head or an unreadable one is not applied,
+#                        named on one stderr line, and the full plan prints.
 #   HEAVY_GO_TEST_TIMEOUT  a go test naming no -timeout (argument, -test.timeout or GOFLAGS) gets
 #                        `-timeout VALUE` after `test`, before any offload; default 30m, off adds none
 #                        (ASD-V0-938, V1-3630).
@@ -1312,7 +1316,11 @@ run_selects_all() {
 # or, when the -skip pattern ARGV[3] is not empty, a unit of any slice with that -skip pattern. It
 # fails with one `heavy.sh: HEAVY_SELECTION=PATH not admitted: REASON` stderr line (ASD-V0-722).
 # Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], each slice with its own
-# -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line.
+# -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line. A
+# non-empty ARGV[3] in plan mode is HEAVY_REUSE, a corvint-test-reuse-decision/0 of the manifest's
+# source.head: each unit of a package it decides REUSE prints a `# reused` line instead of a command
+# (AFP-V0-2326). Any doubt about the decision prints one `heavy.sh: HEAVY_REUSE=PATH not applied:
+# REASON` stderr line and the full plan.
 manifest_perl='
 use strict; use warnings; use JSON::PP;
 my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
@@ -1332,13 +1340,34 @@ if ($mode eq "admit") {
   print "$digest\n"; exit 0;
 }
 sub sq { (my $v = shift) =~ s/\x27/\x27\\\x27\x27/g; "\x27$v\x27" } # shell single quotes
-my $n = 0;
+my ($n, $r, %reused) = (0, 0);
+if ($skip ne "") {
+  my $why;
+  my $mhead = ref $m->{source} eq "HASH" ? $m->{source}{head} // "" : "";
+  if (!open(my $rh, "<", $skip)) { $why = "decision unreadable" }
+  else {
+    my $d = eval { local $/; JSON::PP->new->decode(<$rh>) };
+    if (!(ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" && ref $d->{units} eq "ARRAY")) { $why = "not a corvint-test-reuse-decision/0" }
+    elsif (($d->{head} // "") ne $mhead || $mhead eq "") { $why = "decision head " . ($d->{head} // "") . " is not the manifest source.head $mhead (rerun corvint test reuse decide at this commit)" }
+    else {
+      for my $u (@{ $d->{units} }) {
+        next unless ref $u eq "HASH" && ($u->{decision} // "") eq "REUSE" && ($u->{reason} // "") eq "RECORD_DIGEST_EQUAL" && ref $u->{witness} eq "HASH";
+        $reused{$u->{package} // ""} = $u;
+      }
+    }
+  }
+  print STDERR "heavy.sh: HEAVY_REUSE=$skip not applied: $why; the full plan follows\n" if defined $why;
+}
 for my $u (@{ $m->{units} }) {
   my $unit = $u->{unit} // "";
   next unless $unit =~ /^go:(.+)$/;
   my $ip = $1;
   my $rel = $ip eq $key ? "." : index($ip, "$key/") == 0 ? "./" . substr($ip, length($key) + 1) : undef;
   if (!defined $rel) { print "# skipped $unit: outside $key\n"; next }
+  if (my $w = $reused{$ip}) {
+    printf "# reused %s: passed at %s (%s record %s), digest %s (AFP-V0-2326)\n", $unit, $w->{witness}{commit} // "", $w->{witness}{kind} // "", $w->{witness}{record} // "", $w->{digest} // "";
+    $r++; next;
+  }
   my ($slice, $flag, $pattern, $sel) = ($u->{slice} // "", $u->{flag} // "", $u->{pattern} // "", "");
   if ($slice ne "whole") {
     if (($flag ne "-run" && $flag ne "-skip") || $pattern eq "") { print "# skipped $unit: slice $slice has no -run/-skip pattern\n"; next }
@@ -1346,7 +1375,7 @@ for my $u (@{ $m->{units} }) {
   }
   print "HEAVY_SELECTION=", sq($path), " script/heavy.sh go test -count=1 -timeout 30m$sel $rel\n"; $n++;
 }
-print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)\n";
+print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)" . ($r ? ", $r reused from $skip" : "") . "\n";
 '
 
 # module_path: the module path in ./go.mod, or nothing.
@@ -1425,7 +1454,7 @@ manifest_admits() {
 print_plan() {
   local mod
   mod=$(module_path) && [[ -n $mod ]] || refuse "no-module ./go.mod names no module; run --plan from the module root"
-  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod"
+  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod" "${HEAVY_REUSE-}"
 }
 
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run

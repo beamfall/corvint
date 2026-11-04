@@ -1573,6 +1573,27 @@ $q -skip '^(TestB)\$' ./w
 # skipped go:other.org/z: outside example.com/m"
 [[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
   fail "heavy.sh --plan output: $(cat "$sel/plan" "$sel/err")"
+# AFP-V0-2326: HEAVY_REUSE, a reuse decision of the manifest's head, replaces each unit of a REUSE
+# package with a `# reused` line; a decision of another head or an unreadable one is not applied.
+decision() { # decision HEAD > FILE
+  printf '{"profile":"corvint-test-reuse-decision/0","head":"%s","units":[%s]}\n' "$1" \
+    '{"package":"example.com/m/w","decision":"REUSE","reason":"RECORD_DIGEST_EQUAL","digest":"sha256:d","witness":{"record":"r/main.json","kind":"main","commit":"c0"}},{"package":"example.com/m/x","decision":"RUN","reason":"DIGEST_CHANGED"},{"package":"example.com/m/y","decision":"REUSE","reason":"NO_RECORD"}'
+}
+decision "$selhead" > "$sel/d.json" && decision 0000000000000000000000000000000000000000 > "$sel/dold.json"
+HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan with HEAVY_REUSE failed: $(cat "$sel/err")"
+want="$q ./x
+$q -run '^(TestA)\$' ./y
+# reused go:example.com/m/w: passed at c0 (main record r/main.json), digest sha256:d (AFP-V0-2326)
+# reused go:example.com/m/w: passed at c0 (main record r/main.json), digest sha256:d (AFP-V0-2326)
+# skipped go:example.com/m/v: slice 0/2 has no -run/-skip pattern
+# skipped go:other.org/z: outside example.com/m"
+[[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 2 units from $sel/m.json (planDigest 0123456789ab), 2 reused from $sel/d.json" "$sel/err" ||
+  fail "heavy.sh --plan with HEAVY_REUSE output: $(cat "$sel/plan" "$sel/err")"
+for c in "dold.json|decision head 0000000000000000000000000000000000000000 is not the manifest source.head $selhead" "gone.json|decision unreadable" "m.json|not a corvint-test-reuse-decision/0"; do
+  HEAVY_REUSE="$sel/${c%%|*}" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan with an unusable HEAVY_REUSE failed: $(cat "$sel/err")"
+  grep -qF "heavy.sh: HEAVY_REUSE=$sel/${c%%|*} not applied: ${c#*|}" "$sel/err" && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
+    fail "heavy.sh --plan applied an unusable HEAVY_REUSE ${c%%|*}: $(cat "$sel/plan" "$sel/err")"
+done
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"
