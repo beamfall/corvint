@@ -36,6 +36,16 @@ say() { printf '%s\n' "$1" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"; }
 names() { gh api "repos/$REPO/actions/runs/$1/artifacts?per_page=100" --jq '.artifacts[] | select(.expired | not) | .name'; }
 fetch() { gh run download "$1" --repo "$REPO" --pattern "$2" --dir "$3" > /dev/null 2>&1; }
 hex40() { printf '%s' "$1" | grep -Eqx '[0-9a-f]{40}'; }
+# marker NAME: CIN-V0-861, CIN-V0-2301 (V1-3332). A run that writes no row only because its
+# selection is missing or of another epoch is named instead, under an empty-bodied artifact, so
+# absence.jq can count an outage toward the AFP-V0-030 kill switch and leave an earlier epoch out.
+marker() {
+  printf '{}\n' > "$dir/row.json"
+  echo "name=$1" >> "$GITHUB_OUTPUT"
+  say "forward row: no row; this run is named \`$1\` for the row-absence count (CIN-V0-861)"
+}
+# selection_docs: whether any retained selection document was downloaded.
+selection_docs() { find "$dir/selection" -name selection.json -type f 2> /dev/null | grep -q .; }
 digits() { printf '%s' "$1" | grep -Eqx '[0-9]+'; }
 # own BASE HEAD: prints clean, github (the change touches .github/) or unprovable.
 own() {
@@ -169,6 +179,16 @@ if [ "$kind" = pr ]; then
       else empty end' 2> /dev/null) || target=""
   if ! hex40 "$target"; then
     say "forward row: pr-base-target-unreadable; no row"
+    # CIN-V0-2301: a shadow-selection outage stops here, before the epoch check, so it is
+    # named: nodoc when no selection document was retained, target when they name no single
+    # tested merge of this run and head.
+    # A pull request that touches .github/ (or whose change set cannot be proven not to) ran its
+    # own workflow, so it could drop its shadow at will: it is never named.
+    if [ "$(own "$base" "$head")" = clean ]; then
+      why=nodoc
+      selection_docs && why=target
+      marker "ci-forward-NOROW-pr$pr-$HEAD_SHA-e$FORWARD_EPOCH-r$why"
+    fi
     exit 0
   fi
   parents=$(gh api "repos/$REPO/commits/$target" --jq '.parents | if length == 2 then "\(.[0].sha) \(.[1].sha)" else empty end' 2> /dev/null) || parents=""
@@ -215,6 +235,16 @@ epoch=$(find "$dir/selection" -name selection.json -type f -exec cat {} + 2> /de
   else empty end' 2> /dev/null) || epoch=""
 if [ -z "$epoch" ] || [ "$epoch" != "$FORWARD_EPOCH" ]; then
   say "forward row: the selection run ${selection_run:-none} stamped no single forward epoch, or epoch ${epoch:-none} rather than $FORWARD_EPOCH (CIN-V0-001); no row"
+  # CIN-V0-861: an earlier epoch is excluded on purpose (EPOCH); anything else is an outage
+  # (NOROW): nodoc with no selection document, mixed for a missing, mixed, non-integer or later
+  # epoch.
+  if [ -n "$epoch" ] && [ "$epoch" -lt "$FORWARD_EPOCH" ] 2> /dev/null; then
+    marker "ci-forward-EPOCH-pr$pr-$HEAD_SHA-e$epoch"
+  elif selection_docs; then
+    marker "ci-forward-NOROW-pr$pr-$HEAD_SHA-e$FORWARD_EPOCH-rmixed"
+  else
+    marker "ci-forward-NOROW-pr$pr-$HEAD_SHA-e$FORWARD_EPOCH-rnodoc"
+  fi
   exit 0
 fi
 infra=""
