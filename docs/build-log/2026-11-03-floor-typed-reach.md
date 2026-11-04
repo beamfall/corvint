@@ -108,40 +108,65 @@ Every refusal is named in the slice reason.
 
 ### Measurements
 
-All measurements use the same build: this lane's binary.
+All rows are after the review fixes below, and all use the same build: this lane's binary.
 
 | Range (origin/main) | Package | `typed-reach-measure` | `corvint test --dry-run` |
 |---|---|---|---|
-| `6a2c582ef^..6a2c582ef` (`internal/tasks/wire/value.go`) | internal/tasks/store | 641 kept, 25 dropped of 666; 6.4 s | **narrowed**: `-run` of 641; reason `selected: the tests reaching internal/tasks/wire/value.go (typed reach: 25 of 666 test functions cannot reach it)`; 7.4 s whole plan |
-| `c38c32203^..c38c32203` (`internal/tasks/intent`) | internal/tasks/store | 649 kept, 27 dropped of 676; 7.6 s | whole: `the package names internal/tasks/intent/export_test.go as a path` |
-| `d1ccab3b6^..d1ccab3b6` (`internal/tasks/dispatch/config.go`) | internal/tasks/store | 641 kept, 25 dropped of 666 | whole: `the package names docs/specs/corvint-tasks-dispatch-signals-v0.md as a path` |
-| `14e055d69^1..14e055d69` (merge #87) | internal/tasks/store | 693 kept, 29 dropped of 722; 0 tests reach the change, 693 kept by `STARTS_PROCESS` and shared state | not replayed |
-| all of the above | internal/tasks/cli, cmd/corvint | n/a | whole: unbounded reader (AFP-V0-025) or `IMPORT_GRAPH_READER` / `PATH_LITERAL_READER` witness |
+| `6a2c582ef^..6a2c582ef` (`internal/tasks/wire/value.go`) | internal/tasks/store | 642 kept, 24 dropped of 666; 4.7 s | **narrowed**: `-run` of 642; reason `selected: the tests reaching internal/tasks/wire/value.go (typed reach: 24 of 666 test functions cannot reach it)`; 9.4 s whole plan |
+| `c38c32203^..c38c32203` (`internal/tasks/intent`) | internal/tasks/store | 650 kept, 26 dropped of 676; 5.3 s | whole: `the package names internal/tasks/intent/export_test.go as a path` |
+| `d1ccab3b6^..d1ccab3b6` (`internal/tasks/dispatch/config.go`) | internal/tasks/store | 642 kept, 24 dropped of 666; 6.0 s | whole: `the package names docs/specs/corvint-tasks-dispatch-signals-v0.md as a path` |
+| all of the above | internal/tasks/cli, cmd/corvint | n/a | whole: unbounded reader (AFP-V0-025), or an `IMPORT_GRAPH_READER` / `PATH_LITERAL_READER` witness |
 
 Kept reasons on `6a2c582ef`:
 - 553 `REACHES_CHANGE`
-- 57 `READS_STATE_A_KEPT_TEST_WRITES`
-- 31 `STARTS_PROCESS`
+- 17 `READS_STATE_A_KEPT_TEST_WRITES`
+- 72 `STARTS_PROCESS`
 
-The conservative mass comes from tests that run gate or pool commands defined in the test, which
-the model cannot prove run no module code, and from memo or test-hook package variables.
+The conservative mass is:
+- tests that start any process, git included;
+- tests that read memo or test-hook package variables a kept test writes.
 
 ### Recall against observed outcomes (fault-injection oracle, AFP-V0-2378)
 
 `tools/typed-reach-measure -oracle -oracle-dropped-only -oracle-also <4 kept tests>` builds the
 store test binary at head and again with `panic("typed-reach fault")` at the entry of every
-changed function. It runs each listed test function alone in both binaries.
+changed function. It runs each listed test function alone in both binaries, and classifies each
+outcome from `-test.v` output.
 
 | Range | Faulted functions | Ran | Observers (outcome changed) | Dropped observers (missed) |
 |---|---|---|---|---|
-| `6a2c582ef` | `wire.CheckSortedUnique`, `wire.clip` | 25 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
-| `c38c32203` | 9 `intent` functions | 27 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
-| `14e055d69` | 67 (none linked by store tests) | 29 dropped | 0 | **0** |
+| `6a2c582ef` | `wire.CheckSortedUnique`, `wire.clip` | 24 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
+| `c38c32203` | 9 `intent` functions | 26 dropped + 4 kept | 4: the 4 kept controls, pass → fail | **0** |
+| `14e055d69` (before the review fixes) | 67 (none linked by store tests) | 29 dropped | 0 | **0** |
 
 A missed observer can only be a dropped test, so no unit that observes the change was left out.
 The kept controls show the fault is observable. The observer count over all kept tests is
 NOT_PRODUCED: about 650 store tests run alone twice is longer than this lane's budget, and it
 cannot change the missed count.
+
+### Independent review (`script/codex-review.sh`, reviewed head `a5e422f56`)
+
+The review found eight soundness gaps, a fixture-strength regression and an oracle bug. Each
+soundness gap is fixed and has a regression in `TestAFPV02374ReviewRegressions`:
+
+1. **An import change** with unchanged declaration text. Now a change, or an initialization
+   change.
+2. **Conversions through multi-value returns, assignments and calls.** Now recorded.
+3. **Exec and setter functions taken as values.** Now keep their effects; an `os/exec.Cmd`
+   literal counts as a process start.
+4. **The constant-git exemption.** Removed: aliases, hooks and configuration can run module code.
+5. **Writes through a local copy of a package slice or map.** Now writes.
+6. **`sync.Pool` and `sync.Once.Do`.** Now writes.
+7. **The child-only TestMain branch.** Now needs `os.Args[N] == "C"`.
+8. **Files at a constant path.** Now process state. Paths derived from a package variable write
+   that variable.
+
+The oracle bug is fixed too: it now reads `-test.v`, so a skip is no longer a pass.
+
+**Fixture strength (P2), recorded and not fixed.** The companionrelease fixture applies ignore
+rules. That equals `HEAD`'s tracked set only while no tracked file matches an ignore rule;
+`git ls-files -ci --exclude-standard` is empty on 2026-11-03. A gate that keeps it empty would
+make this hold; it is proposed in the Friction list.
 
 ### Soundness cases in tests
 
