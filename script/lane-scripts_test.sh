@@ -2113,31 +2113,34 @@ bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script/heavy.sh" 
 ok
 fi
 if selected admission 33; then
-# DCW-V0-731 (NEW-B2): with no cached tree build (an empty bin cache), the inputs-only phase runs the
-# static pre-check with an installed corvint that lists --static: its refusal stops make before any
-# admission and names the escape; DOGFOOD_STATIC_PRECHECK=0 skips it; a binary without --static is
+# DCW-V0-731, LVT-V0-010: explicit CORVINT_BIN supplies the static precheck; its
+# refusal stops make before admission; an unselected installed binary cannot refuse; DOGFOOD_STATIC_PRECHECK=0 skips it; a binary without --static is
 # a SKIP and the admitted run goes on.
 mkdir -p "$to/static/bin" "$to/static/cache" || fail "static fixture"
 printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/bin/corvint" &&
   chmod +x "$to/static/bin/corvint" || fail "static corvint stub"
 static_make() {
   /bin/rm -f "$to/admitted"
-  (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK PATH="$to/static/bin:$PATH" \
+  (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK -u CORVINT_BIN PATH="$to/static/bin:$PATH" \
     CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$@" make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit-never" \
     BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/static/err")
 }
-static_make
+static_make CORVINT_BIN="$to/static/bin/corvint"
 rc=$?
 ((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
-  grep -q "ran the installed $to/static/bin/corvint, not this tree's build; .*DOGFOOD_STATIC_PRECHECK=0" "$to/static/err" &&
   grep -q -- '--entry dogfood-inputs-check --static yes$' "$to/static/args" ||
   fail "the static pre-check did not refuse before admission (rc=$rc): $(cat "$to/static/err" "$to/static/args" 2> /dev/null)"
-static_make DOGFOOD_STATIC_PRECHECK=0
+static_make CORVINT_BIN="$to/static/bin/corvint" DOGFOOD_STATIC_PRECHECK=0
 rc=$?
 ((rc == 0)) && [[ -e $to/admitted ]] && ! grep -q 'REFUSE' "$to/static/err" ||
   fail "DOGFOOD_STATIC_PRECHECK=0 did not skip the static pre-check (rc=$rc): $(cat "$to/static/err")"
-printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
+# A stale installed binary still refuses; without CORVINT_BIN it must never be invoked.
 static_make
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'SKIP no-static-binary' "$to/static/err" ||
+  fail "an unselected installed binary refused static precheck: $(cat "$to/static/err")"
+printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
+static_make CORVINT_BIN="$to/static/bin/corvint"
 rc=$?
 ((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP no-static-binary' "$to/static/err" ||
   fail "a corvint without --static was not a SKIP (rc=$rc): $(cat "$to/static/err")"
@@ -2625,14 +2628,24 @@ out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tm
 # below LO, or NONE; stdout and the exit code stay as before.
 [[ $(cat "$tmp/ids.err") == *'next free block ABC-V0-106..ABC-V0-111 at HEAD ('*'); check open refs with make requirement-ids-free PREFIX=ABC-V0 RANGE=106..111'* ]] ||
   fail "used block names no next free block: $(cat "$tmp/ids.err")"
-printf 'ABC-V0-998\n' > "$ids/top.txt" && git -C "$ids" add top.txt &&
+printf 'ABC-V0-9998\n' > "$ids/top.txt" && git -C "$ids" add top.txt &&
   git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm top || fail "top fixture"
-out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 996 999 HEAD 2> "$tmp/ids.err")
-[[ $? == 1 && $out == 'used ABC-V0-998 top.txt:1' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-000..ABC-V0-003 at HEAD'* ]] ||
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 9996 9999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-9998 top.txt:1' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-000..ABC-V0-003 at HEAD'* ]] ||
   fail "full upper range does not wrap below LO: $out $(cat "$tmp/ids.err")"
-out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 0 999 HEAD 2> "$tmp/ids.err")
-[[ $? == 1 && $(cat "$tmp/ids.err") == *'next free block NONE: no block of 1000 IDs is free at HEAD ('* ]] ||
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 0 9999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $(cat "$tmp/ids.err") == *'next free block NONE: no block of 10000 IDs is free at HEAD ('* ]] ||
   fail "full namespace does not print NONE: $(cat "$tmp/ids.err")"
+# LVT-V0-001 (V1-4046): a four-digit block is checked like a three-digit one, a three-digit block
+# above 996 now finds its next free block among the four-digit IDs, and only the canonical spelling
+# counts: ABC-V0-1030 is not ABC-V0-103, and ABC-V0-0102 is not ABC-V0-102.
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1028 1031 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-1030 spec.md:3' && $(cat "$tmp/ids.err") == *'1 of 4 IDs in ABC-V0-1028..ABC-V0-1031 are used at HEAD'*'next free block ABC-V0-1032..ABC-V0-1035 at HEAD'*'RANGE=1032..1035'* ]] ||
+  fail "four-digit block: $out $(cat "$tmp/ids.err")"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1032 1035 HEAD 2>&1)
+[[ $? == 0 && $out == "free ABC-V0-1032..ABC-V0-1035 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free four-digit block: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 990 999 HEAD 2> "$tmp/ids.err")
+[[ $? == 0 ]] || fail "a three-digit block below the four-digit IDs was refused: $out $(cat "$tmp/ids.err")"
 git -C "$ids" rm -q top.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm untop || fail "top fixture removal"
 # Review fixes: a run from a subdirectory still searches the whole tree, and a match whose leading
 # byte is a colon (`:ABC-V0-103`) keeps its path and line.
@@ -2641,10 +2654,20 @@ mkdir -p "$ids/sub/deeper" && printf 'key:ABC-V0-103\n' > "$ids/sub/colon.txt" &
 out=$(cd "$ids/sub/deeper" && "$script/requirement-ids-free.sh" ABC-V0 101 103 HEAD 2> /dev/null)
 [[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-103 sub/colon.txt:1' ]] || fail "subdirectory or colon-prefixed match: $out"
 git -C "$ids" rm -q sub/colon.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm uncolon || fail "colon fixture removal"
+printf 'ABC-V0-0102 and ABC-V0-01030 are not canonical; ABC-V0-102tail XABC-V0-103 ABC-V0-104_extra X-ABC-V0-104 are not complete tokens\n' > "$ids/padded.txt" && git -C "$ids" add padded.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm padded || fail "padded fixture"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 102 104 HEAD 2>&1)
 [[ $? == 0 && $out == "free ABC-V0-102..ABC-V0-104 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free range: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1030 1030 HEAD 2>&1)
+[[ $? == 1 && $out == *'used ABC-V0-1030 spec.md:3'* && $out != *padded.txt* ]] || fail "a zero-padded spelling counted as ABC-V0-1030: $out"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ZZZ-V1 1 9 HEAD 2>&1)
 [[ $? == 0 && $out == 'free ZZZ-V1-001..ZZZ-V1-009 at HEAD ('* ]] || fail "unknown prefix: $out"
+# Complete adjacent tokens both count; separators are not consumed by the first match.
+printf 'ABC-V0-9001,ABC-V0-9002\n' > "$ids/tokens.txt" && git -C "$ids" add tokens.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm tokens || fail "token fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 9001 9002 HEAD 2> /dev/null)
+[[ $? == 1 && $out == $'used ABC-V0-9001 tokens.txt:1\nused ABC-V0-9002 tokens.txt:1' ]] || fail "adjacent complete tokens: $out"
+git -C "$ids" rm -q tokens.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm untokens || fail "token fixture removal"
 # ASD-V0-962 (V1-3472): with no range the prefix is a new family; one REQUIREMENTS.tsv names refuses
 # it and names the next free prefix, skipping a family REQUIREMENTS.tsv or any tracked file uses.
 mkdir -p "$ids/docs/specs" && printf 'ABC-V0-101\tdocs/specs/abc.md\tone\nABD-V0-001\tdocs/specs/abd.md\ttwo\n' > "$ids/docs/specs/REQUIREMENTS.tsv" &&
@@ -2660,7 +2683,7 @@ for range in ..979 1..2..3 960.. abc; do
   out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
   [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
 done
-for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" ${argv[@]+"${argv[@]}"} 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"

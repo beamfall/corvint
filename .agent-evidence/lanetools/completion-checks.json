@@ -1,0 +1,89 @@
+{
+  "commands": [
+    {
+      "command": "bash script/requirement-id-collisions_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/requirement-id-reservations_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/check-fixed-tmp-paths_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/check-mkfifo-build-tags_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/check-error-code-ownership_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/check-host-package-versions_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/check-line-citations_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "bash script/check-spec-claims_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "node --test integrations/pi/host-scratch.test.mjs",
+      "exit": 0
+    },
+    {
+      "command": "LANE_SCRIPTS_GROUPS='tools workflow offload' bash script/lane-scripts_test.sh",
+      "exit": 0
+    },
+    {
+      "command": "HEAVY_LOCK_DIR=/tmp/corvint-heavy-1000 HEAVY_WHOLE_REASON='lanetools lane' bash script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run '^(TestPrechange|TestDCWV0881)' ./internal/dogfoodflow/",
+      "exit": 0
+    },
+    {
+      "command": "HEAVY_LOCK_DIR=/tmp/corvint-heavy-1000 HEAVY_WHOLE_REASON='lanetools lane' bash script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run '^TestIncrementalSelectionMeetsTheLiveBudget$' -bench '^BenchmarkRepresentativeEditsSerialParity$' -benchtime=1x ./internal/liveverify/affected/",
+      "exit": 0
+    }
+  ],
+  "sourceSha256": {
+    "integrations/pi/host-scratch.mjs": "745bb04a1e9dcc99664e32891fbb0ae76016d86ca7f4bf6392b392617ad78832",
+    "integrations/pi/host-scratch.test.mjs": "d5ccf776ab787b61ea5c1cbf08a4a5b0be9d472056768ebb9d9c585a75af79be",
+    "integrations/pi/host.test.mjs": "f48b6c3cb23301f9ad8a0b1ab7e2b363b0dd75a8406a1ff661d5da8b793d41e1",
+    "internal/dogfoodflow/prechange.go": "124befcbe3a4901358a85e3e38175e90d5d1d4d61cd2199354ee8d48a730f9fc",
+    "internal/dogfoodflow/prechange_test.go": "3a0b4028c2c10ca4c16d02c7b77db836512889d543604ed9edbd3639e338d70d",
+    "internal/liveverify/affected/measure_test.go": "95e9221a40e07ba55d1c5f2c1fbcee6d7bf656c3ea1caf6c12c017400e2d54a8",
+    "script/check-error-code-ownership.sh": "31768d9b845a0d476a6107358165b45c56eabbb11c4946c01c181eaecbb6e4cf",
+    "script/check-error-code-ownership_test.sh": "b11d4be0bb93ab673698af07357ed24ce30ef672b220d603da48eaaac6c78850",
+    "script/check-fixed-tmp-paths.sh": "0d03ada76d3801f51dbafbf4482d63ad7fd1e84760e1ddc7b388cd02569283a3",
+    "script/check-fixed-tmp-paths_test.sh": "11f8c287bd73fff2050ccc13ad1109108b3777ce92af11696f3318a701e0667b",
+    "script/check-host-package-versions.sh": "826d4798d22cc82b24c2afe0057e6a4a788ce26fb1c4da0736d45072f2bf7995",
+    "script/check-host-package-versions_test.sh": "65b26d5330f81b804da489167974a4e0c4c416466b35d10d5c6da910b4ad0482",
+    "script/check-line-citations.sh": "a218413500595af6cd3f49085041e0e924edbc566c1a2e62013260c3f1a7023e",
+    "script/check-line-citations_test.sh": "39fbb93c0af0b63f21fefea3e0ee05d905dbe836af52f016b07111e095a62a50",
+    "script/check-mkfifo-build-tags.sh": "eb83b25a86c4cd254919d81dde32ca9c5c2f88d9c88a8f81716e5097713708af",
+    "script/check-mkfifo-build-tags_test.sh": "3a12dd7f66d82aecf538c31ea3431a870b993f9a4eb59f561e5940feb59b7e56",
+    "script/check-spec-claims.sh": "dc11e7dd79eb7f33038df7445016f52e8063ebdba1dacbe669cdab7e512459ee",
+    "script/check-spec-claims_test.sh": "56f277c644c9edd85c5acf6945328a17c7d0f1b0c048956955ab4c1f2242aa5f",
+    "script/dogfood-finish.sh": "80f1146b0ed7c1a95c9db5b36fc15d7c8f38a759040d0f4cdbfe020ae13c5d5e",
+    "script/lane-scripts_test.sh": "0c5f85079d84621b6972c9014c40d948aa167a7ab40cc44d6ea4a9625ad5d8b3",
+    "script/requirement-id-collisions.sh": "048244276bcb5908425b831ca0b8f94716505a8cd88e13167318f9348b901b04",
+    "script/requirement-id-collisions_test.sh": "a36864b981ca15248832afb42766424efaf93049b0e3e38f2c4bb0103514008f",
+    "script/requirement-id-reservations.sh": "80cceb1e6e2046506ee5aabd4f2c07162bf38c81ca82b46458e1d61272d71843",
+    "script/requirement-id-reservations_test.sh": "8a39dbbf3e0dcdd2bde223990a66a9f96488b33cc11c478822c9056e8129c994",
+    "script/requirement-ids-free.sh": "97ddefd91677d9ad933be498f17c3e423d94eaadafc553081ec44cb42b78be1c"
+  },
+  "retainedMeasurementSourceBindings": "PASS",
+  "goRaceEvidence": ".agent-evidence/lanetools/fanout-race.log",
+  "namespaceControl": {
+    "beforeGuardExit": 1,
+    "afterGuardExit": 0,
+    "observedNamespaces": [
+      "pid:[4026532300]",
+      "pid:[4026532309]"
+    ]
+  }
+}

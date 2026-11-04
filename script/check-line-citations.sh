@@ -87,15 +87,26 @@ use warnings;
 use Digest::SHA qw(sha256_hex);
 use IPC::Open2 qw(open2);
 
-my %tracked;
+# LVT-V0-006: one enumeration carries tracked blobs, unmerged stages, modified paths
+# and untracked paths. -t distinguishes each class without relying on path spellings.
+my (%tracked, %index_blob, %unmerged, %index_modified);
+my @index_untracked;
 {
-    open my $paths, '-|', 'git', 'ls-files', '-z' or die "git ls-files: $!\n";
+    local $ENV{GIT_OPTIONAL_LOCKS} = '0';
+    open my $entries, '-|', 'git', 'ls-files', '--cached', '--modified', '--stage',
+        '--others', '--exclude-standard', '-t', '-z' or die "git ls-files: $!\n";
     local $/ = "\0";
-    while (my $path = <$paths>) {
-        chomp $path;
-        $tracked{$path} = 1 if length $path;
+    while (my $entry = <$entries>) {
+        chomp $entry;
+        if ($entry =~ /\A\? (.*)\z/s) { push @index_untracked, $1; next; }
+        my ($tag, $blob, $stage, $path) = $entry =~ /\A([A-Z]) \d+ ([0-9a-f]+) (\d)\t(.*)\z/s
+            or die "git ls-files: malformed stage entry\n";
+        $tracked{$path} = 1;
+        if ($stage == 0) { $index_blob{$path} = $blob; }
+        else { $unmerged{$path}{$stage} = 1; }
+        $index_modified{$path} = 1 if $tag eq 'C' || $tag eq 'R';
     }
-    close $paths
+    close $entries
         or die $! ? "git ls-files: $!\n" : 'git ls-files failed: exit ' . ($? >> 8) . "\n";
 }
 
@@ -115,14 +126,18 @@ sub index_blob_once {
 }
 
 sub index_blob {
-    my ($path) = @_;
+    my ($path, $object) = @_;
     local $/ = "\n";
     return index_blob_once($path) if $path =~ /\n/;
+    $object //= ":$path";
     local $SIG{PIPE} = 'IGNORE';    # a dead co-process surfaces as a short read, not a signal
     $batch_pid //= open2($batch_out, $batch_in, 'git', 'cat-file', '--batch');
-    print {$batch_in} ":$path\n";
+    print {$batch_in} "$object\n";
     $batch_in->flush;
     my $header = <$batch_out> // batch_failed();
+    # LVT-V0-006: historical decision citations use the same immutable batch. A missing
+    # historical path retains lines_at's fallback to the staged path.
+    return undef if $object ne ":$path" && $header =~ / (?:missing|ambiguous)\n\z/;
     my ($type, $size) = $header =~ /\A[0-9a-f]+ (\S+) (\d+)\n\z/ or return index_blob_once($path);
     my $read = read($batch_out, my $blob, $size + 1) // die "git cat-file --batch: $!\n";
     batch_failed() unless $read == $size + 1 && substr($blob, -1, 1, '') eq "\n";
@@ -149,25 +164,12 @@ sub batch_failed {
 
 # DCG-V0-043 (V1-2152): a path with unmerged index entries has no stage-0 blob to read. Every
 # read of one refuses with the unmerged stages named, instead of the bare `git cat-file` exit.
-my %unmerged;
-{
-    open my $entries, '-|', 'git', 'ls-files', '-u', '-z' or die "git ls-files -u: $!\n";
-    local $/ = "\0";
-    while (my $entry = <$entries>) {
-        chomp $entry;
-        my ($stage, $path) = $entry =~ /\A\d+ [0-9a-f]+ (\d)\t(.*)\z/s or next;
-        push @{ $unmerged{$path} }, $stage;
-    }
-    close $entries
-        or die $! ? "git ls-files -u: $!\n" : 'git ls-files -u failed: exit ' . ($? >> 8) . "\n";
-}
-
 my %lines_of;
 sub lines_of {
     my ($path) = @_;
     return $lines_of{$path} if exists $lines_of{$path};
     return $lines_of{$path} = undef unless $tracked{$path};
-    die "$path is unmerged in the Git index (stages " . join(',', @{ $unmerged{$path} })
+    die "$path is unmerged in the Git index (stages " . join(',', sort keys %{ $unmerged{$path} })
         . ", no stage 0): resolve the conflict and git add it first\n"
         if $unmerged{$path};
     my @lines = split /^/, index_blob($path);
@@ -189,16 +191,6 @@ sub decision_commit {
     return undef unless $doc =~ m{\Adocs/decisions/[^/]+\.md\z};
     unless ($written_scanned) {
         $written_scanned = 1;
-        my %index_blob;
-        if (open my $staged, '-|', 'git', 'ls-files', '-s', '-z', '--', 'docs/decisions') {
-            local $/ = "\0";
-            while (my $entry = <$staged>) {
-                chomp $entry;
-                my ($blob, $path) = $entry =~ /\A\d+ ([0-9a-f]+) 0\t(.*)\z/s or next;
-                $index_blob{$path} = $blob;
-            }
-            close $staged;
-        }
         if (open my $log, '-|', 'git', 'log', '--no-renames', '--format=@%H', '--raw', '--no-abbrev',
             '--diff-filter=AM', '--', 'docs/decisions') {
             local $/ = "\n";
@@ -223,10 +215,8 @@ sub lines_at {
     my $key = "$commit:$path";
     return $lines_at{$key} if exists $lines_at{$key};
     return $lines_at{$key} = undef if $path =~ /\n/;
-    open my $fh, '-|', 'git', 'cat-file', '-p', $key or return $lines_at{$key} = undef;
-    binmode $fh;
-    my $blob = do { local $/; <$fh> };
-    return $lines_at{$key} = undef unless close $fh;
+    my $blob = index_blob($path, $key);
+    return $lines_at{$key} = undef unless defined $blob;
     my @lines = split /^/, $blob // '';
     chomp @lines;
     return $lines_at{$key} = \@lines;
@@ -1122,32 +1112,11 @@ sub print_skipped {
 # staging step, since a move in an unstaged file is invisible to --repin as well.
 sub print_unstaged {
     my ($reader, @rewritten) = @_;
-    my %unstaged;
-    local $ENV{GIT_OPTIONAL_LOCKS} = '0';
-    if (open my $diff, '-|', 'git', 'diff', '--name-only', '-z') {
-        local $/ = "\0";
-        while (my $path = <$diff>) {
-            chomp $path;
-            $unstaged{$path} = 1 if defined $lines_of{$path};
-        }
-        close $diff
-            or print STDERR 'line citations: note: could not list unstaged files ('
-                . ($! ? "git diff: $!" : 'git diff exit ' . ($? >> 8)) . ")\n";
-    } else {
-        print STDERR "line citations: note: could not list unstaged files (git diff: $!)\n";
-    }
+    my %unstaged = map { $_ => 1 } grep { defined $lines_of{$_} } keys %index_modified;
     # The documents --repin just rewrote are named by its own staging line above.
     delete @unstaged{@rewritten};
     # DCG-V0-743 (V1-3678): an untracked document the scan would read is invisible until added.
-    my @untracked;
-    if (open my $others, '-|', 'git', 'ls-files', '--others', '--exclude-standard', '-z') {
-        local $/ = "\0";
-        while (my $path = <$others>) {
-            chomp $path;
-            push @untracked, $path if scanned_doc($path);
-        }
-        close $others;
-    }
+    my @untracked = grep { scanned_doc($_) } @index_untracked;
     print STDERR "line citations: note: $reader reads the Git index, so " . scalar(@untracked)
         . " untracked document(s) it would scan were not checked (git add them to include them):\n"
         . join('', map { "  $_\n" } sort @untracked)

@@ -94,6 +94,7 @@ GATE_STEPS = \
   eol-policy-test \
   error-code-ownership-check \
   error-code-ownership-test \
+  fixed-tmp-paths-test \
   gate-receipt-test \
   go-archive-gate \
   go-archive-gate-test \
@@ -114,6 +115,7 @@ GATE_STEPS = \
   line-citations-check \
   line-citations-test \
   mkfifo-build-tags-check \
+  mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
@@ -126,6 +128,8 @@ GATE_STEPS = \
   rg-fallback-test \
   runtime-environment-test \
   scratch-sweep-test \
+  spec-claims-check \
+  spec-claims-test \
   spec-requirements-check \
   spec-requirements-test \
   stray-backups-check \
@@ -176,7 +180,7 @@ endif
 .PHONY: host-adapter-node-test
 host-adapter-node-test:
 	node --test integrations/opencode/*.test.mjs
-	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs integrations/pi/process.test.mjs integrations/pi/core.test.mjs integrations/pi/capabilities.test.mjs integrations/pi/operations.test.mjs integrations/pi/tasks.test.mjs integrations/pi/cockpit.test.mjs integrations/pi/workflow.test.mjs
+	node --test integrations/pi/host-scratch.test.mjs integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs integrations/pi/process.test.mjs integrations/pi/core.test.mjs integrations/pi/capabilities.test.mjs integrations/pi/operations.test.mjs integrations/pi/tasks.test.mjs integrations/pi/cockpit.test.mjs integrations/pi/workflow.test.mjs
 
 .PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
@@ -335,6 +339,15 @@ cem-release-gate: go-version
 # Git index, so stage the changed spec first: `--write` refuses an unstaged or untracked spec
 # (SRG-V0-954). One generator pass builds all three (SRG-V0-018); nothing is copied unless all
 # three regenerate.
+# LVT-V0-010: run before staging a spec edit; reads worktree Claims, including new specs.
+.PHONY: spec-claims-check
+.PHONY: spec-claims-test
+spec-claims-check: ## Check worktree digest Claims before staging (160 character limit)
+	@script/check-spec-claims.sh
+
+spec-claims-test:
+	@script/check-spec-claims_test.sh
+
 .PHONY: spec-requirements
 # SRG-V0-922 (V1-3437): mid-merge, an unmerged generated file (or one staged with its conflict
 # markers) is refused with one line naming spec-requirements-resolve, before the generator reads it.
@@ -392,6 +405,7 @@ spec-requirements-test:
 	@script/spec-requirements-conflict_test.sh
 	@script/spec-requirements-worktree-check_test.sh
 	@script/requirement-id-collisions_test.sh
+	@script/requirement-id-reservations_test.sh
 	@script/requirement-next-id_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
@@ -707,6 +721,16 @@ mkfifo-build-tags-check:
 .PHONY: fixed-tmp-paths-check
 fixed-tmp-paths-check:
 	@script/check-fixed-tmp-paths.sh
+
+# LVT-V0-006 (V1-4252): fixture tests of the two scans, including that each reads its files in one
+# git batch, so its git spawn count does not grow with the number of files.
+.PHONY: mkfifo-build-tags-test
+.PHONY: fixed-tmp-paths-test
+mkfifo-build-tags-test:
+	@script/check-mkfifo-build-tags_test.sh
+
+fixed-tmp-paths-test:
+	@script/check-fixed-tmp-paths_test.sh
 
 # ASD-V0-2370 (V1-4352): no tracked .bak or .orig leftover. A doc gate, so CI and batch-precheck
 # both run it, and a static fail-fast gate of batch-precheck.
@@ -1147,7 +1171,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := line-citations-check spec-claims-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
@@ -1216,14 +1240,34 @@ dogfood-bin-reuse-test:
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
 # for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit);
-# with RANGE it then checks the block is free on every unmerged local branch and worktree too
-# (ASD-V0-952, V1-3614).
+# it then checks the block is free on every unmerged local branch, remote-tracking branch and
+# worktree (ASD-V0-952, V1-3614, LVT-V0-002) and in the reservation ledger (LVT-V0-004; OWNER= skips
+# the caller's own reservations). LO and HI are 0..9999 (LVT-V0-001, V1-4046).
 # Without RANGE it checks PREFIX as a new family and names the next free one (ASD-V0-962, V1-3472).
 .PHONY: requirement-ids-free
 requirement-ids-free:
-	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
+	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>] [OWNER=<lane>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
 	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
-	@$(if $(RANGE),script/requirement-id-collisions.sh --block "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))" $(if $(REF),--base "$(REF)"),true)
+	@script/requirement-id-collisions.sh $(if $(RANGE),--block "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))",--family "$(PREFIX)") $(if $(REF),--base "$(REF)")
+	@script/requirement-id-reservations.sh check "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(OWNER),--owner "$(OWNER)")
+
+# LVT-V0-003 (V1-4046): reserve a checked-free block (or, without RANGE, a whole new prefix) for one
+# lane in the checkout's shared reservation ledger before a charter hands it out, for example
+# make requirement-ids-reserve PREFIX=DCW-V0 RANGE=2200..2229 OWNER=lanetools; release it after the
+# lane merges with make requirement-ids-release OWNER=lanetools [PREFIX=.. [RANGE=..]].
+.PHONY: requirement-ids-reserve
+requirement-ids-reserve: ## Reserve a checked-free requirement block for OWNER
+	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-reserve: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] OWNER=<lane> [REF=<commit>]" >&2; exit 2; }
+	@script/requirement-id-reservations.sh reserve "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") "$(OWNER)" $(if $(REF),--base "$(REF)")
+
+.PHONY: requirement-ids-next
+requirement-ids-next: ## Find the lowest free SIZE-ID block across the base, open refs and reservations
+	@script/requirement-id-reservations.sh next "$(PREFIX)" "$(SIZE)" $(if $(REF),--base "$(REF)") $(if $(OWNER),--owner "$(OWNER)")
+
+.PHONY: requirement-ids-release
+requirement-ids-release: ## Release only OWNER requirement reservations
+	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-release: REFUSE bad-range RANGE=$(RANGE): pass OWNER=<lane> [PREFIX=<prefix> [RANGE=<lo>..<hi>]]" >&2; exit 2; }
+	@script/requirement-id-reservations.sh release "$(OWNER)" $(if $(PREFIX),"$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))"))
 
 # SRG-V0-764 (V1-3389): the next free ID of PREFIX from the staged specs, and every definition that
 # is out of order in its spec, for example make requirement-next-id PREFIX=ASD-V0.
@@ -1392,6 +1436,7 @@ shell-test: \
   dogfood-change-test \
   eol-policy-test \
   error-code-ownership-test \
+  fixed-tmp-paths-test \
   gate-receipt-test \
   go-archive-gate-test \
   go-cache-trim-test \
@@ -1403,6 +1448,7 @@ shell-test: \
   lane-interrupted-test \
   license-headers-test \
   line-citations-test \
+  mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
@@ -1414,6 +1460,7 @@ shell-test: \
   rg-fallback-test \
   runtime-environment-test \
   scratch-sweep-test \
+  spec-claims-test \
   spec-requirements-test \
   stray-backups-test \
   test-run-pattern-test \
