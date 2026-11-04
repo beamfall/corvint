@@ -14,7 +14,10 @@ are excluded by the lane charter. Independent review belongs to the orchestrator
   Git metadata, final symlinks, bounds and existing out-of-tree checks keep their refusals.
 - `DCW-V0-7401` (V1-3977): fail a receipt-less no-diff change start with a named refusal instead
   of silently succeeding with instructions. Existing TASK/PATHS recording is reused. Supply a
-  discoverable authoring template, facets decoder route and help-tree regeneration hint.
+  discoverable authoring template in the existing spec-development guide, facets decoder route
+  and help-tree regeneration hint. A standalone template required a documentation declaration
+  edit that itself became unowned and raised 79 language frontiers. Embedding the template in
+  the existing route removes those new inputs; no planner refusal or gate is suppressed.
   Bare single-caret and quoted expressions share typed argv; diagnostics retain the line text.
   Citation drafting emits only admissible supplied VERIFY commands, separately from the TSV.
   Exact unstaged-spec `git add` guidance and single-read journal-aware readiness already existed.

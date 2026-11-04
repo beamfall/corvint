@@ -1108,7 +1108,9 @@ run_root=
 
 # DCW-V0-7401: authoring guidance is available before the generator, and
 # changing help without refreshing the trees produces a doc-gate hint.
-grep -q '160 characters' "$source_root/docs/SPEC-AUTHORING-TEMPLATE.md" || fail "Claim limit absent from template"
+grep -q '^### Authoring template$' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "template absent from authoring route"
+grep -q 'Claim: One sentence of at most 160 characters' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "Claim limit absent from template"
+grep -q 'git add -- docs/specs/NAME.md' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "staging command absent from template"
 grep -q 'internal/tasks/wire/facets.go' "$source_root/docs/AGENT-ROUTES.md" || fail "facets decoder absent from route"
 mkdir -p "$test_root/cmd/tool"
 printf 'package main\n// Usage: before\n' > "$test_root/cmd/tool/main.go"
