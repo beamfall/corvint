@@ -10,6 +10,8 @@ V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861, CIN-V0-2301, CIN-V0-2302: 
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
+Lane cir-w35 (V1-4232, V1-4233, V1-4234) defines AFP-V0-100 to AFP-V0-106 here under the parent's
+`AFP-V0` prefix for the same reason; see build-log entry `2026-11-01-cir-w35`.
 
 ## Agent digest
 - Claim: CI narrowing isolates producing epochs and provides an operator alarm for missing forward rows independent of selection documents.
@@ -272,6 +274,89 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   the merge base of the pull request's base and head. Any nonzero exit, and a head or merge base
   that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
   reach the merge queue.
+
+### Merge-queue reuse on a moved or stacked base, integrity-record wait and fast-route liveness (AFP-V0-100 to AFP-V0-106; V1-4232, V1-4233, V1-4234)
+
+Intent (orchestrator lane request, 2026-11-01; V1-4232, V1-4233, V1-4234): over the 47 merge-queue
+runs of 2026-10-30 to 2026-11-01, 27 ran the full suite (median 29.8 min against 6.65 min for an
+AFP-V0-046 hit): 17 were stacked on an entry ahead of them and 9 were built on a `main` that moved
+after the pull-request run, so no tree matched. AFP-V0-812 to AFP-V0-816 reuse only a narrowed
+record of a moved base, and nearly every pull-request run is full, so they never applied. Separately,
+an entry can start before its pull-request run's `artifact-integrity-record` exists and then reruns
+the 12 to 16 min archive gate (V1-4233), and a fast route can stop firing for weeks with nothing
+reporting it (the DOCS route never fired 2026-09-29 to 2026-11-01, V1-4234).
+
+Target (set before building, V1-4232): over at least 20 merge-queue runs after the change, the
+median wall of moved-base and stacked entries is below 12 min, and no package whose inputs changed
+between the record tree and the entry is reused. Non-goals: no reuse without the AFP-V0-813 checks
+and a BOUNDED (or language-frontier-only) plan of the main delta; no change to the AFP-V0-046 and
+AFP-V0-734 exact reuse; no repin of `CORVINT_PR_TOOL_SOURCE`; no change to `narrow.jq` or `narrow.sh`.
+
+- **AFP-V0-100:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;
+  amends AFP-V0-812) When `tools/ci-reuse-plan --event merge_group --base Q` decides FULL, names no
+  AFP-V0-812 narrowed candidate, and is given `--commits DIR`, the decision SHALL carry
+  `delta: {runId, recordJobId, tree, target, base, head, scope: "FULL"}` of the first admitted
+  pull-request run whose one AFP-V0-170 `ci-tested-tree-record` line names the entry's head and the
+  shard count but another tree. `base` is the first parent of the line's `target`, read only from
+  `DIR/<target>.json`, a retained commits API response whose `sha` is `target` and whose `parents`
+  are exactly two, the second equal to the head; any other response names no full-record delta. A
+  narrowed candidate keeps its AFP-V0-812 shape with no `scope` member and is preferred, and a
+  decision made without `--commits` is byte-identical to the previous tool's.
+- **AFP-V0-101:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;
+  amends AFP-V0-046) The docs-plan reuse step SHALL, for each passed record job log it reads, also
+  retain the commits API response of the line's target, and SHALL pass `--commits` only to a tool
+  whose help text lists `-commits`. A merge-queue entry whose first parent Q is not on `main` (a
+  stacked entry) SHALL no longer stop before deciding: the tool is built from
+  `git merge-base Q refs/remotes/origin/main`, which must be an ancestor of `origin/main` and of Q,
+  never from Q or the entry, and only its `delta` is handed on; such an entry never decides REUSE.
+- **AFP-V0-102:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;
+  amends AFP-V0-813 and AFP-V0-815) `mq-narrow.sh` SHALL accept an `MQ_DELTA` whose `scope` is
+  `FULL` under every AFP-V0-813 check except the record-range plan: a full record ran every package
+  of tree P, so Rs is the whole queue-range selection S, the entry reuses exactly S \ D and runs
+  S ∩ D, and the applied `reuse` record names `recordScope: "FULL"` with `recordSelected` equal to
+  `selected`. A `scope` member that is neither absent nor `FULL` SHALL refuse reuse (AFP-V0-816).
+- **AFP-V0-103:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232)
+  Before promotion an offline replay of the recent merge-queue runs SHALL predict the hit rate: for
+  each missed entry it rebuilds the entry and the record commit C, applies the AFP-V0-813 checks and
+  plans C..TM with the BASE-built planner and selector, and predicts the shard wall from
+  `.github/cishards/package-costs.json`. The replay and its prediction are recorded in
+  `docs/build-log/2026-11-01-cir-w35.md`; the live target above is `NOT_OBSERVED` until the first
+  20 queue runs after merge.
+- **AFP-V0-104:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4233;
+  amends AFP-V0-163) When the `artifact-integrity` reuse step finds no admitted record and a
+  pull-request run of the entry's head has not completed and its latest `artifact-integrity` or
+  `artifact-integrity-record` job has not concluded, the step SHALL list again every 30 s, at most
+  16 more times (8 min), and then run the gate in full. A run that has not completed is admitted
+  only when both latest jobs concluded `success` on the head, exactly as a completed run is; a
+  completed run that did not conclude `success` is never admitted. The step's timeout SHALL exceed
+  the wait bound, the job's timeout (30 min) SHALL hold the wait and the full gate, and a test pins
+  the bound.
+- **AFP-V0-105:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)
+  `tools/ci-reuse-plan routes` SHALL read retained run listings and each run's latest jobs listing
+  (with steps) and report, for each fast route (DOCS, REUSE, NARROWED, INTEGRITY_REUSE,
+  DOC_GATES_REUSE), its eligible runs and hits over the newest `--window` eligible runs, from job and
+  step conclusions alone. A route with at least `--min-eligible` eligible runs and no hit is `DEAD`
+  and the tool exits 1; fewer eligible runs is `NOT_OBSERVED`, never healthy; a route whose signal
+  step is missing from every eligible run is `SIGNAL_MISSING` and also exits 1. It reads no log and
+  no artifact.
+- **AFP-V0-106:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)
+  A scheduled `ci-route-health` workflow SHALL run the AFP-V0-105 check daily over the newest
+  `ci.yml` runs with read-only permissions, retain its report, and fail (so the owner is notified)
+  on `DEAD` or `SIGNAL_MISSING`.
+
+Failure modes: (1) a package the main-delta plan wrongly omits is reused; the main push of the
+commit runs in full and catches it, as for AFP-V0-815. (2) The replay found the delta plan UNKNOWN
+(an unowned path or a test-less package) in 18 of 27 misses and the delta selecting
+`cmd/corvint` (17.4 min alone) in every applied case, so the shard wall stays above 20 min; the
+target is not expected from this change alone. (3) Every consumer of `MQ_DELTA` sits behind the
+AFP-V0-731 gate, which refuses while the CIN-V0-010 pin lags. (4) A waiting integrity step delays
+the archive gate by at most 8 min when the pull-request job fails or is cancelled. (5) A renamed
+signal step makes its route `SIGNAL_MISSING`, which fails loud rather than reporting healthy.
+
+Rollback: remove `--commits` from the docs-plan step (the tool then names no full-record delta),
+restore the stacked-entry early exit, remove the `FULL` branch of `reuse_` in `mq-narrow.sh`, restore
+the single listing in the integrity step, and delete `.github/workflows/ci-route-health.yml` and the
+`routes` subcommand.
 
 ## Non-goals
 
