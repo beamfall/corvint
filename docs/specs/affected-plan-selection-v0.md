@@ -21,7 +21,8 @@ entries `2026-11-03-selprec2-ci-selector-parity`, `2026-11-03-selprec2-round3-ty
 and `2026-11-03-selprec2-round4-withdraw-typescript-anchors`, with round 5 recorded in
 `2026-11-03-selprec2-round5-withdraw-shell-canonicalization` and round 6, which amends
 AFP-V0-2203, AFP-V0-2240, AFP-V0-2242 and AFP-V0-2243 in place, in
-`2026-11-04-selprec2-round6-runtime-roots`.
+`2026-11-04-selprec2-round6-runtime-roots`. Round 7 amends AFP-V0-2203, AFP-V0-2204, AFP-V0-2240
+and AFP-V0-2243 in place; see `2026-11-04-selprec2-round7-file-names-and-redirections`.
 
 ## Agent digest
 - Claim: `corvint affected` narrows fixture, anchored, temp-root and `go list` reads, marks deletions, and the CI selector follows its Go naming relation.
@@ -210,12 +211,16 @@ measure. None of them drops a unit the change can reach.
   placement test. A run of two or more components of an anchored token SHALL keep the
   component-run relation at any depth (round 6): the root it is joined to may come from the
   environment or another value no literal of the unit spells (`os.Getenv("FIXTURES") +
-  "/repo/lib.js"` reads `app/x/repo/lib.js`), so no placement bounds it. A token that climbs out of
+  "/repo/lib.js"` reads `app/x/repo/lib.js`), so no placement bounds it. For the same reason a
+  single-component run that is the dirty path's file name (`os.Getenv("FIXTURES") + "/lib.js"`)
+  SHALL name it at any depth (round 7); only a single-component run that matches a directory
+  component of the path (`"/repo"`) is placed. A token that climbs out of
   the repository from every base, and a token with no component run (`"/"`, `"/."`), names
   nothing. The unit's own subtree, climbing unanchored tokens, unanchored runs of two or more
   components, non-Go units, the CEM sidecar rule and declared read scopes are unchanged. The
-  measurement below predates round 6 and was not repeated; every token it names (`"/repo"`,
-  `"///repo"`, `"/testdata/"`, `"/"`) is a single-component run that round 6 still places.
+  measurement below predates rounds 6 and 7 and was not repeated; every token it names
+  (`"/repo"`, `"///repo"`, `"/testdata/"`, `"/"`) is a single-component directory run that both
+  rounds still place.
   Measured on the PR 86 tree with `affected --by-path --path
   internal/jslinecov/testdata/repo/lib.js`: the Go path-literal readers named through `"/repo"`,
   `"///repo"`, `"/testdata/"` and a bare `"/"` (`internal/capcatalog`, `internal/gitstatus`,
@@ -228,8 +233,10 @@ measure. None of them drops a unit the change can reach.
   occurrence is an expansion that cannot assign or text joined to a `/`, `.` or `-`, and whose
   value is one `$(mktemp -d ...)` substitution or another temp root followed only by a literal
   path without `..` (`repo="$tmp/repo"`). The assignment is a command of its own at the file's
-  top level, not after `&&` or `||` and not in a pipeline or the background, and no expansion of
-  the name precedes it, so no value from the environment stands in. A file that defines or aliases
+  top level, not after `&&` or `||` and not in a pipeline or the background, carries no
+  redirection (round 7: a redirection that fails, `3>&9` in dash, skips the assignment and leaves
+  an inherited value in place), and no expansion of the name precedes it, so no value from the
+  environment stands in. A file that defines or aliases
   `mktemp` has no temp root, nor does one that can fill a directory with repository files no token
   names: a recursive (`r`, `R` or `a` anywhere in a short option group, as in `cp -rf`), archive
   or `--parents` `cp`, `rsync`, `tar`, `cpio`, `pax`, `unzip`,
@@ -270,7 +277,7 @@ measure. None of them drops a unit the change can reach.
   in `/`), or when a single-component run of it matches after components that, below one of those
   bases, are each a whole component of one of the package's tokens or one the lexicon cannot keep
   whole. A run of two or more components keeps the component-run relation at any depth, as in the
-  planner (round 6). A token with no component run names nothing. As in the planner, the package is decided from all of its
+  planner (round 6), and so does a single-component run that is the path's file name (round 7). A token with no component run names nothing. As in the planner, the package is decided from all of its
   tokens, so another anchored token that resolves or is placed keeps it. AFP-V0-2204 has no
   counterpart: this index holds only Go packages, so no shell reader reaches the CI selector. The
   CEM sidecar and sealed-CEM rule (`resolvingReaders`) is unchanged.
@@ -313,7 +320,11 @@ measure. None of them drops a unit the change can reach.
   after `&&` or `||`. A list the assignment leads that continues into a compound command (a brace
   group, subshell, `if`, `while`, `until`, `for`, `case`, `select`, `time`, `coproc` or a function
   definition) makes none (round 6): whether such a list ends in `&` is not visible to the command
-  scan (`tmp=$(mktemp -d) && { :; } &`). If mktemp fails and the
+  scan (`tmp=$(mktemp -d) && { :; } &`). A list member whose lead operator is not the previous
+  member's trail also makes none (round 7): an empty compound (`case x in esac`) leaves no command
+  of its own, so `tmp=$(mktemp -d) && case x in esac & wait` shows only the `&` that backgrounds
+  it. The lexer reads `&&` and `||` whole, so the next command's lead
+  is `&&` or `||`, not a second `&` or `|`. If mktemp fails and the
   right side does not exit, the value is empty and a path below it is absolute below `/`, which is
   no repository path. Measured with the by-path probe below: the shell path-literal readers of
   `internal/jslinecov/testdata/repo/lib.js` fall from 23 to 16; the rest copy trees
@@ -403,12 +414,14 @@ import-graph reader, as before. A test that sets `cmd.Dir` to another directory 
 directory's packages while its targets are resolved against its module, as AFP-V0-402 resolves
 command literals. A shell test that reads a repository file through a temp-root path it did not
 create (a variable the AFP-V0-2204 rule accepts but a later redirection rebinds) is an author
-error the confined CI shard surfaces. A Go reader that joins a single-component anchored token or
-a lone token to a root supplied at run time (`os.Getenv("FIXTURES") + "/lib.js"`) is narrowed by
-placement in the planner (AFP-V0-2203, AFP-V0-072) and in the CI selector alike, and is missed for
-a path below that root whose directories its literals do not spell: the accepted lone-token
-limitation of V1-0290 and AFP-V0-072. Such a join of two or more components keeps the
-component-run relation in both (round 6), and the `-bounds` attribution of `tools/gate-ledger` (GL-V0-009) follows the
+error the confined CI shard surfaces. A Go reader that joins an unanchored lone token to a root
+supplied at run time (`filepath.Join(os.Getenv("FIXTURES"), "lib.js")`), or an anchored
+single-component token that names only a directory (`os.Getenv("FIXTURES") + "/repo"`), is
+narrowed by placement in the planner (AFP-V0-2203, AFP-V0-072) and in the CI selector alike, and
+is missed for a path below that root whose directories its literals do not spell: the accepted
+lone-token limitation of V1-0290 and AFP-V0-072. Such a join of two or more components (round 6),
+or of an anchored token that is the path's file name (`os.Getenv("FIXTURES") + "/lib.js"`, round
+7), keeps the component-run relation in both, and the `-bounds` attribution of `tools/gate-ledger` (GL-V0-009) follows the
 same relation, so the ledger keys such a package on fewer paths. A file that
 reads a committed copy of a script but is listed as a mention while it also runs the worktree
 copy is a declaration error the review of `.corvint/shell-foreign-callers.json` owns. The
@@ -451,14 +464,14 @@ AFP-V0-2241 reach CI only with the next re-pin.
 | AFP-V0-2200 | `goListScanFile`, `goListArguments`, `importGraphTemplate`, `isolatedList`, `literalEnvironment`, `goListUnits` in `internal/liveverify/affected/golang/importgraph.go`; the `listed` skip in `usedCommandLiterals` (`binaryexecs.go`); `Unit.ImportGraphReads` and `ImportGraphReadsAll` in `unit.go`, `graph.go` and `graphcache.go` | `TestGoListReadersAreImportGraphReaders_AFPV02200` in `internal/liveverify/affected/golang/importgraph_test.go`; `TestRepositoryImportGraphReaders_V14409_V14362` in `internal/liveverify/affected/importgraph_repo_test.go` |
 | AFP-V0-2201 | `importGraphReadersOf`, `importClosure`, `WitnessImportGraphReader` in `internal/liveverify/affected/importgraph.go`; `terminalWitness` in `select.go` | `TestImportGraphReadersFollowImportSetChanges_AFPV02201` (body-only narrowing; import-added, out-of-closure, `go.mod` and no-comparison controls); `importGraphWitnessResolves` in `measure_test.go`; the fault-injection runs in build-log entry `2026-11-03-selprec-selection-precision` |
 | AFP-V0-2202 | `ImportSetChangesAt`, `ImportSetRecords`, `packageHeader` in `internal/liveverify/affected/golang/importsets.go`; `unknownImportSets`, `ModuleFile`, `GoIgnoredPath` in `importgraph.go`; `planAffectedGraph` and `affectedMeasuredCommit` in `cmd/corvint/affected.go` | `TestImportSetRecordsCompareHeaders_AFPV02202` in `internal/liveverify/affected/golang/importgraph_test.go` |
-| AFP-V0-2203 | `anchoredWithin`, `longRunNames`, `runOffsets` and the anchored branch of `namesFileOnlyWithin` in `internal/liveverify/affected/readers.go` | `TestAnchoredTokensResolveFromModuleBases_AFPV02203` and `TestRuntimeRootedRunsKeepComponentRuns_AFPV02203` (round 6: an environment-rooted reader stays selected beside the enclosing package) in `internal/liveverify/affected/golang/anchored_test.go`; the amended cases of `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072` and `TestChangeEvidenceReadersAreNarrowed_V1_0230` |
-| AFP-V0-2204 | `tempRoots`, `unconditionalAssignment`, `populates`, `assignedOnce`, `firstAssignment`, `underTempRoot`, `tempExpansion` and the temp step of `pathTokens` in `internal/liveverify/affected/shell/shell.go` | `TestTempRootPathsAreNoTokens_AFPV02204` (plain root dropped; recursive copy, tree copy, archive, worktree, link, conditional and used-first controls keep the token); `TestWriteOnlyWordsAreNoPathTokens_NSAV0016` |
+| AFP-V0-2203 | `anchoredWithin`, `longRunNames`, `runOffsets` and the anchored branch of `namesFileOnlyWithin` in `internal/liveverify/affected/readers.go` | `TestAnchoredTokensResolveFromModuleBases_AFPV02203` and `TestRuntimeRootedRunsKeepComponentRuns_AFPV02203` (round 6: an environment-rooted reader stays selected beside the enclosing package; round 7 keeps its lone `"/lib.js"` holder) and `TestRuntimeRootedFileNamesStaySelected_AFPV02203` (round 7: an actual `os.ReadFile(os.Getenv("FIXTURES") + "/lib.js")` reader stays selected; `"/other.js"` and `"/repo"` controls) in `internal/liveverify/affected/golang/anchored_test.go`; the amended cases of `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072` and `TestChangeEvidenceReadersAreNarrowed_V1_0230` |
+| AFP-V0-2204 | `tempRoots`, `unconditionalAssignment`, `populates`, `assignedOnce`, `firstAssignment`, `underTempRoot`, `tempExpansion` and the temp step of `pathTokens` in `internal/liveverify/affected/shell/shell.go` | `TestTempRootPathsAreNoTokens_AFPV02204` (plain root dropped; recursive copy, tree copy, archive, worktree, link, conditional and used-first controls keep the token); the redirection cases of `TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243` (round 7: `3>&9`, `2>/dev/null` and leading redirections keep the token, run under dash); `TestWriteOnlyWordsAreNoPathTokens_NSAV0016` |
 | AFP-V0-2205 | `ExtensionlessRoots`, `ExtensionlessScript`, `shellShebang`, `shellExecutables` and `Owns` in `internal/liveverify/affected/shell/shell.go` | `TestOwnsOnlyShellSuffixes_NSAV0006`; `TestExtensionlessShellExecutablesAreUnits_AFPV02205` in `internal/liveverify/affected/shell/shell_test.go` |
 | AFP-V0-2206 | `Plan.Deleted` in `internal/liveverify/affected/select.go`; `affectedDeletedPaths` and its call in `planAffectedGraph` (`cmd/corvint/affected.go`); `cmd/corvint/affected_compact.go` | `TestAffectedPlanMarksDeletedPaths_AFPV02206` in `cmd/corvint/affected_deleted_test.go` |
-| AFP-V0-2240 | `keepsReader`, `namesWithin`, `anchoredWithin`, `longRunNames`, `runOffsets`, `placeable` in `internal/gateselect/naming.go`; `repositoryIndex.tokens`; the `keepsReader` filter in `readers`, `pathReaders` (`readers.go`) and `packageBounds` (`select.go`) | `TestRuleCAnchoredTokens_AFPV02240` in `internal/gateselect/naming_test.go` (fixture-repository narrowing; root, ancestor, placed, module-path and own-subtree controls); `TestRuleCRuntimeRootedRuns_AFPV02240` (round 6: an environment-rooted reader stays in the verdict beside the enclosing package) |
+| AFP-V0-2240 | `keepsReader`, `namesWithin`, `anchoredWithin`, `longRunNames`, `runOffsets`, `placeable` in `internal/gateselect/naming.go`; `repositoryIndex.tokens`; the `keepsReader` filter in `readers`, `pathReaders` (`readers.go`) and `packageBounds` (`select.go`) | `TestRuleCAnchoredTokens_AFPV02240` in `internal/gateselect/naming_test.go` (fixture-repository narrowing; root, ancestor, placed, module-path and own-subtree controls); `TestRuleCRuntimeRootedRuns_AFPV02240` (round 6: an environment-rooted reader stays in the verdict beside the enclosing package); `TestRuleCRuntimeRootedFileNames_AFPV02240` (round 7: the file-name run keeps the reader; `"/other.js"` and `"/repo"` controls) |
 | AFP-V0-2241 | the lone-token branch of `namesWithin`, `parentClimbs` and the `namesResolvedPath` check of `keepsReader` in `internal/gateselect/naming.go` | `TestRuleCLoneTokens_AFPV02241` (placed file name, directory-shaped token, climbing token, `..\x` superset control, `pathReaders` and `-bounds` agreement); the amended fixtures of `TestSelectBoundsDeclaredPathReaders`, `TestSelectStructuralTakesDocumentationReadersFromThePlan_ADNV0010`, `TestSelectPackagesNarrowsChangeEvidenceReaders`, `TestSelectPackagesNarrowsSealedChangeEvidenceReaders`, `TestSelectPackagesStopsClosureAtTestOnlyTokenHolder` and `TestADNV0010And0011ProducerToConsumer`; PR 86 replay in the build log |
 | AFP-V0-2242 | the test itself; `pathTokens`, `moduleAnchored` and `closesTag` in `internal/gateselect/readers.go` | `TestRuleCMatchesThePlanner_AFPV02242` in `internal/gateselect/naming_test.go` (round 6 adds the literal and HTML-escaped closing-tag packages and `app/xrepo/page.html`); the closing-tag cases of `TestFastTierLiteralLexiconDiffers_AFPV0765`; the fault-injection runs in build-log entries `2026-11-03-selprec2-ci-selector-parity` and `2026-11-04-selprec2-round6-runtime-roots` |
-| AFP-V0-2243 | the trail switch and list scan of `unconditionalAssignment` and `reservedWord` in `internal/liveverify/affected/shell/shell.go`; the compound-closer lead in `endCommand` (`lex.go`) | the `or exit`, `and cd`, `piped`, `background`, `list in background`, `or list in background`, `or reassign` and `or read` cases of `TestTempRootPathsAreNoTokens_AFPV02204`; `TestBackgroundedCompoundListsKeepTokens_AFPV02243` (round 6: brace group, subshell, `if`, `while`, `for`, `case`, `time` and after-compound cases, with plain-line controls) |
+| AFP-V0-2243 | the trail switch and list scan of `unconditionalAssignment` and `reservedWord` in `internal/liveverify/affected/shell/shell.go`; the compound-closer lead in `endCommand` and the whole-operator advance (`lex.go`) | the `or exit`, `and cd`, `piped`, `background`, `list in background`, `or list in background`, `or reassign` and `or read` cases of `TestTempRootPathsAreNoTokens_AFPV02204`; `TestBackgroundedCompoundListsKeepTokens_AFPV02243` (round 6: brace group, subshell, `if`, `while`, `for`, `case`, `time` and after-compound cases, with plain-line controls); `TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243` (round 7: empty `case` lists in the background under bash and dash, with own-line and newline-list controls); the fault-injection runs in build-log entry `2026-11-04-selprec2-round7-file-names-and-redirections` |
 | AFP-V0-2244 | the `script/batch-regen.sh` entry of `.corvint/shell-foreign-callers.json` | the repository declaration check (`TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`); `tools/declaration-compat-check`; the `heavy.sh` replay in the build log |
 | AFP-V0-2245 | withdrawn; no implementation | `TestTypeScriptAnchoredCounterexamplesStaySelected_AFPV02245` in `internal/liveverify/affected/typescript/anchored_counterexamples_test.go` (the 17 counterexample cases stay selected; each fails against the withdrawn implementation at `7f7458dc9`) |
 | AFP-V0-2246 | Withdrawn: canonicalization helpers removed; `tempRoots` and `pathTokens` in `internal/liveverify/affected/shell/shell.go` retain the pre-canonicalization rule | `TestTempRootPathsAreNoTokens_AFPV02204` (all canonical cases kept; literal temp-root controls unchanged); `TestCanonicalizationCounterexamplesStaySelected_AFPV02246` (all five review classes and sub-cases, standalone `set -T`, direct and assigned derived paths, shell variants) |
@@ -478,7 +491,9 @@ AFP-V0-2204, call `pathTokens` without temp roots; for AFP-V0-2205, drop `Extens
 from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`. For AFP-V0-2240 to
 AFP-V0-2242, delete `internal/gateselect/naming.go` and its test and make `keepsReader` return
 true (rule (c) is the component-run relation again); for AFP-V0-2243, restore `&&` and `||` to the trail
-refusal. Round 6 only widens selection, so reverting its commit restores the round-5 relation; for AFP-V0-2244, move the three `internal/dogfoodflow` files back to `callers`. AFP-V0-2245
+refusal. Rounds 6 and 7 only widen selection, so reverting a round's commit restores the previous
+round's relation (round 7's lexer change alters only command leads, which every consumer refuses
+alike); for AFP-V0-2244, move the three `internal/dogfoodflow` files back to `callers`. AFP-V0-2245
 and AFP-V0-2246 are withdrawn and need none; for AFP-V0-2247, move `Impact` back into
 `internal/contextindex` as the `webImpact` variable and delete `internal/webdialect`. Run
 `make spec-requirements` after deleting this file.
