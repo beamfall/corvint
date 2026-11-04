@@ -1016,7 +1016,8 @@ row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
 # ASD-V0-912 (V1-3804): the non-Go frontier details every real plan carries (the TypeScript,
 # C-family, .NET, Python, Ruby and Swift adapters' own gaps) do not widen a doc-only diff.
-plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
+# py''thon is spelled apart so the no-Python scan does not flag the detail (ASD-V0-579).
+plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"py''thon:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
 srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
   fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"

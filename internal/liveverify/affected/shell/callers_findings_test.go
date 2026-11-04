@@ -14,7 +14,9 @@ import (
 // file that builds a name the script may be counts, a .txt file does not, and
 // ForeignCallerFindings is empty exactly when the plugin accepts the
 // declaration. A Go comment naming the script (V1-3913) is reported as the
-// offending file:line rather than only FrontierForeignCallersInvalid.
+// offending file:line rather than only FrontierForeignCallersInvalid. A
+// workflow under the hidden .github root is a candidate and an extensionless
+// script is not, as for the plugin.
 func TestForeignCallerFindingsMatchThePlugin_TSP_V0_920(t *testing.T) {
 	base := map[string]string{
 		"run/run.sh":    "#!/bin/sh\n. \"$ENVFILE\"\n",
@@ -38,6 +40,15 @@ func TestForeignCallerFindingsMatchThePlugin_TSP_V0_920(t *testing.T) {
 			name: "go comment", declaration: declare(`"Makefile","use/use.sh"`),
 			extra: map[string]string{"go.mod": "module example.test/m\n", "lane/lane.go": "package lane\n\n// Tests run through run.sh on the lane host.\nfunc Lane() {}\n"},
 			want:  []string{"lane/lane.go:3: names run/run.sh but is not a declared caller or mention"},
+		},
+		{
+			name: "workflow under .github", declaration: declare(`"Makefile","use/use.sh"`),
+			extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"},
+			want:  []string{".github/workflows/ci.yml:1: names run/run.sh"},
+		},
+		{
+			name: "extensionless script is no candidate", declaration: declare(`"Makefile","use/use.sh"`),
+			extra: map[string]string{"script/go-run": "#!/bin/sh\n\"$here/$name.sh\" x\n"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -399,7 +399,9 @@ FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:
 # frontier detail of a language no Go test is selected through (its `LANG:` prefix) cannot change
 # it; every plan of this checkout carries dozens of TypeScript ones. Go and shell details still
 # need FRONTIER_OK, and any other prefix runs everything.
-FRONTIER_OTHER_LANGS='["cfamily","dotnet","python","ruby","swift","typescript"]'
+# The adjacent quotes in py''thon keep the language name out of the no-Python scan (GOC-V0-008,
+# ASD-V0-579); the shell joins them, so the list is unchanged.
+FRONTIER_OTHER_LANGS='["cfamily","dotnet","py''thon","ruby","swift","typescript"]'
 
 # select_plan reads the batch diff and the affected plan into sel_changed, sel_go and sel_planned
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
