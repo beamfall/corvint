@@ -4,16 +4,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/clitree"
 	"io"
 )
 
-type commandNode struct {
-	Path    []string `json:"path"`
-	Command string   `json:"command"`
-	Summary string   `json:"summary"`
-	Usage   []string `json:"usage"`
-	Flags   []string `json:"flags"`
-}
+type commandNode = clitree.Node
 
 func commandTree() any {
 	nodes := []commandNode{
@@ -29,16 +24,22 @@ func commandTree() any {
 		{Path: []string{"js-select"}, Summary: "Report JavaScript coverage shadow decisions", Usage: []string{"linecov js-select -root DIR -index INDEX -base FULL_SHA [-files a,b]"}, Flags: []string{"-root", "-index", "-base", "-files"}},
 		{Path: []string{"watch"}, Summary: "Rerun working-tree tests on foreground save notifications", Usage: []string{"linecov watch -root DIR -index INDEX [-once|-events-stdin] [-packages a,b] [-go-wrapper PATH] [-command ARGV_JSON]"}, Flags: []string{"-root", "-index", "-packages", "-once", "-events-stdin", "-go-wrapper", "-command"}},
 	}
-	for i := range nodes {
-		nodes[i].Command = "linecov " + nodes[i].Path[0]
+	builder := clitree.NewBuilder("linecov")
+	for _, n := range nodes {
+		for _, u := range n.Usage {
+			builder.AddForm(u, n.Summary)
+		}
+		builder.Example(n.Path, n.Usage[0])
 	}
-	return struct {
-		Schema   string        `json:"schema"`
-		Binary   string        `json:"binary"`
-		HelpJSON string        `json:"helpJson"`
-		Source   string        `json:"source"`
-		Nodes    []commandNode `json:"nodes"`
-	}{"corvint-command-tree/0", "linecov", "linecov help --json", "tools/linecov/help.go", nodes}
+	tree := builder.Tree("linecov help --json", "tools/linecov/help.go", []string{"tools/linecov"}, nil, nil)
+	for i := range tree.Nodes {
+		for _, n := range nodes {
+			if len(tree.Nodes[i].Path) == 1 && tree.Nodes[i].Path[0] == n.Path[0] {
+				tree.Nodes[i].Flags = n.Flags
+			}
+		}
+	}
+	return tree
 }
 func help(out io.Writer, args []string) error {
 	if len(args) > 0 && (args[0] == "--json" || args[0] == "--tree") {
