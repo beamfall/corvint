@@ -98,10 +98,12 @@ jobs:
       - name: Refuse a batch pull request whose commits no sealed CEM binds (CIN-V0-2304, V1-2805)
         # A batch pull request (head branch claude/batch-*) merged with unbound commits whenever
         # the batch head skipped the DCW-V0-348 pre-push hook. doc-gates is a required check, so
-        # this step makes the batch check enforce. It checks the pull-request head out beside this
-        # checkout (the job's own HEAD is the synthetic merge, which no CEM binds) and runs the
-        # read-only script/dogfood-batch-check.sh from its merge base with the pull request's base.
-        # Any refusal, including a head or merge base that cannot be resolved, fails the job.
+        # this step makes the batch check enforce. The checker and its verifier are built from the
+        # pull request's base commit (trusted main), never from the head under check, so a batch
+        # cannot replace its own checker outside the protected .github/ paths. The head is checked
+        # out beside this checkout (the job's own HEAD is the synthetic merge, which no CEM binds)
+        # and `corvint dogfood batch-check` (DCW-V0-039) runs there from its merge base with the
+        # base. Any refusal, including a head or merge base that cannot be resolved, fails the job.
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE' && github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/batch-')
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
@@ -109,10 +111,12 @@ jobs:
         run: |
           set -eu
           base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+          git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+          (cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
           git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
           cd "$RUNNER_TEMP/batch-head"
           test "$(git rev-parse HEAD)" = "$PR_HEAD"
-          script/dogfood-batch-check.sh "$base"
+          "$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
 
   doc-gates-record:
     # AFP-V0-670, AFP-V0-671: the only evidence the doc-gates-reuse decision accepts. It runs in a
