@@ -295,4 +295,3 @@ Trace producer provenance (V1-0745, decision 0429): the same local-trace produce
 single active spec route for `LTPM-V0-015..016`, with amendment notes in `LOD-V0-035`,
 `OCL-V0-001`, `LTA-V0-001` and the core compatibility freeze. Delivery remains experimental.
 
-| Lane verification tooling | [Lane Verification Tooling V0](lane-verification-tooling-v0.md) | accepted | experimental |

@@ -10,7 +10,7 @@ V1-4319; `AGENTS.md`; `daily-change-evidence-workflow-v0.md`; `corvint-self-deve
 
 ## Agent digest
 - Claim: Lane verification reserves requirement IDs, batches immutable Git reads, and cleans private host-test scratch safely.
-- Status: accepted under the owner's standing lane auto-accept / experimental
+- Status: accepted under the owner's standing lane auto-accept (2026-10-11) / experimental
 - Exists: requirement-ID scripts, static gate scripts, heavy admission wrapper and native Pi host tests.
 - Blocked on: independent review and terminal dogfood evidence.
 - Read next: Requirements; Acceptance and evidence; Failure modes and rollback.
@@ -53,14 +53,20 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
 - `LVT-V0-005`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
   Host package version history MUST batch immutable blob reads without changing first-parent
   field-change verdicts. Unreadable batches MUST fall back to the previous per-commit algorithm;
-  an unbumped shipped change MUST still fail.
+  an unbumped shipped change MUST still fail. Fixture Git spawns MUST drop by at least 50%
+  against the same fixture suite using the baseline implementation.
 - `LVT-V0-006`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
-  Fixed-temp-path and Mkfifo checks MUST batch staged blob reads, retaining path/line diagnostics,
+  Fixed-temp-path, Mkfifo and line-citation checks MUST batch staged or immutable blob reads,
+  retaining path/line diagnostics,
   exemptions and build-constraint decisions. A failed read MUST fail closed. Git spawn count MUST
   stay constant as candidates grow; unstaged fixes MUST NOT change staged verdicts.
+  Fixed-temp-path, Mkfifo and error-code ownership checks MUST use at most three Git spawns.
+  Line-citation historical content reads MUST share its existing batch; diagnostic and history
+  enumeration calls remain constant overhead, with their measured count retained.
 - `LVT-V0-007`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
   Directory-local error-code discovery MUST read its existing staged scratch tree without one
   Git process per declaring directory and preserve emitted sites and ownership failures.
+  Both the staged enumeration and read failures MUST fail closed.
 - `LVT-V0-008`: (experimental under the standing lane auto-accept, 2026-11-03; V1-3570)
   Remote heavy execution MUST retain package parallelism bounds and explicit caller/environment
   GOMAXPROCS precedence. A changed default MUST be justified by same-build measurements; unavailable
@@ -90,7 +96,7 @@ checks do not claim semantic completeness. Reservation state is host local, not 
 | LVT-V0-002 | `script/requirement-id-collisions_test.sh` remote block/family/collision controls |
 | LVT-V0-003, LVT-V0-004 | `script/requirement-id-reservations_test.sh` overlap, release, worktree and malformed controls |
 | LVT-V0-005 | `script/check-host-package-versions_test.sh` history growth and unbumped-change injection |
-| LVT-V0-006 | `script/check-fixed-tmp-paths_test.sh`; `script/check-mkfifo-build-tags_test.sh` |
+| LVT-V0-006 | `script/check-fixed-tmp-paths_test.sh`; `script/check-mkfifo-build-tags_test.sh`; `script/check-line-citations_test.sh` |
 | LVT-V0-007 | `script/check-error-code-ownership_test.sh` staged ownership violations |
 | LVT-V0-008 | `script/lane-scripts_test.sh` explicit overrides and invalid-value control; measurements in build log |
 | LVT-V0-009 | `integrations/pi/host-scratch.test.mjs` ownership and interrupted-exit fixtures |
