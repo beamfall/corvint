@@ -313,10 +313,15 @@ measure. None of them drops a unit the change can reach.
   names `go test` runs) SHALL be kept with `REACHES_CHANGE` when its closure reaches a changed
   declaration (a changed function by edge, a changed constant, variable or type by mention, a
   changed type by any expression of a type holding it), and with `STARTS_PROCESS` when its closure
-  starts a process (`os/exec.Command`, `CommandContext`, `os.StartProcess`, `syscall.Exec`,
-  `ForkExec`, `StartProcess`, `plugin.Open`, an `os/exec.Cmd` literal, or any of these taken as a
-  value), whatever the program: a constant `git` or shell can still run module code through
-  configuration, aliases or hooks. Every other test function SHALL be dropped.
+  may start a process: any use of package `os/exec` (a `Cmd` however made, by `Command`,
+  `CommandContext`, `new`, a literal or a variable declaration, and its `Start`, `Run`, `Output`
+  or `CombinedOutput`), `os.StartProcess`, `syscall.Exec`, `ForkExec`, `StartProcess`,
+  `plugin.Open`, or any of these taken as a value, whatever the program: a constant `git` or shell
+  can still run module code through configuration, aliases or hooks. The changed set is closed
+  over declarations: a constant, type or variable whose type, value or type parameters name a
+  changed constant or type, in any package, and each later member of a changed constant's group,
+  is changed too; a function's signature (an array length, a parameter type) counts as part of the
+  function. Every other test function SHALL be dropped.
 - **AFP-V0-2374:** (experimental; V1-2744) A dropped test whose closure reads a package variable
   a kept test's closure may write SHALL be kept with `READS_STATE_A_KEPT_TEST_WRITES`, to a
   fixpoint. A write is an assignment, increment, address-taking, or `append`/`copy`/`clear`/`delete`
@@ -329,17 +334,26 @@ measure. None of them drops a unit the change can reach.
   an index, field or range yielding no such reference, a `len`/`cap` argument or a comparison
   operand is a write, since a copy of the reference can be written through. A file write
   (`os.WriteFile`, `Create`, `OpenFile` unless its constant flags only read, `Mkdir*`, `Remove*`,
-  `Rename`, `Symlink`/`Link` at their link path, `Ch*`, `Truncate`) whose path mentions a module
+  `Rename`, `Symlink`/`Link` at their link path, `Ch*`, `Truncate`, `os.CopyFS`,
+  `io/ioutil.WriteFile`) whose path mentions a module
   package variable writes that variable; a bound pointer-method value taken on a package variable
   is a call for this rule. The file system is a third pseudo variable: every file write or read
   (`os.ReadFile`, `Open`, `Stat`, `Lstat`, `ReadDir`, `Readlink`, `DirFS`, `filepath.Walk*`,
-  `Glob`, `EvalSymlinks`, `fs.ReadFile`, a read-only `OpenFile`) whose path neither calls nor names
-  a local variable a body assigned once from `TempDir`, `os.MkdirTemp` or `os.CreateTemp` writes or
-  reads it, and every state reader or writer taken as a value reads or writes its pseudo variable. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
+  `Glob`, `EvalSymlinks`, `fs.ReadFile`, `io/ioutil.ReadFile`, `io/ioutil.ReadDir`, a read-only
+  `OpenFile`) whose path neither calls nor names a local variable a body assigned once from
+  `TempDir`, `os.MkdirTemp`, `os.CreateTemp`, `io/ioutil.TempDir` or `io/ioutil.TempFile` writes or
+  reads it; any use of `os.OpenRoot`, `os.OpenInRoot` or an `os.Root` method reads and writes it;
+  and every state reader or writer taken as a value reads or writes its pseudo variable. A closure
+  that may start a process (AFP-V0-2373) writes the file system, environment and signal pseudo
+  variables, since a child's writes are not bounded. Standard-library state read without being
+  named counts as read: a call into `fmt` reads `os.Stdout` and `os.Stderr`, into `log` reads
+  `os.Stderr` and the log default (written by `log.SetOutput`, `SetFlags`, `SetPrefix`), into
+  `log/slog` also the slog default (written by `slog.SetDefault`, `SetLogLoggerLevel`), and into
+  `time` reads `time.Local`. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
   start) and signal dispositions (`signal.Notify`, `Ignore`, `Reset`, a `Notify` paired with
   `signal.Stop` in the same body excepted) are two pseudo variables under the same rule. A kept
   test whose closure calls another process-wide setter (`os.Chdir`, `runtime.GOMAXPROCS` with an
-  argument other than a constant below 1, `log.Set*`, `flag.Set`/`Parse`, `net/http.Handle*`, the
+  argument other than a constant below 1, `flag.Set`/`Parse`, `net/http.Handle*`, the
   `runtime/debug` setters except the goroutine-local `SetPanicOnFault`, and the others
   `processState` lists), a file write at a constant path, or one of these functions taken as a
   value, SHALL keep the package whole with `KEPT_TEST_WRITES_PROCESS_STATE`.
@@ -364,9 +378,13 @@ measure. None of them drops a unit the change can reach.
   named, when it is an unbounded reader, when one of its globs matches a dirty path
   (`Graph.GlobRead`), when it embeds files, reads the import graph or is a declared existence
   reader, when its path literals name a dirty path (`Graph.NamesPath`), when its declared read
-  scope holds one, when a dirty path is its own file, when a non-Go dirty path belongs to a package
-  that embeds files, or when a changed file's base cannot be read. Another package's test files,
-  test data and non-Go paths are never linked and are otherwise left out of the change.
+  scope holds one, when a dirty path is its own file, when a dirty path lies in or under the
+  directory of a package that embeds files, when a dirty path other than a non-test `.go` file
+  (a data file, test data, or a `.go` file under `testdata`) lies in or under the directory of any
+  Go package, whether embedded or read at run time, when a changed file's base cannot be read, or
+  when the change shows no changed Go declaration at all: an empty change set never slices.
+  Another package's `_test.go` files are never linked and are left out; a path outside every Go
+  package directory reaches a test only through a read the conditions above refuse.
 - **AFP-V0-2378:** (experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing
   of one package for the Go change between a base and a checked-out head and, with `-oracle`, run
   each test function alone in a test binary built at head and in one with
@@ -439,11 +457,11 @@ error the confined CI shard surfaces.
 | AFP-V0-2370 | `typedReachPackages`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`; its call in `testGoSlices` | `corvint test --dry-run` replays in build-log entry `2026-11-03-floor-typed-reach` |
 | AFP-V0-2371 | `buildGraph`, `funcDecl`, `packageVar`, `walkInitializer`, `heldAssignment`, `visitExpr`, `call`, `composite`, `convertTo` in `internal/liveverify/affected/golang/typedreach/graph.go`; `Load` in `load.go`; `namedIn` in `analyze.go` | `TestAFPV02371ConversionsAndHeldValuesCarryReach` |
 | AFP-V0-2372 | `childOnly`, `moduleHazard`, `hasLinkname`, `Analyze` | `TestAFPV02372AlwaysRunReachKeepsThePackageWhole`, `TestAFPV02372LoadRefusesUnmodelledSource`, `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (negative control) |
-| AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` |
-| AFP-V0-2374 | `sharedVar`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `scopeSignals`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`) |
+| AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction`, `TestAFPV02373RoundThreeRegressions` (constants, `os/exec` uses, ioutil and `os.Root`) |
+| AFP-V0-2374 | `sharedVar`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `scopeSignals`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`) |
 | AFP-V0-2375 | the slice and whole forms in `testTypedSlices` | `corvint test --dry-run` replays (build log) |
 | AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go` | `TestAFPV02376DiffFileNamesChangedDeclarations` |
-| AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log) |
+| AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log); `TestAFPV02370DryRunNarrowsAnAllowListedDependent` (embedded and run-time data files) |
 | AFP-V0-2378 | `tools/typed-reach-measure/main.go` | fault-injection oracle runs in build-log entry `2026-11-03-floor-typed-reach` |
 
 ## Rollback
