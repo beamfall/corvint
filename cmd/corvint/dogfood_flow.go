@@ -43,14 +43,15 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// option sets plus the bind loop's inputs; BASE is --base (DCW-V0-060).
 	"finish-lane": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
 		"--corvint-bin": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true, "--sealed": true,
-		"--entry": true},
+		"--entry": true, "--seal": true},
 	// inputs-check is finish-lane's input checks and prepare pass alone: it
 	// binds, commits and seals nothing, so it takes no verifier (DCW-V0-380).
 	// --sealed skip keeps a seal head a SKIP for the wrappers (ASD-V0-842).
 	// --entry names the wrapper's make target in every rerun hint (DCW-V0-730);
-	// --static runs only the lock-free input checks (DCW-V0-731).
+	// --static runs only the lock-free input checks (DCW-V0-731); --seal no keeps a stop-before-seal
+	// run's opt-out in its rerun hints (DTL-V0-004).
 	"inputs-check": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
-		"--corvint-bin": true, "--sealed": true, "--entry": true, "--static": true},
+		"--corvint-bin": true, "--sealed": true, "--entry": true, "--static": true, "--seal": true},
 }
 
 // dogfoodFlowOptionHelp describes each option of dogfoodFlowOptions, so every daily-path
@@ -74,6 +75,7 @@ var dogfoodFlowOptionHelp = map[string]string{
 	"--plan":              "reviewed citation plan whose rows are recorded as claims",
 	"--claims":            "claims file to write: the plan's rows keyed by edit content",
 	"--draft":             "proposed draft plan; its cite rows the reviewed plan dropped become tombstones",
+	"--seal":              "yes|no (default yes): no stops after bind and check, without a seal commit; inputs-check binds nothing and keeps it only in rerun hints",
 	"--sealed":            "skip: a pre-flight on a seal head reports SKIP and exits 0",
 	"--entry":             "make target the wrapper ran (dogfood-inputs-check, dogfood-finish or dogfood-closeout), named in every rerun hint",
 	"--static":            "yes: run only the input checks that take no lock and run no step, then report STATIC PASS",
@@ -178,6 +180,9 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 		flags[name] = value
 	}
 	if action == "finish-lane" || action == "inputs-check" {
+		if value, ok := flags["--seal"]; ok && value != "yes" && value != "no" {
+			return nil, "", dogfoodFlagError{"invalid-dogfood-seal-value", "dogfood finish-lane takes --seal yes|no (default yes)"}
+		}
 		if value, ok := flags["--sealed"]; ok && value != "skip" {
 			return nil, "", dogfoodFlagError{"invalid-dogfood-sealed-value", "dogfood " + action + " takes --sealed skip and no other value"}
 		}
@@ -325,7 +330,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		return dogfoodflow.Prechange(ctx, dogfoodflow.PrechangeOptions{Root: root, Base: base, Task: task, Paths: paths, Steps: runner("--corvint-bin")}, stdout, stderr)
 	}
 	if action == "inputs-check" {
-		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true, SealedSkip: flags["--sealed"] == "skip", Entry: flags["--entry"], Static: flags["--static"] == "yes"}, stdout, stderr)
+		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true, SealedSkip: flags["--sealed"] == "skip", Entry: flags["--entry"], Static: flags["--static"] == "yes", StopBeforeSeal: flags["--seal"] == "no"}, stdout, stderr)
 	}
 	if action == "batch-check" {
 		return dogfoodflow.BatchCheck(ctx, dogfoodflow.BatchCheckOptions{Root: root, Base: base, Verifier: runner("--verifier")}, stdout, stderr)
@@ -343,7 +348,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	}
 	options = localcompletion.ConfigureAggregateCheck(options, false)
 	if action == "finish-lane" {
-		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Check: options, Entry: flags["--entry"]}, stdout, stderr)
+		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Check: options, Entry: flags["--entry"], StopBeforeSeal: flags["--seal"] == "no"}, stdout, stderr)
 	}
 	if action == "seal" {
 		return dogfoodflow.Seal(ctx, options, stdout, stderr)

@@ -27,6 +27,15 @@ fi
 intents=${3-}
 verify=${4-}
 outcome=${5-}
+# DTL-V0-004: a charter may hand the checked bind to its orchestrator. A SEAL=0 run keeps SEAL=0
+# in every retry it prints (seal_word) and passes --seal no to its pre-flight, whose rerun hints
+# then keep it too; the pre-flight's own entry, dogfood-inputs-check, never seals.
+seal_args=() seal_word=
+case ${DOGFOOD_FINISH_SEAL:-1} in
+  0) [[ $entry == dogfood-inputs-check ]] || seal_args=(--seal no) seal_word=' SEAL=0' ;;
+  1) ;;
+  *) printf '%s: REFUSE invalid-dogfood-seal-value\nfix: use SEAL=0 to stop after check or SEAL=1 to seal\n' "$prefix" >&2; exit 2 ;;
+esac
 # Every missing or unusable input is named in one refusal before any build runs (ASD-V0-015).
 # DOGFOOD_FINISH_LANE=1 (`make dogfood-finish LANE=1`) also requires INTENTS, VERIFY and OUTCOME,
 # the inputs a lane must supply up front, and BASE as a full commit ID (docs/LANE-ORCHESTRATION.md);
@@ -52,7 +61,7 @@ fi
 case $outcome in '' | passed | failed | blocked) ;; *) missing+=(OUTCOME:invalid) ;; esac
 if ((${#missing[@]} > 0)); then
   printf '%s: REFUSE missing-inputs %s\n' "$prefix" "${missing[*]}" >&2
-  printf 'fix: make %s BASE=<full sha> CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' "$entry" >&2
+  printf 'fix: make %s BASE=<full sha>%s CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' "$entry" "$seal_word" >&2
   # ASD-V0-120 (V1-3765): a BASE that is not a full SHA names the commit it resolves to, or how to
   # resolve it; the refusal still stands, so the pinned BASE is always the one the operator typed.
   if [[ " ${missing[*]} " == *' BASE:not-full-sha '* ]]; then
@@ -105,7 +114,12 @@ inputs+=(--entry "$entry")
 # in about a second. It runs the cached tree binary of HEAD's exact build key, or else the installed
 # corvint on PATH; either must list --static. With neither it says SKIP, and DOGFOOD_STATIC_PRECHECK=0
 # skips it; the admitted pre-flight still runs every check with the tree's own build.
-static_capable() { "$1" dogfood inputs-check --help 2> /dev/null | grep -q '^  --static '; }
+# A SEAL=0 run also needs the binary's inputs-check to list --seal, so its hints keep SEAL=0.
+static_capable() {
+  local help
+  help=$("$1" dogfood inputs-check --help 2> /dev/null) && grep -q '^  --static ' <<< "$help" &&
+    { ((${#seal_args[@]} == 0)) || grep -q '^  --seal ' <<< "$help"; }
+}
 if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
   [[ ${DOGFOOD_STATIC_PRECHECK-} != 0 ]] || exit 0
   repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -121,10 +135,10 @@ if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
     static_bin=$installed
   fi
   if [[ -z $static_bin ]]; then
-    printf '%s: static pre-check SKIP no-static-binary (no cached tree build or installed corvint lists --static; the admitted inputs-check runs every check after its build)\n' "$prefix" >&2
+    printf '%s: static pre-check SKIP no-static-binary (no cached tree build or installed corvint lists --static, and --seal for a SEAL=0 run; the admitted inputs-check runs every check after its build)\n' "$prefix" >&2
     exit 0
   fi
-  (cd "$repo" && exec "$static_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --static yes) && exit 0
+  (cd "$repo" && exec "$static_bin" dogfood inputs-check --base "$base_arg" ${seal_args[@]+"${seal_args[@]}"} ${inputs[@]+"${inputs[@]}"} --static yes) && exit 0
   status=$?
   [[ $static_bin != "$installed" ]] ||
     printf '%s: the static pre-check ran the installed %s, not this tree'"'"'s build; if this tree changed the refused rule, rerun with DOGFOOD_STATIC_PRECHECK=0\n' "$prefix" "$installed" >&2
@@ -249,8 +263,8 @@ mkdir -p "$evidence" || exit 2
 build_step=build-tree
 dogfood_finish_interrupted() {
   printf 'dogfood-finish-lane: %s INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=0\n' "$build_step"
-  printf 'dogfood-finish-lane: INTERRUPTED %s\n  fix: rerun make dogfood-finish BASE=%s with the same inputs; nothing was prepared, bound or committed\n' \
-    "$build_step" "$base" >&2
+  printf 'dogfood-finish-lane: INTERRUPTED %s\n  fix: rerun make dogfood-finish BASE=%s%s with the same inputs; nothing was prepared, bound or committed\n' \
+    "$build_step" "$base" "$seal_word" >&2
   exit "$1"
 }
 trap 'dogfood_finish_interrupted 130' INT
@@ -269,9 +283,9 @@ build_step=inputs-check
 if [[ ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]]; then
   trap - INT TERM
   cd "$repo" || exit 2
-  exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin"
+  exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${seal_args[@]+"${seal_args[@]}"} ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin"
 fi
-(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin") || exit $?
+(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${seal_args[@]+"${seal_args[@]}"} ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin") || exit $?
 base_status=0
 build_step=build-base
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
@@ -285,5 +299,5 @@ elif ((base_status != 0)); then
 fi
 trap - INT TERM
 cd "$repo" || exit 2
-exec "$tree_bin" dogfood finish-lane --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin" \
+exec "$tree_bin" dogfood finish-lane --base "$base_arg" ${seal_args[@]+"${seal_args[@]}"} ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin" \
   --base-verifier "$base_bin" --tree-verifier "$tree_bin" ${override[@]+"${override[@]}"}

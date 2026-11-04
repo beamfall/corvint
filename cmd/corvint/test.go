@@ -31,10 +31,13 @@ Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
     [--profile local|ci [--confine PATH]] [--go-parallel N]
-    [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
+    [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
+
+--format json explicitly selects the existing JSON output (default); it cannot
+combine with --summary or --pins. Example: corvint test --base HEAD --dry-run --format json.
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
 HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
@@ -176,6 +179,8 @@ func parseTestOptions(args []string) (testOptions, error) {
 			return nil
 		})
 	}
+	format := "json"
+	once("format", &format)
 	once("base", &options.base)
 	once("placement", &options.placement)
 	once("profile", &options.profile)
@@ -191,7 +196,7 @@ func parseTestOptions(args []string) (testOptions, error) {
 	f.BoolVar(&options.summary, "summary", false, "")
 	f.BoolVar(&options.pins, "pins", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -201,6 +206,10 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, argumentError(fmt.Sprintf("unexpected argument %q; %s", f.Arg(0), usage))
 	}
 	switch {
+	case format != "json":
+		return options, argumentError("--format supports json only (DTL-V0-009)")
+	case seen["format"] && (options.summary || options.pins):
+		return options, argumentError("--format json cannot combine with --summary or --pins (DTL-V0-009)")
 	case options.summary && !options.dryRun:
 		return options, argumentError("--summary applies only to --dry-run (STR-V0-800)")
 	case options.pins && (!options.dryRun || options.summary):

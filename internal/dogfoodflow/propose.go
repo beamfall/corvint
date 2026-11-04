@@ -538,8 +538,11 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// Checked before any anchor: a BASE line that happens to name the path
 	// must not displace the mandatory unknown row (DCW-V0-440).
 	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
-		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
-			return row, cite, ""
+		// DTL-V0-005: an unsupported earlier ID must not hide another named BASE refinement.
+		for _, named := range p.sameChangeRequirements(p.derivedHunk(hunk)) {
+			if row, cite := p.refinedProposal(hunk, ordinal, named, edited, used); row != "" {
+				return row, cite, ""
+			}
 		}
 		// A new file following a BASE sibling's pattern is proposed that
 		// sibling's contract (DCW-V0-841, amending DCW-V0-440).

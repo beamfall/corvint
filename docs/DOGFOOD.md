@@ -27,6 +27,7 @@ local trace store (`DCW-V0-023`); without them the worktree is dirty or the reco
 
 ```text
 .corvint/dogfood-report.json
+.corvint/.dogfood-report-*.tmp
 .corvint/change.ocm-intents
 .corvint/change.ocm-status.json
 .corvint/change.ocm.*.json
@@ -38,6 +39,11 @@ Build a helper binary into scratch, `go build -o "$TMPDIR/NAME" ./cmd/NAME`, nev
 `go build ./cmd/NAME`, which writes `NAME` into the worktree, where the recorder counts it as
 dirty; `dogfood change` names such an untracked `NAME` or `NAME.exe` beside a `cmd/NAME` directory
 before it prepares (`DCW-V0-386`).
+
+Check report updates stage a private temporary beside the ignored report, so the atomic rename
+also works when the Git directory is on a different filesystem or sandbox mount (`DTL-V0-016`).
+Only the completed report is evidence. The temporary is removed on success or an ordinary error;
+an abrupt process kill can leave ignored unfinished output for its operator to inspect and remove.
 
 In Corvint's own tree the `make dogfood-change`, `make dogfood-check` and `make dogfood-seal` targets
 used below wrap the same subverbs: they also require `VERSION` to match `CORVINT_BIN` and build
@@ -520,6 +526,11 @@ needed, `DCW-V0-350`), then run
 ```console
 $ make dogfood-finish BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed
 ```
+
+`make dogfood-finish LANE=1 SEAL=0` stops after the checked bind commit, without a seal
+(DTL-V0-004); its CLI form is `corvint dogfood finish-lane --base FULL_SHA --seal no` with the
+same inputs. SEAL=1 (default) retains the complete sealing flow. Rerun and fix hints from a
+stop-before-seal run keep `SEAL=0` (or `--seal no` for the direct CLI), so a retry never seals.
 
 `make dogfood-finish` builds the base and tree verifiers as `dogfood-seal` does and runs
 `corvint dogfood finish-lane --base BASE_SHA --citations FILE [--intents FILE] [--verify FILE]

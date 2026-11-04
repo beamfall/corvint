@@ -27,6 +27,8 @@ type FinishLaneOptions struct {
 	// `dogfood inputs-check` pre-flight: it binds, commits and seals nothing
 	// (DCW-V0-380).
 	Preflight bool
+	// DTL-V0-004: check the bound change without sealing it.
+	StopBeforeSeal bool
 	// SealedSkip keeps a pre-flight on a seal head a SKIP that exits 0: the
 	// finish and closeout wrappers set it (`--sealed skip`) so a rerun there
 	// still reaches seal SKIP. Without it the pre-flight reports
@@ -911,7 +913,13 @@ func (l *finishLane) checkAndSeal() int {
 	defer l.timed("check-seal")()
 	l.step = "check"
 	var verdict bytes.Buffer
-	code, err := Seal(l.ctx, l.options.Check, &verdict, l.stderr)
+	var code int
+	var err error
+	if l.options.StopBeforeSeal {
+		code, err = Check(l.ctx, l.options.Check, &verdict, l.stderr)
+	} else {
+		code, err = Seal(l.ctx, l.options.Check, &verdict, l.stderr)
+	}
 	checked := hasLine(verdict.Bytes(), "dogfood-check: PASS")
 	if err != nil {
 		l.sealInterrupted(verdict.Bytes())
@@ -919,7 +927,11 @@ func (l *finishLane) checkAndSeal() int {
 	switch {
 	case code == 0:
 		l.line("check PASS")
-		l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		if l.options.StopBeforeSeal {
+			l.line("seal NOT_RUN requested --seal no")
+		} else {
+			l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		}
 		defer l.reportReview()
 	case checked:
 		l.line("check PASS")
