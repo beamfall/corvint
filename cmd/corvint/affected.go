@@ -2252,7 +2252,11 @@ func snapshotAffectedError() error {
 // affectedStatusError preserves the scratch refusal class at the CLI boundary (TSP-V0-7301).
 func affectedStatusError(err error) error {
 	if gitstatus.RefusalClass(err) == "scratch-dir" {
-		return &gokernel.Error{Code: "unsupported-affected-temp", Message: "temporary path " + os.TempDir() + ": " + gitstatus.RefusalMessage(err) + "; set TMPDIR to a writable directory with free space outside the repository"}
+		locations := "temp=" + os.TempDir()
+		if cache, cacheErr := os.UserCacheDir(); cacheErr == nil {
+			locations += ", cache=" + cache
+		}
+		return &gokernel.Error{Code: "unsupported-affected-temp", Message: "temporary directory candidates (" + locations + "): " + gitstatus.RefusalMessage(err) + "; set TMPDIR to a writable directory with free space outside the repository"}
 	}
 	return &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 }

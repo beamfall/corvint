@@ -26,8 +26,8 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
 
 ## Requirements
 
-- `TSP-V0-7301`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3912) A scratch-directory refusal reaching `affected` MUST exit nonzero with code `unsupported-affected-temp`, naming the temporary path and suggesting TMPDIR with free writable space outside the repository. Other status failures retain their existing code.
-  Acceptance evidence: `TestAffectedTempFailureNamesPathAndRemedy` in `cmd/corvint/affected_temp_pk_test.go`.
+- `TSP-V0-7301`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3912) A scratch-directory refusal reaching `affected` MUST exit nonzero with code `unsupported-affected-temp`, naming the temporary-directory candidates (system/operator temp and available user cache) and suggesting TMPDIR with free writable space outside the repository. Other status failures retain their existing code.
+  Acceptance evidence: `TestAffectedTempFailureNamesPathAndRemedy` and `TestAffectedTempFailureOnUnwritableParent` in `cmd/corvint/affected_temp_pk_test.go`.
 
 - `TSP-V0-7303`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4279) Every UNBOUNDED_READER witness MUST disclose `anyDirtyPath: true`; its dirtyPath is only a representative path, never a claim that the unit reads only that path.
   Acceptance evidence: `TestUnboundedWitnessSaysAnyDirtyPath` in `internal/liveverify/affected/unbounded_cause_test.go`.

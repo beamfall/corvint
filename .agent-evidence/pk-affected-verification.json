@@ -248,6 +248,31 @@
         "heavy.sh: done queue=120.0s (load=120s slot=0.0s) run=14.2s rc=0"
       ],
       "command": "script/heavy.sh go test -count=1 -run 'TestFailFastContentTimeSurvivesTimestampTies|TestFailFastDroppedInfoFailureIsDisclosed' ./cmd/corvint"
+    },
+    {
+      "command": "script/heavy.sh go test -count=1 -run TestAffectedTempFailure -v ./cmd/corvint",
+      "exit": 0,
+      "log": "/tmp/pk-affected-evidence/temp-creation-final.log",
+      "sha256": "8da848f4073a2c11f082b809738c65cd8c1841e1162bf24ff42d3f5c5e78f2cf",
+      "excerpt": [
+        "heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh",
+        "heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env",
+        "heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./cmd/corvint/affected_identity_darwin.go; this run is no darwin evidence (run it on a darwin host)",
+        "heavy.sh: running locally at 2f1e62586b8a2b41fea8385f70ec85b87ef15040 tree=dc4fe61e54987c02cb151d73be11993a902e5368 dirty=5",
+        "heavy.sh: slot 2/8 after 0s",
+        "=== RUN   TestAffectedTempFailureNamesPathAndRemedy",
+        "=== PAUSE TestAffectedTempFailureNamesPathAndRemedy",
+        "=== RUN   TestAffectedTempFailureReportsSelectedTMPDIR",
+        "--- PASS: TestAffectedTempFailureReportsSelectedTMPDIR (0.17s)",
+        "=== RUN   TestAffectedTempFailureOnUnwritableParent",
+        "--- PASS: TestAffectedTempFailureOnUnwritableParent (0.18s)",
+        "=== CONT  TestAffectedTempFailureNamesPathAndRemedy",
+        "--- PASS: TestAffectedTempFailureNamesPathAndRemedy (0.18s)",
+        "PASS",
+        "ok  \tgithub.com/Beamfall/corvint/cmd/corvint\t0.557s",
+        "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=9.7s rc=0"
+      ],
+      "purpose": "Exercise actual failed MkdirTemp on an unwritable parent and report both scratch candidates honestly."
     }
   ],
   "regressionFailuresBeforeFix": [
@@ -872,5 +897,12 @@
       "item": "unselected web-flow binary consumers",
       "reason": "external browser outcomes are not covered by the focused Go selection"
     }
-  ]
+  ],
+  "realDryRunFinal": {
+    "stdoutBytes": 4083,
+    "stderrBytes": 0,
+    "selectedUnits": 221,
+    "selectedGoUnits": 219,
+    "stdoutSHA256": "66ee81a195edba935f2fe0babacce366d3bc4cc6dc4f1e634feb3d8a7993dcae"
+  }
 }
