@@ -29,12 +29,15 @@ const (
 // Index is the immutable union of per-test records collected at one commit
 // (LPCV-V0-950, LPCV-V0-956, LPCV-V0-958).
 type Index struct {
-	Format string
-	Module string
-	Commit string // the commit every record was collected at
-	Runner string // Go version and coverage mode; a different runner decides nothing
-	Tests  []Test // sorted by Package, Name
-	Files  []File // every instrumented file, sorted by Path
+	Format         string
+	Module         string
+	Commit         string            // the commit every record was collected at
+	Runner         string            // Go version and coverage mode; a different runner decides nothing
+	TestTimeout    time.Duration     // recorded test deadline; zero is legacy/unknown
+	SuiteTimeout   time.Duration     // recorded in-order suite deadline
+	WindowFallback map[string]string // packages retaining the in-order union and why
+	Tests          []Test            // sorted by Package, Name
+	Files          []File            // every instrumented file, sorted by Path
 	// Unordered lists, sorted, the packages whose in-order suite run did not
 	// pass, so which blocks only that order reaches is unknown: a change
 	// reaching any of their tests keeps the whole package (LPCV-V0-962).

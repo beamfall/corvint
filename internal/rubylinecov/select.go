@@ -31,10 +31,6 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff) linecov.Effect {
 	fail := func(format string, args ...any) linecov.Effect {
 		return linecov.Effect{Fallback: fmt.Sprintf(format, args...)}
 	}
-	files := map[string]*linecov.File{}
-	for i := range ix.Files {
-		files[ix.Files[i].Path] = &ix.Files[i]
-	}
 	testFiles := map[string]bool{}
 	load := int32(-1)
 	for i, t := range ix.Tests {
@@ -58,8 +54,8 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff) linecov.Effect {
 		if d.OldOID == "" || d.NewOID == "" {
 			return fail("added or deleted file %s", d.Path)
 		}
-		f := files[d.Path]
-		if f == nil {
+		f, ok := ix.FileByPath(d.Path)
+		if !ok {
 			return fail("uninstrumented file %s", d.Path)
 		}
 		if f.OID != d.OldOID {
