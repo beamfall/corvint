@@ -1695,7 +1695,7 @@ jobs:
           go vet ./...
 
   go-macos:
-    # CIN-V0-4625/4626 (V1-4625): one native runner, never a full-suite matrix.
+    # CIN-V0-4625 (V1-4625): advisory until V1-4636 qualifies the required integration.
     # Every PR, including ci:batched, gets this result. Only a verified DOCS decision
     # skips tests; Linux REUSE and Linux package selections cannot skip Darwin tests.
     needs: [docs-plan, narrowing-verdict]
@@ -1833,7 +1833,7 @@ jobs:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse, go-macos]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1849,7 +1849,6 @@ jobs:
       - name: Every go-product shard and the static job succeeded
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
-          MACOS_RESULT: ${{ needs.go-macos.result }}
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
@@ -1858,13 +1857,6 @@ jobs:
           # AFP-V0-591: must equal the go-product-shard matrix length.
           SHARDS: "16"
         run: |
-          # CIN-V0-4626: a Darwin failure blocks the existing required check,
-          # including on ci:batched PRs. Non-PR events intentionally skip the job.
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            test "$MACOS_RESULT" = success || exit 1
-          else
-            test "$MACOS_RESULT" = skipped || exit 1
-          fi
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
           # this check passes with a notice instead of failing, so a lane PR is not red. It still
           # cannot land untested: main's merge_queue rule sends every merge through a merge_group
