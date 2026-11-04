@@ -51,7 +51,11 @@ are excluded by the lane charter. Independent review belongs to the orchestrator
   TCQ-V0-761 regression caught it. Qualified references are retained separately for importer
   search. A second regression confirms that importer edges need the exact import path, not
   just the exported selector spelling; otherwise unrelated packages reintroduce the broad
-  closure. External test packages remain conservative because import paths
+  closure. A third failing regression confirms field names were also conflated with package
+  declarations. Field declarations and receiver selectors now stay separate; selectors retain
+  the old conservative edges when a package method has that spelling, and importer receiver
+  selectors stay conservative. This is syntax-based candidate naming, not full Go dataflow or
+  whole-suite adequacy. External test packages remain conservative because import paths
   alone do not prove the package identity. The new regression failed before this fix, naming
   four candidates instead of the two real package references. Timing promotion remains
   contingent on the recorded-pair measurements below.
@@ -100,7 +104,9 @@ it did not match the normal producer's 300-second per-run ceiling. Corrected mea
 recorded pair. No timing improvement or guard-preservation claim follows from that cancelled run.
 The first after-source trial completed PR #934 at a median 929.480 seconds against BASE's
 1013.055 seconds, with the same guard, but was interrupted after the namespace regression
-was confirmed. Final-source measurements are rerun; those earlier numbers are trial evidence.
+was confirmed. An exact-import namespace trial then retained one PR #934 run at 989.142 seconds, but was
+stopped for the field-namespace correction before completing its repetitions. Only the
+final field-aware source is used for promotion; earlier numbers remain trial evidence.
 
 Self-development routes used: change-start context/query/impact receipts, affected test selection,
 CEM binding and reviewer-report inspection. Mutation, ranking learning and unrelated context
