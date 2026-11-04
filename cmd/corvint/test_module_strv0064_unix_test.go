@@ -37,7 +37,7 @@ func TestSTRV0064CLINestedModuleRuns(t *testing.T) {
 	}
 	affectedGit(t, root, "commit", "-qam", "change nested")
 
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
 	// STR-V0-073: the nested module's ./... runs whole, so its HEAVY_WHOLE_REASON follows.
 	wantDry := "corvint-test: NARROWED 1 execution units\n" +
 		"corvint-test: whole-package go test planned; under script/heavy.sh run it with HEAVY_WHOLE_REASON='corvint test selected go-module:nested whole: " +

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -171,5 +174,42 @@ func TestSTRV0013CorpusReading(t *testing.T) {
 	pairs, err := readCorpus(committed)
 	if err != nil || len(pairs) != 50 || !strings.HasPrefix(pairs[0], "645304a2fb71065f9061d8d8d866600d703e84c6 ") {
 		t.Fatalf("retained corpus: %d pairs, err %v", len(pairs), err)
+	}
+}
+
+// TestMain supplies a captured CLI wire to the real subprocess consumer.
+func TestMain(m *testing.M) {
+	if mode := os.Getenv("STR_PARITY_CAPTURE"); mode != "" {
+		name := "testdata/local-default.txt"
+		if mode == "full" && slices.Contains(os.Args[1:], "--full") {
+			name = "testdata/local-full.json"
+		}
+		raw, err := os.ReadFile(name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Print(string(raw))
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
+
+// STR-V0-7313: local text output is not JSON; the parity consumer must request --full.
+// Fixtures were captured from a real local dry run over example.test/parity on 2026-11-04.
+func TestCorvintPlanLocalFull_STRV07313(t *testing.T) {
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := options{corvint: binary}
+	// The subprocess must read the checked-in fixture in this package directory.
+	plan := corvintPlan(context.Background(), o, ".", append(os.Environ(), "STR_PARITY_CAPTURE=default"), "fixture", []string{"example.test/parity"}, "--profile", "local")
+	if plan.Scope != "ERROR" {
+		t.Fatalf("text default accepted as plan: %+v", plan)
+	}
+	plan = corvintPlan(context.Background(), o, ".", append(os.Environ(), "STR_PARITY_CAPTURE=full"), "fixture", []string{"example.test/parity"}, "--profile", "local")
+	if plan.Scope != "NARROWED" || plan.Error != "" || plan.Count != 1 || plan.Mismatch != "" || !reflect.DeepEqual(plan.Packages, []string{"example.test/parity"}) {
+		t.Fatalf("full local dry run did not decode: %+v", plan)
 	}
 }

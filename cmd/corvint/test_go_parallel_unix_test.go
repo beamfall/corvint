@@ -19,10 +19,10 @@ func TestSTRV0173GoParallelBindsTheManifest(t *testing.T) {
 	root, base, log := sessionFixture(t, "pass")
 	dir := t.TempDir()
 	declared, parallel := filepath.Join(dir, "declared.json"), filepath.Join(dir, "parallel.json")
-	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", declared); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", declared); code != 0 {
 		t.Fatalf("declared dry run %d %s", code, stderr)
 	}
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--go-parallel", "4", "--dry-run", "--manifest", parallel)
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--go-parallel", "4", "--dry-run", "--full", "--manifest", parallel)
 	if code != 0 || !strings.Contains(stdout, `"-p","4"`) || strings.Contains(stdout, `"-p","1"`) {
 		t.Fatalf("--go-parallel dry run %d %s\n%s", code, stderr, stdout)
 	}

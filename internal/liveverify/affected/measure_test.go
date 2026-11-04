@@ -681,8 +681,8 @@ func TestPythonSelectionNarrowsARealCorpus(t *testing.T) {
 // TSP-V0-7318: a load change between the probe and selection is calibrated
 // by the adjacent probe after it too; sustained selection regressions still fail.
 func TestSelectionCalibrationBracketsLoadChanges(t *testing.T) {
-	if got := calibratedSelection(120*time.Millisecond, 20*time.Millisecond, 40*time.Millisecond); got != 60*time.Millisecond {
-		t.Fatalf("load transition normalized to %s, want 60ms", got)
+	if got := calibratedSelection(120*time.Millisecond, 20*time.Millisecond, 40*time.Millisecond); got != 80*time.Millisecond {
+		t.Fatalf("load transition normalized to %s, want 80ms", got)
 	}
 	if got := calibratedSelection(240*time.Millisecond, 20*time.Millisecond, 40*time.Millisecond); got <= IncrementalBudget {
 		t.Fatalf("sustained regression disappeared: %s", got)
@@ -690,5 +690,5 @@ func TestSelectionCalibrationBracketsLoadChanges(t *testing.T) {
 }
 
 func calibratedSelection(elapsed, before, after time.Duration) time.Duration {
-	return time.Duration(float64(elapsed) * float64(referenceProbeP95) / float64(max(before, after, time.Nanosecond)))
+	return time.Duration(float64(elapsed) * float64(referenceProbeP95) / max((float64(before)+float64(after))/2, float64(time.Nanosecond)))
 }

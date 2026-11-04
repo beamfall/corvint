@@ -1,0 +1,84 @@
+{
+  "base": "6c33df33bc5670131482f5263b410cb980580657",
+  "round0Head": "4e4f5501f86dbd1cb98019486ead9c3c7ca0b321",
+  "goVersion": "go1.27.3",
+  "focusedTests": "NOT_RUN: required TMPDIR /var/tmp/pk-affected-fix is outside sandbox writable roots; wrapper refused before Go launched",
+  "broadCounts": {
+    "executed": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "status": "NOT_RUN"
+  },
+  "goldenRegeneration": "NOT_RUN: CORVINT_UPDATE_GOLDEN=1 requires the blocked test runner; viaLength corrected mechanically",
+  "build": "PASS: native binary rebuilt through heavy.sh",
+  "staticChecks": "PASS: traceability-tests-check, line-citations-check; generation-only --write passed",
+  "specRequirements": "generator succeeded; implicit test refused configured locks; mandated TMPDIR rerun refused mktemp",
+  "logs": {
+    "build.log": {
+      "path": "/tmp/pk-affected-fix-evidence/build.log",
+      "bytes": 624,
+      "sha256": "3ee3b69e1c08e9fc617cdff57a516595ef1ba557a62f27b6dfafc276c548973c"
+    },
+    "cmd-broad.log": {
+      "path": "/tmp/pk-affected-fix-evidence/cmd-broad.log",
+      "bytes": 1023,
+      "sha256": "03ff831a34cdf3ecf2fed581fe04243cc15096328e4c22cc71e933d66ce12a99"
+    },
+    "affected-tests.log": {
+      "path": "/tmp/pk-affected-fix-evidence/affected-tests.log",
+      "bytes": 1023,
+      "sha256": "03ff831a34cdf3ecf2fed581fe04243cc15096328e4c22cc71e933d66ce12a99"
+    },
+    "sessiontest-tests.log": {
+      "path": "/tmp/pk-affected-fix-evidence/sessiontest-tests.log",
+      "bytes": 1023,
+      "sha256": "03ff831a34cdf3ecf2fed581fe04243cc15096328e4c22cc71e933d66ce12a99"
+    },
+    "dogfoodflow-tests.log": {
+      "path": "/tmp/pk-affected-fix-evidence/dogfoodflow-tests.log",
+      "bytes": 1023,
+      "sha256": "03ff831a34cdf3ecf2fed581fe04243cc15096328e4c22cc71e933d66ce12a99"
+    },
+    "parity-tests.log": {
+      "path": "/tmp/pk-affected-fix-evidence/parity-tests.log",
+      "bytes": 1023,
+      "sha256": "03ff831a34cdf3ecf2fed581fe04243cc15096328e4c22cc71e933d66ce12a99"
+    },
+    "doc-checks-final.log": {
+      "path": "/tmp/pk-affected-fix-evidence/doc-checks-final.log",
+      "bytes": 148,
+      "sha256": "7d6bb5e3b394557bd55cfa8f2082e943eec85216abc2522e6fb937d490273049"
+    },
+    "spec-generation-only.log": {
+      "path": "/tmp/pk-affected-fix-evidence/spec-generation-only.log",
+      "bytes": 1763,
+      "sha256": "7e5d1c3dad6ccae7c74c1913208bedc628d2a882d0ed3eaae7db065d6b88aa2f"
+    },
+    "spec-requirements.log": {
+      "path": "/tmp/pk-affected-fix-evidence/spec-requirements.log",
+      "bytes": 3352,
+      "sha256": "5b0f281a192aecfe02b7798283cacd995dc20715d0c582f417ea409431c6d323"
+    },
+    "spec-requirements-mandated-env.log": {
+      "path": "/tmp/pk-affected-fix-evidence/spec-requirements-mandated-env.log",
+      "bytes": 183,
+      "sha256": "ac27622cae05041263cc88a72f4ed2cb0ae1f1aafd2c404b13c84de88d986089"
+    },
+    "repin.log": {
+      "path": "/tmp/pk-affected-fix-evidence/repin.log",
+      "bytes": 2136,
+      "sha256": "f268811c0ff0a533bb942c1307089ee35918e493f483ae8e4a28758b32f524a3"
+    },
+    "witness-smoke.json": {
+      "path": "/tmp/pk-affected-fix-evidence/witness-smoke.json",
+      "bytes": 1489,
+      "sha256": "df6c5f3cdf67f295c4d45c84fe3a18e3b05fa7b7eda434bca81915cb32b2e1f2"
+    },
+    "affected.json": {
+      "path": "/tmp/pk-affected-fix-evidence/affected.json",
+      "bytes": 116879,
+      "sha256": "aa5f6b121c16c3ed9383b03fcc952e32f614e7198cfa4152700f52ffb5b75265"
+    }
+  }
+}

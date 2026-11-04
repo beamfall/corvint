@@ -106,7 +106,7 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 			}
 		}
 		manifest := filepath.Join(t.TempDir(), "manifest.json")
-		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", manifest)
+		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest)
 		if code != 0 {
 			t.Fatalf("code %d stderr %q", code, stderr)
 		}

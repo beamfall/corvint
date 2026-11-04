@@ -26,7 +26,7 @@ func mustRead(t *testing.T, path string) []byte {
 
 func runTestPlanCLI(t *testing.T, arguments ...string) (int, string, string) {
 	t.Helper()
-	if hasTestArg(arguments, "--dry-run") && !hasTestArg(arguments, "--summary") && !hasTestArg(arguments, "--pins") && !hasTestArg(arguments, "--full") {
+	if len(arguments) > 0 && arguments[0] == "test" && hasTestArg(arguments, "--dry-run") && !hasTestArg(arguments, "--summary") && !hasTestArg(arguments, "--pins") && !hasTestArg(arguments, "--full") {
 		arguments = append(arguments, "--full")
 	}
 	var stdout, stderr bytes.Buffer

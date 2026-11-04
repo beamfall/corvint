@@ -51,7 +51,7 @@ func TestTSPV0941DryRunSeedsMovedDeclarations(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "m.json"))
+		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", filepath.Join(t.TempDir(), "m.json"))
 		if code != 0 {
 			t.Fatalf("code %d stderr %q", code, stderr)
 		}

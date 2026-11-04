@@ -119,7 +119,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `unsupported-affected-revision`, `unsupported-affected-status`, `unsupported-affected-graph`
   (including an unreadable subtree, or an accepted source file whose repository-relative path is no
   canonical unit path, such as a name holding a backslash, both of which `affected.SourceFiles` now
-  refuses instead of silently narrowing the unit set), `unsupported-affected-drift`, or
+  refuses instead of silently narrowing the unit set), `unsupported-affected-drift`,
+  `unsupported-affected-temp`, or
   `invalid-arguments`.
 - **AFP-V0-007:** `plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
   distance from the dirty path, ascending — the length of `witness.via`, so a directly changed
@@ -5516,6 +5517,10 @@ this repository (WSL host, 2026-10-31) for `docs/GLOSSARY.md` and `docs/agent-me
 two single `--path --no-cache` calls 4.67 s and 3.78 s with 27 KB of overlapping text; one
 `--by-path` call 2.08 s (cached) and 6.45 s (`--no-cache`), 13 KB, 44 shared units listed once and
 5 additions per path. Rollback: remove `--by-path` and `cmd/corvint/affected_by_path.go`.
+
+Changelog (2026-11-04; V1-4439, TSP-V0-7311): the by-path addition `witness` field
+changed from a kind string to the shared witness object, including `kind`, `dirtyPath`,
+`viaLength`, and optional chain and cause fields. Selection is unchanged.
 
 ### Historical replay of the shadow tiers (AFP-V0-991; V1-3664)
 

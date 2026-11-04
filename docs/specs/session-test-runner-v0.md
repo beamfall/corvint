@@ -670,7 +670,8 @@ two requirements make its version name its content and make each receipt carry i
 | `test shards` list empty, oversized, repeated or malformed entry; bad count or K | exit 2, no plan |
 | `--shard-plan` a FIFO, device, directory, symbolic link, missing or oversized (STR-V0-055) | exit 2 `test-shard-plan-unreadable` at once, nothing runs |
 | `--shard-plan` non-canonical, incomplete, with a foreign digest, or with an incomplete, misflagged, oversized or co-located slice set | exit 2, nothing runs |
-| `test shards` supplied table not admitted (STR-V0-056) | STR-V0-053 fallback, reason begins `test-shards-history-invalid` |
+| `test shards` supplied table not admitted (STR-V0-056) | STR-V0-7305 | `Runner.Execute`, optional `Receipt.CompletedAt` | `TestExecuteCompletionTime_STRV07305` |
+| STR-V0-053 fallback, reason begins `test-shards-history-invalid` |
 | `test shards` only one of `--test-slices` and `--split-allow`, or either unreadable | exit 2, no plan |
 | Slice file or allow-list unusable, over 256 slices or 4 MiB of slices, or history fallback (STR-V0-057) | nothing split, every entry whole |
 | `refresh --history` refused refresh, bad `--keep` or `--at` | exit 2, neither table nor retained file written |

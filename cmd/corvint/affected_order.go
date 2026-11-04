@@ -132,7 +132,7 @@ func orderAffectedSelection(selected []affectedCompactSelection, receipts []affe
 }
 
 // readFailFastReceipts reads at most maxFailFastReceipts `corvint test`
-// receipts under gitDir/corvint: newest completedAt, or mtime when absent, ties broken by
+// receipts under gitDir/corvint: newest mtime prefix, then bounded completedAt headers, ties broken by
 // name, listed in name order. A receipt that cannot be read, is not canonical,
 // or changes while read is UNREADABLE with its reason and contributes no
 // failure. An absent directory reads nothing; a directory that exists but
@@ -161,15 +161,13 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 		var modified time.Time
 		if info, err := entry.Info(); err == nil {
 			modified = info.ModTime()
-			if completed, ok := failFastContentTime(filepath.Join(directory, entry.Name())); ok {
-				modified = completed
-			}
 		} else {
-			if unlisted != "" {
-				unlisted += "; "
-			}
 			if len(unlisted) < 4096 {
-				unlisted += "receipt metadata unreadable: corvint/" + entry.Name()
+				detail := "receipt metadata unreadable: corvint/" + entry.Name()
+				if unlisted != "" {
+					detail = "; " + detail
+				}
+				unlisted += detail[:min(len(detail), 4096-len(unlisted))]
 			}
 		}
 		candidates = append(candidates, candidate{entry.Name(), modified})
@@ -182,6 +180,13 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 	})
 	if len(candidates) > maxFailFastReceipts {
 		candidates = candidates[:maxFailFastReceipts]
+	}
+	// TSP-V0-7305: header I/O is bounded by the mtime prefix, including on
+	// repositories that have accumulated arbitrarily many receipt files.
+	for i := range candidates {
+		if completed, ok := readFailFastContentTime(filepath.Join(directory, candidates[i].name)); ok {
+			candidates[i].modified = completed
+		}
 	}
 	names := make([]string, 0, len(candidates))
 	for _, kept := range candidates {
@@ -237,6 +242,7 @@ func readFailFastReceipt(directory, name string) affectedOrderReceipt {
 }
 
 var readFailFastDirectory = os.ReadDir
+var readFailFastContentTime = failFastContentTime
 
 // failFastContentTime reads only a bounded header for ordering; a missing,
 // invalid or over-bound timestamp falls back to mtime. Strict receipt admission

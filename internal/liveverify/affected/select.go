@@ -105,7 +105,7 @@ func (witness Witness) MarshalJSON() ([]byte, error) {
 	type wire Witness
 	return json.Marshal(struct {
 		wire
-		AnyDirtyPath bool `json:"anyDirtyPath,omitempty"`
+		AnyDirtyPath bool `json:"anyDirtyPath,omitzero"`
 		ViaLength    int  `json:"viaLength"`
 	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader, ViaLength: witness.ViaLength()})
 }
