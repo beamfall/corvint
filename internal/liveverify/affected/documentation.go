@@ -194,3 +194,23 @@ func instructionHints(unknown []Unknown) {
 		}
 	}
 }
+
+// driverInputUnownedHint is AFP-V0-2405's statement of why an unowned build or
+// CI driver input (driverInput: a make file, a workflow or action file) keeps
+// its UNOWNED_DIRTY_PATH: no declaration may map it to its consumers
+// (AFP-V0-602 refuses such an entry), because every recipe or job it defines
+// runs through it, so its readers by path literal or declared read scope are
+// selected and the entry stays to say that nothing narrower is sound.
+const driverInputUnownedHint = "build or CI driver input: every recipe or job it defines runs through it, so no declaration maps it to its consumers (AFP-V0-602, AFP-V0-2405); its readers by path literal, declared read scope or unbounded read are selected, and a runner of its steps (a shell-test step, a CI job) treats it as reaching every step"
+
+// driverInputHints annotates, in place, each UNOWNED_DIRTY_PATH that is a
+// driver input and carries no hint yet (AFP-V0-2405). It changes neither
+// selection nor scope.
+func driverInputHints(unknown []Unknown) {
+	for index := range unknown {
+		entry := &unknown[index]
+		if entry.Reason == UnknownUnownedDirtyPath && entry.Hint == "" && driverInput(entry.Detail) {
+			entry.Hint = driverInputUnownedHint
+		}
+	}
+}

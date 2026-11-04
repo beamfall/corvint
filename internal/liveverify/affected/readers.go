@@ -309,6 +309,27 @@ func shellReadScopesChanged(normalized []string) []Unknown {
 	return []Unknown{{Reason: UnknownLanguageFrontier, Detail: FrontierShellReadScopesChanged}}
 }
 
+// ShellTestInputsPath is the repository's declaration of the inputs each
+// declared shell test reads by a word the shell plugin does not resolve
+// (AFP-V0-2400). The plugin reads it when the graph is built, so a plan over a
+// changed declaration would judge the test's inputs by the change itself: a
+// plan with the declaration dirty, deleted included, is UNKNOWN
+// (shellTestInputsChanged).
+const ShellTestInputsPath = ".corvint/shell-test-inputs.json"
+
+// FrontierShellTestInputsChanged is the unknown detail of a plan whose dirty
+// paths hold ShellTestInputsPath (AFP-V0-2400).
+const FrontierShellTestInputsChanged = "shell:test-inputs-changed"
+
+// shellTestInputsChanged returns the AFP-V0-2400 unknown when normalized holds
+// the shell test input declaration.
+func shellTestInputsChanged(normalized []string) []Unknown {
+	if !slices.Contains(normalized, ShellTestInputsPath) {
+		return nil
+	}
+	return []Unknown{{Reason: UnknownLanguageFrontier, Detail: FrontierShellTestInputsChanged}}
+}
+
 // foreignCallersChanged returns the TSP-V0-005 unknown when normalized holds
 // the shell foreign-caller declaration.
 func foreignCallersChanged(normalized []string) []Unknown {
