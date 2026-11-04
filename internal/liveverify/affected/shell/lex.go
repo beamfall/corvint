@@ -314,7 +314,10 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				op += op
 			}
 			endAt(op)
-			l.pos++
+			// Past the whole operator: a second `&` or `|` read again
+			// would end an empty command and turn the next command's
+			// `&&` or `||` lead into `&` or `|`.
+			l.pos += len(op)
 		case (c == '<' || c == '>') && l.peek(1) == '(':
 			begin()
 			l.pos += 2

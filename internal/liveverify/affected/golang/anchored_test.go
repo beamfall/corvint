@@ -64,8 +64,8 @@ func TestAnchoredTokensResolveFromModuleBases_AFPV02203(t *testing.T) {
 // component-run relation at any depth, because the root it is joined to may
 // come from the environment, which no literal of the unit places. A reader
 // of `os.Getenv("FIXTURES") + "/repo/lib.js"` stays selected for
-// app/x/repo/lib.js alongside app/x, the package that encloses the path. The
-// lone "/lib.js" of another unit is still placed (AFP-V0-072's residual).
+// app/x/repo/lib.js alongside app/x, the package that encloses the path.
+// Round 7: so does the lone "/lib.js" of another unit, the path's file name.
 func TestRuntimeRootedRunsKeepComponentRuns_AFPV02203(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -75,6 +75,45 @@ func TestRuntimeRootedRunsKeepComponentRuns_AFPV02203(t *testing.T) {
 		"app/x/repo/lib.js":     "export const x = 1\n",
 		"reader/reader_test.go": "package reader\n\nimport \"os\"\n\nvar lib = os.Getenv(\"FIXTURES\") + \"/repo/lib.js\"\n",
 		"lone/lone_test.go":     "package lone\n\nimport \"os\"\n\nvar lib = os.Getenv(\"FIXTURES\") + \"/lib.js\"\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"app/x/repo/lib.js"})
+	var readers, others []string
+	for _, selection := range plan.Selected {
+		if selection.Witness.Kind == affected.WitnessPathLiteralReader {
+			readers = append(readers, selection.Tests...)
+		} else {
+			others = append(others, selection.UnitID)
+		}
+	}
+	if got := fmt.Sprint(readers); got != "[lone/lone_test.go reader/reader_test.go]" {
+		t.Errorf("path-literal readers = %s, want [lone/lone_test.go reader/reader_test.go]", got)
+	}
+	if got := fmt.Sprint(others); got != "[go:example.test/m/app/x]" {
+		t.Errorf("other selections = %s, want [go:example.test/m/app/x]", got)
+	}
+}
+
+// AFP-V0-2203 round 7: a test that reads `os.Getenv("FIXTURES") + "/lib.js"`,
+// with FIXTURES naming app/x/repo, reads app/x/repo/lib.js though none of its
+// literals spells app, x or repo, so its lone anchored run, the path's file
+// name, keeps the unit selected without placement. Controls: an anchored
+// lone run naming another file and one naming only an unplaced directory
+// component (`"/repo"`) select nothing.
+func TestRuntimeRootedFileNamesStaySelected_AFPV02203(t *testing.T) {
+	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(os.Getenv(\"FIXTURES\") + %q); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                "module example.test/m\n",
+		"app/x/x.go":            "package x\n",
+		"app/x/x_test.go":       "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+		"app/x/repo/lib.js":     "export const x = 1\n",
+		"reader/reader_test.go": fmt.Sprintf(read, "reader", "/lib.js"),
+		"other/other_test.go":   fmt.Sprintf(read, "other", "/other.js"),
+		"dir/dir_test.go":       fmt.Sprintf(read, "dir", "/repo"),
 	})
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {

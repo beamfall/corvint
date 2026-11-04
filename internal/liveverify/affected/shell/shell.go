@@ -1099,6 +1099,12 @@ func unconditionalAssignment(r *resolver, parsed script, text, name string) bool
 	if command.substituted || command.inFunction || command.block != 0 {
 		return false
 	}
+	// A redirection on the assignment (`tmp=$(mktemp -d) 3>&9`) can fail,
+	// and a shell such as dash then performs no assignment, leaving an
+	// inherited value in place; nothing here proves it succeeds.
+	if len(command.words) != 1 {
+		return false
+	}
 	switch command.lead {
 	case "&&", "||", "|", "&":
 		return false
@@ -1117,9 +1123,14 @@ func unconditionalAssignment(r *resolver, parsed script, text, name string) bool
 	// after a compound command's closing `}`, `)`, `fi`, `done` or `esac`,
 	// and a compound's inner `;` is no end of the list, so a list that
 	// continues into a compound command (or any reserved word) has no end
-	// this scan can find, and the name is no temp root. A command or
-	// process substitution's commands sit inside a later list member and
-	// end nothing.
+	// this scan can find, and the name is no temp root. A compound command
+	// that holds no simple command (`case x in esac`) leaves no command of
+	// its own, only a lead on the next one that differs from the trail
+	// before it (`&` after `&&`), so a lead that does not continue the
+	// previous member's operator also ends where the scan cannot see. A command or process
+	// substitution's commands sit inside a later list member and end
+	// nothing.
+	previous := command.trail
 list:
 	for next := at; next < len(parsed.commands); next++ {
 		member := parsed.commands[next]
@@ -1127,9 +1138,10 @@ list:
 			if member.substituted {
 				continue
 			}
-			if member.block != 0 || member.inFunction || slices.ContainsFunc(member.words, reservedWord) {
+			if member.lead != previous || member.block != 0 || member.inFunction || slices.ContainsFunc(member.words, reservedWord) {
 				return false
 			}
+			previous = member.trail
 		}
 		switch member.trail {
 		case "&&", "||", "|":

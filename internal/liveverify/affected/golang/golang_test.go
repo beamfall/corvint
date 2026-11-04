@@ -766,14 +766,17 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct{ dirty, want string }{
-		// The PR #1134 shape: a spec index edit no longer selects the fixture.
-		{"docs/specs/README.md", "[joined/joined_test.go multi/multi_test.go]"},
+		// The PR #1134 shape: a spec index edit no longer selects the
+		// fixture. anchored's `root + "/README.md"` joins the file name to a
+		// root supplied at run time, so it names every README.md
+		// (AFP-V0-2203 round 7).
+		{"docs/specs/README.md", "[anchored/anchored_test.go joined/joined_test.go multi/multi_test.go]"},
 		// The unit's own subtree, where its tests run, keeps the fixture.
-		{"tempfixture/testdata/README.md", "[tempfixture/fixture_test.go]"},
+		{"tempfixture/testdata/README.md", "[anchored/anchored_test.go tempfixture/fixture_test.go]"},
 		// A root-level file has no directory to place.
 		{"README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
 		// Every directory component is in the vocabulary of joined only.
-		{"docs/README.md", "[joined/joined_test.go]"},
+		{"docs/README.md", "[anchored/anchored_test.go joined/joined_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})

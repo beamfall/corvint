@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -914,6 +915,73 @@ func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
 		}
 		if kept != tc.kept {
 			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
+		}
+	}
+}
+
+// AFP-V0-2243 and AFP-V0-2204 round 7: a compound command that holds no
+// simple command (`case x in esac`) leaves no command for the scan, only the
+// `&` it ends with, so a list that backgrounds the assignment through it keeps
+// the read's token; and a redirection on the assignment can fail (dash then
+// skips the assignment), so a redirected assignment is no temp root.
+// Each counterexample is also run under its shell, with an inherited
+// tmp=. and descriptor 9 closed, to show the read reaches the repository
+// file. Controls: an empty case on its own line, a list continued over a
+// newline and a redirection on the list's right side keep the narrowing.
+func TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243(t *testing.T) {
+	root := t.TempDir()
+	const read = "cat \"$tmp/internal/x/y.json\"\n"
+	type shellCase struct {
+		name, shell, body string
+		kept              bool
+	}
+	cases := []shellCase{
+		{"empty case background", "bash", "tmp=$(mktemp -d) && case x in esac & wait; " + read, true},
+		{"empty case background dash", "dash", "tmp=$(mktemp -d) && case x in esac & wait; " + read, true},
+		{"empty case background newline", "bash", "tmp=$(mktemp -d) && case x in esac &\nwait\n" + read, true},
+		{"empty case or background", "bash", "tmp=$(mktemp -d) || case x in esac & wait; " + read, true},
+		{"empty arm case background", "bash", "tmp=$(mktemp -d) && case x in y) ;; esac & wait; " + read, true},
+		{"empty case then list background", "bash", "tmp=$(mktemp -d) && case x in esac && true & wait; " + read, true},
+		{"redirect failing or", "dash", "tmp=$(mktemp -d) 3>&9 || :\n" + read, true},
+		{"redirect failing and", "dash", "tmp=$(mktemp -d) 3>&9 && :\n" + read, true},
+		{"redirect own line", "dash", "tmp=$(mktemp -d) 2>/dev/null\n" + read, true},
+		{"redirect before", "dash", "3>&9 tmp=$(mktemp -d) || :\n" + read, true},
+		// Controls.
+		{"empty case own line", "bash", "case x in esac\ntmp=$(mktemp -d) || exit 1\n" + read, false},
+		{"list continued", "bash", "tmp=$(mktemp -d) &&\n  cd \"$tmp\"\n" + read, false},
+		{"redirect on the right", "dash", "tmp=$(mktemp -d) || echo no >&2\n" + read, false},
+	}
+	file := func(name string) string { return "lib/" + strings.ReplaceAll(name, " ", "-") + "_test.sh" }
+	for _, tc := range cases {
+		write(t, root, file(tc.name), "#!/usr/bin/env "+tc.shell+"\n"+tc.body)
+	}
+	got := units(t, root)
+	for _, tc := range cases {
+		unit := unitOf(t, got, file(tc.name))
+		kept := false
+		for _, token := range unit.PathTokens {
+			kept = kept || strings.HasSuffix(token, "internal/x/y.json")
+		}
+		if kept != tc.kept {
+			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
+		}
+	}
+	// Run the counterexamples: each reads the repository's
+	// internal/x/y.json through the inherited tmp=. it was meant to replace.
+	write(t, root, "internal/x/y.json", "{\"read\":true}\n")
+	for _, name := range []string{"empty case background", "empty case background dash", "redirect failing or"} {
+		tc := cases[slices.IndexFunc(cases, func(c shellCase) bool { return c.name == name })]
+		shell, err := exec.LookPath(tc.shell)
+		if err != nil {
+			t.Logf("%s: %s not installed; run skipped", name, tc.shell)
+			continue
+		}
+		run := exec.Command(shell, file(name))
+		run.Dir = root
+		run.Env = append(os.Environ(), "tmp=.")
+		out, _ := run.CombinedOutput()
+		if !strings.Contains(string(out), `{"read":true}`) {
+			t.Errorf("%s under %s did not read the repository file: %s", name, tc.shell, out)
 		}
 	}
 }

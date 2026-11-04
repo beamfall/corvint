@@ -13,8 +13,10 @@ package gateselect
 //     outside its holder's subtree only when, joined to the repository root,
 //     the holder's directory or one of its ancestors, it is the path or an
 //     ancestor of it, when a run of two or more of its components matches
-//     anywhere, or when a lone-component run matches after components a
-//     literal of the package could join.
+//     anywhere, when a lone-component run is the path's file name (its root
+//     may come from the environment), or when a lone-component run matches
+//     a directory component after components a literal of the package
+//     could join.
 //   - AFP-V0-2241: a lone component of an unanchored, non-climbing token
 //     names only the file name, and a package that only such tokens name
 //     reaches the path in its own subtree or, from the root (or an ancestor
@@ -83,7 +85,11 @@ func (index *repositoryIndex) namesWithin(directory, dirtyPath string, climbing 
 			if anchoredWithin(bases, value, parts) || longRunNames(value, parts) {
 				return true
 			}
-			prefixes = append(prefixes, runOffsets(value, parts)...)
+			offsets := runOffsets(value, parts)
+			if slices.Contains(offsets, len(parts)-1) {
+				return true
+			}
+			prefixes = append(prefixes, offsets...)
 			climbs = climbs || slices.Contains(strings.Split(value, "/"), "..")
 			continue
 		}
@@ -113,10 +119,11 @@ func (index *repositoryIndex) namesWithin(directory, dirtyPath string, climbing 
 			vocabulary[component] = true
 		}
 	}
-	// An anchored token joined to a root assembled at run time from the
-	// package's literals: every component before the run must be one a
-	// literal could join, from the root or from the package's possible
-	// module directories.
+	// An anchored token's lone run that matches a directory component,
+	// joined to a root assembled at run time from the package's literals:
+	// every component before the run must be one a literal could join, from
+	// the root or from the package's possible module directories. A lone run
+	// that is the file name was decided above.
 	for _, offset := range prefixes {
 		before := strings.Join(parts[:offset], "/")
 		for _, base := range bases {
@@ -210,7 +217,9 @@ func longRunNames(value string, parts []string) bool {
 // runOffsets lists the offsets at which a lone-component run of an anchored
 // token matches a component of parts (at every offset: an anchored token's
 // lone component is not limited to the file name); longRunNames decides a
-// longer run.
+// longer run. An offset at the file name keeps the reader without placement
+// (round 7: `os.ReadFile(os.Getenv("FIXTURES") + "/lib.js")` reads
+// app/x/repo/lib.js), as a run of two or more components does.
 func runOffsets(value string, parts []string) []int {
 	var offsets []int
 	for _, candidate := range componentRuns(value) {

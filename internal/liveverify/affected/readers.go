@@ -482,8 +482,8 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 	climbs, named := false, false
 	// prefixes holds, for each anchored token that does not resolve from a
 	// base, the number of leading path components before a lone-component
-	// run of it matches: the run then needs those components placed
-	// (AFP-V0-2203). A run of two or more components keeps the
+	// run of it matches a directory component: the run then needs those
+	// components placed (AFP-V0-2203). A run of two or more components keeps the
 	// component-run relation, as an unanchored one does: the root it is
 	// joined to may come from the environment or another value no literal
 	// spells (`os.Getenv("FIXTURES") + "/repo/lib.js"`).
@@ -494,7 +494,15 @@ func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string, mo
 				if anchored || longRunNames(value, parts) {
 					return true
 				}
-				prefixes = append(prefixes, runOffsets(value, parts)...)
+				// A lone run that is the file name keeps the reader
+				// at any depth, as a longer run does (round 7): its
+				// root may come from the environment too
+				// (`os.ReadFile(os.Getenv("FIXTURES") + "/lib.js")`).
+				offsets := runOffsets(value, parts)
+				if slices.Contains(offsets, len(parts)-1) {
+					return true
+				}
+				prefixes = append(prefixes, offsets...)
 			} else if namesPath(value, parts) {
 				return true
 			}

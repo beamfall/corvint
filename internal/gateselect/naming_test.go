@@ -108,8 +108,8 @@ func TestRuleCAnchoredTokens_AFPV02240(t *testing.T) {
 // placing every anchored run: a reader of `os.Getenv("FIXTURES") +
 // "/repo/lib.js"` joins its run to a root no literal spells, so it stays a
 // reader of app/x/repo/lib.js wherever that run lies, next to app/x, the
-// package that encloses the path. The lone "/lib.js" of another package is
-// still placed, as an unanchored lone token is (AFP-V0-072).
+// package that encloses the path. Round 7: so does the lone "/lib.js" of
+// another package, which is the path's file name.
 func TestRuleCRuntimeRootedRuns_AFPV02240(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
@@ -119,6 +119,41 @@ func TestRuleCRuntimeRootedRuns_AFPV02240(t *testing.T) {
 		"reader/reader_test.go": "package reader\n\nimport \"os\"\n\nvar lib = os.Getenv(\"FIXTURES\") + \"/repo/lib.js\"\n",
 		"lone/lone_test.go":     "package lone\n\nimport \"os\"\n\nvar lib = os.Getenv(\"FIXTURES\") + \"/lib.js\"\n",
 	})
+	var plan Receipt
+	plan.Provider.Go.State = "RUNNABLE"
+	plan.Plan.Dirty = []string{"app/x/repo/lib.js"}
+	if got, want := verdict(plan, root), "run example.com/fixture/app/x example.com/fixture/lone example.com/fixture/reader"; got != want {
+		t.Fatalf("verdict = %q, want %q", got, want)
+	}
+}
+
+// TestRuleCRuntimeRootedFileNames_AFPV02240 is round 7's review
+// counterexample: a test that reads `os.Getenv("FIXTURES") + "/lib.js"`, with
+// FIXTURES naming app/x/repo, reads app/x/repo/lib.js though no literal of
+// its package spells app, x or repo, so placement cannot bound its lone
+// anchored run once that run is the file name. The reader stays in the
+// verdict beside app/x, which encloses the path. Controls: an anchored lone
+// run naming another file, and one naming only a directory component the
+// package does not place (`"/repo"`, the AFP-V0-2240 narrowing), are no
+// readers.
+func TestRuleCRuntimeRootedFileNames_AFPV02240(t *testing.T) {
+	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(os.Getenv(\"FIXTURES\") + %q); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
+	root := writeFixture(t, map[string]string{
+		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
+		"app/x/x.go":            "package x\n",
+		"app/x/x_test.go":       "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+		"app/x/repo/lib.js":     "export const x = 1\n",
+		"reader/reader_test.go": fmt.Sprintf(read, "reader", "/lib.js"),
+		"other/other_test.go":   fmt.Sprintf(read, "other", "/other.js"),
+		"dir/dir_test.go":       fmt.Sprintf(read, "dir", "/repo"),
+	})
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := index.readers("app/x/repo/lib.js"); !slices.Equal(got, []string{"reader"}) {
+		t.Errorf("readers(app/x/repo/lib.js) = %v, want [reader]", got)
+	}
 	var plan Receipt
 	plan.Provider.Go.State = "RUNNABLE"
 	plan.Plan.Dirty = []string{"app/x/repo/lib.js"}
