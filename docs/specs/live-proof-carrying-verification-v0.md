@@ -838,6 +838,79 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   browser E2E coverage is the browser collector's (`LPCV-V0-970..979`). Until then the static plan
   stands for every JavaScript change. Rollback is removing the sub-plugin entry, which restores
   `coverage-collector-missing`.
+- `LPCV-V0-970`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) The browser E2E collector (`internal/browsercov`, CLI
+  `browsercov collect`) runs each spec file once in order and then each test alone, with every Node
+  process of the run preloaded through `NODE_OPTIONS` and `NODE_V8_COVERAGE`, and joins the
+  browser's precise V8 block coverage with the coverage of the server under test into one
+  `LPCV-V0-950` record per test in the `internal/linecov` profile and index format. Every record of a
+  collection names one runner identity: collector version, runner and version, browser version,
+  Node version and `v8-precise`. A test whose name another test in its file shares, or whose
+  run alone did not run exactly one test, gets an incomplete record. Evidence: `TestE2EPlaywright`,
+  `TestE2ECypress`, `TestAloneOneTest`, `TestDuplicateNames`.
+- `LPCV-V0-971`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Playwright (`@playwright/test`): the hook instruments each
+  worker process and attaches a CDP session to every page of every Chromium browser context, taking
+  coverage when the context closes; a page opened without a session, a page closed other than by
+  `page.close()` or its context (`window.close`, a crash), a dedicated or service worker
+  that may run repository code, or a context still open when the worker exits makes the record
+  incomplete. A configured `webServer` is the server under test; the worker flushes it again as it
+  exits, and the collector kills any of its processes left alive after the runner ends. Firefox and
+  WebKit projects have no precise coverage and are refused.
+- `LPCV-V0-972`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) A browser script binds to a tracked file by, in order: a
+  `file:` URL inside the repository, a source equal to a tracked blob, a source map whose
+  `sourcesContent` is a tracked blob, or an inline script of a tracked HTML page. Content that
+  several tracked files share binds to the one copy the source path names, or refuses the record. Scripts from a
+  non-loopback origin, the runners' own routes (`/__cypress*`, `/__/`), V8 pseudo-URLs
+  (`<embedded>`, `debugger:`, `evalmachine.`) and the script Cypress injects into the page are not
+  repository code and are skipped. Any other loopback or in-repository script that binds to no tracked
+  file makes the record incomplete, as does an untracked file under the root outside `node_modules`
+  and the collector's own generated files. A map's `sourceRoot` prefixes each source; an absolute
+  source (a `file:` URL or an existing rooted path) names its file, which must be tracked when it is
+  inside the root. Node's offsets start after a byte-order mark. Limits: an `eval`'d or
+  `new Function` script has no URL and is not recorded; a build output's own source map on disk is
+  not read. Evidence: `TestAttributeRefusals`, `TestAttributeSourceMap`, `TestAttributeMapSourceRoot`,
+  `TestAttributeFileBOM`, `TestAttributeInlineHTML`, `TestPickSuffix`.
+- `LPCV-V0-973`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) A record's blocks are the same spans for every run of a
+  file, split where V8 counts change and trimmed at line ends, so `linecov.Build` unions runs and a
+  line no run executed selects no test. Evidence: `TestRecordsShareBlocksAcrossRuns`,
+  `TestPaintInnermostWins`.
+- `LPCV-V0-974`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Before a server under test is stopped, each of its Node
+  processes is sent SIGUSR2 and answers with `v8.takeCoverage()`; a process that does not answer
+  within 10 seconds, a process under test that wrote no coverage (one killed outright or crashed),
+  or a run with a declared server that recorded no tracked server file, makes the record incomplete. The runner and its workers run test code the runner transpiles, so their
+  coverage is never part of a record; when they ran repository code other than the spec being run
+  and the runners' configuration files (a helper or application module a test imports), the record
+  is incomplete, since its V8 offsets are not offsets into the file. A server's process group is
+  sent SIGTERM and, 10 seconds later, killed if any process remains, including after its shell has
+  exited. Evidence: `TestRunnerConfig`, `TestServerStopKillsLeftovers`, `TestUndumped`.
+- `LPCV-V0-975`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Cypress: the collector writes a wrapper configuration and
+  support file beside the project's JavaScript configuration, removed when it ends, and requires a
+  Chromium-family `--browser` and a server command, since Cypress starts neither the DevTools port
+  nor the application. Browser coverage is taken in a root `after()` hook of each spec, because
+  Cypress closes the spec's tab before `after:spec`; code that runs after that hook is not recorded.
+  Each test waits in a root `beforeEach` until the DevTools connection is up, and a worker target
+  that may run repository code makes the record incomplete. Limit: a renderer swap (a cross-origin
+  navigation to another loopback origin) starts a new target whose earlier scripts are recorded only
+  from attach.
+  Spec paths are Cypress's absolute paths taken relative to the root, which is Cypress's working
+  directory, so a configuration in a subdirectory names the same files.
+  A TypeScript Cypress configuration is refused, and a non-zero `cypress run` exit with no failed
+  test fails the collection. Evidence: `TestAnyFailed`, `TestRootRel`.
+- `LPCV-V0-976`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) The hook runs only in a process's main thread, records each
+  process's role (runner, worker or process under test), and fetches an external source map only
+  for a script that may be repository code, so it never sends the server under test a request of
+  its own for a runner's script.
+- `LPCV-V0-977`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) The collector runs each runner and server in its own process
+  group and kills the group when the command ends, so a runner that dies leaves no server holding
+  the port; it resolves the root to an absolute path; and when the inherited temporary directory is
+  too long for Chromium's singleton socket it gives the runner a short private one.
+- `LPCV-V0-978`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) Protractor, WebdriverIO, TestCafe, Nightwatch, Storybook
+  test-runner and Detox are refused, as is Windows, where a process under test cannot be asked to
+  write its coverage before a runner kills it. Refused families keep the static plan
+  (`LPCV-V0-955`).
+- `LPCV-V0-979`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368) The collector ships as the TypeScript plugin's `linecov-browser`
+  Coverage sub-plugin, confined to `internal/browsercov` (`LGP-V0-020`). A browser-reachable
+  loopback host that drops IPv4 connects to a closed port can stall a runner's server-ready check;
+  the fixture serves on `[::1]` for that reason. Evidence: `make plugin-test PLUGIN=typescript`.
 
 Failure modes for this section:
 
@@ -987,6 +1060,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-032..036` IDE and agent API | not-started | identical-receipt two-client conformance |
 | `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); Go prototype measured in decision 0590; Ruby collector implemented, unqualified (V1-4374): `LPCV-V0-950`, `952`, `953`; `954` partly (subprocesses and `exec` join their test; a fork that exits without `at_exit` leaves no dump); `955` partly (RSpec, Minitest, test-unit in one process; Rails `parallelize` workers and data-driven test-unit tests that share a name are not recorded); `962` partly (an incomplete or crashed run publishes no record; the collector runs in order only, with no isolated pass or `isolation-divergent` check, so its index lists every recorded file as unordered and every plan runs whole until V1-4415). An edit selects every test of the innermost method containing it, since Ruby line counts are not a safe per-line owner (a `when` line counts 0) | per-collector fixture suite, 1,000-change CI shadow and fault-injection qualification with zero misses, `LPCV-V0-958` latency and size. Ruby: `internal/rubylinecov`'s `TestLPCVV0955LiveMinitestPerTest`, `TestLPCVV0955LiveTestUnitPerTest`, `TestLPCVV0955LiveRSpecThroughDocker` (per-test records in one process, subprocess join, a real diff mapped and planned), `TestLPCVV0954DumpJoinAndIncompleteness` and `TestLPCVV0953RubyFallbacks`; no fault-injection or real-repository qualification has run (`NOT_RUN`) and no selection command consumes the Ruby index yet |
 | `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental (V1-4367); collector and selection built, not wired to a command, unqualified | `TestAddV8SourceMapped`, `TestAddV8CacheURL`, `TestAddV8Unreadable`, `TestFilePath`, `TestAddLCOVSourceMap`, `TestAddIstanbul` (965); `TestBodies`, `TestBodiesRefuse`, `TestAnalyze`, `TestAnalyzeInOrder`, `TestAnalyzeSharedTestFile`, `TestAnalyzeNestedEdge` (966); `TestCollect` per runner, `TestCollectRepeatedTitle`, `TestCollectIsolation`, `TestFilter` (967); `make plugin-test PLUGIN=typescript` (968); `LPCV-V0-963` qualification outstanding (969) |
+| `LPCV-V0-970..979` browser E2E collector | experimental (V1-4368); Playwright and Cypress fixture suite passes on Linux; not qualified under `LPCV-V0-956` or `LPCV-V0-963` | `TestE2EPlaywright`, `TestE2ECypress` and the attribution unit tests in `internal/browsercov` |
 | `LPCV-V0-037..042` containment and updates | not-started | process-tree, path, permission, network, and rollback matrix |
 | `LPCV-V0-043..046` language tranche | not-started | Corvint, Beamfall, and independent JS/TS shadow reports |
 | `LPCV-V0-047` five-axis projection on every presenting client | delivered for the experimental CLI and VS Code; MCP V0 out of scope (decision 0103); experimental descendant MCP profile `MTV-V0-001..009` (decision 0147) | `TestTestValidityProjectsReceiptWithoutTrustingCarriedProjections` exercises the CLI projection; `TestTestProjections` and `extensions/vscode/test/liveTestProtocol.test.ts` exercise the Go-session projection consumed by VS Code. MCP 2026-07-28 V0 presents no test-level result (`MCPV0-008`), and the descendant projection is the experimental `corvint-test-validity-mcp` profile (`MTV-V0-001..009`, decision 0147) rather than MCP V0. |

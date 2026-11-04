@@ -59,6 +59,19 @@ func importGraphRepository(t *testing.T) string {
 		"flags/flags.go": "package flags\n\nconst variable = \"GOFLAGS\"\n",
 		"flags/flags_test.go": "package flags\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
 			"func TestFlags(t *testing.T) {\n\t_ = exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/tool\").Run()\n}\n",
+		"helper/helper.go": "package helper\n",
+		"helper/helper_test.go": "package helper\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+			"func listed() ([]byte, error) {\n\treturn exec.Command(\"go\", \"list\", \"./cmd/tool\").Output()\n}\n\n" +
+			"func TestHelper(t *testing.T) {\n\t_, _ = listed()\n}\n",
+		"handoff/handoff.go": "package handoff\n",
+		"handoff/handoff_test.go": "package handoff\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\n" +
+			"func build(t *testing.T, names []string) {}\n\n" +
+			"func TestHandoff(t *testing.T) {\n\tout, _ := exec.Command(\"go\", \"list\", \"./cmd/tool\").Output()\n\tnames := strings.Fields(string(out))\n\tbuild(t, names)\n}\n",
+		"subtest/subtest.go": "package subtest\n",
+		"subtest/subtest_test.go": "package subtest\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\n" +
+			"func TestSub(t *testing.T) {\n\tout, err := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/tool\").Output()\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n" +
+			"\tseen := map[string]bool{}\n\tfor _, line := range strings.Split(string(out), \"\\n\") {\n\t\tseen[line] = true\n\t}\n" +
+			"\tt.Run(\"each\", func(t *testing.T) {\n\t\tif !seen[\"x\"] {\n\t\t\tt.Errorf(\"missing %v\", seen)\n\t\t}\n\t})\n}\n",
 		"assets/assets.go":            "package assets\n\nimport _ \"embed\"\n\n//go:embed data.txt\nvar Data string\n",
 		"assets/data.txt":             "data\n",
 		"unrelated/unrelated.go":      "package unrelated\n",
@@ -69,8 +82,9 @@ func importGraphRepository(t *testing.T) string {
 
 // AFP-V0-2200: a literal that is only an argument of a proven `go list` call
 // adds an import-graph edge, not a command edge; computed list arguments
-// make the package a reader of the whole module; a build, or a call that
-// lists more than the import graph, keeps the command edge.
+// make the package a reader of the whole module; a build, a call that lists
+// more than the import graph, or a listing that escapes its function to a
+// caller or helper keeps the command edge.
 func TestGoListReadersAreImportGraphReaders_AFPV02200(t *testing.T) {
 	root := importGraphRepository(t)
 	result, err := golang.New().Units(context.Background(), root)
@@ -104,6 +118,12 @@ func TestGoListReadersAreImportGraphReaders_AFPV02200(t *testing.T) {
 		importGraphModule + "envok": {reads: []string{tool}},
 		importGraphModule + "chain": {execs: []string{tool}, all: true},
 		importGraphModule + "flags": {execs: []string{tool}, all: true},
+		// A listing returned by a helper, or passed to a package helper,
+		// may become a caller's build or test argument: not proven.
+		importGraphModule + "helper":  {execs: []string{tool}, all: true},
+		importGraphModule + "handoff": {execs: []string{tool}, all: true},
+		// Output kept in locals and read by a subtest stays proven.
+		importGraphModule + "subtest": {reads: []string{tool}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("edges = %+v\nwant    %+v", got, want)

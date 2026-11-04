@@ -5408,6 +5408,16 @@ LPCV-V0-966	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2
 LPCV-V0-967	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) The node collector (`internal/jslinecov`)	owner	2026-11-03; V1-4367
 LPCV-V0-968	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) The collector ships as the typescript plug	owner	2026-11-03; V1-4367
 LPCV-V0-969	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: no	owner	2026-11-03; V1-4367
+LPCV-V0-970	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-971	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-972	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-973	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-974	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-975	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-976	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-977	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-978	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-979	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
