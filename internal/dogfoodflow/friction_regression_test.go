@@ -41,9 +41,13 @@ func TestDWCV0044RebindStopsBeforeCascadingFailures(t *testing.T) {
 		if args[0] == "cem" {
 			return cemcli.Run(ctx, root, args[1:], out, stderr)
 		}
-		if args[0] == "query" || args[0] == "impact" {
+		if args[0] == "query" {
 			io.WriteString(out, "{}\n")
 			return 0
+		}
+		if args[0] == "impact" {
+			io.WriteString(stderr, `{"code":"unsupported-impact-worktree","error":"range impact requires a clean worktree","ok":false}`+"\n")
+			return 2
 		}
 		t.Errorf("unexpected downstream step %v", args)
 		return 1
@@ -52,6 +56,9 @@ func TestDWCV0044RebindStopsBeforeCascadingFailures(t *testing.T) {
 	rc, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: runner, Citations: plan, IntentsFile: writeInput(t, "#no-intent-declared\n"), Verify: "go version", Outcome: "passed"}, &stderr)
 	if rc != 1 || err != nil || !strings.Contains(stderr.String(), "commit-rebind-required; commit the rebound") {
 		t.Fatalf("change %d %v\n%s\ncalls %v", rc, err, &stderr, calls)
+	}
+	if strings.Count(stderr.String(), "\n") != 1 {
+		t.Fatalf("want one remediation line: %s", &stderr)
 	}
 	if strings.Contains(stderr.String(), "excluded-artifact-mismatch") || strings.Contains(stderr.String(), "record-index-failed") {
 		t.Fatal(stderr.String())

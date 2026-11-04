@@ -89,7 +89,10 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   After successfully preparing and citing a replacement for a committed CEM, a standalone
   `dogfood change` whose only tracked worktree change is that CEM MUST stop before OCM/status
   and outcome recording, retain an incomplete report, and print one actionable line to commit
-  the rebound CEM and rerun with the same base. Other failures retain their own diagnostics.
+  the rebound CEM and rerun with the same base. A coordination-time impact
+  unsupported-impact-worktree row caused by the dirty CEM keeps that same recovery and MUST
+  remain visible in the incomplete report; it MUST NOT expand the downstream cascade.
+  Other failures retain their own diagnostics.
 - `DWC-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4546;
   amends DCW-V0-842) Refresh MUST preserve matched rows and repin their evidence as before,
   but draft each unmatched hunk from its own content through the ordinary proposal rules.
