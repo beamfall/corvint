@@ -306,9 +306,25 @@ therefore come from something keyed on content, not from Go's cache.
     worktree. Its keys are then exactly the keys it would derive itself.
   - A missing, foreign, malformed or other-root file is ignored, and the process digests the
     worktree itself.
-  - `gate-ledger digest --verify FILE` MUST digest the worktree again. When the tree moved, it
-    MUST remove every record written under FILE's tree since FILE was written, and exit 1. No
-    pass then stays keyed on content its step may not have read.
+  - `gate-ledger digest FILE` MUST also create, or empty, the private stage `FILE.stage` (a
+    directory of mode 0700 owned by this user, not a symlink), and refuse to write FILE when it
+    cannot.
+  - A process on the shared digest MUST NOT write a pass into the ledger. After its step passes it
+    MUST digest the worktree again and record nothing when the tree no longer matches FILE
+    (`RECORD STEP skipped: the worktree moved since the shared digest ...`). An edit still present
+    when the step ends therefore records no pass, even if it is undone before `--verify` (A, B,
+    A). An edit made and undone while the step runs is not detected. A pass on an unmoved tree MUST
+    be staged in `FILE.stage`, which no lookup, `plan` or other process reads, so no other run or
+    worktree can reuse it before it is verified. A host where the stage cannot be proven private
+    stages nothing.
+  - `gate-ledger digest --verify FILE` MUST digest the worktree again. When the tree is unchanged,
+    it MUST promote into the ledger each staged record of FILE's tree that is named by its own
+    key, and empty the stage. When the tree moved, it MUST discard the stage, remove every record
+    written under FILE's tree since FILE was written (those an earlier `--verify` promoted), and
+    exit 1. No pass then stays keyed on content its step may not have read.
+  - `script/batch-precheck.sh` keeps FILE and its stage in the run's private directory, which its
+    EXIT, HUP, INT and TERM cleanup removes, so an interrupted run discards every unverified
+    pass; a run killed outright leaves them where nothing reads them.
   - A `--verify` that exits non-zero MUST fail the batch-precheck run (`batch-precheck: FAIL the
     worktree changed during the run ...`, exit 1, no receipt), since a step may have reused or
     recorded a pass for content it did not read. The verify MUST run after the steps and again
@@ -474,7 +490,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-775 | `scopedInputs`, `testClosure`, `readTestScopes`, `inTestReadScope` in `tools/gate-ledger/test_scope.go`; `listedFilesFor` in `tools/gate-ledger/main.go` | `TestRunStepKeysTestScopeOnPackageClosure`: a CEM-only change, a build-log edit and an unrelated package edit hit; a subtree, dependency source, embedded file, declared entry or declaration edit reruns; `TestRunStepTestScopeFallsBackToTheTree`: an undeclared package, an unknown member, a wrong profile and a `..` entry key on the tree with the reason printed |
 | GL-V0-776 | `testScopes` in `tools/gate-ledger/test_scope.go` | `TestDeclaredTestScopesNameOnePackage`: each declared step's Makefile recipe is one go test of its package; the batch-precheck REUSE lines in `docs/build-log/2026-11-01-csp-w33.md` |
 | GL-V0-785 | `precheckLedgerNames` in `tools/gate-ledger/precheck_steps_test.go` | `TestPrecheckLedgerNamesAreComplete_GLV0785` (every `DOC_GATE_TARGETS` and `EXTRA_TARGETS` entry is classified); `TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785` (each declared step's key follows its entries and ignores a CEM-only change; each undeclared step's key changes on a CEM, build-log and source edit) |
-| GL-V0-786 | `openShared`, `digestCommand`, `forgetSince` in `tools/gate-ledger/shared_digest.go`; `salt_input`, the shared digest, salt batch and `--verify` in `script/batch-precheck.sh` | `TestSharedDigestKeysEqualOwnDigest_GLV0786` (shared keys equal own keys for declared, salted, tree, `@test:` and unscoped steps; other-root, foreign and malformed files are ignored); `TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786`; `make batch-precheck-test` 4b (an always-run step that edits the tree while another step reuses fails the run, writes no receipt for HEAD, red with the failure check disabled; a step whose retry edits the tree and passes fails the run, red without the per-retry verify); the batch-precheck spawn counts and the per-step `plan` HIT check in the build log |
+| GL-V0-786 | `openShared`, `digestCommand`, `forgetSince`, `moved`, `promoteStaged`, `discardStaged`, `privateStage` in `tools/gate-ledger/shared_digest.go`, the stage branch of `record` in `tools/gate-ledger/main.go`; `salt_input`, the shared digest, salt batch and `--verify` in `script/batch-precheck.sh` | `TestSharedDigestKeysEqualOwnDigest_GLV0786` (shared keys equal own keys for declared, salted, tree, `@test:` and unscoped steps; other-root, foreign and malformed files are ignored); `TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786`; `TestSharedDigestStagesPassesUntilVerify_GLV0786` (a concurrent consumer on its own or another run's digest finds no unverified pass; an abandoned stage is never promoted; verify promotes); `TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786` (an edit between the digest and the step, undone before verify, records nothing); `make batch-precheck-test` 4b (the ledger holds no pass while the serial step runs and the verify promotes the staged ones; a run interrupted by TERM exits 143 and leaves no pass, so its rerun reuses nothing; an always-run step that edits the tree while another step reuses fails the run, writes no receipt for HEAD, red with the failure check disabled; a step whose retry edits the tree and passes fails the run, red without the per-retry verify); the batch-precheck spawn counts and the per-step `plan` HIT check in the build log |
 | GL-V0-3720 | `scopedInputs`, `matchesScope` and `testClosure`'s undeclared mode in `tools/gate-ledger/test_scope.go` | `TestRunStepKeysDepsAndAllScope_GLV03720` |
 | GL-V0-788 | the `shell-foreign-callers-check` entry of `testScopes` | `TestRunStepKeysDepsAndAllScope_GLV03720` (CEM, build-log and `.tsv` edits hit; a script, a caller, the declaration, a new caller, an embedded `.json`, an excluded-suffix name with a backslash or a space, and a symlink rerun); `TestDeclaredTestScopesNameOnePackage`; the test-log read audit in `docs/build-log/2026-11-01-csp-w33.md` |
 

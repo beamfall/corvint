@@ -72,8 +72,9 @@ func TestSharedDigestKeysEqualOwnDigest_GLV0786(t *testing.T) {
 }
 
 // TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786: an unchanged tree
-// verifies; a worktree edited after the digest fails verification and loses
-// the records written under the shared tree, so its next run misses.
+// verifies and promotes the staged pass; a worktree edited after the digest
+// fails verification, discards the pass it staged and loses the records
+// promoted under the shared tree, so its next run misses.
 func TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
 	root := fixtureRepository(t)
@@ -88,21 +89,130 @@ func TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786(t *testing.T) {
 	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RECORD decision-numbers-check+aaa") {
 		t.Fatalf("shared run: %q", out)
 	}
-	if code, out := ledgerRun(t, "digest", "--verify", file); code != 0 || !strings.Contains(out, "DIGEST unchanged") {
+	if code, out := ledgerRun(t, "digest", "--verify", file); code != 0 || !strings.Contains(out, "DIGEST unchanged") || !strings.Contains(out, "promoted 1 staged records") {
 		t.Fatalf("unchanged verify: %d %q", code, out)
+	}
+	other := append([]string{"run", "decision-numbers-check+bbb"}, counting...)
+	if _, out := ledgerRun(t, other...); !strings.Contains(out, "RECORD decision-numbers-check+bbb") {
+		t.Fatalf("second shared run: %q", out)
 	}
 	write(t, root, "docs/decisions/0001.md", "moved\n")
 	code, out := ledgerRun(t, "digest", "--verify", file)
-	if code != 1 || !strings.Contains(out, "DIGEST changed during the run") || !strings.Contains(out, "removed 1 records") {
+	if code != 1 || !strings.Contains(out, "DIGEST changed during the run") || !strings.Contains(out, "discarded 1 staged records, removed 1 records") {
 		t.Fatalf("moved verify: %d %q", code, out)
 	}
 	write(t, root, "docs/decisions/0001.md", "one\n")
 	setenv(t, sharedDigestEnv, "")
-	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa", "decision-numbers-check+bbb"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") || !strings.Contains(out, "RUN decision-numbers-check+bbb: no recorded pass") {
 		t.Fatalf("a record of the moved run survived: %q", out)
 	}
 	if code, _ := ledgerRun(t, "digest"); code != 2 {
 		t.Fatalf("digest without FILE: exit %d, want usage 2", code)
+	}
+}
+
+// TestSharedDigestStagesPassesUntilVerify_GLV0786 replays the GL-V0-786 review
+// finding: a pass recorded on the shared digest stays in the run's private
+// stage, so a concurrent consumer, whether on its own digest or on another
+// run's shared digest, finds no record of it; only digest --verify on an
+// unchanged tree promotes it into the ledger. A run interrupted before
+// --verify, whose stage is then removed or simply abandoned, leaves the
+// ledger without the pass, and a fresh digest empties a reused stage.
+func TestSharedDigestStagesPassesUntilVerify_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	write(t, root, ".gitignore", "COUNT\n")
+	file := filepath.Join(t.TempDir(), "digest.json")
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", file); code != 0 {
+		t.Fatalf("digest: %q", out)
+	}
+	if info, err := os.Lstat(stageDirectory(file)); err != nil || !info.IsDir() || info.Mode().Perm() != 0o700 {
+		t.Fatalf("stage: %v %v", info, err)
+	}
+	setenv(t, sharedDigestEnv, file)
+	step := append([]string{"run", "decision-numbers-check+aaa"}, counting...)
+	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RECORD decision-numbers-check+aaa") || !strings.Contains(out, "staged until digest --verify") {
+		t.Fatalf("shared run: %q", out)
+	}
+	if got := records(t); got != 0 {
+		t.Fatalf("an unverified pass reached the ledger: %d records", got)
+	}
+	// A concurrent consumer on its own digest, and one on another run's shared digest.
+	setenv(t, sharedDigestEnv, "")
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+		t.Fatalf("own-digest consumer saw an unverified pass: %q", out)
+	}
+	another := filepath.Join(t.TempDir(), "digest.json")
+	if code, out := ledgerRun(t, "digest", another); code != 0 {
+		t.Fatalf("second digest: %q", out)
+	}
+	setenv(t, sharedDigestEnv, another)
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+		t.Fatalf("another run saw an unverified pass: %q", out)
+	}
+	// Interruption: the run never verifies. Its abandoned stage is never read,
+	// and a fresh digest through the same file empties it.
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", file); code != 0 {
+		t.Fatalf("redigest: %q", out)
+	}
+	if code, out := ledgerRun(t, "digest", "--verify", file); code != 0 || !strings.Contains(out, "promoted 0 staged records") {
+		t.Fatalf("a pass of the interrupted run was promoted: %d %q", code, out)
+	}
+	if got := records(t); got != 0 {
+		t.Fatalf("the interrupted run left %d records", got)
+	}
+	// The verified path: stage, verify, then every consumer hits.
+	setenv(t, sharedDigestEnv, file)
+	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RECORD decision-numbers-check+aaa") {
+		t.Fatalf("rerun: %q", out)
+	}
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", "--verify", file); code != 0 || !strings.Contains(out, "promoted 1 staged records") {
+		t.Fatalf("verify: %d %q", code, out)
+	}
+	if entries, err := os.ReadDir(stageDirectory(file)); err != nil || len(entries) != 0 {
+		t.Fatalf("the stage kept %d entries after verify: %v", len(entries), err)
+	}
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "HIT decision-numbers-check+aaa") {
+		t.Fatalf("a verified pass missed: %q", out)
+	}
+	if got := runs(t, root); got != 2 {
+		t.Fatalf("the step ran %d times, want 2", got)
+	}
+}
+
+// TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786: a step
+// that ran on a worktree edited after the shared digest passes but records
+// nothing, even when the edit is undone before digest --verify (A, B, A), so
+// no pass is keyed on content the step did not test.
+func TestSharedDigestRefusesAPassWhoseTreeMovedDuringTheStep_GLV0786(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	write(t, root, ".gitignore", "COUNT\n")
+	file := filepath.Join(t.TempDir(), "digest.json")
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", file); code != 0 {
+		t.Fatalf("digest: %q", out)
+	}
+	write(t, root, "docs/decisions/0001.md", "edited between the digest and the step\n")
+	setenv(t, sharedDigestEnv, file)
+	step := append([]string{"run", "decision-numbers-check+aaa"}, counting...)
+	code, out := ledgerRun(t, step...)
+	if code != 0 || !strings.Contains(out, "RECORD decision-numbers-check+aaa skipped: the worktree moved since the shared digest") {
+		t.Fatalf("moved step: %d %q", code, out)
+	}
+	write(t, root, "docs/decisions/0001.md", "one\n")
+	setenv(t, sharedDigestEnv, "")
+	if code, out := ledgerRun(t, "digest", "--verify", file); code != 0 || !strings.Contains(out, "promoted 0 staged records") {
+		t.Fatalf("verify after the edit was undone: %d %q", code, out)
+	}
+	if _, out := ledgerRun(t, "plan", "decision-numbers-check+aaa"); !strings.Contains(out, "RUN decision-numbers-check+aaa: no recorded pass") {
+		t.Fatalf("a pass of the moved tree was recorded: %q", out)
+	}
+	if got := runs(t, root); got != 1 {
+		t.Fatalf("the step ran %d times, want 1", got)
 	}
 }
 

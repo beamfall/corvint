@@ -445,7 +445,17 @@ case "\$2" in
   slow-*) sleep 3 ;;
   go-archive-gate) [ -n "\${STUB_MUTATE:-}" ] && echo moved >> $repo/mutated.txt ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
-      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi ;;
+      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi
+    # GL-V0-786: after every parallel step, count the passes in the ledger and in the run's stage;
+    # STUB_HOLD then waits (at most 60 s) for the test to interrupt the run.
+    if [ -n "\${STUB_LEDGER_PROBE:-}" ]; then
+      ls "\$STUB_LEDGER_PROBE" 2> /dev/null | grep -c '\.json\$' > $tmp/probe-ledger
+      ls "\$GATE_LEDGER_SHARED_DIGEST.stage" 2> /dev/null | grep -c '\.json\$' > $tmp/probe-stage
+    fi
+    if [ -n "\${STUB_HOLD:-}" ]; then
+      : > $tmp/hold-ready; i=0
+      while [ ! -f $tmp/hold-release ] && [ \$i -lt 600 ]; do sleep 0.1; i=\$((i + 1)); done
+    fi ;;
 esac
 rm -f $tmp/running/\$2
 exit 0
@@ -773,6 +783,43 @@ grep -q '^batch-precheck: FLAKY make test-commands-check' "$tmp/out" || fail "th
 grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" || fail "a retry that moved the tree was not a failure: $(cat "$tmp/out")"
 names_head && fail "a run whose retry moved the tree wrote a receipt"
 /bin/rm -f "$repo/mutated.txt" "$tmp/retry-marker"
+# GL-V0-786 (review of V1-4194): a pass recorded on the shared digest is staged in the run's private
+# directory, so a concurrent consumer of the ledger sees no unverified pass while the run is still
+# going (here the serial step, after every parallel step passed); verify_shared promotes the staged
+# passes once the tree verifies unchanged, and a rerun reuses them.
+srun() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-stage BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run; }
+/bin/rm -f "$tmp/probe-ledger" "$tmp/probe-stage"
+STUB_LEDGER_PROBE=$tmp/ledger-stage srun || fail "staged-pass run failed: $(cat "$tmp/out")"
+[[ $(cat "$tmp/probe-ledger" 2> /dev/null) == 0 ]] || fail "a concurrent consumer saw $(cat "$tmp/probe-ledger" 2> /dev/null) unverified passes in the ledger"
+(($(cat "$tmp/probe-stage" 2> /dev/null || echo 0) > 0)) || fail "no pass was staged before verify_shared: $(cat "$tmp/out")"
+grep -q '^batch-precheck: ledger DIGEST unchanged tree [0-9a-f]*; promoted [1-9][0-9]* staged records$' "$tmp/out" || fail "verify_shared promoted nothing: $(cat "$tmp/out")"
+srun || fail "promoted-pass rerun failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "a promoted pass did not reuse: $(cat "$tmp/out")"
+# An interrupted run (TERM while its serial step runs, after the parallel steps staged their
+# passes) exits 143 and leaves no pass in the ledger: cleanup removed the stage with the run's
+# directory, so the next run reuses nothing. The 60 s polls only bound a deadlock.
+/bin/rm -rf "$tmp/ledger-int" "$tmp/hold-ready" "$tmp/hold-release" "$tmp/probe-ledger" "$tmp/probe-stage"
+(unset GOPROXY; export PATH=$bin:$PATH BATCH_PRECHECK_HEAVY='' BATCH_PRECHECK_ROOT=$repo BATCH_PRECHECK_REGEN=$tmp/regen-stub \
+  BATCH_PRECHECK_DRIFT="./pkg TestDriftOne
+./internal/g TestGoldenWriter" CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-int BATCH_PRECHECK_LEDGER=$tmp/gate-ledger \
+  STUB_LEDGER_PROBE=$tmp/ledger-int STUB_HOLD=1; exec "$pre" > "$tmp/out" 2>&1 < /dev/null) & held=$!
+for ((i = 0; i < 600; i++)); do [[ -f $tmp/hold-ready ]] && break; sleep 0.1; done
+if [[ -f $tmp/hold-ready ]]; then
+  kill -TERM "$held"
+  : > "$tmp/hold-release"
+  wait "$held" && rc=0 || rc=$?
+  [[ $rc == 143 ]] || fail "the interrupted run exited $rc, want 143: $(cat "$tmp/out")"
+  (($(cat "$tmp/probe-stage" 2> /dev/null || echo 0) > 0)) || fail "no pass was staged before the interruption: $(cat "$tmp/out")"
+  compgen -G "$tmp/ledger-int/*.json" > /dev/null && fail "an interrupted run left passes in the ledger: $(/bin/ls "$tmp/ledger-int")"
+  CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-int BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run || fail "run after the interruption failed: $(cat "$tmp/out")"
+  grep -q 'REUSE' "$tmp/out" && fail "a pass of the interrupted run was reused: $(cat "$tmp/out")"
+else
+  kill -KILL "$held" 2> /dev/null
+  : > "$tmp/hold-release"
+  wait "$held" 2> /dev/null
+  fail "the held serial step never started within 60 s: $(cat "$tmp/out")"
+fi
+/bin/rm -f "$tmp/hold-ready" "$tmp/hold-release"
 git -C "$repo" reset -q --hard HEAD~1
 /bin/rm -f "$repo/notes.txt" "$receipt"
 

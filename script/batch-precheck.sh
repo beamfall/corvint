@@ -1539,6 +1539,10 @@ export -f salt_input
 # private-index digest of 8 git calls and a hash-object per step. The first salt is checked against
 # the per-step form; a mismatch or a failed batch leaves each step to hash its own.
 # BATCH_PRECHECK_SHARED_DIGEST=off keeps the per-step digest and salt (same keys, more git calls).
+# A step on the shared digest re-digests after it passes and records nothing if the tree moved; its
+# pass is staged in $dir/ledger-digest.json.stage, which no lookup reads, until verify_shared below
+# finds the tree unchanged and promotes it. cleanup removes $dir on EXIT, HUP, INT and TERM, so an
+# interrupted run discards every unverified pass, and a run killed outright leaves them unread.
 if [[ -n $ledger && ${BATCH_PRECHECK_SHARED_DIGEST:-} != off ]]; then
   if "$ledger" digest "$dir/ledger-digest.json" > "$dir/ledger-digest.log" 2>&1 < /dev/null; then
     export GATE_LEDGER_SHARED_DIGEST=$dir/ledger-digest.json
@@ -1566,9 +1570,11 @@ done
 for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
 # GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest, and
 # the run fails: a step may have reused, or recorded, a pass for content it did not read. A verify
-# that cannot run fails the same way.
+# that cannot run fails the same way, and promotes nothing.
 # verify_shared checks the tree against the shared digest again; it runs after the steps and after
-# every retry attempt below, since a retried step can edit an input and then pass.
+# every retry attempt below, since a retried step can edit an input and then pass. An unchanged tree
+# promotes the passes staged so far into the ledger; a moved one discards them and removes those an
+# earlier verify of this run promoted.
 ledger_moved=0
 verify_shared() {
   [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]] || return 0
@@ -1699,7 +1705,7 @@ if ((warn)); then
   printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]-}")"
 fi
 if ((ledger_moved)); then
-  printf 'batch-precheck: FAIL the worktree changed during the run, so no step result above holds for one tree; the records written under the shared digest were removed; rerun on a tree nothing edits (GL-V0-786)\n'
+  printf 'batch-precheck: FAIL the worktree changed during the run, so no step result above holds for one tree; the passes staged under the shared digest were discarded and any already promoted removed; rerun on a tree nothing edits (GL-V0-786)\n'
   exit 1
 fi
 if ((fail)); then

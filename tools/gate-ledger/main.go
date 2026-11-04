@@ -161,6 +161,7 @@ type ledger struct {
 	dirErr    string
 	identity  string
 	scope     []string // go-test --packages patterns; nil means ./... (GL-V0-720)
+	stage     string   // where a shared-digest process stages passes until digest --verify (GL-V0-786)
 	stdout    io.Writer
 	stderr    io.Writer
 }
@@ -357,11 +358,15 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	if code != 0 {
 		return code
 	}
+	if moved := l.moved(); moved != "" {
+		fmt.Fprintf(l.stdout, "%sRECORD %s skipped: %s\n", prefixOut, step, moved)
+		return 0
+	}
 	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope, Label: l.stepLabel()}); err != nil {
 		fmt.Fprintf(l.stderr, "%sRECORD %s failed: %s\n", prefixOut, step, err)
 		return 0
 	}
-	fmt.Fprintf(l.stdout, "%sRECORD %s %s\n", prefixOut, step, short(key))
+	fmt.Fprintf(l.stdout, "%sRECORD %s %s%s\n", prefixOut, step, short(key), l.stagedNote())
 	return 0
 }
 
@@ -727,8 +732,16 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	if passes == nil {
 		fmt.Fprintf(l.stderr, "%sresolved output incomplete or invalid; no package records\n", prefixOut)
 	}
+	moved, checked := "", false
 	for _, p := range run {
 		if p.reason != "" || !passes[p.pkg] || code >= 128 {
+			continue
+		}
+		if !checked {
+			moved, checked = l.moved(), true
+		}
+		if moved != "" {
+			fmt.Fprintf(l.stdout, "%sRECORD %s %s skipped: %s\n", prefixOut, packageStep, p.pkg, moved)
 			continue
 		}
 		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound, Scope: l.scope}
@@ -736,7 +749,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 			fmt.Fprintf(l.stderr, "%sRECORD %s %s failed: %s\n", prefixOut, packageStep, p.pkg, err)
 			continue
 		}
-		fmt.Fprintf(l.stdout, "%sRECORD %s %s %s\n", prefixOut, packageStep, p.pkg, short(p.key))
+		fmt.Fprintf(l.stdout, "%sRECORD %s %s %s%s\n", prefixOut, packageStep, p.pkg, short(p.key), l.stagedNote())
 	}
 	return code
 }
@@ -1227,7 +1240,16 @@ func (l *ledger) record(rec record) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(l.dir, "record.")
+	dir := l.dir
+	if l.stage != "" {
+		// GL-V0-786: a shared-digest pass stays private to its run until
+		// digest --verify finds the tree unchanged and promotes it.
+		if err := privateStage(l.stage); err != nil {
+			return err
+		}
+		dir = l.stage
+	}
+	tmp, err := os.CreateTemp(dir, "record.")
 	if err != nil {
 		return err
 	}
@@ -1239,8 +1261,11 @@ func (l *ledger) record(rec record) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp.Name(), l.recordPath(rec.Key)); err != nil {
+	if err := os.Rename(tmp.Name(), filepath.Join(dir, rec.Key+".json")); err != nil {
 		return err
+	}
+	if l.stage != "" {
+		return nil
 	}
 	return l.prune()
 }
