@@ -70,9 +70,10 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   Remote heavy execution MUST retain package parallelism bounds and explicit caller/environment
   GOMAXPROCS precedence. A changed default MUST be justified by same-build measurements; unavailable
   remote qualification MUST remain NOT_PRODUCED and retain the existing default.
-  Live-budget candidate discovery MAY count tested reached units without building full plans only
-  with parity against full Select for every candidate on the same graph. The timed rounds,
-  candidate ordering, hub/middle/leaf cases, calibration and enforced budget MUST remain unchanged.
+  Live-budget candidate discovery MAY evaluate every candidate concurrently with at most four
+  workers, using full Select for each and retaining serial ordering before fanout sorting. A
+  same-graph serial/parallel benchmark MUST prove identical representative paths. The timed rounds,
+  candidate universe, hub/middle/leaf cases, calibration and enforced budget MUST remain unchanged.
 - `LVT-V0-009`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4319)
   Native Pi host scratch MUST be removed on normal exit and catchable INT/TERM/HUP. On startup,
   safely sweep only private, same-user, nonsymlink directories with a valid harness owner marker
@@ -100,7 +101,7 @@ checks do not claim semantic completeness. Reservation state is host local, not 
 | LVT-V0-005 | `script/check-host-package-versions_test.sh` history growth and unbumped-change injection |
 | LVT-V0-006 | `script/check-fixed-tmp-paths_test.sh`; `script/check-mkfifo-build-tags_test.sh`; `script/check-line-citations_test.sh` |
 | LVT-V0-007 | `script/check-error-code-ownership_test.sh` staged ownership violations |
-| LVT-V0-008 | `script/lane-scripts_test.sh` explicit overrides and invalid-value control; `TestRepresentativeFanoutMatchesFullPlans`; measurements in build log |
+| LVT-V0-008 | `script/lane-scripts_test.sh` explicit overrides and invalid-value control; `BenchmarkRepresentativeEditsSerialParity`; measurements in build log |
 | LVT-V0-009 | `integrations/pi/host-scratch.test.mjs` ownership and interrupted-exit fixtures |
 | LVT-V0-010 | `script/lane-scripts_test.sh` static group; `TestPrechange`; `script/check-spec-claims_test.sh` |
 
