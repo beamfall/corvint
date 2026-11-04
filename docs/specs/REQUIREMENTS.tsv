@@ -3051,7 +3051,7 @@ ERG-V0-026	docs/specs/corvint-tasks-external-reviews-v0.md	A hand-off note that 
 ERG-V0-027	docs/specs/corvint-tasks-external-reviews-v0.md	When a gate's review history is longer than the packet reads, the packet MUST na	unrecorded	-
 ERG-V0-028	docs/specs/corvint-tasks-external-reviews-v0.md	The dispatcher's ATR-V0-104 note and the ATR-V0-126 `dispatch salvage` note MUST	unrecorded	-
 ERG-V0-870	docs/specs/corvint-tasks-external-reviews-v0.md	The external review binding fold a read runs MUST walk only the receipts after t	unrecorded	-
-CTW-V0-7100	docs/specs/corvint-tasks-intent-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4260)	standing	2026-10-11; V1-4260
+CTW-V0-7100	docs/specs/corvint-tasks-intent-worktree-v0.md	(proposed; experimental measurement only; V1-4260)	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-

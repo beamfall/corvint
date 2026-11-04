@@ -44,10 +44,15 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   tree through the ordinary read snapshot protocol, and report its divergence rather than read
   the primary projection in its place. It writes nothing and MUST refuse `--through` combined
   with `--worktree`, because a prefix audit cannot establish current projection agreement.
+  A divergence repair MUST name the explicitly selected projection and `--worktree DIR`,
+  without presenting it as the resolved linked intent worktree or advising commit/carry there.
+  A symlinked `DIR` leaf MUST refuse `UNSUPPORTED_FILESYSTEM` before leaf resolution; ancestor
+  aliases such as macOS `/tmp` and `/var` may be resolved before that check.
   Help MUST explain that `queue snapshot --worktree DIR` and snapshot `ticket blockers` validate
   dependency closure separately, and include a literal example. A snapshot contains no journal
   and still refuses receipt audit under TCL-V0-012. Acceptance:
-  `TestTCLV07102_AuditExplicitWorktreeProjection`, `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
+  `TestTCLV07102_AuditExplicitWorktreeProjection`, `TestTCLV07102_RefusesSymlinkedWorktree`,
+  `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
 
 
 - `TCL-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4061)

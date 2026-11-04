@@ -148,11 +148,43 @@ func TestTCLV07102_AuditExplicitWorktreeProjection(t *testing.T) {
 	if bad.code == 0 || !hasCode(bad.res, wire.CodeIntentDiverged) {
 		t.Fatalf("divergent projection hidden: %s", bad.stdout)
 	}
+	if text := string(bad.stdout); !strings.Contains(text, "receipt audit --worktree selected projection") || !strings.Contains(text, canonical) || !strings.Contains(text, "select an agreeing projection with --worktree DIR") || strings.Contains(text, "linked intent worktree") || strings.Contains(text, "commit or carry") {
+		t.Fatalf("wrong explicit-worktree repair: %s", bad.stdout)
+	}
 	if x := atm(t, r.Root, nil, "receipt", "audit"); x.code != 0 {
 		t.Fatalf("primary audit: %s", x.stdout)
 	}
 	if x := atm(t, r.Root, nil, "receipt", "audit", "--through", "1", "--worktree", wt); !hasCode(x.res, wire.CodeMalformed) {
 		t.Fatalf("partial projection validation admitted: %s", x.stdout)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.CommonDir)) {
+		t.Fatal("read changed journal")
+	}
+}
+
+// TCL-V0-7102: ancestor aliases remain usable, but DIR itself must not be
+// a symlink. Resolving the leaf before checking it would hide this refusal.
+func TestTCLV07102_RefusesSymlinkedWorktree(t *testing.T) {
+	r, _, _ := papercutRepo(t)
+	parent := t.TempDir()
+	wt := filepath.Join(parent, "candidate")
+	copyIntentDir(t, r.IntentDir, wt)
+	link := filepath.Join(t.TempDir(), "candidate-link")
+	if err := os.Symlink(wt, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	before := fixture.TreeSnapshot(t, r.CommonDir)
+	bad := atm(t, r.Root, nil, "receipt", "audit", "--worktree", link)
+	if bad.code == 0 || !hasCode(bad.res, wire.CodeUnsupportedFilesystem) {
+		t.Fatalf("symlinked DIR admitted: %s", bad.stdout)
+	}
+	alias := filepath.Join(t.TempDir(), "parent-alias")
+	if err := os.Symlink(parent, alias); err != nil {
+		t.Fatal(err)
+	}
+	good := atm(t, r.Root, nil, "receipt", "audit", "--worktree", filepath.Join(alias, "candidate"))
+	if good.code != 0 || len(good.res.Items) != 1 || field(good.res.Items[0], "projectionAgreement").Str != "AGREES" {
+		t.Fatalf("ancestor alias refused: %s", good.stdout)
 	}
 	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.CommonDir)) {
 		t.Fatal("read changed journal")
