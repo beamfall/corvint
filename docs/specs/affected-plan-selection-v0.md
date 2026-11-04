@@ -365,7 +365,11 @@ measure. None of them drops a unit the change can reach.
   expressions). Without a receiver ownership proof, these methods SHALL count as default-logger
   writes even when the receiver is a local alias or a call result such as `log.Default()`. Into
   `log/slog` also the slog default (written by `slog.SetDefault`, `SetLogLoggerLevel`), and into
-  `time` reads `time.Local`. The standard library is otherwise closed by an allow-list: a use of a
+  `time` reads `time.Local`. Output through a process stream or a logger (`fmt.Print*`, the `log`
+  `Print*`, `Fatal*`, `Panic*` and `Output` functions and `*log.Logger` methods, and the `log/slog`
+  `Debug`, `Info`, `Warn`, `Error`, `Log`, `LogAttrs` functions and `*slog.Logger` methods with their
+  `Context` forms), called or taken as a value, SHALL write the file-system pseudo variable, since
+  the stream or the logger writer may be a file a later test reads. The standard library is otherwise closed by an allow-list: a use of a
   standard-library function or method that the model neither records above nor finds in
   `purePackages` (value-only packages such as `strings`, `encoding/json`, `regexp`, `sync`,
   `testing`, `time`, `fmt`, less `impureFunctions` and the package-level `math/rand` functions) or
@@ -374,7 +378,10 @@ measure. None of them drops a unit the change can reach.
   private path anywhere), a call of an abstract method of an `io`, `io/fs`, `net`, `os`,
   `net/http`, `database/sql` or `bufio` interface (it may dispatch to a file or connection), and a
   standard-library call handing such an interface parameter anything but a module type or an
-  in-memory `bytes.Buffer`, `strings.Builder`, `bytes.Reader` or `strings.Reader`; `fmt`'s
+  in-memory `bytes.Buffer`, `strings.Builder`, `bytes.Reader` or `strings.Reader`. The same
+  argument check SHALL apply to an indirect call whose callee the model cannot resolve, through
+  its static signature, and a standard-library function or method taken as a value with such an
+  interface parameter SHALL itself be unknown, since it may later be called with any argument; `fmt`'s
   `Fprint*` and `Fscan*` are pure only with such a buffer. `runtime` is admitted per function
   (`Caller`, `Callers`, `CallersFrames`, `FuncForPC`, `Gosched`, `KeepAlive`, `Version`,
   `NumCPU`); `crypto` and `archive/zip` (their registries) are not admitted; `time.LoadLocation`,
@@ -517,7 +524,7 @@ error the confined CI shard surfaces.
 | AFP-V0-2371 | `buildGraph`, `funcDecl`, `packageVar`, `walkInitializer`, `heldAssignment`, `visitExpr`, `call`, `composite`, `convertTo` in `internal/liveverify/affected/golang/typedreach/graph.go`; `Load`, `runnerSourceParity` in `load.go`; `namedIn` in `analyze.go` | `TestAFPV02371ConversionsAndHeldValuesCarryReach`, `TestAFPV02371RunnerConfigurationRefusesHiddenSource` |
 | AFP-V0-2372 | `childOnly`, `moduleHazard`, `hasLinkname`, `Analyze` | `TestAFPV02372AlwaysRunReachKeepsThePackageWhole`, `TestAFPV02372LoadRefusesUnmodelledSource`, `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (negative control) |
 | AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction`, `TestAFPV02373RoundThreeRegressions` (constants, `os/exec` uses, ioutil and `os.Root`) |
-| AFP-V0-2374 | `sharedVar`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`), `TestAFPV02374RoundFourRegressions` (interface-held references, discarded-temp privacy, `os.File` handles, `net/http` defaults, fixed-port listeners), `TestAFPV02374AllowListRegressions`, `TestAFPV02374LoggerReceiverSettersKeepOrderedReaders`, `TestAFPV02374SignalCleanupCannotEraseWrites`, `TestAFPV02374StoredMethodValuesCarryImplicitReads`, `TestAFPV02374SignalStopWritesSignalState` |
+| AFP-V0-2374 | `sharedVar`, `streamOutput`, `opaqueArguments`, `opaqueParameter`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`), `TestAFPV02374RoundFourRegressions` (interface-held references, discarded-temp privacy, `os.File` handles, `net/http` defaults, fixed-port listeners), `TestAFPV02374AllowListRegressions`, `TestAFPV02374LoggerReceiverSettersKeepOrderedReaders`, `TestAFPV02374SignalCleanupCannotEraseWrites`, `TestAFPV02374StoredMethodValuesCarryImplicitReads`, `TestAFPV02374SignalStopWritesSignalState`, `TestAFPV02374StreamOutputWritesFiles`, `TestAFPV02374IndirectStdCallsKeepOpaqueArguments` |
 | AFP-V0-2375 | the slice and whole forms in `testTypedSlices` | `corvint test --dry-run` replays (build log) |
 | AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `ImportPath`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go`; its use in `testTypedSlices` and `tools/typed-reach-measure` | `TestAFPV02376DiffFileNamesChangedDeclarations`, `TestAFPV02376MovedPositionsKeepDependentReaders`, `TestAFPV02376ImportPathOfRootPackageFiles`, `TestAFPV02376DryRunReadsRootPackageChanges` |
 | AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log); `TestAFPV02370DryRunNarrowsAnAllowListedDependent` (embedded and run-time data files) |

@@ -239,7 +239,19 @@ func stdPure(f *types.Func) bool {
 // the call unknown; fmt's Fprint and Fscan functions given an in-memory
 // buffer are pure (AFP-V0-2374).
 func (g *graph) stdArguments(n *node, pkg *Package, call *ast.CallExpr, callee *types.Func) {
-	signature := callee.Signature()
+	allPure := g.opaqueArguments(n, pkg, call, callee.Signature(), callee.FullName())
+	if allPure && strings.HasPrefix(callee.FullName(), "fmt.F") {
+		if ident := calleeIdent(unparen(call.Fun)); ident != nil {
+			g.pureUse[ident] = true
+		}
+	}
+}
+
+// opaqueArguments records each argument of unknown effect a call named name
+// hands to an opaque interface parameter of signature, and reports whether
+// there was none. An indirect call, whose callee may be a standard-library
+// function value, is checked the same way (AFP-V0-2374).
+func (g *graph) opaqueArguments(n *node, pkg *Package, call *ast.CallExpr, signature *types.Signature, name string) bool {
 	params := signature.Params()
 	allPure := true
 	for i, arg := range call.Args {
@@ -258,15 +270,49 @@ func (g *graph) stdArguments(n *node, pkg *Package, call *ast.CallExpr, callee *
 		}
 		if !g.pureArgument(pkg.Info.TypeOf(arg)) {
 			allPure = false
-			n.unknown = append(n.unknown, g.position(arg.Pos())+" "+callee.FullName()+" given an opaque "+named.Obj().Name())
+			n.unknown = append(n.unknown, g.position(arg.Pos())+" "+name+" given an opaque "+named.Obj().Name())
 		}
 	}
-	if allPure && strings.HasPrefix(callee.FullName(), "fmt.F") {
-		if ident := calleeIdent(unparen(call.Fun)); ident != nil {
-			g.pureUse[ident] = true
-		}
-	}
+	return allPure
 }
+
+// opaqueParameter returns the name of the first opaque standard-library
+// interface among signature's parameters, or "".
+func opaqueParameter(signature *types.Signature) string {
+	params := signature.Params()
+	for i := 0; i < params.Len(); i++ {
+		param := params.At(i).Type()
+		if slice, ok := param.(*types.Slice); ok && signature.Variadic() && i == params.Len()-1 {
+			param = slice.Elem()
+		}
+		named, ok := types.Unalias(param).(*types.Named)
+		if ok && types.IsInterface(param) && named.Obj().Pkg() != nil && opaqueInterfaces[named.Obj().Pkg().Path()] {
+			return named.Obj().Name()
+		}
+	}
+	return ""
+}
+
+// streamOutput reports a standard-library function that prints to a process
+// stream or through a log or log/slog logger. The stream or the logger's
+// writer may be a file a later test reads, so the call, or the function
+// taken as a value, writes the files pseudo variable (AFP-V0-2374).
+func streamOutput(f *types.Func) bool {
+	name := f.Name()
+	switch f.Pkg().Path() {
+	case "fmt":
+		return f.Signature().Recv() == nil && strings.HasPrefix(name, "Print")
+	case "log":
+		return strings.HasPrefix(name, "Print") || strings.HasPrefix(name, "Fatal") || strings.HasPrefix(name, "Panic") || name == "Output"
+	case "log/slog":
+		return slogOutput[strings.TrimSuffix(name, "Context")]
+	}
+	return false
+}
+
+// slogOutput are the log/slog functions and *slog.Logger methods that emit a
+// record, less any Context suffix.
+var slogOutput = map[string]bool{"Debug": true, "Info": true, "Warn": true, "Error": true, "Log": true, "LogAttrs": true}
 
 // pureArgument reports a value whose interface methods act only on itself:
 // a module type, whose methods the graph follows, or an in-memory buffer.
@@ -928,6 +974,11 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 	if callee != nil && callee.Pkg() != nil && !g.moduleFunc(callee) {
 		g.stdArguments(n, pkg, call, callee)
 	}
+	if callee == nil {
+		if signature := signatureOf(info.TypeOf(fun)); signature != nil {
+			g.opaqueArguments(n, pkg, call, signature, "an indirect call")
+		}
+	}
 	if callee != nil && callee.Pkg() != nil {
 		name := callee.Pkg().Path() + "." + callee.Name()
 		// A receiver may be the default logger or an alias returned by a
@@ -986,6 +1037,9 @@ func (g *graph) call(n *node, pkg *Package, call *ast.CallExpr) {
 		}
 		for _, v := range g.implicitReads(callee) {
 			n.reads[v] = true
+		}
+		if streamOutput(callee) {
+			n.writes[files] = true
 		}
 		if selector, ok := fun.(*ast.SelectorExpr); ok {
 			if selection := info.Selections[selector]; selection != nil && selection.Kind() == types.MethodVal {
@@ -1236,6 +1290,14 @@ func (g *graph) valueEffects(n *node, f *types.Func, at *ast.Ident) {
 	// reads, wherever the value is later called.
 	for _, v := range g.implicitReads(f) {
 		n.reads[v] = true
+	}
+	if streamOutput(f) {
+		n.writes[files] = true
+	}
+	// The value may later be called with any argument: an opaque interface
+	// parameter makes it unknown, as an opaque argument makes the call.
+	if param := opaqueParameter(f.Signature()); param != "" && !g.moduleFunc(f) {
+		n.unknown = append(n.unknown, g.position(at.Pos())+" "+f.FullName()+" as a value with an opaque "+param+" parameter")
 	}
 	if f.Signature().Recv() != nil {
 		switch {

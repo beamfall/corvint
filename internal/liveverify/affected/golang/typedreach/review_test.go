@@ -207,6 +207,62 @@ func TestAFPV02374SignalStopWritesSignalState(t *testing.T) {
 	}
 }
 
+// streamFixture redirects the process streams and the default logger to one
+// file that TestBReader checks after TestAWrite has written lib.A's value to
+// it: run as a suite, a changed lib.A makes TestBReader fail.
+func streamFixture(t *testing.T, imports, holder, write string) *Result {
+	t.Helper()
+	root := reviewFixture(t, map[string]string{
+		"lib/lib.go": "package lib\nfunc A() int { return 1 }\n",
+		"p/p_test.go": "package p\nimport (\"testing\"; \"log\"; \"os\"; \"path/filepath\"; \"strings\"; \"example.com/review/lib\"" + imports + ")\n" + holder + "\nvar out string\n" +
+			"func TestMain(m *testing.M) { dir, _ := os.MkdirTemp(\"\", \"review\"); out = filepath.Join(dir, \"out\"); f, _ := os.Create(out); os.Stdout = f; log.SetOutput(f); code := m.Run(); f.Close(); os.RemoveAll(dir); os.Exit(code) }\n" +
+			"func TestAWrite(t *testing.T) { " + write + " }\n" +
+			"func TestBReader(t *testing.T) { b, err := os.ReadFile(out); if err != nil || !strings.Contains(string(b), \"value=1\") { t.Fatalf(\"%q %v\", b, err) } }\n" +
+			"func TestControl(t *testing.T) {}\n",
+	})
+	program, err := Load(root, "example.com/review", "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := Analyze(program, []Declaration{{Package: "example.com/review/lib", Name: "A"}}, nil)
+	return &result
+}
+
+func TestAFPV02374StreamOutputWritesFiles(t *testing.T) {
+	for _, tc := range []struct{ name, imports, write string }{
+		{"fmt.Print", "; \"fmt\"", "fmt.Print(\"value=\", lib.A())"},
+		{"fmt.Println value", "; \"fmt\"; \"strconv\"", "p := fmt.Println; p(\"value=\" + strconv.Itoa(lib.A()))"},
+		{"log.Print", "", "log.Print(\"value=\", lib.A())"},
+		{"logger method", "", "log.Default().Printf(\"value=%d\", lib.A())"},
+		{"logger method value", "", "p := log.Default().Printf; p(\"value=%d\", lib.A())"},
+		{"slog.Info", "; \"log/slog\"; \"strconv\"", "slog.Info(\"value=\" + strconv.Itoa(lib.A()))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := streamFixture(t, tc.imports, "", tc.write)
+			if result.Whole != "" || keptCodes(*result)["TestBReader"] != KeptReadsSharedState || !slices.Contains(result.Dropped, "TestControl") {
+				t.Fatalf("stream output must write the file system: %+v", *result)
+			}
+		})
+	}
+}
+
+func TestAFPV02374IndirectStdCallsKeepOpaqueArguments(t *testing.T) {
+	for _, tc := range []struct{ name, holder, write string }{
+		{"direct io.Copy", "", "io.Copy(os.Stdout, strings.NewReader(\"value=\" + strconv.Itoa(lib.A())))"},
+		{"local io.Copy value", "", "copyFn := io.Copy; copyFn(os.Stdout, strings.NewReader(\"value=\" + strconv.Itoa(lib.A())))"},
+		{"package io.Copy value", "var copyFn = io.Copy", "copyFn(os.Stdout, strings.NewReader(\"value=\" + strconv.Itoa(lib.A())))"},
+		{"direct WriteTo", "", "strings.NewReader(\"value=\" + strconv.Itoa(lib.A())).WriteTo(os.Stdout)"},
+		{"WriteTo method value", "", "w := strings.NewReader(\"value=\" + strconv.Itoa(lib.A())).WriteTo; w(os.Stdout)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := streamFixture(t, "; \"io\"; \"strconv\"", tc.holder+"\nvar _ = io.EOF", tc.write)
+			if slices.Contains(result.Dropped, "TestBReader") {
+				t.Fatalf("an indirect call must keep the opaque-argument check: %+v", *result)
+			}
+		})
+	}
+}
+
 func TestAFPV02376ImportPathOfRootPackageFiles(t *testing.T) {
 	for file, want := range map[string]string{
 		"lib.go":         "example.com/review",
