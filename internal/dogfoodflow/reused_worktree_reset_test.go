@@ -35,7 +35,7 @@ func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 	testGit(t, root, "commit", "-q", "-am", "change")
 	// The pre-flight now goes on to its steps, which write the report the
 	// repository ignores.
-	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".context-corvint/\n.corvint/dogfood-report.json\n"), 0o666); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".context-corvint/\n.corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	// Bind: an early bind/seal commit whose trace the worktree-local store keeps.

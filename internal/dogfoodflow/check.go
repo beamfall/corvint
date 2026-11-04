@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
@@ -71,6 +72,7 @@ type AggregateCheckCapture struct {
 }
 
 type check struct {
+	reportRename                               func(string, string) error // per-check filesystem seam for publish failures
 	sealed                                     bool
 	sealedTarget                               string
 	cemPath                                    string
@@ -865,9 +867,7 @@ func (c *check) verifyBinding(report []byte) int {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")
 	}
-	if c.record(true, bootstrap) != nil {
-		c.fail("dogfood-report-write")
-	}
+	c.recordOrFail(true, bootstrap)
 	cemLine := firstLine(cem.stdout)
 	if cem.status != 0 {
 		// A failing policy keeps its whole status JSON: it is the repair detail.
@@ -1096,18 +1096,7 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	if replaced != 1 {
 		return fmt.Errorf("report has %d dogfoodCheck lines", replaced)
 	}
-	// DWC-V0-929: Git metadata and the worktree may be separate mounts.
-	// Stage beside the ignored report so replacement stays atomic there.
-	staged, err := os.CreateTemp(filepath.Dir(c.report), ".dogfood-report.*.tmp")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(staged.Name())
-	_, writeErr := staged.Write([]byte(strings.Join(lines, "\n") + "\n"))
-	if err := errors.Join(writeErr, staged.Close()); err != nil {
-		return err
-	}
-	return os.Rename(staged.Name(), c.report)
+	return c.publishReport([]byte(strings.Join(lines, "\n") + "\n"))
 }
 
 func (c *check) unboundNotObserved(reason string) {
@@ -1363,4 +1352,54 @@ func (c *check) finishAggregateCapture(code int, runErr error) error {
 		return err
 	}
 	return nil
+}
+
+// recordOrFail retains the actual filesystem failure instead of diagnosing
+// every failed atomic rename as a permission problem (DWC-V0-929).
+func (c *check) recordOrFail(agree bool, bootstrap int) {
+	if err := c.record(agree, bootstrap); err != nil {
+		detail := fmt.Sprintf("  report error: %v", err)
+		if errors.Is(err, syscall.EXDEV) {
+			detail += " (EXDEV: cross-device rename)"
+		}
+		c.fail("dogfood-report-write", detail, "  fix: resolve the reported filesystem error, then rerun dogfood check")
+	}
+}
+
+// publishReport preserves the report's mode. Only EXDEV admits a retry beside
+// the destination; other errors refuse without changing the published bytes.
+func (c *check) publishReport(data []byte) error {
+	info, err := os.Stat(c.report)
+	if err != nil {
+		return err
+	}
+	rename := c.reportRename
+	if rename == nil {
+		rename = os.Rename
+	}
+	stage := func(dir string) error {
+		file, err := os.CreateTemp(dir, ".dogfood-report.*.tmp")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(file.Name())
+		modeErr := file.Chmod(info.Mode().Perm())
+		_, writeErr := file.Write(data)
+		if err := errors.Join(modeErr, writeErr, file.Close()); err != nil {
+			return err
+		}
+		return rename(file.Name(), c.report)
+	}
+	dir := c.gitDir
+	if dir == "" {
+		dir = filepath.Dir(c.report)
+	}
+	err = stage(dir)
+	if errors.Is(err, syscall.EXDEV) {
+		if fallback := stage(filepath.Dir(c.report)); fallback != nil {
+			return errors.Join(err, fallback)
+		}
+		return nil
+	}
+	return err
 }

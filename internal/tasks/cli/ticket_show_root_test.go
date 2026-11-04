@@ -44,3 +44,24 @@ func TestTCLV0926TicketShowRootAfterVerb(t *testing.T) {
 		}
 	}
 }
+
+// TCL-V0-926: conflicting roots never resolve a local flag relative to a
+// previously selected store. Repeated identical roots use the original cwd.
+func TestTCLV0926TicketShowConflictingRoots(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, local := tcdTicket(t, root, "root-selected-ticket", "")
+	parent := filepath.Dir(root)
+	for _, args := range [][]string{
+		{"--root", root, "ticket", "show", local, "--root", "other"},
+		{"ticket", "show", local, "--root", root, "--root=other"},
+	} {
+		x := atm(t, parent, nil, args...)
+		if x.code != 1 || x.res.Snapshot != nil || !bytes.Contains(x.stdout, []byte("conflicting --root")) || len(x.res.Codes) != 1 || x.res.Codes[0] != wire.CodeMalformed {
+			t.Fatalf("%v: %s", args, x.stdout)
+		}
+	}
+	x := atm(t, parent, nil, "--root", filepath.Base(root), "ticket", "show", local, "--root", filepath.Base(root))
+	if x.code != 0 {
+		t.Fatalf("identical relative roots: %s", x.stdout)
+	}
+}

@@ -2207,11 +2207,12 @@ re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 
 propose-citations is read-only. It prints, on stdout, one draft citation row per
 owed hunk: a stable BASE span naming the hunk path, its basename of at least 6
-bytes, or defining an ID the hunk adds or names; otherwise unknown (DWC-V0-926).
-Bare Markdown headings and cross-file guesses are never drafted (DWC-V0-927).
-For spec amendments naming their governing ID, its unchanged BASE definition is
-preferred, including in hunk context; removed or repeated definitions cannot be
-cited (DWC-V0-928). JSON, .agent-evidence/ and one-line files are never drafted.
+bytes, or defining an ID the hunk adds or names (DWC-V0-926). Same-file nearest
+stable lines remain marked proposals; seal and repin rows cite their contracts.
+Bare Markdown headings and unsupported cross-file guesses are never drafted (DWC-V0-927).
+For spec amendments, prefer the stable governing BASE definition, including a
+continuation without its ID. Unanchored same-file proposals are marked; rewritten
+definitions remain governing-ID review notes (DWC-V0-928). JSON, .agent-evidence/ and one-line files are never drafted.
 Same-change intent is not BASE evidence (DCW-V0-440); a refined BASE requirement
 can be proposed only when its span also anchors this hunk. With no usable map
 (missing, unreadable or for another BASE) it drafts one row per hunk of the

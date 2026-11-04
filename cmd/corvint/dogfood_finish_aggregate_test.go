@@ -129,7 +129,7 @@ func aggregateFinishRepo(t *testing.T, run portableRun, scopes, requirements, cl
 		}
 	}
 	cemGit(t, root, "init", "-q", "-b", "main")
-	exclude := ".corvint/dogfood-report.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
+	exclude := ".corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
 	if err = os.WriteFile(filepath.Join(root, ".git/info/exclude"), []byte(exclude), 0644); err != nil {
 		t.Fatal(err)
 	}

@@ -40,7 +40,7 @@ func TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule(t *testing.T) {
 		t.Fatalf("draft has %d rows; want 2:\n%s\n%s", len(rows), stdout.String(), stderr.String())
 	}
 	repin, prose := strings.Split(rows[0], "\t"), strings.Split(rows[1], "\t")
-	if repin[1] != "unknown" {
+	if repin[1] != repinRuleSpec || repin[2] != "8:8" || !strings.Contains(stderr.String(), "DCW-V0-548") {
 		t.Errorf("a repin-only hunk without a named ID/path must stay unknown (DWC-V0-926): %q", repin)
 	}
 

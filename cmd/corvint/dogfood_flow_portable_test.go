@@ -61,7 +61,7 @@ func portableDogfoodRepo(t *testing.T) (string, string) {
 	cemGit(t, root, "init", "-q", "-b", "main")
 	// The private outputs and local trace store the daily path writes in the
 	// worktree; the recorder and the clean check require them ignored.
-	exclude := ".corvint/dogfood-report.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
+	exclude := ".corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
 	if err = os.WriteFile(filepath.Join(root, ".git/info/exclude"), []byte(exclude), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -664,7 +664,7 @@ func impactAbstentionRepo(t *testing.T, module bool) (string, string) {
 	}
 	cemWrite(t, root, file, before)
 	cemGit(t, root, "init", "-q", "-b", "main")
-	exclude := ".corvint/dogfood-report.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
+	exclude := ".corvint/dogfood-report.json\n.corvint/.dogfood-report.*.tmp\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
 	if err = os.WriteFile(filepath.Join(root, ".git/info/exclude"), []byte(exclude), 0644); err != nil {
 		t.Fatal(err)
 	}

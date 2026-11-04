@@ -3,6 +3,8 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -58,11 +60,59 @@ func TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile(t *testing.
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
-	// DWC-V0-926/927 supersede unanchored same-file, move, sibling and seal
-	// guesses. Preserve the full scenario and check every remaining cite with
-	// the CEM verifier; missing anchors must be explicit unknown rows.
-	assertAnchoredDraft(t, root, base, stdout.String())
+	edited := diffHunks(t, root, base)
+	draft := stdout.String()
+	rows := textLines(stdout.Bytes())
+	if len(rows) != 7 {
+		t.Fatalf("draft has %d rows or an unknown row, want 7 cited rows:\n%s\n%s", len(rows), draft, stderr.String())
+	}
+	for _, row := range rows {
+		fields := strings.Split(row, "\t")
+		if fields[1] == "unknown" {
+			continue
+		}
+		start, _ := strconv.Atoi(strings.Split(fields[2], ":")[0])
+		if strings.HasPrefix(fields[1], "cmd/svc-server/") || strings.HasPrefix(fields[1], "internal/svc/") {
+			t.Fatalf("row cites a span in a moved file: %q", row)
+		}
+		for _, hunk := range edited {
+			if hunk.Path == fields[1] && start >= hunk.OldRange.Start && start < hunk.OldRange.Start+hunk.OldRange.Count {
+				t.Fatalf("row cites a line the change edits: %q", row)
+			}
+		}
+	}
+	plan := writeInput(t, draft)
+	code, preStdout, preStderr, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan})
+	if code != 0 || !strings.Contains(preStdout, "prepare PASS") || !strings.Contains(preStdout, "inputs-check PASS") {
+		t.Fatalf("the prepared map does not admit the draft: code=%d\n%s\n%s", code, preStdout, preStderr)
+	}
 
+	session, err := workflow.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: testGit(t, root, "rev-parse", "HEAD")}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prepared struct {
+		Hunks []json.RawMessage `json:"hunks"`
+	}
+	if err := json.Unmarshal(data, &prepared); err != nil || len(prepared.Hunks) != len(rows) {
+		t.Fatalf("prepared map: %v %s", err, data)
+	}
+	// Against the prepared map the ordinal-keyed draft is the same.
+	stdout.Reset()
+	stderr.Reset()
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations with a map = %d, %v\n%s", code, err, stderr.String())
+	}
+	if rows := textLines(stdout.Bytes()); len(rows) != 7 {
+		t.Fatalf("map draft:\n%s\n%s", stdout.String(), stderr.String())
+	}
 }
 
 // TestMovedFilesDCWV0803PairsOnlyUnambiguousMoves: a deletion and an addition

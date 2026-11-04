@@ -66,7 +66,7 @@ func unknownRows(plan string) int {
 }
 
 // DCW-V0-966 amended by DWC-V0-926: lowering the unknown count cannot
-// justify cross-file guesses or arbitrary own-file spans. Retain the real
+// justify cross-file guesses; stable own-file spans remain marked proposals. Retain the real
 // self-development scenario and check its citations against CEM-V1-081.
 func TestProposeCitationsDCWV0966BoundsTheUnknownRate(t *testing.T) {
 	root, base := selfDevelopmentRepository(t)
@@ -78,6 +78,10 @@ func TestProposeCitationsDCWV0966BoundsTheUnknownRate(t *testing.T) {
 	// guesses. Preserve the full scenario and check every remaining cite with
 	// the CEM verifier; missing anchors must be explicit unknown rows.
 	assertAnchoredDraft(t, root, base, stdout.String())
+	code, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: writeInput(t, stdout.String())})
+	if code != 0 || strings.Contains(out+errText, "cite-span-not-stable") {
+		t.Fatalf("drafted plan failed preflight: %d\n%s\n%s", code, out, errText)
+	}
 
 }
 
@@ -115,7 +119,7 @@ func TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute(t *testing.T) {
 		t.Fatalf("no row for %s:\n%s\n%s", sealed, plan, errText)
 		return ""
 	}
-	contract := "\tunknown\tinsufficient-evidence\t"
+	contract := "\tdocs/DOGFOOD.md\t13:13\tspecification"
 	plan, errText := draft(ProposeOptions{})
 	if row := sealedRow(plan, errText); !strings.Contains(row, contract) {
 		t.Errorf("no-map route: sealed row = %q; want %q", row, contract)
@@ -150,7 +154,7 @@ func TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute(t *testing.T) {
 	writeTree(t, root, map[string]string{"docs/DOGFOOD.md": strings.Replace(readText(t, root, "docs/DOGFOOD.md"), "`.corvint/changes/<bind-commit>.cem.json`.", "`.corvint/changes/<bind-commit>.cem.json`, byte for byte.", 1)})
 	testGit(t, root, "commit", "-q", "-am", "edit the seal contract")
 	plan, errText = draft(ProposeOptions{})
-	if row := sealedRow(plan, errText); !strings.Contains(row, contract) {
+	if row := sealedRow(plan, errText); !strings.Contains(row, "\tdocs/specs/daily-change-evidence-workflow-v0.md\t5:5\tspecification") {
 		t.Errorf("edited-contract route: sealed row = %q; want the DCW-V0-385 definition\n%s", row, errText)
 	}
 }

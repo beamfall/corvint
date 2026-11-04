@@ -20,37 +20,47 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 ## Requirements
 
-- `DWC-V0-929`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628
-  closeout blocker; refines `DCW-V0-005`) `dogfood check` MUST replace its private report
-  atomically using a mode-0600 temporary file in the report's own directory, closing it before
-  rename and removing it on return. It MUST NOT depend on renaming a file from Git metadata:
-  a linked worktree and its Git directory may be distinct filesystem or sandbox mounts.
-  A failed update MUST preserve the prior report. The adopter ignore list MUST cover
-  `.corvint/.dogfood-report.*.tmp`, so interrupted staging artifacts are private scratch.
-  Evidence: `TestCheckDWCV0929ReportStaysOnWorktreeMount`; live lane dogfood-check on separate
-  sandbox mounts. Rollback: restore Git-directory staging; cross-mount checks fail again.
+- `DWC-V0-929`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4573;
+  V1-4488; amended 2026-11-04 fix round 1; refines `DCW-V0-005`) `dogfood check` MUST
+  atomically replace its private report, preserving the existing published mode (normally 0644).
+  Only an EXDEV staging rename failure MAY retry using a same-directory temporary file;
+  other errors MUST refuse. Close before rename and clean staging files on every return,
+  including failures after creation. A failed update MUST preserve the prior report.
+  Surface the underlying report error and name EXDEV when present, without suggesting that
+  every failure is a permission error. Adopter exclusions MUST cover `.corvint/.dogfood-report.*.tmp`.
+  Evidence: `TestCheckDWCV0929ReportStaysOnWorktreeMount`, `TestCheckDWCV0929ReportErrorNamesEXDEV`;
+  live lane dogfood-check on separate sandbox mounts. Rollback: restore Git-only staging.
 
 - `DWC-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
-  amends `DCW-V0-161`, `DCW-V0-962`, `DCW-V0-805`, `DCW-V0-841`, `DCW-V0-803`, `DCW-V0-385`, `DCW-V0-548`, `DCW-V0-966` and `DCW-V0-967`)
-  Every newly drafted `propose-citations` span MUST name the hunk's full path, its basename
-  of at least 6 bytes, or define a requirement ID the hunk adds or names, using `CEM-V1-081`
-  anchoring. Similar words, sibling contracts and change-wide governing specs alone MUST NOT
-  justify a row. If no admissible stable BASE span exists, draft `unknown` with the reason.
-  Author-reviewed rows carried by refresh retain their existing semantics. Evidence:
-  `TestProposeCitationsDWCV0926OnlyAnchoredDrafts`. Rollback: remove the drafted-row anchor filter.
+  amended 2026-11-04 fix round 1; amends `DCW-V0-440`; refines `DCW-V0-161`, `DCW-V0-962`, `DCW-V0-805`, `DCW-V0-841`, `DCW-V0-803`, `DCW-V0-385`, `DCW-V0-548`, `DCW-V0-966` and `DCW-V0-967`)
+  Cross-file drafts MUST have exact path, basename of at least 6 bytes, or requirement-definition
+  evidence admitted by `CEM-V1-081`, except the deterministic seal-contract (`DCW-V0-385`)
+  and repin-rule (`DCW-V0-548`) rows, which explain the operations that produce their hunks.
+  Preserve marked same-file nearest stable substantive line proposals (`DCW-V0-962`), without
+  claiming an anchored tier, including references to same-change IDs in an existing file;
+  the new definition itself is not BASE evidence. Decision rows remain eligible when the span names the exact file
+  or defines an ID the hunk names. Cross-file sibling, intent and governing-spec guesses alone
+  MUST NOT justify a row. Otherwise draft reasoned `unknown`. Reviewed refresh rows retain
+  their semantics. Evidence: `TestProposeCitationsDWCV0926OnlyAnchoredDrafts`, `TestProposeCitationsDWCV0926SameChangeReferenceKeepsOwnContext`,
+  `TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair`, `TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule`.
+  Rollback: remove the cross-file drafted-row filter.
 - `DWC-V0-927`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
-  amends `DCW-V0-439` and `DCW-V0-962`) A newly drafted span MUST NOT consist only of a bare
-  Markdown section heading, even when it names the hunk path. Try an admissible substantive
-  line instead, or keep the row `unknown`. Evidence: `TestProposeCitationsDWCV0927NoHeadings`.
+  amended 2026-11-04 fix round 1; amends `DCW-V0-439` and `DCW-V0-962`) A newly drafted
+  span MUST NOT consist only of a bare Markdown heading. Track fenced code so its content
+  is not a heading. A setext underline requires a preceding paragraph, not a list item or YAML
+  key. Try substantive evidence instead or keep `unknown`. Evidence:
+  `TestProposeCitationsDWCV0927NoHeadings`, `TestProposeCitationsDWCV0927MarkdownContexts`.
   Rollback: restore heading candidates.
 - `DWC-V0-928`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
-  refines `DCW-V0-967` and amends `DCW-V0-805`) For a spec amendment naming a governing ID,
-  the draft MUST prefer its BASE ``- `ID`:`` requirement definition over changed text,
-  a section heading or a guessed cross-file span. An unchanged definition within hunk
-  context is eligible when the citation stability verifier admits it. A definition removed or
-  repeated by the change MUST NOT be cited; retain uncertainty or another admissible anchor.
-  Evidence: `TestProposeCitationsDWCV0928BaseGoverningDefinition`. Rollback: remove the
-  governing-definition preference.
+  amended 2026-11-04 fix round 1; refines `DCW-V0-967` and amends `DCW-V0-805`) For a
+  spec amendment, prefer the BASE definition of the entry containing the edited line, including
+  a continuation edit that does not retype its ID. Cite only a definition the stability verifier
+  admits and no other row already used (`DCW-V0-382`). When added bytes omit the ID, label it
+  a same-file proposal with an anchored-by-id review note and explicitly state that `CEM-V1-081`
+  cannot anchor it. A rewritten, removed or repeated definition MUST remain a governing-ID
+  review note, never a false cite of its removed bytes; another stable proposal may serve.
+  Evidence: `TestProposeCitationsDWCV0928BaseGoverningDefinition`,
+  `TestProposeCitationsDWCV0928DistinctGoverningSpans`. Rollback: remove the preference.
 
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
