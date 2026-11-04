@@ -19,16 +19,28 @@ candidates=$(git grep -l -z --cached -F /tmp -- '*_test.go' | tr '\0' '\n')
 status=$?
 ((status <= 1)) || { printf 'check-fixed-tmp-paths: cannot read the index\n' >&2; exit 2; }
 [[ -n $candidates ]] || exit 0
+# LVT-V0-006 (V1-4252): one `git cat-file --batch` reads every candidate's staged blob, in candidate
+# order, instead of one `git show` per file; a missing or unparsable object exits 2, as a failed
+# `git show` did.
+list=$(mktemp "${TMPDIR:-/tmp}/check-fixed-tmp-paths.XXXXXX") || exit 2
+trap '/bin/rm -f "$list"' EXIT
+printf '%s\n' "$candidates" > "$list"
 # shellcheck disable=SC2016 # the Perl program is single-quoted on purpose.
-perl -e '
+sed 's/^/:/' "$list" | git cat-file --batch | perl -e '
   my ($q, $failed) = ("[\"`]", 0);
   my $pattern = qr{(?:MkdirTemp|CreateTemp|WriteFile|MkdirAll|Mkdir|Create|OpenFile)\(\s*$q/tmp[/"`]
     | filepath\.Join\(\s*$q/tmp$q | ${q}TMPDIR=/tmp[/"`] | Setenv\(\s*${q}TMPDIR$q,\s*$q/tmp[/"`]}x;
-  while (my $path = <STDIN>) {
+  open(my $paths, "<", $ARGV[0]) or exit 2;
+  binmode STDIN;
+  while (my $path = <$paths>) {
     chomp $path;
-    open(my $blob, "-|", "git", "show", ":$path") or exit 2;
-    my $text = do { local $/; <$blob> };
-    close($blob) or exit 2;
+    my $header = <STDIN>;
+    defined $header or exit 2;
+    my (undef, $type, $size) = split / /, $header;
+    defined $size && $type eq "blob" && $size =~ /^[0-9]+$/ or exit 2;
+    my $got = read(STDIN, my $text, $size);
+    defined $got && $got == $size or exit 2;
+    defined(<STDIN>) or exit 2;
     my @lines = split /\n/, $text, -1;
     while ($text =~ /$pattern/g) {
       my $line = 1 + (substr($text, 0, $-[0]) =~ tr/\n//);
@@ -38,4 +50,4 @@ perl -e '
     }
   }
   exit $failed;
-' <<< "$candidates"
+' "$list"

@@ -1328,4 +1328,46 @@ rc=0
 out=$(cd "$test_root" && script/check-line-citations.sh --show-changed 2>&1) || rc=$?
 [ "$rc" != 0 ] || fail "--show-changed without --repin was accepted: $out"
 
+# LVT-V0-006: historical decision blobs share the existing batch as their count grows.
+history_root=$test_root/history
+mkdir -p "$history_root/script" "$history_root/docs/decisions" "$history_root/internal/demo" "$history_root/shim"
+cp "$source_root/script/check-line-citations.sh" "$history_root/script/"
+printf '# no legacy documents\n' > "$history_root/script/line-citation-legacy-documents.txt"
+printf '# no unpinned citations\n' > "$history_root/script/line-citation-unpinned-inventory.txt"
+printf 'package demo\n\nfunc Cited() int { return 1 }\n' > "$history_root/internal/demo/a.go"
+git -C "$history_root" init -q
+hg() { git -C "$history_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+hg add -A
+pin=$(cd "$history_root" && script/check-line-citations.sh --hash internal/demo/a.go:3)
+# shellcheck disable=SC2016
+printf '# Decision\n\nSee `%s`.\n' "$pin" > "$history_root/docs/decisions/9001.md"
+hg add -A && hg commit -q -m one
+real_git=$(command -v git)
+printf '#!/bin/sh\nprintf "git\\n" >> "%s/count"\nexec "%s" "$@"\n' "$history_root" "$real_git" > "$history_root/shim/git"
+chmod +x "$history_root/shim/git"
+hscan() { (cd "$history_root" && PATH="$history_root/shim:$PATH" script/check-line-citations.sh); }
+: > "$history_root/count"
+hscan || fail "one historical decision failed"
+few=$(wc -l < "$history_root/count" | tr -d ' ')
+i=0
+while [ "$i" -lt 40 ]; do
+    i=$((i + 1))
+    cp "$history_root/internal/demo/a.go" "$history_root/internal/demo/more$i.go"
+    sed "s@internal/demo/a.go@internal/demo/more$i.go@" "$history_root/docs/decisions/9001.md" > "$history_root/docs/decisions/more$i.md"
+done
+hg add docs internal && hg commit -q -m many
+# Current source changes must not invalidate a citation against its decision's immutable commit.
+printf 'package demo\n\nfunc Changed() {}\n' > "$history_root/internal/demo/a.go"
+hg add internal/demo/a.go
+: > "$history_root/count"
+hscan || fail "historical citations resolved against moving staged content"
+many=$(wc -l < "$history_root/count" | tr -d ' ')
+[ "$few" = "$many" ] || fail "historical Git spawns grew: $few to $many"
+# A same-change decision still resolves against the staged tree and detects an incorrect pin.
+printf '# New decision\n\nSee `%s`.\n' "$pin" > "$history_root/docs/decisions/new.md"
+hg add docs/decisions/new.md
+if hscan > "$history_root/fault" 2>&1; then fail "a new decision with a stale pin passed"; fi
+grep -q 'cited content changed' "$history_root/fault" || fail "the stale pin failure was not named"
+printf 'line-citation history: %s Git spawns for 1 and 41 decisions\n' "$many"
+
 echo "check-line-citations_test.sh: ok"

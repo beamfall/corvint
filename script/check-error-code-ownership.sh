@@ -51,30 +51,37 @@ search() {
     fi
 }
 
-# search_tree runs the same search over the scratch tree of candidate lines, whose files hold
-# index content only.
+# LVT-V0-007: enumerate staged source lines once. Include signatures and named types as well
+# as code literals; local scans then keep Git's path/line output without reopening the index.
+sources="cmd/*.go internal/*.go"
+ident='[A-Za-z_][A-Za-z0-9_]*'
+arg='([^,()]|\([^()]*\))*'
+signature="(func (\([^)]*\) )?$ident|$ident :?= func)\((.*[(, ])?(code|reason)[ ,)].*"
+set -f
+# shellcheck disable=SC2086
+search "$work/candidates" -n -E "$signature|^type $ident(Error|Code) string|\"$kebab\"" -- $sources ':(exclude)*_test.go'
+set +f
+mkdir -p "$work/tree/cmd" "$work/tree/internal"
+sed -E 's/:[0-9]+:.*$//; s/\/[^/]*$//' "$work/candidates" | LC_ALL=C sort -u |
+    (cd "$work/tree" && xargs mkdir -p)
+LC_ALL=C awk -v tree="$work/tree" '{
+        split_at = index($0, ":"); path = substr($0, 1, split_at - 1); rest = substr($0, split_at + 1)
+        split_at = index(rest, ":"); line = substr(rest, 1, split_at - 1) + 0
+        if (path != current) { if (current != "") close(file); current = path; file = tree "/" path; last = 0 }
+        while (++last < line) print "" > file
+        print substr(rest, split_at + 1) > file
+    }' "$work/candidates"
 search_tree() {
     out=$1; shift
     status=0
-    (cd "$work/tree" && git grep --no-index -I "$@") >"$out" || status=$?
+    (cd "$work/tree" && grep -r -I --include='*.go' "$@" cmd internal) >"$out" || status=$?
     if [ "$status" -gt 1 ]; then
-        printf 'error-code ownership: git grep failed (exit %s)\n' "$status" >&2
+        printf 'error-code ownership: grep failed (exit %s)\n' "$status" >&2
         exit 1
     fi
 }
-
-sources="cmd/*.go internal/*.go"
-ident='[A-Za-z_][A-Za-z0-9_]*'
-# One call argument: no top-level comma, at most one level of nested parentheses.
-arg='([^,()]|\([^()]*\))*'
-set -f
-# shellcheck disable=SC2086
-search "$work/constructors" -o -E \
-    "(func (\([^)]*\) )?$ident|$ident :?= func)\((.*[(, ])?(code|reason)[ ,)].*" \
-    -- $sources ':(exclude)*_test.go'
-# shellcheck disable=SC2086
-search "$work/types" -h -o -E "^type $ident(Error|Code) string" -- $sources ':(exclude)*_test.go'
-set +f
+search_tree "$work/constructors" -H -o -E "$signature"
+search_tree "$work/types" -h -o -E "^type $ident(Error|Code) string"
 # Each discovered signature yields "index<TAB>name<TAB>directory" for every parameter named
 # code or reason, counting top-level commas in the parameter list. A named string type is
 # index 0 everywhere.
@@ -109,28 +116,8 @@ for index in 0 1 2 3; do
 done
 
 position="(^|[^A-Za-z0-9_])((Code|Reason)[[:space:]]*:[[:space:]]*|\"(code|reason)\"[[:space:]]*:[[:space:]]*|errors\.New\(|($first)\($assignments)\"$kebab\""
-# Every site ends in a quoted kebab literal on one line, so only a line holding one can match
-# (ECO-V0-008). Those lines are copied from the index into a scratch tree at their own line
-# numbers, every other line left empty, and the position pattern runs there: its long call-name
-# alternation then scans a small fraction of the source and finds exactly the same sites.
-set -f
-# shellcheck disable=SC2086
-search "$work/candidates" -n -E "\"$kebab\"" -- $sources ':(exclude)*_test.go'
-set +f
-mkdir "$work/tree"
-sed -E 's/:[0-9]+:.*$//; s/\/[^/]*$//' "$work/candidates" | LC_ALL=C sort -u |
-    (cd "$work/tree" && xargs mkdir -p)
-LC_ALL=C awk -v tree="$work/tree" '{
-        split_at = index($0, ":"); path = substr($0, 1, split_at - 1); rest = substr($0, split_at + 1)
-        split_at = index(rest, ":"); line = substr(rest, 1, split_at - 1) + 0
-        if (path != current) { if (current != "") close(file); current = path; file = tree "/" path; last = 0 }
-        while (++last < line) print "" > file
-        print substr(rest, split_at + 1) > file
-    }' "$work/candidates"
-set -f
-# shellcheck disable=SC2086
-search_tree "$work/sites" -n -o -E "$position" -- $sources
-set +f
+# The staged scratch tree retains candidate lines at their original line numbers.
+search_tree "$work/sites" -H -n -o -E "$position"
 # One "directory<TAB>pattern" line per declaring directory, alternating its later-parameter
 # names grouped by index.
 ARG=$arg awk -F'\t' '$1 > 0 {
@@ -149,10 +136,35 @@ ARG=$arg awk -F'\t' '$1 > 0 {
         }
         for (directory in calls) printf "%s\t%s\n", directory, calls[directory]
     }' "$work/names" >"$work/directories"
+# LVT-V0-007 (V1-4252): each directory's search runs over the scratch tree, not the index. A site
+# ends in a quoted kebab literal on one line, so it lies on a candidate line the tree already holds
+# at its own number, and a plain grep there finds exactly the sites `git grep --cached` over the
+# directory's files found, without one git spawn and index read per declaring directory.
+newline='
+'
 while IFS='	' read -r directory calls; do
-    search "$work/local-sites" -n -o -E "(^|[^A-Za-z0-9_])($calls)\"$kebab\"" \
-        -- ":(glob)$directory/*.go" ':(exclude)*_test.go'
-    cat "$work/local-sites" >>"$work/sites"
+    files=$(cd "$work/tree" && {
+        for file in "$directory"/*.go; do
+            case $file in *_test.go) continue ;; esac
+            test ! -f "$file" || printf '%s\n' "$file"
+        done
+    } | LC_ALL=C sort) || {
+        printf 'error-code ownership: cannot list the scratch tree for %s\n' "$directory" >&2
+        exit 1
+    }
+    test -n "$files" || continue
+    status=0
+    (
+        set -f
+        IFS=$newline
+        # shellcheck disable=SC2086 # one path per line, never globbed
+        set -- $files
+        cd "$work/tree" && grep -I -H -n -o -E -e "(^|[^A-Za-z0-9_])($calls)\"$kebab\"" -- "$@"
+    ) >>"$work/sites" || status=$?
+    if [ "$status" -gt 1 ]; then
+        printf 'error-code ownership: grep failed (exit %s)\n' "$status" >&2
+        exit 1
+    fi
 done <"$work/directories"
 sed -E "s/^([^:]*):([0-9]+):.*\"($kebab)\"\$/\3	\1:\2/" "$work/sites" |
     LC_ALL=C sort -t'	' -k1,1 -k2,2 |

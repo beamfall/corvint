@@ -3,12 +3,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workflowSessionKey } from './workflow.js';
 import { digest } from './operations.js';
+import { createHostScratch, installHostScratchCleanup, sweepHostScratch } from './host-scratch.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)), root=resolve(here,'../..');
 // Pi 0.99.1 normalizes provider requests into a transcript with system messages.
@@ -22,9 +22,8 @@ const cleanup=()=>{
   try{const pid=Number(readFileSync(path,'utf8'));if(Number.isSafeInteger(pid)&&pid>1)process.kill(-pid,'SIGKILL')}catch{}
  }
 };
-process.on('exit',cleanup);
-process.once('SIGINT',()=>{cleanup();process.exit(130)});
-process.once('SIGTERM',()=>{cleanup();process.exit(143)});
+installHostScratchCleanup(cleanup);
+sweepHostScratch();
 
 function run(command,args,options={}) {
  return new Promise((resolve,reject)=>{
@@ -98,7 +97,7 @@ async function tuiFixture(scratch) {
 
 test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t=>{
  assert.notEqual(process.platform,'win32','Pi adapter requires POSIX group cleanup');
- const scratch=mkdtempSync(join(tmpdir(),'corvint-pi-host-'));
+ const scratch=createHostScratch();
  t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const home=join(scratch,'home'), repo=join(scratch,'repo'), agent=join(home,'.pi/agent'), pkg=join(scratch,'package'), capture=join(scratch,'capture');
  for(const path of [home,repo,agent])mkdirSync(path,{recursive:true});
@@ -240,7 +239,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
 });
 
 test('AHI-024 native-host harness cancellation kills descendants',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- const scratch=mkdtempSync(join(tmpdir(),'pi-host-cancel-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const pidFile=join(scratch,'pid-"\'`$()\u2028');const abort=new AbortController();
  const script=join(scratch,'child.js');
  writeFileSync(script,`const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'],{stdio:'ignore'});writeFileSync(process.argv[2],String(child.pid));setInterval(()=>{},1000);`);
@@ -255,7 +254,7 @@ test('AHI-024 native-host harness cancellation kills descendants',{skip:!!proces
 
 
 test('AHI-024 interrupting the host check reaps its separately detached native group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- const scratch=mkdtempSync(join(tmpdir(),'pi-host-interrupt-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const witness=join(scratch,'witness');
  let spawned;const ready=new Promise(r=>{spawned=r});
  // Run the test file directly so the signal targets its registered cleanup boundary. Without the
@@ -286,7 +285,7 @@ test('AHI-024 interrupting the host check reaps its separately detached native g
 });
 
 test('AHI-025 native TUI fixture interruption reaps its PTY process group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- const scratch=mkdtempSync(join(tmpdir(),'pi-pty-cancel-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const witness=join(scratch,'group'),descendant=join(scratch,'descendant'),fake=join(scratch,'fake.sh');
  writeFileSync(fake,`trap '' TERM\nsleep 86400 &\necho $! > ${JSON.stringify(descendant+'.tmp')}\nmv ${JSON.stringify(descendant+'.tmp')} ${JSON.stringify(descendant)}\nwait\n`);
  nativeGroups.add(witness);t.after(()=>nativeGroups.delete(witness));
@@ -330,7 +329,7 @@ export default function(pi){
 }`;
 
 test('AHI-024 AHI-025 exact native fork tree compaction retry and concurrent tool qualification',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- const scratch=mkdtempSync(join(tmpdir(),'pi-matrix-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const home=join(scratch,'home'),agent=join(home,'.pi/agent'),repo=join(scratch,'repo'),pkg=join(scratch,'package'),capture=join(scratch,'capture'),providerPath=join(scratch,'provider.ts');
  for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});
  cpSync(resolve(process.env.CORVINT_PI_PACKAGE_SOURCE??here),pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});
@@ -387,7 +386,7 @@ test('AHI-024 AHI-025 exact native fork tree compaction retry and concurrent too
 });
 
 for(const loseClaimReceipt of [false,true])test('LCP PWV native workflow owner and operator lease survive fork reload and resume'+(loseClaimReceipt?' with pending receipt':''),{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- const scratch=mkdtempSync(join(tmpdir(),'pi-coexist-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
+ const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const home=join(scratch,'home'),agent=join(home,'.pi/agent'),repo=join(scratch,'repo'),pkg=join(scratch,'package'),capture=join(scratch,'capture'),providerPath=join(scratch,'provider.ts');
  for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});
  cpSync(resolve(process.env.CORVINT_PI_PACKAGE_SOURCE??here),pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});

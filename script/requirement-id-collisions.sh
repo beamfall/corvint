@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # usage: script/requirement-id-collisions.sh [--base REF]
 #        script/requirement-id-collisions.sh --block PREFIX LO HI [--base REF]
+#        script/requirement-id-collisions.sh --family PREFIX [--base REF]
 #
 # Finds requirement IDs that two open lines of work define independently, before either merges
-# (ASD-V0-950..952; V1-2909, V1-1009, V1-3614). Every other local branch and every other worktree's
-# HEAD that is not yet merged into REF (default origin/main) and shares history with it is an open
-# ref; an open ref's new definitions are the rows of its committed docs/specs/REQUIREMENTS.tsv whose
-# ID REF's index lacks.
+# (ASD-V0-950..952; V1-2909, V1-1009, V1-3614). Every other local branch, every remote-tracking
+# branch (a lane pushed from another host; LVT-V0-002, V1-4046) and every other worktree's HEAD that
+# is not yet merged into REF (default origin/main) and shares history with it is an open ref; an
+# open ref's new definitions are the rows of its committed docs/specs/REQUIREMENTS.tsv whose ID
+# REF's index lacks.
 #
 # With no --block, this checkout's new definitions are the rows the generator prints from its Git
 # index (the staged specs), so a lane can run it before it commits. Each ID this checkout and an
@@ -15,9 +17,12 @@
 # `no-collision ... open refs` line and exit 0. The same row on both sides is the same change
 # (a lane branch and the batch that merged it) and passes.
 #
-# With --block, PREFIX-LO..PREFIX-HI is a requirement-ID block a charter wants to hand out: each ID
-# in it that an open ref newly defines prints `used ID REF_NAME (SHA) FILE` and the exit is 1;
-# otherwise `free ... on open refs`. `make requirement-ids-free` runs it after the REF tree check.
+# With --block, PREFIX-LO..PREFIX-HI (LO and HI 0..9999, canonical IDs as LVT-V0-001 spells them)
+# is a requirement-ID block a charter wants to hand out: each ID in it that an open ref newly
+# defines prints `used ID REF_NAME (SHA) FILE` and the exit is 1; otherwise `free ... on open refs`.
+# With --family, PREFIX is a new prefix a charter wants to claim: any ID of its family (PREFIX up to
+# a trailing -V<n>, any version) that an open ref newly defines prints the same `used` line
+# (LVT-V0-002). `make requirement-ids-free` runs the matching mode after the REF tree check.
 #
 # Malformed input, a REF that is not a commit, an open ref whose committed index cannot be read, or
 # a generator failure exits 2. It reads only Git
@@ -26,10 +31,17 @@ set -uo pipefail
 export LC_ALL=C
 
 me=requirement-id-collisions
-usage='usage: script/requirement-id-collisions.sh [--base REF] | --block PREFIX LO HI [--base REF]'
+usage='usage: script/requirement-id-collisions.sh [--base REF] | --block PREFIX LO HI [--base REF] | --family PREFIX [--base REF]'
 refuse() { printf '%s: REFUSE %s\n%s\n' "$me" "$1" "$usage" >&2; exit 2; }
 
-base=origin/main block=
+if [[ ${1:-} == --help ]]; then
+  printf '%s\n' "$usage" \
+    'Checks committed definitions on unmerged local/remote refs and worktree heads.' \
+    'Example: script/requirement-id-collisions.sh --block AFP-V0 2600 2619 --base origin/main'
+  exit 0
+fi
+
+base=origin/main block= family=
 while (($#)); do
   case $1 in
     --base) (($# >= 2)) || refuse missing-base; base=$2; shift 2 ;;
@@ -38,13 +50,20 @@ while (($#)); do
       prefix=$2 lo=$3 hi=$4 block=1
       shift 4
       ;;
-    *) refuse "bad-argument $1: use --base REF or --block PREFIX LO HI" ;;
+    --family)
+      (($# >= 2)) || refuse bad-family
+      prefix=$2 block=1 family=1
+      shift 2
+      ;;
+    *) refuse "bad-argument $1: use --base REF, --block PREFIX LO HI or --family PREFIX" ;;
   esac
 done
 if [[ -n $block ]]; then
   [[ $prefix =~ ^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$ ]] || refuse "bad-prefix $prefix: want upper-case letters and digits joined by -, such as DCW-V0"
-  [[ $lo =~ ^[0-9]{1,3}$ && $hi =~ ^[0-9]{1,3}$ ]] && ((10#$lo <= 10#$hi)) || refuse "bad-range $lo..$hi: want LO and HI of 1 to 3 digits with LO <= HI"
-  lo=$((10#$lo)) hi=$((10#$hi))
+  if [[ -z $family ]]; then
+    [[ $lo =~ ^[0-9]{1,4}$ && $hi =~ ^[0-9]{1,4}$ ]] && ((10#$lo <= 10#$hi)) || refuse "bad-range $lo..$hi: want LO and HI of 1 to 4 digits with LO <= HI"
+    lo=$((10#$lo)) hi=$((10#$hi))
+  fi
 fi
 top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || refuse "not-a-checkout $PWD: run it inside a Git checkout"
 base_sha=$(git rev-parse --verify -q --end-of-options "$base^{commit}") ||
@@ -52,8 +71,16 @@ base_sha=$(git rev-parse --verify -q --end-of-options "$base^{commit}") ||
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/$me.XXXXXX") || exit 2
 trap '/bin/rm -rf "$work"' EXIT
-git show "$base_sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null | cut -f1 > "$work/base.ids" ||
+git show "$base_sha:docs/specs/REQUIREMENTS.tsv" > "$work/base.tsv" 2> /dev/null ||
   refuse "requirements-index-unavailable at $base: use a REF whose tree holds docs/specs/REQUIREMENTS.tsv"
+valid_index() {
+  awk -F'\t' '
+    NR == 1 { if ($1 != "id" || $2 != "file" || $3 != "title") bad = 1; next }
+    NF < 3 || $1 !~ /^[A-Z][A-Z0-9-]*-[0-9]+$/ || $2 !~ /^docs\/specs\/.+[.]md$/ { bad = 1 }
+    END { exit bad || NR == 0 }' "$1"
+}
+valid_index "$work/base.tsv" || refuse "requirements-index-unavailable at $base: run make spec-requirements to regenerate its malformed docs/specs/REQUIREMENTS.tsv"
+cut -f1 "$work/base.tsv" > "$work/base.ids"
 
 # new_rows [IDS_FILE] prints `ID<TAB>FILE<TAB>TITLE` for each row of a REQUIREMENTS.tsv on stdin
 # whose ID the base index (and IDS_FILE, when given) lacks.
@@ -62,26 +89,31 @@ new_rows() {
   awk -F'\t' 'NR == FNR { known[$1] = 1; next } FNR > 1 && !($1 in known) { print $1 "\t" $2 "\t" $3 }' "$work/known.ids" -
 }
 
-# Open refs: every local branch tip and every worktree HEAD, deduplicated by commit, except this
-# checkout's HEAD, commits already in the base, and commits with no history shared with it.
+# Open refs: every local branch tip, every remote-tracking branch tip (LVT-V0-002) and every
+# worktree HEAD, deduplicated by commit, except commits already in the base
+# and commits with no history shared with it. Allocation includes this checkout's HEAD;
+# only peer collision reporting excludes it (LVT-V0-002).
 self=$(git rev-parse -q --verify HEAD 2> /dev/null || true)
-{
-  git for-each-ref --format='%(objectname) %(refname:short)' refs/heads
-  git worktree list --porcelain | awk '/^worktree / { path = substr($0, 10) } /^HEAD / { print $2 " " path }'
-} | awk '!seen[$1]++' > "$work/refs"
+branch_refs=(refs/heads refs/remotes)
+git for-each-ref --format='%(objectname) %(refname:short)' "${branch_refs[@]}" > "$work/raw-refs" &&
+  git worktree list --porcelain > "$work/worktrees" ||
+  refuse "refs-unreadable: Git could not enumerate branches and worktrees; run git fsck and rerun"
+{ cat "$work/raw-refs"; awk '/^worktree / { path = substr($0, 10) } /^HEAD / { print $2 " " path }' "$work/worktrees"; } |
+  awk '!seen[$1]++' > "$work/refs"
 : > "$work/open"
 # Branch tips are classified with one for-each-ref: --no-merged drops tips already in the base and
 # --contains of each base root keeps only tips that share history with it (V1-4093). Any other head,
 # a detached worktree, keeps the two per-commit merge-base checks.
 contains=()
-for root in $(git rev-list --max-parents=0 "$base_sha"); do contains+=("--contains=$root"); done
-git for-each-ref --format='%(objectname)' refs/heads > "$work/branches" &&
-  git for-each-ref --format='%(objectname)' --no-merged="$base_sha" ${contains[@]+"${contains[@]}"} refs/heads > "$work/open-branches" ||
+roots=$(git rev-list --max-parents=0 "$base_sha") || refuse "refs-unreadable: Git could not read the base roots; run git fsck and rerun"
+for root in $roots; do contains+=("--contains=$root"); done
+git for-each-ref --format='%(objectname)' "${branch_refs[@]}" > "$work/branches" &&
+  git for-each-ref --format='%(objectname)' --no-merged="$base_sha" ${contains[@]+"${contains[@]}"} "${branch_refs[@]}" > "$work/open-branches" ||
   refuse "refs-unreadable: git for-each-ref failed: run git fsck and rerun"
-awk -v self="$self" '
+awk -v self="$self" -v block="$block" '
   FILENAME == ARGV[1] { branch[$1] = 1; next }
   FILENAME == ARGV[2] { open[$1] = 1; next }
-  $1 == self { next }
+  $1 == self && !block { next }
   !($1 in branch) { print "check " $0; next }
   $1 in open { print "open " $0 }' "$work/branches" "$work/open-branches" "$work/refs" > "$work/classified"
 # A classified ref is a candidate when it is not in the base and shares history with it.
@@ -132,6 +164,8 @@ if [[ -s $work/open-refs ]]; then
     FILENAME == ARGV[1] { known[$1] = 1; next }
     left > 0 {
       left -= length($0) + 1
+      if (first && ($1 != "id" || $2 != "file" || $3 != "title")) { bad = 1; exit }
+      if (!first && (NF < 3 || $1 !~ /^[A-Z][A-Z0-9-]*-[0-9]+$/ || $2 !~ /^docs\/specs\/.+[.]md$/)) { bad = 1; exit }
       if (!first && !($1 in known)) print $1 "\t" $2 "\t" $3 "\t" ref[i] " (" substr(sha[i], 1, 12) ")"
       first = 0
       if (left == 0) skip = 1
@@ -144,9 +178,9 @@ if [[ -s $work/open-refs ]]; then
       if (h[2] == "missing") { print sha[i] " " ref[i] > missing; next }
       if (h[2] != "blob") { bad = 1; exit }
       left = h[3] + 0; first = 1
-      if (left == 0) skip = 1
+      if (left <= 0 || h[3] !~ /^[0-9]+$/) { bad = 1; exit }
     }
-    END { if (bad || i != n) exit 2 }' "$work/base.ids" "$work/batch" >> "$work/open" ||
+    END { if (bad || i != n || left != 0 || skip) exit 2 }' "$work/base.ids" "$work/batch" >> "$work/open" ||
     refuse "batch-read-failed: the open refs' indexes could not be parsed: run git fsck and rerun"
 fi
 cat "$work/batch-missing" >> "$work/missing"
@@ -154,6 +188,9 @@ while read -r sha name; do
   # A ref whose tree has no index has nothing to compare; one whose index blob cannot be read is
   # an error, never an empty definition set (fail closed).
   if ! blob=$(git rev-parse -q --verify "$sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null); then
+    if [[ -n $block ]]; then
+      refuse "requirements-index-unavailable at $name (${sha:0:12}): use an index restored at docs/specs/REQUIREMENTS.tsv before allocating IDs"
+    fi
     printf '%s: NOTE %s (%s) has no docs/specs/REQUIREMENTS.tsv; skipped\n' "$me" "$name" "${sha:0:12}" >&2
     continue
   fi
@@ -162,6 +199,7 @@ while read -r sha name; do
       "$me" "$name" "${sha:0:12}" "$blob" >&2
     exit 2
   }
+  valid_index "$work/ref.tsv" || refuse "requirements-index-unavailable at $name (${sha:0:12}): run make spec-requirements to regenerate its malformed docs/specs/REQUIREMENTS.tsv"
   # IDs the ref shares with this checkout's history (a batch that merged an earlier head of this
   # lane) are one change, not two definitions (V1-4065, ASD-V0-821).
   shared=()
@@ -172,13 +210,22 @@ while read -r sha name; do
     { printf '%s: REFUSE could not read the rows of %s\n' "$me" "$name" >&2; exit 2; }
 done < "$work/missing"
 
-if [[ -n $block ]]; then
+if [[ -n $family ]]; then
+  # The family is PREFIX up to a trailing -V<n>; any version of it counts, as in requirement-ids-free.sh.
+  stem=$prefix
+  [[ $prefix =~ ^(.*)-V[0-9]+$ ]] && stem=${BASH_REMATCH[1]}
+  used=$(awk -F'\t' -v stem="$stem-" '
+    index($1, stem) == 1 && substr($1, length(stem) + 1) ~ /^(V[0-9]+-)?[0-9]+$/ { print "used " $1 " " $4 " " $2 }' "$work/open" | sort -u)
+  range="prefix $prefix"
+elif [[ -n $block ]]; then
   used=$(awk -F'\t' -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '
     index($1, prefix) == 1 {
       number = substr($1, length(prefix) + 1)
-      if (number ~ /^[0-9][0-9][0-9]$/ && number + 0 >= lo && number + 0 <= hi) print "used " $1 " " $4 " " $2
+      if (number ~ /^[0-9]+$/ && number == sprintf("%03d", number + 0) && number + 0 >= lo && number + 0 <= hi) print "used " $1 " " $4 " " $2
     }' "$work/open" | sort -u)
   range=$(printf '%s-%03d..%s-%03d' "$prefix" "$lo" "$prefix" "$hi")
+fi
+if [[ -n $block ]]; then
   if [[ -n $used ]]; then
     printf '%s\n' "$used"
     printf '%s: %s is partly defined on open refs not yet in %s; pick a free block\n' "$me" "$range" "$base" >&2

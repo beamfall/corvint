@@ -61,18 +61,101 @@ git_field_at() {
     esac
 }
 
+# field_of_file FILE FILTER: git_field_at's value for a blob the batch read wrote to FILE, or the
+# ABSENT sentinel when FILE.missing marks an object the batch could not find (no first parent, or no
+# PATH at that commit), exactly as git_field_at reads a failed `git show`.
+field_of_file() {
+    file=$1 filter=$2
+    [ ! -e "$file.missing" ] || { printf '\001ABSENT'; return 0; }
+    content=$(cat "$file") || { printf '\001ABSENT'; return 0; }
+    case $filter in
+        yaml:*)
+            key=${filter#yaml:}
+            printf '%s\n' "$content" | yaml_field "${key%%.*}" "${key#*.}" 2>/dev/null || printf '\001ABSENT'
+            ;;
+        *) printf '%s' "$content" | jq -r "$filter" 2>/dev/null || printf '\001ABSENT' ;;
+    esac
+}
+
+# batch_blobs DIR: reads `git cat-file --batch` output on stdin and writes the Nth object (from 0)
+# to DIR/N, or creates DIR/N.missing for a missing one; exits non-zero unless it read COUNT objects.
+batch_blobs() {
+    perl -e '
+        my ($dir, $count) = @ARGV;
+        binmode STDIN;
+        my $i = 0;
+        while (defined(my $header = <STDIN>)) {
+            chomp $header;
+            my $out = "$dir/$i";
+            if ($header =~ / (missing|ambiguous)$/) { $out .= ".missing"; open(my $f, ">", $out) or exit 3; close $f; $i++; next }
+            my (undef, undef, $size) = split / /, $header;
+            defined $size && $size =~ /^[0-9]+$/ or exit 3;
+            my $got = read(STDIN, my $buf, $size);
+            defined $got && $got == $size or exit 3;
+            defined(my $nl = <STDIN>) or exit 3;
+            open(my $f, ">", $out) or exit 3; binmode $f; print {$f} $buf; close $f or exit 3;
+            $i++;
+        }
+        exit($i == $count ? 0 : 3);' "$1" "$2"
+}
+
 # last_field_change_commit PATH JQFILTER: the hash of the newest commit at which PATH's
 # JQFILTER value differs from its value at that commit's first parent. Exits 1 with a message
 # on stderr if PATH is not tracked at HEAD. A commit hash, not a timestamp, is what lets the
 # caller decide "last bumped at or after the shipped set's last change" by ancestry rather than
 # by committer-second equality, which two distinct commits (e.g. either side of a rebase) can
 # share.
+# LVT-V0-005 (V1-4252): one `git log` lists the touching commits and one `git cat-file --batch`
+# reads PATH at each of them and at each first parent, instead of three git spawns per commit; a
+# batch that cannot be read or parsed falls back to the per-commit reads, so the verdict is
+# unchanged either way.
 last_field_change_commit() {
     path=$1 filter=$2
+    # LVT-V0-005: each path keeps its exact original history traversal; all paths share
+    # one blob batch. The two Pi fields reuse the same history and immutable bytes.
+    if [ -n "${histories:-}" ] && [ -f "$histories/ready" ]; then
+        commits=$(cat "$histories/log/$path")
+        if [ -n "$commits" ]; then
+            i=$(cat "$histories/offset/$path")
+            for commit in $commits; do
+                here=$(field_of_file "$histories/$i" "$filter")
+                before=$(field_of_file "$histories/$((i + 1))" "$filter")
+                i=$((i + 2))
+                if [ "$here" != "$before" ]; then printf '%s' "$commit"; return 0; fi
+            done
+            printf '%s' "$(echo "$commits" | tail -n1)"
+            return 0
+        fi
+    fi
     commits=$(git log --format=%H -- "$path")
     if [ -z "$commits" ]; then
         printf 'host package versions: %s is not tracked in history\n' "$path" >&2
         exit 1
+    fi
+    blobs=$(mktemp -d "${TMPDIR:-/tmp}/corvint-host-package-versions.XXXXXX") || blobs=
+    count=0
+    if [ -n "$blobs" ]; then
+        for commit in $commits; do
+            printf '%s:%s\n%s^:%s\n' "$commit" "$path" "$commit" "$path"
+            count=$((count + 2))
+        done > "$blobs/request"
+        if git cat-file --batch < "$blobs/request" 2>/dev/null | batch_blobs "$blobs" "$count"; then
+            i=0
+            for commit in $commits; do
+                here=$(field_of_file "$blobs/$i" "$filter")
+                before=$(field_of_file "$blobs/$((i + 1))" "$filter")
+                i=$((i + 2))
+                if [ "$here" != "$before" ]; then
+                    rm -rf "$blobs"
+                    printf '%s' "$commit"
+                    return 0
+                fi
+            done
+            rm -rf "$blobs"
+            printf '%s' "$(echo "$commits" | tail -n1)"
+            return 0
+        fi
+        rm -rf "$blobs"
     fi
     for commit in $commits; do
         here=$(git_field_at "$commit" "$path" "$filter")
@@ -97,6 +180,29 @@ last_content_change_commit() {
     git log -1 --format=%H -- "$@" 2>/dev/null || true
 }
 
+# A conservative existence filter over every historical path. It only avoids a log for a
+# package that has never shipped any matching path (deletions remain in this inventory).
+# Unsupported pathspec syntax falls back to the complete per-package log.
+history_has_paths() {
+    perl -e '
+        my $file = shift;
+        my (@include, @exclude);
+        for my $spec (@ARGV) {
+            my $exclude = $spec =~ s/^:\(exclude\)//;
+            exit 0 if $spec =~ /[:*?\[\]\\]/;
+            push @{ $exclude ? \@exclude : \@include }, $spec;
+        }
+        open my $fh, "<", $file or exit 0;
+        local $/ = "\0";
+        while (my $path = <$fh>) {
+            chomp $path;
+            next unless grep { $path eq $_ || index($path, "$_/") == 0 } @include;
+            next if grep { $path eq $_ || index($path, "$_/") == 0 } @exclude;
+            exit 0;
+        }
+        exit 1; ' "$histories/shipped-paths" "$@"
+}
+
 status=0
 
 # check_package NAME VERSION_FIELDS_FILE... -- SHIPPED_PATHS...
@@ -111,7 +217,20 @@ check_package() {
         shift
     done
     shift # consume --
-    shipped_commit=$(last_content_change_commit "$@")
+    if [ "${collect_histories:-0}" = 1 ]; then
+        shipped_commit=
+        if history_has_paths "$@"; then shipped_commit=$(last_content_change_commit "$@"); fi
+        printf '%s' "$shipped_commit" > "$histories/shipped/$name"
+        if [ -n "$shipped_commit" ]; then
+            for field in $fields; do printf '%s\n' "${field%%|*}"; done
+        fi
+        return 0
+    fi
+    if [ -n "${histories:-}" ] && [ -f "$histories/ready" ]; then
+        shipped_commit=$(cat "$histories/shipped/$name")
+    else
+        shipped_commit=$(last_content_change_commit "$@")
+    fi
     if [ -z "$shipped_commit" ]; then
         return 0 # no shipped files tracked (should not happen for a real package)
     fi
@@ -131,6 +250,7 @@ check_package() {
     done
 }
 
+packages() {
 check_package claude-code \
     'integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json|.version' \
     'integrations/claude-code/.claude-plugin/marketplace.json|.plugins[]|select(.name=="corvint")|.version' \
@@ -185,5 +305,37 @@ check_package openspec \
     -- \
     protocol/integrations/openspec \
     ':(exclude)protocol/integrations/openspec/README.md'
+
+}
+
+# Preparing this private cache never narrows the check. Any failed allocation, enumeration or
+# batch parse leaves it unready and last_field_change_commit runs its original complete walk.
+histories=$(mktemp -d "${TMPDIR:-/tmp}/corvint-host-histories.XXXXXX") || histories=
+if [ -n "$histories" ]; then
+    trap 'rm -rf "$histories"' EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    prepare_histories() {
+        mkdir -p "$histories/shipped" || return 1
+        git log --format= --name-only -z -- integrations protocol/integrations > "$histories/shipped-paths" || return 1
+        collect_histories=1 packages | LC_ALL=C sort -u > "$histories/paths" || return 1
+        count=0
+        : > "$histories/request"
+        while IFS= read -r manifest; do
+            mkdir -p "$histories/log/$(dirname "$manifest")" "$histories/offset/$(dirname "$manifest")" || return 1
+            git log --format=%H -- "$manifest" > "$histories/log/$manifest" || return 1
+            printf '%s\n' "$count" > "$histories/offset/$manifest" || return 1
+            for commit in $(cat "$histories/log/$manifest"); do
+                printf '%s:%s\n%s^:%s\n' "$commit" "$manifest" "$commit" "$manifest" >> "$histories/request" || return 1
+                count=$((count + 2))
+            done
+        done < "$histories/paths"
+        git cat-file --batch < "$histories/request" 2>/dev/null | batch_blobs "$histories" "$count" || return 1
+        : > "$histories/ready"
+    }
+    prepare_histories || true
+fi
+packages
 
 exit $status

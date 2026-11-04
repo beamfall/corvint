@@ -34,7 +34,8 @@
     "script/check-fixed-tmp-paths.sh": {
       "callers": [
         "Makefile",
-        "script/batch-precheck_test.sh"
+        "script/batch-precheck_test.sh",
+        "script/check-fixed-tmp-paths_test.sh"
       ],
       "reason": "Every tracked file naming check-fixed-tmp-paths.sh: make fixed-tmp-paths-check and the batch-precheck shell test run it (ASD-V0-720) (TSP-V0-005; V1-3571)."
     },

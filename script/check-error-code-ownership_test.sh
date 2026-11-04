@@ -168,4 +168,23 @@ func classify() (string, string) {
 EOF
 expect_named assignment assigned-code internal/pkg/classify.go:5
 
-printf 'check-error-code-ownership_test: 8 cases passed\n'
+# LVT-V0-007: the Git process count stays at three as declaring directories grow.
+real_git=$(command -v git)
+printf '#!/bin/sh\nprintf "git\\n" >> "%s/count"\nexec "%s" "$@"\n' "$fakebin" "$real_git" > "$fakebin/git"
+chmod +x "$fakebin/git"
+counted() { (cd "$test_root" && PATH="$fakebin:$PATH" script/check-error-code-ownership.sh); }
+: > "$fakebin/count"
+counted || fail "the small fixture failed"
+few=$(wc -l < "$fakebin/count" | tr -d ' ')
+i=0
+while [ "$i" -lt 40 ]; do
+    i=$((i + 1))
+    mkdir -p "$test_root/internal/more$i"
+    printf 'package more\nfunc invalid(value int, code string) {}\nfunc f() { invalid(0, "owned-code") }\n' > "$test_root/internal/more$i/more.go"
+done
+git -C "$test_root" add internal/more*
+: > "$fakebin/count"
+counted || fail "the expanded fixture failed"
+many=$(wc -l < "$fakebin/count" | tr -d ' ')
+[ "$few" = "$many" ] && [ "$many" -le 3 ] || fail "Git spawns grew: $few to $many"
+printf 'check-error-code-ownership_test: 8 cases passed (%s git spawns)\n' "$many"

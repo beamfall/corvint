@@ -1,0 +1,21 @@
+{
+  "command": [
+    "bash",
+    "script/heavy.sh",
+    "env",
+    "GOTOOLCHAIN=local",
+    "go",
+    "test",
+    "-count=1",
+    "-timeout",
+    "30m",
+    "-run",
+    "^$",
+    "-bench",
+    "^BenchmarkRepresentativeEditsSerialParity$",
+    "-benchtime=1x",
+    "./internal/liveverify/affected/"
+  ],
+  "exit": 1,
+  "expected_failure": true
+}

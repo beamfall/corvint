@@ -1,0 +1,7 @@
+heavy.sh: script sha256=d0ed000a37737dd812db808683eb746c6a67c2763d611932336ca9c6494017fa script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/liveverify/affected/graphcache_dir_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 36f97cc2b7d57871dc2aa2a271bcc618384b20f9 tree=9bd649c56b0a5ea181dace2fd3634d7c31b9ada8 dirty=32
+heavy.sh: slot 1/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/liveverify/affected	78.480s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=83.8s rc=0
