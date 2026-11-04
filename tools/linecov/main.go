@@ -261,6 +261,13 @@ func collect(args []string) error {
 	if err != nil {
 		return err
 	}
+	ix.TestTimeout, ix.SuiteTimeout = *timeout, *suite
+	ix.WindowFallback = map[string]string{}
+	for _, o := range outcomes {
+		if o.WindowFallback != "" {
+			ix.WindowFallback[o.Package] = o.WindowFallback
+		}
+	}
 	sort.Strings(unordered)
 	ix.Unordered = unordered
 	if err := linecov.CarryDivergent(ix, prior, misses); err != nil {
@@ -472,6 +479,9 @@ func qualify(args []string) error {
 	if err != nil {
 		return err
 	}
+	if ix.TestTimeout <= 0 {
+		return errors.New("qualify: missing-recorded-test-deadline")
+	}
 	dirs := split(*only)
 	if len(dirs) == 0 {
 		return errors.New("qualify: -packages is required")
@@ -586,7 +596,7 @@ func qualify(args []string) error {
 				kept[d+"."+n] = true
 			}
 		}
-		failed, buildFail, err := failingTests(*root, ix.Module, dirs)
+		failed, buildFail, err := failingTests(*root, ix.Module, dirs, ix.TestTimeout)
 		if err != nil {
 			return err
 		}
@@ -623,8 +633,14 @@ func qualify(args []string) error {
 // tests as dir.Name, and whether any package failed outside a test. A
 // directory with no package result means go test did not run it, which
 // proves nothing, so it is an error.
-func failingTests(root, module string, dirs []string) (map[string]bool, bool, error) {
+func failingTests(root, module string, dirs []string, deadline ...time.Duration) (map[string]bool, bool, error) {
 	args := []string{"test", "-count=1", "-json"}
+	if len(deadline) == 1 {
+		if deadline[0] <= 0 {
+			return nil, false, errors.New("qualify: missing-recorded-test-deadline")
+		}
+		args = append(args, "-timeout="+deadline[0].String())
+	}
 	for _, d := range dirs {
 		args = append(args, "./"+d)
 	}

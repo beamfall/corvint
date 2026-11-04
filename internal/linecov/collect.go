@@ -33,9 +33,10 @@ type CollectOptions struct {
 // Outcome is one collected test: a Record when the isolated run passed,
 // otherwise the reason it yields none (LPCV-V0-962).
 type Outcome struct {
-	Package, Name string
-	Record        *Record
-	Divergent     string // nonzero exit or timeout when run alone
+	Package, Name  string
+	Record         *Record
+	WindowFallback string // named reason the in-order union is retained
+	Divergent      string // nonzero exit or timeout when run alone
 }
 
 var listedTest = regexp.MustCompile(`^(Test|Example|Fuzz)\w*$`)
@@ -55,10 +56,37 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	env := slices.Clip(append(os.Environ(), "GOFLAGS="+flags))
 	type job struct{ pkg, name, bin, dir string }
 	var jobs []job
+	windows := map[string]string{}
+	fallback := map[string]string{}
 	for i, pkg := range o.Packages {
 		bin := filepath.Join(o.Work, fmt.Sprintf("p%d.test", i))
 		dir := filepath.Join(root, filepath.FromSlash(pkg))
-		build := exec.CommandContext(ctx, "go", "test", "-c", "-o", bin, "./"+pkg)
+		overlayWork := filepath.Join(o.Work, fmt.Sprintf("overlay%d", i))
+		if err := os.MkdirAll(overlayWork, 0700); err != nil {
+			return nil, err
+		}
+		overlay, why, err := windowOverlay(dir, overlayWork)
+		if err != nil {
+			return nil, err
+		}
+		fallback[pkg] = why
+		overlay, err = collectorOverlay(overlayWork, overlay)
+		if err != nil {
+			return nil, err
+		}
+		buildArgs := []string{"test", "-c", "-o", bin}
+		if overlay != "" {
+			buildArgs = append(buildArgs, "-overlay="+overlay)
+			if why == "" {
+				windows[pkg] = filepath.Join(o.Work, fmt.Sprintf("windows%d", i))
+			}
+			if why == "" {
+				if err := os.MkdirAll(windows[pkg], 0700); err != nil {
+					return nil, err
+				}
+			}
+		}
+		build := exec.CommandContext(ctx, "go", append(buildArgs, "./"+pkg)...)
 		build.Dir, build.Env = root, env
 		if out, err := build.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("linecov: build %s: %v: %s", pkg, err, out)
@@ -92,7 +120,11 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 			defer wg.Done()
 			for i := range next {
 				j := jobs[i]
-				outcomes[i] = runOne(ctx, o, env, j.pkg, j.name, j.bin, j.dir, filepath.Join(o.Work, fmt.Sprintf("c%d", i)))
+				jobEnv := env
+				if j.name == InOrder && windows[j.pkg] != "" {
+					jobEnv = append(slices.Clone(env), "CORVINT_LINECOV_WINDOWS="+windows[j.pkg])
+				}
+				outcomes[i] = runOne(ctx, o, jobEnv, j.pkg, j.name, j.bin, j.dir, filepath.Join(o.Work, fmt.Sprintf("c%d", i)))
 			}
 		}()
 	}
@@ -104,6 +136,19 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	for i := range outcomes {
+		if outcomes[i].Name == InOrder {
+			outcomes[i].WindowFallback = fallback[outcomes[i].Package]
+		}
+	}
+	outcomes = attributeWindows(func(dir string) ([]byte, error) {
+		p := filepath.Join(dir, "profile.txt")
+		cmd := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+dir, "-o="+p)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("covdata: %v: %s", err, out)
+		}
+		return os.ReadFile(p)
+	}, outcomes, windows)
 	sort.Slice(outcomes, func(i, j int) bool {
 		a, b := outcomes[i], outcomes[j]
 		return a.Package < b.Package || a.Package == b.Package && a.Name < b.Name
@@ -143,7 +188,8 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 	}
 	args = append(args, o.TestArgs...)
 	cmd := exec.CommandContext(runCtx, bin, args...)
-	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+children)
+	audit := filepath.Join(cov, "exec-audit")
+	cmd.Dir, cmd.Env = dir, append(env, "GOCOVERDIR="+children, "CORVINT_LINECOV_AUDIT="+audit)
 	var log bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &log, &log
 	began := time.Now()
@@ -151,8 +197,13 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		if runCtx.Err() != nil {
 			out.Divergent = "timeout"
 		} else {
-			out.Divergent = err.Error()
+			out.Divergent = fmt.Sprintf("%v: %s", err, log.String())
 		}
+		return out
+	}
+	auditData, _ := os.ReadFile(audit)
+	if bytes.Contains(auditData, []byte("uninstrumented-child\t")) {
+		out.Divergent = "uninstrumented-child: " + strings.TrimSpace(string(auditData))
 		return out
 	}
 	data, err := os.ReadFile(profile)
@@ -160,7 +211,12 @@ func runOne(ctx context.Context, o CollectOptions, env []string, pkg, name, bin,
 		out.Divergent = err.Error()
 		return out
 	}
-	if counters, _ := filepath.Glob(filepath.Join(children, "covcounters.*")); len(counters) > 0 {
+	counters, _ := filepath.Glob(filepath.Join(children, "covcounters.*"))
+	if bytes.Contains(auditData, []byte("covered-child\t")) && len(counters) == 0 {
+		out.Divergent = "missing-child-counters"
+		return out
+	}
+	if len(counters) > 0 {
 		merged := filepath.Join(cov, "children.txt")
 		conv := exec.CommandContext(ctx, "go", "tool", "covdata", "textfmt", "-i="+children, "-o="+merged)
 		if msg, err := conv.CombinedOutput(); err != nil {

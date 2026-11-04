@@ -680,6 +680,27 @@ package or path rules stay the sound fallback; this section adds a per-test, per
 record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V0-016` or
 `LPCV-V0-020`.
 
+- `LPCV-V0-7600`: (accepted under standing implementation authority, V1-4379) Go collection
+  uses scratch overlays to dump/reset atomic counters at serial top-level test windows, including
+  cleanup. Each record unions isolated and in-order reach; order-only reach retains preceding
+  tests as prerequisites. Parallel, unsupported entry points or missing instrumentable source
+  retain the suite union with a named reason. Setup, teardown and child reach retain the residual
+  union owner. Witness: `TestInOrderWindows`, `TestFaultInjection`.
+- `LPCV-V0-7601`: (accepted under standing implementation authority, V1-4380) The Go collector
+  observes os/exec launches in its scratch toolchain overlay. A child without coverage build
+  metadata, with a different coverage destination, or without completed counters rejects the
+  record as `uninstrumented-child` or `missing-child-counters`. Build-tool processes are exempt;
+  unknown launchers conservatively reject the record. This implements the detection rule of
+  `LPCV-V0-954`; no parent-only record supports exclusion. Witness: `TestUninstrumentedChild`.
+- `LPCV-V0-7602`: (accepted under standing implementation authority, V1-4423) Language collectors
+  share the language-neutral `linecov.Build` records-list writer and exported `FileByPath`,
+  `BlocksAtLine`, and `TestsOfFile` lookups. Equal records produce equal index bytes; overlapping
+  method and line blocks remain visible. Ruby uses this writer rather than constructing and
+  re-merging index storage. Witness: `TestNeutralBuildLookups`, `TestLPCVV0954DumpJoinAndIncompleteness`.
+- `LPCV-V0-7603`: (accepted under standing implementation authority, V1-4507) Collection records
+  its test and suite deadlines in the index. Qualification passes the recorded test deadline to
+  mutant executions and refuses `missing-recorded-test-deadline` for legacy or unknown deadlines.
+  Witness: `TestQualificationDeadline`.
 - `LPCV-V0-950`: (accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** names one test identity (`LPCV-V0-022`), the runner
   and its exact version, the instrumentation mode, the commit and the Git blob OID of every source
   file the instrumented process tree could report, and per such file the executed line ranges with a

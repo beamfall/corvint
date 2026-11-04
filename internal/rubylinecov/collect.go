@@ -385,66 +385,57 @@ func Index(module, commit string, run *Run, oids map[string]string) (*linecov.In
 	if module == "" {
 		module = "."
 	}
-	ix := &linecov.Index{Format: linecov.Format, Module: module, Commit: commit, Runner: run.Runner}
+	var records []linecov.Record
 	for _, r := range run.records {
-		ix.Tests = append(ix.Tests, linecov.Test{Package: r.pkg, Name: r.name, Elapsed: r.elapsed})
-	}
-	// Every test file is unordered, so it runs whole when it is planned at
-	// all: the collector has only the in-order run, and a test can depend on
-	// state an earlier test built (a memoized value, a reused subprocess)
-	// without running the code that built it, so no record yet supports
-	// narrowing or excluding a file. The isolated pass of LPCV-V0-962 is what
-	// lifts this (V1-4415).
-	unordered := map[string]bool{}
-	for _, o := range run.Outcomes {
-		if !unordered[o.Package] {
-			unordered[o.Package] = true
-			ix.Unordered = append(ix.Unordered, o.Package)
+		var profile strings.Builder
+		profile.WriteString("mode: atomic\n")
+		paths := make([]string, 0, len(run.files))
+		for p := range run.files {
+			if oids[p] != "" {
+				paths = append(paths, p)
+			}
 		}
-	}
-	sort.Strings(ix.Unordered)
-	paths := make([]string, 0, len(run.files))
-	for p := range run.files {
-		if oids[p] != "" {
-			paths = append(paths, p)
-		}
-	}
-	sort.Strings(paths)
-	for _, p := range paths {
-		shape := run.files[p]
-		lines := map[int32]map[int32]bool{}
-		for _, l := range shape.Lines {
-			lines[l] = map[int32]bool{}
-		}
-		methods := map[span]map[int32]bool{}
-		for _, m := range shape.Methods {
-			methods[m] = map[int32]bool{}
-		}
-		for id, r := range run.records {
+		sort.Strings(paths)
+		for _, p := range paths {
+			shape := run.files[p]
+			lines := map[int32]bool{}
+			methods := map[span]bool{}
 			for _, l := range r.lines[p] {
-				if lines[l] == nil {
-					lines[l] = map[int32]bool{}
-				}
-				lines[l][int32(id)] = true
+				lines[l] = true
 			}
 			for _, m := range r.methods[p] {
-				if methods[m] == nil {
-					methods[m] = map[int32]bool{}
+				methods[m] = true
+			}
+			for _, l := range shape.Lines {
+				n := 0
+				if lines[l] {
+					n = 1
 				}
-				methods[m][int32(id)] = true
+				fmt.Fprintf(&profile, "%s/%s:%d.0,%d.0 1 %d\n", module, p, l, l, n)
+			}
+			for _, m := range shape.Methods {
+				n := 0
+				if methods[m] {
+					n = 1
+				}
+				fmt.Fprintf(&profile, "%s/%s:%d.%d,%d.%d 1 %d\n", module, p, m[0], m[1]+1, m[2], m[3]+1, n)
 			}
 		}
-		f := linecov.File{Path: p, OID: oids[p]}
-		for l, set := range lines {
-			f.Blocks = append(f.Blocks, linecov.Block{Start: l, End: l, Tests: ids(set)})
-		}
-		for m, set := range methods {
-			f.Blocks = append(f.Blocks, linecov.Block{Start: m[0], StartCol: m[1] + 1, End: m[2], EndCol: m[3] + 1, Tests: ids(set)})
-		}
-		ix.Files = append(ix.Files, f)
+		records = append(records, linecov.Record{Package: r.pkg, Name: r.name, Elapsed: r.elapsed, Profile: []byte(profile.String())})
 	}
-	// Merge of one part sorts the blocks and builds the lookups.
-	return linecov.Merge(ix)
+	ix, err := linecov.Build(module, commit, run.Runner, oids, records)
+	if err != nil {
+		return nil, err
+	}
+	unordered := map[string]bool{}
+	for _, o := range run.Outcomes {
+		unordered[o.Package] = true
+	}
+	for p := range unordered {
+		ix.Unordered = append(ix.Unordered, p)
+	}
+	sort.Strings(ix.Unordered)
+	return ix, nil
 }
 
 func ids(set map[int32]bool) []int32 {
