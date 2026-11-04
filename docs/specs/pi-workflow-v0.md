@@ -57,6 +57,13 @@ that exception grants neither a native claim nor native completion and changes n
 - `PWV-V0-019`: (proposed, V1-2573) When every failing reconciliation read refuses with native code `REDO_PENDING`, the Tasks service MUST return `pending-operation` with mutation `not-attempted`, retain the native receipts under `reconciliation`, and dispatch no writer. The wrapper MUST NOT redo the pending receipt (TM-V0-008): the next native writer redoes it. Any other reconciliation refusal stays `reconciliation-unavailable`.
 - `PWV-V0-020`: (proposed, V1-2783) A request with empty input MUST give the child `/dev/null` as stdin and write no stdin pipe; only a non-empty input opens one, and a failed write of it remains `stdin-failed`. Failure mode: a successful leader that exits without reading stdin, such as `git rev-parse` on a fast Linux host, raced the pipe close into EPIPE, reported `stdin-failed`, and Git identity returned `identity-unavailable` (rc.3 gate on linux/amd64).
 
+- `PWV-V0-8100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2149) The protected ordinary fallback MUST exercise the real lifecycle envelope validator for an admitted host version; an unadmitted embedded version MUST refuse visibly before spawn. The embedded version MUST NOT be relabelled as a different admitted host to obtain context. Source qualification and the macOS built-image witness remain distinct.
+- `PWV-V0-8101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3896) The documented Pi MCP registration MUST use `--local` from the project root, write `.pi/mcp.json`, retain the required protocol flag and leave the global MCP configuration byte-identical. The recipe MUST explain project trust and local removal.
+- `PWV-V0-8102`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0507) The explicit operator command MAY negotiate `ticket create` and `ticket refine` against native help on every call. Create takes only a native `payload`; refine also requires a ticket ID and fresh expected revision passed as native CAS. Payload fields MUST be a closed native create/refine projection, at most 65,536 serialized bytes, sent over stdin and never copied into the replay ledger. Native schema, secret screening, queue policy and role admission remain authoritative. Creation reconciles queue and audit; refinement additionally reconciles the target ticket. Both persist the logical ID before dispatch and retain same-ID uncertain recovery, frozen argv, conflict and terminal refusal semantics. Neither is a model tool or a manual completion route.
+- `PWV-V0-8103`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0509) Fork, resume and extension reload MUST NOT replenish an original session's spent remediation allowance. Retain at most 128 hashed spent session IDs in memory and inspect only the current native branch's existing remediation entry on a fresh load. Missing branch API or over 4096 entries MUST conservatively release until new interactive/RPC input. Generated input never resets allowance; record no additional transcript or secret. This conservative guard grants no workflow, ticket or protected authority.
+
+- `PWV-V0-8104`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0509) Workflow recovery and in-flight settlement MUST bind the resolved Git HEAD commit, not only its symbolic branch text. Bounded filesystem resolution MUST support loose refs, detached HEAD and linked-worktree common/packed refs (packed file at most 1 MiB); missing, malformed or over-bound identity refuses visibly. A changed same-branch commit MUST discard cached recovery and in-flight remediation. Native event commit identity MUST equal the captured commit, while native Core remains authoritative for tree, base, plan, attempt and report generation.
+
 ## Trust boundary, limits and failure modes
 
 The process helper defaults to 15 seconds and 65,536 aggregate stdout/stderr bytes; configuration
@@ -96,11 +103,11 @@ as runtime admission.
   "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],
   "coreReadOperations": ["affected", "cem-status", "context", "dogfood-status", "features", "frontier", "impact", "ocm-status", "overview", "prove", "query", "review", "witness"],
   "tasksReadOperations": ["attempt", "audit", "blockers", "gate", "gates", "help", "list", "plan", "queue", "readiness", "release", "releases", "roadmap", "search", "ticket"],
-  "tasksWriteOperations": ["claim", "complete", "gate run", "release", "renew", "submit", "ticket prioritize"],
+  "tasksWriteOperations": ["claim", "complete", "gate run", "release", "renew", "submit", "ticket create", "ticket prioritize", "ticket refine"],
   "tasksWriteAdmission": "native-help-implemented-per-call",
   "skills": ["corvint-context", "corvint-impact", "corvint-review", "corvint-tasks"],
   "unavailable": ["Windows descendant cleanup", "authoritative completion continuation", "formal FULL qualification", "protected authority"],
-  "deferred": {"approved ticket create and refine": "V1-0507", "comparative qualification and support-matrix release": "V1-0511", "non-fixture native write qualification": "V1-0507", "workflow recovery qualification": "V1-0509"}
+  "deferred": {"comparative qualification and support-matrix release": "V1-0511", "non-fixture native write qualification": "V1-0507", "workflow recovery qualification": "V1-0509"}
 }
 ```
 
@@ -139,6 +146,13 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-018 | `integrations/pi/process.js`, `tasks.js` writer dispatch | `process.test.mjs`: a TERM-handling leader finishes its record under a 5,000 ms grace and is killed under the default and a 150 ms grace; out-of-range `graceMs` refuses; a leader exit after a graced sweep sends no further signal; `tasks.test.mjs`: the writer call carries 40,000 ms and reads carry none |
 | PWV-V0-019 | `integrations/pi/tasks.js` reconciliation | `tasks.test.mjs`: `REDO_PENDING` gives `pending-operation` with no dispatch and other refusals stay `reconciliation-unavailable`; manual `tasks-host.test.mjs` restores the pre-apply head after a real native gate run and requires `pending-operation`, then a native writer redo and clean reads |
 
+| PWV-V0-8100 | Protected ordinary fallback plus real lifecycle runner | `integrations/pi-protected/host-version.test.mjs`: admitted response validated and mismatched SDK visibly refused; final macOS built-image check remains separate |
+| PWV-V0-8101 | `integrations/pi/README.md` | `integrations/pi/mcp-scope.test.mjs`: exact documented recipe against Pi 0.99.1, local config and unchanged global bytes |
+| PWV-V0-8102 | `integrations/pi/tasks.js` | `integrations/pi/tasks.test.mjs`: native payload/CAS argv, durable pre-dispatch ID, lost response, frozen same-ID recovery and absence of prose in ledger; `capabilities.test.mjs`: per-call negotiation |
+| PWV-V0-8103 | `integrations/pi/workflow.js` | `integrations/pi/workflow.test.mjs`: fork/resume spent allowance and fresh-extension branch reconstruction, missing API and bounded-history negatives |
+
+| PWV-V0-8104 | `integrations/pi/workflow.js` | `integrations/pi/workflow.test.mjs`: cached and in-flight same-branch commit negatives; loose/packed/detached/linked refs and unresolved identity |
+
 A test path names required evidence, not an assertion that it passed. Final outcome belongs in the
 combined build-log and bound CEM/OCM. Missing or failed acceptance rows keep delivery experimental.
 
@@ -161,3 +175,8 @@ Protected continuation and supervisor participation depend on their owning accep
 native interfaces. Comparative productivity, token/cache/cost savings and broad host support are
 NOT_OBSERVED. Halt a slice if it cannot preserve native admission, bound process lifetime, distinguish
 uncertainty, or reproduce its exact-host evidence. Do not weaken those boundaries to advertise delivery.
+
+The PWV-V0-8102 additions roll back by removing create/refine from the inventory and write
+projection; preserve pending metadata for native reconciliation rather than deleting it.
+PWV-V0-8103 rolls back with the continuation guard; that reopens the replenishment defect, so
+disable automatic remediation when reverting it. The native branch history remains unchanged.
