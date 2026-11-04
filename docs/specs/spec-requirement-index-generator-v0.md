@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:531@e23d2d1f`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:537@e23d2d1f`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
   Amended 2026-11-01 by SRG-V0-790 (V1-3793): the token accepts three or more digits, and an ID of
@@ -419,8 +419,10 @@ No requirement below diverges from the implementation.
   each `.PHONY:` line that lists more than one target. Failure mode: one shared `.PHONY:` line of about 1,560 characters took a
   word from every lane that added a target, so any two such lanes conflicted on it. Rollback:
   rejoin the lines and drop the check.
-  `DOC_GATE_TARGETS` MUST likewise list one target per continuation line in bytewise sorted,
-  duplicate-free order. `make spec-status-check` MUST check this shape; splitting the list MUST
+  `DOC_GATE_TARGETS` MUST likewise list one target per continuation line, starting with
+  `line-citations-check` then `spec-requirements-check` (ASD-V0-925), followed by unique entries
+  sorted bytewise (`LC_ALL=C`); no prefix target may repeat. `make spec-status-check` and
+  batch-precheck static checks MUST check this shape; splitting the list MUST
   preserve the target set and batch-precheck's expansion into individual steps. Regression:
   `script/batch-precheck_test.sh` case 5 checks sorting; cases 1 and 2 check expansion.
 - `SRG-V0-983`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458)
@@ -670,7 +672,9 @@ No requirement below diverges from the implementation.
 
   Before merging lanes, `make spec-batch-capacity-check BASE=origin/main LANES="REF..."`
   MUST report each spec's base count plus distinct new OCM obligation IDs across the named
-  immutable lane commits. Above 256 MUST fail, naming the spec, counts and contributing lane
+  immutable lane commits. Each lane's additions MUST be its IDs minus its IDs at
+  `merge-base(lane, BASE)`, unioned onto the IDs at BASE, so lanes forked before BASE advanced
+  remain countable. Above 256 MUST fail, naming the spec, counts and contributing lane
   refs/commits; missing revisions or unreadable Git data MUST fail closed. The read-only
   `--batch-capacity BASE REF...` generator mode MUST use the same OCM section reader as
   `--capacity`, deduplicate shared IDs, and conservatively keep base IDs even if a lane deletes
@@ -795,7 +799,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-547 | `script/gen-spec-requirements_test.sh` case 12: `DUP-V0-001` defined in two specs and `DUP-V0-002` twice in one are refused in the TSV, `--lines`, `--index` and `--readme` modes naming both `path:line` locations, and `--all` writes nothing; the case fails on the pre-change generator |
 | SRG-V0-548 | `script/gen-spec-requirements_test.sh` case 12: a wrapped `` `DUP-V0-001`. `` citation before the real definition is neither refused nor chosen as the row; regenerating the committed index moves only the `AHI-246` and `DCI-V1-030` rows to their real definitions |
 | SRG-V0-744 | `make spec-capacity-check`; `script/gen-spec-requirements_test.sh` case 50 (isolated invalid margins/BASE, staging, every near spec, 256 without BASE warns, unchanged 256 with BASE warns, filled-to-256 fails, 257 fails); `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (OCM parity for four-digit IDs and fenced definitions/headings, generation compatibility) |
-| SRG-V0-745 | `script/gen-spec-requirements_test.sh` batch preflight fixture (254 base + two admitted 2-ID lanes = 258, shared-ID deduplication, invalid refs, conservative deletion, no mutations); `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (two admitted fixtures, union 257, exact base additions, unchanged versus newly filled 256); `script/gen-spec-requirements_test.sh` case 50 (invalid base, 255-to-256 attribution) |
+| SRG-V0-745 | `script/gen-spec-requirements_test.sh` batch preflight fixture (254 base + two admitted 2-ID lanes = 258, shared-ID deduplication, invalid refs, an older lane against an advanced BASE (256 + 2 = 258), conservative deletion, no mutations); `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (two admitted fixtures, union 257, exact base additions, unchanged versus newly filled 256); `script/gen-spec-requirements_test.sh` case 50 (invalid base, 255-to-256 attribution) |
 | SRG-V0-965 | the `spec-requirements` recipe in `Makefile` runs `TestSpecsStayWithinTheOCMObligationBound` after writing; `script/gen-spec-requirements_test.sh` case 15 checks the recipe names it |
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
@@ -818,7 +822,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-763 | `script/gen-spec-requirements_test.sh` the SRG-V0-040 long-claim checks and case 15: the long-Claim refusal names `two.md:8` and `multi.md:7` |
 | SRG-V0-764 | `script/requirement-next-id_test.sh`, run by `spec-requirements-test`: the next ID follows the highest definition, not the last line, two out-of-order definitions are named by line, an unused prefix starts at 001, and a bad prefix exits 2 |
 | SRG-V0-981 | `script/spec-requirements-conflict_test.sh` replay: each branch's amended note yields a `standing` row whose `acceptedBy` carries the amendment's date and ticket |
-| SRG-V0-982 | `script/batch-precheck_test.sh` families 2 and 5 check multiline expansion, sorted targets and refusal/acceptance of fixture orders; `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
+| SRG-V0-982 | `script/batch-precheck_test.sh` families 1, 2 and 5 check static target-shape refusal, multiline expansion with multiple prerequisites, the ASD-V0-925 fast prefix then a bytewise sorted unique suffix, duplicate/malformed refusal and staged repair; `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
 | SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
 | SRG-V0-890 | `script/gen-spec-requirements_test.sh` case 13: the Intent status refusal names line 3 of the fixture spec `frozen.md`, the frozen file and the Requirements section `(lines 10..13)`; the digest refusal names its line 8. |
 | SRG-V0-891 | `script/gen-spec-requirements_test.sh` case 14: a definition after the section is refused in the TSV and `--all` modes naming line 13 of the fixture spec `placed.md`, `PLC-V0-002` and the section `(lines 3..6)`; the inside and fenced definitions are not named; a baselined one and a spec without the section pass. |

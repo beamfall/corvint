@@ -34,6 +34,7 @@ set -eu
 # obligation IDs are subtracted in capacity and over-cap diagnostics.
 # Example: BASE=origin/main SPEC_CAPACITY_MARGIN=12 script/gen-spec-requirements.sh --capacity
 # --batch-capacity BASE REF... reports base obligations plus the union of each lane's additions.
+# Each lane adds IDs relative to its merge-base with BASE, even when BASE has advanced.
 # No checkout, index, ref or repository state is written. Deletions never reduce the estimate.
 # --status-check checks staged digest/header agreement without projection or Go work.
 usage() {
@@ -227,11 +228,16 @@ if ($mode eq 'batch-capacity') {
     my %contributors;
     for my $ref (@batch_refs) {
         my ($sha, $ids) = revision_specs($ref);
-        system('git', 'merge-base', '--is-ancestor', $base_sha, $sha) == 0
-            or die "batch capacity: lane $ref ($sha) does not contain BASE=$base_ref ($base_sha)\n";
+        open my $mb, '-|', 'git', 'merge-base', $sha, $base_sha
+            or die "batch capacity: cannot find merge-base for lane $ref and BASE=$base_ref: $!\n";
+        my $ancestor = <$mb>;
+        close $mb && defined $ancestor
+            or die "batch capacity: lane $ref and BASE=$base_ref have no available merge-base\n";
+        chomp $ancestor;
+        my (undef, $ancestor_ids) = revision_specs($ancestor);
         for my $path (sort keys %$ids) {
             $combined{$path} //= {};
-            my @added = sort grep { !exists $base_ids->{$path}{$_} } keys %{$ids->{$path}};
+            my @added = sort grep { !exists $ancestor_ids->{$path}{$_} } keys %{$ids->{$path}};
             $combined{$path}{$_} = 1 for @added;
             push @{$contributors{$path}}, "$ref($sha):+" . scalar(@added) . "[" . join(',', @added) . "]" if @added;
         }

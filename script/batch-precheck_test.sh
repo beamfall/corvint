@@ -211,6 +211,8 @@ static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
 git -C "$static_repo" init -q
+printf 'DOC_GATE_TARGETS := \\\n  line-citations-check \\\n  spec-requirements-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
 printf '[{"path":"docs/specs/one.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
 printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
 static_row='| One | [`one.md`](one.md) ONE-V0-001 | proposed | experimental | One claim. |'
@@ -243,6 +245,13 @@ rc=$?
 grep -qF 'fix: docs/specs/README.md: lines 2, 3: duplicate row' "$tmp/out" || fail "duplicate fix did not name both lines: $(cat "$tmp/out")"
 grep -qF "$static_row" "$tmp/out" || fail "duplicate fix did not name the row: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
+# SRG-V0-982: the static path catches staged target-shape drift before any slow gate.
+printf 'DOC_GATE_TARGETS := alpha-check beta-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "static checks missed malformed doc targets"
+grep -q 'doc-gate-targets: FAIL' "$tmp/out" || fail "static target-shape diagnostic missing: $(cat "$tmp/out")"
+printf 'DOC_GATE_TARGETS := \\\n  line-citations-check \\\n  spec-requirements-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 || fail "one unanchored row refused: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "${static_row//](one.md)/](one.md#requirements)}" > "$static_repo/docs/specs/README.md"
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "anchored-only row passed"
@@ -287,7 +296,7 @@ grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_te
 grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
 
 # Focused mode for spec-only changes avoids unrelated node/lifecycle fixture groups.
-[[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || finish
+[[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || exit 0
 
 # 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
 # docs/specs/pi-workflow-v0.md capability tuple behind. On a copy of the adapter, its spec and the
@@ -1172,8 +1181,8 @@ printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gat
 elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
   fail "the doc-gates target with a ## help comment was not expanded: $(cat "$tmp/out")"
-# SRG-V0-982 / V1-4542: the sorted continuation form expands through the status prerequisite.
-printf 'DOC_GATE_TARGETS := \\\n  alpha-check \\\n  beta-test\ndoc-gates: spec-status-check ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+# SRG-V0-982 / V1-4542: continuation expansion allows multiple doc-gates prerequisites.
+printf 'DOC_GATE_TARGETS := \\\n  alpha-check \\\n  beta-test\ndoc-gates: spec-status-check extra-check | order-check ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "continuation expansion --list: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" || fail "continuation targets were not expanded"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
@@ -2048,19 +2057,44 @@ for bad_selection in '' 0 6 1, x; do
   CASES=$bad_selection "$script/batch-precheck_test.sh" > "$tmp/selector-out" 2>&1
   [[ $? == 2 ]] || fail "invalid CASES=$bad_selection accepted"
 done
-# SRG-V0-982 / V1-4542: sorted targets are individually expanded (family 1) and checked.
-[[ $(doc_targets | sort -u) == $(doc_targets) ]] || fail "doc gate targets unsorted or repeated"
-# Exercise the checker against malformed and corrected staged Makefiles.
+# ASD-V0-780: STATIC_ONLY emits exactly one top-level summary, including when assertions fail.
+BATCH_PRECHECK_TEST_STATIC_ONLY=1 "$script/batch-precheck_test.sh" > "$tmp/static-summary" 2>&1
+[[ $(grep -Ec '^batch-precheck_test: (PASS|FAIL [0-9]+ case\(s\):)$' "$tmp/static-summary") == 1 ]] || fail "STATIC_ONLY did not print exactly one summary: $(cat "$tmp/static-summary")"
+[[ $(grep '^batch-precheck_test: CASE ' "$tmp/static-summary") == 'batch-precheck_test: CASE 1' ]] || fail "STATIC_ONLY ran another family"
+# SRG-V0-982 / ASD-V0-925: the fixed fast prefix precedes a bytewise sorted unique suffix.
+[[ $(doc_targets | head -n 2) == $'line-citations-check\nspec-requirements-check' ]] || fail "doc gate fast prefix changed"
+[[ $(doc_targets | tail -n +3 | LC_ALL=C sort -u) == $(doc_targets | tail -n +3) ]] || fail "doc gate suffix unsorted or repeated"
+# Exercise staged shape, prefix, suffix and duplicate checks independently.
 order_repo=$tmp/target-order
 mkdir -p "$order_repo"
 git -C "$order_repo" init -q
-printf 'DOC_GATE_TARGETS := \\\n  z-check \\\n  a-check\n' > "$order_repo/Makefile"
+order_targets() {
+  printf 'DOC_GATE_TARGETS := \\\n'
+  while (($# > 1)); do printf '  %s \\\n' "$1"; shift; done
+  printf '  %s\n' "$1"
+}
+order_targets line-citations-check spec-requirements-check a-check z-check > "$order_repo/Makefile"
 git -C "$order_repo" add Makefile
-(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "unsorted doc targets accepted"
-grep -q 'bytewise sorted' "$tmp/out" || fail "unsorted refusal missing"
-printf 'DOC_GATE_TARGETS := \\\n  a-check \\\n  z-check\n' > "$order_repo/Makefile"
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "fast prefix and sorted suffix refused: $(cat "$tmp/out")"
+for bad_order in \
+  'line-citations-check spec-requirements-check z-check a-check' \
+  'spec-requirements-check line-citations-check a-check' \
+  'a-check line-citations-check spec-requirements-check' \
+  'line-citations-check spec-requirements-check a-check a-check' \
+  'line-citations-check spec-requirements-check line-citations-check'; do
+  order_targets $bad_order > "$order_repo/Makefile"
+  git -C "$order_repo" add Makefile
+  (cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "malformed doc target order accepted: $bad_order"
+  grep -q 'doc-gate-targets: FAIL' "$tmp/out" || fail "order refusal missing: $bad_order"
+done
+printf 'DOC_GATE_TARGETS := line-citations-check spec-requirements-check\n' > "$order_repo/Makefile"
 git -C "$order_repo" add Makefile
-(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "sorted doc targets refused: $(cat "$tmp/out")"
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "inline doc targets accepted"
+# An unstaged repair cannot hide malformed published content.
+order_targets line-citations-check spec-requirements-check a-check > "$order_repo/Makefile"
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "target checker read unstaged repair"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "staged target repair refused: $(cat "$tmp/out")"
 
 grep -q '^doc-gates: spec-status-check' "$script/../Makefile" || fail "doc-gates lost its fast status prerequisite"
 
