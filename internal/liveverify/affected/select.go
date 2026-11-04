@@ -92,7 +92,8 @@ type Witness struct {
 	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
 	Cause *UnboundedCause `json:"cause,omitempty"`
 	// Glob is set on a PATH_GLOB_READER witness only: the unit's literal glob
-	// pattern that matches DirtyPath (AFP-V0-401).
+	// pattern that matches DirtyPath (AFP-V0-401), and on a
+	// DECLARED_TEST_OWNER witness: the owner pattern (AFP-V0-2482).
 	Glob string `json:"glob,omitempty"`
 	// link holds the chain by reference while the selector runs, in place of
 	// Via (V1-2979, AFP-V0-641); see via.go.
@@ -183,6 +184,14 @@ type Plan struct {
 	// (TSP-V0-942). It restates Unknown and never changes selection or
 	// scope; it is omitted when no frontier bears.
 	FrontierBearers []FrontierBearer `json:"frontierBearers,omitempty"`
+	// MustRun names every declared must-run unit the plan selects whatever
+	// reaches it, sorted by unit then entry (AFP-V0-2484). It is omitted
+	// when none is declared or nothing is dirty.
+	MustRun []MustRun `json:"mustRun,omitempty"`
+	// DeclaredOwners names every unit an owner pattern selects for the plan,
+	// whatever reached it first, sorted by unit then pattern (AFP-V0-2489).
+	// It is omitted when no owner matches a dirty path.
+	DeclaredOwners []DeclaredOwner `json:"declaredOwners,omitempty"`
 }
 
 // FrontierBearer is one source that made the frontier entry Detail bear on a
@@ -289,9 +298,14 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, documentation...)
 	runtimeReaders, unknown := graph.runtimeReaderPaths(unknown)
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
+	owned, unknown := graph.ownedPaths(unknown)
 	declaration, unknown := graph.declarationPath(unknown)
+	// AFP-V0-2488: an owner-declared path stays unowned for the frontier rules,
+	// so a declaration never removes a LANGUAGE_FRONTIER entry.
+	frontierNonSource := append(slices.Clip(plan.NonSource), declaration...)
+	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
+	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
@@ -299,6 +313,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
+	plan.MustRun = graph.mustRunOf(reached, normalized)
+	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
@@ -406,6 +422,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
+	graph.ownersOf(reached, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -480,6 +497,7 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 	seeds := make(map[string]Witness)
 	unknown := make([]Unknown, 0)
 	var packages map[string]string
+	fixtureClaims := map[string]bool{}
 	for _, path := range dirty {
 		id, owned := graph.owner[path]
 		if !owned {
@@ -508,7 +526,7 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			entry := graph.unownedUnknown(path)
+			entry := graph.unownedUnknown(path, packages, fixtureClaims)
 			if inModule && entry != module {
 				unknown = append(unknown, module)
 			}
@@ -982,7 +1000,7 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner:
 		return true
 	}
 	return false
@@ -1105,8 +1123,12 @@ func driverInput(path string) bool {
 // all. A claimed path at or below a directory that plugin reported as
 // unobserved is that plugin's frontier instead: the file is known to lie
 // outside the observed graph, not merely to be missing from it (AFP-V0-191).
-func (graph *Graph) unownedUnknown(path string) Unknown {
+// A fixture-only claim (fixtureOnlyClaim, AFP-V0-2440) is no source claim:
+// with no other claimant the path stays UNOWNED_DIRTY_PATH, and its hint
+// names the plugins whose claim was set aside.
+func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo map[string]bool) Unknown {
 	reason := UnknownUnownedDirtyPath
+	var fixtureOnly []string
 	for _, name := range graph.languages {
 		if graph.claimants[name] == nil || !graph.claimants[name].Owns(path) {
 			continue
@@ -1118,9 +1140,40 @@ func (graph *Graph) unownedUnknown(path string) Unknown {
 			}
 			return Unknown{Reason: UnknownLanguageFrontier, Detail: name + ":" + category + ":" + directory + ":" + path}
 		}
+		if graph.fixtureOnlyClaim(name, path, packages, memo) {
+			fixtureOnly = append(fixtureOnly, name)
+			continue
+		}
 		reason = UnknownUnindexedSourcePath
 	}
-	return Unknown{Reason: reason, Detail: path}
+	entry := Unknown{Reason: reason, Detail: path}
+	if reason == UnknownUnownedDirtyPath && len(fixtureOnly) > 0 {
+		entry.Hint = "claimed only as fixture data by " + strings.Join(fixtureOnly, ", ") + ": the path lies below " +
+			fixtureDirectory(path) + ", a testdata directory a Go unit hosts, below which that plugin lists no path (AFP-V0-2440)"
+	}
+	return entry
+}
+
+// fixtureOnlyClaim reports whether the named plugin's claim on path is a
+// fixture-only claim (AFP-V0-2440): the plugin is not Go, the path lies below
+// a `testdata` directory a Go unit hosts (AFP-V0-446's hosting rule), and the
+// plugin lists no path below that directory, so no unit of the plugin there
+// can be missing the file (the AFP-V0-511 fixture condition). The Go toolchain
+// builds and runs nothing below `testdata`; the hosting package's tests read
+// the file as bytes, which rules (b) to (d) attribute as they do an unowned
+// path. memo caches the per-plugin, per-directory answer for one plan.
+func (graph *Graph) fixtureOnlyClaim(name, path string, packages map[string]string, memo map[string]bool) bool {
+	directory := fixtureDirectory(path)
+	if name == "go" || directory == "" || !graph.goUnitAbove(directory, packages) {
+		return false
+	}
+	key := name + "\x00" + directory
+	if answer, known := memo[key]; known {
+		return answer
+	}
+	answer := !graph.listsBelowAny(name, []string{directory})
+	memo[key] = answer
+	return answer
 }
 
 // FrontierUnobservedDirectory is the LANGUAGE_FRONTIER detail category of a

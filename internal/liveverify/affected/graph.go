@@ -72,6 +72,13 @@ type Graph struct {
 	// Go unit.
 	existenceReaders []ExistenceReader
 	existenceUnits   map[string]string
+	// testSelection is the repository's declared test owners and must-run
+	// tests (AFP-V0-2480); it is part of the digest when present. ownerUnits
+	// maps each owner pattern to its resolved units and mustRun lists the
+	// resolved must-run units (AFP-V0-2482 to AFP-V0-2484).
+	testSelection *testSelection
+	ownerUnits    map[string][]string
+	mustRun       []MustRun
 	// unobserved maps each plugin to the directories it owns but builds no
 	// unit for (AFP-V0-191), each list sorted.
 	unobserved map[string][]string
@@ -141,6 +148,9 @@ type digestBody struct {
 	// ExistenceReaders appears only when the repository declares existence
 	// readers (AFP-V0-980), so graphs without the declaration keep their digest.
 	ExistenceReaders []ExistenceReader `json:"existenceReaders,omitempty"`
+	// TestSelection appears only when the repository declares test owners or
+	// must-run tests (AFP-V0-2480), so graphs without it keep their digest.
+	TestSelection *testSelection `json:"testSelection,omitempty"`
 	// Unobserved appears only when a plugin reports a directory it owns but
 	// does not observe (AFP-V0-191), as "namespace:directory", sorted.
 	Unobserved []string `json:"unobserved,omitempty"`
@@ -274,6 +284,7 @@ type declarations struct {
 	runtimeReaders   []RuntimeReader
 	runtimeEdges     []RuntimeEdge
 	existenceReaders []ExistenceReader
+	testSelection    *testSelection
 	// partial marks a graph built from a subset of the plugins, which skips
 	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
 	partial bool
@@ -298,7 +309,11 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, partial: partial}, nil
+		testSelection, err := readTestSelection(reader)
+		if err != nil {
+			return declarations{}, err
+		}
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
 	}
 }
 
@@ -362,6 +377,10 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	graph.existenceReaders = repository.existenceReaders
 	graph.finish()
 	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
+		return nil, err
+	}
+	graph.testSelection = repository.testSelection
+	if err := graph.resolveTestSelection(repository.partial); err != nil {
 		return nil, err
 	}
 	digest, err := graph.computeDigest()
@@ -680,6 +699,7 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		RuntimeReaders:   graph.runtimeReaders,
 		RuntimeEdges:     graph.runtimeEdges,
 		ExistenceReaders: graph.existenceReaders,
+		TestSelection:    graph.testSelection,
 		Unobserved:       namespacedEntries(graph.unobserved),
 		Runnable:         namespacedEntries(graph.runnable),
 	}, json.Deterministic(true))

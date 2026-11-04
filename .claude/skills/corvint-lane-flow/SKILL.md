@@ -11,7 +11,10 @@ checks this skill and that section against the real CLI, Makefile and scripts (A
 
 1. Orient: `corvint index --if-stale`, `corvint affected --base FULL_SHA`, and
    `corvint context --task "..."`. Record the pre-change receipts once, before the first edit:
-   `make dogfood-change BASE=FULL_SHA`.
+   `make dogfood-change BASE=FULL_SHA`. Read tickets on any host, journal or not, with the
+   dispatch's staged snapshot: `CORVINT_TASKS_SNAPSHOT=TICKET_DIR/queue-snapshot.json corvint-tasks
+   ticket show <ID>`; screen lane branches with `corvint-tasks ticket delivery-screen <ID>...
+   --lane-refs` (add `--unaudited` on a host without the Tasks journal). See section 12.
 2. Build in your own worktree. When behavior changes, put the spec amendment in its own commit
    first, then `make spec-requirements`; check new IDs with `make requirement-ids-free`.
 3. Test through `script/heavy.sh`, one package per command, `set -o pipefail` when piped.

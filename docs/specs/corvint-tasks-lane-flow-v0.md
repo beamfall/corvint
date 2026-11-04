@@ -63,7 +63,8 @@ done and number requirements that a peer branch already used.
 - `TLF-V0-883`: `ticket closeout-debt` MUST report each OPEN ticket whose effective progress names a
   head reachable in the scanned ref as a candidate row with citation `progress-head` and the head as
   its commit, alongside the message-cited rows, so a marker whose branch head merged is reported even
-  when no commit message names the ticket.
+  when no commit message names the ticket. `TCD-V0-2400` restricts this to the delivery phases; an
+  `IN_PROGRESS` or `BLOCKED` head is excluded with a named reason, not cited.
 - `TLF-V0-884`: `corvint-tasks ticket split ID --criteria N,M --expected-revision R --request-id Q`
   MUST create one NATIVE child ticket carrying the named acceptance criteria (1-based, in parent
   order), the parent's `requiredRoles`, `requiresPool` and `executionPrerequisites`, a copy of every
