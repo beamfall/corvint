@@ -710,6 +710,12 @@ func TestAFPV0163WorkflowWiresIntegrityTreeReuse(t *testing.T) {
 		"        if: steps.reuse.outputs.mode == 'REUSE'",
 		"          name: ci-integrity-reuse",
 		"        run: make go-archive-gate",
+		// AFP-V0-104: 16 waits of 30 s (8 min) fit inside the step's 11 min timeout, which fits
+		// inside the job's 30 min with the full gate (12 to 16 min measured) still able to run.
+		"          interval=30",
+		"          max_waits=16",
+		"        timeout-minutes: 11",
+		"    timeout-minutes: 30",
 	} {
 		wantLine(t, "artifact-integrity", ai, line)
 	}
@@ -848,10 +854,10 @@ func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *
 	run := func(target string, edit func(r, ai, rec map[string]any, log *string), env ...string) (string, string) {
 		git("checkout", "-q", target)
 		dir := t.TempDir()
-		r := map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "conclusion": "success",
+		r := map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "status": "completed", "conclusion": "success",
 			"path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repo}}
-		ai := map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "conclusion": "success", "head_sha": head}
-		rec := map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "conclusion": "success", "head_sha": head}
+		ai := map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "status": "completed", "conclusion": "success", "head_sha": head}
+		rec := map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "status": "completed", "conclusion": "success", "head_sha": head}
 		log := logOf(line)
 		if edit != nil {
 			edit(r, ai, rec, &log)
@@ -865,9 +871,17 @@ func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *
 				jobs = append(jobs, j)
 			}
 		}
+		// AFP-V0-104: pendingJobs is the jobs listing until the first wait; the stub sleep then
+		// serves the final listing, as a pull-request run that finished its gate meanwhile.
+		pendingJobs, pending := r["pendingJobs"]
+		delete(r, "pendingJobs")
 		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": []any{r}})
 		if rec["unreadable"] != true {
 			writeJSON(t, filepath.Join(dir, "jobs.json"), map[string]any{"jobs": jobs})
+		}
+		if pending {
+			writeJSON(t, filepath.Join(dir, "next-jobs.json"), map[string]any{"jobs": jobs})
+			writeJSON(t, filepath.Join(dir, "jobs.json"), map[string]any{"jobs": pendingJobs})
 		}
 		if log != "unreadable" {
 			if err := os.WriteFile(filepath.Join(dir, "log.txt"), []byte(log), 0o600); err != nil {
@@ -896,7 +910,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$auth" ] && [ -n "${STUB_DENY_AUTH:-}" ] && exit 22
 case "$url" in
-  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&status=success&per_page=20") f=runs.json ;;
+  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&per_page=20") f=runs.json ;;
   "$STUB_API/runs/$STUB_RUN/jobs?filter=latest&per_page=100") f=jobs.json ;;
   "$STUB_API/jobs/$STUB_JOB/logs") f=log.txt ;;
   "$STUB_API/runs/$STUB_RUN/artifacts"*) f=artifacts.json ;;
@@ -906,6 +920,12 @@ esac
 cat "$STUB_DIR/$f" > "$out"
 `
 		if err := execfile.WriteFile(filepath.Join(bin, "curl"), []byte(stub), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// A stub sleep records each wait and returns at once.
+		sleep := "#!/bin/sh\nprintf '%s\\n' \"$1\" >> \"$STUB_DIR/slept\"\n" +
+			"if [ -f \"$STUB_DIR/next-jobs.json\" ]; then mv \"$STUB_DIR/next-jobs.json\" \"$STUB_DIR/jobs.json\"; fi\n"
+		if err := execfile.WriteFile(filepath.Join(bin, "sleep"), []byte(sleep), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
@@ -921,7 +941,8 @@ cat "$STUB_DIR/$f" > "$out"
 		_ = cmd.Run() // a nonzero exit is continue-on-error in the workflow; only the output binds
 		o, _ := os.ReadFile(output)
 		s, _ := os.ReadFile(summary)
-		return string(o), string(s)
+		slept, _ := os.ReadFile(filepath.Join(dir, "slept"))
+		return string(o), string(s) + "slept:" + strings.ReplaceAll(strings.TrimSpace(string(slept)), "\n", ",")
 	}
 	out, summary := run(merge, nil)
 	if out != "mode=REUSE\n" || !strings.Contains(summary, `"profile":"corvint-ci-integrity-reuse/0","mode":"REUSE","tree":"`+tree+`","head":"`+head+`"`) ||
@@ -966,8 +987,58 @@ cat "$STUB_DIR/$f" > "$out"
 		"record with trailing text": func(r, ai, rec map[string]any, log *string) { *log = logOf(line + " x") },
 		"record inside other text":  func(r, ai, rec map[string]any, log *string) { *log = logOf("echo " + line) },
 	} {
-		if out, _ := run(merge, e); out != "" {
-			t.Errorf("%s: output %q, want no mode (the gate runs in full)", name, out)
+		if out, summary := run(merge, e); out != "" || !strings.HasSuffix(summary, "slept:") {
+			t.Errorf("%s: output %q, want no mode (the gate runs in full) and no wait\n%s", name, out, summary)
+		}
+	}
+	integrityWait(t, run, merge, head, runID, jobID)
+}
+
+// integrityWait (AFP-V0-104, V1-4233): an entry that starts before its pull-request run's gate or
+// record job concluded lists again every 30 s, at most 16 times (8 min), and reuses the record
+// once both jobs passed; a run that never gets there runs the gate after exactly 16 waits; a
+// running run whose gate failed, and a completed run, never wait.
+func integrityWait(t *testing.T, run func(string, func(r, ai, rec map[string]any, log *string), ...string) (string, string), merge, head string, runID, jobID int) {
+	t.Helper()
+	gate := func(status, conclusion string) map[string]any {
+		return map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "status": status, "conclusion": conclusion, "head_sha": head}
+	}
+	record := func(status, conclusion string) map[string]any {
+		return map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "status": status, "conclusion": conclusion, "head_sha": head}
+	}
+	running := func(jobs ...any) func(r, ai, rec map[string]any, log *string) {
+		return func(r, ai, rec map[string]any, log *string) {
+			r["status"], r["conclusion"] = "in_progress", nil
+			r["pendingJobs"] = jobs
+		}
+	}
+	waits := strings.Repeat("30,", 16)
+	waits = waits[:len(waits)-1]
+	for name, tc := range map[string]struct {
+		edit  func(r, ai, rec map[string]any, log *string)
+		mode  string
+		slept string
+	}{
+		"gate still running":             {running(gate("in_progress", "")), "mode=REUSE\n", "30"},
+		"gate passed, record not listed": {running(gate("completed", "success")), "mode=REUSE\n", "30"},
+		"record job queued":              {running(gate("completed", "success"), record("queued", "")), "mode=REUSE\n", "30"},
+		"gate job not listed yet":        {running(), "mode=REUSE\n", "30"},
+		"a running run whose jobs passed": {func(r, ai, rec map[string]any, log *string) {
+			r["status"], r["conclusion"] = "in_progress", nil
+		}, "mode=REUSE\n", ""},
+		"gate failed in a running run": {running(gate("completed", "failure")), "", ""},
+		"never concludes": {func(r, ai, rec map[string]any, log *string) {
+			running(gate("in_progress", ""))(r, ai, rec, log)
+			ai["status"], ai["conclusion"] = "in_progress", nil // the final listing never passes
+		}, "", waits},
+		"a cancelled run": {func(r, ai, rec map[string]any, log *string) { r["conclusion"] = "cancelled" }, "", ""},
+		"an unknown run status": {func(r, ai, rec map[string]any, log *string) {
+			r["status"], r["conclusion"] = "mystery", nil
+		}, "", ""},
+	} {
+		out, summary := run(merge, tc.edit)
+		if out != tc.mode || !strings.HasSuffix(summary, "slept:"+tc.slept) {
+			t.Errorf("%s: output %q, summary %q; want mode %q after waits %q", name, out, summary, tc.mode, tc.slept)
 		}
 	}
 }

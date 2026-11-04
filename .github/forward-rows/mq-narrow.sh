@@ -21,6 +21,10 @@
 # ci-narrowed-tree-record log. When it verifies here the selection keeps only the packages the main
 # delta can change (or the record's range did not select) and names the rest as Reused, with the
 # record in Reuse; any refusal keeps the whole selection and names why in Reuse.
+# AFP-V0-102 (V1-4232): MQ_DELTA may instead name, with scope FULL, a full pull-request record of
+# this head on an older base. That run tested every package of its tree, so the record's range is
+# the whole queue-range selection: the same checks apply, the record-range plan is not needed, and
+# only the packages the main delta can change run.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 sel="$RUNNER_TEMP/corvint-mq-selection"
@@ -150,16 +154,23 @@ reuse_() {
   fields=$(printf '%s' "$MQ_DELTA" | jq -r 'select(type == "object" and (.runId | type) == "number" and .runId > 0
       and (.recordJobId | type) == "number" and .recordJobId > 0
       and all(.tree, .target, .base, .head; type == "string" and test("^[0-9a-f]{40}$")))
-    | "\(.runId) \(.recordJobId) \(.tree) \(.target) \(.base) \(.head)"' 2> /dev/null) || fields=""
-  if ! printf '%s' "$fields" | grep -Eqx '[0-9]+ [0-9]+( [0-9a-f]{40}){4}'; then
+    | "\(.runId) \(.recordJobId) \(.tree) \(.target) \(.base) \(.head) \(if has("scope") then (if .scope == "FULL" then "FULL" else "OTHER" end) else "NARROWED" end)"' 2> /dev/null) || fields=""
+  if ! printf '%s' "$fields" | grep -Eqx '[0-9]+ [0-9]+( [0-9a-f]{40}){4} [A-Z]+'; then
     refuse "the offered record is malformed"
     return
   fi
   set -f
-  # shellcheck disable=SC2086 # six validated words
+  # shellcheck disable=SC2086 # seven validated words
   set -- $fields
   set +f
-  r_run=$1 r_job=$2 r_tree=$3 r_target=$4 r_base=$5 r_head=$6
+  r_run=$1 r_job=$2 r_tree=$3 r_target=$4 r_base=$5 r_head=$6 r_scope=$7
+  case $r_scope in
+  NARROWED | FULL) ;;
+  *)
+    refuse "the offered record scope is neither narrowed nor FULL"
+    return
+    ;;
+  esac
   # The entry is the record head merged directly onto the queue base, so only the base moved.
   parents=$(git rev-list --parents -n 1 "$TESTED_MERGE" 2> /dev/null) || parents=""
   if [ "$parents" != "$TESTED_MERGE $QUEUE_BASE $r_head" ]; then
@@ -204,22 +215,26 @@ reuse_() {
     refuse "main delta: $why"
     return
   fi
-  if ! plan_ "$r_base" record- 1; then
+  LC_ALL=C sort -u "$sel/selected" > "$sel/s"
+  if [ "$r_scope" = FULL ]; then
+    # A full record ran every package of its tree, so its range holds all of S.
+    cp "$sel/s" "$sel/record-selected"
+  elif ! plan_ "$r_base" record- 1; then
     refuse "record range: $why"
     return
   fi
-  LC_ALL=C sort -u "$sel/selected" > "$sel/s"
   LC_ALL=C comm -12 "$sel/s" "$sel/record-selected" | LC_ALL=C comm -23 - "$sel/delta-selected" > "$sel/reused"
   LC_ALL=C comm -23 "$sel/s" "$sel/reused" > "$sel/run"
   count() { sed '/^$/d' "$1" | wc -l | tr -d ' '; }
   jq -n -c --argjson run "$r_run" --argjson job "$r_job" --arg tree "$r_tree" --arg target "$r_target" \
-    --arg base "$r_base" --arg head "$r_head" --arg queueBase "$QUEUE_BASE" --arg deltaBase "$c" \
+    --arg base "$r_base" --arg head "$r_head" --arg queueBase "$QUEUE_BASE" --arg deltaBase "$c" --arg scope "$r_scope" \
     --argjson selected "$(count "$sel/s")" --argjson delta "$(count "$sel/delta-selected")" \
     --argjson record "$(count "$sel/record-selected")" --argjson intersection "$(count "$sel/run")" \
     --argjson reused "$(count "$sel/reused")" \
     '{applied: true, reason: "", recordRunId: $run, recordJobId: $job, recordTree: $tree, recordTarget: $target,
       recordBase: $base, recordHead: $head, queueBase: $queueBase, deltaBase: $deltaBase,
-      selected: $selected, deltaSelected: $delta, recordSelected: $record, intersection: $intersection, reused: $reused}' \
+      selected: $selected, deltaSelected: $delta, recordSelected: $record, intersection: $intersection, reused: $reused}
+      + (if $scope == "FULL" then {recordScope: "FULL"} else {} end)' \
     > "$sel/reuse.json" 2> /dev/null || refuse "the reuse could not be recorded"
 }
 decide() {
