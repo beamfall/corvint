@@ -6,7 +6,7 @@ Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
-V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
+V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861, CIN-V0-2301, CIN-V0-2302: V1-3332; CIN-V0-2300: V1-4446; CIN-V0-2303: V1-4445; CIN-V0-2304: V1-2805; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
@@ -14,7 +14,7 @@ Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
 ## Agent digest
 - Claim: CI narrowing isolates producing epochs and provides an operator alarm for missing forward rows independent of selection documents.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change; delivery experimental.
-- Exists: `.github/workflows/ci.yml`, `.github/workflows/ci-forward-bar.yml`, `.github/workflows/ci-control-plane.yml`, `.github/forward-rows/{names.sh,bar.jq,verdict.sh,accept.sh,selection.jq,collect.sh}`, `Decide` in `tools/ci-reuse-plan/main.go`; `tools/ci-forward-row/absence-alarm.py` (standalone developer alarm, hosted scheduling pending); tests named for each requirement.
+- Exists: `.github/workflows/ci.yml`, `.github/workflows/ci-forward-bar.yml`, `.github/workflows/ci-control-plane.yml`, `.github/forward-rows/{names.sh,bar.jq,verdict.sh,accept.sh,selection.jq,collect.sh,absence.jq,narrow.sh}`, `.github/workflows/cache-prune.yml`, `Decide` in `tools/ci-reuse-plan/main.go`; `tools/ci-forward-row/absence-alarm.py` (standalone developer alarm, hosted scheduling pending); tests named for each requirement.
 - Blocked on: the `CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE` repin (PR #11) for any forward row; the live V1-3158 measurement after merge.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -221,6 +221,54 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   4 MiB checked before and during decompression, with no execution of downloaded content. Hosted activation requires a trusted caller to schedule this
   alarm and surface its nonzero exit; this lane SHALL document that wiring without editing
   `.github/`. A local replay does not claim hosted activation or ticket completion.
+- `CIN-V0-2300`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4446;
+  effective only after the owner's `ci-control-plane` review of the `.github` change it needs)
+  When the deciding driver's selection carries a non-empty `Reason` (a fallback, so it admits no
+  base), `narrow.sh` SHALL prove parent 0 itself, as AFP-V0-800 does: the tested
+  merge SHALL have exactly two parents, the second the pull-request head and the first a full
+  commit id descending from the event base. It SHALL then record that parent as `base` and
+  `effectiveBase`, run the `.github/` change check and the shadow over it, and keep `eventBase`.
+  Any failed step SHALL keep the base empty (the record names `the base, head or target is not a
+  full commit id`); a base the driver admitted SHALL never be replaced, and a selection with an
+  empty `Reason` whose identity does not match SHALL keep the base empty. The mode is unchanged: a
+  driver `Reason` is FULL whatever the base. Run 41714153849 (PR 85) recorded base `""` with a
+  readable parent because a selector FALLBACK left the jq filter empty.
+- `CIN-V0-2301`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;
+  effective only after the owner's `ci-control-plane` review) A pull-request run whose retained
+  selection documents name no single tested merge of its run and head stops at
+  `pr-base-target-unreadable`, before CIN-V0-861's epoch check, so a shadow-selection outage wrote
+  no name. `collect.sh` SHALL name it `ci-forward-NOROW-pr<N>-<head>-e<FORWARD_EPOCH>-r<why>`,
+  `why` `nodoc` when no selection document was retained and `target` otherwise, under an
+  empty-bodied artifact, only when the pull request's own change (event base to head) is proven
+  free of `.github/` paths: a pull request that edits its workflow could drop its shadow at will
+  and trip the kill switch for every other pull request, and `absence.jq` SHALL count `target` as it counts `nodoc` and `mixed`.
+  A marker carries the run's head commit, while a later row of the same head names its tested
+  merge, so a pull-request marker is never replaced by that row: the count can only rise.
+- `CIN-V0-2302`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;
+  effective only after the owner's `ci-control-plane` review) `accept.sh` SHALL run `absence.jq`
+  over the same names its live kill switch reads (the whole listing, or the rows since the
+  verdict's listing followed by its window rows) and SHALL write `verdict=FULL`, reason starting
+  `the newest forward-row names show runs that wrote no row (CIN-V0-2302)`, unless the answer is
+  `clear` and its `absent` count, plus on the incremental listing the verdict's own
+  `rowAbsence.absent` (its window markers are not carried), is below 3. The sum may count a
+  marker twice, never too few. An incremental verdict without a numeric `rowAbsence.absent`, and an
+  absence count that cannot be computed, are FULL too. Before this, an
+  outage since the verdict left the row kill switch clear until the next verdict ran.
+- `CIN-V0-2303`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4445;
+  effective only after the owner's `ci-control-plane` review) `cache-prune.yml` SHALL run on the
+  `workflow_run` completion of the `CodeQL` workflow on `main`, keep its hourly schedule as the
+  backstop and its manual dispatch, and SHALL run its job for a `workflow_run` event only when the
+  triggering run's head branch is `main`, its head repository is this repository and its path
+  starts with `dynamic/github-code-scanning/` (CodeQL default setup). It SHALL stay the only
+  workflow that grants `actions: write`. On 2026-11-03 the schedule ran twice in 8 hours while
+  CodeQL ran 11 times on `main`.
+- `CIN-V0-2304`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
+  effective only after the owner's `ci-control-plane` review) For a pull request whose head branch
+  starts with `claude/batch-`, the required `doc-gates` job SHALL, unless its reuse decision is
+  REUSE, check the pull-request head out in a separate worktree (its own checkout is the synthetic
+  merge, which no CEM binds) and run `script/dogfood-batch-check.sh` from the merge base of the
+  pull request's base and head. Any nonzero exit, and a head or merge base that cannot be resolved,
+  SHALL fail the job, so a batch whose commits no sealed CEM binds cannot reach the merge queue.
 
 ## Non-goals
 
@@ -258,7 +306,14 @@ change merged to `main` made every Go shard FULL until both pins were repinned p
 now builds the tools from the compared commit, so only a run whose compared commit predates a pin or
 is off `main` builds the pin and can still lag. That costs latency, not soundness. The path list is declared, not derived: a selection rule moved outside it
 would go unnoticed until the list follows it. A `main` change to `package-costs.json` moves shard
-costs only, so it does not count as lag.
+costs only, so it does not count as lag. (9) CIN-V0-2304 runs the batch head's own
+`script/dogfood-batch-check.sh`, so a batch that edits that script can weaken its own check; the
+pre-push hook (DCW-V0-348) and review remain the guard. A non-batch pull request is not checked.
+(10) CIN-V0-2303's trigger depends on GitHub delivering `workflow_run` for the dynamic CodeQL
+workflow; that is NOT_OBSERVED until the change runs on `main`, and a run it never delivers is
+caught only by the schedule. (11) CIN-V0-2301 and CIN-V0-2302 count only runs the collector saw: a
+collector that never runs names nothing, as in failure mode (3).
+
 ## Acceptance evidence and traceability
 
 the tests in the traceability rows; the V1-3091 request counts in build log
@@ -281,8 +336,12 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-010 | `CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE` and the `pin-lag.sh` call in the narrowing gate of `ci.yml`; `.github/forward-rows/pin-lag.sh` | `TestCINV0010PinLagRefusesNarrowing` in `tools/ci-forward-row/pinlag_test.go` (a pin at MAIN passes; a selection change, a `cmd/corvint/test*.go` change and a `narrow.jq` change after a pin fail; a test, testdata, `package-costs.json` or unrelated change does not; a pin outside MAIN's history fails; malformed and unknown pins exit 2; the committed pins are one equal full commit id each; the gate calls the script from the compared `main` commit in both branches before `narrow.sh` and `mq-narrow.sh`) |
 | CIN-V0-011 | the `pin-main` step of `ci.yml` and every `steps.pin-main.outputs` binding | `TestCINV0011ToolsBuildFromComparedMain` in `tools/ci-forward-row/pinlag_test.go` (the step's own script, run on a fixture repository: a pull request on a moved `main` and a merge-queue entry on `main` or behind an unmerged entry build `main`; a first parent off `main`, a `main` older than the pin, or a queue base with no `main` ancestor keeps the pin; every fetch, build, record, gate and failure binding reads the outputs) |
 | CIN-V0-960 | `forwardEpoch`, `forwardEpochSites`, `forwardEpochSinceProblem`, `epochSinces` (`tools/ci-forward-row/epoch_test.go`) | `TestCINV0960WorkflowsAgreeOnTheForwardEpoch`, `TestCINV0960SynchronizedAdvancePasses`, `TestCINV0003VerdictListsBackToTheEpochSince`; `TestCINV0861RowAbsenceTripsTheKillSwitch` and `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind` read the live epoch from `ci.yml` |
-| CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
-
+| CIN-V0-861 | `.github/forward-rows/absence.jq` (moved from `tools/ci-forward-row/`); `marker` and the CIN-V0-001 exit of `.github/forward-rows/collect.sh` (the existing "Retain the forward row" step of `ci-control-plane.yml` uploads the empty body under the marker name); the `absence` join and `rowAbsence` of `.github/forward-rows/verdict.sh` | the CIN-V0-001 exclusions of `TestAFPV0047CollectorNamesRows` (each names its exact EPOCH or NOROW marker); the three-, two-marker and missing-`absence.jq` cases of `TestAFPV0097VerdictWrittenOnMain`; `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
+| CIN-V0-2300 | the parent-0 proof after the driver base in `.github/forward-rows/narrow.sh` | the fallback cases of `TestAFPV0098SupersetGuardSidecar` (a driver fallback keeps the proven parent, also for a stale event base, with the `.github/` check and shadow read; head mismatch, event base not an ancestor, an octopus merge and unreadable parents keep `""`; a selection without a `Reason` whose event base mismatches keeps `""` and stays FULL; both keep cases fail on the base script) |
+| CIN-V0-2301 | the `pr-base-target-unreadable` exit of `.github/forward-rows/collect.sh`; the `target` reason of `absence.jq` | the mixed-targets (`rtarget`) and no-document (`rnodoc`) cases of `TestAFPV0047CollectorNamesRows`; a no-document run whose pull request touches `.github/` is not named |
+| CIN-V0-2302 | `absent`, its two calls and the carried `rowAbsence.absent` in `.github/forward-rows/accept.sh` | the "runs without a row" cases of `TestAFPV0097VerdictAcceptance`, whole and incremental (CIN-V0-004) listings: three markers are FULL, two and three of another epoch are MET; two carried plus one since is FULL; an incremental verdict without a count is FULL |
+| CIN-V0-2303 | the `on:` block and the job `if:` of `.github/workflows/cache-prune.yml` | `TestCINV02303CachePruneFollowsCodeQL` (trigger, backstop, guard clauses; no other workflow grants `actions: write`, with the matcher checked on a planted grant); `TestAFPV0097CachePruneKeepsNewestOverlay` |
+| CIN-V0-2304 | the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | `TestCINV02304BatchPullRequestNeedsSealedEvidence` (the step run on a fixture repository with a stub check: pass from the head and the merge base; a refusing check and an unresolvable head fail); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` |
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
@@ -303,4 +362,9 @@ these requirements; verdict artifacts without `listedAt` keep the whole listing.
 runs every RUNNABLE plan without a module-level frontier narrowed, as before. CIN-V0-861: drop the `absence.jq`
 call in `verdict.sh`; the markers are then ignored names. CIN-V0-010: drop the two `pin-lag.sh` calls
 in the narrowing gate; the pins then may lag again silently. CIN-V0-011: drop the `pin-main` step;
-every `steps.pin-main.outputs` reference then falls back to the committed pins. Repinning back restores the older selection rules.
+every `steps.pin-main.outputs` reference then falls back to the committed pins. Repinning back restores the older selection rules. CIN-V0-2300: drop the
+parent-0 proof in `narrow.sh`; a driver fallback again records base `""`, still FULL.
+CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop the two `absent`
+calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
+`workflow_run` clause; the schedule alone remains. CIN-V0-2304: drop the batch-check step of
+`doc-gates`; the DCW-V0-348 pre-push hook remains the only check.
