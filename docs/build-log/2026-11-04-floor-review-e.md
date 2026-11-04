@@ -97,6 +97,9 @@ no new modelling:
   refuses. Either case keeps the conservative plan, naming that the executor build configuration
   cannot be read. Regression: `TestAFPV02372ExplicitSwitchValueRefuses`. It failed before the fix,
   and fails again with the both-places check mutated off.
+  End to end, `TestAFPV02372DryRunBindsExecutorBuildConfiguration` subtests `GOFLAGS -race with
+  -race=false` and `-race in both` plan the package whole. Both failed against the pre-fix
+  `config.go`.
 
 ## Rollback
 

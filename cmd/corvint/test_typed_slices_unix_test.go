@@ -268,6 +268,10 @@ func TestAFPV02372DryRunBindsExecutorBuildConfiguration(t *testing.T) {
 	for name, declaration := range map[string]string{
 		"an unmodelled flag":    typedSliceDeclaration("", `, "-gcflags=all=-N"`),
 		"an unmodelled GOFLAGS": typedSliceDeclaration(`, "GOFLAGS": "-toolexec=/bin/true"`, ""),
+		// The fix-only review repro: GOFLAGS enables race, the declared flag
+		// disables it; explicit values and doubled switches are disabled for 1.0.
+		"GOFLAGS -race with -race=false": typedSliceDeclaration(`, "GOFLAGS": "-race"`, `, "-race=false"`),
+		"-race in both":                  typedSliceDeclaration(`, "GOFLAGS": "-race"`, `, "-race"`),
 	} {
 		t.Run(name, func(t *testing.T) {
 			got := plan(t, declaration)
