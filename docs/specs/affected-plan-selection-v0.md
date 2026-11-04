@@ -304,7 +304,7 @@ measure. None of them drops a unit the change can reach.
   least 1, C a non-empty constant not starting with `-`, alone or in a conjunction) and whose body
   ends by calling `os.Exit`: `go test` passes the binary only `-test.*` flags, so the branch runs
   only in a child the binary starts as itself, which only a process start can do, and that start
-  keeps its test by AFP-V0-2373. When it reaches the change the package SHALL stay whole with
+  keeps its test by AFP-V0-2373. The condition itself runs in the parent and stays always-run. When it reaches the change the package SHALL stay whole with
   `ALWAYS_RUN_REACHES_CHANGE`, and when it starts an unproved process with
   `ALWAYS_RUN_STARTS_PROCESS`. A module package with cgo, assembly or other non-Go source, a
   `//go:linkname` directive, an import outside the module and `GOROOT`, or any type error SHALL
@@ -324,12 +324,18 @@ measure. None of them drops a unit the change can reach.
   call on it or passing it, when of map, slice, pointer or channel type, as an argument; the
   `sync.Mutex`/`RWMutex` lock methods and the read-only methods of `regexp.Regexp`,
   `strings.Replacer` and the template types' execution are not writes (`sync.Once.Do` and
-  `sync.Pool` are). Any other use of a module variable of map, slice, pointer or channel type than
+  `sync.Pool` are). Any other use of a module variable holding a map, slice, pointer or channel (directly or in a
+  struct or array field) than
   an index, field or range yielding no such reference, a `len`/`cap` argument or a comparison
   operand is a write, since a copy of the reference can be written through. A file write
   (`os.WriteFile`, `Create`, `OpenFile` unless its constant flags only read, `Mkdir*`, `Remove*`,
   `Rename`, `Symlink`/`Link` at their link path, `Ch*`, `Truncate`) whose path mentions a module
-  package variable writes that variable. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
+  package variable writes that variable; a bound pointer-method value taken on a package variable
+  is a call for this rule. The file system is a third pseudo variable: every file write or read
+  (`os.ReadFile`, `Open`, `Stat`, `Lstat`, `ReadDir`, `Readlink`, `DirFS`, `filepath.Walk*`,
+  `Glob`, `EvalSymlinks`, `fs.ReadFile`, a read-only `OpenFile`) whose path neither calls nor names
+  a local variable a body assigned once from `TempDir`, `os.MkdirTemp` or `os.CreateTemp` writes or
+  reads it, and every state reader or writer taken as a value reads or writes its pseudo variable. The environment (`os.Setenv` family; read by `os.Getenv` family and every process
   start) and signal dispositions (`signal.Notify`, `Ignore`, `Reset`, a `Notify` paired with
   `signal.Stop` in the same body excepted) are two pseudo variables under the same rule. A kept
   test whose closure calls another process-wide setter (`os.Chdir`, `runtime.GOMAXPROCS` with an
