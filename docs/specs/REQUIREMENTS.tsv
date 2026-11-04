@@ -5878,6 +5878,7 @@ NTP-V0-023	docs/specs/native-taskman-planning-v0.md	`--max-group-size N` MUST bo
 NTP-V0-024	docs/specs/native-taskman-planning-v0.md	A candidate whose base commit is absent or unresolvable, whose candidate tree or	unrecorded	-
 NTP-V0-025	docs/specs/native-taskman-planning-v0.md	The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed s	unrecorded	-
 NTP-V0-026	docs/specs/native-taskman-planning-v0.md	The store policy MAY declare `reservations.sharedPaths`, a sorted, unique, non-e	unrecorded	-
+NTP-V0-670	docs/specs/native-taskman-planning-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3535) When the	standing	2026-10-11; V1-3535
 NEC-V0-001	docs/specs/necessity-labels-v0.md	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST	unrecorded	-
 NEC-V0-002	docs/specs/necessity-labels-v0.md	The verb MUST load the index exactly as `context --task` does (the tree's snapsh	unrecorded	-
 NEC-V0-003	docs/specs/necessity-labels-v0.md	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,	unrecorded	-
@@ -6025,6 +6026,9 @@ OIF-V0-007	docs/specs/ocm-intent-forms-v0.md	`roadmap-acceptance` treats each un
 OIF-V0-008	docs/specs/ocm-intent-forms-v0.md	A ticket's body is the contiguous following lines that start with a space. Its A	unrecorded	-
 OIF-V0-009	docs/specs/ocm-intent-forms-v0.md	A declared form that yields no requirement fails `missing-requirements`, more th	unrecorded	-
 OIF-V0-010	docs/specs/ocm-intent-forms-v0.md	The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a ma	unrecorded	-
+OIF-V0-670	docs/specs/ocm-intent-forms-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-01; V1-2275 A	standing	2026-11-01; V1-2275
+OIF-V0-671	docs/specs/ocm-intent-forms-v0.md	(experimental, as `OIF-V0-670`) The list is recorded as the array member `intent	unrecorded	-
+OIF-V0-672	docs/specs/ocm-intent-forms-v0.md	(experimental, as `OIF-V0-670`) `corvint ocm prepare` accepts `--intent-requirem	unrecorded	-
 OIF-V0-011	docs/specs/ocm-intent-forms-v0.md	The capability is experimental: help labels the flag experimental, and no releas	unrecorded	-
 OCM-V0-001	docs/specs/ocm-v0-dogfood.md	V0 MUST accept exactly one pinned Markdown intent scope containing one	unrecorded	-
 OCM-V0-002	docs/specs/ocm-v0-dogfood.md	the map MUST bind the full target commit, intent path/blob/span/span digest, exa	unrecorded	-
@@ -6534,6 +6538,8 @@ PUB-V0-053	docs/specs/public-release-v0.md	(amended 2026-10-27, GitHub #1902, or
 PUB-V0-054	docs/specs/public-release-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3221)	standing	2026-10-30; V1-3221
 PUB-V0-965	docs/specs/public-release-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3799; refines	standing	2026-10-11; V1-3799
 PUB-V0-700	docs/specs/public-release-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3823; refines	standing	2026-11-01; V1-3823
+PUB-V0-670	docs/specs/public-release-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-01; V1-0643)	standing	2026-11-01; V1-0643
+PUB-V0-671	docs/specs/public-release-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-01; V1-0643)	standing	2026-11-01; V1-0643
 PUB-V0-027	docs/specs/public-release-v0.md	`corvint impact ... --producer` and `corvint test-validity ... --producer` MUST	unrecorded	-
 PUB-V0-028	docs/specs/public-release-v0.md	Each member MUST come from its own source only, and a member that source cannot	unrecorded	-
 PUB-V0-029	docs/specs/public-release-v0.md	Build `0` is correct only for an unstamped source build (for example the	unrecorded	-

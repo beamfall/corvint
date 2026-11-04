@@ -202,6 +202,23 @@
       "internal/clitree/",
       "internal/pulse/"
     ],
+    "conformance/release-artifact-v0": [
+      ".agent-evidence/",
+      "LICENSE",
+      "LICENSE-APACHE-2.0",
+      "LICENSING.md",
+      "Makefile",
+      "PROVENANCE.md",
+      "VERSION",
+      "benchmarks/results/",
+      "cmd/corvint/main.go",
+      "conformance/vscode-extension-v0/cases.json",
+      "docs/CHANGE-EVIDENCE-MAP.md",
+      "docs/RELEASE-NOTES-alpha.md",
+      "docs/RELEASE-NOTES.md",
+      "extensions/vscode/src/executable.ts",
+      "script/release-checklist"
+    ],
     "conformance/release-artifact-v0/archive-verifier": [],
     "conformance/release-artifact-v0/archiveverify": [
       "conformance/release-artifact-v0/archivebuild/archivebuild.go"
@@ -370,6 +387,26 @@
       "internal/appmap/testdata/fixture/"
     ],
     "internal/compactionkernel": [],
+    "internal/companionrelease": [
+      ".github/cishards/",
+      "cmd/",
+      "conformance/interactive-alpha/core-process.mjs",
+      "conformance/interactive-alpha/core-provider-proof.mjs",
+      "conformance/interactive-alpha/fixture/package-lock.json",
+      "conformance/interactive-alpha/fixture/package.json",
+      "docs/specs/public-release-v0.md",
+      "extensions/vscode/test/installed/index.cjs",
+      "extensions/vscode/test/installed/run.mjs",
+      "go.mod",
+      "internal/",
+      "protocol/cem-1.0/stable/MIGRATION.json",
+      "protocol/cem-1.0/stable/neutral-criterion/results/accept.json",
+      "tools/cem-release-suites/READINESS.json",
+      "tools/web-flows/navigation.mjs",
+      "tools/web-flows/observe.mjs",
+      "tools/web-flows/package-lock.json",
+      "tools/web-flows/package.json"
+    ],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
     "internal/corpusserve": [],

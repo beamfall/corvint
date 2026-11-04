@@ -1805,7 +1805,11 @@ Options:
   --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
   --intent-form FORM  Experimental prepare intent form: requirements (default),
                       adr-decisions, roadmap-acceptance, openspec-spec,
-                      openspec-delta, or speckit-spec.
+                      openspec-delta, speckit-spec, or requirements-subset.
+  --intent-requirements IDS
+                      Experimental prepare only, required with
+                      requirements-subset: comma-separated requirement IDs
+                      (1 to 256) of the intent's Requirements section.
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for the cem/1.0 map.
   --target REV        Independent target; required for the cem/1.0 map.

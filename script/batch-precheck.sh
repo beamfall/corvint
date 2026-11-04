@@ -207,7 +207,7 @@ else
     "./internal/tasks/store TestCALV0070_ @prebind"
     "./internal/tasks/journal TestCALV0070_ @prebind"
     "./internal/tasks/safeopen TestCALV0070_ @prebind"
-    "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
+    "./internal/companionrelease/currentproof TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi
