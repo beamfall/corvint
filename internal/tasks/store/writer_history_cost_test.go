@@ -204,9 +204,15 @@ func historyStore(tb testing.TB, receipts int) *intent.Repository {
 }
 
 // historyStoreAt builds the historyStore fixture at root with the given number
-// of tickets created through Mutate, then pads it to receipts.
+// of tickets created through Mutate, then pads it to receipts. Its setup writes
+// tickets+1 receipts (init plus one create per ticket), so a smaller receipts is
+// refused up front with that minimum named (V1-3561), not after the build as a
+// head mismatch.
 func historyStoreAt(tb testing.TB, root string, tickets, receipts int) *intent.Repository {
 	tb.Helper()
+	if minimum := tickets + 1; receipts < minimum {
+		tb.Fatalf("history fixture: %d receipts is below its setup's own %d (init plus %d ticket creates); pass at least %d", receipts, minimum, tickets, minimum)
+	}
 	historyWrite(tb, filepath.Join(root, ".git", "HEAD"), []byte("ref: refs/heads/main\n"))
 	historyWrite(tb, filepath.Join(root, intent.Dir, "queue.json"), fixture.QueueBytes())
 	historyWrite(tb, filepath.Join(root, intent.Dir, "policy.json"), fixture.PolicyBytes())

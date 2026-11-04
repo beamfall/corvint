@@ -1,0 +1,13 @@
+{
+  "profile": "corvint-shell-test-inputs/0",
+  "tests": {
+    "script/no-python-runtime-dependency_test.sh": {
+      "inputs": [
+        "Makefile",
+        "integrations/",
+        "script/*.sh"
+      ],
+      "reason": "GOC-V0-008 scan: it prints the bare word Makefile, lists script/*.sh with find -maxdepth 1 and integrations/**/*.mjs and *.json with find, and greps each for a Python invocation, so none of these reads is a path literal the shell plugin resolves (V1-3489, AFP-V0-2400)"
+    }
+  }
+}

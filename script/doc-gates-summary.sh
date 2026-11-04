@@ -5,8 +5,15 @@
 # with one line naming every failed doc gate (an ARG that make reported as `*** [TARGET]` or
 # `*** [Makefile:N: TARGET]`) and the command that reruns one alone, so the failing sub-gate is the
 # last thing in a long CI log. A failure that names no ARG says so. The exit status is CMD's.
+# DTL-V0-006: a `-j` ARG must carry a positive integer (the recipe's -j$(DOC_GATE_JOBS)); an empty
+# DOC_GATE_JOBS would leave a bare -j, an unbounded job pool, so it exits 2 before CMD runs.
 set -uo pipefail
 (($#)) || { printf 'usage: script/doc-gates-summary.sh CMD [ARG...]\n' >&2; exit 2; }
+for a in "$@"; do
+  [[ $a == -j* && ! ${a#-j} =~ ^[1-9][0-9]*$ ]] || continue
+  printf 'doc-gates-summary: DOC_GATE_JOBS must be a positive integer, got %q (from %s); refusing an unbounded or invalid job pool\n' "${a#-j}" "$a" >&2
+  exit 2
+done
 log=$(mktemp "${TMPDIR:-/tmp}/doc-gates-summary.XXXXXX") || exit 2
 trap '/bin/rm -f "$log"' EXIT
 {

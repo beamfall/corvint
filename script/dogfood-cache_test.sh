@@ -23,8 +23,11 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
 source "$source_root/script/dogfood-fixture-scripts.sh"
-dogfood_fixture_copy "$source_root" "$root/repo/script" dogfood-{change,check,seal,batch-check,finish}.sh
+dogfood_fixture_copy "$source_root" "$root/repo/script" dogfood-{change,check,seal,batch-check,finish}.sh check-spec-readme.sh
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
+mkdir -p "$root/repo/docs/specs"
+printf '[]\n' > "$root/repo/docs/specs/INDEX.json"
+printf '# Fixture specs\n' > "$root/repo/docs/specs/README.md"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
 git -C "$root/repo" init -q
@@ -120,6 +123,33 @@ for route in direct make; do
     done
   done
 done
+
+# DTL-V0-004: SEAL=0 reaches finish-lane and the pre-flight (whose rerun hints then keep SEAL=0);
+# SEAL=1 gives neither --seal no, and make dogfood-inputs-check never takes it.
+# Admission is tested separately; keep this fake-build fixture free of real host cache probes.
+printf '1\tunknown\tinsufficient-evidence\tfixture\n' > "$root/stop-cites.tsv"
+printf '#no-intent-declared\n' > "$root/stop-intents.txt"
+printf 'go version\n' > "$root/stop-verify.txt"
+for seal in 0 1; do
+  : > "$TEST_FLOW_LOG"
+  DOGFOOD_STATIC_PRECHECK=0 make -s dogfood-finish HEAVY_ADMIT= LANE=1 SEAL="$seal" BASE="$base" CITATIONS="$root/stop-cites.tsv" INTENTS="$root/stop-intents.txt" VERIFY="$root/stop-verify.txt" OUTCOME=passed > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  if [[ $seal == 0 ]]; then
+    grep -q '^dogfood finish-lane .*--seal no ' "$TEST_FLOW_LOG" || exit 1
+    grep -q '^dogfood inputs-check .*--seal no ' "$TEST_FLOW_LOG" || exit 1
+  else
+    grep '^dogfood finish-lane ' "$TEST_FLOW_LOG" | grep -q -- '--seal no' && exit 1
+    grep '^dogfood inputs-check ' "$TEST_FLOW_LOG" | grep -q -- '--seal no' && exit 1
+  fi
+ done
+: > "$TEST_FLOW_LOG"
+DOGFOOD_STATIC_PRECHECK=0 make -s dogfood-inputs-check HEAVY_ADMIT= LANE=1 SEAL=0 BASE="$base" CITATIONS="$root/stop-cites.tsv" INTENTS="$root/stop-intents.txt" VERIFY="$root/stop-verify.txt" OUTCOME=passed > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+grep -q '^dogfood inputs-check ' "$TEST_FLOW_LOG" || exit 1
+grep '^dogfood inputs-check ' "$TEST_FLOW_LOG" | grep -q -- '--seal' && exit 1
+# A refused SEAL=0 run names SEAL=0 in its fix line, so following it never seals.
+DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_SEAL=0 DOGFOOD_FINISH_LANE=1 script/dogfood-finish.sh "$base" "$root/stop-cites.tsv" > "$root/output" 2>&1 && exit 1
+grep -qF "fix: make dogfood-finish BASE=<full sha> SEAL=0 CITATIONS=" "$root/output" || { cat "$root/output" >&2; exit 1; }
+DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_SEAL=1 DOGFOOD_FINISH_LANE=1 script/dogfood-finish.sh "$base" "$root/stop-cites.tsv" > "$root/output" 2>&1 && exit 1
+grep -q 'SEAL=' "$root/output" && exit 1
 
 # Existing version refusals happen before builds; a valid override bypasses only change's build.
 export CORVINT_GOCACHE="$root/private cache" CORVINT_BIN="$TEST_FAKE_CORVINT"
@@ -244,25 +274,25 @@ git clone -q "$root/repo" "$root/bound"
 # ASD-V0-045 (V1-3119): dogfood-closeout without a plan refuses before any build or batch-precheck
 # step and names the drafting and pre-flight commands.
 status=0
-make -s dogfood-closeout LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
+make -s dogfood-closeout LANE=1 BASE="$base" > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || exit 1
-rg -q '^dogfood-inputs-check: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTCOME$' "$root/output" || exit 1
+rg -q '^dogfood-inputs-check: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTCOME$' "$root/output" || { cat "$root/output" >&2; exit 1; }
 rg -q '^fix: make dogfood-closeout BASE=<full sha> ' "$root/output" || exit 1
-rg -qF 'corvint dogfood propose-citations feedfacefeedfacefeedfacefeedfacefeedface > plan.tsv' "$root/output" || exit 1
-rg -qF 'make dogfood-inputs-check BASE=feedfacefeedfacefeedfacefeedfacefeedface' "$root/output" || exit 1
+rg -qF "corvint dogfood propose-citations $base > plan.tsv" "$root/output" || exit 1
+rg -qF "make dogfood-inputs-check BASE=$base" "$root/output" || exit 1
 ! rg -q 'batch-precheck' "$root/output" || exit 1
 # DCW-V0-960 (V1-3047): the closeout runs its input steps with LANE=1 without being told, so a plan
 # alone still names the missing INTENTS, VERIFY and OUTCOME before any build.
 printf '1\tsource-marker\t1:1\timplementation\n' > "$root/closeout-cites.tsv"
 status=0
-env -u LANE make -s dogfood-closeout BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$root/closeout-cites.tsv" > "$root/output" 2>&1 || status=$?
+env -u LANE make -s dogfood-closeout BASE="$base" CITATIONS="$root/closeout-cites.tsv" > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
 rg -q '^dogfood-inputs-check: REFUSE missing-inputs INTENTS VERIFY OUTCOME$' "$root/output" || { cat "$root/output" >&2; exit 1; }
 # ASD-V0-902 (V1-3481): an unreadable plan through the pre-flight alone, or through the closeout, is
 # refused under the dogfood-inputs-check prefix, and the fix line names the target that ran.
 for entry in dogfood-inputs-check dogfood-closeout; do
   status=0
-  make -s "$entry" BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS=/dev/null > "$root/output" 2>&1 || status=$?
+  make -s "$entry" BASE="$base" CITATIONS=/dev/null > "$root/output" 2>&1 || status=$?
   [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
   rg -q '^dogfood-inputs-check: REFUSE missing-inputs .*CITATIONS:unreadable' "$root/output" || { cat "$root/output" >&2; exit 1; }
   rg -q "^fix: make $entry BASE=<full sha> " "$root/output" || { cat "$root/output" >&2; exit 1; }
@@ -288,8 +318,8 @@ done
 # are checked first (V1-4331, V1-4332).
 recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(BASE)" dogfood-inputs-check lane-closeout:skip-drift:batch-precheck dogfood-finish next:dogfood-closeout-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
-recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; exit 1; }
+recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:since-receipt:batch-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+[[ $recipe == 'lane-closeout:since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.

@@ -39,7 +39,10 @@ done
 rel="lane-inputs/ticket-bodies-$lane"
 # on_target runs one shell command on the target: over ssh with --host, here without.
 on_target() { if [[ -n $host ]]; then "$ssh_cmd" "$host" "$1"; else bash -c "$1"; fi; }
-stage=$(mktemp -d "${TMPDIR:-/tmp}/lane-stage-inputs.XXXXXX") || refuse 'mktemp failed'
+# DTL-V0-014: keep large lane scratch on a configurable disk and remove only this run's directory.
+scratch_parent=${TMPDIR:-${CORVINT_SCRATCH_ROOT:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-heavy}/tmp}
+mkdir -p "$scratch_parent" || { printf 'lane scratch unavailable; fix: set TMPDIR to a writable disk directory\n' >&2; exit 2; }
+stage=$(mktemp -d "$scratch_parent/lane-stage-inputs.XXXXXX") || refuse 'mktemp failed'
 trap '/bin/rm -rf "$stage"' EXIT
 findings=0
 for id in "$@"; do

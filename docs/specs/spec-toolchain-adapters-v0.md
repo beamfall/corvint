@@ -115,6 +115,7 @@ Corvint at `d35b0ee3`:
 - `STA-V0-014`: A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding the target path, not an authority document, and no consumer follows it. The authority-start query refuses with `unsupported-query-authority` and a message that names the symlink; Codex governance context reports `AGENTS.md` unavailable. Keep the guide a regular file (or make the symlink the secondary name, for example `CLAUDE.md` pointing at `AGENTS.md`). Resolving a tracked symlink to a tracked regular file in the same tree at the same revision is a post-1.0 idea (V1-1272, V1-1325, V1-2181).
 
 - `STA-V0-965`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3657) `script/spec-toolchain-conformance.sh` MUST select its Python interpreter before any other check: `SPEC_TOOLCHAIN_PYTHON` when set, used as given; otherwise the first of `python3`, `python3.14`, `python3.13`, `python3.12` and `python3.11` on `PATH` whose `sys.version_info` is at least 3.11. When none qualifies (or the override is older) it MUST exit 1 naming each candidate it tried and the `SPEC_TOOLCHAIN_PYTHON=/path/to/python3.11+` override. `--print-python` MUST print the selected interpreter and exit 0, running nothing else, so the selection is testable offline.
+- `STA-V0-740`: (experimental under the owner's standing auto-accept (2026-11-01); V1-1706) The `STA-V0-008` Spec Kit extension (`extension.version` in `protocol/integrations/speckit/corvint/extension.yml`) and the `STA-V0-009` OpenSpec skill (its front-matter `metadata.version`) MUST each carry their own package version under `AHI-020`: the version advances in the same change as, or after, any change to a file the package ships (for the extension every tracked file under its directory but `extension.yml` and `README.md`; for the OpenSpec package every tracked file under `protocol/integrations/openspec/` but `README.md`, the skill body included), and `make host-package-versions-check` (`script/check-host-package-versions.sh`, run by CI `doc-gates`) fails otherwise. The package versions are independent of Corvint's release version and of `STA-V0-001` upstream pins: a Corvint release or an `STA-V0-001` move that changes no shipped file bumps nothing. An `STA-V0-001` move that widens `requires.speckit_version` bumps `extension.version` in the same edit by rule; the gate does not see it, because `extension.yml` is the version file and is outside the shipped set (a known limit, listed as a failure mode below). `requires.tools` names `corvint` without a version: every command calls only `corvint context`, `corvint affected` and `corvint review`, and the 1.0 line is the only supported Corvint release, so a minimum-version constraint is added, with a bump, by the first change whose command needs a CLI surface a supported release lacks. Adopters see a new version through Spec Kit's and OpenSpec's own version display after reinstalling from the repository; Corvint publishes no package catalog. Non-goals: tying package versions to Corvint tags; a release-notes obligation. Failure modes: a manifest-only edit to `extension.yml` without a bump passes the gate; before `V1-2184` the two packages had no version gate, so a changed command could ship under an unchanged `0.1.0` that a host that caches by version never re-stages. Evidence: the Spec Kit and OpenSpec cases of `script/check-host-package-versions_test.sh` (`make host-package-versions-test`). Rollback: drop this requirement; the `AHI-020` gate stays.
 
 ## Non-goals
 
@@ -150,8 +151,14 @@ Corvint at `d35b0ee3`:
   `TestSTAV0005_SpecKitRefusals`, `TestSTAV0006_DeclaredFormsRegistry` and
   `TestSTAV0010_FixturesDerive`; in `cmd/corvint`, `TestSTAV0004_PrepareEnvelopeNativeMembers` and
   `TestSTAV0006_PrepareIntentFormFlag`.
-- `internal/contextindex` tests cover `STA-V0-007`: `TestSTAV0007_ToolchainPathClassification` and
-  `TestSTAV0007_NonToolchainPathsUnchanged`; `TestSTAV0014_SymlinkedRootGuideIsNotAuthority` covers `STA-V0-014`.
+- `internal/contextindex` tests cover `STA-V0-007`: `TestSTAV0007_ToolchainPathClassification`,
+  `TestSTAV0007_NonToolchainPathsUnchanged` and `TestSTAV0007_SpecKitPresenceFollowsAdmittedSources`;
+  `TestSTAV0014_SymlinkedRootGuideIsNotAuthority` covers `STA-V0-014`. Decision (V1-1705,
+  2026-11-01): Spec Kit presence follows the admitted source set, not the pinned tree inventory. A
+  project that excludes `.specify/` from the index has made a project-owned authority choice
+  (invariant 3), and reading presence from the raw tree would override it; the cost is that a
+  tracked `.specify/` holding only non-admitted files (a `.gitkeep`, a file under a `build/`
+  component) leaves `specs/<feature>/spec.md` its content status, which the third test pins.
 - `protocol/integrations` static tests cover the package shape and read-only commands:
   `TestSTAV0008_SpecKitExtensionManifest` and `TestSTAV0009_OpenSpecIntegration`.
 - `internal/lrfrepo` covers `STA-V0-001`: the manifest shape, and the npm lock and hashed Spec Kit
@@ -169,6 +176,9 @@ Corvint at `d35b0ee3`:
 - `TestSTAV0965_ConformancePicksAPython311` (`internal/lrfrepo`) covers `STA-V0-965` with stub
   interpreters on `PATH`: an old `python3` is skipped for `python3.12`, the override wins, and a
   host with no qualifying interpreter is refused naming `SPEC_TOOLCHAIN_PYTHON`.
+- `script/check-host-package-versions_test.sh` covers `STA-V0-740` through its Spec Kit and
+  OpenSpec cases: a command change without a bump fails, another YAML block's `version` key does
+  not count as the bump, and a skill body edit fails without its bump and passes with it.
 - One `script/spec-toolchain-latest.sh` transcript covers `STA-V0-012`.
   Delivered: the 2026-10-18 transcript (`openspec 1.14.3 CURRENT`, `spec-kit 1.2.1 CURRENT`) in the
   build-log entry, the 2026-10-31 transcript (`openspec 1.16.0 CURRENT`, `spec-kit 1.2.5 CURRENT`) in
