@@ -143,6 +143,24 @@ claim, and mutation ordering deltas below.
   `unsupported-object-alternates`. Implicit fetch is forbidden. Validated repository administrative
   metadata is authority and MUST remain stable for one invocation; hostile same-identity mutation is
   outside the V0 trust boundary.
+- `OCM-V0-013`: one dogfood change MAY declare an ordered set of pinned Markdown intent
+  scopes and MUST prepare and independently verify exactly one unchanged `ocm/0.1-experimental`
+  map per scope against the same exact target revision, expected base, CEM map digest, and CEM patch
+  digest. `OCM-V0-001` and `OCM-V0-002` remain the per-map contract: each map contains exactly one
+  intent path/blob/span/span digest and one ordered obligation sequence. The dogfood coordinator
+  MUST sort scopes by normalized path bytes, then retain each map's extracted requirement order,
+  when rendering its aggregate worklist and coverage. It MUST reject an absent or empty scope set,
+  an absent map, any scope or map that is invalid, unavailable, stale, drifted, or bound to different
+  revision or CEM bytes, and any requirement ID repeated within or across scopes. It MUST NOT
+  deduplicate, merge,
+  partially accept, or report aggregate closure after any such failure. Per-map failures retain the
+  existing OCM taxonomy and MUST identify the failing map path and the underlying failed check's
+  code and message, including repository and CEM failures whose standalone envelope omits or
+  normalizes that detail. The standalone wire envelope remains unchanged. Given identical inputs
+  and repository state, per-map acceptance MUST agree with standalone `ocm status`, including in
+  reciprocal linked worktrees with a `.git` file and objects in the common Git directory.
+  Aggregate-only failures are `missing-intent-scope`,
+  `intent-scope-drift`, or the existing `duplicate-requirement`, with that precedence.
 - `OCM-V0-014`: the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
   `conformance/ocm-v0/`: every valid vector is the byte output of the real `prepare`, `link`, and
   `mark` producers over a deterministic seed repository and MUST re-derive byte-for-byte on every
@@ -387,6 +405,13 @@ claim, and mutation ordering deltas below.
   `TestOCMV0952CoverageReadsFourDigitRequirementLines`,
   `TestOCMV0952ChainShowsFourDigitRequirementLines`. Rollback: restore `[0-9]{3}` in the four
   patterns.
+- `OCM-V0-080`: (experimental under the standing lane auto-accept (2026-11-01); V1-4140) An
+  `internal/lrfrepo` spec-enumeration test whose expected obligation list must equal the OCM
+  enumeration MUST, when the list holds the same IDs in another order, fail naming the spec's
+  document order and the list in that order, and otherwise name the missing and extra IDs. Failure
+  mode: a union merge of two lanes' lists appended one lane's IDs after the other's and failed as
+  an opaque first differing index. Non-goal: accepting an unordered list. Evidence:
+  `TestOCMV0080OrderMismatchNamesDocumentOrder`. Rollback: restore the index-by-index comparison.
 - `OCM-V0-940`: (experimental under the standing lane auto-accept; V1-0585) `ocm link` has an
   explicit replace-or-accumulate contract for one requirement's claims. Without `--accumulate` a
   link replaces the obligation's claims from `--test-path` and, by `OCM-V0-951`, keeps a `linked`
@@ -732,6 +757,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-951 | `internal/lrfrepo/ocm_write.go` (`linkObligation`, `existingClaimPaths`) | `internal/lrfrepo/ocm_multifile_test.go:TestOCMV0951LinkKeepsOtherTestPaths` |
 | OCM-V0-952 | `internal/lrfrepo/ocm.go` (`requirementID`), `internal/lrf/terms.go` (`obligationIDPattern`), `internal/dogfoodflow/ocm_coverage.go` (`requirementLine`), `internal/console/chain.go` (`requirementLine`) | `internal/lrfrepo/ocm_requirement_digits_test.go:TestOCMV0952IntentAcceptsFourDigitRequirementIDs`, `internal/lrf/obligation_id_test.go:TestOCMV0952ObligationIDsAcceptFourDigits`, `internal/dogfoodflow/ocm_requirement_digits_test.go:TestOCMV0952CoverageReadsFourDigitRequirementLines`, `internal/console/chain_requirement_digits_test.go:TestOCMV0952ChainShowsFourDigitRequirementLines` |
 | OCM-V0-700 | `internal/lrfrepo/ocm_write.go` (`claimSelectorMissMessage`, `boundedFragment`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMClaimSelectorMiss` |
+| OCM-V0-080 | `obligationOrderMismatch` in `internal/lrfrepo/ocm_spec_test.go` | `internal/lrfrepo/ocm_spec_test.go:TestOCMV0080OrderMismatchNamesDocumentOrder` |
 | OCM-V0-940 | `internal/lrfrepo/ocm_write.go` (`LinkOCM`, `linkObligation`, `existingClaimPaths`), `cmd/corvint/ocm.go` (`parseOCMLinkFlags`), `internal/dogfoodflow/change.go` (`runOCMLinks`) | `internal/lrfrepo/ocm_accumulate_test.go:TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
 | OCM-V0-880 | `internal/dogfoodflow/ocm_coverage.go` (`parseRequirements`, `changeCoverage`, `outsideNote`) | `internal/dogfoodflow/ocm_outside_test.go:TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection` |
@@ -790,24 +816,8 @@ enumerate both `ARTIFACT-V0-001..010` and `ARTIFACT-GO-V0-001..007`; selecting o
 archive IDs would instead require a separately accepted owning intent document or a selector/wire
 change and is not proposed here.
 
-- `OCM-V0-013`: one dogfood change MAY declare an ordered set of pinned Markdown intent
-  scopes and MUST prepare and independently verify exactly one unchanged `ocm/0.1-experimental`
-  map per scope against the same exact target revision, expected base, CEM map digest, and CEM patch
-  digest. `OCM-V0-001` and `OCM-V0-002` remain the per-map contract: each map contains exactly one
-  intent path/blob/span/span digest and one ordered obligation sequence. The dogfood coordinator
-  MUST sort scopes by normalized path bytes, then retain each map's extracted requirement order,
-  when rendering its aggregate worklist and coverage. It MUST reject an absent or empty scope set,
-  an absent map, any scope or map that is invalid, unavailable, stale, drifted, or bound to different
-  revision or CEM bytes, and any requirement ID repeated within or across scopes. It MUST NOT
-  deduplicate, merge,
-  partially accept, or report aggregate closure after any such failure. Per-map failures retain the
-  existing OCM taxonomy and MUST identify the failing map path and the underlying failed check's
-  code and message, including repository and CEM failures whose standalone envelope omits or
-  normalizes that detail. The standalone wire envelope remains unchanged. Given identical inputs
-  and repository state, per-map acceptance MUST agree with standalone `ocm status`, including in
-  reciprocal linked worktrees with a `.git` file and objects in the common Git directory.
-  Aggregate-only failures are `missing-intent-scope`,
-  `intent-scope-drift`, or the existing `duplicate-requirement`, with that precedence.
+- `OCM-V0-013` is defined in `## Requirements` (moved there verbatim by V1-0659,
+  2026-11-01, so its OCM map enumerates it; the clause text is unchanged).
 
   The aggregate is dogfood coordination state, not an OCM map, consumable OCM bundle, or new source
   of intent. Ordinary OCM, LRF, TCQ, and Frontier consumers continue to receive exactly one map.

@@ -3,8 +3,10 @@ set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
 # SRG-V0-012 and SRG-V0-043 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9), SRG-V0-018 (case 10)
-# SRG-V0-042/044/046 (case 11), SRG-V0-547/548 (case 12), SRG-V0-980/950 (case 13), SRG-V0-951
-# (case 14), SRG-V0-952/953 (case 15) and SRG-V0-954 (case 16).
+# SRG-V0-042/044/046 (case 11), SRG-V0-547/548 (case 12), SRG-V0-980/950/750 (case 13), SRG-V0-951
+# (case 14), SRG-V0-952/953 (case 15), SRG-V0-954 (case 16), SRG-V0-085 (case 20), SRG-V0-082
+# (case 21), SRG-V0-083 (case 22), SRG-V0-084 (case 23), SRG-V0-086 (case 24), SRG-V0-087
+# (case 25) and SRG-V0-751 (case 26).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -527,8 +529,8 @@ git -C "$test_root" rm -q --cached -- docs/specs/dupa.md
 long=$(printf 'accepted (decision 0001); FRZ-V0-001 accepted (decision 0002) %0100d' 0)
 write_frozen() {
   # shellcheck disable=SC2016
-  printf '# Frozen\n\nIntent status: %s\nDelivery status: experimental\n\n## Agent digest\n- Claim: The frozen fixture keeps its header.\n- Status: %s / experimental\n\n## Requirements\n\n- `FRZ-V0-001`: (accepted, decision 0002) The first clause.\n- `FRZ-V0-002`: (accepted under the owner'"'"'s standing auto-accept (2026-10-31); V1-3458) The second clause.\n' \
-    "$1" "${2:-$1}" > "$test_root/docs/specs/frozen.md"
+  printf '# Frozen\n\nIntent status: %s\nDelivery status: %s\n\n## Agent digest\n- Claim: The frozen fixture keeps its header.\n- Status: %s / experimental\n\n## Requirements\n\n- `FRZ-V0-001`: (accepted, decision 0002) The first clause.\n- `FRZ-V0-002`: (accepted under the owner'"'"'s standing auto-accept (2026-10-31); V1-3458) The second clause.\n' \
+    "$1" "${3:-experimental}" "${2:-$1}" > "$test_root/docs/specs/frozen.md"
   stage docs/specs/frozen.md
 }
 printf 'path\tchars\tids\ndocs/specs/frozen.md\t%s\tFRZ-V0-001\n' "${#long}" > "$test_root/docs/specs/INTENT-STATUS-FROZEN.tsv"
@@ -554,6 +556,16 @@ case $frz_err in
   *'docs/specs/frozen.md:8: its Agent digest Status names FRZ-V0-002, which its frozen header text does not; this line is frozen'*'(lines 10..13)'*) ;;
   *) fail "the digest refusal lacks the field and ID: $frz_err" ;;
 esac
+# SRG-V0-750 (V1-2299): an ID appended to the Delivery status alone is refused too, while the
+# frozen ID and an ID-free delivery qualifier pass.
+write_frozen 'accepted' 'accepted' 'experimental; FRZ-V0-002 delivered'
+frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the Delivery status was accepted"
+case $frz_err in
+  *'docs/specs/frozen.md:4: its Delivery status names FRZ-V0-002, which its frozen header text does not; this line is frozen'*'(SRG-V0-980)'*) ;;
+  *) fail "the Delivery status refusal lacks the field and ID: $frz_err" ;;
+esac
+write_frozen 'accepted' 'accepted' 'experimental; FRZ-V0-001 partially delivered'
+run > /dev/null || fail "a frozen ID or a delivery qualifier in the Delivery status was refused"
 # A range or slash after a frozen ID names the IDs it reaches.
 for segment in 'FRZ-V0-001..002' 'FRZ-V0-001/002'; do
   write_frozen "accepted; $segment accepted"
@@ -918,7 +930,7 @@ stage docs/specs/retired.md
 run > /dev/null || fail "a superseded digest (Successor and Why) was refused for having no Claim"
 git -C "$test_root" rm -q --cached -- docs/specs/retired.md
 
-# 16. SRG-V0-790/791 (V1-3793): an ID of four or more digits under a prefix with a three-digit
+# 52. SRG-V0-790/791 (V1-3793): an ID of four or more digits under a prefix with a three-digit
 # definition is indexed and ordered by number; ticket and record IDs of other prefixes stay text;
 # a malformed definition-shaped ID of a known prefix is refused with its line, and a lettered
 # sub-requirement passes.
@@ -1105,5 +1117,125 @@ before=$(git -C "$run_root" status --porcelain)
 run --lines | grep -q 'MODE-V0-002' || fail "run --lines did not print the staged definition"
 test "$(git -C "$run_root" status --porcelain)" = "$before" || fail "run --lines changed the worktree"
 run_root=
+# 20. SRG-V0-085 (V1-3906): every exit path removes the private mktemp directory: a refusal under
+# --check and --write, and a success, each leave no gen-spec-requirements.* behind.
+w20="$test_root/w20"
+w20_tmp="$test_root/w20-tmp"
+mkdir -p "$w20/script" "$w20/docs/specs" "$w20_tmp"
+cp "$source_root/script/gen-spec-requirements.sh" "$w20/script/"
+git -C "$w20" init -q -b main
+spec20() {
+  # shellcheck disable=SC2016
+  printf '# %s\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s\n- Status: proposed / experimental\n\n## Requirements\n\n- `%s`: (proposed) %s\n' \
+    "$1" "$2" "$3" "$4" > "$w20/docs/specs/$1.md"
+}
+gen20() { (cd "$w20" && TMPDIR=$w20_tmp script/gen-spec-requirements.sh "$@"); }
+no_leftover() {
+  test -z "$(find "$w20_tmp" -name 'gen-spec-requirements.*' -print)" || fail "$1 left its temp directory: $(ls -A "$w20_tmp")"
+}
+spec20 one 'The one fixture.' ONE-V0-001 'the first clause'
+printf '| Scope | Contract | Intent | Delivery | Description |\n|---|---|---|---|---|\n' > "$w20/docs/specs/README.md"
+git -C "$w20" add -- docs/specs
+gen20 --write > /dev/null || fail "--write could not seed the w20 outputs"
+git -C "$w20" add -- docs/specs
+no_leftover 'a successful --write'
+long_claim="The $(printf '%0160d' 0) claim."
+spec20 two "$long_claim" TWO-V0-001 'the second clause'
+git -C "$w20" add -- docs/specs/two.md
+for mode in --check --write; do
+  gen20 "$mode" > /dev/null 2>&1 && fail "$mode accepted an over-length claim"
+  no_leftover "a refused $mode"
+done
+git -C "$w20" rm -q --cached -- docs/specs/two.md
+rm "$w20/docs/specs/two.md"
+
+# 21. SRG-V0-082 (V1-4124): an Agent digest field outside the specindex set is refused at once,
+# naming spec:line and the allowed fields.
+# shellcheck disable=SC2016
+printf '# digest\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Claim: The digest fixture.\n- Owner: lane\n- Status: proposed / experimental\n\n## Requirements\n\n- `DIG-V0-001`: (proposed) the digest clause\n' > "$w20/docs/specs/digest.md"
+git -C "$w20" add -- docs/specs/digest.md
+dig_err=$(gen20 2>&1 > /dev/null) && fail "an unknown digest field was accepted"
+case $dig_err in
+  *'docs/specs/digest.md:8: unknown Agent digest field `Owner`; the fields are Blocked on, Claim, Exists, Read next, Status, Successor, Why'*'(SRG-V0-082)'*) ;;
+  *) fail "the unknown digest field refusal: $dig_err" ;;
+esac
+git -C "$w20" rm -q --cached -- docs/specs/digest.md
+rm "$w20/docs/specs/digest.md"
+
+# 22. SRG-V0-083 (V1-3881): the frozen-header refusal names the field, the ledger row (or that
+# the spec has none) and the supported way to change a requirement's status.
+spec20 frozen 'The frozen fixture.' FZN-V0-001 'the frozen clause'
+sed 's/^Intent status: proposed$/Intent status: proposed; FZN-V0-001 accepted/' "$w20/docs/specs/frozen.md" > "$w20/frozen.tmp"
+mv "$w20/frozen.tmp" "$w20/docs/specs/frozen.md"
+git -C "$w20" add -- docs/specs/frozen.md
+fzn_err=$(gen20 2>&1 > /dev/null) && fail "a new ID in an unfrozen header was accepted"
+for want in 'docs/specs/frozen.md:3: its Intent status names FZN-V0-001' \
+  'the ledger: no row for docs/specs/frozen.md, so the line may name no ID' \
+  "a requirement's status changes only in the leading note of its own definition line; this frozen line may only be shortened or lose an ID"; do
+  case $fzn_err in *"$want"*) ;; *) fail "the frozen hint lacks '$want': $fzn_err" ;; esac
+done
+printf 'path\tchars\tids\ndocs/specs/frozen.md\t40\tFZN-V0-009\n' > "$w20/docs/specs/INTENT-STATUS-FROZEN.tsv"
+git -C "$w20" add -- docs/specs/INTENT-STATUS-FROZEN.tsv
+fzn_err=$(gen20 2>&1 > /dev/null) && fail "an unlisted ID in a frozen header was accepted"
+case $fzn_err in *'the ledger: its row for docs/specs/frozen.md allows 40 characters and 1 listed ID(s);'*) ;; *) fail "the frozen hint lacks the row: $fzn_err" ;; esac
+git -C "$w20" rm -q --cached -- docs/specs/frozen.md docs/specs/INTENT-STATUS-FROZEN.tsv
+rm "$w20/docs/specs/frozen.md" "$w20/docs/specs/INTENT-STATUS-FROZEN.tsv"
+
+# 23. SRG-V0-084 (V1-4150): the README claim rewrite replaces the leading claim once: a row a lane
+# already edited to the new claim before the old one keeps neither the old claim (INDEX.json's) nor a
+# second copy, a hand-doubled claim collapses, and a second --write changes nothing.
+readme_one() {
+  sed "s/^\(| [^|]*| \[\`one.md\`\](one.md)[^|]*|[^|]*|[^|]*| \).*\( |\)\$/\1$1\2/" "$w20/docs/specs/README.md" > "$w20/readme.tmp"
+  mv "$w20/readme.tmp" "$w20/docs/specs/README.md"
+  git -C "$w20" add -- docs/specs/README.md
+}
+row_one() { grep '](one.md)' "$w20/docs/specs/README.md"; }
+readme_one 'The one fixture. Tail text.'
+gen20 --write > /dev/null || fail "--write refused a described row"
+git -C "$w20" add -- docs/specs
+case $(row_one) in *'| The one fixture. Tail text. |'*) ;; *) fail "the seeded README row: $(row_one)" ;; esac
+spec20 one 'The renamed fixture.' ONE-V0-001 'the first clause'
+git -C "$w20" add -- docs/specs/one.md
+readme_one 'The renamed fixture. The one fixture. Tail text.'
+gen20 --write > /dev/null || fail "--write refused the hand-edited row"
+case $(row_one) in *'| The renamed fixture. Tail text. |'*) ;; *) fail "the old or new claim was repeated: $(row_one)" ;; esac
+git -C "$w20" add -- docs/specs
+readme_one 'The renamed fixture. The renamed fixture. Tail text.'
+gen20 --write > /dev/null || fail "--write refused a doubled claim"
+case $(row_one) in *'| The renamed fixture. Tail text. |'*) ;; *) fail "a doubled claim was kept: $(row_one)" ;; esac
+git -C "$w20" add -- docs/specs
+test "$(gen20 --write)" = 'spec-requirements: no changes' || fail "a second --write changed the README"
+
+# 24. SRG-V0-086 (V1-4127): when --write rewrites README.md and a tracked document cites it by
+# line, the run names the citing files and the exact repin command.
+mkdir -p "$w20/docs/notes"
+printf 'See `docs/specs/README.md:3`.\n' > "$w20/docs/notes/cite.md"
+git -C "$w20" add -- docs/notes/cite.md
+spec20 one 'The one fixture, renamed again.' ONE-V0-001 'the first clause'
+git -C "$w20" add -- docs/specs/one.md
+repin_out=$(gen20 --write) || fail "--write refused the renamed claim"
+for want in 'spec-requirements: README.md changed and is cited by line from: docs/notes/cite.md' \
+  'stage it, then run: script/check-line-citations.sh --repin --changed --base HEAD'; do
+  case $repin_out in *"$want"*) ;; *) fail "the repin hint lacks '$want': $repin_out" ;; esac
+done
+no_leftover 'every w20 run'
+
+# 25. SRG-V0-087 (V1-4135): the numbered cases of this file are unique, so a merge of two lanes
+# that each add the next case number is caught here.
+dup_cases=$(grep -o '^# [0-9][0-9]*\.' "$0" | sort | uniq -d)
+test -z "$dup_cases" || fail "gen-spec-requirements_test.sh repeats case numbers: $dup_cases"
+# 26. SRG-V0-751 (V1-4126): definition order is free. A spec whose definitions are out of numeric
+# order is indexed, REQUIREMENTS.tsv keeps definition order and --lines prints id order.
+# shellcheck disable=SC2016
+printf '# Order\n\nIntent status: accepted\nDelivery status: experimental\n\n## Agent digest\n- Claim: The order fixture defines ids out of numeric order.\n- Status: accepted / experimental\n\n## Requirements\n\n- `ORD-V0-003`: (accepted, decision 0003) The third clause.\n- `ORD-V0-001`: (accepted, decision 0003) The first clause.\n- `ORD-V0-002`: (accepted, decision 0003) The second clause.\n' \
+  > "$test_root/docs/specs/order.md"
+stage docs/specs/order.md
+ord=$(run) || fail "definitions out of numeric order were refused"
+test "$(printf '%s\n' "$ord" | grep '^ORD-V0-' | cut -f1 | tr '\n' ' ')" = 'ORD-V0-003 ORD-V0-001 ORD-V0-002 ' ||
+  fail "REQUIREMENTS.tsv did not keep definition order: $(printf '%s\n' "$ord" | grep '^ORD-V0-')"
+ord=$( (cd "$test_root" && script/gen-spec-requirements.sh --lines) ) || fail "--lines refused out-of-order definitions"
+test "$(printf '%s\n' "$ord" | grep '^ORD-V0-' | cut -f1 | tr '\n' ' ')" = 'ORD-V0-001 ORD-V0-002 ORD-V0-003 ' ||
+  fail "--lines did not print id order: $(printf '%s\n' "$ord" | grep '^ORD-V0-')"
+git -C "$test_root" rm -q --cached -- docs/specs/order.md
 
 printf 'ok\n'

@@ -341,11 +341,6 @@ docs/specs/live-proof-carrying-verification-v0.md LPCV-V0-151
 docs/specs/live-proof-carrying-verification-v0.md LPCV-V0-152
 docs/specs/live-proof-carrying-verification-v0.md LPCV-V0-153
 docs/specs/live-proof-carrying-verification-v0.md LPCVD-V0-005
-docs/specs/ocm-v0-dogfood.md OCM-V0-013
-docs/specs/public-release-v0.md PUB-V0-027
-docs/specs/public-release-v0.md PUB-V0-028
-docs/specs/public-release-v0.md PUB-V0-029
-docs/specs/public-release-v0.md PUB-V0-030
 docs/specs/release-artifact-integrity-v0.md ARTIFACT-GO-V0-008
 docs/specs/release-artifact-integrity-v0.md ARTIFACT-GO-V0-009
 docs/specs/release-artifact-integrity-v0.md ARTIFACT-RDY-V0-001

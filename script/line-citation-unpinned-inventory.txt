@@ -167,8 +167,6 @@ docs/specs/diagnostic-repair-contract-v0.md	internal/worktreeimpact/compiler.go:
 docs/specs/diagnostic-repair-contract-v0.md	internal/worktreeimpact/compiler.go:96
 docs/specs/documentation-citation-gate-v0.md	ROADMAP.md:343
 docs/specs/documentation-citation-gate-v0.md	docs/RELEASE-NOTES-alpha.md:127
-docs/specs/eol-policy-gate-v0.md	Makefile:16-23
-docs/specs/eol-policy-gate-v0.md	Makefile:16-23
 docs/specs/eol-policy-gate-v0.md	Makefile:87-95
 docs/specs/eol-policy-gate-v0.md	Makefile:87-95
 docs/specs/eol-policy-gate-v0.md	script/check-eol-policy.sh:22-40

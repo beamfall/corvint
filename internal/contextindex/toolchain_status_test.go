@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -102,4 +103,62 @@ func TestSTAV0007_NonToolchainPathsUnchanged(t *testing.T) {
 	if documentKind("docs/.specify/memory/constitution.md") == "instructions" {
 		t.Fatal("constitution outside the repository root is instructions")
 	}
+}
+
+// TestSTAV0007_SpecKitPresenceFollowsAdmittedSources pins the V1-1705
+// decision: Spec Kit presence comes from the index's admitted sources, not the
+// pinned tree inventory. A tracked .specify/ holding only files the index never
+// admits (a suffix-less .gitkeep, a file under a build/ component) leaves
+// specs/<feature>/spec.md its content status; one admitted .specify/ source
+// makes it a Spec Kit spec.
+func TestSTAV0007_SpecKitPresenceFollowsAdmittedSources(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	const spec = "specs/001-login/spec.md"
+	writeTestFile(t, root, spec, "# Feature\n\nStatus: accepted\n")
+	writeTestFile(t, root, ".specify/.gitkeep", "")
+	writeTestFile(t, root, ".specify/build/notes.md", "# Excluded notes\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "specify holds only excluded files")
+	statusOf := func(wantTracked string) string {
+		t.Helper()
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, tracked := index.Tracked[wantTracked]; !tracked {
+			t.Fatalf("%s is not in the tree inventory", wantTracked)
+		}
+		record, ok := index.Documents[spec]
+		if !ok {
+			t.Fatalf("%s is not a document", spec)
+		}
+		status, _ := record.Fields["status"].(string)
+		return status
+	}
+	for _, excluded := range []string{".specify/.gitkeep", ".specify/build/notes.md"} {
+		if _, admitted := mustBuildSources(t, root)[excluded]; admitted {
+			t.Fatalf("%s was admitted; the fixture needs a non-admitted .specify/ file", excluded)
+		}
+		if got := statusOf(excluded); got != "accepted" {
+			t.Fatalf("status = %q with only %s tracked under .specify/, want the content status accepted", got, excluded)
+		}
+	}
+	writeTestFile(t, root, ".specify/memory/constitution.md", "# Constitution\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "admit a constitution")
+	if got := statusOf(".specify/memory/constitution.md"); got != "draft" {
+		t.Fatalf("status = %q with an admitted .specify/ source, want the Spec Kit default draft", got)
+	}
+}
+
+func mustBuildSources(t *testing.T, root string) map[string]Source {
+	t.Helper()
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return index.Sources
 }
