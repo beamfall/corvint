@@ -389,24 +389,55 @@ func importState(state int, kind token.Token) int {
 }
 
 // pathTokens splits a literal into path-shaped tokens with printf verbs
-// removed; an import path under the module becomes a root-anchored path. A
-// token whose `/` directly follows `<` or an HTML-escaped `&lt;` (a closing
-// tag, `</repo/lib.js>`) is kept both anchored and without that `/`: the
-// planner reads only the second (AFP-V0-505, AFP-V0-840), whose first
-// component may end a longer name, so this index keeps both to stay a
-// superset of the planner's relation (AFP-V0-2242). A backslash after a
-// parent component (`..\x`) becomes the slash the planner's lexicon reads
-// (golang.parentBackslash, AFP-V0-506), in the same order, after the printf
-// verbs, so `foo..\notes` is the one token `foo../notes` in both.
+// removed. A rewrite only ever adds a token beside the written one
+// (AFP-V0-2242): an import path under the module also yields its
+// root-anchored path; a token whose `/` directly follows `<` or an
+// HTML-escaped `&lt;` (a closing tag, `</repo/lib.js>`) also yields the token
+// without that `/`, the one the planner reads first (AFP-V0-505, AFP-V0-840);
+// and a literal with a backslash after a parent component (`..\x`) also
+// yields the tokens of its rewrite to the slash the planner reads
+// (golang.parentBackslash, AFP-V0-506), after the printf verbs as there. So
+// `foo..\notes` holds the written `foo..` and `notes` and the climbing
+// `foo../notes` in both lexicons, and `..\x` holds a bare `..`.
 func pathTokens(literal, module string) []string {
-	literal = parentBackslash.Replace(printfVerb.ReplaceAllString(literal, " "))
-	var tokens []string
+	literal = printfVerb.ReplaceAllString(literal, " ")
+	tokens := spelledTokens(nil, literal, module)
+	rewritten := parentBackslash.Replace(literal)
+	if rewritten == literal {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens))
+	for _, value := range tokens {
+		seen[value] = true
+	}
+	for _, value := range spelledTokens(nil, rewritten, module) {
+		if !seen[value] {
+			seen[value] = true
+			tokens = append(tokens, value)
+		}
+	}
+	return tokens
+}
+
+// spelledTokens appends every spelling pathTokens keeps for each path-shaped
+// run of literal.
+func spelledTokens(tokens []string, literal, module string) []string {
 	for _, bounds := range pathToken.FindAllStringIndex(literal, -1) {
 		start, end := bounds[0], bounds[1]
-		tokens = append(tokens, moduleAnchored(literal[start:end], module))
+		tokens = appendSpellings(tokens, literal[start:end], module)
 		if literal[start] == '/' && end > start+1 && closesTag(literal, start) {
-			tokens = append(tokens, moduleAnchored(literal[start+1:end], module))
+			tokens = appendSpellings(tokens, literal[start+1:end], module)
 		}
+	}
+	return tokens
+}
+
+// appendSpellings appends value as written and, for an import path under the
+// module, its root-anchored path too.
+func appendSpellings(tokens []string, value, module string) []string {
+	tokens = append(tokens, value)
+	if anchored := moduleAnchored(value, module); anchored != value {
+		tokens = append(tokens, anchored)
 	}
 	return tokens
 }

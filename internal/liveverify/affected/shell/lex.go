@@ -207,9 +207,11 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			// An operator after a compound command's closing `}`, `)` or
 			// `esac` ends no simple command, but it still joins the
 			// compound to the next one (`{ :; } || tmp=...`), so it is the
-			// next command's lead (AFP-V0-2243).
+			// next command's lead. Only an operator that makes the next
+			// command conditional or a subshell replaces the lead, so the
+			// lead never loses a refusal it had.
 			switch trail {
-			case "&&", "||", "|", "&", ";":
+			case "&&", "||", "|", "&":
 				lead = trail
 			}
 			return

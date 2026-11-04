@@ -1048,7 +1048,7 @@ var tempExpansion = regexp.MustCompile(`\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za
 // (makesDirectory) or another such name followed only by a literal path
 // without `..` (`rp=$tmp/review`). The assignment is a command of its own at
 // the file's top level, run unconditionally (not after `&&` or `||`, not in a
-// pipeline or the background; an `&&` or `||` may follow it), and no expansion of the name comes before it
+// pipeline or the background), and no expansion of the name comes before it
 // in the text, so no value from the environment can stand in. A file that
 // defines or aliases mktemp has none; one that assigns PATH before the name's
 // assignment must call `command -p mktemp`, as makesDirectory requires when
@@ -1087,9 +1087,9 @@ var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A
 // unconditionalAssignment reports that name's one assignment is a command of
 // its own at the file's top level, not after `&&` or `||` (also after a
 // compound command, `{ :; } || tmp=...`) and not in a pipeline or the
-// background (an `&&` or `||` after it is allowed, AFP-V0-2243, unless the
-// list it continues enters a compound command, whose end the scan cannot
-// see), and that no expansion of the name precedes it.
+// background, and that no expansion of the name precedes it. An `&&` or `||`
+// after it also keeps the name's tokens: whether the list it leads ends in
+// the background is not proven (AFP-V0-2243, disabled for 1.0).
 func unconditionalAssignment(r *resolver, parsed script, text, name string) bool {
 	at, plain := r.plainAt[name]
 	if !plain || at >= len(parsed.commands) {
@@ -1109,47 +1109,9 @@ func unconditionalAssignment(r *resolver, parsed script, text, name string) bool
 	case "&&", "||", "|", "&":
 		return false
 	}
-	// An `&&` or `||` after the assignment leaves it the list's first
-	// command, which always runs in the file's own shell, so
-	// `tmp=$(mktemp -d) || exit 1` assigns as a plain line does
-	// (AFP-V0-2243); a pipeline or the background runs it in a subshell, and
-	// so does an `&` that ends its list.
 	switch command.trail {
-	case "|", "&":
+	case "&&", "||", "|", "&":
 		return false
-	}
-	// An `&` that ends the list the assignment leads runs the whole list,
-	// assignment included, in the background. The lexer records no operator
-	// after a compound command's closing `}`, `)`, `fi`, `done` or `esac`,
-	// and a compound's inner `;` is no end of the list, so a list that
-	// continues into a compound command (or any reserved word) has no end
-	// this scan can find, and the name is no temp root. A compound command
-	// that holds no simple command (`case x in esac`) leaves no command of
-	// its own, only a lead on the next one that differs from the trail
-	// before it (`&` after `&&`), so a lead that does not continue the
-	// previous member's operator also ends where the scan cannot see. A command or process
-	// substitution's commands sit inside a later list member and end
-	// nothing.
-	previous := command.trail
-list:
-	for next := at; next < len(parsed.commands); next++ {
-		member := parsed.commands[next]
-		if next > at {
-			if member.substituted {
-				continue
-			}
-			if member.lead != previous || member.block != 0 || member.inFunction || slices.ContainsFunc(member.words, reservedWord) {
-				return false
-			}
-			previous = member.trail
-		}
-		switch member.trail {
-		case "&&", "||", "|":
-		case "&", "(", ")":
-			return false
-		default:
-			break list
-		}
 	}
 	assigned := firstAssignment(text, name)
 	if assigned < 0 {
@@ -1173,16 +1135,6 @@ list:
 		}
 	}
 	return true
-}
-
-// reservedWord reports a word that opens, continues or closes a compound
-// command or changes how the rest of the list runs.
-func reservedWord(word string) bool {
-	switch word {
-	case "{", "}", "(", ")", "if", "then", "elif", "else", "fi", "do", "done", "while", "until", "for", "select", "case", "esac", "function", "time", "coproc":
-		return true
-	}
-	return false
 }
 
 // firstAssignment is the text offset of the first whole-word `name=`, or -1.

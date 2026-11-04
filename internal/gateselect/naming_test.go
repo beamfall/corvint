@@ -15,9 +15,10 @@ import (
 )
 
 // namingFixture holds the shared fixture of AFP-V0-2240 to AFP-V0-2242. Every
-// token sits in a test file, so no package is unresolved, and every dirty path
-// the tests probe lies outside every package, so a package reaches it only by
-// rule (c).
+// token sits in a test file, so the only unresolved package is backslash,
+// whose written `..` reaches the repository root (rule (d)), and every dirty
+// path the tests probe lies outside every package, so another package reaches
+// it only by rule (c).
 func namingFixture(t testing.TB) string {
 	return writeFixture(t, map[string]string{
 		"go.mod": "module example.com/fixture\n\ngo 1.22\n",
@@ -36,8 +37,8 @@ func namingFixture(t testing.TB) string {
 		"climb/climb_test.go":       "package climb\n\nvar note = \"../notes\"\n",
 		"multi/multi_test.go":       "package multi\n\nvar lib = \"testdata/repo/lib.js\"\n",
 		"outdir/outdir_test.go":     "package outdir\n\nvar out, calc = \"out\", \"calc.js\"\n",
-		// `..\x` (AFP-V0-506): since round 8 both lexicons read the
-		// climbing `../notes` (parentBackslash).
+		// `..\x` (AFP-V0-506): both lexicons read the written `..` and
+		// `notes` and the climbing `../notes` (parentBackslash, round 9).
 		"backslash/backslash_test.go": "package backslash\n\nvar note = `..\\notes`\n",
 		"mixed/mixed_test.go":         "package mixed\n\nvar note = `a/..\\notes`\n",
 		// The closing-tag lexicon difference (AFP-V0-505/840): the planner
@@ -46,9 +47,16 @@ func namingFixture(t testing.TB) string {
 		"tag/tag_test.go":       "package tag\n\nvar page = \"</repo/page.html>\"\n",
 		"esctag/esctag_test.go": "package esctag\n\nvar page = \"&lt;/repo/page.html&gt;\"\n",
 		// Round 8: a runtime prefix joined to a backslash-separated
-		// literal. Both lexicons read the one token `foo../notes`
-		// (parentBackslash), whose run names app/prefoo../notes.
+		// literal. Both lexicons read `foo../notes` (parentBackslash),
+		// whose run names app/prefoo../notes, beside the written `foo..`
+		// and `notes` (round 9).
 		"prefix/prefix_test.go": "package prefix\n\nimport (\n\t\"os\"\n\t\"strings\"\n)\n\nvar notes = os.Getenv(\"PREFIX\") + strings.ReplaceAll(\"foo..\\\\notes\", \"\\\\\", \"/\")\n",
+		// Round 9: the same literal split at the backslash reads the root
+		// notes through the written `notes`; a module path joined to a
+		// runtime root reads a copy of the module through the written
+		// spelling beside its anchored `/`.
+		"split/split_test.go":     "package split\n\nimport (\n\t\"os\"\n\t\"strings\"\n)\n\nvar notes = os.Getenv(\"FIXTURES\") + strings.Split(\"foo..\\\\notes\", \"\\\\\")[1]\n",
+		"srcwalk/srcwalk_test.go": "package srcwalk\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar src = filepath.Join(os.Getenv(\"SRC\"), \"example.com/fixture\")\n",
 	})
 }
 
@@ -66,6 +74,8 @@ var namingPaths = []string{
 	"notes/x.md",
 	"out/calc.js",
 	"app/prefoo../notes",
+	"notes",
+	"vendored/example.com/fixture/a.txt",
 }
 
 // TestRuleCAnchoredTokens_AFPV02240 pins rule (c)'s retention of anchored
@@ -203,8 +213,10 @@ func TestRuleCRuntimeRootedDirectoryWalk_AFPV02240(t *testing.T) {
 // at any depth, because the literal may be joined to a runtime root, so
 // neither V1-0290's file-name-only rule nor AFP-V0-072's placement drops a
 // Go reader. Round 8's backslash case: `os.Getenv("PREFIX") +
-// strings.ReplaceAll("foo..\\notes", "\\", "/")` lexes as the one token
-// `foo../notes` here as in the planner, and -bounds keeps app/prefoo../notes.
+// strings.ReplaceAll("foo..\\notes", "\\", "/")` lexes as `foo../notes`
+// beside the written `foo..` and `notes` here as in the planner, and -bounds
+// keeps app/prefoo../notes; round 9's split of the same literal keeps the
+// root notes.
 func TestRuleCLoneTokens_AFPV02241(t *testing.T) {
 	index, err := indexRepository(namingFixture(t), fixtureModule)
 	if err != nil {
@@ -215,10 +227,12 @@ func TestRuleCLoneTokens_AFPV02241(t *testing.T) {
 		want  []string
 	}{
 		{"docs/specs/INDEX.json", []string{"lone", "lonepl"}},
-		{"notes/x.md", []string{"backslash", "climb", "dirshape", "mixed"}},
+		{"notes/x.md", []string{"backslash", "climb", "dirshape", "mixed", "prefix", "split"}},
 		{"out/calc.js", []string{"outdir"}},
 		{"internal/jsprobe/testdata/repo/out/calc.js", []string{"climbs", "fake", "outdir", "placed"}},
-		{"app/prefoo../notes", []string{"backslash", "climb", "dirshape", "mixed", "prefix"}},
+		{"app/prefoo../notes", []string{"backslash", "climb", "dirshape", "mixed", "prefix", "split"}},
+		{"notes", []string{"backslash", "climb", "dirshape", "mixed", "prefix", "split"}},
+		{"vendored/example.com/fixture/a.txt", []string{"own", "srcwalk"}},
 	}
 	for _, tc := range cases {
 		got := index.readers(tc.dirty)
@@ -232,7 +246,7 @@ func TestRuleCLoneTokens_AFPV02241(t *testing.T) {
 			t.Errorf("%s: pathReaders %v, readers %v", p, batched[i], want)
 		}
 	}
-	lines, err := packageBounds(fixtureModule, namingFixture(t), []string{"internal/jsprobe/testdata/repo/out/calc.js", "out/calc.js", "app/prefoo../notes"})
+	lines, err := packageBounds(fixtureModule, namingFixture(t), []string{"internal/jsprobe/testdata/repo/out/calc.js", "out/calc.js", "app/prefoo../notes", "notes"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,6 +255,8 @@ func TestRuleCLoneTokens_AFPV02241(t *testing.T) {
 		"bound example.com/fixture/outdir reader out/calc.js",
 		"bound example.com/fixture/outdir reader internal/jsprobe/testdata/repo/out/calc.js",
 		"bound example.com/fixture/prefix reader app/prefoo../notes",
+		"bound example.com/fixture/split reader notes",
+		"unresolved example.com/fixture/backslash",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("-bounds misses %q:\n%s", want, got)
@@ -248,14 +264,16 @@ func TestRuleCLoneTokens_AFPV02241(t *testing.T) {
 	}
 }
 
-// TestRuleCMatchesThePlanner_AFPV02242 holds rule (c) equal to the planner's
-// path-literal readers on the shared fixture, path by path, so a change to
-// either relation that the other does not follow fails here. Since round 8
-// both lexicons normalise `..\` alike (parentBackslash) and both relations
-// are the any-depth component-run match, so there is no intended difference:
-// the `..\notes` packages and the runtime-prefixed `foo..\\notes` package
-// read the same tokens in both, and a package the planner selects and rule
-// (c) does not is the failure this test exists for.
+// TestRuleCMatchesThePlanner_AFPV02242 holds rule (c) with rule (d) equal to
+// the planner's path-literal and unbounded readers on the shared fixture,
+// path by path, so a change to either relation that the other does not follow
+// fails here. Both lexicons keep the written tokens beside every rewrite
+// (round 9) and both relations are the any-depth component-run match, so
+// there is no intended difference: the `..\notes` packages, whose written
+// `..` reaches the root in both, and the runtime-prefixed and split
+// `foo..\\notes` packages read the same tokens in both, and a package the
+// planner selects and rule (c) or (d) does not is the failure this test
+// exists for.
 func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 	root := namingFixture(t)
 	index, err := indexRepository(root, fixtureModule)
@@ -266,11 +284,15 @@ func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	unresolved := index.unresolved()
+	if _, ok := unresolved["backslash"]; !ok || len(unresolved) != 1 {
+		t.Errorf("unresolved = %v, want only backslash", unresolved)
+	}
 	compared := 0
 	for _, dirty := range namingPaths {
 		var planner []string
 		for _, selection := range affected.Select(graph, []string{dirty}).Selected {
-			if selection.Witness.Kind != affected.WitnessPathLiteralReader {
+			if selection.Witness.Kind != affected.WitnessPathLiteralReader && selection.Witness.Kind != affected.WitnessUnboundedReader {
 				continue
 			}
 			if directory, ok := strings.CutPrefix(selection.UnitID, "go:"+fixtureModule+"/"); ok {
@@ -280,11 +302,77 @@ func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 		sort.Strings(planner)
 		gate := index.readers(dirty)
 		compared += len(gate)
+		for directory := range unresolved {
+			if !slices.Contains(gate, directory) {
+				gate = append(gate, directory)
+			}
+		}
+		sort.Strings(gate)
 		if !slices.Equal(planner, gate) && !(len(planner) == 0 && len(gate) == 0) {
-			t.Errorf("%s: planner path-literal readers %v, rule (c) readers %v", dirty, planner, gate)
+			t.Errorf("%s: planner path-literal and unbounded readers %v, rule (c) and (d) readers %v", dirty, planner, gate)
 		}
 	}
 	if compared == 0 {
 		t.Fatal("the fixture names no reader; the comparison proves nothing")
+	}
+}
+
+// TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242 is round 9's review
+// counterexample: a test in reader/ reads `os.Getenv("FIXTURES") +
+// strings.Split("foo..\\notes", "\\")[1]`, so with FIXTURES=/checkout/ it
+// reads the root file notes. The `..\` rewrite (AFP-V0-506) only adds the
+// climbing `foo../notes` to the written `foo..` and `notes`, so rule (c),
+// its verdict and -bounds keep the reader. The module-path rewrite is
+// additive too: a walk of `filepath.Join(os.Getenv("SRC"),
+// "example.com/fixture")` keeps the written `example.com/fixture` beside its
+// anchored `/`, which names nothing, and reads a copy of the module under
+// vendored/. A dirty app/x/x.go keeps the selection non-empty, so a dropped
+// reader is skipped with no fallback. Controls: the same forms naming
+// another file or module read neither path. The planner half is golang's
+// TestParentBackslashKeepsWrittenTokens.
+func TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242(t *testing.T) {
+	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(os.Getenv(\"FIXTURES\") + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
+	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(os.Getenv(\"SRC\"), %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
+	root := writeFixture(t, map[string]string{
+		"go.mod":                             "module example.com/fixture\n\ngo 1.22\n",
+		"app/x/x.go":                         "package x\n",
+		"app/x/x_test.go":                    "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
+		"notes":                              "n\n",
+		"vendored/example.com/fixture/a.txt": "a\n",
+		"reader/reader_test.go":              fmt.Sprintf(read, "reader", `foo..\notes`),
+		"control/control_test.go":            fmt.Sprintf(read, "control", `foo..\other`),
+		"srcwalk/srcwalk_test.go":            fmt.Sprintf(walk, "srcwalk", "example.com/fixture"),
+		"srcctl/srcctl_test.go":              fmt.Sprintf(walk, "srcctl", "example.com/elsewhere"),
+	})
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ dirty, reader string }{
+		{"notes", "reader"},
+		{"vendored/example.com/fixture/a.txt", "srcwalk"},
+	} {
+		if got := index.readers(tc.dirty); !slices.Equal(got, []string{tc.reader}) {
+			t.Errorf("readers(%s) = %v, want [%s]", tc.dirty, got, tc.reader)
+		}
+		var plan Receipt
+		plan.Provider.Go.State = "RUNNABLE"
+		plan.Plan.Dirty = []string{"app/x/x.go", tc.dirty}
+		if got, want := verdict(plan, root), "run example.com/fixture/app/x example.com/fixture/"+tc.reader; got != want {
+			t.Errorf("%s: verdict = %q, want %q", tc.dirty, got, want)
+		}
+		lines, err := packageBounds(fixtureModule, root, []string{tc.dirty})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Join(lines, "")
+		if want := "bound example.com/fixture/" + tc.reader + " reader " + tc.dirty; !strings.Contains(got, want) {
+			t.Errorf("-bounds misses %q:\n%s", want, got)
+		}
+		for _, control := range []string{"control", "srcctl"} {
+			if unwanted := "bound example.com/fixture/" + control + " reader "; strings.Contains(got, unwanted) {
+				t.Errorf("-bounds holds the control %q:\n%s", unwanted, got)
+			}
+		}
 	}
 }

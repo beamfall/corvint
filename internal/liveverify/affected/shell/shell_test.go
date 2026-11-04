@@ -803,12 +803,12 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		{"link", "tmp=$(mktemp -d)\nln -s \"$PWD\" \"$tmp/r\"\ncat \"$tmp/r/internal/x/y.json\"\n", true},
 		{"conditional", "[ -n \"${tmp-}\" ] || tmp=$(mktemp -d)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"used first", "cat \"$tmp/internal/x/y.json\"\ntmp=$(mktemp -d)\n", true},
-		// AFP-V0-2243: an `&&` or `||` after the assignment still runs it
-		// first, in the file's own shell; a pipeline or the background
-		// runs it in a subshell, and a second assignment on the right
-		// refuses as any second assignment does.
-		{"or exit", "tmp=$(mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || exit 1\ncat \"$tmp/repo/internal/x/y.json\"\n", false},
-		{"and cd", "tmp=$(mktemp -d) && cd \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", false},
+		// AFP-V0-2243 is disabled for 1.0: any list operator after the
+		// assignment (`&&`, `||`, a pipeline or the background) refuses it
+		// as the base does, because the end of the list (an `&` after a
+		// compound command or a continued line) is not proven.
+		{"or exit", "tmp=$(mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || exit 1\ncat \"$tmp/repo/internal/x/y.json\"\n", true},
+		{"and cd", "tmp=$(mktemp -d) && cd \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"piped", "tmp=$(mktemp -d) | cat\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"background", "tmp=$(mktemp -d) &\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"list in background", "tmp=$(mktemp -d) && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
@@ -869,9 +869,10 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 // function) may end in an `&` the lexer does not record after the closing
 // word, so the name is no temp root and the read keeps its token; so does an
 // assignment after the `&&` or `||` that follows a compound command, and a
-// list whose later member's substitution holds a `;`. Controls: a compound
-// command that ends its own line, a function defined before, and a list of
-// simple commands keep the narrowing.
+// list whose later member's substitution holds a `;`. With AFP-V0-2243
+// disabled for 1.0 every list after the assignment keeps the token. Controls:
+// a lone assignment after a compound command or a function that ends its own
+// line keeps the narrowing.
 func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
 	root := t.TempDir()
 	const read = "wait\ncat \"$tmp/internal/x/y.json\"\n"
@@ -895,13 +896,18 @@ func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
 		{"after subshell or", "( true ) || tmp=$(mktemp -d)\n" + read, true},
 		{"after esac and", "case x in y) :;; esac && tmp=$(mktemp -d)\n" + read, true},
 		{"after group continued", "{ false; } ||\ntmp=$(mktemp -d)\n" + read, true},
-		// Controls.
-		{"group on its own line", "{ :; }\ntmp=$(mktemp -d) || exit 1\n" + read, false},
-		{"group then semicolon", "{ :; }; tmp=$(mktemp -d) || exit 1\n" + read, false},
-		{"function before", "f() { :; }\ntmp=$(mktemp -d) || exit 1\n" + read, false},
+		// AFP-V0-2243 is disabled for 1.0, so a list after the assignment
+		// keeps the token even after a compound on its own line.
+		{"group on its own line", "{ :; }\ntmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"group then semicolon", "{ :; }; tmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"function before", "f() { :; }\ntmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"simple list", "tmp=$(mktemp -d) && cd \"$tmp\" && echo ok\n" + read, true},
+		{"simple list with substitution", "tmp=$(mktemp -d) || echo \"$(date)\"\n" + read, true},
+		// Controls: a lone assignment after a compound on its own line
+		// keeps the narrowing.
+		{"group on its own line alone", "{ :; }\ntmp=$(mktemp -d)\n" + read, false},
+		{"function before alone", "f() { :; }\ntmp=$(mktemp -d)\n" + read, false},
 		{"subshell on its own line", "( :; )\ntmp=$(mktemp -d)\n" + read, false},
-		{"simple list", "tmp=$(mktemp -d) && cd \"$tmp\" && echo ok\n" + read, false},
-		{"simple list with substitution", "tmp=$(mktemp -d) || echo \"$(date)\"\n" + read, false},
 	}
 	for _, tc := range cases {
 		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)
@@ -926,8 +932,10 @@ func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
 // skips the assignment), so a redirected assignment is no temp root.
 // Each counterexample is also run under its shell, with an inherited
 // tmp=. and descriptor 9 closed, to show the read reaches the repository
-// file. Controls: an empty case on its own line, a list continued over a
-// newline and a redirection on the list's right side keep the narrowing.
+// file. With AFP-V0-2243 disabled for 1.0 a list after the assignment (an
+// empty case before it, a list continued over a newline, a redirection on
+// the list's right side) keeps the token too. Control: a lone assignment
+// after an empty case on its own line keeps the narrowing.
 func TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243(t *testing.T) {
 	root := t.TempDir()
 	const read = "cat \"$tmp/internal/x/y.json\"\n"
@@ -946,10 +954,14 @@ func TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243(t *testing.T
 		{"redirect failing and", "dash", "tmp=$(mktemp -d) 3>&9 && :\n" + read, true},
 		{"redirect own line", "dash", "tmp=$(mktemp -d) 2>/dev/null\n" + read, true},
 		{"redirect before", "dash", "3>&9 tmp=$(mktemp -d) || :\n" + read, true},
-		// Controls.
-		{"empty case own line", "bash", "case x in esac\ntmp=$(mktemp -d) || exit 1\n" + read, false},
-		{"list continued", "bash", "tmp=$(mktemp -d) &&\n  cd \"$tmp\"\n" + read, false},
-		{"redirect on the right", "dash", "tmp=$(mktemp -d) || echo no >&2\n" + read, false},
+		// AFP-V0-2243 is disabled for 1.0: a list after the assignment
+		// keeps the token.
+		{"empty case own line", "bash", "case x in esac\ntmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"list continued", "bash", "tmp=$(mktemp -d) &&\n  cd \"$tmp\"\n" + read, true},
+		{"redirect on the right", "dash", "tmp=$(mktemp -d) || echo no >&2\n" + read, true},
+		// Control: a lone assignment after an empty case on its own line
+		// keeps the narrowing.
+		{"empty case own line alone", "bash", "case x in esac\ntmp=$(mktemp -d)\n" + read, false},
 	}
 	file := func(name string) string { return "lib/" + strings.ReplaceAll(name, " ", "-") + "_test.sh" }
 	for _, tc := range cases {

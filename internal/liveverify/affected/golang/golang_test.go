@@ -226,8 +226,9 @@ func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
 
 // AFP-V0-021: a dirty path no plugin owns selects the package whose own files
 // name it by literal, witnessed as PATH_LITERAL_READER, and stays unknown. An
-// import path is an edge, never a token; a dependent of the reader and a path
-// no literal names select nothing.
+// import path is an edge, never a token; a literal under the module keeps its
+// written spelling beside its anchored one (AFP-V0-2242); a dependent of the
+// reader and a path no literal names select nothing.
 func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -251,7 +252,7 @@ func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 			continue
 		}
 		found = true
-		if fmt.Sprint(unit.PathTokens) != "[../docs/guide.md .json /data/ assets/logo.svg tables/rows.txt]" {
+		if fmt.Sprint(unit.PathTokens) != "[../docs/guide.md .json /data/ assets/logo.svg example.test/m/data/ tables/rows.txt]" {
 			t.Fatalf("pkg path tokens=%q", unit.PathTokens)
 		}
 	}
@@ -510,19 +511,20 @@ func TestUnboundedReaderIsSelectedOnAnyChange_V1_0230(t *testing.T) {
 }
 
 // AFP-V0-505, AFP-V0-506 (V1-2553): a `/` directly after `<` closes a markup
-// tag and anchors nothing, so `</script>` is the lone name `script` and never
-// reaches `script/` from the root; a backslash after `..` separates a climbing
-// path, so `..\x` is `../x` and not the bare `..` that reaches the root. A
-// `..` inside a comment is no literal; `../fixtures` resolves inside the
-// repository, below the package's parent. Since AFP-V0-2241 round 8 a Go
-// unit's lone name names any same-named component, so tag's `script` and `x`
-// keep it a reader of script/heavy.sh and fixtures/x: a lone literal may be
-// joined to a root supplied at run time.
+// tag, so `</script>` also yields the lone name `script`; a backslash after
+// `..` separates a climbing path, so `..\x` also yields `../x`. Since
+// AFP-V0-2242 round 9 both rewrites only add: the written `/script` stays,
+// and so do the written `..` and `x`, because the literal may be split at the
+// backslash, so slash's bare `..` reaches the root and slash is an unbounded
+// reader beside parent. A `..` inside a comment is no literal. Since
+// AFP-V0-2241 round 8 a Go unit's lone name names any same-named component,
+// so tag's `script` and `x` keep it a reader of script/heavy.sh and
+// fixtures/x: a lone literal may be joined to a root supplied at run time.
 func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 	t.Parallel()
 	body := "package p\n\n// a \"..\" in a comment is not a literal\nvar _ = []string{\"<script>x</script>\", \"a</b/c>\", \"..\\\\x\", \"x\\\\..\\\\y\"}\n"
 	tokens, err := golang.FilePathTokens("p.go", []byte(body), "example.test/m")
-	if want := "[script x script a ./b/c/ ../x x ../y]"; err != nil || fmt.Sprint(tokens) != want {
+	if want := "[script x /script script a /b/c/ ./b/c/ .. x ../x x .. y ../y]"; err != nil || fmt.Sprint(tokens) != want {
 		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
 	}
 	root := t.TempDir()
@@ -541,11 +543,11 @@ func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := fmt.Sprint(graph.UnboundedReaders()), "[go:example.test/m/parent]"; got != want {
+	if got, want := fmt.Sprint(graph.UnboundedReaders()), "[go:example.test/m/parent go:example.test/m/slash]"; got != want {
 		t.Errorf("unbounded readers = %s, want %s", got, want)
 	}
 	plan := affected.Select(graph, []string{"script/heavy.sh"})
-	if got, want := fmt.Sprint(plan.SelectedTests()), "[parent/parent_test.go script/script_test.go tag/tag_test.go]"; got != want {
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[parent/parent_test.go script/script_test.go slash/slash_test.go tag/tag_test.go]"; got != want {
 		t.Errorf("script/heavy.sh selected %s, want %s", got, want)
 	}
 	plan = affected.Select(graph, []string{"fixtures/x"})
@@ -557,14 +559,15 @@ func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 // AFP-V0-840 (V1-3207): a path literal selects a reader only when it names
 // the changed path or a directory holding it. A bare or prefixed file name
 // (`source.sh`, `foo-source.sh`) is not `core-n1-source.sh`, and the
-// HTML-escaped closing tag `&lt;/script&gt;` is the lone name `script`, not
-// the anchored `/script`; the full path and a `../script/` directory prefix
-// still select. Since AFP-V0-2241 round 8 the lone `script` names any script/
-// component of a Go unit's path, so escaped stays a reader.
+// HTML-escaped closing tag `&lt;/script&gt;` also yields the lone name
+// `script` beside the written `/script` (AFP-V0-2242 round 9); the full path
+// and a `../script/` directory prefix still select. Since AFP-V0-2241 round 8
+// the lone `script` names any script/ component of a Go unit's path, so
+// escaped stays a reader.
 func TestPathLiteralBoundary_AFPV0840(t *testing.T) {
 	t.Parallel()
 	tokens, err := golang.FilePathTokens("p.go", []byte("package p\n\nvar _ = []string{\"&lt;/script&gt;\", \"&LT;/b&gt;\"}\n"), "example.test/m")
-	if want := "[lt script gt LT b gt]"; err != nil || fmt.Sprint(tokens) != want {
+	if want := "[lt /script script gt LT /b b gt]"; err != nil || fmt.Sprint(tokens) != want {
 		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
 	}
 	root := t.TempDir()

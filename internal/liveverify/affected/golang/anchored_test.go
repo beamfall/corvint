@@ -151,3 +151,45 @@ func TestRuntimeRootedDirectoryWalkStaysSelected_AFPV02203(t *testing.T) {
 		t.Errorf("other selections = %s, want [go:example.test/m/app/x]", got)
 	}
 }
+
+// TestParentBackslashKeepsWrittenTokens_AFPV0506 is round 9's review
+// counterexample: a test reads `os.Getenv("FIXTURES") +
+// strings.Split("foo..\\notes", "\\")[1]`, so with FIXTURES naming the root
+// it reads the root file notes. The `..\` rewrite (AFP-V0-506) adds the
+// climbing `foo../notes` and keeps the written `foo..` and `notes`, so the
+// reader stays selected. The module-path rewrite is additive too: a walk of
+// `filepath.Join(os.Getenv("SRC"), "example.test/m")` keeps the written
+// `example.test/m` beside its anchored `/` and reads a copy of the module
+// under vendored/. Controls: the same forms naming another file or module
+// read neither path. The selector half is gateselect's
+// TestRuleCParentBackslashKeepsWrittenTokens.
+func TestParentBackslashKeepsWrittenTokens_AFPV0506(t *testing.T) {
+	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(os.Getenv(\"FIXTURES\") + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
+	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(os.Getenv(\"SRC\"), %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                        "module example.test/m\n",
+		"notes":                         "n\n",
+		"vendored/example.test/m/a.txt": "a\n",
+		"reader/reader_test.go":         fmt.Sprintf(read, "reader", `foo..\notes`),
+		"control/control_test.go":       fmt.Sprintf(read, "control", `foo..\other`),
+		"srcwalk/srcwalk_test.go":       fmt.Sprintf(walk, "srcwalk", "example.test/m"),
+		"srcctl/srcctl_test.go":         fmt.Sprintf(walk, "srcctl", "example.test/elsewhere"),
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ dirty, want string }{
+		{"notes", "[reader/reader_test.go]"},
+		{"vendored/example.test/m/a.txt", "[srcwalk/srcwalk_test.go]"},
+	} {
+		readers, others := pathLiteralReaders(t, graph, tc.dirty)
+		if got := fmt.Sprint(readers); got != tc.want {
+			t.Errorf("%s: path-literal readers = %s, want %s", tc.dirty, got, tc.want)
+		}
+		if len(others) != 0 {
+			t.Errorf("%s: other selections = %v, want none", tc.dirty, others)
+		}
+	}
+}

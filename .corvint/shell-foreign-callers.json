@@ -15,15 +15,14 @@
     "script/batch-regen.sh": {
       "callers": [
         "Makefile",
+        "internal/dogfoodflow/batch.go",
+        "internal/dogfoodflow/regenerated.go",
+        "internal/dogfoodflow/regenerated_test.go",
         "script/batch-precheck.sh",
         "script/batch-precheck_test.sh"
       ],
-      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it; internal/dogfoodflow only replays a parent commit's copy read from Git in a private clone, and its test a fixture's own copy, a history input and no worktree caller (DCW-V0-401, AFP-V0-2244) (TSP-V0-005).",
-      "mentions": [
-        "internal/dogfoodflow/batch.go",
-        "internal/dogfoodflow/regenerated.go",
-        "internal/dogfoodflow/regenerated_test.go"
-      ]
+      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
+      "mentions": null
     },
     "script/check-cem-base-retained.sh": {
       "callers": [
