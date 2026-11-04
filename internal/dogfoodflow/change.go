@@ -237,6 +237,9 @@ func (c *change) run() int {
 	c.deferIntents()
 	c.citeStep()
 	c.guardingTestsStep()
+	if c.reboundCommitNeeded() {
+		return 1
+	}
 	_ = os.WriteFile(c.path(".corvint/change.ocm-status.json"), nil, 0o666)
 	switch {
 	case c.noIntent:

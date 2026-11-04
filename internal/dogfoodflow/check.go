@@ -71,6 +71,8 @@ type AggregateCheckCapture struct {
 }
 
 type check struct {
+	sealReviewTarget                           string
+	sealReviewEvidence                         string
 	sealed                                     bool
 	sealedTarget                               string
 	cemPath                                    string
@@ -122,6 +124,9 @@ func Seal(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (
 	defer run.releaseOperation()
 	defer func() { _, _, _ = run.writeTimings() }()
 	return boundary(ctx, func() int {
+		run.requireRoot()
+		run.requireTrustedAncestry()
+		run.sealReviewEvidence = run.sealReview()
 		// The check's own exits, including its no-change PASS, return here as the
 		// former `dogfood-check.sh || exit` did.
 		code, err := boundary(ctx, run.run, func() {})
@@ -147,6 +152,9 @@ func newCheck(ctx context.Context, prefix string, options CheckOptions, stdout, 
 func (c *check) seal() int {
 	c.clock.to("seal")
 	bind := c.gitValue("rev-parse", "HEAD^{commit}")
+	if c.sealReviewTarget != "" && bind != c.sealReviewTarget {
+		c.refuseSealReview(os.Getenv("DOGFOOD_REVIEW"))
+	}
 	if !c.gitSucceeds("cat-file", "-e", bind+":.corvint/change.cem.json") {
 		c.refuse("nothing-to-seal")
 	}
@@ -164,7 +172,11 @@ func (c *check) seal() int {
 	if c.gitPassthrough("mv", ".corvint/change.cem.json", sealed) != 0 {
 		c.exit(2)
 	}
-	if c.gitPassthrough("commit", "-q", "-m", "chore: seal change evidence") != 0 {
+	args := []string{"commit", "-q", "-m", "chore: seal change evidence"}
+	if c.sealReviewEvidence != "" {
+		args = append(args, "-m", c.sealReviewEvidence)
+	}
+	if c.gitPassthrough(args...) != 0 {
 		c.exit(2)
 	}
 	if c.baseIndependence() != "" {
