@@ -9,7 +9,8 @@
 # under <git-common-dir>/corvint/reconcile/<refCommit>/. It prints each batch-close proposal
 # (its command with the retained exports filled in) and the tickets left for review, and exits with
 # the closeout-debt status: 0 no debt, 1 debt or proposals, 2 refusal. A failed export, a missing
-# binary or an unparsable report exits 2 with the reason on stderr; it never skips silently.
+# binary or an unparsable report exits 2 with the reason on stderr; it never skips silently. A runs
+# export is written only once every per-commit export is a JSON array, and the report prints after it.
 #
 # Inputs (environment):
 #   RECONCILE_REF    integration ref (default origin/main)
@@ -35,6 +36,8 @@ commit=$(git rev-parse --verify --quiet "$ref^{commit}") || die "ref $ref does n
 common=$(git rev-parse --path-format=absolute --git-common-dir) || die "not in a Git repository"
 dir=$common/corvint/reconcile/$commit
 mkdir -p "$dir"
+# A runs export from an earlier reconcile of this commit is never reused or left to look current.
+/bin/rm -f "$dir/runs.json"
 
 "$gh" pr list --state merged --limit "$limit" \
   --json number,state,title,body,headRefName,headRefOid,mergeCommit,labels,mergedAt,url > "$dir/prs.json" ||
@@ -47,12 +50,10 @@ set -e
 jq -e '.items[0].profile == "taskman-closeout-debt/0"' "$dir/report.json" > /dev/null 2>&1 ||
   die "closeout-debt exit $status without a taskman-closeout-debt/0 report ($dir/report.json)"
 
-echo "tasks-reconcile $commit: report $dir/report.json"
-jq -r '.items[0].human[]' "$dir/report.json"
-
 # The runs of each proposal's merge commit and PR head, one entry per run, so batch-close finds a
 # green run however old the merge is (TCD-V0-2401). The fields let a gated close derive CI gate
-# evidence (TCD-V0-770). A failed or unreadable export exits 2; it never becomes an empty file.
+# evidence (TCD-V0-770). A failed or unreadable export, or one that is not a JSON array, exits 2
+# with no runs.json; the report and its commands print only after the export is written.
 runs_dir=$(mktemp -d "$dir/runs.XXXXXX") || die "cannot create a runs directory in $dir"
 trap '/bin/rm -rf "$runs_dir"' EXIT
 runs_files=()
@@ -63,14 +64,20 @@ for sha in $shas; do
   [[ $sha =~ ^[0-9a-f]{40}$ ]] || die "proposal commit $sha is not a full commit id; no runs export for $commit"
   "$gh" run list --commit "$sha" --limit 100 --json databaseId,headSha,conclusion,url,workflowName,event,updatedAt > "$runs_dir/$sha.json" ||
     die "gh run list --commit $sha failed; no runs export for $commit"
+  jq -e 'type == "array"' "$runs_dir/$sha.json" > /dev/null 2>&1 ||
+    die "gh run list --commit $sha printed no JSON run array; no runs export for $commit"
   runs_files+=("$runs_dir/$sha.json")
 done
 if ((${#runs_files[@]})); then
-  jq -cs 'add | unique_by(.databaseId)' "${runs_files[@]}" > "$dir/runs.json" ||
-    die "gh run list --commit printed no JSON run array; no runs export for $commit"
+  jq -cs 'add | unique_by(.databaseId)' "${runs_files[@]}" > "$runs_dir/runs.json" ||
+    die "cannot merge the per-commit run exports; no runs export for $commit"
 else
-  echo '[]' > "$dir/runs.json"
+  echo '[]' > "$runs_dir/runs.json"
 fi
+/bin/mv -f "$runs_dir/runs.json" "$dir/runs.json" || die "cannot write $dir/runs.json; no runs export for $commit"
+
+echo "tasks-reconcile $commit: report $dir/report.json, runs $dir/runs.json"
+jq -r --arg runs "$dir/runs.json" '.items[0].human[] | sub(" --runs RUNS$"; " --runs " + $runs)' "$dir/report.json"
 
 failed=0
 if [[ -n $apply ]]; then

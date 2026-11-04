@@ -1033,8 +1033,10 @@ naming the owning store and the command to run there.
 Every dispatch carries this snapshot (ASD-V0-2420, V1-4440): `script/lane-dispatch.sh inputs` writes
 `ticket-bodies-<lane>/queue-snapshot.json` beside the ticket bodies, so a lane on any host reads any
 ticket, not only its assigned ones, with the "Read any ticket" line of its brief header (section 14).
-A journal-absent `ticket show` miss names the newest snapshot staged under `~/lane-inputs/` on that
-host with its age and the exact `CORVINT_TASKS_SNAPSHOT=` retry, or, when none is staged, the
+Dispatched from a snapshot host (`CORVINT_TASKS_SNAPSHOT` set, where `queue snapshot` is refused), it
+stages a verified copy of that snapshot instead. A journal-absent `ticket show` miss names the newest
+snapshot of the checkout's own queue staged under `~/lane-inputs/` on that host with its age and the
+exact `CORVINT_TASKS_SNAPSHOT=` retry, or, when none is staged, the
 `script/lane-stage-inputs.sh --host HOST LANE ID` command the journal host runs (ASD-V0-2421). The
 all-lane-branch screen needs no journal: `corvint-tasks ticket delivery-screen <ID>... --lane-refs
 --unaudited` runs in a journal-less clone; the audited form there refuses and names `--unaudited`.
@@ -1260,8 +1262,9 @@ script/lane-dispatch.sh check --env <dir>/lane.env <brief> <charter>
   plus `<ID>.txt`: title, status, labels, body, numbered acceptance criteria, dependencies and the
   operator note under its advisory label, readable without `jq`. A refused or non-`OK` ticket read
   refuses the dispatch (exit 2), so a lane never starts without its ticket bodies. It also writes
-  `ticket-bodies-<lane>/queue-snapshot.json` (`corvint-tasks queue snapshot --out`); a failed or
-  empty export refuses `queue-snapshot-failed` (exit 2, ASD-V0-2420). `--host` copies the directory
+  `ticket-bodies-<lane>/queue-snapshot.json` (`corvint-tasks queue snapshot --out`, or a verified
+  copy of the `CORVINT_TASKS_SNAPSHOT` file on a snapshot host); a failed, empty or unverifiable
+  snapshot refuses `queue-snapshot-failed` (exit 2, ASD-V0-2420). `--host` copies the directory
   to `HOST:~/lane-inputs/`.
 - A lane charter template carries these two `brief-header.md` lines verbatim (ASD-V0-2420), the
   read route on every lane host, journal or not, with `TICKET_DIR` as `lane.env` names it:

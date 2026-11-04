@@ -19,7 +19,9 @@
 #                         advisory label
 #   DIR/ticket-bodies-LANE/queue-snapshot.json   `corvint-tasks queue snapshot --out` (ASD-V0-2420): the
 #                         read route on every lane host, journal or not, named in brief-header.md as
-#                         CORVINT_TASKS_SNAPSHOT=TICKET_DIR/queue-snapshot.json corvint-tasks ticket show ID
+#                         CORVINT_TASKS_SNAPSHOT=TICKET_DIR/queue-snapshot.json corvint-tasks ticket show ID;
+#                         with CORVINT_TASKS_SNAPSHOT set, a copy of that file, verified by
+#                         `queue status` served from the copy (no snapshot host can re-export)
 # With --host HOST the directory's contents are copied to HOST:~/lane-inputs/ over ssh
 # (LANE_DISPATCH_SSH, default ssh), and brief-header.md names that path. Exit 2 on a refusal.
 #
@@ -115,9 +117,22 @@ inputs() {
   done
   # The read route for any ticket on a lane host without the journal (ASD-V0-2420).
   snap=$(cd "$dir" && pwd -P)/queue-snapshot.json || refuse "out-unwritable $out (fix: use a writable --out directory)"
-  (cd "$repo" && "${LANE_DISPATCH_TASKS:-corvint-tasks}" queue snapshot --out "$snap") > "$dir/queue-snapshot.out" 2>&1 &&
-    grep -q '"outcome":"OK"' "$dir/queue-snapshot.out" && [[ -s $snap ]] ||
-    refuse "queue-snapshot-failed (fix: run on the host that owns the Tasks journal, where corvint-tasks queue snapshot --out FILE succeeds): $(head -c 300 "$dir/queue-snapshot.out")"
+  if [[ -n ${CORVINT_TASKS_SNAPSHOT:-} ]]; then
+    # A snapshot host cannot re-export (queue snapshot is no snapshot verb): stage a copy of the
+    # snapshot it reads, verified by a read served from the copy.
+    src=$CORVINT_TASKS_SNAPSHOT
+    [[ $src == /* ]] || src=$repo/$src # corvint-tasks resolves it in REPO, as the ticket reads did
+    [[ -f $src && -s $src ]] ||
+      refuse "queue-snapshot-failed CORVINT_TASKS_SNAPSHOT=$CORVINT_TASKS_SNAPSHOT is absent or empty (fix: name a queue snapshot file, or run on the host that owns the Tasks journal with CORVINT_TASKS_SNAPSHOT unset)"
+    /bin/cp -f "$src" "$snap" || refuse "out-unwritable $out (fix: use a writable --out directory)"
+    (cd "$repo" && CORVINT_TASKS_SNAPSHOT=$snap "${LANE_DISPATCH_TASKS:-corvint-tasks}" queue status) > "$dir/queue-snapshot.out" 2>&1 &&
+      grep -q '"outcome":"OK"' "$dir/queue-snapshot.out" ||
+      refuse "queue-snapshot-failed CORVINT_TASKS_SNAPSHOT=$CORVINT_TASKS_SNAPSHOT does not verify (fix: re-export it on the host that owns the Tasks journal with corvint-tasks queue snapshot --out FILE): $(head -c 300 "$dir/queue-snapshot.out")"
+  else
+    (cd "$repo" && "${LANE_DISPATCH_TASKS:-corvint-tasks}" queue snapshot --out "$snap") > "$dir/queue-snapshot.out" 2>&1 &&
+      grep -q '"outcome":"OK"' "$dir/queue-snapshot.out" && [[ -s $snap ]] ||
+      refuse "queue-snapshot-failed (fix: run on the host that owns the Tasks journal, where corvint-tasks queue snapshot --out FILE succeeds): $(head -c 300 "$dir/queue-snapshot.out")"
+  fi
   /bin/rm -f "$dir/queue-snapshot.out"
   packet=$(perl "$(dirname "$0")/lane-screen.pl" screen --repo "$repo" --base "$sha" ${screen_args[@]+"${screen_args[@]}"} ${screen_tickets[@]+"${screen_tickets[@]}"} ${ticket_files[@]+"${ticket_files[@]}"}) ||
     { printf '%s\n' "$packet"; refuse 'ticket screen findings (fix: resolve the retained findings or explicitly --override ID)'; }

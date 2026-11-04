@@ -3,7 +3,9 @@
 package cli_test
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -259,5 +261,64 @@ func TestTCDV02400_InProgressHeadIsExcludedNotDebt(t *testing.T) {
 	}
 	if code != 1 || !cited || strings.Contains(string(wire.Encode(field(item, "excludedCandidates"))), parked) {
 		t.Fatalf("message-cited IN_PROGRESS ticket (exit %d): %+v excluded %s", code, rows, wire.Encode(field(item, "excludedCandidates")))
+	}
+}
+
+// TestTCDV02400_MixedExclusionCausesStayVisible: a ticket excluded both by a
+// build-log-only citation and by an IN_PROGRESS head keeps each cause with
+// its own commit in causes, and the human line names both; a single-cause
+// ticket has one cause.
+func TestTCDV02400_MixedExclusionCausesStayVisible(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	mixed, mixedLocal := tcdTicket(t, root, "mixed", "")
+	single, _ := tcdTicket(t, root, "single", "")
+	tcdCommit(t, root, "dispatch base with no ticket citation")
+	base := revParse(t, root, "HEAD")
+	for _, id := range []string{mixed, single} {
+		x := atm(t, root, nil, "ticket", "progress", "--target", id, "--expected-revision", "1",
+			"--request-id", "p-"+id, "--issued-at", "2026-11-03T12:00:00Z", "--payload", progressPayload("IN_PROGRESS", "lane/x", base, "", ""))
+		if x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("progress %s: %s", id, x.stdout)
+		}
+	}
+	logPath := filepath.Join(root, "docs", "build-log", "2026-11-03-lane.md")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(logPath, []byte("# lane\n\n- "+mixedLocal+" reviewed.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "--", "docs/build-log/2026-11-03-lane.md")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "docs(build-log): review notes "+mixedLocal)
+	logCommit := revParse(t, root, "HEAD")
+
+	code, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	if code != 0 || len(rows) != 0 {
+		t.Fatalf("excluded tickets are debt (exit %d): %+v", code, rows)
+	}
+	got := map[string]string{}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		var causes []string
+		for _, c := range field(e, "causes").Arr {
+			var commits []string
+			for _, x := range field(c, "commits").Arr {
+				commits = append(commits, x.Str)
+			}
+			causes = append(causes, field(c, "reason").Str+"="+strings.Join(commits, ","))
+		}
+		got[field(e, "ticketId").Str] = field(e, "reason").Str + " " + strings.Join(causes, " ")
+	}
+	want := map[string]string{
+		mixed:  "BUILD_LOG_ONLY BUILD_LOG_ONLY=" + logCommit + " PROGRESS_IN_PROGRESS=" + base,
+		single: "PROGRESS_IN_PROGRESS PROGRESS_IN_PROGRESS=" + base,
+	}
+	if len(got) != len(want) || got[mixed] != want[mixed] || got[single] != want[single] {
+		t.Fatalf("excludedCandidates %v, want %v", got, want)
+	}
+	line := mixedLocal + " excluded BUILD_LOG_ONLY via 2 commit(s) (causes BUILD_LOG_ONLY, PROGRESS_IN_PROGRESS)"
+	if human := wire.Encode(field(item, "human")); !strings.Contains(string(human), line) {
+		t.Fatalf("human lacks %q: %s", line, human)
 	}
 }
