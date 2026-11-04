@@ -37,7 +37,7 @@ func TestLGLV0885_GateRunSerializesASharedResource(t *testing.T) {
 	t.Cleanup(func() { _ = os.RemoveAll(sync) })
 	started, release, ran := filepath.Join(sync, "started"), filepath.Join(sync, "release"), filepath.Join(sync, "ran")
 	s := newLeaseStore(t,
-		sharedGate("hold", ": > "+started+"; while [ ! -e "+release+" ]; do /bin/sleep 0.05; done", "heavy"),
+		sharedGate("hold", "cd "+sync+"; : > started; while [ ! -e release ]; do /bin/sleep 0.05; done", "heavy"),
 		sharedGate("probe", ": > "+ran, "heavy"),
 		sharedGate("other", "printf ok", "light"))
 	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)

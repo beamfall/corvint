@@ -86,6 +86,8 @@ No requirement below diverges from the implementation.
 
 ## Requirements
 
+- `SRG-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4550) The same-spec conflict-isolation fixture MUST hold README range endpoints stable, since adding a highest requirement legitimately changes the generated README row. The new-spec merge fixture MUST continue to exercise and regenerate README co-edits alongside INDEX.json and REQUIREMENTS.tsv. Phony targets MUST retain one declaration per target.
+
 - `SRG-V0-001`: The generator MUST derive its input set from the paths Git reports as tracked
   under `docs/specs/` matching `*.md`, not from a worktree directory listing, so that an untracked
   file contributes no row and a tracked file deleted from the worktree alone still contributes its
@@ -955,3 +957,9 @@ Makefile target and call sites together. They do not raise OCM's 256-obligation 
 warning on an unchanged full baseline names the companion route; filling the last slot since BASE
 fails capacity. New rows go to a companion spec. Independent review and post-commit binding
 remain separate promotion evidence.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `SRG-V0-7500` | `script/spec-requirements-conflict_test.sh` stable upper endpoints and generated README co-edits; `Makefile` windows-main targets. Existing SRG-V0-740/744 capacity-warning fixtures retain V1-3438 warn/no-warn coverage. |

@@ -18,6 +18,8 @@ import (
 type snapshotMapping struct {
 	bytes []byte
 	refs  atomic.Int64
+	file  *os.File // exact backing inode, retained until the last mapping lease ends
+	size  int64
 	// table and key name the identity table the mapping is live in, if any.
 	table *snapshotMappings
 	key   packKey
@@ -82,8 +84,13 @@ func mapSnapshot(file *os.File, size int64) *snapshotMapping {
 	if bytes == nil {
 		return nil
 	}
+	backing, err := duplicateSnapshotFile(file)
+	if err != nil {
+		unmapReadOnly(bytes)
+		return nil
+	}
 	liveSnapshotMappings.Add(1)
-	mapping := &snapshotMapping{bytes: bytes}
+	mapping := &snapshotMapping{bytes: bytes, file: backing, size: size}
 	mapping.refs.Store(1)
 	return mapping
 }
@@ -132,6 +139,9 @@ func (mapping *snapshotMapping) release() {
 			mapping.table.forget(mapping)
 		}
 		unmapReadOnly(mapping.bytes)
+		if mapping.file != nil {
+			_ = mapping.file.Close()
+		}
 		liveSnapshotMappings.Add(-1)
 	case remaining < 0:
 		panic("contextindex: snapshot mapping released more often than referenced")

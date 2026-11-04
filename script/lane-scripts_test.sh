@@ -40,6 +40,7 @@ script=$(cd "$(dirname "$0")" && pwd)
 # A trailing slash on TMPDIR (the macOS default) is dropped: heavy.sh and Perl name paths without "//".
 tmp=${TMPDIR:-/tmp}
 tmp=$(mktemp -d "${tmp%/}/corvint-lane-scripts-test.XXXXXX") || exit 1
+tmp=$(cd "$tmp" && pwd -P) || exit 1
 trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -3506,6 +3507,13 @@ ok
 fi
 
 if selected sweep 61; then
+# CSD-V0-7510: exercise a symlinked TMPDIR on Linux too (macOS defaults to /var).
+if [[ ${LANE_SWEEP_ALIAS_TEST:-0} != 1 ]]; then
+  mkdir "$tmp/real-sweep-tmp"
+  ln -s "$tmp/real-sweep-tmp" "$tmp/alias-sweep-tmp"
+  alias_out=$(TMPDIR="$tmp/alias-sweep-tmp" LANE_SWEEP_ALIAS_TEST=1 LANE_SCRIPTS_GROUPS=sweep bash "$script/lane-scripts_test.sh" 2>&1)
+  [[ $? == 0 ]] || fail "symlink TMPDIR sweep: $alias_out"
+fi
 # ASD-V0-2194: dry-run, age, allowlist, symlinks, read-only cleanup, active jobs and failed probes.
 sw=$tmp/sweep
 mkdir -p "$sw/bin" "$sw/root"

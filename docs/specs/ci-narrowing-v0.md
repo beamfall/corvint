@@ -37,6 +37,14 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 
 ## Requirements
 
+- `CIN-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier plan MUST retain every distinct FULL-forcing path reason rather than capping the list at twenty; the per-reason display limit MAY remain 300 characters.
+- `CIN-V0-7501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shared PR documentation gates MUST run the exact per-job permission/exception check before merge; each nondefault grant MUST name its exact permissions and purpose in the exception table.
+- `CIN-V0-7502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merge-queue and main CI MUST execute the declared TypeScript family through `make host-adapter-test`; a failure MUST fail the required `go-product` check.
+- `CIN-V0-7503`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3333) `go-static` MUST restore the exact `go.mod`/`go.sum`-keyed local-authority module cache, refuse a cache miss, verify it with `go mod verify` and run the nested module tests and vet with GOPROXY/GOSUMDB off and readonly module directives. An explicit preceding preparation job MAY fetch checksum-verified dependencies and populate that cache; compiler steps MUST NOT fetch from a proxy.
+- `CIN-V0-7504`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4436) CI MUST compute the shadow dry-run plan for the event range and start `web-flows` exactly when its still-required checks name a web-flows binary consumer. That job MUST install the lockfile dependencies with lifecycle scripts disabled and the matching Playwright Chromium, then run `script/web-flows-gate`. Plan failure or required consumer failure MUST fail `go-product`; an unreached consumer MUST leave the job skipped.
+- `CIN-V0-7505`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4574) An edit under `.github/` MUST select `tools/ci-forward-row` through its declared read scope and its workflow-executing tests in batch verification.
+- `CIN-V0-7506`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4154) A new binary source or command-tree entry MUST select `conformance/cli-errors-v0` catalog-equality tests in affected and in batch verification, including when source and catalog changes meet only in the batch.
+
 - **CIN-V0-001:** (decided by the orchestrator under owner delegation, V1-3314; applies the
   AFP-V0-030 re-arm rule) `CORVINT_PR_FORWARD_EPOCH` in `ci.yml`, `FORWARD_EPOCH` in
   `ci-forward-bar.yml` and the narrowing-verdict acceptance, and the verdict artifact name
@@ -373,3 +381,15 @@ CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop t
 calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
 `workflow_run` clause; the schedule alone remains. CIN-V0-2304: drop the batch-check step of
 `doc-gates`; the DCW-V0-348 pre-push hook remains the only check.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `CIN-V0-7500` | `.github/forward-rows/tiers.jq`; `TestCINV07500AllFullReasons` (29 reasons). |
+| `CIN-V0-7501` | `Makefile` DOC_GATE_TARGETS and `script/ci-least-privilege-exceptions.tsv`; `TestCINV07501PermissionsArePremerge`; `script/check-ci-least-privilege_test.sh` missing/changed per-job exception fixtures. |
+| `CIN-V0-7502` | `.github/workflows/ci.yml` host-adapters and go-product; `TestCINV07502RequiredFamiliesAndOfflineModules`. |
+| `CIN-V0-7503` | `.github/workflows/ci.yml` local-authority-deps and go-static; `TestCINV07502RequiredFamiliesAndOfflineModules`; hosted cache qualification remains NOT_OBSERVED. |
+| `CIN-V0-7504` | `.github/workflows/ci.yml` web-flows-plan/web-flows/go-product; `TestCINV07504WebFlowsConsumerJob`, `TestCINV07504WorkflowPlanFlags` (actual CLI option parser); live PR/MQ evidence remains NOT_OBSERVED until publication is authorized. |
+| `CIN-V0-7505` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestAFPV0591CoverageGuard`. |
+| `CIN-V0-7506` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestCLIErrorContracts_ACXV0859`. |

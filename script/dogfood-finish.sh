@@ -133,6 +133,13 @@ fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+# DWC-V0-7500: a citation repair must be included in the bound diff.
+if [[ -x $repo/script/check-line-citations.sh ]] &&
+  ! static_out=$(cd "$repo" && script/check-line-citations.sh 2>&1); then
+  printf '%s: REFUSE line-citations-invalid\n%s\n' "$prefix" "$static_out" >&2
+  printf 'fix: run script/check-line-citations.sh --repin, review and commit the repin, then rerun make %s before binding\n' "$entry" >&2
+  exit 2
+fi
 # DCW-V0-815 (V1-3594): the cheap static doc checks that batch-precheck would otherwise fail minutes
 # in run here, before any build: every requirement definition, and, when the change touches a test
 # file or the declared read scopes, the test read scopes. A fixture without the checks skips them.

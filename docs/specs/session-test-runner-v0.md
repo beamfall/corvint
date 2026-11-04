@@ -49,6 +49,8 @@ of every requirement below and the binding gate until this spec is promoted.
 
 ## Requirements
 
+- `STR-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The declaration-runner regression MUST pin `CORVINT_GOCACHE` explicitly when it tests the declared GOCACHE, so an offload host override cannot change the fixture. The separate STR-V0-174 override regression MUST continue to prove intentional override precedence.
+
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
   [--dry-run] [--receipt PATH]` SHALL plan in process through the same code and profile as
   `corvint affected --base` and record that plan's graph and plan digests and the STR-V0-017
@@ -855,3 +857,9 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 - Whether the Playwright profile's file commands become the first non-Go adapter or stay separate.
 - Adapter order after Go, likely by the languages adopters run most.
 - Whether balanced placement should ever become the default.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `STR-V0-7500` | `tools/test-commands-run/main_test.go`; `TestSTRV0006RunnerRunsTheDeclaration`, `TestSTRV0174InvocationHonoursCorvintGocache`. |
