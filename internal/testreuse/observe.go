@@ -112,12 +112,26 @@ type Snapshot struct {
 	env   []string
 	state string
 	// worktree caches each worktree validation (a file's raw bytes, a
-	// granted directory's entries, an absent input) with the detail it gave;
-	// Recheck reruns every one uncached (AFP-V0-2321).
+	// granted directory's entries, an absent input) with the detail it gave,
+	// keyed by its kind and path so no path can stand in for another kind's
+	// check; Recheck reruns every one uncached (AFP-V0-2321).
 	worktreeMu  sync.Mutex
-	worktree    map[string]validation
+	worktree    map[validationKey]validation
 	trackedDirs map[string]bool
 }
+
+// validationKey names one cached worktree check: its kind (validateFile,
+// validateWalk or validateAbsent) and the repository-relative path it checks.
+type validationKey struct {
+	kind string
+	path string
+}
+
+const (
+	validateFile   = "file"
+	validateWalk   = "walk"
+	validateAbsent = "absent"
+)
 
 // validation is one cached worktree check and the detail it returned.
 type validation struct {
@@ -273,7 +287,7 @@ func Observe(ctx context.Context, options ObserveOptions) (*Snapshot, error) {
 	if env == nil {
 		env = os.Environ()
 	}
-	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{}, Packages: map[string]GoPackage{}, Sliced: map[string]bool{}, Unbounded: options.Unbounded, ExistenceReaders: options.ExistenceReaders, git: git, env: gitEnv(env), worktree: map[string]validation{}}
+	snapshot := &Snapshot{Root: root, Entries: map[string]Entry{}, Packages: map[string]GoPackage{}, Sliced: map[string]bool{}, Unbounded: options.Unbounded, ExistenceReaders: options.ExistenceReaders, git: git, env: gitEnv(env), worktree: map[validationKey]validation{}}
 	if snapshot.Unbounded == nil {
 		snapshot.Unbounded = map[string]bool{}
 	}
@@ -414,14 +428,19 @@ func (s *Snapshot) Recheck(ctx context.Context) error {
 	}
 	s.worktreeMu.Lock()
 	defer s.worktreeMu.Unlock()
-	keys := make([]string, 0, len(s.worktree))
+	keys := make([]validationKey, 0, len(s.worktree))
 	for key := range s.worktree {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].kind != keys[j].kind {
+			return keys[i].kind < keys[j].kind
+		}
+		return keys[i].path < keys[j].path
+	})
 	for _, key := range keys {
 		if s.worktree[key].check() != s.worktree[key].detail {
-			return errors.New(ErrorSnapshotDrift + ": " + key + " changed after it was validated")
+			return errors.New(ErrorSnapshotDrift + ": " + key.kind + " " + key.path + " changed after it was validated")
 		}
 	}
 	return nil
@@ -449,15 +468,15 @@ func (s *Snapshot) worktreeInputs(inputs map[string]Input) string {
 // blob and the status stay unchanged. It returns "" or a worktree-bytes
 // detail.
 func (s *Snapshot) worktreeObject(relative string, entry Entry) string {
-	return s.validate(relative, func() string { return s.readWorktreeObject(relative, entry) })
+	return s.validate(validationKey{validateFile, relative}, func() string { return s.readWorktreeObject(relative, entry) })
 }
 
 // validate runs check once per key and caches the detail it returns.
-func (s *Snapshot) validate(key string, check func() string) string {
+func (s *Snapshot) validate(key validationKey, check func() string) string {
 	s.worktreeMu.Lock()
 	defer s.worktreeMu.Unlock()
 	if s.worktree == nil {
-		s.worktree = map[string]validation{}
+		s.worktree = map[validationKey]validation{}
 	}
 	if cached, ok := s.worktree[key]; ok {
 		return cached.detail
@@ -474,7 +493,7 @@ func (s *Snapshot) validate(key string, check func() string) string {
 // directory or a special file, so a clean status does not prove either. It
 // returns the first detail in path order, or "".
 func (s *Snapshot) grantedEntries(directory string, inputs map[string]Input) string {
-	if detail := s.validate("walk:"+directory, func() string { return s.walkGranted(directory) }); detail != "" {
+	if detail := s.validate(validationKey{validateWalk, directory}, func() string { return s.walkGranted(directory) }); detail != "" {
 		return detail
 	}
 	for _, key := range sortedKeys(inputs) {
@@ -483,10 +502,10 @@ func (s *Snapshot) grantedEntries(directory string, inputs map[string]Input) str
 		switch input.Mode {
 		case "dir":
 			trimmed := strings.TrimSuffix(input.Path, "/")
-			detail = s.validate("walk:"+trimmed, func() string { return s.walkGranted(trimmed) })
+			detail = s.validate(validationKey{validateWalk, trimmed}, func() string { return s.walkGranted(trimmed) })
 		case "absent":
 			trimmed := strings.TrimSuffix(input.Path, "/")
-			detail = s.validate("absent:"+trimmed, func() string { return s.checkAbsent(trimmed) })
+			detail = s.validate(validationKey{validateAbsent, trimmed}, func() string { return s.checkAbsent(trimmed) })
 		}
 		if detail != "" {
 			return detail
