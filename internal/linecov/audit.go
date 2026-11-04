@@ -66,14 +66,29 @@ func corvintLinecovAudit(c *Cmd) {
  if err == nil {
   // Go's own build tools are launchers, not repository test subjects. Their
   // descendants inherit this overlay unless the caller explicitly clears it.
-  if strings.HasPrefix(info.Path,"cmd/") { return }
+  if info.Path=="cmd/go" {
+   for _,arg:=range c.Args[1:] {if strings.HasPrefix(arg,"-"){continue};if arg=="build" || arg=="list" || arg=="env" || arg=="version"{return};break}
+  }
+  switch info.Path {case "cmd/compile","cmd/link","cmd/asm","cmd/cgo","cmd/vet":return}
   covered := false
   for _,s := range info.Settings { if s.Key == "-cover" && s.Value == "true" { covered = true } }
   env := c.Env
   if env == nil { env = os.Environ() }
   cov := ""
   for _,kv := range env { if strings.HasPrefix(kv,"GOCOVERDIR=") { cov = strings.TrimPrefix(kv,"GOCOVERDIR=") } }
-  if covered && cov == os.Getenv("GOCOVERDIR") && cov != "" { reason = "covered-child" }
+  if covered && cov == os.Getenv("GOCOVERDIR") && cov != "" {
+   child,err:=os.MkdirTemp(cov,"child-")
+   if err != nil { panic(err) }
+   clean:=make([]string,0,len(env)+1)
+   for _,kv:=range env{if !strings.HasPrefix(kv,"GOCOVERDIR="){clean=append(clean,kv)}}
+   c.Env=append(clean,"GOCOVERDIR="+child)
+   reason="covered-child"
+   // A private directory per launch makes a second child's missing counters
+   // visible even when the first completed normally.
+   cpath:=child
+   f,err:=os.OpenFile(p,os.O_CREATE|os.O_APPEND|os.O_WRONLY,0600)
+   if err!=nil{panic(err)};_,err=f.WriteString(reason+"\t"+cpath+"\n");_ = f.Close();if err!=nil{panic(err)};return
+  }
  }
  f,err:=os.OpenFile(p,os.O_CREATE|os.O_APPEND|os.O_WRONLY,0600)
  if err != nil { panic(err) }

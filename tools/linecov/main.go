@@ -46,11 +46,19 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: linecov collect|select|qualify|redundancy|merge|ci [flags]")
+		_ = help(os.Stderr, nil)
 		os.Exit(2)
 	}
 	var err error
 	switch os.Args[1] {
+	case "help", "--help", "-h":
+		err = help(os.Stdout, os.Args[2:])
+	case "watch":
+		err = watch(os.Args[2:])
+	case "ruby-collect", "js-collect":
+		err = languageCollect(strings.TrimSuffix(os.Args[1], "-collect"), os.Args[2:])
+	case "ruby-select", "js-select":
+		err = languageSelect(strings.TrimSuffix(os.Args[1], "-select"), os.Args[2:])
 	case "collect":
 		err = collect(os.Args[2:])
 	case "select":
@@ -65,6 +73,9 @@ func main() {
 		err = ci(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		return
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "linecov:", err)

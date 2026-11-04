@@ -153,7 +153,7 @@ func checkCalc(t *testing.T, ix *linecov.Index, add, down, up string) {
 		{13, false, sorted(down, up)},
 		{12, false, sorted(down, up)},
 		{11, true, sorted(down, up)},
-		{18, false, ""}, // an executable line no test ran
+		{18, false, "fallback: edit outside a method body lib/calc.rb:18"}, // uncalled method may contain a syntax edit
 		{5, false, "fallback: edit outside a method body lib/calc.rb:5"}, // the def line
 		{7, false, "fallback: edit outside a method body lib/calc.rb:7"}, // the end line
 		{3, false, "fallback: edit outside a method body lib/calc.rb:3"}, // class-level comment
@@ -244,7 +244,7 @@ func TestLPCVV0955LiveTestUnitPerTest(t *testing.T) {
 	root := t.TempDir()
 	head := project(t, root, "testunit")
 	run, ix := collect(t, root, head, Options{Argv: []string{"ruby", "-Itest", "-e", "require './test/test_calc'"}})
-	if run.ExitCode() != 0 || strings.Join(ix.Unordered, ",") != "test/test_calc.rb" {
+	if run.ExitCode() != 0 || len(ix.Unordered) != 0 {
 		t.Fatalf("exit %d unordered %v", run.ExitCode(), ix.Unordered)
 	}
 	if !strings.Contains(ix.Runner, " test-unit ") {
@@ -298,14 +298,14 @@ func TestLPCVV0955LiveRSpecThroughDocker(t *testing.T) {
 	if !strings.HasPrefix(ix.Runner, "ruby 3.") || !strings.Contains(ix.Runner, " rspec ") {
 		t.Fatalf("runner %q", ix.Runner)
 	}
-	if len(run.Outcomes) != 5 || strings.Join(ix.Unordered, ",") != "spec/calc_spec.rb,spec/other_spec.rb" {
+	if len(run.Outcomes) != 5 || strings.Join(ix.Unordered, ",") != "spec/calc_spec.rb" {
 		t.Fatalf("outcomes %+v unordered %v", run.Outcomes, ix.Unordered)
 	}
 	checkCalc(t, ix, sorted("./spec/calc_spec.rb[1:1]", "./spec/other_spec.rb[1:1]"),
 		"./spec/calc_spec.rb[1:2]", "./spec/calc_spec.rb[1:3]")
 	static := []string{"spec/calc_spec.rb", "spec/other_spec.rb", "spec/new_spec.rb"}
 	plans, reason := Plan(ix, static, linecov.Effect{}, Analyze(ix, edit(ix, "lib/calc.rb", 11, false)))
-	if reason != "" || plans["spec/other_spec.rb"].Mode != linecov.Whole ||
+	if reason != "" || plans["spec/other_spec.rb"].Mode != linecov.Exclude ||
 		plans["spec/calc_spec.rb"].Mode != linecov.Whole || plans["spec/new_spec.rb"].Mode != linecov.Whole {
 		t.Fatalf("plans %+v reason %q", plans, reason)
 	}

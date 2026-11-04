@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,15 +30,18 @@ const (
 // Index is the immutable union of per-test records collected at one commit
 // (LPCV-V0-950, LPCV-V0-956, LPCV-V0-958).
 type Index struct {
-	Format         string
-	Module         string
-	Commit         string            // the commit every record was collected at
-	Runner         string            // Go version and coverage mode; a different runner decides nothing
-	TestTimeout    time.Duration     // recorded test deadline; zero is legacy/unknown
-	SuiteTimeout   time.Duration     // recorded in-order suite deadline
-	WindowFallback map[string]string // packages retaining the in-order union and why
-	Tests          []Test            // sorted by Package, Name
-	Files          []File            // every instrumented file, sorted by Path
+	Format                           string
+	Language                         string
+	Command                          []string
+	Executable, RunnerFamily, Config string
+	Module                           string
+	Commit                           string            // the commit every record was collected at
+	Runner                           string            // Go version and coverage mode; a different runner decides nothing
+	TestTimeout                      time.Duration     // recorded test deadline; zero is legacy/unknown
+	SuiteTimeout                     time.Duration     // recorded in-order suite deadline
+	WindowFallback                   map[string]string // packages retaining the in-order union and why
+	Tests                            []Test            // sorted by Package, Name
+	Files                            []File            // every instrumented file, sorted by Path
 	// Unordered lists, sorted, the packages whose in-order suite run did not
 	// pass, so which blocks only that order reaches is unknown: a change
 	// reaching any of their tests keeps the whole package (LPCV-V0-962).
@@ -466,7 +470,7 @@ func Merge(parts ...*Index) (*Index, error) {
 	blocks := map[string]map[key]map[string]bool{}
 	unordered := map[string]bool{}
 	for _, p := range parts {
-		if p.Module != first.Module || p.Commit != first.Commit || p.Runner != first.Runner {
+		if p.Module != first.Module || p.Commit != first.Commit || p.Runner != first.Runner || p.TestTimeout != first.TestTimeout || p.SuiteTimeout != first.SuiteTimeout || p.Language != first.Language || !slices.Equal(p.Command, first.Command) || p.Executable != first.Executable || p.RunnerFamily != first.RunnerFamily || p.Config != first.Config {
 			return nil, fmt.Errorf("linecov: merge of %s %s %q with %s %s %q", first.Module, first.Commit, first.Runner, p.Module, p.Commit, p.Runner)
 		}
 		for _, t := range p.Tests {
@@ -504,7 +508,15 @@ func Merge(parts ...*Index) (*Index, error) {
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	ix := &Index{Format: Format, Module: first.Module, Commit: first.Commit, Runner: first.Runner}
+	ix := &Index{Format: Format, Module: first.Module, Commit: first.Commit, Runner: first.Runner, TestTimeout: first.TestTimeout, SuiteTimeout: first.SuiteTimeout, Language: first.Language, Command: first.Command, Executable: first.Executable, RunnerFamily: first.RunnerFamily, Config: first.Config}
+	for _, part := range parts {
+		for pkg, reason := range part.WindowFallback {
+			if ix.WindowFallback == nil {
+				ix.WindowFallback = map[string]string{}
+			}
+			ix.WindowFallback[pkg] = reason
+		}
+	}
 	ids := map[string]int32{}
 	for i, n := range names {
 		ids[n] = int32(i)
