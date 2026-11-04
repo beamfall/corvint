@@ -14,7 +14,7 @@ requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 `2026-11-01-aff-w26`. Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
 `2026-11-03-selprec-selection-precision`. Lane selmark (2026-11-03; native tickets V1-2662,
-V1-1184, V1-1189, V1-2277) adds AFP-V0-2480 to AFP-V0-2487 here for the same reason; see
+V1-1184, V1-1189, V1-2277) adds AFP-V0-2480 to AFP-V0-2489 here for the same reason; see
 build-log entry `2026-11-03-selmark-owned-selection`. V1-1184 and V1-1189 name the e2e-safe
 profile's AFU-V1-019 to AFU-V1-023; their must-run and order rules apply to the unit plan every
 consumer reads, so they live here, and AFP-V0-2486 carries must-run into that profile.
@@ -284,7 +284,7 @@ measure. None of them drops a unit the change can reach.
   `DECLARED_RUNTIME_READERS` groups and before `CORVINT_DECLARATION`. The reader rules have
   already selected every unit that names such a path, and the declaration states that its owners
   are the tests that exercise it. An `UNINDEXED_SOURCE_PATH` (a path a plugin claims as source),
-  a `LANGUAGE_FRONTIER` entry and every other unknown are never removed.
+  a `LANGUAGE_FRONTIER` entry and every other unknown are never removed (AFP-V0-2488).
 - **AFP-V0-2483:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-2662, V1-1184) A declared TEST that holds no test file of any unit contradicts the observed
   graph. In a graph built from every plugin, such an owner test or must-run entry refuses the
@@ -325,14 +325,36 @@ measure. None of them drops a unit the change can reach.
   failure first, each group in `plan.selected` order. That order is already AFP-V0-007's: via
   length, then proximity, then unit id. `order.failures` names the evidence. Its `receipts` list
   holds each `corvint test` receipt read from `<git-dir>/corvint/test-run.json` and
-  `test-run.<n>.json`, at most 64, each read by the STR-V0-010 strict reader. Each entry has the
+  `test-run.<n>.json`, at most 64: the most recently modified, ties broken by name, listed in
+  name order, so a fresh `test-run.json` is never dropped for older shard names that sort before
+  it. Each is read by the STR-V0-010 strict reader. Each entry has the
   `path` relative to the Git directory, `state` `OBSERVED` or `UNREADABLE` (with `detail`), and
   for an observed receipt its `sha256`, `revision` and `failed` (units with a `FAIL`,
   `BUILD_FAILED` or `TIMED_OUT` outcome, sorted). `order.failures.state` is `OBSERVED` when any
-  receipt was read and `NOT_OBSERVED` otherwise. The order only reorders: `plan.selected`, the
+  receipt was read, `UNREADABLE` with a `detail` and no receipt when `<git-dir>/corvint` exists
+  but cannot be listed (a permission error, for example), and `NOT_OBSERVED` otherwise, an absent
+  directory included. The order only reorders: `plan.selected`, the
   tiers and every other member are byte-identical with and without the flag. Without the flag
   nothing is read. The flag is refused with `--full`, `--summary`, `--by-path`,
   `--format text` and `--playwright-config`, whose documents carry no compact plan member.
+- **AFP-V0-2488:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-2662) An owner declaration only adds. A dirty path in the `DECLARED_TEST_OWNER` group still
+  counts as a path no plugin owns for the frontier rules: it raises every non-participating
+  plugin's frontier entries as AFP-V0-511 raises them for an unowned path, and it turns the
+  AFP-V0-560 terminal rule off, so no plugin's frontier moves to `frontierExcluded` because of
+  the declaration. Every `LANGUAGE_FRONTIER` entry a plan holds without the declaration it also
+  holds with it, and so does its `UNKNOWN` scope when a frontier bears; the declaration removes
+  only the `UNOWNED_DIRTY_PATH` entry AFP-V0-2482 names.
+- **AFP-V0-2489:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-2662, V1-1184) The plan and its compact form name, in a `declaredOwners` member, every
+  unit an owner pattern selects for the plan's dirty paths, whatever witness reached it first:
+  `{unitId, paths, dirtyPath}` with the pattern and the first dirty path in plan order it
+  matches, once per unit and pattern, sorted by unit id and then pattern. The member is omitted
+  when no owner pattern matches a dirty path. Selection, scope and unknowns are unchanged. The
+  AFP-V0-162 tiers rank in tier 0 every unit the plan names in `mustRun` or `declaredOwners`,
+  whatever its first witness. Only that witness decides whether the unit raises a parent
+  neighbourhood: a declared unit reached by its own source raises one as before, and one reached
+  only as a declared or must-run unit raises none.
 
 ## Non-goals
 
@@ -396,11 +418,13 @@ that receipt `UNREADABLE` and contributes no failure; it never fails the plan.
 | AFP-V0-2480 | `DeclaredSelectionPath`, `readTestSelection`, `validTestSelectionReason` in `internal/liveverify/affected/testselection.go`; the `testSelection` member of `declarations`, `digestBody` and `Canonical` (`graph.go`) and of `cacheEntry` (`graphcache.go`); the declaration list of `declarationPath` (`documentation.go`) | `TestTestSelectionDeclarationGrammar_AFPV02480` in `internal/liveverify/affected/testselection_test.go` |
 | AFP-V0-2481 | `validOwnerPattern`, `ownerPatternMatches` in `internal/liveverify/affected/testselection.go` | `TestOwnerPatternGrammar_AFPV02481` |
 | AFP-V0-2482 | `ownersOf` (called at the end of `reach`), `ownedPaths` (called in `selectPlan`), `WitnessDeclaredTestOwner`, `ClassDeclaredTestOwner`; `terminalWitness` in `select.go` | `TestDeclaredOwnerSelectsItsTests_AFPV02482` (the `docs/contracts/**/*.json` example; negative controls: an unmatched path, an `UNINDEXED_SOURCE_PATH`) |
+| AFP-V0-2488 | `frontierNonSource` in `selectPlan` (`select.go`), which passes `frontierUnknowns` the `nonSource` groups without the `DECLARED_TEST_OWNER` group | `TestOwnerKeepsFrontierUnknowns_AFPV02488` in `internal/liveverify/affected/testselection_test.go` (two frontier-bearing plugins; negative control without an owner; fault injection: passing the owned group makes the plan `BOUNDED` with the ts frontier excluded) |
+| AFP-V0-2489 | `DeclaredOwner`, `declaredOwnersOf` in `testselection.go`, `Plan.DeclaredOwners`; `DeclaredOwners` in `affectedCompactPlan`; `tierAffectedPlan` and `tierDeclaredSelections` in `cmd/corvint/affected_tiers.go` | `TestDeclaredOwnerSelectsItsTests_AFPV02482` (member, with an unmatched control); `TestMustRunAndOwnerAreTierZero_AFPV02485` (compact member); `TestDeclaredUnitsAreTierZeroWhateverReachedThem_AFPV02489` in `cmd/corvint/affected_testselection_test.go` (undeclared control) |
 | AFP-V0-2483 | `resolveTestSelection` in `testselection.go`, called by `build` in `graph.go` | `TestContradictedTestSelectionRefuses_AFPV02483` (full build refuses; partial build skips) |
 | AFP-V0-2484 | `mustRunOf` and `Plan.MustRun`; the hook before the selection loop of `selectPlan` | `TestMustRunSurvivesEveryExclusion_AFPV02484` (no dependency path, documentation-only change, empty dirty set control) |
 | AFP-V0-2485 | the tier-0 case of `tierAffectedSelections` (`cmd/corvint/affected_tiers.go`); `MustRun` in `affectedCompactPlan`; the must-run branch of `testGoSlices` (`cmd/corvint/test_slices.go`) | `TestMustRunAndOwnerAreTierZero_AFPV02485` in `cmd/corvint/affected_testselection_test.go`; `TestMustRunUnitRunsWhole_AFPV02485` |
 | AFP-V0-2486 | the `declared-must-run` reason and the `mustRun` skip of `selected` in `internal/appflows/selection.go` | `TestE2ESafeKeepsMustRunTests_AFPV02486` in `internal/appflows/selection_mustrun_test.go` |
-| AFP-V0-2487 | `affectedFailFastOrder`, `readFailFastReceipts` in `cmd/corvint/affected_order.go`; the `--fail-fast-order` parse and its refusals in `cmd/corvint/affected.go`; `Order` in `affectedCompactReceipt` | `TestFailFastOrderPutsRecentFailuresFirst_AFPV02487` in `cmd/corvint/affected_order_test.go` |
+| AFP-V0-2487 | `affectedFailFastOrder`, `readFailFastReceipts` in `cmd/corvint/affected_order.go`; the `--fail-fast-order` parse and its refusals in `cmd/corvint/affected.go`; `Order` in `affectedCompactReceipt` | `TestFailFastOrderPutsRecentFailuresFirst_AFPV02487`, `TestFailFastOrderKeepsTheMostRecentReceipts_AFPV02487` (the 64 newest by time, ties by name) and `TestFailFastOrderUnlistableDirectoryIsUnreadable_AFPV02487` (absent-directory control) in `cmd/corvint/affected_order_test.go` |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 
 ## Rollback
@@ -414,9 +438,9 @@ the two `Unit` fields and the `WithImportSetChanges` call: every `go list` liter
 edge again. For AFP-V0-2203, restore the `namesPath` branch of `namesFileOnlyWithin`; for
 AFP-V0-2204, call `pathTokens` without temp roots; for AFP-V0-2205, drop `ExtensionlessScript`
 from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`. Run
-`make spec-requirements` after deleting this file. For AFP-V0-2480 to AFP-V0-2486, delete
+`make spec-requirements` after deleting this file. For AFP-V0-2480 to AFP-V0-2486, AFP-V0-2488 and AFP-V0-2489, delete
 `internal/liveverify/affected/testselection.go`, the `testSelection` declaration member, the two
-`selectPlan` hooks, `Plan.MustRun` and the e2e-safe reason; a repository's
+`selectPlan` hooks, `Plan.MustRun`, `Plan.DeclaredOwners`, `tierAffectedPlan` and the e2e-safe reason; a repository's
 `.corvint/test-selection.json` then refuses nothing and selects nothing, because no reader reads it,
 and its paths fall back to `UNOWNED_DIRTY_PATH`. For AFP-V0-2487, drop the flag and
 `cmd/corvint/affected_order.go`; plans without the flag are unchanged either way.

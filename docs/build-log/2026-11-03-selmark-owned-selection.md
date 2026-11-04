@@ -2,7 +2,7 @@
 # Owned selection: path-glob owners, must-run tests, fail-fast order
 
 Date: 2026-11-03. Lane selmark. Tickets: V1-2662, V1-1184, V1-1189, V1-2277. Requirements:
-AFP-V0-2480 to AFP-V0-2487 in `docs/specs/affected-plan-selection-v0.md`; AFP-V0-2486 adds one
+AFP-V0-2480 to AFP-V0-2489 in `docs/specs/affected-plan-selection-v0.md`; AFP-V0-2486 adds one
 value to the AFU-V1-019 `reasons` list of `docs/specs/application-flow-understanding-v1.md`.
 
 ## Decisions
@@ -33,6 +33,25 @@ value to the AFU-V1-019 `reasons` list of `docs/specs/application-flow-understan
   `--fail-fast-order`, so default plans stay a function of the repository alone.
 - **V1-2277 was already delivered.** The compact plan carries `tiers` (AFP-V0-162) from
   `tierAffectedSelections`, pinned by `TestAFPV0162AffectedTiersRankTheFullSelection`.
+
+## Independent review findings (round 2)
+
+- **An owner declaration narrowed the frontier (HIGH; AFP-V0-2488).** The `DECLARED_TEST_OWNER`
+  group reached `frontierUnknowns` as a classified non-source group, so the owned path no longer
+  counted as unowned. Other plugins stopped raising their AFP-V0-511 entries, and the AFP-V0-560
+  terminal rule moved the owner plugin's frontier to `frontierExcluded`. A plan with two
+  frontier-bearing plugins went from `UNKNOWN` to `BOUNDED`, selecting only the owner's tests.
+  This was a narrowing against AFP-V0-2480's "only adds". The frontier rules now see the owned
+  path as unowned. The declaration lifts only its `UNOWNED_DIRTY_PATH` entry.
+- **Declared units reached by another witness ranked by that witness (LOW; AFP-V0-2489).** The
+  plan did not record owner selections of already-reached units, so the compact tiering could not
+  see them. `declaredOwners` names them beside `mustRun`, and the tiering ranks both lists in
+  tier 0.
+- **Fail-fast receipts (LOW; AFP-V0-2487).**
+  - The 64-receipt bound kept the first names in sort order, which drops `test-run.json` behind
+    its shards. It now keeps the most recently modified.
+  - A receipt directory that cannot be listed read as `NOT_OBSERVED`. It is now `UNREADABLE`
+    with a detail.
 
 ## Evidence
 
