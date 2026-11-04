@@ -16,7 +16,6 @@ package shell
 
 import (
 	"context"
-	"maps"
 	"path"
 	"regexp"
 	"slices"
@@ -1060,7 +1059,6 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 	if strings.Contains(text, "mktemp()") || strings.Contains(text, "mktemp ()") || strings.Contains(text, "function mktemp") || strings.Contains(text, "alias mktemp") || populates.MatchString(text) {
 		return nil
 	}
-	r, text = withoutCanonicalPaths(r, parsed, text)
 	firstPath := firstAssignment(text, "PATH")
 	roots := map[string]bool{}
 	for changed := true; changed; {
@@ -1077,190 +1075,6 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 		}
 	}
 	return roots
-}
-
-// canonicalPath matches a temp root's canonicalization, `NAME=$(cd "$NAME"
-// && pwd)` or with `pwd -P`: the same directory under its canonical spelling.
-var canonicalPath = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=\$\(cd "\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?" && pwd( -P)?\)$`)
-
-// withoutCanonicalPaths treats a name's canonicalization as no new
-// assignment (AFP-V0-2246): it returns the resolver with the name's value and
-// plain command taken from its one other assignment, and the text with the
-// canonicalization blanked, so tempRoots decides that assignment. The
-// canonicalization must be a plain top-level command of its own, after that
-// assignment, which must be followed by `|| exit`: a mktemp that fails would
-// leave the name empty, and `cd ""` succeeds in dash, so pwd would print the
-// working directory. Any other shape leaves the name assigned twice, and so
-// does every canonicalization in a file that canonicalOverride does not admit.
-func withoutCanonicalPaths(r *resolver, parsed script, text string) (*resolver, string) {
-	if canonicalOverride(r, parsed, text) {
-		return r, text
-	}
-	view := r
-	for at, cmd := range parsed.commands {
-		words := plainWords(cmd.words)
-		if len(words) != 1 || cmd.substituted || cmd.inFunction || cmd.block != 0 || !separator(cmd.lead) || !separator(cmd.trail) {
-			continue
-		}
-		match := canonicalPath.FindStringSubmatch(words[0])
-		if match == nil || match[1] != match[2] || strings.Count(text, words[0]) != 1 {
-			continue
-		}
-		name := match[1]
-		first, value := -1, ""
-		for before := 0; before < at; before++ {
-			earlier := plainWords(parsed.commands[before].words)
-			if parsed.commands[before].substituted || len(earlier) == 0 {
-				continue
-			}
-			assigned := assignment.FindStringSubmatch(earlier[0])
-			if assigned == nil || assigned[1] != name {
-				continue
-			}
-			if first >= 0 || len(earlier) != 1 || assigned[2] != "" || assigned[3] != "" {
-				first = -2
-				break
-			}
-			first, value = before, unquote(earlier[0][len(assigned[0]):])
-		}
-		if first < 0 || parsed.commands[first].trail != "||" || !exitsNext(parsed.commands, first) {
-			continue
-		}
-		offset := strings.Index(text, words[0])
-		if offset < firstAssignment(text, name) {
-			continue
-		}
-		if view == r {
-			copied := *r
-			copied.values, copied.plainAt = maps.Clone(r.values), maps.Clone(r.plainAt)
-			view = &copied
-		}
-		view.values[name], view.plainAt[name] = value, first
-		text = text[:offset] + strings.Repeat(" ", len(words[0])) + text[offset+len(words[0]):]
-	}
-	return view, text
-}
-
-// separator reports a command boundary that is no operator: the file's
-// start or end, a newline or a semicolon.
-func separator(boundary string) bool {
-	return boundary == "" || boundary == "\n" || boundary == ";"
-}
-
-// canonicalOverride reports a file in which a canonicalization proves nothing (AFP-V0-2246).
-// The check is an allowlist, since the ways to make `cd`, `pwd` or `exit` run something other
-// than the builtin are open-ended. The canonicalization is accepted only in a file whose first
-// line is a bash, sh or dash shebang (zsh and ksh have hooks and builtin switches of their own)
-// that holds no text `BASH_ALIASES`, defines no function whose name is not a plain identifier or
-// names a builtin it relies on or a shell hook (canonicalFunction), and in which every command,
-// substituted or in a function included, starts with a command word that is a plain literal, or
-// the one expansion of a name assigned once in the file whose value holds a literal `/` (a name
-// with a slash runs a file, never a builtin or function), and is none of `.`, `source`, `eval`,
-// `enable`, `disable`, `alias`, `builtin`, `command`, `mapfile`, `readarray`, `shopt`,
-// `typeset`, `declare`, `functions` or `autoload`, a `trap` on anything but EXIT, INT, TERM, HUP
-// or QUIT, or a `set` that turns on function tracing. A sourced file is refused because this text
-// pass does not read it.
-func canonicalOverride(r *resolver, parsed script, text string) bool {
-	first, _, _ := strings.Cut(text, "\n")
-	if !canonicalShebang.MatchString(first) || strings.Contains(text, "BASH_ALIASES") {
-		return true
-	}
-	for _, match := range functionDefinition.FindAllStringSubmatch(text, -1) {
-		name := match[3] + match[4]
-		if !plainName.MatchString(name) || canonicalFunctions[name] {
-			return true
-		}
-	}
-	for _, cmd := range parsed.commands {
-		words := plainWords(cmd.words)
-		at := 0
-		for at < len(words) && assignment.MatchString(words[at]) {
-			at++
-		}
-		if at == len(words) {
-			continue
-		}
-		word := words[at]
-		if strings.ContainsAny(word, "'\"\\$`") {
-			if !pathCommand(r, text, word) {
-				return true
-			}
-			continue
-		}
-		switch word {
-		case ".", "source", "eval", "enable", "disable", "alias", "builtin", "command", "mapfile", "readarray", "shopt", "typeset", "declare", "functions", "autoload":
-			return true
-		case "trap":
-			// `trap ACTION CONDITION...`: every condition must be harmless; one argument
-			// resets a condition, and -l or -p only lists.
-			args := words[at+1:]
-			if len(args) > 0 && (args[0] == "-l" || args[0] == "-p") {
-				continue
-			}
-			if len(args) > 1 {
-				for _, condition := range args[1:] {
-					if !harmlessTraps[strings.TrimPrefix(unquote(condition), "SIG")] {
-						return true
-					}
-				}
-			}
-		case "set":
-			for _, option := range words[at+1:] {
-				if option == "functrace" || option == "errtrace" || strings.HasPrefix(option, "-") && strings.ContainsAny(option, "TE") {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// canonicalShebang matches a first line that runs bash, sh or dash.
-var canonicalShebang = regexp.MustCompile(`^#!\s*(/usr)?/bin/(env\s+)?(bash|sh|dash)(\s|$)`)
-
-// functionDefinition matches a function definition, `NAME() ...` or `function NAME`, with
-// whatever spelling of the name the text holds.
-var functionDefinition = regexp.MustCompile(`(?m)(^|[\s;&|(){}])(function[ \t]+([^\s;&|(){}<>]+)|([^\s;&|(){}<>=]+)[ \t]*\([ \t]*\))`)
-
-// plainName matches a function name made only of identifier bytes.
-var plainName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
-
-// canonicalFunctions are the names a canonicalization relies on, and the shell hooks.
-var canonicalFunctions = map[string]bool{"cd": true, "pwd": true, "exit": true, "builtin": true, "command": true, "trap": true, "eval": true, "source": true, "enable": true, "alias": true, "set": true, "shopt": true, "chpwd": true, "precmd": true, "preexec": true, "command_not_found_handle": true}
-
-// harmlessTraps are the conditions whose trap cannot run between a canonicalization and the
-// reads after it in a script that is not signalled: an EXIT trap runs once the script ends.
-var harmlessTraps = map[string]bool{"EXIT": true, "0": true, "INT": true, "TERM": true, "HUP": true, "QUIT": true, "-": true}
-
-// pathCommand reports a non-literal command word that runs a file: the expansion of a name
-// assigned once in the file, alone or quoted, whose value holds a literal `/` outside its
-// expansions, or a word that holds one itself.
-func pathCommand(r *resolver, text, word string) bool {
-	if strings.Contains(expansion.ReplaceAllString(unquote(word), ""), "/") {
-		return true
-	}
-	match := tempExpansion.FindStringSubmatch(unquote(word))
-	if match == nil || match[0] != unquote(word) || match[3] != "" {
-		return false
-	}
-	name := match[1] + match[2]
-	value, ok := r.values[name]
-	return ok && assignedOnce(text, name) && strings.Contains(expansion.ReplaceAllString(value, ""), "/")
-}
-
-// exitsNext reports whether the first command after commands[at] that is no
-// command substitution is `exit`, optionally with a status, ending its list.
-func exitsNext(commands []command, at int) bool {
-	for next := at + 1; next < len(commands); next++ {
-		if commands[next].substituted {
-			continue
-		}
-		words := plainWords(commands[next].words)
-		// The exit must end the list: in a pipeline (`|| exit 1 | cat`) it runs in a
-		// subshell and the file goes on.
-		return commands[next].lead == "||" && separator(commands[next].trail) && len(words) >= 1 && len(words) <= 2 && words[0] == "exit"
-	}
-	return false
 }
 
 // populates matches a command that can copy repository files into a

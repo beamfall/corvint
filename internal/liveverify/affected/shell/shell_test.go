@@ -812,13 +812,10 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		{"or list in background", "tmp=$(mktemp -d) || echo no && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"or reassign", "tmp=$(mktemp -d) || tmp=.\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"or read", "tmp=$(mktemp -d) || read -r tmp\ncat \"$tmp/internal/x/y.json\"\n", true},
-		// AFP-V0-2246: `tmp=$(cd "$tmp" && pwd)` after a mktemp that exits on
-		// failure is no new assignment; without the exit an empty name would
-		// canonicalize to the working directory (dash's `cd ""`), and another
-		// name's or an earlier canonicalization is an assignment as before, and so
-		// is any in a file that can override cd, pwd or exit or sources another.
-		{"canonical", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/repo/internal/x/y.json\"\n", false},
-		{"canonical physical", "tmp=$(mktemp -d) || exit\ntmp=$(cd \"${tmp}\" && pwd -P)\ncat \"$tmp/internal/x/y.json\"\n", false},
+		// AFP-V0-2246 is withdrawn: canonicalization remains an assignment,
+		// so even a plain canonicalized root keeps every path token.
+		{"canonical", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/repo/internal/x/y.json\"\n", true},
+		{"canonical physical", "tmp=$(mktemp -d) || exit\ntmp=$(cd \"${tmp}\" && pwd -P)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical without exit", "tmp=$(mktemp -d)\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical other name", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$base\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical exit piped", "tmp=$(mktemp -d) || exit 1 | cat\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
@@ -844,8 +841,8 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		{"canonical aliases array", "BASH_ALIASES[pwd]='echo .'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical shopt", "shopt -s expand_aliases\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical declare", "declare -f pwd\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
-		{"canonical exit trap", "tmp=$(mktemp -d) || exit 1\ntrap 'rm -rf \"$tmp\"' EXIT\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", false},
-		{"canonical path command", "script=$(cd \"$(dirname \"$0\")\" && pwd)/x.sh\n\"$script\" a\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", false},
+		{"canonical exit trap", "tmp=$(mktemp -d) || exit 1\ntrap 'rm -rf \"$tmp\"' EXIT\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical path command", "script=$(cd \"$(dirname \"$0\")\" && pwd)/x.sh\n\"$script\" a\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"canonical first", "tmp=$(cd \"$tmp\" && pwd)\ntmp=$(mktemp -d) || exit 1\ncat \"$tmp/internal/x/y.json\"\n", true},
 	}
 	for _, tc := range cases {
@@ -864,18 +861,101 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 	}
 }
 
-// AFP-V0-2246: a canonicalization is admitted only in a bash, sh or dash script; zsh and ksh have
-// directory hooks and builtin switches (`chpwd`, `disable cd`, `builtin -d cd`) of their own.
-func TestCanonicalizationNeedsAPlainShell_AFPV02246(t *testing.T) {
-	const canon = "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\n"
-	for first, admitted := range map[string]bool{
-		"#!/usr/bin/env bash": true, "#!/bin/sh": true, "#!/bin/dash": true, "#!/bin/bash -e": true,
-		"#!/usr/bin/env zsh": false, "#!/bin/ksh": false, "#!/usr/bin/env ksh93": false, "# no shebang": false,
-	} {
-		text := first + "\n" + canon
-		parsed := parse(text)
-		if got := !canonicalOverride(newResolver("t.sh", parsed.commands), parsed, text); got != admitted {
-			t.Errorf("%q: canonicalization admitted = %v, want %v", first, got, admitted)
-		}
+// AFP-V0-2246 is withdrawn. Each round-5 review bypass keeps the path token,
+// including every compound prefix and expansion shape; no shell allowlist is
+// sufficient authority to discard a path computed through cd or pwd.
+func TestCanonicalizationCounterexamplesStaySelected_AFPV02246(t *testing.T) {
+	const suffix = `tmp=$(mktemp -d) || exit 1
+tmp=$(cd "$tmp" && pwd)
+cat "$tmp/internal/x/y.json"
+`
+	const define = `eval "${n}d() { echo .; }"`
+	cases := []struct {
+		name, shell, body string
+	}{
+		// Class 1: the refused command is hidden behind a compound keyword.
+		{"if eval", "bash", `n=pw
+if ` + define + `; then :; fi
+` + suffix},
+		{"if source", "bash", `if [ -f ./h.sh ]; then . ./h.sh; fi
+` + suffix},
+		{"negated enable", "bash", `! enable -n cd
+` + suffix},
+		{"while eval", "bash", `n=pw
+while ` + define + `; do break; done
+` + suffix},
+		{"for eval", "bash", `n=pw
+for once in yes; do ` + define + `; done
+` + suffix},
+		{"time eval", "bash", `n=pw
+time ` + define + `
+` + suffix},
+		{"if tracing and debug trap", "bash", `if set -T; then :; fi
+if trap '[ "$BASH_COMMAND" = pwd ] && cd "$OLDPWD"' DEBUG; then :; fi
+` + suffix},
+		{"if alias dash", "dash", `if alias pwd="echo ."; then :; fi
+` + suffix},
+		// Class 2: a slash written in the command word vanishes on expansion.
+		{"backtick command", "bash", "n=pw\n`echo /eval | cut -c2-` \"${n}d() { echo .; }\"\n" + suffix},
+		{"nested parameter command", "bash", `n=pw
+x=eval/
+y=
+${x%${y}/} "${n}d() { echo .; }"
+` + suffix},
+		// Class 3: a supposedly harmless signal is sent by the script itself.
+		{"self signalled trap", "bash", `n=pw
+trap 'eval "${n}d() { echo .; }"' INT
+kill -INT $$
+` + suffix},
+		// Class 4: backslash-newline splits a function name or its keyword.
+		{"continued function name", "bash", "pwd\\\n() { echo .; }\n" + suffix},
+		{"continued function keyword", "bash", "function\\\n pwd { echo .; }\n" + suffix},
+		// Class 5: set -T has a standalone regression, without a DEBUG trap.
+		{"set tracing alone", "bash", "set -T\n" + suffix},
+		// No override is needed to keep any canonicalization-derived token.
+		{"plain bash", "bash", suffix},
+		{"plain sh", "sh", suffix},
+		{"plain dash", "dash", suffix},
+		{"plain zsh", "zsh", suffix},
+		{"plain ksh", "ksh", suffix},
+		{"no shebang", "", suffix},
+		{"assigned pwd", "bash", `tmp=$(pwd)
+cat "$tmp/internal/x/y.json"
+`},
+		{"derived variable", "bash", `tmp=$(mktemp -d) || exit 1
+repo=$(cd "$tmp" && pwd)
+cat "$repo/internal/x/y.json"
+`},
+		{"derived alias", "bash", `tmp=$(mktemp -d) || exit 1
+tmp=$(cd "$tmp" && pwd)
+repo="$tmp/repo"
+cat "$repo/internal/x/y.json"
+`},
+		{"direct cd substitution", "bash", `tmp=$(mktemp -d) || exit 1
+cat "$(cd "$tmp" && pwd)/internal/x/y.json"
+`},
+		{"direct pwd substitution", "bash", `cat "$(pwd)/internal/x/y.json"
+`},
+		{"assigned substitution", "bash", `tmp=$(mktemp -d) || exit 1
+repo=$(printf '%s' "$tmp")
+cat "$repo/internal/x/y.json"
+`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			text := tc.body
+			if tc.shell != "" {
+				text = "#!/usr/bin/env " + tc.shell + "\n" + text
+			}
+			write(t, root, "probe_test.sh", text)
+			unit := unitOf(t, units(t, root), "probe_test.sh")
+			for _, token := range unit.PathTokens {
+				if strings.HasSuffix(token, "internal/x/y.json") {
+					return
+				}
+			}
+			t.Fatalf("internal/x/y.json token was dropped: tokens %v; script:\n%s", unit.PathTokens, text)
+		})
 	}
 }

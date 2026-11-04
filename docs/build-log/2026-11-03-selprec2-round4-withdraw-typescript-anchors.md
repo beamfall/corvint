@@ -4,6 +4,10 @@
 Date: 2026-11-03. Lane selprec2, round 4 (on `89cbd5108`). Tickets: V1-4173. Orchestrator-made,
 owner-delegated decision: soundness over precision.
 
+Superseded in part: round 5 withdrew AFP-V0-2246 and removed its allowlist after further
+independent counterexamples. The canonicalization claims below are historical; see
+`2026-11-03-selprec2-round5-withdraw-shell-canonicalization`. AFP-V0-2245 remains withdrawn.
+
 ## Decisions
 
 - **AFP-V0-2245 is withdrawn (the ID is kept and not reused).** An independent re-review of the
