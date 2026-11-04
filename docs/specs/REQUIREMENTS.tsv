@@ -115,6 +115,9 @@ AFP-V0-2487	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2488	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2489	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2440	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4446)	standing	2026-10-11; V1-4446
+AFP-V0-2540	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4532)	standing	2026-10-11; V1-4532
+AFP-V0-2541	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4532)	standing	2026-10-11; V1-4532
+AFP-V0-2542	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4512)	standing	2026-10-11; V1-4512
 AFP-V0-2400	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2401	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2402	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
@@ -4953,6 +4956,7 @@ GOC-V0-009	docs/specs/go-only-cutover-v0.md	The cutover's final coordinator MAY 
 GOC-V0-010	docs/specs/go-only-cutover-v0.md	A complete `make gate` MUST first remove the private receipt	unrecorded	-
 GOC-V0-011	docs/specs/go-only-cutover-v0.md	`script/spec-toolchain-conformance.sh` (`STA-V0-011`) MAY run Python and `pip` t	unrecorded	-
 GOC-V0-081	docs/specs/go-only-cutover-v0.md	`make doc-gates` MUST run `no-python-runtime-dependency-test`, so a pull request	unrecorded	-
+GOC-V0-062	docs/specs/go-only-cutover-v0.md	The `GOC-V0-008` scan MUST treat Python named as a language in JSON data as data	unrecorded	-
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	The migration MUST preserve the complete CLI surface present at the pinned	unrecorded	-
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	For every supported parity case, Go and the Python oracle MUST produce the exact	unrecorded	-
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage	unrecorded	-
@@ -5317,6 +5321,11 @@ ASD-V0-772	docs/specs/lane-shell-portability-v0.md	(experimental under the stand
 ASD-V0-773	docs/specs/lane-shell-portability-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3653) `integra	standing	2026-11-01; V1-3653
 ASD-V0-704	docs/specs/lane-shell-portability-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4125; extends	standing	2026-11-01; V1-4125
 ASD-V0-706	docs/specs/lane-shell-portability-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3292) `script/	standing	2026-11-01; V1-3292
+ASD-V0-2472	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-04); V1-4525) `script/	standing	2026-11-04; V1-4525
+ASD-V0-2473	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-04); V1-4525) `script/	standing	2026-11-04; V1-4525
+ASD-V0-2474	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-04); V1-4524) `script/	standing	2026-11-04; V1-4524
+ASD-V0-2475	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-04); V1-4513) When `GO	standing	2026-11-04; V1-4513
+ASD-V0-2476	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-04); V1-4511) A `filep	standing	2026-11-04; V1-4511
 LGP-V0-001	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each	standing	2026-11-03; V1-4404
 LGP-V0-002	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) The piec	standing	2026-11-03; V1-4404
 LGP-V0-003	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Owned	standing	2026-11-03; V1-4404
@@ -8338,6 +8347,7 @@ WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the stand
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
 WQO-V0-910	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3299) The	standing	2026-10-31; V1-3299
 WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
+WQO-V0-971	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-11-04; V1-4511)	standing	2026-11-04; V1-4511
 WQO-V0-684	docs/specs/work-queue-observation-v0.md	(standing lane auto-accept, 2026-11-01; V1-2586) An `ADAPTER_FAILED` command	standing	2026-11-01; V1-2586
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-

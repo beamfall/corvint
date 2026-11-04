@@ -4432,7 +4432,7 @@
     "reqPrefix": "ASD-V0",
     "intent": "accepted",
     "delivery": "experimental",
-    "claim": "Lane shell scripts stay portable to Bash 3.2, BWK awk and Make 3.81, keep offload scratch and caches on disk, and sweep only their own stale temp dirs.",
+    "claim": "Lane shell scripts stay portable, keep scratch on disk, sweep only their own temp dirs and report every test failure; Go walks skip only directories.",
     "dependsOn": [
       "docs/specs/corvint-self-development-v0.md"
     ],

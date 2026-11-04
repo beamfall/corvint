@@ -522,7 +522,10 @@ func hostCandidateMounts(r HostRequest, d stepverify.Declaration) ([]HostMount, 
 		if walkErr != nil {
 			return ErrHostInput
 		}
-		if path == filepath.Join(root, ".git") {
+		// Only a .git directory is passed over. A .git file is refused before
+		// the walk; if one appears, it falls through to the refusal below
+		// instead of skipping the rest of the root (ASD-V0-2476, V1-4511).
+		if path == filepath.Join(root, ".git") && entry.IsDir() {
 			return filepath.SkipDir
 		}
 
