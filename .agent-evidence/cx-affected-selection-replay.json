@@ -12,13 +12,818 @@
     "tools/gate-ledger/shared_digest.go",
     "tools/gate-ledger/shared_digest_test.go"
   ],
-  "method": "Select over the current source graph, toggling only the two runtime-reader declarations to their base bytes. Path replay, not original-target execution. Full union stays conservative because other paths independently reach the removed documentation-only floor.",
-  "results": [
-    "result base-declarations rescue-delta selected=109 scope=UNKNOWN witnesses=map[BINARY_EXEC:25 DECLARED_READ_SCOPE:20 DEPENDENCY_PATH:8 DIRECT_SOURCE_CHANGE:2 DIRECT_TEST_CHANGE:1 IMPORT_GRAPH_READER:11 PATH_LITERAL_READER:31 UNBOUNDED_READER:11] unknown=5",
-    "result base-declarations build-log selected=35 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:1 DEPENDENCY_PATH:2 PATH_LITERAL_READER:8 UNBOUNDED_READER:24] unknown=1",
-    "result base-declarations test-only selected=47 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:3 DEPENDENCY_PATH:4 DIRECT_SOURCE_CHANGE:1 IMPORT_GRAPH_READER:14 PATH_LITERAL_READER:4 UNBOUNDED_READER:21] unknown=3",
-    "result new-declarations rescue-delta selected=109 scope=UNKNOWN witnesses=map[BINARY_EXEC:25 DECLARED_READ_SCOPE:20 DEPENDENCY_PATH:8 DIRECT_SOURCE_CHANGE:2 DIRECT_TEST_CHANGE:1 IMPORT_GRAPH_READER:11 PATH_LITERAL_READER:31 UNBOUNDED_READER:11] unknown=5",
-    "result new-declarations build-log selected=11 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:1 DEPENDENCY_PATH:2 PATH_LITERAL_READER:8] unknown=1",
-    "result new-declarations test-only selected=47 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:3 DEPENDENCY_PATH:4 DIRECT_SOURCE_CHANGE:1 IMPORT_GRAPH_READER:14 PATH_LITERAL_READER:4 UNBOUNDED_READER:21] unknown=3"
-  ]
+  "fixRound1": {
+    "method": "CLI affected --full over an index of the rescue-b tree itself, so every changed _test.go (including tools/gate-ledger/shared_digest_test.go) is indexed. Arm before: rescueTarget against rescueBase. Arm after: rescueBase plus only the lane two declaration files (replayBase), with the rescue commit cherry-picked on top (replayTarget). Both arms use one binary built from the fix-round head. Each changed path is also selected alone with --path.",
+    "laneHead": "461e91bd32c124a7c77b3762db2e31e00992335f",
+    "binarySha256": "7fd74f5803f650d4aa81eee41c4d42b6e54de86b47f41173113c10fadec09ec0",
+    "identity": [
+      "rescueBase=852b045e61484efc53a99fa1f320984b9bb3cd2c rescueTarget=a435407595eb0cae03be4a9e7f49dd394f2659b5",
+      "replayBase=0f0cb62fe0531c4f5af0c4d7759f2fc0459f1193 replayTarget=40d1309dc12fa200cc6a359581b9fe147e7d986f laneHead=461e91bd32c124a7c77b3762db2e31e00992335f",
+      "binary sha256=7fd74f5803f650d4aa81eee41c4d42b6e54de86b47f41173113c10fadec09ec0  /tmp/cx-affected-evidence/corvint-fix1",
+      "--- base delta (lane declarations only)",
+      ".corvint/runtime-readers.json",
+      ".corvint/unbounded-reader-exclusions.json",
+      "--- replay delta == rescue delta paths",
+      "same-paths",
+      "--- target trees differ only by the declarations",
+      ".corvint/runtime-readers.json",
+      ".corvint/unbounded-reader-exclusions.json"
+    ],
+    "arms": [
+      {
+        "arm": "before delta",
+        "scope": "UNKNOWN",
+        "selected": 106,
+        "unknown": 2,
+        "witnesses": {
+          "BINARY_EXEC": 25,
+          "DECLARED_READ_SCOPE": 20,
+          "DEPENDENCY_PATH": 7,
+          "DIRECT_SOURCE_CHANGE": 1,
+          "DIRECT_TEST_CHANGE": 2,
+          "IMPORT_GRAPH_READER": 9,
+          "PATH_GLOB_READER": 1,
+          "PATH_LITERAL_READER": 30,
+          "UNBOUNDED_READER": 11
+        }
+      },
+      {
+        "arm": "before path docs/build-log/2026-11-04-gl-v0-786-staged-shared-passes.md",
+        "scope": "UNKNOWN",
+        "selected": 35,
+        "unknown": 1,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 1,
+          "DEPENDENCY_PATH": 2,
+          "PATH_LITERAL_READER": 8,
+          "UNBOUNDED_READER": 24
+        }
+      },
+      {
+        "arm": "before path docs/specs/gate-ledger-v0.md",
+        "scope": "UNKNOWN",
+        "selected": 46,
+        "unknown": 1,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 2,
+          "DEPENDENCY_PATH": 7,
+          "PATH_LITERAL_READER": 17,
+          "UNBOUNDED_READER": 20
+        }
+      },
+      {
+        "arm": "before path internal/dogfoodflow/change_impact_test.go",
+        "scope": "UNKNOWN",
+        "selected": 61,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 24,
+          "DIRECT_TEST_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 12,
+          "PATH_LITERAL_READER": 3,
+          "UNBOUNDED_READER": 21
+        }
+      },
+      {
+        "arm": "before path script/batch-precheck.sh",
+        "scope": "UNKNOWN",
+        "selected": 69,
+        "unknown": 1,
+        "witnesses": {
+          "BINARY_EXEC": 25,
+          "DECLARED_READ_SCOPE": 11,
+          "DEPENDENCY_PATH": 5,
+          "PATH_GLOB_READER": 1,
+          "PATH_LITERAL_READER": 11,
+          "UNBOUNDED_READER": 16
+        }
+      },
+      {
+        "arm": "before path script/batch-precheck_test.sh",
+        "scope": "UNKNOWN",
+        "selected": 49,
+        "unknown": 1,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 11,
+          "DIRECT_TEST_CHANGE": 1,
+          "PATH_GLOB_READER": 2,
+          "PATH_LITERAL_READER": 10,
+          "UNBOUNDED_READER": 25
+        }
+      },
+      {
+        "arm": "before path tools/gate-ledger/main.go",
+        "scope": "UNKNOWN",
+        "selected": 47,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 3,
+          "DIRECT_SOURCE_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 6,
+          "PATH_LITERAL_READER": 13,
+          "UNBOUNDED_READER": 24
+        }
+      },
+      {
+        "arm": "before path tools/gate-ledger/shared_digest.go",
+        "scope": "UNKNOWN",
+        "selected": 38,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 3,
+          "DIRECT_SOURCE_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 6,
+          "PATH_LITERAL_READER": 4,
+          "UNBOUNDED_READER": 24
+        }
+      },
+      {
+        "arm": "before path tools/gate-ledger/shared_digest_test.go",
+        "scope": "UNKNOWN",
+        "selected": 37,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 5,
+          "DIRECT_TEST_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 6,
+          "PATH_LITERAL_READER": 1,
+          "UNBOUNDED_READER": 24
+        }
+      },
+      {
+        "arm": "after delta",
+        "scope": "UNKNOWN",
+        "selected": 106,
+        "unknown": 2,
+        "witnesses": {
+          "BINARY_EXEC": 25,
+          "DECLARED_READ_SCOPE": 20,
+          "DEPENDENCY_PATH": 7,
+          "DIRECT_SOURCE_CHANGE": 1,
+          "DIRECT_TEST_CHANGE": 2,
+          "IMPORT_GRAPH_READER": 9,
+          "PATH_GLOB_READER": 1,
+          "PATH_LITERAL_READER": 30,
+          "UNBOUNDED_READER": 11
+        }
+      },
+      {
+        "arm": "after path docs/build-log/2026-11-04-gl-v0-786-staged-shared-passes.md",
+        "scope": "UNKNOWN",
+        "selected": 11,
+        "unknown": 1,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 1,
+          "DEPENDENCY_PATH": 2,
+          "PATH_LITERAL_READER": 8
+        }
+      },
+      {
+        "arm": "after path docs/specs/gate-ledger-v0.md",
+        "scope": "UNKNOWN",
+        "selected": 46,
+        "unknown": 1,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 2,
+          "DEPENDENCY_PATH": 7,
+          "PATH_LITERAL_READER": 17,
+          "UNBOUNDED_READER": 20
+        }
+      },
+      {
+        "arm": "after path internal/dogfoodflow/change_impact_test.go",
+        "scope": "UNKNOWN",
+        "selected": 61,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 24,
+          "DIRECT_TEST_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 12,
+          "PATH_LITERAL_READER": 3,
+          "UNBOUNDED_READER": 21
+        }
+      },
+      {
+        "arm": "after path script/batch-precheck.sh",
+        "scope": "UNKNOWN",
+        "selected": 69,
+        "unknown": 1,
+        "witnesses": {
+          "BINARY_EXEC": 25,
+          "DECLARED_READ_SCOPE": 11,
+          "DEPENDENCY_PATH": 5,
+          "PATH_GLOB_READER": 1,
+          "PATH_LITERAL_READER": 11,
+          "UNBOUNDED_READER": 16
+        }
+      },
+      {
+        "arm": "after path script/batch-precheck_test.sh",
+        "scope": "UNKNOWN",
+        "selected": 49,
+        "unknown": 1,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 11,
+          "DIRECT_TEST_CHANGE": 1,
+          "PATH_GLOB_READER": 2,
+          "PATH_LITERAL_READER": 10,
+          "UNBOUNDED_READER": 25
+        }
+      },
+      {
+        "arm": "after path tools/gate-ledger/main.go",
+        "scope": "UNKNOWN",
+        "selected": 47,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 3,
+          "DIRECT_SOURCE_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 6,
+          "PATH_LITERAL_READER": 13,
+          "UNBOUNDED_READER": 24
+        }
+      },
+      {
+        "arm": "after path tools/gate-ledger/shared_digest.go",
+        "scope": "UNKNOWN",
+        "selected": 38,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 3,
+          "DIRECT_SOURCE_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 6,
+          "PATH_LITERAL_READER": 4,
+          "UNBOUNDED_READER": 24
+        }
+      },
+      {
+        "arm": "after path tools/gate-ledger/shared_digest_test.go",
+        "scope": "UNKNOWN",
+        "selected": 37,
+        "unknown": 2,
+        "witnesses": {
+          "DECLARED_READ_SCOPE": 5,
+          "DIRECT_TEST_CHANGE": 1,
+          "IMPORT_GRAPH_READER": 6,
+          "PATH_LITERAL_READER": 1,
+          "UNBOUNDED_READER": 24
+        }
+      }
+    ],
+    "deltaAttribution": [
+      {
+        "arm": "before delta",
+        "byDirtyPath": {
+          "docs/build-log/2026-11-04-gl-v0-786-staged-shared-passes.md": {
+            "DEPENDENCY_PATH": 1,
+            "PATH_LITERAL_READER": 5,
+            "UNBOUNDED_READER": 11
+          },
+          "docs/specs/gate-ledger-v0.md": {
+            "DECLARED_READ_SCOPE": 1,
+            "DEPENDENCY_PATH": 3,
+            "PATH_LITERAL_READER": 7
+          },
+          "internal/dogfoodflow/change_impact_test.go": {
+            "DECLARED_READ_SCOPE": 13,
+            "DIRECT_TEST_CHANGE": 1,
+            "IMPORT_GRAPH_READER": 9,
+            "PATH_LITERAL_READER": 2
+          },
+          "script/batch-precheck.sh": {
+            "BINARY_EXEC": 25,
+            "DECLARED_READ_SCOPE": 6,
+            "DEPENDENCY_PATH": 3,
+            "PATH_GLOB_READER": 1,
+            "PATH_LITERAL_READER": 7
+          },
+          "script/batch-precheck_test.sh": {
+            "DIRECT_TEST_CHANGE": 1
+          },
+          "tools/gate-ledger/main.go": {
+            "DIRECT_SOURCE_CHANGE": 1,
+            "PATH_LITERAL_READER": 9
+          }
+        }
+      },
+      {
+        "arm": "after delta",
+        "byDirtyPath": {
+          "docs/build-log/2026-11-04-gl-v0-786-staged-shared-passes.md": {
+            "DEPENDENCY_PATH": 1,
+            "PATH_LITERAL_READER": 5
+          },
+          "docs/specs/gate-ledger-v0.md": {
+            "DECLARED_READ_SCOPE": 1,
+            "DEPENDENCY_PATH": 3,
+            "PATH_LITERAL_READER": 7,
+            "UNBOUNDED_READER": 11
+          },
+          "internal/dogfoodflow/change_impact_test.go": {
+            "DECLARED_READ_SCOPE": 13,
+            "DIRECT_TEST_CHANGE": 1,
+            "IMPORT_GRAPH_READER": 9,
+            "PATH_LITERAL_READER": 2
+          },
+          "script/batch-precheck.sh": {
+            "BINARY_EXEC": 25,
+            "DECLARED_READ_SCOPE": 6,
+            "DEPENDENCY_PATH": 3,
+            "PATH_GLOB_READER": 1,
+            "PATH_LITERAL_READER": 7
+          },
+          "script/batch-precheck_test.sh": {
+            "DIRECT_TEST_CHANGE": 1
+          },
+          "tools/gate-ledger/main.go": {
+            "DIRECT_SOURCE_CHANGE": 1,
+            "PATH_LITERAL_READER": 9
+          }
+        }
+      }
+    ],
+    "deltaDeclaredReadScope": [
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/diagnostic",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/jstestprovider",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/mcp/cli",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/mcp/tasksbridge",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/perfbudget",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "shell:script/capability-catalog_test.sh",
+        "dirty": "script/batch-precheck.sh",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "script/"
+        }
+      },
+      {
+        "unit": "shell:script/check-sql-native-ratchets_test.sh",
+        "dirty": "script/batch-precheck.sh",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "script/"
+        }
+      },
+      {
+        "unit": "shell:script/core-n1-replay-default_test.sh",
+        "dirty": "script/batch-precheck.sh",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "script/"
+        }
+      },
+      {
+        "unit": "shell:script/gate-receipt_test.sh",
+        "dirty": "script/batch-precheck.sh",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "script/"
+        }
+      },
+      {
+        "unit": "shell:script/repin_test.sh",
+        "dirty": "script/batch-precheck.sh",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "script/"
+        }
+      },
+      {
+        "unit": "shell:script/vscode-check-install_test.sh",
+        "dirty": "script/batch-precheck.sh",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "script/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/cmd/corvint-go-test-provider",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/conformance/mcp-test-validity-v0",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/conformance/use-cases-v0",
+        "dirty": "docs/specs/gate-ledger-v0.md",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "docs/specs/"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/tools/fixture-maintenance-check",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/test-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "shell:script/check-install-lifecycle_test.sh",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "shell:script/dogfood-change_test.sh",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "shell:script/gate-affected-corvint_test.sh",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "internal/"
+        }
+      },
+      {
+        "unit": "shell:script/gate-affected_test.sh",
+        "dirty": "internal/dogfoodflow/change_impact_test.go",
+        "readScope": {
+          "declaration": ".corvint/shell-read-scopes.json",
+          "entry": "internal/"
+        }
+      }
+    ],
+    "removedByExclusion": 24,
+    "removedUnitsWithNoOtherSelector": 0,
+    "removedUnitsFloorOnlyOnEveryOtherPath": [
+      "go:github.com/Beamfall/corvint/conformance/dashboard-snapshot-v0",
+      "go:github.com/Beamfall/corvint/internal/analyzerhtmlcss",
+      "go:github.com/Beamfall/corvint/internal/dashboard/repository",
+      "go:github.com/Beamfall/corvint/internal/doccorpus/selfcorpus",
+      "go:github.com/Beamfall/corvint/internal/liveverify/mutate",
+      "go:github.com/Beamfall/corvint/internal/lspstdio",
+      "go:github.com/Beamfall/corvint/internal/postmergeworkflow",
+      "go:github.com/Beamfall/corvint/tools/test-exec-writes-check",
+      "shell:script/analyzer-schema_test.sh",
+      "shell:script/codex-review_test.sh",
+      "shell:script/qualify-tasks-basic_test.sh"
+    ],
+    "deltaUnboundedUnitsEqualFloorOnly": true,
+    "removedUnitCoverage": [
+      {
+        "unit": "go:github.com/Beamfall/corvint/conformance/dashboard-snapshot-v0",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/conformance/release-artifact-v0",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/analyzerhtmlcss",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/analyzerpython",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "IMPORT_GRAPH_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/cemchain",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/companionrelease",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/console",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "PATH_LITERAL_READER",
+          "internal/dogfoodflow/change_impact_test.go": "IMPORT_GRAPH_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/contextindex",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "PATH_LITERAL_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/dashboard/repository",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/doccorpus/selfcorpus",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/liveverify/affected/golang",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "IMPORT_GRAPH_READER",
+          "script/batch-precheck.sh": "PATH_LITERAL_READER",
+          "script/batch-precheck_test.sh": "PATH_LITERAL_READER",
+          "tools/gate-ledger/main.go": "IMPORT_GRAPH_READER",
+          "tools/gate-ledger/shared_digest.go": "IMPORT_GRAPH_READER",
+          "tools/gate-ledger/shared_digest_test.go": "IMPORT_GRAPH_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/liveverify/mutate",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/lspstdio",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/opencodequalification",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/postmergehost",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/postmergeworkflow",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/internal/tasks",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/tools/cem-trial",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "PATH_LITERAL_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "BINARY_EXEC",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/tools/test-exec-writes-check",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "go:github.com/Beamfall/corvint/tools/test-read-scopes-check",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "PATH_LITERAL_READER",
+          "internal/dogfoodflow/change_impact_test.go": "IMPORT_GRAPH_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "IMPORT_GRAPH_READER",
+          "tools/gate-ledger/shared_digest.go": "IMPORT_GRAPH_READER",
+          "tools/gate-ledger/shared_digest_test.go": "IMPORT_GRAPH_READER"
+        }
+      },
+      {
+        "unit": "shell:script/analyzer-schema_test.sh",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "shell:script/batch-precheck_test.sh",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "PATH_LITERAL_READER",
+          "internal/dogfoodflow/change_impact_test.go": "PATH_LITERAL_READER",
+          "script/batch-precheck.sh": "DEPENDENCY_PATH",
+          "script/batch-precheck_test.sh": "DIRECT_TEST_CHANGE",
+          "tools/gate-ledger/main.go": "PATH_LITERAL_READER",
+          "tools/gate-ledger/shared_digest.go": "PATH_LITERAL_READER",
+          "tools/gate-ledger/shared_digest_test.go": "PATH_LITERAL_READER"
+        }
+      },
+      {
+        "unit": "shell:script/codex-review_test.sh",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      },
+      {
+        "unit": "shell:script/qualify-tasks-basic_test.sh",
+        "otherPaths": {
+          "docs/specs/gate-ledger-v0.md": "UNBOUNDED_READER",
+          "internal/dogfoodflow/change_impact_test.go": "UNBOUNDED_READER",
+          "script/batch-precheck.sh": "UNBOUNDED_READER",
+          "script/batch-precheck_test.sh": "UNBOUNDED_READER",
+          "tools/gate-ledger/main.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest.go": "UNBOUNDED_READER",
+          "tools/gate-ledger/shared_digest_test.go": "UNBOUNDED_READER"
+        }
+      }
+    ],
+    "unionReduced": false,
+    "conclusion": "The exclusion removes 24 UNBOUNDED_READER selections from the build-log path (35 -> 11). The rescue-b union stays 106 -> 106 with the same unit set: each removed unit is still selected by every one of the other seven changed paths. 13 of them have a real witness on some other path (BINARY_EXEC from script/batch-precheck.sh, IMPORT_GRAPH_READER, PATH_LITERAL_READER, DEPENDENCY_PATH or DIRECT_TEST_CHANGE). The other 11 are reached by every spec, Go source, Go test and shell-script path only through the root-locator UNBOUNDED_READER floor; they are exactly the 11 UNBOUNDED_READER units of the delta, now attributed to docs/specs/gate-ledger-v0.md.",
+    "remainingCondition": "V1-4544 AC3 (reduced mixed-union selection) stays PARTIAL. The union can shrink by at most the 11 floor-only units, and only when none of docs/specs/gate-ledger-v0.md, internal/dogfoodflow/change_impact_test.go, script/batch-precheck.sh, script/batch-precheck_test.sh and the three tools/gate-ledger Go files reaches them through the root-locator floor: those units need their actual read scopes declared (or an owner-maintained exclusion for the spec/source/script path classes). That fan-out is V1-4535, outside this ticket."
+  },
+  "round0": {
+    "superseded": "Round-0 result, kept for audit. It selected over the lane current source graph, so the rescue-only test path was unindexed (fallback) and the counts are not the indexed-tree replay; use fixRound1.",
+    "method": "Select over the current source graph, toggling only the two runtime-reader declarations to their base bytes. Path replay, not original-target execution. Full union stays conservative because other paths independently reach the removed documentation-only floor.",
+    "results": [
+      "result base-declarations rescue-delta selected=109 scope=UNKNOWN witnesses=map[BINARY_EXEC:25 DECLARED_READ_SCOPE:20 DEPENDENCY_PATH:8 DIRECT_SOURCE_CHANGE:2 DIRECT_TEST_CHANGE:1 IMPORT_GRAPH_READER:11 PATH_LITERAL_READER:31 UNBOUNDED_READER:11] unknown=5",
+      "result base-declarations build-log selected=35 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:1 DEPENDENCY_PATH:2 PATH_LITERAL_READER:8 UNBOUNDED_READER:24] unknown=1",
+      "result base-declarations test-only selected=47 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:3 DEPENDENCY_PATH:4 DIRECT_SOURCE_CHANGE:1 IMPORT_GRAPH_READER:14 PATH_LITERAL_READER:4 UNBOUNDED_READER:21] unknown=3",
+      "result new-declarations rescue-delta selected=109 scope=UNKNOWN witnesses=map[BINARY_EXEC:25 DECLARED_READ_SCOPE:20 DEPENDENCY_PATH:8 DIRECT_SOURCE_CHANGE:2 DIRECT_TEST_CHANGE:1 IMPORT_GRAPH_READER:11 PATH_LITERAL_READER:31 UNBOUNDED_READER:11] unknown=5",
+      "result new-declarations build-log selected=11 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:1 DEPENDENCY_PATH:2 PATH_LITERAL_READER:8] unknown=1",
+      "result new-declarations test-only selected=47 scope=UNKNOWN witnesses=map[DECLARED_READ_SCOPE:3 DEPENDENCY_PATH:4 DIRECT_SOURCE_CHANGE:1 IMPORT_GRAPH_READER:14 PATH_LITERAL_READER:4 UNBOUNDED_READER:21] unknown=3"
+    ]
+  }
 }

@@ -2,7 +2,8 @@
 # V1-4544 / V1-4549: bounded documentation selection and CI failure attribution
 
 Base: `6c33df33bc5670131482f5263b410cb980580657`. Implementation:
-`abec7819d998769b5ffcb8275d7be015bec07f28`. Scoped local work; no publication, native Tasks writes or seal.
+`abec7819d998769b5ffcb8275d7be015bec07f28`; fix round 1:
+`461e91bd32c124a7c77b3762db2e31e00992335f`. Scoped local work; no publication, native Tasks writes or seal.
 Independent review belongs to the orchestrator. No claim of repository-wide validation.
 
 ## Decisions and selection evidence (V1-4544)
@@ -22,7 +23,9 @@ must declare that input or remove the exclusion. Removing the two entries restor
 Keep the declared-consumer fan-out of a Go test edit. A read scope such as `internal/` permits
 actual source reads, not just `go build`, so ignoring it for `_test.go` would be unsound. Every
 DECLARED_READ_SCOPE witness now names its Go/shell declaration and matching entry, including
-implicit own-subtree and changed-declaration cases. Full JSON, compact JSON and text carry the
+implicit own-subtree and changed-declaration cases. A changed `.corvint/test-read-scopes.json` is
+named as itself even for a shell unit it selects (fix round 1; it was paired with the shell
+declaration before). Full JSON, compact JSON and text carry the
 explanation. No graph/cache format, read-scope grammar, import rule or confinement permission
 changes. Rollback removes the optional witness and its projections.
 
@@ -31,22 +34,39 @@ building the graph: only its package and an explicitly declared consumer are sel
 importer. A production edit still reaches the importer. `TestNewBuildLogKeepsDeclaredReaders_TSPV01061`
 checks the real repository declarations, true named readers and undeclared-data fallback.
 `TestDeclaredScopeExplanation_TSPV01062` checks both JSON projections and text.
+`TestReadScopeCausePairsDeclarationAndEntry_TSPV01062` pins the declaration/entry pairing.
 
-Replay uses the rescue-b paths from `852b045e61484efc53a99fa1f320984b9bb3cd2c` to
-`a435407595eb0cae03be4a9e7f49dd394f2659b5` (no gate-ledger edits in this lane). It holds the current source graph fixed and
-switches only the two declarations to their base bytes; this is a path replay, not execution
-of that historical target. Retained results: `.agent-evidence/cx-affected-selection-replay.json`.
+The round-0 replay selected the rescue-b paths over the lane's current source graph, so the
+rescue-only `_test.go` was unindexed and took the fallback. Fix round 1 replaces it with a CLI
+replay over the rescue-b tree itself, from `852b045e61484efc53a99fa1f320984b9bb3cd2c` to
+`a435407595eb0cae03be4a9e7f49dd394f2659b5`. The changed-declaration arm is that base plus only
+the lane's two declaration files (`0f0cb62fe`), with the rescue commit cherry-picked on top
+(`40d1309dc`). An identity check confirms the same eight paths and target trees that differ only
+by the two declarations. Both arms use one binary built from the fix-round head. Retained results:
+`.agent-evidence/cx-affected-selection-replay.json` (`fixRound1`; round 0 kept as `round0`).
 
 | Shape | Base declarations | Changed declarations | Interpretation |
 |---|---:|---:|---|
 | New build-log path | 35 | 11 | 24 UNBOUNDED_READER selections removed; true named readers retained |
-| Complete rescue-b mixed delta | 109 | 109 | Other source/spec/script inputs independently reach the same units |
-| Absent rescue-b test path in this graph | 47 | 47 | Unindexed-source fallback retained; not misreported as an indexed new test |
+| Indexed new test `tools/gate-ledger/shared_digest_test.go` | 37 | 37 | Indexed (DIRECT_TEST_CHANGE); 24 root-locator floor, 5 declared consumers |
+| Complete rescue-b mixed delta | 106 | 106 | Same unit set; every removed unit is still reached by another path |
 
-The build-log-only plan still reports one unknown frontier. The complete delta stays UNKNOWN.
-Reduced isolated contribution is demonstrated; reduced mixed-union count is NOT_OBSERVED.
-The ticket's declared-consumer alternative is used: broad consumers remain with their declaration
-named. No claim that all test edits select one package or that an exclusion proves safe omission.
+Why the union cannot shrink: all 24 units removed from the build-log path are still selected by
+each of the other seven changed paths. Thirteen have a real witness on some other path (BINARY_EXEC
+from `script/batch-precheck.sh`, IMPORT_GRAPH_READER, PATH_LITERAL_READER, DEPENDENCY_PATH or
+DIRECT_TEST_CHANGE). The other eleven are reached by every spec, Go source, Go test and
+shell-script path only through the root-locator UNBOUNDED_READER floor. They are exactly the
+delta's eleven UNBOUNDED_READER units, now attributed to `docs/specs/gate-ledger-v0.md`.
+
+V1-4544 AC3 is therefore PARTIAL. The union can drop at most those eleven floor-only units, and only
+once none of the spec, the Go test, the shell scripts and the three gate-ledger Go files reaches
+them through the floor. That needs the units' actual read scopes declared (or an owner-maintained
+exclusion for those path classes): the fan-out in V1-4535, outside this ticket. Reduced isolated
+contribution is demonstrated; reduced mixed-union count is not, and the delta stays UNKNOWN (two
+unknowns). AC2 uses the declared-consumer alternative: the delta's twenty DECLARED_READ_SCOPE
+witnesses name `test-read-scopes.json internal/`, `shell-read-scopes.json internal/` and
+`script/`, or `docs/specs/`. No claim that all test edits select one package or that an
+exclusion proves safe omission.
 
 ## Original CI evidence and per-test disposition (V1-4549)
 
@@ -102,9 +122,13 @@ Distinct remaining fixtures repaired here:
   job `125068726618` matched `8080` anywhere in generated unit text, including random directory
   digits. Check quoted argv atoms instead, retaining the negative check for both `--port` and
   `8080`. Force `home8080` in the fixture path (independent of Go TempDir's truncated prefix).
-  The pure unit-rendering qualification passed race count=50, 4.614 s. The install qualification
-  is externally blocked: the sandbox maps `/home`, `/tmp` and `/` ownership to uid 65534, so
-  production authority checks refuse every fixture ancestor. Do not weaken those checks.
+  The pure unit-rendering qualification passed race count=50, 4.614 s. Round 0 called the install
+  qualification externally blocked (a uid-65534 sandbox). Fix round 1 ran it on wsl-lanes (uid 1000,
+  umask 0002). It failed at `2a2507748` with UNSUPPORTED_FILESYSTEM because the TempDir root kept
+  mode 0775: the `home8080` suffix was restricted, but its parent was not. `newServiceHome` now
+  chmods the TempDir root to 0700 before joining the suffix. The whole service package passes
+  (10.4 s), and the five install/render tests pass `-race -count=20`, GOMAXPROCS=8 (7.6 s).
+  Production authority checks are unchanged.
 
 The 17-test CLI selection passed `-race -count=20`, GOMAXPROCS=8, on WSL2 in 399.778 s.
 Natural host load and concurrent focused package runs supplied load; a retained observation reads
@@ -121,8 +145,12 @@ The implementation plan was UNKNOWN; tier-2 units, unknowns and omitted exhausti
 remain visible in the retained plan. Go version: go1.27.3. Focused affected regressions, CLI
 projection regressions, spec regeneration, declaration/read-scope checks, requirement definitions,
 traceability, capacity/collision checks and `make windows-vet` passed. No exhaustive gate, model
-reviewer, publication, release, Tasks mutation or seal was run, per charter. Local outcome is
-`blocked` for the service-install/hosted-report acceptance, while structural evidence is checked.
+reviewer, publication, release, Tasks mutation or seal was run, per charter. Fix round 1 reran
+`corvint affected --base 2a2507748` (UNKNOWN, 141 units), the focused affected and CLI projection
+tests, the service package and race runs above, the declaration/read-scope/requirement/traceability
+checks, gofmt and `make windows-vet`, all passing. Retained under `fixRound1` in
+`.agent-evidence/cx-affected-verification.json`. Local outcome stays `blocked`. Two items remain:
+V1-4544 AC3's mixed-union reduction (V1-4535) and V1-4549's next weekly hosted report.
 
 A first affected regression incorrectly expected lrfrepo to read build-log; the actual named
 readers are cmd/corvint and flow-guide-check. Corrected the assertion from original plan evidence;
@@ -141,7 +169,8 @@ Friction with reproductions:
    coordination is not claimed. Same policy, eight slots; no approval bypass.
 4. The service-install test refuses UNSUPPORTED_FILESYSTEM on uid-65534 ancestors with the
    default TMPDIR and explicit TMPDIR=/tmp. Repro: `stat -c '%u %n' / /home /tmp`, then run the
-   focused install test. WSL host qualification outside this ownership-remapping sandbox remains.
+   focused install test. Fix round 1: outside that sandbox, the test showed that the round-0 suffix
+   change had left the TempDir root 0775. That is now fixed; the sandbox symptom had hidden it.
 5. Git commit reports read-only `/home/russell/projects/corvint/.git/packed-refs.lock`, but the
    loose branch update and commit succeed. Do not alter the forbidden metadata path.
 6. `gh run view RUN --job JOB --log` exits zero with empty output for the retained CI jobs;
