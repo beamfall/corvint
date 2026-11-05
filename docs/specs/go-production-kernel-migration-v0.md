@@ -97,7 +97,41 @@ requirements below have evidence. File existence is not parity.
 
 ## Requirements
 
+### Shared Go source parse (V1-2746)
+
+- `GPK-V0-8000`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's fix-round instruction (2026-11-04); V1-2746)
+  Whole-checkout compilation MUST reuse a successful full Go parse for import extraction,
+  preserving exactly the independent `goSymbols` and `goImports` results. A failed full parse
+  MUST still run the imports-only parser, so malformed function bodies do not turn valid imports
+  into missing edges or import refusals. The existing no-import-substring gate, scanner fallback,
+  approximation flags, refusal strings and import-policy exclusions MUST remain unchanged.
+  Acceptance: `TestGPKV08000SharedGoParseMatchesIndependent` over tracked Go sources and valid,
+  malformed-import and malformed-body fixtures; `TestGPKV08000SharedImportAllocationBound`
+  requires less than half the independent import parser's allocations, and its collector case
+  MUST save at least half an independent import parse's allocations against the same collector
+  with imports excluded plus independent extraction. Tracked-source parity tests MUST skip with
+  an explicit reason when git is absent from PATH. Existing reference/import
+  scanners retain their self-corpus regex differential test. Measure
+  `BenchmarkGPKV08000GoFacts` and `TestCorpusSelfDocumentation` through heavy.sh with `-race`,
+  retaining CPU profiles and host load; the <60 s CI target requires actual CI evidence.
+  Rollback: restore the separate imports-only parse in the source collector. No analyzer output,
+  source admission or snapshot schema changes are permitted by this optimization.
+
 ### Frozen behavior and exact parity
+
+- `GPK-V0-8001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2746)
+  Document parsing MUST skip title/heading regex execution on lines that cannot start a
+  Markdown heading, and skip status regex execution when the line cannot contain its
+  case-folded literal `status`, including the long-s Unicode fold. A title already found MUST
+  not be searched for again. These are necessary-condition prefilters only: the original regex
+  still decides every match, preserving Unicode whitespace, field order, fences, summaries,
+  titles, headings, status values and source references. Acceptance:
+  `TestGPKV08001DocumentPrefiltersMatchOriginal` compares full records against the preserved
+  original regex parser over the self corpus and adversarial edge cases;
+  `TestGPKV08001DocumentRegexBudget` bounds backend calls on 2,000 prose lines to one title,
+  two headings and one status match and fails when the prefilters are removed. Measure
+  `BenchmarkGPKV08001DocumentRecord` and the whole-checkout CPU profile. Rollback: call the
+  regexes directly again; no wire, admission or analyzer-output change.
 
 - `GPK-V0-001`: The migration MUST preserve the complete CLI surface present at the pinned
   migration base: global `--root` and `--version`; `init`, `adopt`, `query`, `feature`, `impact`,
