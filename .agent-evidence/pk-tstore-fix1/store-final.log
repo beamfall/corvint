@@ -1,0 +1,145 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at a6eb8ed06e9a403fffc7b56f95954a825dfef0ad tree=c483f7193c45dd321309a7e23dc593b2122d1038 dirty=29
+heavy.sh: slot 2/8 after 0s
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback
+=== PAUSE TestCALV0026_AuditInventoryParityAndFallback
+=== RUN   TestCALV0026_AuditInventoryFatalCleanup
+=== RUN   TestCALV0026_AuditInventoryFatalCleanup/fallback-close-after-metadata-tail
+=== RUN   TestCALV0026_AuditInventoryFatalCleanup/journal-close-dirty-false
+=== RUN   TestCALV0026_AuditInventoryFatalCleanup/journal-close-dirty-true
+--- PASS: TestCALV0026_AuditInventoryFatalCleanup (0.34s)
+    --- PASS: TestCALV0026_AuditInventoryFatalCleanup/fallback-close-after-metadata-tail (0.06s)
+    --- PASS: TestCALV0026_AuditInventoryFatalCleanup/journal-close-dirty-false (0.13s)
+    --- PASS: TestCALV0026_AuditInventoryFatalCleanup/journal-close-dirty-true (0.15s)
+=== RUN   TestLGLV07201_CheckpointDecodeOutsideWriterLock
+=== RUN   TestLGLV07201_CheckpointDecodeOutsideWriterLock/70
+    checkpoint_decode_unix_test.go:54: receipts=70 checkpoint reads=1 under-writer-lock=0 under-gate=0
+--- PASS: TestLGLV07201_CheckpointDecodeOutsideWriterLock (0.52s)
+    --- PASS: TestLGLV07201_CheckpointDecodeOutsideWriterLock/70 (0.52s)
+=== RUN   TestTCLV07206_CommitPrefixCountsOnlyCommits
+--- PASS: TestTCLV07206_CommitPrefixCountsOnlyCommits (0.05s)
+=== RUN   TestATRV07203_SealedHistoryIsNotDecisionContent
+--- PASS: TestATRV07203_SealedHistoryIsNotDecisionContent (1.53s)
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:32: paired hold experiment only
+--- SKIP: TestATRV07203_PairedHoldSample (0.00s)
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit
+=== PAUSE TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit
+=== RUN   TestATRV07203_PreparationReusesSuccessfulAudit
+--- PASS: TestATRV07203_PreparationReusesSuccessfulAudit (0.15s)
+=== RUN   TestCALV0116_WriterFullBoundDeclines
+=== PAUSE TestCALV0116_WriterFullBoundDeclines
+=== RUN   TestCALV0116_WriterRouteParity
+--- PASS: TestCALV0116_WriterRouteParity (2.56s)
+=== RUN   TestCALV0116_WriterRouteCounterexamples
+=== PAUSE TestCALV0116_WriterRouteCounterexamples
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages
+=== PAUSE TestCALV0116_WriterRouteTamperAtFastStages
+=== RUN   TestCALV0116_FastWriteRechecksIntentBranch
+=== PAUSE TestCALV0116_FastWriteRechecksIntentBranch
+=== RUN   TestCALV0116_TailNoteReferenceChangeWithoutEvent
+=== PAUSE TestCALV0116_TailNoteReferenceChangeWithoutEvent
+=== RUN   TestCALV0116_PrefixTamperIsLeftToCompleteAudits
+=== PAUSE TestCALV0116_PrefixTamperIsLeftToCompleteAudits
+=== RUN   TestCALV0366_CleanupDropsRemovedRecords
+=== PAUSE TestCALV0366_CleanupDropsRemovedRecords
+=== RUN   TestATRV07200_FailedRemovalWriteReloadsWorkflow
+--- PASS: TestATRV07200_FailedRemovalWriteReloadsWorkflow (12.56s)
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:23: set CORVINT_TASKS_SPAWN_FAILURE_LOAD=1 for 200 loaded runs
+--- SKIP: TestATRV07204_LoadedSpawnedFailureQualification (0.00s)
+=== CONT  TestCALV0026_AuditInventoryParityAndFallback
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/populated-5000-and-unread-evidence
+=== CONT  TestCALV0116_FastWriteRechecksIntentBranch
+=== CONT  TestCALV0116_WriterRouteCounterexamples
+=== CONT  TestCALV0116_TailNoteReferenceChangeWithoutEvent
+=== CONT  TestCALV0116_WriterFullBoundDeclines
+=== CONT  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit
+=== CONT  TestCALV0116_WriterRouteTamperAtFastStages
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/request-projection
+=== CONT  TestCALV0366_CleanupDropsRemovedRecords
+=== CONT  TestCALV0116_PrefixTamperIsLeftToCompleteAudits
+=== NAME  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/request-projection
+    lease_mapped_write_unix_test.go:68: claim under the mapped write: JOURNAL_FORKED: requests/45/452734356149133e80dc1d85d511e464174b3470701614c61c96a9f89d759d04.json: projection differs from latest canonical afterimage (receipt "")
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/policy
+=== RUN   TestCALV0116_WriterRouteCounterexamples/stray-own-request
+=== NAME  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/policy
+    lease_mapped_write_unix_test.go:68: claim under the mapped write: INTENT_DIVERGED: intent/policy.json: projection differs from latest canonical afterimage (receipt "")
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages/mutate-ticket-edited-after-observe
+=== RUN   TestCALV0116_FastWriteRechecksIntentBranch/lease
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/ticket
+--- PASS: TestCALV0116_PrefixTamperIsLeftToCompleteAudits (1.15s)
+=== NAME  TestCALV0116_WriterRouteCounterexamples/stray-own-request
+    writer_checkpoint_test.go:672: declined "SNAPSHOT_MOVED: requests/99/99e2ed277372a78d38573dc2e828785fd914ddae304db647ed91c368d7429529.json: writer checkpoint route: request path present or unobservable"; decided JOURNAL_FORKED: requests/99/99e2ed277372a78d38573dc2e828785fd914ddae304db647ed91c368d7429529.json: projection has no retained journal afterimage {RequestID: Outcome: Replayed:false ResultingRevision:<nil> ResultingAcceptanceRevision:<nil> ReleaseID:<nil> ResultingReleaseRevision:<nil> ReceiptSeq:<nil> Codes:[]}
+=== RUN   TestCALV0116_WriterRouteCounterexamples/fork-at-checkpoint-receipt
+=== NAME  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/ticket
+    lease_mapped_write_unix_test.go:68: claim under the mapped write: INTENT_DIVERGED: intent/tickets/AT-0002.json: projection differs from latest canonical afterimage (receipt "")
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages/mutate-ticket-edited-after-model
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/request-projection
+=== NAME  TestCALV0116_WriterRouteCounterexamples/fork-at-checkpoint-receipt
+    writer_checkpoint_test.go:672: declined "UNSUPPORTED: 000000000070.json: checkpoint unusable: retained receipt differs"; decided JOURNAL_FORKED: 000000000071.json: seq/prev/generation does not continue chain {RequestID: Outcome: Replayed:false ResultingRevision:<nil> ResultingAcceptanceRevision:<nil> ReleaseID:<nil> ResultingReleaseRevision:<nil> ReceiptSeq:<nil> Codes:[]}
+=== RUN   TestCALV0116_WriterRouteCounterexamples/fork-in-tail
+=== RUN   TestCALV0116_FastWriteRechecksIntentBranch/mutate
+=== NAME  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/request-projection
+    lease_mapped_write_unix_test.go:68: claim under the mapped write: JOURNAL_FORKED: requests/45/452734356149133e80dc1d85d511e464174b3470701614c61c96a9f89d759d04.json: projection differs from latest canonical afterimage (receipt "")
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/policy
+--- PASS: TestCALV0116_FastWriteRechecksIntentBranch (2.42s)
+    --- PASS: TestCALV0116_FastWriteRechecksIntentBranch/lease (0.79s)
+    --- PASS: TestCALV0116_FastWriteRechecksIntentBranch/mutate (0.57s)
+=== NAME  TestCALV0116_WriterRouteCounterexamples/fork-in-tail
+    writer_checkpoint_test.go:672: declined "JOURNAL_FORKED: 000000000072.json: seq/prev/generation does not continue chain"; decided JOURNAL_FORKED: 000000000072.json: seq/prev/generation does not continue chain {RequestID: Outcome: Replayed:false ResultingRevision:<nil> ResultingAcceptanceRevision:<nil> ReleaseID:<nil> ResultingReleaseRevision:<nil> ReceiptSeq:<nil> Codes:[]}
+=== RUN   TestCALV0116_WriterRouteCounterexamples/torn-tail-receipt
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages/lease-ticket-edited-after-observe
+=== NAME  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/policy
+    lease_mapped_write_unix_test.go:68: claim under the mapped write: INTENT_DIVERGED: intent/policy.json: projection differs from latest canonical afterimage (receipt "")
+=== NAME  TestCALV0116_WriterRouteCounterexamples/torn-tail-receipt
+    writer_checkpoint_test.go:672: declined "MALFORMED: byte 2658: trailing bytes after the document"; decided MALFORMED: byte 2658: trailing bytes after the document {RequestID: Outcome: Replayed:false ResultingRevision:<nil> ResultingAcceptanceRevision:<nil> ReleaseID:<nil> ResultingReleaseRevision:<nil> ReceiptSeq:<nil> Codes:[]}
+--- PASS: TestCALV0116_WriterRouteCounterexamples (3.12s)
+    --- PASS: TestCALV0116_WriterRouteCounterexamples/stray-own-request (0.49s)
+    --- PASS: TestCALV0116_WriterRouteCounterexamples/fork-at-checkpoint-receipt (0.49s)
+    --- PASS: TestCALV0116_WriterRouteCounterexamples/fork-in-tail (0.66s)
+    --- PASS: TestCALV0116_WriterRouteCounterexamples/torn-tail-receipt (0.61s)
+=== RUN   TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/ticket
+--- PASS: TestCALV0116_TailNoteReferenceChangeWithoutEvent (3.42s)
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages/lease-ticket-edited-after-model
+=== NAME  TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/ticket
+    lease_mapped_write_unix_test.go:68: claim under the mapped write: INTENT_DIVERGED: intent/tickets/AT-0002.json: projection differs from latest canonical afterimage (receipt "")
+--- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit (3.85s)
+    --- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/request-projection (0.53s)
+    --- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/policy (0.52s)
+    --- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/sweep/ticket (0.64s)
+    --- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/request-projection (0.71s)
+    --- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/policy (0.82s)
+    --- PASS: TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit/lock/ticket (0.61s)
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages/mutate-receipt-planted-after-model
+=== RUN   TestCALV0116_WriterRouteTamperAtFastStages/lease-receipt-planted-after-model
+--- PASS: TestCALV0116_WriterRouteTamperAtFastStages (6.77s)
+    --- PASS: TestCALV0116_WriterRouteTamperAtFastStages/mutate-ticket-edited-after-observe (0.71s)
+    --- PASS: TestCALV0116_WriterRouteTamperAtFastStages/mutate-ticket-edited-after-model (0.85s)
+    --- PASS: TestCALV0116_WriterRouteTamperAtFastStages/lease-ticket-edited-after-observe (1.00s)
+    --- PASS: TestCALV0116_WriterRouteTamperAtFastStages/lease-ticket-edited-after-model (0.73s)
+    --- PASS: TestCALV0116_WriterRouteTamperAtFastStages/mutate-receipt-planted-after-model (1.31s)
+    --- PASS: TestCALV0116_WriterRouteTamperAtFastStages/lease-receipt-planted-after-model (1.06s)
+=== NAME  TestCALV0026_AuditInventoryParityAndFallback/populated-5000-and-unread-evidence
+    audit_inventory_test.go:131: physical metadata hits=10008 fallback paths=5 complete inventory=10009
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/same-path-actual-byte-bound
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/same-bytes-change
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/membership
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/parent-replacement
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/symlink
+=== RUN   TestCALV0026_AuditInventoryParityAndFallback/divergent-intent-replay-and-fresh-refusal
+--- PASS: TestCALV0026_AuditInventoryParityAndFallback (8.63s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/populated-5000-and-unread-evidence (8.18s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/same-path-actual-byte-bound (0.00s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/same-bytes-change (0.08s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/membership (0.07s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/parent-replacement (0.06s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/symlink (0.05s)
+    --- PASS: TestCALV0026_AuditInventoryParityAndFallback/divergent-intent-replay-and-fresh-refusal (0.19s)
+--- PASS: TestCALV0116_WriterFullBoundDeclines (11.39s)
+--- PASS: TestCALV0366_CleanupDropsRemovedRecords (13.56s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/store	31.371s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=44.4s rc=0

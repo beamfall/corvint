@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime/trace"
 	"strings"
 	"time"
 
@@ -59,6 +60,7 @@ func parseIndexInvocation(arguments []string) (indexInvocation, bool, error) {
 // vocabulary, so a repository Corvint cannot read says exactly what it said
 // before the snapshot existed. It writes nothing (invariant 4).
 func snapshotIndex(ctx context.Context, root string) *contextindex.Index {
+	defer trace.StartRegion(ctx, "hook.snapshot-acquire").End()
 	return snapshotHit(loadSnapshot(ctx, root))
 }
 
@@ -93,6 +95,7 @@ func snapshotHit(index *contextindex.Index, hit bool, err error) *contextindex.I
 // deferredSnapshotIndex is snapshotIndex whose pack hit verifies each body
 // when a read first touches it; its reader goes through overSnapshot.
 func deferredSnapshotIndex(ctx context.Context, root string) *contextindex.Index {
+	defer trace.StartRegion(ctx, "hook.snapshot-acquire").End()
 	return snapshotHit(loadSnapshotDeferred(ctx, root))
 }
 

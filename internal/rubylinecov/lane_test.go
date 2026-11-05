@@ -12,14 +12,20 @@ import (
 	"github.com/Beamfall/corvint/internal/linecov"
 )
 
-func laneProject(t *testing.T, source string) string {
+// laneProject commits test/case_test.rb holding source, plus extra
+// path/content pairs.
+func laneProject(t *testing.T, source string, extra ...string) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "test"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "test", "case_test.rb"), []byte(source), 0600); err != nil {
-		t.Fatal(err)
+	files := append([]string{"test/case_test.rb", source}, extra...)
+	for i := 0; i+1 < len(files); i += 2 {
+		full := filepath.Join(root, filepath.FromSlash(files[i]))
+		if err := os.MkdirAll(filepath.Dir(full), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(files[i+1]), 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	git(t, root, "init", "-q")
 	git(t, root, "add", ".")
@@ -30,15 +36,21 @@ func laneProject(t *testing.T, source string) string {
 // LPCV-V0-7605: isolation divergence and unobservable children preserve fallback.
 func TestIsolationAndChildren(t *testing.T) {
 	requireRuby(t, "minitest")
-	cases := []struct{ name, body, want string }{
-		{"order", "def test_a; $state = true; assert true; end\ndef test_b; assert $state; end", "isolation-divergent"},
-		{"cleared", "def test_child; assert system({'RUBYOPT'=>nil}, 'ruby', '-e', 'exit 0'); end", "uninstrumented-child"},
-		{"nonruby", "def test_child; assert system('/bin/true'); end", "uninstrumented-child"},
-		{"abrupt-fork", "def test_child; pid = fork { exit! 0 }; Process.wait(pid); assert true; end", "uninstrumented-child"},
+	cases := []struct{ name, body, want, lib string }{
+		{"order", "def test_a; $state = true; assert true; end\ndef test_b; assert $state; end", "isolation-divergent", ""},
+		// Both pass alone, but test_b reaches lib/helper.rb only after test_a sets the flag.
+		{"reach", "require_relative '../lib/helper'\ndef test_a; $flag = true; assert true; end\ndef test_b; helper if $flag; assert true; end", "isolation-divergent: ordinary-order reach", "def helper\n  1\nend\n"},
+		{"cleared", "def test_child; assert system({'RUBYOPT'=>nil}, 'ruby', '-e', 'exit 0'); end", "uninstrumented-child", ""},
+		{"nonruby", "def test_child; assert system('true'); end", "uninstrumented-child", ""},
+		{"abrupt-fork", "def test_child; pid = fork { exit! 0 }; Process.wait(pid); assert true; end", "uninstrumented-child", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			root := laneProject(t, "require 'minitest/autorun'\nclass LaneTest < Minitest::Test\n i_suck_and_my_tests_are_order_dependent!\n"+c.body+"\nend\n")
+			var extra []string
+			if c.lib != "" {
+				extra = []string{"lib/helper.rb", c.lib}
+			}
+			root := laneProject(t, "require 'minitest/autorun'\nclass LaneTest < Minitest::Test\n i_suck_and_my_tests_are_order_dependent!\n"+c.body+"\nend\n", extra...)
 			run, err := Collect(context.Background(), Options{Root: root, Work: t.TempDir(), Argv: []string{"ruby", "test/case_test.rb"}, Timeout: time.Minute})
 			if err != nil {
 				t.Fatal(err)

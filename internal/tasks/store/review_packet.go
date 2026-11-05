@@ -140,3 +140,32 @@ func ReviewFileDiff(root, base, commit, path string, max int64) (diff []byte, co
 	}
 	return out, !over, nil
 }
+
+// CommitPrefixAmbiguous distinguishes an unresolved short object name from a
+// missing revision without depending on Git's localized diagnostic text.
+func CommitPrefixAmbiguous(root, rev string) (bool, error) {
+	if len(rev) < 4 || len(rev) >= 40 || strings.Trim(rev, "0123456789abcdefABCDEF") != "" {
+		return false, nil
+	}
+	out, over, err := boundedGit(root, 1<<20, "rev-parse", "--disambiguate="+strings.ToLower(rev))
+	if err != nil {
+		return false, err
+	}
+	if over {
+		return false, wire.Errorf(wire.CodeUnsupported, "commit prefix", "object enumeration exceeds bound")
+	}
+	commits := 0
+	for _, oid := range strings.Fields(string(out)) {
+		kind, over, err := boundedGit(root, 64, "cat-file", "-t", oid)
+		if err != nil || over {
+			return false, wire.Errorf(wire.CodeUnsupported, "commit prefix", "cannot observe object type for %s: %v", oid, err)
+		}
+		if strings.TrimSpace(string(kind)) == "commit" {
+			commits++
+			if commits > 1 {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
