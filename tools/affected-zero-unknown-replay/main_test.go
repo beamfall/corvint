@@ -49,7 +49,7 @@ func TestSafetyRejectsUnsafeDrop_AZU_V0_8903(t *testing.T) {
 // AZU-V0-8903: missing, incomplete, wrong-revision, unbound mutation and
 // unknown test evidence cannot turn an unobserved safety run into acceptance.
 func TestSafetyRefusesIncompleteEvidence_AZU_V0_8903(t *testing.T) {
-	for _, kind := range []string{"missing-suite", "wrong-revision", "missing-mutation", "unchanged-line", "unknown-killer", "duplicate-result", "missing-result", "wrong-inventory"} {
+	for _, kind := range []string{"missing-suite", "wrong-revision", "missing-mutation", "unchanged-line", "unknown-killer", "duplicate-result", "missing-result", "dropped-test-in-unit", "wrong-inventory"} {
 		t.Run(kind, func(t *testing.T) {
 			r, old, now, lines := replayFixture()
 			switch kind {
@@ -67,6 +67,8 @@ func TestSafetyRefusesIncompleteEvidence_AZU_V0_8903(t *testing.T) {
 				r.MergeSuite.Results = append(r.MergeSuite.Results, r.MergeSuite.Results[0])
 			case "missing-result":
 				r.MergeSuite.Results = r.MergeSuite.Results[:1]
+			case "dropped-test-in-unit":
+				r.ParentSuite.Results = append(r.ParentSuite.Results, observation{Unit: "go:a", Test: "TestDisappeared", Outcome: "pass"})
 			case "wrong-inventory":
 				r.MergeSuite.Inventory = []string{"go:a"}
 			}

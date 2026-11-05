@@ -212,6 +212,10 @@ func TestOwnerPatternGrammar_AFPV02481(t *testing.T) {
 		{"**/x", "x", true},
 		{"**/x", "a/b/x", true},
 		{"**/x", "a/b/xy", false},
+		// AZU-V0-8900: literal-prefix admission preserves empty ** segments.
+		{"a/**", "a", true},
+		{"a/**/b", "a/b", true},
+		{"a/**", "ab/file", false},
 		{"a/*/c", "a/b/c", true},
 		{"a/*/c", "a/b/d/c", false},
 		{"?.md", "a.md", true},

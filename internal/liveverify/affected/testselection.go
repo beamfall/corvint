@@ -197,6 +197,18 @@ func ownerPatternMatches(pattern, relative string) bool {
 	if relative == ".git" || relative == ".corvint" || strings.HasPrefix(relative, ".git/") || strings.HasPrefix(relative, ".corvint/") {
 		return false
 	}
+	// Most ownership declarations are exact paths or have a literal
+	// directory prefix. Reject those misses before allocating the matcher
+	// state (AZU-V0-8900), preserving **'s zero-component match.
+	first := strings.IndexAny(pattern, "*?[\\")
+	if first < 0 {
+		return pattern == relative
+	}
+	if prefix := pattern[:first]; prefix != "" && !strings.HasPrefix(relative, prefix) {
+		if !strings.HasSuffix(prefix, "/") || relative != strings.TrimSuffix(prefix, "/") {
+			return false
+		}
+	}
 	patterns, parts := strings.Split(pattern, "/"), strings.Split(relative, "/")
 	// matched[j] holds whether the patterns consumed so far match parts[:j].
 	matched := make([]bool, len(parts)+1)

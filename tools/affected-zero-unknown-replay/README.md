@@ -33,7 +33,8 @@ snapshot's declarations. Exit 1 and `accepted: false` mean qualification is inco
 
 Inventories are sorted unit IDs and must match all eligible units (selected plus excluded) at
 that exact revision. Every inventory unit needs results. Outcomes are `pass`, `fail` or `skip`;
-unit/test pairs are unique. Mutant IDs are unique; `side` is `parent` or `merge`; its line must
+unit/test pairs are unique. A parent test absent from the merge outcomes keeps safety
+`NOT_PRODUCED`, including a missing test within an otherwise observed unit. Mutant IDs are unique; `side` is `parent` or `merge`; its line must
 belong to a zero-context diff hunk on that side. Killers must occur in the merge suite inventory
 and results. Every differing/new outcome and every killer must be selected. The tool's mutation
 fixture deliberately removes such a selection and requires `UNSAFE_DROP` from this same checker.
