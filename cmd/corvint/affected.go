@@ -21,9 +21,9 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/langplugin"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
-	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
@@ -2103,7 +2103,10 @@ func equalStringSlices(left, right []string) bool {
 }
 
 func affectedLanguages() []affected.Language {
-	return languages.All()
+	// Keep the default planner's frozen graph identity (AFU-V1-024).
+	// Driver integration (AZU-V0-001) remains experimental in the audit;
+	// admitting its vertices here requires a separately approved receipt change.
+	return langplugin.Providers()
 }
 
 // providerGoProjection derives the exact import paths a go-live-plan/0 bundle

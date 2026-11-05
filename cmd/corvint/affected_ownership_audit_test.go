@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // AZU-V0-002 (V1-4685): `affected --ownership-audit` lists the tracked paths
@@ -46,5 +48,36 @@ func TestAffectedOwnershipAuditListsUnownedReadOnly_AZU_V0_002(t *testing.T) {
 	stderr.Reset()
 	if code := runContext(context.Background(), []string{"--root", root, "affected", "--ownership-audit"}, strings.NewReader(""), &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "MIXED worktree") {
 		t.Fatalf("dirty worktree: exit %d, stderr %s", code, stderr.String())
+	}
+}
+
+// AZU-V0-002, AFU-V1-024: the experimental audit may claim a driver input,
+// but default planning keeps its frozen registry and uncertainty until the
+// owner admits the driver integration's changed receipt identities.
+func TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002(t *testing.T) {
+	t.Parallel()
+	root := compileAdviceRepository(t)
+	cemWrite(t, root, "Makefile", "check:\n\tgo test ./tested\n")
+	affectedGit(t, root, "add", "Makefile")
+	affectedGit(t, root, "commit", "-qm", "driver input")
+	report, err := compileAffectedOwnershipAudit(context.Background(), affectedInvocation{Root: root, OwnershipAudit: true, NoCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(report.Unowned, "Makefile") {
+		t.Fatalf("audit did not claim driver: %q", report.Unowned)
+	}
+	_, stdout, stderr, code := runAffectedArguments(t, root, "--path", "Makefile", "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	var receipt affectedReceipt
+	if err := json.Unmarshal(stdout, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Plan.Scope != "UNKNOWN" || !slices.ContainsFunc(receipt.Plan.Unknown, func(entry affected.Unknown) bool {
+		return entry.Reason == affected.UnknownUnownedDirtyPath && entry.Detail == "Makefile"
+	}) {
+		t.Fatalf("default planner lost driver uncertainty: %+v", receipt.Plan)
 	}
 }

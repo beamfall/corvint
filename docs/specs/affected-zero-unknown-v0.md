@@ -26,6 +26,13 @@ The owner directed the goal ("figure out how to get the unknown to 0 safely", ow
 2026-11-02. Experimental candidates for driver ownership, inbound closure and frozen replay
 exist; AZU-V0 is NOT_QUALIFIED.
 
+Verifier repair 2 rolls back driver registration in the default CLI planner to preserve
+the frozen strict/coverage receipts (AFU-V1-024). The experimental ownership audit still
+includes the driver claimant. An empty audit therefore does not establish driver ownership
+in default planning: driver changes retain the preexisting uncertainty and wider fallback.
+AZU-V0-001 integration and dependent AZU-V0-002/004/009 qualification remain PARTIAL pending
+explicit approval for changed graph identities; no graph vertex is hidden from a digest.
+
 The user is the engineer, agent or CI shard that runs only the tests a change can affect. A plan
 with any `unknown` entry has scope `UNKNOWN`, and every consumer that cannot trust it falls back
 to a wide or full run. That fallback is the largest cost in this repository's build loop.
