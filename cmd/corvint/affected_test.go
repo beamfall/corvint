@@ -1125,7 +1125,7 @@ func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]
 	for index, item := range compactSelected {
 		got, want := item.(map[string]any), fullSelected[index].(map[string]any)
 		witness := maps.Clone(got["witness"].(map[string]any))
-		delete(witness, "viaLength")
+		// TSP-V0-7311 keeps viaLength in both forms; reconstruct only via.
 		witness["via"] = anyValues(chains[got["unitId"].(string)])
 		if _, listed := got["tests"]; listed || got["unitId"] != want["unitId"] || !reflect.DeepEqual(witness, want["witness"]) ||
 			int(got["testCount"].(float64)) != len(want["tests"].([]any)) {
