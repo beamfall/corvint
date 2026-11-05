@@ -77,12 +77,12 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
   Superseding AMAP-V0-194's no-URL-resolution clause, a test URL on a literal React `Navigate`
   route MUST resolve through its
   absolute or route-relative `to` to a unique destination screen, including index routes,
-  declared base paths and chains of at most 32 redirects. `relative="path"` uses path segments;
+  declared base paths, hash-router prefixes/fragments and chains of at most 32 redirects. `relative="path"` uses path segments;
   default `..` uses contributing route ancestors. Redirects remain abstract, never synthetic
   screens. Persist optional `redirect` metadata and join the traversed declarations' anchors
   as target `redirect_from` freshness inputs. Nonliteral/spread-overridden targets, external
   URLs, unresolved relative parameters, ambiguous destinations and cycles MUST remain unknown.
-  Test: `TestAMAPV08206NavigateTargetsAndFreshness`. Existing maps without these optional
+  Tests: `TestAMAPV08206NavigateTargetsAndFreshness`, `TestAMAPV08206HashRedirect`. Existing maps without these optional
   fields retain their prior interpretation. Rollback: remove redirect following and rebuild maps.
 
 AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016 is proposed

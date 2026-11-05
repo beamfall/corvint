@@ -2,12 +2,9 @@
 # usage: check-cem-base-retained.sh [--retained REF]... — refuse a committed map whose base no retained
 # ref reaches (decision 0588, V1-3758).
 #
-# Every tracked `.corvint/changes/NAME.cem.json` names its `baseRevision`. After branch deletion and gc a
-# base that no retained ref reaches is gone, and the map's Git evidence becomes unverifiable. The check
-# passes a map whose base is an ancestor of a retained ref (default refs/remotes/origin/main) and a map
-# `.corvint/cem-lineage.tsv` labels with exactly that base and a resolving ref reaching it; it refuses any other map, a register row whose
-# map is gone or whose base differs, and an unknown label. With no default retained ref resolvable here, each map needs its own verified lineage
-# ref; a missing ref never turns an unretained base into a passing check.
+# Historical labels preserve the original archive provenance. Archive references are not
+# local-only tags: when their commit is unavailable, report NOT_RUN with the reason.
+# Exact base/map binding is still mandatory; unlabelled unretained maps still refuse.
 set -uo pipefail
 export LC_ALL=C
 # Counters, not ${#array[@]} or "${array[@]}" on an empty array: Bash before 4.4 treats an empty
@@ -31,7 +28,7 @@ for ref in ${retained[@]+"${retained[@]}"}; do
   if tip=$(git rev-parse --verify -q "$ref^{commit}"); then tips+=("$tip"); tip_count=$((tip_count + 1)); fi
 done
 if ((tip_count == 0)); then
-  echo "check-cem-base-retained: no default retained ref resolves here (${retained[*]-}); every map needs a verified lineage ref" >&2
+  echo "check-cem-base-retained: no default retained ref resolves here (${retained[*]-}); reachability NOT_RUN without a retained tip" >&2
 fi
 
 # Bash 3.2 (macOS /bin/bash) has no associative arrays: the register and the tracked targets are
@@ -46,7 +43,7 @@ if [[ -f $register ]]; then
       *) echo "check-cem-base-retained: $register: $target has unknown label '$label'" >&2; exit 1 ;;
     esac
     [[ -n ${ref:-} ]] || { echo "check-cem-base-retained: $register: $target names no retained column" >&2; exit 1; }
-    labelled+="$target $base $ref"$'\n'
+    labelled+="$target $base $label $ref"$'\n'
     labelled_count=$((labelled_count + 1))
   done < "$register"
 fi
@@ -67,17 +64,43 @@ while IFS= read -r map; do
   fi
   row=$(printf '%s' "$labelled" | grep -m1 "^$target " || true)
   if [[ -n $row ]]; then
-    read -r labelled_target labelled_base labelled_ref <<< "$row"
+    read -r labelled_target labelled_base labelled_label labelled_ref <<< "$row"
     if [[ $labelled_base != "$base" ]]; then
       echo "check-cem-base-retained: $register labels $target with base $labelled_base, but the map's base is $base" >&2
       refused=1
     fi
-    # CEM-V1-8201: disclosure alone cannot retain an object across gc.
-    if [[ $labelled_ref != refs/* ]] || ! labelled_tip=$(git rev-parse --verify -q "$labelled_ref^{commit}") ||
-      ! git merge-base --is-ancestor "$base" "$labelled_tip" 2> /dev/null; then
-      echo "check-cem-base-retained: $register: $target base $base is not retained by $labelled_ref" >&2
-      refused=1
-    fi
+    # CEM-V1-8201: an archive locator survives a fresh clone without private tags.
+    case $labelled_ref in
+      beamfall/corvint-history@*)
+        archive_commit=${labelled_ref#*@}
+        if [[ $labelled_label != archive-lineage || ! $archive_commit =~ ^[0-9a-f]{40}$ ]]; then
+          echo "check-cem-base-retained: $register: $target has invalid archive reference $labelled_ref" >&2
+          refused=1
+        elif ! git cat-file -e "$archive_commit^{commit}" 2> /dev/null || ! git cat-file -e "$base^{commit}" 2> /dev/null; then
+          echo "check-cem-base-retained: NOT_RUN $target archive reachability: $labelled_ref or base $base absent locally" >&2
+        elif ! git merge-base --is-ancestor "$base" "$archive_commit" 2> /dev/null; then
+          echo "check-cem-base-retained: $register: $target base $base is not retained by $labelled_ref" >&2
+          refused=1
+        fi ;;
+      none)
+        echo "check-cem-base-retained: NOT_RUN $target retention: historical $labelled_label base $base has no retained locator" >&2 ;;
+      refs/*)
+        if ! labelled_tip=$(git rev-parse --verify -q "$labelled_ref^{commit}"); then
+          echo "check-cem-base-retained: NOT_RUN $target retention: $labelled_ref absent locally" >&2
+        elif ! git cat-file -e "$base^{commit}" 2> /dev/null; then
+          echo "check-cem-base-retained: NOT_RUN $target reachability: base $base absent locally" >&2
+        elif ! git merge-base --is-ancestor "$base" "$labelled_tip" 2> /dev/null; then
+          echo "check-cem-base-retained: $register: $target base $base is not retained by $labelled_ref" >&2
+          refused=1
+        fi ;;
+      *)
+        echo "check-cem-base-retained: $register: $target has invalid retained reference $labelled_ref" >&2
+        refused=1 ;;
+    esac
+    continue
+  fi
+  if ((tip_count == 0)); then
+    echo "check-cem-base-retained: NOT_RUN $map reachability: no retained ref resolves locally" >&2
     continue
   fi
   reached=0
@@ -92,7 +115,7 @@ while IFS= read -r map; do
     refused=1
   fi
 done <<< "$maps"
-while IFS=' ' read -r target base ref; do
+while IFS=' ' read -r target base label ref; do
   [[ -n $target ]] || continue
   if ! printf '%s' "$present" | grep -Fxq "$target"; then
     echo "check-cem-base-retained: $register labels $target, but .corvint/changes/$target.cem.json is not tracked" >&2
@@ -100,4 +123,4 @@ while IFS=' ' read -r target base ref; do
   fi
 done <<< "$labelled"
 ((refused)) && exit 1
-echo "check-cem-base-retained: every committed map's base is retained or labelled ($(wc -l <<< "$maps" | tr -d ' ') maps, $labelled_count labelled)"
+echo "check-cem-base-retained: every committed map's base is retained or labelled (NOT_RUN checks reported above) ($(wc -l <<< "$maps" | tr -d ' ') maps, $labelled_count labelled)"

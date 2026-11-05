@@ -229,9 +229,9 @@ func allCapitalWord(name string) bool {
 	return true
 }
 
-// rankSelectedAdditively keeps reservations and graph positions and every
-// selected path. Scores reflect lexical strength plus the existing slot bonus.
-func (compiler *taskContextCompiler) rankSelectedAdditively(rows []contextRow) []contextRow {
+// orderLookupPairs keeps selected sources before their paired tests for lookups.
+// Frozen default scores and reasons remain unchanged (TCP-V0-8200).
+func (compiler *taskContextCompiler) orderLookupPairs(rows []contextRow) []contextRow {
 	positions := []int{}
 	ordinary := []contextRow{}
 	for i, row := range rows {
@@ -240,19 +240,6 @@ func (compiler *taskContextCompiler) rankSelectedAdditively(rows []contextRow) [
 		}
 		positions = append(positions, i)
 		ordinary = append(ordinary, row)
-	}
-	// Keep decision 0027's corroboration order. Additive scores describe
-	// strength; promoting a global additive order still needs CRK-V0-008.
-	band := compiler.lexicalBand()
-	for i := range ordinary {
-		row := &ordinary[i]
-		if row.kind != "definition" && row.kind != "test" {
-			continue
-		}
-		lexical, bonus, also := band[row.path], contextSlotBonus[row.kind], 50*len(compiler.support[row.path])
-		key := lexical + bonus + also
-		row.score = min(contextLexicalBase+key, contextAdditiveMaxScore)
-		row.reason += "; additive " + strconv.Itoa(key) + " (lexical " + strconv.Itoa(lexical) + ", " + row.kind + " +" + strconv.Itoa(bonus) + ", also +" + strconv.Itoa(also) + ")"
 	}
 	// A lookup asks for implementation. Keep a convention-paired test after
 	// its source when both survived selection; never invent an absent source.

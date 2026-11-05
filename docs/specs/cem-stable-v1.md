@@ -24,14 +24,16 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 ## Requirements
 
 - `CEM-V1-8201`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3758)
-  A historical lineage label MUST name a resolving `refs/` ref whose commit reaches the exact
-  registered base. A label with a missing ref or unrelated tip MUST fail the committed-map gate;
-  a bare object ID is not a retained ref. With no default retained ref, require a verified
-  lineage ref for every map rather than skipping (supersedes the CEM-V1-963 skip).
-  This strengthens CEM-V1-963 without rewriting sealed
-  maps. Preserve and transfer the `refs/tags/cem-lineage/*` evidence refs with archived maps;
-  Git source alone does not preserve their evidence. Test: `script/check-cem-base-retained_test.sh`.
-  Rollback: restore the prior gate; missing retention then remains explicitly unproved.
+  Preserve the original historical lineage labels without requiring private local tags.
+  Accept `beamfall/corvint-history@<40-hex-commit>` archive locators; when the archive commit
+  or base is absent locally, report reachability `NOT_RUN` with the missing identity. When
+  both exist locally, require the archive commit to reach the exact registered base. A
+  missing named ref, a historical `none` locator, or no default retained ref MUST report
+  the unavailable check as `NOT_RUN`, never fail a fresh clone solely for unavailable history.
+  Keep CEM-V1-963 map/base/label validation and refusal of unlabelled unretained maps;
+  reject malformed locators and unrelated available tips. A label proves no CEM verdict.
+  Test: `script/check-cem-base-retained_test.sh`, including a fresh clone without tags.
+  Rollback: restore the prior gate; missing retention remains explicitly unproved.
 
 - `CEM-V1-001`: (accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk binding and closed versioned decoding. Amended by decision 0525 §6 (V1-0595): `cem/0.1`, `cem/0.2` and `cem/0.3` documents are no longer readable; every consumer refuses them with `unsupported-spec` and the `CEM-V1-200` recovery line (`CEM-V1-200`, `CEM-V1-210`, `CEM-V1-215`), and Git history keeps them. Any other unknown spec stays an explicit unsupported result.
 - `CEM-V1-002`: (accepted by decision 0546, 2026-10-20) Bind criterion references to canonical native ticket identity, acceptance revision, ordered acceptance digest and immutable claim-era record. Current applicability is distinct from historical validity.
@@ -5980,13 +5982,12 @@ Status: experimental under the owner's standing lane auto-accept (2026-10-11); V
 Requirement: `CEM-V1-963` (every committed map base retained or labelled), in the Requirements section.
 
 Non-goals: no rewrite of a sealed map or verification of the archive repository.
-CEM-V1-8201 pins locally available historical bases under `refs/tags/cem-lineage/`;
-export with `git bundle create lineage.bundle --tags=cem-lineage/*` and fetch those refs
-into the restoring repository before running the gate. No remote publication is implied.
+CEM-V1-8201 preserves the original archive/none locators. A fresh clone needs no private
+lineage tags; archive/base objects absent locally produce an explicit `NOT_RUN` reason.
 
-Failure modes: a shallow or remote-less clone without retained lineage refs fails the check
-(CEM-V1-8201 supersedes the original skip). A label cannot make an absent object verify.
-The 17 formerly labelled maps now have exact local retained refs; transferring those refs is required.
+Failure modes: an available archive tip that does not reach the registered base fails, as do
+malformed locators and mismatched/stale labels. Missing history cannot prove retention or
+make an absent object verify; its check remains `NOT_RUN`.
 
 Acceptance evidence: `script/check-cem-base-retained_test.sh` (retained base passes; a base only a
 deleted branch held and a missing base are refused with the fix; a label admits exactly its base;

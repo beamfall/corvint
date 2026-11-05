@@ -47,10 +47,18 @@ func check(root string, paths []string, allow map[string]string) error {
 		if err != nil {
 			return err
 		}
+		inConflict := false
 		for i, line := range bytes.Split(raw, []byte{'\n'}) {
 			line = bytes.TrimSuffix(line, []byte{'\r'})
-			if bytes.HasPrefix(line, []byte("<<<<<<< ")) || bytes.Equal(line, []byte("=======")) || bytes.HasPrefix(line, []byte(">>>>>>> ")) {
+			opener := bytes.HasPrefix(line, []byte("<<<<<<< "))
+			closer := bytes.HasPrefix(line, []byte(">>>>>>> "))
+			if opener || inConflict && bytes.Equal(line, []byte("=======")) || closer {
 				findings = append(findings, fmt.Sprintf("%s:%d: unresolved merge marker", path, i+1))
+			}
+			if opener {
+				inConflict = true
+			} else if closer {
+				inConflict = false
 			}
 		}
 	}

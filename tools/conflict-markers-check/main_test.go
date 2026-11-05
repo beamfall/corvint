@@ -15,7 +15,7 @@ func TestConflictMarkersGate(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), 0700); err != nil {
 			t.Fatal(err)
 		}
-		for _, marker := range []string{"<<<<<<< HEAD", "=======", ">>>>>>> origin/main"} {
+		for _, marker := range []string{"<<<<<<< HEAD", ">>>>>>> origin/main"} {
 			if err := os.WriteFile(filepath.Join(root, path), []byte("ok\n"+marker+"\r\n"), 0600); err != nil {
 				t.Fatal(err)
 			}
@@ -47,5 +47,27 @@ func TestConflictMarkersGate(t *testing.T) {
 	}
 	if err := check(root, []string{path}, nil); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// SRG-V0-8202: a setext underline outside a conflict block is ordinary Markdown.
+func TestConflictMarkersSetextHeading(t *testing.T) {
+	root := t.TempDir()
+	path := "docs/heading.md"
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"Heading\n=======\n", "=======\r\n<<<<<<< HEAD\r\nours\r\n=======\r\ntheirs\r\n>>>>>>> main\r\nHeading\r\n=======\r\n"} {
+		if err := os.WriteFile(filepath.Join(root, path), []byte(text), 0600); err != nil {
+			t.Fatal(err)
+		}
+		err := check(root, []string{path}, nil)
+		if strings.HasPrefix(text, "Heading") {
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else if err == nil || strings.Count(err.Error(), "unresolved merge marker") != 3 || !strings.Contains(err.Error(), path+":4:") {
+			t.Fatalf("conflict separator diagnostics: %v", err)
+		}
 	}
 }

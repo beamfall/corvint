@@ -91,3 +91,33 @@ func TestAMAPV08206NavigateTargetsAndFreshness(t *testing.T) {
 		t.Fatalf("changed redirect freshness: %s", got)
 	}
 }
+
+// AMAP-V0-8206: redirect chains retain the router fragment under a base path.
+func TestAMAPV08206HashRedirect(t *testing.T) {
+	to := "/target"
+	chain := "/alias"
+	screens := []Screen{
+		{ID: "target", Status: StatusResolved, Template: "/target", Key: "/target"},
+		{ID: "alias", Anchor: Anchor{Path: "alias.tsx"}, Status: StatusResolved, Template: "/alias", Key: "/alias", Redirect: &RouteRedirect{To: &to}},
+		{ID: "chain", Anchor: Anchor{Path: "chain.tsx"}, Status: StatusResolved, Template: "/chain", Key: "/chain", Redirect: &RouteRedirect{To: &chain}},
+	}
+	for _, prefix := range []string{"#", "#!"} {
+		for _, base := range []string{"", "/web"} {
+			for _, target := range []string{"/target", "/" + prefix + "/target", prefix + "/target"} {
+				to = target
+				x := newScreenIndex(prefix, base, screens)
+				fresh := append([]Screen(nil), screens...)
+				attachRedirectFreshness(prefix, fresh)
+				if len(fresh[0].RedirectFrom) != 2 {
+					t.Fatalf("%s %s redirect freshness: %+v", prefix, target, fresh[0].RedirectFrom)
+				}
+				for _, route := range []string{"/alias", "/chain"} {
+					url := base + "/" + prefix + route
+					if got, why := x.byURL(url); got != "target" || why != "" {
+						t.Fatalf("%s -> %q %s", url, got, why)
+					}
+				}
+			}
+		}
+	}
+}

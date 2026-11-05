@@ -459,10 +459,10 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	if compiler.rrfOrder {
 		rows = compiler.fuseSelectedRows(rows)
 	}
-	// Score only the final membership: lexical strength cannot evict a slot's
-	// evidence before the packet limit (TCP-V0-8200).
+	// Reorder only final lookup membership; preserve frozen scores and reasons
+	// (TCP-V0-8200).
 	if !compiler.rrfOrder && !compiler.additiveOrder {
-		rows = compiler.rankSelectedAdditively(rows)
+		rows = compiler.orderLookupPairs(rows)
 	}
 	return compiler.markWorktreeRows(rows)
 }

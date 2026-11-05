@@ -11,9 +11,8 @@ decision 0027 (corroboration order), decision 0377 and `TCP-V0-048..050` in the
 `TCP-V0-025..029` in the same spec. These requirements add opt-in orderings and span modes to
 `corvint context` and remove per-call allocation from term counting. Every experimental ordering and span mode
 is behind an environment flag that is off by default; with every flag unset the packet bytes are
-the recipe golden and the span golden, unchanged by these flags. TCP-V0-8200 now changes default definition/test score reporting to additive
-lexical plus slot evidence while preserving corroboration order, except that lookup tasks
-place a selected source before its paired test. Global additive ordering remains opt-in.
+the recipe golden and the span golden, unchanged by these flags. TCP-V0-8200 preserves frozen default scores and reasons; component reporting is deferred.
+Lookup tasks place a selected source before its paired test. Global additive ordering remains opt-in.
 No index, snapshot, pack, root verb or wire profile changes.
 
 ## Agent digest

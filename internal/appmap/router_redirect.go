@@ -24,7 +24,13 @@ func (x *screenIndex) followRedirect(raw string, seen map[string]bool) ([]string
 	if !ok {
 		return nil, "non-literal-redirect-target"
 	}
-	return x.followRedirect(x.basePath+target, seen)
+	// Rebuild the router URL with its hash prefix before the route path.
+	// Otherwise urlPath treats a route fragment as an ordinary page fragment.
+	prefix := x.basePath
+	if x.hashPrefix != "" {
+		prefix += "/" + x.hashPrefix
+	}
+	return x.followRedirect(prefix+target, seen)
 }
 
 func (x *screenIndex) redirectPath(route Screen) (string, bool) {
@@ -35,6 +41,13 @@ func (x *screenIndex) redirectPath(route Screen) (string, bool) {
 	// External URLs and unresolved parameters are never invented destinations.
 	if strings.HasPrefix(to, "//") || urlScheme.MatchString(to) || strings.Contains(strings.SplitN(to, "/", 2)[0], ":") || strings.ContainsAny(to, "\\\x00") {
 		return "", false
+	}
+	// A hash router may name its route in the fragment itself. Preserve that
+	// route before removing an ordinary query or page fragment.
+	if x.hashPrefix != "" {
+		if i := strings.Index(to, x.hashPrefix); i >= 0 && strings.Trim(to[:i], "/") == "" {
+			to = to[i+len(x.hashPrefix):]
+		}
 	}
 	to, _ = splitQuery(to)
 	if i := strings.IndexByte(to, '#'); i >= 0 {
@@ -76,8 +89,8 @@ func (x *screenIndex) redirectPath(route Screen) (string, bool) {
 
 // attachRedirectFreshness joins every resolved alias chain's sources to its
 // target. A changed alias must invalidate the resulting attributed screen.
-func attachRedirectFreshness(screens []Screen) {
-	x := newScreenIndex("", "", screens)
+func attachRedirectFreshness(hashPrefix string, screens []Screen) {
+	x := newScreenIndex(hashPrefix, "", screens)
 	byID := map[string]int{}
 	for i, s := range screens {
 		byID[s.ID] = i

@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// TCP-V0-8200: selected slot evidence adds to BM25; a lookup carries source
-// before its paired test, and neither path disappears.
+// TCP-V0-8200: preserve frozen slot scores and reasons; a lookup carries
+// source before its paired test, and neither path disappears.
 func TestTaskContextSelectedSlotScores(t *testing.T) {
 	index, err := Build(context.Background(), impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":         "module example.test/slots\n\ngo 1.27.0\n",
@@ -22,14 +22,17 @@ func TestTaskContextSelectedSlotScores(t *testing.T) {
 	c := newTaskContextCompiler(index, "where is `RunEngine` canonical binding", "")
 	rows := c.compile(10)
 	paths := []string{}
-	band := c.lexicalBand()
 	for _, row := range rows {
 		paths = append(paths, row.path)
 		if row.kind != "definition" && row.kind != "test" {
 			continue
 		}
-		want := min(contextLexicalBase+band[row.path]+contextSlotBonus[row.kind]+50*len(c.support[row.path]), contextAdditiveMaxScore)
-		if row.score != want || !strings.Contains(row.reason, "; additive ") {
+		base := 800
+		if row.kind == "test" {
+			base = 650
+		}
+		want := base + 50*len(c.support[row.path])
+		if row.score != want || strings.Contains(row.reason, "; additive ") {
 			t.Fatalf("%s score=%d want=%d: %s", row.path, row.score, want, row.reason)
 		}
 	}
