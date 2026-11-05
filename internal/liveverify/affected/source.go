@@ -344,6 +344,25 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	return info, err
 }
 
+// ReadDir lists a source directory without following its entries. A disk
+// listing is stamped so adding or retargeting an alias invalidates the cache.
+func (s *Source) ReadDir(directory string) (entries []fs.DirEntry, errOut error) {
+	if err := s.stopped(); err != nil {
+		return nil, err
+	}
+	defer func() { s.retain(errOut) }()
+	if s == nil || !fs.ValidPath(directory) {
+		return nil, ErrInvalidUnit
+	}
+	if s.fsys != nil {
+		return fs.ReadDir(s.fsys, directory)
+	}
+	s.record.path(s.root, directory, false)
+	entries, errOut = os.ReadDir(filepath.Join(s.root, filepath.FromSlash(directory)))
+	s.record.failed(directory, errOut)
+	return entries, errOut
+}
+
 // LinkedEntries names the entries directly in directory that are symbolic
 // links and whose base names accept admits. A disk walk drops a link silently,
 // though a build tool may still compile its target, so a provider that narrows

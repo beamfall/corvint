@@ -335,11 +335,12 @@ type directoryObservation struct {
 // so the units, edges and frontier are those of the serial pass.
 func (language Language) observeDirectories(root *affected.Source, owners map[string]module, directories map[string][]string, ordered, packages []string) []directoryObservation {
 	observations := make([]directoryObservation, len(ordered))
+	aliases := &readKindAliases{}
 	observe := func(offset int) {
 		directory := ordered[offset]
 		observation := &observations[offset]
 		observation.frontier = map[string]bool{}
-		observation.unit, observation.imports, observation.testImports, observation.command, observation.embeds, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], packages, observation.frontier)
+		observation.unit, observation.imports, observation.testImports, observation.command, observation.embeds, observation.err = language.observeDirectory(root, owners[directory], directory, directories[directory], packages, observation.frontier, aliases)
 	}
 	workers := min(runtime.GOMAXPROCS(0), observeWorkers, len(ordered))
 	if !root.ConcurrentReads() || workers < 2 {
@@ -371,7 +372,7 @@ const observeWorkers = 8
 // whether a non-test file declares package main (a command, AFP-V0-037). It
 // also returns the patterns of the non-test files' //go:embed directives; a
 // file whose directives do not parse contributes none (AFP-V0-600).
-func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, bool, []string, error) {
+func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool, aliases *readKindAliases) (affected.Unit, map[string]bool, map[string]bool, bool, []string, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
@@ -433,6 +434,16 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		}
 		scan := pathTokens(body[importsEnd(fileSet, file):], owner.path, file.Imports)
 		kinds := testReadKinds(relative, body)
+		if len(kinds) > 0 {
+			targets, complete := aliases.read(root)
+			if !complete {
+				kinds = nil
+			} else {
+				for _, target := range targets {
+					globs[target] = true
+				}
+			}
+		}
 		for _, glob := range kinds {
 			globs[glob] = true
 		}
