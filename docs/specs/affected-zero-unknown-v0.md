@@ -108,6 +108,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `uncovered REASON UNIT_ID` line. Declared callers with no owning unit remain unknown. Literal, scoped, glob and
   unbounded reader tests count as observers and remain selected. Embedding foreign-language
   source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
+  A Ruby view with no reachable route-dispatched test retains its existing
+  `NO_SELECTABLE_TEST` abstention (RUBY-AFFECTED-V0-761): missing runtime dispatch is not a
+  coverage proof. Playwright SHALL inspect both unknown and uncovered units through its
+  existing out-of-suite reconciliation (TJAA-V0-106/107/121); a shared-graph coverage gap
+  alone cannot exclude a dirty runtime input or bypass its unreached-path declaration.
   The frozen `application-flow-impact/1` projection retains uncovered coverage gaps in its
   legacy `graph.unknown` list and `UNKNOWN` scope; its wire and goldens do not change.
   The existing advice coverage warnings also retain `NO_SELECTABLE_TEST: UNIT_ID` for

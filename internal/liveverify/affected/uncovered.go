@@ -15,6 +15,11 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 	if !strings.HasPrefix(id, "go:") && len(graph.embedded[seed.DirtyPath]) != 0 {
 		uncertain = true
 	}
+	// RUBY-AFFECTED-V0-761: a template without a route-dispatched spec has
+	// unresolved runtime dispatch, not proof that no test can observe it.
+	if strings.HasPrefix(id, "ruby:view:") && !graph.testReach[id] {
+		uncertain = true
+	}
 	inspect := func(caller string) {
 		unit := graph.units[caller]
 		observer = observer || len(unit.Tests) != 0 || len(unit.ExecConsumerRuns) != 0
