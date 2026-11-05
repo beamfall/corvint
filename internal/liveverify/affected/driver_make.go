@@ -559,11 +559,11 @@ func (e *driverExpander) lookup(name string) string {
 	for _, value := range values {
 		expanded = append(expanded, e.expand(value))
 	}
-	for _, value := range expanded[1:] {
-		if value != expanded[0] {
-			e.ambiguous = true
-			return driverComputed
-		}
+	// Assignment operators are not retained: equal values can still be an
+	// append whose word boundaries matter when the reference has a suffix.
+	if len(expanded) != 1 {
+		e.ambiguous = true
+		return driverComputed
 	}
 	return expanded[0]
 }

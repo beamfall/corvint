@@ -273,18 +273,22 @@ func TestDriverAlternativeMakeValues_AZU_V0_9702(t *testing.T) {
 		{"suffix", "PKG = left\nPKG = right\n", "go test ./$(PKG)/...", "right/right.go"},
 		{"script", "PKG = left\nPKG = right\n", "sh ./$(PKG)/check.sh", "core/core.go"},
 		{"same-value", "PKG = right\nPKG = right\n", "go test ./$(PKG)", "right/right.go"},
+		{"same-value-append-suffix", "PKG = ./left\nPKG += ./left\n", "go test $(PKG)_suffix", "left/left.go"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			graph := driverGraph(t, map[string]string{
 				"Makefile":                 tc.assignments + "check:; " + tc.recipe + "\n",
 				"left/left.go":             "package left\n",
+				"left/left_test.go":        "package left\nimport \"testing\"\nfunc TestLeft(t *testing.T) {}\n",
+				"left_suffix/suffix.go":    "package left_suffix\n",
 				"right/right.go":           "package right\n",
 				"right/right_test.go":      "package right\nimport \"testing\"\nfunc TestRight(t *testing.T) {}\n",
 				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make check\n",
 			}, nil)
 			selected := driverSelected(t, affected.Select(graph, []string{tc.dirty}))
 			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", jobUnit}, nil)
-			if tc.name != "same-value" && selected["driver:make:Makefile#check"].Witness.Kind != affected.WitnessFrontierSite {
+			unit, found := graph.Unit("driver:make:Makefile#check")
+			if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
 				t.Errorf("ambiguous recipe did not retain computed-site fallback")
 			}
 		})
