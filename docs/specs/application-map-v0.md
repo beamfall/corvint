@@ -2313,6 +2313,16 @@ but does not read it; only non-Go syntax impact does.
   as a corrupt file. Non-goals: tolerating unknown members, or a raw-bytes digest that would let an
   older reader skip them. Rollback: remove `newerMapMember`; the refusal code is unchanged.
 
+- `AMAP-V0-9501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4660)
+  Tests may reuse an immutable committed seed for an unchanged fixture directory, but each
+  invocation receives separate working files, index and Git objects, with no hard links or
+  alternates. Mutating or committing one copy must not affect another or the seed. Preserve
+  all fixture inputs and existing assertions; measure three whole-package runs per arm with
+  the same command, retaining platform and load qualifications. Seed creation or copying
+  failures fail the test. Rollback restores per-invocation initialization and commits.
+  Isolated history and injection matrices may run in parallel after serial tests restore
+  process-wide hooks; preserve every history, transition, case and assertion.
+
 ## Wire contract
 
 `corvint flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]...
@@ -2511,6 +2521,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 
 | Requirement | Evidence |
 | --- | --- |
+| AMAP-V0-9501 | `TestAMAPV09501FixtureCopiesAreIndependent`; whole-package timings in `docs/build-log/2026-11-05-slowperf.md` |
 | AMAP-V0-001 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0001DeclaredDirectoriesExist` |
 | AMAP-V0-002 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0002WildcardExhaustedSubject`, `TestAMAPV0002RepeatedKeys`, `TestAMAPV0002ConfigMustBeWholeArgument`, `TestAMAPV0002TruncatedStateCall` |
 | AMAP-V0-003 | `TestAMAPV0002HierarchyResolution`, `TestAMAPV0003QueryURLIsNotAuthority`, `TestAMAPV0003AuthorityEndsAtQueryOrFragment` |

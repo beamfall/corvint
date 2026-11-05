@@ -273,6 +273,16 @@ therefore come from something keyed on content, not from Go's cache.
   command. Rollback: pass `processInvocation()` everywhere. Behaviour is then as before, and
   the tests go back to `t.Setenv` and `t.Chdir`.
 
+- `GL-V0-9500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2211)
+  Full-capacity retention and concurrent-prune tests may overlap only with private ledger
+  directories and after serial lock-hook tests finish. Keep the production capacity, writer
+  count, iteration count and every existing assertion. Compare three whole-package runs before
+  and after with the same command. Rollback removes only their parallel scheduling.
+  The concurrent-prune fixture may link identical immutable filler bytes inside its private
+  temporary directories: pruning only unlinks names and writer keys remain disjoint. Keep
+  every directory entry and use ordinary writes when links are unavailable; no inode or
+  timestamp-order assertion may depend on this sharing. Rollback restores individual writes.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is the state before this change: every gate run repeats every step, and Go's
@@ -343,6 +353,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 
 | Requirement | Evidence |
 |---|---|
+| GL-V0-9500 | `TestPruneKeepsTheNewestRecords`, `TestPruneSurvivesConcurrentPrunes`; whole-package timings in `docs/build-log/2026-11-05-slowperf.md` |
 | GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree; `TestWorktreeDigestIgnoresCachedStat`: same-size restored-time edits miss even with a newer index; `TestWorktreeDigestPreservesMembershipAndPaths`: tracked/ignored/staged/intent-to-add membership, executable/symlink modes and NUL-safe paths; `TestWorktreeDigestWithoutIndex`: unborn worktree |
 | GL-V0-002 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a step exiting 3 returns 3 and records nothing; `TestGoTestPartialPassRerun`: a failed package never records, passed packages hit on a same-tree rerun while failed and unresolved packages run; `TestPackageOutcomesRefusesIncomplete`: partial, malformed and contradictory streams refuse records; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`: unfinished ordinary tests at package pass, fail or skip refuse all batch records even alongside benchmarks; `TestPackageOutcomesAcceptsBenchmarkRuns`: framed benchmarks and subbenchmarks close at package termination, and bench events close benchmark runs; `TestPackageOutcomesBenchmarkFailure`: benchmark failure never records that package; `TestPackageOutcomesRepeatedBenchmarkTerminals`: repeated terminals without another run preserve unrelated passes and cannot undo a benchmark failure; `TestPackageOutcomesRefusesMalformedFieldTypes`: malformed types and nulls refuse all records; `TestPackageOutcomesAcceptsTypedFields`: valid timing, build and metadata fields are accepted; `TestPackageOutcomesAcceptsNonTerminalEvents`: Go metadata and benchmark output do not terminate ordinary tests or packages; `TestRunPackagesRefusesPartialOutput`: refusal reaches the record-writing boundary |
 | GL-V0-003 | the same test: an undeclared step runs and records nothing; `plan` reports `go-archive-gate: always runs` |
