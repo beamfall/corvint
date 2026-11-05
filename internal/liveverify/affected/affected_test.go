@@ -194,7 +194,7 @@ func TestSelectTraversesUntestedUnitsWithoutSelectingThem(t *testing.T) {
 
 // AZU-V0-006 amends AFP-V0-020: caller tests observe a changed testless
 // package; an untested dependent and an unreached package raise nothing.
-func TestSelectChecksChangedUntestedGoPackageThroughCallers(t *testing.T) {
+func TestSelectNamesChangedUntestedGoPackageAsUnknownScope(t *testing.T) {
 	language := fake{name: "go", units: []Unit{
 		{ID: "go:changed", Sources: []string{"changed/changed.go"}},
 		{ID: "go:core", Sources: []string{"core/core.go"}, Tests: []string{"core/core_test.go"}, Imports: []string{"go:changed"}},

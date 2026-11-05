@@ -78,8 +78,9 @@ binary and inputs; wall-clock replay performance was NOT_OBSERVED as a standalon
   `/home/russell/lanes`, so tests expecting a non-repository scratch location observe that parent;
   source qualification also refuses its group-writable, non-sticky ancestor. The frozen flow
   golden mismatch found in that run was fixed through the legacy projection above, without
-  changing the golden. A terminal whole-package rerun is retained separately; its final result
-  is reported in the lane handback.
+  changing the golden. The terminal whole-package rerun also failed (445.174s) on the external scratch/source
+  qualification failures; its exact failures and repros are retained in the handback. Focused CLI checks for compact/text output, by-path
+  projection, the frozen flow golden and both core-freeze groups PASS (1.437s).
 - A transient replay incorrectly dropped two shell tests (`agent-preflight_test.sh` and
   `check-windows-main_test.sh`) after ownership changed. The selection-set check caught it;
   testless hidden-source readers now retain their callers, and both final replay comparisons
@@ -107,6 +108,11 @@ by charter). External interoperability and external outcome validation are NOT_P
 local planner change. Overall outcome and exact remaining host checks are in the handback.
 
 Line citations were repinned from staged source and checked; spec requirements were regenerated.
+The original test function name remains stable for the parent's traceability row. An initial
+traceability check caught its temporary rename; restoring the name fixes the row without weakening
+its assertions. A commit attempted to create `/home/russell/projects/corvint/.git/packed-refs.lock`
+and printed `Read-only file system`; the task commit itself succeeded. No Git configuration or
+permission override was used.
 The seal identity is Russell Lewis <me@russe11.com>. The checked CEM is intentionally left unsealed.
 
 ## Retained SHA-256 digests
@@ -124,3 +130,6 @@ The seal identity is Russell Lewis <me@russe11.com>. The checked CEM is intentio
 - `test-appflows-whole.log` (593 bytes): `0cd2943eafa77ca4fdf38aac9c8dde270f44135015a0cdb5f9413f8a80fe0057`.
 - `test-cmd-whole.log` (70077 bytes): `179dc57e8f17762d0476dc758798baeeecf7613ea737c28601b1555647b4afb6`.
 - `after-merge.json` (432302 bytes): `e167c4b3a15b3381c442ac228f0e03f3ab121a7cfcac8c922e3d8583abf405d4`.
+- `test-cmd-final.log` (68495 bytes): `1b063ef817cd67222c35da67c9944a9ee17dd12de2d588ed3dbca1568a0c23ec`.
+- `test-cmd-focused-final.log` (898 bytes): `966baa988d313ffd494cd658dd4cb020712f7ae99f5da4c49449d81a5eaf99eb`.
+- `spec-requirements-final.log` (1763 bytes): `7e5d1c3dad6ccae7c74c1913208bedc628d2a882d0ed3eaae7db065d6b88aa2f`.
