@@ -242,7 +242,7 @@ func leaseDeclined(ctx context.Context, request transaction.Request, why string)
 // base came from this command's audit from receipt 1, so the verb keeps that
 // audit's detection of a rewritten prefix, and checks the base again just
 // before it reports or commits (PSR-V0-056, proposed).
-func leaseWriter(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver, report *Report, resume *leaseResume) (handled, refresh bool, proof *journal.Result, err error) {
+func leaseWriter(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver, report *Report, resume *leaseResume, checkpoint *writerCheckpointBinding) (handled, refresh bool, proof *journal.Result, err error) {
 	if resume == nil && !writerRouteReady(repo, request) {
 		return false, false, nil, nil
 	}
@@ -294,7 +294,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	// Only the audit attempts the resumed route ran are resumed walks: a
 	// decline before its audit charges none (PSR-V0-151).
 	var walks journal.WalkStats
-	w, decline, terminal := observeWriter(ctx, repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, preload)
+	w, decline, terminal := observeWriter(ctx, repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, preload, checkpoint)
 	timing.SnapshotRead += time.Since(read)
 	timing.walked(walks)
 	if terminal != nil {

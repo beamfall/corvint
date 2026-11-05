@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -160,13 +161,19 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
 			return errorResult(cmd, err)
 		}
-		flags.expected = recordedCurrentRevision(env, operation, actor, flags, payload)
+		flags.expected, err = recordedCurrentRevision(env, operation, actor, flags, payload)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	if operation == mutation.OpHold && flags.target != "" && flags.expected == "" {
 		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
 			return errorResult(cmd, err)
 		}
-		flags.expected = landedRevision(env, flags.requestID, flags.expected)
+		flags.expected, err = landedRevision(env, flags.requestID, flags.expected)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	sub := submitMutation(env, cmd, operation, actor, flags, payload)
 	if sub != nil && len(subjectWarnings) > 0 {
@@ -497,6 +504,9 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 func submitMutationContext(ctx context.Context, env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) (res *wire.Result) {
 	if err := writerGuard(env, operation, payload); err != nil {
 		return errorResult(cmd, err)
+	}
+	if slices.Contains(release.Operations, operation) {
+		return submitReleaseMutationContext(ctx, env, cmd, operation, actor, flags, payload)
 	}
 	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {

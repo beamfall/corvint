@@ -546,7 +546,7 @@ func planComplete(c leaseContext) leaseOutcome {
 }
 
 func (c leaseContext) completed(a *snapshot.Attempt, rec *ticket.Record, passed []string) leaseOutcome {
-	m := snapshot.Manifest{Supervision: snapshot.CloneSupervision(a.Supervision), AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, TicketRecordSha256: rec.FileDigest(), PolicySha256: a.PolicySha256, ConfigSha256: a.ConfigSha256, BaseCommit: a.BaseCommit, CandidateTreeOid: *a.CandidateTreeOid, GateResults: passed, Budget: a.Budget, ScopeCheck: a.ScopeCheck, Mode: a.Mode}
+	m := snapshot.Manifest{CompletionCommit: c.l.Commit, Supervision: snapshot.CloneSupervision(a.Supervision), AttemptID: a.AttemptID, Generation: a.Generation, TicketID: a.TicketID, TicketRevision: a.TicketRevision, TicketRecordSha256: rec.FileDigest(), PolicySha256: a.PolicySha256, ConfigSha256: a.ConfigSha256, BaseCommit: a.BaseCommit, CandidateTreeOid: *a.CandidateTreeOid, GateResults: passed, Budget: a.Budget, ScopeCheck: a.ScopeCheck, Mode: a.Mode}
 	manifest, e := m.Encode()
 	if e != nil {
 		return c.fail(e)

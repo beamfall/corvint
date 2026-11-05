@@ -68,6 +68,14 @@ closeout step is missing.
 
 ## Requirements
 
+### Tasks store and read-path repairs (2026-11-04)
+
+- `TCD-V0-7212`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4025) A long target request ID's digest fallback MUST bind base, ticket identity and local/phase identity with unambiguous separators. Different phases for the same ticket MUST yield distinct IDs within the request-ID bound. This changes the legacy long-ID derivation; to replay a pre-upgrade multi-target result, retry each target singly with its reported concrete requestId and original issuedAt. Do not recompute the old base-to-target mapping with the new algorithm. Upgrade caveat: an interrupted legacy multi-target command retried after upgrade may apply twice, because the changed derived request ID does not identify the earlier application.
+  Evidence: `internal/tasks/cli/pk_tstore_internal_test.go` — `TestTCDV07212_LongTargetRequestIncludesLocal`.
+- `TCD-V0-7214`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4302) A failed Git ancestry observation MUST abstain or refuse wherever its negation could establish a seal exclusion, detached lane inclusion, delivery exclusion, repeated nested-merge suppression or checkpoint NOT_ANCESTOR relation. Query exit 1 alone proves non-ancestry; other errors retain uncertainty. A positive-only IsAncestor filter is safe only when false broadens checking rather than proving a relation.
+  Evidence: `internal/tasks/cli/pk_tstore_internal_test.go` — `TestTCDV07214_CheckpointAncestryAbstainsOnGitError; TestTCDV07214_AncestryCallersRefuseObservationFailure`.
+
+
 - `TCD-V0-001`: `corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N]` is a read
   verb listed in `ReadVerbs` with a help entry. It takes no positional argument.
   - `--ref` defaults to `refs/remotes/origin/<intentBranch>` when that ref resolves to a commit, and to

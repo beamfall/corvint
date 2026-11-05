@@ -133,7 +133,7 @@ func createTemplateFields(queueID string, policy *intent.Policy) *wire.Object {
 	f.Set("effects.verdictPaths", templateField("optional nonempty "+set("repository Path", wire.MaxTouchPaths), false, nil, "the cem-verdict predicate domain; every path must lie under a touchPaths key; omitted, the gate governs touchPaths (TCB-V0-035)"))
 	f.Set("estimateMinutes", templateField("Count decimal string", true, nil, ""))
 	f.Set("executionClass", templateField("enum", false, ticket.ExecutionClasses, ""))
-	f.Set("kind", templateField("enum", false, ticket.Kinds, ""))
+	f.Set("kind", templateField("enum", false, ticket.Kinds, "agent-memory category labels fixes and tests map to kind CHORE; FIX and TEST are not kinds; see docs/TICKET-PRIORITY.md"))
 	f.Set("labels", templateField(set("Label", wire.MaxLabels), false, nil, ""))
 	f.Set("localToken", templateField("optional queue-local token string", false, nil, "omit for automatic allocation; collisions refuse"))
 	if policy.MilestoneRequired() {

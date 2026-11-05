@@ -169,6 +169,9 @@ type Reader struct {
 	// killed writer's orphan: the audit refuses it at once instead of
 	// waiting for it while blocking every other writer (CTS-V0-008).
 	WriterLocked bool
+	// ReadExtraDirectories ignores only unknown root directories in read-only
+	// views. Their bounded names are listed but their contents carry no evidence.
+	ReadExtraDirectories bool
 	// ExpectHeadSha256, when set, is the head digest of the outer snapshot
 	// the caller binds this audit to. An attempt whose first capture shows
 	// any other head returns SNAPSHOT_MOVED at once, without walking or
@@ -931,6 +934,9 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 			// journal: no receipt posts its files, so it is neither
 			// scanned nor part of the inventory fingerprint, and a put
 			// never moves a reader's or writer's observation.
+			continue
+		}
+		if r.ReadExtraDirectories && !r.writerCache && dir == "." && e.Info.IsDir() && !allowedDir(p) {
 			continue
 		}
 		o.files[p] = e.Info
