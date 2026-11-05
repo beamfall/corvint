@@ -69,7 +69,8 @@ func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error
 			if !ok {
 				return fail("uninstrumented file %s", d.Path)
 			}
-			file, fileIdx = &ix.Files[i], i
+			file, _ = ix.FileByPath(d.Path)
+			fileIdx = i
 			if file.OID != d.OldOID {
 				return fail("index records %s at another blob", d.Path)
 			}
@@ -154,11 +155,24 @@ func codeTokens(src []byte) []span {
 // The check is by column: a block sharing a line with such a token does not
 // cover it (LPCV-V0-952).
 func (ix *Index) selectLines(fi int32, f *File, code []span, fset *token.FileSet, fn *ast.FuncDecl, lo, hi int, e Effect) {
+	// Fast negative lookup: an unexecuted file still compiles when touched.
+	if len(ix.TestsOfFile(f.Path)) == 0 {
+		return
+	}
+	hits := map[[4]int32]bool{}
+	for _, b := range ix.BlocksAtLine(f.Path, int32(lo)) {
+		hits[[4]int32{b.Start, b.StartCol, b.End, b.EndCol}] = true
+	}
+	for _, b := range f.Blocks {
+		if int(b.Start) > lo && int(b.Start) <= hi {
+			hits[[4]int32{b.Start, b.StartCol, b.End, b.EndCol}] = true
+		}
+	}
 	for bi, b := range f.Blocks {
 		if int(b.Start) > hi {
 			break
 		}
-		if int(b.End) < lo {
+		if !hits[[4]int32{b.Start, b.StartCol, b.End, b.EndCol}] {
 			continue
 		}
 		e.Blocks[BlockRef{fi, int32(bi)}] = true
