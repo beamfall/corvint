@@ -106,7 +106,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `reason="NO_SELECTABLE_TEST"` and the unit ID as `detail`. Both full and compact plan profiles
   preserve it; the by-path profile preserves it on each path entry, and text emits an
   `uncovered REASON UNIT_ID` line. Declared callers with no owning unit remain unknown. Literal, scoped, glob and
-  unbounded reader tests count as observers and remain selected. Embedding foreign-language
+  unbounded reader tests count as observers and remain selected. Before proving a coverage
+  gap, testless literal/glob readers of an untested owner SHALL select their caller closures,
+  including readers of owned, nonhidden source paths. Embedding foreign-language
   source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
   A Ruby view with no reachable route-dispatched test retains its existing
   `NO_SELECTABLE_TEST` abstention (RUBY-AFFECTED-V0-761): missing runtime dispatch is not a
@@ -197,7 +199,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
 | AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
-| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [advice repair, replay and frozen-assertion qualification conflict](../build-log/2026-11-05-azu-small-wave-1105b.md) |
+| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006OwnedTestlessReaderCallers`; `TestAZUV0006OwnedSourceReaderCaller`; `TestAffectedUntestedGoPackageIsUnknownScope`; `TestUseCaseHostileChangeConsequence`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [self-review repair](../build-log/2026-11-05-azu-small-self-review-reader-callers.md) |
 | AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge consumer replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | not yet |

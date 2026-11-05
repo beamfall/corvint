@@ -59,6 +59,31 @@ func TestAZUV0006CoverageGap(t *testing.T) {
 	}
 }
 
+// AZU-V0-006: an owned, nonhidden source can be read without an import edge.
+// The reader's callers must be selected before proving no test observes it.
+func TestAZUV0006OwnedTestlessReaderCallers(t *testing.T) {
+	for _, glob := range []bool{false, true} {
+		reader := Unit{ID: "go:helper", Sources: []string{"helper/helper.go"}}
+		if glob {
+			reader.PathGlobs = []string{"data/*.go"}
+		} else {
+			reader.PathTokens = []string{"data/data.go"}
+		}
+		graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+			{ID: "go:data", Sources: []string{"data/data.go"}},
+			reader,
+			{ID: "go:root", Tests: []string{"root_test.go"}, TestImports: []string{"go:helper"}},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan := Select(graph, []string{"data/data.go"})
+		if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 || len(plan.Uncovered) != 0 || !reflect.DeepEqual(plan.SelectedTests(), []string{"root_test.go"}) {
+			t.Fatalf("glob=%v: scope=%s unknown=%v uncovered=%v selected=%v", glob, plan.Scope, plan.Unknown, plan.Uncovered, plan.SelectedTests())
+		}
+	}
+}
+
 // AZU-V0-005: newly owning hidden Go source must not remove a testless
 // reader's callers, which read or execute it independently of Go imports.
 func TestAZUV0005KeepsTestlessReadersCallers(t *testing.T) {

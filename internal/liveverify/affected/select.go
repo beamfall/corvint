@@ -370,8 +370,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 // the delta unit denominator cannot drift from the selected plan. followed
 // holds the units whose dependents the plan walks: every unit a reverse
 // dependency traversal expands, from the dirty paths' owners, from a
-// test-less reader of an unowned path (AFP-V0-495), and on any dirty path from
-// a root locator (AFP-V0-012 rule (d)). A test user, exec user, path reader,
+// test-less reader of an unowned or untested path (AFP-V0-495, AZU-V0-006),
+// and on any dirty path from a root locator (AFP-V0-012 rule (d)). A test user, exec user, path reader,
 // own-reason unbounded reader or scoped reader is selected without its
 // dependents (AFP-V0-581). carried holds the units testlessReaderUsers
 // traversed (AFP-V0-560).
