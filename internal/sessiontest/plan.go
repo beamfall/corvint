@@ -246,7 +246,7 @@ func Build(input Input) (Manifest, error) {
 	for _, entry := range input.Unknown {
 		// An unknown unit with no selectable test still needs its language's
 		// declared full command when no adapter covers it (STR-V0-004).
-		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" {
+		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
 		if directory, ok := moduleDirectory(entry); ok && input.RunnerProfile != ProfileCI {
