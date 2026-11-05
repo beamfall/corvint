@@ -182,11 +182,14 @@ and `CORVINT_PI_WORKFLOW_BIN` for the matching Core candidate. Native Tasks fixt
 writes can be explicitly disabled with `CORVINT_PI_TASK_WRITES=0`; they then remain
 unqualified. The protected SEA checks require their built Darwin artifacts.
 
-This base has no `workflowRevision` or PWV-V0-8100..8104 implementation: workflow
-identity reads HEAD and does not itself refuse reftable repositories or unborn
-branches. Native operations can still refuse a repository without a committed
-revision. The later pilane reftable/unborn refusal and create/refine surface require
-that separate implementation before their compatibility claims apply here.
+Workflow recovery resolves the HEAD commit through `workflowRevision`, including
+loose, detached and linked-worktree common/packed refs, and refuses unresolved
+identity (including unsupported reftable or unborn branches). A same-branch commit
+invalidates cached recovery and in-flight settlement (PWV-V0-8104). The explicit
+operator Tasks command supports negotiated `ticket create` and `ticket refine`
+with a native `input.payload`; refine also requires `ticketId` and fresh
+`expectedRevision` (PWV-V0-8102). Malformed envelopes refuse before native dispatch;
+native schema, secret screening, queue policy and role admission remain authoritative.
 
 Preserve installed official binaries; a local candidate is a source build with separate
 provenance and rollback, never a released update. Supervisor participation remains

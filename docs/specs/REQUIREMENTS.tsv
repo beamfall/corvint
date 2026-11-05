@@ -6279,7 +6279,7 @@ PWV-V0-019	docs/specs/pi-workflow-v0.md	(proposed, V1-2573) When every failing r
 PWV-V0-020	docs/specs/pi-workflow-v0.md	(proposed, V1-2783) A request with empty input MUST give the child `/dev/null` a	unrecorded	-
 PWV-V0-8300	docs/specs/pi-workflow-v0.md	(experimental, V1-4662) The normal Node adapter entry point MUST discover every	unrecorded	-
 PWV-V0-8301	docs/specs/pi-workflow-v0.md	(experimental, V1-4663; refines PWV-V0-004 and PWV-V0-008) Settlement MUST captu	unrecorded	-
-PWV-V0-8302	docs/specs/pi-workflow-v0.md	(experimental, V1-4663; preserves PWV-V0-011) This base's closed Tasks facade MU	unrecorded	-
+PWV-V0-8302	docs/specs/pi-workflow-v0.md	(experimental, V1-4663; reconciled with PWV-V0-8102 by the owner's self-review r	unrecorded	-
 PWV-V0-8100	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2149) The prot	standing	2026-10-11; V1-2149
 PWV-V0-8101	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3896) The docu	standing	2026-10-11; V1-3896
 PWV-V0-8102	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0507) The expl	standing	2026-10-11; V1-0507
