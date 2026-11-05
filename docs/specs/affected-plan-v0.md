@@ -3734,8 +3734,9 @@ traceability rows there.
   and shell-quoted like the AFP-V0-009 command, with source `affected-plan`: it compiles and vets
   each changed untested package and its in-module untested dependents and runs no test. A unit
   reached only as an `UNBOUNDED_READER` is not listed. An `EMPTY_SELECTION` covered by this entry
-  or by an AFP-V0-469 entry adds no `NO_ADVISORY_GO_COMMAND` line; `NO_SELECTABLE_TEST` and
-  `UNOWNED_DIRTY_PATH` stay in `plan.unknown`, because compiling is not running behaviour. Past the
+  or by an AFP-V0-469 entry adds no `NO_ADVISORY_GO_COMMAND` line. `UNOWNED_DIRTY_PATH` stays
+  in `plan.unknown`; `NO_SELECTABLE_TEST` follows AZU-V0-006's experimental coverage-gap
+  classification and remains an advice coverage warning, because compiling is not running behaviour. Past the
   AFP-V0-009 command bound the entry is replaced by
   `NO_ADVISORY_GO_COMPILE_COMMAND: <n> untested Go packages exceed the <bound>-pattern bound`.
   The plan and `provider.go` wire are unchanged.

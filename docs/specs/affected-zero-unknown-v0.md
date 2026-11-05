@@ -110,6 +110,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
   The frozen `application-flow-impact/1` projection retains uncovered coverage gaps in its
   legacy `graph.unknown` list and `UNKNOWN` scope; its wire and goldens do not change.
+  The existing advice coverage warnings also retain `NO_SELECTABLE_TEST: UNIT_ID` for
+  uncovered units: compile-only advice does not claim behavioural test coverage.
 - `AZU-V0-007`: Declared binary consumers run. An entry of `.corvint/test-binary-consumers.json`
   MAY carry `run`, the argv that runs it from the repository root. Legacy `FILE:[COMMAND_DIR...]`
   entries remain valid; the extended form is `FILE:{"commands":[COMMAND_DIR...],"run":[ARG...]}`.
@@ -189,8 +191,8 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | not yet |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
-| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; [merge replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
-| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md) |
-| AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; [consumer replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
+| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
+| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [advice repair, replay and frozen-assertion qualification conflict](../build-log/2026-11-05-azu-small-wave-1105b.md) |
+| AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge consumer replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | not yet |

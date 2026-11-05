@@ -1720,6 +1720,11 @@ func compileAffectedAdvice(root string, graph *affected.Graph, plan affected.Pla
 	for _, entry := range plan.Unknown {
 		unknown = append(unknown, entry.Reason+": "+entry.Detail)
 	}
+	// AZU-V0-006 changes selection uncertainty, not the advice's behavioural
+	// coverage warning: a compile-only check still does not test this unit.
+	for _, entry := range plan.Uncovered {
+		unknown = append(unknown, entry.Reason+": "+entry.Detail)
+	}
 	return affectedAdvice{Checks: checks, Note: adviceNote, Status: adviceStatus, Unknown: sortedUniqueStrings(unknown)}
 }
 
