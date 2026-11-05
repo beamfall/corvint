@@ -125,7 +125,8 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return cfamily.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-c-jni", "internal/analyzernativebridge"), sub("corvint-analyzer-objective-c", "internal/analyzernativebridge")},
 		Runners:   []string{"boost-test-junit", "catch2", "cmocka-xml", "ctest", "googletest"},
-		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Absent:    map[Piece]string{TestProvider: noTestProvider, Mutation: noMutation},
+		Coverage:  []SubPlugin{sub("linecov-native", "internal/nativelinecov")},
 	},
 	{
 		Name:      "dotnet",
@@ -133,7 +134,8 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return dotnet.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-dotnet", "internal/analyzerdotnet")},
 		Runners:   []string{"dotnet-mtp-mstest", "dotnet-mtp-nunit", "dotnet-mtp-xunit", "dotnet-vstest-mstest", "dotnet-vstest-nunit", "dotnet-vstest-xunit"},
-		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Absent:    map[Piece]string{TestProvider: noTestProvider, Mutation: noMutation},
+		Coverage:  []SubPlugin{sub("linecov-native", "internal/nativelinecov")},
 	},
 	{
 		Name: "go",
@@ -153,7 +155,8 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return java.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-java", "internal/analyzernativebridge")},
 		Runners:   []string{"gradle-junit", "junit-platform", "junit4", "maven-surefire", "testng"},
-		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Absent:    map[Piece]string{TestProvider: noTestProvider, Mutation: noMutation},
+		Coverage:  []SubPlugin{sub("linecov-native", "internal/nativelinecov")},
 	},
 	{
 		Name:      "kotlin",
@@ -161,8 +164,9 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return kotlin.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-kotlin-android", "internal/analyzerkotlinandroid")},
 		// The Android UI runners, Appium included, test Android applications.
-		Runners: []string{"android-junit", "appium", "appium-uiautomator2-wdio", "espresso", "kotest", "kotlin-test", "robolectric", "uiautomator"},
-		Absent:  map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Runners:  []string{"android-junit", "appium", "appium-uiautomator2-wdio", "espresso", "kotest", "kotlin-test", "robolectric", "uiautomator"},
+		Absent:   map[Piece]string{TestProvider: noTestProvider, Mutation: noMutation},
+		Coverage: []SubPlugin{sub("linecov-native", "internal/nativelinecov")},
 	},
 	{
 		Name: "python",
@@ -193,7 +197,8 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return rust.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-rust", "internal/analyzerrust")},
 		Runners:   []string{"cargo-bin", "cargo-doctest", "cargo-integration", "cargo-test", "nextest"},
-		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Absent:    map[Piece]string{TestProvider: noTestProvider, Mutation: noMutation},
+		Coverage:  []SubPlugin{sub("linecov-native", "internal/nativelinecov")},
 	},
 	{
 		Name:      "shell",
@@ -209,7 +214,8 @@ var manifests = []Manifest{
 		Provider:  func() affected.Language { return swift.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-swift", "internal/analyzerswift")},
 		Runners:   []string{"swift-testing", "swift-xctest", "xcode-xctest"},
-		Absent:    map[Piece]string{TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
+		Absent:    map[Piece]string{TestProvider: noTestProvider, Mutation: noMutation},
+		Coverage:  []SubPlugin{sub("linecov-native", "internal/nativelinecov")},
 	},
 	{
 		Name: "typescript",

@@ -182,3 +182,18 @@ test('PWV-V0-8104 packed refs, detached HEAD and linked common refs bind exact r
   assert.match((await f.emit('context',{messages:[]})).messages[0].content,/source packet/);
  });
 });
+
+// PWV-V0-8301: invalidate after invoke validates, before its caller resumes.
+test('PWV-V0-8301 settlement discards a response cleared between awaits',async t=>{
+ for(const transition of ['clear','input','session_tree','session_start']) {
+  const f=fixture(t),normal=f.runner.run;
+  f.runner.run=req=>normal(req).then(result=>{
+   if(req.args.includes('stop'))queueMicrotask(()=>queueMicrotask(()=>{
+    if(transition==='clear')f.bridge.clear();
+    else f.emit(transition,transition==='input'?{source:'interactive'}:{reason:'reload'});
+   }));
+   return result;
+  });
+  assert.equal(await f.emit('agent_before_settle',f.boundary),undefined,transition);
+ }
+});

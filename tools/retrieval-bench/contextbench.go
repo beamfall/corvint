@@ -170,10 +170,12 @@ func rederiveContextBench(report sampleReport, limit int) {
 	}
 	for name, answer := range report.Arms {
 		result := report.Metrics[name]
+		// CEP-V0-8600: even a failed replacement may carry an earlier
+		// derived value. Invalidate it before deciding whether to recompute.
+		delete(result, "cb_file_baseline_precision_length_matched")
 		if result == nil || answer.Error != "" {
 			continue
 		}
-		delete(result, "cb_file_baseline_precision_length_matched")
 		contextBenchFileMetrics(result, answer.Ranked[:min(limit, len(answer.Ranked))], report.Gold)
 	}
 	contextBenchLengthMatched(report, report.Gold, limit)
