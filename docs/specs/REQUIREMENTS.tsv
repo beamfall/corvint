@@ -390,10 +390,10 @@ AZU-V0-006	docs/specs/affected-zero-unknown-v0.md	Uncovered, not unknown.** A ch
 AZU-V0-007	docs/specs/affected-zero-unknown-v0.md	Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.jso	unrecorded	-
 AZU-V0-008	docs/specs/affected-zero-unknown-v0.md	Package-level runner fallback.** A frontier reason that hides only which tests r	unrecorded	-
 AZU-V0-009	docs/specs/affected-zero-unknown-v0.md	Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`	unrecorded	-
-AZU-V0-9700	docs/specs/affected-zero-unknown-v0.md	Missing wrapper operands.** As directed by the owner in the four Greptile P1	unrecorded	-
-AZU-V0-9701	docs/specs/affected-zero-unknown-v0.md	Implicit current Go package.** A supported Go package command without package	unrecorded	-
-AZU-V0-9702	docs/specs/affected-zero-unknown-v0.md	Complete make alternatives.** Alternative variable assignments SHALL preserve	unrecorded	-
-AZU-V0-9703	docs/specs/affected-zero-unknown-v0.md	Flow-style workflow steps.** A flow-style step sequence or mapping SHALL either	unrecorded	-
+AZU-V0-9700	docs/specs/affected-zero-unknown-v0.md	Missing wrapper operands. As directed by the owner in the four Greptile P1	unrecorded	-
+AZU-V0-9701	docs/specs/affected-zero-unknown-v0.md	Implicit current Go package. A supported Go package command without package	unrecorded	-
+AZU-V0-9702	docs/specs/affected-zero-unknown-v0.md	Complete make alternatives. Alternative variable assignments SHALL preserve	unrecorded	-
+AZU-V0-9703	docs/specs/affected-zero-unknown-v0.md	Flow-style workflow steps. A flow-style step sequence or mapping SHALL either	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-

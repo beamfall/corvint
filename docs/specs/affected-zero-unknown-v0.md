@@ -114,19 +114,19 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `unknown: []` and the safety check finds no miss: on each merge, every test whose outcome differs
   between the parent and the merge in a full-suite run, or that a mutation on a changed line kills,
   is in the selection.
-- **AZU-V0-9700: Missing wrapper operands.** As directed by the owner in the four Greptile P1
+- `AZU-V0-9700`: Missing wrapper operands. As directed by the owner in the four Greptile P1
   fixes for batch PR #98 (2026-11-05), a recipe or workflow step ending in an operand-taking
   `env` or command-wrapper option SHALL NOT panic during graph construction. It SHALL retain
   a computed invocation at that target or job, conservatively selecting it and its dependents.
-- **AZU-V0-9701: Implicit current Go package.** A supported Go package command without package
+- `AZU-V0-9701`: Implicit current Go package. A supported Go package command without package
   operands, including after flags, SHALL import the current working directory's package. An
   unknown directory SHALL fall back to every owner. The repository root MAY use the existing
   every-owner path import when the frozen path-import encoding cannot represent it precisely.
-- **AZU-V0-9702: Complete make alternatives.** Alternative variable assignments SHALL preserve
+- `AZU-V0-9702`: Complete make alternatives. Alternative variable assignments SHALL preserve
   each complete expanded word, including literal prefixes and suffixes, or retain a computed
   invocation when the alternatives cannot be represented. Joining alternatives into one expansion
   SHALL NOT silently lose a package, script or other dependency.
-- **AZU-V0-9703: Flow-style workflow steps.** A flow-style step sequence or mapping SHALL either
+- `AZU-V0-9703`: Flow-style workflow steps. A flow-style step sequence or mapping SHALL either
   expose its `run` dependencies or conservatively retain its job as a computed invocation. A valid
   flow-style step SHALL NOT be silently skipped merely because the YAML subset represents it as text.
 
