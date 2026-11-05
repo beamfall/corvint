@@ -162,11 +162,17 @@ reaches_external() {
   '
 }
 
+# GOC-V0-008 covers maintained adapters, not installed third-party dependency trees.
+# Prune only a directory named node_modules; adjacent owned files remain scan targets.
+integration_targets() {
+  find "$1" -type d -name node_modules -prune -o -type f \( -name '*.mjs' -o -name '*.json' \) -print
+}
+
 cd "$source_root"
 targets=$(
   printf '%s\n' Makefile
   find script -maxdepth 1 -type f -name '*.sh' ! -name "$(basename "$0")"
-  find integrations -type f \( -name '*.mjs' -o -name '*.json' \) 2>/dev/null
+  integration_targets integrations 2>/dev/null
 )
 
 violations=$(printf '%s\n' "$targets" | xargs grep -HnE "$pattern" 2>/dev/null | scan || true)
@@ -187,7 +193,31 @@ fi
 # Falsifying self-test: prove the scan genuinely fires on a real invocation and genuinely
 # allows every carved-out exception, so this is not a vacuous always-pass grep.
 fixture=$(mktemp "${TMPDIR:-/tmp}/corvint-no-python-dep.XXXXXX")
-trap 'rm -f "$fixture"' EXIT
+fixture_tree=$(mktemp -d "${TMPDIR:-/tmp}/corvint-no-python-targets.XXXXXX")
+trap 'rm -f "$fixture"; rm -rf "$fixture_tree"' EXIT
+
+# The installed SDK example that triggered the host verifier must be outside the
+# maintained scan, at any nesting depth. Similar names and adjacent owned code
+# must still be selected and fail on an interpreter invocation.
+mkdir -p "$fixture_tree/node_modules/sdk" "$fixture_tree/owned/node_modules/sdk" \
+  "$fixture_tree/owned/node_modules-extra"
+for path in node_modules/sdk/example.mjs owned/node_modules/sdk/example.json \
+  owned/runner.mjs owned/config.json owned/node_modules-extra/runner.mjs; do
+  printf 'python3 build.py\n' > "$fixture_tree/$path"
+done
+selected=$(integration_targets "$fixture_tree" | LC_ALL=C sort)
+expected=$(printf '%s\n' "$fixture_tree/owned/config.json" \
+  "$fixture_tree/owned/node_modules-extra/runner.mjs" "$fixture_tree/owned/runner.mjs" | LC_ALL=C sort)
+if [ "$selected" != "$expected" ]; then
+  echo "self-test: integration targets lost maintained files or included installed dependencies" >&2
+  exit 1
+fi
+printf '%s\n' "$selected" | while IFS= read -r path; do
+  if [ -z "$(grep -HnE "$pattern" "$path" | scan)" ]; then
+    echo "self-test: an owned integration interpreter invocation was not detected" >&2
+    exit 1
+  fi
+done
 
 printf 'python3 build.py\n' > "$fixture"
 if ! grep -nE "$pattern" "$fixture" | unexempted >/dev/null; then
