@@ -14,7 +14,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/clierror"
-	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 func binaries(t *testing.T) string {
