@@ -432,13 +432,19 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			declared[value] = true
 		}
 		scan := pathTokens(body[importsEnd(fileSet, file):], owner.path, file.Imports)
+		kinds := testReadKinds(relative, body)
+		for _, glob := range kinds {
+			globs[glob] = true
+		}
 		moves = moves || scan.movesDirectory
 		if scan.err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
 			reads.mark(relative+" does not tokenize", isTest)
 		}
 		for _, call := range scan.calls {
-			reads.mark(relative+" calls "+call, isTest)
+			if kinds == nil {
+				reads.mark(relative+" calls "+call, isTest)
+			}
 		}
 		for _, glob := range literalGlobs(directory, body, file.Imports) {
 			globs[glob] = true
@@ -449,6 +455,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			}
 			reason := escapesPackage(directory, name, isTest)
 			switch {
+			case kinds != nil:
 			case reason == "":
 			case leafPattern(directory, name, isTest, packages):
 				leafReads = append(leafReads, relative+" "+reason)
