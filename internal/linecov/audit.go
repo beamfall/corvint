@@ -50,7 +50,7 @@ func collectorOverlay(work, overlay, module string) (string, error) {
 			if strings.Count(s, wait) != 1 {
 				return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", p)
 			}
-			s = strings.Replace(s, wait, wait+"\ndefer corvintLinecovBuilt(c)", 1)
+			s = strings.Replace(s, wait, "func (c *Cmd) Wait() (corvintLinecovWaitErr error) {\ndefer func() { corvintLinecovBuilt(c, corvintLinecovWaitErr) }()", 1)
 			decl := "type Cmd struct {"
 			if strings.Count(s, decl) != 1 {
 				return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", p)
@@ -116,8 +116,12 @@ func corvintLinecovAudit(c *Cmd) {
 // BuildInfo omits -coverpkg. A successful, observed build must prove both the
 // module-wide selector and the collector overlay; a digest binds that proof to
 // the bytes later launched. Unknown build flags conservatively produce no proof.
-func corvintLinecovBuilt(c *Cmd) {
- if c.ProcessState!=nil && c.ProcessState.Success() && c.corvintLinecovProof!=nil {c.corvintLinecovProof()}
+func corvintLinecovBuilt(c *Cmd, waitErr error) {
+ proof:=c.corvintLinecovProof
+ c.corvintLinecovProof=nil
+ // Consume even a failed wait. Only this successful Wait may snapshot the
+ // build's output digest; a repeated Wait must never certify replacement bytes.
+ if waitErr==nil && c.ProcessState!=nil && c.ProcessState.Success() && proof!=nil {proof()}
 }
 
 func corvintLinecovBuildPlan(c *Cmd) func() {

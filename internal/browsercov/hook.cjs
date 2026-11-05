@@ -286,8 +286,10 @@ async function cdpCoverage(port) {
   const pending = new Map();
   const sessions = new Map(); // sessionId -> Map scriptId -> {url, sourceMapURL}
   const untaken = new Set(); // sessions that parsed possible repository code since their last take
+  let closed = false;
   const send = (method, params, sessionId) =>
     new Promise((resolve, reject) => {
+      if (closed) return reject(new Error("DevTools connection closed"));
       const n = ++id;
       pending.set(n, { resolve, reject, sessionId });
       ws.send(JSON.stringify({ id: n, method, params: params || {}, sessionId }));
@@ -316,6 +318,7 @@ async function cdpCoverage(port) {
     }
   };
   ws.onclose = () => {
+    closed = true;
     if (untaken.size) note("cdp-detached", "a page closed before its coverage was taken");
     for (const command of pending.values()) command.reject(new Error("DevTools connection closed"));
     pending.clear(); untaken.clear(); sessions.clear();

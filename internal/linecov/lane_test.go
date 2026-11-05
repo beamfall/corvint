@@ -109,7 +109,7 @@ func TestInvalidWindowDumpReason(t *testing.T) {
 // record, even when its build explicitly strips GOFLAGS.
 func TestUninstrumentedChild(t *testing.T) {
 	requireGo(t)
-	for _, mode := range []string{"covered", "partial", "partial-replace", "cleared", "prebuilt", "missing-second"} {
+	for _, mode := range []string{"covered", "partial", "partial-replace", "partial-replace-wait", "cleared", "prebuilt", "missing-second"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			tree := map[string]string{}
@@ -131,6 +131,15 @@ func TestUninstrumentedChild(t *testing.T) {
 				// A prior full build at the same path must not authorize different
 				// bytes from a later partial build.
 				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "out, err := exec.Command(bin).Output()", `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
+ out, err := exec.Command(bin).Output()`, 1)
+			}
+			if mode == "partial-replace-wait" {
+				// LPCV-V0-7601/954: the original successful command cannot confer
+				// its full-module proof on a partial replacement through Wait replay.
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], `if out, err := exec.Command("go", "build", "-o", bin, "../cmd/tool").CombinedOutput(); err != nil {`, `build := exec.Command("go", "build", "-o", bin, "../cmd/tool")
+ if out, err := build.CombinedOutput(); err != nil {`, 1)
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "out, err := exec.Command(bin).Output()", `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
+ if err:=build.Wait();err==nil{t.Fatal("repeated Wait must fail")}
  out, err := exec.Command(bin).Output()`, 1)
 			}
 			if mode == "prebuilt" {
