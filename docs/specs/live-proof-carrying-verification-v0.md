@@ -933,6 +933,14 @@ The live harness uses operator-provided tools only, writes its owned projects be
 scratch, and retains raw receipts outside the repository. It does not install tools through Core,
 change native report formats, admit unobserved launchers, or relax the existing qualification gate.
 Failure to observe a complete process tree or to export every process preserves static selection.
+Executable-image history is cumulative within each PID: a later covered Java image cannot
+erase an earlier uninstrumented launcher. PID-scoped sessions cannot independently prove repeated
+Java images in one PID. The positive JVM controlled-project witness explicitly uses the JDK's
+FORK launch mechanism; default POSIX_SPAWN's uninstrumented jspawnhelper remains a refusal.
+Native candidate analysis also requires a source-provider eligibility classification bound to
+both blob OIDs and the complete hunk list. Body boundaries alone do not classify macros or
+structural changes. Unavailable or stale classification keeps the static plan. Controlled
+literal-return mutants supply explicit fixture classifications, not a qualified native parser.
 Rollback removes the opt-in harness and inventory preservation fix; it never enables exclusion.
 
 The implementation is `internal/nativelinecov`, shared by the five families; it adds no command,
@@ -947,9 +955,9 @@ index and static selection remain compatible.
 |---|---|
 | LPCV-V0-8200..8204 | `internal/nativelinecov`: `TestCollectorFamilies`, `TestInstrumentation`, `TestNativeReports` |
 | LPCV-V0-8205..8206 | `TestCollectorRefusals`, `TestProcessCoverage`, `TestNativeReports` |
-| LPCV-V0-8207 | `TestSelectionFaults` |
+| LPCV-V0-8207 | `TestSelectionFaults`, `TestNativeEditClassification` |
 | LPCV-V0-9400 | `TestCollectorInventories`, opt-in `TestNativeLiveCMocka` |
-| LPCV-V0-9401 | opt-in `TestNativeLiveFamilies`, `TestLiveTraceRefusals` |
+| LPCV-V0-9401 | opt-in `TestNativeLiveFamilies`, `TestLiveTraceRefusals`, `TestLiveImageHistory` |
 | LPCV-V0-9402 | `TestJUnitMethodSelectors`, opt-in `TestNativeLiveFamilies` |
 
 Failure modes for this section:

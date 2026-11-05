@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -212,7 +213,10 @@ func TestNativeLiveCMocka(t *testing.T) {
 			line      int
 			want      string
 		}{{"probe.c", oids[liveSourcePath("cmocka", "probe.c")], 12, "probe::alpha"}, {"probe.c", oids[liveSourcePath("cmocka", "probe.c")], 17, ""}, {"child.c", oids[liveSourcePath("cmocka", "child.c")], 3, "probe::alpha"}} {
-			effect := Analyze(ix, []linecov.FileDiff{{Path: liveSourcePath("cmocka", tc.file), OldOID: tc.oid, NewOID: "changed", Hunks: []linecov.Hunk{{Start: tc.line, End: tc.line}}}}, bodies)
+			diff := linecov.FileDiff{Path: liveSourcePath("cmocka", tc.file), OldOID: tc.oid, NewOID: "changed", Hunks: []linecov.Hunk{{Start: tc.line, End: tc.line}}}
+			// These are explicit hypothetical statement edits in the controlled fixture.
+			eligible := map[string]EligibleChange{diff.Path: {OldOID: diff.OldOID, NewOID: diff.NewOID, Hunks: diff.Hunks}}
+			effect := Analyze(ix, []linecov.FileDiff{diff}, bodies, eligible)
 			var got []string
 			for id := range effect.Tests {
 				got = append(got, ix.Tests[id].Name)
@@ -221,7 +225,7 @@ func TestNativeLiveCMocka(t *testing.T) {
 				t.Fatalf("%s:%d effect=%+v selected=%v", tc.file, tc.line, effect, got)
 			}
 		}
-		effect := Analyze(ix, []linecov.FileDiff{{Path: liveSourcePath("cmocka", "probe.c"), OldOID: oids[liveSourcePath("cmocka", "probe.c")], NewOID: "changed", Hunks: []linecov.Hunk{{Start: 10, End: 10}}}}, bodies)
+		effect := Analyze(ix, []linecov.FileDiff{{Path: liveSourcePath("cmocka", "probe.c"), OldOID: oids[liveSourcePath("cmocka", "probe.c")], NewOID: "changed", Hunks: []linecov.Hunk{{Start: 10, End: 10}}}}, bodies, nil)
 		if effect.Fallback == "" {
 			t.Fatal("declaration did not keep static plan")
 		}
@@ -489,6 +493,56 @@ func TestLiveTraceRefusals(t *testing.T) {
 	})
 }
 
+// LPCV-V0-8205, LPCV-V0-9401: exercise the Python reducer used by the real
+// adapter, including the jspawnhelper -> Java history seen in retained evidence.
+func TestLiveImageHistory(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("Python live adapter runtime unavailable")
+	}
+	script := `import json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from images import capture_images
+p = json.load(sys.stdin)
+print(json.dumps(capture_images(p['trace'], 'jvm', Path('/java'), [('lcov', p['report'])], b'Session "1"\nSession "1147"')))
+`
+	for _, tc := range []struct {
+		name, trace string
+		valid       bool
+	}{
+		{"single Java image", "START 1 0\nEXEC 1 /java\nEXIT 1 0\nCOMPLETE\n", true},
+		{"launcher then Java", "START 1 0\nEXEC 1 /java\nSTART 1147 1\nEXEC 1147 /jspawnhelper\nEXEC 1147 /java\nEXIT 1147 0\nEXIT 1 0\nCOMPLETE\n", false},
+		{"Java then launcher", "START 1 0\nEXEC 1 /java\nEXEC 1 /jspawnhelper\nEXIT 1 0\nCOMPLETE\n", false},
+		{"repeated Java session ambiguous", "START 1 0\nEXEC 1 /java\nEXEC 1 /java\nEXIT 1 0\nCOMPLETE\n", false},
+		{"no executable image", "START 1 0\nEXIT 1 0\nCOMPLETE\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			packet, err := json.Marshal(map[string]string{"trace": tc.trace, "report": base64.StdEncoding.EncodeToString(reports("lcov", "src", 1).Data)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("python3", "-B", "-c", script, "testdata/live")
+			cmd.Stdin = bytes.NewReader(packet)
+			raw, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("live image adapter: %v: %s", err, raw)
+			}
+			var capture Capture
+			if err = json.Unmarshal(raw, &capture); err != nil {
+				t.Fatal(err)
+			}
+			_, err = processLines(capture, map[string]string{"src": "src"})
+			if (err == nil) != tc.valid {
+				t.Fatalf("coverage admission %v want valid=%t: %+v", err, tc.valid, capture)
+			}
+			// A later uncovered image must not erase the earlier native export.
+			if tc.name == "Java then launcher" && len(capture.Processes[0].Reports) != 1 {
+				t.Fatal("earlier executable image export erased")
+			}
+		})
+	}
+}
+
 type liveMutant struct {
 	file     string
 	line     int
@@ -516,7 +570,26 @@ func liveMutants(t *testing.T, o Options, ix *linecov.Index, bodies map[string]B
 		if bytes.Count(base, []byte(m.old)) != 1 {
 			t.Fatalf("nonunique mutant %s:%d", m.file, m.line)
 		}
-		effect := Analyze(ix, []linecov.FileDiff{{Path: liveSourcePath(family, m.file), OldOID: bodies[liveSourcePath(family, m.file)].OID, NewOID: "mutant", Hunks: []linecov.Hunk{{Start: m.line, End: m.line}}}}, bodies)
+		mutant := bytes.Replace(base, []byte(m.old), []byte(m.new), 1)
+		// The frozen mutant list admits only literal return-value replacements.
+		// Its exact source bytes and diff are the fixture's classification, not
+		// a general native source provider or a qualification claim.
+		for _, statement := range []string{m.old, m.new} {
+			fields := strings.Fields(statement)
+			if len(fields) != 2 || fields[0] != "return" || !strings.HasSuffix(fields[1], ";") {
+				t.Fatal("mutant requires source-provider classification")
+			}
+			if _, err := strconv.Atoi(strings.TrimSuffix(fields[1], ";")); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if liveBlobOID(base) != bodies[liveSourcePath(family, m.file)].OID ||
+			strings.TrimSpace(strings.Split(string(base), "\n")[m.line-1]) != m.old {
+			t.Fatal("mutant source binding mismatch")
+		}
+		diff := linecov.FileDiff{Path: liveSourcePath(family, m.file), OldOID: liveBlobOID(base), NewOID: liveBlobOID(mutant), Hunks: []linecov.Hunk{{Start: m.line, End: m.line}}}
+		eligible := map[string]EligibleChange{diff.Path: {OldOID: diff.OldOID, NewOID: diff.NewOID, Hunks: diff.Hunks}}
+		effect := Analyze(ix, []linecov.FileDiff{diff}, bodies, eligible)
 		if effect.Fallback != "" {
 			t.Fatal(effect.Fallback)
 		}
@@ -527,7 +600,7 @@ func liveMutants(t *testing.T, o Options, ix *linecov.Index, bodies map[string]B
 			selected[name] = true
 			r.Selected = append(r.Selected, name)
 		}
-		if err = os.WriteFile(path, bytes.Replace(base, []byte(m.old), []byte(m.new), 1), 0600); err != nil {
+		if err = os.WriteFile(path, mutant, 0600); err != nil {
 			t.Fatal(err)
 		}
 		rebuild()

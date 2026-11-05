@@ -4,6 +4,13 @@ Owner request: lane covlive, V1-4369, V1-4370, V1-4371, V1-4375 and V1-4376,
 base `39c03198086681fb24f509fbd00b34696d3268c4`, inheriting covcoll's fixture implementation.
 Requirements: LPCV-V0-950, 954, 955, 963, 8200..8207 and 9400..9402.
 
+Correction from self-review: the original JVM completeness and selection claims below are
+withdrawn for the default launch tuple. Its jspawnhelper image was overwritten by a later Java
+image in one PID. The repair record `2026-11-05-covlive-self-review-repair.md` supersedes those
+receipts with cumulative image accounting and an explicitly FORK-only positive witness. Body
+boundaries alone also did not establish eligibility; source-provider classification is now a
+separate required input bound to both revisions and hunks. The original raw evidence is retained.
+
 ## Decisions and observed defects
 
 Preserve native inventory instead of reconstructing it from terminal output. The live cmocka

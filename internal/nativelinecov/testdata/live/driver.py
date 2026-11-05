@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from images import capture_images
 
 tools = Path(os.environ['CORVINT_NATIVE_LIVE_TOOLS'])
 evidence = Path(os.environ['CORVINT_NATIVE_LIVE_EVIDENCE'])
@@ -68,7 +69,7 @@ if len(sys.argv)>3 and sys.argv[3]=='rebuild':
 packet=json.load(sys.stdin);r=packet['request'];inv=packet['invocation']
 out=Path(r['reportDir']);out.mkdir(parents=True,exist_ok=False)
 env.update(inv.get('environment') or {})
-if family=='jvm':env['JAVA_TOOL_OPTIONS']+=' "-Dcovlive.classes='+str(work/'project/classes')+'"'
+if family=='jvm':env['JAVA_TOOL_OPTIONS']+=' "-Dcovlive.classes='+str(work/'project/classes')+'" -Djdk.lang.Process.launchMechanism=FORK'
 counter=work/'invocation-count';seq=int(counter.read_text())+1 if counter.exists() else 1;counter.write_text(str(seq))
 prefix=evidence/(family+'-'+str(seq));prefix.parent.mkdir(parents=True,exist_ok=True)
 for path,data in (inv.get('files') or {}).items():
@@ -112,17 +113,8 @@ else:
 for i,(fmt,b) in enumerate(exports):save(Path(str(prefix)+f'.coverage-{i}.{fmt}'),b)
 # Preserve raw terminal and coverage bytes. Unknown launchers cannot be upgraded
 # from the existence of their children's coverage. JVM sessions name real PIDs.
-processes={};complete=False
-for line in Path(str(prefix)+'.trace').read_text().splitlines():
-    f=line.split(' ',2)
-    if f[0]=='COMPLETE':complete=True
-    elif f[0]=='START':processes[int(f[1])]=dict(ID=int(f[1]),Parent=int(f[2]),Exited=False,Instrumented=False,Reports=[])
-    elif f[0]=='EXEC' and int(f[1]) in processes:
-        p=processes[int(f[1])]
-        p.update(Instrumented=False,Reports=[])
-        if family=='jvm' and Path(f[2])==java and len(exports)==1 and ('Session "'+f[1]+'"').encode() in info:
-            p.update(Instrumented=True,Reports=[dict(Format=exports[0][0],Data=b64(exports[0][1]))])
-    elif f[0]=='EXIT' and int(f[1]) in processes:processes[int(f[1])]['Exited']=True
-capture=dict(Input=dict(runner=r['runner'],target=r.get('target',''),stdout=b64(result.stdout),stderr=b64(result.stderr),reports=reports,exitCode=result.returncode,selectors=r.get('selectors'),expected=r.get('expectedTests')),TreeComplete=complete,Processes=list(processes.values()))
+capture=capture_images(Path(str(prefix)+'.trace').read_text(), family, java,
+                       [(fmt,b64(b)) for fmt,b in exports], info if family=='jvm' and exports else b'')
+capture['Input']=dict(runner=r['runner'],target=r.get('target',''),stdout=b64(result.stdout),stderr=b64(result.stderr),reports=reports,exitCode=result.returncode,selectors=r.get('selectors'),expected=r.get('expectedTests'))
 save(Path(str(prefix)+'.capture.json'),(json.dumps(capture,indent=2)+'\n').encode())
 print(json.dumps(capture))
