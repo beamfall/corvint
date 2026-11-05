@@ -16,9 +16,9 @@ spec is at its OCM obligation limit, so these requirements take a new prefix.
 
 ## Agent digest
 - Claim: every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.
-- Status: experimental; nothing below is delivered yet.
+- Status: experimental candidates for driver ownership, inbound closure and frozen replay exist; AZU-V0 is NOT_QUALIFIED.
 - Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
-- Blocked on: nothing; each requirement lands on its own.
+- Blocked on: aggregate sibling integration, empty unknown lists on every frozen merge, and historical full-suite/mutation receipts; lane verification also retains a whole-package latency failure and frozen receipt identity conflict.
 - Read next: User and current state, then the requirement you are implementing.
 
 ## User and current state
