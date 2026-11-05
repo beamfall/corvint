@@ -171,7 +171,7 @@ func validRuntimeReaderPath(entry string) bool {
 	if trimmed == "" || trimmed == ".corvint" || trimmed == ".github" || strings.HasPrefix(trimmed, ".github/") || DriverInput(trimmed) {
 		return false
 	}
-	for _, declaration := range []string{RuntimeReadersPath, DocumentationPathsPath} {
+	for _, declaration := range []string{RuntimeReadersPath, DocumentationPathsPath, NonSourcePathsPath} {
 		if trimmed == declaration || (strings.HasSuffix(entry, "/") && strings.HasPrefix(declaration, entry)) {
 			return false
 		}

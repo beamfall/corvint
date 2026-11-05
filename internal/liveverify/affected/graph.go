@@ -67,6 +67,9 @@ type Graph struct {
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
+	// nonSource is the repository's declared non-source entries
+	// (AZU-V0-002), sorted by path; it is part of the digest when present.
+	nonSource []NonSourcePath
 	// existenceReaders is the repository's declared existence readers with
 	// their manifest names (AFP-V0-980), sorted by package; it is part of the
 	// digest when present. existenceUnits maps each entry's package to its
@@ -150,6 +153,9 @@ type digestBody struct {
 	// RuntimeReaders appears only when the repository declares runtime-readers
 	// paths (AFP-V0-602), so graphs without the declaration keep their digest.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
+	// NonSource appears only when the repository declares non-source paths
+	// (AZU-V0-002), so graphs without the declaration keep their digest.
+	NonSource []NonSourcePath `json:"nonSource,omitempty"`
 	// RuntimeEdges appears only when the repository declares runtime edges
 	// (AFP-V0-819).
 	RuntimeEdges []RuntimeEdge `json:"runtimeEdges,omitempty"`
@@ -291,6 +297,7 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language, partia
 type declarations struct {
 	documentation    []string
 	runtimeReaders   []RuntimeReader
+	nonSource        []NonSourcePath
 	runtimeEdges     []RuntimeEdge
 	existenceReaders []ExistenceReader
 	testSelection    *testSelection
@@ -310,6 +317,10 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
+		nonSource, err := readNonSourcePaths(reader)
+		if err != nil {
+			return declarations{}, err
+		}
 		runtimeEdges, err := readRuntimeEdges(reader)
 		if err != nil {
 			return declarations{}, err
@@ -322,7 +333,7 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
 	}
 }
 
@@ -379,6 +390,7 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	}
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
+	graph.nonSource = repository.nonSource
 	graph.runtimeEdges = repository.runtimeEdges
 	if err := graph.applyRuntimeEdges(repository.partial); err != nil {
 		return nil, err
@@ -760,6 +772,7 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		Units:            units,
 		Documentation:    graph.documentation,
 		RuntimeReaders:   graph.runtimeReaders,
+		NonSource:        graph.nonSource,
 		RuntimeEdges:     graph.runtimeEdges,
 		ExistenceReaders: graph.existenceReaders,
 		TestSelection:    graph.testSelection,

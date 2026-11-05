@@ -301,11 +301,15 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, documentation...)
 	runtimeReaders, unknown := graph.runtimeReaderPaths(unknown)
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
+	nonSource, unknown := graph.nonSourcePaths(unknown)
 	owned, unknown := graph.ownedPaths(unknown)
 	declaration, unknown := graph.declarationPath(unknown)
 	// AFP-V0-2488: an owner-declared path stays unowned for the frontier rules,
 	// so a declaration never removes a LANGUAGE_FRONTIER entry.
 	frontierNonSource := append(slices.Clip(plan.NonSource), declaration...)
+	// A declared non-source path, like an owned one, stays unowned for the
+	// frontier rules, so it still bears the AFP-V0-511 cascade (AZU-V0-002).
+	plan.NonSource = append(plan.NonSource, nonSource...)
 	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
 	frontier, excluded, bearers, involved := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
