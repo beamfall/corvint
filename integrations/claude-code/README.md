@@ -69,12 +69,41 @@ an unexpanded `${CLAUDE_PROJECT_DIR}`, the server still connects and lists its t
 `invalid-root` (`MCPV0-950`, `AHI-860`). Restart the session from the intended repository if that
 worktree is the wrong one or the tools answer `invalid-root`.
 
+### Troubleshooting CONNECTION_CLOSED
+
 If `/mcp` shows the server failed with `CONNECTION_CLOSED`, Claude Code keeps the server's reason
 in its MCP log (`~/Library/Caches/claude-cli-nodejs/<project>/mcp-logs-plugin-corvint-corvint/` on
 macOS), not in the session. A `corvint` built before `MCPV0-950` exits on an unusable root, which
 the host reports only as a closed connection: rebuild or update `corvint` on `PATH`, run
 `claude plugin marketplace update corvint` and `claude plugin update corvint@corvint`, then start a
 new session.
+
+Read the server stderr in that cache, including when the failure occurred in a
+subagent or orchestrator session. On macOS, locate the files with:
+
+```sh
+rg --files --hidden "$HOME/Library/Caches/claude-cli-nodejs" | rg 'mcp-logs.*corvint'
+```
+
+Then use `tail -n 100 PATH_TO_LOG` on the matching session log. The cache belongs
+to Claude Code and its project key can differ from the current worktree name;
+check the session timestamp. Other hosts may put their cache elsewhere: use that
+host's MCP diagnostic log location rather than assuming the macOS path.
+
+Common causes and the next action:
+
+| Server log / symptom | Operator action |
+|---|---|
+| Executable not found, or an older binary with no `mcp` verb | Check `command -v corvint` and `corvint --version` in the host environment; install/update the binary that environment uses. |
+| `corvint-mcp: invalid arguments` | Compare the installed plugin `.mcp.json` with the binary's `corvint mcp --help`; update a mismatched plugin/binary pair. Keep the declared `2025-11-25` compatibility flag. |
+| `corvint-mcp: git unavailable` | Make Git available on the MCP child's PATH and restart the session. |
+| `repository unavailable: --root ...` followed by a closed connection on an older build | Update to the unusable-root startup repair (`MCPV0-950`). The current server connects and answers repository calls `invalid-root`; restart from the intended repository. |
+| Missing/non-worktree spare-root substitution notice | Inspect the served worktree; restart if the launch worktree is not the intended repository. This notice is a successful connection with a visible root substitution. |
+
+The original build-34 incident reported a closed connection without retained server
+stderr, so its exact root remains unobserved. Offline startup tests reproduce the
+historical unusable-root failure class and protect the repair already in this tree;
+subagent and orchestrator live-host qualification remains separate.
 
 Use `claude --plugin-dir ./integrations/claude-code/plugins/corvint` for an installation-free local
 check and `/hooks` to inspect the registered hooks. Corvint has no exact-handle expansion command yet

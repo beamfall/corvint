@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Native Tasks fixture qualification; this does not claim Pi host/OS support.
 import test from 'node:test';
+import {hostAvailable,hostFile,taskWritesAvailable} from './host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -9,8 +10,9 @@ import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createTasksService} from './tasks.js';
 import {canonical,digest} from './operations.js';
-const exec=promisify(execFile), templates=resolve('internal/tasks/cli/testdata/external-agents');
+const exec=promisify(execFile), templates=new URL('../../internal/tasks/cli/testdata/external-agents/',import.meta.url).pathname;
 test('PWV native fixture CAS, lost receipt replay, actors, lease, gates and audit',async t=>{
+ if(!(taskWritesAvailable(t)&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const cwd=await mkdtemp(join(tmpdir(),'pi-tasks-native-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
  const env={PATH:process.env.PATH,HOME:process.env.HOME,CORVINT_TASKS_ACTOR:'pi-fixture'};
  const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
@@ -74,6 +76,7 @@ async function interruptionFixture(t) {
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 test('PWV native claim binds current acceptance revision, not adapter requested-revision CAS',async t=>{
+ if(!(taskWritesAvailable(t)&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const f=await interruptionFixture(t);let raced=false;
  const runner={run:async call=>{if(call.args[0]==='claim'&&!raced){raced=true;await f.native(['ticket','refine','--target',f.ticketId,'--expected-revision','1','--request-id','competing-refine','--payload','{"acceptanceCriteria":["New acceptance criterion from competing operator."]}'])}return f.run(call)}};
  const service=createTasksService({runner});
@@ -87,6 +90,7 @@ test('PWV native claim binds current acceptance revision, not adapter requested-
 });
 
 test('PWV-V0-013 native search and list on an initialized store return tickets, page and warnings without mutation',async t=>{
+ if(!(taskWritesAvailable(t)&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const f=await interruptionFixture(t);
  const payload=JSON.parse(await readFile(join(templates,'ticket-create.json'),'utf8'));
  Object.assign(payload,{title:'Pi search fixture',kind:'BUG',priority:'P1',labels:['needs review'],milestone:'v1 0'});
@@ -110,6 +114,7 @@ test('PWV-V0-013 native search and list on an initialized store return tickets, 
 });
 
 test('PWV actual native gate interruption retains uncertainty; native same-ID gate replay reruns execution',async t=>{
+ if(!(taskWritesAvailable(t)&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const f=await interruptionFixture(t);
  const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','claim','--branch','main']);
  const attemptId=claim.items[0].attemptId,generation=claim.items[0].generation;
@@ -136,6 +141,7 @@ test('PWV actual native gate interruption retains uncertainty; native same-ID ga
 });
 
 test('PWV real minimum-duration native lease expiry refuses stale commands', {skip:process.env.CORVINT_PI_REAL_LEASE_EXPIRY!=='1',timeout:360000},async t=>{
+ if(!(taskWritesAvailable(t)&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const f=await interruptionFixture(t);
  const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','short-claim','--branch','main','--lease-minutes','5']);
  const attemptId=claim.items[0].attemptId,generation=claim.items[0].generation;
@@ -156,6 +162,7 @@ test('PWV real minimum-duration native lease expiry refuses stale commands', {sk
 // head.json it replaced: that is the store a SIGKILL leaves just before the head rename, the last
 // §5.2 effect, with the receipt and post files written. The wrapper must report pending-operation.
 test('PWV-V0-019 native gate run killed after its receipt commit reconciles as pending-operation',{timeout:240000},async t=>{
+ if(!(taskWritesAvailable(t)&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const f=await interruptionFixture(t);
  const claim=await f.native(['claim',f.ticketId,'--holder','fixture-owner','--request-id','claim','--branch','main']);
  const attemptId=claim.items[0].attemptId,generation=claim.items[0].generation;

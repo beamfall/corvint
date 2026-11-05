@@ -122,15 +122,17 @@ export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const te
  });
  pi.on('agent_before_settle',async(e,ctx)=>{
   if(!Array.isArray(e.entries)||e.outcome!=='completed'||e.continue!==false||!Array.isArray(e.context?.pendingMessages)||e.context.pendingMessages.length||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
+  const epoch=generation;
+  let identity;try{identity=identify(ctx)}catch{return}
   const value=await event(ctx,'stop',{stopHookActive:used,changedPaths:[]});
-  if(!value||!allowed(ctx)||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
+  if(!value||epoch!==generation||!same(identity,scope)||!allowed(ctx)||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
   knownIncomplete=unresolved=value.policy.lifecycle==='active'||value.policy.lifecycle==='satisfied'&&!value.policy.satisfied;
   if(value.completion.decision!=='block'||used)return;
   used=true;
   // Pi replaces the aggregate entries with this return value, so retain prior handlers.
   // Only our fixed instruction and the validated receipt handle enter the session.
   // Source packets and native status/verification output stay outside its transcript.
-  return {entries:[...(e.entries??[]),{type:'custom_message',customType:'corvint-workflow-remediation',content:'The explicitly enrolled Corvint workflow remains incomplete. Report its unresolved work and use the operator-approved workflow to address it. Do not claim completion or run expensive verification or recording automatically. Unmet policy categories: '+(value.policy.unmet.join(', ')||'none reported')+'. Inspect with Corvint argv: '+canonicalWorkflowJSON(['dogfood','status','--session-key',scope.session])+'. Receipt: '+value.resultDigest,display:true}],continue:true};
+  return {entries:[...(e.entries??[]),{type:'custom_message',customType:'corvint-workflow-remediation',content:'The explicitly enrolled Corvint workflow remains incomplete. Report its unresolved work and use the operator-approved workflow to address it. Do not claim completion or run expensive verification or recording automatically. Unmet policy categories: '+(value.policy.unmet.join(', ')||'none reported')+'. Inspect with Corvint argv: '+canonicalWorkflowJSON(['dogfood','status','--session-key',identity.session])+'. Receipt: '+value.resultDigest,display:true}],continue:true};
  });
  pi.on('agent_settled',(_,ctx)=>{if(unresolved)notice(ctx,'local-policy-incomplete')});
  const close=async()=>{if(closed)return;closed=true;await clear();await runner.close()};

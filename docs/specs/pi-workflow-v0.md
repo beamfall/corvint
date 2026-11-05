@@ -57,6 +57,10 @@ that exception grants neither a native claim nor native completion and changes n
 - `PWV-V0-019`: (proposed, V1-2573) When every failing reconciliation read refuses with native code `REDO_PENDING`, the Tasks service MUST return `pending-operation` with mutation `not-attempted`, retain the native receipts under `reconciliation`, and dispatch no writer. The wrapper MUST NOT redo the pending receipt (TM-V0-008): the next native writer redoes it. Any other reconciliation refusal stays `reconciliation-unavailable`.
 - `PWV-V0-020`: (proposed, V1-2783) A request with empty input MUST give the child `/dev/null` as stdin and write no stdin pipe; only a non-empty input opens one, and a failed write of it remains `stdin-failed`. Failure mode: a successful leader that exits without reading stdin, such as `git rev-parse` on a fast Linux host, raced the pipe close into EPIPE, reported `stdin-failed`, and Git identity returned `identity-unavailable` (rc.3 gate on linux/amd64).
 
+- `PWV-V0-8300`: (experimental, V1-4662) The normal Node adapter entry point MUST discover every Pi and protected-Pi `*.test.mjs`, including native host checks. Missing optional tools or built host artifacts MUST skip with a named reason; an installed tool that fails MUST fail the check. Linux CI MUST install Pi 0.99.1 and the native candidates and require the Pi host prerequisites. Protected Darwin SEA qualification remains separate. Acceptance: package test commands, `host-prerequisites.test.mjs`, and `.github/workflows/pi-host.yml`; a remote CI run is required before claiming hosted qualification. Rollback: restore the explicit unit list and remove the qualification job.
+- `PWV-V0-8301`: (experimental, V1-4663; refines PWV-V0-004 and PWV-V0-008) Settlement MUST capture its identity and transition generation before awaiting the native event. A synchronous clear between response validation and caller resumption MUST discard that response without remediation, allowance consumption or an exception. Acceptance: `workflow.test.mjs` clears directly and through input, tree and session handlers between awaits. Rollback: restore the preceding settlement callback; retain the regression as a known failure until repaired.
+- `PWV-V0-8302`: (experimental, V1-4663; preserves PWV-V0-011) This base's closed Tasks facade MUST keep `ticket create` and `ticket refine` unavailable, including payloads with `requiredRoles` and `requiresPool`. The later pilane create/refine surface and PWV-V0-8100..8104 are absent from this base and MUST NOT be inferred as delivered. Acceptance: `tasks.test.mjs` checks no native dispatch. Rollback: revert the additional regression; expanding the facade still requires its own contract.
+
 ## Trust boundary, limits and failure modes
 
 The process helper defaults to 15 seconds and 65,536 aggregate stdout/stderr bytes; configuration
@@ -90,7 +94,7 @@ as runtime admission.
 ```json
 {
   "profile": "corvint-pi-capabilities/0",
-  "tuple": {"adapterVersion": "0.3.12", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
+  "tuple": {"adapterVersion": "0.3.13", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
   "tools": {"corvint_context": "NATIVE_READ", "corvint_core_read": "NATIVE_READ", "corvint_expand": "NATIVE_READ", "corvint_record_outcome": "EXPLICIT_RECORD", "corvint_tasks": "NATIVE_READ"},
   "commands": {"corvint": "NATIVE_READ", "corvint-context": "LIFECYCLE", "corvint-outcome": "LIFECYCLE", "corvint-record": "EXPLICIT_RECORD", "corvint-tasks": "OPERATOR_NATIVE_WRITE", "corvint-workflow": "LOCAL_POLICY"},
   "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],
@@ -122,6 +126,9 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-001, PWV-V0-002 | `integrations/pi/core.js` | `core.test.mjs`: literal read argv, unknown preservation, native vs transport errors, no write operations; exact native installed-binary smoke retained separately |
 | PWV-V0-003 | `integrations/pi/process.js` | `process.test.mjs`: stdin/argv literalness, aggregate output bounds, timeout/abort/close, leader-exit descendant cleanup, missing executable |
 | PWV-V0-020 | `integrations/pi/process.js` | `process.test.mjs`: `PWV-V0-020 empty input gives the child no stdin pipe; non-empty input keeps it` |
+| PWV-V0-8300 | Normal Node test discovery and exact-host Linux job | Package test commands and `host-prerequisites.test.mjs`; hosted execution remains separately observed |
+| PWV-V0-8301 | Settlement identity and transition fence | `workflow.test.mjs` between-await invalidation regression |
+| PWV-V0-8302 | Closed Tasks operation inventory | `tasks.test.mjs` create/refine no-dispatch regression |
 | PWV-V0-004 | Core dispatch plus host handle/cockpit owners | Untrusted dispatch test; canonical identity and transition invalidation require host integration checks |
 | PWV-V0-005, PWV-V0-006 | Tasks service and operation metadata owner | Native capability and temporary-store mutation/CAS/reconciliation qualification required; mocks alone insufficient |
 | PWV-V0-007 | Cockpit owner | Narrow/wide and control-character fixture tests plus exact TUI/RPC/print host checks required |
@@ -129,8 +136,7 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-009 | Pi package/compatibility and native qualification owner | Exact candidate install/load/unload/rollback observations required |
 | PWV-V0-010 | Integration owner | Independent review, scoped frozen evidence, host tuple and honest measurement exclusions required |
 | PWV-V0-011 | Capability contract above plus every registering module | `capabilities.test.mjs`: registered tools/commands/events, operation sets and unavailable set equal the inventory; per-call native write negotiation and out-of-inventory refusal |
-| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Manual qualification only: excluded from `make host-adapter-test`, CI and every gate; run by hand with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
-
+| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Included in normal adapter discovery and the Linux qualification job; also run directly with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
 | PWV-V0-013 | `integrations/pi/tasks.js` reads | `tasks.test.mjs`: literal search/list argv, Unicode and spaced labels, and every refusal (unknown status or kind, duplicate status, label bounds) with zero native calls; `tasks-host.test.mjs` returns tickets, page and warnings from native search/list on an initialized store without mutation; `core-host.test.mjs` shows the `UNINITIALIZED` refusal without a store |
 | PWV-V0-014 | `integrations/pi/core.js` | `core.test.mjs`: literal overview/features/witness argv, required base, refused CEM flags, `evidence` mapped to `--evidence-in-repo` and every lexical refusal named with zero native calls; `core-host.test.mjs` byte-identical worktree after the real reads, an in-checkout evidence document reported as a source, and an outside link refused natively |
 | PWV-V0-015 | `core.js`, `tasks.js`, `tools.js` registration | `capabilities.test.mjs`: each tool's annotations follow its inventory state; live `getAllTools` receipt in the build-log matrix |
