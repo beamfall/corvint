@@ -192,8 +192,8 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	if err != nil {
 		return err
 	}
-	kept := entries[:0:0]
-	descend := []bool{}
+	kept := entries[:0]
+	descend := make([]bool, 0, len(entries))
 	for _, e := range entries {
 		skip, down, err := visit(rel, e.Name(), e.IsDir())
 		if err != nil {
@@ -208,7 +208,7 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	var wg sync.WaitGroup
 	for c := range chunks {
 		part := kept[c*stampStatChunk : min((c+1)*stampStatChunk, len(kept))]
-		describe := func() { chunks[c] = s.describe(part) }
+		describe := func() { chunks[c] = s.describe(abs, part) }
 		if c == len(chunks)-1 {
 			describe()
 			continue
@@ -224,7 +224,11 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 		}
 	}
 	wg.Wait()
-	var b []byte
+	size := 0
+	for _, c := range chunks {
+		size += len(c.b)
+	}
+	b := make([]byte, 0, size)
 	coarse := true
 	for _, c := range chunks {
 		if c.err != nil {
@@ -272,14 +276,26 @@ type stampChunk struct {
 
 // describe lstats entries in order and appends each one's line, checking the
 // context once per read batch.
-func (s *stamper) describe(entries []os.DirEntry) stampChunk {
-	c := stampChunk{dirs: make([]bool, len(entries)), coarse: true}
+func (s *stamper) describe(abs string, entries []os.DirEntry) stampChunk {
+	// Reserve the fixed-width numeric fields and each name once. Growing this
+	// buffer a few bytes at a time otherwise copies every directory record.
+	size := 0
+	for _, e := range entries {
+		size += len(e.Name()) + 128
+	}
+	c := stampChunk{b: make([]byte, 0, size), dirs: make([]bool, len(entries)), coarse: true}
+	read, release, err := stampEntryReader(abs)
+	if err != nil {
+		c.err = errStampUnavailable
+		return c
+	}
+	defer release()
 	for i, e := range entries {
 		if i%stampReadBatch == stampReadBatch-1 && s.ctx.Err() != nil {
 			c.err = s.ctx.Err()
 			return c
 		}
-		info, err := e.Info()
+		info, err := read(e)
 		if err != nil {
 			c.err = errStampUnavailable
 			return c

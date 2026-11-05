@@ -4499,6 +4499,8 @@ DCP-V1-760	docs/specs/documentation-corpus-v1.md	(accepted under standing lane a
 DCP-V1-761	docs/specs/documentation-corpus-v1.md	(accepted under standing lane authorization, 2026-10-28; V1-3099)	standing	2026-10-28; V1-3099
 DCP-V1-762	docs/specs/documentation-corpus-v1.md	(accepted under standing lane authorization, 2026-10-28; V1-3099)	standing	2026-10-28; V1-3099
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
+DCR-V1-8000	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-4230
+DCR-V1-8001	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2588)	standing	2026-10-11; V1-2588
 DCR-V1-410	docs/specs/documentation-corpus-verified-reads-v1.md	A read admits an artifact through the verified read, amending `DCP-V1-011`. It	unrecorded	-
 DCR-V1-411	docs/specs/documentation-corpus-verified-reads-v1.md	Live freshness observes each declared checkout from Git's identity, its	unrecorded	-
 DCR-V1-412	docs/specs/documentation-corpus-verified-reads-v1.md	Symbol re-resolution (`DCP-V1-141`) builds the full live index of the primary	unrecorded	-
@@ -4967,6 +4969,8 @@ GOC-V0-010	docs/specs/go-only-cutover-v0.md	A complete `make gate` MUST first re
 GOC-V0-011	docs/specs/go-only-cutover-v0.md	`script/spec-toolchain-conformance.sh` (`STA-V0-011`) MAY run Python and `pip` t	unrecorded	-
 GOC-V0-081	docs/specs/go-only-cutover-v0.md	`make doc-gates` MUST run `no-python-runtime-dependency-test`, so a pull request	unrecorded	-
 GOC-V0-062	docs/specs/go-only-cutover-v0.md	The `GOC-V0-008` scan MUST treat Python named as a language in JSON data as data	unrecorded	-
+GPK-V0-8000	docs/specs/go-production-kernel-migration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-2746
+GPK-V0-8001	docs/specs/go-production-kernel-migration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2746)	standing	2026-10-11; V1-2746
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	The migration MUST preserve the complete CLI surface present at the pinned	unrecorded	-
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	For every supported parity case, Go and the Python oracle MUST produce the exact	unrecorded	-
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage	unrecorded	-
@@ -6201,6 +6205,7 @@ OCL-V0-005	docs/specs/outcome-calibration-v0.md	Where records carry a relevance 
 OCL-V0-006	docs/specs/outcome-calibration-v0.md	When a proposal is emitted it MUST report the decile edge that would have	unrecorded	-
 OCL-V0-007	docs/specs/outcome-calibration-v0.md	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and	unrecorded	-
 OCL-V0-008	docs/specs/outcome-calibration-v0.md	Output MUST be deterministic for a fixed store and invocation in both formats:	unrecorded	-
+PRB-V0-8000	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4231)	standing	2026-10-11; V1-4231
 PRB-V0-001	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The `cor	standing	2026-10-11; V1-2475
 PRB-V0-002	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Both kno	standing	2026-10-11; V1-2475
 PRB-V0-003	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `CORVINT	standing	2026-10-11; V1-2475
