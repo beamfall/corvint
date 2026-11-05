@@ -9,7 +9,8 @@ import (
 	"github.com/Beamfall/corvint/internal/linecov"
 )
 
-// Body is a source provider's executable-body boundary (brace lines excluded).
+// Body is a source provider's executable-body boundary. Changed lines must be
+// inside the braces; coverage on brace lines may still belong to the body.
 // Boundaries must come from parsing the exact base blob, never coverage hits:
 // coverage alone cannot distinguish executable bodies from declarations.
 type Body struct{ Open, Close int }
@@ -112,7 +113,13 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, bodies map[string]Bodi
 			}
 			if gap {
 				for bi, b := range f.Blocks {
-					if int(b.Start) > body.Open && int(b.Start) < body.Close {
+					end := int(b.End)
+					if b.EndCol == 1 {
+						end--
+					}
+					// Line-only boundaries cannot disown executable coverage
+					// sharing a brace line, including a block starting before it.
+					if int(b.Start) <= body.Close && end >= body.Open {
 						e.Blocks[linecov.BlockRef{File: int32(fi), Block: int32(bi)}] = true
 						for _, id := range b.Tests {
 							e.Tests[id] = true
