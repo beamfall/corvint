@@ -74,6 +74,18 @@ path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor
 
 ## Requirements
 
+### Tasks store and read-path repairs (2026-11-04)
+
+- `ATR-V0-7200`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2480) After a failed or ambiguous program phase write, a workflow MUST reload its authoritative program before another effect. A failed reload MUST keep a retry fence. This applies to unfenced cleanup as well as fenced writes.
+  Evidence: `internal/tasks/store/program_worktree_cleanup_test.go` — `TestATRV07200_FailedRemovalWriteReloadsWorkflow`.
+- `ATR-V0-7202`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4588) An isolated lane leader MUST retire its owned process group when the spawning owner's start identity disappears or its protocol directory disappears or is replaced. The observation interval is at most 250 ms, apart from host scheduling; no PID alone authorizes retirement. Identity-read errors retire the group only after three consecutive errors; a successful read resets the counter, while an empty or changed identity retires immediately. PID 1 is a valid owner when its start identity is readable.
+  Evidence: `internal/tasks/supervisor/process_test.go` — `TestATRV07202_LeaderRetiresWhenOwnerOrDirectoryDisappears`; `internal/tasks/supervisor/owner_identity_test.go` — `TestATRV07202_OwnerIdentityReadFailures`, `TestATRV07202_ReadablePID1Owner`.
+- `ATR-V0-7203`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0775) A complete-route lease MAY reuse a settled preparation audit's physical metadata to build its inventory, then MUST re-read the prepared decision inputs before publishing any checkpoint or receipt under the writer lock. With a settled full observation, bind current intent/state and evidence, the head receipt, the requested replay projection when present, and every live request projection read by the audit. A bounded native namespace observation MUST distinguish live request files from logical sealed entries also charged to the audit observation; no request body is reread for that selection. Historical receipt/request bodies are audited outside the lock; their capacity metadata does not require another body read under the lock. Recovery and routes without that full physical observation MUST retain the full content pass. A mapped change to one of those bound inputs at either commit boundary MUST refuse or cause a fresh audit; filesystem notifications alone are insufficient. This content integrity pass is an explicit exception to the scan-free critical section of CAL-V0-263; it performs no semantic history audit. A single native read lifetime and logical segment view MUST bound the pass to one read per selected entry and one decode per selected segment. Noncooperating writes after this final content binding remain outside the snapshot guarantee.
+  Evidence: `internal/tasks/store/lease_mapped_write_unix_test.go` — `TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit`; `internal/tasks/store/lease_prepare_reuse_test.go` — `TestATRV07203_PreparationReusesSuccessfulAudit`; `internal/tasks/store/lease_decision_content_test.go` — `TestATRV07203_SealedHistoryIsNotDecisionContent`; `internal/tasks/store/lease_hold_pair_test.go` — `TestATRV07203_PairedHoldSample` (opt-in paired measurement).
+- `ATR-V0-7204`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3508) The opt-in Linux spawn-failure qualification MUST retain RunRole's error on failure, run 200 trials each at observed one-minute host load at least 40, and stop and join every synthetic load worker when the foreground qualification ends. A lower or unavailable load never qualifies as a pass.
+  Evidence: `internal/tasks/store/spawn_failure_load_linux_test.go` — `TestATRV07204_LoadedSpawnedFailureQualification`.
+
+
 - `ATR-V0-001`: `corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before the first `--`, and MUST then accept exactly `--attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND...`. Unknown, repeated or program-mode flags, a missing delimiter or command, a timeout outside 1..86270 seconds, lease minutes outside 5..1440 (default 60) or an attempt of another queue are usage refusals before any effect. The command's argv is executed directly without a shell, in the caller's working directory, with the caller's stdin and environment. Program mode is unchanged.
 - `ATR-V0-002`: Before launch the runner MUST heartbeat the attempt, then renew it only when the current lease does not cover the timeout plus the 10-second cleanup bound plus a 120-second scheduling and writer margin, using the larger of the requested minutes and the minutes that coverage needs. It MUST NOT shorten a longer lease, and it MUST refuse when the lease still does not cover timeout plus cleanup. A refused heartbeat or renewal starts nothing and records no outcome.
 - `ATR-V0-003`: The command MUST be started once through `groupreap.Start` as the leader of an owned process group. On timeout, interruption or lost lease the runner MUST `Stop` the group, and in every started case it MUST retire it through `FinishBounded` with a 10-second bound; it never signals a numeric group ID after the reap. Only a `RELEASED` result reports cleanup as released; any other result is `HOLD`.
@@ -1853,34 +1865,19 @@ through a shared mapping raises no change event, so a file can change after the 
   control that the `programs.json` revision it is written against records for that program, read
   under the program writer. The composed record's own control never replaces it. Operator control
   requests and a resume, which set the control deliberately, are unchanged.
-- `ATR-V0-241`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0775) Recorded
-  limit: a lease write does not re-read, under the writer lock, the store files its preparation
-  audit read and it only reads, so a mapped write to one of them after that audit is not refused by
-  that lease write, which commits the decision it derived from the audited content. The receipt
-  MUST NOT absorb the mapped content: the next write's audit MUST refuse the store
-  (`JOURNAL_FORKED` for a request projection, `INTENT_DIVERGED` for an intent file) while the change
-  is in place, and MUST accept it again once the file is restored. Closing the window needs a
-  content re-read of every audited file per lease write, which CAL-V0-263 keeps out of the lock;
-  that trade is left to the owner.
+- `ATR-V0-241`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's standing auto-accept (2026-11-04); V1-0775) The previously recorded mapped-write window is superseded by ATR-V0-7203. The same lease now refuses or re-audits mapped decision-input changes at its commit boundaries, while a noncooperating change after the final content binding remains outside the snapshot guarantee.
 
 Non-goals: a mapped write after a write commits, which only the next audit can see.
 
-Failure modes: a lease write that raced a mapped write is committed; the store then refuses every
-write until the file is restored or repaired.
+Failure modes: a mapped write found at the content binding refuses the lease; restoring the audited bytes permits retry. A later noncooperating edit can still make the next audit refuse.
 
 Acceptance evidence (`internal/tasks/store`):
 - `TestATRV0240_PhaseWriteKeepsControlRecordedMeanwhile` records `DRAIN` between a workflow's
   phase composition and its write; the written phase keeps `DRAIN`. With the unlocked control copy
   restored, it fails with the control cleared.
-- `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite` (darwin and linux) flips a mapped
-  byte of the request projection and of `intent/policy.json` at the `sweep` and `lock` commit
-  stages; the claim commits, the next `Mutate` refuses with the stated code and publishes nothing,
-  and a `Mutate` after the restore completes. Darwin APFS runs; on Linux (go1.27.2, 2026-10-23,
-  V1-0775 lane) it passes on ext4 and on tmpfs (`TMPDIR=/dev/shm`), with the claim committing
-  under the mapped write in all four cases, which confirms the limit on Linux. The fix remains the
-  owner's trade named above.
+- `TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit` (darwin and linux) flips a mapped byte of the request projection and `intent/policy.json` at the `sweep` and `lock` commit stages. The same claim refuses, the next `Mutate` refuses while corruption remains, and restoring the file permits a write. Linux tmpfs is measured in the 2026-11-04 build-log; macOS APFS remains NOT_RUN without a macOS host.
 
-Rollback: revert the commit. ATR-V0-241 changes no runtime code.
+Rollback: revert the runtime and spec amendment together; doing so restores the explicitly documented historical ATR-V0-241 mmap window.
 
 ### V1-2189 dispatch fixture workers die with their test binary
 
@@ -2766,7 +2763,7 @@ receipt or wire shape changes.
 | ATR-V0-211 | `internal/tasks/store/lease.go`, `internal/tasks/cli/lease.go` (`claimScopeValue`), `internal/tasks/cli/command_help.go` | `TestATRV0211_RequestedScopeWithoutDeclaredPathsIsReported`, `TestATRV0210_ClaimRefusesRequestedPathsOutsideDeclaredScope` (`internal/tasks/store`), `TestATRV0211_ClaimResultListsEffectiveScope` (`internal/tasks/cli`) |
 | ATR-V0-212 | `internal/tasks/cli/read_only.go`, `internal/tasks/cli/cli.go` | `TestATRV0212_ReadOnlySessionRefusesMutations` (`internal/tasks/cli`) |
 | ATR-V0-240 | `internal/tasks/store/program.go` (`programTransition` `keepControl`), `internal/tasks/store/workflow.go` (`persistFenced`, stage journal callback), `internal/tasks/store/program_run.go` (`record`) | `TestATRV0240_PhaseWriteKeepsControlRecordedMeanwhile`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
-| ATR-V0-241 | `internal/tasks/store/lease_write.go` (recorded limit; no runtime change) | `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; Linux NOT_RUN |
+| ATR-V0-241 | `internal/tasks/store/lease_write.go` (superseded by ATR-V0-7203 content binding) | `TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit`; Linux tmpfs PASS (2026-11-04); current macOS APFS qualification NOT_RUN without a Darwin host; see the 2026-11-04 pk-tstore build-log |
 | ATR-V0-213 | `internal/tasks/dispatch/reap_test.go` (`TestMain` dead-man reaper) | `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` (`internal/tasks/dispatch`) |
 | ATR-V0-310 | `internal/tasks/cli/worker_reap_internal_test.go` (`TestMain` dead-man reaper, `reapTracker`, `ReapWorkersOnCleanup`), `worker_reap_linux_internal_test.go` (pidfd pins), `detach_join_internal_test.go`, `internal/tasks/cli/lease_detach.go` and `attempt_detach.go` (`detachLaunched`), `internal/groupreap/table.go` | `TestATRV0310_LeakedWorkerGroupsAreReaped`, `TestATRV0310_ReusedWorkerPIDIsTrackedByIncarnation`, `TestATRV0310_MembershipIsReadFromThePinnedProcess`, `TestATRV0310_NoSignalWithoutAPinnedOwner`, `TestATRV0310_UnobservableCleanupFails`, `TestATRV0310_StalledReaperIsRetiredWithItsGroup`, `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (`internal/tasks/cli`) |
 | ATR-V0-311 | `internal/tasks/cli/lease_detach.go` (`leaseDetachAwait`), `internal/tasks/cli/lease_detach_unix.go` (`leaseDetachShareLaunch`) | `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`, `TestATRV0311_LateRelaunchIsNeverReportedLost`, `TestATRV0311_AttachDuringARelaunchIsPending`, `TestATRV0311_AttachDuringChildStartupIsNeverLost` (`internal/tasks/cli`) |

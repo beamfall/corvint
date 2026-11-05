@@ -1,0 +1,16 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 6 darwin-only file(s), first ./internal/tasks/supervisor/acl_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=f2d3b810f8d986083b8b749a39fb17be7e0da606 dirty=45
+heavy.sh: slot 3/8 after 0s
+--- FAIL: TestATRV07202_LeaderRetiresWhenOwnerOrDirectoryDisappears (6.15s)
+    --- FAIL: TestATRV07202_LeaderRetiresWhenOwnerOrDirectoryDisappears/owner (3.08s)
+        process_test.go:193: leader outlived owner/directory for 3s
+    --- FAIL: TestATRV07202_LeaderRetiresWhenOwnerOrDirectoryDisappears/directory (3.07s)
+        process_test.go:193: leader outlived owner/directory for 3s
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/tasks/supervisor	6.172s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=7.3s rc=1
+heavy.sh: exit rc=1 cause=command cmd=go
