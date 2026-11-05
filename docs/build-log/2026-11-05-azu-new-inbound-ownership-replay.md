@@ -70,3 +70,19 @@ The orchestrator owns independent review, aggregate sibling integration, histori
 mutation receipts and native ticket completion. No Tasks write, push, PR, model-backed reviewer or
 seal is part of this lane. AZU-V0-009 is not accepted while any historical plan is unknown or its
 safety cell is unobserved. An empty ownership audit alone does not establish zero selection unknowns.
+
+The final caller-declaration fixed point contains 35 scripts, within the existing 64-script and
+64 KiB limits. Literal and directory-construction completeness is unchanged by classifying proven
+non-executing source references as mentions. In particular, the citation checker only reruns
+itself, the use-case merge driver runs Git, the spec acceptance audit executes the requirements
+generator, and the named Go citation classifiers read or print paths. Treating those references
+as executions had manufactured reverse edges into most Go commands; the retained failed runs show
+that widening. Actual script invocations and script-copying tests remain callers.
+
+The repository Go/shell/CEM inbound probes pass after that classification (`inbound-terminal-probe.log`:
+whole selected probe, 8.639 s test runtime). The completeness matcher now scans each candidate once
+per callee directory; the tracked-file gate reads each candidate once as well. This is a bound on
+repeated work, not a cross-host latency claim. A zero-byte audit baseline was refused by CEM as
+`metadata-only-change-unsupported`; one LF represents the same empty list and supplies a textual
+hunk. The unsafe parent qualification and outer-worktree discovery failures remain external limits;
+a Git ceiling did not change the product's hermetic discovery behavior.
