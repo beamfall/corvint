@@ -236,6 +236,15 @@ never says the plan is current: it says the plan is the binary's own and may dif
 current source computes, so a stale binary still yields uncertainty, not invented certainty
 (product invariant 2).
 
+The opt-in CLI profile's existing refusals are owned by ACX-V0-9301:
+`unknown-binary` means the selector has no native profile (including the adapter
+itself); `catalog-unavailable` means its offline tree cannot be encoded;
+`native-protocol-required` directs protocol-only execution to the native binary;
+`cli-deadline` means the bounded native operation exceeded its deadline; and
+`binary-unavailable` means the installed native executable could not be launched.
+These codes use the profile's existing stderr envelope and exit 2; native
+invocations keep their own contracts.
+
 ## Acceptance evidence and traceability
 
 | Requirement | Implementation | Evidence |
