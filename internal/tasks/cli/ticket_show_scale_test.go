@@ -15,7 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestTicketShowOn360TicketJournaledFixture pins V1-3903: a journaled fixture
+// TCL-V0-7205: TestTicketShowOn360TicketJournaledFixture pins V1-3903: a journaled fixture
 // store of 360 tickets is built by fixture.CommitPosts, which keeps each
 // receipt within the reader's inline post cap, so ticket show reads it OK.
 func TestTicketShowOn360TicketJournaledFixture(t *testing.T) {
@@ -24,7 +24,7 @@ func TestTicketShowOn360TicketJournaledFixture(t *testing.T) {
 	fixture.WriteWritableState(t, r)
 	var recs []*ticket.Record
 	posts := map[string][]byte{}
-	for i := 0; i < 360; i++ {
+	for i := 0; i < 420; i++ {
 		rec := fixture.Ticket(fmt.Sprintf("S%03d", i))
 		recs = append(recs, rec)
 		posts["intent/tickets/"+rec.TicketID.Local+".json"] = rec.Encode()
@@ -44,7 +44,7 @@ func TestTicketShowOn360TicketJournaledFixture(t *testing.T) {
 			t.Fatalf("fixture receipt %s does not decode: %v", n.Name(), err)
 		}
 	}
-	for _, local := range []string{"S000", "S359"} {
+	for _, local := range []string{"S000", "S359", "S419"} {
 		var out bytes.Buffer
 		cli.Run(cli.Env{Cwd: r.Root, Args: []string{"ticket", "show", local}, Stdout: &out, Stderr: io.Discard})
 		res, err := wire.DecodeResult(out.Bytes())

@@ -1,0 +1,7 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=24471269497c06f525cfb3431e8c56f1dac95f4e dirty=49
+heavy.sh: slot 3/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/tasks/snapshot	0.007s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=2.7s rc=0

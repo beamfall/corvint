@@ -381,6 +381,15 @@ AFP-V0-984	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)	standing	2026-10-11; V1-3600
 AFP-V0-2180	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); owner direction 2	standing	2026-10-11; 2026-11-02
 AFP-V0-2181	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
+AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
+AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list e	unrecorded	-
+AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOU	unrecorded	-
+AZU-V0-004	docs/specs/affected-zero-unknown-v0.md	Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site uni	unrecorded	-
+AZU-V0-005	docs/specs/affected-zero-unknown-v0.md	Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of th	unrecorded	-
+AZU-V0-006	docs/specs/affected-zero-unknown-v0.md	Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHA	unrecorded	-
+AZU-V0-007	docs/specs/affected-zero-unknown-v0.md	Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.jso	unrecorded	-
+AZU-V0-008	docs/specs/affected-zero-unknown-v0.md	Package-level runner fallback.** A frontier reason that hides only which tests r	unrecorded	-
+AZU-V0-009	docs/specs/affected-zero-unknown-v0.md	Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
@@ -2647,6 +2656,10 @@ TAW-V0-015	docs/specs/corvint-tasks-agent-workflow-v0.md	`corvint-mcp --tool-pro
 TAW-V0-025	docs/specs/corvint-tasks-agent-workflow-v0.md	The tasks-work group MUST reach Tasks only through that process boundary (decisi	unrecorded	-
 TAW-V0-016	docs/specs/corvint-tasks-agent-workflow-v0.md	`work start`, `work deliver` and `work block` MUST be allowed in a read-only ses	unrecorded	-
 TAW-V0-017	docs/specs/corvint-tasks-agent-workflow-v0.md	The lane protocol (which trailers a lane writes and when) MUST be documented in	unrecorded	-
+ATR-V0-7200	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2480) After a	standing	2026-10-11; V1-2480
+ATR-V0-7202	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4588) An isola	standing	2026-10-11; V1-4588
+ATR-V0-7203	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0775) A comple	standing	2026-10-11; V1-0775
+ATR-V0-7204	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3508) The opt-	standing	2026-10-11; V1-3508
 ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before	unrecorded	-
 ATR-V0-002	docs/specs/corvint-tasks-attempt-runner-v0.md	Before launch the runner MUST heartbeat the attempt, then renew it only when the	unrecorded	-
 ATR-V0-003	docs/specs/corvint-tasks-attempt-runner-v0.md	The command MUST be started once through `groupreap.Start` as the leader of an o	unrecorded	-
@@ -2765,7 +2778,7 @@ ATR-V0-210	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-211	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1321) Every cl	standing	2026-10-11; V1-1321
 ATR-V0-212	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1237, V1-1441)	standing	2026-10-11; V1-1237; V1-1441
 ATR-V0-240	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0831) A progra	standing	2026-10-11; V1-0831
-ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0775) Recorded	standing	2026-10-11; V1-0775
+ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-0775
 ATR-V0-214	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-215	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-216	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709)	standing	2026-10-11; V1-2709
@@ -2817,6 +2830,13 @@ TBS-V1-457	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under th
 TBS-V1-458	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-459	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-460	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
+TCL-V0-7205	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3903) A valid	standing	2026-10-11; V1-3903
+TCL-V0-7206	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3942) complete	standing	2026-10-11; V1-3942
+TCL-V0-7207	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3963) ticket s	standing	2026-10-11; V1-3963
+TCL-V0-7209	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3987) Read-onl	standing	2026-10-11; V1-3987
+TCL-V0-7210	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3989) ticket s	standing	2026-10-11; V1-3989
+TCL-V0-7211	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4022) ticket c	standing	2026-10-11; V1-4022
+TCL-V0-7213	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4301) Single-t	standing	2026-10-11; V1-4301
 TCL-V0-001	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237)	standing	2026-10-11; V1-3237
 TCL-V0-002	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) Each	standing	2026-10-11; V1-3237
 TCL-V0-003	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) The	standing	2026-10-11; V1-3237
@@ -2892,6 +2912,8 @@ TCX-V0-976	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315
 TCX-V0-977	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
 TCX-V0-978	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
 TCX-V0-979	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
+TCD-V0-7212	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4025) A long t	standing	2026-10-11; V1-4025
+TCD-V0-7214	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4302) A failed	standing	2026-10-11; V1-4302
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--ski	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -3184,6 +3206,8 @@ TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change c
 TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
 TLF-V0-1101	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
 TLF-V0-1102	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
+LGL-V0-7201	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4204) Lease wr	standing	2026-10-11; V1-4204
+LGL-V0-7215	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4305) The shar	standing	2026-10-11; V1-4305
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
@@ -3495,6 +3519,7 @@ PSR-V0-269	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-270	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool ho	standing	2026-10-11; V1-2704
 PSR-V0-271	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool ho	standing	2026-10-11; V1-2704
 PSR-V0-272	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool	standing	2026-10-11; V1-2704
+TRM-V0-7208	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3986) Release	standing	2026-10-11; V1-3986
 TRM-V0-001	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) `corvint-tasks release membership --target R	unrecorded	-
 TRM-V0-002	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) The mutation MUST be refused `STALE_TICKET` when	unrecorded	-
 TRM-V0-003	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) `RELEASE_MEMBERSHIP` MUST be authorized exactly as	unrecorded	-
@@ -4499,6 +4524,8 @@ DCP-V1-760	docs/specs/documentation-corpus-v1.md	(accepted under standing lane a
 DCP-V1-761	docs/specs/documentation-corpus-v1.md	(accepted under standing lane authorization, 2026-10-28; V1-3099)	standing	2026-10-28; V1-3099
 DCP-V1-762	docs/specs/documentation-corpus-v1.md	(accepted under standing lane authorization, 2026-10-28; V1-3099)	standing	2026-10-28; V1-3099
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
+DCR-V1-8000	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-4230
+DCR-V1-8001	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2588)	standing	2026-10-11; V1-2588
 DCR-V1-410	docs/specs/documentation-corpus-verified-reads-v1.md	A read admits an artifact through the verified read, amending `DCP-V1-011`. It	unrecorded	-
 DCR-V1-411	docs/specs/documentation-corpus-verified-reads-v1.md	Live freshness observes each declared checkout from Git's identity, its	unrecorded	-
 DCR-V1-412	docs/specs/documentation-corpus-verified-reads-v1.md	Symbol re-resolution (`DCP-V1-141`) builds the full live index of the primary	unrecorded	-
@@ -4967,6 +4994,8 @@ GOC-V0-010	docs/specs/go-only-cutover-v0.md	A complete `make gate` MUST first re
 GOC-V0-011	docs/specs/go-only-cutover-v0.md	`script/spec-toolchain-conformance.sh` (`STA-V0-011`) MAY run Python and `pip` t	unrecorded	-
 GOC-V0-081	docs/specs/go-only-cutover-v0.md	`make doc-gates` MUST run `no-python-runtime-dependency-test`, so a pull request	unrecorded	-
 GOC-V0-062	docs/specs/go-only-cutover-v0.md	The `GOC-V0-008` scan MUST treat Python named as a language in JSON data as data	unrecorded	-
+GPK-V0-8000	docs/specs/go-production-kernel-migration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-2746
+GPK-V0-8001	docs/specs/go-production-kernel-migration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2746)	standing	2026-10-11; V1-2746
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	The migration MUST preserve the complete CLI surface present at the pinned	unrecorded	-
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	For every supported parity case, Go and the Python oracle MUST produce the exact	unrecorded	-
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage	unrecorded	-
@@ -5475,6 +5504,14 @@ LPCV-V0-291	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A	standing	2026-10-11; V1-2091
 LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
 LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
+LPCV-V0-7600	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4379) Go collection	standing	V1-4379
+LPCV-V0-7601	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4380) The Go collector	standing	V1-4380
+LPCV-V0-7602	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4423) Language collectors	standing	V1-4423
+LPCV-V0-7603	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4507) Collection records	standing	V1-4507
+LPCV-V0-7604	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4414) The explicit	standing	V1-4414
+LPCV-V0-7605	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4415) Ruby collection	standing	V1-4415
+LPCV-V0-7606	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4421) The explicit	standing	V1-4421
+LPCV-V0-7607	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4372) `linecov watch`	standing	V1-4372
 LPCV-V0-950	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** name	owner	decision 0590; 2026-11-03
 LPCV-V0-951	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a test an	owner	decision 0590; 2026-11-03
 LPCV-V0-952	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be	owner	decision 0590; 2026-11-03
@@ -5494,7 +5531,7 @@ LPCV-V0-965	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2
 LPCV-V0-966	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) JavaScript selection maps a change to test	owner	2026-11-03; V1-4367
 LPCV-V0-967	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) The node collector (`internal/jslinecov`)	owner	2026-11-03; V1-4367
 LPCV-V0-968	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) The collector ships as the typescript plug	owner	2026-11-03; V1-4367
-LPCV-V0-969	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: no	owner	2026-11-03; V1-4367
+LPCV-V0-969	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: the	owner	2026-11-03; V1-4367
 LPCV-V0-970	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-971	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-972	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
@@ -6193,6 +6230,7 @@ OCL-V0-005	docs/specs/outcome-calibration-v0.md	Where records carry a relevance 
 OCL-V0-006	docs/specs/outcome-calibration-v0.md	When a proposal is emitted it MUST report the decile edge that would have	unrecorded	-
 OCL-V0-007	docs/specs/outcome-calibration-v0.md	A joined sample smaller than 20 rows MUST set `insufficient_sample: true` and	unrecorded	-
 OCL-V0-008	docs/specs/outcome-calibration-v0.md	Output MUST be deterministic for a fixed store and invocation in both formats:	unrecorded	-
+PRB-V0-8000	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4231)	standing	2026-10-11; V1-4231
 PRB-V0-001	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The `cor	standing	2026-10-11; V1-2475
 PRB-V0-002	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Both kno	standing	2026-10-11; V1-2475
 PRB-V0-003	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `CORVINT	standing	2026-10-11; V1-2475
@@ -6264,6 +6302,11 @@ PWV-V0-017	docs/specs/pi-workflow-v0.md	The package MUST ship Pi skills through 
 PWV-V0-018	docs/specs/pi-workflow-v0.md	(proposed, V1-2573) An interrupted native Tasks writer dispatch MUST receive a p	unrecorded	-
 PWV-V0-019	docs/specs/pi-workflow-v0.md	(proposed, V1-2573) When every failing reconciliation read refuses with native c	unrecorded	-
 PWV-V0-020	docs/specs/pi-workflow-v0.md	(proposed, V1-2783) A request with empty input MUST give the child `/dev/null` a	unrecorded	-
+PWV-V0-8100	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2149) The prot	standing	2026-10-11; V1-2149
+PWV-V0-8101	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3896) The docu	standing	2026-10-11; V1-3896
+PWV-V0-8102	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0507) The expl	standing	2026-10-11; V1-0507
+PWV-V0-8103	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0509) Fork, re	standing	2026-10-11; V1-0509
+PWV-V0-8104	docs/specs/pi-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0509) Workflow	standing	2026-10-11; V1-0509
 PWP-V0-001	docs/specs/playwright-external-provider-v0.md	External mode requires readiness URL and declared app identity, rejects server c	unrecorded	-
 PWP-V0-002	docs/specs/playwright-external-provider-v0.md	A controlled config imports the original, disables webServer and selects the pro	unrecorded	-
 PWP-V0-003	docs/specs/playwright-external-provider-v0.md	Each outcome identifies source location, full title, project name, resolved brow	unrecorded	-
@@ -6597,6 +6640,8 @@ PPI-V0-006	docs/specs/protected-pi-runtime-v0.md	Reuse protected computation and
 PPI-V0-007	docs/specs/protected-pi-runtime-v0.md	Independent runtime admission MUST bind full image SHA256, live mapped CDHash, C	unrecorded	-
 PPI-V0-008	docs/specs/protected-pi-runtime-v0.md	FULL requires independently completed exact-image TUI and RPC qualification: all	unrecorded	-
 PPI-V0-009	docs/specs/protected-pi-runtime-v0.md	Rollback removes/revokes only the optional Pi campaign/admission/runtime and res	unrecorded	-
+PPI-V0-8100	docs/specs/protected-pi-runtime-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4345) The lock	standing	2026-10-11; V1-4345
+PPI-V0-8101	docs/specs/protected-pi-runtime-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4346) A clean	standing	2026-10-11; V1-4346
 PUB-V0-001	docs/specs/public-release-v0.md	The current version tuple MUST move together to `1.0.0-rc.3`, including native	unrecorded	-
 PUB-V0-002	docs/specs/public-release-v0.md	The existing native CLI archive gate MUST remain independent. An optional	unrecorded	-
 PUB-V0-003	docs/specs/public-release-v0.md	Companion build output MUST be outside the source checkouts, include exact	unrecorded	-

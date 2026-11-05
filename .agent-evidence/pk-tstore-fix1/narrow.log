@@ -1,0 +1,161 @@
+Remeasure same fixtures, no reset or journal rewrite; repetitions 5..9 use the next five tickets after full-phase repetitions 0..4. Nominal history n; actual pre-call seq n+1+4*rep (claim), n+4+4*rep (complete). Same cache/checkpoint clearing.
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"63.40 58.41 42.75","LoadAfter":"66.95 59.35 43.22","Receipts":13500,"Repetition":5,"Locks":1,"HoldMS":83.25498}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"66.95 59.35 43.22","LoadAfter":"66.15 59.31 43.30","Receipts":13500,"Repetition":5,"Locks":1,"HoldMS":206.21904}
+--- PASS: TestATRV07203_PairedHoldSample (17.28s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=17.3s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"66.94 59.58 43.47","LoadAfter":"65.67 59.58 43.65","Receipts":13500,"Repetition":5,"Locks":1,"HoldMS":515.394527}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"65.67 59.58 43.65","LoadAfter":"62.18 58.95 43.53","Receipts":13500,"Repetition":5,"Locks":1,"HoldMS":770.951795}
+--- PASS: TestATRV07203_PairedHoldSample (17.76s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=17.9s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"62.18 58.95 43.53","LoadAfter":"60.79 58.76 43.63","Receipts":13500,"Repetition":6,"Locks":1,"HoldMS":108.058991}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"60.79 58.76 43.63","LoadAfter":"62.65 59.18 43.85","Receipts":13500,"Repetition":6,"Locks":1,"HoldMS":297.813307}
+--- PASS: TestATRV07203_PairedHoldSample (15.59s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=15.7s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"62.65 59.18 43.85","LoadAfter":"62.21 59.19 44.02","Receipts":13500,"Repetition":6,"Locks":1,"HoldMS":361.149272}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"62.21 59.19 44.02","LoadAfter":"60.83 58.95 44.02","Receipts":13500,"Repetition":6,"Locks":1,"HoldMS":579.212196}
+--- PASS: TestATRV07203_PairedHoldSample (15.46s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=15.5s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"59.25 58.65 44.01","LoadAfter":"64.11 59.67 44.41","Receipts":13500,"Repetition":7,"Locks":1,"HoldMS":98.848472}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"64.11 59.67 44.41","LoadAfter":"63.38 59.68 44.58","Receipts":13500,"Repetition":7,"Locks":1,"HoldMS":236.867516}
+--- PASS: TestATRV07203_PairedHoldSample (16.37s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=16.4s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"63.38 59.68 44.58","LoadAfter":"60.55 59.15 44.49","Receipts":13500,"Repetition":7,"Locks":1,"HoldMS":384.658965}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"61.87 59.45 44.67","LoadAfter":"59.47 58.99 44.60","Receipts":13500,"Repetition":7,"Locks":1,"HoldMS":648.760206}
+--- PASS: TestATRV07203_PairedHoldSample (14.79s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=14.9s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"59.47 58.99 44.60","LoadAfter":"56.79 58.45 44.50","Receipts":13500,"Repetition":8,"Locks":1,"HoldMS":55.922799}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"56.79 58.45 44.50","LoadAfter":"56.09 58.27 44.52","Receipts":13500,"Repetition":8,"Locks":1,"HoldMS":156.720263}
+--- PASS: TestATRV07203_PairedHoldSample (8.46s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=8.5s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"56.09 58.27 44.52","LoadAfter":"52.96 57.59 44.37","Receipts":13500,"Repetition":8,"Locks":1,"HoldMS":278.112947}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"52.96 57.59 44.37","LoadAfter":"49.92 56.88 44.21","Receipts":13500,"Repetition":8,"Locks":1,"HoldMS":394.17375}
+--- PASS: TestATRV07203_PairedHoldSample (9.39s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=9.5s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"49.92 56.88 44.21","LoadAfter":"49.92 56.88 44.21","Receipts":13500,"Repetition":9,"Locks":1,"HoldMS":75.567466}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"47.04 56.17 44.05","LoadAfter":"47.04 56.17 44.05","Receipts":13500,"Repetition":9,"Locks":1,"HoldMS":180.385352}
+--- PASS: TestATRV07203_PairedHoldSample (8.61s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=8.7s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"47.04 56.17 44.05","LoadAfter":"44.96 55.58 43.92","Receipts":13500,"Repetition":9,"Locks":1,"HoldMS":311.365855}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"44.96 55.58 43.92","LoadAfter":"43.60 55.13 43.84","Receipts":13500,"Repetition":9,"Locks":1,"HoldMS":488.429778}
+--- PASS: TestATRV07203_PairedHoldSample (9.78s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=9.8s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"43.60 55.13 43.84","LoadAfter":"42.75 54.40 43.78","Receipts":40000,"Repetition":5,"Locks":1,"HoldMS":84.522192}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"42.75 54.40 43.78","LoadAfter":"44.13 54.05 43.83","Receipts":40000,"Repetition":5,"Locks":1,"HoldMS":244.586749}
+--- PASS: TestATRV07203_PairedHoldSample (27.69s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=27.8s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"44.13 54.05 43.83","LoadAfter":"46.82 54.01 44.04","Receipts":40000,"Repetition":5,"Locks":1,"HoldMS":1113.252246}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"46.82 54.01 44.04","LoadAfter":"41.53 52.28 43.73","Receipts":40000,"Repetition":5,"Locks":1,"HoldMS":1082.52502}
+--- PASS: TestATRV07203_PairedHoldSample (42.21s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=42.3s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"41.53 52.28 43.73","LoadAfter":"47.53 53.11 44.14","Receipts":40000,"Repetition":6,"Locks":1,"HoldMS":131.106482}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"47.53 53.11 44.14","LoadAfter":"55.75 54.63 44.89","Receipts":40000,"Repetition":6,"Locks":1,"HoldMS":268.378786}
+--- PASS: TestATRV07203_PairedHoldSample (41.13s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=41.2s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"55.75 54.63 44.89","LoadAfter":"51.37 53.69 44.79","Receipts":40000,"Repetition":6,"Locks":1,"HoldMS":971.743426}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"51.37 53.69 44.79","LoadAfter":"45.66 52.23 44.50","Receipts":40000,"Repetition":6,"Locks":1,"HoldMS":942.677949}
+--- PASS: TestATRV07203_PairedHoldSample (40.16s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=40.3s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"45.66 52.23 44.50","LoadAfter":"42.16 51.13 44.26","Receipts":40000,"Repetition":7,"Locks":1,"HoldMS":78.259212}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"42.16 51.13 44.26","LoadAfter":"47.28 51.71 44.64","Receipts":40000,"Repetition":7,"Locks":1,"HoldMS":148.421303}
+--- PASS: TestATRV07203_PairedHoldSample (38.34s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=38.4s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"47.28 51.71 44.64","LoadAfter":"42.85 50.61 44.36","Receipts":40000,"Repetition":7,"Locks":1,"HoldMS":630.768103}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"42.85 50.61 44.36","LoadAfter":"38.82 49.17 44.01","Receipts":40000,"Repetition":7,"Locks":1,"HoldMS":665.787852}
+--- PASS: TestATRV07203_PairedHoldSample (28.71s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=28.8s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"38.82 49.17 44.01","LoadAfter":"37.18 48.47 43.84","Receipts":40000,"Repetition":8,"Locks":1,"HoldMS":55.070001}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"37.18 48.47 43.84","LoadAfter":"35.97 47.86 43.69","Receipts":40000,"Repetition":8,"Locks":1,"HoldMS":71.776668}
+--- PASS: TestATRV07203_PairedHoldSample (22.84s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=22.9s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"35.97 47.86 43.69","LoadAfter":"37.45 47.46 43.65","Receipts":40000,"Repetition":8,"Locks":1,"HoldMS":837.622572}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"37.45 47.46 43.65","LoadAfter":"37.56 47.01 43.56","Receipts":40000,"Repetition":8,"Locks":1,"HoldMS":1002.752779}
+--- PASS: TestATRV07203_PairedHoldSample (34.18s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=34.3s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"BASE","Verb":"claim","LoadBefore":"37.56 47.01 43.56","LoadAfter":"34.26 46.00 43.27","Receipts":40000,"Repetition":9,"Locks":1,"HoldMS":41.77521}
+    lease_hold_pair_test.go:114: {"Version":"BASE","Verb":"complete","LoadBefore":"34.26 46.00 43.27","LoadAfter":"48.81 48.69 44.22","Receipts":40000,"Repetition":9,"Locks":1,"HoldMS":150.719383}
+--- PASS: TestATRV07203_PairedHoldSample (28.39s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=28.5s rc=0
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07203_PairedHoldSample
+    lease_hold_pair_test.go:103: {"Version":"HEAD","Verb":"claim","LoadBefore":"48.81 48.69 44.22","LoadAfter":"56.41 50.59 44.95","Receipts":40000,"Repetition":9,"Locks":1,"HoldMS":843.430438}
+    lease_hold_pair_test.go:114: {"Version":"HEAD","Verb":"complete","LoadBefore":"56.41 50.59 44.95","LoadAfter":"48.82 49.16 44.55","Receipts":40000,"Repetition":9,"Locks":1,"HoldMS":515.689592}
+--- PASS: TestATRV07203_PairedHoldSample (30.76s)
+PASS
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=30.8s rc=0

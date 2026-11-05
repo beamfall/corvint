@@ -165,6 +165,7 @@
         "script/test-run-pattern_test.sh",
         "tools/flow-guide-check/main.go",
         "tools/flow-guide-check/main_test.go",
+        "tools/linecov/watch.go",
         "tools/test-commands-check/dogtools_test.go",
         "tools/test-shards/main.go"
       ],

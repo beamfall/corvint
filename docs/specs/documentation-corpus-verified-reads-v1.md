@@ -32,6 +32,40 @@ read start. Former IDs: DCP-V1-NNN is DCR-V1-NNN for every ID listed here.
 
 ## Requirements
 
+### Allocation-bounded checkout stamps (V1-4230)
+
+- `DCR-V1-8000`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's fix-round instruction (2026-11-04); V1-4230)
+  On Linux/amd64, checkout stamp chunks MUST reuse a directory descriptor and stat buffer,
+  stat every entry without following its final symlink, and produce the same metadata records
+  as `DirEntry.Info`. The owning file MUST remain live through each descriptor-relative syscall.
+  The stat loop MUST allocate at most one object per 100 entries after
+  opening the reader. Other platforms retain `DirEntry.Info`. Record buffers MUST reserve
+  space before formatting and concatenation. Every existing refusal, entry bound, cancellation
+  and coarse-timestamp abstention remains unchanged. Acceptance:
+  `TestDCRV18000StampEntryReader`, `TestDCRV1847ChunkedStatMatchesSerialDigest`, all existing
+  stamp tests and `BenchmarkDCRV1847CheckoutStamp`. The 17,001-input p50 target remains below
+  15 ms on a quiet host; loaded-host measurements cannot qualify it. Rollback: restore the
+  portable reader and dynamically grown buffers; no persisted stamp format changes.
+
+### Worker-local canonical comparisons (V1-2588)
+
+- `DCR-V1-8001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2588)
+  Split batches MUST allocate their decoded element storage on the decode worker, keeping
+  allocation and page faults off the boundary scanner. Claims and subjects MAY compare against
+  a typed canonical encoding in a reusable worker-local buffer, provided it is byte-identical
+  to `EncodeTo` for every field, omitted empty alternate-ID list, nil/empty array, integer and
+  valid UTF-8 string. String quoting MUST use the JSON encoder's own quoting primitive.
+  The closed decoder MUST still run first on every element, including those after a canonical
+  mismatch; undecodable input still outranks noncanonical input. Other record types MUST retain
+  the original encoder comparison. No artifact format, digest tail, on-disk state, admission
+  order or semantic record changes. Acceptance: `TestDCRV18001CanonicalRecordMatchesEncoder`
+  (reflection-populated differential cases and zero warmed per-record allocations), existing
+  `TestDCRV1414ParallelDecodeMatchesClosedDecode`, `TestDCRV1552ParallelScanMatchesSequential`
+  and all DCR-V1-410..419 / 430..434 witnesses. Benchmark:
+  `BenchmarkDCRV18001ArtifactDecode`; qualify 20 interleaved fresh-process flow/gaps reads
+  against the base, <170 ms p50 and <234 MB RSS on a quiet Linux/amd64 host. Rollback: restore
+  dispatcher allocation and `EncodeTo` for every split record.
+
 ### Verified fast corpus reads (GitHub #1598)
 
 Every CLI read used to rederive the whole artifact (`DCP-V1-011`) and then index each live

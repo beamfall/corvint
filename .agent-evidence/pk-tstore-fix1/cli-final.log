@@ -1,0 +1,7 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at a6eb8ed06e9a403fffc7b56f95954a825dfef0ad tree=c483f7193c45dd321309a7e23dc593b2122d1038 dirty=29
+heavy.sh: slot 3/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	2.535s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=18.4s rc=0

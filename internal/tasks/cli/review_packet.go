@@ -619,11 +619,15 @@ func (p *reviewPacket) bindCheckpoint(root, commit string) {
 	if err != nil || c == "" {
 		return
 	}
+	ancestor, err := store.Ancestry(root, c, p.Commit)
+	if err != nil {
+		return
+	}
 	p.CheckpointCommit, p.CheckpointRelation = c, CheckpointNotAncestor
 	switch {
 	case c == p.Commit:
 		p.CheckpointRelation = CheckpointAtReviewed
-	case store.IsAncestor(root, c, p.Commit):
+	case ancestor:
 		p.CheckpointRelation = CheckpointAncestor
 	}
 }

@@ -18,6 +18,10 @@ installation is explicit: `cd integrations/pi-protected && npx --yes npm@12.2.1 
 The local npm configuration requires that npm version and a nested dependency layout.
 npm 12 ignores the upstream SDK shrinkwrap so the scoped Undici security override and
 patched transitive dependencies can take effect while preserving the pinned Pi 0.85.1 host.
+The lock resolves highlight.js 11.12.0 and yaml 2.9.1. The build resolves only the pinned
+SDK highlighter’s legacy `.js` imports through v11’s public exports; installed packages
+remain unchanged. `node --test dependencies.test.mjs` checks the closure and bundles the
+SDK highlighter and frontmatter parser with Bun 1.3.11, then executes them under Node.
 The install runtime must satisfy npm 12.2.1's Node range (`^22.22.2 || ^24.15.0 || >=26.0.0`);
 the bundled Node 22.23.2 remains compatible.
 A dependency update invalidates protected-image qualification; rebuild and requalify the image

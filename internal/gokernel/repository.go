@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime/trace"
 	"slices"
 	"sort"
 	"strings"
@@ -171,6 +172,7 @@ func probeContextError(ctx context.Context) *Error {
 }
 
 func repositoryIdentity(ctx context.Context, run gitRunner, root string) ([3]string, error) {
+	defer trace.StartRegion(ctx, "hook.git-identity").End()
 	var identity [3]string
 	raw, err := run(ctx, root, maxGitIdentityByte, "rev-parse", "--show-object-format", "HEAD", "HEAD^{tree}")
 	if err != nil {
@@ -202,6 +204,7 @@ func repositoryIdentity(ctx context.Context, run gitRunner, root string) ([3]str
 }
 
 func dirtyPaths(ctx context.Context, run gitRunner, root string) ([]string, []byte, error) {
+	defer trace.StartRegion(ctx, "hook.git-status").End()
 	raw, err := run(ctx, root, maxGitStatusBytes, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return nil, nil, err
@@ -262,6 +265,7 @@ func nextNULTerminated(raw []byte, offset int) ([]byte, int, bool) {
 }
 
 func repositoryProfile(ctx context.Context, run gitRunner, root, treeRevision string) (string, error) {
+	defer trace.StartRegion(ctx, "hook.git-profile").End()
 	arguments := append([]string{"ls-tree", "-z", "--name-only", treeRevision, "--"}, projectprofile.Signals()...)
 	raw, err := run(ctx, root, maxGitIdentityByte, arguments...)
 	if err != nil {

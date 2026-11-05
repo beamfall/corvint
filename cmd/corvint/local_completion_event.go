@@ -10,6 +10,7 @@ import (
 	"io"
 	"reflect"
 	"regexp"
+	runtimetrace "runtime/trace"
 	"slices"
 	"sort"
 	"strings"
@@ -301,10 +302,11 @@ type snapshotPrefetch struct {
 
 // start is the bracket's prefetch callback: it runs on the observing goroutine, so it only
 // starts the read. A decode the event abandons writes nothing and ends with its process.
-func (prefetch *snapshotPrefetch) start(objectFormat, commitRevision, treeRevision string) {
+func (prefetch *snapshotPrefetch) start(ctx context.Context, objectFormat, commitRevision, treeRevision string) {
 	prefetch.objectFormat, prefetch.tree = objectFormat, treeRevision
 	go func() {
 		defer close(prefetch.done)
+		defer runtimetrace.StartRegion(ctx, "hook.snapshot-acquire").End()
 		prefetch.index, prefetch.hit, prefetch.err = loadSnapshotObserved(prefetch.root, contextindex.Observation{ObjectFormat: objectFormat, CommitRevision: commitRevision, Revision: treeRevision})
 	}()
 }
@@ -345,6 +347,7 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	contextPacket func(context.Context, options, map[string]any, localcompletion.Evaluation, map[string]any, gokernel.Repository, gokernel.Observation) (map[string]any, error),
 	expectedTarget string,
 ) (map[string]any, error) {
+	defer runtimetrace.StartRegion(ctx, "hook.local-read").End()
 	// One GPK-V0-007 bracket spans the whole read (proposed LCP-V0-016, V1-0881): the
 	// opening observation is the repository every block reports and the index loader
 	// hits against, and the closing observation is the drift check. Before this the
@@ -356,7 +359,7 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	var result map[string]any
 	var prefetch func(objectFormat, commitRevision, treeRevision string)
 	if pending, ok := ctx.Value(dogfoodSnapshotPrefetchKey{}).(*snapshotPrefetch); ok {
-		prefetch = pending.start
+		prefetch = func(format, commit, tree string) { pending.start(ctx, format, commit, tree) }
 	}
 	probe := dogfoodEventProbeOf(ctx)
 	after, err := gokernel.ProbeRepositoryAroundPrefetching(ctx, options.root, prefetch, func(ctx context.Context, observation gokernel.Observation) error {
@@ -489,6 +492,7 @@ func dogfoodEventContext(ctx context.Context, options options, input map[string]
 func localEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository, observation gokernel.Observation,
 	rehydrate bool, encode func(map[string]any, int) ([]byte, error), nativeSize func([]byte) (int, error),
 ) (map[string]any, error) {
+	defer runtimetrace.StartRegion(ctx, "hook.packet").End()
 	compact := rehydrate && options.event == "session-start" && input["startSource"] == "compact" && repo.DirtyPathCount > 0
 	// The hit is read against the event's own opening observation, so it spawns
 	// nothing; a miss still builds under the build's own bracket.

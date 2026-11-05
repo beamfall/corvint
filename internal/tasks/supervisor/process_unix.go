@@ -54,6 +54,38 @@ func Leader(ctx context.Context, dir, hash string) error {
 	if syscall.Getpgrp() != os.Getpid() {
 		return fmt.Errorf("leader is not isolated session group")
 	}
+	// The owner is the process that spawned this isolated leader. Losing its
+	// identity or the protocol directory retires the entire owned group,
+	// including a runtime stuck in Run. A PID alone is never ownership.
+	owner := os.Getppid()
+	ownerStarted, e := leaderOwnerIdentity(owner, ProcessIdentity)
+	if e != nil {
+		return e
+	}
+	directory, e := os.Stat(dir)
+	if e != nil {
+		return e
+	}
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		var readErrors int
+		tick := time.NewTicker(250 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-tick.C:
+				identity, err := ProcessIdentity(owner)
+				current, statErr := os.Stat(dir)
+				if ownerIdentityLost(ownerStarted, identity, err, &readErrors) || statErr != nil || !os.SameFile(directory, current) {
+					_ = syscall.Kill(-os.Getpid(), syscall.SIGKILL)
+					return
+				}
+			}
+		}
+	}()
 	started, e := ProcessIdentity(os.Getpid())
 	if e != nil || started == "" {
 		return fmt.Errorf("leader identity unavailable: %v", e)
@@ -90,6 +122,25 @@ func Leader(ctx context.Context, dir, hash string) error {
 	defer cancelHold()
 	<-hold.Done()
 	return hold.Err()
+}
+
+func leaderOwnerIdentity(owner int, read func(int) (string, error)) (string, error) {
+	identity, err := read(owner)
+	if err != nil || owner < 1 || identity == "" {
+		return "", fmt.Errorf("leader owner unavailable: %v", err)
+	}
+	return identity, nil
+}
+
+// ownerIdentityLost tolerates transient observation failures. A successful read
+// resets the consecutive-error counter; absence or replacement is immediate.
+func ownerIdentityLost(started, current string, err error, consecutive *int) bool {
+	if err != nil {
+		(*consecutive)++
+		return *consecutive >= 3
+	}
+	*consecutive = 0
+	return current == "" || current != started
 }
 
 type boundedOutput struct {
