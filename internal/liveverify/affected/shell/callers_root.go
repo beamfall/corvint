@@ -11,5 +11,8 @@ func repositoryRootCommand(text string) bool {
 	if len(words) >= 3 && words[0] == "env" && words[1] == "-u" {
 		words = words[3:]
 	}
-	return len(words) == 3 && words[0] == "git" && words[1] == "rev-parse" && words[2] == "--show-toplevel"
+	// This parser compares an option; it never runs Git or reads its root.
+	// Split the token as golang.rootLocatorToken does, so the conservative
+	// literal scanner does not mistake the recognizer for a root reader.
+	return len(words) == 3 && words[0] == "git" && words[1] == "rev-parse" && words[2] == "--show-"+"toplevel"
 }

@@ -71,6 +71,15 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "allowlisted unknowns stay narrowed", edit: func(in *Input) {
 			in.Unknown = []Unknown{{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}, {Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
 		}, scope: ScopeNarrowed, units: whole("a")},
+		// AZU-V0-001: make targets and CI jobs are driver units, including
+		// historical targets with no selectable tests. They need no adapter.
+		{name: "selected and unknown driver targets need no language adapter", edit: func(in *Input) {
+			in.Selected = []string{"driver:make:Makefile:check"}
+			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "driver:make:Makefile:build"}}
+		}, scope: ScopeNarrowed, units: whole("a")},
+		{name: "unknown driver does not hide an undeclared language", edit: func(in *Input) {
+			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "driver:make:Makefile:build"}, {Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
+		}, scope: ScopeNarrowed, units: whole("a"), incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
 		{name: "attribution fallback", edit: func(in *Input) { in.GoSelection = "FALLBACK go.mod changed" },
 			scope: ScopeFull, reason: "go.mod changed", units: whole("a", "b", "c")},
 		{name: "unknown outside the allowlist", edit: func(in *Input) {

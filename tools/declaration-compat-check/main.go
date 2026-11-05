@@ -40,6 +40,7 @@ var closed = map[string][]string{
 	".corvint/test-nested-sandboxes.json":       {""},
 	".corvint/test-read-scope-literals.json":    {""},
 	".corvint/test-read-scopes.json":            {""},
+	".corvint/test-selection.json":              {"", "/owners/*", "/mustRun/*"},
 	".corvint/unbounded-reader-exclusions.json": {""},
 	".corvint/unbounded-readers.json":           {""},
 }
