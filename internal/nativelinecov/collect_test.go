@@ -183,7 +183,7 @@ func fixtureRun(r tr.Request, inv tr.Invocation) Capture {
 // real native report decoders and invocation builders, with no native toolchain.
 func TestCollectorFamilies(t *testing.T) {
 	for _, runner := range []string{"junit-platform", "junit4", "testng", "kotest", "kotlin-test", "dotnet-vstest-nunit", "dotnet-vstest-xunit", "dotnet-vstest-mstest", "googletest", "ctest", "catch2", "cargo-test", "cargo-integration", "cargo-bin", "nextest", "swift-xctest", "swift-testing"} {
-		t.Run(runner, func(t *testing.T) {
+		verify := func(t *testing.T) {
 			o := options(t, runner)
 			calls := 0
 			o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) {
@@ -213,82 +213,98 @@ func TestCollectorFamilies(t *testing.T) {
 			if p["tests"].Mode != linecov.Whole {
 				t.Fatal("unqualified family excluded tests")
 			}
+		}
+		t.Run(runner, func(t *testing.T) {
+			switch Family(runner) {
+			case "jvm":
+				t.Run("LPCV-V0-8200 JVM collector", verify)
+			case "dotnet":
+				t.Run("LPCV-V0-8201 dotnet collector", verify)
+			case "cfamily":
+				t.Run("LPCV-V0-8202 native collector", verify)
+			case "rust":
+				t.Run("LPCV-V0-8203 Rust collector", verify)
+			case "swift":
+				t.Run("LPCV-V0-8204 Swift collector", verify)
+			}
 		})
 	}
 }
 
 // LPCV-V0-8205: no false records from incomplete runner or process evidence.
 func TestCollectorRefusals(t *testing.T) {
-	cases := map[string]func(*Capture){
-		"no tree":         func(c *Capture) { c.TreeComplete = false },
-		"unknown child":   func(c *Capture) { c.Processes = append(c.Processes, Process{ID: 2, Parent: 1, Exited: true}) },
-		"no dump":         func(c *Capture) { c.Processes[0].Reports = nil },
-		"timeout":         func(c *Capture) { c.Input.TimedOut = true },
-		"interrupted":     func(c *Capture) { c.Input.Interrupted = true },
-		"overflow":        func(c *Capture) { c.Input.Overflow = true },
-		"report":          func(c *Capture) { c.Input.Stdout = []byte("running 2 tests\n") },
-		"execution issue": func(c *Capture) { c.Input.ExecutionProblems = []tr.Problem{{Code: "missing"}} },
-		"runner mismatch": func(c *Capture) { c.Input.Runner = "cargo-bin" },
-	}
-	for name, mutate := range cases {
-		t.Run(name, func(t *testing.T) {
+	t.Run("LPCV-V0-8205 incomplete capture", func(t *testing.T) {
+		cases := map[string]func(*Capture){
+			"no tree":         func(c *Capture) { c.TreeComplete = false },
+			"unknown child":   func(c *Capture) { c.Processes = append(c.Processes, Process{ID: 2, Parent: 1, Exited: true}) },
+			"no dump":         func(c *Capture) { c.Processes[0].Reports = nil },
+			"timeout":         func(c *Capture) { c.Input.TimedOut = true },
+			"interrupted":     func(c *Capture) { c.Input.Interrupted = true },
+			"overflow":        func(c *Capture) { c.Input.Overflow = true },
+			"report":          func(c *Capture) { c.Input.Stdout = []byte("running 2 tests\n") },
+			"execution issue": func(c *Capture) { c.Input.ExecutionProblems = []tr.Problem{{Code: "missing"}} },
+			"runner mismatch": func(c *Capture) { c.Input.Runner = "cargo-bin" },
+		}
+		for name, mutate := range cases {
+			t.Run(name, func(t *testing.T) {
+				o := options(t, "cargo-test")
+				o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) {
+					c := fixtureRun(r, i)
+					mutate(&c)
+					return c, nil
+				}
+				out, err := Collect(context.Background(), o)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, one := range out {
+					if one.Record != nil || one.Divergent == "" {
+						t.Fatalf("false record: %+v", one)
+					}
+				}
+			})
+		}
+		t.Run("inexact filter", func(t *testing.T) {
 			o := options(t, "cargo-test")
 			o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) {
-				c := fixtureRun(r, i)
-				mutate(&c)
-				return c, nil
+				r.Selectors = nil
+				return fixtureRun(r, i), nil
 			}
 			out, err := Collect(context.Background(), o)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, one := range out {
-				if one.Record != nil || one.Divergent == "" {
-					t.Fatalf("false record: %+v", one)
+				if one.Name != linecov.InOrder && one.Record != nil {
+					t.Fatal("accepted inexact filter")
 				}
 			}
 		})
-	}
-	t.Run("inexact filter", func(t *testing.T) {
-		o := options(t, "cargo-test")
-		o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) {
-			r.Selectors = nil
-			return fixtureRun(r, i), nil
-		}
-		out, err := Collect(context.Background(), o)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, one := range out {
-			if one.Name != linecov.InOrder && one.Record != nil {
-				t.Fatal("accepted inexact filter")
+		t.Run("cancellation", func(t *testing.T) {
+			o := options(t, "cargo-test")
+			ctx, cancel := context.WithCancel(context.Background())
+			o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) {
+				cancel()
+				return fixtureRun(r, i), nil
 			}
-		}
-	})
-	t.Run("cancellation", func(t *testing.T) {
-		o := options(t, "cargo-test")
-		ctx, cancel := context.WithCancel(context.Background())
-		o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) {
-			cancel()
-			return fixtureRun(r, i), nil
-		}
-		if out, err := Collect(ctx, o); err == nil || out != nil {
-			t.Fatal("cancelled collection published records")
-		}
-	})
-	t.Run("scratch ownership", func(t *testing.T) {
-		o := options(t, "cargo-test")
-		p := filepath.Join(o.Work, "keep")
-		if err := os.WriteFile(p, []byte("private"), 0600); err != nil {
-			t.Fatal(err)
-		}
-		o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) { return fixtureRun(r, i), nil }
-		if _, err := Collect(context.Background(), o); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := os.Stat(p); err != nil {
-			t.Fatal("removed caller scratch")
-		}
+			if out, err := Collect(ctx, o); err == nil || out != nil {
+				t.Fatal("cancelled collection published records")
+			}
+		})
+		t.Run("scratch ownership", func(t *testing.T) {
+			o := options(t, "cargo-test")
+			p := filepath.Join(o.Work, "keep")
+			if err := os.WriteFile(p, []byte("private"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			o.Run = func(_ context.Context, r tr.Request, i tr.Invocation) (Capture, error) { return fixtureRun(r, i), nil }
+			if _, err := Collect(context.Background(), o); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(p); err != nil {
+				t.Fatal("removed caller scratch")
+			}
+		})
 	})
 }
 
