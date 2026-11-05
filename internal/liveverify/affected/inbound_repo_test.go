@@ -17,6 +17,17 @@ func TestRepositoryInboundCallers_AZU_V0_8901(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fixturePlan := affected.Select(graph, []string{"script/dogfood-change.sh"})
+	foundFixtureReader := false
+	for _, s := range fixturePlan.Selected {
+		if s.UnitID == "shell:script/dogfood-change_test.sh" {
+			foundFixtureReader = true
+		}
+	}
+	if !foundFixtureReader {
+		t.Fatal("AZU-V0-8901: confined fixture stopped reading the changed script source")
+	}
+
 	for _, dirty := range []string{"internal/gateselect/allowlist.go", "script/heavy.sh", ".corvint/change.cem.json"} {
 		plan := affected.Select(graph, []string{dirty})
 		for _, u := range plan.Unknown {
