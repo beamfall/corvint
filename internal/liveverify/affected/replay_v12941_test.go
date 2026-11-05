@@ -49,7 +49,8 @@ var batch1028aDeclared = []string{
 }
 
 // batch1028aUnowned is the rest of that set, which must stay UNKNOWN: CI
-// driver inputs, which no declaration may cover, and the opencode package's
+// driver inputs, which no declaration may cover (the driver claimant owns the
+// workflow since AZU-V0-001, leaving the jq file), and the opencode package's
 // npm manifest, which no declaration covers. Its README is declared
 // documentation since AFP-V0-830 and leaves the unowned set.
 var batch1028aUnowned = []string{
@@ -148,7 +149,9 @@ func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
 		}
 	}
 	slices.Sort(unowned)
-	if !slices.Equal(unowned, batch1028aUnowned) {
-		t.Fatalf("1028a unowned %v, want %v", unowned, batch1028aUnowned)
+	// The driver claimant owns the workflow since AZU-V0-001.
+	want := slices.DeleteFunc(slices.Clone(batch1028aUnowned), affected.DriverInput)
+	if !slices.Equal(unowned, want) {
+		t.Fatalf("1028a unowned %v, want %v", unowned, want)
 	}
 }

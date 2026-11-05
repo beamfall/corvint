@@ -1,0 +1,9 @@
+{
+  "profile": "corvint-non-source-paths/0",
+  "entries": [
+    {
+      "path": ".agent-evidence/",
+      "reason": "retained agent evidence output (AZU-V0-002): written by lanes and the dogfood tools, never built or run; its test readers stay selected: conformance/release-artifact-v0 walks it through a path literal, and the unbounded readers read the whole tree"
+    }
+  ]
+}
