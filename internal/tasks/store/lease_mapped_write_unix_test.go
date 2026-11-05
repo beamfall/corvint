@@ -15,25 +15,25 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite is the V1-0775
-// probe (ATR-V0-241). A mapped (MAP_SHARED) write raises no change event, and
-// a lease write reuses its preparation audit's digests for the files it only
-// reads, so a mapped write that lands after that audit, at either commit
-// stage, is not refused by that lease write: the claim commits the decision it
-// derived from the audited content. That window is the recorded limit. What
-// this test holds is the bound on it: the claim's receipt does not absorb the
-// mapped content, so the next write's audit refuses the store while the change
-// is in place, and accepts it again once the file is restored.
-func TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite(t *testing.T) {
+// ATR-V0-7203: mmap changes at either commit boundary refuse the same lease.
+func TestATRV07203_MappedWriteAfterLeaseAuditRefusesCommit(t *testing.T) {
 	t.Parallel()
 	for _, stage := range []string{"sweep", "lock"} {
 		for _, tc := range []struct{ target, want string }{
 			{"request-projection", wire.CodeJournalForked},
 			{"policy", wire.CodeIntentDiverged},
+			{"ticket", wire.CodeIntentDiverged},
 		} {
 			t.Run(stage+"/"+tc.target, func(t *testing.T) {
 				repo, choice := inventoryClaimRepo(t)
 				file := filepath.Join(repo.PrimaryWorktree, intent.Dir, "policy.json")
+				if tc.target == "ticket" {
+					id, e := wire.ParseTicketID("ticket", choice.Lease.TicketID)
+					if e != nil {
+						t.Fatal(e)
+					}
+					file = filepath.Join(repo.IntentRoot(), intent.Dir, "tickets", id.Local+".json")
+				}
 				if tc.target == "request-projection" {
 					p, _ := snapshot.RequestPath("inventory-create")
 					file = filepath.Join(repo.StateDir, p)
@@ -55,6 +55,9 @@ func TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite(t *testing.T) {
 				report, claimErr := Lease(ctx, repo, mutation.Binding{ID: "tester", Role: "OWNER"}, choice, fixture.Timestamp)
 				if !flipped {
 					t.Fatalf("stage %s never reached: %+v %v", stage, report, claimErr)
+				}
+				if claimErr == nil || report.Receipt != "" {
+					t.Fatalf("mapped write committed: %+v %v", report, claimErr)
 				}
 				published := mutationPublished(t, repo)
 				_, next := Mutate(context.Background(), repo, historyActor, historyCreate("after-mapped", "after"), fixture.Timestamp)

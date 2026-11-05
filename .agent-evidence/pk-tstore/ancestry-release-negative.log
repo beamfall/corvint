@@ -1,0 +1,25 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=91efceb8e81922b6128aad842e23fda99432f9e4 dirty=51
+heavy.sh: slot 4/8 after 0s
+--- FAIL: TestTRMV07208_ReleaseWritesUseSubmissionContext (0.83s)
+    --- FAIL: TestTRMV07208_ReleaseWritesUseSubmissionContext/update (0.43s)
+        pk_tstore_internal_test.go:56: update ignored submission cancellation
+    --- FAIL: TestTRMV07208_ReleaseWritesUseSubmissionContext/membership (0.40s)
+        pk_tstore_internal_test.go:56: membership ignored submission cancellation
+--- FAIL: TestTCDV07214_CheckpointAncestryAbstainsOnGitError (0.03s)
+    pk_tstore_internal_test.go:75: failed query became fact: {Ticket: Commit:ffffffffffffffffffffffffffffffffffffffff Repo:{Kind: Name: Root:} Requested: RevisionSource: Searched:[] Base: BaseKind: BaseSource: BaseGate: Scope: ChangedPaths:0 Files:[] ReturnGate: ReturnEvent: Items:[] ObligationsState: Obligations:[] Checkpoint:<nil> CheckpointSource: CheckpointCommit:db17ce3ed285bbf223519807f31cf89bd7678cdc CheckpointRelation:NOT_ANCESTOR History:[] Fixed:[]}
+--- FAIL: TestTCDV07214_AncestryCallersRefuseObservationFailure (0.12s)
+    --- FAIL: TestTCDV07214_AncestryCallersRefuseObservationFailure/seal (0.01s)
+        pk_tstore_internal_test.go:123: seal query: {hit:{ticketID: lane:0 commit: source: phase:} g:0x36e918526000 local: status: revision: disposition:UNRUNNABLE code:PREREQUISITE_UNSATISFIED recovery:pass the sealed lane commit the batch merged, then rerun detail:seal 08f4f89bb3ef820caddf9fdf797fd513f122c467 is not contained in batch merge 5cf536d2db3238a31992bcbd7e320902dc82edcb requestID:batch-close-1-A-a0-claim receipt: resultingRevision: attempt:<nil> holds:[] mentionedOnly:false write:false}
+    --- FAIL: TestTCDV07214_AncestryCallersRefuseObservationFailure/delivery (0.01s)
+        pk_tstore_internal_test.go:128: delivery query became "NOT_IN_MERGE_ANCESTRY"
+    --- FAIL: TestTCDV07214_AncestryCallersRefuseObservationFailure/detached (0.02s)
+        pk_tstore_internal_test.go:133: detached lane ancestry error was discarded
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/tasks/cli	1.051s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=15.8s rc=1
+heavy.sh: exit rc=1 cause=command cmd=go

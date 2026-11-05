@@ -1,0 +1,249 @@
+{
+  "base": "6c33df33bc5670131482f5263b410cb980580657",
+  "round0": "a6eb8ed06e9a403fffc7b56f95954a825dfef0ad",
+  "binaries": [
+    {
+      "path": "/home/russell/lanes/pk-tstore.fix/base.test",
+      "sha256": "72d68193336d0f97ac49b1aa89c63466369b212f5de824d2783859bf58e361bf"
+    },
+    {
+      "path": "/home/russell/lanes/pk-tstore.fix/head-full.test",
+      "sha256": "4053d91465d532ad12b0e08a78b19534b08780912b90621bf2b183ce3f7db244"
+    },
+    {
+      "path": "/home/russell/lanes/pk-tstore.fix/head-narrow.test",
+      "sha256": "b69a8c7d45f54d1991f2a714bd6fa778c361eec2f7533a4040ea354d3a545907"
+    }
+  ],
+  "fullPassSource": {
+    "path": "/home/russell/lanes/pk-tstore.fix/full-pass-lease_write.go",
+    "derivation": "round0 lease_write.go with observation.Files restored in the successful-audit guardedLeaseInventory call only",
+    "gitBlob": "d17daf1ced95c0a01924b87fa38342b14789c1f6",
+    "sha256": "2574b8eb7f8e2c8438d8f02129ab10ff79daa32ad1c916d3daea45a845d5bd2f"
+  },
+  "sharedHarnessSha256": "f9e5458c39a74bcff6f47a6df922370c1aeafca4268215abdffed1746b36c64e",
+  "testCommands": "verify.txt; build-*.log and paired.py/resume-full.py/remeasure.py retain binary invocation commands",
+  "preliminarySourceFiles": [
+    {
+      "path": "internal/tasks/cli/batch_close_gated.go",
+      "gitBlob": "3acda5847297ff917814c259318b2fe078445af6",
+      "sha256": "a01a41550c2bffebf7e171dfd401fc791af4652507bba71b55afb7f25dab2a53"
+    },
+    {
+      "path": "internal/tasks/cli/cli.go",
+      "gitBlob": "e76884f6d56e284b536e0b5aecfce84897dd764a",
+      "sha256": "c2d3ec473e3da5a874bf1d7b935ed004c3466630beca18e6d830f4bb27d4fee8"
+    },
+    {
+      "path": "internal/tasks/cli/closeout_debt.go",
+      "gitBlob": "801e8c5229f08e8558c81f80462f184b4c486f47",
+      "sha256": "ce4add84a0f3ab23f3086dfe45db6876e7efe467e0a276c65bbd36942d5add1e"
+    },
+    {
+      "path": "internal/tasks/cli/command_help.go",
+      "gitBlob": "6198b10c0d8167e40ec4296c611e01ca4afe5bc8",
+      "sha256": "5cc6ffe7d0645bdd81779e35293d98c566b17a6e81acddbe57bc85d0b179ab6a"
+    },
+    {
+      "path": "internal/tasks/cli/create_template.go",
+      "gitBlob": "01b5b7239c4f3713df06c51e2371a74f8c928ae6",
+      "sha256": "99418a109fef84ff0ccfcb9058ec7a80e7921042d9ae9b2dfc52f30d393de592"
+    },
+    {
+      "path": "internal/tasks/cli/delivery_screen.go",
+      "gitBlob": "4e386ca7c290c664323db8f3598766373d78aa15",
+      "sha256": "97f922ff03f69f33e01205b64c33ff09368084b76c3fb60ded78024c77c76193"
+    },
+    {
+      "path": "internal/tasks/cli/lease.go",
+      "gitBlob": "4a3c32620a2e70ff5fdeade034b4d879224f5fdd",
+      "sha256": "7a41d78f154fc75dd4376e4d6d0c460bcde103f315a67ae5178fd6b8d5910f42"
+    },
+    {
+      "path": "internal/tasks/cli/multi_target.go",
+      "gitBlob": "70aed9cca5cc282eab322a9cf8aa83138f988b22",
+      "sha256": "0f2e02a99b4dc1705b7c17d1d9aa7a656e2de15c68385f082eff1dcfe23b770f"
+    },
+    {
+      "path": "internal/tasks/cli/mutate.go",
+      "gitBlob": "5f3c065a1472dd1e1da4bce8e2cabeb4c39148af",
+      "sha256": "5a3737315ec66f38699b628ef7c872ce8ca28bdcfadf8ff72f17f77b2034ed9c"
+    },
+    {
+      "path": "internal/tasks/cli/pk_tstore_commit_test.go",
+      "gitBlob": "78e02beb31f57e79dd0fa58c8097bf219166c9d0",
+      "sha256": "7f7643b20e280de7bb4c62a35795c779711d9c390ecfa860327ce9e17ea1745d"
+    },
+    {
+      "path": "internal/tasks/cli/pk_tstore_internal_test.go",
+      "gitBlob": "7e52e31efb416053e15b47d7e0934301f0b86b8f",
+      "sha256": "c0ffb4f1b2e79389e33a4bb0c160ea503c071b3baab7ef75b0b01d1879c7c379"
+    },
+    {
+      "path": "internal/tasks/cli/pk_tstore_regression_test.go",
+      "gitBlob": "40fdc25f548581cce65c0e691aafaa4f6e5be12f",
+      "sha256": "4862dbf374352ec2ee30591846149ba9d4a63d60abc5e9657d9f6ed55293aa2e"
+    },
+    {
+      "path": "internal/tasks/cli/receipt.go",
+      "gitBlob": "3340f140cde2a51aaf6b8c92475f08ff6a54bf5a",
+      "sha256": "7ad28d69a5a98acf13d4ded8b3e66b4cac5fd4c0e8fce18e10dd9d4984b767e3"
+    },
+    {
+      "path": "internal/tasks/cli/release.go",
+      "gitBlob": "adf953ef220e03585d72eccc4c055aaafa94c050",
+      "sha256": "015e1d4a0e593d12840cdb33c30d28725ccb787156a544ff4c1c5ac0c307bc6a"
+    },
+    {
+      "path": "internal/tasks/cli/request_conflict.go",
+      "gitBlob": "88369494c9c53a5669a0991bd10d34af25911c71",
+      "sha256": "4220cd2bec4b59d35d8d61a71b5a58fd67dbe07fd54e819262c870dc00f7be8d"
+    },
+    {
+      "path": "internal/tasks/cli/review_packet.go",
+      "gitBlob": "c950f87b05978257679b05a98be74cff5d14f94e",
+      "sha256": "88b56cebff82b2c0de6c74620e6748d9b0b0b0e6c9f77e887bb79d30eabb21d4"
+    },
+    {
+      "path": "internal/tasks/cli/ticket_show_scale_test.go",
+      "gitBlob": "ee6b092a2da9833b76b7773a4cb3914672e311ca",
+      "sha256": "0bf09037c8f24e52ff6414fe17db23b91bc3785c226a899936280b16e0aae38e"
+    },
+    {
+      "path": "internal/tasks/journal/audit.go",
+      "gitBlob": "9f3130caf477118bd6287089eef9e9fd507891b9",
+      "sha256": "3afb49221ec692d8d3d0d7f7e5bd968aa6b30fddc2aff08e2830dc69ff6b1993"
+    },
+    {
+      "path": "internal/tasks/snapshot/gate.go",
+      "gitBlob": "848f2d706fd767159fd1e530fa84fa50eb58fb97",
+      "sha256": "9191874db5e156a249cc11311532875118bda0cb151d542306a1412273192867"
+    },
+    {
+      "path": "internal/tasks/snapshot/gate_test.go",
+      "gitBlob": "e60eec1a8fe55bd7c740e50542f9d711350ec581",
+      "sha256": "74755687b50cdc24e22412f926e62720f9016dfe01fc710961dd0c9733d8cd57"
+    },
+    {
+      "path": "internal/tasks/store/checkpoint_decode_unix_test.go",
+      "gitBlob": "cb675296ce8739c12b676622f6ea1b9d905457a7",
+      "sha256": "e6c4cb979b9f8a30026e496daf796b4bb3323f1b4df5ac9e4956adf5d05cce40"
+    },
+    {
+      "path": "internal/tasks/store/closeout_scan.go",
+      "gitBlob": "0d4db8ec08556427eb4c91623c5c1cd5b1b81948",
+      "sha256": "1c0f1bb0ab32dee4c5578cf56d5326e2e141171c16a4e2ee4f312919f08efb18"
+    },
+    {
+      "path": "internal/tasks/store/commit_prefix_test.go",
+      "gitBlob": "085b78c4b24e4e9eefc1affc444e46293d3c0ab3",
+      "sha256": "cab64465866ee194dccffde075f78be522e9efc2c6bc4ad6194133823dc3f780"
+    },
+    {
+      "path": "internal/tasks/store/export_test.go",
+      "gitBlob": "8705b9c0d2102d73c3110540294ab0cfe6cdfb08",
+      "sha256": "b5eb38f130b8e59d0d256f09af23e3940b8c5bfafe7a30b3e94df4187a4538f1"
+    },
+    {
+      "path": "internal/tasks/store/gate_resource_unix_test.go",
+      "gitBlob": "022c01ecd8e2d11107fa93aae016647f1459ee49",
+      "sha256": "4cdc21ba5f9ab03c77741cd389f8176dae114d49cac808656e2fc2a9db10b4ea"
+    },
+    {
+      "path": "internal/tasks/store/leader_fault_unix_test.go",
+      "gitBlob": "f300b7989d811792b9ba62a427826560d2b46f08",
+      "sha256": "5ac82c28952b748e1ba2e43e9ec933e035760d3371289f936e9558c15577db35"
+    },
+    {
+      "path": "internal/tasks/store/lease_hold_pair_test.go",
+      "gitBlob": "0e3c94d3bc62c6c86cefec879ef5ffed84aab395",
+      "sha256": "f9e5458c39a74bcff6f47a6df922370c1aeafca4268215abdffed1746b36c64e"
+    },
+    {
+      "path": "internal/tasks/store/lease_mapped_write_unix_test.go",
+      "gitBlob": "aa9a8436b4512fe301deafc7fdb31bd707422c5a",
+      "sha256": "f840c34d14453460d2727fdc0169dd970e315eae4b1f6d71695ca4c6c4af0193"
+    },
+    {
+      "path": "internal/tasks/store/lease_orphan_route_test.go",
+      "gitBlob": "f4843cf1ef75a5d76edcd027f9e60cb8009753f8",
+      "sha256": "147d3a01264583a3fd13527e9cf09ecf7d1b21981eee84e3ea0f14e814707e1d"
+    },
+    {
+      "path": "internal/tasks/store/lease_prepare_reuse_test.go",
+      "gitBlob": "37b15cc3d39eccd51cd9f5583610050b3d8334f6",
+      "sha256": "31129a2d9b791d7285472b509326eecbd1da033e89f608a96de6cce8cbb891b9"
+    },
+    {
+      "path": "internal/tasks/store/lease_write.go",
+      "gitBlob": "693118da43e6b8c931516bc7ebcab7cec84ece6b",
+      "sha256": "9df34fa839f5391985e9c9b6ea1cf61aef3795b1e1965239994fad91a210b1f2"
+    },
+    {
+      "path": "internal/tasks/store/main_test.go",
+      "gitBlob": "2371d153774ecc6ef433a41f6171ddf248734a1b",
+      "sha256": "9faa4383f1a81ce922e9f515565c166576712e56f776bb08c6c10f62a2d39a55"
+    },
+    {
+      "path": "internal/tasks/store/program.go",
+      "gitBlob": "7b1a33947df37f40211a00a9578aae7b55ebd4e4",
+      "sha256": "03bae1e0d657e89d11ea1865618381442e1121223cdcf95058043639d3a02543"
+    },
+    {
+      "path": "internal/tasks/store/program_claude_host_test.go",
+      "gitBlob": "2ef4b917ff2fd33b7b71b6a3c9a8d30f61abf80d",
+      "sha256": "48c359ccccd1f30af18f61ad11bdc6a8c3fab81b80318cda9ecb7d7f392f121d"
+    },
+    {
+      "path": "internal/tasks/store/program_worktree_cleanup_test.go",
+      "gitBlob": "3e65d58361a89988b12f136883aa09aa96bd23ba",
+      "sha256": "0bdd72b8e4d88d9722be204b6f442607ac4ae5995ad06f13ef1b18b1b2602e27"
+    },
+    {
+      "path": "internal/tasks/store/review_packet.go",
+      "gitBlob": "6a4ac85fcbd423c212bb9efd1e414c44c4b06228",
+      "sha256": "a740e03ad5b7d5ec42a1d6780f056ef0aa94758800873d898b88bf5fb672def0"
+    },
+    {
+      "path": "internal/tasks/store/spawn_failure_load_linux_test.go",
+      "gitBlob": "afac8ebab604da6e00bcf1f5fee8b1009f1f1a42",
+      "sha256": "7df203c070a0106a4894de9c7336ceb524708c7ab685a589e0df981ce4133895"
+    },
+    {
+      "path": "internal/tasks/store/workflow.go",
+      "gitBlob": "cfb51eeb0e181607c03dc39574a0f843c2e60cb9",
+      "sha256": "ce483d20fbac33233fac3e6424ebe1fbee452474fc3e1d0fba9aec2db41a6451"
+    },
+    {
+      "path": "internal/tasks/store/writer_checkpoint.go",
+      "gitBlob": "9fb9bd2c793d95b4487ecf404ad0eff458134a42",
+      "sha256": "fe378065f7224e39c5a3d30e0494d1941729b018a5a7d7a81f69bb4ca9396e4e"
+    },
+    {
+      "path": "internal/tasks/store/writer_route.go",
+      "gitBlob": "5fbf0a70f6408486ffd761d04360688607a58664",
+      "sha256": "254663a82652603c0d9df1aeb9187e25d46bfaf6666980b204961c3d43c7d3ff"
+    },
+    {
+      "path": "internal/tasks/supervisor/owner_identity_test.go",
+      "gitBlob": "63adec853c93eebce8723b3a7d6347c1b0b40675",
+      "sha256": "976a5454883f0de152df682934b74c8eda2e417153f49b7c9fed6968c03ccfda"
+    },
+    {
+      "path": "internal/tasks/supervisor/process_test.go",
+      "gitBlob": "032893636f5e9b4f7f193bb8d46231ba9e68c886",
+      "sha256": "686f0be601641a767ddf7825c93cdb14408fd542c2569b07a7193f8f48336584"
+    },
+    {
+      "path": "internal/tasks/supervisor/process_unix.go",
+      "gitBlob": "2702da960bd21e5f8be3e2cb498c5f51148bde91",
+      "sha256": "e22ef4136ba9cb8b86013fad074ca92b3db4b3c200137ce1e46abfc6a564a19a"
+    },
+    {
+      "path": "internal/tasks/transaction/lease_gate.go",
+      "gitBlob": "6bc789e5d15a52cb5f61402b18ca40484c6cd4c7",
+      "sha256": "d07be00c829e82f48b92ce2bbf6741dd913a67b37528382916874d19d855b746"
+    }
+  ],
+  "phase": "first narrowing (observation-membership selection; superseded)"
+}

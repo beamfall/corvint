@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +17,16 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) == 4 && os.Args[1] == "orphan-owner" {
+		cmd := exec.Command(os.Args[0], "lane-leader", "--directory", os.Args[2], "--capsule", os.Args[3])
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		if err := cmd.Start(); err != nil {
+			os.Exit(2)
+		}
+		_ = cmd.Wait()
+		os.Exit(0)
+	}
+
 	if len(os.Args) == 6 && os.Args[1] == "lane-leader" {
 		if e := Leader(context.Background(), os.Args[3], os.Args[5]); e != nil {
 			fmt.Fprintln(os.Stderr, e)
@@ -126,6 +137,60 @@ func TestSupervisorDescendantCleanup(t *testing.T) {
 			}
 			b, _ := json.Marshal(phases)
 			t.Log(string(b))
+		})
+	}
+}
+
+// ATR-V0-7202: killed owners and removed protocol directories cannot leak leaders.
+func TestATRV07202_LeaderRetiresWhenOwnerOrDirectoryDisappears(t *testing.T) {
+	for _, mode := range []string{"owner", "directory"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			exe, err := filepath.EvalSymlinks("/bin/sh")
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := ReadBounded(exe, 256<<20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := Capsule{Profile: "taskman-codex-supervisor/0", Effect: strings.Repeat("a", 64), Executable: exe, ExecutableSHA256: Digest(raw), Argv: []string{"-c", "sleep 600"}, Directory: dir, Env: []string{"PATH=/bin:/usr/bin"}}
+			b, _ := json.Marshal(c)
+			if err := os.WriteFile(filepath.Join(dir, "capsule"), b, 0600); err != nil {
+				t.Fatal(err)
+			}
+			owner := exec.Command(os.Args[0], "orphan-owner", dir, Digest(b))
+			if err := owner.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = owner.Process.Kill(); _ = owner.Wait() }()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			var boot Boot
+			if err := await(ctx, filepath.Join(dir, "boot"), &boot); err != nil {
+				t.Fatal(err)
+			}
+			defer syscall.Kill(-boot.PID, syscall.SIGKILL)
+			if err := Publish(dir, "ack", Ack{Boot: boot, Accepted: true}); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "owner" {
+				_ = owner.Process.Kill()
+				_ = owner.Wait()
+			} else {
+				if err := os.RemoveAll(dir); err != nil {
+					t.Fatal(err)
+				}
+			}
+			deadline := time.Now().Add(3 * time.Second)
+			for time.Now().Before(deadline) {
+				now, _ := ProcessIdentity(boot.PID)
+				if now == "" || now != boot.Started {
+					return
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			t.Fatal("leader outlived owner/directory for 3s")
 		})
 	}
 }

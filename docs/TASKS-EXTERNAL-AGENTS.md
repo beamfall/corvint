@@ -1064,3 +1064,13 @@ binary; upgrading that runtime still needs its own drain and policy update.
 ## Barrier incident and qualification safety
 
 See the [2026-10-30 barrier operator note](TASKS-BARRIER-2026-10-30.md) for the recorded recovery gaps, stale-barrier warnings and fixture-only pause qualification.
+
+## Lane private files
+
+Keep private lane files outside the Tasks state directory and `.taskman/`, for
+example in a sibling `../my-lane.scratch/` directory with owner-only permissions.
+The state directory's known entries belong to the journal. Read-only views ignore
+boundedly listed unknown root directories without traversing them (TCL-V0-7209);
+writers retain the strict layout audit and refuse such a directory by name.
+Move it to the supported sibling location before writing. Unknown files, links,
+and unknown nested entries inside known journal directories remain refusals.
