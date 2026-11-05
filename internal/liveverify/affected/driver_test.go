@@ -292,3 +292,32 @@ func TestDriverFlowMappingKeepsUncertainty_AZU_V0_001(t *testing.T) {
 		})
 	}
 }
+
+// AZU-V0-001, AFP-V0-772: a project proof excludes unbounded readers of
+// declared data, but neither an ordinary code change nor a literal reader.
+func TestDriverUnparsableReaderExclusions_AZU_V0_001(t *testing.T) {
+	files := map[string]string{
+		"data/evidence.json":        "{}",
+		affected.RuntimeReadersPath: `{"profile":"corvint-runtime-readers/0","entries":[{"path":"data/evidence.json","reason":"read only by literal readers"}]}`,
+		".github/workflows/ci.yml":  "jobs:\n  unit:\n    steps:\n      - {run: 'go test -race ./core/...'}\n",
+	}
+	plan := affected.Select(driverGraph(t, files, nil), []string{"data/evidence.json"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("unproven data reader lost uncertainty: %+v", plan)
+	}
+	files[affected.UnboundedReaderExclusionsPath] = `{"profile":"corvint-unbounded-reader-exclusions/0","paths":["data/evidence.json"]}`
+	graph := driverGraph(t, files, nil)
+	plan = affected.Select(graph, []string{"data/evidence.json"})
+	if plan.Scope != affected.ScopeBounded || len(plan.Unknown) != 0 {
+		t.Fatalf("project reader proof ignored: %+v", plan)
+	}
+	plan = affected.Select(graph, []string{"data/evidence.json", "core/core.go"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("data proof hid code change: %+v", plan)
+	}
+	files[".github/workflows/ci.yml"] = "jobs:\n  unit:\n    steps:\n      - {run: 'cat data/evidence.json'}\n"
+	plan = affected.Select(driverGraph(t, files, nil), []string{"data/evidence.json"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("data proof hid literal reader: %+v", plan)
+	}
+}

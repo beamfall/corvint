@@ -26,7 +26,8 @@ Design decision: reject flow mappings instead of expanding the YAML subset in
 this repair. This includes mappings inside flow sequences. Merely returning the
 parser error proved insufficient: the fallback unit's frontier did not bear
 when its missing edge prevented participation. Reach unparsable driver fallback
-units on every nonempty dirty plan, keeping UNKNOWN rather than certifying an
+units for dirty paths not covered by the existing project no-unbounded-reader
+proof (AFP-V0-772), keeping UNKNOWN rather than certifying an
 incomplete plan. `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001` reproduced
 three omissions before the fix and passes after both changes. Flow mapping
 execution-edge inference remains disabled; its safe fallback is retained.
@@ -48,3 +49,16 @@ and 0 after them; these digests bind those observations:
 | `review-round-before-driver.log` | `182c90fc57e3842074ec83360805a5d19f3bd10de7f6876ea547678987b24cb7` |
 | `review-round-after-shell.log` | `f57666ddfcc00a9bc3d50eb2fa01b88e6d9b1d7463d79c941dfe0c1b16282534` |
 | `review-round-after-driver-final.log` | `99c100ce4bf2ffaaee36970e7ef0122c854835e625b1322035a12b3984f04d91` |
+
+The first whole affected-package run returned 1 (208.644s): the broader fallback
+broke `TestSealCommitPlanIsBounded_V13898` and
+`TestSealOnlyCEMDeltaStaysBounded_V13571`. Reuse `unboundedDirty` to honor the
+existing project-owned AFP-V0-772 proof for data with no unbounded readers.
+Computed invocation handling is unchanged; literal readers of excluded data
+still reach the unparsable unit and retain uncertainty. The new
+`TestDriverUnparsableReaderExclusions_AZU_V0_001` covers an absent proof, an
+accepted proof, a mixed code/data change and a literal reader. Existing test
+assertions remain intact. The handback retains the repeated whole-package result.
+
+Initial whole-package failure log SHA-256:
+`dce03e22de712112776a99cc1931ea6a5de67ca82e930fede2d846bed72a90a2`.

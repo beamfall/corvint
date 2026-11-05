@@ -72,8 +72,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `cd` or `go -C`; an unresolved directory SHALL retain uncertainty or depend on every owner.
   Unsupported YAML flow mappings, including mappings inside flow sequences, SHALL retain the
   unparsable-file frontier rather than silently discard execution members. Unparsable driver
-  fallback units SHALL be reached on every nonempty dirty plan, preserving that uncertainty
-  even when the file's hidden execution edge cannot participate in traversal.
+  fallback units SHALL be reached for dirty paths not covered by the existing project-owned
+  no-unbounded-reader proof (AFP-V0-772), preserving uncertainty even when the hidden execution
+  edge cannot participate in traversal. Literal readers remain selected under that proof.
 - **AZU-V0-002:** **Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
