@@ -182,11 +182,13 @@ and `CORVINT_PI_WORKFLOW_BIN` for the matching Core candidate. Native Tasks fixt
 writes can be explicitly disabled with `CORVINT_PI_TASK_WRITES=0`; they then remain
 unqualified. The protected SEA checks require their built Darwin artifacts.
 
-This base has no `workflowRevision` or PWV-V0-8100..8104 implementation: workflow
-identity reads HEAD and does not itself refuse reftable repositories or unborn
-branches. Native operations can still refuse a repository without a committed
-revision. The later pilane reftable/unborn refusal and create/refine surface require
-that separate implementation before their compatibility claims apply here.
+Workflow identification calls `workflowRevision` to bind the commit behind HEAD,
+including symbolic HEAD via loose or packed refs and linked-worktree common refs.
+Detached HEAD is supported. Missing, malformed or over-bound identity refuses with
+`invalid-worktree-identity`, including an unborn branch or a symbolic ref that cannot
+be resolved through the supported files. A same-branch commit invalidates cached
+recovery and in-flight remediation. Native Core remains authoritative for tree,
+base, plan, attempt and report identity; these checks do not establish reftable support.
 
 Preserve installed official binaries; a local candidate is a source build with separate
 provenance and rollback, never a released update. Supervisor participation remains

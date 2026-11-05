@@ -132,6 +132,20 @@ participation, and inbound shell callers. The remaining classes are small and lo
   owned by their drivers under AZU-V0-001. This classification SHALL retain selected Go readers,
   existing unknown-frontier fallbacks and missing-adapter refusals for actual source languages.
 
+- `AZU-V0-9850`: (experimental, owner PR #99 repair request 2026-11-05) Make function
+  expansions SHALL preserve GNU make's complete resulting words, including attached literal
+  prefixes and suffixes, or retain the target as a computed invocation under AZU-V0-001/003.
+  Approximate `join`, conditional and word-selection functions SHALL NOT silently drop an edge.
+- `AZU-V0-9851`: (experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's
+  `-C DIR`, `-CDIR`, `--chdir DIR` and `--chdir=DIR` SHALL resolve the wrapped command's
+  directory or retain its target/job as a computed invocation, including computed directories.
+- `AZU-V0-9852`: (experimental, owner PR #99 repair request 2026-11-05) Composite action
+  steps outside the supported YAML sequence/mapping subset SHALL expose their dependencies or
+  retain the action as a computed invocation, propagating selection to its callers and dependents.
+- `AZU-V0-9853`: (experimental, owner PR #99 repair request 2026-11-05) Unresolved local
+  `uses` paths, including action directories outside `.github/actions`, SHALL retain their
+  caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
+
 ## Non-goals
 
 - No requirement here may drop a reached, reading, executing, importing or embedding unit. Every
@@ -172,6 +186,13 @@ baseline replay, including PR 6 compared with the `8e2c13aa9` binary. No corpus,
 shape changes are part of this repair. Reverting its runner classification restores the spurious
 driver-language incompleteness while leaving affected selections unchanged.
 
+The PR #99 repairs (AZU-V0-9850 through AZU-V0-9853) extend the same driver soundness boundary.
+Acceptance requires the table regressions below and the complete affected package. Unsupported
+make functions, env directory changes and unresolved local actions deliberately widen selection
+at their invocation sites; they do not claim exact evaluation or arbitrary action discovery.
+Rollback reverts these scoped repairs and restores the documented missing-edge risk. No wire
+format or wider zero-unknown qualification changes are claimed.
+
 The four PR #98 driver repairs (AZU-V0-9700 through AZU-V0-9703) are scoped corrections of
 AZU-V0-001. Their acceptance evidence is the table regressions below, the complete affected
 package, and the focused CLI affected and frozen-profile tests. This does not qualify the wider
@@ -206,3 +227,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
 | AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |
 | AZU-V0-9703 | PR #98 review | `TestDriverFlowSteps_AZU_V0_9703` |
+| AZU-V0-9850 | PR #99 finding B | `TestDriverMakeFunctionsComputed_AZU_V0_9850`, `TestDriverMakeSortWords_AZU_V0_9850` |
+| AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
+| AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
+| AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |

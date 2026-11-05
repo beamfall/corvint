@@ -294,7 +294,13 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 		case head == "env":
 			words = words[1:]
 			for len(words) != 0 && (strings.HasPrefix(words[0].text, "-") || driverAssignment(words[0].text)) {
-				if words[0].text == "-u" || words[0].text == "-C" || words[0].text == "-S" {
+				option := words[0].text
+				// AZU-V0-9851: env changes only the wrapped command's cwd.
+				// Until that scoped directory is modelled, keep the site computed.
+				if strings.HasPrefix(option, "-C") || option == "--chdir" || strings.HasPrefix(option, "--chdir=") {
+					s.scan.computed = true
+				}
+				if option == "-u" || option == "-C" || option == "--chdir" || option == "-S" {
 					if len(words) < 2 {
 						s.scan.computed = true
 						return cwd
