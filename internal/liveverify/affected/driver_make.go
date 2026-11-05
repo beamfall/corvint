@@ -416,16 +416,17 @@ func driverMakeUnitID(file, target string) string {
 	return DriverNamespace + ":make:" + file + "#" + target
 }
 
-// driverExpander expands make references with every assignment's value
-// unioned and both branches of a conditional taken, so the text it yields is
-// a superset of what any run can produce. What it cannot evaluate becomes
-// driverComputed.
+// driverExpander expands make references, retaining ambiguous assignments
+// as computed rather than joining alternatives into a different shell word.
+// Both branches of a conditional are considered. What it cannot evaluate
+// becomes driverComputed.
 type driverExpander struct {
-	file     *driverMakeFile
-	auto     map[string]string
-	locals   map[string]string
-	visiting map[string]bool
-	depth    int
+	file      *driverMakeFile
+	auto      map[string]string
+	locals    map[string]string
+	visiting  map[string]bool
+	depth     int
+	ambiguous bool
 	// shells are the expanded commands of every `$(shell ...)` reached.
 	shells []string
 }
@@ -558,7 +559,13 @@ func (e *driverExpander) lookup(name string) string {
 	for _, value := range values {
 		expanded = append(expanded, e.expand(value))
 	}
-	return strings.Join(expanded, " ")
+	// Assignment operators are not retained: equal values can still be an
+	// append whose word boundaries matter when the reference has a suffix.
+	if len(expanded) != 1 {
+		e.ambiguous = true
+		return driverComputed
+	}
+	return expanded[0]
 }
 
 func (e *driverExpander) function(name, args string) (string, bool) {

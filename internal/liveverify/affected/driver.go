@@ -380,6 +380,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			}
 		}
 	}
+	shared.computed = shared.computed || fileExpander.ambiguous
 	all := registry.fileUnits[parsed.path]
 	units := make([]Unit, 0, len(parsed.order))
 	for _, target := range parsed.order {
@@ -425,6 +426,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		for _, script := range expander.shells {
 			builder.merge(registry, registry.scanBoth(script, parsed.dir))
 		}
+		builder.computed = builder.computed || expander.ambiguous
 		units = append(units, builder.unit())
 	}
 	return units
@@ -514,6 +516,9 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 			}
 		}
 		steps := node.get("steps")
+		if steps != nil && !steps.isSeq {
+			builder.computed = true
+		}
 		if steps != nil && steps.isSeq {
 			for _, step := range steps.items {
 				uses := step.get("uses").text()
@@ -527,6 +532,11 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 				}
 			}
 			for _, step := range steps.items {
+				// Flow maps remain scalars in the YAML subset (AZU-V0-9703).
+				// Preserve the job as a computed site instead of skipping it.
+				if !step.isMap {
+					builder.computed = true
+				}
 				registry.uses(builder, step.get("uses").text())
 				script := step.get("run").text()
 				if script == "" {

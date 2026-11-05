@@ -295,6 +295,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			words = words[1:]
 			for len(words) != 0 && (strings.HasPrefix(words[0].text, "-") || driverAssignment(words[0].text)) {
 				if words[0].text == "-u" || words[0].text == "-C" || words[0].text == "-S" {
+					if len(words) < 2 {
+						s.scan.computed = true
+						return cwd
+					}
 					words = words[1:]
 				}
 				words = words[1:]
@@ -303,6 +307,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			words = words[1:]
 			for len(words) != 0 && strings.HasPrefix(words[0].text, "-") {
 				if !strings.Contains(words[0].text, "=") && len(words[0].text) == 2 && strings.IndexByte("nksIcpLPdEaR", words[0].text[1]) >= 0 {
+					if len(words) < 2 {
+						s.scan.computed = true
+						return cwd
+					}
 					words = words[1:]
 				}
 				words = words[1:]
@@ -499,10 +507,11 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 	}
 	command := words[0].text
 	words = words[1:]
+	packageSeen := false
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
 		if arg == "-args" || arg == "--" {
-			return
+			break
 		}
 		if strings.HasPrefix(arg, "-") {
 			if arg == "-C" && index+1 < len(words) {
@@ -520,9 +529,13 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 			continue
 		}
 		s.goPattern(arg, cwd)
+		packageSeen = true
 		if command == "run" && !strings.HasSuffix(arg, ".go") {
 			return
 		}
+	}
+	if !packageSeen {
+		s.goPattern(".", cwd)
 	}
 }
 
