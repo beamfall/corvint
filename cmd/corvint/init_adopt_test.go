@@ -290,7 +290,13 @@ func newActivationFixture(t *testing.T, objectFormat string) string {
 		}
 		t.Fatalf("git init: %v\n%s", err, output)
 	}
-	environment := []string{"GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z"}
+	// Environment identity overrides user.name/email, so pin it alongside dates
+	// to keep the frozen inventory revisions stable (CCF-V1-002).
+	environment := []string{
+		"GIT_AUTHOR_NAME=Corvint Test", "GIT_AUTHOR_EMAIL=corvint@example.test",
+		"GIT_COMMITTER_NAME=Corvint Test", "GIT_COMMITTER_EMAIL=corvint@example.test",
+		"GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z",
+	}
 	gitCommand(t, root, environment, "config", "user.email", "corvint@example.test")
 	gitCommand(t, root, environment, "config", "user.name", "Corvint Test")
 	if runtime.GOOS != "windows" {
