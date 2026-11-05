@@ -364,6 +364,12 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	if err != nil {
 		return fail(err)
 	}
+	if name == "complete" && lease.Commit != "" {
+		lease.Commit, err = resolveCompletionCommit(env.Cwd, lease.Commit)
+		if err != nil {
+			return fail(err)
+		}
+	}
 	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {
 		return fail(err)
@@ -682,7 +688,7 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	if shared && rc.proof != nil {
 		return rc.proof, nil
 	}
-	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
+	reader := journal.Reader{ReadExtraDirectories: true, Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
 	reader.Checkpoint, rc.checkpoint = readCheckpoint(rc.repo)
 	// LGL-V0-807: without a read checkpoint that serves, resume from the
 	// writer checkpoint before paying the complete audit.
@@ -922,4 +928,24 @@ func withDrainNotice(res *wire.Result) *wire.Result {
 	}
 	res.Warnings = append(res.Warnings, "DRAIN_PENDING since "+s.Since+": "+s.Notice)
 	return res
+}
+
+// TCL-V0-7206: resolve CLI revisions once; the native receipt carries a full OID.
+func resolveCompletionCommit(root, rev string) (string, error) {
+	oid, err := store.ResolveCommit(root, rev)
+	if err != nil {
+		code := wire.CodeMissingEvidence
+		detail := "COMMIT_NOT_FOUND"
+		if ambiguous, e := store.CommitPrefixAmbiguous(root, rev); e != nil {
+			return "", e
+		} else if ambiguous {
+			code = wire.CodeMalformed
+			detail = "COMMIT_AMBIGUOUS"
+		}
+		return "", wire.Errorf(code, "--commit", "%s: cannot resolve %s to one commit: %v", detail, prose(rev), err)
+	}
+	if _, err := wire.ParseOID("--commit", oid); err != nil {
+		return "", err
+	}
+	return oid, nil
 }

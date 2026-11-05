@@ -59,7 +59,9 @@ type Options struct {
 	Prefix func(env []string) []string
 	PathIn func(host string) string
 	// Timeout bounds the suite run; zero means no bound beyond ctx.
-	Timeout time.Duration
+	Timeout               time.Duration
+	IsolatedTimeout       time.Duration // per isolated test; zero uses Timeout
+	onlyPackage, onlyName string
 }
 
 // Outcome is one test the run reported, with the reason it has no record
@@ -78,6 +80,7 @@ type Run struct {
 	records  []record // passing tests with complete coverage, and Load
 	files    map[string]fileShape
 	exit     int
+	isolated bool
 }
 
 // ExitCode is the suite process's exit status; failing tests make it nonzero
@@ -99,6 +102,7 @@ type record struct {
 }
 
 type event struct {
+	Launch    string               `json:"launch"`
 	Kind      string               `json:"kind"`
 	Ruby      string               `json:"ruby"`
 	Test      string               `json:"test"`
@@ -118,7 +122,7 @@ type event struct {
 // process wrote no completion marker (a crash, a timeout, a kill) publishes
 // nothing, and a test whose subprocess dump is incomplete has no record
 // (LPCV-V0-954, LPCV-V0-962).
-func Collect(ctx context.Context, o Options) (*Run, error) {
+func collectOnce(ctx context.Context, o Options) (*Run, error) {
 	if len(o.Argv) == 0 {
 		return nil, errors.New("rubylinecov: no suite command")
 	}
@@ -160,6 +164,8 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 		"RUBYOPT=" + rubyopt,
 		"CORVINT_LINECOV_DIR=" + pathIn(dumps),
 		"CORVINT_LINECOV_ROOT=" + pathIn(o.Root),
+		"CORVINT_LINECOV_ONLY=" + o.onlyName,
+		"CORVINT_LINECOV_PACKAGE=" + o.onlyPackage,
 	}
 	if o.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -223,6 +229,8 @@ type dump struct {
 	child, load      []event
 	files            map[string]fileShape
 	done             bool
+	launches         []event
+	unobserved       []event
 }
 
 func readDump(path string) (*dump, error) {
@@ -240,6 +248,12 @@ func readDump(path string) (*dump, error) {
 			return nil, fmt.Errorf("rubylinecov: %s: %w", filepath.Base(path), err)
 		}
 		switch e.Kind {
+		case "launch-cancel":
+			d.unobserved = append(d.unobserved, e)
+		case "launch":
+			d.launches = append(d.launches, e)
+		case "unobserved-child":
+			d.unobserved = append(d.unobserved, e)
 		case "start":
 			d.start = &e
 		case "framework":
@@ -284,6 +298,15 @@ func read(dir string) (*Run, error) {
 	}
 	bySeq := map[string]*record{}
 	incomplete := map[string]string{}
+	launches := append([]event(nil), suite.launches...)
+	completed := map[string]bool{}
+	for _, e := range suite.unobserved {
+		if e.Kind == "launch-cancel" {
+			completed[e.Launch] = true
+		} else {
+			incomplete[e.Test] = "uninstrumented-child"
+		}
+	}
 	var seqs []string
 	var order []event
 	for _, e := range suite.tests {
@@ -309,6 +332,14 @@ func read(dir string) (*Run, error) {
 		if err != nil {
 			return nil, err
 		}
+		launches = append(launches, d.launches...)
+		for _, e := range d.unobserved {
+			if e.Kind == "launch-cancel" {
+				completed[e.Launch] = true
+			} else {
+				incomplete[e.Test] = "uninstrumented-child"
+			}
+		}
 		test := ""
 		if d.start != nil {
 			test = d.start.Test
@@ -320,6 +351,9 @@ func read(dir string) (*Run, error) {
 		if d.start.Ruby != suite.start.Ruby {
 			incomplete[test] = "a subprocess ran Ruby " + d.start.Ruby
 		}
+		if d.start.Launch != "" {
+			completed[d.start.Launch] = true
+		}
 		mergeShapes(run.files, d.files)
 		for _, e := range d.child {
 			target := bySeq[e.Test]
@@ -329,6 +363,11 @@ func read(dir string) (*Run, error) {
 			if target != nil {
 				target.add(e)
 			}
+		}
+	}
+	for _, e := range launches {
+		if !completed[e.Launch] {
+			incomplete[e.Test] = "uninstrumented-child: no completed instrumented process"
 		}
 	}
 	for _, e := range order {
@@ -385,66 +424,59 @@ func Index(module, commit string, run *Run, oids map[string]string) (*linecov.In
 	if module == "" {
 		module = "."
 	}
-	ix := &linecov.Index{Format: linecov.Format, Module: module, Commit: commit, Runner: run.Runner}
+	var records []linecov.Record
 	for _, r := range run.records {
-		ix.Tests = append(ix.Tests, linecov.Test{Package: r.pkg, Name: r.name, Elapsed: r.elapsed})
-	}
-	// Every test file is unordered, so it runs whole when it is planned at
-	// all: the collector has only the in-order run, and a test can depend on
-	// state an earlier test built (a memoized value, a reused subprocess)
-	// without running the code that built it, so no record yet supports
-	// narrowing or excluding a file. The isolated pass of LPCV-V0-962 is what
-	// lifts this (V1-4415).
-	unordered := map[string]bool{}
-	for _, o := range run.Outcomes {
-		if !unordered[o.Package] {
-			unordered[o.Package] = true
-			ix.Unordered = append(ix.Unordered, o.Package)
+		var profile strings.Builder
+		profile.WriteString("mode: atomic\n")
+		paths := make([]string, 0, len(run.files))
+		for p := range run.files {
+			if oids[p] != "" {
+				paths = append(paths, p)
+			}
 		}
-	}
-	sort.Strings(ix.Unordered)
-	paths := make([]string, 0, len(run.files))
-	for p := range run.files {
-		if oids[p] != "" {
-			paths = append(paths, p)
-		}
-	}
-	sort.Strings(paths)
-	for _, p := range paths {
-		shape := run.files[p]
-		lines := map[int32]map[int32]bool{}
-		for _, l := range shape.Lines {
-			lines[l] = map[int32]bool{}
-		}
-		methods := map[span]map[int32]bool{}
-		for _, m := range shape.Methods {
-			methods[m] = map[int32]bool{}
-		}
-		for id, r := range run.records {
+		sort.Strings(paths)
+		for _, p := range paths {
+			shape := run.files[p]
+			lines := map[int32]bool{}
+			methods := map[span]bool{}
 			for _, l := range r.lines[p] {
-				if lines[l] == nil {
-					lines[l] = map[int32]bool{}
-				}
-				lines[l][int32(id)] = true
+				lines[l] = true
 			}
 			for _, m := range r.methods[p] {
-				if methods[m] == nil {
-					methods[m] = map[int32]bool{}
+				methods[m] = true
+			}
+			for _, l := range shape.Lines {
+				n := 0
+				if lines[l] {
+					n = 1
 				}
-				methods[m][int32(id)] = true
+				fmt.Fprintf(&profile, "%s/%s:%d.0,%d.0 1 %d\n", module, p, l, l, n)
+			}
+			for _, m := range shape.Methods {
+				n := 0
+				if methods[m] {
+					n = 1
+				}
+				fmt.Fprintf(&profile, "%s/%s:%d.%d,%d.%d 1 %d\n", module, p, m[0], m[1]+1, m[2], m[3]+1, n)
 			}
 		}
-		f := linecov.File{Path: p, OID: oids[p]}
-		for l, set := range lines {
-			f.Blocks = append(f.Blocks, linecov.Block{Start: l, End: l, Tests: ids(set)})
-		}
-		for m, set := range methods {
-			f.Blocks = append(f.Blocks, linecov.Block{Start: m[0], StartCol: m[1] + 1, End: m[2], EndCol: m[3] + 1, Tests: ids(set)})
-		}
-		ix.Files = append(ix.Files, f)
+		records = append(records, linecov.Record{Package: r.pkg, Name: r.name, Elapsed: r.elapsed, Profile: []byte(profile.String())})
 	}
-	// Merge of one part sorts the blocks and builds the lookups.
-	return linecov.Merge(ix)
+	ix, err := linecov.Build(module, commit, run.Runner, oids, records)
+	if err != nil {
+		return nil, err
+	}
+	unordered := map[string]bool{}
+	for _, o := range run.Outcomes {
+		if !run.isolated || !o.Recorded {
+			unordered[o.Package] = true
+		}
+	}
+	for p := range unordered {
+		ix.Unordered = append(ix.Unordered, p)
+	}
+	sort.Strings(ix.Unordered)
+	return ix, nil
 }
 
 func ids(set map[int32]bool) []int32 {

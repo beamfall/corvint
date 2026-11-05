@@ -52,6 +52,12 @@ func terseHelp(cmd []string, full *wire.Result) *wire.Result {
 	if isOmitted(name) {
 		keep = append(keep, "note")
 	}
+	if name == "ticket create" {
+		o.Set("kindMapping", wire.String("agent-memory labels fixes and tests map to kind CHORE; FIX and TEST are not kinds. See docs/TICKET-PRIORITY.md and ticket create --template."))
+	}
+	if name == "complete" {
+		o.Set("commit", wire.String("--commit accepts a revision such as HEAD or a unique short OID; it resolves to a full commit OID retained as completionCommit in the manifest referenced by the receipt. Ambiguous or missing revisions refuse MALFORMED (detail COMMIT_AMBIGUOUS) or MISSING_EVIDENCE (detail COMMIT_NOT_FOUND)."))
+	}
 	if name == "release" {
 		// TCD-V0-178 (V1-3200): --reason is call-forming, so its closed codes stay terse.
 		keep = append(keep, "reasonCodes")
@@ -378,7 +384,7 @@ var commandUsage = map[string]string{
 	"plan preview":             "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 	"submit":                   "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--lock-wait SECONDS] [--role ROLE]",
 	"gate run":                 "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR | --ci-run FILE] [--role ROLE]",
-	"complete":                 "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
+	"complete":                 "corvint-tasks complete --attempt ID --generation G --request-id ID --commit REV [--role ROLE]",
 	"health":                   "corvint-tasks health --member ID [--stage STAGE] --request-id ID [--role ROLE]",
 	"pool status":              "corvint-tasks pool status [--pool ID] [--member ID]",
 	"doctor":                   "corvint-tasks doctor [--refresh] [--plugins DIR] | corvint-tasks doctor --line | corvint-tasks doctor --rebuild-closed-index",

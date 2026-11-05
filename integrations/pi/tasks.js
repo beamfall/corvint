@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { canonical, digest, createWorktreeIdentity, createOperationLedger, READ_ONLY_TOOL } from './operations.js';
 const reads={help:['help'],audit:['receipt','audit'],queue:['queue','status'],roadmap:['roadmap'],ticket:['ticket','show'],blockers:['ticket','blockers'],gates:['gate','list'],gate:['gate','show'],releases:['release','list'],release:['release','show'],readiness:['release','readiness'],attempt:['attempt','show'],plan:['plan','preview'],search:['ticket','search'],list:['ticket','list']};
-const writes=['ticket prioritize','claim','renew','release','submit','gate run','complete'];
+const writes=['ticket prioritize','ticket create','ticket refine','claim','renew','release','submit','gate run','complete'];
+// Native Tasks validates payload semantics, secrets and queue policy. This closed
+// projection never permits record-owned fields or persists operator prose.
+const createFields=['localToken','title','body','kind','owner','milestone','priority','order','labels','dependencies','acceptanceCriteria','requirementRefs','source','effects','capabilities','requiredGates','executionClass','dueDate','estimateMinutes','supersedes','supersededBy','requiredRoles','requiresPool'];
+const refineFields=['title','body','kind','owner','milestone','labels','acceptanceCriteria','requirementRefs','dueDate','estimateMinutes','supersedes','supersededBy','executionPrerequisites','requiredRoles','requiresPool'];
 // PWV-V0-018: native gate cleanup (gateWaitDelay, 5 s), then the CAL-V0-319 30 s record bound, plus 5 s for post-run observations.
 const WRITER_GRACE_MS=40000;
 const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,511}$/.test(v)&&!v.includes('..');
@@ -44,6 +48,15 @@ function readArgs(operation,input) {
 function mutationArgs(operation,input,requestId,issuedAt,identity) {
  if(!writes.includes(operation))throw Error('unsupported-mutation');
  let args=operation.split(' ');
+ if(operation==='ticket create'||operation==='ticket refine') {
+  const create=operation==='ticket create';
+  object(input,create?['payload']:['ticketId','expectedRevision','payload']);
+  object(input.payload,create?createFields:refineFields,[]);
+  ensure(Object.keys(input.payload).length>0);
+  const payload=canonical(input.payload)+'\n';ensure(Buffer.byteLength(payload)<=65536);
+  if(!create){ensure(ticket(input.ticketId)&&count(input.expectedRevision));args.push('--target',input.ticketId,'--expected-revision',input.expectedRevision)}
+  return {args:[...args,'--request-id',requestId,'--issued-at',issuedAt,'--role','OPERATOR','--payload-stdin'],input:payload};
+ }
  if(operation==='ticket prioritize') {
   object(input,['ticketId','expectedRevision','priority','order']);ensure(ticket(input.ticketId)&&count(input.expectedRevision)&&['P0','P1','P2','P3'].includes(input.priority)&&count(input.order));
   return {args:[...args,'--target',input.ticketId,'--expected-revision',input.expectedRevision,'--request-id',requestId,'--issued-at',issuedAt,'--role','OPERATOR','--payload-stdin'],input:canonical({order:input.order,priority:input.priority})+'\n'};
@@ -98,7 +111,7 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
   }catch(error){const code=fault(error,'read-unavailable');return result?{...result,ok:false,fault:code,wrapperFault:code}:failure(code)}
  }
  async function reconcile(input,ctx,binding) {
-  const evidence={},steps=[['audit','audit',{}],['ticket','ticket',{id:input.ticketId}],['queue','queue',{}]];
+  const evidence={},steps=[['audit','audit',{}],...(input.ticketId?[['ticket','ticket',{id:input.ticketId}]]:[]),['queue','queue',{}]];
   if(input.attemptId)steps.push(['attempt','attempt',{id:input.attemptId}]);
   for(const [key,operation,args] of steps){check(binding,ctx,true);evidence[key]=await read(operation,args,ctx);check(binding,ctx,true)}
   return evidence;
@@ -127,14 +140,14 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
    // reads never redo it (TM-V0-008), the next native writer does.
    if(unread.length&&unread.every(r=>r.raw?.codes?.includes('REDO_PENDING')))return failure('pending-operation',{reconciliation:evidence});
    if(unread.length)return failure('reconciliation-unavailable',{reconciliation:evidence});
-   const record=evidence.ticket.raw.items[0];
-   if(!record||record.ticketId!==request.input.ticketId)return failure('ticket-mismatch',{reconciliation:evidence});
+   const creating=request.operation==='ticket create',record=evidence.ticket?.raw.items[0];
+   if(!creating&&(!record||record.ticketId!==request.input.ticketId))return failure('ticket-mismatch',{reconciliation:evidence});
    log=ledger(before.gitDir);
    const pending=await log.inspect();check(binding,ctx,true);
    // Resume may see the revision produced by the original mutation. Native same-ID
    // replay, never a fresh request, resolves that uncertainty.
    const isResume=request.resume===true&&pending?.requestId===request.requestId;
-   if(!isResume&&record.revision!==request.input.expectedRevision)return failure('stale-ticket',{reconciliation:evidence});
+   if(!creating&&!isResume&&record.revision!==request.input.expectedRevision)return failure('stale-ticket',{reconciliation:evidence});
    if(evidence.attempt) {
     const a=evidence.attempt.raw.items[0];
     if(!a||a.ticketId!==request.input.ticketId||a.lease?.holder!==request.input.holder||a.branch!==before.branch)return failure('attempt-owner-mismatch',{reconciliation:evidence});
@@ -167,7 +180,7 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
 }
 export function registerTasksTools(pi,{service,notice=()=>{}}) {
  pi.registerTool({name:'corvint_tasks',label:'Corvint Tasks reads',annotations:READ_ONLY_TOOL,description:'Bounded native Tasks reads. Raw receipts retain unknowns; no task-store writes or initialization.',parameters:{type:'object',properties:{operation:{type:'string',enum:Object.keys(reads)},input:{type:'object'}},required:['operation'],additionalProperties:false},execute:async(_id,args,signal,_update,ctx)=>tasksResult(await service.read(args.operation,args.input??{},{...ctx,signal}))});
- pi.registerCommand('corvint-tasks',{description:'Explicit native Tasks operation JSON: operation, input, requestId; resume:true reconciles the same uncertain request. Local operator assertion, not authenticated identity.',handler:async(text,ctx)=>{
+ pi.registerCommand('corvint-tasks',{description:'Explicit native Tasks JSON: operation, input, requestId. Operations: ticket create/refine/prioritize, claim, renew, release, submit, gate run, complete. Create uses input.payload; refine also needs ticketId and expectedRevision. Example: {"operation":"ticket refine","requestId":"refine-1","input":{"ticketId":"ticket:project:main:V1-0001","expectedRevision":"1","payload":{"title":"Operator-approved title"}}}. resume:true reconciles the same uncertain ID. Local operator assertion, not authenticated identity.',handler:async(text,ctx)=>{
   let request;try{if(Buffer.byteLength(text)>8192)throw Error();request=JSON.parse(text)}catch{notice(ctx,'invalid-input');return}
   const result=await service.command(request,ctx);
   if(!result.ok)notice(ctx,result.fault);
