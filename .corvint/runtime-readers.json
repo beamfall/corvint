@@ -108,6 +108,10 @@
     {
       "path": "script/line-citation-unpinned-inventory.txt",
       "reason": "line-citation debt inventory; read by script/check-line-citations.sh through a path literal, which CI runs unconditionally; its test uses its own fixture"
+    },
+    {
+      "path": "tools/linecov/command-tree.json",
+      "reason": "generated linecov command-tree snapshot (make capability-catalog); tools/linecov/languages_test.go reads command-tree.json by a path literal within its package, so the existing reader and enclosing-package rules retain that test selection; never executed or imported"
     }
   ]
 }
