@@ -41,7 +41,7 @@ func TestNativeSaveNotification(t *testing.T) {
 // schedules no run.
 func TestNativeSaveNotificationDirectoriesAndIgnored(t *testing.T) {
 	root := module(t)
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("output.json\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("output.json\nhidden.go\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	gone := filepath.Join(root, "gone")
@@ -69,6 +69,19 @@ func TestNativeSaveNotificationDirectoriesAndIgnored(t *testing.T) {
 	case <-events:
 		t.Fatal("ignored output scheduled a run")
 	case <-time.After(500 * time.Millisecond):
+	}
+	// Greptile PR #97: ignored Go source still compiles into go test.
+	if err := os.WriteFile(filepath.Join(root, "p", "hidden.go"), []byte("package p\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-events:
+	case <-ctx.Done():
+		t.Fatal("save of ignored Go source was missed")
+	}
+	time.Sleep(100 * time.Millisecond)
+	for len(events) > 0 {
+		<-events
 	}
 	fresh := filepath.Join(root, "fresh")
 	if err := os.Mkdir(fresh, 0700); err != nil {

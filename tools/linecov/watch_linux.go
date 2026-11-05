@@ -91,8 +91,10 @@ func (w *watcher) add(dir string) error {
 
 // relevant decodes one read of inotify events, starts watching new directories
 // (and those below them, which may already exist after a move or mkdir -p),
-// forgets removed ones, and reports whether any event names a path Git does
-// not ignore. When Git cannot answer, it reports true rather than miss a save.
+// forgets removed ones, and reports whether any event names Go source or a path
+// Git does not ignore. Ignored Go source still compiles into go test (and
+// WorkingDiff selects it), so only ignored non-Go paths such as test output are
+// suppressed. When Git cannot answer, it reports true rather than miss a save.
 func (w *watcher) relevant(ctx context.Context, b []byte) bool {
 	gitDir := filepath.Join(w.root, ".git")
 	var paths []string
@@ -124,6 +126,9 @@ func (w *watcher) relevant(ctx context.Context, b []byte) bool {
 				}
 				return nil
 			})
+		}
+		if strings.HasSuffix(name, ".go") {
+			return true
 		}
 		paths = append(paths, path)
 	}
