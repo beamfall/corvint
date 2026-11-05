@@ -366,7 +366,6 @@ func (o Options) run(ctx context.Context, root string, scope v8.Scope, dir, file
 	res := result{lines: v8.Lines{}}
 	if code != 0 {
 		res.why = fmt.Sprintf("exit %d: %s", code, tail(stderr.Bytes()))
-		return res, nil
 	}
 	in := tr.Input{Runner: o.Runner, SourceRoot: root, Selectors: []string{file}, Reports: map[string][]byte{},
 		Stdout: stdout.Bytes(), ExitCode: code, SuccessExitCodes: inv.SuccessExitCodes, FailureExitCodes: inv.FailureExitCodes}
@@ -404,6 +403,9 @@ func (o Options) run(ctx context.Context, root string, scope v8.Scope, dir, file
 		obs.Problems = kept
 	}
 	res.observation = obs
+	if code != 0 {
+		return res, nil
+	} // retain native failures for qualification, never coverage records
 	if err := o.coverage(ctx, root, scope, cov, res.lines); err != nil {
 		res.why = "unreadable coverage: " + err.Error()
 	}

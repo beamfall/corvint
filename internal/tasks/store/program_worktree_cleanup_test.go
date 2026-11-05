@@ -546,3 +546,53 @@ func TestCALV0366_CleanupDropsRemovedRecords(t *testing.T) {
 		t.Fatalf("repeated cleanup: %+v %v", results, err)
 	}
 }
+
+// ATR-V0-7200: a rejected removal write must not become the retry's phase.
+func TestATRV07200_FailedRemovalWriteReloadsWorkflow(t *testing.T) {
+	f := designatedFixture(t)
+	w := openProgram(t, f)()
+	a := reviewedProgram(t, w)
+	grantIntegration(t, f, programScope(t, f, a))
+	if _, err := w.RunRole(context.Background(), "integrator", "g"); err != nil {
+		t.Fatal(err)
+	}
+	before := programRecord(t, f)
+	failures := 0
+	restore := store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
+		if point == "program:WORKTREE_REMOVE" {
+			failures++
+			return errors.New("injected removal write failure")
+		}
+		return nil
+	})
+	defer restore()
+	for i := 0; i < 2; i++ {
+		if _, err := w.CleanupWorktrees(); err == nil {
+			t.Fatal("failed write accepted")
+		}
+		if got := w.ProgramForTest(); got.Phase != before.Phase {
+			t.Fatalf("memory ahead of durable phase: %s vs %s", got.Phase, before.Phase)
+		}
+		if got := programRecord(t, f); got.Phase != before.Phase {
+			t.Fatalf("failed transition persisted: %s", got.Phase)
+		}
+		for _, r := range before.Worktrees {
+			if _, err := os.Stat(r.Path); err != nil {
+				t.Fatalf("removed without durable intent: %v", err)
+			}
+		}
+	}
+	if failures != 2 {
+		t.Fatalf("retry skipped pending-removal write: %d", failures)
+	}
+	restore()
+	results, err := w.CleanupWorktrees()
+	if err != nil || len(results) != len(before.Worktrees) {
+		t.Fatalf("retry: %+v %v", results, err)
+	}
+	for _, r := range results {
+		if !r.Removed {
+			t.Fatalf("not removed: %+v", r)
+		}
+	}
+}

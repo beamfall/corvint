@@ -1354,12 +1354,17 @@ func (chunk *compiledSources) collect(index *Index, paths []string, imports impo
 			continue
 		}
 		if strings.HasSuffix(source.Path, ".go") {
-			symbols, fields, refusal := goSymbols(source, text)
+			symbols, fields, refusal, parsed := goSymbolsParsed(source, text)
 			chunk.symbols = append(chunk.symbols, symbols...)
 			chunk.fields = append(chunk.fields, fields...)
 			if refusal != "" {
 				chunk.unparsed = append(chunk.unparsed, Unparsed{Path: source.Path, BlobHash: source.BlobHash, Facts: "symbols", Reason: UnparsedGoGrammar, Detail: refusal})
 			}
+			if imports == nil || imports(text) {
+				imported, why := goImportsAfterSymbols(parsed, text)
+				chunk.recordImportExtraction(source.Path, importExtraction{imports: imported, refusal: why, reason: UnparsedGoGrammar})
+			}
+			continue
 		}
 		// The lexically-extracted languages report what they could not walk
 		// alongside what they found, so a capped or unterminated file leaves a
@@ -1380,6 +1385,10 @@ func (chunk *compiledSources) collect(index *Index, paths []string, imports impo
 // approximation reaches Index.Imports unannotated.
 func (chunk *compiledSources) recordImports(sourcePath, text string) {
 	extraction := sourceImports(sourcePath, text)
+	chunk.recordImportExtraction(sourcePath, extraction)
+}
+
+func (chunk *compiledSources) recordImportExtraction(sourcePath string, extraction importExtraction) {
 	if len(extraction.imports) != 0 {
 		chunk.imports[sourcePath] = extraction.imports
 	}

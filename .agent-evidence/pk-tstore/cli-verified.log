@@ -1,0 +1,59 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=c16c56883dfd308d8486331d9e882edb28ca0b73 dirty=52
+heavy.sh: slot 5/8 after 0s
+=== RUN   TestDSGV0008_OpenCodeSessionReceivesHandoffInSession
+--- PASS: TestDSGV0008_OpenCodeSessionReceivesHandoffInSession (1.88s)
+=== RUN   TestTCDV07212_LongTargetRequestIncludesLocal
+--- PASS: TestTCDV07212_LongTargetRequestIncludesLocal (0.00s)
+=== RUN   TestTRMV07208_ReleaseWritesUseSubmissionContext
+=== RUN   TestTRMV07208_ReleaseWritesUseSubmissionContext/update
+=== RUN   TestTRMV07208_ReleaseWritesUseSubmissionContext/membership
+--- PASS: TestTRMV07208_ReleaseWritesUseSubmissionContext (0.31s)
+    --- PASS: TestTRMV07208_ReleaseWritesUseSubmissionContext/update (0.15s)
+    --- PASS: TestTRMV07208_ReleaseWritesUseSubmissionContext/membership (0.16s)
+=== RUN   TestTCDV07214_CheckpointAncestryAbstainsOnGitError
+--- PASS: TestTCDV07214_CheckpointAncestryAbstainsOnGitError (0.03s)
+=== RUN   TestTCDV07214_AncestryCallersRefuseObservationFailure
+--- PASS: TestTCDV07214_AncestryCallersRefuseObservationFailure (0.13s)
+=== RUN   TestTLFV01102_BulkProgressRetryReplaysOverAPendingReceipt
+--- PASS: TestTLFV01102_BulkProgressRetryReplaysOverAPendingReceipt (2.32s)
+=== RUN   TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+--- PASS: TestCALV0131_LiveFormatsCoverEveryDecodedProfile (0.02s)
+=== RUN   TestTCDV0173_HoldSeveralTicketsReadsRevisions
+=== PAUSE TestTCDV0173_HoldSeveralTicketsReadsRevisions
+=== RUN   TestTCLV07206_CompleteResolvesCommitRevisions
+=== RUN   TestTCLV07206_CompleteResolvesCommitRevisions/HEAD
+=== RUN   TestTCLV07206_CompleteResolvesCommitRevisions/short
+--- PASS: TestTCLV07206_CompleteResolvesCommitRevisions (3.31s)
+    --- PASS: TestTCLV07206_CompleteResolvesCommitRevisions/HEAD (1.62s)
+    --- PASS: TestTCLV07206_CompleteResolvesCommitRevisions/short (1.68s)
+=== RUN   TestTCLV07207_SearchSplitTextNamesArgument
+--- PASS: TestTCLV07207_SearchSplitTextNamesArgument (0.00s)
+=== RUN   TestTCLV07209_ReadsIgnoreExtraDirectory
+--- PASS: TestTCLV07209_ReadsIgnoreExtraDirectory (0.03s)
+=== RUN   TestTCLV07210_ArchivedShowStatesReasonNotObserved
+--- PASS: TestTCLV07210_ArchivedShowStatesReasonNotObserved (0.02s)
+=== RUN   TestTCLV07211_CreateTemplateMapsFixesAndTestsToChore
+--- PASS: TestTCLV07211_CreateTemplateMapsFixesAndTestsToChore (0.01s)
+=== RUN   TestTCLV07213_RetriesReplayOverPendingReceipt
+=== RUN   TestTCLV07213_RetriesReplayOverPendingReceipt/current
+=== RUN   TestTCLV07213_RetriesReplayOverPendingReceipt/hold
+--- PASS: TestTCLV07213_RetriesReplayOverPendingReceipt (3.07s)
+    --- PASS: TestTCLV07213_RetriesReplayOverPendingReceipt/current (1.45s)
+    --- PASS: TestTCLV07213_RetriesReplayOverPendingReceipt/hold (1.62s)
+=== RUN   TestTCLV07213_CurrentNamesRequestIndexError
+--- PASS: TestTCLV07213_CurrentNamesRequestIndexError (0.82s)
+=== RUN   TestTRMV0001_ReleaseMembershipEditsOnlyMembership
+--- PASS: TestTRMV0001_ReleaseMembershipEditsOnlyMembership (1.41s)
+=== RUN   TestTMV0028_AS38_DurableTwoReleaseCreateAndReplay
+--- PASS: TestTMV0028_AS38_DurableTwoReleaseCreateAndReplay (0.91s)
+=== RUN   TestTicketShowOn360TicketJournaledFixture
+--- PASS: TestTicketShowOn360TicketJournaledFixture (0.64s)
+=== CONT  TestTCDV0173_HoldSeveralTicketsReadsRevisions
+--- PASS: TestTCDV0173_HoldSeveralTicketsReadsRevisions (2.32s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	17.459s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=33.5s rc=0

@@ -1,0 +1,12 @@
+dogfood-change: NOTE guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=58: to cite an observed guarding test, run corvint cem verify --map .corvint/change.cem.json --expected-base 6c33df33bc5670131482f5263b410cb980580657 --target a6eb8ed06e9a403fffc7b56f95954a825dfef0ad --artifacts /home/russell/lanes/pk-tstore --guarding-tests and add its guardingTests.plan rows to the citation plan; it runs the change's tests unconfined for up to 1200 seconds (docs/DOGFOOD.md section 4)
+dogfood-change: NOTE prechange-query OBSERVED bound sha256=8f567c93cfaefe691ab1bcc2d7a2c6a7a4567a2570e27bc291aedafe5d9becf1 command=corvint query
+dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent
+dogfood-change: FAIL not-complete
+  cem-cite: citation-plan-not-provided
+    fix: set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json
+  ocm-aggregate: missing-intent-scope
+    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change; a docs/build-log/*.md entry or docs/decisions/*.md file is an intent only of a record change, one that touches nothing else but CEM sidecars (DCW-V0-058, DCW-V0-817)
+  local-outcome: outcome-input-not-provided
+    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)
+  full report: /home/russell/lanes/pk-tstore/.corvint/dogfood-report.json
+make: *** [Makefile:1063: dogfood-change] Error 1
