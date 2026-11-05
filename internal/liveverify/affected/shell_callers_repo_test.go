@@ -61,6 +61,7 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 	}
 	for script, entry := range declared.Scripts {
 		listed := append(slices.Clone(entry.Callers), entry.Mentions...)
+		references := shell.ForeignCallerReference(script)
 		for name := range tracked {
 			if name == script || !shell.CallerCandidate(path.Base(name)) {
 				continue
@@ -71,6 +72,9 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 			}
 			if bytes.Contains(text, []byte(path.Base(script))) && !slices.Contains(listed, name) {
 				t.Errorf("%s names %s but is not a declared caller or mention in %s", name, script, affected.ShellForeignCallersPath)
+			}
+			if !bytes.Contains(text, []byte(path.Base(script))) && references(text) && !slices.Contains(listed, name) {
+				t.Errorf("%s constructs a path under %s but is not a declared caller or mention in %s (AZU-V0-8901)", name, path.Dir(script), affected.ShellForeignCallersPath)
 			}
 		}
 	}

@@ -131,6 +131,11 @@ func expand(word string, values map[string][]string, depth int, cut *bool) []str
 			}
 			inner := word[index+2 : end]
 			if word[index+1] == '(' {
+				if repositoryRootCommand(inner) {
+					appendAll([]string{"."})
+					index = end + 1
+					continue
+				}
 				// A leading `$(dirname "$0")/` keeps its directory form so the
 				// resolver can place the value (AFP-V0-553).
 				form, own := ownDirectory(inner)

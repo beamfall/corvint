@@ -150,7 +150,21 @@ func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
 	}
 	slices.Sort(unowned)
 	// The driver claimant owns the workflow since AZU-V0-001.
-	want := slices.DeleteFunc(slices.Clone(batch1028aUnowned), affected.DriverInput)
+	want := []string{}
+	for _, path := range batch1028aUnowned {
+		if affected.DriverInput(path) {
+			continue
+		}
+		owners := graph.DeclaredTestOwners(path)
+		if len(owners) == 0 {
+			t.Fatalf("AZU-V0-8900: %s has no declared verification owner", path)
+		}
+		for _, id := range owners {
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == id }) {
+				t.Fatalf("AZU-V0-8900: %s lost verification owner %s", path, id)
+			}
+		}
+	}
 	if !slices.Equal(unowned, want) {
 		t.Fatalf("1028a unowned %v, want %v", unowned, want)
 	}

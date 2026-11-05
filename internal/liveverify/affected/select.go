@@ -318,7 +318,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
-	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
+	if _, closed := graph.inboundRevisionPaths(normalized); !closed {
+		plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
+	}
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
@@ -443,6 +445,8 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
+	graph.inboundRuntimeCallers(reached, followed, normalized)
+	graph.inboundRevisionCallers(reached, followed, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -708,6 +712,12 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	}
 	unknown := make([]Unknown, 0, len(reasons))
 	for _, reason := range sortedKeys(reasons) {
+		if id := graph.inboundRuntimeSite(reason); id != "" {
+			if _, selected := reached[id]; selected {
+				delete(sources, reason)
+				continue
+			}
+		}
 		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})
 	}
 	var excluded []FrontierExclusion
