@@ -3,12 +3,39 @@ package golang_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
+
+// AFP-V0-9000: an unresolved source alias prevents a file-kind bound from
+// removing the scanner's original unbounded read reasons.
+func TestReadKindsUnresolvedAlias_AFPV09000(t *testing.T) {
+	for _, target := range []string{"missing.txt", "loop.go"} {
+		t.Run(target, func(t *testing.T) {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{
+				"go.mod":         "module example.test/m\n",
+				"scan/s_test.go": "//corvint:read-kinds .go go.mod\npackage scan\nvar root = \"..\"\n",
+			})
+			if err := os.Symlink(target, filepath.Join(root, "loop.go")); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			g, err := affected.Build(context.Background(), root, golang.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := affected.Select(g, []string{"data/imports.txt"})
+			if len(p.Selected) != 1 || p.Selected[0].UnitID != "go:example.test/m/scan" || p.Selected[0].Witness.Kind != affected.WitnessUnboundedReader {
+				t.Fatalf("unresolved alias lost scanner's unbounded reads: %+v", p.Selected)
+			}
+		})
+	}
+}
 
 // AFP-V0-9000: only an explicit file-local declaration bounds a test's root
 // scan. The identical path remains selected for a real unbounded reader.

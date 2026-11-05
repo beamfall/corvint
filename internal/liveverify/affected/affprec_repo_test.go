@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -79,6 +80,108 @@ func TestBoundaryKindBound_AFPV09001(t *testing.T) {
 			t.Errorf("true boundary reader of %s omitted", path)
 		}
 	}
+}
+
+// AFP-V0-9000/9001: the actual Tasks scanner opens a .go alias even when its
+// target has another suffix. Only the target changes; the alias has no sibling
+// Go source and supplies no package import edge that could rescue selection.
+func TestBoundarySymlinkTarget_AFPV09001(t *testing.T) {
+	for _, target := range []string{"data/imports.txt", "data/imports[1].txt", "testdata/imports.txt", "data/chain.txt"} {
+		t.Run(target, func(t *testing.T) {
+			root := affprecFiles(t, map[string]string{
+				"go.mod":                          "module example.test/m\n",
+				"internal/tasks/boundary_test.go": affprecRead(t, "internal/tasks/boundary_test.go"),
+				target:                            "package probe\n",
+			})
+			if err := os.Mkdir(filepath.Join(root, "probe"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if target == "data/chain.txt" {
+				if err := os.Symlink("../"+target, filepath.Join(root, "probe/hop.txt")); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			alias := filepath.Join(root, "probe/check.go")
+			linkTarget := "../" + target
+			if target == "data/chain.txt" {
+				linkTarget = "hop.txt"
+			}
+			if err := os.Symlink(linkTarget, alias); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			const boundary = "go:example.test/m/internal/tasks"
+			for _, body := range []string{"package probe\n", "package probe\nimport _ \"github.com/Beamfall/corvint/internal/tasks/store\"\n"} {
+				if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(target)), []byte(body), 0600); err != nil {
+					t.Fatal(err)
+				}
+				// Check the alias still reads exactly the changed target bytes.
+				if got, err := os.ReadFile(alias); err != nil || string(got) != body {
+					t.Fatalf("alias content %q, error %v", got, err)
+				}
+				g := affprecGraph(t, root, golang.New())
+				if got := affprecIDs(affected.Select(g, []string{target})); !slices.Contains(got, boundary) {
+					t.Fatalf("Tasks scanner of changed symlink target %s omitted: %v", target, got)
+				}
+				if got := affprecIDs(affected.Select(g, []string{"unrelated/data.json"})); slices.Contains(got, boundary) {
+					t.Fatalf("resolved alias made Tasks unbounded: %v", got)
+				}
+				if target == "data/chain.txt" && !slices.Contains(affprecIDs(affected.Select(g, []string{"probe/hop.txt"})), boundary) {
+					t.Fatal("intermediate alias retargeting lost Tasks scanner")
+				}
+			}
+		})
+	}
+}
+
+// AFP-V0-9000: creating an alias in a previously source-free directory,
+// changing its target contents and retargeting it must invalidate the graph.
+func TestBoundaryAliasCache_AFPV09000(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("graph-cache change-time stamps require Linux or Darwin")
+	}
+	pinnable(t)
+	root := affprecFiles(t, map[string]string{
+		"go.mod":                          "module example.test/m\n",
+		"internal/tasks/boundary_test.go": affprecRead(t, "internal/tasks/boundary_test.go"),
+		"data/imports.txt":                "package probe\n",
+		"data/other.txt":                  "package other\n",
+	})
+	cache := privateCacheDir(t)
+	build := func(hit bool, target string) {
+		t.Helper()
+		g, outcome, err := affected.BuildCached(context.Background(), root, cache, graphCacheIdentity, golang.New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if outcome.Hit != hit || (!hit && !outcome.Stored) {
+			t.Fatalf("cache hit=%v: %+v", hit, outcome)
+		}
+		if target != "" && !slices.Contains(affprecIDs(affected.Select(g, []string{target})), "go:example.test/m/internal/tasks") {
+			t.Fatalf("cached graph lost Tasks reader of %s", target)
+		}
+	}
+	build(false, "")
+	build(true, "")
+	if err := os.Mkdir(filepath.Join(root, "probe"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "probe/check.go")
+	if err := os.Symlink("../data/imports.txt", alias); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	build(false, "data/imports.txt")
+	build(true, "data/imports.txt")
+	if err := os.WriteFile(filepath.Join(root, "data/imports.txt"), []byte("package probe\nimport _ \"github.com/Beamfall/corvint/internal/tasks/store\"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	build(false, "data/imports.txt")
+	if err := os.Remove(alias); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../data/other.txt", alias); err != nil {
+		t.Fatal(err)
+	}
+	build(false, "data/other.txt")
 }
 
 // AFP-V0-9002 / V1-3992: reproduce a fresh importer of the actual help source.

@@ -38,14 +38,20 @@ plan, graph-cache or declaration wire formats, or the independent CI selector.
   traversal that ignores other file kinds. Temporary fixtures are outside that
   repository domain. The observer MUST replace only this file's lexical
   root-locator/parent-climb reasons with positive `*.go` and `go.mod` reader
-  globs. Ordinary literals, embeds, imports, execution edges, tokenization
+  globs plus reader dependencies on regular in-repository targets of `.go`
+  aliases, regardless of target suffix, directory or module. Directory listings
+  and alias resolutions MUST participate in graph-cache invalidation. An
+  unresolved, external or non-regular target, an unreadable listing, or exhausted
+  traversal/dependency bounds MUST retain the file's lexical unbounded reasons.
+  Ordinary literals, embeds, imports, execution edges, tokenization
   failures and other files' unbounded reasons MUST remain. A malformed,
   duplicate, misplaced or non-test declaration MUST NOT narrow reads. Adding
-  a read of any other kind requires removing the declaration in the same edit.
+  a direct read of any other kind requires removing the declaration in the same edit.
 - `AFP-V0-9001`: The Tasks import-direction, know-how authority and error-rewrap scans SHALL use AFP-V0-9000's
   kind declaration: their directory skip rules exclude hidden state and their
   content reads open only Go source. An edit of `.corvint/` JSON alone MUST NOT
-  select it; a Go source or module-boundary edit MUST still select it. This
+  select it unless a scanned source alias targets that JSON; a Go source,
+  source-alias target or module-boundary edit MUST still select it. This
   is a selection bound, not a confinement grant or a change to import rules.
 - `AFP-V0-9002`: Parent-path examples in Tasks command help SHALL be embedded
   text resources, preserving their exact emitted bytes. The source observer
@@ -105,8 +111,8 @@ require re-review; no declaration authorizes a weaker test assertion.
 
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
-| AFP-V0-9000 | `testReadKinds`, `Language.observeDirectory` | `TestReadKindsDeclaration_AFPV09000` in `internal/liveverify/affected/golang/readkinds_test.go` |
-| AFP-V0-9001 | `internal/tasks/boundary_test.go` | `TestBoundaryKindBound_AFPV09001` in `internal/liveverify/affected/affprec_repo_test.go` |
+| AFP-V0-9000 | `testReadKinds`, `readKindAliases`, `Language.observeDirectory` | `TestReadKindsDeclaration_AFPV09000`, `TestReadKindsUnresolvedAlias_AFPV09000` in `internal/liveverify/affected/golang/readkinds_test.go`; `TestBoundaryAliasCache_AFPV09000` in `internal/liveverify/affected/affprec_repo_test.go` |
+| AFP-V0-9001 | `internal/tasks/boundary_test.go` | `TestBoundaryKindBound_AFPV09001`, `TestBoundarySymlinkTarget_AFPV09001` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9002 | `internal/tasks/cli/command_help.go`, embedded usage text | `TestHelpTextProvenance_AFPV09002` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9003 | reader selection and retained uncertainty | `TestPrecisionReplay_AFPV09003`, `TestTestOnlyImporterPrecision_AFPV09003` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9004 | unchanged dirty-declaration frontier, conditional path measurement | `TestDirtyForeignCallerDeclaration_AFPV09004` in `internal/liveverify/affected/affprec_repo_test.go` |
