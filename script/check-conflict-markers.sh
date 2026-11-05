@@ -22,7 +22,8 @@ if git cat-file -e ":$allow" 2>/dev/null; then
     esac
   done < <(git show ":$allow")
 fi
-paths=('docs/' '*.go' '*.json' 'script/' '*.sh' '*.bash' '*.cjs' '*.mjs' '*.js' '*.py' '*.ps1')
+# Shell suffixes match Suffixes in internal/liveverify/affected/shell/shell.go.
+paths=('docs/' '*.go' '*.json' 'script/' '*.sh' '*.bash' '*.zsh' '*.ksh' '*.bats' '*.cjs' '*.mjs' '*.js' '*.py' '*.ps1')
 for fixture in ${allowed[@]+"${allowed[@]}"}; do
   paths+=(":(exclude,literal)$fixture")
 done

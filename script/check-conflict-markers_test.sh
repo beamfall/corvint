@@ -8,10 +8,12 @@ trap 'rm -rf "$scratch"' EXIT
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 git init -q "$scratch/repo"
 cd "$scratch/repo"
-mkdir -p docs script testdata
+mkdir -p docs script testdata hooks
 fail() { echo "conflict-markers test: FAIL: $*" >&2; exit 1; }
 "$check" > "$scratch/out" || fail 'empty tree'
-for path in docs/contract.md source.go data.json script/tool testdata/marker.go; do
+for path in docs/contract.md source.go data.json script/tool testdata/marker.go \
+  hooks/pre-commit.sh hooks/pre-commit.bash hooks/pre-commit.zsh \
+  hooks/pre-commit.ksh hooks/pre-commit.bats; do
   for marker in '<<<<<<< HEAD' '=======' '>>>>>>> branch'; do
     printf '%s\n' "$marker" > "$path"
     git add "$path"

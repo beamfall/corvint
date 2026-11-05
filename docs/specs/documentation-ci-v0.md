@@ -34,11 +34,13 @@ from selected package counts. Missing hosted observations remain NOT_OBSERVED.
   local/CI `doc-gates` list MUST run `conflict-markers-check` and refuse staged lines starting
   with seven less-than signs and a space, exactly seven equals signs, or seven greater-than
   signs and a space, in `docs/**`, Go, JSON and script files. Script files include all paths
-  under `script/` and shell, JavaScript, Python and PowerShell suffixes. Only exact fixture
+  under `script/` and shell (`.sh`, `.bash`, `.zsh`, `.ksh`, `.bats`, matching the affected
+  shell plugin), JavaScript, Python and PowerShell suffixes. Only exact fixture
   paths under `testdata/` or `fixtures/` listed in `script/conflict-marker-fixtures.txt`
   are exempt; globs, directories and non-fixture entries refuse. Staged bytes govern even
   when the worktree is clean. Test: `script/check-conflict-markers_test.sh` (all three markers,
-  path families, dirty-worktree hiding and bounded exceptions). Non-goal: detect arbitrary
+  path families including shell suffixes outside `docs/` and `script/`, dirty-worktree hiding
+  and bounded exceptions). Non-goal: detect arbitrary
   prose contradictions. Rollback: remove this gate and restore the known marker blind spot.
 
 - `DCI-V0-001`: The classifier MUST read a clean checkout at the full captured target SHA, require
