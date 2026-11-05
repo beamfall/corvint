@@ -39,6 +39,42 @@ func TestConstructedForeignCallers_AZU_V0_8901(t *testing.T) {
 	}
 }
 
+// AZU-V0-8901: a root callee has computed callers too. An incomplete
+// declaration must keep uncertainty even while its known callers stay linked.
+func TestRootConstructedForeignCallers_AZU_V0_8901(t *testing.T) {
+	for _, expression := range []string{
+		`filepath.Join(".", name+".sh")`,
+		`"./" + name + ".sh"`,
+		`name + ".sh"`,
+	} {
+		t.Run(expression, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "go.mod", "module example.test/root\n\ngo 1.27\n")
+			write(t, root, "run.sh", "echo ok\n")
+			write(t, root, "caller/caller.go", "package caller\nvar script = \"run.sh\"\n")
+			write(t, root, "caller/caller_test.go", "package caller\n")
+			write(t, root, "extra/extra.go", "package extra\nimport (\"os/exec\"; \"path/filepath\")\nvar name string\nvar cmd = exec.Command(\"sh\", "+expression+")\n")
+			write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run.sh":{"callers":["caller/caller.go"],"reason":"literal caller"}}}`)
+			result := units(t, root)
+			unit := unitOf(t, result, "run.sh")
+			if !slices.Contains(result.Frontier, FrontierForeignCallersInvalid) || !slices.Contains(unit.Frontier, FrontierForeignInvocation) {
+				t.Fatalf("undeclared root caller lost uncertainty: unit=%+v frontier=%v", unit, result.Frontier)
+			}
+			graph, err := affected.Build(context.Background(), root, golang.New(), New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{"run.sh"})
+			if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) == 0 {
+				t.Fatalf("undeclared root caller certified: %+v", plan)
+			}
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/root/caller" }) {
+				t.Fatalf("known caller dropped: %+v", plan)
+			}
+		})
+	}
+}
+
 // AZU-V0-8901: the wrapper's repository-root query resolves a known shell
 // target, while querying another directory cannot certify the current root.
 func TestDeclaredRootWrapper_AZU_V0_8901(t *testing.T) {

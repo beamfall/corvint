@@ -43,7 +43,10 @@ func (graph *Graph) driverSites(reached map[string]Witness, followed map[string]
 	}
 	var queue []string
 	for _, id := range graph.order {
-		if slices.Contains(graph.units[id].Frontier, FrontierDriverComputedInvocation) {
+		frontier := graph.units[id].Frontier
+		// An unparsable file can hide any execution edge. Reach its fallback
+		// on every change so its uncertainty cannot disappear with that edge.
+		if slices.Contains(frontier, FrontierDriverComputedInvocation) || slices.Contains(frontier, FrontierDriverUnparsableFile) {
 			if _, hit := reached[id]; !hit {
 				reached[id] = Witness{Kind: WitnessFrontierSite, DirtyPath: dirty[0], Via: []string{id}}
 			}

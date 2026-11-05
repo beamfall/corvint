@@ -30,3 +30,23 @@ func TestDriverTruncatedWrapperOptions_AZU_V0_001(t *testing.T) {
 		})
 	}
 }
+
+// AZU-V0-001: implicit packages honor cwd, and unresolved directories
+// import every owner rather than claiming an empty dependency set.
+func TestDriverImplicitGoPackageDirectory_AZU_V0_001(t *testing.T) {
+	for _, command := range []string{"test", "build", "vet", "install", "generate", "list", "fix"} {
+		for _, flags := range []string{"", " -race", " -tags custom", " -args -custom"} {
+			for _, directory := range []string{".", "core", ""} {
+				scan := newDriverScan()
+				scan.scanShell("go "+command+flags, directory, "example.test/m")
+				pattern := directory
+				if directory == "" || directory == "." {
+					pattern = "..."
+				}
+				if !scan.paths[pattern] {
+					t.Errorf("go %s%s cwd=%q lost package %q: %+v", command, flags, directory, pattern, scan)
+				}
+			}
+		}
+	}
+}

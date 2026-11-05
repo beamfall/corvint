@@ -24,14 +24,21 @@ func ForeignCallerReference(script string) func([]byte) bool {
 // AZU-V0-004, AZU-V0-8901. This is a completeness guard, not an edge inference.
 func constructedForeignMatcher(script string) func([]byte) bool {
 	directory := path.Dir(script)
-	if directory == "." {
-		return func([]byte) bool { return false }
-	}
 	dir := regexp.QuoteMeta(directory)
 	patterns := []string{
 		`["'\x60](?:\./)?` + dir + `/["'\x60]\s*\+`,
 		`(?:[Jj]oin|joinpath)\s*\(\s*["'](?:\./)?` + dir + `["']\s*,`,
 		`["'](?:\./)?` + dir + `/[^"'\n]*[$%{]`,
+	}
+	if directory == "." {
+		// A computed basename needs no directory literal. Without one we
+		// cannot exclude a root callee from joins, concatenations or formats;
+		// conservatively require these possible callers to be declared.
+		patterns = []string{
+			`(?:[Jj]oin|joinpath)\s*\(`,
+			`["'\x60][^"'\x60\n]*["'\x60]\s*\+|\+\s*["'\x60]`,
+			`["'\x60][^"'\x60\n]*[$%{]`,
+		}
 	}
 	compiled := make([]*regexp.Regexp, 0, len(patterns))
 	for _, pattern := range patterns {
