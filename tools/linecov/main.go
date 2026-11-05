@@ -46,11 +46,19 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: linecov collect|select|qualify|redundancy|merge|ci [flags]")
+		_ = help(os.Stderr, nil)
 		os.Exit(2)
 	}
 	var err error
 	switch os.Args[1] {
+	case "help", "--help", "-h":
+		err = help(os.Stdout, os.Args[2:])
+	case "watch":
+		err = watch(os.Args[2:])
+	case "ruby-collect", "js-collect":
+		err = languageCollect(strings.TrimSuffix(os.Args[1], "-collect"), os.Args[2:])
+	case "ruby-select", "js-select":
+		err = languageSelect(strings.TrimSuffix(os.Args[1], "-select"), os.Args[2:])
 	case "collect":
 		err = collect(os.Args[2:])
 	case "select":
@@ -65,6 +73,9 @@ func main() {
 		err = ci(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		return
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "linecov:", err)
@@ -260,6 +271,13 @@ func collect(args []string) error {
 	ix, err := linecov.Build(module, commit, run, oids, records)
 	if err != nil {
 		return err
+	}
+	ix.TestTimeout, ix.SuiteTimeout = *timeout, *suite
+	ix.WindowFallback = map[string]string{}
+	for _, o := range outcomes {
+		if o.WindowFallback != "" {
+			ix.WindowFallback[o.Package] = o.WindowFallback
+		}
 	}
 	sort.Strings(unordered)
 	ix.Unordered = unordered
@@ -472,6 +490,9 @@ func qualify(args []string) error {
 	if err != nil {
 		return err
 	}
+	if ix.TestTimeout <= 0 {
+		return errors.New("qualify: missing-recorded-test-deadline")
+	}
 	dirs := split(*only)
 	if len(dirs) == 0 {
 		return errors.New("qualify: -packages is required")
@@ -586,7 +607,7 @@ func qualify(args []string) error {
 				kept[d+"."+n] = true
 			}
 		}
-		failed, buildFail, err := failingTests(*root, ix.Module, dirs)
+		failed, buildFail, err := failingTests(*root, ix.Module, dirs, ix.TestTimeout)
 		if err != nil {
 			return err
 		}
@@ -623,8 +644,14 @@ func qualify(args []string) error {
 // tests as dir.Name, and whether any package failed outside a test. A
 // directory with no package result means go test did not run it, which
 // proves nothing, so it is an error.
-func failingTests(root, module string, dirs []string) (map[string]bool, bool, error) {
+func failingTests(root, module string, dirs []string, deadline ...time.Duration) (map[string]bool, bool, error) {
 	args := []string{"test", "-count=1", "-json"}
+	if len(deadline) == 1 {
+		if deadline[0] <= 0 {
+			return nil, false, errors.New("qualify: missing-recorded-test-deadline")
+		}
+		args = append(args, "-timeout="+deadline[0].String())
+	}
 	for _, d := range dirs {
 		args = append(args, "./"+d)
 	}

@@ -1,0 +1,4 @@
+script/heavy.sh go test -v -count=1 -timeout 30m -run 'TestATRV0720|TestLGLV0720|TestCALV0366|TestATRV0241|TestLeaseOrphan|TestCALV0116|TestTCLV07206_CommitPrefix|TestCALV0026_AuditInventory' ./internal/tasks/store
+script/heavy.sh go test -v -count=1 -timeout 30m -run 'TestATRV07202|TestSupervisorDescendantCleanup' ./internal/tasks/supervisor
+script/heavy.sh go test -count=1 -timeout 30m -run 'TestTCLV072|TestTCDV072|TestTRMV072' ./internal/tasks/cli
+script/heavy.sh go test -count=1 -timeout 30m -run '^TestCheck' ./internal/dogfoodflow

@@ -1,0 +1,5 @@
+docs/specs/corvint-tasks-attempt-runner-v0.md
+docs/specs/corvint-tasks-cli-v0.md
+docs/specs/corvint-tasks-closeout-debt-v0.md
+docs/specs/corvint-tasks-lease-gate-latency-v0.md
+docs/specs/corvint-tasks-release-membership-and-resume-v0.md

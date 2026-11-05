@@ -1,0 +1,5 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: slot 3/8 after 0s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=8.8s rc=0

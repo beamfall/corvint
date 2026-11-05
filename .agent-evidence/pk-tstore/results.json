@@ -1,0 +1,245 @@
+{
+  "base": "6c33df33bc5670131482f5263b410cb980580657",
+  "implementationCommit": "58cad24a3b95cf4cb4d1d694d0f8237f757628db",
+  "goVersion": "go1.27.3",
+  "positiveLogs": [
+    "3508-loaded-final.log",
+    "4204-scale-fixed.log",
+    "4588-store-twice.log",
+    "0775.log",
+    "3777-base.log",
+    "3777-origin.log",
+    "3832-3903.log",
+    "store-final.log",
+    "cli-verified.log",
+    "cli-final-contracts.log",
+    "4302-final.log",
+    "ancestry-release-final.log",
+    "supervisor-verified.log",
+    "journal-verified.log",
+    "snapshot.log",
+    "transaction.log",
+    "catalog-check.log",
+    "b1-delivered.log",
+    "b1-quiet.log",
+    "b1-isolated.log",
+    "b2-delivered.log"
+  ],
+  "negativeControlLogs": [
+    "2480-red.log",
+    "store-negative.log",
+    "cli-negative.log",
+    "supervisor-negative.log",
+    "ancestry-release-negative.log",
+    "4302-negative.log"
+  ],
+  "goSourceBindings": {
+    "internal/tasks/cli/batch_close_gated.go": {
+      "gitBlob": "3acda5847297ff917814c259318b2fe078445af6",
+      "sha256": "a01a41550c2bffebf7e171dfd401fc791af4652507bba71b55afb7f25dab2a53"
+    },
+    "internal/tasks/cli/cli.go": {
+      "gitBlob": "e76884f6d56e284b536e0b5aecfce84897dd764a",
+      "sha256": "c2d3ec473e3da5a874bf1d7b935ed004c3466630beca18e6d830f4bb27d4fee8"
+    },
+    "internal/tasks/cli/closeout_debt.go": {
+      "gitBlob": "801e8c5229f08e8558c81f80462f184b4c486f47",
+      "sha256": "ce4add84a0f3ab23f3086dfe45db6876e7efe467e0a276c65bbd36942d5add1e"
+    },
+    "internal/tasks/cli/command_help.go": {
+      "gitBlob": "bf2af5467fc298d6cfe51b4ad6a709b29ed1918f",
+      "sha256": "332796f506a996cfe0e41a2f40222ca35b757179c1be40da5687359a48b35d1c"
+    },
+    "internal/tasks/cli/create_template.go": {
+      "gitBlob": "01b5b7239c4f3713df06c51e2371a74f8c928ae6",
+      "sha256": "99418a109fef84ff0ccfcb9058ec7a80e7921042d9ae9b2dfc52f30d393de592"
+    },
+    "internal/tasks/cli/delivery_screen.go": {
+      "gitBlob": "4e386ca7c290c664323db8f3598766373d78aa15",
+      "sha256": "97f922ff03f69f33e01205b64c33ff09368084b76c3fb60ded78024c77c76193"
+    },
+    "internal/tasks/cli/lease.go": {
+      "gitBlob": "4a3c32620a2e70ff5fdeade034b4d879224f5fdd",
+      "sha256": "7a41d78f154fc75dd4376e4d6d0c460bcde103f315a67ae5178fd6b8d5910f42"
+    },
+    "internal/tasks/cli/multi_target.go": {
+      "gitBlob": "70aed9cca5cc282eab322a9cf8aa83138f988b22",
+      "sha256": "0f2e02a99b4dc1705b7c17d1d9aa7a656e2de15c68385f082eff1dcfe23b770f"
+    },
+    "internal/tasks/cli/mutate.go": {
+      "gitBlob": "5f3c065a1472dd1e1da4bce8e2cabeb4c39148af",
+      "sha256": "5a3737315ec66f38699b628ef7c872ce8ca28bdcfadf8ff72f17f77b2034ed9c"
+    },
+    "internal/tasks/cli/pk_tstore_commit_test.go": {
+      "gitBlob": "71b2128d57425e846b835d58676730f36450e3f0",
+      "sha256": "1a274eb54dc4af6cc6321d3471a53571546d43024cb671edba1e94d5391671ed"
+    },
+    "internal/tasks/cli/pk_tstore_internal_test.go": {
+      "gitBlob": "7e52e31efb416053e15b47d7e0934301f0b86b8f",
+      "sha256": "c0ffb4f1b2e79389e33a4bb0c160ea503c071b3baab7ef75b0b01d1879c7c379"
+    },
+    "internal/tasks/cli/pk_tstore_regression_test.go": {
+      "gitBlob": "40fdc25f548581cce65c0e691aafaa4f6e5be12f",
+      "sha256": "4862dbf374352ec2ee30591846149ba9d4a63d60abc5e9657d9f6ed55293aa2e"
+    },
+    "internal/tasks/cli/receipt.go": {
+      "gitBlob": "3340f140cde2a51aaf6b8c92475f08ff6a54bf5a",
+      "sha256": "7ad28d69a5a98acf13d4ded8b3e66b4cac5fd4c0e8fce18e10dd9d4984b767e3"
+    },
+    "internal/tasks/cli/release.go": {
+      "gitBlob": "adf953ef220e03585d72eccc4c055aaafa94c050",
+      "sha256": "015e1d4a0e593d12840cdb33c30d28725ccb787156a544ff4c1c5ac0c307bc6a"
+    },
+    "internal/tasks/cli/request_conflict.go": {
+      "gitBlob": "88369494c9c53a5669a0991bd10d34af25911c71",
+      "sha256": "4220cd2bec4b59d35d8d61a71b5a58fd67dbe07fd54e819262c870dc00f7be8d"
+    },
+    "internal/tasks/cli/review_packet.go": {
+      "gitBlob": "c950f87b05978257679b05a98be74cff5d14f94e",
+      "sha256": "88b56cebff82b2c0de6c74620e6748d9b0b0b0e6c9f77e887bb79d30eabb21d4"
+    },
+    "internal/tasks/cli/ticket_show_scale_test.go": {
+      "gitBlob": "ee6b092a2da9833b76b7773a4cb3914672e311ca",
+      "sha256": "0bf09037c8f24e52ff6414fe17db23b91bc3785c226a899936280b16e0aae38e"
+    },
+    "internal/tasks/journal/audit.go": {
+      "gitBlob": "9f3130caf477118bd6287089eef9e9fd507891b9",
+      "sha256": "3afb49221ec692d8d3d0d7f7e5bd968aa6b30fddc2aff08e2830dc69ff6b1993"
+    },
+    "internal/tasks/snapshot/gate.go": {
+      "gitBlob": "848f2d706fd767159fd1e530fa84fa50eb58fb97",
+      "sha256": "9191874db5e156a249cc11311532875118bda0cb151d542306a1412273192867"
+    },
+    "internal/tasks/snapshot/gate_test.go": {
+      "gitBlob": "e60eec1a8fe55bd7c740e50542f9d711350ec581",
+      "sha256": "74755687b50cdc24e22412f926e62720f9016dfe01fc710961dd0c9733d8cd57"
+    },
+    "internal/tasks/store/checkpoint_decode_unix_test.go": {
+      "gitBlob": "cb675296ce8739c12b676622f6ea1b9d905457a7",
+      "sha256": "e6c4cb979b9f8a30026e496daf796b4bb3323f1b4df5ac9e4956adf5d05cce40"
+    },
+    "internal/tasks/store/closeout_scan.go": {
+      "gitBlob": "0d4db8ec08556427eb4c91623c5c1cd5b1b81948",
+      "sha256": "1c0f1bb0ab32dee4c5578cf56d5326e2e141171c16a4e2ee4f312919f08efb18"
+    },
+    "internal/tasks/store/export_test.go": {
+      "gitBlob": "8705b9c0d2102d73c3110540294ab0cfe6cdfb08",
+      "sha256": "b5eb38f130b8e59d0d256f09af23e3940b8c5bfafe7a30b3e94df4187a4538f1"
+    },
+    "internal/tasks/store/gate_resource_unix_test.go": {
+      "gitBlob": "022c01ecd8e2d11107fa93aae016647f1459ee49",
+      "sha256": "4cdc21ba5f9ab03c77741cd389f8176dae114d49cac808656e2fc2a9db10b4ea"
+    },
+    "internal/tasks/store/leader_fault_unix_test.go": {
+      "gitBlob": "f300b7989d811792b9ba62a427826560d2b46f08",
+      "sha256": "5ac82c28952b748e1ba2e43e9ec933e035760d3371289f936e9558c15577db35"
+    },
+    "internal/tasks/store/lease_mapped_write_unix_test.go": {
+      "gitBlob": "ade197b8c094ef7fbb4bb5b79ff61a5f24cef91b",
+      "sha256": "3ba9ed9667d0ffcbb712ecce5073cf60f98168c37139b9209346b9caae595783"
+    },
+    "internal/tasks/store/lease_orphan_route_test.go": {
+      "gitBlob": "f4843cf1ef75a5d76edcd027f9e60cb8009753f8",
+      "sha256": "147d3a01264583a3fd13527e9cf09ecf7d1b21981eee84e3ea0f14e814707e1d"
+    },
+    "internal/tasks/store/lease_write.go": {
+      "gitBlob": "794ec774d19b28d2835d34c4a7c2061da07c886e",
+      "sha256": "aac84c46a414b557a818d223cca2ee202c54dea76871f2106cd2f142412f2128"
+    },
+    "internal/tasks/store/main_test.go": {
+      "gitBlob": "2371d153774ecc6ef433a41f6171ddf248734a1b",
+      "sha256": "9faa4383f1a81ce922e9f515565c166576712e56f776bb08c6c10f62a2d39a55"
+    },
+    "internal/tasks/store/program.go": {
+      "gitBlob": "7b1a33947df37f40211a00a9578aae7b55ebd4e4",
+      "sha256": "03bae1e0d657e89d11ea1865618381442e1121223cdcf95058043639d3a02543"
+    },
+    "internal/tasks/store/program_claude_host_test.go": {
+      "gitBlob": "2ef4b917ff2fd33b7b71b6a3c9a8d30f61abf80d",
+      "sha256": "48c359ccccd1f30af18f61ad11bdc6a8c3fab81b80318cda9ecb7d7f392f121d"
+    },
+    "internal/tasks/store/program_worktree_cleanup_test.go": {
+      "gitBlob": "3e65d58361a89988b12f136883aa09aa96bd23ba",
+      "sha256": "0bdd72b8e4d88d9722be204b6f442607ac4ae5995ad06f13ef1b18b1b2602e27"
+    },
+    "internal/tasks/store/review_packet.go": {
+      "gitBlob": "b25e8f4e347da68c798a558232116289ec51f5a3",
+      "sha256": "ec2c3b8fe27b6da35f3a19ad6f71242e794bd408dee5b009ccb457d99661e56a"
+    },
+    "internal/tasks/store/spawn_failure_load_linux_test.go": {
+      "gitBlob": "afac8ebab604da6e00bcf1f5fee8b1009f1f1a42",
+      "sha256": "7df203c070a0106a4894de9c7336ceb524708c7ab685a589e0df981ce4133895"
+    },
+    "internal/tasks/store/workflow.go": {
+      "gitBlob": "cfb51eeb0e181607c03dc39574a0f843c2e60cb9",
+      "sha256": "ce483d20fbac33233fac3e6424ebe1fbee452474fc3e1d0fba9aec2db41a6451"
+    },
+    "internal/tasks/store/writer_checkpoint.go": {
+      "gitBlob": "9fb9bd2c793d95b4487ecf404ad0eff458134a42",
+      "sha256": "fe378065f7224e39c5a3d30e0494d1941729b018a5a7d7a81f69bb4ca9396e4e"
+    },
+    "internal/tasks/store/writer_route.go": {
+      "gitBlob": "5fbf0a70f6408486ffd761d04360688607a58664",
+      "sha256": "254663a82652603c0d9df1aeb9187e25d46bfaf6666980b204961c3d43c7d3ff"
+    },
+    "internal/tasks/supervisor/process_test.go": {
+      "gitBlob": "032893636f5e9b4f7f193bb8d46231ba9e68c886",
+      "sha256": "686f0be601641a767ddf7825c93cdb14408fd542c2569b07a7193f8f48336584"
+    },
+    "internal/tasks/supervisor/process_unix.go": {
+      "gitBlob": "ea78bec3cefc9cae8482ab1f586a956185a52eef",
+      "sha256": "f274c6a82dde5d3109fed878b7502bd6fc6d4ccbd7054f796938f26cb928373f"
+    },
+    "internal/tasks/transaction/lease_gate.go": {
+      "gitBlob": "6bc789e5d15a52cb5f61402b18ca40484c6cd4c7",
+      "sha256": "d07be00c829e82f48b92ce2bbf6741dd913a67b37528382916874d19d855b746"
+    }
+  },
+  "verificationCommands": [
+    "script/heavy.sh go test -count=2 -timeout 30m -run 'TestATRV07200|TestATRV07203|TestLGLV07201|TestLGLV0885|TestATRV0240|TestCALV0026_GuardedInventory|TestCALV0116_WriterRouteParity|TestCALV0117' ./internal/tasks/store",
+    "HEAVY_MAX_LOAD=100 CORVINT_TASKS_SPAWN_FAILURE_LOAD=1 script/heavy.sh go test -v -count=1 -timeout 30m -run '^TestATRV07204_LoadedSpawnedFailureQualification$' ./internal/tasks/store",
+    "CORVINT_TASKS_CHECKPOINT_DECODE_SCALE=1 script/heavy.sh go test -v -count=1 -timeout 30m -run '^TestLGLV07201' ./internal/tasks/store",
+    "script/heavy.sh go test -count=2 -timeout 30m -run '^TestCALV0074_SpawnedFailureIsNotNoExec$' ./internal/tasks/store",
+    "script/heavy.sh go test -v -count=1 -timeout 30m -run 'TestTCLV072|TestTCDV072|TestTRMV072|TestDSGV0008_OpenCodeSessionReceivesHandoffInSession|TestCALV0131_LiveFormatsCoverEveryDecodedProfile|TestTicketShowOn360|TestTLFV01102_BulkProgressRetry|TestTCDV0173|TestTRMV0001|TestTMV0028_AS38_DurableTwoReleaseCreateAndReplay' ./internal/tasks/cli",
+    "script/heavy.sh go test -count=1 -timeout 30m -run 'TestATRV07202|TestSupervisorDescendantCleanup' ./internal/tasks/supervisor",
+    "script/heavy.sh go test -count=1 -timeout 30m -run 'TestTMV0008_AS07_LedgerReadPurity|TestTMV0009_AS11_ChainInventoryAndPending|TestTMV0016_AS27_BarrierRemovalAuditRetainsStrictBoundaries' ./internal/tasks/journal",
+    "script/heavy.sh go test -count=1 -timeout 30m -run '^TestCALV0017_ManifestRoundTrips$' ./internal/tasks/snapshot",
+    "script/heavy.sh go test -count=1 -timeout 30m -run '^TestCALV0017_CommitNotIntegratedIsIntentOnly$' ./internal/tasks/transaction",
+    "script/heavy.sh go test -count=1 -timeout 30m -run '^TestCAPV0047RepositoryCommandTreesMatchDispatch$' ./tools/capabilities-check",
+    "script/heavy.sh go test -count=1 -timeout 30m -run '^TestTCDV07214' ./internal/tasks/cli",
+    "script/heavy.sh go test -count=1 -timeout 30m -run 'TestTCDV0967_InterruptedMultiTargetHoldResumes|TestTRMV07208|TestTCLV07211|TestTicketShowOn360' ./internal/tasks/cli"
+  ],
+  "affectedUnknowns": [
+    {
+      "reason": "LANGUAGE_FRONTIER",
+      "detail": "go:build-constraint-variants"
+    },
+    {
+      "reason": "LANGUAGE_FRONTIER",
+      "detail": "shell:foreign-callers-invalid"
+    },
+    {
+      "reason": "LANGUAGE_FRONTIER",
+      "detail": "shell:foreign-invocation-unmodelled"
+    }
+  ],
+  "limits": {
+    "independentReview": "NOT_RUN: orchestrator owns it",
+    "exhaustiveGate": "NOT_RUN: owner requires focused tests",
+    "darwinAPFS": "NOT_RUN: no Darwin host supplied/configured",
+    "windowsVet": "NOT_RUN: no push authorized",
+    "nativeTaskCompletion": "NOT_RUN: Tasks write commands prohibited",
+    "publication": "NOT_RUN: prohibited",
+    "seal": "NOT_RUN: prohibited",
+    "V1-4204": "PARTIAL: checkpoint work eliminated; isolated quiet-host total-hold qualification remains unavailable on the shared WSL host"
+  },
+  "rejectedEvaluations": {
+    "b2-final-40k.json": "Intermediate physical/logical inventory mismatch: no warm-up checkpoint retained, all 26 heartbeat samples resumed. Rejected; final delivered B2 has fullSeq=39424 and 0/113 resumed."
+  },
+  "interruptedRuns": {
+    "b1-final.log": "Interrupted with exit 130 after implementation/harness corrections; not accepted qualification evidence.",
+    "b2-final.log": "Interrupted with exit 130 after implementation/harness corrections; not accepted qualification evidence.",
+    "3508-before-package-leak-check.log": "Interrupted with exit 130 after implementation/harness corrections; not accepted qualification evidence.",
+    "3508-before-load-priority.log": "Interrupted with exit 130 after implementation/harness corrections; not accepted qualification evidence."
+  }
+}

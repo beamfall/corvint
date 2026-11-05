@@ -1,0 +1,1 @@
+corvint context: no index snapshot matches this tree, so this call built the full index in memory (4203 ms); run ["corvint","--root","/home/russell/lanes/pk-tstore","index","--if-stale"] once per committed tree, which every worktree of this repository then reuses

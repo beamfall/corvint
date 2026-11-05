@@ -51,6 +51,9 @@ func errWriterRoute(where, why string) error {
 // base differs from the one the delta binds (JSG-V0-004). Nothing here is an
 // error: the caller then runs the complete audit.
 func readWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
+	if fault(repo, "checkpoint:read") != nil {
+		return nil
+	}
 	raw, err := intent.ReadFile(journal.WriterCheckpointPath(repo.StateDir), journal.MaxWriterCheckpointBytes)
 	if err != nil {
 		return nil
@@ -254,7 +257,12 @@ func (w *writerObservation) tail() uint64 {
 // With resume, the audit resumes from the lease command's own resume base
 // instead of the retained checkpoint (PSR-V0-052, proposed); the
 // invalidation token read before that base's audit must still be current.
-func observeWriter(ctx context.Context, repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats, preload *intent.Tree) (w *writerObservation, decline, terminal error) {
+type writerCheckpointBinding struct {
+	wc    *journal.WriterCheckpoint
+	token writerToken
+}
+
+func observeWriter(ctx context.Context, repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats, preload *intent.Tree, prepared ...*writerCheckpointBinding) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
@@ -265,6 +273,12 @@ func observeWriter(ctx context.Context, repo *intent.Repository, headState *snap
 			return nil, errWriterRoute("checkpoint", "invalidated since the resume base"), nil
 		}
 		wc, token = resume.base.WriterCheckpoint(), resume.token
+	} else if len(prepared) != 0 {
+		b := prepared[0]
+		if b == nil || !b.token.ok || writerInvalidation(repo) != b.token {
+			return nil, errWriterRoute("checkpoint", "invalidated since unlocked decode"), nil
+		}
+		wc, token = b.wc, b.token
 	} else {
 		wc, token = boundWriterCheckpoint(repo)
 	}
