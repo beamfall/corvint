@@ -42,8 +42,10 @@ cannot silently go missing or outlive its command.
   `corvint-behavior-falsify`, `corvint-playwright-minimize` and `corvint-tests-accept` are withdrawn
   because they change existing nested-help and folded compatibility bytes. These paths MUST
   retain native help; the four shims retain their offline `help --json` and `help --tree` catalogs.
-  The universal shipped-help conformance claim is withdrawn for these paths; its existing
-  assertions remain unchanged and do not establish acceptance of this narrowed delivery.
+  The universal shipped-help conformance claim is withdrawn for these paths. Generated-help
+  conformance covers the retained paths; separate process checks MUST preserve the excluded
+  analyzers' native rejection frames and the shims' native folded help, and check both shim
+  catalog spellings. Existing native compatibility assertions remain unchanged.
   Root `corvint help --json`, `llms.txt` and the gated full-node table in `docs/CAPABILITIES.md`
   MUST link all trees and public nodes. The dispatch/flag/MCP inventory MUST remain code-derived;
   synthetic omissions of a command, option, binary or MCP tool MUST fail the required Go drift

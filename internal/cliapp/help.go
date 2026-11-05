@@ -26,6 +26,9 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 		if !catalog && !version {
 			return 0, false
 		}
+		if catalog && args[1] == "--tree" {
+			args = []string{"help", "--json"}
+		}
 	}
 	// Analyzer versions are protocol receipts or native refusal frames, with
 	// exact bytes and argv rules owned by each analyzer.
@@ -69,6 +72,19 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 		if len(node.Path) == 0 {
 			root.WriteString(clitree.Render(tree, node))
 		}
+	}
+	if strings.HasPrefix(binary, "corvint-analyzer-") {
+		// ACP-011 / ACX-V0-7707: only supported help belongs here. All
+		// other argv must reach the analyzer's native protocol dispatcher.
+		var answer strings.Builder
+		handled, err := clitree.Answer(tree, args, root.String(), &answer)
+		if !handled || err != nil {
+			return 0, false
+		}
+		if _, err := io.WriteString(stdout, answer.String()); err != nil {
+			return 1, true
+		}
+		return 0, true
 	}
 	return (clitree.Help{Tree: tree, Title: "Experimental local companion", RootForms: nil, Intro: func(w io.Writer) { io.WriteString(w, root.String()) }}).Serve(args, stdout, stderr)
 }
