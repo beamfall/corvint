@@ -182,3 +182,28 @@ test('PWV-V0-8302 create and refine including refine-only keys remain outside th
  }
  assert.deepEqual(calls,[]);
 });
+
+test('PWV-V0-8102 operator create and refine use native payloads, CAS and durable same-ID recovery',async t=>{
+ for(const operation of ['ticket create','ticket refine'])await t.test(operation,async t=>{
+  const f=await setup(t),payload=operation==='ticket create'?{title:'Approved task',kind:'BUG',priority:'P2',order:'0'}:{title:'Approved refinement'};
+  const input=operation==='ticket create'?{payload}:{ticketId,expectedRevision:'1',payload};
+  const req={operation,input,requestId:'approved-write'};let lost=true;const writes=[];
+  f.runner.run=async call=>{
+   if(call.args[0]==='help')return receipt(call.args,[{implemented:[operation]}]);
+   if(call.args[1]==='show')return receipt(call.args,[{ticketId,revision:lost?'1':'2'}]);
+   if(call.args.join(' ').startsWith(operation+' ')){
+    assert.equal((await createOperationLedger(f.ctx.cwd).inspect()).requestId,req.requestId,'durable ID precedes writer');
+    writes.push(call);return lost?{fault:'timeout'}:receipt(call.args,[{receipt:'native',replayed:true}]);
+   }
+   return receipt(call.args,[]);
+  };
+  assert.equal((await f.service.command(req,f.ctx)).mutation,'unknown');lost=false;
+  assert.equal((await f.service.command({...req,requestId:'new-id'},f.ctx)).ok,false,'uncertainty never permits a new writer');
+  const replay=await createTasksService({runner:f.runner,identity:f.identity}).command({...req,resume:true},f.ctx);
+  assert.equal(replay.ok,true,JSON.stringify(replay));assert.equal(writes.length,2);assert.deepEqual(writes[0].args,writes[1].args);assert.equal(writes[0].input,writes[1].input);
+  assert.deepEqual(JSON.parse(writes[0].input),payload);assert.ok(writes[0].args.includes('--payload-stdin'));
+  if(operation==='ticket refine')assert.equal(writes[0].args[writes[0].args.indexOf('--expected-revision')+1],'1');
+  const bytes=await readFile(join(f.ctx.cwd,'corvint-pi-operations',digest(req.requestId)+'.json'),'utf8');assert.doesNotMatch(bytes,/Approved/);
+  assert.equal((await f.service.command({...req,input:{...input,payload:{approved:true}}},f.ctx)).fault,'invalid-input');
+ });
+});
