@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	runtimetrace "runtime/trace"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -19,6 +20,7 @@ import (
 // require a repository index. It is injected into the kernel rather than imported
 // by it, so internal/gokernel stays dependency-free.
 func harnessIndexedContext(ctx context.Context, root, event string, normalized map[string]any, budgetBytes int) (map[string]any, error) {
+	defer runtimetrace.StartRegion(ctx, "hook.indexed-context").End()
 	if event == "user-prompt" {
 		task, _ := normalized["task"].(string)
 		result, queryErr := repositoryQueryContext(ctx, root, task, harnessContextLimit, &budgetBytes)
@@ -47,6 +49,7 @@ func harnessIndexedContext(ctx context.Context, root, event string, normalized m
 // path's own acquisition and leaves every later stage, the trace read included,
 // exactly where it was.
 func repositoryQueryContext(ctx context.Context, root, task string, limit int, budget *int, loaded ...*contextindex.Index) (map[string]any, error) {
+	defer runtimetrace.StartRegion(ctx, "hook.query-prepare").End()
 	if sharedQueryObservation() {
 		ctx = contextindex.WithSharedQueryObservation(ctx)
 		index, opening := preloadedIndex(loaded), preloadedOpening(ctx)
@@ -78,6 +81,7 @@ func repositoryQueryContext(ctx context.Context, root, task string, limit int, b
 
 // repositoryQueryOver answers a broad repository task over an acquired index.
 func repositoryQueryOver(ctx context.Context, root string, index *contextindex.Index, task string, limit int, budget *int, openings ...*contextindex.LoaderObservation) (map[string]any, error) {
+	defer runtimetrace.StartRegion(ctx, "hook.query-evaluate").End()
 	var opening *contextindex.LoaderObservation
 	if len(openings) > 0 {
 		opening = openings[0]
@@ -155,6 +159,7 @@ func sharedQueryObservation() bool {
 // intent through the learn stage's own pair and the rest through the shared
 // window, so the bracket's closing is that read.
 func querySnapshotIndex(ctx context.Context, root string) (*contextindex.Index, *contextindex.LoaderObservation) {
+	defer runtimetrace.StartRegion(ctx, "hook.snapshot-acquire").End()
 	load := loadQuerySnapshot
 	if sharedQueryObservation() {
 		load = loadSharedQuerySnapshot

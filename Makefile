@@ -137,6 +137,7 @@ GATE_STEPS = \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
+  walk-skipdir-check \
   # end of GATE_STEPS: add a step above, in sorted order, ending its line with a backslash
 .PHONY: gate
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS)) ## Run the exhaustive repository gate (heavy)
@@ -608,9 +609,10 @@ capabilities-check:
 # byte-identical and the target exits nonzero (ASD-V0-918). CAPCATALOG_RUN is overridable so
 # script/capability-catalog_test.sh can stand in a failing generator.
 CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
-capcatalog_write = $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
+capcatalog_write = mkdir -p $(dir $(2)) && $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
 	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
+	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
@@ -726,6 +728,11 @@ stray-backups-test:
 test-exec-writes-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-exec-writes-check
 
+# ASD-V0-2476 (V1-4511): a walk callback returns SkipDir only for a directory entry.
+.PHONY: walk-skipdir-check
+walk-skipdir-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/walk-skipdir-check
+
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
 .PHONY: host-package-version-bump
@@ -817,10 +824,11 @@ goos-filenames-test:
 # windows-main-check fails, in seconds and before `make windows-vet`, when a package main builds
 # for GOOS=windows but no file selected there declares func main, as an untagged help.go beside
 # a `//go:build darwin || linux` main.go does (ASD-V0-974, V1-3782). It lists packages only.
-.PHONY: windows-main-check windows-main-test
+.PHONY: windows-main-check
 windows-main-check:
 	@script/check-windows-main.sh . && script/check-windows-main.sh interop/cem01-go
 
+.PHONY: windows-main-test
 windows-main-test:
 	@script/check-windows-main_test.sh
 
@@ -1164,7 +1172,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := ci-least-privilege-check tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check walk-skipdir-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 # DTL-V0-006: independent gates share the enclosing admission and a bounded job pool.
@@ -1216,7 +1224,7 @@ dogfood-closeout:
 .PHONY: dogfood-closeout-precheck
 dogfood-closeout-precheck: export LANE = 1
 dogfood-closeout-precheck:
-	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:

@@ -73,6 +73,7 @@ func (bodies *snapshotBodies) end() {
 // gobBodies backs every lazy body of one deferred load.
 type gobBodies struct {
 	region       []byte
+	mapping      *snapshotMapping
 	objectFormat string
 	sink         *packSection // the load's SnapshotRefusal record
 	cache        []atomic.Pointer[[]byte]
@@ -85,6 +86,14 @@ var errSnapshotBody = errors.New("snapshot body does not match its blob id")
 func (bodies *gobBodies) read(ordinal int, offset, length uint64, blobHash string) ([]byte, error) {
 	if cached := bodies.cache[ordinal].Load(); cached != nil {
 		return *cached, nil
+	}
+	// IDX-SNAP-V0-7560: APFS can keep private mapped pages readable after
+	// truncation. A fault guard alone cannot detect that backing-file drift.
+	if mapping := bodies.mapping; mapping != nil && mapping.file != nil {
+		info, err := mapping.file.Stat()
+		if err != nil || info.Size() != mapping.size {
+			return nil, errSnapshotBody
+		}
 	}
 	data, err := copyRegionBody(bodies.region, offset, length, true)
 	if err != nil {
@@ -184,7 +193,7 @@ func sourcesFromMetas(metas []wireSourceMeta, bodies *snapshotBodies) ([]Source,
 				ordinals++
 			}
 		}
-		shared = &gobBodies{region: region, objectFormat: bodies.objectFormat, sink: &packSection{name: "gob bodies"}, cache: make([]atomic.Pointer[[]byte], ordinals)}
+		shared = &gobBodies{region: region, mapping: bodies.mapping, objectFormat: bodies.objectFormat, sink: &packSection{name: "gob bodies"}, cache: make([]atomic.Pointer[[]byte], ordinals)}
 	}
 	sources := make([]Source, len(metas))
 	var offset uint64

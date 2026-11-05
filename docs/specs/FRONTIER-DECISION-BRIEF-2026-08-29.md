@@ -248,7 +248,7 @@ admitted by `corvint-harness-event/0`" (`agent-harness-integration-v0.md:140-142
 One option that looks available is not: the harness cannot recover the session's own start revision,
 because it persists nothing — `outcome-persistence-unavailable` is emitted whenever a session-end
 carries an outcome (`internal/gokernel/harness.go:398-401`). Every receipt binds `commitRevision` and
-`treeRevision` (`internal/gokernel/repository.go:32-41@b107e296`, `:45-53@35b3155c`), but nothing stores them for later.
+`treeRevision` (`internal/gokernel/repository.go:33-42@b107e296`, `:46-54@35b3155c`), but nothing stores them for later.
 
 **Options.**
 
@@ -325,7 +325,7 @@ Two sub-questions are already closed: a separate local process is not a root (`H
    service; a verifier that checks bytes handed to it makes no network call, so the clause is arguably
    satisfied unamended. CI already appears in Corvint's vocabulary as an independent reference, though in
    a different role — an oracle to shadow against, not an authority
-   (`docs/specs/live-proof-carrying-verification-v0.md:976-982@d51660e9`, `:1018@50bde519`). Build cost is real and large: an
+   (`docs/specs/live-proof-carrying-verification-v0.md:1024-1030@d51660e9`, `:1066@50bde519`). Build cost is real and large: an
    attestation wire and canonical encoding (explicitly deferred at
    `harness-authority-relation-v0.md:212-213`), key distribution, rotation, and revocation.
 4. **Tier it:** closure exists where a repository already has an accepted root; local-only deployments

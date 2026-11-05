@@ -127,6 +127,39 @@ jobs:
           test "$(git rev-parse HEAD)" = "$PR_HEAD"
           "$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
 
+  shell-test-selected:
+    # CIN-V0-2320 (V1-3489): the PR test selection runs Go packages only, so a script self-test
+    # (a make shell-test step such as no-python-runtime-dependency-test) ran only in make gate, and
+    # a change it detects reached main red. This job runs the shell-test steps the affected plan of
+    # the pull request (or merge-queue entry) selects, through make shell-test-affected
+    # (AFP-V0-2401): every step when the plan cannot narrow them, none outside a pull request or
+    # merge queue. It plans with the tested checkout's own corvint, as doc-gates builds its tools.
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Selected shell-test steps (AFP-V0-2401)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          test -n "$BASE_SHA" || { echo "::error::no base commit for the shell-test selection"; exit 1; }
+          base=$(git merge-base HEAD "$BASE_SHA")
+          make -s shell-test-affected BASE="$base"
+
   doc-gates-record:
     # AFP-V0-670, AFP-V0-671: the only evidence the doc-gates-reuse decision accepts. It runs in a
     # pull-request run only after doc-gates passed there, and prints the tested tree, the tested
@@ -261,29 +294,44 @@ jobs:
           fi
           tool="$PWD"
           base_args=()
+          commits_args=()
+          stacked=
           if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
             # Only the first entry on an unmoved main can have its pull-request run's tree; a
-            # later entry is built on a preceding queue commit and stays FULL. The tool comes
-            # from main code, never from the queue commit under test.
+            # later entry is built on a preceding queue commit and never decides REUSE. The tool
+            # comes from main code, never from the queue commit under test.
             base=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^1")
+            toolbase=$base
             if ! git -C "$src" merge-base --is-ancestor "$base" refs/remotes/origin/main; then
-              echo 'Full CI: the queue commit is not built directly on main.' >> "$GITHUB_STEP_SUMMARY"
-              exit 0
+              # AFP-V0-101 (V1-4232): a stacked entry still offers mq-narrow.sh a delta, from a
+              # tool built from the newest commit of main its queue base descends from.
+              if ! toolbase=$(git -C "$src" merge-base "$base" refs/remotes/origin/main) ||
+                ! git -C "$src" merge-base --is-ancestor "$toolbase" refs/remotes/origin/main ||
+                ! git -C "$src" merge-base --is-ancestor "$toolbase" "$base"; then
+                echo 'Full CI: the queue commit shares no commit with main.' >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+              stacked=1
+              echo "Stacked entry: the queue base is not on main; only a reuse delta is offered, from a tool built at $toolbase (AFP-V0-101)." >> "$GITHUB_STEP_SUMMARY"
             fi
             tool="$RUNNER_TEMP/ci-reuse-source"
             mkdir -p "$tool"
-            git -C "$src" archive "$base" go.mod tools/ci-reuse-plan | tar -x -C "$tool"
+            git -C "$src" archive "$toolbase" go.mod tools/ci-reuse-plan | tar -x -C "$tool"
           fi
           (cd "$tool" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan)
           # AFP-V0-734: a narrowed pull-request record is admitted only for this queue base. A tool
           # built from a main that predates --base keeps the AFP-V0-046 full-record reuse.
           # The help text is read whole first: grep -q leaves at its first match, and under
           # pipefail the tool's SIGPIPE on its next write would hide the flag (V1-3100).
+          d="$RUNNER_TEMP/ci-reuse"
+          mkdir -p "$d/jobs" "$d/logs" "$d/commits"
           if [ "$GITHUB_EVENT_NAME" = merge_group ] && help=$("$RUNNER_TEMP/ci-reuse-plan" -h 2>&1 || true) && grep -q '^  -base ' <<< "$help"; then
             base_args=(--base "$base")
+            # AFP-V0-100: a tool that reads full-record targets' commits names their base.
+            if grep -q '^  -commits ' <<< "$help"; then
+              commits_args=(--commits "$d/commits")
+            fi
           fi
-          d="$RUNNER_TEMP/ci-reuse"
-          mkdir -p "$d/jobs" "$d/logs"
           api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
           # Run and job listings are public; a job log needs actions: read and redirects to
           # storage. The anonymous retry covers a token the API refuses.
@@ -302,7 +350,14 @@ jobs:
               # Only a passed record job has a log; a skipped one would answer 404 (V1-3051).
               # AFP-V0-734: a merge-queue entry also reads the narrowed-record job's log.
             for job in $(jq -r --arg event "$GITHUB_EVENT_NAME" '.jobs[]? | select((.name == "ci-tested-tree-record" or ($event == "merge_group" and .name == "ci-narrowed-tree-record")) and .conclusion == "success") | .id | select(type == "number")' "$d/jobs/$id.json" | head -n 4); do
-                get "$api/jobs/$job/logs" "$d/logs/$job.txt" || true
+                get "$api/jobs/$job/logs" "$d/logs/$job.txt" || continue
+                # AFP-V0-100: the commit of a full record's target names the record base; the
+                # tool admits it only when its parents bind that target to this head.
+                if [ ${#commits_args[@]} -gt 0 ] && target=$(tr -d '\r' < "$d/logs/$job.txt" |
+                  sed -nE 's/^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z )?corvint-ci-tested-tree\/1 tree=[0-9a-f]{40} target=([0-9a-f]{40}) head=[0-9a-f]{40} shards=[0-9]+$/\2/p' |
+                  sed -n 1p) && [ -n "$target" ] && [ ! -s "$d/commits/$target.json" ]; then
+                  get "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$target" "$d/commits/$target.json" || rm -f "$d/commits/$target.json"
+                fi
               done
             done
             runs+=(--runs "$d/$2")
@@ -312,21 +367,23 @@ jobs:
             list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json
           fi
           "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --event "$GITHUB_EVENT_NAME" --tree "$tree" \
-            --head "$head" --target "$GITHUB_SHA" "${base_args[@]}" --shards "$REUSE_SHARDS" "${runs[@]}" --jobs "$d/jobs" --logs "$d/logs" \
+            --head "$head" --target "$GITHUB_SHA" "${base_args[@]}" "${commits_args[@]}" --shards "$REUSE_SHARDS" "${runs[@]}" --jobs "$d/jobs" --logs "$d/logs" \
             > "$d/decision.json.partial"
           mv "$d/decision.json.partial" "$d/decision.json"
           cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
-          if jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
+          if [ -z "$stacked" ] && jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
             '.profile == "corvint-ci-reuse/0" and .mode == "REUSE" and .tree == $tree and .head == $head and (.runId | type == "number") and (.recordJobId | type == "number") and (.records | length == $shards)' \
             "$d/decision.json" > /dev/null; then
             echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
           elif [ "$GITHUB_EVENT_NAME" = merge_group ] &&
             delta=$(jq -c -e --arg head "$head" 'select(.profile == "corvint-ci-reuse/0" and .mode == "FULL" and (.delta | type) == "object"
                 and .delta.head == $head and (.delta.runId | type) == "number" and (.delta.recordJobId | type) == "number"
-                and all(.delta.tree, .delta.target, .delta.base; type == "string" and test("^[0-9a-f]{40}$")))
+                and all(.delta.tree, .delta.target, .delta.base; type == "string" and test("^[0-9a-f]{40}$"))
+                and ((.delta | has("scope") | not) or .delta.scope == "FULL"))
               | .delta' "$d/decision.json" 2> /dev/null); then
-            # AFP-V0-812: the narrowed record of this head on a moved base; it vouches for nothing
-            # until mq-narrow.sh verifies it against the tested checkout (AFP-V0-813).
+            # AFP-V0-812: the narrowed record of this head on a moved base, or (AFP-V0-100) its full
+            # record of another tree; it vouches for nothing until mq-narrow.sh verifies it
+            # against the tested checkout (AFP-V0-813, AFP-V0-102).
             echo "delta=$delta" >> "$GITHUB_OUTPUT"
           fi
       - name: Retain reuse decision
@@ -1600,6 +1657,61 @@ jobs:
           done
           echo "Static reuse (AFP-V0-080): no successful merge-queue run passed all three jobs on $GITHUB_SHA; they run in full." >> "$GITHUB_STEP_SUMMARY"
 
+  host-adapters:
+    # CIN-V0-7502: run the declared TypeScript family on pull requests and queue entries.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.11.1"
+      - name: Declared TypeScript family
+        run: make host-adapter-test
+
+  local-authority-deps:
+    # CIN-V0-7503: the only networked module preparation; the compiler job stays offline.
+    needs: static-reuse
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: modules
+        with:
+          path: ${{ runner.temp }}/local-authority-modules
+          key: local-authority-modules-v1-${{ hashFiles('tools/local-authority/go.mod', 'tools/local-authority/go.sum') }}
+      - name: Prepare and verify checksum-bound modules
+        working-directory: tools/local-authority
+        env:
+          GOTOOLCHAIN: local
+          GOWORK: "off"
+          GOFLAGS: "-mod=readonly"
+          GOMODCACHE: ${{ runner.temp }}/local-authority-modules
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
+        run: |
+          go mod download
+          go mod verify
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.modules.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/local-authority-modules
+          key: local-authority-modules-v1-${{ hashFiles('tools/local-authority/go.mod', 'tools/local-authority/go.sum') }}
+
   go-static:
     # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
     # ran serially after its race tests. They need no docs-plan output, so they start at once,
@@ -1607,7 +1719,7 @@ jobs:
     # AFP-V0-013 keeps them full; go-product needs this job, so its required coverage is
     # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it, and a
     # main push whose queue run passed it on the same commit reuses that result (AFP-V0-080).
-    needs: static-reuse
+    needs: [static-reuse, local-authority-deps]
     if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -1676,15 +1788,21 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
+      - name: Restore checksum-bound local-authority modules (CIN-V0-7503)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/local-authority-modules
+          key: local-authority-modules-v1-${{ hashFiles('source/tools/local-authority/go.mod', 'source/tools/local-authority/go.sum') }}
+          fail-on-cache-miss: true
       - name: Nested module tools/local-authority tests and vet (CIN-V0-008)
-        # V1-3329: the only CI run of this nested module's tests. It runs on every path that
-        # starts go-static, so it covers every change a plan can carry to the module, its own
-        # files included. Its two external modules are fetched once, verified against the
-        # module's go.sum (-mod=readonly fails on a missing or mismatched hash); the tests and
-        # vet then run with GOPROXY off, as every other Go step does.
         working-directory: source/tools/local-authority
+        env:
+          GOMODCACHE: ${{ runner.temp }}/local-authority-modules
+          GOFLAGS: "-mod=readonly"
         run: |
-          GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download
+          # GOPROXY and GOSUMDB stay off: a missing module fails instead of fetching.
+          go mod download
+          go mod verify
           go test -count=1 -timeout 30m ./...
           go vet ./...
       - name: Independent interop under production toolchain
@@ -1694,11 +1812,217 @@ jobs:
           go test -count=1 -timeout 30m ./...
           go vet ./...
 
+  web-flows-plan:
+    # CIN-V0-7504: use the same shadow plan's still-required binary consumer checks.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    outputs:
+      required: ${{ steps.plan.outputs.required }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          path: trusted-web-plan
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || github.sha }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Select web-flows consumer
+        id: plan
+        working-directory: trusted-web-plan
+        env:
+          # Diff raw pull_request.base.sha / event.before deliberately: a stale base only over-selects.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          set -eu
+          go build -o "$RUNNER_TEMP/corvint-web-plan" ./cmd/corvint
+          go build -o "$RUNNER_TEMP/web-plan-confine" ./.github/testconfine/cmd
+          status=0
+          "$RUNNER_TEMP/corvint-web-plan" --root "$GITHUB_WORKSPACE/source" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json" || status=$?
+          case "$status" in 0|3) ;; *) exit "$status" ;; esac
+          required=$(jq -r '(.scope == "FULL") or any(.checks[]?; startswith("tools/web-flows/test/") and contains("UNSELECTED_BINARY_CONSUMER"))' "$RUNNER_TEMP/web-plan.json")
+          # testDryRun returns ResultIncomplete (3) when the plan cannot prove coverage.
+          if [ "$status" -eq 3 ]; then required=true; fi
+          echo "required=$required" >> "$GITHUB_OUTPUT"
+
+  web-flows:
+    needs: web-flows-plan
+    if: needs.web-flows-plan.outputs.required == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.11.1"
+      - name: Install locked web-flows runtime
+        working-directory: tools/web-flows
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install the locked Playwright browser
+        working-directory: tools/web-flows
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run required web-flows consumers
+        run: script/web-flows-gate
+
+  go-macos:
+    # CIN-V0-4625 (V1-4625): advisory until V1-4636 qualifies the required integration.
+    # Every PR, including ci:batched, gets this result. Only a verified DOCS decision
+    # skips tests; Linux REUSE and Linux package selections cannot skip Darwin tests.
+    needs: [docs-plan, narrowing-verdict]
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: macos-15
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Darwin selector regression checks
+        run: python3 -B .github/macos/select_test.py
+      - name: Report verified documentation-only selection
+        if: needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode == 'DOCS'
+        run: echo 'go-macos tests NOT_RUN; trusted docs-plan verified DOCS.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Provision the native tools as in the nightly macOS gate
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.3"
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ripgrep
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Build native trusted narrowing tools
+        id: native-tools
+        if: needs.narrowing-verdict.outputs.verdict == 'MET' && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS')
+        continue-on-error: true
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # The tested merge's main parent, never its PR parent or go.mod. The
+          # native planners see Darwin files that the Linux planner cannot see.
+          test "$(git rev-parse HEAD^2)" = "$PR_HEAD"
+          main=$(git rev-parse HEAD^1)
+          git merge-base --is-ancestor "$PR_BASE" "$main"
+          trusted="$RUNNER_TEMP/macos-trusted"
+          mkdir -p "$trusted" "$RUNNER_TEMP/macos-bin"
+          git archive "$main" | tar -x -C "$trusted"
+          cd "$trusted"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/corvint" ./cmd/corvint
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/driver" ./tools/corvint-pr-tests
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/selector" ./tools/gate-affected-select
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/ci-shards" ./.github/cishards/cmd
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/test-confine" ./.github/testconfine/cmd
+          echo "source=$main" >> "$GITHUB_OUTPUT"
+      - name: Apply the existing narrowing guards on Darwin
+        id: native-narrow
+        if: steps.native-tools.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_MERGE: ${{ github.sha }}
+          SHARD: "0"
+          SHARDS: "1"
+          TOOL_SOURCE: ${{ steps.native-tools.outputs.source }}
+          VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
+        run: |
+          export PR_BIN="$RUNNER_TEMP/macos-bin"
+          export SHADOW="$PR_BIN/corvint" CI_SHARDS="$PR_BIN/ci-shards" CONFINE="$PR_BIN/test-confine"
+          TRUSTED="$RUNNER_TEMP/macos-trusted"
+          sh "$TRUSTED/.github/forward-rows/narrow.sh"
+      - name: Select and run the Darwin-relevant packages
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          NATIVE_NARROW_RESULT: ${{ steps.native-narrow.outcome }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/macos-selection"
+          mkdir -p "$out"
+          # Same nested module provisioning as go-static; no downloads during tests.
+          (cd tools/local-authority && GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download)
+          go list -json ./... > "$out/packages.json"
+          (cd tools/local-authority && go list -json ./...) >> "$out/packages.json"
+          (cd interop/cem01-go && go list -json ./...) >> "$out/packages.json"
+          record="$out/no-native-record.json"
+          if [ "$NATIVE_NARROW_RESULT" = success ]; then
+            record="$RUNNER_TEMP/corvint-narrowing/narrowing.json"
+          fi
+          python3 -B .github/macos/select.py "$out/packages.json" \
+            "$record" "$GITHUB_SHA" "$PR_HEAD" "$GITHUB_RUN_ID" \
+            "$out/selection.json" > "$out/selected.tsv"
+          # No race run: Linux PR shards and nightly gates retain that coverage.
+          # Sequential invocations, two build workers; one hosted Actions slot.
+          failed=0
+          while IFS=$'\t' read -r dir pkg; do
+            echo "Darwin package: $pkg"
+            (cd "$dir" && HEAVY_WHOLE_REASON='CIN-V0-4625 native Darwin selection' HEAVY_REMOTE=0 \
+              HEAVY_LOCAL_REASON='native Darwin qualification' \
+              bash "$GITHUB_WORKSPACE/script/heavy.sh" go test -p 2 -parallel 2 -count=1 -timeout 30m .) || failed=1
+          done < "$out/selected.tsv"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("go-macos: %s, %d/%d Darwin packages" % (r["mode"], len(r["selected"]), len(r["inventory"])))' \
+            "$out/selection.json" >> "$GITHUB_STEP_SUMMARY"
+          exit "$failed"
+      - name: Retain native selection, reasons and narrowing evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # Not ci-narrowing-* or ci-coverage-*: the 16 Linux shard records have
+          # their own denominator and must never consume this one-shard record.
+          name: macos-selection
+          path: |
+            ${{ runner.temp }}/macos-selection
+            ${{ runner.temp }}/corvint-narrowing
+          if-no-files-found: ignore
+
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1713,15 +2037,30 @@ jobs:
           path: ${{ runner.temp }}/ci-coverage
       - name: Every go-product shard and the static job succeeded
         env:
+          HOST_RESULT: ${{ needs.host-adapters.result }}
+          WEB_PLAN_RESULT: ${{ needs.web-flows-plan.result }}
+          WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
+          WEB_RESULT: ${{ needs.web-flows.result }}
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
+          SHELL_RESULT: ${{ needs.shell-test-selected.result }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
           DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}
           BATCHED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
           # AFP-V0-591: must equal the go-product-shard matrix length.
           SHARDS: "16"
         run: |
+          # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
+          # intentionally skips pushes; every PR and merge-group run must actually pass it.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$SHELL_RESULT" = skipped ]; then
+            echo 'shell-test-selected intentionally skipped on push (CIN-V0-2320).'
+          else
+            test "$SHELL_RESULT" = success
+          fi
+          test "$HOST_RESULT" = success
+          test "$WEB_PLAN_RESULT" = success
+          if [ "$WEB_REQUIRED" = true ]; then test "$WEB_RESULT" = success; else test "$WEB_RESULT" = skipped; fi
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
           # this check passes with a notice instead of failing, so a lane PR is not red. It still
           # cannot land untested: main's merge_queue rule sends every merge through a merge_group
@@ -1977,7 +2316,8 @@ jobs:
     needs: static-reuse
     if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # AFP-V0-104: an 8 min wait then the full gate (12 to 16 min measured) must fit.
+    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
@@ -1990,11 +2330,17 @@ jobs:
         id: reuse
         if: github.event_name == 'merge_group'
         continue-on-error: true
-        timeout-minutes: 3
+        # AFP-V0-104: above the 8 min wait bound plus the listings.
+        timeout-minutes: 11
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
+          # AFP-V0-104 (V1-4233): the entry can start before its pull-request run's record job
+          # exists. While a run of the head has not completed and its gate or record job has not
+          # concluded, list again every interval seconds, at most max_waits more times (8 min).
+          interval=30
+          max_waits=16
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
           if ! head=$(git rev-parse --verify -q "$GITHUB_SHA^2") || git rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
@@ -2010,13 +2356,28 @@ jobs:
           re='^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z )?corvint-ci-integrity-tree/0 tree=[0-9a-f]{40} target=[0-9a-f]{40} head=[0-9a-f]{40}$'
           d="$RUNNER_TEMP/integrity-reuse"
           mkdir -p "$d"
-          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=20" "$d/runs.json"
+          waits=0
+          while :; do
+          pending=
+          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&per_page=20" "$d/runs.json" || : > "$d/runs.json"
+          # A completed run must have succeeded; a run still going is admitted only on its two jobs.
           ids=$(jq -r --arg sha "$head" --arg repo "$GITHUB_REPOSITORY" '.workflow_runs[]?
-            | select(.head_sha == $sha and .event == "pull_request" and .conclusion == "success"
+            | select(.head_sha == $sha and .event == "pull_request"
+              and ((.status == "completed" and .conclusion == "success") or (.status | IN("queued", "in_progress", "waiting", "pending", "requested")))
               and .path == ".github/workflows/ci.yml" and .repository.full_name == $repo and (.id | type == "number"))
-            | .id' "$d/runs.json" | head -n 5)
-          for id in $ids; do
+            | "\(.id):\(.status)"' "$d/runs.json" 2> /dev/null | head -n 5) || ids=""
+          for entry in $ids; do
+            id=${entry%%:*} status=${entry#*:}
             get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs-$id.json" || continue
+            # Still to come: the gate job of a running run has not concluded, or it passed and
+            # its record job has not concluded (or is not listed yet).
+            if [ "$status" != completed ] && jq -e --arg sha "$head" '[.jobs[]? | select(.name == "artifact-integrity")] as $g
+              | [.jobs[]? | select(.name == "artifact-integrity-record")] as $r
+              | ($g | length) == 0 or any($g[]; .status != "completed")
+                or (all($g[]; .conclusion == "success" and .head_sha == $sha) and (($r | length) == 0 or any($r[]; .status != "completed")))' \
+              "$d/jobs-$id.json" > /dev/null 2>&1; then
+              pending=1
+            fi
             # Exactly one latest artifact-integrity job and exactly one latest record job of
             # this run, both passed on the pull-request head; the record job's id is kept.
             job=$(jq -r --arg sha "$head" --argjson id "$id" '[.jobs[]? | select(.name == "artifact-integrity" or .name == "artifact-integrity-record")]
@@ -2039,7 +2400,13 @@ jobs:
             echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
             exit 0
           done
-          echo "Artifact integrity (AFP-V0-163): no successful pull-request run of $head recorded tree $tree; the gate runs in full." >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$pending" ] || [ "$waits" -ge "$max_waits" ]; then
+            break
+          fi
+          waits=$((waits + 1))
+          sleep "$interval"
+          done
+          echo "Artifact integrity (AFP-V0-163): no successful pull-request run of $head recorded tree $tree after $waits wait(s); the gate runs in full." >> "$GITHUB_STEP_SUMMARY"
       - name: Retain integrity reuse decision
         # Diagnostic only; nothing reads it back.
         if: steps.reuse.outputs.mode == 'REUSE'

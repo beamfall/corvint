@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
-Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
+Authoritative inputs: V1-4625 lane charter (2026-11-04); native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
 V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861, CIN-V0-2301, CIN-V0-2302: V1-3332; CIN-V0-2300: V1-4446; CIN-V0-2303: V1-4445; CIN-V0-2304: V1-2805; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
@@ -38,6 +38,14 @@ by the orchestrator under owner delegation, owner chat 2026-10-31) and the AFP-V
 kill switch keep their thresholds; no row is seeded or synthetic.
 
 ## Requirements
+
+- `CIN-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier plan MUST retain every distinct FULL-forcing path reason rather than capping the list at twenty; the per-reason display limit MAY remain 300 characters.
+- `CIN-V0-7501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shared PR documentation gates MUST run the exact per-job permission/exception check before merge; each nondefault grant MUST name its exact permissions and purpose in the exception table.
+- `CIN-V0-7502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merge-queue and main CI MUST execute the declared TypeScript family through `make host-adapter-test`; a failure MUST fail the required `go-product` check.
+- `CIN-V0-7503`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3333) `go-static` MUST restore the exact `go.mod`/`go.sum`-keyed local-authority module cache, refuse a cache miss, verify it with `go mod verify` and run the nested module tests and vet with GOPROXY/GOSUMDB off and readonly module directives. An explicit preceding preparation job MAY fetch checksum-verified dependencies and populate that cache; compiler steps MUST NOT fetch from a proxy.
+- `CIN-V0-7504`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4436) CI MUST compute the shadow dry-run plan for the event range and require `web-flows` for a FULL plan, an Incomplete dry-run (exit 3), or still-required checks naming a web-flows binary consumer. That job MUST install the lockfile dependencies with lifecycle scripts disabled and the matching Playwright Chromium, then run `script/web-flows-gate`. The selector binary and confine wrapper MUST build from the trusted checkout and inspect a separate tested checkout. Consumer and read-scope declarations (`.corvint/test-binary-consumers.json` and `.corvint/test-read-scopes.json`) are tested-tree data, reviewed as code; a FULL plan MUST always require the consumer job. Any other nonzero planning exit or required consumer failure MUST fail `go-product`; an unreached consumer in a complete non-FULL plan MUST leave the job skipped.
+- `CIN-V0-7505`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4574) An edit under `.github/` MUST select `tools/ci-forward-row` through its declared read scope and its workflow-executing tests in batch verification.
+- `CIN-V0-7506`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4154) A new binary source or command-tree entry MUST select `conformance/cli-errors-v0` catalog-equality tests in affected and in batch verification, including when source and catalog changes meet only in the batch.
 
 - **CIN-V0-001:** (decided by the orchestrator under owner delegation, V1-3314; applies the
   AFP-V0-030 re-arm rule) `CORVINT_PR_FORWARD_EPOCH` in `ci.yml`, `FORWARD_EPOCH` in
@@ -275,6 +283,43 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
   reach the merge queue.
 
+- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended by the owner's fix-round charter, 2026-11-04)
+  Every pull request SHALL start one GitHub-hosted `macos-15` job, `go-macos`, using the pinned
+  production Go toolchain and nightly macOS host provisioning. A verified `docs-plan` DOCS decision
+  MAY skip its tests; a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
+  `go list` metadata for the root module and CI's existing nested modules `tools/local-authority`
+  and `interop/cem01-go`, the job SHALL select packages containing Darwin filename/build constraints,
+  `GOOS` comparisons or switch cases with `"darwin"` in code or tests, or `/private/var` or
+  `/var/folders` path-alias witnesses. Build constraints SHALL conservatively include indirect Darwin terms (`unix`,
+  negated OS tags such as `!linux` and `!windows`, and BSD forms); selecting every build
+  constraint is permitted. Source and test files, including ignored platform files, SHALL be
+  rescanned on every run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
+  package and the file/reason for inclusion. Tests SHALL run per package, without the full-suite
+  gate or a race run, sequentially with two build workers and two test workers. The job SHALL
+  occupy at most one hosted runner, have a 180-minute timeout, and retain selection evidence even
+  after failure. Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
+  execution; Linux cost history is an estimate, never a native measurement.
+  The job is advisory: `go-product` SHALL NOT depend on it or inspect its result.
+  `go-macos` MAY intersect its root-module inventory with a native narrowed selection only after
+  the existing `narrowing-verdict` reports MET and the existing trusted `narrow.sh` guards admit
+  it: protected main-parent tools built for Darwin, native driver and shadow, matching event/base/
+  head/target, merge-queue rule, no `.github/` change, complete selection and shadow-superset proof.
+  Linux package artifacts SHALL NOT drive this intersection. An absent, failed, malformed or
+  mismatched native record SHALL run the entire Darwin inventory, never silently omit packages;
+  nested modules SHALL always retain their full Darwin inventory because the root planner does
+  not own them. Its artifact SHALL use a distinct name outside the Linux shard record/coverage
+  patterns,
+  so it cannot change their denominator. Activation remains subject to `ci-control-plane` admin
+  review; no branch-protection change or new required status context is necessary.
+- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred by the owner's fix-round charter, 2026-11-04) PLANNED/deferred: make `go-macos`
+  required through `go-product` only after V1-4413, V1-4551 and V1-4553 fix the existing native
+  failures and one hosted FULL run is green. Until then CIN-V0-4625 remains advisory.
+  The deferred integration SHALL check PR success before the batched-label early exit and
+  require the intentional job skip outside PRs. Nightly `macos-15` full-gate run 41849536472
+  at base `6c33df33bc5670131482f5263b410cb980580657` fails in selected packages
+  (`internal/contextindex`, `internal/tasks/cli`, `internal/tasks/store`, `internal/testsupport`,
+  `interop/cem01-go`); requiring this result now would block FULL-fallback pull requests.
+
 ### Merge-queue reuse on a moved or stacked base, integrity-record wait and fast-route liveness (AFP-V0-100 to AFP-V0-106; V1-4232, V1-4233, V1-4234)
 
 Intent (orchestrator lane request, 2026-11-01; V1-4232, V1-4233, V1-4234): over the 47 merge-queue
@@ -384,6 +429,27 @@ changes and needs a trusted artifact handoff); reusing a narrowed queue record f
 affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
 `BOUNDED` scope check of `mq-narrow.sh`; adding `infra-reclassified.txt` keys (AFP-V0-463).
 
+## Darwin PR job boundaries and maintenance
+
+The smaller baseline is the nightly full macOS gate; it remains unchanged and catches
+non-Darwin-specific regressions outside this inventory. This PR leg is not a full macOS
+qualification, race run, release gate or language-provider live qualification. One runner avoids
+adding another shard matrix to the roughly four-run Actions capacity. Native narrowing reuses
+AFP-V0-098 guards rather than granting advisory affected output authority to skip tests.
+The Linux forward bar is reused as the existing enablement control, not claimed as a native
+cost or miss-rate measurement. Unqualified/missing narrowing inputs retain the full inventory.
+
+The selector is lexical and conservative: comments and negated build tags may overselect; computed
+OS checks, imported aliases of `GOOS`, and path-sensitive behavior without a path witness can be
+missed. Add a Darwin/platform test or an explicit `/private/var` regression witness when such a
+failure is found. The nightly full gate remains the backstop. New independent nested Go modules
+need explicit job provisioning; fixture modules under testdata are not product packages. Missing
+host tools, metadata errors, native test failures and timeout fail the advisory job
+without blocking `go-product`; required integration is deferred to V1-4636 (CIN-V0-4626). The
+180-minute ceiling is a hang/resource bound, not a latency promise; full fallback is expensive.
+Normal narrowed changes are estimated at 5–15 runner minutes (setup/planning and selected packages),
+while full fallback is conservatively budgeted up to 180; actual macOS timings are NOT_OBSERVED.
+
 ## Failure modes
 
 (1) A `FORWARD_EPOCH_SINCE` later than the first epoch-2 row would hide rows from the verdict;
@@ -451,11 +517,17 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
-| CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps` (PLANNED), `TestCINV02320RequiredCheckPropagatesShellFailure` (PLANNED) in `tools/ci-reuse-plan/workflow_test.go`, landing with the `ci.yml` job change |
+| CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps`, `TestCINV02320RequiredCheckPropagatesShellFailure` in `tools/ci-reuse-plan/workflow_test.go` |
+| CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/ci.yml`; `.github/macos/select.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
+| CIN-V0-4626 | PLANNED/deferred: V1-4636; no required-aggregate dependency/result check | Required integration NOT_PRODUCED: blocked on V1-4413, V1-4551, V1-4553 and one green hosted FULL run; nightly run 41849536472 is failing at the lane base |
 
 ## Rollback
 
 CIN-V0-2320: delete the `shell-test-selected` job; shell-test steps then run only in `make gate`.
+
+CIN-V0-4625: revert advisory `go-macos` and `.github/macos/`. CIN-V0-4626 has no delivered
+aggregate integration to roll back; V1-4636 owns its future activation.
+The nightly macOS gate and existing Linux narrowing remain operative; no persistent data migrates.
 
 CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
 no persisted state. Hosted wiring is pending; no existing workflow rollback is required. Its
@@ -477,3 +549,15 @@ CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop t
 calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
 `workflow_run` clause; the schedule alone remains. CIN-V0-2304: drop the batch-check step of
 `doc-gates`; the DCW-V0-348 pre-push hook remains the only check.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `CIN-V0-7500` | `.github/forward-rows/tiers.jq`; `TestCINV07500AllFullReasons` (29 reasons). |
+| `CIN-V0-7501` | `Makefile` DOC_GATE_TARGETS and `script/ci-least-privilege-exceptions.tsv`; `TestCINV07501PermissionsArePremerge`; `script/check-ci-least-privilege_test.sh` missing/changed per-job exception fixtures. |
+| `CIN-V0-7502` | `.github/workflows/ci.yml` host-adapters and go-product; `TestCINV07502RequiredFamiliesAndOfflineModules`. |
+| `CIN-V0-7503` | `.github/workflows/ci.yml` local-authority-deps and go-static; `TestCINV07502RequiredFamiliesAndOfflineModules`; hosted cache qualification remains NOT_OBSERVED. |
+| `CIN-V0-7504` | `.github/workflows/ci.yml` web-flows-plan/web-flows/go-product; `TestCINV07504WebFlowsConsumerJob`, `TestCINV07504WorkflowPlanFlags` (actual CLI option parser); live PR/MQ evidence remains NOT_OBSERVED until publication is authorized. |
+| `CIN-V0-7505` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestAFPV0591CoverageGuard`. |
+| `CIN-V0-7506` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestCLIErrorContracts_ACXV0859`. |

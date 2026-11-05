@@ -7,8 +7,10 @@
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh"
       ],
-      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930) (TSP-V0-005).",
+      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930); the dogfood-cache shell test checks the closeout's batch-precheck order and the Go CI-route test reads its source (TSP-V0-005).",
       "mentions": [
+        "internal/liveverify/affected/golang/ci_routes_test.go",
+        "script/dogfood-cache_test.sh",
         "script/lane-scripts_test.sh"
       ]
     },
@@ -122,6 +124,7 @@
     },
     "script/heavy.sh": {
       "callers": [
+        ".github/workflows/ci.yml",
         "Makefile",
         "internal/liveverify/affected/golang/golang_test.go",
         "script/analyzer-schema.sh",
@@ -135,6 +138,7 @@
         "script/lane-scripts_test.sh"
       ],
       "mentions": [
+        ".github/macos/select_test.py",
         "cmd/corvint/session_test_command_unix_test.go",
         "cmd/corvint/test.go",
         "cmd/corvint/test_module_strv0064_unix_test.go",
@@ -161,6 +165,7 @@
         "script/test-run-pattern_test.sh",
         "tools/flow-guide-check/main.go",
         "tools/flow-guide-check/main_test.go",
+        "tools/linecov/watch.go",
         "tools/test-commands-check/dogtools_test.go",
         "tools/test-shards/main.go"
       ],

@@ -33,6 +33,12 @@ case ${1:-} in
 *) printf 'usage: %s [--list]\n' "$0" >&2; exit 64 ;;
 esac
 
+# ECO-V0-7500: local index checks must expose their omitted worktree inputs.
+git ls-files --modified --others --exclude-standard -- 'cmd/*.go' 'internal/*.go' 'docs/specs/*.md' ':(exclude)*_test.go' |
+    LC_ALL=C sort -u | while IFS= read -r skipped; do
+        printf 'error-code ownership: NOT_CHECKED unstaged %s (git add this path, then rerun)\n' "$skipped" >&2
+    done
+
 allowlist=script/error-code-ownership.allowlist
 kebab='[a-z][a-z0-9]*(-[a-z0-9]+)+'
 work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-error-code-ownership.XXXXXX")

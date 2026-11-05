@@ -53,7 +53,7 @@ storage failure never alters the response (`cmd/corvint/help.go:419-420@3c9a8d56
 
 The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
 while the operator marker `.corvint/unplanned-reads.enabled` exists
-(`cmd/corvint/host_adapter.go:375@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
+(`cmd/corvint/host_adapter.go:379@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
 marker only by `corvint reads` (`cmd/corvint/reads.go:92-96@19937f8b`). None of the commands below writes
 either file.
 
@@ -92,7 +92,7 @@ Where each row was verified:
 - `witness`: profile `internal/witness/witness.go:28@9d3c5f4c`; exits `cmd/corvint/witness.go:276-324@bc64bcb6`;
   recorder `cmd/corvint/main.go:1217@acb85656`; help "does not mutate repository or trace state"
   (`cmd/corvint/help.go:491-492@b8d79ae9`). It builds the index in memory when no snapshot exists
-  (`cmd/corvint/index_snapshot.go:103-108@15aca3d7`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
+  (`cmd/corvint/index_snapshot.go:106-111@15aca3d7`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
   `cmd/corvint/main.go:1259-1264@53443dcf` and `cmd/corvint/main.go:1295-1383@17c42df8`; envelope
   `cmd/corvint/main.go:1539@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
@@ -302,7 +302,7 @@ CEM/OCM artifacts exist (`internal/gokernel/harness.go:444@a4869098`). The harne
 (`internal/gokernel/harness.go:483-489@19864b9a`); this is an abstention, not proof that the change
 is complete. The code is also admitted by the observations ledger and host adapter vocabularies
 (`internal/observations/observations.go:50-57@493847da`,
-`cmd/corvint/host_adapter.go:824-833@c1243f78`). Repeated appearances are not evidence of repeated
+`cmd/corvint/host_adapter.go:830-839@c1243f78`). Repeated appearances are not evidence of repeated
 failures, and adding artifacts does not remove this message.
 
 ### What the artifacts enable, and what remains unavailable
@@ -359,7 +359,7 @@ review queue, the minimum inputs and steps are:
 | Repeated visible notices | Host output policy or installed adapter version can affect presentation. | Compare the installed adapter with [decision 0161](decisions/0161-claude-adapter-quiet-notices-2026-09-12.md). Current Claude routine post-tool receipts use model-visible additionalContext; genuine faults retain a notice. This is not a user suppression setting. |
 
 The Claude routine receipt path preserves the degradation codes in additionalContext
-(`cmd/corvint/host_adapter.go:803-822@1e71d8c1`). Presentation differs by host and event; quieting a
+(`cmd/corvint/host_adapter.go:809-828@1e71d8c1`). Presentation differs by host and event; quieting a
 notice is not removing the degradation or acquiring authority.
 
 ### Not delivered by this guidance

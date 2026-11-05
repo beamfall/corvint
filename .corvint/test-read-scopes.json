@@ -457,6 +457,7 @@
     ],
     "internal/docviews": [],
     "internal/dogfoodflow": [
+      ".gitignore",
       "docs/DOGFOOD.md",
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
@@ -819,7 +820,8 @@
       "protocol/cem-1.0/structural-tuples/"
     ],
     "tools/ci-forward-row": [
-      ".github/"
+      ".github/",
+      "Makefile"
     ],
     "tools/cli-discovery-gen": [
       "VERSION",

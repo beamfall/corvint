@@ -15,9 +15,20 @@ import (
 
 // orphanRouteStore is a writer-route store with one claimed ticket, whose
 // claim the next liveness writes extend.
-func orphanRouteStore(t *testing.T) (*intent.Repository, string, *Report) {
+func orphanRouteStore(t *testing.T, history ...int) (*intent.Repository, string, *Report) {
 	t.Helper()
 	repo := writerStore(t, 70)
+	if len(history) > 0 {
+		base := fixture.TempDirOutside(t)
+		repo = historyStoreAt(t, filepath.Join(base, "repo"), 880, history[0])
+		lowerWriterCheckpoint(t, repo)
+		if err := sealSegmentsLocked(context.Background(), repo); err != nil {
+			t.Fatal(err)
+		}
+		if run := writerMutate(t, repo, "scaled-writer-seed", nil); !run.completed() {
+			t.Fatalf("scaled seed: %+v %v", run.rep, run.err)
+		}
+	}
 	holdLeasePolicy(t, repo)
 	created := writerMutate(t, repo, "orphan-create", nil)
 	if !created.completed() {

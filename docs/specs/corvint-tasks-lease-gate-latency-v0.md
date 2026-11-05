@@ -32,6 +32,14 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
 
 ## Requirements
 
+### Tasks store and read-path repairs (2026-11-04)
+
+- `LGL-V0-7201`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4204) Lease writer-route checkpoint read and decode MUST occur before both the preparation gate and writer lock. The locked audit MUST rebind its checkpoint prefix to the current head and recheck the captured invalidation token; a changed or unobserved token declines to the complete route. No history-sized checkpoint decode cost remains under either lock. Keep publish sync requirements unchanged.
+  Evidence: `internal/tasks/store/checkpoint_decode_unix_test.go` — `TestLGLV07201_CheckpointDecodeOutsideWriterLock`.
+- `LGL-V0-7215`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4305) The shared-resource gate regression MUST keep its repeated shell paths within the 128-byte argv element bound independently of the caller's TMPDIR, using a private short /tmp directory with cleanup. This fixture choice does not enlarge the production argv limit.
+  Evidence: `internal/tasks/store/gate_resource_unix_test.go` — `TestLGLV0885_GateRunSerializesASharedResource`.
+
+
 - `LGL-V0-001`: (proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup
   lock before the preparation gate only when its writer-checkpoint route is not ready. When the
   route is ready the round MUST enter it with no cleanup lock; the route, holding the gate and the

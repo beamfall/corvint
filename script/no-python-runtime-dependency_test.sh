@@ -121,11 +121,27 @@ mask_fixture_data() {
     }'
 }
 
+# mask_language_names blanks a JSON string that names Python as a language, not a program
+# (GOC-V0-062, V1-4531), in two contexts only: an entry of the list a language field holds, a
+# JSON key or shell variable whose name ends in langs or languages, such as
+# FRONTIER_OTHER_LANGS='["dotnet","python"]' or "languages": ["go", "python"], and a
+# language-frontier "detail":"python:REASON". The list ends at its first "]", so an argv later on
+# the same line is still read. "python" anywhere else, such as the argv ["python","go"] or
+# ["python","build.py"], "python3", an image tag such as "python:alpine" outside a "detail"
+# field, and an unquoted name still match. The list marker has no "]", which would end the list.
+langlist="((LANGS|LANGUAGES|[Ll]angs|[Ll]anguages)\"? *[:=] *'?\\[[^]]*)\"python\""
+mask_language_names() {
+  sed -E -e ':list' -e "s/$langlist/\1\"<language>\"/" -e 't list' \
+    -e 's/("detail" *: *)"python:([a-z][a-z0-9-]*)"/\1"[language]:\2"/g'
+}
+
 # scan reads grep -Hn lines (path:line:text) and drops only those whose path field is exactly the
 # external-conformance script, so a renamed copy, a longer path or a line elsewhere naming it is
-# still scanned. Quoted printf and echo fixture data is masked first (V1-3971).
+# still scanned. Quoted printf and echo fixture data (V1-3971) and JSON language names
+# (GOC-V0-062) are masked first.
 scan() {
-  awk -v p="$external_conformance" 'index($0, p ":") != 1 || substr($0, length(p) + 2) !~ /^[0-9]+:/' | mask_fixture_data | unexempted
+  awk -v p="$external_conformance" 'index($0, p ":") != 1 || substr($0, length(p) + 2) !~ /^[0-9]+:/' | mask_fixture_data |
+    mask_language_names | unexempted
 }
 
 # reaches_external reads Makefile text and names each way a gate step or another target reaches the
@@ -329,6 +345,36 @@ for line in "script/x_test.sh:7:python3 -c 1" "script/x_test.sh:8:printf 'x' | p
   "script/x_test.sh:15:echo 'x' | python3"; do
   if ! fires "$line"; then
     echo "self-test: a genuine invocation was hidden as fixture data: $line" >&2
+    exit 1
+  fi
+done
+
+# GOC-V0-062 (V1-4531): Python named as a language in a language field's list or a
+# language:reason detail is data, while a JSON argv, even one whose other entries are language
+# names, or a line that also runs an interpreter is still reported.
+# shellcheck disable=SC2016
+for line in "script/x.sh:440:FRONTIER_OTHER_LANGS=[\"cfamily\",\"dotnet\",\"python\",\"ruby\"]" \
+  "integrations/x/report.json:3:  {\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"python:dynamic-import\"}" \
+  "integrations/x/langs.json:2:  \"languages\": [\"go\", \"python\"]"; do
+  if fires "$line"; then
+    echo "self-test: a JSON language name was flagged: $line" >&2
+    exit 1
+  fi
+  # Without the mask_language_names stage the line is flagged, so the case is not vacuous.
+  if ! printf '%s\n' "$line" | mask_fixture_data | unexempted >/dev/null; then
+    echo "self-test: the language-name case does not depend on the language mask: $line" >&2
+    exit 1
+  fi
+done
+# shellcheck disable=SC2016
+for line in "integrations/x/hooks.json:3:  \"command\": [\"python3\", \"hook.py\"]" \
+  "integrations/x/hooks.json:7:  [\"python\",\"build.py\"]" "integrations/x/hooks.json:4:  \"command\": \"python3 hook.py\"" \
+  "script/x.sh:18:langs='[\"ruby\",\"python\"]'; python3 -c 1" "integrations/x/hooks.json:8:  [\"python\",\"-c\",\"go\"]" \
+  "integrations/x/x.json:2:  \"cmd\": \"python:3\"" "integrations/x/devcontainer.json:2:  \"image\": \"python:alpine\"" \
+  "integrations/x/hooks.json:5:  {\"command\":[\"python\",\"go\"]}" \
+  "integrations/x/hooks.json:6:  {\"languages\":[\"go\"],\"command\":[\"python\",\"go\"]}"; do
+  if ! fires "$line"; then
+    echo "self-test: a genuine invocation was hidden as a language name: $line" >&2
     exit 1
   fi
 done

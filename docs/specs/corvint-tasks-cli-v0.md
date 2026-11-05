@@ -49,6 +49,22 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `gate history` MUST accept the same queue-local ticket token as `ticket show`. Terse
   `ticket progress --help` MUST identify all required payload keys, their nullability and the
   closed phase enum; invalid phases MUST name the enum. Test: `TestTCLV07704ReadPapercuts`.
+### Tasks store and read-path repairs (2026-11-04)
+
+- `TCL-V0-7205`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3903) A valid journaled fixture with at least 420 tickets MUST remain readable by ticket show at both ends of the inventory. Fixture receipts MUST respect the existing inline post count cap by splitting posts into bounded receipts; no valid post is silently truncated and no cursor is needed when the complete show result fits. An oversized invalid receipt remains a named refusal.
+  Evidence: `internal/tasks/cli/ticket_show_scale_test.go` — `TestTicketShowOn360TicketJournaledFixture`.
+- `TCL-V0-7206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3942) complete --commit MUST resolve a Git revision such as HEAD or a unique abbreviated OID to one full commit OID before native submission. A missing or non-commit revision refuses MISSING_EVIDENCE (detail COMMIT_NOT_FOUND); a short prefix matching multiple commit objects refuses MALFORMED (detail COMMIT_AMBIGUOUS), determined without localized stderr. The MANIFEST receipt's referenced evidence MUST retain the full OID as optional completionCommit in taskman-manifest/0. Legacy manifests without the field remain readable; a present field is a full OID and newly completed manifests include it. Older readers that do not admit the optional field require an upgrade before reading new completions.
+  Evidence: `internal/tasks/cli/pk_tstore_commit_test.go` — `TestTCLV07206_CompleteResolvesCommitRevisions`; `internal/tasks/store/commit_prefix_test.go` — `TestTCLV07206_CommitPrefixCountsOnlyCommits`.
+- `TCL-V0-7207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3963) ticket search MUST name a stray positional argument and suggest quoting a multiword --text value. It MUST NOT silently join unrelated argv words.
+  Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07207_SearchSplitTextNamesArgument`.
+- `TCL-V0-7209`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3987) Read-only CLI journal views MUST ignore boundedly listed unknown root directories, without traversing them or treating their contents as evidence. Files, nonregular entries and unknown nested entries in known directories retain strict validation. Writers retain strict root-directory validation. Supported lane private files live outside the store, for example in a sibling lane scratch directory.
+  Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07209_ReadsIgnoreExtraDirectory`.
+- `TCL-V0-7210`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3989) ticket show for an ARCHIVED ticket MUST expose archiveReason. Where the record and receipt retain no archive-reason payload, the value MUST be NOT_OBSERVED; a mutation digest is never reversible reason evidence.
+  Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07210_ArchivedShowStatesReasonNotObserved`.
+- `TCL-V0-7211`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4022) ticket create help and template MUST map the agent-memory labels fixes and tests to kind CHORE, and explain that FIX and TEST are not wire kinds. The mapping is documented in docs/TICKET-PRIORITY.md; labels describe categories independently of the closed kind enum.
+  Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07211_CreateTemplateMapsFixesAndTestsToChore`.
+- `TCL-V0-7213`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4301) Single-target expected-revision current and single/multi-target implicit-revision hold MUST settle a REDO_PENDING receipt once on their write path and retry the revision/index read. Reusing the original request MUST replay without another receipt. Other request-index errors MUST refuse and name the request entry; no failed observation falls back to a live revision. Ordinary read commands never settle.
+  Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07213_RetriesReplayOverPendingReceipt; TestTCLV07213_CurrentNamesRequestIndexError`.
 
 
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
