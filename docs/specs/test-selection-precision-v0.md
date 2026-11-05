@@ -36,7 +36,7 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   Acceptance evidence: `TestFailFastContentTimeSurvivesTimestampTies` and `TestFailFastDroppedInfoFailureIsDisclosed` in `cmd/corvint/affected_order_test.go`.
 
 - `TSP-V0-7311`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4439) Full, compact and by-path selections MUST encode witness as an object with string kind, string dirtyPath, integer viaLength and optional string-array via; fields MUST NOT be retyped between forms. Compact chains may use viaLinks; by-path chains may be omitted. anyDirtyPath, cause and glob carry the same meanings in each form.
-  Acceptance evidence: `TestWitnessFormsShareOneObjectDecoder` in `cmd/corvint/affected_by_path_test.go`.
+  Acceptance evidence: `TestWitnessFormsShareOneObjectDecoder` in `cmd/corvint/affected_by_path_test.go`; compact/full witness reconstruction, including unchanged viaLength, in `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources` in `cmd/corvint/affected_snapshot_test.go` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` in `cmd/corvint/affected_test.go`.
 
 - `TSP-V0-7317`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4484) The fresh-directory source proof MUST reject an assignment in a backgrounded AND/OR or pipeline list, including a trailing ampersand on a later command in that list. A foreground AND/OR list remains eligible under the existing straight-line fresh-directory checks.
   Acceptance evidence: `TestFreshDirectoryRejectsBackgroundAndOrList` in `internal/liveverify/affected/shell/fresh_background_pk_test.go`.
