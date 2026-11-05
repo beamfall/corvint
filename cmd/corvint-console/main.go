@@ -109,7 +109,7 @@ func main() {
 }
 
 func fail(format string, args ...any) {
-	clierror.Write(os.Stderr, "corvint-console", "command-failed", fmt.Sprintf(format, args...), nil)
+	fmt.Fprintf(os.Stderr, "corvint-console: "+format+"\n", args...)
 	os.Exit(1)
 }
 

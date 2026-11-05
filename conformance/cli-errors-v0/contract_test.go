@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
-	"github.com/Beamfall/corvint/internal/cliconformance"
 	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/versionline"
 )
@@ -96,55 +95,8 @@ func TestCAPV07700ShippedHelp(t *testing.T) {
 	}
 }
 
-func TestCLIErrorContracts_ACXV0859(t *testing.T) {
+func TestACXV07707ProtocolWire(t *testing.T) {
 	dir := binaries(t)
-	for _, ref := range capcatalog.TreeReferences() {
-		t.Run(ref.Binary, func(t *testing.T) {
-			binary := filepath.Join(dir, ref.Binary)
-			version := exec.Command(binary, "--version")
-			versionOut, err := version.Output()
-			if err != nil || !strings.Contains(string(versionOut), versionline.Release) || strings.Contains(string(versionOut), "tcp01-unverified") {
-				t.Fatalf("version scheme: %v %s", err, versionOut)
-			}
-			tree, _ := capcatalog.TreeSnapshot(ref.Binary)
-			if tree.AllFlags()["--root"] {
-				cliconformance.Failure(t, binary, []string{"--root"}, 2)
-			}
-			for _, args := range [][]string{{"zz-no-such-command"}, {"--zz-no-such-option"}, {"help", "zz-no-such-topic"}} {
-				wantExit := 2
-				if ref.Binary == "corvint-go-toolchain-receipt" && args[0] == "zz-no-such-command" {
-					wantExit = 1 // This is a positional GOROOT, not a command name.
-				}
-				e := cliconformance.Failure(t, binary, args, wantExit)
-				if wantExit == 1 && e.Code == "unknown-verb" {
-					t.Fatal("positional GOROOT was blocked by verb discovery")
-				}
-				if e.Binary != ref.Binary || e.Help == "" {
-					t.Fatalf("missing binary/help attribution: %+v", e)
-				}
-			}
-		})
-	}
-	for _, tc := range []struct{ binary, typo, want string }{{"corvint", "contxt", "context"}, {"corvint-tasks", "tikcet", "ticket"}} {
-		e := cliconformance.Failure(t, filepath.Join(dir, tc.binary), []string{tc.typo}, 2)
-		if !strings.Contains(e.Error, "did you mean") || !strings.Contains(e.Error, tc.want) {
-			t.Fatalf("typo has no remedy: %+v", e)
-		}
-	}
-	// Plain flag-parser and command errors use the same envelope too.
-	cliconformance.Failure(t, filepath.Join(dir, "corvint-companion-release"), nil, 2)
-	cliconformance.Failure(t, filepath.Join(dir, "corvint-public-release-check"), nil, 2)
-	cliconformance.Failure(t, filepath.Join(dir, "corvint-postmerge-workflow"), []string{"encode-id"}, 2)
-	// CAP-V0-7700: an internal recorder must reach its own closed argument
-	// parser, rather than being blocked as an unknown public command.
-	recorder := cliconformance.Failure(t, filepath.Join(dir, "corvint"), []string{"dogfood-record", "--zz-no-such-option"}, 2)
-	if recorder.Code == "unknown-verb" {
-		t.Fatal("private dogfood recorder was blocked by public discovery")
-	}
-	// Exercise the native serializers too, rather than only common preflight.
-	for _, args := range [][]string{{"test-validity", "--receipt", "/no/such/clicontract-receipt.json"}, {"ocm", "status", "--map", "/no/such/clicontract-map.json"}, {"prove", "--cem", "/no/such/clicontract-map.json"}} {
-		cliconformance.Failure(t, filepath.Join(dir, "corvint"), args, 2)
-	}
 	// ACX-V0-7707: an RPC error with an explicit --root is protocol traffic,
 	// never a CLI failure. The old argv-length escape corrupted this response.
 	root := t.TempDir()
@@ -164,8 +116,6 @@ func TestCLIErrorContracts_ACXV0859(t *testing.T) {
 	if json.Unmarshal(bytes.TrimSpace(rpcOut.Bytes()), &response) != nil || response["jsonrpc"] != "2.0" || response["error"] == nil || response["binary"] != nil {
 		t.Fatalf("RPC error was rewritten: %s", rpcOut.Bytes())
 	}
-	// An isolated initialized queue is supplied by the native fixture in the focused Tasks tests;
-	// the all-binary test also proves codeless serializers are normalized by the shared writer.
 }
 
 func TestCAPV07707MessageCodeLint(t *testing.T) {

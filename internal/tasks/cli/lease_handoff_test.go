@@ -102,11 +102,7 @@ func handoffCLIWithBinary(t *testing.T, root, binary string, args ...string) run
 			t.Fatal(err)
 		}
 	}
-	raw := out.Bytes()
-	if len(raw) == 0 && err != nil {
-		raw = errb.Bytes()
-	}
-	res, e := wire.DecodeResult(raw)
+	res, e := wire.DecodeResult(out.Bytes())
 	if e != nil {
 		t.Fatalf("%v: %v %s %s", args, e, out.Bytes(), errb.Bytes())
 	}

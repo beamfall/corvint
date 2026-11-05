@@ -27,27 +27,18 @@ driving Corvint from scripts.
 
 ## Requirements
 
-- `ACX-V0-7707`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3736)
-  Shipped executables MUST share a process-level CLI failure envelope on stderr: `binary`,
-  nonempty `code`, explanatory string `error`, `help`, and `ok:false`. Structured native refusal
-  fields MUST remain available, including the original immutable-evidence document in `details`;
-  a Tasks native result keeps its profile, codes and warnings as additive fields, and its decoder
-  accepts the additive CLI metadata. Successful documents and protocol-only analyzer/MCP/LSP
-  traffic MUST retain their owned wire shapes. Invalid CLI input, unknown verbs and unknown help
-  topics exit 2; operational refusal exits 1; explicitly invalid native inputs retain exit 2; success exits 0; documented domain advisories retain
-  their exit semantics. Unknown verbs and missing tickets MUST carry a code. A bounded
-  deterministic spelling suggestion MUST name the nearest actual tree command for `contxt` and
-  `tikcet`. Shared conformance tests MUST launch every shipped binary and check error envelope,
-  stream and exit status; lint MUST reject a message equal to its code. The standard-library-only
-  framing and metadata helpers may cross the Tasks boundary only at the explicitly enumerated
-  process/help/version files, and the Tasks source export MUST retain their complete closure.
-  Internal outdated-map consumers MUST compare the exact admitted code and message independent
-  of additional framing fields; other reasons MUST NOT authorize map replacement. The intentional
-  query abstention MUST remain byte-bound under the exact two-rendering QAT-V0-7708 contract;
-  arbitrary envelope normalization MUST NOT widen that exemption.
+- `ACX-V0-7707`: (narrowed by the owner's 2026-11-04 compatibility decision; V1-3736)
+  CLI helpers MUST preserve every existing wire contract: stream ownership, byte rendering,
+  refusal code, error shape and exit status. Existing JSON refusals remain their native envelopes;
+  plain diagnostics MUST pass through byte-for-byte without buffering or duplicated stderr fields.
+  Core keeps its frozen invalid-arguments and help refusals. Tasks keeps its native command result
+  on stdout and its native exit code; its closed result decoder MUST NOT admit added CLI metadata.
+  Offline help MUST NOT introduce a pre-dispatch unknown-verb guard. Protocol traffic retains its
+  owned wire shape. The QAT-V0-001/004 single-rendering abstention contract remains unchanged.
+  This narrow implementation does not deliver V1-3736's proposed universal envelope or exit scheme.
   Tests: `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`,
-  `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess`,
-  `TestACXV07707OutdatedMapEnvelope`, `TestQATV07708SharedCLIEnvelope`.
+  `TestCAPV07707PlainFailurePassesThrough`, `TestCAPV07707MessageCodeLint`,
+  `TestCAPV07707TasksMissingTicketProcess`, `TestACXV07707ProtocolWire`.
 
 
 - **ACX-V0-850:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)
@@ -252,10 +243,6 @@ current source computes, so a stale binary still yields uncertainty, not invente
 Revert the commits naming these requirements; each is local to its ticket's files and no stored
 state depends on them.
 
-| ACX-V0-7707 | `internal/clierror`, `internal/cliconformance`, executable entrypoints and the additive Tasks result decoder | `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`, `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess` |
+| ACX-V0-7707 | `internal/clierror`, native executable entrypoints and refusal compatibility controls | `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`, `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess` |
 
-ACX-V0-7707 supersedes the per-binary process-envelope, stream and unknown-verb exit exceptions
-of ACX-V0-859, ACX-V0-904 and TCL-V0-859. Their in-process protocol serializers retain their
-contracts. The all-binary test now derives its rows from every shipped tree. No new network,
-service, Tasks mutation or ranking authority is introduced. Rollback restores the former process
-writers and their per-binary conformance rows together; persisted records need no migration.
+ACX-V0-7707 preserves the pre-existing per-binary process-envelope, stream and exit contracts.

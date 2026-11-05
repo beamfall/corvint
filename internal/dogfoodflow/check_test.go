@@ -44,7 +44,7 @@ func TestAggregateStrictQueryAbstentionNativeReplay(t *testing.T) {
 	args := []string{"query", "--task", task, "--limit", "1"}
 	runner := Runner{Path: binary}
 	observed, err := runAggregateVerifier(context.Background(), runner, root, args)
-	if err != nil || observed.status != 2 || len(observed.stdout) != 0 || !admittedQueryAbstention(observed.stderr) {
+	if err != nil || observed.status != 2 || len(observed.stdout) != 0 || string(observed.stderr) != queryAbstentionEnvelope {
 		t.Fatalf("actual query: %+v %v", observed, err)
 	}
 	argv := []byte(strings.Join(append([]string{binary, "--root", root}, args...), "\x00") + "\x00")

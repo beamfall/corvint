@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
-	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/clitree"
 	"github.com/Beamfall/corvint/internal/companioncli"
 )
@@ -23,10 +22,6 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 		return 0, false
 	}
 	rest := args
-	if len(rest) > 0 && rest[0] == "--root" && (len(rest) < 2 || strings.HasPrefix(rest[1], "-")) {
-		clierror.Write(stderr, binary, "invalid-arguments", "--root needs a directory value; use --root DIR.", nil)
-		return 2, true
-	}
 
 	// Only the shared root-directory preamble consumes a following argument.
 	for len(rest) > 0 {
@@ -39,25 +34,6 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 			continue
 		}
 		break
-	}
-	if len(rest) > 1 && rest[0] == "help" && clitree.OperationWord(rest[1]) && rest[1] != "guide" {
-		if _, found := tree.Find([]string{rest[1]}); !found {
-			clierror.Write(stderr, binary, "unknown-help-topic", "Unknown help topic "+rest[1]+"; run "+binary+" --help.", nil)
-			return 2, true
-		}
-	}
-	if len(rest) > 0 && strings.HasPrefix(rest[0], "-") && rest[0] != "--help" && rest[0] != "-h" {
-		flag := strings.SplitN(rest[0], "=", 2)[0]
-		known := tree.AllFlags()
-		if !known[flag] && !(strings.HasPrefix(flag, "-") && !strings.HasPrefix(flag, "--") && known["-"+flag]) {
-			clierror.Write(stderr, binary, "invalid-arguments", "Unknown option "+flag+"; run "+binary+" --help.", nil)
-			return 2, true
-		}
-	}
-	if len(rest) > 0 && rest[0] != "help" {
-		if exit, handled := clitree.RefuseIfUnknownVerb(tree, rest, stderr); handled {
-			return exit, true
-		}
 	}
 	if tree.Source != "companion root contract" {
 		// Preserve authored topic detail after a uniform node synopsis. Only exact

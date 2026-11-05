@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/cliapp"
-	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"math/big"
 	"os"
@@ -1808,10 +1807,7 @@ func main() {
 	defer cancel()
 	ctx, release := adapterHostKillContext(signalled, os.Args[1:], adapterProcessStart)
 	defer release()
-	streams := &clierror.Streams{Binary: "corvint", Out: os.Stdout, Err: os.Stderr}
-	defer streams.Finish()
-	status := runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, streams.Stdout(), streams.Stderr(), os.LookupEnv)
-	exitProcess(streams.Status(status))
+	exitProcess(runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
 }
 
 // sharedIndexedContextFromEnvironment enables the shared bracket only under

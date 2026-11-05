@@ -1,16 +1,16 @@
 # CLI error and help conformance
 
-`contract_test.go` builds every shipped `cmd/` binary and derives its inventory from the
-committed command trees, with no per-binary exemptions or hand-maintained rows. It launches
-every public node with both help spellings, checks offline usage/required inputs/examples,
-pins catalog parity, and requires one coded explanatory stderr refusal with exit 2 for
-unknown verbs, unknown flags and unknown help topics. It also exercises native Core/Tasks
-and plain companion failures, shared version lines, typo suggestions and message/code lint.
+`contract_test.go` builds every shipped `cmd/` binary and launches every public node with
+both help spellings, checking offline usage, required inputs, examples, catalog parity and
+shared version lines (CAP-V0-7700). It also checks protocol wire preservation and the opt-in
+message/code lint.
 
-CAP-V0-7700 and ACX-V0-7707 supersede the earlier per-binary refusal exceptions. Structured
-native error evidence is retained; successful JSON help and analyzer/MCP protocols keep their
-owned shapes. Builds disable VCS stamping so the existing confined source-read scope is enough.
+`native_contract_test.go` retains the existing per-binary refusal oracle (ACX-V0-859/904,
+TCL-V0-859). Core keeps its argparse-compatible refusal; Tasks keeps its native stdout
+result and exit 1; companions keep their owned JSON or text refusal and status. Newly
+cataloged single-mode binaries keep their positional parsers and package-owned checks.
+ACX-V0-7707 preserves these contracts, including exact JSON shapes and plain diagnostics.
 
 ```sh
-script/heavy.sh go test -count=1 -run '^(TestCAPV0(7700|7707)|TestCLIErrorContracts_ACXV0859)' ./conformance/cli-errors-v0
+script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -run Test ./conformance/cli-errors-v0
 ```

@@ -11,15 +11,7 @@ import (
 
 const queryAbstentionReason = "authority-start-trace-state-abstention"
 const queryAbstentionEnvelope = "{\"code\": \"unsupported-query-trace-state\", \"error\": \"native Go authority-start query requires an absent clean-tree local trace store\", \"ok\": false}\n"
-
-// QAT-V0-7708 admits precisely the shared CLI rendering of the legacy refusal,
-// not arbitrary metadata or JSON encodings. Raw receipts remain byte-pinned.
-const queryAbstentionSharedEnvelope = "{\"binary\":\"corvint\",\"code\":\"unsupported-query-trace-state\",\"details\":{\"code\":\"unsupported-query-trace-state\",\"error\":\"native Go authority-start query requires an absent clean-tree local trace store\",\"ok\":false},\"error\":\"native Go authority-start query requires an absent clean-tree local trace store\",\"help\":\"corvint --help\",\"ok\":false}\n"
 const queryStep = "coordination-time-query"
-
-func admittedQueryAbstention(stderr []byte) bool {
-	return string(stderr) == queryAbstentionEnvelope || string(stderr) == queryAbstentionSharedEnvelope
-}
 
 // coordinationQuery preserves the original task bytes. Only the intentional
 // authority-start refusal qualifies; another error with the same code does not.
@@ -48,7 +40,7 @@ func (c *change) coordinationQuery(task string) {
 		failed()
 		return
 	}
-	if status != 2 || len(stdout) != 0 || !admittedQueryAbstention(stderr) {
+	if status != 2 || len(stdout) != 0 || string(stderr) != queryAbstentionEnvelope {
 		reason := failureReason(stderr, status)
 		if reason == queryAbstentionReason {
 			reason = "query-abstention-invalid"
@@ -193,19 +185,15 @@ func (c *check) checkQueryAbstention(report []byte) (string, bool) {
 	}
 	argv, stdout, stderr, artifact := files[0], files[1], files[2], files[3]
 	task, ok := queryTask(argv, c.root)
-	if !ok || len(stdout) != 0 || !admittedQueryAbstention(stderr) || digest != "sha256:"+sha256Hex(artifact) || !bytes.Equal(artifact, queryAbstentionArtifact(argv, task, c.base, c.target, stdout, stderr)) {
+	if !ok || len(stdout) != 0 || string(stderr) != queryAbstentionEnvelope || digest != "sha256:"+sha256Hex(artifact) || !bytes.Equal(artifact, queryAbstentionArtifact(argv, task, c.base, c.target, stdout, stderr)) {
 		fail()
 	}
 	return task, true
 }
 
 func (c *check) verifyQueryAbstention(task string) {
-	args := []string{"query", "--task", task, "--limit", "1"}
-	base, tree := c.verifyPair(false, args...)
-	valid := func(result verification) bool {
-		return result.status == 2 && len(result.stdout) == 0 && admittedQueryAbstention(result.stderr)
-	}
-	if !valid(base) || !valid(tree) || (c.options.Override != nil && !valid(c.verify(*c.options.Override, args...))) {
+	result, agreed := c.verifyAll(false, "query", "--task", task, "--limit", "1")
+	if !agreed || result.status != 2 || len(result.stdout) != 0 || string(result.stderr) != queryAbstentionEnvelope {
 		c.fail("verifier-disagreement")
 	}
 	c.say("dogfood-check: NOTE %s NOT_PRODUCED %s\n", queryStep, queryAbstentionReason)

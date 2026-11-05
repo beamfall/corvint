@@ -100,11 +100,7 @@ func psrBinaryCall(t *testing.T, root string, args ...string) *wire.Result {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	raw := out.Bytes()
-	if len(raw) == 0 && err != nil {
-		raw = stderr.Bytes()
-	}
-	result, decode := wire.DecodeResult(raw)
+	result, decode := wire.DecodeResult(out.Bytes())
 	if decode != nil {
 		t.Fatalf("binary %v %v %s %s", err, decode, out.Bytes(), stderr.Bytes())
 	}

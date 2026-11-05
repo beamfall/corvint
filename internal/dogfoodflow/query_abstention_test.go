@@ -9,51 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/clierror"
 )
-
-func TestQATV07708SharedCLIEnvelope(t *testing.T) {
-	var shared bytes.Buffer
-	streams := clierror.Streams{Binary: "corvint", Out: io.Discard, Err: &shared}
-	io.WriteString(streams.Stderr(), queryAbstentionEnvelope)
-	streams.Status(2)
-	runner := Runner{Path: "/independently-selected-test-verifier", Run: func(_ context.Context, _ string, _ []string, _ io.Writer, stderr io.Writer) int {
-		_, _ = stderr.Write(shared.Bytes())
-		return 2
-	}}
-	c, k, task := queryFixture(t)
-	c.options.Steps = runner
-	c.rows = nil
-	c.coordinationQuery(task)
-	if !c.complete() || c.queryAbstentionSHA == "" {
-		t.Fatal("canonical shared envelope must retain the intentional abstention")
-	}
-	if !bytes.Equal(readFile(c.evidence+"/"+queryStep+".stderr"), shared.Bytes()) {
-		t.Fatal("raw shared stderr was rewritten")
-	}
-	k.options.TreeVerifier, k.options.Override = runner, &runner // Base still emits legacy bytes.
-	if code := queryCheckCode(k, queryReport(c), true); code != 0 {
-		t.Fatalf("legacy/shared independent replay refused: %d", code)
-	}
-	for _, bad := range []string{
-		shared.String() + "extra\n",
-		strings.Replace(shared.String(), `"binary":"corvint"`, `"binary":"other"`, 1),
-		strings.Replace(shared.String(), `"ok":false`, `"ok":false,"ok":false`, 1),
-		strings.Replace(shared.String(), `"details":{`, `"extra":true,"details":{`, 1),
-		strings.ReplaceAll(shared.String(), "requires an absent clean-tree local trace store", "cannot read corrupt trace store"),
-		strings.TrimSuffix(shared.String(), "\n"),
-	} {
-		badRunner := Runner{Run: func(_ context.Context, _ string, _ []string, _ io.Writer, stderr io.Writer) int {
-			io.WriteString(stderr, bad)
-			return 2
-		}}
-		k.options.Override = &badRunner
-		if code := queryCheckCode(k, queryReport(c), true); code != 1 {
-			t.Fatalf("noncanonical shared refusal admitted: %q code=%d", bad, code)
-		}
-	}
-}
 
 func queryFixture(t *testing.T) (*change, *check, string) {
 	t.Helper()

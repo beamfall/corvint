@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cliconformance"
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -64,10 +63,11 @@ func TestTCLV07704ReadPapercuts(t *testing.T) {
 	})
 }
 
+// ACX-V0-7707: native Tasks refusal keeps stdout, exit 1 and its owned result.
 func TestCAPV07707TasksMissingTicketProcess(t *testing.T) {
 	r, _, _ := papercutRepo(t)
-	e := cliconformance.Failure(t, cli.CompiledTasksBinary(t), []string{"--root", r.Root, "ticket", "show", "NOPE-9999"}, 2)
-	if e.Code == "" || !strings.Contains(e.Error, "does not exist") {
-		t.Fatalf("missing ticket: %+v", e)
+	result := handoffCLIWithBinary(t, r.Root, cli.CompiledTasksBinary(t), "--root", r.Root, "ticket", "show", "NOPE-9999")
+	if result.code != 1 || len(result.stderr) != 0 || !strings.Contains(string(result.stdout), "does not exist") {
+		t.Fatalf("native refusal: %+v", result)
 	}
 }

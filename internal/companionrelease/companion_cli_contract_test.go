@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/companioncli"
 )
 
@@ -132,20 +131,17 @@ func TestCAPV0701CompanionsRefuseStrayArgumentsFirst(t *testing.T) {
 	bin := buildContractCompanions(t)
 	outside := t.TempDir()
 	code, stdout, stderr := runContractCompanion(t, filepath.Join(bin, "corvint-console"), outside, "-addr", "127.0.0.1:0", "help", "--json", "extra")
-
-	var refusal clierror.Envelope
-	if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &refusal) != nil || !strings.Contains(refusal.Error, `unexpected argument "help"`) || strings.Contains(refusal.Error, "Git repository") {
+	if code != 2 || stdout != "" || !strings.Contains(stderr, `unexpected argument "help"`) || strings.Contains(stderr, "Git repository") {
 		t.Fatalf("console stray positional: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	code, stdout, stderr = runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "bogus")
-	if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &refusal) != nil || refusal.Code != "unknown-verb" || refusal.Error != `unknown command "bogus"` {
+	if code != 2 || stdout != "" || stderr != `{"binary":"corvint-update","code":"unknown-verb","error":"unknown command \"bogus\"","help":"corvint-update --help","ok":false}`+"\n" {
 		t.Fatalf("update unknown action: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	code, stdout, stderr = runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside)
-	if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &refusal) != nil || !strings.Contains(refusal.Error, "usage: corvint-update") {
-		t.Fatalf("update missing action: exit %d stdout %q stderr %q", code, stdout, stderr)
+	if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "usage: corvint-update") {
+		t.Fatalf("update without an action: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
-
 	_, usage, _ := runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "--help")
 	for _, word := range []string{"check", "apply", "rollback", "--allow-network", "--component core|tasks"} {
 		if !strings.Contains(usage, word) {

@@ -180,7 +180,7 @@ evidence stays visible and is never converted into a pass
 (`docs/SPEC-DRIVEN-DEVELOPMENT.md:167@ef8f012f`).
 
 **Declared variants.** Used throughout the specification index and candidate profiles as a delivery
-state (`docs/specs/README.md:14,15,21,24,36,44,46@06773b23`;
+state (`docs/specs/README.md:14,15,21,24,36,44,46@874566fb`;
 `docs/specs/analyzer-candidate-profiles.md:444@57f8e367`;
 `docs/specs/analyzer-candidate-profiles.md:542@6424bf91`). It is also used once for a metric denominator
 — a zero positive denominator is `NOT_RUN`
