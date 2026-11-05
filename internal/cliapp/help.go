@@ -14,6 +14,24 @@ import (
 // Answer serves migrated companion help before any protocol, repository or server starts.
 // Existing command-tree producers continue to use their authored help implementations.
 func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) {
+	// Preserve the native help of the folded test command and its compatibility
+	// shims. The shims can still expose their offline command-tree catalog.
+	if binary == "corvint-test" {
+		return 0, false
+	}
+	switch binary {
+	case "corvint-test-runner", "corvint-behavior-falsify", "corvint-playwright-minimize", "corvint-tests-accept":
+		catalog := len(args) == 2 && args[0] == "help" && (args[1] == "--json" || args[1] == "--tree")
+		version := len(args) > 0 && args[0] == "--version"
+		if !catalog && !version {
+			return 0, false
+		}
+	}
+	// Analyzer versions are protocol receipts or native refusal frames, with
+	// exact bytes and argv rules owned by each analyzer.
+	if strings.HasPrefix(binary, "corvint-analyzer-") && len(args) > 0 && args[0] == "--version" {
+		return 0, false
+	}
 	if len(args) > 0 && args[0] == "--version" && binary != "corvint" && binary != "corvint-tasks" {
 		return companioncli.Answer(companioncli.Spec{Binary: binary, Version: companioncli.ExperimentalVersion}, args, stdout)
 	}

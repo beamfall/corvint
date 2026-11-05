@@ -25,11 +25,21 @@ cannot silently go missing or outlive its command.
 
 ## Requirements
 
-- `CAP-V0-7700`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685)
+- `CAP-V0-7700`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685; partially withdrawn 2026-11-04: native import-boundary and help compatibility)
   Every shipped `cmd/` binary MUST have an offline command-tree catalog, including a root node
   for single-mode tools and the protocol-only analyzers; the CLI ratchet MUST be empty. Every
-  public node at every depth MUST answer `--help` and `-h`, exit 0, and expose its own usage,
-  flags, required inputs and example before any stdin, repository, listener or network access.
+  public node at every depth, except the native compatibility paths below, MUST answer `--help`
+  and `-h`, exit 0, and expose its own usage, flags, required inputs and example before any stdin,
+  repository, listener or network access.
+  Partially withdrawn by the owner's 2026-11-04 scope trim: process-level help and catalog
+  interception for `corvint-analyzer-rust` is withdrawn because RAC import-boundary tests require
+  its isolated native closure. Its offline tree remains available through the Core catalog.
+  The extra synopsis for `corvint-test` and generated plain help for `corvint-test-runner`,
+  `corvint-behavior-falsify`, `corvint-playwright-minimize` and `corvint-tests-accept` are withdrawn
+  because they change existing nested-help and folded compatibility bytes. These paths MUST
+  retain native help; the four shims retain their offline `help --json` and `help --tree` catalogs.
+  The universal shipped-help conformance claim is withdrawn for these paths; its existing
+  assertions remain unchanged and do not establish acceptance of this narrowed delivery.
   Root `corvint help --json`, `llms.txt` and the gated full-node table in `docs/CAPABILITIES.md`
   MUST link all trees and public nodes. The dispatch/flag/MCP inventory MUST remain code-derived;
   synthetic omissions of a command, option, binary or MCP tool MUST fail the required Go drift
@@ -51,9 +61,13 @@ cannot silently go missing or outlive its command.
   bracketed-option and flag-only forms unchanged. This freezes the already implemented
   CAP-V0-972 behavior. Test: `TestCAPV07701PulseRequiredPreamble` and
   `TestCAPV0972RequiredLeadingOptions`.
-- `CAP-V0-7702`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3738)
-  Core and every companion MUST use the release line pinned by `VERSION`, with its common
+- `CAP-V0-7702`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3738; partially withdrawn 2026-11-04: native analyzer version/descriptor compatibility)
+  Core and non-analyzer companions MUST use the release line pinned by `VERSION`, with its common
   development prerelease suffix for unreleased companions and the existing Tasks build stamp.
+  Partially withdrawn by the owner's 2026-11-04 scope trim: the common version override for
+  `corvint-analyzer-*` is withdrawn because native version/descriptor tests require the original
+  protocol receipts and argv refusal behavior. Analyzer `--version` invocations MUST reach their
+  native parser unchanged. `corvint-test` also retains its native entrypoint behavior.
   `make install-local LOCAL_BIN_DIR=DIR` MUST build and install every native `cmd/` executable,
   including `corvint-test`, to the selected PATH directory through the atomic bounded local
   installer. Its `--all SOURCE_DIR DEST_DIR` mode MUST validate all source executables before
@@ -409,7 +423,8 @@ cannot silently go missing or outlive its command.
   (`CLI-RATCHET.tsv` keeps them); per-subcommand help. Falsifier: a companion that starts work,
   exits non-zero or writes stderr on one of the five forms.
   CAP-V0-7700 supersedes the legacy `corvint-companion-help/0` root help document with the universal
-  command tree; CAP-V0-7702 supersedes the independent `0.1.0-experimental` release line.
+  command tree except for its withdrawn compatibility paths; CAP-V0-7702 supersedes the
+  independent `0.1.0-experimental` release line except for native analyzers.
   The two version forms retain their shape.
 - `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended by
   ACX-V0-904) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
@@ -668,7 +683,7 @@ help calls required only in prose is not listed (as CAP-V0-023). A derived examp
 invocation the first synopsis allows, with placeholders, so it is runnable only after the
 placeholders are filled. A node's help is the authored topic when one exists, so a topic that
 documents several subcommands answers each of them with its whole text and a pointer, not a
-per-subcommand page. CAP-V0-7700 now places an exact node synopsis before authored detail at the process boundary and covers every former ratchet binary. The full-node table is compared byte-for-byte at every depth; nested fixed-position branches also retain their complete route, so reusing a known word cannot hide that route. A help change in any lane changes a snapshot, so a merge that changes
+per-subcommand page. CAP-V0-7700 places an exact node synopsis before authored detail except on its withdrawn compatibility paths, and inventories every former ratchet binary. The full-node table is compared byte-for-byte at every depth; nested fixed-position branches also retain their complete route, so reusing a known word cannot hide that route. A help change in any lane changes a snapshot, so a merge that changes
 help without regenerating fails CAP-V0-045 until `make capability-catalog` is rerun. `llms.txt` is
 checked for the views it names, not for the prose around them.
 
