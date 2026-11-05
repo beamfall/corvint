@@ -49,6 +49,7 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `gate history` MUST accept the same queue-local ticket token as `ticket show`. Terse
   `ticket progress --help` MUST identify all required payload keys, their nullability and the
   closed phase enum; invalid phases MUST name the enum. Test: `TestTCLV07704ReadPapercuts`.
+
 ### Tasks store and read-path repairs (2026-11-04)
 
 - `TCL-V0-7205`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3903) A valid journaled fixture with at least 420 tickets MUST remain readable by ticket show at both ends of the inventory. Fixture receipts MUST respect the existing inline post count cap by splitting posts into bounded receipts; no valid post is silently truncated and no cursor is needed when the complete show result fits. An oversized invalid receipt remains a named refusal.

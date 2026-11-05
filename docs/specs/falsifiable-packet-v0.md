@@ -794,10 +794,10 @@ above stands with that substitution.
   (`internal/contextindex/index.go:321@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1129@a1c6494d`, `cmd/corvint/index_snapshot.go:110@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1112-1114@d473eb95`, `cmd/corvint/main.go:1451-1466@501b9e1b`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:97-99@5f8b0e86`, `cmd/corvint/index_snapshot.go:62-64@01cf3343`) at `cmd/corvint/main.go:1487-1488@c39315fe` and
+  (`cmd/corvint/prove.go:1112-1114@d473eb95`, `cmd/corvint/main.go:1453-1468@501b9e1b`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/index_snapshot.go:97-99@5f8b0e86`, `cmd/corvint/index_snapshot.go:62-64@01cf3343`) at `cmd/corvint/main.go:1489-1490@c39315fe` and
   `cmd/corvint/harness_context.go:73-74@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:445-447@cb623283`, called at
-  `cmd/corvint/main.go:1480@33d39726`; `BuildEval`, `internal/contextindex/index.go:347-348@b1c33c59`, called at `cmd/corvint/harness_context.go:71@4dbd8b14`) on a miss — so plain
+  `cmd/corvint/main.go:1482@33d39726`; `BuildEval`, `internal/contextindex/index.go:347-348@b1c33c59`, called at `cmd/corvint/harness_context.go:71@4dbd8b14`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)
