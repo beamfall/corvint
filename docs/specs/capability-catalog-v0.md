@@ -60,6 +60,17 @@ cannot silently go missing or outlive its command.
   `TestCAPV07700RootInputs`, `TestCAPV07700UnauthoredInputsRefused`,
   `TestCAPV07700RootPositionalInput`.
 
+  Verifier repair 1 (2026-11-05): process help for the twelve remaining analyzers is
+  PARTIAL. Their CLI wrappers are reverted to BASE because ACP-009's frozen reachable-source
+  ceilings, the shader ambient-channel guard and the structured-data source digest prohibit
+  that integration. Their offline Core trees remain delivered. The existing generated-help
+  assertions are retained unchanged; they do not constitute passing evidence for these twelve
+  paths. Promotion requires an owner-authorized solution to those frozen compatibility bounds.
+  The web-flows observer embeds only its own generated tree, copied by the catalog generator
+  and checked against the global snapshot by `TestCAPV07700ShippedHelp`, so unrelated catalog
+  data does not rebuild the binary consumed by its otherwise unselected Node drivers
+  (AFP-V0-762). No global binary-consumer uncertainty is suppressed.
+
 
 - `CAP-V0-7701`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3781)
   Synopsis preambles MUST accept required leading option/value pairs, including
@@ -81,6 +92,10 @@ cannot silently go missing or outlive its command.
   binary; unrelated historical `.bak-*` files MUST NOT be deleted as if updater-owned.
   Tests: `TestTCLV07703ReleaseLine`, `TestTCLV07703CompleteBoundedInstall`,
   `TestCLIErrorContracts_ACXV0859` (all binary launches).
+
+  Verifier repair 1 (2026-11-05): Core retains the literal release constant required by
+  PUB-V0-001's existing tuple check; `VERSION` and that check bind its equality to the shared
+  release line. Companion version metadata continues to use `internal/versionline`.
 - `CAP-V0-7706`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3277)
   The full-node table in `docs/CAPABILITIES.md` MUST include each `corvint-tasks` verb and nested
   verb, with its purpose, minimal example, exact help command and machine catalog link. The

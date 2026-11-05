@@ -2,23 +2,13 @@
 package main
 
 import (
-	"github.com/Beamfall/corvint/internal/cliapp"
-	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 
 	"github.com/Beamfall/corvint/internal/analyzerruby"
 )
 
-func main() {
-	streams := &clierror.Streams{Binary: "corvint-analyzer-ruby", Protocol: true, Out: os.Stdout, Err: os.Stderr}
-	defer streams.Finish()
-
-	if code, handled := cliapp.Answer("corvint-analyzer-ruby", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
-		os.Exit(streams.Status(code))
-	}
-	os.Exit(streams.Status(run(os.Args[1:], os.Stdin, streams.Stdout())))
-}
+func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout)) }
 
 // run deliberately owns only inherited standard streams. It opens no caller
 // path and the analyzer itself has no ambient filesystem, process, or network

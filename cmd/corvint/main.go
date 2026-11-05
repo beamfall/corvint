@@ -23,13 +23,13 @@ import (
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/observations"
-	"github.com/Beamfall/corvint/internal/versionline"
 	"github.com/Beamfall/corvint/internal/worktreeimpact"
 
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-const version = versionline.Release
+// PUB-V0-001 keeps this literal synchronized with VERSION.
+const version = "1.0.0-rc.3"
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 

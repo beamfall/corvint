@@ -69,6 +69,10 @@ func main() {
 		encoded, err := clitree.Encode(tree)
 		must(err)
 		must(os.WriteFile(dest, encoded, 0644))
+		if binary == "corvint-web-flows" {
+			// Its Node consumers must not rebuild for unrelated global catalog data.
+			must(os.WriteFile("cmd/corvint-web-flows/help.json", encoded, 0644))
+		}
 	}
 }
 

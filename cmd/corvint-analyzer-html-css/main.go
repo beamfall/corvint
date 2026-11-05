@@ -3,23 +3,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/Beamfall/corvint/internal/cliapp"
-	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 
 	"github.com/Beamfall/corvint/internal/analyzerhtmlcss"
 )
 
-func main() {
-	streams := &clierror.Streams{Binary: "corvint-analyzer-html-css", Protocol: true, Out: os.Stdout, Err: os.Stderr}
-	defer streams.Finish()
-
-	if code, handled := cliapp.Answer("corvint-analyzer-html-css", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
-		os.Exit(streams.Status(code))
-	}
-	os.Exit(streams.Status(run(os.Args[1:], os.Stdin, streams.Stdout())))
-}
+func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout)) }
 
 // run returns 1 only when the frame cannot be written in full (ACP-011).
 func run(args []string, stdin *os.File, stdout io.Writer) int {
