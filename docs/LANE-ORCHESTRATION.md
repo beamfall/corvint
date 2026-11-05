@@ -120,6 +120,14 @@ including one added after the listing. Run one shard per command. Placement is n
 on 2026-10-21 (load 16-170) the slowest store shard took 447 s and the slowest cli shard 154 s. A
 shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` adds `go test` flags.
 
+V1-4081 / ASD-V0-026: do not put Go test executables under noexec `/dev/shm`.
+Use an executable writable `TMPDIR` (for example a private directory under the user cache;
+`/var/tmp` only where writable). The eight store commands above are the supported split,
+not one whole-package call with Go's implicit 600-second timeout. `make host-adapter-node-test`
+is a separate Node-only qualification: at the mixbugs base Opencode passed 55/55 tests;
+Pi passed 134 of 135 with one intentional skip and zero failures. That observed pass refutes a persistent failure at this
+base; it does not retroactively pass an earlier host run.
+
 The other way round, `script/heavy-groups.sh [--budget 480] PACKAGE...` packs several small
 packages into as few commands as fit the budget (ASD-V0-832). It reads each package's latest
 completed whole-package `run=` seconds from the heavy.sh selection log and prints one group per

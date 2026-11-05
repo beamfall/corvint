@@ -119,7 +119,7 @@ and explicit source inspection where the current test has no assertion.
 | EPG-V0-006 | cases 2 and 3 require one named failing path; `NO TEST` covers multiple paths, simultaneous drift groups, the exact headings, or exit status 1 rather than merely non-zero |
 | EPG-V0-007 | source inspection of `script/check-eol-policy.sh:34-59`; `NO TEST` forces Git start/close failure, an unparsable record, or observes repository writes |
 | EPG-V0-008 | `script/check-eol-policy_test.sh:31-38` requires the clean summary and case 4 requires the exempt count; the live gate passed at `1c951c53` with 3064 tracked paths and 2 exemptions |
-| EPG-V0-009 | `Makefile:488-494@ac6cc390` declares the targets phony, `Makefile:93-94@5d1b258a` enrolls both in `gate`; `Makefile:87-95` invokes the two scripts |
+| EPG-V0-009 | `Makefile:490-496@ac6cc390` declares the targets phony, `Makefile:94-95@5d1b258a` enrolls both in `gate`; `Makefile:87-95` invokes the two scripts |
 
 ## Traceability
 
@@ -133,7 +133,7 @@ and explicit source inspection where the current test has no assertion.
 | EPG-V0-006 | accumulated diagnostics and exit 1 in `script/check-eol-policy.sh:61-74` | `script/check-eol-policy_test.sh:40-65` for one path per drift class; `NO TEST` for multiple/simultaneous drift or exact status 1 |
 | EPG-V0-007 | Git open/close and parse failures in `script/check-eol-policy.sh:34-59` | `NO TEST`; code inspection only |
 | EPG-V0-008 | success summary in `script/check-eol-policy.sh:76` | `script/check-eol-policy_test.sh:31-38` and `script/check-eol-policy_test.sh:69-78`; live policy check at `1c951c53` |
-| EPG-V0-009 | `eol-policy-check` and `eol-policy-test` recipes and gate membership in `Makefile:93-94@5d1b258a`, `Makefile:488-494@ac6cc390` and `Makefile:87-95` | `script/check-eol-policy_test.sh`; Makefile inspection |
+| EPG-V0-009 | `eol-policy-check` and `eol-policy-test` recipes and gate membership in `Makefile:94-95@5d1b258a`, `Makefile:490-496@ac6cc390` and `Makefile:87-95` | `script/check-eol-policy_test.sh`; Makefile inspection |
 
 ## Rollout, rollback, and drift
 
