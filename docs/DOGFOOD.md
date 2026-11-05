@@ -23,7 +23,7 @@ changes"). They read the inputs below from the environment, need no script, `VER
 toolchain or `rg`, and use the running binary for every step and verifier. A subdirectory refuses
 `not-repository-root` (`DCW-V0-021`). Before the first pass, ignore the private outputs and the
 local trace store (`DCW-V0-023`); without them the worktree is dirty or the recorder refuses
-`repository-identity-changed`. The entries, in `.gitignore` or `.git/info/exclude`, are:
+`repository-identity-changed`. Also ignore `.corvint/.claims-*.tmp` for atomic check-report staging (`DCW-V0-7409`); the other entries, in `.gitignore` or `.git/info/exclude`, are:
 
 ```text
 .corvint/dogfood-report.json

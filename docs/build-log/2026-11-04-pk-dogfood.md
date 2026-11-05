@@ -272,3 +272,34 @@ reconstructed as keyed observations. Independent review remains with the orchest
 The lane handback retains the complete raw reports, comparison program/JSON, exact commands,
 build metadata, earlier cancelled trials and every NOT_PRODUCED reason. The final CEM/check
 receipt follows this committed measurement record; no lane seal is performed.
+
+
+## Native final-check publication blocker
+
+The first final check at `37db224dfc6f1853451db4ebe0ff735bd8e84ee3` failed
+`dogfood-report-write` despite writable report paths. The checker staged under the
+worktree’s private Git directory, then renamed into the worktree. A bounded probe
+confirms `EXDEV` (errno 18): these writable sandbox roots are different mounts.
+The generic permissions recovery hid the actual publication error. The original report
+was intact; the failed check and probe remain retained.
+
+`DCW-V0-7409` reuses the existing owner-only same-directory atomic publisher instead
+of assuming the Git and worktree mounts are the same. Its temporary `.claims-*.tmp`
+family is ignored and documented; normal failures remove it and preserve the old
+artifact. The check retains its existing failure code and stderr text under the finish charter’s freeze.
+A portable regression makes Git staging unavailable and requires successful publication;
+a failure case verifies preserved destination contents and temporary-file cleanup.
+The final native check qualifies the actual split mounts. No verifier gate is weakened.
+The guarding algorithm blobs are unchanged; the recorded-pair measurements remain bound
+to those exact blobs, and are not rerun for this report-publication repair.
+
+
+## Finish-only disposition
+
+The finish round keeps the already-started destination-mount publication repair and
+its preservation/cleanup regressions. It drops the unfinished extra stderr cause line
+because this lane freezes diagnostic text. No new feature or guarding measurement is
+started. Existing committed pair measurements remain the qualification evidence;
+whole-package tests and a bounded CEM bind/check finish this round. Independent review
+and native ticket completion remain with the orchestrator. Native Windows execution
+remains externally blocked as recorded above.

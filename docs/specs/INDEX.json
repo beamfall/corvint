@@ -4399,7 +4399,7 @@
     "reqPrefix": "DCW-V0",
     "intent": "accepted under the owner's standing auto-accept (2026-10-11)",
     "delivery": "implemented",
-    "claim": "A citation-plan precheck names every refused row and its CEM reason before binding.",
+    "claim": "Dogfood authoring, receipt admission, citation plans and report publication fail with actionable evidence.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
