@@ -472,6 +472,12 @@ func (c *collector) observe(dir, spec string) ([]Observation, string) {
 			return nil, e.Name() + ": " + err.Error()
 		}
 		for _, s := range d.Result {
+			// LPCV-V0-8301: Node dumps carry no source/provenance for an
+			// anonymous script. Keep this collection limit explicit, matching
+			// the browser hook's existing anonymous-script boundary.
+			if s.URL == "" {
+				continue
+			}
 			if runner {
 				// The runner's processes run test code transpiled by the
 				// runner, whose offsets are not offsets into the file; any

@@ -350,6 +350,7 @@
         "corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH",
         "corvint [--root PATH] affected [--full | --summary] [--require-clean] --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --playwright-config PATH [--playwright-discovery FILE] [--playwright-env NAME[=VALUE] ...]",
+        "corvint [--root PATH] affected --ownership-audit",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD [--provider RECORD ...] [--provider-command ARGV_JSON ...] [--repository ID=DIR ...] [--selection-profile strict|coverage]",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider FILE --selection-profile e2e-safe [--playwright-discovery FILE] [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]",
         "corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID --appmap-impact REPORT [--appmap-impact REPORT ...] [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]"
@@ -363,6 +364,7 @@
         "--format",
         "--full",
         "--no-cache",
+        "--ownership-audit",
         "--path",
         "--paths-from",
         "--playwright-config",

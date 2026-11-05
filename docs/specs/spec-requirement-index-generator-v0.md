@@ -88,6 +88,16 @@ No requirement below diverges from the implementation.
 
 - `SRG-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4550) The same-spec conflict-isolation fixture MUST hold README range endpoints stable, since adding a highest requirement legitimately changes the generated README row. The new-spec merge fixture MUST continue to exercise and regenerate README co-edits alongside INDEX.json and REQUIREMENTS.tsv. Phony targets MUST retain one declaration per target.
 
+- `SRG-V0-8202`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1323)
+  Local `doc-gates` and its existing CI invocation MUST refuse lines beginning `<<<<<<< `,
+  exactly `=======` after a matching `<<<<<<< ` opener in the same file, or beginning
+  `>>>>>>> ` in tracked `docs/**`, Go, JSON and script files. A setext `=======` heading
+  underline outside a conflict block MUST pass.
+  Diagnostics MUST name the file and line. Intentional fixtures MAY use exact-file exceptions
+  with reasons beneath `testdata/` or `fixtures/`; source-wide exceptions MUST refuse.
+  Tests: `TestConflictMarkersGate`, `TestConflictMarkersSetextHeading` in `tools/conflict-markers-check`. Rollback: remove the
+  shared target; no source content is rewritten by this read-only gate.
+
 - `SRG-V0-001`: The generator MUST derive its input set from the paths Git reports as tracked
   under `docs/specs/` matching `*.md`, not from a worktree directory listing, so that an untracked
   file contributes no row and a tracked file deleted from the worktree alone still contributes its

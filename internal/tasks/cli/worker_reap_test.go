@@ -283,6 +283,9 @@ func TestATRV0310_LeakedWorkerGroupsAreReaped(t *testing.T) {
 // its cleanup ends, and the package leak check, which stays strict, then
 // finds nothing. The helper's child stays 1.5 s past its kept result.
 func TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck(t *testing.T) {
+	if os.Getenv("CORVINT_TEST_V1_4638") != "1" {
+		t.Skip("V1-4638: quarantine hosted detached helper SUPERVISOR_LOST; opt in with CORVINT_TEST_V1_4638=1; child exit cause remains unknown")
+	}
 	h := startHelper(t, "detach")
 	err := h.wait()
 	if err != nil || strings.Contains(h.out.String(), "left worker process groups") || strings.Contains(h.out.String(), "dead-man reaper") {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Explicit offline qualification: exact Pi 0.99.1 and candidate Core with Pi LCP admission.
 import test from 'node:test';
+import {hostAvailable,hostFile} from './host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from 'node:fs';
@@ -51,6 +52,7 @@ export default function(pi){
 }`;
 
 test('LCP-V0-008 actual Pi one remediation, recursive release, error/abort and queued boundary bypass',async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')&&hostFile(t,process.env.CORVINT_PI_WORKFLOW_BIN)))return;
  const binary=process.env.CORVINT_PI_WORKFLOW_BIN;
  assert.ok(binary&&existsSync(binary),'set CORVINT_PI_WORKFLOW_BIN to the exact candidate Core binary');
  const processModule=resolve(process.env.CORVINT_PI_PROCESS_MODULE??join(here,'process.js'));
