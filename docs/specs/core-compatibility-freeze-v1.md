@@ -457,6 +457,10 @@ no N-1, and each later release's N-1 is the previous release published in it; se
 
 ## Acceptance evidence
 
+- CCF-V1-002 activation fixtures pin author and committer names, emails and dates in their Git
+  subprocess environment. Run `TestCoreVerbsEmitTheFrozenProfiles` with a different exported
+  operator identity; the existing revision and receipt-digest golden assertions must still pass
+  without regenerating any golden.
 - `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching|TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`
   and `GOTOOLCHAIN=local go test -count=1 -run 'TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed' ./internal/contextindex`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
