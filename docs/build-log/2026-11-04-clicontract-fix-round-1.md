@@ -14,8 +14,7 @@ The Tasks result decoder and the three compiled fixture readers are also restore
 base contracts. No goldens or existing dogfood/Core freeze tests are changed.
 
 V1-3736 is PARTIAL: the remaining native refusal compatibility, opt-in lint and offline help
-work does not satisfy its universal JSON stderr/exit-scheme acceptance. The other six tickets
-retain their prior engineering dispositions: V1-2685 (CAP-V0-7700), V1-3781 (CAP-V0-7701),
+work does not satisfy its universal JSON stderr/exit-scheme acceptance. The other six ticket scopes are: V1-2685 (CAP-V0-7700), V1-3781 (CAP-V0-7701),
 V1-3738 (CAP-V0-7702/TCL-V0-7703), V1-3976 (TCL-V0-7704), V1-3938 (LPCV-V0-7705),
 and V1-3277 (CAP-V0-7706). No task-store completion write is authorized.
 
@@ -37,3 +36,22 @@ external outcome evidence remain unproduced or unobserved; passing structural ch
 supply them. No exhaustive gate, publication, seal or Tasks write is authorized. Rollback is
 a revert of this repair; it would reintroduce the reviewed compatibility regressions and must
 not be used to claim the withdrawn acceptance behavior delivered.
+
+The broad package run exposed retained failures outside the seven findings: analyzer version
+and import-closure expectations, corvint-test nested-help expectations, and fixture isolation
+under the read-only parent `/home/russell/lanes/.git`. These are recorded, not repaired by
+changing tests or goldens. Consequently V1-2685 and V1-3738 are NOT MET under this expanded
+validation; the prior handback's blanket DONE assertion is withdrawn. The native provider
+usage smoke, five dogfood regressions, Core refusal/profile goldens, GPK manifest replay and
+Tasks bridge/read/barrier/reader checks pass. Core profile goldens require the disposable test
+process to use its fixture's identity rather than the exported repository commit identity.
+All repository commits and dogfood binds still use Russell Lewis <me@russe11.com>.
+
+The JavaScript provider's process-global cached stdout/stderr aliases also bypassed the
+existing in-process refusal capture. Restoring its original native writers is part of the
+stream-preservation repair; its complete existing package tests now pass unchanged. The
+wrapper's discarded JSON/text normalization is not replaced with another adapter.
+
+The final local outcome is recorded as failed because the broad run retains the failures
+above. A structurally valid CEM and passing dogfood check must not erase that outcome or imply
+that unrelated acceptance failures were fixed. No Tasks write is used to conceal an open ticket.
