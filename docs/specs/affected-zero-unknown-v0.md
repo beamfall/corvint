@@ -3,9 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-11-04
 Requirement prefix: `AZU-V0`
-Intent status: experimental; the owner directed the goal ("figure out how to get the unknown to 0
-safely", owner chat, 2026-11-04), and the orchestrator made the design choices under the owner's
-delegation of 2026-11-02
+Intent status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority, AFP-V0-511
 frontier bearing, AFP-V0-560 terminal rule, AFP-V0-601/602 data readers),
@@ -16,7 +14,7 @@ spec is at its OCM obligation limit, so these requirements take a new prefix.
 
 ## Agent digest
 - Claim: every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.
-- Status: experimental; nothing below is delivered yet.
+- Status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation); delivery experimental.
 - Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
 - Blocked on: nothing; each requirement lands on its own.
 - Read next: User and current state, then the requirement you are implementing.
