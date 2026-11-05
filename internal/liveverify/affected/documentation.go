@@ -209,7 +209,7 @@ const driverInputUnownedHint = "build or CI driver input: every recipe or job it
 func driverInputHints(unknown []Unknown) {
 	for index := range unknown {
 		entry := &unknown[index]
-		if entry.Reason == UnknownUnownedDirtyPath && entry.Hint == "" && driverInput(entry.Detail) {
+		if entry.Reason == UnknownUnownedDirtyPath && entry.Hint == "" && DriverInput(entry.Detail) {
 			entry.Hint = driverInputUnownedHint
 		}
 	}
