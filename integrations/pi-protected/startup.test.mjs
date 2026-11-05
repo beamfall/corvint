@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
+import {hostAvailable,hostFile,missingHost} from '../pi/host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,existsSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -9,6 +10,8 @@ import {run} from './process.mjs';
 const here=dirname(fileURLToPath(import.meta.url));
 const binary=join(here,'build/release/pi-protected'),control=join(here,'build/node');
 test('PPI-V0-002 hardened SEA rejects startup injection with live positive controls',async t=>{
+ if(!(process.platform==='darwin'||missingHost(t,'hardened SEA startup qualification requires Darwin')))return;
+ if(!hostFile(t,binary)||!hostFile(t,control))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-startup-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const data=join(scratch,'data'),home=join(scratch,'home'),marker=join(scratch,'injected'),preload=join(scratch,'preload.cjs');
  mkdirSync(data);mkdirSync(home);

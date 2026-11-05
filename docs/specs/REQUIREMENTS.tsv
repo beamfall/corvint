@@ -5485,6 +5485,8 @@ LPCV-V0-976	docs/specs/live-proof-carrying-verification-v0.md	(experimental unde
 LPCV-V0-977	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-978	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-979	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
+LPCV-V0-8300	docs/specs/live-proof-carrying-verification-v0.md	(experimental, V1-4430; refines LPCV-V0-965 and LPCV-V0-973) Browser and Node V8	unrecorded	-
+LPCV-V0-8301	docs/specs/live-proof-carrying-verification-v0.md	(experimental, V1-4431; refines LPCV-V0-979) Remaining browser collector limits	unrecorded	-
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
@@ -5871,6 +5873,7 @@ MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MCPV0-650	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3705) The `corvint.query`	standing	V1-3705
 MCPV0-630	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3705) A	standing	2026-11-01; V1-3705
+MCPV0-8300	docs/specs/mcp-server-2026-07-28-v0.md	(experimental, V1-3624; refines MCPV0-950) The Claude Code plugin's declared std	unrecorded	-
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	Receipt location contract. The only receipt source MUST be the caller's `receipt	unrecorded	-
@@ -6244,6 +6247,9 @@ PWV-V0-017	docs/specs/pi-workflow-v0.md	The package MUST ship Pi skills through 
 PWV-V0-018	docs/specs/pi-workflow-v0.md	(proposed, V1-2573) An interrupted native Tasks writer dispatch MUST receive a p	unrecorded	-
 PWV-V0-019	docs/specs/pi-workflow-v0.md	(proposed, V1-2573) When every failing reconciliation read refuses with native c	unrecorded	-
 PWV-V0-020	docs/specs/pi-workflow-v0.md	(proposed, V1-2783) A request with empty input MUST give the child `/dev/null` a	unrecorded	-
+PWV-V0-8300	docs/specs/pi-workflow-v0.md	(experimental, V1-4662) The normal Node adapter entry point MUST discover every	unrecorded	-
+PWV-V0-8301	docs/specs/pi-workflow-v0.md	(experimental, V1-4663; refines PWV-V0-004 and PWV-V0-008) Settlement MUST captu	unrecorded	-
+PWV-V0-8302	docs/specs/pi-workflow-v0.md	(experimental, V1-4663; preserves PWV-V0-011) This base's closed Tasks facade MU	unrecorded	-
 PWP-V0-001	docs/specs/playwright-external-provider-v0.md	External mode requires readiness URL and declared app identity, rejects server c	unrecorded	-
 PWP-V0-002	docs/specs/playwright-external-provider-v0.md	A controlled config imports the original, disables webServer and selects the pro	unrecorded	-
 PWP-V0-003	docs/specs/playwright-external-provider-v0.md	Each outcome identifies source location, full title, project name, resolved brow	unrecorded	-

@@ -131,3 +131,18 @@ test('LCP-V0-008 Git identity refuses symlink markers and oversized pointer file
  const f=fixture(t);renameSync(join(f.root,'.git'),join(f.root,'gitdir'));symlinkSync('gitdir',join(f.root,'.git'));
  assert.throws(()=>workflowIdentity(f.ctx));rmSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
 });
+
+// PWV-V0-8301: invalidate after invoke validates, before its caller resumes.
+test('PWV-V0-8301 settlement discards a response cleared between awaits',async t=>{
+ for(const transition of ['clear','input','session_tree','session_start']) {
+  const f=fixture(t),normal=f.runner.run;
+  f.runner.run=req=>normal(req).then(result=>{
+   if(req.args.includes('stop'))queueMicrotask(()=>queueMicrotask(()=>{
+    if(transition==='clear')f.bridge.clear();
+    else f.emit(transition,transition==='input'?{source:'interactive'}:{reason:'reload'});
+   }));
+   return result;
+  });
+  assert.equal(await f.emit('agent_before_settle',f.boundary),undefined,transition);
+ }
+});
