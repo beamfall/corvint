@@ -1927,12 +1927,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   map left); `TestDogfoodFinishLaneDCWV0061StopsOnUniformPlanAndResumes`. Rollback: remove
   `precheckInputs` and `planShape`'s prepare call and return the obligation precheck to the bind
   pass; the bind reports the same reasons as before.
-- `DCW-V0-380`: (experimental under the standing lane auto-accept; V1-2970; amends `DCW-V0-349`)
+- `DCW-V0-380`: (experimental under the standing lane auto-accept; V1-2970; amended under the owner's standing auto-accept (2026-11-04), V1-4648; amends `DCW-V0-349`)
+  The inputs-check prepare pre-flight MUST restore an already tracked CEM sidecar byte-for-byte with its original mode after success, refusal, interruption or receipt reuse, leaving tracked Git status clean. Untracked probe maps remain temporary; CEM artifact verification and the ordinary bind-commit requirement are unchanged. Evidence: `TestDCWV0380InputsCheckPreservesTrackedCEM`.
   `corvint dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE]
   [--outcome VALUE] [--corvint-bin PATH]` MUST run only finish-lane's input checks
   (`DCW-V0-092`, `DCW-V0-378`) and prepare pass (`DCW-V0-379`), print `dogfood-inputs-check:
-  inputs-check PASS nothing was bound or committed` on success, remove the prepared map whether
-  it passes or not, and never bind, commit or seal; from a bind commit it prints `inputs-check
+  inputs-check PASS nothing was bound or committed` on success, remove an untracked prepared map whether
+  it passes or not (restoring a tracked map as above), and never bind, commit or seal; from a bind commit it prints `inputs-check
   SKIP bind-commit=<sha>`. `make dogfood-inputs-check` runs it through the finish wrapper, and
   `script/dogfood-finish.sh` (so `make dogfood-finish` and `make dogfood-closeout`) MUST run it
   after building the tree binary and before the base verifier build or any finish-lane pass, so a
