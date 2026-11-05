@@ -279,7 +279,7 @@ func snapshotVerbList() []string {
 // maxSnapshotBundleBytes (ASD-V0-2421). It is a routing hint only: a read
 // through SnapshotEnv still verifies the whole bundle (TCL-V0-011).
 func stagedSnapshotQueue(path string) string {
-	f, err := os.Open(path)
+	f, err := openStagedPath(path)
 	if err != nil {
 		return ""
 	}

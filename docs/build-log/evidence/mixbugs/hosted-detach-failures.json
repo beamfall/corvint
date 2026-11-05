@@ -1,0 +1,25 @@
+{
+  "sourceSha256": "f2fd4bbfad095c7ec8a98e1542728eb7068b9796f18f521ad724d9304f3297ff",
+  "records": [
+    {
+      "artifactId": 13114077031,
+      "runId": 41379953719,
+      "jobId": 125068726591,
+      "logSha256": "f42a695ffd5556141bdc735097d191581b52d9db6c698789fc0b1d419f12e76a",
+      "failures": [
+        "worker_reap_test.go:48: detached claim: code 1 {\"codes\":[\"SUPERVISOR_LOST\"],\"command\":[\"claim\"],\"items\":[{\"ceilingAt\":\"2026-11-02T03:25:51Z\",\"childPid\":\"92580\",\"command\":\"claim\",\"holder\":\"agent\",\"record\":\"/tmp/atm-2747476825/repo/.git/taskman-requests/27b41829738a8a5ffc9ecef907aabd81b4c3578d49a53776707b23fe66c3912d\",\"requestId\":\"r-exit\",\"startedAt\":\"2026-11-02T03:15:51Z\",\"state\":\"LOST\"}],\"mutation\":null,\"outcome\":\"REFUSED\",\"page\":null,\"profile\":\"taskman-command-result/0\",\"retryable\":false,\"snapshot\":null,\"untrusted\":[],\"warnings\":[\"the detached claim ended without keeping a result; nothing was signalled; repeat claim --detach with the same arguments and request id: the store replays a committed request and otherwise runs it once\"]}",
+        "--- FAIL: TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck (2.83s)"
+      ]
+    },
+    {
+      "artifactId": 13006702739,
+      "runId": 41113942897,
+      "jobId": 124264336683,
+      "logSha256": "4d89c59c5437e77872ce7f5490d68130a243edeb3ef0eec2651b8dc2334a3020",
+      "failures": [
+        "drain_notice_test.go:43: detached claim during the drain: {\"codes\":[\"SUPERVISOR_LOST\"],\"command\":[\"claim\"],\"items\":[{\"ceilingAt\":\"2026-10-30T19:47:39Z\",\"childPid\":\"87022\",\"command\":\"claim\",\"holder\":\"second\",\"record\":\"/tmp/atm-1539370845/repo/.git/taskman-requests/b03b89fdf0a7e792bcc2a127d6d13bce8e3747c4d5eca8d2ae09830901fdacd1\",\"requestId\":\"claim-detached\",\"startedAt\":\"2026-10-30T19:37:39Z\",\"state\":\"LOST\"}],\"mutation\":null,\"outcome\":\"REFUSED\",\"page\":null,\"profile\":\"taskman-command-result/0\",\"retryable\":false,\"snapshot\":null,\"untrusted\":[],\"warnings\":[\"the detached claim ended without keeping a result; nothing was signalled; repeat claim --detach with the same arguments and request id: the store replays a committed request and otherwise runs it once\"]}",
+        "--- FAIL: TestATRV0059_ClaimCarriesDrainNotice (0.35s)"
+      ]
+    }
+  ]
+}

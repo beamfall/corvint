@@ -47,5 +47,8 @@
   },
   "keywords": [
     "pi-package"
-  ]
+  ],
+  "scripts": {
+    "test": "node --test --test-concurrency=1 *.test.mjs"
+  }
 }

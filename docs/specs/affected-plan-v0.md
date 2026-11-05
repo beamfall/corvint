@@ -1908,7 +1908,10 @@ and container qualification; full fallback remains available.
   from the hash of the `--full` exclusion bytes, whose counts differ from the full lists, or a
   `--full` document that differs from the previous default. Rollback: delete
   `cmd/corvint/affected_compact.go` and the `--full` option, restore `affected-plan/0` as the
-  default, and restore the renamed core-freeze goldens.
+  default, and restore the renamed core-freeze goldens. Amended by AZU-V0-001
+  (`docs/specs/affected-zero-unknown-v0.md`, V1-4684): in both profiles a driver selection also
+  keeps `kind` (`DRIVER_TARGET` with `argv`, or `CI_JOB` with `workflow` and `job`), and its
+  witness kind may be `FRONTIER_SITE`; every other entry is unchanged.
 - **AFP-V0-036:** (proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
   indexed Go unit P are P's own declared `_test.go` files MUST select P's tests with a
   `DIRECT_TEST_CHANGE` witness and MUST NOT traverse from P: P's importers and the units whose

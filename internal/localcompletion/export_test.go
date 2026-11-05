@@ -49,7 +49,7 @@ func TestLCPV0883ExportImportRestoresActiveEnrollment(t *testing.T) {
 	restored := filepath.Join(t.TempDir(), "restored")
 	localGit(t, root, "worktree", "add", "-q", "--detach", restored, "HEAD")
 	restored, _ = filepath.EvalSymlinks(restored)
-	if before, err := Evaluate(ctx, restored, key); err != nil || before.Lifecycle != "inactive" {
+	if before, err := Evaluate(ctx, restored, key); err != nil || before.Lifecycle != "inactive" || before.EnrollmentEvidence != "NOT_OBSERVED" || before.Satisfied {
 		t.Fatalf("restored worktree before import: %#v %v", before, err)
 	}
 
@@ -81,7 +81,7 @@ func TestLCPV0883ExportImportRestoresActiveEnrollment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("import: %v", err)
 	}
-	if got.Lifecycle != source.Lifecycle || got.Satisfied || !reflect.DeepEqual(got.Unmet, source.Unmet) || got.Target != source.Target || len(got.Checks) != 1 || got.Checks[0].Qualified != source.Checks[0].Qualified {
+	if got.EnrollmentEvidence != "PRESENT" || got.Lifecycle != source.Lifecycle || got.Satisfied || !reflect.DeepEqual(got.Unmet, source.Unmet) || got.Target != source.Target || len(got.Checks) != 1 || got.Checks[0].Qualified != source.Checks[0].Qualified {
 		t.Fatalf("restored %#v\nsource %#v", got, source)
 	}
 	gitDir := localGit(t, restored, "rev-parse", "--absolute-git-dir")

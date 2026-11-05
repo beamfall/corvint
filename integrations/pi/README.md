@@ -170,10 +170,24 @@ conservatively releases until new interactive/RPC input. Recovery also binds the
 packets remain ephemeral. Settlement runs no tests, report writers or outcome recording.
 Verification and finishing remain explicit native CLI operations with the shown session key.
 
-The expanded dependency-free unit suite is the `host-adapter-test` Makefile target's
-Node command. Native qualification additionally runs `host.test.mjs`,
-`tasks-host.test.mjs`, `cockpit-host.test.mjs` and `workflow-host.test.mjs`; the latter
-requires `CORVINT_PI_WORKFLOW_BIN` pointing to the matching committed candidate.
+Run `npm --prefix integrations/pi test` for the complete Pi suite and
+`npm --prefix integrations/pi-protected test` for the protected suite. Both are in
+`make host-adapter-node-test`. Optional native prerequisites skip with named reasons;
+`CORVINT_REQUIRE_PI=1` makes a missing prerequisite fail qualification. The Linux
+`Pi host qualification` workflow (landed in its own control-plane change) installs Pi 0.99.1 and native candidates, then runs
+the full Pi suite with that requirement. `.github/` changes need the existing
+ci-control-plane admin status before landing; a workflow file is not CI-run evidence.
+Set `PI_BIN` for a non-PATH host, `CORVINT_PI_SDK_ROOT` for the npm installation prefix,
+and `CORVINT_PI_WORKFLOW_BIN` for the matching Core candidate. Native Tasks fixture
+writes can be explicitly disabled with `CORVINT_PI_TASK_WRITES=0`; they then remain
+unqualified. The protected SEA checks require their built Darwin artifacts.
+
+This base has no `workflowRevision` or PWV-V0-8100..8104 implementation: workflow
+identity reads HEAD and does not itself refuse reftable repositories or unborn
+branches. Native operations can still refuse a repository without a committed
+revision. The later pilane reftable/unborn refusal and create/refine surface require
+that separate implementation before their compatibility claims apply here.
+
 Preserve installed official binaries; a local candidate is a source build with separate
 provenance and rollback, never a released update. Supervisor participation remains
 blocked on its host-neutral native foundation. Comparative productivity, provider tokens,

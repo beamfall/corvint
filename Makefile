@@ -82,6 +82,7 @@ GATE_STEPS = \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
+  conflict-markers-check \
   decision-numbers-check \
   decision-numbers-test \
   diagnostic-coverage-check \
@@ -177,7 +178,8 @@ endif
 .PHONY: host-adapter-node-test
 host-adapter-node-test:
 	node --test integrations/opencode/*.test.mjs
-	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs integrations/pi/process.test.mjs integrations/pi/core.test.mjs integrations/pi/capabilities.test.mjs integrations/pi/operations.test.mjs integrations/pi/tasks.test.mjs integrations/pi/cockpit.test.mjs integrations/pi/workflow.test.mjs
+	npm --prefix integrations/pi test
+	npm --prefix integrations/pi-protected test
 
 .PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
@@ -1170,7 +1172,7 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := ci-least-privilege-check tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check walk-skipdir-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
+DOC_GATE_TARGETS := conflict-markers-check ci-least-privilege-check tracked-ignored-check line-citations-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check walk-skipdir-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 # DTL-V0-006: independent gates share the enclosing admission and a bounded job pool.
@@ -1528,3 +1530,8 @@ CCE_LIVE_PARALLEL ?= 3
 .PHONY: cce-live
 cce-live:
 	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local sh internal/changee2e/cce-live.sh $(CCE_LIVE_PARALLEL) $(GO_TEST_TIMEOUT)
+
+# SRG-V0-8202: the CI doc-gates job invokes this same target.
+.PHONY: conflict-markers-check
+conflict-markers-check:
+	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./tools/conflict-markers-check

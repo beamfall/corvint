@@ -8,5 +8,8 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
-// All returns a fresh provider for every supported language.
-func All() []affected.Language { return langplugin.Providers() }
+// All returns a fresh provider for every supported language, followed by the
+// built-in driver claimant for make files and workflows (AZU-V0-001).
+func All() []affected.Language {
+	return append(langplugin.Providers(), affected.Driver{})
+}
