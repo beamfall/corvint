@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/trace"
 	"slices"
 	"strconv"
 	"strings"
@@ -163,6 +164,7 @@ func recoveredHostAdapterOutput(ctx context.Context, arguments []string, stdin i
 }
 
 func hostAdapterOutput(ctx context.Context, arguments []string, stdin io.Reader) map[string]any {
+	defer trace.StartRegion(ctx, "hook.adapter").End()
 	raw, err := io.ReadAll(io.LimitReader(stdin, adapterInputLimit+1))
 	if err != nil || len(raw) > adapterInputLimit {
 		return degradedAdapterOutput("hook-input-too-large")
@@ -363,7 +365,9 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	}
 	defer func() { recordAdapterDegradation(ctx, root, "claude-code", event, hookOutput) }()
 	ctx = withDogfoodEventProbe(ctx)
+	normalizeRegion := trace.StartRegion(ctx, "hook.normalize")
 	normalized, reason := normalizeAdapterInput("claude-code", event, payload, root)
+	normalizeRegion.End()
 	if reason != "" {
 		refuseUndeliveredPacket(root, event, payload)
 		return claudeDegradedOutput(event, reason)
@@ -653,6 +657,7 @@ func normalizeAdapterInput(host, event string, payload map[string]any, root stri
 }
 
 func invokeDogfoodEvent(ctx context.Context, root, host, event string, input map[string]any, budget int) (map[string]any, string) {
+	defer trace.StartRegion(ctx, "hook.local-completion").End()
 	raw, err := json.Marshal(input)
 	if err != nil {
 		return nil, "invalid-input"
@@ -759,6 +764,7 @@ func claudeGuidance(root, key string) string {
 }
 
 func invokeLegacyClaudeEvent(ctx context.Context, root, event string, input map[string]any, silent bool) map[string]any {
+	defer trace.StartRegion(ctx, "hook.harness").End()
 	raw, _ := json.Marshal(input)
 	args := []string{"--root", root, "harness", "event", "--host", "claude-code", "--host-version", claudeHostVersion, "--surface", "plugin", "--adapter-version", adapterWireVersion, "--event", event, "--input", "-", "--budget-bytes", "8000"}
 	var stdout bytes.Buffer

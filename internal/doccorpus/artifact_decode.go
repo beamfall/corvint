@@ -44,7 +44,7 @@ type splitArray struct {
 	field       int
 	open, close int64 // offsets of '[' and of the byte after ']'
 	elements    []byteSpan
-	chunks      []reflect.Value // decoded elements, in order, one slice per dispatched chunk
+	chunks      []*reflect.Value // worker-owned decoded slices, in dispatch order
 }
 
 // splitChunk is the number of split elements one decode job takes at most; a job also ends at
@@ -308,7 +308,11 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	for range runtime.GOMAXPROCS(0) {
 		workers.Go(func() {
 			options := json.RejectUnknownMembers(true)
+			var canonical []byte
 			for job := range jobs {
+				// Allocate and zero each batch on its worker, so page faults do not
+				// serialize the boundary scanner (DCR-V1-8001).
+				*job.chunk = reflect.MakeSlice(job.sliceType, len(job.raws), len(job.raws))
 				verified := true
 				for i, raw := range job.raws {
 					if stop.Load() {
@@ -328,8 +332,17 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 					if !verified {
 						continue
 					}
-					c := encodingComparer{want: raw}
-					if _, err := EncodeTo(&c, element.Addr().Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
+					encoded, typed := appendCanonicalRecord(canonical[:0], element.Addr().Interface())
+					equal := false
+					if typed {
+						canonical = encoded
+						equal = bytes.Equal(encoded, raw)
+					} else {
+						c := encodingComparer{want: raw}
+						_, err := EncodeTo(&c, element.Addr().Interface())
+						equal = err == nil && !c.differ && c.n == int64(len(raw))
+					}
+					if !equal {
 						mismatched.Store(true)
 						verified = false
 					}
@@ -354,10 +367,10 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 		finish()
 	}()
 	d.dispatch = func(s *splitArray, raws [][]byte) {
-		chunk := reflect.MakeSlice(value.Field(s.field).Type(), len(raws), len(raws))
+		chunk := new(reflect.Value)
 		s.chunks = append(s.chunks, chunk)
 		d.cur.hold()
-		job := decodeJob{chunk: chunk, raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
+		job := decodeJob{chunk: chunk, sliceType: value.Field(s.field).Type(), raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
 		if s.field == claimsField {
 			job.claims = claims
 		}
@@ -534,8 +547,8 @@ func copyChunks(value reflect.Value, splits []*splitArray) {
 			hi := min(lo+per, len(s.chunks))
 			wg.Go(func() {
 				for i := lo; i < hi; i++ {
-					reflect.Copy(slice.Slice(starts[i], starts[i+1]), s.chunks[i])
-					s.chunks[i] = reflect.Value{}
+					reflect.Copy(slice.Slice(starts[i], starts[i+1]), *s.chunks[i])
+					s.chunks[i] = nil
 				}
 			})
 		}
@@ -546,11 +559,12 @@ func copyChunks(value reflect.Value, splits []*splitArray) {
 // decodeJob is one batch of consecutive split elements, the slice they decode into and the
 // offset of the first; claims is set for a batch of claims.
 type decodeJob struct {
-	chunk  reflect.Value
-	raws   [][]byte
-	lo     int
-	claims func(lo int, chunk []Claim)
-	ref    *blockRef
+	chunk     *reflect.Value
+	sliceType reflect.Type
+	raws      [][]byte
+	lo        int
+	claims    func(lo int, chunk []Claim)
+	ref       *blockRef
 }
 
 // claimsField is the Artifact field index of the claims.

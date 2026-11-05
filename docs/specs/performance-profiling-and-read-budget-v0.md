@@ -36,6 +36,22 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
 
 ## Requirements
 
+### Hook wall-stage profile (V1-4231)
+
+- `PRB-V0-8000`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4231)
+  Standard Go execution tracing MUST identify adapter dispatch, normalization, harness dispatch,
+  Git identity/status/profile reads, indexed context, snapshot acquisition, query preparation
+  and evaluation with fixed stage names. These regions MUST carry no task text or file content,
+  add no runtime option, produce no state when tracing is disabled, and preserve receipt bytes
+  and deadlines. An opt-in profile fixture MUST retain the V1-2240 shape: exactly 3,000 tracked
+  files, 700 modified and 767 untracked, with at least 20 calls per measured event, wall samples,
+  region durations and host load. Overlapping region durations MUST not be summed as serial
+  wall time. Acceptance: `TestPRBV08000HookStageProfile`, standard `go test -trace` region
+  records, and existing host-adapter/kernel output tests. The profile MUST name the dominant
+  observed stage and a concrete follow-up target. A prohibited native ticket write remains an
+  explicit handback obligation; a proposed follow-up is not a filed ticket. Rollback: remove
+  the trace regions and opt-in fixture; no product format or retained artifact changes.
+
 ### Profile knobs (GitHub #1600)
 
 - `PRB-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The `corvint` binary MUST apply one profile bracket at its entry point, around the
