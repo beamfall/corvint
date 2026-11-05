@@ -1660,6 +1660,10 @@ outside TCP-V0-008.
 
 ## Acceptance evidence
 
+TCP-V0-024 verifier repair 1: `TestContextDefaultWireIsTheGolden` also exports a different
+operator identity; `evidenceSummaryRepository` pins both fixture identities and dates, preserving the existing
+commit hash and exact golden bytes. No packet or golden changes are admitted.
+
 `internal/contextindex/taskcontext_test.go` (subject kept out, pair first, reverse importer and
 mentioned path admitted, retrieval shape, `NO_CANDIDATES`, untracked subject refused; TCP-V0-016's
 fixtures: names no source carries withhold the rows and name the nearest claims, a lexically

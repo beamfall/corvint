@@ -29,7 +29,8 @@
 # The doc-gate steps are derived at run time from the `run:` commands of the `doc-gates` job of
 # .github/workflows/ci.yml (read only), one step per make target and per `go run`, under that
 # job's `env:`; the sync check fails on a doc-gates command that is neither, so the list cannot
-# drift from CI (ASD-V0-036); a doc-gates step form it cannot classify (a flow mapping, a quoted or
+# drift from CI (ASD-V0-036), except the exact trusted-base batch-binding block,
+# printed as CI-only NOT_RUN; a doc-gates step form it cannot classify (a flow mapping, a quoted or
 # empty `run` key, a continued plain scalar, an alias, `shell:` or `working-directory:`) is such a
 # command, so it fails closed. Before the steps, `script/batch-regen.sh --mechanical` applies the
 # mechanical repins (host package version bumps, moved line citations, use-case receipts); a repin
@@ -239,6 +240,27 @@ contains() {
   return 1
 }
 
+# ASD-V0-036: the exact trusted-base batch-binding block is CI-only. It needs
+# pull-request event inputs and a separately built trusted verifier; a local mirror
+# cannot supply that trust. Match the whole normalized block, never its name or a
+# command substring, and leave every changed/extra command unknown.
+trusted_batch_commands() {
+  cat <<'EOF'
+set -eu
+case "$EVENT_NAME:$HEAD_REF" in
+pull_request:claude/batch-*) ;;
+*) echo "not a batch pull request; skipped"; exit 0 ;;
+esac
+base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
+git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
+cd "$RUNNER_TEMP/batch-head"
+test "$(git rev-parse HEAD)" = "$PR_HEAD"
+"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
+EOF
+}
+
 # doc_gate_commands prints each command line of every `run:` of the doc-gates job, in order: a
 # one-line `run: CMD`, or each non-blank, non-comment line of a `run: |` block; a line ending in a
 # backslash is joined to the next. Any other line that names a `run` key (a flow mapping such as
@@ -246,7 +268,15 @@ contains() {
 # merge key or alias, or a `shell:`/`working-directory:` key is printed after a tab, as a form it
 # cannot classify, so doc_gates reports it unknown and the sync check fails closed (ASD-V0-036).
 doc_gate_commands() {
-  job_block doc-gates | awk -v cont=-1 '
+  job_block doc-gates | awk -v trusted="$(trusted_batch_commands)" -v cont=-1 '
+    function flush_block(    i, n, lines) {
+      if (literal && body == trusted) print "\tci-only-trusted-batch-binding"
+      else {
+        n = split(body, lines, "\n")
+        for (i = 1; i <= n; i++) emit(lines[i])
+      }
+      body = ""
+    }
     function emit(s) {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
       if (pending != "") { s = pending " " s; pending = "" }
@@ -257,8 +287,12 @@ doc_gate_commands() {
     block {
       if ($0 !~ /[^[:space:]]/) next
       match($0, /^[[:space:]]*/)
-      if (RLENGTH > indent) { emit($0); next }
-      block = 0
+      if (RLENGTH > indent) {
+        s = $0; sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
+        if (s != "" && s !~ /^#/) body = body (body == "" ? "" : "\n") s
+        next
+      }
+      flush_block(); block = 0
     }
     cont >= 0 {
       if ($0 ~ /[^[:space:]]/ && $0 !~ /^[[:space:]]*#/) {
@@ -268,7 +302,7 @@ doc_gate_commands() {
       }
     }
     /^[[:space:]]*#/ || /^[[:space:]]*(- )?name:/ { next }
-    /^[[:space:]]*(- )?run:[[:space:]]*[|>][-+]?[[:space:]]*$/ { match($0, /^[[:space:]]*/); indent = RLENGTH; block = 1; next }
+    /^[[:space:]]*(- )?run:[[:space:]]*[|>][-+]?[[:space:]]*$/ { match($0, /^[[:space:]]*/); indent = RLENGTH; literal = ($0 ~ /[|]/); block = 1; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[^[:space:]]/ {
       s = $0; match(s, /run:/); cont = RSTART - 1
       sub(/^[[:space:]]*(- )?run:[[:space:]]*/, "", s)
@@ -276,7 +310,8 @@ doc_gate_commands() {
       emit(s); next
     }
     /(^|[[:space:]{,])["\047]?run["\047]?[[:space:]]*:/ || /<<[[:space:]]*:/ || /(:|^[[:space:]]*-)[[:space:]]*[*&][A-Za-z0-9_-]/ ||
-      /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }'
+      /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }
+    END { if (block) flush_block() }'
 }
 
 # doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
@@ -286,6 +321,10 @@ doc_gate_commands() {
 doc_gates() {
   local cmd words w targets ok
   while IFS= read -r cmd; do
+    if [[ $cmd == $'\tci-only-trusted-batch-binding' ]]; then
+      printf 'ci-only\ttrusted-batch-binding\n'
+      continue
+    fi
     if [[ $cmd == $'\t'* ]]; then
       printf 'unknown\t%s\n' "${cmd#$'\t'}"
       continue
@@ -864,6 +903,7 @@ doc_gate_rows() {
   fi
   while IFS=$'\t' read -r kind value; do
     case $kind in
+      ci-only) printf 'trusted batch binding (CI only)\tprintf "%%s\\n" %q\n' 'NOT_RUN: trusted batch binding requires CI pull-request inputs and a trusted-base verifier (CIN-V0-2304)' ;;
       make)
         if [[ $value == selection-baseline-check && -n ${sb_deferred-} ]]; then
           printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "NOT_RUN: $sb_deferred"

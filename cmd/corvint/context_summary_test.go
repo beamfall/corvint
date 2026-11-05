@@ -38,7 +38,16 @@ func evidenceSummaryRepository(t *testing.T) string {
 	}
 	gitFixture(t, root, "init", "-q")
 	gitFixture(t, root, "add", "-A")
-	gitFixture(t, root, "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "fixture")
+	// TCP-V0-024: isolate only this golden fixture from operator identity.
+	command := exec.Command("git", "commit", "-qm", "fixture")
+	command.Dir = root
+	command.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@x",
+		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@x",
+		"GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git fixture commit: %v: %s", err, output)
+	}
 	return root
 }
 
@@ -92,7 +101,11 @@ func decodeObject(t *testing.T, raw []byte) map[string]any {
 // TCP-V0-047 later added only the `instruction-routed` entry to
 // `coverage.unexamined`.
 func TestContextDefaultWireIsTheGolden(t *testing.T) {
-	t.Parallel()
+	// TCP-V0-024: operator identity must not alter the immutable fixture.
+	t.Setenv("GIT_AUTHOR_NAME", "Operator")
+	t.Setenv("GIT_AUTHOR_EMAIL", "operator@example.invalid")
+	t.Setenv("GIT_COMMITTER_NAME", "Operator")
+	t.Setenv("GIT_COMMITTER_EMAIL", "operator@example.invalid")
 	root := evidenceSummaryRepository(t)
 	code, stdout, stderr := runContextCommand(t, "--root", root, "context", "--task", evidenceSummaryTask, "--subject", "cache/demux.go")
 	if code != 0 {

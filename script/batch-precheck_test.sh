@@ -350,6 +350,39 @@ for want in 'make spec-requirements-check' 'make use-case-receipts-check' 'make 
   grep -qxF "$want" "$tmp/out" || fail "derived step $want missing with reuse wiring: $(cat "$tmp/out")"
 done
 grep -qE 'find\.sh|printf record' "$tmp/out" && fail "a reuse or record command was derived: $(cat "$tmp/out")"
+# ASD-V0-036: only the complete trusted-base batch-binding block is CI-only.
+# Keep the workflow evidence independent of the parser constant. No CI command runs.
+sed -n '/^      - name: Refuse a batch pull request whose commits no sealed CEM binds/,/^  doc-gates-record:/{ /^  doc-gates-record:/d; p; }' \
+  "$script/../.github/workflows/ci.yml" > "$tmp/trusted-step"
+[[ -s $tmp/trusted-step ]] || fail "trusted batch-binding CI step missing"
+/bin/cp "$repo/.github/workflows/ci.yml" "$tmp/ci-before-trusted"
+awk 'FILENAME == ARGV[1] { step = step $0 "\n"; next }
+  /^  doc-gates-record:/ { printf "%s", step } { print }' \
+  "$tmp/trusted-step" "$tmp/ci-before-trusted" > "$tmp/ci-with-trusted"
+/bin/cp "$tmp/ci-with-trusted" "$repo/.github/workflows/ci.yml"
+fixture --sync-check || fail "trusted batch-binding block refused: $(cat "$tmp/out")"
+fixture --list || fail "--list with trusted batch binding: $(cat "$tmp/out")"
+grep -qxF 'trusted batch binding (CI only)' "$tmp/out" || fail "CI-only binding was not disclosed: $(cat "$tmp/out")"
+for want in 'make spec-requirements-check' 'make use-case-receipts-check' 'make use-case-receipts-test' 'go run ./conformance/use-cases-v0'; do
+  grep -qxF "$want" "$tmp/out" || fail "derived step $want missing beside trusted binding: $(cat "$tmp/out")"
+done
+# A changed command, extra command, incomplete block or unsafe step directive
+# must still fail closed; the trusted name alone grants no exemption.
+for mutation in changed extra incomplete shell; do
+  case $mutation in
+    changed) sed 's/--verifier/--untrusted-verifier/' "$tmp/ci-with-trusted" ;;
+    extra) sed '/          set -eu/a\
+          script/new-gate.sh --check
+' "$tmp/ci-with-trusted" ;;
+    incomplete) sed '/          test "$(git rev-parse HEAD)" = "\$PR_HEAD"/d' "$tmp/ci-with-trusted" ;;
+    shell) sed '/        run: |/i\
+        shell: bash
+' "$tmp/ci-with-trusted" ;;
+  esac > "$repo/.github/workflows/ci.yml"
+  fixture --sync-check && fail "$mutation trusted batch-binding block accepted"
+  grep -q 'cannot mirror' "$tmp/out" || fail "$mutation trusted block did not fail closed: $(cat "$tmp/out")"
+done
+/bin/cp "$tmp/ci-before-trusted" "$repo/.github/workflows/ci.yml"
 # A new doc-gates make target or go run is picked up without editing batch-precheck.
 write_ci "new-drift-check" "./tools/new-gen"
 fixture --sync-check || fail "new make target or go run refused: $(cat "$tmp/out")"
