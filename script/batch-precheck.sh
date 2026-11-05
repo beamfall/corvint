@@ -135,7 +135,9 @@
 #
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
-# docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
+# docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks. The doc-gates
+# CIN-V0-2304 trusted batch-check step is CI-only (ASD-V0-2472); its local twin is
+# `make dogfood-batch-check`.
 set -uo pipefail
 export LC_ALL=C
 
@@ -164,7 +166,7 @@ need_gocache() {
 
 # Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the node
 # half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062).
-EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test)
+EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test)
 # What capability-catalog-check reads beyond Go source: the root guides (README.md, llms.txt,
 # AGENTS.md) and top-level docs (CAPABILITIES.md, E2E-ADOPTION.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
@@ -185,7 +187,7 @@ SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
 # What script/lane-scripts_test.sh reads: its groups drive the scripts under script/ and read the
 # Makefile, docs/DOGFOOD.md and benchmarks/retained-data.tsv (the ASD-V0-646 group). Its groups run in sequence and share fixtures, so the step runs the
 # whole file, on the merged tree, when one of these changed (ASD-V0-640, V1-3744).
-LST_INPUTS='^(script/|Makefile$|docs/DOGFOOD\.md$|benchmarks/retained-data\.tsv$)'
+LST_INPUTS='^(script/|Makefile$|docs/(DOGFOOD|CAPABILITIES)\.md$|internal/capcatalog/|benchmarks/retained-data\.tsv$)'
 # Every input of a step whose result the diff can change only through these paths (ASD-V0-110):
 # a failure with none of them changed since the base is unattributed, not introduced. The node
 # tests also read cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md and conformance/; the
@@ -222,10 +224,32 @@ else
     "./internal/tasks/store TestCALV0070_ @prebind"
     "./internal/tasks/journal TestCALV0070_ @prebind"
     "./internal/tasks/safeopen TestCALV0070_ @prebind"
+    "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
+    "./tools/ci-forward-row Test .github/"
     "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi
+
+# ASD-V0-2472 (V1-4525): the doc-gates step whose name carries `(CIN-V0-2304` is CI-only: it needs
+# the pull request's base and head, RUNNER_TEMP and a claude/batch-* head ref, and its local twin
+# is `make dogfood-batch-check` (DCW-V0-039). The sync check accepts that step only while its run
+# body, each line trimmed, is exactly the text below. Any other body fails closed, and so do these
+# lines under another step name. Change the step and this copy in one commit.
+IFS= read -r -d '' CI_ONLY_BATCH_CHECK << 'EOF' || true
+set -eu
+case "$EVENT_NAME:$HEAD_REF" in
+pull_request:claude/batch-*) ;;
+*) echo "not a batch pull request; skipped"; exit 0 ;;
+esac
+base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
+git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
+cd "$RUNNER_TEMP/batch-head"
+test "$(git rev-parse HEAD)" = "$PR_HEAD"
+"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
+EOF
 
 # job_block NAME prints the lines of one top-level job of the workflow.
 job_block() {
@@ -245,13 +269,14 @@ contains() {
 # `- {run: make x}`, a quoted key, an empty `run:`, a plain scalar continued on the next line), a
 # merge key or alias, or a `shell:`/`working-directory:` key is printed after a tab, as a form it
 # cannot classify, so doc_gates reports it unknown and the sync check fails closed (ASD-V0-036).
+# A command of the step named `(CIN-V0-2304` is printed after a FS (\034) byte (ASD-V0-2472).
 doc_gate_commands() {
   job_block doc-gates | awk -v cont=-1 '
     function emit(s) {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
       if (pending != "") { s = pending " " s; pending = "" }
       if (s ~ /\\$/) { pending = substr(s, 1, length(s) - 1); return }
-      if (s != "" && s !~ /^#/) print s
+      if (s != "" && s !~ /^#/) print (step == "ci-only" ? "\034" : "") s
     }
     function unparsed(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); print "\t" s }
     block {
@@ -267,7 +292,9 @@ doc_gate_commands() {
         cont = -1
       }
     }
-    /^[[:space:]]*#/ || /^[[:space:]]*(- )?name:/ { next }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*- / { step = "" }
+    /^[[:space:]]*(- )?name:/ { step = ($0 ~ /\(CIN-V0-2304[,)]/) ? "ci-only" : ""; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[|>][-+]?[[:space:]]*$/ { match($0, /^[[:space:]]*/); indent = RLENGTH; block = 1; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[^[:space:]]/ {
       s = $0; match(s, /run:/); cont = RSTART - 1
@@ -282,10 +309,15 @@ doc_gate_commands() {
 # doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
 # command; a make option other than -s/-k/--silent/--no-print-directory, a VAR=value, a target that
 # is not a plain name and a package that is not a plain ./path are unknown, so no shell syntax from
-# ci.yml ever reaches a step.
+# ci.yml ever reaches a step. The CI-only step prints one "cionly<TAB>CIN-V0-2304" row while its body
+# matches CI_ONLY_BATCH_CHECK and one "cionly-drift<TAB>CIN-V0-2304" row otherwise (ASD-V0-2472).
 doc_gates() {
-  local cmd words w targets ok
+  local cmd words w targets ok ci_only=
   while IFS= read -r cmd; do
+    if [[ $cmd == $'\034'* ]]; then
+      ci_only+="${cmd#$'\034'}"$'\n'
+      continue
+    fi
     if [[ $cmd == $'\t'* ]]; then
       printf 'unknown\t%s\n' "${cmd#$'\t'}"
       continue
@@ -310,6 +342,11 @@ doc_gates() {
     fi
     printf 'unknown\t%s\n' "$cmd"
   done < <(doc_gate_commands)
+  if [[ -n $ci_only && $ci_only == "$CI_ONLY_BATCH_CHECK" ]]; then
+    printf 'cionly\tCIN-V0-2304\n'
+  elif [[ -n $ci_only ]]; then
+    printf 'cionly-drift\tCIN-V0-2304\n'
+  fi
 }
 
 # doc_gate_env prints the doc-gates job-level `env:` as KEY=VALUE lines for env(1).
@@ -354,8 +391,11 @@ sync_check() {
   [[ -n $(job_block doc-gates) ]] || { printf 'batch-precheck: no doc-gates job in %s\n' "$workflow" >&2; return 1; }
   [[ -n $(doc_gates) ]] || { printf 'batch-precheck: the doc-gates job in %s has no run command\n' "$workflow" >&2; return 1; }
   while IFS=$'\t' read -r kind value; do
-    [[ $kind == unknown ]] || continue
-    printf 'batch-precheck: %s doc-gates runs `%s`, which batch-precheck cannot mirror (only make targets and go run)\n' "$workflow" "$value" >&2
+    case $kind in
+      unknown) printf 'batch-precheck: %s doc-gates runs `%s`, which batch-precheck cannot mirror (only make targets and go run)\n' "$workflow" "$value" >&2 ;;
+      cionly-drift) printf 'batch-precheck: %s doc-gates CI-only step (%s) no longer matches CI_ONLY_BATCH_CHECK in script/batch-precheck.sh; restore its run body, or change both in one commit if it stays CI-only (ASD-V0-2472)\n' "$workflow" "$value" >&2 ;;
+      *) continue ;;
+    esac
     bad=1
   done < <(doc_gates)
   # Every gofmt -l of go-static (root) and go-interop (interop/cem01-go).

@@ -1,4 +1,4 @@
-//go:build !unix
+//go:build !linux
 
 package testsupport
 
@@ -8,7 +8,7 @@ import (
 )
 
 // RefusedLoopbackAddr returns a 127.0.0.1 host:port that refuses a TCP dial at
-// once (ASD-V0-919). Off Unix the address of a listener closed before the dial
+// once (ASD-V0-919, CSD-V0-7518). Outside Linux the address of a listener closed before the dial
 // is refused by the local stack.
 func RefusedLoopbackAddr(t testing.TB) string {
 	t.Helper()

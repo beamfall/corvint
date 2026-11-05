@@ -40,6 +40,7 @@ script=$(cd "$(dirname "$0")" && pwd)
 # A trailing slash on TMPDIR (the macOS default) is dropped: heavy.sh and Perl name paths without "//".
 tmp=${TMPDIR:-/tmp}
 tmp=$(mktemp -d "${tmp%/}/corvint-lane-scripts-test.XXXXXX") || exit 1
+tmp=$(cd "$tmp" && pwd -P) || exit 1
 trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -526,10 +527,25 @@ if selected core 3; then
 # ASD-V0-014: the command's exit status and -p bound pass through; an explicit -p is kept.
 HEAVY_SLOTS=1 "$heavy" sh -c 'exit 7' 2> /dev/null
 [[ $? == 7 ]] || fail "heavy.sh did not return the command's status"
-got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
+: > "$tmp/empty-go.env"
+got=$(GOENV=$tmp/empty-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
 [[ $got == -p=3 ]] || fail "heavy.sh GOFLAGS=$got, want -p=3"
 got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS='-p=1 -mod=mod' "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
 [[ $got == '-p=1 -mod=mod' ]] || fail "heavy.sh overrode an explicit GOFLAGS -p: $got"
+# ASD-V0-2475 (V1-4513): with no GOFLAGS in the environment, a go.env (GOENV) GOFLAGS reaches the
+# command with -p appended, and a go.env value that sets -p is kept as go reads it.
+if command -v go > /dev/null; then
+  printf 'GOFLAGS=-mod=mod -tags=fr\n' > "$tmp/flags-go.env"
+  got=$(GOENV=$tmp/flags-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
+  [[ $got == '-mod=mod -tags=fr -p=3' ]] || fail "heavy.sh replaced the go.env GOFLAGS: GOFLAGS=$got, want -mod=mod -tags=fr -p=3"
+  got=$(GOENV=$tmp/flags-go.env GOFLAGS= GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null)
+  [[ $got == '-mod=mod -tags=fr' ]] || fail "the fixture go.env is not read: go env GOFLAGS=$got"
+  got=$(GOENV=$tmp/flags-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" go env GOFLAGS 2> /dev/null)
+  [[ $got == '-mod=mod -tags=fr -p=3' ]] || fail "go under heavy.sh read GOFLAGS=$got, want the go.env value plus -p=3"
+  printf 'GOFLAGS=-p=2 -mod=mod\n' > "$tmp/flags-go.env"
+  got=$(GOENV=$tmp/flags-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" go env GOFLAGS 2> /dev/null)
+  [[ $got == '-p=2 -mod=mod' ]] || fail "heavy.sh overrode a go.env GOFLAGS -p: $got"
+fi
 # AHI-199 (V1-2440): the command runs at niceness 10 by default, HEAVY_NICE=0 keeps the caller's
 # priority, an invalid level is refused, and the Makefile heavy recipes carry the same prefix.
 want=$(ps -o nice= -p $$ | tr -d ' ')
@@ -2867,12 +2883,12 @@ chmod +x "$lw/reconcile"
 git init -q -b main "$lw/origin"
 printf 'before merge\n' > "$lw/origin/merged"
 git -C "$lw/origin" add merged
-git -C "$lw/origin" commit -q -m before
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -m before
 git clone -q "$lw/origin" "$lw/checkout"
 mkdir -p "$lw/checkout/script"
 cp "$script/pr-landing-watch.sh" "$lw/checkout/script/"
 printf 'merged\n' > "$lw/origin/merged"
-git -C "$lw/origin" commit -q -am merged
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -am merged
 merge40=$(git -C "$lw/origin" rev-parse HEAD)
 lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
@@ -2893,7 +2909,7 @@ out=$(lwr 19)
 /bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
 # Move origin ahead again: the first successful pass must refresh origin/main.
 printf 'later merge\n' > "$lw/origin/merged"
-git -C "$lw/origin" commit -q -am later
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -am later
 merge40=$(git -C "$lw/origin" rev-parse HEAD)
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
 out=$(lwr 7)
@@ -3601,6 +3617,13 @@ ok
 fi
 
 if selected sweep 61; then
+# CSD-V0-7510: exercise a symlinked TMPDIR on Linux too (macOS defaults to /var).
+if [[ ${LANE_SWEEP_ALIAS_TEST:-0} != 1 ]]; then
+  mkdir "$tmp/real-sweep-tmp"
+  ln -s "$tmp/real-sweep-tmp" "$tmp/alias-sweep-tmp"
+  alias_out=$(TMPDIR="$tmp/alias-sweep-tmp" LANE_SWEEP_ALIAS_TEST=1 LANE_SCRIPTS_GROUPS=sweep bash "$script/lane-scripts_test.sh" 2>&1)
+  [[ $? == 0 ]] || fail "symlink TMPDIR sweep: $alias_out"
+fi
 # ASD-V0-2194: dry-run, age, allowlist, symlinks, read-only cleanup, active jobs and failed probes.
 sw=$tmp/sweep
 mkdir -p "$sw/bin" "$sw/root"

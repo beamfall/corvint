@@ -4432,7 +4432,7 @@
     "reqPrefix": "ASD-V0",
     "intent": "accepted",
     "delivery": "experimental",
-    "claim": "Lane shell scripts stay portable to Bash 3.2, BWK awk and Make 3.81, keep offload scratch and caches on disk, and sweep only their own stale temp dirs.",
+    "claim": "Lane shell scripts stay portable, keep scratch on disk, sweep only their own temp dirs and report every test failure; Go walks skip only directories.",
     "dependsOn": [
       "docs/specs/corvint-self-development-v0.md"
     ],
@@ -4504,6 +4504,18 @@
     "intent": "accepted",
     "delivery": "experimental",
     "claim": "Lane tooling preserves evidence boundaries while making verification, diagnostics and local scratch predictable.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-self-development-companion-v0.md",
+    "title": "Corvint Self-Development Companion V0",
+    "reqPrefix": "CSD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Local gate fixtures and batch verification expose platform drift, skipped inputs and unresolved historical evidence.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

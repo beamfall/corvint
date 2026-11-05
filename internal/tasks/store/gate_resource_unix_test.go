@@ -5,6 +5,7 @@ package store_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,15 +30,24 @@ func sharedGate(id, script, key string) wire.Value {
 // refused gate runs. Preflight still refuses the gate UNSUPPORTED.
 func TestLGLV0885_GateRunSerializesASharedResource(t *testing.T) {
 	t.Parallel()
-	// argv entries are bounded at 128 bytes, so the paths stay short.
-	sync, err := os.MkdirTemp("", "g")
+	// CSD-V0-7513: force the 68-byte scratch prefix from the original Mac failure.
+	// Concatenating it twice was 199 bytes; even a cd-based script was 134 (>128).
+	parent, err := os.MkdirTemp("", "g")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(sync) })
+	t.Cleanup(func() { _ = os.RemoveAll(parent) })
+	sync := filepath.Join(parent, strings.Repeat("p", max(1, 68-len(parent)-1)))
+	if err := os.Mkdir(sync, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	started, release, ran := filepath.Join(sync, "started"), filepath.Join(sync, "release"), filepath.Join(sync, "ran")
+	holdScript := `: > "$1"; while [ ! -e "$2" ]; do /bin/sleep 0.05; done`
+	hold := sharedGate("hold", holdScript, "heavy")
+	// Each path is its own bounded argv entry, rather than part of the shell program.
+	hold.Obj.Set("argv", wire.Strings([]string{"sh", "-c", holdScript, "hold", started, release}))
 	s := newLeaseStore(t,
-		sharedGate("hold", ": > "+started+"; while [ ! -e "+release+" ]; do /bin/sleep 0.05; done", "heavy"),
+		hold,
 		sharedGate("probe", ": > "+ran, "heavy"),
 		sharedGate("other", "printf ok", "light"))
 	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)

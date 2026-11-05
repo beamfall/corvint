@@ -55,6 +55,8 @@ func root(t *testing.T, declared string) string {
 // declared environment over the inherited one, the repository root as its
 // directory, and go's exit status back.
 func TestSTRV0006RunnerRunsTheDeclaration(t *testing.T) {
+	// STR-V0-7500: the declaration test owns this override on every lane host.
+	t.Setenv("CORVINT_GOCACHE", "")
 	record := fakeGo(t)
 	dir := root(t, declaration)
 	t.Setenv("GOCACHE", "/elsewhere")

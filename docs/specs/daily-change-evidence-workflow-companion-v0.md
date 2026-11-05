@@ -20,6 +20,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 ## Requirements
 
+- `DWC-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3291) The shell inputs-check/finish path MUST check line citations before a build or bind, refuse moved citations with `line-citations-invalid`, and name `script/check-line-citations.sh --repin` plus review/commit before rebinding. The sealed-head closeout precheck MUST disable mechanical regeneration, so a repin cannot create an unbound post-seal change.
+
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
   `regenerated-specs`, a merge whose ort merge of its two parents conflicts only in
@@ -110,3 +112,9 @@ No resolution of conflicts in any other file, no rewrite of pushed branches, and
 ## Rollback
 
 For `DWC-V0-001` and `DWC-V0-002`, remove `regeneratedSpecs` and its call in `deriveMerge`, and delete `script/merge-regenerate-specs.sh`; such merges are unbound again and need the rebase recovery. For `DWC-V0-003`, see its own rollback.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `DWC-V0-7500` | `script/dogfood-finish.sh`, `Makefile` dogfood-closeout-precheck; `script/dogfood-cache_test.sh` pre-build refusal and post-seal no-regeneration recipe. |

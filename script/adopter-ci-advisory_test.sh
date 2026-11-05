@@ -7,6 +7,8 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 script=$here/adopter-ci-advisory.sh
 root=$(mktemp -d "${TMPDIR:-/tmp}/adopter-ci-advisory-test.XXXXXX")
+# CSD-V0-7516: normalize TMPDIR aliases and trailing slashes before matching argv.
+root=$(cd "$root" && pwd -P)
 trap 'rm -rf "$root"' EXIT INT TERM
 fail() { echo "FAIL: $*" >&2; exit 1; }
 if command -v sha256sum >/dev/null 2>&1; then sum() { sha256sum "$@"; }; else sum() { shasum -a 256 "$@"; }; fi
@@ -105,3 +107,16 @@ run shortbase "$root/good" abc123
 [ "$(rc shortbase)" = 1 ] && [ ! -e "$root/shortbase/fake.log" ] || fail "short BASE not refused"
 
 echo "adopter-ci-advisory_test: ok"
+
+# CSD-V0-7516: emulate BSD mktemp retaining a doubled TMPDIR separator.
+if [[ ${ADVISORY_PATH_SELFTEST:-0} != 1 ]]; then
+  mkdir "$root/fake-bin"
+  export ADVISORY_REAL_MKTEMP=$(command -v mktemp)
+  cat > "$root/fake-bin/mktemp" <<'STUB'
+#!/bin/sh
+p=$("$ADVISORY_REAL_MKTEMP" "$@") || exit 1
+printf '%s\n' "$p" | sed 's|/adopter-ci-advisory-test|//adopter-ci-advisory-test|'
+STUB
+  chmod +x "$root/fake-bin/mktemp"
+  ADVISORY_PATH_SELFTEST=1 PATH="$root/fake-bin:$PATH" bash "$here/adopter-ci-advisory_test.sh" > "$root/path-selftest" 2>&1 || fail "noncanonical TMPDIR: $(cat "$root/path-selftest")"
+fi

@@ -239,6 +239,24 @@ var readCommands = [][]string{
 	{"plan", "preview"},
 }
 
+// skipInsideGit skips a case whose premise is a directory outside every Git worktree when dir
+// or an ancestor of it holds a .git entry (V1-4526): a TMPDIR below such an ancestor, as below a
+// home directory kept in Git, makes the premise false without any regression; archive export then refuses its default staging directory as inside that "repository".
+func skipInsideGit(t *testing.T, dir string) {
+	t.Helper()
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = resolved
+	}
+	for current := dir; ; current = filepath.Dir(current) {
+		if _, err := os.Lstat(filepath.Join(current, ".git")); err == nil {
+			t.Skipf("%s is inside %s, which holds a .git entry; run with TMPDIR outside every Git worktree (V1-4526)", dir, current)
+		}
+		if filepath.Dir(current) == current {
+			return
+		}
+	}
+}
+
 // TestTMV0008_AS07_ReadsLeaveStoreByteIdentical: every read on an
 // uninitialized, pending-redo, forked, head-ahead and healthy store leaves
 // the state dir and the intent tree byte/mode/mtime-identical, creates no
@@ -251,7 +269,10 @@ func TestTMV0008_AS07_ReadsLeaveStoreByteIdentical(t *testing.T) {
 		out   string
 	}
 	states := []state{
-		{"no git", func(t *testing.T, r *fixture.Repo) { os.RemoveAll(r.CommonDir) }, wire.CodeUninitialized, wire.OutcomeRefused},
+		{"no git", func(t *testing.T, r *fixture.Repo) {
+			os.RemoveAll(r.CommonDir)
+			skipInsideGit(t, r.Root)
+		}, wire.CodeUninitialized, wire.OutcomeRefused},
 		{"uninitialized state dir", func(t *testing.T, r *fixture.Repo) {}, wire.CodeUninitialized, wire.OutcomeRefused},
 		{"no intent store", func(t *testing.T, r *fixture.Repo) { fixture.WriteState(t, r) }, wire.CodeUninitialized, wire.OutcomeRefused},
 		{"pending redo", func(t *testing.T, r *fixture.Repo) {
