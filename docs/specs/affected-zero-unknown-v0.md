@@ -114,6 +114,21 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `unknown: []` and the safety check finds no miss: on each merge, every test whose outcome differs
   between the parent and the merge in a full-suite run, or that a mutation on a changed line kills,
   is in the selection.
+- **AZU-V0-9700: Missing wrapper operands.** As directed by the owner in the four Greptile P1
+  fixes for batch PR #98 (2026-11-05), a recipe or workflow step ending in an operand-taking
+  `env` or command-wrapper option SHALL NOT panic during graph construction. It SHALL retain
+  a computed invocation at that target or job, conservatively selecting it and its dependents.
+- **AZU-V0-9701: Implicit current Go package.** A supported Go package command without package
+  operands, including after flags, SHALL import the current working directory's package. An
+  unknown directory SHALL fall back to every owner. The repository root MAY use the existing
+  every-owner path import when the frozen path-import encoding cannot represent it precisely.
+- **AZU-V0-9702: Complete make alternatives.** Alternative variable assignments SHALL preserve
+  each complete expanded word, including literal prefixes and suffixes, or retain a computed
+  invocation when the alternatives cannot be represented. Joining alternatives into one expansion
+  SHALL NOT silently lose a package, script or other dependency.
+- **AZU-V0-9703: Flow-style workflow steps.** A flow-style step sequence or mapping SHALL either
+  expose its `run` dependencies or conservatively retain its job as a computed invocation. A valid
+  flow-style step SHALL NOT be silently skipped merely because the YAML subset represents it as text.
 
 ## Non-goals
 
@@ -139,6 +154,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
 ## Acceptance evidence
 
+The four PR #98 driver repairs (AZU-V0-9700 through AZU-V0-9703) are scoped corrections of
+AZU-V0-001. Their acceptance evidence is the table regressions below, the complete affected
+package, and the focused CLI affected and frozen-profile tests. This does not qualify the wider
+AZU-V0-009 zero-unknown goal or a new wire format.
+
 Each requirement's lane retains: unit tests for the rule; the AZU-V0-009 replay before and after,
 showing which unknown entries it removed and the selection growth; and for AZU-V0-003 and AZU-V0-004
 the soundness fixtures above. AZU-V0 as a whole is accepted when the replay shows `unknown: []` on
@@ -163,3 +183,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | not yet |
+| AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
+| AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
+| AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |
+| AZU-V0-9703 | PR #98 review | `TestDriverFlowSteps_AZU_V0_9703` |
