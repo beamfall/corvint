@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,7 +21,7 @@ func TestFlowDocsCLIEndToEnd(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		cmd := fixtureGitCommand(append([]string{"-C", root}, args...)...)
 		out, e := cmd.CombinedOutput()
 		if e != nil {
 			t.Fatalf("git: %v %s", e, out)
@@ -137,7 +136,7 @@ func TestFlowDocsCLIPredecessorManifestTypedStale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+	if out, err := fixtureGitCommand("-C", root, "init", "-q").CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v %s", err, out)
 	}
 	previous := filepath.Join(root, "generation.json")
@@ -160,7 +159,7 @@ func TestAFUV1125FlowLimitCLICode(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		out, e := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+		out, e := fixtureGitCommand(append([]string{"-C", root}, args...)...).CombinedOutput()
 		if e != nil {
 			t.Fatalf("git: %v %s", e, out)
 		}

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -45,7 +44,7 @@ func compactionHookStdout(t *testing.T, ctx context.Context, root, event string,
 
 func headTree(t *testing.T, root string) string {
 	t.Helper()
-	command := exec.Command("git", "-C", root, "rev-parse", "HEAD^{tree}")
+	command := fixtureGitCommand("-C", root, "rev-parse", "HEAD^{tree}")
 	output, err := command.Output()
 	if err != nil {
 		t.Fatal(err)

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -282,7 +281,7 @@ func newActivationFixture(t *testing.T, objectFormat string) string {
 	if objectFormat == "sha256" {
 		initArguments = append(initArguments, "--object-format=sha256")
 	}
-	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, initArguments...)...)
+	command := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, initArguments...)...)
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		if objectFormat == "sha256" {
@@ -310,11 +309,11 @@ func newActivationFixture(t *testing.T, objectFormat string) string {
 
 func gitCommand(t *testing.T, directory string, environment []string, arguments ...string) {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
+	command := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 	if directory != "" {
 		command.Dir = directory
 	}
-	command.Env = append(os.Environ(), environment...)
+	command.Env = append(fixtureGitEnvironment(), environment...)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}

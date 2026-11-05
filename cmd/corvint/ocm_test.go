@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -683,7 +682,7 @@ func TestOCMOutputLocationDependenceMatchesOracle(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(secondRoot), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	clone := exec.Command("git", "clone", "-q", first.root, secondRoot)
+	clone := fixtureGitCommand("clone", "-q", first.root, secondRoot)
 	if output, err := clone.CombinedOutput(); err != nil {
 		t.Fatalf("clone: %v\n%s", err, output)
 	}

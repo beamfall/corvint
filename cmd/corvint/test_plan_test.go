@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -33,8 +32,8 @@ func runTestPlanCLI(t *testing.T, arguments ...string) (int, string, string) {
 
 func testPlanGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", args...)
-	c.Dir, c.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	c := fixtureGitCommand(args...)
+	c.Dir, c.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)

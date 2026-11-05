@@ -56,7 +56,7 @@ func coreFreezeCommit(t *testing.T, root string, files map[string]string) string
 func coreFreezeNonUTF8(t *testing.T, root string) string {
 	t.Helper()
 	blob := strings.TrimSpace(affectedGit(t, root, "hash-object", "-w", "pkg/main.go"))
-	command := exec.Command("git", "-C", root, "update-index", "--index-info")
+	command := fixtureGitCommand("-C", root, "update-index", "--index-info")
 	command.Stdin = strings.NewReader("100644 blob " + blob + "\tlatin/caf\xe9.go\n")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("update-index: %v\n%s", err, output)
@@ -668,8 +668,8 @@ func checkPromisorObjectRefusals(t *testing.T) {
 		}
 	}
 	lazyRead := func(environment ...string) {
-		command := exec.Command("git", "-C", full, "cat-file", "-p", baseBlob[0])
-		command.Env = append(os.Environ(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
+		command := fixtureGitCommand("-C", full, "cat-file", "-p", baseBlob[0])
+		command.Env = append(fixtureGitEnvironment(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
 		_ = command.Run()
 	}
 	if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {

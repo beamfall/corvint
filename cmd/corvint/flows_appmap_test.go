@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -43,8 +42,8 @@ func appmapCLIRepoFrom(t *testing.T, fixture string) string {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "fixture"}} {
-		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
-		cmd.Dir, cmd.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+		cmd := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
+		cmd.Dir, cmd.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
@@ -99,7 +98,7 @@ func TestAMAPV0FlowsAppmapCLI(t *testing.T) {
 			t.Errorf("%v: %d %q", args, code, out)
 		}
 	}
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	if status, err := cmd.Output(); err != nil || len(status) != 0 {
 		t.Fatalf("worktree changed: %s %v", status, err)
@@ -155,7 +154,7 @@ func TestRVNV0FlowsAppmapVerificationCLI(t *testing.T) {
 	if err := os.WriteFile(mapFile, []byte(out), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	head, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	head, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +189,7 @@ func TestRVNV0FlowsAppmapVerificationCLI(t *testing.T) {
 			t.Errorf("%v: %d %q %s, want %s", extra, code, out, diagnostic, want)
 		}
 	}
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	if status, err := cmd.Output(); err != nil || len(status) != 0 {
 		t.Fatalf("worktree changed: %s %v", status, err)

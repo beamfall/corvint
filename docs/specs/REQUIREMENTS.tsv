@@ -2041,6 +2041,7 @@ CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(accepted, decision 0548; 
 CCF-V1-650	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730,	standing	2026-10-11; V1-3730
 CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 CCF-V1-620	docs/specs/core-compatibility-freeze-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3342;	standing	2026-10-11; V1-3342
+CCF-V1-9800	docs/specs/core-compatibility-freeze-v1.md	(accepted, owner's V1-4719 fixtureident charter, 2026-11-05) Every direct Git fi	owner	V1-4719; 2026-11-05
 RCP-V0-001	docs/specs/corpus-republish-v0.md	The operator supplies separate closed request and trusted approval-policy files.	unrecorded	-
 RCP-V0-002	docs/specs/corpus-republish-v0.md	Approval pins bind the exact documentation bytes: every provider/document input	unrecorded	-
 RCP-V0-003	docs/specs/corpus-republish-v0.md	Closed versioned input/output profiles reject unknown/duplicate members, invalid	unrecorded	-

@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,7 +19,7 @@ func TestANLV0015ImpactCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 	git := func(args ...string) string {
-		b, err := exec.Command("git", append([]string{"-C", root, "-c", "user.name=F", "-c", "user.email=f@example.invalid"}, args...)...).CombinedOutput()
+		b, err := fixtureGitCommand(append([]string{"-C", root, "-c", "user.name=F", "-c", "user.email=f@example.invalid"}, args...)...).CombinedOutput()
 		if err != nil {
 			t.Fatal(args, err, string(b))
 		}

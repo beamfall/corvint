@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -36,7 +35,7 @@ func TestPiNativeStopReceipt(t *testing.T) {
 	t.Run("AHI-024 native Stop receipt without continuation", func(t *testing.T) {
 		root := t.TempDir()
 		for _, args := range [][]string{{"init", "-q"}, {"-c", "user.name=Fixture", "-c", "user.email=f@example.invalid", "commit", "--allow-empty", "-qm", "fixture"}} {
-			c := exec.Command("git", args...)
+			c := fixtureGitCommand(args...)
 			c.Dir = root
 			if out, e := c.CombinedOutput(); e != nil {
 				t.Fatalf("git:%s %v", out, e)

@@ -35,7 +35,7 @@ func impactCLIRepository(t *testing.T) string {
 		}
 	}
 	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "add Go fixture"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -328,7 +328,7 @@ func TestWorkingTreeImpactRejectsPathNormalizationAndFlagValues(t *testing.T) {
 func TestCommittedRangeImpactIsExplicitReadOnlyAndHunkQualified(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
-	baseCommand := exec.Command("git", "rev-parse", "HEAD")
+	baseCommand := fixtureGitCommand("rev-parse", "HEAD")
 	baseCommand.Dir = root
 	baseRaw, err := baseCommand.Output()
 	if err != nil {
@@ -339,7 +339,7 @@ func TestCommittedRangeImpactIsExplicitReadOnlyAndHunkQualified(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "range target"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -368,7 +368,7 @@ func TestCommittedRangeImpactIsExplicitReadOnlyAndHunkQualified(t *testing.T) {
 func TestCommittedRangeImpactRejectsAmbiguousCLIForms(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
-	baseCommand := exec.Command("git", "rev-parse", "HEAD")
+	baseCommand := fixtureGitCommand("rev-parse", "HEAD")
 	baseCommand.Dir = root
 	baseRaw, err := baseCommand.Output()
 	if err != nil {

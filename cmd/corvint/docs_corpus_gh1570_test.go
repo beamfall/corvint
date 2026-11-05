@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -61,7 +60,7 @@ func TestDCPV1332CorpusCallerRevisionCLIParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, gitErr := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	raw, gitErr := fixtureGitCommand("-C", root, "rev-parse", "HEAD").Output()
 	if gitErr != nil {
 		t.Fatal(gitErr)
 	}

@@ -10,13 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func git(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	c.Dir = root
-	c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
+	c.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 	b, e := c.CombinedOutput()
 	if e != nil {
 		t.Fatalf("git %v: %s %v", args, b, e)

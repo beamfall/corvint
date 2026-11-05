@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -78,7 +77,7 @@ func wideningIdentifierRepository(t *testing.T) string {
 func commitAll(t *testing.T, root, message string) {
 	t.Helper()
 	for _, arguments := range [][]string{{"add", "-A"}, {"commit", "-qm", message}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

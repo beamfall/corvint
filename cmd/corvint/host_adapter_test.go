@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -355,7 +354,7 @@ func TestClaudeAdapterRoutineReceiptAndExpectedDegradationCarryNoNotice(t *testi
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -428,7 +427,7 @@ func TestAdapterSilentAbstentionsAreLedgered(t *testing.T) {
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -1237,7 +1236,7 @@ func TestAHI802SharedCloneFallbackNamesObjectAlternates(t *testing.T) {
 	t.Parallel()
 	source := queryCLIRepository(t)
 	clone := filepath.Join(t.TempDir(), "shared")
-	if out, err := exec.Command("git", "clone", "-q", "--shared", source, clone).CombinedOutput(); err != nil {
+	if out, err := fixtureGitCommand("clone", "-q", "--shared", source, clone).CombinedOutput(); err != nil {
 		t.Fatalf("git clone --shared: %v\n%s", err, out)
 	}
 	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": clone})
@@ -1255,7 +1254,7 @@ func TestAHI802SharedCloneFallbackNamesObjectAlternates(t *testing.T) {
 	}
 	// A worktree's .git file resolves through commondir to the same alternates file.
 	worktree := filepath.Join(t.TempDir(), "linked")
-	if out, err := exec.Command("git", "-C", clone, "worktree", "add", "-q", "--detach", worktree).CombinedOutput(); err != nil {
+	if out, err := fixtureGitCommand("-C", clone, "worktree", "add", "-q", "--detach", worktree).CombinedOutput(); err != nil {
 		t.Fatalf("git worktree add: %v\n%s", err, out)
 	}
 	if _, ok := alternatesCauseLine(worktree); !ok {

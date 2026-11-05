@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -31,7 +30,7 @@ func profileCorpusFixture(t *testing.T) string {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		c := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
+		c := fixtureGitCommand(append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
 		c.Dir = root
 		out, err := c.CombinedOutput()
 		if err != nil {

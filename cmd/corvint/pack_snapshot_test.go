@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -171,7 +170,7 @@ func TestPackQueryAndEventVerbsRereadARefusedBodyWithoutChangingAByte(t *testing
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "add a same-package caller"}} {
-		if output, err := exec.Command("git", append([]string{"-C", eventRoot}, arguments...)...).CombinedOutput(); err != nil {
+		if output, err := fixtureGitCommand(append([]string{"-C", eventRoot}, arguments...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
 		}
 	}
@@ -273,7 +272,7 @@ func corruptEveryTrackedPackBody(t *testing.T, root string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	listed, err := exec.Command("git", "-C", root, "ls-files", "-z").Output()
+	listed, err := fixtureGitCommand("-C", root, "ls-files", "-z").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

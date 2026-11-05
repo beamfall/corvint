@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -35,7 +34,7 @@ func runsCLI(t *testing.T, args ...string) (int, string, string) {
 func reuseGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	prefix := []string{"-c", "maintenance.autoDetach=false", "-c", "gc.autoDetach=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", root}
-	out, err := exec.Command("git", append(prefix, args...)...).CombinedOutput()
+	out, err := fixtureGitCommand(append(prefix, args...)...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}

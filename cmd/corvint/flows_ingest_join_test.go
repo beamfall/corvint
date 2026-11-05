@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -45,11 +44,11 @@ func TestAFUV1131IngestJoinsPlaywrightListImport(t *testing.T) {
 		t.Fatalf("import %d %s", code, diagnostic)
 	}
 	commitFlows(t, root)
-	head, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	head, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
-	tree, err := exec.Command("git", "-C", root, "rev-parse", "HEAD^{tree}").Output()
+	tree, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD^{tree}").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

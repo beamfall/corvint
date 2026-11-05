@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -50,7 +49,7 @@ func TestAMAPV0098RefsCLI(t *testing.T) {
 			t.Fatalf("admitted %v: %d %s %s", tc.args, code, out, diag)
 		}
 	}
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	if status, err := cmd.Output(); err != nil || len(status) != 0 {
 		t.Fatalf("mutated repo: %s %v", status, err)
@@ -59,8 +58,8 @@ func TestAMAPV0098RefsCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "extra"}} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir, cmd.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+		cmd := fixtureGitCommand(args...)
+		cmd.Dir, cmd.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 		if b, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, b)
 		}

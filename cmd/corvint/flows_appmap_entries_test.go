@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -80,7 +79,7 @@ func TestEntriesCLI(t *testing.T) {
 	if !strings.Contains(flowsAppmapHelp, "flows appmap entries") {
 		t.Fatal("help missing")
 	}
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	if status, err := cmd.Output(); err != nil || len(status) != 0 {
 		t.Fatalf("mutated repo: %s %v", status, err)

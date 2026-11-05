@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -110,7 +109,7 @@ func TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"add", "cache/demux.go"}, {"commit", "-qm", "change tree"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -146,13 +145,13 @@ func TestIndexBootstrapsIgnoredObservationLedger(t *testing.T) {
 		".corvint/self-observations.jsonl",
 		".corvint/.self-observations.probe",
 	} {
-		command := exec.Command("git", "check-ignore", "--no-index", "-q", relative)
+		command := fixtureGitCommand("check-ignore", "--no-index", "-q", relative)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("%s is not ignored: %v %s", relative, err, output)
 		}
 	}
-	command := exec.Command("git", "status", "--porcelain", "--untracked-files=all")
+	command := fixtureGitCommand("status", "--porcelain", "--untracked-files=all")
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil || len(output) != 0 {
 		t.Fatalf("index and ledger dirtied repository: err=%v status=%q", err, output)
@@ -433,7 +432,7 @@ func TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte(t *testin
 				t.Fatalf("IDX-SNAP-V0-010: output differs between miss and hit:\n%s\n%s", cold.Bytes(), warm.Bytes())
 			}
 			for _, gitArguments := range [][]string{{"add", "internal/auth/session.go"}, {"commit", "-qm", "change tree"}} {
-				command := exec.Command("git", gitArguments...)
+				command := fixtureGitCommand(gitArguments...)
 				command.Dir = root
 				if output, err := command.CombinedOutput(); err != nil {
 					t.Fatalf("git %v: %v\n%s", gitArguments, err, output)
