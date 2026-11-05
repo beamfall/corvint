@@ -79,6 +79,9 @@ func ProgramTransition(ctx context.Context, repo *intent.Repository, actor mutat
 // or CANCEL recorded meanwhile is kept, and one recorded after the read moves
 // the inventory and refuses the write (ATR-V0-240, V1-0831).
 func programTransition(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queue, id string, next snapshot.Program, fenced, keepControl bool, output ...[]byte) (*Report, error) {
+	if err := fault(repo, "program:"+next.Phase); err != nil {
+		return nil, err
+	}
 	defer lockProgramWriter(repo)()
 	proof, e := readLeaseProof(ctx, repo)
 	if e != nil {

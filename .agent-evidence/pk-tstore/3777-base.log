@@ -1,0 +1,18 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+--- PASS: TestCALV0131_LiveFormatsCoverEveryDecodedProfile (0.05s)
+=== RUN   TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+--- PASS: TestCALV0131_LiveFormatsCoverEveryDecodedProfile (0.02s)
+=== RUN   TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+--- PASS: TestCALV0131_LiveFormatsCoverEveryDecodedProfile (0.01s)
+=== RUN   TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+--- PASS: TestCALV0131_LiveFormatsCoverEveryDecodedProfile (0.01s)
+=== RUN   TestCALV0131_LiveFormatsCoverEveryDecodedProfile
+--- PASS: TestCALV0131_LiveFormatsCoverEveryDecodedProfile (0.01s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	0.136s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=23.8s rc=0

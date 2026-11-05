@@ -1,0 +1,8 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=36855b5ff83cae36e45a9a03846fb2c6c78a93c6 dirty=47
+heavy.sh: slot 2/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/tasks/store	260.380s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=270.1s rc=0

@@ -474,6 +474,7 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	constituent := map[string]bool{}
 	mergeCiters := map[string][]int{} // ticket ID -> scan indexes of citing merges; filled below
 	enclosing := map[[2]int]bool{}    // {outer, inner} scan indexes
+	var ancestryErr error
 	encloses := func(outer, inner int) bool {
 		k := [2]int{outer, inner}
 		if v, ok := enclosing[k]; ok {
@@ -481,7 +482,21 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		o, ic := scan.Commits[outer].Commit, scan.Commits[inner].Commit
 		first, err := store.CloseoutRevision(root, o+"^1")
-		v := err == nil && store.IsAncestor(root, ic, o) && !store.IsAncestor(root, ic, first)
+		if err != nil {
+			ancestryErr = err
+			return false
+		}
+		inOuter, e := store.Ancestry(root, ic, o)
+		if e != nil {
+			ancestryErr = e
+			return false
+		}
+		inFirst, e := store.Ancestry(root, ic, first)
+		if e != nil {
+			ancestryErr = e
+			return false
+		}
+		v := inOuter && !inFirst
 		enclosing[k] = v
 		return v
 	}
@@ -575,6 +590,9 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 			listed[h.id] = true
 			collected.add(closeoutRow{ticketID: h.id, local: locals[h.id], commit: c.Commit, subject: subject, kind: citeProgressHead})
 		}
+	}
+	if ancestryErr != nil {
+		return errorResult(cmd, ancestryErr), 1
 	}
 	type stepOf struct{ step, gate string }
 	steps := map[string]stepOf{}

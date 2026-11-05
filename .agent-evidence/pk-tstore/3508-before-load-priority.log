@@ -1,0 +1,72 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=8191515e995459bc668621d21c2744fe5638fd18 dirty=51
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 1 load1=64.14
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-001
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 2 load1=64.98
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-002
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 3 load1=70.79
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-003
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 4 load1=71.37
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-004
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 5 load1=71.24
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-005
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 6 load1=71.05
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-006
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 7 load1=69.92
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-007
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 8 load1=68.69
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-008
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 9 load1=67.91
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-009
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 10 load1=67.68
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-010
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 11 load1=66.74
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-011
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 12 load1=67.39
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-012
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 13 load1=66.64
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-013
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 14 load1=64.43
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-014
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 15 load1=60.98
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-015
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 16 load1=59.46
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-016
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 17 load1=60.86
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-017
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 18 load1=60.66
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-018
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 19 load1=60.76
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-019
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 20 load1=60.54
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-020
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 21 load1=60.73
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-021
+=== NAME  TestATRV07204_LoadedSpawnedFailureQualification
+    spawn_failure_load_linux_test.go:68: run 22 load1=65.35
+=== RUN   TestATRV07204_LoadedSpawnedFailureQualification/run-022

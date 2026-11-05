@@ -1,0 +1,32 @@
+[
+  {
+    "directory": "/home/russell/lanes/pk-tstore.scratch/base-main",
+    "commit": "6c33df33bc5670131482f5263b410cb980580657",
+    "paths": [
+      "AGENTS.md",
+      "Makefile",
+      "VERSION",
+      "cmd",
+      "go.mod",
+      "internal",
+      "interop",
+      "protocol",
+      "script"
+    ]
+  },
+  {
+    "directory": "/home/russell/lanes/pk-tstore.scratch/origin-main",
+    "commit": "d436dff76de1b8e75c427069ae7f80003ae99bc2",
+    "paths": [
+      "AGENTS.md",
+      "Makefile",
+      "VERSION",
+      "cmd",
+      "go.mod",
+      "internal",
+      "interop",
+      "protocol",
+      "script"
+    ]
+  }
+]
