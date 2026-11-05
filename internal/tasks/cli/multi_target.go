@@ -107,7 +107,7 @@ func landedRevision(env Env, requestID, current string) (string, error) {
 			entry, found, err = idx.Lookup(requestID)
 		}
 		if err != nil {
-			return wire.Errorf(wire.CodeOf(err), "request index "+requestID, "%v", err)
+			return wire.Annotatef(err, "request index "+requestID, "%v", err)
 		}
 		if !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ResultingRevision == nil {
 			return nil

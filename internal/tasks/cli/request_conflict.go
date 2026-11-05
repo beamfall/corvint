@@ -111,7 +111,7 @@ func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, 
 		r, ok, err = recordedRevision(idx, operation, st.Queue.QueueID.Raw, actor, flags, payload, issued, n)
 	}
 	if err != nil {
-		return "", wire.Errorf(wire.CodeOf(err), "request index "+flags.requestID, "%v", err)
+		return "", wire.Annotatef(err, "request index "+flags.requestID, "%v", err)
 	}
 	if ok {
 		return r, nil
