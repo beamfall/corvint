@@ -11,7 +11,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
 - Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)
-- Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
+- Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered. LPCV-V0-7600..7607: Go windows, child audit, shared APIs, deadlines, Ruby/JavaScript command shadows and foreground watch; bounded qualification remains separate from production admission.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstained (`LPCV-V0-128`) until the callId frame link (`LPCV-V0-290`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
 
@@ -680,6 +680,65 @@ package or path rules stay the sound fallback; this section adds a per-test, per
 record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V0-016` or
 `LPCV-V0-020`.
 
+- `LPCV-V0-7600`: (accepted under standing implementation authority, V1-4379) Go collection
+  uses scratch overlays to dump/reset atomic counters at serial top-level test windows, including
+  cleanup. Each record unions isolated and in-order reach; reach absent from that same test's
+  isolated record retains preceding tests as prerequisites, even if another test reaches it alone. Parallel, unsupported entry points or missing instrumentable source
+  retain the suite union with a named reason. Setup, teardown and child reach retain the residual
+  union owner. Residual: counts from a goroutine leaked by a test after its window dump can be
+  lost when the next window clears counters; this does not qualify concurrent goroutine attribution.
+  Invalid dumps retain `window-dump-invalid` rather than a secondary missing-window reason.
+  Witness: `TestInOrderWindows`, `TestInvalidWindowDumpReason`, `TestFaultInjection`.
+- `LPCV-V0-7601`: (accepted under standing implementation authority, V1-4380) The Go collector
+  observes os/exec launches in its scratch toolchain overlay. A child without coverage build
+  metadata, with a different coverage destination, or without completed counters rejects the
+  record as `uninstrumented-child` or `missing-child-counters`. Build-tool processes are exempt;
+  unknown launchers conservatively reject the record. This implements the detection rule of
+  `LPCV-V0-954`; no parent-only record supports exclusion. Witness: `TestUninstrumentedChild`.
+- `LPCV-V0-7602`: (accepted under standing implementation authority, V1-4423) Language collectors
+  share the language-neutral `linecov.Build` records-list writer and exported `FileByPath`,
+  `BlocksAtLine`, and `TestsOfFile` lookups. Equal records produce equal index bytes; overlapping
+  method and line blocks remain visible. Ruby uses this writer rather than constructing and
+  re-merging index storage. Witness: `TestNeutralBuildLookups`, `TestLPCVV0954DumpJoinAndIncompleteness`.
+- `LPCV-V0-7603`: (accepted under standing implementation authority, V1-4507) Collection records
+  its test and suite deadlines in the index. Qualification passes the recorded test deadline to
+  mutant executions and refuses `missing-recorded-test-deadline` for legacy or unknown deadlines.
+  Witness: `TestQualificationDeadline`.
+- `LPCV-V0-7604`: (accepted under standing implementation authority, V1-4414) The explicit
+  `linecov ruby-collect` and `ruby-select` commands collect a clean immutable Ruby index and
+  analyze committed diffs. They expose required inputs, examples, a command-tree snapshot and
+  capability rows, and report candidate coverage/fallback/exclusion counts separately from the
+  effective static plan. The retained full dry-equalizer RSpec shadow has four seeded changes,
+  zero misses and a measured narrowing rate. This bounded run does not admit production
+  exclusion or replace the 1,000-change promotion gate. Witness: `TestLanguageCommands`,
+  `docs/experiments/linecov-2026-11-04-ruby-shadow.json`.
+- `LPCV-V0-7605`: (accepted under standing implementation authority, V1-4415) Ruby collection
+  runs each test alone as well as in order, compares exactly one terminal outcome and unions
+  their coverage. Missing or different outcomes are `isolation-divergent`. Every spawn/system
+  attempt has a token joined to a completed instrumented process; missing tokens, environment
+  clearing, non-Ruby children, unobservable forks and popen/backtick launchers make records
+  incomplete. Failed exec attempts cancel their launch marker. Load/eval code is attributed to
+  the load bucket; uncalled method edits and changed test files use static fallback. Data-driven
+  test-unit cases retain distinct identities. Witness: `TestIsolationAndChildren`,
+  `TestUncalledMethodFallback`, `TestDataDrivenTestUnit`, `TestLoadedEvalAndNewTestFallback`,
+  `TestLiveRSpecIsolation`.
+- `LPCV-V0-7606`: (accepted under standing implementation authority, V1-4421) The explicit
+  `linecov js-collect` and `js-select` commands collect JavaScript/TypeScript indexes through
+  the shared builder and validated `linecov.Decode` (`Load` is Open + Decode), apply `jslinecov.Analyze`, and report recorded
+  inventories and coverage/static/excluded counts. Failed native runs retain their terminal
+  observations for qualification while publishing no coverage record. Each of the eight node
+  runner adapters has a fault-injection witness; a pinned Beamfall TypeScript suite has a
+  retained full-suite shadow. Effective execution remains static pending production admission.
+  Witness: `TestLanguageCommands`, `TestRunnerFaultInjection`,
+  `docs/experiments/linecov-2026-11-04-js-shadow.json`.
+- `LPCV-V0-7607`: (accepted under standing implementation authority, V1-4372) `linecov watch`
+  consumes foreground save events and replans staged, unstaged and untracked working-tree edits
+  against the immutable index commit with the same analyzers and fallbacks. Native Linux
+  directory events observe close-write and atomic replacement; other platforms use explicit
+  editor stdin notifications or one-shot execution. Native output and per-run results stream;
+  failures do not prevent the next save from repairing them. Every event is user-scoped and
+  ineligible to close a CI gate. Non-Go effective runs retain the unqualified static suite.
+  Witness: `TestWatchWorkingTree`, `TestWatchIgnoredGoSource`, `TestNativeSaveNotification`.
 - `LPCV-V0-950`: (accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** names one test identity (`LPCV-V0-022`), the runner
   and its exact version, the instrumentation mode, the commit and the Git blob OID of every source
   file the instrumented process tree could report, and per such file the executed line ranges with a
@@ -832,9 +891,9 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-968`: (accepted, owner 2026-11-03, V1-4367) The collector ships as the typescript plugin's
   `linecov-js` Coverage sub-plugin (`LGP-V0-020`), so `make plugin-test PLUGIN=typescript` tests it
   with the plugin, and the plugin no longer reports `coverage-collector-missing`.
-- `LPCV-V0-969`: (accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: no
-  `corvint` command yet builds a JavaScript index or applies `LPCV-V0-966` to a plan, the family is
-  unqualified until its `LPCV-V0-963` fault-injection run passes on a pinned Beamfall repository, and
+- `LPCV-V0-969`: (accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: the explicit
+  `linecov js-collect` and `js-select` developer commands build indexes and shadow plans, while production
+  exclusion remains unadmitted until per-family qualification and the frozen shadow gates pass, and
   browser E2E coverage is the browser collector's (`LPCV-V0-970..979`). Until then the static plan
   stands for every JavaScript change. Rollback is removing the sub-plugin entry, which restores
   `coverage-collector-missing`.
@@ -1067,8 +1126,8 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-021..026` provider protocol | not-started | two independent provider implementations and conformance suite |
 | `LPCV-V0-027..031` runtime evidence | not-started | privacy/coverage/runtime-value adversarial vectors |
 | `LPCV-V0-032..036` IDE and agent API | not-started | identical-receipt two-client conformance |
-| `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); Go prototype measured in decision 0590; Ruby collector implemented, unqualified (V1-4374): `LPCV-V0-950`, `952`, `953`; `954` partly (subprocesses and `exec` join their test; a fork that exits without `at_exit` leaves no dump); `955` partly (RSpec, Minitest, test-unit in one process; Rails `parallelize` workers and data-driven test-unit tests that share a name are not recorded); `962` partly (an incomplete or crashed run publishes no record; the collector runs in order only, with no isolated pass or `isolation-divergent` check, so its index lists every recorded file as unordered and every plan runs whole until V1-4415). An edit selects every test of the innermost method containing it, since Ruby line counts are not a safe per-line owner (a `when` line counts 0) | per-collector fixture suite, 1,000-change CI shadow and fault-injection qualification with zero misses, `LPCV-V0-958` latency and size. Ruby: `internal/rubylinecov`'s `TestLPCVV0955LiveMinitestPerTest`, `TestLPCVV0955LiveTestUnitPerTest`, `TestLPCVV0955LiveRSpecThroughDocker` (per-test records in one process, subprocess join, a real diff mapped and planned), `TestLPCVV0954DumpJoinAndIncompleteness` and `TestLPCVV0953RubyFallbacks`; no fault-injection or real-repository qualification has run (`NOT_RUN`) and no selection command consumes the Ruby index yet |
-| `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental (V1-4367); collector and selection built, not wired to a command, unqualified | `TestAddV8SourceMapped`, `TestAddV8CacheURL`, `TestAddV8Unreadable`, `TestFilePath`, `TestAddLCOVSourceMap`, `TestAddIstanbul` (965); `TestBodies`, `TestBodiesRefuse`, `TestAnalyze`, `TestAnalyzeInOrder`, `TestAnalyzeSharedTestFile`, `TestAnalyzeNestedEdge` (966); `TestCollect` per runner, `TestCollectRepeatedTitle`, `TestCollectIsolation`, `TestFilter` (967); `make plugin-test PLUGIN=typescript` (968); `LPCV-V0-963` qualification outstanding (969) |
+| `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); Go windows/child audit, shared index APIs, recorded deadlines, Ruby isolated divergence and child completeness implemented; Ruby commands and local watch experimental; production exclusion unadmitted; Rails workers conservatively incomplete | `TestInOrderWindows`, `TestUninstrumentedChild`, `TestQualificationDeadline`, `TestIsolationAndChildren`, `TestLiveRSpecIsolation`, `TestLanguageCommands`, `TestWatchWorkingTree`; full dry-equalizer 49-test RSpec shadow: four faults, zero misses, mean narrowing 70.4%; [lane evidence](../build-log/2026-11-04-linecov.md); 1,000-change promotion NOT_RUN |
+| `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental; collection/selection commands implemented, effective static fallback retained | `TestCollect`, `TestCollectRepeatedTitle`, `TestCollectIsolation`, `TestFilter`, `TestAnalyze`, `TestRunnerFaultInjection` (all eight native runners, zero misses); pinned Beamfall full 91-test TypeScript suite: four faults, zero misses, mean narrowing 40.1%; [retained run](../experiments/linecov-2026-11-04-js-shadow.json) |
 | `LPCV-V0-970..979` browser E2E collector | experimental (V1-4368); Playwright and Cypress fixture suite passes on Linux; not qualified under `LPCV-V0-956` or `LPCV-V0-963` | `TestE2EPlaywright`, `TestE2ECypress` and the attribution unit tests in `internal/browsercov` |
 | `LPCV-V0-037..042` containment and updates | not-started | process-tree, path, permission, network, and rollback matrix |
 | `LPCV-V0-043..046` language tranche | not-started | Corvint, Beamfall, and independent JS/TS shadow reports |

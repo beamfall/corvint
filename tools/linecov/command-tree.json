@@ -1,0 +1,289 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "linecov",
+  "helpJson": "linecov help --json",
+  "source": "tools/linecov/help.go",
+  "dispatchSources": [
+    "tools/linecov"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "ci"
+      ],
+      "command": "linecov ci",
+      "summary": "Narrow a Go CI shard",
+      "usage": [
+        "linecov ci -root DIR -index INDEX -base FULL_SHA -packages FILE -slices FILE -out DIR"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-base",
+        "-packages",
+        "-slices",
+        "-out"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX",
+        "-base FULL_SHA",
+        "-packages FILE",
+        "-slices FILE",
+        "-out DIR"
+      ],
+      "example": "linecov ci -root DIR -index INDEX -base FULL_SHA -packages FILE -slices FILE -out DIR",
+      "help": "linecov ci --help"
+    },
+    {
+      "path": [
+        "collect"
+      ],
+      "command": "linecov collect",
+      "summary": "Collect Go coverage records",
+      "usage": [
+        "linecov collect -root DIR -out INDEX [-packages a,b]"
+      ],
+      "flags": [
+        "-root",
+        "-out",
+        "-packages",
+        "-parallel",
+        "-timeout",
+        "-suite-timeout",
+        "-work",
+        "-prior",
+        "-misses"
+      ],
+      "required": [
+        "-root DIR",
+        "-out INDEX"
+      ],
+      "example": "linecov collect -root DIR -out INDEX [-packages a,b]",
+      "help": "linecov collect --help"
+    },
+    {
+      "path": [
+        "js-collect"
+      ],
+      "command": "linecov js-collect",
+      "summary": "Collect an immutable JavaScript or TypeScript per-test index",
+      "usage": [
+        "linecov js-collect -root DIR -out INDEX -runner node-test -executable /usr/bin/node -files test/a.test.js"
+      ],
+      "flags": [
+        "-root",
+        "-out",
+        "-command",
+        "-runner",
+        "-executable",
+        "-files",
+        "-config",
+        "-parallel",
+        "-timeout",
+        "-suite-timeout"
+      ],
+      "required": [
+        "-root DIR",
+        "-out INDEX",
+        "-runner",
+        "-executable /usr/bin/node",
+        "-files test/a.test.js"
+      ],
+      "example": "linecov js-collect -root DIR -out INDEX -runner node-test -executable /usr/bin/node -files test/a.test.js",
+      "help": "linecov js-collect --help"
+    },
+    {
+      "path": [
+        "js-select"
+      ],
+      "command": "linecov js-select",
+      "summary": "Report JavaScript coverage shadow decisions",
+      "usage": [
+        "linecov js-select -root DIR -index INDEX -base FULL_SHA [-files a,b]"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-base",
+        "-files"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX",
+        "-base FULL_SHA"
+      ],
+      "example": "linecov js-select -root DIR -index INDEX -base FULL_SHA [-files a,b]",
+      "help": "linecov js-select --help"
+    },
+    {
+      "path": [
+        "merge"
+      ],
+      "command": "linecov merge",
+      "summary": "Merge compatible immutable indexes",
+      "usage": [
+        "linecov merge -out INDEX PART..."
+      ],
+      "flags": [
+        "-out"
+      ],
+      "required": [
+        "-out INDEX",
+        "PART..."
+      ],
+      "example": "linecov merge -out INDEX PART...",
+      "help": "linecov merge --help"
+    },
+    {
+      "path": [
+        "qualify"
+      ],
+      "command": "linecov qualify",
+      "summary": "Qualify Go selection by fault injection",
+      "usage": [
+        "linecov qualify -root DIR -index INDEX -packages a,b [-mutants N] [-seed N]"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-packages",
+        "-mutants",
+        "-seed"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX",
+        "-packages a,b"
+      ],
+      "example": "linecov qualify -root DIR -index INDEX -packages a,b [-mutants N] [-seed N]",
+      "help": "linecov qualify --help"
+    },
+    {
+      "path": [
+        "redundancy"
+      ],
+      "command": "linecov redundancy",
+      "summary": "Report repeated coverage",
+      "usage": [
+        "linecov redundancy -root DIR -index INDEX [-packages a,b]"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-packages",
+        "-low-unique",
+        "-top",
+        "-requirements"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX"
+      ],
+      "example": "linecov redundancy -root DIR -index INDEX [-packages a,b]",
+      "help": "linecov redundancy --help"
+    },
+    {
+      "path": [
+        "ruby-collect"
+      ],
+      "command": "linecov ruby-collect",
+      "summary": "Collect an immutable Ruby per-test index",
+      "usage": [
+        "linecov ruby-collect -root DIR -out INDEX -command '[\"ruby\",\"test/all.rb\"]'"
+      ],
+      "flags": [
+        "-root",
+        "-out",
+        "-command",
+        "-runner",
+        "-executable",
+        "-files",
+        "-config",
+        "-parallel",
+        "-timeout",
+        "-suite-timeout"
+      ],
+      "required": [
+        "-root DIR",
+        "-out INDEX",
+        "-command"
+      ],
+      "example": "linecov ruby-collect -root DIR -out INDEX -command '[\"ruby\",\"test/all.rb\"]'",
+      "help": "linecov ruby-collect --help"
+    },
+    {
+      "path": [
+        "ruby-select"
+      ],
+      "command": "linecov ruby-select",
+      "summary": "Report Ruby coverage shadow decisions",
+      "usage": [
+        "linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b]"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-base",
+        "-files"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX",
+        "-base FULL_SHA"
+      ],
+      "example": "linecov ruby-select -root DIR -index INDEX -base FULL_SHA [-files a,b]",
+      "help": "linecov ruby-select --help"
+    },
+    {
+      "path": [
+        "select"
+      ],
+      "command": "linecov select",
+      "summary": "Select Go tests from an immutable index",
+      "usage": [
+        "linecov select -root DIR -index INDEX -base FULL_SHA [-static a,b]"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-base",
+        "-static"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX",
+        "-base FULL_SHA"
+      ],
+      "example": "linecov select -root DIR -index INDEX -base FULL_SHA [-static a,b]",
+      "help": "linecov select --help"
+    },
+    {
+      "path": [
+        "watch"
+      ],
+      "command": "linecov watch",
+      "summary": "Rerun working-tree tests on foreground save notifications",
+      "usage": [
+        "linecov watch -root DIR -index INDEX [-once|-events-stdin] [-packages a,b] [-go-wrapper PATH] [-command ARGV_JSON]"
+      ],
+      "flags": [
+        "-root",
+        "-index",
+        "-packages",
+        "-once",
+        "-events-stdin",
+        "-go-wrapper",
+        "-command"
+      ],
+      "required": [
+        "-root DIR",
+        "-index INDEX"
+      ],
+      "example": "linecov watch -root DIR -index INDEX [-once|-events-stdin] [-packages a,b] [-go-wrapper PATH] [-command ARGV_JSON]",
+      "help": "linecov watch --help"
+    }
+  ]
+}
