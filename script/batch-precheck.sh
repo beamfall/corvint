@@ -291,7 +291,7 @@ doc_gate_commands() {
     function flush(    i, body) {
       if (!n) return
       for (i = 1; i <= n; i++) body = body substr(lines[i], indent + 3) "\n"
-      if (mirror != "" && body == mirror) print "make ci-batch-cem-check"
+      if (step == "ci-only" && mirror != "" && body == mirror) print "make ci-batch-cem-check"
       else for (i = 1; i <= n; i++) emit(lines[i])
       n = 0
     }
@@ -334,7 +334,8 @@ doc_gates() {
   while IFS= read -r cmd; do
     if [[ $cmd == $'\034'* ]]; then
       ci_only+="${cmd#$'\034'}"$'\n'
-      continue
+      # Retain ordinary classification diagnostics as well as the pinned-body refusal.
+      cmd=${cmd#$'\034'}
     fi
     if [[ $cmd == $'\t'* ]]; then
       printf 'unknown\t%s\n' "${cmd#$'\t'}"

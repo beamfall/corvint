@@ -757,6 +757,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
+    "tools/linecov": [],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [

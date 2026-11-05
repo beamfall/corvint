@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // LPCV-V0-7603: qualification passes exactly the recorded deadline to mutants.
@@ -15,7 +17,7 @@ func TestQualificationDeadline(t *testing.T) {
 	log := filepath.Join(dir, "args")
 	t.Setenv("DEADLINE_LOG", log)
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$DEADLINE_LOG\"\nprintf '%s\\n' '{\"Action\":\"pass\",\"Package\":\"m/p\"}'\n"
-	if err := os.WriteFile(filepath.Join(dir, "go"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "go"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
