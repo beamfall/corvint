@@ -1341,6 +1341,7 @@ CSB-V0-003	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner
 CSB-V0-004	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner's standing auto-accept (2026-10-11)) Path rul	standing	V1-2672; 2026-10-11
 CSB-V0-005	docs/specs/cem-stable-bundle-v0.md	(V1-2672; accepted under the owner's standing auto-accept (2026-10-11)) Refusals	standing	V1-2672; 2026-10-11
 CEM-V1-8201	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
+CEM-V1-8600	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4650) Amends t	standing	2026-10-11; V1-4650
 CEM-V1-001	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk	owner	decision 0546; 2026-10-20
 CEM-V1-002	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Bind criterion references to canonical n	owner	decision 0546; 2026-10-20
 CEM-V1-003	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by dig	owner	decision 0546; 2026-10-20
@@ -2003,6 +2004,7 @@ CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	Invocation lifecycle (propos
 CWT-V0-015	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
 CWT-V0-016	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
 CWT-V0-017	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
+CEP-V0-8600	docs/specs/context-evolution-program-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3675) After re	standing	2026-10-11; V1-3675
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
 CEP-V0-960	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2761)	standing	2026-10-11; V1-2761
@@ -2194,7 +2196,7 @@ ASD-V0-065	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-066	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3816) `script/	standing	2026-11-01; V1-3816
 ASD-V0-067	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3061) `script/	standing	2026-11-01; V1-3061
 ASD-V0-2420	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4440, V1-4226;	standing	2026-11-03; V1-4440; V1-4226
-ASD-V0-2421	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4440, V1-4226;	standing	2026-11-03; V1-4440; V1-4226
+ASD-V0-2421	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4440, V1-4226;	standing	2026-11-03; V1-4440; V1-4226; 2026-11-04; V1-1020
 ASD-V0-070	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3233) Under an	standing	2026-10-30; V1-3233
 ASD-V0-071	docs/specs/corvint-self-development-v0.md	Retired by `ASD-V0-831` (V1-3337, 2026-10-31): `script/check-ai-trailers.sh`, it	unrecorded	-
 ASD-V0-072	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3230) A shallo	standing	2026-10-30; V1-3230
@@ -3804,7 +3806,7 @@ DCW-V0-376	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-377	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2893, decision 0585; amend	standing	V1-2893; decision 0585
 DCW-V0-378	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2889; refines `DCW-V0-060`	standing	V1-2889
 DCW-V0-379	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2970; amends `DCW-V0-335`	standing	V1-2970
-DCW-V0-380	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2970; amends `DCW-V0-349`)	standing	V1-2970
+DCW-V0-380	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2970; amended under the ow	standing	V1-2970; 2026-11-04; V1-4648
 DCW-V0-381	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2423; amends `DCW-V0-333`	standing	V1-2423
 DCW-V0-382	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3118; refines `DCW-V0-150`	standing	V1-3118
 DCW-V0-383	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3121) A `dogfood-change`	standing	V1-3121
