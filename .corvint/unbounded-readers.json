@@ -35,6 +35,7 @@
     "script/review-head-check_test.sh",
     "script/runtime-environment_test.sh",
     "tools/cem-trial",
+    "tools/linecov",
     "tools/test-exec-writes-check",
     "tools/test-read-scopes-check"
   ],
@@ -73,6 +74,7 @@
     "script/review-head-check_test.sh": "AZU-V0-004 inbound closure reaches script/dogfood-seal.sh, then script/codex-review.sh and script/heavy.sh, whose computed source paths carry shell:dynamic-source. TSP-V0-950 shell read scopes bound only shell:runs-toolchain, so cannot declare this read. This is a graph edge, not an instruction to run a reviewer.",
     "script/runtime-environment_test.sh": "AZU-V0-004 inbound closure reaches script/dogfood-change_test.sh, then script/dogfood-change.sh, script/analyzer-schema.sh and script/heavy.sh, whose computed source paths carry shell:dynamic-source. TSP-V0-950 shell read scopes bound only shell:runs-toolchain, so cannot declare this read.",
     "tools/cem-trial": "buildCorvint runs go build of cmd/corvint and skips the test when the build fails, so a confined run passes without the reads it needs; a nested build cannot be declared narrowly (AFP-V0-023 residuals)",
+    "tools/linecov": "it imports internal/jslinecov, which reaches internal/jstestprovider through internal/testrunner and internal/testvaliditydoc; jstestprovider runs git rev-parse --show-toplevel over the repository's .git, which AFP-V0-023 never grants, so .corvint/test-read-scopes.json cannot declare it",
     "tools/test-exec-writes-check": "main_test.go walks the repository root (\"../..\") and runs git ls-files over the whole tree; Landlock confinement forbids the git read of .git, so .corvint/test-read-scopes.json cannot declare it (observed in batch-1101d CI, 2026-11-01)",
     "tools/test-read-scopes-check": "main.go runs go list -deps over each declared package's test import roots (V1-2037) and main_test.go exercises it on fixture modules, so its reads include GOROOT and the toolchain's module resolution; a declaration cannot name the toolchain's reads narrowly (AFP-V0-023 residuals)"
   }

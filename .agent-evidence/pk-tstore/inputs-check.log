@@ -1,0 +1,3 @@
+dogfood-inputs-check: REFUSE self-binary-stale /home/russell/.local/bin/corvint: this binary was built from commit d436dff76de1 and 26 Go source paths differ at HEAD: cmd/corvint/dogfood_flow.go, cmd/corvint/help.go, cmd/corvint/host_adapter.go (+23 more); rebuild it from this checkout (go install ./cmd/corvint); or unset CORVINT_BIN to use the current-tree build
+dogfood-inputs-check: the static pre-check ran the installed /home/russell/.local/bin/corvint, not this tree's build; if this tree changed the refused rule, rerun with DOGFOOD_STATIC_PRECHECK=0
+make: *** [Makefile:1105: dogfood-inputs-check] Error 2

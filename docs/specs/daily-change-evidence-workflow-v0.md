@@ -2594,8 +2594,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   step, then print `inputs-check STATIC PASS ...` on stdout and exit 0, or the same refusal and
   exit status as the full pre-flight. Its plan check MUST refuse the row grammar and an unregistered RELATION exactly as the prepare pass's `planShape` would (`invalid-citation-plan`, `citation-plan-relation-unknown`), leaving a plan over the row or byte bound to the staged route; on a seal HEAD it MUST print `inputs-check STATIC SKIP already-sealed; the full inputs-check reports the seal` and exit 0 without the outcome inputs, so a rerun with BASE and CITATIONS alone still reaches the full run's `seal SKIP`. The wrapper's inputs-only phase, which runs before the
   heavy.sh admission, MUST run it with the cached tree build of HEAD's exact build key, or else
-  the installed `corvint` on PATH, each only when its `inputs-check --help` lists `--static`; with
-  neither it prints `static pre-check SKIP no-static-binary` and goes on, and
+  `CORVINT_BIN` when set (a bare name resolved on PATH, a relative path made absolute; a set
+  `CORVINT_BIN` replaces the installed fallback), or else the installed `corvint` on PATH, each only
+  when its `inputs-check --help` lists `--static`; with none it prints `static pre-check SKIP
+  no-static-binary` and goes on; a `self-binary-stale` refusal from the cached or installed binary
+  prints `static pre-check SKIP stale-binary` with the refusal line and goes on, since it names the
+  binary rather than an input defect, while one from `CORVINT_BIN` stays a refusal because the
+  admitted run uses that binary (V1-4406, V1-4466); and
   `DOGFOOD_STATIC_PRECHECK=0` skips it. The `DCW-V0-074` build key MUST leave out a GOFLAGS
   `-p=N` word (outside quotes, with one adjacent separator) and keep every other GOFLAGS byte, quoted spaces and newlines included, since that word sets parallelism only, so the build the admitted run recorded under heavy.sh's
   exported `-p` is the one the next unadmitted phase finds. A refusal from the installed binary adds one line naming it

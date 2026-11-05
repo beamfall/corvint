@@ -15,6 +15,8 @@ import (
 // while CORVINT_TEST_LEADER_FAULT is set in its environment.
 var leaderFault func(dir string)
 
+var checkTestLeaders = func() error { return nil }
+
 // holderStopEnv names a file whose creation, or its directory's removal,
 // releases the output holder (V1-2625).
 const holderStopEnv = "CORVINT_TEST_HOLDER_STOP"
@@ -76,5 +78,10 @@ func TestMain(m *testing.M) {
 			panic(err)
 		}
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	if err := checkTestLeaders(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		code = 1
+	}
+	os.Exit(code)
 }

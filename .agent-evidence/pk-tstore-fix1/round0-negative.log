@@ -1,0 +1,16 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at a6eb8ed06e9a403fffc7b56f95954a825dfef0ad tree=10aea5c043338a4d6ea294adb1e17106e47abb44 dirty=28
+heavy.sh: slot 2/8 after 0s
+=== RUN   TestTCLV07206_CommitPrefixCountsOnlyCommits
+    commit_prefix_test.go:42: commit + blob: true <nil>
+--- FAIL: TestTCLV07206_CommitPrefixCountsOnlyCommits (0.02s)
+=== RUN   TestATRV07203_PreparationReusesSuccessfulAudit
+    lease_prepare_reuse_test.go:56: audited files reread during preparation: [/tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/VERSION /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/head.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/reservations.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/receipts/000000000001.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/receipts/000000000002.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/requests/1b/1b9460a98b02506c5a5f5b8b280963e21f0698a3d4bc64691c8432035b4311c1.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/requests/45/452734356149133e80dc1d85d511e464174b3470701614c61c96a9f89d759d04.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/evidence/f9eb2d19e2a1ea045b130dfb8d56da211e8e7d4c684ce981a6190a659a38a41b /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.git/taskman/pinned/d0625f2fbf09fea8e400e604343deff054ed35dd2fce36ee931e41ba11a9e72c.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.taskman/queue.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.taskman/policy.json /tmp/pk-tstore-fix/heavy-run.qOv2Gv/atm-2696846367/repo/.taskman/tickets/AT-0002.json]
+--- FAIL: TestATRV07203_PreparationReusesSuccessfulAudit (0.15s)
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/tasks/store	0.231s
+FAIL
+heavy.sh: done queue=0.1s (load=0s slot=0.1s) run=18.7s rc=1
+heavy.sh: exit rc=1 cause=command cmd=go

@@ -66,7 +66,7 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 	// Read each tracked candidate once. Directory constructions are shared
 	// across callees in the same directory, independently of literal basenames.
 	for name := range tracked {
-		if !shell.CallerCandidate(path.Base(name)) {
+		if !shell.CallerCandidate(path.Base(name)) || outsideShellUniverse(name) {
 			continue
 		}
 		text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -161,4 +161,21 @@ func (t trackedFS) OpenBounded(name string, limit int) (fs.File, error) {
 		return nil, err
 	}
 	return file, nil
+}
+
+// outsideShellUniverse reports a tracked path under a dot-directory other than
+// shell.HiddenRoots, such as retained .agent-evidence/ scripts: the plugin's
+// source walk skips it, so the declaration must not list it either.
+func outsideShellUniverse(name string) bool {
+	for _, root := range shell.HiddenRoots {
+		if strings.HasPrefix(name, root+"/") {
+			return false
+		}
+	}
+	for _, part := range strings.Split(path.Dir(name), "/") {
+		if part != "." && strings.HasPrefix(part, ".") {
+			return true
+		}
+	}
+	return false
 }

@@ -59,11 +59,8 @@ docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:376
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:458
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:466
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:73
-docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:150
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:167
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:192
-docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:215
-docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:240
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:270
 docs/specs/agent-harness-integration-v0.md	internal/opencodequalification/record.go:433
 docs/specs/change-frontier-profile-1.md	cmd/corvint/frontier.go:29-32

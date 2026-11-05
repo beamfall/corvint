@@ -49,7 +49,8 @@ type Workflow struct {
 	wallStop bool
 	// continuing reports that the current stage is a checkpointed
 	// continuation, whose admission is fenced on pending controls.
-	continuing bool
+	continuing    bool
+	programReload bool // failed/ambiguous write requires an authoritative reload
 }
 
 var ErrProgramIdle = errors.New("no eligible stage work")
@@ -75,22 +76,44 @@ func (w *Workflow) persist(phase string) error { return w.persistFenced(phase, f
 var programWriteHook = func() {}
 
 // persistFenced is persist that, when fenced, refuses while a control is
-// pending and then reloads the recorded program (CAL-V0-089).
+// pending. Every unsuccessful transition reloads the recorded program
+// before another effect, including unfenced writes (ATR-V0-7200).
 // The recorded control is kept under the writer lock (ATR-V0-240).
 func (w *Workflow) persistFenced(phase string, fenced bool) error {
-	w.program.Phase = phase
+	if e := w.reloadProgram(); e != nil {
+		return e
+	}
+	next := w.program
+	next.Phase = phase
 	programWriteHook()
-	r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, fenced, true)
-	if e = transitionOK(r, e); e != nil && fenced {
-		entries, _ := ProgramRecords(context.Background(), w.repo)
-		for _, p := range entries {
-			if p.ID == w.program.ID {
-				w.program = p
-			}
+	r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), next, fenced, true)
+	if e = transitionOK(r, e); e != nil {
+		w.programReload = true
+		return errors.Join(e, w.reloadProgram())
+	}
+	w.program = next
+	return nil
+}
+
+// A failed read keeps the reload fence set; no retry may act on speculative state.
+func (w *Workflow) reloadProgram() error {
+	if !w.programReload {
+		return nil
+	}
+	entries, err := ProgramRecords(context.Background(), w.repo)
+	if err != nil {
+		return err
+	}
+	for _, p := range entries {
+		if p.ID == w.program.ID {
+			w.program = p
+			w.programReload = false
+			return nil
 		}
 	}
-	return e
+	return fmt.Errorf("program %s absent after failed transition", w.program.ID)
 }
+
 func transitionOK(r *Report, e error) error {
 	if e != nil {
 		return e
@@ -1025,6 +1048,9 @@ func fault(repo *intent.Repository, point string) error {
 // recovery leave the attempt selectable, so their errors stay as classified
 // (CAL-V0-078).
 func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot.Attempt, err error) {
+	if e := w.reloadProgram(); e != nil {
+		return nil, e
+	}
 	w.departed = false
 	defer func() {
 		if err != nil && w.departed {
@@ -1641,6 +1667,9 @@ func (w *Workflow) CleanupWorktrees() ([]WorktreeCleanup, error) {
 // takeover just settled, for a later cleanup, so one invocation never
 // reports both a rollback and a removal of one worktree (CAL-V0-370).
 func (w *Workflow) cleanupWorktrees(settled *WorktreeCleanup) ([]WorktreeCleanup, error) {
+	if e := w.reloadProgram(); e != nil {
+		return nil, e
+	}
 	phase, e := w.cleanupPhase()
 	if e != nil {
 		return nil, e

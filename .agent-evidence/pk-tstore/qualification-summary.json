@@ -1,0 +1,16 @@
+{
+  "base": "6c33df33bc5670131482f5263b410cb980580657",
+  "implementationCommit": "58cad24a3b95cf4cb4d1d694d0f8237f757628db",
+  "loadedSpawnFailures": {
+    "trials": 200,
+    "minimumLoad1": 55.45,
+    "maximumLoad1": 72.78,
+    "packageSeconds": 1052.547,
+    "result": "PASSED",
+    "loadWorkers": 48,
+    "loadWorkerNiceness": 19,
+    "packageExitLeaderCheck": "PASSED"
+  },
+  "performanceQualification": "NOT_QUALIFIED_SHARED_HOST",
+  "goVersion": "go1.27.3"
+}

@@ -1,0 +1,14 @@
+error: Unable to create '/home/russell/projects/corvint/.git/packed-refs.lock': Read-only file system
+[claude/pk-tstore 58cad24a3] fix: harden Tasks store transitions and CLI read paths
+ 57 files changed, 1427 insertions(+), 107 deletions(-)
+ create mode 100644 .agent-evidence/pk-tstore/dogfood-start.json
+ create mode 100644 .agent-evidence/pk-tstore/prechange-context.json
+ create mode 100644 .agent-evidence/pk-tstore/prechange-impact.json
+ create mode 100644 .agent-evidence/pk-tstore/prechange-query.json
+ create mode 100644 .agent-evidence/pk-tstore/ticket-sources.json
+ create mode 100644 docs/build-log/2026-11-04-pk-tstore.md
+ create mode 100644 internal/tasks/cli/pk_tstore_commit_test.go
+ create mode 100644 internal/tasks/cli/pk_tstore_internal_test.go
+ create mode 100644 internal/tasks/cli/pk_tstore_regression_test.go
+ create mode 100644 internal/tasks/store/checkpoint_decode_unix_test.go
+ create mode 100644 internal/tasks/store/spawn_failure_load_linux_test.go

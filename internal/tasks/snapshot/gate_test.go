@@ -73,12 +73,22 @@ func TestCALV0017_ManifestRoundTrips(t *testing.T) {
 	m := Manifest{AttemptID: testAttempt, Generation: "1", TicketID: id, TicketRevision: wire.CountOf(1), TicketRecordSha256: d, PolicySha256: d,
 		ConfigSha256: d, BaseCommit: strings.Repeat("c", 40), CandidateTreeOid: strings.Repeat("a", 40), GateResults: []string{string(d)},
 		Budget: budget, ScopeCheck: "WITHIN", Mode: "DEVELOPMENT"}
-	raw, err := m.Encode()
-	if err != nil {
-		t.Fatal(err)
+	// TCL-V0-7206: legacy manifests omit completionCommit; new ones retain
+	// a full OID and reject an invalid optional value.
+	for _, commit := range []string{"", strings.Repeat("d", 40)} {
+		m.CompletionCommit = commit
+		raw, err := m.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		back, err := DecodeManifest(raw)
+		if err != nil || back.CompletionCommit != commit || back.CandidateTreeOid != m.CandidateTreeOid || len(back.GateResults) != 1 || back.TicketID.Raw != id.Raw {
+			t.Fatalf("decode: %+v %v", back, err)
+		}
 	}
-	back, err := DecodeManifest(raw)
-	if err != nil || back.CandidateTreeOid != m.CandidateTreeOid || len(back.GateResults) != 1 || back.TicketID.Raw != id.Raw {
-		t.Fatalf("decode: %+v %v", back, err)
+	m.CompletionCommit = "HEAD"
+	if _, err := m.Encode(); wire.CodeOf(err) != wire.CodeMalformed {
+		t.Fatalf("non-OID completion commit: %v", err)
 	}
+
 }

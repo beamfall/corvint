@@ -241,23 +241,23 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 	inSection := false
 	for index, raw := range lines {
 		trimmed := strings.TrimSpace(raw)
-		if match := documentTitle.FindStringSubmatch(raw); match != nil && !titleFound {
+		if match := matchDocumentTitle(raw, titleFound); match != nil && !titleFound {
 			title = strings.TrimSpace(match[1])
 			titleLine = index + 1
 			titleFound = true
 		}
-		if match := documentHeading.FindStringSubmatch(raw); match != nil {
+		if match := matchDocumentHeading(raw); match != nil {
 			headings = append(headings, match[1])
 		}
 		// A fenced block is an example, not the document's own field
 		// (FPK-V0-029): its lines, fences included, never supply the status.
 		open := fence
 		fence = nextFence(fence, trimmed)
-		if instructions && open == "" && documentHeading.MatchString(raw) && !(titleFound && titleLine == index+1) {
+		if instructions && open == "" && isDocumentHeading(raw) && !(titleFound && titleLine == index+1) {
 			inSection = true
 		}
 		if status == "" && open == "" && fence == "" {
-			if match := documentStatus.FindStringSubmatch(raw); match != nil {
+			if match := matchDocumentStatus(raw); match != nil {
 				status = strings.ToLower(strings.TrimSpace(match[1]))
 			}
 		}
@@ -320,13 +320,20 @@ func parserSource(text string) []byte {
 // (TCP-V0-162). A source the grammar refuses contributes none: the scanner
 // fallback has no struct body to read.
 func goSymbols(source Source, text string) ([]Symbol, []Symbol, string) {
+	symbols, fields, refusal, _ := goSymbolsParsed(source, text)
+	return symbols, fields, refusal
+}
+
+// goSymbolsParsed also returns a successful parse for import extraction, so
+// the whole-checkout build does not parse each Go file twice (GPK-V0-8000).
+func goSymbolsParsed(source Source, text string) ([]Symbol, []Symbol, string, *ast.File) {
 	fileSet := token.NewFileSet()
 	// go/parser reports malformed input as an error rather than a panic, so no
 	// recovery wrapper is needed for totality. Object resolution is skipped: no
 	// symbol below reads a resolved identifier, only its own name and position.
 	file, err := parser.ParseFile(fileSet, "source.go", parserSource(text), parser.SkipObjectResolution)
 	if err != nil {
-		return goSymbolsScan(source, text), nil, truncateRunes(err.Error(), 200)
+		return goSymbolsScan(source, text), nil, truncateRunes(err.Error(), 200), nil
 	}
 	result := make([]Symbol, 0, len(file.Decls))
 	var fields []Symbol
@@ -340,7 +347,7 @@ func goSymbols(source Source, text string) ([]Symbol, []Symbol, string) {
 			fields = append(fields, Symbol{Kind: declared.kind, Name: declared.name, Path: source.Path, BlobHash: source.BlobHash, Line: line})
 		}
 	}
-	return result, fields, ""
+	return result, fields, "", file
 }
 
 // goStructFieldNames names the fields a top-level `type T struct{...}`
@@ -633,6 +640,22 @@ func goImports(text string) (map[string]struct{}, string) {
 	// go/parser accepts arbitrary bytes and reports malformed input as an error
 	// rather than a panic, so no recovery wrapper is needed for totality.
 	file, err := parser.ParseFile(token.NewFileSet(), "source.go", parserSource(text), parser.ImportsOnly)
+	return goImportsParsed(file, text, err)
+}
+
+func goImportsAfterSymbols(file *ast.File, text string) (map[string]struct{}, string) {
+	if file == nil {
+		return goImports(text)
+	}
+	if !strings.Contains(text, "import") {
+		return nil, ""
+	}
+	return goImportsParsed(file, text, nil)
+}
+
+// A failed full parse must still use ImportsOnly: a syntax error after the
+// import block does not make the imports approximate or add an import refusal.
+func goImportsParsed(file *ast.File, text string, err error) (map[string]struct{}, string) {
 	refusal := ""
 	if err != nil {
 		refusal = truncateRunes(err.Error(), 200)

@@ -694,10 +694,11 @@ func TestCALV0074_SpawnedFailureIsNotNoExec(t *testing.T) {
 	t.Setenv(holderStopEnv, stop)
 	t.Cleanup(func() { _ = os.WriteFile(stop, nil, 0o600) })
 	a, err := w.RunRole(ctx, "implementer", "")
+	p := f.program(t, "program")
+	reapFaultLeader(t, p)
 	if err == nil || wire.CodeOf(err) == wire.CodeCapabilityUnavailable {
 		t.Fatalf("spawned failure: want a non-launch-refusal error, got %s %v", wire.CodeOf(err), err)
 	}
-	p := f.program(t, "program")
 	if p.Phase != "BLOCKED_RECOVERY" || p.ResultClass == "NO_EXEC" || p.OwnerReleased || p.LeaderPID <= 0 {
 		t.Fatalf("spawned failure settled as released: phase %s class %q quiescence %s released %v leader %d (run: %s %v)", p.Phase, p.ResultClass, p.Quiescence, p.OwnerReleased, p.LeaderPID, wire.CodeOf(err), err)
 	}
