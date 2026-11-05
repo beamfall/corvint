@@ -70,6 +70,9 @@ func retainLeaseAudit(key leaseAuditKey, proof *journal.Result) {
 }
 
 type preparedLease struct {
+	contentBinding     *transaction.Inventory
+	decisionBinding    map[string]journal.PhysicalFile
+	auditExtras        map[string]journal.PhysicalFile
 	guard              *authority.ChangeGuard
 	proof              *journal.Result
 	head               []byte
@@ -355,6 +358,18 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 			if err != nil || len(p.fatalCleanup) > 0 {
 				return p, err
 			}
+			p.auditExtras, err = leaseAuditContent(repo, inv, observation.Files)
+			if err != nil {
+				return p, err
+			}
+			// Bind current decision inputs under the lock, not every historical
+			// logical receipt/request the complete audit already checked. Keep
+			// the full binding for recovery and routes without a settled physical
+			// observation. All physically read request projections remain bound.
+			p.decisionBinding, err = leaseDecisionContent(repo, inv, decoded, request.RequestID)
+			if err != nil {
+				return p, err
+			}
 			supplied = proof
 			// The retained checkpoint keeps a base at the sealed sequence, so
 			// a later widen, reap or pool verb resumes from it (JSG-V0-780);
@@ -389,6 +404,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	if refused != nil {
 		audit = refused
 	}
+	p.contentBinding = inv
 	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, audit)
 	readEnd = time.Now()
 	if cleanup != nil {
@@ -582,10 +598,17 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		routeFacts = wf.observe
 	}
 	writerRoute := func(from *leaseResume) (done bool, rep *Report, fast *journal.Result, err error) {
+		// Decode the checkpoint outside both the preparation gate and writer
+		// lock. The locked audit rebinds the captured prefix and token.
+		var checkpoint *writerCheckpointBinding
+		if from == nil && writerRouteReady(repo, request) {
+			wc, token := boundWriterCheckpoint(repo)
+			checkpoint = &writerCheckpointBinding{wc: wc, token: token}
+		}
 		var handled, due bool
 		var routeErr error
 		serve := func() {
-			handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, routeFacts, report, from)
+			handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, routeFacts, report, from, checkpoint)
 		}
 		ran, gateErr := underPreparation(ctx, repo, hooks, timing, serve)
 		if ran && !handled && gateErr == nil && wf != nil && wf.settle() {
@@ -842,6 +865,16 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if wire.Sum(current) != wire.Sum(p.head) {
 		return wire.Errorf(wire.CodeSnapshotMoved, "head", "prepared head changed")
 	}
+	// ATR-V0-7203: watches do not observe every MAP_SHARED store. Bind the
+	// prepared bytes by content before publishing derived state or a receipt.
+	if p.decisionBinding != nil && !p.pending {
+		if err := verifyLeaseDecisionContent(repo, p.decisionBinding); err != nil {
+			return err
+		}
+	} else if err := verifyLeaseContent(repo, p.contentBinding, p.auditExtras); err != nil {
+		return err
+	}
+
 	at = writerStage(ctx, "complete.recheck", at)
 	// The lock is held and the head is the audited one. Read verbs share
 	// leaseAudit, so the checkpoint is retained here and never there.
@@ -912,4 +945,159 @@ func underPreparation(ctx context.Context, repo *intent.Repository, hooks invent
 	}
 	f()
 	return true, hooks.closePreparation(gate)
+}
+
+// leaseDecisionContent selects the current inputs from the prepared inventory.
+// The model consumes current intent/state and evidence, its head receipt and
+// (on replay) one request projection. Also retain every live request projection
+// the complete audit physically read, so mapped projection changes still refuse.
+// Historical sealed receipts/requests are already audited; their metadata is
+// used for capacity, not their bodies for the lease decision. Selection happens
+// before taking either lock. Recovery and unobserved routes keep the full pass.
+func leaseDecisionContent(repo *intent.Repository, inv *transaction.Inventory, head *snapshot.Head, requestID string) (map[string]journal.PhysicalFile, error) {
+	requestPath, err := snapshot.RequestPath(requestID)
+	if err != nil {
+		return nil, err
+	}
+	name, err := snapshot.ReceiptName(head.LastSeq.Uint64())
+	if err != nil {
+		return nil, err
+	}
+	headPath := "receipts/" + name
+	var live map[string]bool
+	if head.Segments != nil {
+		live, err = leaseLiveRequests(repo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	binding := map[string]journal.PhysicalFile{}
+	for _, file := range inv.Files() {
+		if strings.HasPrefix(file.Path, "receipts/") && file.Path != headPath {
+			continue
+		}
+		if strings.HasPrefix(file.Path, "requests/") && file.Path != requestPath {
+			if live != nil && !live[file.Path] {
+				continue
+			}
+		}
+		binding[file.Path] = journal.PhysicalFile{Sha256: file.Sha256, Bytes: int(file.Bytes.Uint64())}
+	}
+	return binding, nil
+}
+
+// leaseLiveRequests distinguishes native projection files from logical sealed
+// requests. PhysicalObservation also charges logical segment reads to derived
+// checkpoints, so membership in that map cannot establish native presence.
+// This bounded namespace observation runs under the preparation guard, outside
+// both locks; no request body is reread here.
+func leaseLiveRequests(repo *intent.Repository) (live map[string]bool, err error) {
+	native := (journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}).Session()
+	defer func() { err = errors.Join(err, native.Close()) }()
+	live = map[string]bool{}
+	root, err := native.List("requests", 256)
+	if os.IsNotExist(err) {
+		return live, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	seen := len(root.Entries)
+	for _, shard := range root.Entries {
+		if shard.Info == nil || !shard.Info.IsDir() {
+			return nil, wire.Errorf(wire.CodeSnapshotMoved, "requests/"+shard.Name, "request shard changed")
+		}
+		path := "requests/" + shard.Name
+		entries, err := native.List(path, wire.MaxArchiveScanEntries-seen)
+		if err != nil {
+			return nil, err
+		}
+		seen += len(entries.Entries)
+		for _, entry := range entries.Entries {
+			live[path+"/"+entry.Name] = true
+		}
+	}
+	return live, nil
+}
+
+func verifyLeaseDecisionContent(repo *intent.Repository, binding map[string]journal.PhysicalFile) (err error) {
+	native := (journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}).Session()
+	defer func() { err = errors.Join(err, native.Close()) }()
+	logical := journal.Logical(native)
+	for path, file := range binding {
+		raw, err := logical.Read(path, file.Bytes+1)
+		if err != nil {
+			return err
+		}
+		if wire.Sum(raw) != file.Sha256 || len(raw) != file.Bytes {
+			return wire.Errorf(wire.CodeSnapshotMoved, path, "prepared lease decision content changed")
+		}
+	}
+	return nil
+}
+
+// verifyLeaseContent reuses one bounded native read lifetime and one segment
+// view; reopening/decoding the sealed history per logical file is quadratic.
+// Closure succeeds before the caller publishes anything.
+func verifyLeaseContent(repo *intent.Repository, binding *transaction.Inventory, extras map[string]journal.PhysicalFile) (err error) {
+	if binding == nil {
+		return nil
+	}
+	native := (journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}).Session()
+	defer func() { err = errors.Join(err, native.Close()) }()
+	logical := journal.Logical(native)
+	for _, file := range binding.Files() {
+		raw, e := logical.Read(file.Path, int(file.Bytes.Uint64())+1)
+		if e != nil {
+			return e
+		}
+		if wire.Sum(raw) != file.Sha256 || uint64(len(raw)) != file.Bytes.Uint64() {
+			return wire.Errorf(wire.CodeSnapshotMoved, file.Path, "prepared lease content changed")
+		}
+	}
+	for path, file := range extras {
+		raw, e := native.Read(path, file.Bytes+1)
+		if e != nil {
+			return e
+		}
+		if wire.Sum(raw) != file.Sha256 || len(raw) != file.Bytes {
+			return wire.Errorf(wire.CodeSnapshotMoved, path, "audited lease content changed")
+		}
+	}
+	return nil
+}
+
+// The inventory contains logical sealed entries. An audit also reads their
+// physical manifest and segments, which are not archive inventory entries.
+// Compare common paths against the fresh inventory, and re-read those extra
+// physical paths; demanding their membership in the logical inventory would
+// decline every segmented lease and discard its checkpoint.
+func leaseAuditContent(repo *intent.Repository, inv *transaction.Inventory, observed map[string]journal.PhysicalFile) (map[string]journal.PhysicalFile, error) {
+	fresh := map[string]journal.PhysicalFile{}
+	for _, f := range inv.Files() {
+		fresh[f.Path] = journal.PhysicalFile{Sha256: f.Sha256, Bytes: int(f.Bytes.Uint64())}
+	}
+	extras := map[string]journal.PhysicalFile{}
+	native := (journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}).Session()
+	var result error
+	for path, file := range observed {
+		if current, ok := fresh[path]; ok {
+			if current != file {
+				result = wire.Errorf(wire.CodeSnapshotMoved, path, "audited lease content changed")
+				break
+			}
+		} else {
+			raw, err := native.Read(path, file.Bytes+1)
+			if err != nil {
+				result = err
+				break
+			}
+			if wire.Sum(raw) != file.Sha256 || len(raw) != file.Bytes {
+				result = wire.Errorf(wire.CodeSnapshotMoved, path, "audited lease content changed")
+				break
+			}
+			extras[path] = file
+		}
+	}
+	return extras, errors.Join(result, native.Close())
 }

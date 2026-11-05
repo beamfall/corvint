@@ -2647,6 +2647,10 @@ TAW-V0-015	docs/specs/corvint-tasks-agent-workflow-v0.md	`corvint-mcp --tool-pro
 TAW-V0-025	docs/specs/corvint-tasks-agent-workflow-v0.md	The tasks-work group MUST reach Tasks only through that process boundary (decisi	unrecorded	-
 TAW-V0-016	docs/specs/corvint-tasks-agent-workflow-v0.md	`work start`, `work deliver` and `work block` MUST be allowed in a read-only ses	unrecorded	-
 TAW-V0-017	docs/specs/corvint-tasks-agent-workflow-v0.md	The lane protocol (which trailers a lane writes and when) MUST be documented in	unrecorded	-
+ATR-V0-7200	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2480) After a	standing	2026-10-11; V1-2480
+ATR-V0-7202	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4588) An isola	standing	2026-10-11; V1-4588
+ATR-V0-7203	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0775) A comple	standing	2026-10-11; V1-0775
+ATR-V0-7204	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3508) The opt-	standing	2026-10-11; V1-3508
 ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before	unrecorded	-
 ATR-V0-002	docs/specs/corvint-tasks-attempt-runner-v0.md	Before launch the runner MUST heartbeat the attempt, then renew it only when the	unrecorded	-
 ATR-V0-003	docs/specs/corvint-tasks-attempt-runner-v0.md	The command MUST be started once through `groupreap.Start` as the leader of an o	unrecorded	-
@@ -2765,7 +2769,7 @@ ATR-V0-210	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-211	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1321) Every cl	standing	2026-10-11; V1-1321
 ATR-V0-212	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1237, V1-1441)	standing	2026-10-11; V1-1237; V1-1441
 ATR-V0-240	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0831) A progra	standing	2026-10-11; V1-0831
-ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0775) Recorded	standing	2026-10-11; V1-0775
+ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-0775
 ATR-V0-214	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-215	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-216	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709)	standing	2026-10-11; V1-2709
@@ -2817,6 +2821,13 @@ TBS-V1-457	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under th
 TBS-V1-458	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-459	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-460	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
+TCL-V0-7205	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3903) A valid	standing	2026-10-11; V1-3903
+TCL-V0-7206	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3942) complete	standing	2026-10-11; V1-3942
+TCL-V0-7207	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3963) ticket s	standing	2026-10-11; V1-3963
+TCL-V0-7209	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3987) Read-onl	standing	2026-10-11; V1-3987
+TCL-V0-7210	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3989) ticket s	standing	2026-10-11; V1-3989
+TCL-V0-7211	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4022) ticket c	standing	2026-10-11; V1-4022
+TCL-V0-7213	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4301) Single-t	standing	2026-10-11; V1-4301
 TCL-V0-001	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237)	standing	2026-10-11; V1-3237
 TCL-V0-002	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) Each	standing	2026-10-11; V1-3237
 TCL-V0-003	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) The	standing	2026-10-11; V1-3237
@@ -2892,6 +2903,8 @@ TCX-V0-976	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315
 TCX-V0-977	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
 TCX-V0-978	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
 TCX-V0-979	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
+TCD-V0-7212	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4025) A long t	standing	2026-10-11; V1-4025
+TCD-V0-7214	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4302) A failed	standing	2026-10-11; V1-4302
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--ski	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -3184,6 +3197,8 @@ TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change c
 TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
 TLF-V0-1101	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
 TLF-V0-1102	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
+LGL-V0-7201	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4204) Lease wr	standing	2026-10-11; V1-4204
+LGL-V0-7215	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4305) The shar	standing	2026-10-11; V1-4305
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
@@ -3495,6 +3510,7 @@ PSR-V0-269	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-270	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool ho	standing	2026-10-11; V1-2704
 PSR-V0-271	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool ho	standing	2026-10-11; V1-2704
 PSR-V0-272	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool	standing	2026-10-11; V1-2704
+TRM-V0-7208	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3986) Release	standing	2026-10-11; V1-3986
 TRM-V0-001	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) `corvint-tasks release membership --target R	unrecorded	-
 TRM-V0-002	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) The mutation MUST be refused `STALE_TICKET` when	unrecorded	-
 TRM-V0-003	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) `RELEASE_MEMBERSHIP` MUST be authorized exactly as	unrecorded	-

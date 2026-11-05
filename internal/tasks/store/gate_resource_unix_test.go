@@ -32,7 +32,8 @@ func TestLGLV0885_GateRunSerializesASharedResource(t *testing.T) {
 	t.Parallel()
 	// CSD-V0-7513: force the 68-byte scratch prefix from the original Mac failure.
 	// Concatenating it twice was 199 bytes; even a cd-based script was 134 (>128).
-	parent, err := os.MkdirTemp("", "g")
+	// LGL-V0-7215: the short root is /tmp, independent of heavy.sh's TMPDIR.
+	parent, err := os.MkdirTemp("/tmp", "g")
 	if err != nil {
 		t.Fatal(err)
 	}

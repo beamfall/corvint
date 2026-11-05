@@ -84,29 +84,39 @@ func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation strin
 // equals the recorded digest is submitted, so the store replays the
 // recorded result. Without --issued-at, a recorded entry or a matching
 // digest, the live revision stands and the store judges it as before.
-func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) string {
+func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) (string, error) {
 	live := flags.expected
 	n, err := strconv.ParseUint(live, 10, 64)
 	if flags.issuedAt == "" || err != nil {
-		return live
+		return live, nil
 	}
 	issued, err := wire.ParseTimestamp("issuedAt", flags.issuedAt)
 	if err != nil {
-		return live
+		return live, nil
 	}
 	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {
-		return live
+		return "", err
 	}
 	st, err := intent.Load(repo.IntentRoot())
 	if err != nil {
-		return live
+		return "", err
 	}
 	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
-	if r, ok, err := recordedRevision(idx, operation, st.Queue.QueueID.Raw, actor, flags, payload, issued, n); err == nil && ok {
-		return r
+	r, ok, err := recordedRevision(idx, operation, st.Queue.QueueID.Raw, actor, flags, payload, issued, n)
+	if wire.CodeOf(err) == wire.CodeRedoPending {
+		if _, e := store.Settle(env.writerContext(), repo); e != nil {
+			return "", e
+		}
+		r, ok, err = recordedRevision(idx, operation, st.Queue.QueueID.Raw, actor, flags, payload, issued, n)
 	}
-	return live
+	if err != nil {
+		return "", wire.Errorf(wire.CodeOf(err), "request index "+flags.requestID, "%v", err)
+	}
+	if ok {
+		return r, nil
+	}
+	return live, nil
 }
 
 // recordedRevision is the revision at or below n whose envelope digest

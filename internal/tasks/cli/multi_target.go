@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -61,10 +62,27 @@ func resolveTargets(env Env, args []string) ([]multiTarget, error) {
 	return out, err
 }
 
+// resolveWriteTargets settles one interrupted write before a mutating command
+// reads its CAS revision. Ordinary resolveTargets remains strictly read-only.
+func resolveWriteTargets(env Env, args []string) ([]multiTarget, error) {
+	targets, err := resolveTargets(env, args)
+	if wire.CodeOf(err) != wire.CodeRedoPending {
+		return targets, err
+	}
+	repo, e := intent.Resolve(env.Cwd)
+	if e != nil {
+		return nil, e
+	}
+	if _, e = store.Settle(env.writerContext(), repo); e != nil {
+		return nil, e
+	}
+	return resolveTargets(env, args)
+}
+
 // readTargetRevision is the current revision of one hold target, read
 // lock-free when --expected-revision is absent (TCD-V0-173).
 func readTargetRevision(env Env, arg string) (string, error) {
-	ts, err := resolveTargets(env, []string{arg})
+	ts, err := resolveWriteTargets(env, []string{arg})
 	if err != nil {
 		return "", err
 	}
@@ -75,14 +93,23 @@ func readTargetRevision(env Env, arg string) (string, error) {
 // named (TCD-V0-967): when requestID already completed, every ticket
 // mutation sets its resulting revision to the expected one plus one, so the
 // original expected revision is that minus one. A request not yet landed, or
-// one whose lookup fails, keeps current; the writer's mutation digest still
+// one not recorded keeps current; lookup errors refuse; the writer's mutation digest still
 // refuses a retry whose other inputs changed (REQUEST_ID_CONFLICT).
-func landedRevision(env Env, requestID, current string) string {
+func landedRevision(env Env, requestID, current string) (string, error) {
 	expected := current
-	_, _ = withInventoryStore(env, func(rc *readCtx) error {
+	_, err := withInventoryStore(env, func(rc *readCtx) error {
 		idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 		entry, found, err := idx.Lookup(requestID)
-		if err != nil || !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ResultingRevision == nil {
+		if wire.CodeOf(err) == wire.CodeRedoPending {
+			if _, e := store.Settle(env.writerContext(), rc.repo); e != nil {
+				return e
+			}
+			entry, found, err = idx.Lookup(requestID)
+		}
+		if err != nil {
+			return wire.Errorf(wire.CodeOf(err), "request index "+requestID, "%v", err)
+		}
+		if !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ResultingRevision == nil {
 			return nil
 		}
 		if rev := entry.Outcome.ResultingRevision.Int(); rev > 1 {
@@ -90,7 +117,7 @@ func landedRevision(env Env, requestID, current string) string {
 		}
 		return nil
 	})
-	return expected
+	return expected, err
 }
 
 // targetRequestID derives one target's request id from the caller's.
@@ -99,7 +126,7 @@ func targetRequestID(base, ticketID, local string) string {
 	if len(id) <= wire.MaxRequestIDBytes {
 		return id
 	}
-	sum := sha256.Sum256([]byte(base + "\x00" + ticketID))
+	sum := sha256.Sum256([]byte(base + "\x00" + ticketID + "\x00" + local))
 	return truncateUTF8(base, wire.MaxRequestIDBytes-25) + "-" + hex.EncodeToString(sum[:12])
 }
 
@@ -117,7 +144,7 @@ func multiTargetSubmit(env Env, cmd []string, operation string, actor mutation.B
 	if _, err := wire.ParseTimestamp("issuedAt", issued); err != nil {
 		return errorResult(cmd, err)
 	}
-	targets, err := resolveTargets(env, args)
+	targets, err := resolveWriteTargets(env, args)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -137,11 +164,17 @@ func multiTargetSubmit(env Env, cmd []string, operation string, actor mutation.B
 			f := base
 			f.target, f.issuedAt = t.id, issued
 			f.requestID = targetRequestID(base.requestID, t.id, t.local)
+			var res *wire.Result
 			if readRevision {
-				f.expected = landedRevision(env, f.requestID, t.revision)
+				f.expected, err = landedRevision(env, f.requestID, t.revision)
+				if err != nil {
+					res = errorResult(cmd, err)
+				}
 			}
 			requestID, expected = f.requestID, f.expected
-			res := submitMutation(env, cmd, operation, actor, f, payload)
+			if res == nil {
+				res = submitMutation(env, cmd, operation, actor, f, payload)
+			}
 			outcome, tcodes = res.Outcome, res.Codes
 			for _, w := range res.Warnings {
 				if !strings.HasPrefix(w, actorClaimWarning) {
