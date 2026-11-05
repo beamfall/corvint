@@ -5475,6 +5475,14 @@ LPCV-V0-291	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A	standing	2026-10-11; V1-2091
 LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
 LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
+LPCV-V0-7600	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4379) Go collection	standing	V1-4379
+LPCV-V0-7601	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4380) The Go collector	standing	V1-4380
+LPCV-V0-7602	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4423) Language collectors	standing	V1-4423
+LPCV-V0-7603	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4507) Collection records	standing	V1-4507
+LPCV-V0-7604	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4414) The explicit	standing	V1-4414
+LPCV-V0-7605	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4415) Ruby collection	standing	V1-4415
+LPCV-V0-7606	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4421) The explicit	standing	V1-4421
+LPCV-V0-7607	docs/specs/live-proof-carrying-verification-v0.md	(accepted under standing implementation authority, V1-4372) `linecov watch`	standing	V1-4372
 LPCV-V0-950	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** name	owner	decision 0590; 2026-11-03
 LPCV-V0-951	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) A record is **fresh** for a test an	owner	decision 0590; 2026-11-03
 LPCV-V0-952	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0590 (owner 2026-11-03)) With a fresh record, a test MAY be	owner	decision 0590; 2026-11-03
@@ -5494,7 +5502,7 @@ LPCV-V0-965	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2
 LPCV-V0-966	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) JavaScript selection maps a change to test	owner	2026-11-03; V1-4367
 LPCV-V0-967	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) The node collector (`internal/jslinecov`)	owner	2026-11-03; V1-4367
 LPCV-V0-968	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) The collector ships as the typescript plug	owner	2026-11-03; V1-4367
-LPCV-V0-969	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: no	owner	2026-11-03; V1-4367
+LPCV-V0-969	docs/specs/live-proof-carrying-verification-v0.md	(accepted, owner 2026-11-03, V1-4367) Non-goals and limits of this tranche: the	owner	2026-11-03; V1-4367
 LPCV-V0-970	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-971	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
 LPCV-V0-972	docs/specs/live-proof-carrying-verification-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4368)	standing	2026-10-11; V1-4368
