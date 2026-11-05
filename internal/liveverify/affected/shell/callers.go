@@ -152,14 +152,24 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 			}
 		}
 	}
-	if len(indexes) != len(declared) || !foreignCallersComplete(root, declared, built) {
+	if len(indexes) != len(declared) {
 		frontier[FrontierForeignCallersInvalid] = true
 		return
+	}
+	complete := foreignCallersComplete(root, declared, built)
+	if !complete {
+		frontier[FrontierForeignCallersInvalid] = true
+		// A newly discovered directory construction must not discard edges
+		// verified by the previous literal/shell-expansion guard. Keep those
+		// callers, together with both uncertainty frontiers (AZU-V0-8901).
+		if !foreignCallersCompleteMode(root, declared, built, false) {
+			return
+		}
 	}
 	for script, index := range indexes {
 		unit := &units[index]
 		unit.Callers = slices.Clone(declared[script].Callers)
-		if !built[script].empty() {
+		if !complete || !built[script].empty() {
 			// A script that itself runs a name it builds keeps the frontier
 			// (TSP-V0-960); only its callers are declared.
 			continue
@@ -180,6 +190,10 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 // dropped as soon as it is matched, so the scan holds at most that many
 // bodies; the verdict is that of a serial pass (TSP-V0-943).
 func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
+	return foreignCallersCompleteMode(root, declared, built, true)
+}
+
+func foreignCallersCompleteMode(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames, extended bool) bool {
 	candidates, err := root.Files(affected.ByName(CallerCandidate))
 	if err != nil {
 		return false
@@ -218,7 +232,7 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 		for index, script := range scripts {
 			directory := path.Dir(script)
 			computes, checked := directories[directory]
-			if !checked {
+			if extended && !checked {
 				computes = constructed[index](body)
 				directories[directory] = computes
 			}

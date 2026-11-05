@@ -3,7 +3,9 @@
 package shell
 
 import (
+	"context"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"slices"
 	"testing"
 )
@@ -52,5 +54,30 @@ func TestDeclaredRootWrapper_AZU_V0_8901(t *testing.T) {
 	}
 	if repositoryRootCommand("git -C elsewhere rev-parse --show-toplevel") {
 		t.Fatal("foreign root accepted")
+	}
+}
+
+// AZU-V0-8901: extending completeness can add an unknown, but must preserve
+// caller edges already verified by the legacy literal/shell-expansion check.
+func TestConstructedDriftKeepsVerifiedCallers_AZU_V0_8901(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.test/legacy\n\ngo 1.27\n")
+	write(t, root, "run/run.sh", "echo ok\n")
+	write(t, root, "caller/caller.go", "package caller\n\nvar script = \"run/run.sh\"\n")
+	write(t, root, "caller/caller_test.go", "package caller\n")
+	write(t, root, "extra/extra.go", "package extra\nimport \"path/filepath\"\nvar name string\nvar command = filepath.Join(\"run\", name)\n")
+	write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{"callers":["caller/caller.go"],"reason":"legacy literal caller"}}}`)
+	result := units(t, root)
+	unit := unitOf(t, result, "run/run.sh")
+	if !slices.Contains(result.Frontier, FrontierForeignCallersInvalid) || !slices.Contains(unit.Frontier, FrontierForeignInvocation) || !slices.Equal(unit.Callers, []string{"caller/caller.go"}) {
+		t.Fatalf("lost verified callers or uncertainty: unit=%+v frontier=%v", unit, result.Frontier)
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New(), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"run/run.sh"})
+	if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/legacy/caller" }) {
+		t.Fatalf("legacy caller dropped: %+v", plan)
 	}
 }

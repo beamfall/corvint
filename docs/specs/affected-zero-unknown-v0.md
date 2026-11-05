@@ -128,7 +128,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   an undeclared source file constructing a declared callee directory through a quoted directory
   concatenation, a path join or a formatted directory path. Existing shell value expansion SHALL
   remain in force. These checks widen possible callers; they SHALL NOT infer that another caller
-  cannot exist. Existing declaration shapes, bounds and invalid-declaration diagnostics stay fixed.
+  cannot exist. Existing declaration shapes, bounds and invalid-declaration diagnostics stay fixed. A declaration
+  newly rejected only by the stronger directory-construction check SHALL retain caller edges
+  admitted by the legacy literal/shell-expansion guard, while retaining both invalid-declaration
+  and foreign-invocation unknowns. New uncertainty SHALL never remove those prior selections.
 - **AZU-V0-8902** — **Located runtime caller closure.** A located TypeScript end-to-end runtime site
   covered by an existing runtime edge SHALL select its declared test unit and traverse its
   dependents on every nonempty code-bearing change, including changes within TypeScript. Only after selection
