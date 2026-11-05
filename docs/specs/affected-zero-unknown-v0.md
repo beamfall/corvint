@@ -3,9 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-11-04
 Requirement prefix: `AZU-V0`
-Intent status: experimental; the owner directed the goal ("figure out how to get the unknown to 0
-safely", owner chat, 2026-11-04), and the orchestrator made the design choices under the owner's
-delegation of 2026-11-02
+Intent status: experimental
+Intent source: the owner directed the goal ("figure out how to get the unknown to 0 safely", owner
+chat, 2026-11-04), and the orchestrator made the design choices under the owner's delegation of
+2026-11-02
 Delivery status: experimental
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority, AFP-V0-511
 frontier bearing, AFP-V0-560 terminal rule, AFP-V0-601/602 data readers),
