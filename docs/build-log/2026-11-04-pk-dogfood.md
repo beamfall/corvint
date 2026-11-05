@@ -149,3 +149,11 @@ qualification. Add the recorded documented-VERIFY-forms change `ed4c714ee`, whos
 quoted-run diagnostics exercise the same dogfood package namespace, as another bounded
 observation. This selection follows the failed wire qualification and is recorded explicitly;
 no wire row is removed and no algorithm changes between these observations.
+
+The documented-VERIFY-forms pair retains its old guard in all repetitions, but medians
+238.789 to 236.842 seconds (0.82%) miss the preselected 1% measurement threshold. Treat
+it as another control, not a qualifying improvement; keep the 320/322-second repetitions.
+Add the separate recorded quoting-diagnostic change `eb08313ca`, a single existing-function
+edit with an existing guard. Its intent is to test candidate-selection savings without
+adding a new helper or a broader change entry point. The three-repeat, 300/1200-second
+limits and 1% threshold stay fixed. All seven observed targets remain in the final record.
