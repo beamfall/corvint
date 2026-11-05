@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync, symlinkSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync, symlinkSync, realpathSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { canonicalWorkflowJSON as canonical, decodeWorkflowEnvelope, registerWorkflow, workflowSessionKey, workflowIdentity } from './workflow.js';
 import { PI_ADAPTER_VERSION } from './runtime.js';
@@ -129,5 +129,5 @@ test('LCP-V0-008 repository rebound and branch switches discard native in-flight
 });
 test('LCP-V0-008 Git identity refuses symlink markers and oversized pointer files',t=>{
  const f=fixture(t);renameSync(join(f.root,'.git'),join(f.root,'gitdir'));symlinkSync('gitdir',join(f.root,'.git'));
- assert.throws(()=>workflowIdentity(f.ctx));rmSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
+ assert.throws(()=>workflowIdentity(f.ctx));unlinkSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
 });
