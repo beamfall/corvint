@@ -129,6 +129,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - `AZU-V0-9703`: Flow-style workflow steps. A flow-style step sequence or mapping SHALL either
   expose its `run` dependencies or conservatively retain its job as a computed invocation. A valid
   flow-style step SHALL NOT be silently skipped merely because the YAML subset represents it as text.
+- `AZU-V0-9704`: Driver runner classification. As directed by the owner in the second PR #98
+  repair round (2026-11-05), `corvint test` SHALL NOT interpret a driver `NO_SELECTABLE_TEST`
+  entry as a language requiring a declared full command. Make targets and workflow jobs remain
+  owned by their drivers under AZU-V0-001. This classification SHALL retain selected Go readers,
+  existing unknown-frontier fallbacks and missing-adapter refusals for actual source languages.
 
 ## Non-goals
 
@@ -154,6 +159,15 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
 ## Acceptance evidence
 
+The second PR #98 repair declares the native coverage README as documentation under AZU-V0-002,
+maintains that explicit tracked path in `script/gen-documentation-paths.sh`, and checks the
+complete affected package including the ownership ratchet and sibling audits. The generator
+fixture checks its untracked, staged and removed states without broadening other internal paths.
+AZU-V0-9704 is checked by `TestDriverUnknownIsNotLanguage_AZU_V0_9704` and the unchanged selection
+baseline replay, including PR 6 compared with the `8e2c13aa9` binary. No corpus, threshold or wire
+shape changes are part of this repair. Reverting its runner classification restores the spurious
+driver-language incompleteness while leaving affected selections unchanged.
+
 The four PR #98 driver repairs (AZU-V0-9700 through AZU-V0-9703) are scoped corrections of
 AZU-V0-001. Their acceptance evidence is the table regressions below, the complete affected
 package, and the focused CLI affected and frozen-profile tests. This does not qualify the wider
@@ -176,6 +190,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 |---|---|---|
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | partial: `affected --ownership-audit` (`cmd/corvint/affected_ownership_audit.go`, `OwnershipAudit` in `ownership_audit.go`), `.corvint/non-source-paths.json` (`non_source_paths.go`); `TestOwnershipAuditListsUnclaimedPaths_AZU_V0_002`, `TestNonSourcePathsRefusesInvalidDeclarations_AZU_V0_002`, `TestAffectedOwnershipAuditListsUnownedReadOnly_AZU_V0_002`; the maintained test `TestOwnershipAuditRatchet_AZU_V0_002` is a ratchet over a 1694-path baseline, not yet the empty list the requirement names |
+| AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
 | AZU-V0-005 | V1-4688 | not yet |
