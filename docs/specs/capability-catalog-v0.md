@@ -36,6 +36,8 @@ cannot silently go missing or outlive its command.
   and `corvint-analyzer-objective-c` is withdrawn because RAC/NJB import-boundary, ambient
   capability and source-size tests require their isolated native entrypoints. Their offline
   trees remain available through the Core catalog.
+  Isolated Work source fixtures MUST retain the compiler-reported embedded catalog
+  inputs, including nested tree snapshots, when copying the CLI import closure.
   The extra synopsis for `corvint-test` and generated plain help for `corvint-test-runner`,
   `corvint-behavior-falsify`, `corvint-playwright-minimize` and `corvint-tests-accept` are withdrawn
   because they change existing nested-help and folded compatibility bytes. These paths MUST

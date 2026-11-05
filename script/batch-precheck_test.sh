@@ -134,6 +134,7 @@ grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/ou
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
+grep -qx 'batch-cem-check' "$tmp/out" || fail "no protected batch CEM step: $(cat "$tmp/out")"
 
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
 grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(BASE)"' || fail "closeout lost its static checks or lane BASE"
@@ -357,6 +358,21 @@ fixture --list
 grep -qxF 'make new-drift-check' "$tmp/out" || fail "new make target not derived: $(cat "$tmp/out")"
 grep -qxF 'go run ./tools/new-gen' "$tmp/out" || fail "new go run not derived: $(cat "$tmp/out")"
 # A doc-gates command that is neither fails the sync check.
+# CIN-V0-2304 / ASD-V0-036: only the exact reviewed inline checker has a
+# mirror. A change to its trusted build or appended syntax remains unknown.
+batch_check_body=$(sed -n '/^          set -eu$/,/^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/p; /^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/q' "$script/../.github/workflows/ci.yml")
+[[ -n $batch_check_body ]] || fail "no inline batch CEM body"
+write_ci "" "" "" "$(printf '      - run: |\n%s\n      - run: make after-batch-cem' "$batch_check_body")"
+fixture --sync-check || fail "protected batch CEM command refused: $(cat "$tmp/out")"
+fixture --list || fail "protected batch CEM list refused: $(cat "$tmp/out")"
+grep -qxF 'batch-cem-check' "$tmp/out" || fail "protected batch CEM command not derived"
+grep -qxF 'make after-batch-cem' "$tmp/out" || fail "command after batch CEM swallowed"
+write_ci "" "" "" "$(printf '      - run: |\n%s' "${batch_check_body/-buildvcs=false/-buildvcs=true}")"
+fixture --sync-check && fail "changed batch CEM trusted build accepted"
+write_ci "" "" "" "$(printf '      - run: |\n%s;true' "$batch_check_body")"
+fixture --sync-check && fail "batch CEM command with appended shell syntax accepted"
+write_ci "" "" "" "      - run: bash .github/other-gate.sh"
+fixture --sync-check && fail "unlisted protected script command accepted"
 write_ci "" "" "" "      - run: script/new-gate.sh --check"
 fixture --sync-check && fail "unknown doc-gates command accepted"
 grep -q 'doc-gates runs `script/new-gate.sh --check`, which batch-precheck cannot mirror' "$tmp/out" || fail "unknown: $(cat "$tmp/out")"

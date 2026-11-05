@@ -3,6 +3,7 @@ package clitree
 
 import (
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 )
@@ -22,7 +23,9 @@ func CatalogMarkdown(trees []Tree) string {
 	}
 	for _, tree := range trees {
 		for _, node := range tree.Nodes {
-			fmt.Fprintf(&out, "| `%s` | %s | `%s` | `%s`; [%s](../internal/capcatalog/trees/%s.json) |\n", node.Command, clean(node.Summary), clean(node.Example), node.Help, tree.Binary, tree.Binary)
+			// This is an emitted documentation link, never a filesystem read.
+			snapshot := path.Join("..", "internal", "capcatalog", "trees", tree.Binary+".json")
+			fmt.Fprintf(&out, "| `%s` | %s | `%s` | `%s`; [%s](%s) |\n", node.Command, clean(node.Summary), clean(node.Example), node.Help, tree.Binary, snapshot)
 		}
 	}
 	return out.String()

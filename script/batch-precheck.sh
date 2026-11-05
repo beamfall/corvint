@@ -279,13 +279,46 @@ doc_gate_commands() {
       /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }'
 }
 
-# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
+# CIN-V0-2304: keep CI's protected inline checker intact. Only this exact,
+# reviewed body has a local mirror; no other workflow shell syntax is executed.
+batch_cem_body() {
+  cat <<'EOF'
+set -eu
+case "$EVENT_NAME:$HEAD_REF" in
+pull_request:claude/batch-*) ;;
+*) echo "not a batch pull request; skipped"; exit 0 ;;
+esac
+base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
+git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
+cd "$RUNNER_TEMP/batch-head"
+test "$(git rev-parse HEAD)" = "$PR_HEAD"
+"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
+EOF
+}
+
+# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE", "batchcem<TAB>"
+# or "unknown<TAB>COMMAND" per doc-gates
 # command; a make option other than -s/-k/--silent/--no-print-directory, a VAR=value, a target that
 # is not a plain name and a package that is not a plain ./path are unknown, so no shell syntax from
 # ci.yml ever reaches a step.
 doc_gates() {
-  local cmd words w targets ok
+  local cmd words w targets ok body next i
   while IFS= read -r cmd; do
+    if [[ $cmd == 'set -eu' ]]; then
+      body=$cmd
+      for ((i=1; i<12; i++)); do
+        IFS= read -r next || break
+        body=$body$'\n'$next
+      done
+      if [[ $body == "$(batch_cem_body)" ]]; then
+        printf 'batchcem\t\n'
+      else
+        while IFS= read -r next; do printf 'unknown\t%s\n' "$next"; done <<< "$body"
+      fi
+      continue
+    fi
     if [[ $cmd == $'\t'* ]]; then
       printf 'unknown\t%s\n' "${cmd#$'\t'}"
       continue
@@ -873,6 +906,7 @@ doc_gate_rows() {
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
         fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
+      batchcem) printf 'batch-cem-check\tenv %s EVENT_NAME=%q HEAD_REF=%q bash -c %q\n' "${envs[*]-}" "${EVENT_NAME-}" "${HEAD_REF-}" "$(batch_cem_body)" ;;
     esac
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
     if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
