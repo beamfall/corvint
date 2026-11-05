@@ -32,8 +32,10 @@ cannot silently go missing or outlive its command.
   and `-h`, exit 0, and expose its own usage, flags, required inputs and example before any stdin,
   repository, listener or network access.
   Partially withdrawn by the owner's 2026-11-04 scope trim: process-level help and catalog
-  interception for `corvint-analyzer-rust` is withdrawn because RAC import-boundary tests require
-  its isolated native closure. Its offline tree remains available through the Core catalog.
+  interception for `corvint-analyzer-rust`, `corvint-analyzer-c-jni`, `corvint-analyzer-java`
+  and `corvint-analyzer-objective-c` is withdrawn because RAC/NJB import-boundary, ambient
+  capability and source-size tests require their isolated native entrypoints. Their offline
+  trees remain available through the Core catalog.
   The extra synopsis for `corvint-test` and generated plain help for `corvint-test-runner`,
   `corvint-behavior-falsify`, `corvint-playwright-minimize` and `corvint-tests-accept` are withdrawn
   because they change existing nested-help and folded compatibility bytes. These paths MUST

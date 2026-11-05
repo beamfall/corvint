@@ -7,13 +7,16 @@ existing native contracts, and preserve all existing assertions and goldens. Inc
 
 Decision: preserve native compatibility at the process boundary. Restore the Rust entrypoint
 byte-for-byte from base, removing both shared imports so its candidate closure stays isolated.
+The native bridge full-package check also rejected the same wrappers in C/JNI, Java and
+Objective-C (NJB-005 ambient stderr capability and the source-size ceiling). Restore those three
+entrypoints byte-for-byte too; no analyzer implementation or assertion changes.
 In the shared helper, leave corvint-test's existing authored help to native dispatch. The four
 folded compatibility shims also keep their original plain help; their generated offline JSON/tree
 catalogs remain. Analyzer --version argv reaches the native parser, retaining descriptor bytes
 and native refusals for extra arguments. Other common version handling, offline inventories,
 installer behavior, Tasks help and the four previously MET tickets remain unchanged.
 
-CAP-V0-7700 is partially withdrawn for Rust process interception and the five test/folded help
+CAP-V0-7700 is partially withdrawn for Rust/native-bridge process interception and the five test/folded help
 paths. CAP-V0-7702 is partially withdrawn for common analyzer versions and corvint-test's native
 entrypoint. Reasons are recorded in the requirement rows and generated index. TCL-V0-7703 is
 retained. The universal shipped-help conformance assertion conflicts with the withdrawn behavior;
