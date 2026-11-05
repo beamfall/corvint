@@ -110,3 +110,52 @@ func TestAZUV0007CLIExecutesDeclaredConsumers(t *testing.T) {
 		}
 	}
 }
+
+// AZU-V0-007 / STR-V0-750: a complete CI manifest for a runnable browser
+// consumer must still require the browser job under the existing workflow.
+func TestAZUV0007CIRunnableBrowserConsumerRequired(t *testing.T) {
+	root, _, _ := sessionFixture(t, "pass")
+	const consumer = "tools/web-flows/test/e2e.mjs"
+	for name, body := range map[string]string{
+		"cmd/corvint-web-flows/main.go": "package main\nimport \"example.test/m/a\"\nfunc main() { _ = a.A() }\n",
+		consumer:                        "// browser consumer\n",
+		affected.BinaryConsumersPath:    `{"profile":"corvint-test-binary-consumers/0","consumers":{"tools/web-flows/test/e2e.mjs":{"commands":["cmd/corvint-web-flows"],"run":["bash","script/web-flows-gate"]}}}` + "\n",
+	} {
+		cemWrite(t, root, name, body)
+	}
+	bin := t.TempDir()
+	goScript := strings.Replace(sessionFakeGo, "list) echo example.test/m/a;", "list) echo example.test/m/cmd/corvint-web-flows; echo example.test/m/a;", 1)
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(goScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "declare browser consumer")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	cemWrite(t, root, "a/a.go", "package a\nfunc A() int { return 4 }\n")
+	affectedGit(t, root, "commit", "-qam", "change browser command dependency")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--profile", "ci", "--confine", "/unused/confine", "--dry-run")
+	if code != 0 {
+		t.Fatalf("complete CI dry run code %d stderr %s", code, stderr)
+	}
+	var manifest sessiontest.Manifest
+	if err := json.Unmarshal([]byte(stdout), &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Scope != sessiontest.ScopeNarrowed || len(manifest.Incomplete) != 0 || !slices.Contains(manifest.Checks, "bash script/web-flows-gate") || !slices.Contains(manifest.Checks, sessiontest.BinaryConsumerCheck(consumer)) {
+		t.Fatalf("CI lost a required runnable browser check: %+v", manifest)
+	}
+	// This is the existing jq predicate's check branch; FULL and exit 3 must
+	// not mask its result. Pin the predicate to the workflow's actual bytes.
+	workflow := string(mustRead(t, filepath.Join("..", "..", ".github", "workflows", "ci.yml")))
+	if !strings.Contains(workflow, `startswith("tools/web-flows/test/") and contains("UNSELECTED_BINARY_CONSUMER")`) {
+		t.Fatal("workflow consumer predicate changed; update the regression with it")
+	}
+	required := false
+	for _, check := range manifest.Checks {
+		required = required || strings.HasPrefix(check, "tools/web-flows/test/") && strings.Contains(check, "UNSELECTED_BINARY_CONSUMER")
+	}
+	if !required {
+		t.Fatalf("workflow would skip the required browser job: %s", stdout)
+	}
+}

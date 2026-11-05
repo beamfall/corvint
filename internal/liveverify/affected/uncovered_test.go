@@ -84,6 +84,44 @@ func TestAZUV0006OwnedTestlessReaderCallers(t *testing.T) {
 	}
 }
 
+// AZU-V0-006: an unresolved caller of a reader, including one behind a
+// modelled caller, prevents proving that the changed source has no observer.
+func TestAZUV0006ReaderCallerUncertainty(t *testing.T) {
+	for _, kind := range []string{"literal", "glob", "scoped", "unbounded"} {
+		for _, indirect := range []bool{false, true} {
+			t.Run(kind+map[bool]string{false: "/direct", true: "/caller-closure"}[indirect], func(t *testing.T) {
+				reader := Unit{ID: "shell:check.sh", Sources: []string{"check.sh"}}
+				switch kind {
+				case "literal":
+					reader.PathTokens = []string{"data/data.go"}
+				case "glob":
+					reader.PathGlobs = []string{"data/*.go"}
+				case "scoped":
+					reader.ReadScoped, reader.ReadScope = true, []string{"data/"}
+				case "unbounded":
+					reader.UnboundedReads = "check.sh reads a computed path"
+				}
+				reader.Callers = []string{"Makefile"}
+				units := []Unit{reader}
+				if indirect {
+					units[0].Callers = []string{"caller.sh"}
+					units = append(units, Unit{ID: "shell:caller.sh", Sources: []string{"caller.sh"}, Callers: []string{"Makefile"}})
+				}
+				graph, err := Build(context.Background(), t.TempDir(),
+					fake{name: "go", units: []Unit{{ID: "go:data", Sources: []string{"data/data.go"}}}},
+					fake{name: "shell", units: units})
+				if err != nil {
+					t.Fatal(err)
+				}
+				plan := Select(graph, []string{"data/data.go"})
+				if plan.Scope != ScopeUnknown || len(plan.Uncovered) != 0 || !reflect.DeepEqual(plan.Unknown, []Unknown{{Reason: UnknownNoSelectableTest, Detail: "go:data"}}) {
+					t.Fatalf("scope=%s unknown=%v uncovered=%v", plan.Scope, plan.Unknown, plan.Uncovered)
+				}
+			})
+		}
+	}
+}
+
 // AZU-V0-005: newly owning hidden Go source must not remove a testless
 // reader's callers, which read or execute it independently of Go imports.
 func TestAZUV0005KeepsTestlessReadersCallers(t *testing.T) {

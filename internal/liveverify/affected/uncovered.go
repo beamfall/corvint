@@ -40,6 +40,15 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 			}
 		}
 	}
+	// Literal, scoped, glob and unbounded readers can observe the path without
+	// an import edge. Their caller closures must satisfy the same absence proof
+	// as the changed owner's: a declared caller with no owner stays uncertain.
+	for unit, witness := range reached {
+		if witness.DirtyPath == seed.DirtyPath && !callers[unit] {
+			callers[unit] = true
+			pending = append(pending, unit)
+		}
+	}
 	// This proof needs membership only, not sorted witness chains. Reuse the
 	// graph's reverse edges without building or ranking a second selection.
 	for len(pending) != 0 {
@@ -64,12 +73,5 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 		}
 	}
 
-	// Literal, scoped, glob and unbounded readers can observe the path without
-	// an import edge. Retain their selection and do not call that path uncovered.
-	for unit, witness := range reached {
-		if witness.DirtyPath == seed.DirtyPath && len(graph.units[unit].Tests) != 0 {
-			observer = true
-		}
-	}
 	return !observer, uncertain
 }

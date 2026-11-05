@@ -574,6 +574,12 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	for _, selection := range receipt.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
 		if selection.Kind == "DECLARED_CONSUMER" && strings.HasPrefix(selection.UnitID, "declared-consumer:") && affected.ValidConsumerRun(selection.Run) {
+			// AZU-V0-007: CI cannot execute the consumer. Keep the legacy
+			// check that the trusted workflow uses to require its browser job,
+			// alongside the exact argv retained as a declared command below.
+			if input.RunnerProfile == sessiontest.ProfileCI {
+				input.Checks = append(input.Checks, sessiontest.BinaryConsumerCheck(strings.TrimPrefix(selection.UnitID, "declared-consumer:")))
+			}
 			// Reuse the declared-command adapter without extending the
 			// manifest wire. Its digest binds the exact per-consumer argv.
 			input.Declared.Languages = append(input.Declared.Languages, sessiontest.LanguageCommand{
