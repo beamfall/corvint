@@ -387,11 +387,15 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 	cond := "    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}"
 	for _, job := range []string{"go-static", "go-interop", "artifact-integrity"} {
 		b := jobBlock(t, ci, job)
-		wantLine(t, job, b, "    needs: static-reuse")
+		needs := "    needs: static-reuse"
+		if job == "go-static" {
+			needs = "    needs: [static-reuse, local-authority-deps]" // CIN-V0-7503 module cache
+		}
+		wantLine(t, job, b, needs)
 		wantLine(t, job, b, cond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected]")
+	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
 	wantLine(t, "go-product", gp, `            test "$SHARDS_RESULT" = success`)
@@ -402,6 +406,10 @@ func staticReuseScript(t *testing.T) string {
 	t.Helper()
 	return runScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "static-reuse"))
 }
+
+// goProductUpstreamOK is the passing host-adapter and web-flows environment the go-product
+// check reads before its shard, static and docs decisions (host-adapters, CIN-V0-7504).
+var goProductUpstreamOK = []string{"HOST_RESULT=success", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped"}
 
 // runScript extracts the run script of the single run step of job block B.
 func runScript(t *testing.T, b string) string {
@@ -590,7 +598,7 @@ func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
 			}
 		}
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "SHELL_RESULT=success", "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
+		cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "SHELL_RESULT=success", "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
 			"STATIC_REUSE=", "DOCS_RESULT="+docs, "DOCS_MODE=FULL", "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7",
 			"GITHUB_RUN_ATTEMPT=1", "GITHUB_EVENT_NAME=pull_request", "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -671,12 +679,21 @@ func TestCINV0008LocalAuthorityModuleTestsRunInGoStatic(t *testing.T) {
 	}
 	// No literal here ends in a package pattern, which would make this package an unbounded
 	// reader (AFP-V0-012 rule (d)).
-	lines := strings.Split(strings.TrimSpace(runScript(t, step)), "\n")
-	if len(lines) != 3 ||
-		lines[0] != "GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download" ||
-		!strings.HasPrefix(lines[1], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[2], "go vet ") ||
-		strings.Contains(lines[1], "GOPROXY") || strings.Contains(lines[2], "GOPROXY") {
-		t.Errorf("go-static local-authority step = %q, want a verified download, then its tests and vet offline", lines)
+	// CIN-V0-7503 superseded the in-step proxy fetch: local-authority-deps fetches and verifies
+	// the modules into a go.mod/go.sum-keyed cache, and go-static restores it (refusing a miss),
+	// verifies it again and runs the tests and vet with the proxy off.
+	wantLine(t, "go-static", static, "          fail-on-cache-miss: true")
+	wantLine(t, "go-static", step, `          GOFLAGS: "-mod=readonly"`)
+	var lines []string
+	for _, l := range strings.Split(strings.TrimSpace(runScript(t, step)), "\n") {
+		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) != 4 || lines[0] != "go mod download" || lines[1] != "go mod verify" ||
+		!strings.HasPrefix(lines[2], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[3], "go vet ") ||
+		strings.Contains(strings.Join(lines, "\n"), "GOPROXY") || strings.Contains(step, "GOPROXY:") {
+		t.Errorf("go-static local-authority step = %q, want an offline verified module cache, then its tests and vet", lines)
 	}
 	if n := strings.Count(ci, "working-directory: source/tools/local-authority\n"); n != 1 {
 		t.Errorf("tools/local-authority runs in %d steps, want only go-static's", n)
@@ -1108,7 +1125,7 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 		t.Helper()
 		dir := t.TempDir()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "SHELL_RESULT=success", "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
+		cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "SHELL_RESULT=success", "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
 			"DOCS_RESULT="+docs, "DOCS_MODE="+mode, "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7", "GITHUB_RUN_ATTEMPT=1",
 			"GITHUB_EVENT_NAME="+event, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1185,7 +1202,7 @@ func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
 	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
-	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected]")
+	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
 	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
 	script := runScript(t, job)
 	for _, event := range []string{"pull_request", "merge_group", "push"} {
@@ -1197,7 +1214,7 @@ func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 						static = "skipped"
 					}
 					cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-					cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+event, "SHELL_RESULT="+result,
+					cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "GITHUB_EVENT_NAME="+event, "SHELL_RESULT="+result,
 						"BATCHED="+batched, "SHARDS_RESULT=skipped", "STATIC_RESULT="+static,
 						"STATIC_REUSE=", "DOCS_RESULT=success", "DOCS_MODE=DOCS",
 						"GITHUB_STEP_SUMMARY="+filepath.Join(t.TempDir(), "summary"))
