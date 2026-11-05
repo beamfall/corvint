@@ -912,6 +912,31 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   loopback host that drops IPv4 connects to a closed port can stall a runner's server-ready check;
   the fixture serves on `[::1]` for that reason. Evidence: `make plugin-test PLUGIN=typescript`.
 
+### Native collector tranche (V1-4369, V1-4370, V1-4371, V1-4375, V1-4376)
+
+- `LPCV-V0-8200`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369) The experimental JVM collector reuses native runner invocations and terminal reports for JUnit Platform, JUnit 4, TestNG, Kotest, Gradle, Surefire and Robolectric. Each isolated process resets JaCoCo counters by starting a new VM, dumps on exit, and propagates its agent through JAVA_TOOL_OPTIONS. JaCoCo XML exports retain instrumented zero-hit lines.
+- `LPCV-V0-8201`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4370) The experimental .NET collector isolates NUnit, xUnit and MSTest with the existing VSTest/MTP exact filters and decodes coverlet or Microsoft CodeCoverage Cobertura exports without changing native runner reports.
+- `LPCV-V0-8202`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4371) The experimental C/C++ collector isolates CTest, GoogleTest, Catch2, Boost.Test and cmocka through existing profiles. Independently instrumented binaries supply LLVM or gcov LCOV exports; LLVM_PROFILE_FILE includes process and module identity.
+- `LPCV-V0-8203`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4375) The experimental Rust collector isolates cargo test and nextest through existing profiles, propagates -C instrument-coverage and LLVM_PROFILE_FILE, and decodes LLVM LCOV exports from all instrumented binaries.
+- `LPCV-V0-8204`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4376) The experimental Swift collector isolates XCTest and Swift Testing through existing profiles with --enable-code-coverage and LLVM_PROFILE_FILE, and decodes LLVM LCOV exports.
+- `LPCV-V0-8205`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Each collector runs the ordinary suite then each passing discovered identity alone. A filter must report exactly that passing identity. A failed, cancelled, malformed or incomplete run publishes no record. A caller-owned capture adapter must enumerate the complete retired process tree and provide a native coverage export for every process; absent, duplicate, disconnected, uninstrumented or undumped processes refuse the record. Native execution/export adapters are explicit inputs, not inferred from an empty coverage directory. Tool admission, binary instrumentation, JaCoCo binary-to-XML and profraw-to-LCOV export remain the caller's responsibility.
+- `LPCV-V0-8206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Native coverage exports are bounded to 4 MiB each and 32 processes, restricted to an explicit tracked repository-relative source mapping, and unioned into the unchanged linecov profile/index format. Missing source mappings refuse rather than silently erase repository coverage. Zero-hit lines survive union; malformed and negative counts refuse. Collection scratch directories are private and fresh, never recursively deleting caller-owned paths.
+- `LPCV-V0-8207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Fixture selection binds explicit executable body boundaries to the indexed base blob. Covered edits select their owners, zero-hit edits select none, insertions check both neighbours, and uncovered body lines select all tests reaching that body. Missing or mismatched boundaries, declarations and structural edits keep the static plan. Production exclusion remains disabled for every native family until LPCV-V0-963 passes on its pinned real repository. Fixture fault tests are development evidence only.
+
+The implementation is `internal/nativelinecov`, shared by the five families; it adds no command,
+wire member or index version. The execution/capture boundary deliberately accepts the existing
+native report input and native coverage formats, not a synthetic per-test report protocol.
+Non-goals: automatic toolchain installation, binary builds, process-tree attestation from coverage
+files alone, external qualification, and promotion of exclusion. Missing tools and capture adapters
+remain explicit uncertainty. Rollback: remove the experimental sub-plugin registration; the Go/JS
+index and static selection remain compatible.
+
+| Requirement | Implementation and fixture evidence |
+|---|---|
+| LPCV-V0-8200..8204 | `internal/nativelinecov`: `TestCollectorFamilies`, `TestInstrumentation`, `TestNativeReports` |
+| LPCV-V0-8205..8206 | `TestCollectorRefusals`, `TestProcessCoverage`, `TestNativeReports` |
+| LPCV-V0-8207 | `TestSelectionFaults` |
+
 Failure modes for this section:
 
 | Failure | Required behavior |
