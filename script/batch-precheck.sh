@@ -262,34 +262,43 @@ EOF
 }
 
 # doc_gate_commands prints each command line of every `run:` of the doc-gates job, in order: a
-# one-line `run: CMD`, or each non-blank, non-comment line of a `run: |` block; a line ending in a
-# backslash is joined to the next. Any other line that names a `run` key (a flow mapping such as
+# one-line `run: CMD`, or each command of a `run: |` block; comments remain visible while
+# joining backslash continuations, and an unresolved continuation is unclassifiable. Any other
+# line that names a `run` key (a flow mapping such as
 # `- {run: make x}`, a quoted key, an empty `run:`, a plain scalar continued on the next line), a
 # merge key or alias, or a `shell:`/`working-directory:` key is printed after a tab, as a form it
 # cannot classify, so doc_gates reports it unknown and the sync check fails closed (ASD-V0-036).
 doc_gate_commands() {
   job_block doc-gates | awk -v trusted="$(trusted_batch_commands)" -v cont=-1 '
-    function flush_block(    i, n, lines) {
-      if (literal && body == trusted) print "\tci-only-trusted-batch-binding"
+    function flush_pending() {
+      if (pending != "") { unparsed(pending "\\"); pending = "" }
+    }
+    function flush_block(    i, n, lines, normalized) {
+      n = split(body, lines, "\n")
+      for (i = 1; i <= n; i++)
+        if (lines[i] != "" && lines[i] !~ /^#/)
+          normalized = normalized (normalized == "" ? "" : "\n") lines[i]
+      if (literal && normalized == trusted) print "\tci-only-trusted-batch-binding"
       else {
-        n = split(body, lines, "\n")
         for (i = 1; i <= n; i++) emit(lines[i])
+        flush_pending()
       }
       body = ""
     }
     function emit(s) {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
+      if (pending == "" && s ~ /^#/) return
       if (pending != "") { s = pending " " s; pending = "" }
       if (s ~ /\\$/) { pending = substr(s, 1, length(s) - 1); return }
       if (s != "" && s !~ /^#/) print s
     }
     function unparsed(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); print "\t" s }
     block {
-      if ($0 !~ /[^[:space:]]/) next
+      if ($0 !~ /[^[:space:]]/) { body = body "\n"; next }
       match($0, /^[[:space:]]*/)
       if (RLENGTH > indent) {
         s = $0; sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
-        if (s != "" && s !~ /^#/) body = body (body == "" ? "" : "\n") s
+        body = body (body == "" ? "" : "\n") s
         next
       }
       flush_block(); block = 0
@@ -307,7 +316,7 @@ doc_gate_commands() {
       s = $0; match(s, /run:/); cont = RSTART - 1
       sub(/^[[:space:]]*(- )?run:[[:space:]]*/, "", s)
       if (s ~ /^".*"$/ || s ~ /^\047.*\047$/) s = substr(s, 2, length(s) - 2)
-      emit(s); next
+      emit(s); flush_pending(); next
     }
     /(^|[[:space:]{,])["\047]?run["\047]?[[:space:]]*:/ || /<<[[:space:]]*:/ || /(:|^[[:space:]]*-)[[:space:]]*[*&][A-Za-z0-9_-]/ ||
       /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }

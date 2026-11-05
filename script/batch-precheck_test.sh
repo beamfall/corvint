@@ -383,6 +383,27 @@ for mutation in changed extra incomplete shell; do
   grep -q 'cannot mirror' "$tmp/out" || fail "$mutation trusted block did not fail closed: $(cat "$tmp/out")"
 done
 /bin/cp "$tmp/ci-before-trusted" "$repo/.github/workflows/ci.yml"
+# ASD-V0-036: a final continuation followed by a shell comment executes the make
+# command in Bash. It must be selected or refused, never silently dropped beside
+# the ordinary steps above. Unresolved continuations also refuse at each block
+# boundary, rather than disappearing or joining the next step.
+for ending in comment dangling next-step single-line; do
+  case $ending in
+    comment) form=$'      - run: |\n          make required-check \\\n            # comment' ;;
+    dangling) form=$'      - run: |\n          make required-check \\' ;;
+    single-line) form=$'      - run: make required-check \\' ;;
+    next-step) form=$'      - run: |\n          make required-check \\\n      - run: make another-check' ;;
+  esac
+  write_ci "" "" "" "$form"
+  fixture --sync-check && fail "$ending continuation was silently accepted"
+  grep -q 'doc-gates runs `make required-check .*which batch-precheck cannot mirror' "$tmp/out" ||
+    fail "$ending continuation disappeared from the command inventory: $(cat "$tmp/out")"
+done
+# A standalone comment ending in a backslash must not continue onto a command.
+write_ci "" "" "" $'      - run: |\n          # comment \\\n          make required-check'
+fixture --sync-check || fail "standalone backslash comment refused: $(cat "$tmp/out")"
+fixture --list || fail "--list after standalone backslash comment: $(cat "$tmp/out")"
+grep -qxF 'make required-check' "$tmp/out" || fail "command after a standalone comment disappeared: $(cat "$tmp/out")"
 # A new doc-gates make target or go run is picked up without editing batch-precheck.
 write_ci "new-drift-check" "./tools/new-gen"
 fixture --sync-check || fail "new make target or go run refused: $(cat "$tmp/out")"
