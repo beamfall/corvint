@@ -387,11 +387,15 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 	cond := "    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}"
 	for _, job := range []string{"go-static", "go-interop", "artifact-integrity"} {
 		b := jobBlock(t, ci, job)
-		wantLine(t, job, b, "    needs: static-reuse")
+		needs := "    needs: static-reuse"
+		if job == "go-static" {
+			needs = "    needs: [static-reuse, local-authority-deps]" // CIN-V0-7503 module cache
+		}
+		wantLine(t, job, b, needs)
 		wantLine(t, job, b, cond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse]")
+	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
 	wantLine(t, "go-product", gp, `            test "$SHARDS_RESULT" = success`)
@@ -402,6 +406,10 @@ func staticReuseScript(t *testing.T) string {
 	t.Helper()
 	return runScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "static-reuse"))
 }
+
+// goProductUpstreamOK is the passing host-adapter and web-flows environment the go-product
+// check reads before its shard, static and docs decisions (host-adapters, CIN-V0-7504).
+var goProductUpstreamOK = []string{"HOST_RESULT=success", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped"}
 
 // runScript extracts the run script of the single run step of job block B.
 func runScript(t *testing.T, b string) string {
@@ -590,7 +598,7 @@ func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
 			}
 		}
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
+		cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "SHELL_RESULT=success", "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
 			"STATIC_REUSE=", "DOCS_RESULT="+docs, "DOCS_MODE=FULL", "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7",
 			"GITHUB_RUN_ATTEMPT=1", "GITHUB_EVENT_NAME=pull_request", "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -671,12 +679,21 @@ func TestCINV0008LocalAuthorityModuleTestsRunInGoStatic(t *testing.T) {
 	}
 	// No literal here ends in a package pattern, which would make this package an unbounded
 	// reader (AFP-V0-012 rule (d)).
-	lines := strings.Split(strings.TrimSpace(runScript(t, step)), "\n")
-	if len(lines) != 3 ||
-		lines[0] != "GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download" ||
-		!strings.HasPrefix(lines[1], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[2], "go vet ") ||
-		strings.Contains(lines[1], "GOPROXY") || strings.Contains(lines[2], "GOPROXY") {
-		t.Errorf("go-static local-authority step = %q, want a verified download, then its tests and vet offline", lines)
+	// CIN-V0-7503 superseded the in-step proxy fetch: local-authority-deps fetches and verifies
+	// the modules into a go.mod/go.sum-keyed cache, and go-static restores it (refusing a miss),
+	// verifies it again and runs the tests and vet with the proxy off.
+	wantLine(t, "go-static", static, "          fail-on-cache-miss: true")
+	wantLine(t, "go-static", step, `          GOFLAGS: "-mod=readonly"`)
+	var lines []string
+	for _, l := range strings.Split(strings.TrimSpace(runScript(t, step)), "\n") {
+		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) != 4 || lines[0] != "go mod download" || lines[1] != "go mod verify" ||
+		!strings.HasPrefix(lines[2], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[3], "go vet ") ||
+		strings.Contains(strings.Join(lines, "\n"), "GOPROXY") || strings.Contains(step, "GOPROXY:") {
+		t.Errorf("go-static local-authority step = %q, want an offline verified module cache, then its tests and vet", lines)
 	}
 	if n := strings.Count(ci, "working-directory: source/tools/local-authority\n"); n != 1 {
 		t.Errorf("tools/local-authority runs in %d steps, want only go-static's", n)
@@ -710,6 +727,12 @@ func TestAFPV0163WorkflowWiresIntegrityTreeReuse(t *testing.T) {
 		"        if: steps.reuse.outputs.mode == 'REUSE'",
 		"          name: ci-integrity-reuse",
 		"        run: make go-archive-gate",
+		// AFP-V0-104: 16 waits of 30 s (8 min) fit inside the step's 11 min timeout, which fits
+		// inside the job's 30 min with the full gate (12 to 16 min measured) still able to run.
+		"          interval=30",
+		"          max_waits=16",
+		"        timeout-minutes: 11",
+		"    timeout-minutes: 30",
 	} {
 		wantLine(t, "artifact-integrity", ai, line)
 	}
@@ -848,10 +871,10 @@ func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *
 	run := func(target string, edit func(r, ai, rec map[string]any, log *string), env ...string) (string, string) {
 		git("checkout", "-q", target)
 		dir := t.TempDir()
-		r := map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "conclusion": "success",
+		r := map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "status": "completed", "conclusion": "success",
 			"path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repo}}
-		ai := map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "conclusion": "success", "head_sha": head}
-		rec := map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "conclusion": "success", "head_sha": head}
+		ai := map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "status": "completed", "conclusion": "success", "head_sha": head}
+		rec := map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "status": "completed", "conclusion": "success", "head_sha": head}
 		log := logOf(line)
 		if edit != nil {
 			edit(r, ai, rec, &log)
@@ -865,9 +888,17 @@ func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *
 				jobs = append(jobs, j)
 			}
 		}
+		// AFP-V0-104: pendingJobs is the jobs listing until the first wait; the stub sleep then
+		// serves the final listing, as a pull-request run that finished its gate meanwhile.
+		pendingJobs, pending := r["pendingJobs"]
+		delete(r, "pendingJobs")
 		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": []any{r}})
 		if rec["unreadable"] != true {
 			writeJSON(t, filepath.Join(dir, "jobs.json"), map[string]any{"jobs": jobs})
+		}
+		if pending {
+			writeJSON(t, filepath.Join(dir, "next-jobs.json"), map[string]any{"jobs": jobs})
+			writeJSON(t, filepath.Join(dir, "jobs.json"), map[string]any{"jobs": pendingJobs})
 		}
 		if log != "unreadable" {
 			if err := os.WriteFile(filepath.Join(dir, "log.txt"), []byte(log), 0o600); err != nil {
@@ -896,7 +927,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$auth" ] && [ -n "${STUB_DENY_AUTH:-}" ] && exit 22
 case "$url" in
-  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&status=success&per_page=20") f=runs.json ;;
+  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&per_page=20") f=runs.json ;;
   "$STUB_API/runs/$STUB_RUN/jobs?filter=latest&per_page=100") f=jobs.json ;;
   "$STUB_API/jobs/$STUB_JOB/logs") f=log.txt ;;
   "$STUB_API/runs/$STUB_RUN/artifacts"*) f=artifacts.json ;;
@@ -906,6 +937,12 @@ esac
 cat "$STUB_DIR/$f" > "$out"
 `
 		if err := execfile.WriteFile(filepath.Join(bin, "curl"), []byte(stub), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// A stub sleep records each wait and returns at once.
+		sleep := "#!/bin/sh\nprintf '%s\\n' \"$1\" >> \"$STUB_DIR/slept\"\n" +
+			"if [ -f \"$STUB_DIR/next-jobs.json\" ]; then mv \"$STUB_DIR/next-jobs.json\" \"$STUB_DIR/jobs.json\"; fi\n"
+		if err := execfile.WriteFile(filepath.Join(bin, "sleep"), []byte(sleep), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
@@ -921,7 +958,8 @@ cat "$STUB_DIR/$f" > "$out"
 		_ = cmd.Run() // a nonzero exit is continue-on-error in the workflow; only the output binds
 		o, _ := os.ReadFile(output)
 		s, _ := os.ReadFile(summary)
-		return string(o), string(s)
+		slept, _ := os.ReadFile(filepath.Join(dir, "slept"))
+		return string(o), string(s) + "slept:" + strings.ReplaceAll(strings.TrimSpace(string(slept)), "\n", ",")
 	}
 	out, summary := run(merge, nil)
 	if out != "mode=REUSE\n" || !strings.Contains(summary, `"profile":"corvint-ci-integrity-reuse/0","mode":"REUSE","tree":"`+tree+`","head":"`+head+`"`) ||
@@ -966,8 +1004,58 @@ cat "$STUB_DIR/$f" > "$out"
 		"record with trailing text": func(r, ai, rec map[string]any, log *string) { *log = logOf(line + " x") },
 		"record inside other text":  func(r, ai, rec map[string]any, log *string) { *log = logOf("echo " + line) },
 	} {
-		if out, _ := run(merge, e); out != "" {
-			t.Errorf("%s: output %q, want no mode (the gate runs in full)", name, out)
+		if out, summary := run(merge, e); out != "" || !strings.HasSuffix(summary, "slept:") {
+			t.Errorf("%s: output %q, want no mode (the gate runs in full) and no wait\n%s", name, out, summary)
+		}
+	}
+	integrityWait(t, run, merge, head, runID, jobID)
+}
+
+// integrityWait (AFP-V0-104, V1-4233): an entry that starts before its pull-request run's gate or
+// record job concluded lists again every 30 s, at most 16 times (8 min), and reuses the record
+// once both jobs passed; a run that never gets there runs the gate after exactly 16 waits; a
+// running run whose gate failed, and a completed run, never wait.
+func integrityWait(t *testing.T, run func(string, func(r, ai, rec map[string]any, log *string), ...string) (string, string), merge, head string, runID, jobID int) {
+	t.Helper()
+	gate := func(status, conclusion string) map[string]any {
+		return map[string]any{"id": 1, "run_id": runID, "name": "artifact-integrity", "status": status, "conclusion": conclusion, "head_sha": head}
+	}
+	record := func(status, conclusion string) map[string]any {
+		return map[string]any{"id": jobID, "run_id": runID, "name": "artifact-integrity-record", "status": status, "conclusion": conclusion, "head_sha": head}
+	}
+	running := func(jobs ...any) func(r, ai, rec map[string]any, log *string) {
+		return func(r, ai, rec map[string]any, log *string) {
+			r["status"], r["conclusion"] = "in_progress", nil
+			r["pendingJobs"] = jobs
+		}
+	}
+	waits := strings.Repeat("30,", 16)
+	waits = waits[:len(waits)-1]
+	for name, tc := range map[string]struct {
+		edit  func(r, ai, rec map[string]any, log *string)
+		mode  string
+		slept string
+	}{
+		"gate still running":             {running(gate("in_progress", "")), "mode=REUSE\n", "30"},
+		"gate passed, record not listed": {running(gate("completed", "success")), "mode=REUSE\n", "30"},
+		"record job queued":              {running(gate("completed", "success"), record("queued", "")), "mode=REUSE\n", "30"},
+		"gate job not listed yet":        {running(), "mode=REUSE\n", "30"},
+		"a running run whose jobs passed": {func(r, ai, rec map[string]any, log *string) {
+			r["status"], r["conclusion"] = "in_progress", nil
+		}, "mode=REUSE\n", ""},
+		"gate failed in a running run": {running(gate("completed", "failure")), "", ""},
+		"never concludes": {func(r, ai, rec map[string]any, log *string) {
+			running(gate("in_progress", ""))(r, ai, rec, log)
+			ai["status"], ai["conclusion"] = "in_progress", nil // the final listing never passes
+		}, "", waits},
+		"a cancelled run": {func(r, ai, rec map[string]any, log *string) { r["conclusion"] = "cancelled" }, "", ""},
+		"an unknown run status": {func(r, ai, rec map[string]any, log *string) {
+			r["status"], r["conclusion"] = "mystery", nil
+		}, "", ""},
+	} {
+		out, summary := run(merge, tc.edit)
+		if out != tc.mode || !strings.HasSuffix(summary, "slept:"+tc.slept) {
+			t.Errorf("%s: output %q, summary %q; want mode %q after waits %q", name, out, summary, tc.mode, tc.slept)
 		}
 	}
 }
@@ -1037,7 +1125,7 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 		t.Helper()
 		dir := t.TempDir()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
+		cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "SHELL_RESULT=success", "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
 			"DOCS_RESULT="+docs, "DOCS_MODE="+mode, "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7", "GITHUB_RUN_ATTEMPT=1",
 			"GITHUB_EVENT_NAME="+event, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1093,4 +1181,50 @@ func TestDCIV0856DocsRunLeavesNoQueueReuseEvidence(t *testing.T) {
 	wantLine(t, "docs-plan", plan, `          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then`)
 	// DCI-V0-857: the README capability table's reader runs on every DOCS run.
 	wantLine(t, "docs-plan", plan, `            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex ./tools/capabilities-check)`)
+}
+
+// TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps (V1-3489): the shell-test-selected job runs
+// on pull requests and merge-queue entries only, from a full-history checkout, and runs the
+// shell-test steps the affected plan selects through make shell-test-affected over the merge base
+// of the event's base commit; with no base commit it fails rather than running nothing.
+func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
+	job := jobBlock(t, readWorkflow(t, "ci.yml"), "shell-test-selected")
+	wantLine(t, "shell-test-selected", job, "    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}")
+	wantLine(t, "shell-test-selected", job, "          fetch-depth: 0")
+	b := stepBlock(t, job, "Selected shell-test steps (AFP-V0-2401)")
+	wantLine(t, "shell-test-selected", b, "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}")
+	wantLine(t, "shell-test-selected", b, `          test -n "$BASE_SHA" || { echo "::error::no base commit for the shell-test selection"; exit 1; }`)
+	wantLine(t, "shell-test-selected", b, `          make -s shell-test-affected BASE="$base"`)
+}
+
+// CIN-V0-2320: a failed, cancelled, skipped or missing shell result must fail the
+// required check, including its batched early return; only a push intentionally skips it.
+func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
+	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
+	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
+	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
+	script := runScript(t, job)
+	for _, event := range []string{"pull_request", "merge_group", "push"} {
+		for _, result := range []string{"success", "failure", "cancelled", "skipped", ""} {
+			for _, batched := range []string{"false", "true"} {
+				t.Run(event+"/"+result+"/batched="+batched, func(t *testing.T) {
+					static := "success"
+					if batched == "true" {
+						static = "skipped"
+					}
+					cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
+					cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "GITHUB_EVENT_NAME="+event, "SHELL_RESULT="+result,
+						"BATCHED="+batched, "SHARDS_RESULT=skipped", "STATIC_RESULT="+static,
+						"STATIC_REUSE=", "DOCS_RESULT=success", "DOCS_MODE=DOCS",
+						"GITHUB_STEP_SUMMARY="+filepath.Join(t.TempDir(), "summary"))
+					out, err := cmd.CombinedOutput()
+					want := result == "success" || event == "push" && result == "skipped"
+					if (err == nil) != want {
+						t.Fatalf("passed=%v want=%v: %s", err == nil, want, out)
+					}
+				})
+			}
+		}
+	}
 }

@@ -22,6 +22,8 @@
 #   HEAVY_SLOTS     concurrent heavy commands admitted host-wide; default max(1, CPUs/4)
 #   HEAVY_P         Go build/test parallelism (-p) exported through GOFLAGS unless GOFLAGS already
 #                   sets -p; default max(1, CPUs/HEAVY_SLOTS). An explicit -p argument still wins.
+#                   With no GOFLAGS in the environment, -p is appended to `go env GOFLAGS` (a GOENV
+#                   or $GOROOT/go.env value), which the exported GOFLAGS would otherwise replace.
 #   HEAVY_LOCK_DIR  directory holding the slot lock files; default /tmp/corvint-heavy-<uid>.
 #                   Every lane on the host must use the same directory and the same HEAVY_SLOTS.
 #   HEAVY_NICE      scheduling niceness the command runs at (0..19); default 10, so hook adapters
@@ -357,10 +359,17 @@ slot_limits() {
   fi
 }
 
+# ASD-V0-2475 (V1-4513): an exported GOFLAGS replaces the GOFLAGS that `go env` reads from the GOENV
+# file or $GOROOT/go.env, so with none in the environment the bound starts from that value. A value
+# that already sets -p is left to go, unexported.
 bound_parallelism() {
-  case " ${GOFLAGS-} " in
+  local flags=${GOFLAGS-}
+  if [[ -z $flags ]] && command -v go > /dev/null; then
+    flags=$(GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null) || flags=
+  fi
+  case " $flags " in
     *" -p="* | *" -p "*) ;;
-    *) export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p=$1" ;;
+    *) export GOFLAGS="${flags:+$flags }-p=$1" ;;
   esac
 }
 

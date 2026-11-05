@@ -34,6 +34,8 @@ what any packet says.
 
 ## Requirements
 
+- `IDX-SNAP-V0-7560`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4553) A lazy mapped gob-body read MUST check the size of its exact backing inode before copying uncached bytes. A truncation MUST refuse even on systems whose private mapped pages remain readable. The mapping MUST retain a close-on-exec descriptor independent of the opening reader, and release it with its last mapping lease. Verified heap-cache hits need no further backing read.
+
 - `IDX-SNAP-V0-001`: `corvint [--root PATH] index` builds the index of the committed tree exactly as
   `context` would and writes it under `.corvint/index/` as
   `<object-format>-<tree-oid>-<engine>.gob`. Location amendment 2026-09-23 (V1-0212, pending owner
@@ -1765,3 +1767,9 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-114 (standing auto-accept, V1-3016) | `joinLinesCapped`, `encodeLinesCapped` in `internal/contextindex/symbolwindows.go` | `TestJoinLinesCappedMatchesTruncatedJoin`, `TestSymbolContextTextAllocatesWithinTheCap` |
 | IDX-SNAP-V0-115 (standing lane auto-accept, V1-3133) | `noteSnapshotMissBuild` in `cmd/corvint/index_snapshot.go`; `impactSnapshotMissNotice` in `internal/dogfoodflow/flow.go` | `TestSnapshotMissNoticeNamesTheBuild`, `TestIDXSNAPV0115TreeNoticeKeepsTypedAbstention` |
 | IDX-SNAP-V0-955 (standing auto-accept, V1-3574) | `TestAnalyzerSchemaInputs` (no input pin), `script/analyzer-schema.sh` (`pins`, `check`, `bump`), `script/analyzer-inputs.sh` (IDX-SNAP-V0-890..892 govern) | `TestAnalyzerSchemaOutputDetectsAnalyzerMutation`, `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh` (two output-neutral `receipt.go` edits merge without conflict; changed inputs noted at check) |
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `IDX-SNAP-V0-7560` | `snapshot_mapping.go`, `snapshot_sectioned_mmap_unix.go`, `snapshot_bodies.go`; `TestSnapshotCachedPagesStillCheckBackingSize_IDXSNAPV07560`, `TestSnapshotBackingDescriptorLifetime_IDXSNAPV07560`, `TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811`; descriptor lives until mapping release. Adds one fstat per uncached lazy body, no cost/savings claim. |

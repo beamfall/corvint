@@ -4,6 +4,8 @@ set -eu
 # DCG-V0-801: `make repin` passes origin/main to script/repin.sh unless BASE is given on the
 # command line or in the environment; the Makefile's own `BASE ?=` default never reaches it.
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
+# A parent make (make gate) exports these; unset them so make -n prints the bare recipe.
+unset MAKEFLAGS MAKELEVEL MFLAGS
 fail() { printf 'repin_test: FAIL %s\n' "$1" >&2; exit 1; }
 plan() { (cd "$root" && env -u BASE make -n --no-print-directory "$@" repin); }
 

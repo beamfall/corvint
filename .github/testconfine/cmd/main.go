@@ -40,6 +40,9 @@ func run(args []string) error {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return fmt.Errorf("usage: test-confine BINARY ARGS... | test-confine -probe")
 	}
+	if os.Getenv("CORVINT_CONFINE_ROOT") == "" {
+		return fmt.Errorf("CORVINT_CONFINE_ROOT is unset; fix: export CORVINT_CONFINE_ROOT=$(git rev-parse --show-toplevel) before go test -exec /absolute/path/to/test-confine (DTL-V0-010)")
+	}
 	root, err := resolved(os.Getenv("CORVINT_CONFINE_ROOT"))
 	if err != nil {
 		return fmt.Errorf("CORVINT_CONFINE_ROOT: %w", err)

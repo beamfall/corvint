@@ -25,6 +25,12 @@ dogfood_fixture_copy() {
       return 2
     fi
     /bin/cp -f "$source_root/script/$name" "$dest/" || return 2
+    # CSD-V0-7512: a copied citation checker needs its minimal indexed inventories.
+    if [[ $name == check-line-citations.sh ]]; then
+      for dep in line-citation-legacy-documents.txt line-citation-unpinned-inventory.txt; do
+        [[ -f $dest/$dep ]] || printf '# No legacy citations in this fixture.\n' > "$dest/$dep"
+      done
+    fi
     copied="$copied$name "
     for dep in $(dogfood_fixture_deps "$source_root/script/$name"); do
       queue+=("$dep")

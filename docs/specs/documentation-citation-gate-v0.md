@@ -316,7 +316,9 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   or in the environment: the Makefile's own `BASE ?= main` names a local `main` that can lag
   `origin/main` (schema 128 against 150 on 2026-10-31), so the bump could keep a stale schema
   number and fail the origin/main collision check. Evidence for the default: `script/repin_test.sh`
-  (`make repin-test`; fails when the target passes `$(BASE)`). Rollback: delete `script/repin.sh`,
+  (`make repin-test` and `make -s repin-test BASE=0123abc`; child make plans clear
+  `BASE`, `MAKEFLAGS`, `MAKELEVEL` and `MFLAGS` before testing default, explicit and environment
+  bases; fails when the target passes `$(BASE)` or inherits the parent make override). Rollback: delete `script/repin.sh`,
   its test and the targets.
 - `DCG-V0-840`: (experimental under the standing lane auto-accept (V1-3613); refines DCG-V0-048)
   `script/check-line-citations.sh --repin` MUST report the number of citations it rewrote across
