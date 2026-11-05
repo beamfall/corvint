@@ -4520,5 +4520,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/affected-zero-unknown-v0.md",
+    "title": "Affected Zero Unknown V0",
+    "reqPrefix": "AZU-V0",
+    "intent": "experimental; the owner directed the goal (\"figure out how to get the unknown to 0",
+    "delivery": "experimental",
+    "claim": "every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
