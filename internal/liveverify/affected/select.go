@@ -315,10 +315,11 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
+	coverageReaders := make(map[string]map[string]Witness)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
-			gap, uncertain := graph.coverageGap(id, seeds[id], reached)
+			gap, uncertain := graph.coverageGap(id, seeds[id], reached, normalized, coverageReaders)
 			if uncertain {
 				plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
 			} else if gap {

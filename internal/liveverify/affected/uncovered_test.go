@@ -122,6 +122,36 @@ func TestAZUV0006ReaderCallerUncertainty(t *testing.T) {
 	}
 }
 
+// AZU-V0-006: the owner's representative seed and a reader's chosen witness
+// need not name the same changed file. Inspect every changed path it owns.
+func TestAZUV0006MultipleChangedPathsReaderUncertainty(t *testing.T) {
+	for _, kind := range []string{"literal", "glob", "scoped", "unbounded"} {
+		t.Run(kind, func(t *testing.T) {
+			reader := Unit{ID: "shell:check.sh", Sources: []string{"check.sh"}, Callers: []string{"Makefile"}}
+			switch kind {
+			case "literal":
+				reader.PathTokens = []string{"data/b.go"}
+			case "glob":
+				reader.PathGlobs = []string{"data/b.*"}
+			case "scoped":
+				reader.ReadScoped, reader.ReadScope = true, []string{"data/b.go"}
+			case "unbounded":
+				reader.UnboundedReads = "check.sh reads a computed path"
+			}
+			graph, err := Build(context.Background(), t.TempDir(),
+				fake{name: "go", units: []Unit{{ID: "go:data", Sources: []string{"data/a.go", "data/b.go"}}}},
+				fake{name: "shell", units: []Unit{reader}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := Select(graph, []string{"data/a.go", "data/b.go"})
+			if plan.Scope != ScopeUnknown || len(plan.Uncovered) != 0 || !reflect.DeepEqual(plan.Unknown, []Unknown{{Reason: UnknownNoSelectableTest, Detail: "go:data"}}) {
+				t.Fatalf("scope=%s unknown=%v uncovered=%v", plan.Scope, plan.Unknown, plan.Uncovered)
+			}
+		})
+	}
+}
+
 // AZU-V0-005: newly owning hidden Go source must not remove a testless
 // reader's callers, which read or execute it independently of Go imports.
 func TestAZUV0005KeepsTestlessReadersCallers(t *testing.T) {
@@ -140,4 +170,24 @@ func TestAZUV0005KeepsTestlessReadersCallers(t *testing.T) {
 			t.Fatalf("%s: tests=%v", source, plan.SelectedTests())
 		}
 	}
+}
+
+// AZU-V0-006 / TSP-V0-001: when a reader's own files also change, its
+// own-files frontier bears on the batch even while proving another owner's gap.
+func TestAZUV0006ReaderOwnFilesFrontierInBatch(t *testing.T) {
+	graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+		{ID: "go:data", Sources: []string{"data/data.go"}},
+		{ID: "go:reader", Sources: []string{"reader/linux.go"}, PathTokens: []string{"data/data.go"}, Frontier: []string{"go:build-constraint-variants"}, FrontierBears: FrontierBearsOnOwnFiles},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := Select(graph, []string{"data/data.go", "reader/linux.go"})
+	want := Unknown{Reason: UnknownNoSelectableTest, Detail: "go:data"}
+	for _, unknown := range plan.Unknown {
+		if unknown == want {
+			return
+		}
+	}
+	t.Fatalf("reader's changed own files must prevent a coverage proof: unknown=%v uncovered=%v", plan.Unknown, plan.Uncovered)
 }

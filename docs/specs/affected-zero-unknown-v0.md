@@ -110,6 +110,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   gap, testless literal/glob readers of an untested owner SHALL select their caller closures,
   including readers of owned, nonhidden source paths. Readers and their caller closures SHALL
   retain uncertainty from unresolved declared callers before a coverage gap can be proved.
+  This inspection SHALL cover every changed path owned by the unit, independently of the
+  representative seed or reader witness. Reader frontier inspection SHALL preserve existing
+  own-files bearing rules over the complete dirty set (TSP-V0-001), including short
+  concatenated readers (V1-1818).
   Embedding foreign-language
   source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
   A Ruby view with no reachable route-dispatched test retains its existing
@@ -203,7 +207,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
 | AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
-| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006ReaderCallerUncertainty`; `TestAZUV0006DeclaredReaderUnownedCaller`; `TestAZUV0006OwnedTestlessReaderCallers`; `TestAZUV0006OwnedSourceReaderCaller`; `TestAffectedUntestedGoPackageIsUnknownScope`; `TestUseCaseHostileChangeConsequence`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [self-review repair](../build-log/2026-11-05-azu-small-self-review-reader-callers.md) |
+| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006ReaderCallerUncertainty`; `TestAZUV0006MultipleChangedPathsReaderUncertainty`; `TestAZUV0006MultipleChangedFilesDeclaredReader`; `TestAZUV0006ReaderOwnFilesFrontierInBatch`; `TestShortFragmentsKeepConcatenatedReaders_V1_1818`; `TestAZUV0006DeclaredReaderUnownedCaller`; `TestAZUV0006OwnedTestlessReaderCallers`; `TestAZUV0006OwnedSourceReaderCaller`; `TestAffectedUntestedGoPackageIsUnknownScope`; `TestUseCaseHostileChangeConsequence`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [self-review repair](../build-log/2026-11-05-azu-small-self-review-reader-callers.md) |
 | AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; `TestAZUV0007CIRunnableBrowserConsumerRequired`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge consumer replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | not yet |
