@@ -67,13 +67,13 @@ participation, and inbound shell callers. The remaining classes are small and lo
   Selections carry kind `DRIVER_TARGET` and the argv `make <target>`, or `CI_JOB` and the workflow
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
-  before. Go package commands with no package argument SHALL depend on the current package after
+  before. Supersedes the AFP-V0-2405 hint for claimed paths.
+  Go package commands with no package argument SHALL depend on the current package after
   `cd` or `go -C`; an unresolved directory SHALL retain uncertainty or depend on every owner.
   Unsupported YAML flow mappings, including mappings inside flow sequences, SHALL retain the
   unparsable-file frontier rather than silently discard execution members. Unparsable driver
   fallback units SHALL be reached on every nonempty dirty plan, preserving that uncertainty
   even when the file's hidden execution edge cannot participate in traversal.
-  Supersedes the AFP-V0-2405 hint for claimed paths.
 - **AZU-V0-002:** **Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
