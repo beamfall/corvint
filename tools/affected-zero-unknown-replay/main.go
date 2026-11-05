@@ -251,6 +251,15 @@ func safety(body []byte, merge, parent string, before, after plan, lines map[str
 	for _, r := range receipt.ParentSuite.Results {
 		old[r.Unit+"\x00"+r.Test] = r.Outcome
 	}
+	current := map[string]bool{}
+	for _, r := range receipt.MergeSuite.Results {
+		current[r.Unit+"\x00"+r.Test] = true
+	}
+	for key := range old {
+		if !current[key] {
+			return fail(errors.New("parent test outcome absent from merge full suite"))
+		}
+	}
 	chosen := selected(after)
 	// A newly discovered test also differs from the parent's absent outcome.
 	for _, r := range receipt.MergeSuite.Results {

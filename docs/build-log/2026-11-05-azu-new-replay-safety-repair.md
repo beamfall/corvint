@@ -27,3 +27,22 @@ this is not permission to drop an actual script-source reader.
 
 The repaired exact-tree replay and final test results are recorded below when produced. Missing
 historical full-suite/mutation observations remain NOT_PRODUCED and cannot qualify AZU-V0-009.
+
+The first repaired replay retains every baseline selection on all eight merges. Its report digest
+is `e7eb15ff8aaf9da25c6bf00321661676940618a73b6457c4986cc862b6f86b07`. Full-suite and mutation
+cells still say NOT_PRODUCED. The safety comparator also rejects a parent test that disappears
+inside an otherwise observed unit; a unit-level completeness statement cannot conceal that gap.
+
+Whole-package functional checks passed before the calibrated incremental-selection budget failed
+at p95 225.486 ms, 5.77 calibration probes against the unchanged 5.00 bound. The ownership matcher
+now rejects exact-path and literal-prefix misses before allocating its general matching state;
+existing wildcard cases and additional zero-component `**` cases retain the same semantics.
+Runtime caller work also exits immediately for graphs without TypeScript. The existing budget is
+remeasured; its limit and assertions are unchanged. This repair is confined to observed overhead
+from the ownership declarations and inbound closure.
+
+The unchanged owner-pattern grammar cases and incremental-selection budget passed together
+(`selection-budget-repair.log`, 66.059 s total test runtime). No post-repair percentile is claimed:
+the passing invocation did not emit its suppressed test log. Final whole-package verification and
+the replay at the final implementation revision follow; historical safety observations remain
+external requirements.

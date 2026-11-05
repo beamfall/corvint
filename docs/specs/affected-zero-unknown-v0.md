@@ -148,7 +148,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   SHAs are committed; subsequent first-parent merges through a pinned local ref are appended.
   Safety receipts SHALL bind each merge and parent, complete suite inventories and per-test
   outcomes at both revisions, plus mutation observations bound to unique mutant IDs and changed lines on either the parent
-  or merge side, including deleted lines. Missing or invalid receipts
+  or merge side, including deleted lines. Missing or invalid receipts, including a parent test absent from the merge outcomes,
   SHALL report `NOT_PRODUCED`, never safety success. Every changed or new outcome and every mutant
   killer SHALL belong to a selected unit; a deliberately removed killer or differing-outcome unit
   SHALL fail the same checker. External runner completeness statements are required evidence,

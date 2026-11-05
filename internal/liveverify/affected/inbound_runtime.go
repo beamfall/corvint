@@ -34,7 +34,7 @@ func (graph *Graph) inboundRuntimeSite(entry string) string {
 // runtime dependency can start outside the statically visible import graph.
 // Existing reader selections are kept, and the caller's dependents are walked.
 func (graph *Graph) inboundRuntimeCallers(reached map[string]Witness, followed map[string]bool, dirty []string) {
-	if len(dirty) == 0 || !graph.inboundChangesCode(dirty) {
+	if graph.claimants["typescript"] == nil || len(graph.runtimeEdges) == 0 || len(dirty) == 0 || !graph.inboundChangesCode(dirty) {
 		return
 	}
 	seeds := map[string]Witness{}
