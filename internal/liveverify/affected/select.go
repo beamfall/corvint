@@ -413,6 +413,15 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for id := range contained {
 		delete(start, id)
 	}
+	// A package's tests do not affect ordinary importers, but drivers run
+	// those tests. Start at their direct driver callers and follow from there.
+	for _, id := range sortedKeys(contained) {
+		for _, caller := range graph.dependents[id] {
+			if strings.HasPrefix(caller, DriverNamespace+":") {
+				addWitness(start, caller, Witness{Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath, link: seeds[id].extended(caller)})
+			}
+		}
+	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
 	rebuilt = make(map[string]bool, len(reached)+len(enclosing))

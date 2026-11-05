@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -17,6 +18,61 @@ func replayFixture() (safetyReceipt, plan, plan, map[string]map[int]bool) {
 		Mutants:     []mutant{{ID: "mutant-1", Side: "merge", Path: "a.go", Line: 2, KilledBy: []observation{{Unit: "go:a", Test: "TestA"}}}},
 	}
 	return r, old, now, map[string]map[int]bool{"merge:a.go": {2: true}, "parent:a.go": {2: true}}
+}
+
+// AZU-V0-8903: additive/symbol exclusions are part of complete external
+// suite inventories, and remain subject to the same unsafe-drop check.
+func TestSafetyIncludesAdditiveExclusions_AZU_V0_8903(t *testing.T) {
+	r, old, _, lines := replayFixture()
+	var now plan
+	if err := json.Unmarshal([]byte(`{"selected":[{"unitId":"go:a"}],"excluded":[],"goAdditiveExcluded":[{"unitId":"go:b","through":"go:a"}],"unknown":[]}`), &now); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(r)
+	if got := safety(body, r.Merge, r.Parent, old, now, lines); got.Status != "OBSERVED_NO_MISS" {
+		t.Fatalf("complete additive inventory refused: %+v", got)
+	}
+	r.MergeSuite.Results[1].Outcome = "fail"
+	body, _ = json.Marshal(r)
+	if got := safety(body, r.Merge, r.Parent, old, now, lines); got.Status != "UNSAFE_DROP" {
+		t.Fatalf("additively excluded differing outcome admitted: %+v", got)
+	}
+}
+
+// AZU-V0-009/8903: an extended frozen list through its newest merge must
+// not append that merge twice, while duplicate supplied rows still refuse.
+func TestReplayGrowingFrozenList_AZU_V0_8903(t *testing.T) {
+	root := t.TempDir()
+	gitOK := func(args ...string) string {
+		t.Helper()
+		out, err := git(root, args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	gitOK("init", "--initial-branch=main")
+	gitOK("config", "user.name", "Russell Lewis")
+	gitOK("config", "user.email", "me@russe11.com")
+	gitOK("commit", "--allow-empty", "-m", "root")
+	merge := func(branch string) string {
+		t.Helper()
+		gitOK("checkout", "-b", branch)
+		gitOK("commit", "--allow-empty", "-m", branch)
+		gitOK("checkout", "main")
+		gitOK("merge", "--no-ff", "-m", "merge "+branch, branch)
+		return gitOK("rev-parse", "HEAD")
+	}
+	anchor, newest := merge("first"), merge("second")
+	for _, refs := range [][]string{{anchor}, {anchor, newest}} {
+		got, tip, err := replayMerges(root, refs, newest)
+		if err != nil || tip != newest || !slices.Equal(got, []string{anchor, newest}) {
+			t.Fatalf("growing list %v: got %v through %s: %v", refs, got, tip, err)
+		}
+	}
+	if _, _, err := replayMerges(root, []string{anchor, newest, newest}, newest); err == nil || err.Error() != "duplicate frozen merge "+newest {
+		t.Fatalf("supplied duplicate accepted: %v", err)
+	}
 }
 
 // AZU-V0-009, AZU-V0-8903: mutating selection must fail the same checker CI

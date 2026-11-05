@@ -295,6 +295,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			words = words[1:]
 			for len(words) != 0 && (strings.HasPrefix(words[0].text, "-") || driverAssignment(words[0].text)) {
 				if words[0].text == "-u" || words[0].text == "-C" || words[0].text == "-S" {
+					if len(words) < 2 {
+						s.scan.computed = true
+						return cwd
+					}
 					words = words[1:]
 				}
 				words = words[1:]
@@ -303,6 +307,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			words = words[1:]
 			for len(words) != 0 && strings.HasPrefix(words[0].text, "-") {
 				if !strings.Contains(words[0].text, "=") && len(words[0].text) == 2 && strings.IndexByte("nksIcpLPdEaR", words[0].text[1]) >= 0 {
+					if len(words) < 2 {
+						s.scan.computed = true
+						return cwd
+					}
 					words = words[1:]
 				}
 				words = words[1:]

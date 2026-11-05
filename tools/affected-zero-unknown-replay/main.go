@@ -31,10 +31,11 @@ type selection struct {
 	Tests  []string `json:"tests"`
 }
 type plan struct {
-	Raw      []byte      `json:"-"`
-	Selected []selection `json:"selected"`
-	Excluded []selection `json:"excluded"`
-	Unknown  []unknown   `json:"unknown"`
+	Raw                []byte      `json:"-"`
+	Selected           []selection `json:"selected"`
+	Excluded           []selection `json:"excluded"`
+	Unknown            []unknown   `json:"unknown"`
+	GoAdditiveExcluded []selection `json:"goAdditiveExcluded"`
 }
 type envelope struct {
 	OK   bool `json:"ok"`
@@ -109,7 +110,7 @@ func git(root string, args ...string) (string, error) {
 }
 func units(p plan) []string {
 	set := map[string]bool{}
-	for _, list := range [][]selection{p.Selected, p.Excluded} {
+	for _, list := range [][]selection{p.Selected, p.Excluded, p.GoAdditiveExcluded} {
 		for _, s := range list {
 			set[s.UnitID] = true
 		}
@@ -331,6 +332,35 @@ func validFrozenPrefix(refs []string) bool {
 	return len(refs) >= len(frozenMergePrefix) && slices.Equal(refs[:len(frozenMergePrefix)], frozenMergePrefix)
 }
 
+func replayMerges(root string, refs []string, through string) ([]string, string, error) {
+	seen := map[string]bool{}
+	for _, ref := range refs {
+		if seen[ref] {
+			return nil, "", fmt.Errorf("duplicate frozen merge %s", ref)
+		}
+		seen[ref] = true
+	}
+	tip, err := git(root, "rev-parse", through+"^{commit}")
+	if err != nil {
+		return nil, "", err
+	}
+	if _, err := git(root, "merge-base", "--is-ancestor", refs[0], tip); err != nil {
+		return nil, "", errors.New("through revision is not a descendant of the frozen anchor")
+	}
+	later, err := git(root, "rev-list", "--first-parent", "--merges", "--reverse", refs[0]+".."+tip)
+	if err != nil {
+		return nil, "", err
+	}
+	merged := slices.Clone(refs)
+	for _, ref := range strings.Fields(later) {
+		if !seen[ref] {
+			merged = append(merged, ref)
+			seen[ref] = true
+		}
+	}
+	return merged, tip, nil
+}
+
 func run(root, binary, baseline, list, through, out, safetyDir string) error {
 	absolute, err := filepath.Abs(binary)
 	if err != nil {
@@ -349,18 +379,10 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 	if !validFrozenPrefix(refs) {
 		return errors.New("frozen merge list must start with the contractual eight full SHAs")
 	}
-	tip, err := git(root, "rev-parse", through+"^{commit}")
+	refs, tip, err := replayMerges(root, refs, through)
 	if err != nil {
 		return err
 	}
-	if _, err := git(root, "merge-base", "--is-ancestor", refs[0], tip); err != nil {
-		return errors.New("through revision is not a descendant of the frozen anchor")
-	}
-	later, err := git(root, "rev-list", "--first-parent", "--merges", "--reverse", refs[0]+".."+tip)
-	if err != nil {
-		return err
-	}
-	refs = append(refs, strings.Fields(later)...)
 	// Keep every clone and raw artifact outside the repository.
 	rootAbs, _ := filepath.Abs(root)
 	outAbs, _ := filepath.Abs(out)

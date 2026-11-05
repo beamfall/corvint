@@ -217,3 +217,37 @@ func TestDriverEdgesAndComputedSite_AZU_V0_001(t *testing.T) {
 		t.Errorf("unit witness %s, want %s", got, affected.WitnessDependency)
 	}
 }
+
+// AZU-V0-001: drivers run changed tests even when ordinary Go importers
+// remain isolated from changes confined to another package's tests.
+func TestDriverCallersOfContainedTests_AZU_V0_001(t *testing.T) {
+	graph := driverGraph(t, map[string]string{
+		"Makefile":                  "check:\n\tgo test -race ./core/...\nall: check\n",
+		".github/workflows/ci.yml":  "jobs:\n  check:\n    steps:\n      - run: make check\n  after:\n    needs: check\n    steps:\n      - run: echo done\n",
+		"consumer/consumer.go":      "package consumer\nimport \"example.test/m/core\"\nvar Value = core.Value\n",
+		"consumer/consumer_test.go": "package consumer\nimport \"testing\"\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+	}, nil)
+	dirty := []string{"core/core_test.go"}
+	plan := affected.Select(graph, dirty)
+	want := []string{"driver:make:Makefile#check", makeAll, "driver:ci:.github/workflows/ci.yml#check", "driver:ci:.github/workflows/ci.yml#after"}
+	wantDriverSelection(t, driverSelected(t, plan), want, nil)
+	selected := map[string]bool{}
+	for _, selection := range plan.Selected {
+		selected[selection.UnitID] = true
+	}
+	if !selected["go:example.test/m/core"] || selected["go:example.test/m/consumer"] {
+		t.Fatalf("test-only importer isolation lost: %v", selected)
+	}
+	beyond := graph.ReachedBeyondOwnTests(dirty)
+	for _, id := range want {
+		if _, ok := beyond[id]; !ok {
+			t.Errorf("driver %s absent beyond own tests", id)
+		}
+	}
+	if _, ok := beyond["go:example.test/m/core"]; ok {
+		t.Fatal("contained own tests included beyond own tests")
+	}
+	if _, ok := beyond["go:example.test/m/consumer"]; ok {
+		t.Fatal("ordinary importer reached beyond own tests")
+	}
+}
