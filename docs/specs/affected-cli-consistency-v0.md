@@ -36,13 +36,19 @@ driving Corvint from scripts.
   retain their original stdout, stderr and exit in the envelope's details; success MUST
   pass through its streams. No native decoder, frozen assertion or golden is amended.
   Protocol/server discovery MUST remain offline; protocol-only execution MUST refuse and
-  direct callers to the native binary. Native short CLI execution is bounded to 30 seconds
+  direct callers to the native binary. Mixed-mode binaries classify the selected operation:
+  `corvint-gateway serve` MUST refuse before state or listener setup, while its short CLI
+  operations retain native execution. Valid existing paths in catalog-declared positional
+  root input slots MUST reach the native parser, including bare relative directory names.
+  Unrecognized bare words retain the existing unknown-verb refusal.
+  Native short CLI execution is bounded to 30 seconds
   and 1 MiB per output stream; exceeding either MUST refuse, never truncate a successful result.
   The shared process conformance package MUST cover every shipped binary's profile help,
   catalog, version and unknown-verb envelope alongside the existing native refusal table.
   Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
   `TestCLIProfile9301RefusalShapes`, `TestCLIProfile9301NotFound`,
-  `TestCLIErrorContracts_ACXV0859`.
+  `TestCLIErrorContracts_ACXV0859`, `TestCLIProfile9301RootPositionalProcess`,
+  `TestCLIProfile9301GatewayServeOffline`.
   Rollback: remove the opt-in adapter and its catalog row; no native state migration.
 
 - `ACX-V0-7707`: (narrowed by the owner's 2026-11-04 compatibility decision; V1-3736)

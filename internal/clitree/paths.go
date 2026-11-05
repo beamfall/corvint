@@ -37,7 +37,7 @@ func dispatchPaths(fset *token.FileSet, files []*ast.File, found map[string]stri
 		if n == nil {
 			return
 		}
-		extend := func(b binding, word string) map[binding]string {
+		extend := func(known map[binding]string, b binding, word string) map[binding]string {
 			next := map[binding]string{}
 			for k, v := range known {
 				next[k] = v
@@ -67,7 +67,7 @@ func dispatchPaths(fset *token.FileSet, files []*ast.File, found map[string]stri
 					c := stmt.(*ast.CaseClause)
 					for _, expr := range c.List {
 						if word, ok := stringLiteral(expr); ok && OperationWord(word) {
-							next := extend(b, word)
+							next := extend(known, b, word)
 							for _, s := range c.Body {
 								walk(s, next)
 							}
@@ -77,15 +77,35 @@ func dispatchPaths(fset *token.FileSet, files []*ast.File, found map[string]stri
 				return
 			}
 		case *ast.IfStmt:
-			if test, ok := node.Cond.(*ast.BinaryExpr); ok && test.Op == token.EQL {
-				if b, ok := argument(test.X); ok {
-					if word, ok := stringLiteral(test.Y); ok && OperationWord(word) {
-						walk(node.Body, extend(b, word))
-						walk(node.Else, known)
-						return
+			// Every conjunct holds in the true branch. Length guards and
+			// unrelated predicates neither add nor erase argument bindings;
+			// disjunctions cannot establish either operand independently.
+			var constrain func(ast.Expr, map[binding]string) map[binding]string
+			constrain = func(expr ast.Expr, next map[binding]string) map[binding]string {
+				switch test := expr.(type) {
+				case *ast.ParenExpr:
+					return constrain(test.X, next)
+				case *ast.BinaryExpr:
+					if test.Op == token.LAND {
+						return constrain(test.Y, constrain(test.X, next))
+					}
+					if test.Op == token.EQL {
+						left, right := test.X, test.Y
+						if _, ok := argument(left); !ok {
+							left, right = right, left
+						}
+						if b, ok := argument(left); ok {
+							if word, ok := stringLiteral(right); ok && OperationWord(word) {
+								return extend(next, b, word)
+							}
+						}
 					}
 				}
+				return next
 			}
+			walk(node.Body, constrain(node.Cond, known))
+			walk(node.Else, known)
+			return
 		}
 		// Visit only direct AST children, keeping this branch's constraints.
 		first := true

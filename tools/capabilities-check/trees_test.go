@@ -287,6 +287,25 @@ func TestCAPV07700NestedRouteDrift(t *testing.T) {
 	}
 }
 
+// CAP-V0-047: a length guard must not hide a route whose words are already
+// cataloged independently. Parentheses/reversed equality preserve the binding;
+// an OR condition does not guarantee the alpha prefix in its true branch.
+func TestCAPV07700GuardedRouteDrift(t *testing.T) {
+	for _, condition := range []string{`len(args)>1 && args[0]=="alpha"`, `(len(args)>1) && ("alpha"==args[0])`} {
+		dispatch := syntheticDispatch + "\nfunc guarded(args []string) { if " + condition + ` { switch args[1] { case "help": } } }`
+		found := treeFindings(t, syntheticTreeRepository(t, dispatch), []string{"corvint-x"})
+		if !slices.Contains(found["subcommand-unlisted"], "corvint-x alpha help") {
+			t.Fatalf("%s: guarded route hidden by known words: %v", condition, found)
+		}
+	}
+	dispatch := syntheticDispatch + `
+func guarded(args []string) { if len(args)>1 || args[0]=="alpha" { switch args[1] { case "help": } } }`
+	found := treeFindings(t, syntheticTreeRepository(t, dispatch), []string{"corvint-x"})
+	if slices.Contains(found["subcommand-unlisted"], "corvint-x alpha help") {
+		t.Fatalf("disjunction invented a fixed prefix: %v", found)
+	}
+}
+
 func TestCAPV07700MCPNamespaceDoesNotHideTool(t *testing.T) {
 	root := t.TempDir()
 	files := syntheticRepository()

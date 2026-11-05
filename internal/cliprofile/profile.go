@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -71,6 +72,14 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 			words = words[:len(words)-1]
 		}
 		node, found := tree.Find(words)
+		if len(words) == 0 {
+			for _, root := range tree.Nodes {
+				if len(root.Path) == 0 {
+					node, found = root, true
+					break
+				}
+			}
+		}
 		if found && len(node.Path) == len(words) {
 			_, err := io.WriteString(stdout, clitree.Render(tree, node))
 			if err != nil {
@@ -91,7 +100,7 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 	}
 	// The inventory includes protocol-only roots. Unknown operation words must
 	// still get a coded refusal here, without starting a protocol process.
-	if len(rest) > 0 && clitree.OperationWord(rest[0]) {
+	if len(rest) > 0 && clitree.OperationWord(rest[0]) && !rootPathInput(tree, rest) {
 		words = clitree.LeadingWords(rest, nil)
 		node, found := tree.Find(words)
 		if !found || len(node.Path) == 0 {
@@ -100,7 +109,11 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 			return fail(binary, "unknown-verb", strings.TrimSuffix(fmt.Sprintf("unknown command %q; %s", word, hint), "; "), nil)
 		}
 	}
-	if protocolOnly(binary) {
+	operation := ""
+	if len(rest) > 0 {
+		operation = rest[0]
+	}
+	if executionMode(binary, operation) == discoveryOnly {
 		return fail(binary, "native-protocol-required", "Use the native binary for protocol traffic; this adapter serves CLI discovery only", nil)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -137,18 +150,49 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 	return fail(binary, code, message, map[string]any{"stdout": out.String(), "stderr": errout.String(), "nativeExit": nativeExit})
 }
 
-// These are binary selector values, not adapter subcommands. Keep their
-// protocol classification separate from the adapter's argv dispatch.
-func protocolOnly(name string) bool {
+// A bare word can be either a verb or a positional path. Admit existing paths
+// only where the catalog declares a positional root input; retain the existing
+// unknown-verb refusal for unrecognized bare words. Explicit ./ paths already
+// bypass operation-word discovery and reach the native parser.
+func rootPathInput(tree clitree.Tree, args []string) bool {
+	if _, unknown := clitree.UnknownVerb(tree, args); unknown {
+		return false
+	}
+	for _, node := range tree.Nodes {
+		if len(node.Path) == 0 {
+			for _, input := range node.Required {
+				if !strings.HasPrefix(input, "-") && !strings.HasPrefix(input, "stdin:") {
+					_, err := os.Stat(args[0])
+					return err == nil
+				}
+			}
+		}
+	}
+	return false
+}
+
+type mode uint8
+
+const (
+	nativeCLI mode = iota
+	discoveryOnly
+)
+
+// These are binary selector values, not adapter subcommands. Mixed-mode
+// binaries classify the selected operation rather than every invocation.
+func executionMode(name, operation string) mode {
 	if strings.HasPrefix(name, "corvint-analyzer-") || strings.Contains(name, "mcp") {
-		return true
+		return discoveryOnly
 	}
 	switch name {
 	case "corvint-lsp", "corvint-console", "corvint-corpus-http", "corvint-pulse":
-		return true
-	default:
-		return false
+		return discoveryOnly
+	case "corvint-gateway":
+		if operation == "serve" {
+			return discoveryOnly
+		}
 	}
+	return nativeCLI
 }
 
 type boundedOutput struct {

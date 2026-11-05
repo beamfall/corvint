@@ -43,4 +43,34 @@ want=$(grep -c 'capcatalog_write,.*,internal/capcatalog/trees/' "$repo/Makefile"
 [ "$(find "$w/internal/capcatalog/trees" -name '*.json' | wc -l)" -eq "$want" ] ||
   fail "not all $want trees snapshots were written"
 [ -z "$(leftover)" ] || fail "a succeeding run left $(leftover)"
+
+# CAP-V0-9300: one regeneration must refresh the canonical folded tree before
+# deriving compatibility shim trees, and derive documentation last. Model a
+# changed folded help source with a deliberately stale initial snapshot.
+cat > "$tmp/gen" <<'STUB'
+#!/bin/sh
+case "$1" in
+  ./cmd/corvint-test) cat folded-source ;;
+  ./tools/cli-discovery-gen)
+    if [ "${2:-}" = --docs ]; then
+      cat internal/capcatalog/trees/corvint-tests-accept.json > docs.txt
+    else
+      for shim in corvint-tests-accept corvint-test-runner corvint-behavior-falsify corvint-playwright-minimize; do
+        cp internal/capcatalog/trees/corvint-test.json "internal/capcatalog/trees/$shim.json"
+      done
+    fi ;;
+  *) printf 'generated %s %s\n' "$2" "$3" ;;
+esac
+STUB
+printf 'new folded help\n' > "$w/folded-source"
+printf 'stale folded help\n' > "$w/internal/capcatalog/trees/corvint-test.json"
+run || fail "folded regeneration failed: $(cat "$tmp/out")"
+for shim in corvint-tests-accept corvint-test-runner corvint-behavior-falsify corvint-playwright-minimize; do
+  cmp -s "$w/folded-source" "$w/internal/capcatalog/trees/$shim.json" ||
+    fail "$shim consumed stale folded help"
+done
+cmp -s "$w/folded-source" "$w/docs.txt" || fail "documentation consumed stale shim help"
+cp -R "$w" "$tmp/once"
+run || fail "second folded regeneration failed: $(cat "$tmp/out")"
+diff -r "$tmp/once" "$w" || fail "one regeneration did not reach a stable result"
 echo "capability-catalog_test: PASS"

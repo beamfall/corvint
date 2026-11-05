@@ -610,7 +610,7 @@ capabilities-check:
 CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
 capcatalog_write = $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
-	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
+	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
@@ -627,9 +627,9 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./cmd/corvint-pulse help --json,internal/capcatalog/trees/corvint-pulse.json)
 	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-tasks help --json,internal/capcatalog/trees/corvint-tasks.json)
-	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./cmd/corvint-update help --json,internal/capcatalog/trees/corvint-update.json)
 	$(call capcatalog_write,./cmd/corvint-work-queue help --json,internal/capcatalog/trees/corvint-work-queue.json)
+	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
 	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen --docs
 
 .PHONY: capability-catalog-test

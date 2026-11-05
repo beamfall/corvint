@@ -35,8 +35,12 @@ cannot silently go missing or outlive its command.
   drift gate MUST include the adapter itself; root machine help and the LLM entrypoints
   MUST discover the profile. This completes the previously PARTIAL process-help delivery
   of CAP-V0-7700 via explicit selection, without promoting native protocol help.
+  Root help MUST render the explicit root node's actual usage, flags and required inputs
+  before any generic command fallback. Catalog generation MUST refresh canonical folded
+  help before deriving shim trees, then generate documentation from the refreshed trees.
   Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
-  `TestCAPV07700ShippedHelp`, `TestCAPV0047SyntheticDriftFails`.
+  `TestCAPV07700ShippedHelp`, `TestCAPV0047SyntheticDriftFails`,
+  `TestCAPV07700GuardedRouteDrift`; `script/capability-catalog_test.sh`.
 - `CAP-V0-9302`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3738)
   The additive CLI profile MUST report every selected binary on the common release version
   scheme, including analyzers with native protocol version receipts. Native analyzer versions
