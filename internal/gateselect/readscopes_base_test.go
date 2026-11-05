@@ -208,7 +208,7 @@ func TestBaseReadScopesFollowCommittedReadScopes_AFPV0050(t *testing.T) {
 		"a directory named go.mod":        {packages: `"kept":[]`, extra: map[string]string{"kept/go.mod/data": "x\n"}, known: true},
 		"a symlinked go.mod":              {packages: `"solo":[]`, extra: map[string]string{"solo/solo.go": "package solo\n"}, links: map[string]string{"solo/go.mod": "../go.mod"}},
 		"in a vendor directory":           {packages: `"vendor/v":[]`, extra: map[string]string{"vendor/v/v.go": "package v\n"}},
-		"in a hidden directory":           {packages: `".hidden/h":[]`, extra: map[string]string{".hidden/h/h.go": "package h\n"}},
+		"in a hidden directory":           {packages: `".hidden/h":[]`, extra: map[string]string{".hidden/h/h.go": "package h\n"}, known: true},
 		"in an admitted build directory":  {packages: `"build/b":[]`, extra: map[string]string{"build/b/b.go": "package b\n"}, known: true},
 		"a directory without Go source":   {packages: `"docs":[]`, extra: map[string]string{"docs/x.md": "x\n"}},
 		"a symlinked Go source":           {packages: `"linked":[]`, links: map[string]string{"linked/l.go": "../kept/kept.go"}},

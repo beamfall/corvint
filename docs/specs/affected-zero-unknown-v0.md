@@ -181,7 +181,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | not yet |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
-| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; [merge replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
+| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; [merge replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
 | AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md) |
 | AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; [consumer replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
 | AZU-V0-008 | V1-4691 | not yet |
