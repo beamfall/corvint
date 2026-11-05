@@ -28,7 +28,7 @@ func (m *Map) lineage(s *Screen) []Anchor {
 	for cur := s; cur != nil && !seen[cur.ID]; cur = m.screen(cur.Parent) {
 		seen[cur.ID] = true
 		out = append(out, cur.Anchor)
-		out = append(append(append(out, cur.NameFrom...), cur.ParentFrom...), cur.RedirectFrom...)
+		out = append(append(out, cur.NameFrom...), cur.ParentFrom...)
 	}
 	return out
 }

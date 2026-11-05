@@ -385,9 +385,6 @@ func screenPaths(s *Screen) []string {
 	for _, a := range s.ParentFrom {
 		add(a)
 	}
-	for _, a := range s.RedirectFrom {
-		add(a)
-	}
 	return sortedKeys(set)
 }
 

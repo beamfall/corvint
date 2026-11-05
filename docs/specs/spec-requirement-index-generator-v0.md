@@ -87,6 +87,7 @@ No requirement below diverges from the implementation.
 ## Requirements
 
 - `SRG-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4550) The same-spec conflict-isolation fixture MUST hold README range endpoints stable, since adding a highest requirement legitimately changes the generated README row. The new-spec merge fixture MUST continue to exercise and regenerate README co-edits alongside INDEX.json and REQUIREMENTS.tsv. Phony targets MUST retain one declaration per target.
+
 - `SRG-V0-8202`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1323)
   Local `doc-gates` and its existing CI invocation MUST refuse lines beginning `<<<<<<< `,
   exactly `=======` after a matching `<<<<<<< ` opener in the same file, or beginning

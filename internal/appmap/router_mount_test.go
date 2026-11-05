@@ -254,10 +254,7 @@ func TestAMAPV0194NavigateRedirect(t *testing.T) {
 			t.Errorf("%s: abstract %v (present %v), want %v", k, a, ok, v)
 		}
 	}
-	for i := range screens {
-		screens[i].Dialect = DialectReact
-	}
-	if id, reason := newScreenIndex("", "", screens).byURL("/old"); id == "" || reason != "" {
-		t.Errorf("a redirect must resolve to its target screen: %s %s", id, reason)
+	if ids, _ := newScreenIndex("", "", screens).urlMatches("/old"); len(ids) != 0 {
+		t.Errorf("a redirect must not match a URL: %v", ids)
 	}
 }

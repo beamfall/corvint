@@ -167,16 +167,7 @@ type RootPin struct {
 }
 
 // Screen is one router state: a node of the screen graph (AMAP-V0-002, AMAP-V0-003, AMAP-V0-006).
-// RouteRedirect records a Navigate target. A nil To is deliberately unknown.
-type RouteRedirect struct {
-	To           *string `json:"to"`
-	PathRelative bool    `json:"path_relative,omitempty"`
-}
-
 type Screen struct {
-	Redirect     *RouteRedirect `json:"redirect,omitempty"`
-	RedirectFrom []Anchor       `json:"redirect_from,omitempty"`
-
 	// Entry records static entry constraints; absent in older maps (AMAP-V0-053/058).
 	Entry *EntryDeclaration `json:"entry,omitempty"`
 	// SplatNonEmpty preserves Rails required-glob semantics while sharing collision keys (AMAP-V0-046).
