@@ -2,6 +2,7 @@
 package main
 
 import (
+	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,7 @@ func TestQualificationDeadline(t *testing.T) {
 	log := filepath.Join(dir, "args")
 	t.Setenv("DEADLINE_LOG", log)
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$DEADLINE_LOG\"\nprintf '%s\\n' '{\"Action\":\"pass\",\"Package\":\"m/p\"}'\n"
-	if err := os.WriteFile(filepath.Join(dir, "go"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "go"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -692,7 +692,8 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-7601`: (accepted under standing implementation authority, V1-4380) The Go collector
   observes os/exec launches in its scratch toolchain overlay. A child without coverage build
   metadata, with a different coverage destination, or without completed counters rejects the
-  record as `uninstrumented-child` or `missing-child-counters`. Build-tool processes are exempt;
+  record as `uninstrumented-child` or `missing-child-counters`; a child that is instrumented logs
+  `covered-child`. Build-tool processes are exempt;
   unknown launchers conservatively reject the record. This implements the detection rule of
   `LPCV-V0-954`; no parent-only record supports exclusion. Witness: `TestUninstrumentedChild`.
 - `LPCV-V0-7602`: (accepted under standing implementation authority, V1-4423) Language collectors
