@@ -232,7 +232,11 @@ func Build(input Input) (Manifest, error) {
 	}
 	languages := map[string]bool{}
 	for _, id := range input.Selected {
-		if language, _, ok := strings.Cut(id, ":"); ok && language != "go" {
+		if strings.HasPrefix(id, "declared-consumer:") {
+			// Each consumer has its own project-owned argv, rather than a
+			// language-wide full command. The caller pins it in Declared.
+			languages[id] = true
+		} else if language, _, ok := strings.Cut(id, ":"); ok && language != "go" {
 			languages[language] = true
 		}
 	}

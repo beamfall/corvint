@@ -80,6 +80,9 @@ func TestAZUV0007RunnableConsumer(t *testing.T) {
 				if !reflect.DeepEqual(selection.Run, []string{"node", "web/e2e.mjs"}) || !reflect.DeepEqual(selection.Tests, []string{"web/e2e.mjs"}) || selection.Witness.Kind != "DECLARED_CONSUMER" {
 					t.Fatalf("selection=%+v", selection)
 				}
+				if dirty[0] == "lib/lib.go" && (selection.Witness.DirtyPath != "lib/lib.go" || !reflect.DeepEqual(selection.Witness.Via, []string{binaryExecModule + "lib", binaryExecModule + "cmd/tool", "declared-consumer:web/e2e.mjs"})) {
+					t.Fatalf("lost binary build witness for %v: %+v", dirty, selection.Witness)
+				}
 			}
 		}
 		if found != 1 {

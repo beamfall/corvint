@@ -353,7 +353,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			Witness: witness,
 		})
 	}
-	plan.Selected = graph.selectDeclaredConsumers(reached, rebuilt, plan.Selected)
+	plan.Selected = graph.selectDeclaredConsumers(rebuilt, plan.Selected)
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
@@ -384,11 +384,11 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 //
 // additive holds the ADN-V0-001 records with their final states.
 //
-// rebuilt holds the units whose build the change reaches: those the
+// rebuilt holds the witnesses whose build the change reaches: those the
 // dependency traversal walks to and those an enclosed path reaches, before a
 // later step replaces a unit's witness with its own test change
 // (AFP-V0-762).
-func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]bool) {
+func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]Witness) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
@@ -401,14 +401,12 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
-	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
-	for id := range reached {
+	rebuilt = make(map[string]Witness, len(reached)+len(enclosing))
+	for id, witness := range reached {
 		followed[id] = true
-		rebuilt[id] = true
+		rebuilt[id] = witness
 	}
-	for id := range enclosing {
-		rebuilt[id] = true
-	}
+	mergeWitnesses(rebuilt, enclosing)
 	unbounded := graph.unboundedDirty(normalized)
 	if len(unbounded) != 0 {
 		for id := range graph.locatorReach {

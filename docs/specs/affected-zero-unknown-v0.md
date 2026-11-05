@@ -95,6 +95,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   not `UNINDEXED_SOURCE_PATH`. Hidden-directory observation SHALL use the same bounded,
   metadata-excluding source walk for disk and immutable sources; `testdata` remains fixture data.
   Indexing a previously unowned file SHALL retain testless literal/glob readers and their callers.
+  Session runner discovery SHALL explicitly list these hidden packages alongside `./...` and
+  validate the complete planned Go universe before executing Go units.
 - `AZU-V0-006`: Uncovered, not unknown. A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
   first select its declared or modelled callers (AZU-V0-001, AZU-V0-004). When no selectable test
   anywhere can observe it, the plan SHALL record it in a new `uncovered` list, not in `unknown`.
@@ -124,6 +126,12 @@ participation, and inbound shell callers. The remaining classes are small and lo
   both optional members, and text selections carry the shell-quoted `run` command. Both optional selection members
   are omitted for ordinary units. Several rebuilt commands select a consumer once. Test-only
   or reader-only command reach does not trigger it. An entry without `run` keeps today's unknown.
+  Session planning SHALL retain each selected consumer's exact argv using the existing declared
+  command adapter and digest, without adding manifest or receipt fields. The local profile runs
+  each consumer from the repository root; profiles that cannot execute it retain its command as
+  an explicit required check. Mixed dependency and command-test changes SHALL extend the binary's
+  build witness, including its original dirty path and complete dependency chain, independently
+  of the command's final test-selection witness.
 - `AZU-V0-008`: Package-level runner fallback. A frontier reason that hides only which tests run
   inside a known package or project SHALL select that package's whole test command. Examples are
   `typescript:test-runner-unknown`, `typescript:runtime-flags-unresolved`,
@@ -181,8 +189,8 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | not yet |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
-| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; [merge replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
+| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; [merge replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
 | AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md) |
-| AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; [consumer replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
+| AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; [consumer replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | not yet |

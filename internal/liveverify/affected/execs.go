@@ -73,7 +73,7 @@ func (graph *Graph) execUsersOf(reached, built map[string]Witness) {
 // no unit's test, so the plan states it rather than leaving the run out
 // silently. A command reached only for its own test files, or as a reader,
 // was not rebuilt and names no consumer. The hint names the nearest command.
-func (graph *Graph) unselectedConsumers(reached map[string]Witness, rebuilt map[string]bool, selected []Selection) []Unknown {
+func (graph *Graph) unselectedConsumers(reached, rebuilt map[string]Witness, selected []Selection) []Unknown {
 	tests := map[string]bool{}
 	for _, selection := range selected {
 		for _, test := range selection.Tests {
@@ -83,7 +83,8 @@ func (graph *Graph) unselectedConsumers(reached map[string]Witness, rebuilt map[
 	commands := map[string]string{}
 	for _, id := range graph.order {
 		witness, hit := reached[id]
-		if !hit || !strings.HasPrefix(id, "go:") || !rebuilt[id] && !rebuilds(witness.Kind) {
+		_, built := rebuilt[id]
+		if !hit || !strings.HasPrefix(id, "go:") || !built && !rebuilds(witness.Kind) {
 			continue
 		}
 		for _, file := range graph.units[id].ExecConsumers {
@@ -135,23 +136,23 @@ func ValidConsumerRun(run []string) bool {
 // selectDeclaredConsumers adds one runnable selection per declared consumer,
 // even if another plugin has already selected that file. The declaration's
 // runner is the authority for executing the consumed binary (AZU-V0-007).
-func (graph *Graph) selectDeclaredConsumers(reached map[string]Witness, rebuilt map[string]bool, selected []Selection) []Selection {
+func (graph *Graph) selectDeclaredConsumers(rebuilt map[string]Witness, selected []Selection) []Selection {
 	commands := map[string]string{}
 	for _, id := range graph.order {
-		witness, hit := reached[id]
-		if !hit || !strings.HasPrefix(id, "go:") || !rebuilt[id] && !rebuilds(witness.Kind) {
+		witness, hit := rebuilt[id]
+		if !hit || !strings.HasPrefix(id, "go:") {
 			continue
 		}
 		for file := range graph.units[id].ExecConsumerRuns {
 			previous := commands[file]
-			if previous == "" || witness.ViaLength() < reached[previous].ViaLength() {
+			if previous == "" || witness.ViaLength() < rebuilt[previous].ViaLength() {
 				commands[file] = id
 			}
 		}
 	}
 	for _, file := range sortedKeysOf(commands) {
 		id := commands[file]
-		parent := reached[id]
+		parent := rebuilt[id]
 		consumer := "declared-consumer:" + file
 		selected = append(selected, Selection{UnitID: consumer, Tests: []string{file}, Kind: "DECLARED_CONSUMER", Run: append([]string(nil), graph.units[id].ExecConsumerRuns[file]...), Witness: Witness{Kind: "DECLARED_CONSUMER", DirtyPath: parent.DirtyPath, link: parent.extended(consumer)}})
 	}

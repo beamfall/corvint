@@ -426,8 +426,9 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 }
 
 // discover captures the runner and its exact version before execution, and
-// for the Go adapter checks that `go list ./...` is the planned universe
-// (STR-V0-004). A declared command is probed by its own name: `go` answers
+// for the Go adapter checks that `go list ./...` plus explicit hidden
+// packages is the planned universe (STR-V0-004). A declared command is
+// probed by its own name: `go` answers
 // `go env GOVERSION`, anything else `--version`. A declared argv[0] with a
 // path separator is a repository-relative path (STR-V0-003: commands run
 // from the repository root), so it is resolved against Root, never against
@@ -460,7 +461,20 @@ func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time
 		return "", "", errors.New("runner version cannot be read")
 	}
 	if invocation.Adapter == AdapterGo {
-		listed, err := r.probe(ctx, deadline, runner, invocation.Dir, env, "list", "./...")
+		patterns := []string{"list", "./..."}
+		if invocation.Dir == "" {
+			// ./... skips dot and underscore directories. Explicitly list
+			// those indexed packages too, then validate the complete universe.
+			for _, pkg := range r.Universe {
+				for _, part := range strings.Split(pkg, "/") {
+					if strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
+						patterns = append(patterns, pkg)
+						break
+					}
+				}
+			}
+		}
+		listed, err := r.probe(ctx, deadline, runner, invocation.Dir, env, patterns...)
 		if errors.Is(err, errDiscoveryBudget) {
 			return "", "", err
 		}
