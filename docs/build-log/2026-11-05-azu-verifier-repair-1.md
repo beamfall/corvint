@@ -64,3 +64,21 @@ The spec generator, receipt repinner, line citation repinner and line citation
 check passed. The line repinner found no unchanged content that moved.
 The pre-repair historical diagnostic JSON SHA-256 is
 `f26ae3ae483006e1766b39dd36733b55129a6544d8e7f51475bba896e9e2149d`.
+
+The full `script/heavy.sh --admit-only make doc-gates` run passed every gate
+except `selection-baseline-check`, which completed in 642 s but lost a later
+historical dry-run (`ci-af9d23f80`) with `signal: killed`. The runner has an
+existing five-minute command timeout; the exact kill mechanism is NOT_OBSERVED.
+The enclosing run took 667.1 s and exited 2; host load reached 179 during this
+run. Its log SHA-256 is
+`30863ffb553c241aa3117b6722b14b80b47c6a51ecf72cbca7f4ebf221b00d48`.
+The originally failing `pr-6` row now completed with zero selection misses,
+test extras, omissions and test misses. The incomplete baseline remains a
+failed evaluation, not a passing full replay.
+
+Retry only that remaining target with its supported `SELECTION_BASELINE_JOBS=2`
+worker setting. Keep the same 58 rows, floors and per-command timeouts. This
+bounds this harness's concurrent work without changing the host semaphore or
+relaxing an acceptance check. Reuse the other doc-gate passes against the
+unchanged code; this addendum is documentation only. The external lane handback
+retains the retry result and final CEM/check bindings.
