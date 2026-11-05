@@ -101,3 +101,9 @@ relaxed to accommodate this host.
 Spec indexing, capability catalog validation and line-citation validation passed. The local outcome
 is `failed`, preserving both whole-package failures. Independent review, native completion,
 publication, a seal, and historical runner observations are not produced by this lane.
+
+The terminal CEM pre-flight caught definition syntax the requirement index had reduced to table
+rows: the inherited bold title form and the lane's em-dash form were not executable obligation
+leaders. The spec now uses the existing `- **ID:**` grammar throughout, retaining every ID and
+clause body, and regenerates the requirement index before binding. This repairs evidence
+enumeration rather than changing acceptance or promoting the experimental spec.
