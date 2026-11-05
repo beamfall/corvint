@@ -87,7 +87,7 @@ test('PWV-V0-011 Tasks writes are negotiated per call against native help; other
  const service=createTasksService({runner,identity});
  const ctx={cwd:dir,sessionManager:{getSessionId:()=>'session'},isProjectTrusted:()=>true,isIdle:()=>true};
  const attempt={ticketId,expectedRevision:'1',attemptId:'attempt-1',generation:'1',holder:'pi'};
- const inputs={'ticket prioritize':{ticketId,expectedRevision:'1',priority:'P1',order:'2'},claim:{ticketId,expectedRevision:'1',holder:'pi'},renew:attempt,release:{...attempt,reason:'handoff'},submit:{...attempt,tree},'gate run':{...attempt,gate:'verify'},complete:{...attempt,commit:tree}};
+ const inputs={'ticket create':{payload:{title:'Operator task'}},'ticket refine':{ticketId,expectedRevision:'1',payload:{title:'Operator refinement'}},'ticket prioritize':{ticketId,expectedRevision:'1',priority:'P1',order:'2'},claim:{ticketId,expectedRevision:'1',holder:'pi'},renew:attempt,release:{...attempt,reason:'handoff'},submit:{...attempt,tree},'gate run':{...attempt,gate:'verify'},complete:{...attempt,commit:tree}};
  assert.deepEqual(sorted(shippedWrites),inventory.tasksWriteOperations,'shipped tasks.js writes equal the inventory');
  assert.deepEqual(sorted(Object.keys(inputs)),inventory.tasksWriteOperations);
  assert.equal(inventory.tasksWriteAdmission,'native-help-implemented-per-call');
@@ -98,7 +98,7 @@ test('PWV-V0-011 Tasks writes are negotiated per call against native help; other
   assert.equal(result.mutation,'not-attempted');
   assert.deepEqual(calls,['help'],`${operation} dispatches nothing before native admission`);
  }
- for(const operation of ['complete-manual','ticket create','ticket refine','init','index']) {
+ for(const operation of ['complete-manual','init','index']) {
   calls.length=0;
   const result=await service.command({operation,input:{ticketId,expectedRevision:'1'},requestId:'request-2'},ctx);
   assert.equal(result.fault,'unsupported-mutation',operation);

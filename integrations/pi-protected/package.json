@@ -16,6 +16,8 @@
     "@earendil-works/pi-tui": "0.85.1",
     "@earendil-works/pi-coding-agent": {"undici": "8.12.2"},
     "minimatch": "11.0.3",
-    "openai": "7.6.0"
+    "openai": "7.6.0",
+    "highlight.js": "11.12.0",
+    "yaml": "2.9.1"
   }
 }
