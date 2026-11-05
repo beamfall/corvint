@@ -29,6 +29,7 @@ var closed = map[string][]string{
 	".corvint/documentation-paths.json":         {""},
 	".corvint/existence-readers.json":           {"", "/entries/*"},
 	".corvint/gated-root-locators.json":         {"", "/packages/*"},
+	".corvint/non-source-paths.json":            {"", "/entries/*"},
 	".corvint/runtime-edges.json":               {"", "/edges/*"},
 	".corvint/runtime-readers.json":             {"", "/entries/*"},
 	".corvint/shell-foreign-callers.json":       {"", "/scripts/*"},

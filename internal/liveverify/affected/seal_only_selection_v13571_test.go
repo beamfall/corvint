@@ -49,6 +49,12 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 		for _, selection := range plan.Selected {
 			switch selection.Witness.Kind {
 			case affected.WitnessPathLiteralReader, affected.WitnessDeclaredReadScope, affected.WitnessDependency:
+			case affected.WitnessFrontierSite:
+				// A make target or job that invokes a computed name is
+				// selected on every plan (AZU-V0-001).
+				if selection.Kind != affected.SelectionKindCIJob && selection.Kind != affected.SelectionKindDriverTarget {
+					t.Errorf("%s selected by %s with kind %q; want a driver selection", selection.UnitID, selection.Witness.Kind, selection.Kind)
+				}
 			default:
 				t.Errorf("%s selected by %s; want a CEM reader or its dependent", selection.UnitID, selection.Witness.Kind)
 			}
