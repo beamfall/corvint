@@ -150,8 +150,7 @@ func (w *directoryWatches) events(data []byte) error {
 }
 
 // relevant decodes one read of inotify events and reports whether any event names
-// Go source or a path
-// Git does not ignore. Ignored Go source still compiles into go test (and
+// Go source or a path Git does not ignore. Ignored Go source still compiles into go test (and
 // WorkingDiff selects it), so only ignored non-Go paths such as test output are
 // suppressed. When Git cannot answer, it reports true rather than miss a save.
 func (w *directoryWatches) relevant(ctx context.Context, b []byte) bool {

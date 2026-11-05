@@ -2,7 +2,6 @@
 package main
 
 import (
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"path/filepath"
 	"strings"
