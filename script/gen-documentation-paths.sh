@@ -11,6 +11,7 @@ set -eu
 # The declaration is every top-level docs/*.md file the Git index tracks, the root agent
 # instruction files in INSTRUCTIONS the index tracks (AFP-V0-763), integrations/README.md and each
 # integrations/HOST/README.md the index tracks (AFP-V0-830), plus the documentation
+# files explicitly listed in DOCUMENTS (AZU-V0-002), and the documentation
 # directories in DIRS, sorted in byte order, as one compact corvint-documentation-paths/0 line.
 # Other docs/ subdirectories (agent-memory, experiments, plans, post-merge-workflow) hold notes or
 # redirects, not product documentation, and stay out until DIRS names them. A new top-level guide
@@ -20,6 +21,7 @@ DIRS='docs/build-log/
 docs/decisions/
 docs/specs/'
 INSTRUCTIONS='AGENTS.md CLAUDE.md'
+DOCUMENTS='internal/nativelinecov/README.md'
 declaration=.corvint/documentation-paths.json
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
@@ -48,8 +50,8 @@ generate() {
         { rm -rf "$work"; printf 'documentation paths: git ls-files failed\n' >&2; exit 1; }
     perl -0ne 'chomp; next unless m{\Aintegrations/(?:[A-Za-z0-9._-]+/)?README\.md\z}s; print "$_\n"' \
         "$work/readmes" >>"$work/paths" || { rm -rf "$work"; exit 1; }
-    # shellcheck disable=SC2086 # INSTRUCTIONS is a fixed list of plain names.
-    git ls-files -- $INSTRUCTIONS >>"$work/paths" ||
+    # shellcheck disable=SC2086 # INSTRUCTIONS and DOCUMENTS are fixed lists of plain names.
+    git ls-files -- $INSTRUCTIONS $DOCUMENTS >>"$work/paths" ||
         { rm -rf "$work"; printf 'documentation paths: git ls-files failed\n' >&2; exit 1; }
     printf '%s\n' "$DIRS" >>"$work/paths"
     LC_ALL=C sort -u "$work/paths" >"$work/sorted" &&

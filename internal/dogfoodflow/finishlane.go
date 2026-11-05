@@ -215,9 +215,10 @@ func (l *finishLane) run() int {
 			l.line("inputs-check SKIP bind-commit=%s", l.target)
 			return 0
 		}
-		// A refused prepare stops with its map in place for the next pass to
-		// remove; the pre-flight leaves no map either way.
-		defer func() { _ = removeFile(l.root + "/" + finishLaneSidecar) }()
+		// DCW-V0-380: a pre-flight may replace the map temporarily, but
+		// must leave a tracked sidecar exactly as it found it on every exit.
+		restore := l.preservePreflightSidecar()
+		defer restore()
 		// A pre-flight over inputs a passing one already prepared reuses it
 		// (ICL-V0-010): the closeout's own pre-flight and dogfood-finish's
 		// then prepare once.
@@ -983,4 +984,38 @@ func (l *finishLane) sealInterrupted(verdict []byte) {
 	}
 	_, _ = l.stdout.Write(verdict)
 	l.exit(-1)
+}
+
+// preservePreflightSidecar restores tracked bytes and mode even when prepare
+// refuses or is interrupted. Untracked probe maps are removed as before.
+func (l *finishLane) preservePreflightSidecar() func() {
+	name := l.root + "/" + finishLaneSidecar
+	if !l.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar) {
+		return func() { _ = removeFile(name) }
+	}
+	data, err := os.ReadFile(name)
+	var mode os.FileMode
+	if err == nil {
+		var info os.FileInfo
+		info, err = os.Stat(name)
+		if err == nil {
+			mode = info.Mode().Perm()
+		}
+	}
+	refuse := func(err error) {
+		l.say("%s: REFUSE sidecar-not-removed\n  %s\n", l.prefix, oneLine(err.Error()))
+		l.line("prepare FAIL exit=2")
+		l.exit(2)
+	}
+	if err != nil {
+		refuse(err)
+	}
+	return func() {
+		if err := os.WriteFile(name, data, mode); err != nil {
+			refuse(err)
+		}
+		if err := os.Chmod(name, mode); err != nil {
+			refuse(err)
+		}
+	}
 }

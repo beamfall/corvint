@@ -168,10 +168,10 @@ func readRuntimeReaders(root *Source) ([]RuntimeReader, error) {
 // declaration file, anything at or under `.github/`, or a make file.
 func validRuntimeReaderPath(entry string) bool {
 	trimmed := strings.TrimSuffix(entry, "/")
-	if trimmed == "" || trimmed == ".corvint" || trimmed == ".github" || strings.HasPrefix(trimmed, ".github/") || driverInput(trimmed) {
+	if trimmed == "" || trimmed == ".corvint" || trimmed == ".github" || strings.HasPrefix(trimmed, ".github/") || DriverInput(trimmed) {
 		return false
 	}
-	for _, declaration := range []string{RuntimeReadersPath, DocumentationPathsPath} {
+	for _, declaration := range []string{RuntimeReadersPath, DocumentationPathsPath, NonSourcePathsPath} {
 		if trimmed == declaration || (strings.HasSuffix(entry, "/") && strings.HasPrefix(declaration, entry)) {
 			return false
 		}
@@ -206,7 +206,7 @@ func (graph *Graph) runtimeReaderPaths(unknown []Unknown) ([]NonSource, []Unknow
 	byEntry := make(map[int][]string)
 	kept := make([]Unknown, 0, len(unknown))
 	for _, entry := range unknown {
-		if entry.Reason == UnknownUnownedDirtyPath && !IsTaskStoreProjectionPath(entry.Detail) && !driverInput(entry.Detail) {
+		if entry.Reason == UnknownUnownedDirtyPath && !IsTaskStoreProjectionPath(entry.Detail) && !DriverInput(entry.Detail) {
 			if index := graph.runtimeReaderEntry(entry.Detail); index >= 0 {
 				byEntry[index] = append(byEntry[index], entry.Detail)
 				continue

@@ -198,3 +198,12 @@ test('PWV-V0-8102 operator create and refine use native payloads, CAS and durabl
   assert.equal((await f.service.command({...req,input:{...input,payload:{approved:true}}},f.ctx)).fault,'invalid-input');
  });
 });
+
+test('PWV-V0-8302 create and refine reject unwrapped refine-only keys without dispatch',async t=>{
+ const {service,ctx,calls}=await setup(t);
+ for(const operation of ['ticket create','ticket refine']) {
+  const r=await service.command({operation,requestId:'closed-'+operation.replace(' ','-'),input:{requiredRoles:['OPERATOR'],requiresPool:true}},ctx);
+  assert.equal(r.fault,'invalid-input');assert.equal(r.mutation,'not-attempted');
+ }
+ assert.deepEqual(calls,[]);
+});

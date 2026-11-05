@@ -289,7 +289,7 @@ async function cdpCoverage(port) {
   const send = (method, params, sessionId) =>
     new Promise((resolve, reject) => {
       const n = ++id;
-      pending.set(n, { resolve, reject });
+      pending.set(n, { resolve, reject, sessionId });
       ws.send(JSON.stringify({ id: n, method, params: params || {}, sessionId }));
     });
   ws.onmessage = (ev) => {
@@ -306,11 +306,19 @@ async function cdpCoverage(port) {
       // only when it parsed a script that may be repository code.
       if (untaken.has(m.params.sessionId)) note("cdp-detached", "a page closed before its coverage was taken");
       untaken.delete(m.params.sessionId);
+      for (const [id, command] of pending) if (command.sessionId === m.params.sessionId) {
+        pending.delete(id); command.reject(new Error("DevTools session detached"));
+      }
       sessions.delete(m.params.sessionId);
     } else if (m.method === "Debugger.scriptParsed" && sessions.has(m.sessionId)) {
       sessions.get(m.sessionId).set(m.params.scriptId, { url: m.params.url, sourceMapURL: m.params.sourceMapURL });
       if (mayBeAppCode(m.params.url)) untaken.add(m.sessionId);
     }
+  };
+  ws.onclose = () => {
+    if (untaken.size) note("cdp-detached", "a page closed before its coverage was taken");
+    for (const command of pending.values()) command.reject(new Error("DevTools connection closed"));
+    pending.clear(); untaken.clear(); sessions.clear();
   };
   async function attached({ sessionId, targetInfo, waitingForDebugger }) {
     // A worker's scripts run outside the page's coverage.

@@ -5,8 +5,10 @@ import {readFileSync,mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';
+import {hostAvailable} from './host-prerequisites.mjs';
 
 test('PWV-V0-8101 documented Pi MCP registration changes only the project config',t=>{
+ if(!hostAvailable(t,process.env.PI_BIN??'pi'))return;
  const readme=readFileSync(new URL('./README.md',import.meta.url),'utf8');
  const command=readme.match(/```sh\n(pi mcp add corvint[^\n]+)\n```/)?.[1];
  assert.ok(command,'a copyable project-scoped recipe is required');
