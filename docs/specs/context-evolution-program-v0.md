@@ -187,6 +187,8 @@ to the five hypotheses above and no `corvint` command.
 
 ## Requirements
 
+- `CEP-V0-8600`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3675) After report merge, invalidate every per-sample cross-arm derived metric before recomputing it from the final arms. The audited inventory is `cb_file_baseline_precision_length_matched` only; clear it even on errored arms, and rederive it only when both final arms qualify under `CEP-V0-960`. Paired differences, aggregate means, outcome summaries and latency distributions are regenerated from merged details, never copied from an input summary. Preserve per-arm observations, report shapes and metric names. Evidence: `TestCEPV08600MergeClearsStaleCrossArmMetrics`.
+
 - `CEP-V0-001`: ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench row
   exported one JSON object per line with the dataset's own column names, recognised by an
   `instance_id` member, and map it to exactly one sample: `instance_id` is the ID, `repo` and

@@ -23,6 +23,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 
 ## Requirements
 
+- `CEM-V1-8600`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4650) Amends the one-run search bound of `CEM-V1-322`. Nearest stable citation recovery MUST continue past an ambiguous unedited run across a pure-insertion boundary on either side of the refused span. Search at most 16 unedited runs per direction and name only spans accepted by the existing stability classifier, preserving the refusal code and text format. Evidence: `TestCEMV18600RecoveryPastPureInsertion`.
+
 - `CEM-V1-001`: (accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk binding and closed versioned decoding. Amended by decision 0525 §6 (V1-0595): `cem/0.1`, `cem/0.2` and `cem/0.3` documents are no longer readable; every consumer refuses them with `unsupported-spec` and the `CEM-V1-200` recovery line (`CEM-V1-200`, `CEM-V1-210`, `CEM-V1-215`), and Git history keeps them. Any other unknown spec stays an explicit unsupported result.
 - `CEM-V1-002`: (accepted by decision 0546, 2026-10-20) Bind criterion references to canonical native ticket identity, acceptance revision, ordered acceptance digest and immutable claim-era record. Current applicability is distinct from historical validity.
 - `CEM-V1-003`: (accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by digest, with exact runner/profile, admitted source inventory, primary and auxiliary executable pins, native report hashes, expected inventory and observed attempts. Declare dependency closure and execution authority limits.
