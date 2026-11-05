@@ -316,3 +316,110 @@ func TestDriverFlowSteps_AZU_V0_9703(t *testing.T) {
 		})
 	}
 }
+
+// AZU-V0-9850: approximate word selection loses attached prefixes/suffixes.
+func TestDriverMakeFunctionsComputed_AZU_V0_9850(t *testing.T) {
+	for _, expression := range []string{
+		"$(join pkg,_test)", "$(firstword pkg other)_test", "$(lastword other pkg)_test",
+		"$(word 2,other pkg)_test", "$(wordlist 2,2,other pkg)_test",
+		"$(filter pkg,other pkg)_test", "$(filter-out other,other pkg)_test",
+		"$(if yes,pkg,other)_test", "$(or pkg,other)_test", "$(and other,pkg)_test",
+		"$(findstring absent,pkg)pkg_test",
+	} {
+		t.Run(expression, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				"Makefile":                 "check:; go test ./" + expression + "\nall: check\n",
+				"pkg_test/value.go":        "package pkg_test\n",
+				"pkg_test/value_test.go":   "package pkg_test\nimport \"testing\"\nfunc TestValue(t *testing.T) {}\n",
+				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make all\n",
+			}, nil)
+			selected := driverSelected(t, affected.Select(graph, []string{"pkg_test/value.go"}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			unit, found := graph.Unit("driver:make:Makefile#check")
+			if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
+				t.Error("function did not retain computed-site fallback")
+			}
+		})
+	}
+}
+
+// Exact make sort must remove duplicates before a suffix is attached.
+func TestDriverMakeSortWords_AZU_V0_9850(t *testing.T) {
+	graph := driverGraph(t, map[string]string{
+		"Makefile":                 "check:; go test ./$(sort pkg pkg)_test\n",
+		"pkg_test/value.go":        "package pkg_test\n",
+		"pkg_test/value_test.go":   "package pkg_test\nimport \"testing\"\nfunc TestValue(t *testing.T) {}\n",
+		".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make check\n",
+	}, nil)
+	selected := driverSelected(t, affected.Select(graph, []string{"pkg_test/value.go"}))
+	wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", jobUnit}, nil)
+}
+
+// AZU-V0-9851: dropping env's cwd hides the services/pkg dependency.
+func TestDriverEnvChdirComputed_AZU_V0_9851(t *testing.T) {
+	for _, option := range []string{"-C services", "-Cservices", "--chdir=services", "--chdir services", "-C $$DIR", "--chdir=$$DIR"} {
+		t.Run(option, func(t *testing.T) {
+			command := "env " + option + " go test ./pkg"
+			graph := driverGraph(t, map[string]string{
+				"Makefile":                   "check:; " + command + "\n",
+				"services/pkg/value.go":      "package pkg\n",
+				"services/pkg/value_test.go": "package pkg\nimport \"testing\"\nfunc TestValue(t *testing.T) {}\n",
+				".github/workflows/ci.yml":   "jobs:\n  unit:\n    steps:\n      - run: " + strings.ReplaceAll(command, "$$", "$") + "\n",
+			}, nil)
+			selected := driverSelected(t, affected.Select(graph, []string{"services/pkg/value.go"}))
+			want := []string{"driver:make:Makefile#check", jobUnit}
+			wantDriverSelection(t, selected, want, nil)
+			for _, id := range want {
+				if selected[id].Witness.Kind != affected.WitnessFrontierSite {
+					t.Errorf("%s did not retain env directory fallback", id)
+				}
+			}
+		})
+	}
+}
+
+// AZU-V0-9852: composite actions follow the same flow-step boundary as jobs.
+func TestDriverCompositeFlowSteps_AZU_V0_9852(t *testing.T) {
+	for _, steps := range []string{
+		"  steps: [{run: 'go test ./core/...', shell: bash}]\n",
+		"  steps:\n    - {run: 'go test ./core/...', shell: bash}\n",
+	} {
+		t.Run(steps, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				"Makefile":                         "other:; echo other\n",
+				".github/actions/check/action.yml": "runs:\n  using: composite\n" + steps,
+				".github/workflows/ci.yml":         "jobs:\n  unit:\n    steps:\n      - uses: ./.github/actions/check\n  build:\n    needs: unit\n    steps:\n      - run: echo build\n",
+			}, nil)
+			selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+			id := "driver:action:.github/actions/check"
+			wantDriverSelection(t, selected, []string{jobUnit, jobBuild}, []string{"driver:make:Makefile#other"})
+			unit, found := graph.Unit(id)
+			if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
+				t.Error("composite flow steps did not retain computed-site fallback")
+			}
+		})
+	}
+}
+
+// AZU-V0-9853: unknown local uses must retain their callers, including nested actions.
+func TestDriverUnresolvedLocalUses_AZU_V0_9853(t *testing.T) {
+	for _, target := range []string{"./tools/check-action", "./missing-action", "./../outside", "./.github/workflows/missing.yml"} {
+		t.Run(target, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				"Makefile":                           "other:; echo other\n",
+				"tools/check-action/action.yml":      "runs:\n  using: composite\n  steps:\n    - run: go test ./core/...\n      shell: bash\n",
+				".github/actions/wrapper/action.yml": "runs:\n  using: composite\n  steps:\n    - uses: " + target + "\n",
+				".github/workflows/ci.yml":           "jobs:\n  unit:\n    steps:\n      - uses: " + target + "\n  build:\n    needs: unit\n    steps:\n      - uses: ./.github/actions/wrapper\n",
+			}, nil)
+			selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+			id := "driver:action:.github/actions/wrapper"
+			wantDriverSelection(t, selected, []string{jobUnit, jobBuild}, []string{"driver:make:Makefile#other"})
+			for _, site := range []string{id, jobUnit} {
+				unit, found := graph.Unit(site)
+				if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
+					t.Errorf("%s silently accepted unresolved local uses", site)
+				}
+			}
+		})
+	}
+}

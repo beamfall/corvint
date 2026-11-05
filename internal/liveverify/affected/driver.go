@@ -600,6 +600,7 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	builder.tokens[target] = ValidRelativePath(target)
 	if !ValidRelativePath(target) {
 		delete(builder.tokens, target)
+		builder.computed = true
 		return
 	}
 	if ids, present := registry.fileUnits[target]; present {
@@ -608,6 +609,10 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	}
 	if _, present := registry.actions[target]; present {
 		builder.imports[driverActionUnitID(target)] = true
+	} else {
+		// AZU-V0-9853: unresolved local actions, including those outside
+		// .github/actions, may run checks anywhere in the repository.
+		builder.computed = true
 	}
 }
 
@@ -648,8 +653,15 @@ func (registry *driverRegistry) actionUnit(file string, body []byte) Unit {
 		return unit
 	}
 	steps := root.get("runs").get("steps")
+	if steps != nil && !steps.isSeq {
+		builder.computed = true
+	}
 	if steps != nil && steps.isSeq {
 		for _, step := range steps.items {
+			// AZU-V0-9852: use the workflow's fallback for unsupported steps.
+			if !step.isMap {
+				builder.computed = true
+			}
 			registry.uses(builder, step.get("uses").text())
 			if script := step.get("run").text(); script != "" {
 				cwd := driverWorkflowDirectory(step.get("working-directory").text())

@@ -395,6 +395,10 @@ AZU-V0-9701	docs/specs/affected-zero-unknown-v0.md	Implicit current Go package. 
 AZU-V0-9702	docs/specs/affected-zero-unknown-v0.md	Complete make alternatives. Alternative variable assignments SHALL preserve	unrecorded	-
 AZU-V0-9703	docs/specs/affected-zero-unknown-v0.md	Flow-style workflow steps. A flow-style step sequence or mapping SHALL either	unrecorded	-
 AZU-V0-9704	docs/specs/affected-zero-unknown-v0.md	Driver runner classification. As directed by the owner in the second PR #98	unrecorded	-
+AZU-V0-9850	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Make function	unrecorded	-
+AZU-V0-9851	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's	unrecorded	-
+AZU-V0-9852	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Composite action	unrecorded	-
+AZU-V0-9853	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Unresolved local	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-

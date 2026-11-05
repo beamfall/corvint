@@ -2,6 +2,7 @@ package affected
 
 import (
 	"path"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -495,7 +496,7 @@ func driverMakeClose(text string, open int) int {
 	return -1
 }
 
-var driverMakePassThrough = map[string]bool{"wildcard": true, "abspath": true, "realpath": true, "firstword": true, "lastword": true, "strip": true}
+var driverMakePassThrough = map[string]bool{"wildcard": true, "abspath": true, "realpath": true, "strip": true}
 
 func (e *driverExpander) reference(inner string) string {
 	name, args, spaced := strings.Cut(inner, " ")
@@ -587,24 +588,12 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		return strings.Join(out, " ")
 	}
 	switch name {
-	case "if":
-		parts := split(3)
-		return e.expand(parts[1]) + " " + e.expand(parts[2]), true
-	case "or", "and":
-		parts := driverMakeSplitTop(args, ',', 0)
-		out := make([]string, 0, len(parts))
-		for _, part := range parts {
-			out = append(out, e.expand(part))
-		}
-		return strings.Join(out, " "), true
-	case "filter", "filter-out":
-		return e.expand(split(2)[1]), true
-	case "findstring":
-		return e.expand(split(2)[0]), true
-	case "word":
-		return e.expand(split(2)[1]), true
-	case "wordlist":
-		return e.expand(split(3)[2]), true
+	case "if", "or", "and", "filter", "filter-out", "findstring", "word", "wordlist", "firstword", "lastword", "join":
+		// AZU-V0-9850: a superset of words is not conservative when a
+		// literal prefix or suffix attaches to a different word. Until these
+		// functions are evaluated exactly, retain the whole invocation.
+		e.ambiguous = true
+		return driverComputed, true
 	case "error", "warning", "info":
 		return "", true
 	case "addprefix":
@@ -629,10 +618,7 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "sort":
 		out := words(args)
 		sort.Strings(out)
-		return strings.Join(out, " "), true
-	case "join":
-		parts := split(2)
-		return e.expand(parts[0]) + " " + e.expand(parts[1]), true
+		return strings.Join(slices.Compact(out), " "), true
 	case "dir":
 		return mapWords(args, func(word string) string { return path.Dir(word) + "/" }), true
 	case "notdir":
