@@ -50,10 +50,16 @@ module CorvintLinecov
       @out = File.open(File.join(DIR, "#{name}.jsonl"), 'w')
       @out.sync = true
       @pid = Process.pid
-      emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'])
+      emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => ENV['CORVINT_LINECOV_LAUNCH'])
       Coverage.start(lines: true, methods: true)
       at_exit { finish }
-      [Object, Kernel.singleton_class, Process.singleton_class].each { |m| m.prepend(ExecHook) }
+      [Object, Kernel.singleton_class, Process.singleton_class, IO.singleton_class].each { |m| m.prepend(ExecHook) }
+      @loads = TracePoint.new(:call, :c_call) do |tp|
+        if [:load, :eval, :class_eval, :module_eval, :instance_eval].include?(tp.method_id) && @current
+          @dynamic_load = true
+        end
+      end
+      @loads.enable
       watch if SUITE
     end
 
@@ -61,6 +67,9 @@ module CorvintLinecov
     def watch
       @hook = TracePoint.new(:class) do |tp|
         case tp.self.name
+        when 'RSpec::Core::Example'
+          tp.self.prepend(IsolatedRSpecHook)
+          @hook.disable if @framework
         when 'RSpec::Core::Reporter'
           tp.self.prepend(RSpecHook)
           hooked('rspec', 'rspec-core') { RSpec::Core::Version::STRING }
@@ -73,10 +82,21 @@ module CorvintLinecov
         end
       end
       @hook.enable
+      if defined?(RSpec::Core::Reporter)
+        RSpec::Core::Reporter.prepend(RSpecHook)
+        hooked('rspec', 'rspec-core') { RSpec::Core::Version::STRING }
+      elsif defined?(Minitest::Test)
+        Minitest::Test.prepend(MinitestHook)
+        hooked('minitest', 'minitest') { Minitest::VERSION }
+      elsif defined?(Test::Unit::TestCase)
+        Test::Unit::TestCase.prepend(TestUnitHook)
+        hooked('test-unit', 'test-unit') { Test::Unit::VERSION }
+      end
     end
 
     def hooked(name, gem, &version)
-      @hook.disable
+      RSpec::Core::Example.prepend(IsolatedRSpecHook) if name == 'rspec' && defined?(RSpec::Core::Example)
+      @hook.disable unless name == 'rspec' && !defined?(RSpec::Core::Example)
       @framework = [name, gem, version]
     end
 
@@ -88,8 +108,19 @@ module CorvintLinecov
       defined?(Gem) && Gem.loaded_specs[@framework[1]]&.version.to_s || 'unknown'
     end
 
+    def wanted(package, name)
+      only = ENV['CORVINT_LINECOV_ONLY']
+      only.nil? || only.empty? || (only == name && ENV['CORVINT_LINECOV_PACKAGE'] == relative(package.to_s))
+    end
+
+    def unit_name(test)
+      basic = "#{test.class.name}##{test.method_name}"
+      test.name == "#{test.method_name}(#{test.class.name})" ? basic : "#{basic}[#{test.name}]"
+    end
+
     def begin_test
       take('load') if @current.nil?
+      @dynamic_load = false
       @seq += 1
       ENV['CORVINT_LINECOV_TEST'] = @seq.to_s
       @current = [@seq, $LOADED_FEATURES.size, Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)]
@@ -105,7 +136,7 @@ module CorvintLinecov
       @current = nil
       ENV['CORVINT_LINECOV_TEST'] = 'load'
       take('test', 'seq' => seq, 'package' => relative(package.to_s) || package.to_s, 'name' => name.to_s,
-                   'status' => status, 'loaded' => ($LOADED_FEATURES[features..] || []).any? { |f| relative(f) },
+                   'status' => status, 'loaded' => @dynamic_load || ($LOADED_FEATURES[features..] || []).any? { |f| relative(f) },
                    'elapsed_ns' => Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond) - began)
     end
 
@@ -151,7 +182,7 @@ module CorvintLinecov
         @out.sync = true
         @pid = Process.pid
         @forked = true
-        emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'])
+        emit('kind' => 'start', 'ruby' => RUBY_VERSION, 'pid' => Process.pid, 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => ENV['CORVINT_LINECOV_LAUNCH'])
       end
       if SUITE && !@forked
         take('load')
@@ -200,11 +231,45 @@ module CorvintLinecov
   end
 
   module ExecHook
+    def popen(*args, **kwargs, &block)
+      CorvintLinecov.emit('kind' => 'unobserved-child', 'test' => ENV['CORVINT_LINECOV_TEST'])
+      super
+    end
+
+    def spawn(*args, **kwargs, &block)
+      token = "#{Process.pid}-#{rand(1 << 48)}"
+      CorvintLinecov.emit('kind' => 'launch', 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => token)
+      env = args.first.is_a?(Hash) ? args.shift.dup : {}
+      env['CORVINT_LINECOV_LAUNCH'] = token
+      super(env, *args, **kwargs, &block)
+    end
+
+    def system(*args, **kwargs, &block)
+      token = "#{Process.pid}-#{rand(1 << 48)}"
+      CorvintLinecov.emit('kind' => 'launch', 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => token)
+      env = args.first.is_a?(Hash) ? args.shift.dup : {}
+      env['CORVINT_LINECOV_LAUNCH'] = token
+      super(env, *args, **kwargs, &block)
+    end
+
+    def `(command)
+      CorvintLinecov.emit('kind' => 'unobserved-child', 'test' => ENV['CORVINT_LINECOV_TEST'])
+      super
+    end
+
+    def fork(*args, &block)
+      CorvintLinecov.emit('kind' => 'unobserved-child', 'test' => ENV['CORVINT_LINECOV_TEST'])
+      super
+    end
+
     def exec(*args)
+      token = "exec-#{Process.pid}-#{rand(1 << 48)}"
+      CorvintLinecov.emit('kind' => 'launch', 'test' => ENV['CORVINT_LINECOV_TEST'], 'launch' => token) if ENV['CORVINT_LINECOV_TEST'] != 'load'
       mark = CorvintLinecov.finish(keep_open: true)
       super
     ensure # reached only when exec failed
       CorvintLinecov.resume(mark)
+      CorvintLinecov.emit('kind' => 'launch-cancel', 'launch' => token) if token
     end
   end
 
@@ -230,8 +295,16 @@ module CorvintLinecov
     end
   end
 
+  module IsolatedRSpecHook
+    def run(*args)
+      return false unless CorvintLinecov.wanted(metadata[:rerun_file_path], id)
+      super
+    end
+  end
+
   module MinitestHook
     def run
+      return Minitest::Result.from(self) unless CorvintLinecov.wanted(method(name).source_location&.first, "#{self.class.name}##{name}")
       CorvintLinecov.begin_test
       result = super
       status = if result.skipped? then 'pending'
@@ -246,11 +319,15 @@ module CorvintLinecov
 
   module TestUnitHook
     def run(result)
+      selected = CorvintLinecov.wanted(method(method_name).source_location&.first, CorvintLinecov.unit_name(self))
+      return unless selected
       CorvintLinecov.begin_test
       super
     ensure
-      file = method(method_name).source_location&.first
-      CorvintLinecov.end_test(file, "#{self.class.name}##{method_name}", passed? ? 'passed' : 'failed')
+      if selected
+        file = method(method_name).source_location&.first
+        CorvintLinecov.end_test(file, CorvintLinecov.unit_name(self), passed? ? 'passed' : 'failed')
+      end
     end
   end
 end
