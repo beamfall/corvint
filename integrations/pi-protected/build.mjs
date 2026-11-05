@@ -5,6 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {run} from './process.mjs';
 import {PROTECTED_PI_VERSION} from './host-version.mjs';
+import {fixedAssets} from './assets.mjs';
+import {highlightImport} from './highlight-import.mjs';
 import {fixedImageImport} from './fixed-image-import.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const sdk=join(here,'node_modules/@earendil-works/pi-coding-agent');
@@ -57,17 +59,16 @@ async function main(){
    return {contents:source.replace(needle,`const bytes = Buffer.from(${JSON.stringify(wasm)},'base64');`),loader:'js'};
   });
  }};
- const worker=await bundle(join(sdk,'dist/utils/image-resize-worker.js'),[basePlugin]);
- const assets={};
+ const worker=await bundle(join(sdk,'dist/utils/image-resize-worker.js'),[basePlugin,highlightImport(sdk)]);
  const assetNames=['package.json','README.md','CHANGELOG.md','dist/modes/interactive/theme/dark.json','dist/modes/interactive/theme/light.json','dist/modes/interactive/assets/clankolas.png','dist/core/export-html/template.html','dist/core/export-html/template.css','dist/core/export-html/template.js','dist/core/export-html/vendor/marked.min.js','dist/core/export-html/vendor/highlight.min.js']; //corvint:fixture-path
- for(const name of assetNames)assets[name]=readFileSync(join(sdk,name)).toString('base64');
+ const assets=await fixedAssets(sdk,assetNames);
  const banner=readFileSync(join(here,'bootstrap.cjs'),'utf8').replace('CORVINT_EMBEDDED_ASSETS',JSON.stringify(assets));
  const mainPlugin={name:'fixed-image-worker',setup(b){
   b.onResolve({filter:/^corvint:fixed-image-worker$/},()=>({path:'image-worker',namespace:'corvint'}));
   b.onLoad({filter:/^image-worker$/,namespace:'corvint'},()=>({contents:`export default ${JSON.stringify(worker)}`,loader:'js'}));
   b.onLoad({filter:/\/utils\/image-resize\.js$/},()=>({contents:readFileSync(join(here,'image-resize.mjs'),'utf8'),loader:'js',resolveDir:here}));
  }};
- const source=await bundle(join(here,'runtime.ts'),[basePlugin,fixedImageImport(sdk,here),mainPlugin],banner,{CORVINT_CONSUMER_SHA256:JSON.stringify(consumerSHA256)});
+ const source=await bundle(join(here,'runtime.ts'),[basePlugin,highlightImport(sdk),fixedImageImport(sdk,here),mainPlugin],banner,{CORVINT_CONSUMER_SHA256:JSON.stringify(consumerSHA256)});
  const main=join(out,'runtime.cjs'),blob=join(out,'runtime.blob'),binary=join(release,'pi-protected');
  writeFileSync(main,source);
  writeFileSync(join(out,'sea.json'),JSON.stringify({main,output:blob,disableExperimentalSEAWarning:true,useCodeCache:true,execArgvExtension:'none',execArgv:['--disable-sigusr1','--openssl-config=/dev/null','--']}));

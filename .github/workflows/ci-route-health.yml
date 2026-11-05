@@ -1,0 +1,71 @@
+name: ci-route-health
+
+# AFP-V0-106 (V1-4234): the daily CI fast-route liveness check. Lists the newest completed runs
+# of .github/workflows/ci.yml and each run's latest jobs (with steps), and runs
+# `tools/ci-reuse-plan routes` (AFP-V0-105, built from this main commit) over them. A route with
+# enough eligible runs and no hit (DEAD), or whose signal step no run carries (SIGNAL_MISSING),
+# fails this run so the owner is notified. It reads job listings only: no log, no artifact; it
+# posts no status and changes no gate. Runs only from main, on a schedule or a manual dispatch.
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-route-health
+  cancel-in-progress: false
+
+jobs:
+  routes:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Build the route check
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.3"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan
+      - name: Report each fast route's hits over the newest eligible runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          d="$RUNNER_TEMP/ci-route-health"
+          mkdir -p "$d/jobs"
+          gh api "repos/$REPO/actions/workflows/ci.yml/runs?status=completed&per_page=100" > "$d/runs.json"
+          for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/runs.json"); do
+            gh api "repos/$REPO/actions/runs/$id/jobs?filter=latest&per_page=100" > "$d/jobs/$id.json" || rm -f "$d/jobs/$id.json"
+          done
+          rc=0
+          "$RUNNER_TEMP/ci-reuse-plan" routes --repository "$REPO" --runs "$d/runs.json" --jobs "$d/jobs" \
+            --window 30 --min-eligible 10 > "$d/report.json" || rc=$?
+          { echo '```json'; cat "$d/report.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          jq -r '.routes[] | select(.status == "DEAD" or .status == "SIGNAL_MISSING")
+            | "::error title=CI fast route \(.status) (AFP-V0-105)::\(.name): \(.hits) hit(s) in \(.eligible) eligible run(s)"' "$d/report.json" || true
+          exit "$rc"
+      - name: Retain the route report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-route-health
+          path: ${{ runner.temp }}/ci-route-health/report.json
+          if-no-files-found: ignore

@@ -882,7 +882,11 @@ func laneAncestry(root, merge string, p *ghPR) string {
 	if _, err := store.ResolveCommit(root, merge); err != nil {
 		return laneHeadNotObserved
 	}
-	if !store.IsAncestor(root, p.HeadRefOid, merge) {
+	ancestor, err := store.Ancestry(root, p.HeadRefOid, merge)
+	if err != nil {
+		return laneHeadNotObserved
+	}
+	if !ancestor {
 		return laneNotInMergeAncestry
 	}
 	return ""

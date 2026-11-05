@@ -1,0 +1,5 @@
+Linux 6.18.33.2-microsoft-standard-WSL2 x86_64
+32
+go1.27.3
+claude/pk-tstore
+/home/russell/projects/corvint/.git/worktrees/pk-tstore

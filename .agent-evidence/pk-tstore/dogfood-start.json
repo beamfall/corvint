@@ -1,0 +1,24 @@
+{
+  "profile": "corvint-dogfood-change/0",
+  "base": "6c33df33bc5670131482f5263b410cb980580657",
+  "target": "6c33df33bc5670131482f5263b410cb980580657",
+  "complete": false,
+  "steps": [
+    {"name": "coordination-time-query", "status": "PRODUCED", "reason": "none"},
+    {"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-worktree"},
+    {"name": "cem-prepare", "status": "NOT_PRODUCED", "reason": "no-diff-yet"},
+    {"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "no-diff-yet"},
+    {"name": "ocm-aggregate", "status": "NOT_PRODUCED", "reason": "no-diff-yet"},
+    {"name": "cem-status", "status": "NOT_PRODUCED", "reason": "no-diff-yet"},
+    {"name": "local-outcome", "status": "NOT_PRODUCED", "reason": "no-diff-yet"}
+  ],
+  "ocmStatus": null
+  ,"localOutcomeEvidenceSha256": null
+  ,"contextAbstentionEvidenceSha256": null
+  ,"queryAbstentionEvidenceSha256": null
+  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}
+  ,"ocmLinkPlan": null
+  ,"dogfoodPolicy": {"bootstrapUnknown": 0, "maximumUnknownAfterBootstrap": 0}
+  ,"packetCoverage": [{"step": "coordination-time-query", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}, {"step": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]
+  ,"dogfoodCheck": null
+}

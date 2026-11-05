@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode"
 )
 
 const (
@@ -49,15 +50,18 @@ var (
 )
 
 type goPackage struct {
-	embeds      bool
-	unresolved  string // why the package's reads are not bounded by its literals
-	locatesRoot bool   // a non-test file is unresolved, so every dependent is too
+	embeds         bool
+	unresolved     string   // why the package's reads are not bounded by its literals
+	locatesRoot    bool     // a non-test file is unresolved, so every dependent is too
+	movesDirectory bool     // a file moves the working directory (directoryMove)
+	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
 }
 
 type repositoryIndex struct {
 	module         string
 	packages       map[string]*goPackage // by repository-relative directory, "" for the root
 	nested         []string              // directories holding a nested go.mod
+	goDirectories  []string              // directories leafPattern counts: Go files outside testdata, nested go.mod
 	holders        map[string][]string   // path token -> directories whose files carry it
 	nonTestHolders map[string][]string   // path token -> directories whose non-test files carry it
 	importers      map[string][]string   // directory -> directories whose non-test files import it
@@ -113,6 +117,16 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	// recorded in walk order, so the index and the first error are those of
 	// the serial pass: a file's scan error precedes any walk error after it.
 	imports := map[string]map[string]bool{}
+	for _, file := range files {
+		if directory := parentDirectory(file.relative); !inTestdataComponent(directory) {
+			index.goDirectories = append(index.goDirectories, directory)
+		}
+	}
+	for _, directory := range index.nested {
+		if !inTestdataComponent(directory) {
+			index.goDirectories = append(index.goDirectories, directory)
+		}
+	}
 	recalled := memo.load(root, module)
 	results := scanFiles(root, module, files, recalled)
 	for _, scanned := range results {
@@ -123,6 +137,17 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	}
 	if walkErr != nil {
 		return nil, walkErr
+	}
+	// A leaf pattern reaches only the package directory while the package's
+	// commands run there: a package that moves the working directory keeps
+	// rule (d) for it (AFP-V0-2542).
+	for _, pkg := range index.packages {
+		if !pkg.movesDirectory {
+			continue
+		}
+		for _, reason := range pkg.leafReads {
+			pkg.markUnresolved(reason, true)
+		}
 	}
 	index.link(imports)
 	index.applyGatedLocators(root, files, recalled)
@@ -237,13 +262,19 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 		pkg.markUnresolved(relative+" calls "+call, test)
 	}
 	pkg.embeds = pkg.embeds || (scan.embeds && !test)
+	pkg.movesDirectory = pkg.movesDirectory || scan.movesDirectory
 	for _, values := range scanned.tokens {
 		for _, value := range values {
 			index.holders[value] = appendOnce(index.holders[value], directory)
 			if !test {
 				index.nonTestHolders[value] = appendOnce(index.nonTestHolders[value], directory)
 			}
-			if reason := escapesPackage(directory, value, test); reason != "" {
+			reason := escapesPackage(directory, value, test)
+			switch {
+			case reason == "":
+			case leafPattern(directory, value, test, index.goDirectories):
+				pkg.leafReads = append(pkg.leafReads, relative+" "+reason)
+			default:
 				pkg.markUnresolved(relative+" "+reason, test)
 			}
 		}
@@ -283,10 +314,11 @@ func readBounded(name string, expected fs.FileInfo) ([]byte, error) {
 }
 
 type sourceScan struct {
-	literals []string
-	calls    []string // root-locator functions the file calls
-	embeds   bool
-	err      error
+	literals       []string
+	calls          []string // root-locator functions the file calls
+	embeds         bool
+	movesDirectory bool // the file moves the working directory (directoryMove)
+	err            error
 }
 
 // rootLocatorImports resolves a file's own import specs against
@@ -329,14 +361,19 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
 	recent := [3]string{}
 	importing := importOutside
+	var move directoryMove
 	for {
 		_, kind, text := lexer.Scan()
 		if kind == token.EOF {
+			scan.movesDirectory = move.moved
 			return scan
 		}
 		inImport := importing != importOutside
 		if importing = importState(importing, kind); inImport {
 			continue
+		}
+		if kind != token.COMMENT {
+			move.observe(kind, text)
 		}
 		recent = [3]string{recent[1], recent[2], kind.String() + text}
 		if kind == token.IDENT && recent[1] == "." {
@@ -427,6 +464,97 @@ func escapesPackage(directory, value string, test bool) string {
 		return fmt.Sprintf("carries the literal %q, which reaches the repository root", value)
 	}
 	return ""
+}
+
+// leafPattern reports whether value, a token of a test file in directory, is a
+// relative package pattern ("./..." or "./NAME/...") whose subtree holds no
+// directory of packages but directory itself (AFP-V0-2542, V1-4512). With the
+// package directory as the working directory, such a pattern reaches what "."
+// reaches, so rule (d) does not make it an unbounded read; indexRepositoryMemo
+// drops the exemption when a file of the package moves the working directory
+// (directoryMove). packages lists every
+// directory that holds a Go file outside testdata or a nested go.mod; it mirrors the Go plugin's leafPattern.
+func leafPattern(directory, value string, test bool, packages []string) bool {
+	inner, pattern := strings.CutSuffix(value, "/...")
+	if !test || !pattern || (inner != "." && !strings.HasPrefix(inner, "./")) {
+		return false
+	}
+	for _, component := range strings.Split(inner, "/")[1:] {
+		if component == "" || component == "." || component == ".." || strings.Contains(component, "...") {
+			return false
+		}
+	}
+	if directory == "" {
+		directory = "."
+	}
+	subtree := path.Join(directory, inner)
+	for _, candidate := range packages {
+		if candidate == "" {
+			candidate = "."
+		}
+		if candidate != directory && (subtree == "." || candidate == subtree || strings.HasPrefix(candidate, subtree+"/")) {
+			return false
+		}
+	}
+	return true
+}
+
+// directoryMove recognizes, over one file's tokens outside its imports, a
+// change of the working directory a command runs in, which voids leafPattern's
+// premise that a pattern resolves against the package directory
+// (AFP-V0-2542): a `Dir` followed by a comma, a `Dir` assigned or keyed to
+// anything but the literal "." or
+// "", a `Chdir` or `Fchdir` identifier, or a string literal with a `cd` or
+// `pushd` word or a `-C` or `--chdir` option. It mirrors the Go plugin's
+// directoryMove.
+type directoryMove struct {
+	state int // 1 after `Dir`, 2 after `Dir =`, 3 after `Dir = "."`
+	moved bool
+}
+
+func (move *directoryMove) observe(kind token.Token, text string) {
+	state := move.state
+	move.state = 0
+	switch {
+	case state == 1 && kind == token.COMMA:
+		// A `Dir` in an assignment or key list, as in `cmd.Dir, cmd.Env = root, nil`,
+		// is counted as a move without pairing it with its value (conservative).
+		move.moved = true
+	case state == 1 && (kind == token.ASSIGN || kind == token.DEFINE || kind == token.COLON):
+		move.state = 2
+		return
+	case state == 2 && kind == token.STRING && (text == `"."` || text == `""` || text == "`.`" || text == "``"):
+		move.state = 3
+		return
+	case state == 2:
+		move.moved = true
+	case state == 3 && kind != token.SEMICOLON && kind != token.COMMA && kind != token.RBRACE && kind != token.RPAREN:
+		move.moved = true
+	}
+	switch {
+	case kind == token.IDENT && text == "Dir":
+		move.state = 1
+	case kind == token.IDENT && (text == "Chdir" || text == "Fchdir"):
+		move.moved = true
+	case kind == token.STRING && !move.moved:
+		move.moved = changesDirectory(text)
+	}
+}
+
+// changesDirectory reports a quoted literal with a shell word or option that
+// changes the directory a command runs in.
+func changesDirectory(text string) bool {
+	value, err := strconv.Unquote(text)
+	if err != nil {
+		return false
+	}
+	words := strings.FieldsFunc(value, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(";&|()`{}", r) })
+	for _, word := range words {
+		if word == "cd" || word == "pushd" || word == "-C" || word == "--chdir" || strings.HasPrefix(word, "-C=") || strings.HasPrefix(word, "--chdir=") {
+			return true
+		}
+	}
+	return false
 }
 
 func appendOnce(values []string, value string) []string {

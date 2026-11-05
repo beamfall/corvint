@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"slices"
 	"sort"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/lifecycle"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -99,6 +101,18 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 			op = release.OpManualAttest
 		}
 	}
+	return submitMutationContext(env.writerContext(), env, cmd, op, actor, f, payload)
+}
+
+func submitReleaseMutationContext(ctx context.Context, env Env, cmd []string, op string, actor mutation.Binding, f mutateFlags, payload wire.Value) *wire.Result {
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	st, err := intent.Load(repo.IntentRoot())
+	if err != nil {
+		return errorResult(cmd, err)
+	}
 	expected := wire.Null()
 	if op != release.OpCreate {
 		if f.expected == "" {
@@ -115,10 +129,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 		}
 	}
 	o := wire.NewObject().Set("profile", wire.String(release.MutationProfile)).Set("requestId", wire.String(f.requestID)).Set("actor", wire.ObjectValue(wire.NewObject().Set("id", wire.String(actor.ID)).Set("role", wire.String(actor.Role)))).Set("queueId", wire.String(st.Queue.QueueID.Raw)).Set("releaseId", wire.String(f.target)).Set("expectedRevision", expected).Set("operation", wire.String(op)).Set("payload", payload).Set("issuedAt", wire.String(string(issued)))
-	if err := writerGuard(env, "", wire.Null()); err != nil {
-		return errorResult(cmd, err)
-	}
-	report, err := store.Release(writerContext(), repo, actor, wire.EncodeFile(wire.ObjectValue(o)), now)
+	report, err := store.Release(ctx, repo, actor, wire.EncodeFile(wire.ObjectValue(o)), now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
