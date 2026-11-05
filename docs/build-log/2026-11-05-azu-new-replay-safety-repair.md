@@ -46,3 +46,58 @@ The unchanged owner-pattern grammar cases and incremental-selection budget passe
 the passing invocation did not emit its suppressed test log. Final whole-package verification and
 the replay at the final implementation revision follow; historical safety observations remain
 external requirements.
+
+
+## Final measured outcome
+
+The final implementation is `2eaaf9fba87340641ead2ea37821f37c0e6a85e1`. The exact-tree report
+`azu-new-evidence/replay/report.json` has SHA-256
+`d74a41bb4aef61cb63ba764f992044568853ca015375fcc44e92ae3ebbf0b8f7`. Its candidate binary digest
+is `6e0f066e015f426699408ea7ac96adbdb6691fb0058f6433c2dc2fd4e7669ee3`; its exact-base binary
+digest is `064bdab15d12c4af649bf4c75a3cd15328cd28235303acda86fa2453477fa3d1`.
+
+| Merge | Unknown before / after | Selected before / after | Test count after | Wall ms after |
+|---|---:|---:|---:|---:|
+| `8e2c13aa9` | 92 / 87 | 339 / 563 | 3534 | 5902 |
+| `39c031980` | 84 / 73 | 66 / 181 | 1489 | 5352 |
+| `d436dff76` | 99 / 95 | 261 / 470 | 3017 | 6288 |
+| `6c33df33b` | 83 / 80 | 185 / 390 | 2606 | 5356 |
+| `ea770fa17` | 63 / 78 | 75 / 181 | 1542 | 4461 |
+| `24d8c04f9` | 79 / 68 | 38 / 118 | 1264 | 4767 |
+| `f13f52b16` | 86 / 82 | 46 / 131 | 1299 | 4942 |
+| `9fdc2f02e` | 79 / 69 | 36 / 113 | 1243 | 4500 |
+
+Every baseline-selected unit remains selected in these eight observations. The raw report names
+all removed unknown entries and added selections; it does not establish unseen-reader safety.
+Every historical safety cell is NOT_PRODUCED because bound full-suite and changed-line mutation
+receipts are unavailable. Every merge still has unknown entries, and `accepted` is false.
+Aggregate zero-unknown qualification depends on the sibling slices and historical evidence; this
+lane does not rewrite their historical trees or declare AZU-V0-009 accepted.
+
+Whole existing tests ran through the heavy semaphore, one package per command. Shell, replay
+checker, sessiontest, capcatalog and declaration-compat-check passed. The affected package's
+functional checks passed, but the whole run failed the unchanged incremental-selection budget:
+p95 216.843830 ms, 5.75 probes against 5.00, total 353.797 s. Its log digest is
+`01d28aea31b2095e114b953f9c9087c77e8a032492eaf068ec771aad04fed4b0`.
+Focused profiled budget runs passed for both candidate (57.992 s) and exact baseline (176.283 s).
+Their CPU samples are dominated by the existing path-token matcher (53.44% and 63.65% cumulative
+respectively). These observations neither explain the whole-run failure nor establish a speedup:
+quiet-host whole-package qualification remains pending. The candidate profile digest is
+`ff44f46bd4a4143996e5ebc24a54382d132d33d1b274a2ebc5f17ee1de9f4493`; baseline is
+`d13b14ffb983a52901bd0d7e22f813a7138faae314c1d32d36ef2bbc76334059`.
+
+The CLI whole run failed (482.279 s), retained at digest
+`575d40eae5d7b9421516faa8c21bab08f9245a2bb70a469ac486e6775bbce3a7`. Most failures report the
+mandated scratch tree's outer Git discovery or unsafe group-writable parent. One additional frozen
+assertion, `TestAFUV1024StrictAndCoverageBytesUnchanged`, differs only in graph identity: the
+fixture declares real Makefile targets, so the integrated driver adds graph vertices. Omitting
+those active vertices from the digest would give different graphs the same identity. The charter
+does not authorize changing this golden; no golden or assertion is changed. This inherited driver
+identity conflict is retained as PARTIAL for orchestrator disposition. The separate existing
+application-flow golden without driver inputs passes unchanged. The CLI host-node failures also
+include non-repository probes under the same outer Git root. No product qualification guard is
+relaxed to accommodate this host.
+
+Spec indexing, capability catalog validation and line-citation validation passed. The local outcome
+is `failed`, preserving both whole-package failures. Independent review, native completion,
+publication, a seal, and historical runner observations are not produced by this lane.
