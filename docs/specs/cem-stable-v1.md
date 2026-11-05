@@ -23,6 +23,18 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 
 ## Requirements
 
+- `CEM-V1-8201`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3758)
+  Preserve the original historical lineage labels without requiring private local tags.
+  Accept `beamfall/corvint-history@<40-hex-commit>` archive locators; when the archive commit
+  or base is absent locally, report reachability `NOT_RUN` with the missing identity. When
+  both exist locally, require the archive commit to reach the exact registered base. A
+  missing named ref, a historical `none` locator, or no default retained ref MUST report
+  the unavailable check as `NOT_RUN`, never fail a fresh clone solely for unavailable history.
+  Keep CEM-V1-963 map/base/label validation and refusal of unlabelled unretained maps;
+  reject malformed locators and unrelated available tips. A label proves no CEM verdict.
+  Test: `script/check-cem-base-retained_test.sh`, including a fresh clone without tags.
+  Rollback: restore the prior gate; missing retention remains explicitly unproved.
+
 - `CEM-V1-001`: (accepted by decision 0546, 2026-10-20) Preserve canonical Git base/target/hunk binding and closed versioned decoding. Amended by decision 0525 §6 (V1-0595): `cem/0.1`, `cem/0.2` and `cem/0.3` documents are no longer readable; every consumer refuses them with `unsupported-spec` and the `CEM-V1-200` recovery line (`CEM-V1-200`, `CEM-V1-210`, `CEM-V1-215`), and Git history keeps them. Any other unknown spec stays an explicit unsupported result.
 - `CEM-V1-002`: (accepted by decision 0546, 2026-10-20) Bind criterion references to canonical native ticket identity, acceptance revision, ordered acceptance digest and immutable claim-era record. Current applicability is distinct from historical validity.
 - `CEM-V1-003`: (accepted by decision 0546, 2026-10-20) Reference bounded runner receipts by digest, with exact runner/profile, admitted source inventory, primary and auxiliary executable pins, native report hashes, expected inventory and observed attempts. Declare dependency closure and execution authority limits.
@@ -2594,7 +2606,9 @@ stay until V1-1278. It amends `CEM-V1-018`, `CEM-V1-030..033` and `CEM-V1-058` i
 `DCW-V0` text that named the refusals. A producer map is a `cem/1.0` map with no criteria,
 receipts, links, artifacts or provenance; it may carry a `role` (`CEM-V1-095`).
 
-- `CEM-V1-140`: (accepted by decision 0546, 2026-10-20) `corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps the
+- `CEM-V1-140`: (accepted by decision 0546, 2026-10-20) Historical transition, superseded
+  for current producer defaults and legacy flags by CEM-V1-215 and CEM-V1-216 (V1-1323 review).
+  `corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps the
   `cem/0.2` producer as an explicit, fail-closed escape until V1-1278 removes it with the 0.x
   readers. `corvint cem begin` keeps `cem/0.1` by default, because the frozen cli-parity case
   `cem-begin-map` pins it, and writes `cem/1.0` with `--spec cem/1.0`. Any other `--spec` value,
@@ -5967,10 +5981,13 @@ Status: experimental under the owner's standing lane auto-accept (2026-10-11); V
 
 Requirement: `CEM-V1-963` (every committed map base retained or labelled), in the Requirements section.
 
-Non-goals: no rewrite of a sealed map, no new ref, no verification of the archive repository.
+Non-goals: no rewrite of a sealed map or verification of the archive repository.
+CEM-V1-8201 preserves the original archive/none locators. A fresh clone needs no private
+lineage tags; archive/base objects absent locally produce an explicit `NOT_RUN` reason.
 
-Failure modes: a shallow or remote-less clone skips the check, saying so; a label cannot make an
-absent object verify, so a `base-unavailable` map stays `UNSUPPORTED`.
+Failure modes: an available archive tip that does not reach the registered base fails, as do
+malformed locators and mismatched/stale labels. Missing history cannot prove retention or
+make an absent object verify; its check remains `NOT_RUN`.
 
 Acceptance evidence: `script/check-cem-base-retained_test.sh` (retained base passes; a base only a
 deleted branch held and a missing base are refused with the fix; a label admits exactly its base;
