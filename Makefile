@@ -177,7 +177,8 @@ endif
 .PHONY: host-adapter-node-test
 host-adapter-node-test:
 	node --test integrations/opencode/*.test.mjs
-	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs integrations/pi/process.test.mjs integrations/pi/core.test.mjs integrations/pi/capabilities.test.mjs integrations/pi/operations.test.mjs integrations/pi/tasks.test.mjs integrations/pi/cockpit.test.mjs integrations/pi/workflow.test.mjs
+	npm --prefix integrations/pi test
+	npm --prefix integrations/pi-protected test
 
 .PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
@@ -939,6 +940,10 @@ ai-coauthor-trailers-check:
 	elif [ ! -f script/check-ai-coauthor-trailers.sh ]; then \
 	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
 	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
+# ASD-V0-036: the trusted CI batch step is mirrored byte for byte, including its event filter.
+.PHONY: ci-batch-cem-check
+ci-batch-cem-check:
+	@EVENT_NAME="$${EVENT_NAME-}" HEAD_REF="$${HEAD_REF-}" sh script/ci-batch-cem-check.sh
 
 # selection-baseline-check (V1-2892) builds this tree's corvint and gate-affected-select, replays them
 # over the fixed change set benchmarks/selection-baseline/changes.json (merged lane changes and the
