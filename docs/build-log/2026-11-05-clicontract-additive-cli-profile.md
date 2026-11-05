@@ -84,3 +84,50 @@ closures free of its subprocess machinery. The new generator test's missing
 root-directory setup was fixed without changing its assertions. Losing runs
 remain retained alongside terminal artifacts and SHA256SUMS in the external
 evidence directory; the handback records all terminal commands and outcomes.
+
+## Terminal qualification
+
+Implementation is `2046c94dac533af2e6e4a4b4c9038f74609997c7`. Subsequent
+integration changes only read declarations, requirement/test references and
+this evidence record. Terminal whole CLI conformance passes in 94.809 seconds:
+native error rows, exact native analyzer frames, every profile node, catalogs,
+versions, suggestions and message/code checks. SHA-256 of
+`conformance-terminal.log` is
+`4e1e2c09536f8d0c4a028e120276be2ce633a7809a83fae5628ee275102dd113`.
+
+Whole `internal/cliapp`, `internal/cliprofile`, `internal/clitree`,
+`internal/capcatalog`, `tools/cli-discovery-gen`, `tools/capabilities-check`
+and `cmd/corvint-web-flows` pass. The generator package includes all-binary
+installation, bounded rollback retention and release-line checks; its terminal
+log SHA-256 is
+`f5c5e2e77a40efaf7c05e2a6b7cd15a077561125b3b9e33199d196df588e33c3`.
+The catalog gate observes 54 commands, 57 binaries and 44 MCP tools. Its whole
+package log SHA-256 is
+`f92bfd73394af4d8c4c63ad6138e13966081a66629bfa5e6e4a27844bdbf8186`.
+Capabilities, read scopes and declaration compatibility pass together; log
+SHA-256 is `68cc578a63025045fd7909dfc12abc2bf82d0ae4245c51ff4ae36aabcbfd46c1`.
+Read declarations conservatively retain the existing native Tasks build closure
+and tracked literals as well as the adapter's closure, as required by AFP-V0-023.
+No reader, unit or uncertainty is dropped.
+
+Whole Tasks CLI runs for 941.558 seconds and fails two existing tests:
+`TestTMV0008_AS07_ReadsLeaveStoreByteIdentical/no_git` refuses archive staging
+at `/home/russell/lanes/clicontract.tmp/heavy-run.zJXUyL` as not outside the
+repository/state, and `TestCALV0302_CompactedStepsKeepTheirPostState` compares
+`observedAt` values of `2026-11-05T15:29:34Z` and `2026-11-05T15:29:35Z`.
+Their assertions and production behavior are unchanged. All new profile and
+existing typed mutation/template acceptance tests pass in that whole run.
+Tasks log SHA-256 is
+`47c5aadd7aad6f4628823e10775944b8494850edf55172d3bed804eb274c4e51`.
+The local aggregate outcome remains **failed**; host qualification of these
+scratch/clock failures remains outstanding, rather than weakening either test.
+Criterion delivery is MET for V1-2685 (CAP-V0-9300), V1-3736 (ACX-V0-9301)
+and V1-3738 (CAP-V0-9302 and retained TCL-V0-7703). This is not native ticket
+completion or an all-tests-passed claim.
+
+Other friction: the shared heavy queue reached 485.8 seconds plus 20 seconds
+of host-load admission for a subsecond check. Serial short checks under one
+admission retain the same one-package commands. Commits return success while
+Git reports the forbidden common path
+`/home/russell/projects/corvint/.git/packed-refs.lock`; that path is not changed.
+The required TMPDIR and configured `/home/russell/bench/rt/.locks` are retained.

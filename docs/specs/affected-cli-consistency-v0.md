@@ -41,7 +41,8 @@ driving Corvint from scripts.
   The shared process conformance package MUST cover every shipped binary's profile help,
   catalog, version and unknown-verb envelope alongside the existing native refusal table.
   Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
-  `TestCLIProfile9301RefusalShapes`, `TestCLIErrorContracts_ACXV0859`.
+  `TestCLIProfile9301RefusalShapes`, `TestCLIProfile9301NotFound`,
+  `TestCLIErrorContracts_ACXV0859`.
   Rollback: remove the opt-in adapter and its catalog row; no native state migration.
 
 - `ACX-V0-7707`: (narrowed by the owner's 2026-11-04 compatibility decision; V1-3736)
