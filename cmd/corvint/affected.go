@@ -152,6 +152,9 @@ type affectedInvocation struct {
 	// AuditChanges is set only by `affected audit`: the change manifest replayed
 	// against observed outcomes (AFP-V0-445).
 	AuditChanges string
+	// OwnershipAudit is set only by `affected --ownership-audit`, which lists the
+	// tracked paths no claimant or declaration claims (AZU-V0-002).
+	OwnershipAudit bool
 }
 
 type playwrightAffectedReceipt struct {
@@ -354,6 +357,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "audit" {
 		return parseAffectedAuditOptions(rest[1:])
+	}
+	if len(rest) != 0 && rest[0] == "--ownership-audit" {
+		return parseAffectedOwnershipAuditOptions(rest[1:])
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -816,6 +822,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if invocation.AuditChanges != "" {
 		return runAffectedAudit(ctx, invocation, stdout, stderr)
+	}
+	if invocation.OwnershipAudit {
+		return runAffectedOwnershipAudit(ctx, invocation, stdout, stderr)
 	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {

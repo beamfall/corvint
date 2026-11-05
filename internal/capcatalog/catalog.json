@@ -1402,6 +1402,7 @@
         "--list",
         "--manifest-repo",
         "--no-cache",
+        "--ownership-audit",
         "--path",
         "--paths-from",
         "--playwright-config",
@@ -1425,6 +1426,7 @@
       ],
       "schemaIds": [
         "affected-by-path/1",
+        "affected-ownership-audit/0",
         "affected-plan/0",
         "affected-plan/1",
         "affected-summary/1",
@@ -1443,6 +1445,7 @@
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
+        0,
         1,
         2
       ],
@@ -1460,6 +1463,7 @@
         "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
         "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
         "affected cache (experimental) reports the default cache's location, state (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON object, or with --format doctor-plugin as one AFFECTED_CACHE item for a corvint-tasks doctor plugin; it creates and writes nothing.",
+        "It refuses a dirty worktree, builds the graph without the cache, writes nothing, and exits 0 when no path is unowned, 1 when some path is, and 2 on an error.",
         "In a private shared clone it runs affected on every change, appmap-impact and e2e-compile (the corvint-test companion) where configured, treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses, recall, precision, fallback and elapsed time; per selector micro recall and precision and a 95% one-sided Clopper-Pearson bound on the per-change miss rate.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
       ],
