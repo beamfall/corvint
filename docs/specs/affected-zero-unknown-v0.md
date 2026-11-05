@@ -67,7 +67,13 @@ participation, and inbound shell callers. The remaining classes are small and lo
   Selections carry kind `DRIVER_TARGET` and the argv `make <target>`, or `CI_JOB` and the workflow
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
-  before. Supersedes the AFP-V0-2405 hint for claimed paths.
+  before. Go package commands with no package argument SHALL depend on the current package after
+  `cd` or `go -C`; an unresolved directory SHALL retain uncertainty or depend on every owner.
+  Unsupported YAML flow mappings, including mappings inside flow sequences, SHALL retain the
+  unparsable-file frontier rather than silently discard execution members. Unparsable driver
+  fallback units SHALL be reached on every nonempty dirty plan, preserving that uncertainty
+  even when the file's hidden execution edge cannot participate in traversal.
+  Supersedes the AFP-V0-2405 hint for claimed paths.
 - **AZU-V0-002:** **Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
@@ -142,6 +148,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   newly rejected only by the stronger directory-construction check SHALL retain caller edges
   admitted by the legacy literal/shell-expansion guard, while retaining both invalid-declaration
   and foreign-invocation unknowns. New uncertainty SHALL never remove those prior selections.
+  Root-directory callees SHALL also check computed basenames: without a directory literal to
+  exclude a callee, joins, quoted concatenations and formatted paths remain possible callers.
 - **AZU-V0-8902:** **Located runtime caller closure.** A located TypeScript end-to-end runtime site
   covered by an existing runtime edge SHALL select its declared test unit and traverse its
   dependents on every nonempty code-bearing change, including changes within TypeScript. Only after selection
@@ -224,10 +232,10 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 
 | Requirement | Tickets | Evidence |
 |---|---|---|
-| AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
+| AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-003 | V1-4686 | not yet |
-| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904` |
+| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904` |
 | AZU-V0-005 | V1-4688 | not yet |
 | AZU-V0-006 | V1-4689 | not yet |
 | AZU-V0-007 | V1-4690 | not yet |

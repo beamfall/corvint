@@ -251,3 +251,44 @@ func TestDriverCallersOfContainedTests_AZU_V0_001(t *testing.T) {
 		t.Fatal("ordinary importer reached beyond own tests")
 	}
 }
+
+// AZU-V0-001: omitted package arguments mean the package in the command's
+// working directory, including commands whose only arguments are flags.
+func TestDriverImplicitGoPackage_AZU_V0_001(t *testing.T) {
+	for _, command := range []string{
+		"cd core && go test", "cd core && go test -race",
+		"cd core && go test -count 1", "cd core && go test -args -custom",
+		"go -C core test -race", "cd core && go vet", "cd core && go build",
+	} {
+		t.Run(command, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				"Makefile":                 "check:\n\t" + command + "\nall: check\n",
+				".github/workflows/ci.yml": "jobs:\n  check:\n    steps:\n      - run: make check\n  after:\n    needs: check\n    steps:\n      - run: echo done\n",
+			}, nil)
+			selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, "driver:ci:.github/workflows/ci.yml#check", "driver:ci:.github/workflows/ci.yml#after"}, nil)
+		})
+	}
+}
+
+// AZU-V0-001: unsupported flow mappings cannot silently hide a run step.
+func TestDriverFlowMappingKeepsUncertainty_AZU_V0_001(t *testing.T) {
+	for _, steps := range []string{
+		"\n      - {run: 'go test -race ./core/...'}",
+		"\n      - {run: 'go test -race ./core/...', name: race}",
+		" [{run: 'go test -race ./core/...'}]",
+	} {
+		t.Run(steps, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:" + steps + "\n",
+			}, nil)
+			plan := affected.Select(graph, []string{"core/core.go"})
+			if plan.Scope == affected.ScopeUnknown && len(plan.Unknown) > 0 {
+				return
+			}
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == jobUnit }) {
+				t.Fatalf("flow step silently dropped: %+v", plan)
+			}
+		})
+	}
+}
