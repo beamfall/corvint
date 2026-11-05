@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Explicit native-host check: Pi 0.99.1 and the pinned Go toolchain must be installed.
 import test from 'node:test';
+import {hostAvailable,hostFile,taskWritesAvailable} from './host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, existsSync } from 'node:fs';
@@ -97,6 +98,7 @@ async function tuiFixture(scratch) {
 }
 
 test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
  assert.notEqual(process.platform,'win32','Pi adapter requires POSIX group cleanup');
  const scratch=mkdtempSync(join(tmpdir(),'corvint-pi-host-'));
  t.after(()=>rmSync(scratch,{recursive:true,force:true}));
@@ -240,6 +242,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
 });
 
 test('AHI-024 native-host harness cancellation kills descendants',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-host-cancel-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const pidFile=join(scratch,'pid-"\'`$()\u2028');const abort=new AbortController();
  const script=join(scratch,'child.js');
@@ -255,6 +258,7 @@ test('AHI-024 native-host harness cancellation kills descendants',{skip:!!proces
 
 
 test('AHI-024 interrupting the host check reaps its separately detached native group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-host-interrupt-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const witness=join(scratch,'witness');
  let spawned;const ready=new Promise(r=>{spawned=r});
@@ -286,6 +290,7 @@ test('AHI-024 interrupting the host check reaps its separately detached native g
 });
 
 test('AHI-025 native TUI fixture interruption reaps its PTY process group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-pty-cancel-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const witness=join(scratch,'group'),descendant=join(scratch,'descendant'),fake=join(scratch,'fake.sh');
  writeFileSync(fake,`trap '' TERM\nsleep 86400 &\necho $! > ${JSON.stringify(descendant+'.tmp')}\nmv ${JSON.stringify(descendant+'.tmp')} ${JSON.stringify(descendant)}\nwait\n`);
@@ -330,6 +335,7 @@ export default function(pi){
 }`;
 
 test('AHI-024 AHI-025 exact native fork tree compaction retry and concurrent tool qualification',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-matrix-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const home=join(scratch,'home'),agent=join(home,'.pi/agent'),repo=join(scratch,'repo'),pkg=join(scratch,'package'),capture=join(scratch,'capture'),providerPath=join(scratch,'provider.ts');
  for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});
@@ -387,6 +393,7 @@ test('AHI-024 AHI-025 exact native fork tree compaction retry and concurrent too
 });
 
 for(const loseClaimReceipt of [false,true])test('LCP PWV native workflow owner and operator lease survive fork reload and resume'+(loseClaimReceipt?' with pending receipt':''),{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
+ if(!taskWritesAvailable(t)||!hostAvailable(t,process.env.PI_BIN??'pi')||!hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks'))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-coexist-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const home=join(scratch,'home'),agent=join(home,'.pi/agent'),repo=join(scratch,'repo'),pkg=join(scratch,'package'),capture=join(scratch,'capture'),providerPath=join(scratch,'provider.ts');
  for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});

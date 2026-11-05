@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
+import {hostAvailable,missingHost} from './host-prerequisites.mjs';
+import {createRequire} from 'node:module';
+import {pathToFileURL as moduleURL} from 'node:url';
 import assert from 'node:assert/strict';
 import {spawnSync,spawn} from 'node:child_process';
 import {mkdtempSync,writeFileSync,readFileSync,existsSync,rmSync} from 'node:fs';
@@ -8,14 +11,15 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {registerCockpit} from './cockpit.js';
 
-const globalRoot='/Users/russelllewis/.bun/install/global/node_modules';
+const piBinary=process.env.PI_BIN??'pi';
+const sdkRequire=createRequire(process.env.CORVINT_PI_SDK_ROOT?process.env.CORVINT_PI_SDK_ROOT+'/package.json':import.meta.url);
 
 test('PWV cockpit component runs against installed Pi 0.99.1 and host-provided pi-tui APIs',async t=>{
  let coding,tui;
  try{
-  coding=await import(`file://${globalRoot}/@earendil-works/pi-coding-agent/dist/index.js`);
-  tui=await import(`file://${globalRoot}/@earendil-works/pi-tui/dist/index.js`);
- }catch(error){t.skip(`installed native Pi unavailable: ${error.message}`);return;}
+  coding=await import(moduleURL(sdkRequire.resolve('@earendil-works/pi-coding-agent')).href);
+  tui=await import(moduleURL(sdkRequire.resolve('@earendil-works/pi-tui')).href);
+ }catch(error){if(error.code!=='MODULE_NOT_FOUND'&&error.code!=='ERR_MODULE_NOT_FOUND')throw error;missingHost(t,`installed native Pi unavailable: ${error.message}`);return;}
  assert.equal(coding.VERSION,'0.99.1');
  for(const name of ['matchesKey','truncateToWidth','visibleWidth'])assert.equal(typeof tui[name],'function');
  const commands=new Map(),handlers=new Map();
@@ -33,13 +37,14 @@ test('PWV cockpit component runs against installed Pi 0.99.1 and host-provided p
  assert.ok(handlers.has('session_compact'));assert.ok(handlers.has('session_tree'));
 });
 
-test('installed Pi 0.99.1 RPC host invokes the user /corvint command offline with structured fallback',()=>{
+test('installed Pi 0.99.1 RPC host invokes the user /corvint command offline with structured fallback',t=>{
+ if(!hostAvailable(t,piBinary))return;
  const scratch=mkdtempSync(join(tmpdir(),'corvint-cockpit-host-'));
  try {
   const extension=join(scratch,'cockpit-extension.mjs');
   const moduleUrl=pathToFileURL(new URL('./cockpit.js',import.meta.url).pathname).href;
   writeFileSync(extension,`import {registerCockpit} from ${JSON.stringify(moduleUrl)};\nexport default function(pi){registerCockpit(pi,{core:{read:async operation=>({operation,receipt:'native-rpc',raw:{stdout:'authority: repository-owned\\nreason: immutable selector'}})},tasks:{read:async operation=>({operation,raw:{stdout:'tasks read'}})}})}\n`);
-  const run=spawnSync('/Users/russelllewis/.bun/bin/pi',['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--no-session','--mode','rpc','-e',extension],{
+  const run=spawnSync(piBinary,['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--no-session','--mode','rpc','-e',extension],{
    cwd:scratch,env:{...process.env,PI_CODING_AGENT_DIR:join(scratch,'agent')},input:'{"id":"commands","type":"get_commands"}\n{"id":"cockpit","type":"prompt","message":"/corvint native-host"}\n',encoding:'utf8',timeout:15000,maxBuffer:2**20
   });
   assert.equal(run.status,0,run.stderr);
@@ -52,14 +57,15 @@ test('installed Pi 0.99.1 RPC host invokes the user /corvint command offline wit
   for(const mode of ['json','text']) {
    const args=['--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--no-session','-e',extension,'--print','/corvint native-host'];
    if(mode==='json')args.splice(args.length-2,0,'--mode','json');
-   const noninteractive=spawnSync('/Users/russelllewis/.bun/bin/pi',args,{cwd:scratch,env:{...process.env,PI_CODING_AGENT_DIR:join(scratch,`agent-${mode}`)},encoding:'utf8',timeout:15000,maxBuffer:2**20});
+   const noninteractive=spawnSync(piBinary,args,{cwd:scratch,env:{...process.env,PI_CODING_AGENT_DIR:join(scratch,`agent-${mode}`)},encoding:'utf8',timeout:15000,maxBuffer:2**20});
    assert.equal(noninteractive.status,0,noninteractive.stderr);
    assert.doesNotMatch(noninteractive.stdout,/\x1b/,'noninteractive cockpit emitted terminal controls');
   }
  } finally {rmSync(scratch,{recursive:true,force:true});}
 });
 
-test('installed Pi 0.99.1 native TUI qualifies cockpit matrix and interruption through a real PTY',async()=>{
+test('installed Pi 0.99.1 native TUI qualifies cockpit matrix and interruption through a real PTY',async t=>{
+ if(!hostAvailable(t,piBinary))return;
  const scratch=mkdtempSync(join(tmpdir(),'corvint-cockpit-tui-'));
  try {
   const extension=join(scratch,'cockpit-extension.mjs'),fixture=join(scratch,'pi-tui-fixture');
@@ -81,7 +87,7 @@ export default function(pi){
 `);
   const build=spawnSync('go',['build','-o',fixture,'./tools/pi-tui-fixture'],{cwd:new URL('../..',import.meta.url).pathname,env:{...process.env,GOCACHE:join(scratch,'go-cache')},encoding:'utf8',timeout:30000});
   assert.equal(build.status,0,build.stderr);
-  const args=['/Users/russelllewis/.bun/bin/pi','--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--no-session','-e',extension];
+  const args=[piBinary,'--offline','--approve','--no-context-files','--no-skills','--no-prompt-templates','--no-themes','--no-tools','--no-session','-e',extension];
   const environment=theme=>({...process.env,PI_CODING_AGENT_DIR:join(scratch,'agent-'+theme),CORVINT_PI_TUI_MATRIX:'1',CORVINT_TEST_THEME:theme,CORVINT_TEST_THEME_WITNESS:join(scratch,'theme-'+theme)});
   for(const theme of ['dark','light']) {
    const run=spawnSync(fixture,args,{cwd:scratch,env:environment(theme),encoding:'utf8',timeout:30000,maxBuffer:2**20});

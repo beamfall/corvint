@@ -176,7 +176,8 @@ endif
 .PHONY: host-adapter-node-test
 host-adapter-node-test:
 	node --test integrations/opencode/*.test.mjs
-	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs integrations/pi/process.test.mjs integrations/pi/core.test.mjs integrations/pi/capabilities.test.mjs integrations/pi/operations.test.mjs integrations/pi/tasks.test.mjs integrations/pi/cockpit.test.mjs integrations/pi/workflow.test.mjs
+	npm --prefix integrations/pi test
+	npm --prefix integrations/pi-protected test
 
 .PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
