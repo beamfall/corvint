@@ -35,6 +35,7 @@ what any packet says.
 ## Requirements
 
 - `IDX-SNAP-V0-7560`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4553) A lazy mapped gob-body read MUST check the size of its exact backing inode before copying uncached bytes. A truncation MUST refuse even on systems whose private mapped pages remain readable. The mapping MUST retain a close-on-exec descriptor independent of the opening reader, and release it with its last mapping lease. Verified heap-cache hits need no further backing read.
+
 - `IDX-SNAP-V0-7803`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2746)
   Document path-reference and generic import extraction MUST use linear scans with the frozen
   regexes retained only as differential test oracles. Every result over the self corpus and
