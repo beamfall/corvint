@@ -487,7 +487,7 @@ no N-1, and each later release's N-1 is the previous release published in it; se
 | CCF-V1-650 | `TestEveryVerbHelpFollowsTheHouseFormat`, `TestFeatureHelpGivesAValidFeatureIDExample` |
 | CCF-V1-620 | `TestCCFV1620GoldenRegenKeepsAPreviousVariesLeaf`; the V1-3342 rerun in `docs/build-log/2026-11-01-dgs-u28.md` |
 | CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
-| `CCF-V1-9800` | `internal/testsupport/gitidentity.go`, `cmd/corvint/git_fixture_test.go`, migrated direct Git fixture calls and `internal/testsource/repo_test.go`; `TestWithoutGitIdentity_CCFV19800`, `TestIsolateGitRemovesCallerDates_CCFV19800`, `TestFixtureGitIdentityIsHermetic`, `TestFixtureGitCommandsUseHermeticEnvironment`; unchanged `TestContextDefaultWireIsTheGolden`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestCoreVerbsEmitTheFrozenProfiles`. |
+| `CCF-V1-9800` | `internal/testsupport/gitidentity.go`, `cmd/corvint/git_fixture_test.go`, migrated direct Git fixture calls and `internal/testsource/repo_test.go`; `TestWithoutGitIdentity_CCFV19800`, `TestIsolateGitRemovesCallerDates_CCFV19800`, `TestFixtureGitIdentityIsHermetic`, `TestFixtureGitIdentityIsHermeticWithN1Replay` (nested replay with `CORVINT_CORE_N1_BINARY`, preserving CCF-V1-007 exceptions), `TestFixtureGitCommandsUseHermeticEnvironment`; unchanged `TestContextDefaultWireIsTheGolden`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestCoreVerbsEmitTheFrozenProfiles`. |
 
 ## Rollback
 

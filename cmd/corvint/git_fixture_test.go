@@ -62,6 +62,14 @@ func TestFixtureGitIdentityIsHermetic(t *testing.T) {
 	t.Run("core-profiles", TestCoreVerbsEmitTheFrozenProfiles)
 }
 
+// CCF-V1-007, CCF-V1-9800: N-1 exceptions must survive nested fixture replay.
+func TestFixtureGitIdentityIsHermeticWithN1Replay(t *testing.T) {
+	if os.Getenv("CORVINT_CORE_N1_BINARY") == "" {
+		t.Skip("set CORVINT_CORE_N1_BINARY to enable nested N-1 replay")
+	}
+	t.Run("nested", TestFixtureGitIdentityIsHermetic)
+}
+
 // CCF-V1-9800: all direct Git commands must use the shared fixture environment,
 // and assignments must not replace it with the unfiltered process environment.
 func TestFixtureGitCommandsUseHermeticEnvironment(t *testing.T) {
