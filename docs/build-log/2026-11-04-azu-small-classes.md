@@ -74,8 +74,8 @@ binary and inputs; wall-clock replay performance was NOT_OBSERVED as a standalon
   `internal/liveverify/affected`: PASS (132.485s); whole `internal/appflows`: PASS (13.598s).
   Commands: `script/heavy.sh HEAVY_WHOLE_REASON=<reason> go test -count=1 -timeout 30m ./PACKAGE`,
   one package per command, after `corvint affected --base 8e2c13aa926fcaf1731fae71b27c41c41c8f09af`.
-- Whole `cmd/corvint` was run and failed: the required TMPDIR is below the parent Git repository
-  `/home/russell/lanes`, so tests expecting a non-repository scratch location observe that parent;
+- Whole `cmd/corvint` was run and failed: the required TMPDIR was detected under the parent Git root
+  `/home/russell/lanes` during the suite, so outside-repository tests observed that parent;
   source qualification also refuses its group-writable, non-sticky ancestor. The frozen flow
   golden mismatch found in that run was fixed through the legacy projection above, without
   changing the golden. The terminal whole-package rerun also failed (445.174s) on the external scratch/source
@@ -108,6 +108,14 @@ by charter). External interoperability and external outcome validation are NOT_P
 local planner change. Overall outcome and exact remaining host checks are in the handback.
 
 Line citations were repinned from staged source and checked; spec requirements were regenerated.
+The native dogfood preflight refused the supplied bold requirement markers with
+`intent-invalid / missing-requirements`. All nine definition markers were normalized to the
+contract's backtick form without changing any requirement text or ID, so the intent reader can
+enumerate the complete spec; requirements outside this lane remain unassessed. The installed
+binary's static preflight also refused `self-binary-stale`; retrying with
+`DOGFOOD_STATIC_PRECHECK=0` uses the wrapper's freshly built tree binary and still performs the
+actual input checks. A post-suite direct scratch Git-root probe reported no repository; the
+parent-root detections above are retained runtime observations, not a claim of persistent state.
 The original test function name remains stable for the parent's traceability row. An initial
 traceability check caught its temporary rename; restoring the name fixes the row without weakening
 its assertions. A commit attempted to create `/home/russell/projects/corvint/.git/packed-refs.lock`

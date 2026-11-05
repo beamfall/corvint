@@ -45,7 +45,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
 ## Requirements
 
-- **AZU-V0-001: Driver claimant.** A built-in claimant SHALL own every driver input that
+- `AZU-V0-001`: Driver claimant. A built-in claimant SHALL own every driver input that
   `driverInput` recognises (make files at any depth, `.github/workflows/**`, `.github/actions/**`),
   so such a path is never `UNOWNED_DIRTY_PATH` and never triggers the AFP-V0-511 cascade. Its units
   are make targets and workflow jobs. Edges are the repository paths a recipe or step names
@@ -58,14 +58,14 @@ participation, and inbound shell callers. The remaining classes are small and lo
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
   before. Supersedes the AFP-V0-2405 hint for claimed paths.
-- **AZU-V0-002: Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
+- `AZU-V0-002`: Ownership completeness gate. `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
   `.corvint/non-source-paths.json` for evidence output such as `.agent-evidence/`. A maintained test
   SHALL fail while that list is non-empty at `HEAD`, so a merged tree has no unowned tracked path
   and `UNOWNED_DIRTY_PATH` can arise only for an uncommitted new path. The audit is read-only (AGENTS
   invariant 4).
-- **AZU-V0-003: Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOUND`
+- `AZU-V0-003`: Outbound site closure. A plugin SHALL classify each frontier reason as `OUTBOUND`
   or `INBOUND` through a new optional `FrontierDirection` method on its claimant. `OUTBOUND` means
   the hidden edge starts at the reference in the site's own file: an unresolved, dynamic or bare
   import, an include, an executable config, or a computed invocation. A reason with no declaration
@@ -77,7 +77,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   needs a complete site list: a plugin SHALL record every site unit in the graph, even when its
   display truncates to `reason:+N`. A plugin that cannot locate a site in a unit keeps that entry
   unknown.
-- **AZU-V0-004: Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site unit,
+- `AZU-V0-004`: Inbound caller closure. An `INBOUND` reason (a hidden caller into the site unit,
   such as `shell:foreign-invocation-unmodelled`, `shell:foreign-callers-changed` or
   `typescript:e2e-runtime-dependency`) SHALL close when the project declares the site's callers.
   Declarations are `.corvint/shell-foreign-callers.json` (TSP-V0-005) and driver edges
@@ -87,13 +87,13 @@ participation, and inbound shell callers. The remaining classes are small and lo
   builds a callee path from a computed name under a declared callee directory SHALL also fail the
   check, so the declaration stays complete under project authority (AGENTS invariant 3). An inbound
   entry whose site has no declaration stays unknown.
-- **AZU-V0-005: Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of the
+- `AZU-V0-005`: Dot-directory Go packages. The Go plugin SHALL index tracked Go packages of the
   main module that lie below a directory whose name starts with `.` or `_`, which `./...` skips (for
   example `.github/testconfine` and `.github/testconfine/cmd`). Such a file is then owned source,
   not `UNINDEXED_SOURCE_PATH`. Hidden-directory observation SHALL use the same bounded,
   metadata-excluding source walk for disk and immutable sources; `testdata` remains fixture data.
   Indexing a previously unowned file SHALL retain testless literal/glob readers and their callers.
-- **AZU-V0-006: Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
+- `AZU-V0-006`: Uncovered, not unknown. A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
   first select its declared or modelled callers (AZU-V0-001, AZU-V0-004). When no selectable test
   anywhere can observe it, the plan SHALL record it in a new `uncovered` list, not in `unknown`.
   This is a coverage gap, not a selection gap: no test exists whose outcome the change can alter. A
@@ -106,7 +106,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
   The frozen `application-flow-impact/1` projection retains uncovered coverage gaps in its
   legacy `graph.unknown` list and `UNKNOWN` scope; its wire and goldens do not change.
-- **AZU-V0-007: Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
+- `AZU-V0-007`: Declared binary consumers run. An entry of `.corvint/test-binary-consumers.json`
   MAY carry `run`, the argv that runs it from the repository root. Legacy `FILE:[COMMAND_DIR...]`
   entries remain valid; the extended form is `FILE:{"commands":[COMMAND_DIR...],"run":[ARG...]}`.
   `commands` has the existing directory-list grammar; `run` is optional but, when present,
@@ -122,13 +122,13 @@ participation, and inbound shell callers. The remaining classes are small and lo
   both optional members, and text selections carry the shell-quoted `run` command. Both optional selection members
   are omitted for ordinary units. Several rebuilt commands select a consumer once. Test-only
   or reader-only command reach does not trigger it. An entry without `run` keeps today's unknown.
-- **AZU-V0-008: Package-level runner fallback.** A frontier reason that hides only which tests run
+- `AZU-V0-008`: Package-level runner fallback. A frontier reason that hides only which tests run
   inside a known package or project SHALL select that package's whole test command. Examples are
   `typescript:test-runner-unknown`, `typescript:runtime-flags-unresolved`,
   `dotnet:test-runner-filter-unresolved` and `dotnet:dynamic-test-discovery`. The plugin declares
   the reason `PACKAGE_RUNNABLE`. Only a reason whose package has no runnable command stays unknown,
   as `NO_RUNNER`.
-- **AZU-V0-009: Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`
+- `AZU-V0-009`: Zero-unknown acceptance. The replay `script/affected-zero-unknown-replay.sh`
   SHALL run `corvint affected --base M^1` for each merge in a frozen list. The list starts with the
   eight merges above and adds every merge since. It SHALL report per merge the unknown count by
   reason, the selection size and its wall-clock cost. AZU-V0 is met when every plan in the list has
