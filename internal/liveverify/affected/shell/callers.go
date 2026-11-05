@@ -211,8 +211,18 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 			failed.Store(true)
 			return
 		}
+		// Constructed-reference patterns depend on the callee directory, not
+		// its basename. Scan a candidate once per directory, rather than
+		// repeating the same regular expressions for every declared script.
+		directories := map[string]bool{}
 		for index, script := range scripts {
-			if candidate != script && (bytes.Contains(body, bases[index]) || constructed[index](body) || built[candidate].names(string(bases[index]))) {
+			directory := path.Dir(script)
+			computes, checked := directories[directory]
+			if !checked {
+				computes = constructed[index](body)
+				directories[directory] = computes
+			}
+			if candidate != script && (bytes.Contains(body, bases[index]) || computes || built[candidate].names(string(bases[index]))) {
 				names[offset] = append(names[offset], index)
 			}
 		}

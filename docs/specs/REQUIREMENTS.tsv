@@ -382,20 +382,14 @@ AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-2180	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); owner direction 2	standing	2026-10-11; 2026-11-02
 AFP-V0-2181	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
 AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
-AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list e	unrecorded	-
 AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOU	unrecorded	-
-AZU-V0-004	docs/specs/affected-zero-unknown-v0.md	Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site uni	unrecorded	-
 AZU-V0-005	docs/specs/affected-zero-unknown-v0.md	Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of th	unrecorded	-
 AZU-V0-006	docs/specs/affected-zero-unknown-v0.md	Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHA	unrecorded	-
 AZU-V0-007	docs/specs/affected-zero-unknown-v0.md	Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.jso	unrecorded	-
 AZU-V0-008	docs/specs/affected-zero-unknown-v0.md	Package-level runner fallback.** A frontier reason that hides only which tests r	unrecorded	-
-AZU-V0-009	docs/specs/affected-zero-unknown-v0.md	Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`	unrecorded	-
-AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-
-AZU-V0-8901	docs/specs/affected-zero-unknown-v0.md	Constructed foreign callers.** The shell caller completeness guard SHALL reject	unrecorded	-
-AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	Located runtime caller closure.** A located TypeScript end-to-end runtime site	unrecorded	-
-AZU-V0-8903	docs/specs/affected-zero-unknown-v0.md	Replay evidence admission.** The replay SHALL use a supplied implementation bina	unrecorded	-
-AZU-V0-8904	docs/specs/affected-zero-unknown-v0.md	Revision-bound caller changes.** A changed shell caller declaration SHALL close	unrecorded	-
-AZU-V0-8905	docs/specs/affected-zero-unknown-v0.md	Absent driver identity parity.** The optional driver claimant SHALL not change	unrecorded	-
+AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	| AZU-V0-002 | V1-4685; V1-4659, V1-3480 | partial: `affected --ownership-audit`	unrecorded	-
+AZU-V0-004	docs/specs/affected-zero-unknown-v0.md	| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_	unrecorded	-
+AZU-V0-009	docs/specs/affected-zero-unknown-v0.md	| AZU-V0-009 | V1-4692 | replay tool and `TestSafetyRejectsUnsafeDrop_AZU_V0_890	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
