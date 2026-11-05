@@ -134,6 +134,15 @@ grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/ou
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
+grep -qx 'make ci-batch-cem-check' "$tmp/out" || fail "trusted batch step has no local mirror: $(cat "$tmp/out")"
+# ASD-V0-036: recognition is of the complete trusted block, never a name-based exemption.
+sed 's/dogfood batch-check --verifier/dogfood batch-check --changed-verifier/' "$script/../.github/workflows/ci.yml" > "$tmp/changed-batch.yml"
+(cd "$script/.." && BATCH_PRECHECK_WORKFLOW="$tmp/changed-batch.yml" "$pre" --sync-check) > "$tmp/out" 2>&1 &&
+  fail "a changed trusted batch command passed the sync check"
+grep -qF 'which batch-precheck cannot mirror' "$tmp/out" || fail "changed batch command lost the existing refusal: $(cat "$tmp/out")"
+(cd "$script/.." && EVENT_NAME=push HEAD_REF= make -s ci-batch-cem-check) > "$tmp/out" 2>&1 ||
+  fail "non-batch mirror failed: $(cat "$tmp/out")"
+grep -qxF 'not a batch pull request; skipped' "$tmp/out" || fail "non-batch mirror did not preserve the CI filter: $(cat "$tmp/out")"
 
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
 grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(BASE)"' || fail "closeout lost its static checks or lane BASE"

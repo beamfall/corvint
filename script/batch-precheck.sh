@@ -245,8 +245,17 @@ contains() {
 # `- {run: make x}`, a quoted key, an empty `run:`, a plain scalar continued on the next line), a
 # merge key or alias, or a `shell:`/`working-directory:` key is printed after a tab, as a form it
 # cannot classify, so doc_gates reports it unknown and the sync check fails closed (ASD-V0-036).
+# The exact CIN-V0-2304 block maps to a local target running the identical script; any changed
+# command falls back to the ordinary classifier and refuses rather than bypassing the check.
 doc_gate_commands() {
-  job_block doc-gates | awk -v cont=-1 '
+  job_block doc-gates | awk -v cont=-1 -v mirror_file="$self_dir/ci-batch-cem-check.sh" '
+    BEGIN {
+      while ((getline line < mirror_file) > 0) {
+        if (line == "" || line ~ /^#/) continue
+        mirror = mirror line "\n"
+      }
+      close(mirror_file)
+    }
     function emit(s) {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
       if (pending != "") { s = pending " " s; pending = "" }
@@ -254,10 +263,18 @@ doc_gate_commands() {
       if (s != "" && s !~ /^#/) print s
     }
     function unparsed(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); print "\t" s }
+    function flush(    i, body) {
+      if (!n) return
+      for (i = 1; i <= n; i++) body = body substr(lines[i], indent + 3) "\n"
+      if (mirror != "" && body == mirror) print "make ci-batch-cem-check"
+      else for (i = 1; i <= n; i++) emit(lines[i])
+      n = 0
+    }
     block {
       if ($0 !~ /[^[:space:]]/) next
       match($0, /^[[:space:]]*/)
-      if (RLENGTH > indent) { emit($0); next }
+      if (RLENGTH > indent) { lines[++n] = $0; next }
+      flush()
       block = 0
     }
     cont >= 0 {
@@ -276,7 +293,8 @@ doc_gate_commands() {
       emit(s); next
     }
     /(^|[[:space:]{,])["\047]?run["\047]?[[:space:]]*:/ || /<<[[:space:]]*:/ || /(:|^[[:space:]]*-)[[:space:]]*[*&][A-Za-z0-9_-]/ ||
-      /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }'
+      /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }
+    END { flush() }'
 }
 
 # doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
