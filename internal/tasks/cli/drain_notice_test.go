@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -47,5 +48,37 @@ func TestATRV0059_ClaimCarriesDrainNotice(t *testing.T) {
 	}
 	if again := atm(t, root, nil, "claim", id, "--holder", "first", "--request-id", "claim-first"); drainWarned(again.res) {
 		t.Fatalf("claim after the drain lifted: %s", again.stdout)
+	}
+}
+
+// ATR-V0-8207 / V1-4637: a child can end without a kept result, as in the
+// hosted failure. LOST and PENDING are transport results and still carry the
+// current drain notice. This controls the state without scheduling a child.
+func TestATRV08207_DetachedTransportCarriesDrainNotice(t *testing.T) {
+	root, dir, _ := lostRequest(t, "drain-lost")
+	signal := filepath.Join(t.TempDir(), "drain.json")
+	if err := os.WriteFile(signal, []byte(`{"profile":"taskman-dispatch-drain-pending/0","program":"prog","since":"2026-10-17T09:00:00Z","notice":"finish and end"}`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CORVINT_DISPATCH_DRAIN_FILE", signal)
+	lost := cliRun(t, root, "claim", "--attach", "--request-id", "drain-lost")
+	if !hasCode(lost.res, wire.CodeSupervisorLost) || !drainWarned(lost.res) {
+		t.Fatalf("LOST: %s", lost.stdout)
+	}
+	identity, err := supervisor.ProcessIdentity(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJSON(t, filepath.Join(dir, "child.json"), map[string]any{"pid": os.Getpid(), "identity": identity, "startedAt": "2026-10-17T09:00:00Z", "ceilingAt": "2026-10-17T09:10:00Z"})
+	pending := cliRun(t, root, "claim", "--attach", "--request-id", "drain-lost")
+	if pending.code != 75 || !drainWarned(pending.res) {
+		t.Fatalf("PENDING: %s", pending.stdout)
+	}
+	if err = os.Remove(signal); err != nil {
+		t.Fatal(err)
+	}
+	again := cliRun(t, root, "claim", "--attach", "--request-id", "drain-lost")
+	if drainWarned(again.res) {
+		t.Fatalf("lifted drain: %s", again.stdout)
 	}
 }

@@ -189,9 +189,11 @@ func (graph *Graph) reachedThrough(reached map[string]Witness, allowed map[strin
 
 // follows reports whether the walk takes the edge from one unit to another:
 // every edge except a narrowed package's import edge to an importer that
-// references none of its new declarations.
+// references none of its new declarations. A driver unit runs its imports
+// whole (`go test`, a script), so an edge to one is always taken
+// (AZU-V0-001).
 func (graph *Graph) follows(allowed map[string]map[string]bool, class int, from, to string) bool {
-	if class != 0 {
+	if class != 0 || strings.HasPrefix(to, DriverNamespace+":") {
 		return true
 	}
 	set, narrowed := allowed[from]
