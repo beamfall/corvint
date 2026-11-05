@@ -63,3 +63,33 @@ checks do not qualify quiet-host performance or promote the failed pack format.
 Raw commands, logs and fixture reproduction are outside the repository under
 `/home/russell/lanes/docperf-evidence/repair/`. The repair handback retains their
 return codes, digests, whole-package results and final CEM/check outcome.
+
+Whole-package checks ran through `script/heavy.sh`, one package per command,
+without `-run`. `internal/contextindex` passed (201.319 s).
+`internal/doccorpus` first failed only
+`TestDCRV1416CorpusMCPFirstAndWarmCalls`: first call 845 ms was not at least
+three times faster than rederivation 1.663336967 s. Its sequential whole-package
+retry passed (89.862 s). `internal/mcp/corpusbridge` first failed only
+`TestDCPV1281AdditionalRepositoryWarmCallsAtScale`: warm total p95 1028 ms
+exceeded 1000 ms, while freshness median was 0 ms. Its sequential whole-package
+retry failed only `TestDCRV1846GitFallbackWarmCallsWithinBudget`: freshness
+median 204 ms exceeded 100 ms, while total p95 391 ms met 1000 ms. Both attempts
+are retained; no assertion or budget changed. A repair-time host sample was
+38.82 / 46.84 / 45.34 load average. Attribution to host load is not a controlled
+qualification; the host verifier still owes the full corpusbridge rerun under
+admitted conditions. No additional implementation change is justified by these
+measurements in this frozen-wire repair. Local outcome remains `blocked`.
+
+Root-cause reproduction SHA-256:
+`fixture-identity.py` = `f3406bfc64dd21057dd2351e69a76cf86b04d8ca5219cd5ca687fc59eb4c0276`;
+`fixture-identity.log` = `83a5f9362ae19140bb9c082be962bf37ff4311d2272119cfb9381ed167a9036a`;
+`identity-repro.log` = `5f52dad9ed6bbc49ee9e8b53e3fe71ef4c005fc37ba9d4ca6f917c65e18d0c3e`;
+`golden-clean.log` = `2246050feebde956e21a29323606e8790b4703c1bf99e2bae4290470a63eedec`.
+
+Git commits succeed but their post-commit maintenance prints a read-only
+refusal for `/home/russell/projects/corvint/.git/packed-refs.lock`, outside the
+permitted Git metadata roots. Dogfood's optional common ledger
+`/home/russell/projects/corvint/.git/corvint/dogfood-change-runs-all.tsv` is also
+outside those roots; its wrapper suppresses that failure and retains the
+per-worktree ledger. Neither limitation is worked around by mutating shared
+metadata. The final binding uses the allowed per-worktree evidence directory.
