@@ -37,8 +37,17 @@ identity exported, reproducing the host verifier environment.
 - focused.log: script/heavy.sh go test -count=1 -timeout 30m -run
   'Freeze|GPKV0002|Golden|TestCoreVerbsEmitTheFrozenProfiles' ./cmd/corvint/
   passes, including the exact host failing selection and additional Core cases.
-- whole-cmd-corvint.log: whole-package rerun and terminal results are recorded
-  in the repair handback. No filtered-only acceptance is claimed.
+- whole-cmd-corvint.log: full existing package executed without a -run filter;
+  FAIL after 363.022 test seconds (365.8 wrapper seconds). The reported context
+  golden and frozen inventory failures did not recur. Other tests fail because
+  the required TMPDIR has /home/russell/lanes as a 0775 ancestor: executable and
+  scratch-root qualification refuse it. During this run, non-repository fixture
+  probes also discover /home/russell/lanes as a Git root, cascading into Go and
+  JavaScript adapter refusal tests; a later direct probe finds no parent Git
+  repository. Parent discovery is thus observed during the run, not a claim of
+  persistent parent state. No shared parent permissions or test assertions were
+  changed. Whole-package passing evidence remains blocked on host qualification;
+  dogfood records OUTCOME=failed, never a passed whole-package claim.
 
 Independent review remains reserved to orchestration. The prior production
 selection-baseline evidence remains applicable to unchanged production source;
