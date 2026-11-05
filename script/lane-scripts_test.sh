@@ -2291,7 +2291,7 @@ rc=$?
 printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\necho "dogfood-inputs-check: REFUSE self-binary-stale corvint: built at old; or unset CORVINT_BIN to use the current-tree build" >&2\nexit 2\n' > "$to/static/bin/corvint"
 static_make
 rc=$?
-((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP stale-binary' "$to/static/err" && ! grep -q 'REFUSE' "$to/static/err" ||
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP stale-binary .*: dogfood-inputs-check: REFUSE self-binary-stale' "$to/static/err" && ! grep -q '^dogfood-inputs-check: REFUSE' "$to/static/err" ||
   fail "a stale installed corvint's self-binary-stale refusal was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 # CORVINT_BIN, given as a bare name on PATH, runs instead of the installed binary.
 mkdir -p "$to/static/override" || fail "override fixture"
@@ -2303,6 +2303,17 @@ rc=$?
 ((rc == 2)) && [[ ! -e $to/admitted ]] && [[ -e $to/static/override-args ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
   ! grep -q 'ran the installed' "$to/static/err" ||
   fail "CORVINT_BIN did not run the static pre-check (rc=$rc): $(cat "$to/static/err")"
+# A stale CORVINT_BIN stays a refusal: the admitted run would use that same binary.
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\necho "dogfood-inputs-check: REFUSE self-binary-stale corvint-tree: built at old" >&2\nexit 2\n' > "$to/static/override/corvint-tree" || fail "stale override stub"
+static_make PATH="$to/static/override:$to/static/bin:$PATH" CORVINT_BIN=corvint-tree
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE self-binary-stale' "$to/static/err" && ! grep -q 'SKIP stale-binary' "$to/static/err" ||
+  fail "a stale CORVINT_BIN was skipped instead of refused (rc=$rc): $(cat "$to/static/err")"
+# An unresolvable CORVINT_BIN replaces the installed fallback and is named in the SKIP.
+static_make CORVINT_BIN=no-such-corvint-bin
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'SKIP no-static-binary .*CORVINT_BIN=no-such-corvint-bin' "$to/static/err" ||
+  fail "an unresolvable CORVINT_BIN did not SKIP (rc=$rc): $(cat "$to/static/err")"
 printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
 static_make
 rc=$?

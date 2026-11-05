@@ -112,10 +112,11 @@ inputs+=(--entry "$entry")
 # DCW-V0-731 (NEW-B2): that phase also runs the static input checks (plan, verify, intents and
 # outcome; no lock, no step) before the admission wait and the build, so an input defect is refused
 # in about a second. It runs the cached tree binary of HEAD's exact build key, or else CORVINT_BIN
-# when set, or else the installed corvint on PATH; each must list --static (V1-4406,
-# V1-4466). With none it says SKIP, and DOGFOOD_STATIC_PRECHECK=0 skips it; the admitted pre-flight
-# still runs every check with the tree's own build. A self-binary-stale refusal names the binary, not
-# an input defect, so it is a SKIP too.
+# when set (it then replaces the installed fallback), or else the installed corvint on PATH; each must
+# list --static (V1-4406, V1-4466). With none it says SKIP, and DOGFOOD_STATIC_PRECHECK=0 skips it; the
+# admitted pre-flight still runs every check with the tree's own build. A self-binary-stale refusal
+# from the cached or installed binary names the binary, not an input defect, so it is a SKIP too; from
+# CORVINT_BIN it stays a refusal, because the admitted run uses that same binary.
 # A SEAL=0 run also needs the binary's inputs-check to list --seal, so its hints keep SEAL=0.
 static_capable() {
   local help
@@ -129,7 +130,7 @@ if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
   [[ -f $repo/script/dogfood-build-corvint.sh ]] || exit 0
   go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
   source "$repo/script/dogfood-build-corvint.sh" || exit 0
-  static_bin='' installed=''
+  static_bin='' installed='' override=''
   if key=$(dogfood_corvint_key HEAD "$repo") && mkdir -p "$git_dir/corvint" &&
     dogfood_corvint_reuse "$git_dir/corvint/corvint" "$key" && static_capable "$git_dir/corvint/corvint"; then
     static_bin=$git_dir/corvint/corvint
@@ -148,11 +149,17 @@ if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
       "$([[ -n ${CORVINT_BIN-} ]] && printf 'CORVINT_BIN=%s' "$CORVINT_BIN" || printf 'an installed corvint')" >&2
     exit 0
   fi
-  static_err=$(mktemp "${TMPDIR:-/tmp}/corvint-static-precheck.XXXXXX") || exit 0
+  static_err=$(mktemp "${TMPDIR:-/tmp}/corvint-static-precheck.XXXXXX") || {
+    printf '%s: static pre-check SKIP no-temp-file (mktemp failed; the admitted inputs-check runs every check after its build)\n' "$prefix" >&2
+    exit 0
+  }
+  trap '/bin/rm -f "$static_err"; exit 130' INT
+  trap '/bin/rm -f "$static_err"; exit 143' TERM
   (cd "$repo" && exec "$static_bin" dogfood inputs-check --base "$base_arg" ${seal_args[@]+"${seal_args[@]}"} ${inputs[@]+"${inputs[@]}"} --static yes) 2> "$static_err"
   status=$?
-  if ((status != 0)) && grep -q 'REFUSE self-binary-stale' "$static_err"; then
-    printf '%s: static pre-check SKIP stale-binary (%s is older than this tree; the admitted inputs-check runs every check with the tree build)\n' "$prefix" "$static_bin" >&2
+  if ((status != 0)) && [[ $static_bin != "${override-}" ]] && grep -q 'REFUSE self-binary-stale' "$static_err"; then
+    printf '%s: static pre-check SKIP stale-binary (%s is older than this tree; the admitted inputs-check runs every check with the tree build): %s\n' "$prefix" "$static_bin" \
+      "$(grep -m1 'REFUSE self-binary-stale' "$static_err")" >&2
     /bin/rm -f "$static_err"
     exit 0
   fi
