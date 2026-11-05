@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-analyzer-objective-c",
-  "helpJson": "corvint-analyzer-objective-c help --json",
+  "helpJson": "corvint-cli --binary corvint-analyzer-objective-c help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-analyzer-objective-c"
@@ -23,7 +23,7 @@
         "stdin: protocol request JSON"
       ],
       "example": "corvint-analyzer-objective-c < REQUEST.json",
-      "help": "corvint-analyzer-objective-c --help"
+      "help": "corvint-cli --binary corvint-analyzer-objective-c --help"
     },
     {
       "path": [
@@ -38,8 +38,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-analyzer-objective-c help --json",
-      "help": "corvint-analyzer-objective-c help --help"
+      "example": "corvint-cli --binary corvint-analyzer-objective-c help --json",
+      "help": "corvint-cli --binary corvint-analyzer-objective-c help --help"
     }
   ]
 }

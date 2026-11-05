@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-test-runner",
-  "helpJson": "corvint-test-runner help --json",
+  "helpJson": "corvint-cli --binary corvint-test-runner help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-test-runner",
@@ -48,7 +48,7 @@
       ],
       "required": [],
       "example": "corvint-test-runner plan --executable PATH --executable-sha256 SHA256 --request FILE",
-      "help": "corvint-test-runner --help"
+      "help": "corvint-cli --binary corvint-test-runner --help"
     },
     {
       "path": [
@@ -74,7 +74,7 @@
         "--request FILE"
       ],
       "example": "corvint-test-runner plan --executable PATH --executable-sha256 SHA256 --request FILE",
-      "help": "corvint-test-runner plan --help"
+      "help": "corvint-cli --binary corvint-test-runner plan --help"
     },
     {
       "path": [
@@ -88,7 +88,7 @@
       "flags": [],
       "required": [],
       "example": "corvint-test-runner profiles",
-      "help": "corvint-test-runner profiles --help"
+      "help": "corvint-cli --binary corvint-test-runner profiles --help"
     },
     {
       "path": [
@@ -119,7 +119,7 @@
         "--trusted-local"
       ],
       "example": "corvint-test-runner run --executable PATH --executable-sha256 SHA256 --plan FILE --approve SHA256 --out FILE --experimental --trusted-local",
-      "help": "corvint-test-runner run --help"
+      "help": "corvint-cli --binary corvint-test-runner run --help"
     },
     {
       "path": [
@@ -133,7 +133,7 @@
       "flags": [],
       "required": [],
       "example": "corvint-test-runner runners",
-      "help": "corvint-test-runner runners --help"
+      "help": "corvint-cli --binary corvint-test-runner runners --help"
     },
     {
       "path": [
@@ -148,8 +148,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-test-runner help --json",
-      "help": "corvint-test-runner help --help"
+      "example": "corvint-cli --binary corvint-test-runner help --json",
+      "help": "corvint-cli --binary corvint-test-runner help --help"
     }
   ]
 }

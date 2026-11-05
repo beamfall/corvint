@@ -9,6 +9,13 @@ tested; absence of that evidence is not qualification. To try the source directl
 
 ## Install all native tools from source
 
+The all-tool install also includes `corvint-cli`, an opt-in discovery adapter. For example,
+`corvint-cli --binary corvint-analyzer-go --help` serves offline usage without changing that
+analyzer's native protocol. `corvint-cli --binary BINARY --version --json` reports the common
+CLI release line; direct analyzer version receipts remain native. Use direct invocation for
+protocol traffic and long operations. The adapter bounds short CLI execution to 30 seconds
+and 1 MiB per output stream, and retains failed native streams/status inside its coded refusal.
+
 With the pinned Go toolchain, run `make install-local` from the source checkout. It builds every
 native `cmd/` executable from that tree and installs them into `~/.local/bin`, including
 `corvint-test`, all provider tools and `corvint-tasks`. Override the destination with

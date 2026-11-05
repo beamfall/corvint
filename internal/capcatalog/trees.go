@@ -31,6 +31,8 @@ func TreeReferences() []CommandTreeRef {
 		command := binary + " help --json"
 		if binary == "corvint" {
 			command = "corvint help --tree"
+		} else if tree, ok := TreeSnapshot(binary); ok {
+			command = tree.HelpJSON
 		}
 		refs = append(refs, CommandTreeRef{Binary: binary, Command: command, Snapshot: "internal/capcatalog/trees/" + entry.Name()})
 	}

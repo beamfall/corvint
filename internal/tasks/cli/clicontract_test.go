@@ -2,10 +2,14 @@
 package cli_test
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/cliconformance"
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -69,5 +73,32 @@ func TestCAPV07707TasksMissingTicketProcess(t *testing.T) {
 	result := handoffCLIWithBinary(t, r.Root, cli.CompiledTasksBinary(t), "--root", r.Root, "ticket", "show", "NOPE-9999")
 	if result.code != 1 || len(result.stderr) != 0 || !strings.Contains(string(result.stdout), "does not exist") {
 		t.Fatalf("native refusal: %+v", result)
+	}
+}
+
+// ACX-V0-9301: the shared process oracle checks the additive not-found
+// refusal against a native Tasks fixture, never the caller's real queue.
+func TestCLIProfile9301NotFound(t *testing.T) {
+	r, _, _ := papercutRepo(t)
+	dir := t.TempDir()
+	native := cli.CompiledTasksBinary(t)
+	if err := os.Symlink(native, filepath.Join(dir, "corvint-tasks")); err != nil {
+		t.Fatal(err)
+	}
+	adapter := filepath.Join(dir, "corvint-cli")
+	build := exec.Command("go", "build", "-buildvcs=false", "-o", adapter, "./cmd/corvint-cli")
+	build.Dir = "../../.."
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("adapter build: %v %s", err, out)
+	}
+	args := []string{"--root", r.Root, "ticket", "show", "NOPE-9999"}
+	nativeResult := handoffCLIWithBinary(t, r.Root, native, args...)
+	if nativeResult.code != 1 || len(nativeResult.stderr) != 0 || !strings.Contains(string(nativeResult.stdout), "does not exist") {
+		t.Fatalf("native not-found: %+v", nativeResult)
+	}
+	refusal := cliconformance.Failure(t, adapter, append([]string{"--binary", "corvint-tasks"}, args...), 2)
+	details, ok := refusal.Details.(map[string]any)
+	if !ok || refusal.Code == "" || details["stdout"] != string(nativeResult.stdout) || details["stderr"] != string(nativeResult.stderr) || details["nativeExit"] != float64(nativeResult.code) {
+		t.Fatalf("profile lost native not-found: %+v", refusal)
 	}
 }

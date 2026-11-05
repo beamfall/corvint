@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-analyzer-java",
-  "helpJson": "corvint-analyzer-java help --json",
+  "helpJson": "corvint-cli --binary corvint-analyzer-java help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-analyzer-java"
@@ -23,7 +23,7 @@
         "stdin: protocol request JSON"
       ],
       "example": "corvint-analyzer-java < REQUEST.json",
-      "help": "corvint-analyzer-java --help"
+      "help": "corvint-cli --binary corvint-analyzer-java --help"
     },
     {
       "path": [
@@ -38,8 +38,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-analyzer-java help --json",
-      "help": "corvint-analyzer-java help --help"
+      "example": "corvint-cli --binary corvint-analyzer-java help --json",
+      "help": "corvint-cli --binary corvint-analyzer-java help --help"
     }
   ]
 }

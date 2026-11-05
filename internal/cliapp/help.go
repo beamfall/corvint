@@ -86,5 +86,15 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 		}
 		return 0, true
 	}
-	return (clitree.Help{Tree: tree, Title: "Experimental local companion", RootForms: nil, Intro: func(w io.Writer) { io.WriteString(w, root.String()) }}).Serve(args, stdout, stderr)
+	// CAP-V0-9300 / ACX-V0-9301: discovery is additive. A new help
+	// interceptor must never replace a shipped native refusal on other argv.
+	var answer strings.Builder
+	handled, err := clitree.Answer(tree, args, root.String(), &answer)
+	if !handled || err != nil {
+		return 0, false
+	}
+	if _, err := io.WriteString(stdout, answer.String()); err != nil {
+		return 1, true
+	}
+	return 0, true
 }

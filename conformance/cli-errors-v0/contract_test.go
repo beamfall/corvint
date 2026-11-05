@@ -59,14 +59,24 @@ func TestCAPV07700ShippedHelp(t *testing.T) {
 				t.Fatal("missing snapshot")
 			}
 			binary := filepath.Join(dir, ref.Binary)
+			// CAP-V0-9300: frozen analyzer entrypoints use the explicitly
+			// selected discovery profile. All help assertions remain identical.
+			profile := strings.HasPrefix(ref.Binary, "corvint-analyzer-")
 			_, nativeAnalyzer := nativeAnalyzers[ref.Binary]
 			_, nativeShim := nativeShims[ref.Binary]
 			if !nativeAnalyzer && !nativeShim {
 				for _, node := range tree.Nodes {
 					for _, flag := range []string{"--help", "-h"} {
 						args := append(append([]string{}, node.Path...), flag)
+						if profile {
+							args = append([]string{"--binary", ref.Binary}, args...)
+						}
+						executable := binary
+						if profile {
+							executable = filepath.Join(dir, "corvint-cli")
+						}
 						ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-						cmd := exec.CommandContext(ctx, binary, args...)
+						cmd := exec.CommandContext(ctx, executable, args...)
 						cmd.Dir = t.TempDir()
 						var out, errout bytes.Buffer
 						cmd.Stdout = &out
@@ -96,6 +106,9 @@ func TestCAPV07700ShippedHelp(t *testing.T) {
 				}
 				for _, flag := range flags {
 					cmd := exec.Command(binary, "help", flag)
+					if profile {
+						cmd = exec.Command(filepath.Join(dir, "corvint-cli"), "--binary", ref.Binary, "help", flag)
+					}
 					out, err := cmd.Output()
 					if err != nil {
 						t.Fatal(err)

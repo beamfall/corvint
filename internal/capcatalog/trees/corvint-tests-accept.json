@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-tests-accept",
-  "helpJson": "corvint-tests-accept help --json",
+  "helpJson": "corvint-cli --binary corvint-tests-accept help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-tests-accept",
@@ -43,7 +43,7 @@
       ],
       "required": [],
       "example": "corvint-tests-accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL",
-      "help": "corvint-tests-accept --help"
+      "help": "corvint-cli --binary corvint-tests-accept --help"
     },
     {
       "path": [
@@ -70,7 +70,7 @@
         "--environment LABEL"
       ],
       "example": "corvint-tests-accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL",
-      "help": "corvint-tests-accept accept --help"
+      "help": "corvint-cli --binary corvint-tests-accept accept --help"
     },
     {
       "path": [
@@ -88,7 +88,7 @@
         "--plan FILE"
       ],
       "example": "corvint-tests-accept plan --plan FILE",
-      "help": "corvint-tests-accept plan --help"
+      "help": "corvint-cli --binary corvint-tests-accept plan --help"
     },
     {
       "path": [
@@ -103,8 +103,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-tests-accept help --json",
-      "help": "corvint-tests-accept help --help"
+      "example": "corvint-cli --binary corvint-tests-accept help --json",
+      "help": "corvint-cli --binary corvint-tests-accept help --help"
     }
   ]
 }

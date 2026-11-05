@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-playwright-minimize",
-  "helpJson": "corvint-playwright-minimize help --json",
+  "helpJson": "corvint-cli --binary corvint-playwright-minimize help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-playwright-minimize",
@@ -39,7 +39,7 @@
       ],
       "required": [],
       "example": "corvint-playwright-minimize execute --experimental --approve-plan DIGEST",
-      "help": "corvint-playwright-minimize --help"
+      "help": "corvint-cli --binary corvint-playwright-minimize --help"
     },
     {
       "path": [
@@ -59,7 +59,7 @@
         "--approve-plan DIGEST"
       ],
       "example": "corvint-playwright-minimize execute --experimental --approve-plan DIGEST",
-      "help": "corvint-playwright-minimize execute --help"
+      "help": "corvint-cli --binary corvint-playwright-minimize execute --help"
     },
     {
       "path": [
@@ -77,7 +77,7 @@
         "--experimental"
       ],
       "example": "corvint-playwright-minimize plan --experimental",
-      "help": "corvint-playwright-minimize plan --help"
+      "help": "corvint-cli --binary corvint-playwright-minimize plan --help"
     },
     {
       "path": [
@@ -92,8 +92,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-playwright-minimize help --json",
-      "help": "corvint-playwright-minimize help --help"
+      "example": "corvint-cli --binary corvint-playwright-minimize help --json",
+      "help": "corvint-cli --binary corvint-playwright-minimize help --help"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-analyzer-ruby",
-  "helpJson": "corvint-analyzer-ruby help --json",
+  "helpJson": "corvint-cli --binary corvint-analyzer-ruby help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-analyzer-ruby"
@@ -23,7 +23,7 @@
         "stdin: protocol request JSON"
       ],
       "example": "corvint-analyzer-ruby < REQUEST.json",
-      "help": "corvint-analyzer-ruby --help"
+      "help": "corvint-cli --binary corvint-analyzer-ruby --help"
     },
     {
       "path": [
@@ -38,8 +38,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-analyzer-ruby help --json",
-      "help": "corvint-analyzer-ruby help --help"
+      "example": "corvint-cli --binary corvint-analyzer-ruby help --json",
+      "help": "corvint-cli --binary corvint-analyzer-ruby help --help"
     }
   ]
 }

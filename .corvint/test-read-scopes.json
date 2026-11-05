@@ -637,6 +637,18 @@
     "internal/tasks/authority": [
       "go.mod"
     ],
+    "internal/tasks/cli": [
+      "cmd/corvint-cli/",
+      "go.mod",
+      "go.sum",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/cliprofile/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
+    ],
     "internal/tasks/intent": [
       "go.mod"
     ],

@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-behavior-falsify",
-  "helpJson": "corvint-behavior-falsify help --json",
+  "helpJson": "corvint-cli --binary corvint-behavior-falsify help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-behavior-falsify",
@@ -43,7 +43,7 @@
       ],
       "required": [],
       "example": "corvint-behavior-falsify execute --experimental --approve-plan DIGEST",
-      "help": "corvint-behavior-falsify --help"
+      "help": "corvint-cli --binary corvint-behavior-falsify --help"
     },
     {
       "path": [
@@ -63,7 +63,7 @@
         "--approve-plan DIGEST"
       ],
       "example": "corvint-behavior-falsify execute --experimental --approve-plan DIGEST",
-      "help": "corvint-behavior-falsify execute --help"
+      "help": "corvint-cli --binary corvint-behavior-falsify execute --help"
     },
     {
       "path": [
@@ -83,7 +83,7 @@
         "--approve-plan DIGEST"
       ],
       "example": "corvint-behavior-falsify execute-receipt --experimental --approve-plan DIGEST",
-      "help": "corvint-behavior-falsify execute-receipt --help"
+      "help": "corvint-cli --binary corvint-behavior-falsify execute-receipt --help"
     },
     {
       "path": [
@@ -101,7 +101,7 @@
         "--experimental"
       ],
       "example": "corvint-behavior-falsify plan --experimental",
-      "help": "corvint-behavior-falsify plan --help"
+      "help": "corvint-cli --binary corvint-behavior-falsify plan --help"
     },
     {
       "path": [
@@ -123,7 +123,7 @@
         "--expected-tool SHA256"
       ],
       "example": "corvint-behavior-falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256",
-      "help": "corvint-behavior-falsify verify-receipt --help"
+      "help": "corvint-cli --binary corvint-behavior-falsify verify-receipt --help"
     },
     {
       "path": [
@@ -138,8 +138,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-behavior-falsify help --json",
-      "help": "corvint-behavior-falsify help --help"
+      "example": "corvint-cli --binary corvint-behavior-falsify help --json",
+      "help": "corvint-cli --binary corvint-behavior-falsify help --help"
     }
   ]
 }

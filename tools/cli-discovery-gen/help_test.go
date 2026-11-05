@@ -61,3 +61,28 @@ func main() { flag.String("input", "", "required only in build mode") }
 	}()
 	rootTree("fixture")
 }
+
+// CAP-V0-9300: a native receipt control is an alternative to protocol stdin,
+// not grounds to infer an analyzer CLI parser or to rewrite its native source.
+func TestCLIProfile9300NativeReceiptUsage(t *testing.T) {
+	t.Chdir("../..")
+	adapter := rootTree("corvint-cli")
+	if !slices.Contains(adapter.Sources, "internal/cliprofile") || !slices.Contains(adapter.Nodes[0].Flags, "--binary") {
+		t.Fatalf("adapter parser missing from inventory: %+v", adapter)
+	}
+	for _, flag := range []string{"--binary", "--version", "--json", "--tree", "--help", "-h"} {
+		if !adapter.AllFlags()[flag] {
+			t.Errorf("adapter control %s missing", flag)
+		}
+	}
+	for _, binary := range []string{"corvint-analyzer-html-css", "corvint-analyzer-structured-data"} {
+		tree := rootTree(binary)
+		root := tree.Nodes[0]
+		if !slices.Contains(root.Required, "stdin: protocol request JSON") || !slices.Contains(root.Usage, binary+" --version") {
+			t.Fatalf("%s: %+v", binary, root)
+		}
+		if binary == "corvint-analyzer-structured-data" && !slices.Contains(root.Usage, binary+" --descriptor") {
+			t.Fatalf("missing descriptor: %+v", root)
+		}
+	}
+}

@@ -66,6 +66,17 @@ func main() {
 			tree = rootTree(binary)
 		}
 		tree.Nodes = append(tree.Nodes, clitree.Node{Path: []string{"help"}, Command: binary + " help", Summary: "Show command help or the offline machine catalog.", Usage: []string{binary + " help [COMMAND...] [--json]"}, Flags: []string{"--json"}, Required: []string{}, Example: binary + " help --json", Help: binary + " help --help"})
+		// CAP-V0-9300: offline catalogs must link executable discovery
+		// commands even when the native protocol/shim help is frozen.
+		if strings.HasPrefix(binary, "corvint-analyzer-") || slices.Contains([]string{"corvint-test-runner", "corvint-behavior-falsify", "corvint-playwright-minimize", "corvint-tests-accept"}, binary) {
+			tree.HelpJSON = "corvint-cli --binary " + binary + " help --json"
+			for i := range tree.Nodes {
+				tree.Nodes[i].Help = "corvint-cli --binary " + tree.Nodes[i].Help
+				if slices.Equal(tree.Nodes[i].Path, []string{"help"}) {
+					tree.Nodes[i].Example = tree.HelpJSON
+				}
+			}
+		}
 		encoded, err := clitree.Encode(tree)
 		must(err)
 		must(os.WriteFile(dest, encoded, 0644))
@@ -88,6 +99,9 @@ func rootTree(binary string) clitree.Tree {
 	dirs := []string{dir}
 	if binary == "corvint-mcp" { // This entrypoint delegates its parser and authored usage.
 		dirs = append(dirs, "internal/mcp/cli")
+	}
+	if binary == "corvint-cli" { // Include the adapter's delegated argument parser in the drift gate.
+		dirs = append(dirs, "internal/cliprofile")
 	}
 	usage := ""
 	descriptions := map[string]string{}
@@ -147,10 +161,22 @@ func rootTree(binary string) clitree.Tree {
 	forms := clitree.Synopses(binary, usage)
 	required := []string{}
 	if len(forms) == 0 {
-		if !strings.HasPrefix(binary, "corvint-analyzer-") || len(flags) != 0 {
+		// These isolated native protocol entrypoints deliberately have no CLI
+		// parser. Only their literal receipt controls may augment stdin usage.
+		nativeControls := true
+		for _, f := range flags {
+			nativeControls = nativeControls && (f == "--version" || f == "--descriptor")
+		}
+		if !strings.HasPrefix(binary, "corvint-analyzer-") || !nativeControls {
 			panic(binary + ": missing authored usage; parser declarations cannot establish required inputs or conditional modes")
 		}
 		forms = []string{binary + " < REQUEST.json"}
+		if slices.Contains(flags, "--version") {
+			forms = append(forms, binary+" --version")
+		}
+		if slices.Contains(flags, "--descriptor") {
+			forms = append(forms, binary+" --descriptor")
+		}
 		required = []string{"stdin: protocol request JSON"}
 	}
 	for _, f := range flags {

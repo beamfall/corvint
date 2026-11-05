@@ -43,15 +43,10 @@ func UnknownVerb(tree Tree, args []string) (string, bool) {
 // RefuseUnknownVerb writes the one shared unknown-verb envelope as a single JSON line on stderr
 // and returns exit 2 (ACX-V0-904): {"binary", "code": "unknown-verb", "error", "help", "ok": false}.
 func RefuseUnknownVerb(stderr io.Writer, binary, verb string) int {
-	word, hint, _ := strings.Cut(verb, "\n")
-	message := fmt.Sprintf("unknown command %q", word)
-	if hint != "" {
-		message += "; " + hint
-	}
 	line, err := json.Marshal(map[string]any{
 		"binary": binary,
 		"code":   UnknownVerbCode,
-		"error":  message,
+		"error":  fmt.Sprintf("unknown command %q", verb),
 		"help":   binary + " --help",
 		"ok":     false,
 	})
@@ -67,7 +62,7 @@ func RefuseIfUnknownVerb(tree Tree, args []string, stderr io.Writer) (exit int, 
 	if !unknown {
 		return 0, false
 	}
-	return RefuseUnknownVerb(stderr, tree.Binary, Suggestion(tree, verb)), true
+	return RefuseUnknownVerb(stderr, tree.Binary, verb), true
 }
 
 // Suggestion uses the actual command tree, with a bounded edit distance and one

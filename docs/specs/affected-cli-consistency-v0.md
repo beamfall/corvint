@@ -27,6 +27,23 @@ driving Corvint from scripts.
 
 ## Requirements
 
+- `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736)
+  Every shipped native error shape, stream, exit and stderr byte MUST remain compatible.
+  `corvint-cli --binary BINARY ARGS...` is an explicitly selected additive CLI profile:
+  unknown verbs and not-found refusals MUST carry a code, a human message different from
+  that code, empty stdout, one stderr envelope and exit 2. Near-verb refusals MUST suggest
+  a command from the selected code-derived tree. Failed native short CLI operations MUST
+  retain their original stdout, stderr and exit in the envelope's details; success MUST
+  pass through its streams. No native decoder, frozen assertion or golden is amended.
+  Protocol/server discovery MUST remain offline; protocol-only execution MUST refuse and
+  direct callers to the native binary. Native short CLI execution is bounded to 30 seconds
+  and 1 MiB per output stream; exceeding either MUST refuse, never truncate a successful result.
+  The shared process conformance package MUST cover every shipped binary's profile help,
+  catalog, version and unknown-verb envelope alongside the existing native refusal table.
+  Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
+  `TestCLIProfile9301RefusalShapes`, `TestCLIErrorContracts_ACXV0859`.
+  Rollback: remove the opt-in adapter and its catalog row; no native state migration.
+
 - `ACX-V0-7707`: (narrowed by the owner's 2026-11-04 compatibility decision; V1-3736)
   CLI helpers MUST preserve every existing wire contract: stream ownership, byte rendering,
   refusal code, error shape and exit status. Existing JSON refusals remain their native envelopes;

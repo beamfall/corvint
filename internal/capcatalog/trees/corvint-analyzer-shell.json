@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-analyzer-shell",
-  "helpJson": "corvint-analyzer-shell help --json",
+  "helpJson": "corvint-cli --binary corvint-analyzer-shell help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-analyzer-shell"
@@ -23,7 +23,7 @@
         "stdin: protocol request JSON"
       ],
       "example": "corvint-analyzer-shell < REQUEST.json",
-      "help": "corvint-analyzer-shell --help"
+      "help": "corvint-cli --binary corvint-analyzer-shell --help"
     },
     {
       "path": [
@@ -38,8 +38,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-analyzer-shell help --json",
-      "help": "corvint-analyzer-shell help --help"
+      "example": "corvint-cli --binary corvint-analyzer-shell help --json",
+      "help": "corvint-cli --binary corvint-analyzer-shell help --help"
     }
   ]
 }

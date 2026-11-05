@@ -1,5 +1,13 @@
 # CLI error and help conformance
 
+CAP-V0-9300 / ACX-V0-9301 make universal discovery and refusals explicitly additive:
+`corvint-cli --binary BINARY ARGS...`. `profile_test.go` checks every binary/node through
+that profile, alongside exact native analyzer frames and the existing native error table.
+Direct invocation keeps all frozen bytes, streams and statuses; no golden is amended.
+The twelve restored analyzers' generated-help assertions use the adapter, with unchanged
+assertions and separate exact native controls. Common version discovery (CAP-V0-9302)
+also uses the adapter for native version receipts that cannot be rewritten.
+
 `contract_test.go` builds every shipped `cmd/` binary and launches the retained generated-help nodes with
 both help spellings, checking offline usage, required inputs, examples and catalog parity
 (CAP-V0-7700). The four folded shims are checked with both catalog spellings. Separate

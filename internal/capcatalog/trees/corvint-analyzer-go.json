@@ -1,7 +1,7 @@
 {
   "schema": "corvint-command-tree/0",
   "binary": "corvint-analyzer-go",
-  "helpJson": "corvint-analyzer-go help --json",
+  "helpJson": "corvint-cli --binary corvint-analyzer-go help --json",
   "source": "companion root contract",
   "dispatchSources": [
     "cmd/corvint-analyzer-go"
@@ -23,7 +23,7 @@
         "stdin: protocol request JSON"
       ],
       "example": "corvint-analyzer-go < REQUEST.json",
-      "help": "corvint-analyzer-go --help"
+      "help": "corvint-cli --binary corvint-analyzer-go --help"
     },
     {
       "path": [
@@ -38,8 +38,8 @@
         "--json"
       ],
       "required": [],
-      "example": "corvint-analyzer-go help --json",
-      "help": "corvint-analyzer-go help --help"
+      "example": "corvint-cli --binary corvint-analyzer-go help --json",
+      "help": "corvint-cli --binary corvint-analyzer-go help --help"
     }
   ]
 }

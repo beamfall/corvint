@@ -25,6 +25,28 @@ cannot silently go missing or outlive its command.
 
 ## Requirements
 
+- `CAP-V0-9300`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-2685)
+  Frozen native entrypoints win over universal help interception. The additive
+  `corvint-cli --binary BINARY [COMMAND...] --help|-h` profile MUST answer every
+  public inventory node, including isolated analyzers and folded shims, offline with
+  exit 0, usage, flags, required inputs and an example. `help --json` and `help --tree`
+  in that profile MUST reproduce the selected binary's existing tree. Native process
+  controls and frozen goldens MUST remain unchanged. The inventory and existing required
+  drift gate MUST include the adapter itself; root machine help and the LLM entrypoints
+  MUST discover the profile. This completes the previously PARTIAL process-help delivery
+  of CAP-V0-7700 via explicit selection, without promoting native protocol help.
+  Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
+  `TestCAPV07700ShippedHelp`, `TestCAPV0047SyntheticDriftFails`.
+- `CAP-V0-9302`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3738)
+  The additive CLI profile MUST report every selected binary on the common release version
+  scheme, including analyzers with native protocol version receipts. Native analyzer versions
+  and descriptors MUST remain byte-compatible. Existing TCL-V0-610/611 typed mutation help
+  and templates, CAP-V0-7702 all-binary installation and bounded rollback retention remain
+  required. This completes CAP-V0-7702's withdrawn version unification via opt-in discovery.
+  Tests: `TestCLIProfile9300EveryNode`, `TestTCLV07703ReleaseLine`,
+  `TestTCLV07703CompleteBoundedInstall`, `TestTCLV0610_HelpNamesPayloadKeyTypes`,
+  `TestTCLV0611_EveryMutationTemplateRuns`.
+
 - `CAP-V0-7700`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685; partially withdrawn 2026-11-04: native import-boundary and help compatibility)
   Every shipped `cmd/` binary MUST have an offline command-tree catalog, including a root node
   for single-mode tools and the protocol-only analyzers; the CLI ratchet MUST be empty. Every
