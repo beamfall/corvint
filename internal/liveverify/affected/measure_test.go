@@ -423,6 +423,26 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	witness := selection.Witness
 	switch witness.Kind {
+	case "DECLARED_CONSUMER":
+		// AZU-V0-007: the new final hop is a pinned consumer declaration,
+		// not an import. Verify its exact argv and the preceding build chain.
+		if selection.Kind != "DECLARED_CONSUMER" || len(selection.Tests) != 1 || len(witness.Via) < 2 || selection.UnitID != "declared-consumer:"+selection.Tests[0] || witness.Via[len(witness.Via)-1] != selection.UnitID {
+			return false
+		}
+		commandID := witness.Via[len(witness.Via)-2]
+		command, found := graph.Unit(commandID)
+		if !found || !slices.Equal(command.ExecConsumerRuns[selection.Tests[0]], selection.Run) || len(selection.Run) == 0 {
+			return false
+		}
+		chain := witness.Via[:len(witness.Via)-1]
+		kind := affected.WitnessDependency
+		if len(chain) == 1 {
+			kind = affected.WitnessDirectSource
+			if !golang.New().Owns(witness.DirtyPath) {
+				kind = affected.WitnessEnclosingPackage
+			}
+		}
+		return witnessResolves(graph, affected.Selection{UnitID: commandID, Witness: affected.Witness{Kind: kind, DirtyPath: witness.DirtyPath, Via: chain}})
 	case affected.WitnessPathLiteralReader:
 		return slices.Contains(graph.Namers(witness.DirtyPath), selection.UnitID)
 	case affected.WitnessUnboundedReader:

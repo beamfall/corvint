@@ -14,6 +14,7 @@ package affected
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -95,7 +96,8 @@ const MaxPathsPerUnit = 20_000
 // no unit owns adds no edge.
 // ExecConsumers name repository files the project declares as running the
 // command unit's built binary (AFP-V0-762). They add no edge: a plan that
-// reaches the command's build names each one no selection runs as an unknown.
+// reaches the command's build selects each runnable declaration or names an
+// unselected consumer as unknown. ExecConsumerRuns pins each optional root argv.
 // ImportGraphReads name the units whose import closure the unit's code or
 // tests list with `go list` (AFP-V0-2200); ImportGraphReadsAll marks a unit
 // that lists packages it does not name, which reads the whole module's. A
@@ -130,6 +132,9 @@ type Unit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitempty"`
+
+	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
+	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
 }
 
 // FrontierBears values. The empty value names a unit's Frontier on every plan
@@ -255,6 +260,11 @@ func validUnit(unit Unit, namespace string) error {
 	}
 	if err := validPathList(unit.Callers); err != nil {
 		return err
+	}
+	for file, run := range unit.ExecConsumerRuns {
+		if !slices.Contains(unit.ExecConsumers, file) || !ValidConsumerRun(run) {
+			return ErrInvalidUnit
+		}
 	}
 	if err := validPathList(unit.ExecConsumers); err != nil {
 		return err

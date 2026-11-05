@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -41,7 +42,7 @@ func TestAFPV0990ByPathSeparatesSharedUnboundedReaders(t *testing.T) {
 	}
 	for index, want := range []affectedByPathUnit{{UnitID: "go:a", TestCount: 1, Witness: affected.WitnessPathLiteralReader}, {UnitID: "go:b", TestCount: 2, Witness: affected.WitnessPathLiteralReader}} {
 		entry := result.Paths[index]
-		if entry.Path != paths[index] || entry.Shared != 1 || len(entry.Additions) != 1 || entry.Additions[0] != want {
+		if entry.Path != paths[index] || entry.Shared != 1 || len(entry.Additions) != 1 || !reflect.DeepEqual(entry.Additions[0], want) {
 			t.Errorf("path %d = %+v, want shared 1 and addition %+v", index, entry, want)
 		}
 	}

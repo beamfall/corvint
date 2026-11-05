@@ -3,6 +3,7 @@ package affected
 import (
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // BinaryExecsPath is the repository's declaration of the commands each
@@ -114,4 +115,45 @@ func sortedKeysOf(set map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// ValidConsumerRun bounds project-owned argv without interpreting it as shell text.
+func ValidConsumerRun(run []string) bool {
+	if len(run) == 0 || len(run) > 256 || run[0] == "" {
+		return false
+	}
+	bytes := 0
+	for _, arg := range run {
+		bytes += len(arg)
+		if !utf8.ValidString(arg) || strings.ContainsAny(arg, "\x00\r\n") {
+			return false
+		}
+	}
+	return bytes <= 65536
+}
+
+// selectDeclaredConsumers adds one runnable selection per declared consumer,
+// even if another plugin has already selected that file. The declaration's
+// runner is the authority for executing the consumed binary (AZU-V0-007).
+func (graph *Graph) selectDeclaredConsumers(reached map[string]Witness, rebuilt map[string]bool, selected []Selection) []Selection {
+	commands := map[string]string{}
+	for _, id := range graph.order {
+		witness, hit := reached[id]
+		if !hit || !strings.HasPrefix(id, "go:") || !rebuilt[id] && !rebuilds(witness.Kind) {
+			continue
+		}
+		for file := range graph.units[id].ExecConsumerRuns {
+			previous := commands[file]
+			if previous == "" || witness.ViaLength() < reached[previous].ViaLength() {
+				commands[file] = id
+			}
+		}
+	}
+	for _, file := range sortedKeysOf(commands) {
+		id := commands[file]
+		parent := reached[id]
+		consumer := "declared-consumer:" + file
+		selected = append(selected, Selection{UnitID: consumer, Tests: []string{file}, Kind: "DECLARED_CONSUMER", Run: append([]string(nil), graph.units[id].ExecConsumerRuns[file]...), Witness: Witness{Kind: "DECLARED_CONSUMER", DirtyPath: parent.DirtyPath, link: parent.extended(consumer)}})
+	}
+	return selected
 }

@@ -145,9 +145,9 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
-// includedDirectories are the affected.SkippedDirectories names that can hold
-// first-party Go source, so the walk descends them.
-var includedDirectories = []string{"build", "dist", "target"}
+// includedDirectories admits first-party build directories and hidden source
+// directories (the "." marker, AZU-V0-005) through the bounded source walk.
+var includedDirectories = []string{"build", "dist", "target", "."}
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
@@ -586,18 +586,9 @@ func globSlice(globs map[string]bool) []string {
 	return sortedKeys(globs)
 }
 
-// ignoredByGo reports a repository-relative directory the go tool's package
-// patterns and the fast tier's index skip: one with a testdata or `_`-prefixed
-// component. A file there that does not lex is no build input, so it raises no
-// frontier.
-func ignoredByGo(directory string) bool {
-	for _, component := range strings.Split(directory, "/") {
-		if component == "testdata" || strings.HasPrefix(component, "_") {
-			return true
-		}
-	}
-	return false
-}
+// ignoredByGo reports fixture directories that cannot hold indexed packages.
+// Dot and underscore packages are explicitly addressed source (AZU-V0-005).
+func ignoredByGo(directory string) bool { return inTestdata(directory) }
 
 // importsEnd is the byte offset just past a file's import declarations, which
 // are the only declarations an imports-only parse keeps. An import path is an

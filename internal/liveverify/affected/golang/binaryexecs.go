@@ -2,6 +2,7 @@ package golang
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
@@ -52,32 +53,67 @@ const BinaryConsumersProfile = "corvint-test-binary-consumers/0"
 // a file of its own, so a planner that predates it ignores it rather than
 // refusing affected.BinaryExecsPath.
 type binaryConsumersFile struct {
-	Profile   string              `json:"profile"`
-	Consumers map[string][]string `json:"consumers"`
+	Profile   string                    `json:"profile"`
+	Consumers map[string]jsontext.Value `json:"consumers"`
 }
 
 // readBinaryConsumers returns the declared consumers: nil with no
 // declaration, an error for one that is unreadable, oversized or invalid in
 // any member, under the packages entry grammar.
 func readBinaryConsumers(root *affected.Source) (map[string][]string, error) {
+	commands, _, err := readRunnableBinaryConsumers(root)
+	return commands, err
+}
+
+func readRunnableBinaryConsumers(root *affected.Source) (map[string][]string, map[string][]string, error) {
 	body, err := root.ReadBounded(affected.BinaryConsumersPath, maxBinaryExecBytes)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var declared binaryConsumersFile
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if declared.Profile != BinaryConsumersProfile || len(declared.Consumers) == 0 || len(declared.Consumers) > maxBinaryExecPackages {
-		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d consumers", affected.BinaryConsumersPath, BinaryConsumersProfile, maxBinaryExecPackages)
+		return nil, nil, fmt.Errorf("%s: profile must be %s with 1 to %d consumers", affected.BinaryConsumersPath, BinaryConsumersProfile, maxBinaryExecPackages)
 	}
-	if err := validExecEntries(declared.Consumers); err != nil {
-		return nil, err
+	commands := make(map[string][]string)
+	runs := make(map[string][]string)
+	for file, body := range declared.Consumers {
+		if len(body) != 0 && body[0] == '[' {
+			var entries []string
+			if err := json.Unmarshal(body, &entries); err != nil {
+				return nil, nil, err
+			}
+			commands[file] = entries
+		} else {
+			var entry struct {
+				Commands []string       `json:"commands"`
+				Run      jsontext.Value `json:"run"`
+			}
+			if err := json.Unmarshal(body, &entry, json.RejectUnknownMembers(true)); err != nil {
+				return nil, nil, err
+			}
+			commands[file] = entry.Commands
+			if entry.Run != nil {
+				var run []string
+				if err := json.Unmarshal(entry.Run, &run); err != nil {
+					return nil, nil, err
+				}
+				if !affected.ValidConsumerRun(run) {
+					return nil, nil, fmt.Errorf("%s: consumer %q invalid run", affected.BinaryConsumersPath, file)
+				}
+				runs[file] = run
+			}
+		}
 	}
-	return declared.Consumers, nil
+	if err := validExecEntries(commands); err != nil {
+		return nil, nil, err
+	}
+	return commands, runs, nil
 }
 
 // validExecEntries checks each key and its 1 to 256 strictly ascending
@@ -117,7 +153,7 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 		frontier[FrontierBinaryExecsInvalid] = true
 	}
 	// A consumer declaration defect drops only its own entries (AFP-V0-762).
-	consumers, consumersErr := readBinaryConsumers(root)
+	consumers, runs, consumersErr := readRunnableBinaryConsumers(root)
 	var callers map[string][]string
 	if consumersErr == nil {
 		callers, consumersErr = matchBinaryConsumers(consumers, commands)
@@ -135,6 +171,14 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 		}
 		if files := callers[units[index].ID]; len(files) != 0 {
 			units[index].ExecConsumers = files
+			for _, file := range files {
+				if run := runs[file]; len(run) != 0 {
+					if units[index].ExecConsumerRuns == nil {
+						units[index].ExecConsumerRuns = make(map[string][]string)
+					}
+					units[index].ExecConsumerRuns[file] = run
+				}
+			}
 		}
 	}
 }

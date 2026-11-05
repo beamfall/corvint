@@ -1,11 +1,23 @@
 {
   "profile": "corvint-test-binary-consumers/0",
   "consumers": {
-    "tools/web-flows/test/e2e.mjs": [
-      "cmd/corvint-web-flows"
-    ],
-    "tools/web-flows/test/navigation-e2e.mjs": [
-      "cmd/corvint-web-flows"
-    ]
+    "tools/web-flows/test/e2e.mjs": {
+      "commands": [
+        "cmd/corvint-web-flows"
+      ],
+      "run": [
+        "bash",
+        "script/web-flows-gate"
+      ]
+    },
+    "tools/web-flows/test/navigation-e2e.mjs": {
+      "commands": [
+        "cmd/corvint-web-flows"
+      ],
+      "run": [
+        "bash",
+        "script/web-flows-gate"
+      ]
+    }
   }
 }

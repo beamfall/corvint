@@ -110,6 +110,8 @@ type UnboundedCause struct {
 
 // Selection is one unit whose tests the plan requires.
 type Selection struct {
+	Kind    string   `json:"kind,omitempty"`
+	Run     []string `json:"run,omitempty"`
 	UnitID  string   `json:"unitId"`
 	Tests   []string `json:"tests"`
 	Witness Witness  `json:"witness"`
@@ -149,6 +151,8 @@ type Plan struct {
 	Selected []Selection `json:"selected"`
 	Excluded []Exclusion `json:"excluded"`
 	Unknown  []Unknown   `json:"unknown"`
+	// Uncovered states proven coverage gaps without widening selection (AZU-V0-006).
+	Uncovered []Unknown `json:"uncovered,omitempty"`
 	// NonSource names the dirty paths classified as task state (AFP-V0-088),
 	// declared documentation (AFP-V0-160) or declared runtime-readers data
 	// (AFP-V0-602), not source: the TASK_STORE_PROJECTION group first, then
@@ -251,8 +255,9 @@ const FrontierExclusionReason = "no dirty path is this plugin's or unowned, and 
 //
 // A unit is traversed whether or not it declares tests; it is selected only if
 // it declares at least one, because a unit with no tests contributes no check.
-// A changed unit that no selectable test checks is named as unknown scope
-// instead of being omitted (AFP-V0-020); untestedRules holds each plugin's rule.
+// A changed unit that no selectable test checks is named in Uncovered after
+// caller inspection (AZU-V0-006), or Unknown when inbound callers are unresolved;
+// untestedRules holds each plugin's initial rule (AFP-V0-020).
 // Every dirty path also selects the units whose path literals name it
 // (AFP-V0-021); an unowned path stays unknown all the same, except a Tasks
 // store projection path no unit names, which is classified as task state in
@@ -313,7 +318,12 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
-			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			gap, uncertain := graph.coverageGap(id, seeds[id], reached)
+			if uncertain {
+				plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			} else if gap {
+				plan.Uncovered = append(plan.Uncovered, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			}
 		}
 		if len(unit.Tests) == 0 {
 			continue
@@ -343,6 +353,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			Witness: witness,
 		})
 	}
+	plan.Selected = graph.selectDeclaredConsumers(reached, rebuilt, plan.Selected)
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)

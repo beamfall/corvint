@@ -16,7 +16,7 @@ spec is at its OCM obligation limit, so these requirements take a new prefix.
 
 ## Agent digest
 - Claim: every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.
-- Status: experimental; nothing below is delivered yet.
+- Status: experimental / experimental. Local class fixes have evidence below; overall acceptance is pending.
 - Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
 - Blocked on: nothing; each requirement lands on its own.
 - Read next: User and current state, then the requirement you are implementing.
@@ -90,16 +90,38 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - **AZU-V0-005: Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of the
   main module that lie below a directory whose name starts with `.` or `_`, which `./...` skips (for
   example `.github/testconfine` and `.github/testconfine/cmd`). Such a file is then owned source,
-  not `UNINDEXED_SOURCE_PATH`.
+  not `UNINDEXED_SOURCE_PATH`. Hidden-directory observation SHALL use the same bounded,
+  metadata-excluding source walk for disk and immutable sources; `testdata` remains fixture data.
+  Indexing a previously unowned file SHALL retain testless literal/glob readers and their callers.
 - **AZU-V0-006: Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
   first select its declared or modelled callers (AZU-V0-001, AZU-V0-004). When no selectable test
   anywhere can observe it, the plan SHALL record it in a new `uncovered` list, not in `unknown`.
   This is a coverage gap, not a selection gap: no test exists whose outcome the change can alter. A
-  unit with any undeclared `INBOUND` entry stays unknown.
+  unit with any undeclared `INBOUND` entry stays unknown. The optional `plan.uncovered` member
+  is omitted when empty; otherwise it is a unit-ID-ordered list of `{reason, detail}` with
+  `reason="NO_SELECTABLE_TEST"` and the unit ID as `detail`. Both full and compact plan profiles
+  preserve it; the by-path profile preserves it on each path entry, and text emits an
+  `uncovered REASON UNIT_ID` line. Declared callers with no owning unit remain unknown. Literal, scoped, glob and
+  unbounded reader tests count as observers and remain selected. Embedding foreign-language
+  source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
+  The frozen `application-flow-impact/1` projection retains uncovered coverage gaps in its
+  legacy `graph.unknown` list and `UNKNOWN` scope; its wire and goldens do not change.
 - **AZU-V0-007: Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
-  MAY carry `run`, the argv that runs it from the repository root. When the change reaches the
+  MAY carry `run`, the argv that runs it from the repository root. Legacy `FILE:[COMMAND_DIR...]`
+  entries remain valid; the extended form is `FILE:{"commands":[COMMAND_DIR...],"run":[ARG...]}`.
+  `commands` has the existing directory-list grammar; `run` is optional but, when present,
+  SHALL contain 1 to 256 UTF-8 arguments, a nonempty executable, no NUL/CR/LF, and at most
+  65,536 bytes in total. Unknown members, null/empty argv and invalid entries fail closed through
+  the existing declaration frontier. The graph pins `execConsumerRuns` by file alongside
+  `execConsumers`; its optional map is included in digest and cache projections. When the change reaches the
   consumed binary's build, an entry with `run` SHALL be selected with kind `DECLARED_CONSUMER` and
-  that argv, instead of `UNSELECTED_BINARY_CONSUMER`. An entry without `run` keeps today's unknown.
+  that argv, instead of `UNSELECTED_BINARY_CONSUMER`. Such a selection carries
+  `unitId="declared-consumer:"+FILE`, `tests=[FILE]`, `kind="DECLARED_CONSUMER"`, `run=ARGV`,
+  and a `DECLARED_CONSUMER` witness extending the command's build witness. The compact plan
+  keeps `kind` and `run` and replaces `tests` with `testCount`; by-path additions preserve
+  both optional members, and text selections carry the shell-quoted `run` command. Both optional selection members
+  are omitted for ordinary units. Several rebuilt commands select a consumer once. Test-only
+  or reader-only command reach does not trigger it. An entry without `run` keeps today's unknown.
 - **AZU-V0-008: Package-level runner fallback.** A frontier reason that hides only which tests run
   inside a known package or project SHALL select that package's whole test command. Examples are
   `typescript:test-runner-unknown`, `typescript:runtime-flags-unresolved`,
@@ -157,8 +179,8 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | not yet |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
-| AZU-V0-005 | V1-4688 | not yet |
-| AZU-V0-006 | V1-4689 | not yet |
-| AZU-V0-007 | V1-4690 | not yet |
+| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; [merge replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
+| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md) |
+| AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; [consumer replay and whole-package evidence](../build-log/2026-11-04-azu-small-classes.md) |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | not yet |

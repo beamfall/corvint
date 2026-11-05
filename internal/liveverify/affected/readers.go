@@ -218,7 +218,7 @@ func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []stri
 	}
 	unowned := make([]string, 0, len(dirty))
 	for _, path := range dirty {
-		if _, owned := graph.owner[path]; !owned {
+		if owner, owned := graph.owner[path]; !owned || strings.HasPrefix(owner, "go:") && hiddenPackagePath(path) {
 			unowned = append(unowned, path)
 		}
 	}
@@ -854,4 +854,16 @@ func (candidate run) matchesAt(parts []string) bool {
 		}
 	}
 	return true
+}
+
+// hiddenPackagePath identifies the Go directories newly indexed by AZU-V0-005.
+// Their source used to be unowned, so retain every testless reader's callers:
+// owning the Go file does not model a shell script that reads or executes it.
+func hiddenPackagePath(relative string) bool {
+	for _, component := range strings.Split(path.Dir(relative), "/") {
+		if component != "." && (strings.HasPrefix(component, ".") || strings.HasPrefix(component, "_")) {
+			return true
+		}
+	}
+	return false
 }

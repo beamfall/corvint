@@ -603,13 +603,13 @@ func walkSourceFS(source fs.FS, accept func(name string) bool, includedDirectori
 			}
 			name := entry.Name()
 			if entry.IsDir() {
-				if strings.HasPrefix(name, ".") {
+				if strings.HasPrefix(name, ".") && !includedSourceDirectory(name, included) {
 					return fs.SkipDir
 				}
-				if SkippedDirectories[name] && !included[name] {
+				if SkippedDirectories[name] && !includedSourceDirectory(name, included) {
 					return fs.SkipDir
 				}
-				if SkippedDirectories[name] && included[name] {
+				if (SkippedDirectories[name] || strings.HasPrefix(name, ".")) && includedSourceDirectory(name, included) {
 					childBounded, childErr := walkIncluded(current)
 					subtreeBounded = subtreeBounded || childBounded
 					if childErr != nil {
@@ -638,13 +638,13 @@ func walkSourceFS(source fs.FS, accept func(name string) bool, includedDirectori
 			if current == "." {
 				return nil
 			}
-			if strings.HasPrefix(name, ".") {
+			if strings.HasPrefix(name, ".") && !includedSourceDirectory(name, included) {
 				return fs.SkipDir
 			}
-			if SkippedDirectories[name] && !included[name] {
+			if SkippedDirectories[name] && !includedSourceDirectory(name, included) {
 				return fs.SkipDir
 			}
-			if SkippedDirectories[name] && included[name] {
+			if (SkippedDirectories[name] || strings.HasPrefix(name, ".")) && includedSourceDirectory(name, included) {
 				subtreeBounded, subtreeErr := walkIncluded(current)
 				bounded = bounded || subtreeBounded
 				if subtreeErr != nil {
