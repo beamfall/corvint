@@ -195,8 +195,10 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 	}
 	scripts := slices.Sorted(maps.Keys(declared))
 	bases := make([][]byte, len(scripts))
+	constructed := make([]func([]byte) bool, len(scripts))
 	for index, script := range scripts {
 		bases[index] = []byte(path.Base(script))
+		constructed[index] = constructedForeignMatcher(script)
 	}
 	// names[offset] lists, by script index, the scripts candidate offset
 	// names; failed is set by any unreadable candidate.
@@ -210,7 +212,7 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 			return
 		}
 		for index, script := range scripts {
-			if candidate != script && (bytes.Contains(body, bases[index]) || built[candidate].names(string(bases[index]))) {
+			if candidate != script && (bytes.Contains(body, bases[index]) || constructed[index](body) || built[candidate].names(string(bases[index]))) {
 				names[offset] = append(names[offset], index)
 			}
 		}

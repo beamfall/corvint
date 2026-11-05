@@ -1,11 +1,58 @@
 {
   "profile": "corvint-shell-foreign-callers/0",
   "scripts": {
+    ".github/forward-rows/pin-lag.sh": {
+      "callers": [
+        ".github/workflows/ci.yml",
+        "tools/ci-forward-row/pinlag_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+    },
+    "script/analyzer-schema.sh": {
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/contextindex/analyzer_schema_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/invocation_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/analyzer-inputs.sh",
+        "script/analyzer-schema_test.sh",
+        "script/batch-regen.sh",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/dogfood-change.sh",
+        "script/dogfood-finish.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/repin.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+    },
     "script/batch-precheck.sh": {
       "callers": [
         "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
         "script/batch-precheck_test.sh",
-        "script/batch-regen.sh"
+        "script/batch-regen.sh",
+        "script/check-line-citations.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930); the dogfood-cache shell test checks the closeout's batch-precheck order and the Go CI-route test reads its source (TSP-V0-005).",
       "mentions": [
@@ -17,11 +64,24 @@
     "script/batch-regen.sh": {
       "callers": [
         "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
         "internal/dogfoodflow/batch.go",
         "internal/dogfoodflow/regenerated.go",
         "internal/dogfoodflow/regenerated_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
         "script/batch-precheck.sh",
-        "script/batch-precheck_test.sh"
+        "script/batch-precheck_test.sh",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
       "mentions": null
@@ -29,37 +89,127 @@
     "script/check-cem-base-retained.sh": {
       "callers": [
         "Makefile",
-        "script/check-cem-base-retained_test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-cem-base-retained_test.sh",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming check-cem-base-retained.sh: make cem-base-retention-check and its shell test run it (decision 0588) (TSP-V0-005; V1-3571)."
     },
     "script/check-fixed-tmp-paths.sh": {
       "callers": [
         "Makefile",
-        "script/batch-precheck_test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/batch-precheck_test.sh",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming check-fixed-tmp-paths.sh: make fixed-tmp-paths-check and the batch-precheck shell test run it (ASD-V0-720) (TSP-V0-005; V1-3571)."
     },
     "script/check-install-lifecycle.sh": {
       "callers": [
         ".github/workflows/release-gates.yml",
-        "script/check-install-lifecycle_test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-install-lifecycle_test.sh",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming check-install-lifecycle.sh: its shell test runs it, and the release-gates workflow runs it through run-gate; the workflow owns no unit, so it adds no edge (TSP-V0-005; V1-3571, V1-4178)."
     },
+    "script/codex-review.sh": {
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/invocation_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/codex-review_test.sh",
+        "script/dogfood-cache_test.sh",
+        "script/dogfood-seal.sh",
+        "script/heavy.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/review-head-check.sh",
+        "script/review-head-check_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+    },
     "script/dogfood-bind-coverage.sh": {
       "callers": [
-        "script/dogfood-bind-range_test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-bind-range_test.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming dogfood-bind-coverage.sh: dogfood-bind-range_test.sh runs it (DCW-V0-831) (TSP-V0-005; V1-3571)."
     },
     "script/dogfood-bind-range.sh": {
       "callers": [
         "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
         "script/batch-precheck_test.sh",
+        "script/check-line-citations.sh",
         "script/dogfood-bind-range_test.sh",
+        "script/dogfood-cache_test.sh",
         "script/lane-scripts_test.sh",
-        "script/runtime-environment_test.sh"
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/runtime-environment_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming dogfood-bind-range.sh: make dogfood-bind runs it and three shell tests run or copy it into fixtures they run; the Go files name it only in comments (TSP-V0-005; V1-3898: the scripts a seal commit's CEM paths reach).",
       "mentions": [
@@ -73,14 +223,26 @@
       "callers": [
         "Makefile",
         "cmd/corvint/local_completion_test.go",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
         "script/batch-precheck_test.sh",
+        "script/check-line-citations.sh",
         "script/dogfood-bin-reuse_test.sh",
         "script/dogfood-cache_test.sh",
         "script/dogfood-change_test.sh",
         "script/dogfood-seal.sh",
         "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
         "script/review-head-check_test.sh",
-        "script/runtime-environment_test.sh"
+        "script/runtime-environment_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming dogfood-check.sh: make dogfood-check and dogfood-seal.sh run it, and five shell tests and a cmd/corvint test run or copy it into fixtures; the others name it in comments, or match it as an argv string without running it (TSP-V0-005; V1-3898: the scripts a seal commit's CEM paths reach).",
       "mentions": [
@@ -96,8 +258,20 @@
     "script/dogfood-finish.sh": {
       "callers": [
         "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
         "script/dogfood-cache_test.sh",
-        "script/lane-scripts_test.sh"
+        "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming dogfood-finish.sh: the make dogfood-finish, dogfood-inputs-check and closeout targets run it, and the dogfood-cache and lane-scripts tests run it with stub tools; gen-spec-requirements.sh, lane-guard.sh and spec-requirements-worktree-check.sh name it only in comments. Its dirty-tree filter names the sealed CEM paths (TSP-V0-005).",
       "mentions": [
@@ -109,8 +283,21 @@
     "script/dogfood-seal.sh": {
       "callers": [
         "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
         "script/dogfood-change_test.sh",
-        "script/review-head-check_test.sh"
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/review-head-check_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "mentions": [
         "internal/console/chain.go",
@@ -122,20 +309,52 @@
       ],
       "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571). review-head-check_test.sh copies and runs it, with a stub dogfood-check.sh it writes (V1-3959)."
     },
+    "script/go-test-shard.sh": {
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/dogtools_test.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+    },
     "script/heavy.sh": {
       "callers": [
         ".github/workflows/ci.yml",
         "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
         "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/inbound_repo_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/affected-zero-unknown-replay.sh",
         "script/analyzer-schema.sh",
         "script/batch-precheck.sh",
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh",
+        "script/check-line-citations.sh",
         "script/codex-review.sh",
+        "script/dogfood-cache_test.sh",
         "script/go-test-shard.sh",
         "script/lane-corvint.sh",
         "script/lane-host-heavy.sh",
-        "script/lane-scripts_test.sh"
+        "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "mentions": [
         ".github/macos/select_test.py",
@@ -170,15 +389,80 @@
       ],
       "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; lane-host-heavy.sh execs it (ASD-V0-766); codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-host-check.sh, lane-host-tools_test.sh, lane-tmp-sweep.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it."
     },
+    "script/lane-corvint.sh": {
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/dogtools_test.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+    },
     "script/lane-guard.sh": {
       "callers": [
-        "script/lane-scripts_test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005)."
     },
+    "script/lane-host-heavy.sh": {
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/lane-host-check.sh",
+        "script/lane-host-tools_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+    },
     "script/pr-landing-watch.sh": {
       "callers": [
-        "script/lane-scripts_test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data and check-bash32_test.sh names it only in a comment (TSP-V0-005; V1-3571).",
       "mentions": [
@@ -187,9 +471,42 @@
     },
     "script/proof-tour.sh": {
       "callers": [
-        "script/proof-tour-test.sh"
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/proof-tour-test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
       ],
       "reason": "Every tracked file naming proof-tour.sh: its shell test runs it (TSP-V0-005; V1-3571)."
+    },
+    "script/repin.sh": {
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations.sh",
+        "script/dogfood-cache_test.sh",
+        "script/merge-use-case-pins.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/repin_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/dogfood-inherit-citations/classes_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
     }
   }
 }

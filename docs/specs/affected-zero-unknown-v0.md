@@ -156,9 +156,66 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | partial: `affected --ownership-audit` (`cmd/corvint/affected_ownership_audit.go`, `OwnershipAudit` in `ownership_audit.go`), `.corvint/non-source-paths.json` (`non_source_paths.go`); `TestOwnershipAuditListsUnclaimedPaths_AZU_V0_002`, `TestNonSourcePathsRefusesInvalidDeclarations_AZU_V0_002`, `TestAffectedOwnershipAuditListsUnownedReadOnly_AZU_V0_002`; the maintained test `TestOwnershipAuditRatchet_AZU_V0_002` is a ratchet over a 1694-path baseline, not yet the empty list the requirement names |
 | AZU-V0-003 | V1-4686 | not yet |
-| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
+| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904` |
 | AZU-V0-005 | V1-4688 | not yet |
 | AZU-V0-006 | V1-4689 | not yet |
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
-| AZU-V0-009 | V1-4692 | not yet |
+| AZU-V0-009 | V1-4692 | replay tool and `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`; historical full-suite/mutation qualification remains NOT_PRODUCED |
+
+## Lane qualification details
+
+- **AZU-V0-8900: Conservative verification ownership.** Remaining tracked data MAY be assigned
+  verification owners through the existing `corvint-test-selection/0` contract. An owner SHALL add
+  its tests without removing any existing reader, executor, import or embed selection. Owner paths
+  SHALL remain unowned for frontier bearing. The exact parser-owned control declarations SHALL count as declared ownership in the audit,
+  even when frozen selection rules retain uncertainty for a reader of the declaration. No such
+  audit claim may remove a selection or a plan unknown. The maintained ownership baseline SHALL be empty;
+  a new tracked path outside all claims SHALL fail the ownership gate. Declarations include
+  `.github/forward-rows/tiers.jq` and `script/ci-least-privilege-exceptions.tsv`.
+- **AZU-V0-8901: Constructed foreign callers.** The shell caller completeness guard SHALL reject
+  an undeclared source file constructing a declared callee directory through a quoted directory
+  concatenation, a path join or a formatted directory path. Existing shell value expansion SHALL
+  remain in force. These checks widen possible callers; they SHALL NOT infer that another caller
+  cannot exist. Existing declaration shapes, bounds and invalid-declaration diagnostics stay fixed.
+- **AZU-V0-8902: Located runtime caller closure.** A located TypeScript end-to-end runtime site
+  covered by an existing runtime edge SHALL select its declared test unit and traverse its
+  dependents on every nonempty code-bearing change, including changes within TypeScript. Only after selection
+  SHALL that site's inbound unknown close. Unlocated, truncated, stale or undeclared sites SHALL
+  remain unknown. A declared-data-only change SHALL not introduce runtime code selections. Computed shell
+  outbound targets retain uncertainty until modelled; the literal repository-root query of a
+  wrapper MAY resolve its known root-relative shell target. Changed caller declarations use
+  AZU-V0-8904; without historical caller completeness they retain their existing uncertainty.
+- **AZU-V0-8903: Replay evidence admission.** The replay SHALL use a supplied implementation binary
+  over exact historical merge trees in private clones outside the repository. It SHALL retain the
+  binary digest, frozen-list digest, immutable merge/parent/tree IDs, per-merge plans, unknown
+  entries and counts, selection/test counts and wall time. An optional baseline binary SHALL
+  produce named removed unknowns, added selections and dropped selections. The initial eight full
+  SHAs are committed; subsequent first-parent merges through a pinned local ref are appended.
+  Safety receipts SHALL bind each merge and parent, complete suite inventories and per-test
+  outcomes at both revisions, plus mutation observations bound to unique mutant IDs and changed lines on either the parent
+  or merge side, including deleted lines. Missing or invalid receipts
+  SHALL report `NOT_PRODUCED`, never safety success. Every changed or new outcome and every mutant
+  killer SHALL belong to a selected unit; a deliberately removed killer or differing-outcome unit
+  SHALL fail the same checker. External runner completeness statements are required evidence,
+  not authenticated by this comparator; it cannot establish mutation adequacy or independent
+  full-suite execution itself. AZU acceptance SHALL remain false with any unknown or absent safety
+  receipt. No synthetic fixture result may fill a historical qualification cell.
+
+These details preserve the rollback rule above. The lane's repository ownership and constructed
+caller tests are verification evidence; overall AZU-V0-009 promotion still requires the aggregate
+lanes and external full-suite/mutation observations at every historical revision.
+
+- **AZU-V0-8904: Revision-bound caller changes.** A changed shell caller declaration SHALL close
+  its change frontier only with bounded base/head content observed at the measured revisions and
+  a current declaration admitted by the shell plugin. Selection SHALL seed the union of the old
+  and new callee/caller/mention paths and traverse their dependents, test users and executable
+  users. A missing historical read, invalid declaration or caller absent from the current graph
+  SHALL retain the existing changed-declaration unknown. A bare selector without revision content
+  SHALL keep its existing uncertainty. This uses the existing measured-content seam and adds no
+  receipt members or diagnostics.
+
+- **AZU-V0-8905: Absent driver identity parity.** The optional driver claimant SHALL not change
+  the canonical graph identity of a tree with no driver units, frontiers or unobserved/runnable
+  directories. Its claimant MAY still recognize a probed new driver path. Existing graph digests
+  and committed application-flow goldens SHALL remain unchanged for such trees.
