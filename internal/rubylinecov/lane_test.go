@@ -32,6 +32,8 @@ func TestIsolationAndChildren(t *testing.T) {
 	requireRuby(t, "minitest")
 	cases := []struct{ name, body, want string }{
 		{"order", "def test_a; $state = true; assert true; end\ndef test_b; assert $state; end", "isolation-divergent"},
+		// Both pass alone, but test_b reaches helper only after test_a sets the flag.
+		{"reach", "def helper; 1; end\ndef test_a; $flag = true; assert true; end\ndef test_b; helper if $flag; assert true; end", "isolation-divergent: ordinary-order reach"},
 		{"cleared", "def test_child; assert system({'RUBYOPT'=>nil}, 'ruby', '-e', 'exit 0'); end", "uninstrumented-child"},
 		{"nonruby", "def test_child; assert system('/bin/true'); end", "uninstrumented-child"},
 		{"abrupt-fork", "def test_child; pid = fork { exit! 0 }; Process.wait(pid); assert true; end", "uninstrumented-child"},
