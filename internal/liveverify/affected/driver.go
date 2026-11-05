@@ -42,13 +42,20 @@ func (graph *Graph) driverSites(reached map[string]Witness, followed map[string]
 		return
 	}
 	var queue []string
+	unbounded := graph.unboundedDirty(dirty)
 	for _, id := range graph.order {
 		frontier := graph.units[id].Frontier
 		// An unparsable file can hide any execution edge. Reach its fallback
-		// on every change so its uncertainty cannot disappear with that edge.
-		if slices.Contains(frontier, FrontierDriverComputedInvocation) || slices.Contains(frontier, FrontierDriverUnparsableFile) {
+		// on every change not covered by the project's no-unbounded-reader
+		// proof, so its uncertainty cannot disappear with that edge.
+		computed := slices.Contains(frontier, FrontierDriverComputedInvocation)
+		if computed || len(unbounded) > 0 && slices.Contains(frontier, FrontierDriverUnparsableFile) {
 			if _, hit := reached[id]; !hit {
-				reached[id] = Witness{Kind: WitnessFrontierSite, DirtyPath: dirty[0], Via: []string{id}}
+				changed := dirty[0]
+				if !computed {
+					changed = unbounded[0]
+				}
+				reached[id] = Witness{Kind: WitnessFrontierSite, DirtyPath: changed, Via: []string{id}}
 			}
 			queue = append(queue, id)
 		}
