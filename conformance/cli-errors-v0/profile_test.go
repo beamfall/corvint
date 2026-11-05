@@ -166,3 +166,13 @@ func TestCLIProfile9301NativeAnalyzers(t *testing.T) {
 		}
 	}
 }
+
+// ACX-V0-9301: native Pulse preamble help retains the shipped usage refusal.
+func TestCLIProfile9301NativePulsePreamble(t *testing.T) {
+	dir := binaries(t)
+	code, out, errout := launch(t, filepath.Join(dir, "corvint-pulse"), t.TempDir(), "--root", ".", "serve", "--help")
+	const want = "{\"code\":\"invalid-arguments\",\"message\":\"usage: corvint-pulse --root ROOT serve --stdio\",\"ok\":false}\n"
+	if code != 2 || out != "" || errout != want {
+		t.Fatalf("exit=%d stdout=%q stderr=%q; want exit 2, empty stdout and %q", code, out, errout, want)
+	}
+}

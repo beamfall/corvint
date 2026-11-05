@@ -41,3 +41,33 @@ func TestCLIProfile9301BoundedCapture(t *testing.T) {
 		t.Fatalf("n=%d err=%v bytes=%d truncated=%v", n, err, len(capture.Bytes()), capture.truncated)
 	}
 }
+
+// CAP-V0-9300: help parses native option layouts without treating values as verbs.
+func TestCLIProfile9300HelpOptions(t *testing.T) {
+	for _, args := range [][]string{
+		{"--root", ".", "affected", "--help"},
+		{"--root=.", "affected", "-h"},
+		{"--json", "affected", "--help"},
+		{"affected", "--base", "context", "--help"},
+		{"affected", "--format", "text", "--help"},
+		{"affected", "--full", "--require-clean", "--help"},
+		{"affected", "--full=true", "--help"},
+	} {
+		var out, errout bytes.Buffer
+		code := Profile(context.Background(), t.TempDir(), append([]string{"--binary", "corvint"}, args...), nil, &out, &errout)
+		if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "corvint affected") {
+			t.Errorf("%v: code=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
+		}
+	}
+	for _, args := range [][]string{
+		{"affected", "--", "--help"},
+		{"--", "affected", "--help"},
+		{"--root", "--help"},
+	} {
+		var out, errout bytes.Buffer
+		code := Profile(context.Background(), t.TempDir(), append([]string{"--binary", "corvint"}, args...), nil, &out, &errout)
+		if code != 2 || out.Len() != 0 || !strings.Contains(errout.String(), "binary-unavailable") {
+			t.Errorf("%v: help after -- or used as a value must reach native dispatch: %d %q %q", args, code, out.String(), errout.String())
+		}
+	}
+}

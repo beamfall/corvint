@@ -58,15 +58,7 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 		}
 		return 0
 	}
-	var words []string
-	help := false
-	if len(rest) > 0 && args[2] == "help" {
-		help = true
-		words = rest[1:]
-	} else if len(rest) > 0 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
-		help = true
-		words = rest[:len(rest)-1]
-	}
+	words, help := helpPath(tree, rest)
 	if help {
 		if len(words) > 0 && (words[len(words)-1] == "--help" || words[len(words)-1] == "-h") {
 			words = words[:len(words)-1]
@@ -148,6 +140,49 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 		nativeExit = cmd.ProcessState.ExitCode()
 	}
 	return fail(binary, code, message, map[string]any{"stdout": out.String(), "stderr": errout.String(), "nativeExit": nativeExit})
+}
+
+// helpPath separates command words from options using the selected tree's
+// authored value placeholders. A consumed option value is never a help flag;
+// -- ends option interpretation, including help detection.
+func helpPath(tree clitree.Tree, args []string) ([]string, bool) {
+	values := make(map[string]bool)
+	for _, node := range tree.Nodes {
+		for _, form := range node.Usage {
+			// Preserve | as a boundary: [--full | --summary] has no value.
+			fields := strings.Fields(strings.NewReplacer("[", " ", "]", " ", "(", " ", ")", " ").Replace(form))
+			for i := 0; i+1 < len(fields); i++ {
+				flag, next := fields[i], fields[i+1]
+				if strings.HasPrefix(flag, "-") && !strings.Contains(flag, "=") && next != "|" && !strings.HasPrefix(next, "-") && (next[0] >= 'A' && next[0] <= 'Z' || strings.HasPrefix(next, "<") || strings.Contains(next, "|")) {
+					values[flag] = true
+				}
+			}
+		}
+	}
+	var words []string
+	help := len(args) > 0 && args[0] == "help"
+	if help {
+		args = args[1:]
+	}
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			break
+		}
+		if arg == "--help" || arg == "-h" {
+			help = true
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			flag, _, inline := strings.Cut(arg, "=")
+			if values[flag] && !inline && i+1 < len(args) {
+				i++
+			}
+			continue
+		}
+		words = append(words, arg)
+	}
+	return words, help
 }
 
 // A bare word can be either a verb or a positional path. Admit existing paths

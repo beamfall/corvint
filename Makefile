@@ -613,7 +613,6 @@ capcatalog_write = mkdir -p $(dir $(2)) && $(CAPCATALOG_RUN) $(1) > $(2).tmp || 
 capability-catalog: ## Regenerate the capability catalog after help usage changes
 	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
-	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
 	$(call capcatalog_write,./cmd/corvint-cem-experiments help --json,internal/capcatalog/trees/corvint-cem-experiments.json)
@@ -632,6 +631,7 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./cmd/corvint-update help --json,internal/capcatalog/trees/corvint-update.json)
 	$(call capcatalog_write,./cmd/corvint-work-queue help --json,internal/capcatalog/trees/corvint-work-queue.json)
 	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
+	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen --docs
 
 .PHONY: capability-catalog-test

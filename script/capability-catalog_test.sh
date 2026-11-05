@@ -51,10 +51,17 @@ cat > "$tmp/gen" <<'STUB'
 #!/bin/sh
 case "$1" in
   ./cmd/corvint-test) cat folded-source ;;
+  ./cmd/corvint)
+    if [ "${3:-}" = --json ]; then
+      [ -f internal/capcatalog/trees/corvint-new-binary.json ] && cat internal/capcatalog/trees/corvint-new-binary.json
+      exit 0
+    fi
+    printf 'generated %s %s\n' "$2" "$3" ;;
   ./tools/cli-discovery-gen)
     if [ "${2:-}" = --docs ]; then
       cat internal/capcatalog/trees/corvint-tests-accept.json > docs.txt
     else
+      printf 'new binary tree\n' > internal/capcatalog/trees/corvint-new-binary.json
       for shim in corvint-tests-accept corvint-test-runner corvint-behavior-falsify corvint-playwright-minimize; do
         cp internal/capcatalog/trees/corvint-test.json "internal/capcatalog/trees/$shim.json"
       done
@@ -65,6 +72,7 @@ STUB
 printf 'new folded help\n' > "$w/folded-source"
 printf 'stale folded help\n' > "$w/internal/capcatalog/trees/corvint-test.json"
 run || fail "folded regeneration failed: $(cat "$tmp/out")"
+grep -qx 'new binary tree' "$w/internal/capcatalog/catalog.json" || fail "root catalog omitted the new binary on first regeneration"
 for shim in corvint-tests-accept corvint-test-runner corvint-behavior-falsify corvint-playwright-minimize; do
   cmp -s "$w/folded-source" "$w/internal/capcatalog/trees/$shim.json" ||
     fail "$shim consumed stale folded help"

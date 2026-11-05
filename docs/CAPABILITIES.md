@@ -797,7 +797,7 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-tasks attempt show` |  | `corvint-tasks attempt show <attemptId>` | `corvint-tasks attempt show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
 | `corvint-tasks cancel` |  | `corvint-tasks cancel --program ID --config FILE` | `corvint-tasks cancel --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
 | `corvint-tasks claim` |  | `corvint-tasks claim --holder LABEL --request-id ID` | `corvint-tasks claim --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks complete` |  | `corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID` | `corvint-tasks complete --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
+| `corvint-tasks complete` |  | `corvint-tasks complete --attempt ID --generation G --request-id ID --commit REV` | `corvint-tasks complete --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
 | `corvint-tasks config` |  | `corvint-tasks config` | `corvint-tasks config --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
 | `corvint-tasks criterion-binding` |  | `corvint-tasks criterion-binding capture --ticket ID --attempt ID` | `corvint-tasks criterion-binding --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
 | `corvint-tasks criterion-binding capture` |  | `corvint-tasks criterion-binding capture --ticket ID --attempt ID` | `corvint-tasks criterion-binding capture --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |

@@ -42,27 +42,17 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 	if !ok {
 		return 0, false
 	}
-	rest := args
-
-	// Only the shared root-directory preamble consumes a following argument.
-	for len(rest) > 0 {
-		if rest[0] == "--root" && len(rest) > 1 {
-			rest = rest[2:]
-			continue
-		}
-		if strings.HasPrefix(rest[0], "--root=") {
-			rest = rest[1:]
-			continue
-		}
-		break
-	}
 	if tree.Source != "companion root contract" {
-		// Preserve authored topic detail after a uniform node synopsis. Only exact
-		// command paths followed by a help flag qualify; flag values are never help.
-		if binary != "corvint-tasks" && len(rest) > 1 && (rest[len(rest)-1] == "--help" || rest[len(rest)-1] == "-h") {
-			words := rest[:len(rest)-1]
+		// CAP-V0-9300 / ACX-V0-9301: only a complete, exact node help
+		// invocation is ours. Preambles and all other layouts must reach
+		// authored dispatch with untouched streams.
+		if binary != "corvint-tasks" && len(args) > 1 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
+			words := args[:len(args)-1]
 			if node, found := tree.Find(words); found && len(node.Path) == len(words) {
-				io.WriteString(stdout, clitree.Render(tree, node))
+				if _, err := io.WriteString(stdout, clitree.Render(tree, node)); err != nil {
+					return 1, true
+				}
+				return 0, true
 			}
 		}
 		return 0, false

@@ -29,6 +29,10 @@ driving Corvint from scripts.
 
 - `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736)
   Every shipped native error shape, stream, exit and stderr byte MUST remain compatible.
+  An unhandled native help invocation MUST leave both streams untouched: in particular,
+  `corvint-pulse --root . serve --help` retains exit 2, empty stdout and its exact native
+  usage refusal on stderr. Tests: `TestNativeHelpPreambleDoesNotWrite`,
+  `TestCLIProfile9301NativePulsePreamble`.
   `corvint-cli --binary BINARY ARGS...` is an explicitly selected additive CLI profile:
   unknown verbs and not-found refusals MUST carry a code, a human message different from
   that code, empty stdout, one stderr envelope and exit 2. Near-verb refusals MUST suggest
