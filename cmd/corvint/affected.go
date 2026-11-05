@@ -1438,6 +1438,10 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), graph, changed))
+		// The driver claimant diffs each dirty make file or workflow against
+		// the measured commit, so a hunk seeds its own target or job
+		// (AZU-V0-001).
+		graph = graph.WithDriverContent(affectedDriverContent(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	// A --path plan (additive off, ADN-V0-009) names paths to probe, not a

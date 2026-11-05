@@ -186,6 +186,7 @@ type cachedUnit struct {
 	Execs                []string `json:"execs"`
 	AdvisoryImports      []string `json:"advisoryImports"`
 	RouteDispatchImports []string `json:"routeDispatchImports"`
+	PathImports          []string `json:"pathImports"`
 	PathTokens           []string `json:"pathTokens"`
 	PathGlobs            []string `json:"pathGlobs"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
