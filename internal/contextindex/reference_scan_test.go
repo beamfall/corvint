@@ -43,6 +43,8 @@ var referenceScanEdgeCases = []string{
 	`import "a" from "b" import 'c'`, "import\t(\t\"q\")", `import "x"import "y"`, "from \xff'a'",
 }
 
+// IDX-SNAP-V0-7803 also pins the public extraction path's necessary-condition
+// prefilter: testing only the scanner would miss a false negative in that gate.
 func TestReferenceScannersMatchTheirRegexes(t *testing.T) {
 	check := func(name, text string) {
 		t.Helper()
@@ -53,6 +55,9 @@ func TestReferenceScannersMatchTheirRegexes(t *testing.T) {
 		genericImportSpecifiers(text, got)
 		if want := genericImportOracle(text); !reflect.DeepEqual(got, want) {
 			t.Fatalf("%s: genericImportSpecifiers = %v, regex %v", name, got, want)
+		}
+		if extracted := sourceImports("fixture.unknown", text); !reflect.DeepEqual(extracted.imports, got) || extracted.refusal != "" {
+			t.Fatalf("%s: sourceImports = %+v, scanner %v", name, extracted, got)
 		}
 	}
 	for index, text := range referenceScanEdgeCases {

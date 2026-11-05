@@ -4,8 +4,10 @@ package corpusbridge
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -192,6 +195,11 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	if err != nil {
 		return err
 	}
+	statDir, err := os.Open(abs)
+	if err != nil {
+		return errStampUnavailable
+	}
+	defer statDir.Close()
 	kept := entries[:0:0]
 	descend := []bool{}
 	for _, e := range entries {
@@ -208,7 +216,7 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	var wg sync.WaitGroup
 	for c := range chunks {
 		part := kept[c*stampStatChunk : min((c+1)*stampStatChunk, len(kept))]
-		describe := func() { chunks[c] = s.describe(part) }
+		describe := func() { chunks[c] = s.describeAt(statDir, part) }
 		if c == len(chunks)-1 {
 			describe()
 			continue
@@ -224,13 +232,18 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 		}
 	}
 	wg.Wait()
-	var b []byte
+	// Child traversal does not use this descriptor. Close it before a
+	// synchronous descent can retain one descriptor per directory level.
+	statDir.Close()
+	h := sha256.New()
 	coarse := true
-	for _, c := range chunks {
+	for i := range chunks {
+		c := &chunks[i]
 		if c.err != nil {
 			return c.err
 		}
-		b = append(b, c.b...)
+		h.Write(c.b)
+		c.b = nil
 		coarse = coarse && c.coarse
 	}
 	// Whole-second times on every entry mark a coarse-timestamp filesystem.
@@ -255,7 +268,7 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 		}
 	}
 	s.mu.Lock()
-	s.records[key+rel] = b
+	s.records[key+rel] = h.Sum(nil)
 	s.mu.Unlock()
 	return nil
 }
@@ -274,6 +287,13 @@ type stampChunk struct {
 // context once per read batch.
 func (s *stamper) describe(entries []os.DirEntry) stampChunk {
 	c := stampChunk{dirs: make([]bool, len(entries)), coarse: true}
+	// The stamp is private, call-local derived state. Fixed-width integers
+	// preserve every stat bit without decimal conversion or repeated growth.
+	capacity := 48 * len(entries)
+	for _, e := range entries {
+		capacity += len(e.Name())
+	}
+	c.b = make([]byte, 0, capacity)
 	for i, e := range entries {
 		if i%stampReadBatch == stampReadBatch-1 && s.ctx.Err() != nil {
 			c.err = s.ctx.Err()
@@ -321,7 +341,7 @@ func (s *stamper) readDir(abs string) ([]os.DirEntry, error) {
 			return nil, errStampUnavailable
 		}
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	slices.SortFunc(entries, func(a, b os.DirEntry) int { return cmp.Compare(a.Name(), b.Name()) })
 	return entries, nil
 }
 
@@ -332,15 +352,13 @@ func (s *stamper) line(b []byte, name string, info fs.FileInfo) ([]byte, bool, e
 	if !ok || ctime >= s.horizon || mtime >= s.horizon {
 		return b, false, errStampUnavailable
 	}
-	b = strconv.AppendInt(b, int64(len(name)), 10)
-	b = append(b, ':')
+	b = binary.LittleEndian.AppendUint64(b, uint64(len(name)))
 	b = append(b, name...)
 	for _, v := range []int64{int64(info.Mode()), info.Size(), int64(ino), ctime, mtime} {
-		b = append(b, ' ')
-		b = strconv.AppendInt(b, v, 10)
+		b = binary.LittleEndian.AppendUint64(b, uint64(v))
 	}
 	whole := ctime%int64(time.Second) == 0 && mtime%int64(time.Second) == 0
-	return append(b, '\n'), whole, nil
+	return b, whole, nil
 }
 
 // checkout records the checkout root itself, its repository control state

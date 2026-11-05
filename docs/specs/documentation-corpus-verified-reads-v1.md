@@ -32,6 +32,51 @@ read start. Former IDs: DCP-V1-NNN is DCR-V1-NNN for every ID listed here.
 
 ## Requirements
 
+### Bounded warm-read work (2026-11-04)
+
+- `DCR-V1-7800`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2571)
+  Split-member boundary scans MUST remain equivalent to the sequential scan across strings,
+  escapes, nesting and every split position. Speculative segments may return only a prefix of
+  sequential boundaries; anomalies fall back to the sequential scanner. Decoded records, digest
+  tails and the DCR-V1-431 refusal order MUST remain unchanged. The warm CLI flow and gaps target
+  is p50 below 170 ms on the DCR-V1-418 fixture, with DCR-V1-430's RSS bound retained.
+- `DCR-V1-7801`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2588)
+  Decode workers MAY allocate their own element storage and reuse their own JSON encoder.
+  At most sixteen decode workers and eight queued batches may pin streamed blocks; a smaller
+  GOMAXPROCS lowers both bounds. This bounds retained block/encoder storage on many-core hosts.
+  A worker MAY frame the exact element bytes as one array and closed-decode/compare that batch
+  to amortize JSON setup and reflection. The scanner MUST independently check the source's own
+  brackets, commas and adjacency; synthetic framing cannot forgive source whitespace or syntax.
+  Every element MUST still pass the closed decoder and exact canonical byte comparison. The
+  encoder's one top-level framing newline MUST NOT conceal a missing, changed or extra element
+  byte. An undecodable element anywhere still outranks every canonical mismatch. No artifact
+  format or on-disk state changes. Qualification alternates twenty base/candidate CLI runs per
+  operation on the same warm fixture, retaining host load, p50, p95, RSS and output identity;
+  a busy host cannot qualify the quiet-host target.
+- `DCR-V1-7802`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4230)
+  Checkout stamp assembly MUST preallocate each stat chunk's record storage and encode stat
+  integers without decimal conversion. This private in-memory representation MUST preserve the
+  name, mode, size, inode, ctime and mtime of every admitted entry, deterministic path order,
+  cancellation, entry bounds, symlink handling, racy-window and coarse-timestamp abstention.
+  On Linux/amd64, descriptor-relative no-follow stats MAY reuse a worker-local metadata buffer;
+  their records MUST equal the ordinary lstat oracle, including Unix modes and symlinks, and a
+  vanished entry MUST abstain. Other platforms retain the ordinary stat path. The timestamp test
+  seam applies to both paths. It grants no directory-mtime shortcut for in-place edits.
+  Chunk assembly over already captured
+  metadata allocates at most four times per chunk. Warm capture's p50 target on the 17,001-input
+  fixture is below 15 ms; unqualified timing remains explicit.
+
+Implementation and rollback: retain the existing sequential scanner as the differential oracle;
+move allocation onto bounded decode workers and reuse only worker-local encoder state. Stamps
+remain call-local and never become repository state or authority. Roll back worker allocation,
+encoder reuse or stamp record encoding independently; no artifact or snapshot migration is needed.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| DCR-V1-7800 | `artifact_scan.go`, `artifact_decode.go` | `TestDCRV1551ParallelElementsMatchScan`, `TestDCRV1551ParallelElementsCorrupt`, `TestDCRV1552ParallelScanMatchesSequential`, `TestDCRV1559BlockScanMatchesScan`; `docs/build-log/2026-11-04-docperf.md` |
+| DCR-V1-7801 | `artifact_decode.go` | `TestDCRV17801WorkerCanonicalComparison`, `TestDCRV17801BatchMatchesClosedArtifact`, `TestDCRV1552ParallelScanMatchesSequential`; `BenchmarkDocperfCanonicalClaim`; `docs/build-log/2026-11-04-docperf.md` |
+| DCR-V1-7802 | `internal/mcp/corpusbridge/stamp.go`, `stamp_stat_linux_amd64.go` | `TestDCRV17802StampChunkAllocation`, `TestDCRV17802RelativeStatMatchesLstat`, `TestDCRV1847ChunkedStatMatchesSerialDigest`, `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale`; `TestDocperfStampQualification`, `BenchmarkDCRV1847CheckoutStamp`; `docs/build-log/2026-11-04-docperf.md` |
+
 ### Verified fast corpus reads (GitHub #1598)
 
 Every CLI read used to rederive the whole artifact (`DCP-V1-011`) and then index each live
