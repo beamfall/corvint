@@ -57,8 +57,9 @@ func gitFixture(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
 	command := exec.Command("git", arguments...)
 	command.Dir = root
-	// Pin identity as well as dates: inherited Git identity overrides user
-	// config and would change the fixture commit carried by TCP-V0-150.
+	// Pin identity as well as dates: inherited GIT_AUTHOR_* / GIT_COMMITTER_*
+	// override user.name/email and would change the fixture commit id carried
+	// by the packet (TCP-V0-150) and pinned by the TCP-V0-024 wire golden.
 	command.Env = append(os.Environ(),
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@x",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@x",
