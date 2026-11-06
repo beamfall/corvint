@@ -406,6 +406,9 @@ AZU-V0-9850	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 r
 AZU-V0-9851	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's	unrecorded	-
 AZU-V0-9852	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Composite action	unrecorded	-
 AZU-V0-9853	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Unresolved local	unrecorded	-
+AZU-V0-9900	docs/specs/affected-zero-unknown-v0.md	Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**	unrecorded	-
+AZU-V0-9901	docs/specs/affected-zero-unknown-v0.md	Committed ownership guidance and fixture closure.** A committed	unrecorded	-
+AZU-V0-9902	docs/specs/affected-zero-unknown-v0.md	One audit classifier.** The CLI and maintained ratchet SHALL use the same	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
