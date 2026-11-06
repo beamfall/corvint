@@ -348,12 +348,12 @@ func fileURL(abs string) string {
 // executed answers, per UTF-16 offset, whether the innermost range holding it
 // ran.
 type executed struct {
-	ran    []bool
+	ran    []int8
 	starts []int
 }
 
 func (e executed) at(off int) bool {
-	return off >= 0 && off < len(e.ran) && e.ran[off]
+	return off >= 0 && off < len(e.ran) && e.ran[off] > 0
 }
 
 // line reports whether any unit of generated line i ran.
@@ -363,7 +363,7 @@ func (e executed) line(i int) bool {
 		end = e.starts[i+1]
 	}
 	for off := e.starts[i]; off < end && off < len(e.ran); off++ {
-		if e.ran[off] {
+		if e.ran[off] > 0 {
 			return true
 		}
 	}
@@ -386,14 +386,7 @@ func paint(fns []Function, starts []int) executed {
 			}
 		}
 	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].End-all[i].Start > all[j].End-all[j].Start })
-	ran := make([]bool, size)
-	for _, r := range all {
-		for off := max(r.Start, 0); off < r.End && off < size; off++ {
-			ran[off] = r.Count > 0
-		}
-	}
-	return executed{ran, starts}
+	return executed{PaintUnits(size, all), starts}
 }
 
 // lineStarts is the UTF-16 offset of each line of src.

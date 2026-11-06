@@ -270,7 +270,7 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 		restored := filepath.Join(t.TempDir(), "restored")
 		cemGit(t, root, "worktree", "add", "-q", "--detach", restored, "HEAD")
 		restored, _ = filepath.EvalSymlinks(restored)
-		if result, err := localcompletion.Evaluate(ctx, restored, key); err != nil || result.Lifecycle != "inactive" {
+		if result, err := localcompletion.Evaluate(ctx, restored, key); err != nil || result.Lifecycle != "inactive" || result.EnrollmentEvidence != "NOT_OBSERVED" || result.Satisfied {
 			t.Fatalf("restored worktree before import: %#v %v", result, err)
 		}
 		code, stdout, stderr := runCLI(t, "--root", restored, "dogfood", "import", "--session-key", key, "--input", bundle)
@@ -281,7 +281,7 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 			t.Fatalf("import: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 		}
 		got := document.Policy
-		if !got.Satisfied || got.Lifecycle != "satisfied" || got.Target != source.Target || len(got.Unmet) != 0 || len(got.Reports) != len(source.Reports) || len(got.Checks) != 1 || !got.Checks[0].Qualified {
+		if got.EnrollmentEvidence != "PRESENT" || !got.Satisfied || got.Lifecycle != "satisfied" || got.Target != source.Target || len(got.Unmet) != 0 || len(got.Reports) != len(source.Reports) || len(got.Checks) != 1 || !got.Checks[0].Qualified {
 			t.Fatalf("restored policy %#v, source %#v", got, source)
 		}
 		for _, report := range got.Reports {

@@ -70,8 +70,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   before. Supersedes the AFP-V0-2405 hint for claimed paths.
   Go package commands with no package argument SHALL depend on the current package after
   `cd` or `go -C`; an unresolved directory SHALL retain uncertainty or depend on every owner.
-  Unsupported YAML flow mappings, including mappings inside flow sequences, SHALL retain the
-  unparsable-file frontier rather than silently discard execution members. Unparsable driver
+  YAML flow mappings outside the supported subset SHALL retain the unparsable-file frontier
+  rather than silently discard execution members. Flow steps accepted as scalar text by the
+  supported parser SHALL retain their job or action as a computed invocation when execution
+  members are not modelled (AZU-V0-9703, AZU-V0-9852). Unparsable driver
   fallback units SHALL be reached for dirty paths not covered by the existing project-owned
   no-unbounded-reader proof (AFP-V0-772), preserving uncertainty even when the hidden execution
   edge cannot participate in traversal. Literal readers remain selected under that proof.
@@ -130,6 +132,40 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `unknown: []` and the safety check finds no miss: on each merge, every test whose outcome differs
   between the parent and the merge in a full-suite run, or that a mutation on a changed line kills,
   is in the selection.
+- `AZU-V0-9700`: Missing wrapper operands. As directed by the owner in the four Greptile P1
+  fixes for batch PR #98 (2026-11-05), a recipe or workflow step ending in an operand-taking
+  `env` or command-wrapper option SHALL NOT panic during graph construction. It SHALL retain
+  a computed invocation at that target or job, conservatively selecting it and its dependents.
+- `AZU-V0-9701`: Implicit current Go package. A supported Go package command without package
+  operands, including after flags, SHALL import the current working directory's package. An
+  unknown directory SHALL fall back to every owner. The repository root MAY use the existing
+  every-owner path import when the frozen path-import encoding cannot represent it precisely.
+- `AZU-V0-9702`: Complete make alternatives. Alternative variable assignments SHALL preserve
+  each complete expanded word, including literal prefixes and suffixes, or retain a computed
+  invocation when the alternatives cannot be represented. Joining alternatives into one expansion
+  SHALL NOT silently lose a package, script or other dependency.
+- `AZU-V0-9703`: Flow-style workflow steps. A flow-style step sequence or mapping SHALL either
+  expose its `run` dependencies or conservatively retain its job as a computed invocation. A valid
+  flow-style step SHALL NOT be silently skipped merely because the YAML subset represents it as text.
+- `AZU-V0-9704`: Driver runner classification. As directed by the owner in the second PR #98
+  repair round (2026-11-05), `corvint test` SHALL NOT interpret a driver `NO_SELECTABLE_TEST`
+  entry as a language requiring a declared full command. Make targets and workflow jobs remain
+  owned by their drivers under AZU-V0-001. This classification SHALL retain selected Go readers,
+  existing unknown-frontier fallbacks and missing-adapter refusals for actual source languages.
+
+- `AZU-V0-9850`: (experimental, owner PR #99 repair request 2026-11-05) Make function
+  expansions SHALL preserve GNU make's complete resulting words, including attached literal
+  prefixes and suffixes, or retain the target as a computed invocation under AZU-V0-001/003.
+  Approximate `join`, conditional and word-selection functions SHALL NOT silently drop an edge.
+- `AZU-V0-9851`: (experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's
+  `-C DIR`, `-CDIR`, `--chdir DIR` and `--chdir=DIR` SHALL resolve the wrapped command's
+  directory or retain its target/job as a computed invocation, including computed directories.
+- `AZU-V0-9852`: (experimental, owner PR #99 repair request 2026-11-05) Composite action
+  steps outside the supported YAML sequence/mapping subset SHALL expose their dependencies or
+  retain the action as a computed invocation, propagating selection to its callers and dependents.
+- `AZU-V0-9853`: (experimental, owner PR #99 repair request 2026-11-05) Unresolved local
+  `uses` paths, including action directories outside `.github/actions`, SHALL retain their
+  caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
 
 ### Lane qualification details
 
@@ -218,6 +254,34 @@ lanes and external full-suite/mutation observations at every historical revision
 
 ## Acceptance evidence
 
+The PR #97/#98 merge integration declares the three exact retained linecov experiment JSON
+outputs and `tools/linecov/command-tree.json` under AZU-V0-002. Existing literal, enclosing-package,
+declared and unbounded readers remain selected; the ownership ratchet baseline is unchanged.
+`TestWitnessesResolveFromTestlessReader_AFPV0495` checks the live-witness oracle's existing
+AFP-V0-495 rule: a dependency chain may start at a testless literal reader of an unowned path,
+but a tested reader, owned path, unnamed path or invalid edge cannot justify that origin.
+
+The second PR #98 repair declares the native coverage README as documentation under AZU-V0-002,
+maintains that explicit tracked path in `script/gen-documentation-paths.sh`, and checks the
+complete affected package including the ownership ratchet and sibling audits. The generator
+fixture checks its untracked, staged and removed states without broadening other internal paths.
+AZU-V0-9704 is checked by `TestDriverUnknownIsNotLanguage_AZU_V0_9704` and the unchanged selection
+baseline replay, including PR 6 compared with the `8e2c13aa9` binary. No corpus, threshold or wire
+shape changes are part of this repair. Reverting its runner classification restores the spurious
+driver-language incompleteness while leaving affected selections unchanged.
+
+The PR #99 repairs (AZU-V0-9850 through AZU-V0-9853) extend the same driver soundness boundary.
+Acceptance requires the table regressions below and the complete affected package. Unsupported
+make functions, env directory changes and unresolved local actions deliberately widen selection
+at their invocation sites; they do not claim exact evaluation or arbitrary action discovery.
+Rollback reverts these scoped repairs and restores the documented missing-edge risk. No wire
+format or wider zero-unknown qualification changes are claimed.
+
+The four PR #98 driver repairs (AZU-V0-9700 through AZU-V0-9703) are scoped corrections of
+AZU-V0-001. Their acceptance evidence is the table regressions below, the complete affected
+package, and the focused CLI affected and frozen-profile tests. This does not qualify the wider
+AZU-V0-009 zero-unknown goal or a new wire format.
+
 Each requirement's lane retains: unit tests for the rule; the AZU-V0-009 replay before and after,
 showing which unknown entries it removed and the selection growth; and for AZU-V0-003 and AZU-V0-004
 the soundness fixtures above. AZU-V0 as a whole is accepted when the replay shows `unknown: []` on
@@ -235,6 +299,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 |---|---|---|
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
+| AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904` |
 | AZU-V0-005 | V1-4688 | not yet |
@@ -242,3 +307,11 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | replay tool and `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`; historical full-suite/mutation qualification remains NOT_PRODUCED |
+| AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
+| AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
+| AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |
+| AZU-V0-9703 | PR #98 review | `TestDriverFlowSteps_AZU_V0_9703` |
+| AZU-V0-9850 | PR #99 finding B | `TestDriverMakeFunctionsComputed_AZU_V0_9850`, `TestDriverMakeSortWords_AZU_V0_9850` |
+| AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
+| AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
+| AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |

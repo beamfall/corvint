@@ -4,6 +4,22 @@
     {
       "path": ".agent-evidence/",
       "reason": "retained agent evidence output (AZU-V0-002): written by lanes and the dogfood tools, never built or run; its test readers stay selected: conformance/release-artifact-v0 walks it through a path literal, and the unbounded readers read the whole tree"
+    },
+    {
+      "path": "docs/experiments/linecov-2026-11-04-js-shadow.json",
+      "reason": "retained JavaScript shadow qualification output (AZU-V0-002); no build executes it; literal, enclosing-directory, declared and unbounded readers remain selected"
+    },
+    {
+      "path": "docs/experiments/linecov-2026-11-04-ruby-shadow.json",
+      "reason": "retained Ruby shadow qualification output (AZU-V0-002); no build executes it; literal, enclosing-directory, declared and unbounded readers remain selected"
+    },
+    {
+      "path": "docs/experiments/linecov-2026-11-04-runners.json",
+      "reason": "retained native runner qualification output (AZU-V0-002); no build executes it; literal, enclosing-directory, declared and unbounded readers remain selected"
+    },
+    {
+      "path": "tools/linecov/command-tree.json",
+      "reason": "generated help snapshot (AZU-V0-002), read by tools/linecov TestCommandTreeSnapshot; enclosing-package, literal, declared and unbounded readers remain selected"
     }
   ]
 }
