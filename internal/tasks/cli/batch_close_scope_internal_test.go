@@ -13,6 +13,7 @@ import (
 // to their parent directory key and drops entries a key covers, stopping at
 // the first set within the limit; top-level overflow cannot collapse.
 func TestTCDV01101_CollapseScope(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		paths []string

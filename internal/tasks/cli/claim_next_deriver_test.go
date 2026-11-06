@@ -46,6 +46,7 @@ func selectedEntry(t *testing.T, plan run) string {
 // the waitlist, the barrier) would derive scope for the first ticket and
 // claim the waiter's.
 func TestCALV0350_ClaimNextDerivesScopeForThePreviewedWaiterCLI(t *testing.T) {
+	t.Parallel()
 	r := exclusionCLIRepo(t)
 	v := fixture.PolicyValue()
 	b, _ := v.Obj.Get("budgets")

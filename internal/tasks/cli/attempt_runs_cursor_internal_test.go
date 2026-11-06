@@ -145,6 +145,7 @@ func plantEndedRun(t *testing.T, root, id string, seq int, at time.Time) {
 // ATR-V0-154: a cursor that carries one attempt twice is malformed, so its
 // runs cannot be counted twice into the retained set.
 func TestATRV0154_DuplicateCarryIsMalformed(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	name := attemptRunsName("attempt-a")
 	raw := fmt.Sprintf(`{"after":"","carry":[%q,%q]}`, name, name)
@@ -163,6 +164,7 @@ func TestATRV0154_DuplicateCarryIsMalformed(t *testing.T) {
 // ATR-V0-154: each cursor write uses a temporary file of its own, so a
 // writer holding another temporary file cannot change the published cursor.
 func TestATRV0154_CursorWriteUsesItsOwnTemporaryFile(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	stale, err := os.OpenFile(filepath.Join(root, runRetireCursorName+".tmp"), os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {

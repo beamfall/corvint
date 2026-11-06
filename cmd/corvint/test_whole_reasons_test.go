@@ -12,6 +12,7 @@ import (
 // the AFP-V0-012 attribution added beyond the plan, so no run-set package needs an attribution
 // line: TestAFPV02402RunSetIsThePlanGoSelection.)
 func TestWholePackageSelectionsNameTheirReader_V13573(t *testing.T) {
+	t.Parallel()
 	for want, witness := range map[string]affected.Witness{
 		" (runs the built go:m/cmd/tool binary)":    {Kind: affected.WitnessBinaryExec, Via: []string{"go:m/lib", "go:m/cmd/tool", "go:m/runner"}},
 		" (r/r_test.go carries the literal \"..\")": {Kind: affected.WitnessUnboundedReader, Cause: &affected.UnboundedCause{Unit: "go:m/r", Reads: "r/r_test.go carries the literal \"..\""}},

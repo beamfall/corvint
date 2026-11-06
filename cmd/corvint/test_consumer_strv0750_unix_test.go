@@ -45,7 +45,7 @@ func TestSTRV0750CLIBinaryConsumerIsANamedCheck(t *testing.T) {
 		t.Fatalf("the plan does not name the consumer: exit=%d stderr=%s receipt=%s", code, stderr, raw)
 	}
 
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
 	want := "corvint-test: still required, not run: " + sessiontest.BinaryConsumerCheck("web/test/e2e.mjs") + "\n"
 	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: NARROWED ") || strings.Count(stderr, want) != 1 || strings.Contains(stderr, "FALLBACK") {
 		t.Fatalf("dry run code %d stderr %q", code, stderr)
