@@ -369,6 +369,7 @@
     "internal/changee2e": [
       "internal/appmap/testdata/fixture/"
     ],
+    "internal/command/breakage": [],
     "internal/compactionkernel": [],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
