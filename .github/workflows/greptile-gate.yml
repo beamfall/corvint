@@ -1,0 +1,119 @@
+name: Greptile gate
+
+# GRG-V0-001: posts the `greptile-gate` commit status on an open pull request's head. The main
+# ruleset requires it, so a PR merges only after Greptile has reviewed that exact head at 5/5
+# confidence with no unresolved Greptile review thread. Greptile posts no check of its own, and
+# an armed PR otherwise merges on green CI whatever its score (#100 and #117 merged at 4/5).
+#
+# The gate reads only GitHub metadata, never checks out or runs PR code: pull_request_target and
+# issue_comment run this file from the default branch. It runs when a head is pushed (no Greptile
+# review of the new head yet, so `pending`), when Greptile creates or edits its summary comment,
+# and on workflow_dispatch with a PR number, which re-reads the state after review threads are
+# resolved (resolving a thread raises no workflow event).
+#
+# Owner waiver: a `greptile-gate` success posted by a user on the exact head (for example while
+# Greptile is out of review credits) is kept; the job posts nothing over it, like AFP-V0-171.
+#
+# A merge-queue entry is a commit GitHub builds from pull requests that each passed this gate on
+# their own head before they could be queued. The required context must also report on that
+# commit or the queue never merges, so the merge-queue job posts `success` on it.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created, edited]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to re-check
+        required: true
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  gate:
+    if: >-
+      github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+      github.event.comment.user.login == 'greptile-apps[bot]')
+    concurrency:
+      group: greptile-gate-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report whether Greptile passed the PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          case "$PR" in ''|*[!0-9]*) echo "greptile-gate: bad PR number '$PR'"; exit 1 ;; esac
+          head=$(gh api "repos/$REPO/pulls/$PR" --jq 'select(.state == "open") | .head.sha')
+          if [ -z "$head" ]; then
+            echo "greptile-gate: PR $PR is not open; no status posted"
+            exit 0
+          fi
+          # Keep an owner waiver: the newest greptile-gate status on this head posted by a user.
+          # A failed listing stops the job, so nothing is posted and the merge stays blocked.
+          newest=$(gh api "repos/$REPO/commits/$head/statuses?per_page=100" \
+            --jq '[.[] | select(.context == "greptile-gate")][0] | "\(.state) \(.creator.type)"')
+          if [ "$newest" = "success User" ]; then
+            echo "greptile-gate: a user-posted success on $head is kept; no status posted"
+            exit 0
+          fi
+          # The newest Greptile summary comment (Greptile edits it in place on a re-review).
+          summary=$(gh api --paginate "repos/$REPO/issues/$PR/comments?per_page=100" \
+            --jq '.[] | select(.user.login == "greptile-apps[bot]") | select(.body | test("Confidence Score")) | {u: .updated_at, b: .body}' \
+            | jq -rs 'sort_by(.u) | last | .b // ""')
+          score=$(printf '%s\n' "$summary" | grep -oE 'Confidence Score: [0-5]/5' | head -n 1 | grep -oE '[0-5]/5' || true)
+          reviewed=$(printf '%s\n' "$summary" | grep -E 'Last reviewed commit' | grep -oE '/commit/[0-9a-f]{40}' | tail -n 1 | sed 's#^/commit/##' || true)
+          threads=$(gh api graphql \
+            -f query='query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){reviewThreads(first:100){totalCount nodes{isResolved comments(first:1){nodes{author{login}}}}}}}}' \
+            -f o="${REPO%%/*}" -f n="${REPO#*/}" -F p="$PR" \
+            --jq '.data.repository.pullRequest.reviewThreads | "\(.totalCount) \([.nodes[] | select(.isResolved | not) | select((.comments.nodes[0].author.login // "") | startswith("greptile-apps"))] | length)"')
+          total=${threads% *}
+          unresolved=${threads#* }
+          short=${head:0:9}
+          if [ -z "$summary" ]; then
+            state=pending; description="waiting for a Greptile review of $short"
+          elif [ "$reviewed" != "$head" ]; then
+            state=pending; description="Greptile reviewed ${reviewed:0:9}${reviewed:+, }not head $short; ask @greptileai to re-review"
+          elif [ -z "$score" ]; then
+            state=failure; description="cannot read the Greptile confidence score for $short"
+          elif [ "$score" != "5/5" ]; then
+            state=failure; description="Greptile scored $short $score; 5/5 is required"
+          elif [ "$total" -gt 100 ]; then
+            state=failure; description="more than 100 review threads; cannot prove none is unresolved"
+          elif [ "$unresolved" -gt 0 ]; then
+            state=failure; description="$unresolved unresolved Greptile thread(s) on $short"
+          else
+            state=success; description="Greptile 5/5 on $short, no unresolved Greptile thread"
+          fi
+          echo "greptile-gate: PR $PR head $head: $state: $description"
+          gh api -X POST "repos/$REPO/statuses/$head" \
+            -f state="$state" -f context=greptile-gate \
+            -f description="$description" -f target_url="$RUN_URL" >/dev/null
+
+  merge-queue:
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report the queued pull requests passed the gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.merge_group.head_sha }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state=success -f context=greptile-gate \
+            -f description="each queued PR passed greptile-gate on its own head" >/dev/null
