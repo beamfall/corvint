@@ -4,6 +4,7 @@ name: Go macOS
 # CIN-V0-4625 / V1-4732: advisory native coverage never delays CI completion or
 # its workflow_run control-plane status. Recompute trusted DOCS/MET inputs here;
 # never wait for CI, and never consume Linux package selection or REUSE.
+# CIN-V0-4754 (V1-4750): a routine change (cadence DEFER) runs no macOS shard.
 on:
   pull_request:
 
@@ -15,9 +16,48 @@ permissions:
   contents: read
 
 jobs:
+  cadence-plan:
+    # CIN-V0-4754 (V1-4750): the same trusted classifier as ci.yml's cadence-plan. DEFER starts no
+    # macOS runner; anything else, a skipped or failed job included, runs every shard as before.
+    # The nightly release-gates macOS gate keeps the full native campaign.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      cadence: ${{ steps.plan.outputs.cadence }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-cadence
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          sparse-checkout: .github/ci-cadence
+          persist-credentials: false
+      - name: Classify the whole change with the trusted event-base classifier
+        id: plan
+        env:
+          CI_CADENCE_FORCE: ${{ vars.CI_CADENCE_FORCE }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: |
+          if [ -f trusted-cadence/.github/ci-cadence/run.sh ]; then
+            bash trusted-cadence/.github/ci-cadence/run.sh
+          else
+            echo 'Cadence FULL: the trusted event base has no cadence classifier.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   docs-plan:
     # DCI-V0: only trusted event-base code may classify the tested merge. This
-    # job always runs; absent tools/qualification select FULL, never an empty skip.
+    # job runs unless the change is routine (CIN-V0-4754); absent tools/qualification select FULL,
+    # never an empty skip.
+    needs: [cadence-plan]
+    if: ${{ !cancelled() && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -132,8 +172,8 @@ jobs:
 
   go-macos-shard:
     # CIN-V0-4625 / V1-4732: independent advisory Darwin selection. No CI dependency.
-    needs: [docs-plan, narrowing-verdict]
-    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    needs: [cadence-plan, docs-plan, narrowing-verdict]
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -290,17 +330,22 @@ jobs:
 
   go-macos:
     # Stable advisory check name; no required CI job waits for this workflow.
-    needs: [go-macos-shard]
+    needs: [cadence-plan, go-macos-shard]
     if: ${{ always() }}
     continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - name: Report the routine-change cadence
+        if: needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER'
+        run: echo 'go-macos shards NOT_RUN under CI cadence DEFER (CIN-V0-4754); the nightly macOS gate runs them.' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER'
         with:
           pattern: macos-selection-shard-*
           path: ${{ runner.temp }}/macos-shards
       - name: Check all four advisory shard outcomes
+        if: needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER'
         env:
           SHARD_RESULT: ${{ needs.go-macos-shard.result }}
         run: |
