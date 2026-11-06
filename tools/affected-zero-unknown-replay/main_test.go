@@ -280,6 +280,70 @@ func TestSourceDiffConfiguration_AZU_V0_8903(t *testing.T) {
 	}
 }
 
+// AZU-V0-009, AZU-V0-8903: inter-hunk context is unchanged source,
+// never mutation evidence, on either side of a real Git diff.
+func TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903(t *testing.T) {
+	root := t.TempDir()
+	gitOK := func(args ...string) string {
+		t.Helper()
+		out, err := git(root, args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	gitOK("init", "--initial-branch=main")
+	gitOK("config", "user.name", "Russell Lewis")
+	gitOK("config", "user.email", "me@russe11.com")
+	file := filepath.Join(root, "a.go")
+	if err := os.WriteFile(file, []byte("old\nunchanged\nold\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOK("add", ".")
+	gitOK("commit", "-m", "parent")
+	parent := gitOK("rev-parse", "HEAD")
+	if err := os.WriteFile(file, []byte("new\nunchanged\nnew\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOK("commit", "-am", "merge")
+	ref := gitOK("rev-parse", "HEAD")
+	gitOK("config", "diff.interHunkContext", "20")
+	// Exercise both the parser's handling of real context and sourceDiff's
+	// independent guarantee that local configuration cannot introduce it.
+	contextDiff := gitOK("diff", "--unified=0", parent, ref)
+	if !strings.Contains(contextDiff, "\n unchanged\n") {
+		t.Fatalf("fixture has no inter-hunk context: %s", contextDiff)
+	}
+	canonical, err := sourceDiff(root, parent, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(canonical, "\n unchanged\n") {
+		t.Errorf("sourceDiff retained configured inter-hunk context: %s", canonical)
+	}
+	for _, tc := range []struct{ name, diff string }{{"context", contextDiff}, {"canonical", canonical}} {
+		t.Run(tc.name, func(t *testing.T) {
+			lines := changedLines(tc.diff)
+			for _, side := range []string{"parent", "merge"} {
+				if len(lines[side+":a.go"]) != 2 || !lines[side+":a.go"][1] || !lines[side+":a.go"][3] || lines[side+":a.go"][2] {
+					t.Errorf("unchanged coordinate admitted on %s: %+v", side, lines)
+				}
+				r, old, now, _ := replayFixture()
+				r.Merge, r.Parent = ref, parent
+				r.ParentSuite.Revision, r.MergeSuite.Revision = parent, ref
+				r.Mutants[0].Side, r.Mutants[0].Line = side, 2
+				body, err := json.Marshal(r)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := safety(body, ref, parent, old, now, lines); got.Status != "NOT_PRODUCED" {
+					t.Fatalf("unchanged-line mutant admitted: %+v", got)
+				}
+			}
+		})
+	}
+}
+
 func TestBeforeAfterNamesEveryRemovedUnknown_AZU_V0_8903(t *testing.T) {
 	old := plan{Selected: []selection{{UnitID: "kept"}, {UnitID: "dropped"}}, Unknown: []unknown{{"LANGUAGE_FRONTIER", "shell:foreign"}}}
 	now := plan{Selected: []selection{{UnitID: "kept"}, {UnitID: "added"}}, Unknown: []unknown{}}

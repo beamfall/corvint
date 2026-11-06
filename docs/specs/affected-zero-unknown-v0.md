@@ -315,7 +315,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-006 | V1-4689 | not yet |
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
-| AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv); historical full-suite/mutation qualification remains NOT_PRODUCED |
+| AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv), `TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903` (actual +/- records and canonical zero inter-hunk context; unchanged-line mutants remain NOT_PRODUCED on both sides); historical full-suite/mutation qualification remains NOT_PRODUCED |
 | AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
 | AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
 | AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |
