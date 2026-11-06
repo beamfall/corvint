@@ -24,7 +24,8 @@ cleanup. A build helper records both its PID and its child PID over a Unix socke
 child is outside the wrapper group, and holds retirement after acknowledging cancellation.
 The test sends SIGHUP to the wrapper group, checks that the wrapper and scratch remain while
 the worker is held, then releases it and requires exit 129, absence of both recorded PIDs,
-and scratch removal. The test's external wrapper read is declared in the read-scope manifest.
+and scratch removal. The package retains its accepted unbounded-reader floor: existing tests
+read Git metadata and repository-wide evidence; a wrapper-only read declaration would be false.
 This exercises production cancellation and ownership without another cold cross-target build.
 
 ## Verification
