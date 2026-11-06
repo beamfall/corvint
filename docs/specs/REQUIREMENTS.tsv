@@ -7012,7 +7012,7 @@ SESSION-V0-020	docs/specs/session-context-dividend-v0.md	(accepted, decision 047
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and	owner	decision 0472; V1-0500
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --	owner	decision 0472; V1-0500
 STR-V0-7305	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard	standing	2026-10-11; V1-4472
-STR-V0-7313	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-05; V1-3424
+STR-V0-7313	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-06; V1-3424
 STR-V0-7500	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The decl	standing	2026-10-11; V1-4356
 STR-V0-001	docs/specs/session-test-runner-v0.md	`corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced	unrecorded	-
 STR-V0-002	docs/specs/session-test-runner-v0.md	The run set SHALL be, per language, the union of the plan's selected units and t	unrecorded	-

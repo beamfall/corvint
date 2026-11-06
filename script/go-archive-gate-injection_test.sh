@@ -41,9 +41,20 @@ mkdir "$test_root/bin" "$test_root/cache" "$test_root/tmp"
 cat > "$test_root/bin/go" <<'SHIM'
 #!/bin/sh
 set -eu
-if [ "$#" -lt 3 ] || [ "$1" != run ] || [ "$2" != ./conformance/release-artifact-v0 ] || [ "$3" != archive ]; then
+if [ "$#" -eq 4 ] && [ "$1" = build ] && [ "$2" = -o ] && [ "$4" = ./conformance/release-artifact-v0 ]; then
+    # Keep the real compiled producer behind a shim so replay and injection
+    # still happen at the archive boundary after the wrapper's build/exec split.
+    "$CORVINT_INJECTION_REAL_GO" build -o "$3.real" "$4"
+    printf '#!/bin/sh\nexec "%s" --producer "%s" "$@"\n' "$0" "$3.real" > "$3"
+    chmod 0700 "$3"
+    exit 0
+fi
+if [ "${1:-}" != --producer ]; then
     exec "$CORVINT_INJECTION_REAL_GO" "$@"
 fi
+producer=$2
+shift 2
+[ "${1:-}" = archive ] || exec "$producer" "$@"
 output=
 previous=
 for argument in "$@"; do
@@ -55,7 +66,7 @@ witness="$(git rev-parse --absolute-git-dir)/corvint/release-go-archive-report.j
 cache=$CORVINT_INJECTION_CACHE
 case $CORVINT_INJECTION_PHASE in
 build)
-    "$CORVINT_INJECTION_REAL_GO" "$@"
+    "$producer" "$@"
     cp -Rp "$output" "$cache/output"
     cp -p "$witness" "$cache/witness"
     ;;
@@ -67,7 +78,7 @@ replay)
     ;;
 interrupt)
     printf '%s\n' "$$" > "$cache/interrupt-pid"
-    exec "$CORVINT_INJECTION_REAL_GO" "$@"
+    exec "$producer" "$@"
     ;;
 esac
 case $CORVINT_INJECTION_CASE in
@@ -152,7 +163,8 @@ while [ -z "$build_pid" ] && [ "$attempt" -lt 6000 ]; do
     [ ! -s "$test_root/cache/interrupt-pid" ] || go_pid=$(cat "$test_root/cache/interrupt-pid")
     if [ -n "$go_pid" ]; then
         kill -0 "$go_pid" 2>/dev/null || { tail -n 5 "$test_root/trace" >&2; fail "the real archive command exited before the interrupt"; }
-        tool_pid=$(pgrep -P "$go_pid" -f 'release-artifact-v0 archive' | head -n 1 || :)
+        # The shim execs the producer, so its recorded PID is the tool PID.
+        tool_pid=$go_pid
         [ -z "$tool_pid" ] || build_pid=$(pgrep -P "$tool_pid" | head -n 1 || :)
     fi
     [ -n "$build_pid" ] || sleep 0.2

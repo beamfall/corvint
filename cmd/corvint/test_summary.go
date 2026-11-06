@@ -119,7 +119,7 @@ func testDryRunSummaryBudget(m sessiontest.Manifest, digest string, invocations 
 	summaryList(&b, "incomplete", incomplete, budget/2)
 	summaryList(&b, "selected", units, budget-len(tail))
 	b.WriteString(tail)
-	return b.String()
+	return summaryTextBudget(b.String(), budget)
 }
 
 // summaryList appends "  label: " and as many of items as keep b within
@@ -155,4 +155,31 @@ func summaryClip(text string, limit int) string {
 		cut--
 	}
 	return text[:cut] + "..."
+}
+
+// summaryTextBudget bounds all sections, preserving complete lines (including
+// shell-quoted heavy advice) and explicitly marking omitted output.
+func summaryTextBudget(text string, budget int) string {
+	if budget <= 0 {
+		return ""
+	}
+	if len(text) <= budget {
+		return text
+	}
+	const marker = "  ... (truncated; rerun with --full)\n"
+	if budget < len(marker) {
+		return strings.Repeat(".", min(3, budget))
+	}
+	end := strings.LastIndexByte(text[:budget-len(marker)], '\n') + 1
+	return text[:end] + marker
+}
+
+// summaryNoticeBudget retains the degradation prefix and UTF-8 path text while
+// reserving enough shared space for the actual summary.
+func summaryNoticeBudget(notice string, budget int) string {
+	if len(notice) <= budget {
+		return notice
+	}
+	const marker = " (truncated; rerun with --full)\n"
+	return summaryClip(notice, budget-len(marker)) + marker
 }
