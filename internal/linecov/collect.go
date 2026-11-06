@@ -50,6 +50,14 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	if o.Parallel < 1 {
 		o.Parallel = 1
 	}
+	// The go command names package files from getcwd, which resolves symlinks
+	// (macOS /var is /private/var). Overlay keys built from an unresolved root
+	// would never match, silently dropping every test window.
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	root = resolved
 	// The runner's GOFLAGS (build tags among them) still apply.
 	flags := strings.TrimSpace(o.GOFLAGS + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
 	// Clipped, so each worker's append below copies instead of sharing storage.
