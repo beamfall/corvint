@@ -171,11 +171,22 @@ func diffHeaderPath(header, prefix string) string {
 func changedLines(diff string) map[string]map[int]bool {
 	lines := map[string]map[int]bool{}
 	oldFile, newFile := "", ""
-	headers := false
+	headers, hunk := false, false
+	oldLine, newLine := 0, 0
+	mark := func(side, file string, coordinate int) {
+		if file == "" || coordinate < 1 {
+			return
+		}
+		key := side + ":" + file
+		if lines[key] == nil {
+			lines[key] = map[int]bool{}
+		}
+		lines[key][coordinate] = true
+	}
 	for _, line := range strings.Split(diff, "\n") {
 		if strings.HasPrefix(line, "diff --git ") {
 			oldFile, newFile = "", ""
-			headers = true
+			headers, hunk = true, false
 			continue
 		}
 		if headers && strings.HasPrefix(line, "--- ") {
@@ -186,36 +197,35 @@ func changedLines(diff string) map[string]map[int]bool {
 			newFile = diffHeaderPath(strings.TrimPrefix(line, "+++ "), "b/")
 			continue
 		}
-		if !strings.HasPrefix(line, "@@ ") {
-			continue
-		}
-		headers = false
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		for index, item := range []struct {
-			side, file string
-			field      string
-		}{{"parent", oldFile, fields[1]}, {"merge", newFile, fields[2]}} {
-			if item.file == "" {
+		if strings.HasPrefix(line, "@@ ") {
+			headers, hunk = false, false
+			fields := strings.Fields(line)
+			if len(fields) < 3 {
 				continue
 			}
-			var start, count int
-			h := strings.TrimPrefix(item.field, []string{"-", "+"}[index])
-			if strings.Contains(h, ",") {
-				fmt.Sscanf(h, "%d,%d", &start, &count)
-			} else {
-				fmt.Sscanf(h, "%d", &start)
-				count = 1
-			}
-			key := item.side + ":" + item.file
-			if lines[key] == nil {
-				lines[key] = map[int]bool{}
-			}
-			for n := start; n < start+count; n++ {
-				lines[key][n] = true
-			}
+			// Hunk ranges include unchanged context. Only +/- records
+			// below contribute mutation coordinates (AZU-V0-8903).
+			oldStart, _, _ := strings.Cut(strings.TrimPrefix(fields[1], "-"), ",")
+			newStart, _, _ := strings.Cut(strings.TrimPrefix(fields[2], "+"), ",")
+			var oldErr, newErr error
+			oldLine, oldErr = strconv.Atoi(oldStart)
+			newLine, newErr = strconv.Atoi(newStart)
+			hunk = oldErr == nil && newErr == nil
+			continue
+		}
+		if !hunk || line == "" {
+			continue
+		}
+		switch line[0] {
+		case '-':
+			mark("parent", oldFile, oldLine)
+			oldLine++
+		case '+':
+			mark("merge", newFile, newLine)
+			newLine++
+		case ' ':
+			oldLine++
+			newLine++
 		}
 	}
 	return lines
@@ -383,7 +393,7 @@ func replayMerges(root string, refs []string, through string) ([]string, string,
 func sourceDiff(root, parent, ref string) (string, error) {
 	// AZU-V0-8903: coordinates refer to source bytes, independently of local
 	// diff presentation settings or attributes enabling a textconv driver.
-	return git(root, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/", "--unified=0", parent, ref)
+	return git(root, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/", "--unified=0", "--inter-hunk-context=0", parent, ref)
 }
 
 func run(root, binary, baseline, list, through, out, safetyDir string) error {
