@@ -54,14 +54,16 @@ therefore come from something keyed on content, not from Go's cache.
 - `GL-V0-001`: A step MUST be skipped only when the ledger holds a pass whose key equals the key
   of the current run. The key MUST derive from the record schema, the step name, the ledger tool's
   own identity (its Go source digest and the pinned toolchain version), `GO_TEST_TIMEOUT`,
-  `GOFLAGS`, and a digest of the step's declared inputs taken from the exact worktree content:
+  `GOFLAGS`, the raw invocation values of `CORVINT_REQUIRE_NODE` and `CI`, and a digest of the step's declared inputs taken from the exact worktree content:
   tracked and untracked files with ignored files excluded, written as a Git tree through a private index so the
   repository index is never touched. Cached stat data or timestamps MUST NOT authorize content reuse.
   Tracked files remain included when ignored; ignored untracked files remain excluded.
   The key MUST NOT include the worktree path, branch, commit,
   host, user, or time, so that one recorded pass serves every worktree of this user. Every step's
   scope MUST include the gate's own tooling (`Makefile`, `go.mod`, `go.sum`, `script/`, `tools/`),
-  so a change to how a step runs is a change to its inputs.
+  so a change to how a step runs is a change to its inputs. Optional and mandatory Node
+  runs MUST NOT share a key, including resolved package and unresolved whole-tree keys;
+  unchanged environment values still hit. The Node-only host gate step uses whole-tree scope.
 - `GL-V0-002`: (accepted, decision 0511) A whole-step record MUST be
   written only after that step exits zero. Resolved Go packages MUST instead be recorded individually
   after the batch exits, including on nonzero exit, only when a complete, valid `go test -json`
@@ -264,7 +266,7 @@ therefore come from something keyed on content, not from Go's cache.
   passes the process's (`os.Getwd`, `os.Environ`), and a test passes its fixture's. Every Git and
   `go` call, every executed step command (its directory, environment and PATH lookup), each
   environment lookup (`CORVINT_GATE_LEDGER`, `CORVINT_GATE_LEDGER_DIR`, `XDG_CACHE_HOME`, `HOME`,
-  `GO_TEST_TIMEOUT`, `GOFLAGS`) and the private index's temporary directory (`TMPDIR`) come from
+  `GO_TEST_TIMEOUT`, `GOFLAGS`, `CORVINT_REQUIRE_NODE`, `CI`) and the private index's temporary directory (`TMPDIR`) come from
   it, the last entry of a repeated key winning as in `exec.Cmd.Env`. A run from `main` therefore
   behaves exactly as before, and two runs in one process share no cwd or env, so the tests run
   in parallel. Off Unix, command lookup and the temporary and home directories stay the
