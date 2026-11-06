@@ -151,7 +151,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `.corvint/documentation-paths.json`, `.corvint/runtime-readers.json` or
   `.corvint/non-source-paths.json`, SHALL select `TestOwnershipAuditRatchet_AZU_V0_002`
   when its test file exists in the observed graph. `affected` SHALL name that test and the
-  triggering path; `test --dry-run` SHALL carry the same reason. A gate-only selection MAY run
+  triggering path; `test --dry-run` SHALL carry the same reason, including during FULL fallback.
+  FULL removes narrowing patterns while retaining explanatory reasons. Index membership used
+  for selection SHALL be retained and rechecked before emitting a receipt; drift is refused
+  through the existing worktree-drift diagnostic. A gate-only selection MAY run
   just that named test; any independently reached package coverage SHALL remain whole.
   Staged membership changes count even if the indexed addition is missing from the worktree;
   an untracked file alone does not. Content-only changes to
@@ -159,6 +162,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - **AZU-V0-9901: Committed ownership guidance and fixture closure.** A committed
   `UNOWNED_DIRTY_PATH` SHALL retain its reason and name `runtime-readers.json` for test/runtime
   inputs, `documentation-paths.json` for documentation, and `non-source-paths.json` for output.
+  The compatible diagnostic channel is `affected --format text`: every unowned-path line
+  provides this guidance, including committed content-only edits without the ratchet. JSON
+  receipts and frozen content-only dry-run bytes retain their existing contracts.
   A newly tracked fixture below a Go-hosted `testdata/` ancestor whose package is selected
   SHALL NOT also bear unrelated language-frontier unknowns when no other plugin lists content
   there or treats the path as a resolution input and the existing conservative `FrontierReach`
@@ -202,13 +208,15 @@ V1-4729 witnesses AZU-V0-9900 with `TestOwnershipMembershipSelection_AZU_V0_9900
 `TestOwnershipReplay0c8ae2da9_AZU_V0_9901`, and AZU-V0-9902 with
 `TestOwnershipCLIAndRatchetAgree_AZU_V0_9902` in `cmd/corvint/affected_ownership_selection_test.go`.
 The lane build log retains the historical replay counts, frozen-byte comparison and limits.
-Verifier repair 1 retains AZU-V0-9901 as PARTIAL: declaration hints are emitted only when the
-observed graph contains the ownership ratchet. Repositories without it retain their frozen
-receipts, checked by `TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901`; extending guidance
-there requires owner resolution of the frozen-output conflict. Self-review repair also preserves
-content-only receipts for existing unowned paths with the ratchet present: guidance is emitted
-only for committed paths whose membership changed, as required by AZU-V0-9900. General guidance
-for content-only edits remains PARTIAL under the same frozen-output conflict.
+Independent review repair resolves the former guidance gap through the existing text diagnostic
+channel. `TestOwnershipTextGuidance_AZU_V0_9901` covers committed content-only unowned edits
+with and without the ratchet; `TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901` continues to
+check the JSON compatibility boundary. `TestOwnershipIndexDriftAfterSources_AZU_V0_9900`
+stages an initially untracked path after source observation and requires the existing drift refusal.
+`TestOwnershipFullDryRun_AZU_V0_9900` covers public dry-run FULL fallback after deleting a
+package's last source while retaining its directory. `TestOwnershipFullReasons_AZU_V0_9900`
+in `internal/sessiontest/ownership_full_test.go` covers both gate-only and whole-package reasons
+and verifies the caller's narrowing input is unchanged.
 `TestOwnershipContentOnlyBytes_AZU_V0_9900` compares owned and unowned plan bytes and compact
 dry-run digests. `TestOwnershipMembershipSelection_AZU_V0_9900/stage-worktree-delete` covers an
 indexed addition subsequently removed only from disk. Fixture closure uses the existing

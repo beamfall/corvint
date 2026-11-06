@@ -71,6 +71,10 @@ type Input struct {
 type GoSlice struct {
 	Pattern string
 	Reason  string
+	// FullReason retains a named whole-package obligation when FULL drops
+	// the selection's narrowing pattern. Ordinary slicing reasons stay local
+	// to narrowed plans, preserving existing fallback receipts.
+	FullReason string
 }
 
 // goUnit is one Go package's execution unit on a shard: the selected slice
@@ -286,7 +290,15 @@ func Build(input Input) (Manifest, error) {
 	if fullReason != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, fullReason
 		goRun = append([]string{}, input.Universe...)
-		input.GoSlices = nil // FULL runs every package whole (STR-V0-063)
+		// FULL removes narrowing patterns, but named obligations and their
+		// triggering paths still explain why a package must run (AZU-V0-9900).
+		whole := make(map[string]GoSlice, len(input.GoSlices))
+		for pkg, slice := range input.GoSlices {
+			if slice.FullReason != "" {
+				whole[pkg] = GoSlice{Reason: slice.FullReason}
+			}
+		}
+		input.GoSlices = whole // FULL runs every package whole (STR-V0-063)
 		// A fallback need not name the language it widened for (a deleted
 		// source file is only a path), so FULL runs every declared language
 		// full command, records every declared no-suite assertion and covers
