@@ -38,8 +38,11 @@ witness="$git_dir/corvint/release-go-archive-report.json"
 # earlier run's witness for the status check below to read. Removing it first means the check can
 # only ever read a witness this run recorded; an unrecorded one makes archive-status fail.
 rm -f "$witness"
-go run ./conformance/release-artifact-v0 archive \
-  --revision HEAD --output "$parent/corvint-go-release"
+# Keep the go-run launcher alive on group hangup so it waits for the producer's
+# cancellation and worker cleanup before our EXIT trap removes their scratch.
+# The producer explicitly subscribes to SIGHUP, overriding the inherited ignore.
+(trap '' HUP; exec go run ./conformance/release-artifact-v0 archive \
+  --revision HEAD --output "$parent/corvint-go-release")
 
 expected=(
   SHA256SUMS
