@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -eu
 
 # GAG-V0-006 evidence integrity: `script/go-archive-gate-injection_test.sh` is evidence only through
