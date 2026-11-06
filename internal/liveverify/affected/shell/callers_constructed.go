@@ -66,20 +66,35 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 			`["']`+commandPrefix+`[^"'\s\x60]*\x60`,
 		)
 	}
-	compiled := make([]*regexp.Regexp, 0, len(patterns))
-	for _, pattern := range patterns {
-		compiled = append(compiled, regexp.MustCompile(pattern))
-	}
+	// One alternation scans each body once instead of once per pattern.
+	compiled := regexp.MustCompile(`(?:` + strings.Join(patterns, `)|(?:`) + `)`)
+	literal := []byte(directory)
 	return func(body []byte) bool {
-		for _, pattern := range compiled {
-			if pattern.Match(body) {
-				return true
-			}
+		if (directory == "." || foreignDirectoryMention(body, literal)) && compiled.Match(body) {
+			return true
 		}
 		return normalizedForeignJoin(body, script)
 	}
 }
 
+// foreignDirectoryMention reports whether body names directory right after
+// a quote, "./", or a command word's blank: every nested-directory pattern
+// needs one, so a body without it cannot match and skipping keeps the verdict.
+func foreignDirectoryMention(body, directory []byte) bool {
+	for offset := 0; ; {
+		index := bytes.Index(body[offset:], directory)
+		if index < 0 {
+			return false
+		}
+		index += offset
+		if index > 0 && strings.IndexByte("\"'`/ \t", body[index-1]) >= 0 {
+			return true
+		}
+		offset = index + 1
+	}
+}
+
+var foreignJoinNeedle = []byte("oin")
 var foreignJoinStart = regexp.MustCompile(`\b(?:[Jj]oin|joinpath)\s*\(`)
 var foreignJoinLiteral = regexp.MustCompile("^\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*([,)])")
 
@@ -89,6 +104,9 @@ var foreignJoinLiteral = regexp.MustCompile("^\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:
 // so results remain invariant across the directory cache in callers.go.
 func normalizedForeignJoin(body []byte, script string) bool {
 	directory := path.Dir(script)
+	if !bytes.Contains(body, foreignJoinNeedle) {
+		return false // Every foreignJoinStart match contains "oin".
+	}
 	for _, call := range foreignJoinStart.FindAllIndex(body, -1) {
 		args, prefix, seen := body[call[1]:], "", false
 		for {
