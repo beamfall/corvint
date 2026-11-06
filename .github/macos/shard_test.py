@@ -1,14 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 import importlib.util
+import itertools
 import json
 import pathlib
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location("macshard", pathlib.Path(__file__).with_name("shard.py"))
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
+select_spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("select.py"))
+selector = importlib.util.module_from_spec(select_spec)
+select_spec.loader.exec_module(selector)
 
 
 def package(name, module="example", root="/repo"):
@@ -16,6 +21,36 @@ def package(name, module="example", root="/repo"):
 
 
 class DarwinShards(unittest.TestCase):
+    def test_CINV04625_mixed_full_and_narrowed_legs_keep_package_ownership(self):
+        packages = [package(name, "github.com/Beamfall/corvint") for name in "abcd"]
+        for weights in ({p["package"]: 1000 for p in packages}, {},
+                        {p["package"]: (i + 1) * 1000 for i, p in enumerate(packages)}):
+            ownership, _ = m.partition(packages, weights)
+            for full_legs in itertools.product((False, True), repeat=m.SHARDS):
+                with self.subTest(weights=weights, full_legs=full_legs), tempfile.TemporaryDirectory() as tmp:
+                    root = pathlib.Path(tmp)
+                    costs = root / "costs.json"
+                    costs.write_text(json.dumps({"profile": "corvint-ci-package-costs/0",
+                                                 "milliseconds": weights}))
+                    executed = []
+                    for i, full in enumerate(full_legs):
+                        chosen = selector.selection(packages, None if full else {packages[1]["package"]})
+                        selection = root / "selection.json"
+                        selection.write_text(json.dumps({"profile": "corvint-macos-selection/0",
+                            "target": "target", "mode": "FULL" if full else "NARROWED",
+                            "inventory": list(reversed(packages)), "selected": chosen}))
+                        out = root / str(i)
+                        with mock.patch.object(m, "run", return_value=0) as run:
+                            self.assertEqual(m.main([str(selection), str(costs), str(i), str(out)]), 0)
+                        assigned = run.call_args.args[0]
+                        expected = [p for p in ownership[i] if p in chosen]
+                        self.assertEqual(assigned, expected)
+                        self.assertEqual((out / "packages.txt").read_text().splitlines(),
+                                         [p["package"] for p in expected])
+                        executed.extend(p["package"] for p in assigned)
+                    self.assertIn(packages[1]["package"], executed)
+                    self.assertEqual(len(executed), len(set(executed)))
+
     def test_CINV04625_balanced_complete_deterministic_partition(self):
         packages = [package(str(i)) for i in range(17)]
         weights = {p["package"]: (18 - i) * 1000 for i, p in enumerate(packages)}
