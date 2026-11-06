@@ -6,7 +6,8 @@ preserve a valid symlinked `PWD`, causing source paths to miss physical overlay
 keys. This repairs the implementation of LPCV-V0-7600 and LPCV-V0-954 without
 changing accepted intent or any wire contract.
 
-Decision: use an absolute physical collection root and explicitly set the build
+Decision: use an absolute physical collection root (make it absolute before resolving symlinks)
+and explicitly set the build
 subprocess's `PWD` to it. Keep the override local to the build; the collection
 environment and each test's working directory retain their existing behavior.
 The environment slice is capacity-clipped before the build appends its override.
@@ -18,13 +19,16 @@ window fallback. Before the repair the matching case failed with
 `window-order-unavailable`; the stale case passed. After the repair the entire
 `internal/linecov` package passed through `script/heavy.sh` with `-count=1
 -timeout 30m` (14.086 s), including both regression cases and existing assertions.
-No golden or existing assertion changed.
+After that path-order correction the same whole-package command passed again
+(14.104 s). No golden or existing assertion changed.
 
 Raw logs and affected-plan receipts stay outside the repository under
 `/home/russell/lanes/darwin-shards-evidence/`. Log SHA-256 bindings:
 
 - `pwd-regression-before.log`: `b9b27ef02936a78738ddecc97375c3ad732ec6cf34f238e62ff77fd69c702a53`
 - `linecov-whole.log`: `de326b5c753021655e713fb8342cd3850bfca661714c6ce079aab97352d11c37`
+
+- `linecov-whole-final.log`: `0b367c80090f1e9ad9018df03c04feb572af1058323ff2e94cd30cfe5de87177`
 
 This is Linux symlink qualification;
 native macOS execution is NOT_RUN on this host. The supplied independent review
