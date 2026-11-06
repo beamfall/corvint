@@ -86,16 +86,28 @@ func TestFullplanReplay_AZU_V0_9920_9921(t *testing.T) {
 				{".agent-evidence/pk-tstore-fix1/env.sh", "", sessiontest.ScopeNothing, 0},
 				{".agent-evidence/run.py", "", sessiontest.ScopeNothing, 0},
 				{".agent-evidence/run.go", "", sessiontest.ScopeNothing, 0},
-				{".unknown/new.py", "", sessiontest.ScopeFull, 4},
+				{".unknown/new.py", "", sessiontest.ScopeFull, 6},
 			} {
 				t.Run(tc.path, func(t *testing.T) {
 					plan := affected.Select(graph, []string{tc.path})
 					if tc.test != "" && !slices.Contains(plan.SelectedTests(), tc.test) {
 						t.Errorf("missing %s: %+v", tc.test, plan)
 					}
-					manifest := fullplanManifest(t, graph, plan)
+					manifest := fullplanManifest(t, graph, plan, sessiontest.ProfileLocal)
 					if manifest.Scope != tc.scope || len(manifest.Units) != tc.units {
 						t.Fatalf("scope=%s units=%v unknown=%v reason=%s; want %s %d", manifest.Scope, manifest.Units, plan.Unknown, manifest.Reason, tc.scope, tc.units)
+					}
+					if tc.path == ".github/macos/select.py" {
+						want := []string{"python3", "-B", ".github/macos/select_test.py"}
+						declared := sessiontest.ReadDeclared(repositoryRoot(t))
+						invocations := sessiontest.Invocations(manifest, declared, 0, disk, "")
+						if len(manifest.NoSuite) != 0 || len(manifest.Incomplete) != 0 || len(invocations) != 1 || !slices.Equal(invocations[0].Argv, want) {
+							t.Fatalf("maintained Python command not executable: manifest=%+v invocations=%+v", manifest, invocations)
+						}
+						ci := fullplanManifest(t, graph, plan, sessiontest.ProfileCI)
+						if len(ci.Units) != 0 || len(ci.NoSuite) != 0 || len(ci.Incomplete) != 0 || !slices.Contains(ci.Checks, strings.Join(want, " ")) {
+							t.Fatalf("CI lost its required Python check: %+v", ci)
+						}
 					}
 					if tc.units == 0 && (len(plan.Selected) != 0 || len(plan.Unknown) != 0 || len(plan.NonSource) != 1 || plan.NonSource[0].Class != affected.ClassDeclaredNonSource) {
 						t.Fatalf("evidence adds units or uncertainty: %+v", plan)
@@ -113,13 +125,13 @@ func TestFullplanReplay_AZU_V0_9920_9921(t *testing.T) {
 
 // Exercise AFP-V0-028 admission using the fixture graph's exact Go selection.
 // The measured repository replay separately uses the structural Go selector.
-func fullplanManifest(t *testing.T, graph *affected.Graph, plan affected.Plan) sessiontest.Manifest {
+func fullplanManifest(t *testing.T, graph *affected.Graph, plan affected.Plan, profile string) sessiontest.Manifest {
 	t.Helper()
 	input := sessiontest.Input{
 		Base: strings.Repeat("a", 40), GraphDigest: graph.Digest(), PlanDigest: "sha256:fixture",
-		RunnerProfile: sessiontest.ProfileLocal, ShardCount: 1,
+		RunnerProfile: profile, ShardCount: 1,
 		Source:   sessiontest.SourceIdentity{Head: strings.Repeat("b", 40), Tree: strings.Repeat("c", 40)},
-		Declared: sessiontest.Declared{Languages: []sessiontest.LanguageCommand{{Language: "python", Argv: []string{"python3", "-B", ".github/macos/select_test.py"}}}},
+		Declared: sessiontest.ReadDeclared(repositoryRoot(t)),
 	}
 	for _, id := range graph.UnitIDs() {
 		if pkg, ok := strings.CutPrefix(id, "go:"); ok {

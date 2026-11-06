@@ -433,7 +433,8 @@ two requirements make its version name its content and make each receipt carry i
   root Go universe SHALL hold only graph Go units the root module's `go list ./...` can list,
   augmented by explicit child-directory patterns below `.github/` when the universe contains
   AZU-V0-9920 helper packages (even `./.github/...` skips its dot-named root). Those directories
-  SHALL be enumerated independently of the plan. Discovery SHALL compare that combined listing with
+  SHALL be enumerated independently of the plan, excluding hidden and shared skipped directories,
+  testdata and child module roots, preserving AZU-V0-9920's graph admission boundaries. Discovery SHALL compare that combined listing with
   the planned universe, still refusing extra or missing helpers. A
   dependent nested module's synthetic AFP-V0-582 unit (no source, no test, the single unit frontier
   `go:nested-module-frontier`) names a module, not a root package, so it SHALL be left out of the

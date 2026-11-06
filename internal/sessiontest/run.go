@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // Terminal outcomes of one execution unit (STR-V0-010).
@@ -474,9 +476,19 @@ func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time
 						return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
 					}
 					for _, child := range children {
-						if child.IsDir() {
-							args = append(args, "./.github/"+child.Name()+"/...")
+						name := child.Name()
+						if !child.IsDir() || strings.HasPrefix(name, ".") || affected.SkippedDirectories[name] || name == "testdata" {
+							continue
 						}
+						// FilesUnder skips these directories, and the graph gives
+						// a nested go.mod its own module boundary. A recursive
+						// pattern rooted at that boundary is outside the root module.
+						if _, err := os.Lstat(filepath.Join(r.Root, ".github", name, "go.mod")); err == nil {
+							continue
+						} else if !errors.Is(err, os.ErrNotExist) {
+							return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
+						}
+						args = append(args, "./.github/"+name+"/...")
 					}
 					for _, candidate := range r.Universe {
 						if strings.HasSuffix(candidate, "/.github") {
