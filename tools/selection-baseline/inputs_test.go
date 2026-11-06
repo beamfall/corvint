@@ -39,11 +39,11 @@ func TestBaselineInputDecisionASDV0944(t *testing.T) {
 	files := map[string]string{
 		".gitignore":                         "ignored.go\n",
 		"go.mod":                             "module example.com/baseline\n",
-		"cmd/corvint/main.go":                "package main\nimport _ \"example.com/baseline/internal/engine\"\nfunc main() {}\n",
+		"cmd/corvint/main.go":                "package main\nimport _ \"example.com/baseline/internal/engine\"\nfunc main() {}\n", //corvint:fixture-path
 		"internal/engine/engine.go":          "package engine\n",
-		"tools/gate-affected-select/main.go": "package main\nfunc main() {}\n",
+		"tools/gate-affected-select/main.go": "package main\nfunc main() {}\n", //corvint:fixture-path
 		"tools/selection-baseline/main.go":   "package main\nfunc main() {}\n",
-		".corvint/test-read-scopes.json":     `{"profile":"corvint-test-read-scopes/0","packages":{"tools/selection-baseline":["baseline-input/"]}}`,
+		".corvint/test-read-scopes.json":     `{"profile":"corvint-test-read-scopes/0","packages":{"tools/selection-baseline":["baseline-input/"]}}`, //corvint:fixture-path
 	}
 	for p, b := range files {
 		baselineFile(t, root, p, b)
@@ -65,7 +65,7 @@ func TestBaselineInputDecisionASDV0944(t *testing.T) {
 		{"benchmarks/selection-baseline/changes.json", "{}", true, "changes.json"},
 		{".github/cishards/package-costs.json", "{}", true, "package-costs.json"},
 		{"baseline-input/config.txt", "changed", true, "matching reader input baseline-input/config.txt"},
-		{".corvint/test-read-scopes.json", "invalid", true, "unknown read set"},
+		{".corvint/test-read-scopes.json", "invalid", true, "unknown read set"}, //corvint:fixture-path
 		{"internal/engine/engine.go", "not Go", true, "compilation closure unavailable"},
 	} {
 		t.Run(tc.path+tc.reason, func(t *testing.T) {
@@ -126,11 +126,11 @@ func TestBaselineModuleManifestOnlyASDV0944(t *testing.T) {
 			baselineFile(t, root, "go.mod", "module example.com/baseline\n\ngo 1.27.0\nrequire example.com/lib v0.0.0\nreplace example.com/lib => ./lib\n")
 			baselineFile(t, root, "lib/go.mod", "module example.com/lib\n\ngo 1.27.0\n")
 			baselineFile(t, root, "lib/engine/engine.go", "package engine\n")
-			baselineFile(t, root, "cmd/corvint/main.go", "package main\nimport _ \"example.com/lib/engine\"\nfunc main() {}\n")
-			for _, p := range []string{"tools/gate-affected-select/main.go", "tools/selection-baseline/main.go"} {
+			baselineFile(t, root, "cmd/corvint/main.go", "package main\nimport _ \"example.com/lib/engine\"\nfunc main() {}\n") //corvint:fixture-path
+			for _, p := range []string{"tools/gate-affected-select/main.go", "tools/selection-baseline/main.go"} {              //corvint:fixture-path
 				baselineFile(t, root, p, "package main\nfunc main() {}\n")
 			}
-			baselineFile(t, root, ".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"tools/selection-baseline":["benchmarks/selection-baseline/"]}}`)
+			baselineFile(t, root, ".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"tools/selection-baseline":["benchmarks/selection-baseline/"]}}`) //corvint:fixture-path
 			if workspace {
 				baselineFile(t, root, "go.work", "go 1.27.0\nuse (\n.\n./lib\n)\n")
 				t.Setenv("GOWORK", filepath.Join(root, "go.work"))
@@ -148,7 +148,7 @@ func TestBaselineModuleManifestOnlyASDV0944(t *testing.T) {
 				t.Fatalf("manifest skipped: %v %s", run, why)
 			}
 			// Modules without imported packages can still change version selection.
-			baselineFile(t, root, "cmd/corvint/main.go", "package main\nfunc main() {}\n")
+			baselineFile(t, root, "cmd/corvint/main.go", "package main\nfunc main() {}\n") //corvint:fixture-path
 			baselineGit(t, root, "add", ".")
 			baselineGit(t, root, "commit", "-qm", "no imported lib package")
 			base = baselineGit(t, root, "rev-parse", "HEAD")
@@ -217,7 +217,7 @@ func TestBaselineInputReasonIsDeterministic(t *testing.T) {
 	// Ensure a pinned external module is admitted, whereas a local replacement
 	// outside the worktree cannot be bounded by a diff here.
 	root := t.TempDir()
-	baselineFile(t, root, "cmd/corvint/main.go", "package main\n")
+	baselineFile(t, root, "cmd/corvint/main.go", "package main\n") //corvint:fixture-path
 	data, _ := json.Marshal(map[string]any{"Dir": filepath.Join(root, "cmd", "corvint"), "GoFiles": []string{"main.go"}})
 	external, _ := json.Marshal(map[string]any{"Dir": t.TempDir(), "Module": map[string]any{"Version": "v1.0.0"}})
 	if _, err := compilationDirs(root, strings.NewReader(string(data)+string(external))); err != nil {
