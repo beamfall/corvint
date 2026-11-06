@@ -70,6 +70,7 @@ var tooling = []string{toolingPath, "go.mod", "go.sum", "script/", "tools/"}
 // never recorded (GL-V0-003).
 var scopes = map[string][]string{
 	"host-adapter-test":             {treeScope},
+	"host-adapter-node-test":        {treeScope},
 	"go-version":                    {},
 	unresolved:                      {treeScope},
 	"go-vet":                        {"*.go", "*.s", "*.c", "*.h"},
@@ -469,10 +470,10 @@ func (l *ledger) key(step string, packages []string) (string, string) {
 }
 
 // digestKey is the key of step over inputs: the schema, the tool identity,
-// the Go environment a test reads, and the packages the step names.
+// the test environment (including mandatory host coverage), and the packages the step names.
 func (l *ledger) digestKey(step, inputs string, packages []string) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "%s\nstep %s\ntool %s\nenv GO_TEST_TIMEOUT=%s\nenv GOFLAGS=%s\ninputs %s\n", schema, step, l.identity, l.inv.getenv("GO_TEST_TIMEOUT"), l.inv.getenv("GOFLAGS"), inputs)
+	fmt.Fprintf(h, "%s\nstep %s\ntool %s\nenv GO_TEST_TIMEOUT=%s\nenv GOFLAGS=%s\nenv CORVINT_REQUIRE_NODE=%s\nenv CI=%s\ninputs %s\n", schema, step, l.identity, l.inv.getenv("GO_TEST_TIMEOUT"), l.inv.getenv("GOFLAGS"), l.inv.getenv("CORVINT_REQUIRE_NODE"), l.inv.getenv("CI"), inputs)
 	for _, pkg := range packages {
 		fmt.Fprintf(h, "package %s\n", pkg)
 	}
