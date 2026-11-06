@@ -222,29 +222,28 @@ func workMakeParents(root *os.Root, path string) error {
 	return nil
 }
 
-func (run *workMaterialization) Verify(ctx context.Context) error {
-	if err := run.source.VerifyMaterialization(ctx, run.target); err != nil {
-		return err
-	}
-	root, err := os.OpenRoot(run.target)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
-	expected := make(map[string]worksource.Entry, len(run.source.Entries))
+// verifyMaterializedTree checks that fsys holds exactly entries and their
+// parent directories, outside the Git metadata at .git, which Verify compares
+// separately. A .git that is a file is passed over as a file: SkipDir there
+// would skip every later root entry (WQO-V0-971, ASD-V0-2476; V1-4511).
+func verifyMaterializedTree(fsys fs.FS, entries []worksource.Entry) error {
+	expected := make(map[string]worksource.Entry, len(entries))
 	directories := map[string]bool{".": true}
-	for _, entry := range run.source.Entries {
+	for _, entry := range entries {
 		expected[entry.Path] = entry
 		for parent := filepath.Dir(entry.Path); parent != "."; parent = filepath.Dir(parent) {
 			directories[parent] = true
 		}
 	}
-	err = fs.WalkDir(root.FS(), ".", func(path string, entry fs.DirEntry, walkErr error) error {
+	err := fs.WalkDir(fsys, ".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if path == ".git" {
-			return fs.SkipDir
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() {
 			if !directories[path] {
@@ -263,6 +262,21 @@ func (run *workMaterialization) Verify(ctx context.Context) error {
 	}
 	if len(expected) != 0 {
 		return fmt.Errorf("missing materialized entries")
+	}
+	return nil
+}
+
+func (run *workMaterialization) Verify(ctx context.Context) error {
+	if err := run.source.VerifyMaterialization(ctx, run.target); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(run.target)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if err := verifyMaterializedTree(root.FS(), run.source.Entries); err != nil {
+		return err
 	}
 	budget, entries := int64(workManifestBytes), 0
 	metadata, err := workManifestRoot(ctx, filepath.Join(run.target, ".git"), &budget, &entries)

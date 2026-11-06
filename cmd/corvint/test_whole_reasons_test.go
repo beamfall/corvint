@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // TestWholePackageSelectionsNameTheirReader_V13573 (V1-3573): every whole-package selection
 // names the reader it rests on: a plan selection names the command it runs, the cause of its
-// unbounded reads or the unit its dependency comes through, and a package the AFP-V0-012
-// attribution adds beyond the plan carries its own attribution line; a plan selection keeps its
-// slice and the verdict line is never a package.
+// unbounded reads or the unit its dependency comes through. (AFP-V0-2402 removed the packages
+// the AFP-V0-012 attribution added beyond the plan, so no run-set package needs an attribution
+// line: TestAFPV02402RunSetIsThePlanGoSelection.)
 func TestWholePackageSelectionsNameTheirReader_V13573(t *testing.T) {
 	t.Parallel()
 	for want, witness := range map[string]affected.Witness{
@@ -24,21 +23,24 @@ func TestWholePackageSelectionsNameTheirReader_V13573(t *testing.T) {
 			t.Errorf("%s: reader %q, want %q", witness.Kind, got, want)
 		}
 	}
-	slices := map[string]sessiontest.GoSlice{"m/app": {Pattern: "^TestApp$", Reason: "selected: its own test"}}
-	testAttributionReasons(slices, []string{
-		"selected m/app",
-		"reader m/docs <- docs/guide.md",
-		"importer m/app <- lib/lib.go",
-		"unresolved m/r: \"..\"",
-		"run m/app m/docs m/r",
-	})
-	if slices["m/docs"].Reason != "whole: attributed: reader m/docs <- docs/guide.md" || slices["m/docs"].Pattern != "" {
-		t.Fatalf("attributed package reason = %+v", slices["m/docs"])
-	}
-	if slices["m/r"].Reason != "whole: attributed: unresolved m/r: \"..\"" {
-		t.Fatalf("unresolved package reason = %+v", slices["m/r"])
-	}
-	if slices["m/app"].Pattern != "^TestApp$" || len(slices) != 3 {
-		t.Fatalf("a plan selection's slice changed, or the verdict became a package: %+v", slices)
+}
+
+// TestAFPV02402RunSetIsThePlanGoSelection (V1-4363): a run verdict of the AFP-V0-012 attribution
+// runs exactly the plan's Go selection, so `corvint test` and `corvint affected` agree on the Go
+// packages; FALLBACK and NOTHING verdicts are unchanged (negative controls), and a run verdict over
+// a plan that selects no Go package is NOTHING with its reason.
+func TestAFPV02402RunSetIsThePlanGoSelection(t *testing.T) {
+	for _, tc := range []struct {
+		verdict, want string
+		planned       []string
+	}{
+		{"run m/app m/docs m/r", "run m/app m/lib", []string{"m/lib", "m/app", "m/app"}},
+		{"FALLBACK root module definition is dirty: go.mod", "FALLBACK root module definition is dirty: go.mod", []string{"m/app"}},
+		{"NOTHING no dirty or committed path; no Go package to test", "NOTHING no dirty or committed path; no Go package to test", nil},
+		{"run m/docs", "NOTHING the plan selects no Go package; the AFP-V0-012 attribution names only packages the plan's rules exclude (AFP-V0-2402)", nil},
+	} {
+		if got := testPlanRunSet(tc.verdict, tc.planned); got != tc.want {
+			t.Errorf("testPlanRunSet(%q, %v) = %q, want %q", tc.verdict, tc.planned, got, tc.want)
+		}
 	}
 }

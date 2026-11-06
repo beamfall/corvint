@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Explicit offline qualification: exact Pi 0.99.1 and candidate Core with Pi LCP admission.
 import test from 'node:test';
+import {hostAvailable,hostFile} from './host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from 'node:fs';
@@ -38,7 +39,7 @@ export default function(pi){
   if(mode==='queued'&&!queued){queued=true;await pi.sendUserMessage('queued fixture input',{deliverAs:'followUp'});capture({kind:'queued',pending:ctx.hasPendingMessages()})}
  });
  const native=createCommandRunner({binary:process.env.CORVINT_BIN,timeoutMs:1700,maxBytes:8000});
- const runner={async run(req){const result=await native.run(req);let state;try{state=JSON.parse(result.stdout).repository?.worktreeState}catch{}capture({kind:'native',cwd:req.cwd,worktreeState:state,verb:req.args[1],event:req.args[req.args.indexOf('--event')+1],boundary,fault:result.fault,exit:result.exitCode});return result},close:()=>native.close()};
+ const runner={async run(req){const result=await native.run(req);let state,receipt;try{receipt=JSON.parse(result.stdout);state=receipt.repository?.worktreeState}catch{}capture({kind:'native',receipt,cwd:req.cwd,worktreeState:state,verb:req.args[1],event:req.args[req.args.indexOf('--event')+1],boundary,fault:result.fault,exit:result.exitCode});return result},close:()=>native.close()};
  registerWorkflow(pi,{runner,version:'0.99.1',notice:(_,code)=>capture({kind:'notice',code})});
  pi.on('agent_before_settle',e=>capture({kind:'boundary-result',entries:e.entries.map(entry=>entry.customType)}));
  pi.on('agent_settled',()=>capture({kind:'settled'}));
@@ -51,12 +52,14 @@ export default function(pi){
 }`;
 
 test('LCP-V0-008 actual Pi one remediation, recursive release, error/abort and queued boundary bypass',async t=>{
+ if(!(hostAvailable(t,process.env.PI_BIN??'pi')&&hostFile(t,process.env.CORVINT_PI_WORKFLOW_BIN)))return;
  const binary=process.env.CORVINT_PI_WORKFLOW_BIN;
  assert.ok(binary&&existsSync(binary),'set CORVINT_PI_WORKFLOW_BIN to the exact candidate Core binary');
  const processModule=resolve(process.env.CORVINT_PI_PROCESS_MODULE??join(here,'process.js'));
  assert.ok(existsSync(processModule),'shared process runner must be built before native qualification');
  const scratch=mkdtempSync(join(tmpdir(),'pi-workflow-host-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const extensionPath=join(scratch,'fixture.ts');writeFileSync(extensionPath,extension(processModule));
+ const retained=[];
  for(const mode of ['completed','mixed','nested','error','aborted','queued']){
   const base=join(scratch,mode),home=join(base,'home'),repo=join(base,'repo'),agent=join(home,'.pi/agent'),capture=join(base,'events.jsonl');
   for(const dir of [home,repo,agent])mkdirSync(dir,{recursive:true});
@@ -85,5 +88,7 @@ test('LCP-V0-008 actual Pi one remediation, recursive release, error/abort and q
   }else{assert.equal(providers.length,1,JSON.stringify(events));assert.equal(stops.length,0,JSON.stringify(events));}
   assert.equal(events.filter(e=>e.kind==='settled').length,1,JSON.stringify(events));
   assert.ok(events.some(e=>e.kind==='notice'&&e.code==='local-policy-incomplete'),JSON.stringify(events));
+  retained.push({mode,receipts:events.filter(e=>e.kind==='native'),providers:providers.length,stops:stops.length,notices:events.filter(e=>e.kind==='notice')});
  }
+ if(process.env.CORVINT_PI_WORKFLOW_EVIDENCE)writeFileSync(process.env.CORVINT_PI_WORKFLOW_EVIDENCE,JSON.stringify(retained,null,2)+'\n');
 });

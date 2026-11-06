@@ -5,11 +5,13 @@ Date: 2026-10-30
 Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
-Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
+Authoritative inputs: V1-4625 lane charter (2026-11-04); native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
 V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861, CIN-V0-2301, CIN-V0-2302: V1-3332; CIN-V0-2300: V1-4446; CIN-V0-2303: V1-4445; CIN-V0-2304: V1-2805; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
+Lane cir-w35 (V1-4232, V1-4233, V1-4234) defines AFP-V0-100 to AFP-V0-106 here under the parent's
+`AFP-V0` prefix for the same reason; see build-log entry `2026-11-01-cir-w35`.
 
 ## Agent digest
 - Claim: CI narrowing isolates producing epochs and provides an operator alarm for missing forward rows independent of selection documents.
@@ -36,6 +38,14 @@ by the orchestrator under owner delegation, owner chat 2026-10-31) and the AFP-V
 kill switch keep their thresholds; no row is seeded or synthetic.
 
 ## Requirements
+
+- `CIN-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier plan MUST retain every distinct FULL-forcing path reason rather than capping the list at twenty; the per-reason display limit MAY remain 300 characters.
+- `CIN-V0-7501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shared PR documentation gates MUST run the exact per-job permission/exception check before merge; each nondefault grant MUST name its exact permissions and purpose in the exception table.
+- `CIN-V0-7502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merge-queue and main CI MUST execute the declared TypeScript family through `make host-adapter-test`; a failure MUST fail the required `go-product` check.
+- `CIN-V0-7503`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3333) `go-static` MUST restore the exact `go.mod`/`go.sum`-keyed local-authority module cache, refuse a cache miss, verify it with `go mod verify` and run the nested module tests and vet with GOPROXY/GOSUMDB off and readonly module directives. An explicit preceding preparation job MAY fetch checksum-verified dependencies and populate that cache; compiler steps MUST NOT fetch from a proxy.
+- `CIN-V0-7504`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4436) CI MUST compute the shadow dry-run plan for the event range and require `web-flows` for a FULL plan, an Incomplete dry-run (exit 3), or still-required checks naming a web-flows binary consumer. That job MUST install the lockfile dependencies with lifecycle scripts disabled and the matching Playwright Chromium, then run `script/web-flows-gate`. The selector binary and confine wrapper MUST build from the trusted checkout and inspect a separate tested checkout. Consumer and read-scope declarations (`.corvint/test-binary-consumers.json` and `.corvint/test-read-scopes.json`) are tested-tree data, reviewed as code; a FULL plan MUST always require the consumer job. Any other nonzero planning exit or required consumer failure MUST fail `go-product`; an unreached consumer in a complete non-FULL plan MUST leave the job skipped.
+- `CIN-V0-7505`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4574) An edit under `.github/` MUST select `tools/ci-forward-row` through its declared read scope and its workflow-executing tests in batch verification.
+- `CIN-V0-7506`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4154) A new binary source or command-tree entry MUST select `conformance/cli-errors-v0` catalog-equality tests in affected and in batch verification, including when source and catalog changes meet only in the batch.
 
 - **CIN-V0-001:** (decided by the orchestrator under owner delegation, V1-3314; applies the
   AFP-V0-030 re-arm rule) `CORVINT_PR_FORWARD_EPOCH` in `ci.yml`, `FORWARD_EPOCH` in
@@ -273,6 +283,144 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
   reach the merge queue.
 
+- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended by the owner's fix-round charter, 2026-11-04)
+  Every pull request SHALL start one GitHub-hosted `macos-15` job, `go-macos`, using the pinned
+  production Go toolchain and nightly macOS host provisioning. A verified `docs-plan` DOCS decision
+  MAY skip its tests; a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
+  `go list` metadata for the root module and CI's existing nested modules `tools/local-authority`
+  and `interop/cem01-go`, the job SHALL select packages containing Darwin filename/build constraints,
+  `GOOS` comparisons or switch cases with `"darwin"` in code or tests, or `/private/var` or
+  `/var/folders` path-alias witnesses. Build constraints SHALL conservatively include indirect Darwin terms (`unix`,
+  negated OS tags such as `!linux` and `!windows`, and BSD forms); selecting every build
+  constraint is permitted. Source and test files, including ignored platform files, SHALL be
+  rescanned on every run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
+  package and the file/reason for inclusion. Tests SHALL run per package, without the full-suite
+  gate or a race run, sequentially with two build workers and two test workers. The job SHALL
+  occupy at most one hosted runner, have a 180-minute timeout, and retain selection evidence even
+  after failure. Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
+  execution; Linux cost history is an estimate, never a native measurement.
+  The job is advisory: `go-product` SHALL NOT depend on it or inspect its result, and it SHALL
+  set job-level `continue-on-error: true` so its failure never concludes the workflow run as
+  failure, which would deny the PR verdict to merge-queue REUSE (amended 2026-11-05, V1-4727).
+  `go-macos` MAY intersect its root-module inventory with a native narrowed selection only after
+  the existing `narrowing-verdict` reports MET and the existing trusted `narrow.sh` guards admit
+  it: protected main-parent tools built for Darwin, native driver and shadow, matching event/base/
+  head/target, merge-queue rule, no `.github/` change, complete selection and shadow-superset proof.
+  Linux package artifacts SHALL NOT drive this intersection. An absent, failed, malformed or
+  mismatched native record SHALL run the entire Darwin inventory, never silently omit packages;
+  nested modules SHALL always retain their full Darwin inventory because the root planner does
+  not own them. Its artifact SHALL use a distinct name outside the Linux shard record/coverage
+  patterns,
+  so it cannot change their denominator. Activation remains subject to `ci-control-plane` admin
+  review; no branch-protection change or new required status context is necessary.
+- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred by the owner's fix-round charter, 2026-11-04) PLANNED/deferred: make `go-macos`
+  required through `go-product` only after V1-4413, V1-4551 and V1-4553 fix the existing native
+  failures and one hosted FULL run is green. Until then CIN-V0-4625 remains advisory.
+  The deferred integration SHALL check PR success before the batched-label early exit and
+  require the intentional job skip outside PRs. Nightly `macos-15` full-gate run 41849536472
+  at base `6c33df33bc5670131482f5263b410cb980580657` fails in selected packages
+  (`internal/contextindex`, `internal/tasks/cli`, `internal/tasks/store`, `internal/testsupport`,
+  `interop/cem01-go`); requiring this result now would block FULL-fallback pull requests.
+
+### Merge-queue reuse on a moved or stacked base, integrity-record wait and fast-route liveness (AFP-V0-100 to AFP-V0-106; V1-4232, V1-4233, V1-4234)
+
+Intent (orchestrator lane request, 2026-11-01; V1-4232, V1-4233, V1-4234): over the 47 merge-queue
+runs of 2026-10-30 to 2026-11-01, 27 ran the full suite (median 29.8 min against 6.65 min for an
+AFP-V0-046 hit): 17 were stacked on an entry ahead of them and 9 were built on a `main` that moved
+after the pull-request run, so no tree matched. AFP-V0-812 to AFP-V0-816 reuse only a narrowed
+record of a moved base, and nearly every pull-request run is full, so they never applied. Separately,
+an entry can start before its pull-request run's `artifact-integrity-record` exists and then reruns
+the 12 to 16 min archive gate (V1-4233), and a fast route can stop firing for weeks with nothing
+reporting it (the DOCS route never fired 2026-09-29 to 2026-11-01, V1-4234).
+
+Target (set before building, V1-4232): over at least 20 merge-queue runs after the change, the
+median wall of moved-base and stacked entries is below 12 min, and no package whose inputs changed
+between the record tree and the entry is reused. Non-goals: no reuse without the AFP-V0-813 checks
+and a BOUNDED (or language-frontier-only) plan of the main delta; no change to the AFP-V0-046 and
+AFP-V0-734 exact reuse; no repin of `CORVINT_PR_TOOL_SOURCE`; no change to `narrow.jq` or `narrow.sh`.
+
+- **AFP-V0-100:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;
+  amends AFP-V0-812) When `tools/ci-reuse-plan --event merge_group --base Q` decides FULL, names no
+  AFP-V0-812 narrowed candidate, and is given `--commits DIR`, the decision SHALL carry
+  `delta: {runId, recordJobId, tree, target, base, head, scope: "FULL"}` of the first admitted
+  pull-request run whose one AFP-V0-170 `ci-tested-tree-record` line names the entry's head and the
+  shard count but another tree. `base` is the first parent of the line's `target`, read only from
+  `DIR/<target>.json`, a retained commits API response whose `sha` is `target` and whose `parents`
+  are exactly two, the second equal to the head; any other response names no full-record delta. A
+  narrowed candidate keeps its AFP-V0-812 shape with no `scope` member and is preferred, and a
+  decision made without `--commits` is byte-identical to the previous tool's.
+- **AFP-V0-101:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;
+  amends AFP-V0-046) The docs-plan reuse step SHALL, for each passed record job log it reads, also
+  retain the commits API response of the line's target, and SHALL pass `--commits` only to a tool
+  whose help text lists `-commits`. A merge-queue entry whose first parent Q is not on `main` (a
+  stacked entry) SHALL no longer stop before deciding: the tool is built from
+  `git merge-base Q refs/remotes/origin/main`, which must be an ancestor of `origin/main` and of Q,
+  never from Q or the entry, and only its `delta` is handed on; such an entry never decides REUSE.
+- **AFP-V0-102:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;
+  amends AFP-V0-813 and AFP-V0-815) `mq-narrow.sh` SHALL accept an `MQ_DELTA` whose `scope` is
+  `FULL` under every AFP-V0-813 check except the record-range plan: a full record ran every package
+  of tree P, so Rs is the whole queue-range selection S, the entry reuses exactly S \ D and runs
+  S ∩ D, and the applied `reuse` record names `recordScope: "FULL"` with `recordSelected` equal to
+  `selected`. A `scope` member that is neither absent nor `FULL` SHALL refuse reuse (AFP-V0-816).
+- **AFP-V0-103:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232)
+  Before promotion an offline replay of the recent merge-queue runs SHALL predict the hit rate: for
+  each missed entry it rebuilds the entry and the record commit C, applies the AFP-V0-813 checks and
+  plans C..TM with the BASE-built planner and selector, and predicts the shard wall from
+  `.github/cishards/package-costs.json`. The replay and its prediction are recorded in
+  `docs/build-log/2026-11-01-cir-w35.md`; the live target above is `NOT_OBSERVED` until the first
+  20 queue runs after merge.
+- **AFP-V0-104:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4233;
+  amends AFP-V0-163) When the `artifact-integrity` reuse step finds no admitted record and a
+  pull-request run of the entry's head has not completed and its latest `artifact-integrity` or
+  `artifact-integrity-record` job has not concluded, the step SHALL list again every 30 s, at most
+  16 more times (8 min), and then run the gate in full. A run that has not completed is admitted
+  only when both latest jobs concluded `success` on the head, exactly as a completed run is; a
+  completed run that did not conclude `success` is never admitted. The step's timeout SHALL exceed
+  the wait bound, the job's timeout (30 min) SHALL hold the wait and the full gate, and a test pins
+  the bound.
+- **AFP-V0-105:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)
+  `tools/ci-reuse-plan routes` SHALL read retained run listings and each run's latest jobs listing
+  (with steps) and report, for each fast route (DOCS, REUSE, NARROWED, INTEGRITY_REUSE,
+  DOC_GATES_REUSE), its eligible runs and hits over the newest `--window` eligible runs, from job and
+  step conclusions alone; a run id listed more than once counts once. A route with at least
+  `--min-eligible` eligible runs and no hit is `DEAD`
+  and the tool exits 1; fewer eligible runs is `NOT_OBSERVED`, never healthy; a route whose signal
+  step is missing from every eligible run is `SIGNAL_MISSING` and also exits 1. It reads no log and
+  no artifact.
+- **AFP-V0-106:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)
+  A scheduled `ci-route-health` workflow SHALL run the AFP-V0-105 check daily over the newest
+  `ci.yml` runs with read-only permissions, retain its report, and fail (so the owner is notified)
+  on `DEAD` or `SIGNAL_MISSING`.
+
+Failure modes: (1) a package the main-delta plan wrongly omits is reused; the main push of the
+commit runs in full and catches it, as for AFP-V0-815. (2) The replay found the delta plan UNKNOWN
+(an unowned path or a test-less package) in 18 of 27 misses and the delta selecting
+`cmd/corvint` (17.4 min alone) in every applied case, so the shard wall stays above 20 min; the
+target is not expected from this change alone. (3) Every consumer of `MQ_DELTA` sits behind the
+AFP-V0-731 gate, which refuses while the CIN-V0-010 pin lags. (4) A waiting integrity step delays
+the archive gate by at most 8 min when the pull-request job fails or is cancelled. (5) A renamed
+signal step makes its route `SIGNAL_MISSING`, which fails loud rather than reporting healthy.
+
+Rollback: remove `--commits` from the docs-plan step (the tool then names no full-record delta),
+restore the stacked-entry early exit, remove the `FULL` branch of `reuse_` in `mq-narrow.sh`, restore
+the single listing in the integrity step, and delete `.github/workflows/ci-route-health.yml` and the
+`routes` subcommand.
+
+- **CIN-V0-2320:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3489;
+  effective only after the owner's review of the `.github` change it needs) The CI workflow SHALL
+  run, on every `pull_request` and `merge_group` event and on no other, a `shell-test-selected` job
+  that checks out full history and runs `make -s shell-test-affected BASE=$(git merge-base HEAD
+  BASE_SHA)`, `BASE_SHA` the pull request's base commit or the merge-queue entry's `base_sha`, and
+  SHALL fail when neither is set. The steps it runs are the AFP-V0-2401 selection: the script
+  self-tests (`make shell-test` steps) a change can affect, every step when the plan cannot narrow
+  them. Before it, no PR job ran a shell-test step, so `no-python-runtime-dependency-test` was red
+  on main (build-log entry `2026-11-03-selbugs-selection-correctness`). The required `go-product`
+  check SHALL depend on `shell-test-selected` and require its successful result before every
+  early return, including a batched pull request, DOCS or REUSE; failure, cancellation, missing
+  result or a skipped job on a pull request or merge-group event SHALL fail the required check.
+  A push SHALL explicitly admit the shell job's intentional `skipped` result; a failed or
+  cancelled shell job SHALL never pass through that exception.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -282,6 +430,27 @@ changes and needs a trusted artifact handoff); reusing a narrowed queue record f
 (rejected, CIN-V0-005); planner selection of a `tools/local-authority` unit, which belongs to the
 affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
 `BOUNDED` scope check of `mq-narrow.sh`; adding `infra-reclassified.txt` keys (AFP-V0-463).
+
+## Darwin PR job boundaries and maintenance
+
+The smaller baseline is the nightly full macOS gate; it remains unchanged and catches
+non-Darwin-specific regressions outside this inventory. This PR leg is not a full macOS
+qualification, race run, release gate or language-provider live qualification. One runner avoids
+adding another shard matrix to the roughly four-run Actions capacity. Native narrowing reuses
+AFP-V0-098 guards rather than granting advisory affected output authority to skip tests.
+The Linux forward bar is reused as the existing enablement control, not claimed as a native
+cost or miss-rate measurement. Unqualified/missing narrowing inputs retain the full inventory.
+
+The selector is lexical and conservative: comments and negated build tags may overselect; computed
+OS checks, imported aliases of `GOOS`, and path-sensitive behavior without a path witness can be
+missed. Add a Darwin/platform test or an explicit `/private/var` regression witness when such a
+failure is found. The nightly full gate remains the backstop. New independent nested Go modules
+need explicit job provisioning; fixture modules under testdata are not product packages. Missing
+host tools, metadata errors, native test failures and timeout fail the advisory job
+without blocking `go-product`; required integration is deferred to V1-4636 (CIN-V0-4626). The
+180-minute ceiling is a hang/resource bound, not a latency promise; full fallback is expensive.
+Normal narrowed changes are estimated at 5–15 runner minutes (setup/planning and selected packages),
+while full fallback is conservatively budgeted up to 180; actual macOS timings are NOT_OBSERVED.
 
 ## Failure modes
 
@@ -350,8 +519,17 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
+| CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps`, `TestCINV02320RequiredCheckPropagatesShellFailure` in `tools/ci-reuse-plan/workflow_test.go` |
+| CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/ci.yml`; `.github/macos/select.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
+| CIN-V0-4626 | PLANNED/deferred: V1-4636; no required-aggregate dependency/result check | Required integration NOT_PRODUCED: blocked on V1-4413, V1-4551, V1-4553 and one green hosted FULL run; nightly run 41849536472 is failing at the lane base |
 
 ## Rollback
+
+CIN-V0-2320: delete the `shell-test-selected` job; shell-test steps then run only in `make gate`.
+
+CIN-V0-4625: revert advisory `go-macos` and `.github/macos/`. CIN-V0-4626 has no delivered
+aggregate integration to roll back; V1-4636 owns its future activation.
+The nightly macOS gate and existing Linux narrowing remain operative; no persistent data migrates.
 
 CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
 no persisted state. Hosted wiring is pending; no existing workflow rollback is required. Its
@@ -373,3 +551,15 @@ CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop t
 calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
 `workflow_run` clause; the schedule alone remains. CIN-V0-2304: drop the batch-check step of
 `doc-gates`; the DCW-V0-348 pre-push hook remains the only check.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `CIN-V0-7500` | `.github/forward-rows/tiers.jq`; `TestCINV07500AllFullReasons` (29 reasons). |
+| `CIN-V0-7501` | `Makefile` DOC_GATE_TARGETS and `script/ci-least-privilege-exceptions.tsv`; `TestCINV07501PermissionsArePremerge`; `script/check-ci-least-privilege_test.sh` missing/changed per-job exception fixtures. |
+| `CIN-V0-7502` | `.github/workflows/ci.yml` host-adapters and go-product; `TestCINV07502RequiredFamiliesAndOfflineModules`. |
+| `CIN-V0-7503` | `.github/workflows/ci.yml` local-authority-deps and go-static; `TestCINV07502RequiredFamiliesAndOfflineModules`; hosted cache qualification remains NOT_OBSERVED. |
+| `CIN-V0-7504` | `.github/workflows/ci.yml` web-flows-plan/web-flows/go-product; `TestCINV07504WebFlowsConsumerJob`, `TestCINV07504WorkflowPlanFlags` (actual CLI option parser); live PR/MQ evidence remains NOT_OBSERVED until publication is authorized. |
+| `CIN-V0-7505` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestAFPV0591CoverageGuard`. |
+| `CIN-V0-7506` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestCLIErrorContracts_ACXV0859`. |

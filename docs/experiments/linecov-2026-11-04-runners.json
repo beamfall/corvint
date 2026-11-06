@@ -1,0 +1,85 @@
+{
+  "schema": "linecov-runner-qualification/1",
+  "status": "EXPERIMENTAL_FIXTURE_ONLY",
+  "node": "v22.22.1",
+  "packages": {
+    "mocha": "12.0.3",
+    "jasmine": "7.0.0",
+    "jest": "30.5.2",
+    "vitest": "5.1.0",
+    "ava": "8.3.0",
+    "bun": "1.4.4",
+    "deno": "2.9.6",
+    "@vitest/coverage-v8": "5.1.0"
+  },
+  "packageLockSha256": "cdd3332e9d1ea3f018c3995399ad730d56a0b29b5216e9d1544a4c51394e1c73",
+  "test": "TestRunnerFaultInjection",
+  "rows": [
+    {
+      "runner": "node-test",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "mocha",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "jasmine",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "jest",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "vitest",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "ava",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "bun-test",
+      "fault": "lib.js:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    },
+    {
+      "runner": "deno-test",
+      "fault": "src/calc.ts:2",
+      "failing": 1,
+      "misses": 0,
+      "selected": 1,
+      "total": 2
+    }
+  ],
+  "logSha256": "60f08aff6c1b795c3499bf25065d422208781a4c6c69a5237af35a65676b6d71",
+  "limits": "Only node:test additionally has the pinned Beamfall full-suite shadow. Other runners have native fixture fault evidence; production exclusion remains unadmitted."
+}

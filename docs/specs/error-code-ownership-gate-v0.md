@@ -39,6 +39,8 @@ so the allowlist stayed empty.
 
 ## Requirements
 
+- `ECO-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4400) Before checking index content, the gate MUST name on stderr every unstaged or untracked source/spec path it skips, with `NOT_CHECKED unstaged` and the staging repair. A clean passing check remains silent; these diagnostics do not change which bytes govern the ratchet (ECO-V0-004), nor its exit status.
+
 - `ECO-V0-001`: An emitted code is a string literal matching `[a-z][a-z0-9]*(-[a-z0-9]+)+` in a
   tracked Go file under `cmd/` or `internal/` whose name does not end in `_test.go`, standing in one
   of six positions: the value of a `Code:` or `Reason:` composite-literal key; the value of a
@@ -58,13 +60,14 @@ so the allowlist stayed empty.
   naming each emitted unowned code absent from the list together with its first site, and MUST fail
   naming each listed code that is owned or no longer emitted. A new code is owned by adding its row
   to the owning spec, never by adding it to the list.
-- `ECO-V0-004`: Sources, specs, and the allowlist MUST be read from the Git index, not the worktree,
-  so an untracked file changes nothing and a staged change is what the gate measures.
+- `ECO-V0-004`: (accepted, decision 0100; amended under the owner's standing auto-accept (2026-10-11); V1-4400) Sources, specs, and the allowlist MUST be read from the Git index, not the worktree,
+  so untracked bytes cannot change the emitted or owned sets and staged bytes govern the ratchet.
+  ECO-V0-7500 omission diagnostics do not inspect the omitted content.
 - `ECO-V0-005`: A `git grep` exit status other than 0 or 1 MUST fail the gate naming `git grep`,
   never be read as an empty set.
 - `ECO-V0-006`: A spec row that owns a code MUST describe only what the emitting code path checks,
   citing it by `path:line`, and MUST NOT assign it a meaning the code does not implement.
-- `ECO-V0-007`: A passing run MUST print nothing and exit zero; the gate MUST be read-only and a
+- `ECO-V0-007`: (accepted, decision 0100; amended under the owner's standing auto-accept (2026-10-11); V1-4400) A passing run MUST print nothing on stdout and exit zero; ECO-V0-7500 diagnostics on stderr expose omitted inputs; the gate MUST be read-only and a
   member of the `gate` target, as MUST its fixture test. `--list` MUST print the unowned set as
   `code<TAB>path:line` and exit zero.
 - `ECO-V0-008`: The `position` search MAY run over a private scratch tree that holds, at its own path
@@ -138,3 +141,9 @@ the same change, because the gate fails in both directions.
 
 A typed inventory that separates wire codes from internal reasons belongs to `DRC-V0-006` and
 `DRC-V0-011` once that contract is accepted; this gate is the syntactic floor until then.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `ECO-V0-7500` | `script/check-error-code-ownership.sh`; `script/check-error-code-ownership_test.sh` unstaged and untracked omission fixtures. |

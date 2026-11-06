@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"time"
 )
@@ -212,3 +213,6 @@ func SetGateBeatIntervalForTest(d time.Duration) func() {
 	gateBeatInterval = func(int64) time.Duration { return d }
 	return func() { gateBeatInterval = prev }
 }
+
+// ProgramForTest exposes the current workflow record for failure recovery tests.
+func (w *Workflow) ProgramForTest() snapshot.Program { return w.program }

@@ -3,8 +3,9 @@ set -eu
 
 # Covers SRG-V0-013: two lanes that each add one requirement to the same spec and run
 # `make spec-requirements` conflict only inside that spec's requirement list and the
-# REQUIREMENTS.tsv rows, never in the spec header, the Agent digest, INDEX.json or README.md.
-# The TSV conflict resolves by regeneration, and a lane on another spec merges cleanly.
+# REQUIREMENTS.tsv rows, plus the generated README range cell when the highest ID changes,
+# never in the spec header, the Agent digest or INDEX.json. Generated conflicts resolve by
+# regeneration, and a lane on another spec merges cleanly.
 # Covers SRG-V0-016: lanes that add requirements to different specs, or to different sections of
 # one spec so that each shifts the other's definition lines, or that only edit prose no indexed
 # field reads, merge in both orders with no conflict in any file, and every merged generated file
@@ -15,6 +16,8 @@ set -eu
 # their own definition lines and add different phony make targets, each on its own `.PHONY:` line,
 # merge in both orders with no conflict, while the same amendments as header segments and the same
 # targets on one shared `.PHONY:` line conflict; the repository Makefile has no shared line.
+# Covers SRG-V0-752 (V1-2392): two lanes that extend the ranges of adjacent README rows conflict
+# in README.md alone, and spec-requirements-resolve finishes the merge.
 # Covers SRG-V0-920..922 (V1-3448, V1-3338, V1-3437): spec-requirements-resolve regenerates and
 # exits 0 when only a spec conflicted and when no merge is in progress; two lanes that each add a
 # new spec and repin a different use-case receipt conflict in INDEX.json, README.md and the ledger,
@@ -39,6 +42,8 @@ cp "$source_root/script/gen-spec-requirements.sh" "$source_root/script/spec-requ
   "$source_root/script/repin-use-case-receipts.sh" "$repo/script/"
 git() { command git -C "$repo" -c user.name=t -c user.email=t@example.invalid -c merge.conflictStyle=merge "$@"; }
 git init -q -b main
+# Keep the copied generator tracked, so resolved fixture trees can assert a clean status.
+git add -- script
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
@@ -62,6 +67,7 @@ Delivery status: experimental
 
 - SHR-V0-001: (accepted, decision 0001) The first clause.
 - SHR-V0-002: (accepted, decision 0001) The second clause.
+- SHR-V0-099: (accepted, decision 0001) Stable upper range bound.
 
 ## Failure modes
 
@@ -79,6 +85,7 @@ Delivery status: implemented
 ## Requirements
 
 - OTH-V0-001: (accepted, decision 0002) The other clause.
+- OTH-V0-099: (accepted, decision 0002) Stable upper range bound.
 SPEC
 cat > "$repo/docs/specs/README.md" <<'MD'
 # Specs
@@ -112,6 +119,8 @@ conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
 test "$conflicted" = "docs/specs/REQUIREMENTS.tsv docs/specs/shared.md " ||
   fail "the conflict touched more than the spec and REQUIREMENTS.tsv: $conflicted"
 
+# SRG-V0-7500: README range endpoints stay fixed in this isolation fixture.
+# The new-spec merge below separately exercises generated README co-edits.
 # Every conflict marker in the spec lies inside its requirement list.
 awk '
   /^## Requirements$/ { inside = 1; next }
@@ -153,6 +162,38 @@ for file in REQUIREMENTS.tsv INDEX.json README.md; do
     fail "the merged $file is not the regenerated one"
 done
 grep -q '^OTH-V0-002	' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "OTH-V0-002 lost in the merge"
+
+# SRG-V0-013 / SRG-V0-7500: both lanes append a new highest ID to the same spec.
+# Unlike the fixed-endpoint fixture above, each lane changes its generated README range cell.
+add_requirement highest-a shared.md SHR-V0-099 \
+  "- SHR-V0-100: (accepted under the owner's standing auto-accept (2026-10-11); V1-9001) Highest A's clause."
+add_requirement highest-b shared.md SHR-V0-099 \
+  "- SHR-V0-101: (accepted under the owner's standing auto-accept (2026-10-11); V1-9002) Highest B's clause."
+git checkout -q highest-a
+if git merge -q --no-edit highest-b > /dev/null 2>&1; then fail "highest-ID lanes merged without a conflict"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/README.md docs/specs/REQUIREMENTS.tsv docs/specs/shared.md " ||
+  fail "highest-ID conflict set is not exactly spec, TSV and README: $conflicted"
+resolve && fail "highest-ID resolve ran with the spec still conflicted"
+sed -e '/^<<<<<<< /d' -e '/^=======$/d' -e '/^>>>>>>> /d' "$repo/docs/specs/shared.md" > "$test_root/spec"
+cp "$test_root/spec" "$repo/docs/specs/shared.md"
+git add -- docs/specs/shared.md
+resolve || fail "highest-ID resolve did not regenerate TSV and README conflicts"
+test -z "$(git diff --name-only --diff-filter=U)" || fail "highest-ID resolve left unmerged paths"
+for id in SHR-V0-100 SHR-V0-101; do
+  grep -q "^$id	docs/specs/shared.md	.*	standing	" "$repo/docs/specs/REQUIREMENTS.tsv" || fail "$id lost in highest-ID resolve"
+done
+for file in REQUIREMENTS.tsv INDEX.json README.md; do
+  case $file in
+    REQUIREMENTS.tsv) flag= ;;
+    INDEX.json) flag=--index ;;
+    README.md) flag=--readme ;;
+  esac
+  (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" ||
+    fail "highest-ID resolved $file is not the regenerated one"
+done
+git commit -q --no-edit
+test -z "$(git status --porcelain)" || fail "highest-ID resolve did not yield a clean regenerated tree"
 
 # SRG-V0-016: a spec with two requirement sections, separated by prose. Every lane below branches
 # from this commit.
@@ -492,5 +533,41 @@ out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-re
 test "$(git diff --name-only --diff-filter=U)" = "$uc/ledger.json" && test "$(git diff | git hash-object --stdin)" = "$before" ||
   fail "the refused resolve changed the merge state"
 git merge --abort
+
+# SRG-V0-752 (V1-2392): two lanes that each add a requirement past the top of a different spec,
+# whose README rows are adjacent and carry SRG-V0-043 ranges, conflict in README.md alone, in both
+# orders, because git merges adjacent changed lines as one hunk; spec-requirements-resolve
+# finishes the merge and every merged generated file is the regenerated one.
+git checkout -q -b range-base "$rbase"
+for spec in rna:RNA rnb:RNB; do
+  printf '# %s spec\n\nIntent status: accepted\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s.\n\n## Requirements\n\n- %s-V0-001: (accepted, decision 0005) The first clause.\n- %s-V0-002: (accepted, decision 0005) The second clause.\n' \
+    "${spec%%:*}" "${spec%%:*}" "${spec#*:}" "${spec#*:}" > "$repo/docs/specs/${spec%%:*}.md"
+done
+regen
+perl -pi -e 's/\((rn[ab])\.md\) \|/"($1.md) " . uc($1) . "-V0-001 |"/e' "$repo/docs/specs/README.md"
+regen
+git commit -q -m range-base
+rows=$(grep -n '(rn[ab]\.md) RN[AB]-V0-001\.\.002 |' "$repo/docs/specs/README.md" | cut -d: -f1 | tr '\n' ' ')
+case $rows in *' '*' ') test $((${rows#* } - ${rows%% *})) = 1 || fail "the range rows are not adjacent: $rows" ;; *) fail "the range rows were not generated: $rows" ;; esac
+rbase2=$(git rev-parse HEAD)
+add_requirement lane-ra rna.md RNA-V0-002 "- RNA-V0-003: (accepted under the owner's standing auto-accept (2026-11-01); V1-2392) Lane RA's clause." "$rbase2"
+add_requirement lane-rb rnb.md RNB-V0-002 "- RNB-V0-003: (accepted under the owner's standing auto-accept (2026-11-01); V1-2392) Lane RB's clause." "$rbase2"
+for order in 'lane-ra lane-rb' 'lane-rb lane-ra'; do
+  set -- $order
+  git checkout -q -b "merge-$1" "$1"
+  if git merge -q --no-edit "$2" > /dev/null 2>&1; then fail "$1 <- $2: adjacent range rows merged without a conflict (the V1-2392 limit no longer holds; update SRG-V0-752)"; fi
+  conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+  test "$conflicted" = "docs/specs/README.md " || fail "$1 <- $2: the range-row conflict touched more than README.md: $conflicted"
+  out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve 2>&1) ||
+    fail "$1 <- $2: spec-requirements-resolve did not finish the range-row merge: $out"
+  test -z "$(git diff --name-only --diff-filter=U)" || fail "$1 <- $2: paths still unmerged after the resolve"
+  git commit -q --no-edit
+  for file in REQUIREMENTS.tsv INDEX.json README.md; do
+    case $file in REQUIREMENTS.tsv) flag= ;; INDEX.json) flag=--index ;; README.md) flag=--readme ;; esac
+    (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" || fail "$1 <- $2: the resolved $file is not the regenerated one"
+  done
+  grep -q '(rna\.md) RNA-V0-001\.\.003 |' "$repo/docs/specs/README.md" && grep -q '(rnb\.md) RNB-V0-001\.\.003 |' "$repo/docs/specs/README.md" ||
+    fail "$1 <- $2: a lane's range was lost in the resolve"
+done
 
 printf 'ok\n'

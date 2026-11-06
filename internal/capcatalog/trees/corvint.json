@@ -350,6 +350,7 @@
         "corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH",
         "corvint [--root PATH] affected [--full | --summary] [--require-clean] --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --playwright-config PATH [--playwright-discovery FILE] [--playwright-env NAME[=VALUE] ...]",
+        "corvint [--root PATH] affected --ownership-audit",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD [--provider RECORD ...] [--provider-command ARGV_JSON ...] [--repository ID=DIR ...] [--selection-profile strict|coverage]",
         "corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider FILE --selection-profile e2e-safe [--playwright-discovery FILE] [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]",
         "corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID --appmap-impact REPORT [--appmap-impact REPORT ...] [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]"
@@ -363,6 +364,7 @@
         "--format",
         "--full",
         "--no-cache",
+        "--ownership-audit",
         "--path",
         "--paths-from",
         "--playwright-config",
@@ -3019,7 +3021,7 @@
         "corvint [--root PATH] dogfood check [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
         "corvint [--root PATH] dogfood export --output FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood finish [--session-key HASH]",
-        "corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH] [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]",
+        "corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--seal yes|no] [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH] [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]",
         "corvint [--root PATH] dogfood handoff [--anchors \"ANCHOR...\"] [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]",
@@ -3060,6 +3062,7 @@
         "--release-authorization",
         "--report-set",
         "--root",
+        "--seal",
         "--session-key",
         "--task",
         "--task-state",
@@ -3220,7 +3223,7 @@
       "command": "corvint dogfood finish-lane",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH] [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]"
+        "corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--seal yes|no] [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH] [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]"
       ],
       "flags": [
         "--base",
@@ -3231,6 +3234,7 @@
         "--outcome",
         "--override-verifier",
         "--root",
+        "--seal",
         "--tree-verifier",
         "--verify"
       ],
@@ -6294,13 +6298,13 @@
       "command": "corvint test",
       "summary": "Run the affected test set (experimental, STR-V0)",
       "usage": [
-        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
+        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
       ],
       "flags": [
         "--base",
         "--confine",
         "--dry-run",
-        "--full",
+        "--format",
         "--go-parallel",
         "--manifest",
         "--pins",

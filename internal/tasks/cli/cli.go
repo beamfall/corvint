@@ -651,7 +651,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
 		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
 		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--source PATH|NAME [--config FILE]] [--max-bytes 4096..262144] [--checkpoint NOTE]",
-		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
+		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit REV",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
 		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
@@ -999,6 +999,9 @@ func pagedFlags(verb string, args []string, extra ...string) (map[string]string,
 		return nil, page{}, err
 	}
 	if len(pos) > 0 {
+		if verb == "ticket search" {
+			return nil, page{}, wire.Errorf(wire.CodeMalformed, "argv", "unexpected argument %q; quote multiword --text values, for example --text \"impact Makefile\"", prose(pos[0]))
+		}
 		return nil, page{}, wire.Errorf(wire.CodeMalformed, "argv", "%s takes no positional argument", verb)
 	}
 	p, err := parsePage(fl)
@@ -2062,6 +2065,10 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 	offers := completionOffers{rc: rc, in: in}
 	offers.offer(&v)
 	val := v.Value(includeRecord)
+	if includeRecord && v.Record.Status == ticket.StatusArchived {
+		// ARCHIVE receipts retain the mutation digest but no reason payload.
+		val.Obj.Set("archiveReason", wire.String("NOT_OBSERVED"))
+	}
 	if includeRecord {
 		val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		// TCL-V0-865: every failing intent check named beside the verdict.
@@ -2211,7 +2218,8 @@ type stagedSnapshot struct {
 // maxStagedEntries directory entries, newest modification time first, and
 // whether the directory held more entries. A ticket-bodies-* entry that is a
 // symlink is followed like the directory it names (the file stat follows
-// it). It is empty when HOME or the directory cannot be read.
+// it), except links into protected home folders (ASD-V0-2421). It is
+// empty when HOME or the directory cannot be read.
 func stagedSnapshots() ([]stagedSnapshot, bool) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -2220,7 +2228,7 @@ func stagedSnapshots() ([]stagedSnapshot, bool) {
 	base := filepath.Join(home, "lane-inputs")
 	candidates := []string{filepath.Join(base, "queue-snapshot.json")}
 	truncated := false
-	if d, err := os.Open(base); err == nil {
+	if d, err := openStagedPath(base); err == nil {
 		entries, _ := d.ReadDir(maxStagedEntries + 1)
 		_ = d.Close()
 		if len(entries) > maxStagedEntries {
@@ -2234,7 +2242,13 @@ func stagedSnapshots() ([]stagedSnapshot, bool) {
 	}
 	var found []stagedSnapshot
 	for _, c := range candidates {
-		if fi, err := os.Stat(c); err == nil && fi.Mode().IsRegular() && fi.Size() > 0 {
+		f, err := openStagedPath(c)
+		if err != nil {
+			continue
+		}
+		fi, err := f.Stat()
+		_ = f.Close()
+		if err == nil && fi.Mode().IsRegular() && fi.Size() > 0 {
 			found = append(found, stagedSnapshot{c, fi.ModTime()})
 		}
 	}

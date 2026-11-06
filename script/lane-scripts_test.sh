@@ -40,6 +40,7 @@ script=$(cd "$(dirname "$0")" && pwd)
 # A trailing slash on TMPDIR (the macOS default) is dropped: heavy.sh and Perl name paths without "//".
 tmp=${TMPDIR:-/tmp}
 tmp=$(mktemp -d "${tmp%/}/corvint-lane-scripts-test.XXXXXX") || exit 1
+tmp=$(cd "$tmp" && pwd -P) || exit 1
 trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -406,9 +407,19 @@ fi
 case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; printf '%s\n' "\${GOTMPDIR-}" > "$off/gotmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
 printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
 cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
+printf '%s %s\n' "\$where" "\$*" >> "$off/go-args.log"
+if [[ \$where == local && " \$* " == *' -hiddenexit=6 '* ]]; then
+  prev= regex=
+  for a in "\$@"; do
+    [[ \$prev == -run ]] && regex=\$a
+    prev=\$a
+  done
+  [[ -n \$regex && ! TestHidden =~ \$regex ]] || exit 6
+fi
 for a in "\$@"; do
   case \$a in
     -exit=*) exit "\${a#-exit=}" ;;
+    -localexit=*) [[ \$where == local ]] && exit "\${a#-localexit=}" ;;
     -probe) mkdir "$off/running" || exit 9; sleep 1; rmdir "$off/running" ;;
     -write=*) mkdir -p "\$(dirname "\${a#-write=}")" && printf 'written-%s\n' "\$where" > "\${a#-write=}" ;;
     -delete=*) /bin/rm -f "\${a#-delete=}" ;;
@@ -516,10 +527,25 @@ if selected core 3; then
 # ASD-V0-014: the command's exit status and -p bound pass through; an explicit -p is kept.
 HEAVY_SLOTS=1 "$heavy" sh -c 'exit 7' 2> /dev/null
 [[ $? == 7 ]] || fail "heavy.sh did not return the command's status"
-got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
+: > "$tmp/empty-go.env"
+got=$(GOENV=$tmp/empty-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
 [[ $got == -p=3 ]] || fail "heavy.sh GOFLAGS=$got, want -p=3"
 got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS='-p=1 -mod=mod' "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
 [[ $got == '-p=1 -mod=mod' ]] || fail "heavy.sh overrode an explicit GOFLAGS -p: $got"
+# ASD-V0-2475 (V1-4513): with no GOFLAGS in the environment, a go.env (GOENV) GOFLAGS reaches the
+# command with -p appended, and a go.env value that sets -p is kept as go reads it.
+if command -v go > /dev/null; then
+  printf 'GOFLAGS=-mod=mod -tags=fr\n' > "$tmp/flags-go.env"
+  got=$(GOENV=$tmp/flags-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
+  [[ $got == '-mod=mod -tags=fr -p=3' ]] || fail "heavy.sh replaced the go.env GOFLAGS: GOFLAGS=$got, want -mod=mod -tags=fr -p=3"
+  got=$(GOENV=$tmp/flags-go.env GOFLAGS= GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null)
+  [[ $got == '-mod=mod -tags=fr' ]] || fail "the fixture go.env is not read: go env GOFLAGS=$got"
+  got=$(GOENV=$tmp/flags-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" go env GOFLAGS 2> /dev/null)
+  [[ $got == '-mod=mod -tags=fr -p=3' ]] || fail "go under heavy.sh read GOFLAGS=$got, want the go.env value plus -p=3"
+  printf 'GOFLAGS=-p=2 -mod=mod\n' > "$tmp/flags-go.env"
+  got=$(GOENV=$tmp/flags-go.env HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" go env GOFLAGS 2> /dev/null)
+  [[ $got == '-p=2 -mod=mod' ]] || fail "heavy.sh overrode a go.env GOFLAGS -p: $got"
+fi
 # AHI-199 (V1-2440): the command runs at niceness 10 by default, HEAVY_NICE=0 keeps the caller's
 # priority, an invalid level is refused, and the Makefile heavy recipes carry the same prefix.
 want=$(ps -o nice= -p $$ | tr -d ' ')
@@ -738,7 +764,92 @@ out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOSTS='box box2' hv go test -run X ./.
   fail "heavy.sh offloaded darwin-only work from a Darwin host or did not record it: $out ssh=$(cat "$off/ssh.log") $(cat "$off/err")"
 out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -run X ./both 2> "$off/err")
 [[ $out == where=remote* ]] || fail "heavy.sh kept a portable package on a Darwin host: $out $(cat "$off/err")"
-/bin/rm -rf "$off/lc/sub/mac" "$off/lc/sub/both"
+# ASD-V0-2403 (deferred, review round e): on a Darwin host a package whose darwin-only files are
+# all test files stays wholly local, like every darwin-only command (ASD-V0-934): the unchanged
+# command runs here once and its failure is the command's. No static scan proves a split
+# equivalent, so each case below is a common test that fails only on Darwin and that a split
+# would have hidden; the go stub fails TestHidden in a local run (-hiddenexit=6).
+mkdir -p "$off/lc/sub/mtest" && printf 'package mtest\n' > "$off/lc/sub/mtest/e.go" &&
+  printf 'package mtest\n\nimport "testing"\n\nfunc TestMac(t *testing.T) {}\n\nfunc\tTestTab(t *testing.T) {}\n\nfunc ExampleMac() {}\n\nfunc helper() {}\n' > "$off/lc/sub/mtest/d_darwin_test.go" || fail "darwin test fixture"
+: > "$off/ssh.log"; : > "$off/go-args.log"
+out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 ./mtest 2> "$off/err")
+[[ $(grep -c '^where=' <<< "$out") == 1 && $out == where=local* && ! -s $off/ssh.log && $(< "$off/go-args.log") == 'local test -count=1 ./mtest' ]] &&
+  grep -qx 'heavy.sh: 1 darwin-only file(s), first ./mtest/d_darwin_test.go: running on this darwin host, not offloading' "$off/err" ||
+  fail "heavy.sh did not keep a test-only darwin package wholly local: $out args=$(cat "$off/go-args.log") $(cat "$off/err")"
+: > "$off/ssh.log"
+PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -localexit=4 ./mtest > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 4 && ! -s $off/ssh.log ]] || fail "a failing test-only darwin package did not fail the local command (rc=$rc): $(cat "$off/err")"
+for args in '-count=1 ./mac' '-run TestMac ./mtest' '-count=1 ./mtest ./mac'; do
+  : > "$off/ssh.log"
+  # shellcheck disable=SC2086 # each case is a word list on purpose
+  out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test $args 2> "$off/err")
+  [[ $out == where=local* && $(grep -c '^where=' <<< "$out") == 1 && ! -s $off/ssh.log ]] && grep -q 'running on this darwin host, not offloading' "$off/err" ||
+    fail "heavy.sh offloaded go test $args, which must stay on the darwin host: $out $(cat "$off/err")"
+done
+# Review round c: a test file that builds on Darwin but not Linux without being darwin-only by
+# name or a `darwin` constraint (`//go:build !linux`), a `_linux` file or an assembly file.
+for case in 'k_test.go://go:build !linux' 'k_test.go:// +build !linux' 'k_linux_test.go:' 'k_test.go:@asm_darwin_arm64.s'; do
+  name=${case%%:*} header=${case#*:} extra=
+  [[ $header == @* ]] && extra=${header#@} header=
+  printf '%s\n\npackage mtest\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) { t.Fatal("darwin") }\n' "$header" > "$off/lc/sub/mtest/$name"
+  [[ -z $extra ]] || : > "$off/lc/sub/mtest/$extra"
+  : > "$off/ssh.log"
+  PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+  rc=$?
+  [[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a package whose other file $name ${header:-$extra} is platform-constrained (rc=$rc): $(cat "$off/err")"
+  /bin/rm -f "$off/lc/sub/mtest/$name" ${extra:+"$off/lc/sub/mtest/$extra"}
+done
+# Review round c: an import of the darwin-only test file runs its package's init in the Darwin
+# test binary, which can change state the common tests read (TestHidden fails only under it).
+printf 'package mtest\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) {}\n' > "$off/lc/sub/mtest/k_test.go"
+for imports in '_ "fixture/side"' 'side "fixture/side"' '. "fixture/side"' '"C"' '"fixture/side"'; do
+  printf 'package mtest\n\nimport (\n\t%s\n\t"testing"\n)\n\nfunc TestMac2(t *testing.T) {}\n' "$imports" > "$off/lc/sub/mtest/i_darwin_test.go"
+  : > "$off/ssh.log"
+  PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+  rc=$?
+  [[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a darwin test file importing $imports (rc=$rc): $(cat "$off/err")"
+done
+/bin/rm -f "$off/lc/sub/mtest/i_darwin_test.go" "$off/lc/sub/mtest/k_test.go"
+# Review round d: a second package argument whose `//go:build !linux` test fails.
+mkdir -p "$off/lc/sub/mtest2" && printf 'package mtest2\n' > "$off/lc/sub/mtest2/e.go" &&
+  printf '//go:build !linux\n\npackage mtest2\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) { t.Fatal("darwin") }\n' > "$off/lc/sub/mtest2/k_test.go" || fail "second package fixture"
+: > "$off/ssh.log"
+PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest ./mtest2 > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep ./mtest ./mtest2 local though ./mtest2 has a platform-constrained test (rc=$rc): $(cat "$off/err")"
+/bin/rm -rf "$off/lc/sub/mtest2"
+# Review round d: a common test or helper that branches on GOOS or GOARCH (aliased imports
+# included), testenv, or a Skip, SkipNow or Skipf call; TestHidden skips on Linux.
+for case in 'k_test.go:"runtime":if runtime.GOOS != "darwin" { t.Skip("linux") }' \
+  'k_test.go:rt "runtime":if rt.GOARCH == "amd64" { t.Fatal("x") }' \
+  'k_test.go:"os":if os.Getenv("GOOS") == "linux" { return }' \
+  'k_test.go:"fixture/testenv":testenv.MustHaveExec(t)' \
+  'k_test.go:"fixture/gate":gate.Linux(t); t.SkipNow()' \
+  'k_test.go:"fixture/gate":gate.Linux(t); t.Skipf("%s", "linux")' \
+  'helper.go:"runtime":_ = runtime.GOOS'; do
+  name=${case%%:*} rest=${case#*:} imp=${rest%%:*} body=${rest#*:}
+  if [[ $name == *_test.go ]]; then
+    printf 'package mtest\n\nimport (\n\t%s\n\t"testing"\n)\n\nfunc TestHidden(t *testing.T) {\n\t%s\n\tt.Fatal("darwin")\n}\n' "$imp" "$body" > "$off/lc/sub/mtest/$name"
+  else
+    printf 'package mtest\n\nimport %s\n\nfunc gate() {\n\t%s\n}\n' "$imp" "$body" > "$off/lc/sub/mtest/$name"
+    printf 'package mtest\n\nimport "testing"\n\nfunc TestHidden(t *testing.T) { gate() }\n' > "$off/lc/sub/mtest/k_test.go"
+  fi
+  : > "$off/ssh.log"
+  PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+  rc=$?
+  [[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a package whose $name is runtime-gated by $body (rc=$rc): $(cat "$off/err")"
+  /bin/rm -f "$off/lc/sub/mtest/$name" "$off/lc/sub/mtest/k_test.go"
+done
+# Review round e: a common test that runs `uname -s` and fails on Darwin. Nothing in its source
+# names a platform, so only running it here sees the failure.
+printf 'package mtest\n\nimport (\n\t"os/exec"\n\t"strings"\n\t"testing"\n)\n\nfunc TestHidden(t *testing.T) {\n\tout, _ := exec.Command("uname", "-s").Output()\n\tif strings.TrimSpace(string(out)) == "Darwin" {\n\t\tt.Fatal("darwin")\n\t}\n}\n' > "$off/lc/sub/mtest/k_test.go"
+: > "$off/ssh.log"
+PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -count=1 -hiddenexit=6 ./mtest > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 6 && ! -s $off/ssh.log ]] || fail "heavy.sh did not keep local a common test that fails on Darwin through uname -s (rc=$rc): $(cat "$off/err")"
+/bin/rm -f "$off/lc/sub/mtest/k_test.go"
+/bin/rm -rf "$off/lc/sub/mac" "$off/lc/sub/both" "$off/lc/sub/mtest"
 ok
 fi
 if selected offload 10; then
@@ -1504,7 +1615,7 @@ HEAVY_WHOLE_REASON= pv go test -count=1 ./x > "$pol/out" 2> "$pol/err"
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] &&
   grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test -count=1 ./x" "$pol/err" &&
   grep -qF "heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd $pol && corvint test --base " "$pol/err" &&
-  grep -qE " --dry-run --manifest [^ ]*heavy-selection\.json && $hself --plan [^ ]*heavy-selection\.json\$" "$pol/err" ||
+  grep -qE " --dry-run --manifest [^ ]*/corvint-heavy-selection-[0-9]+-[0-9]+\.json && $hself --plan [^ ]*/corvint-heavy-selection-[0-9]+-[0-9]+\.json\$" "$pol/err" ||
   fail "heavy.sh whole refusal did not print its rerun lines: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > /dev/null 2> "$pol/err"
 grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test ./x" "$pol/err" &&
@@ -2176,6 +2287,33 @@ static_make DOGFOOD_STATIC_PRECHECK=0
 rc=$?
 ((rc == 0)) && [[ -e $to/admitted ]] && ! grep -q 'REFUSE' "$to/static/err" ||
   fail "DOGFOOD_STATIC_PRECHECK=0 did not skip the static pre-check (rc=$rc): $(cat "$to/static/err")"
+# V1-4406, V1-4466: a stale installed binary's self-binary-stale refusal is a SKIP, not a refusal.
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\necho "dogfood-inputs-check: REFUSE self-binary-stale corvint: built at old; or unset CORVINT_BIN to use the current-tree build" >&2\nexit 2\n' > "$to/static/bin/corvint"
+static_make
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP stale-binary .*: dogfood-inputs-check: REFUSE self-binary-stale' "$to/static/err" && ! grep -q '^dogfood-inputs-check: REFUSE' "$to/static/err" ||
+  fail "a stale installed corvint's self-binary-stale refusal was not a SKIP (rc=$rc): $(cat "$to/static/err")"
+# CORVINT_BIN, given as a bare name on PATH, runs instead of the installed binary.
+mkdir -p "$to/static/override" || fail "override fixture"
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/override-args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/override/corvint-tree" &&
+  chmod +x "$to/static/override/corvint-tree" || fail "override stub"
+/bin/rm -f "$to/static/override-args"
+static_make PATH="$to/static/override:$to/static/bin:$PATH" CORVINT_BIN=corvint-tree
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted ]] && [[ -e $to/static/override-args ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
+  ! grep -q 'ran the installed' "$to/static/err" ||
+  fail "CORVINT_BIN did not run the static pre-check (rc=$rc): $(cat "$to/static/err")"
+# A stale CORVINT_BIN stays a refusal: the admitted run would use that same binary.
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\necho "dogfood-inputs-check: REFUSE self-binary-stale corvint-tree: built at old" >&2\nexit 2\n' > "$to/static/override/corvint-tree" || fail "stale override stub"
+static_make PATH="$to/static/override:$to/static/bin:$PATH" CORVINT_BIN=corvint-tree
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE self-binary-stale' "$to/static/err" && ! grep -q 'SKIP stale-binary' "$to/static/err" ||
+  fail "a stale CORVINT_BIN was skipped instead of refused (rc=$rc): $(cat "$to/static/err")"
+# An unresolvable CORVINT_BIN replaces the installed fallback and is named in the SKIP.
+static_make CORVINT_BIN=no-such-corvint-bin
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'SKIP no-static-binary .*CORVINT_BIN=no-such-corvint-bin' "$to/static/err" ||
+  fail "an unresolvable CORVINT_BIN did not SKIP (rc=$rc): $(cat "$to/static/err")"
 printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
 static_make
 rc=$?
@@ -2700,7 +2838,7 @@ for range in ..979 1..2..3 960.. abc; do
   out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
   [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
 done
-for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" ${argv[@]+"${argv[@]}"} 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"
@@ -2772,12 +2910,12 @@ chmod +x "$lw/reconcile"
 git init -q -b main "$lw/origin"
 printf 'before merge\n' > "$lw/origin/merged"
 git -C "$lw/origin" add merged
-git -C "$lw/origin" commit -q -m before
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -m before
 git clone -q "$lw/origin" "$lw/checkout"
 mkdir -p "$lw/checkout/script"
 cp "$script/pr-landing-watch.sh" "$lw/checkout/script/"
 printf 'merged\n' > "$lw/origin/merged"
-git -C "$lw/origin" commit -q -am merged
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -am merged
 merge40=$(git -C "$lw/origin" rev-parse HEAD)
 lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
@@ -2798,7 +2936,7 @@ out=$(lwr 19)
 /bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
 # Move origin ahead again: the first successful pass must refresh origin/main.
 printf 'later merge\n' > "$lw/origin/merged"
-git -C "$lw/origin" commit -q -am later
+git -C "$lw/origin" -c user.name=t -c user.email=t@example.invalid commit -q -am later
 merge40=$(git -C "$lw/origin" rev-parse HEAD)
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
 out=$(lwr 7)
@@ -3506,6 +3644,13 @@ ok
 fi
 
 if selected sweep 61; then
+# CSD-V0-7510: exercise a symlinked TMPDIR on Linux too (macOS defaults to /var).
+if [[ ${LANE_SWEEP_ALIAS_TEST:-0} != 1 ]]; then
+  mkdir "$tmp/real-sweep-tmp"
+  ln -s "$tmp/real-sweep-tmp" "$tmp/alias-sweep-tmp"
+  alias_out=$(TMPDIR="$tmp/alias-sweep-tmp" LANE_SWEEP_ALIAS_TEST=1 LANE_SCRIPTS_GROUPS=sweep bash "$script/lane-scripts_test.sh" 2>&1)
+  [[ $? == 0 ]] || fail "symlink TMPDIR sweep: $alias_out"
+fi
 # ASD-V0-2194: dry-run, age, allowlist, symlinks, read-only cleanup, active jobs and failed probes.
 sw=$tmp/sweep
 mkdir -p "$sw/bin" "$sw/root"
@@ -3548,6 +3693,69 @@ out=$(sweep --apply)
 [[ $? == 2 ]] || fail 'sweep accepted symlink root'
 "$script/lane-tmp-sweep.sh" --root "$sw/root/corvint-link-test.OLD123/" > "$sw/err" 2>&1
 [[ $? == 2 ]] || fail 'sweep accepted symlink root with trailing slash'
+ok
+fi
+
+if selected tools 63; then
+
+# ASD-V0-2400 (V1-3968): a whole-package go test of a brand-new package (a ./REL directory holding Go
+# files, none of which exists at the merge base of HEAD and origin/main) needs no HEAVY_WHOLE_REASON,
+# since every test in it is new and Corvint's selection runs it whole; it is logged as new-package.
+# Negative controls: a package that exists at the base, a mix of both, ./... and a checkout with no
+# origin/main are still refused. Fault injection: a failing new package is admitted and its failure
+# (exit 1, not the refusal's 2) is passed through.
+np=$tmp/new-package
+mkdir -p "$np/bin" "$np/repo/old" || fail "new-package fixture"
+printf '#!/bin/sh\ncase " $* " in *" ./fresh "*) [ -n "$STUB_FRESH_FAIL" ] && exit 1 ;; esac\nexit 0\n' > "$np/bin/go" && chmod +x "$np/bin/go" &&
+  printf 'package old\n' > "$np/repo/old/a.go" && printf 'package old\n' > "$np/repo/old/a_test.go" &&
+  g -C "$np/repo" init -q && g -C "$np/repo" add old && g -C "$np/repo" commit -qm base &&
+  g -C "$np/repo" update-ref refs/remotes/origin/main HEAD && mkdir -p "$np/repo/fresh" &&
+  printf 'package fresh\n' > "$np/repo/fresh/a.go" && printf 'package fresh\n' > "$np/repo/fresh/a_test.go" || fail "new-package fixture repo"
+npbase=$(git -C "$np/repo" rev-parse HEAD)
+npv() { (cd "$np/repo" && env -u HEAVY_WHOLE_REASON PATH="$np/bin:$PATH" HEAVY_SELECTION_LOG="$np/sel.log" HEAVY_LOCK_DIR="$np/slots" \
+  HEAVY_SLOTS=1 HEAVY_REMOTE_HOST= "$heavy" "$@") > "$np/out" 2> "$np/err"; }
+npv go test -count=1 ./fresh || fail "heavy.sh refused a brand-new package: $(cat "$np/out" "$np/err")"
+grep -Eq " whole reason=new-package:${npbase:0:12} pwd=.* cmd=go test -count=1 \./fresh script=" "$np/sel.log" ||
+  fail "new-package not logged: $(cat "$np/sel.log")"
+g -C "$np/repo" add fresh && g -C "$np/repo" commit -qm fresh || fail "commit the new package"
+npv go test ./fresh || fail "heavy.sh refused a committed brand-new package: $(cat "$np/err")"
+for args in './old' './fresh ./old' './...' './fresh/...'; do
+  # shellcheck disable=SC2086 # each case is a word list on purpose
+  npv go test $args
+  [[ $? == 2 && $(cat "$np/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh ran whole go test $args without a reason: $(cat "$np/out" "$np/err")"
+done
+STUB_FRESH_FAIL=1 npv go test ./fresh
+[[ $? == 1 ]] || fail "a failing brand-new package did not fail through heavy.sh: $(cat "$np/out" "$np/err")"
+g -C "$np/repo" update-ref -d refs/remotes/origin/main || fail "drop origin/main"
+npv go test ./fresh
+[[ $? == 2 ]] || fail "heavy.sh admitted a new package with no origin/main to measure it against: $(cat "$np/err")"
+g -C "$np/repo" update-ref refs/remotes/origin/main "$npbase" || fail "restore origin/main"
+# ASD-V0-2401 (V1-4358): the refusal's Corvint selection line suggests a manifest path that
+# `corvint test --dry-run --manifest` accepts: never under the Git directory (it refuses every name
+# there but its receipts) and never in the worktree; with TMPDIR inside the worktree, /tmp.
+npv go test ./old
+m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
+gd=$(git -C "$np/repo" rev-parse --absolute-git-dir) top=$(cd "$np/repo" && pwd -P)
+[[ -n $m && $m == "$TMPDIR"/corvint-heavy-selection-*.json && $m != "$gd"/* && $m != "$top"/* ]] &&
+  grep -qE " && [^ ]*/heavy\.sh --plan ${m//./\\.}\$" "$np/err" || fail "heavy.sh suggested a manifest corvint test refuses: $m (git dir $gd): $(cat "$np/err")"
+mkdir -p "$np/repo/tmpin" || fail "worktree TMPDIR"
+(cd "$np/repo" && env -u HEAVY_WHOLE_REASON TMPDIR="$np/repo/tmpin" PATH="$np/bin:$PATH" HEAVY_SELECTION_LOG="$np/sel.log" HEAVY_LOCK_DIR="$np/slots" \
+  HEAVY_SLOTS=1 HEAVY_REMOTE_HOST= "$heavy" go test ./old) > "$np/out" 2> "$np/err"
+m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
+[[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested a manifest inside the worktree: $m"
+# A linked worktree's Git directory and common Git directory lie outside its checkout. Both are
+# forbidden manifest destinations, including when TMPDIR names them through an outside symlink.
+g -C "$np/repo" worktree add -q "$np/linked" HEAD || fail "linked manifest fixture"
+linked_git=$(git -C "$np/linked" rev-parse --absolute-git-dir)
+common_git=$(git -C "$np/linked" rev-parse --path-format=absolute --git-common-dir)
+ln -s "$linked_git" "$np/git-link" && ln -s "$common_git" "$np/common-link" || fail "manifest symlinks"
+for manifest_tmp in "$linked_git" "$common_git" "$np/git-link" "$np/common-link"; do
+  (cd "$np/linked" && env -u HEAVY_WHOLE_REASON TMPDIR="$manifest_tmp" PATH="$np/bin:$PATH" HEAVY_SELECTION_LOG="$np/sel.log" HEAVY_LOCK_DIR="$np/slots" \
+    HEAVY_SLOTS=1 HEAVY_REMOTE_HOST= "$heavy" go test ./old) > "$np/out" 2> "$np/err"
+  [[ $? == 2 ]] || fail "linked manifest fixture did not refuse whole-package run: $(cat "$np/err")"
+  m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
+  [[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested an unusable manifest for TMPDIR=$manifest_tmp: $m"
+done
 ok
 fi
 
