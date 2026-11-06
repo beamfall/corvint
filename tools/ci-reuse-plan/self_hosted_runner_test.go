@@ -241,7 +241,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
 		cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir, "SHARDS=8", "SHARDS_RESULT=success",
-			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary, "EVENT_NAME="+event)
+			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary, "GITHUB_EVENT_NAME="+event)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("the outcome check failed: %v\n%s", err, out)
 		}
