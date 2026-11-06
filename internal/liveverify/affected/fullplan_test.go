@@ -28,7 +28,7 @@ func TestFullplanReplay_AZU_V0_9920_9921(t *testing.T) {
 		".github/testconfine/scopes_test.go":         "package testconfine\nimport \"testing\"\nfunc TestScopes(t *testing.T) {}\n",
 		".github/testconfine/cmd/main.go":            "package main\nimport _ \"example.test/m/.github/testconfine\"\nfunc main() {}\n",
 		".github/testconfine/cmd/main_test.go":       "package main\nimport \"testing\"\nfunc TestMainCommand(t *testing.T) {}\n",
-		".github/macos/darwin_select.py":                    "def selection():\n    return []\n",
+		".github/macos/darwin_select.py":             "def selection():\n    return []\n",
 		".github/macos/select_test.py":               "import importlib.util\nimport unittest\nspec = importlib.util.spec_from_file_location('macselect', 'darwin_select.py')\n",
 		"other/other_test.go":                        "package other\nimport \"testing\"\nfunc TestOther(t *testing.T) {}\n",
 		".agent-evidence/pk-tstore-fix1/env-base.sh": "export EXAMPLE=1\n",
