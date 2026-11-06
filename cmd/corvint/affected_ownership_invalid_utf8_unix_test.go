@@ -6,18 +6,34 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
+// requireRawFilenames skips when the temp filesystem refuses non-UTF-8 names
+// (APFS on macOS returns EILSEQ), so no such Git path can exist there.
+func requireRawFilenames(t *testing.T) {
+	t.Helper()
+	err := os.WriteFile(filepath.Join(t.TempDir(), "probe\xff"), nil, 0o600)
+	if errors.Is(err, syscall.EILSEQ) {
+		t.Skip("filesystem rejects non-UTF-8 file names")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // AZU-V0-9900: Git names retain raw bytes while dirty paths replace invalid
 // UTF-8. Hidden paths reach membership selection without a source-walk refusal.
 func TestOwnershipInvalidUTF8Membership_AZU_V0_9900(t *testing.T) {
+	requireRawFilenames(t)
 	for _, change := range []string{"add", "stage", "delete", "worktree-delete", "replace", "content-only"} {
 		t.Run(change, func(t *testing.T) {
 			root, base := ratchetSelectionRepo(t)
@@ -73,6 +89,7 @@ func TestOwnershipInvalidUTF8Membership_AZU_V0_9900(t *testing.T) {
 // AZU-V0-9900: a raw index rename that preserves the displayed dirty path
 // still invalidates the membership observation.
 func TestOwnershipInvalidUTF8IndexDrift_AZU_V0_9900(t *testing.T) {
+	requireRawFilenames(t)
 	root, _ := ratchetSelectionRepo(t)
 	raw := ".metadata/name\xff.txt"
 	cemWrite(t, root, raw, "old\n")
