@@ -100,6 +100,15 @@ type Witness struct {
 	link *viaLink
 }
 
+// MarshalJSON labels the representative unbounded dirty path as any path (TSP-V0-7303).
+func (witness Witness) MarshalJSON() ([]byte, error) {
+	type wire Witness
+	return json.Marshal(struct {
+		wire
+		AnyDirtyPath bool `json:"anyDirtyPath,omitzero"`
+	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader})
+}
+
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
 // Unit is the unit itself, or the root-locating unit it depends on or whose
 // dependent its tests import, and Reads is that unit's unboundedReads.
@@ -318,7 +327,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
-	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
+	if _, closed := graph.inboundRevisionPaths(normalized); !closed {
+		plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
+	}
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
@@ -411,6 +422,15 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for id := range contained {
 		delete(start, id)
 	}
+	// A package's tests do not affect ordinary importers, but drivers run
+	// those tests. Start at their direct driver callers and follow from there.
+	for _, id := range sortedKeys(contained) {
+		for _, caller := range graph.dependents[id] {
+			if strings.HasPrefix(caller, DriverNamespace+":") {
+				addWitness(start, caller, Witness{Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath, link: seeds[id].extended(caller)})
+			}
+		}
+	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
 	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
@@ -443,6 +463,8 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
+	graph.inboundRuntimeCallers(reached, followed, normalized)
+	graph.inboundRevisionCallers(reached, followed, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -708,6 +730,12 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	}
 	unknown := make([]Unknown, 0, len(reasons))
 	for _, reason := range sortedKeys(reasons) {
+		if id := graph.inboundRuntimeSite(reason); id != "" {
+			if _, selected := reached[id]; selected {
+				delete(sources, reason)
+				continue
+			}
+		}
 		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})
 	}
 	var excluded []FrontierExclusion

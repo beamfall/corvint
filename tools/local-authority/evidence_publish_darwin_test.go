@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -98,5 +99,25 @@ func TestEvidencePublicationFailureRunsStageCleanup(t *testing.T) {
 	entries, err := os.ReadDir(root)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("failure left stage/publication: %v %v", entries, err)
+	}
+}
+
+func TestEvidencePublicationPostRenameSyncFailureRemovesHandle(t *testing.T) {
+	root := t.TempDir()
+	parent, err := os.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Close()
+	m, files, raw := stageFixture(t)
+	restore := evidenceParentSync
+	t.Cleanup(func() { evidenceParentSync = restore })
+	evidenceParentSync = func(*os.File) error { return errors.New("injected parent sync failure") }
+	if err := stageAndPublishEvidence(parent, m.EnrollmentHandle, m, files, raw, uint32(os.Getuid()), uint32(os.Getegid())); err == nil {
+		t.Fatal("publication reported success after a failed parent sync")
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("post-rename sync failure left the published handle: %v %v", entries, err)
 	}
 }

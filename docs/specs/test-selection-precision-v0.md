@@ -26,6 +26,30 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
 
 ## Requirements
 
+- `TSP-V0-7301`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3912) A scratch-directory refusal reaching `affected` MUST exit nonzero with code `unsupported-affected-temp`, naming the temporary-directory candidates (system/operator temp and available user cache) and suggesting TMPDIR with free writable space outside the repository. Other status failures retain their existing code.
+  Acceptance evidence: `TestAffectedTempFailureNamesPathAndRemedy` and `TestAffectedTempFailureOnUnwritableParent` in `cmd/corvint/affected_temp_pk_test.go`.
+
+- `TSP-V0-7303`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4279) Every UNBOUNDED_READER witness MUST disclose `anyDirtyPath: true`; its dirtyPath is only a representative path, never a claim that the unit reads only that path.
+  Acceptance evidence: `TestUnboundedWitnessSaysAnyDirtyPath` in `internal/liveverify/affected/unbounded_cause_test.go`.
+
+- `TSP-V0-7305`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's standing auto-accept (2026-11-05), self-review repair; V1-4472) Fail-fast retention MUST probe an mtime-ordered prefix of at most 64 candidates (ties by name), plus `test-run.json` if it exists outside that prefix. From this pool of at most 65 candidates it MUST retain the newest 64 by each header's RFC3339Nano `completedAt` time when available within a 64 KiB bounded header, falling back to mtime for legacy, invalid or over-bound headers. Equal times retain name ordering. This bounded pool does not claim completion-time recency for older shard receipts outside the prefix. Metadata Info failures MUST be disclosed even if the receipt falls outside the retained set; they make no recency claim. The retained receipts still undergo canonical admission and ordering MUST NOT change the selected set. This refines AFP-V0-2487 in affected-plan-selection-v0.md.
+  Acceptance evidence: `TestFailFastContentTimeSurvivesTimestampTies`, `TestFailFastCompletionTimeDecidesRetention` and `TestFailFastDroppedInfoFailureIsDisclosed` in `cmd/corvint/affected_order_test.go`.
+
+- `TSP-V0-7311`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4439) Full, compact and by-path selections MUST encode witness as an object with string kind and string dirtyPath; fields MUST NOT be retyped between forms. Full witnesses MUST retain their frozen string-array via without adding viaLength. Compact and by-path witnesses carry integer viaLength; compact chains may use viaLinks and by-path chains may be omitted. The 2026-11-05 repair charter preserves the frozen full profile over the earlier uniform-length proposal. anyDirtyPath, cause and glob carry the same meanings in each form.
+  Acceptance evidence: `TestWitnessFormsShareOneObjectDecoder` in `cmd/corvint/affected_by_path_test.go`; compact/full witness reconstruction, validating compact viaLength against the frozen full via array, in `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources` in `cmd/corvint/affected_snapshot_test.go` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan` in `cmd/corvint/affected_test.go`.
+
+- `TSP-V0-7317`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4484) The fresh-directory source proof MUST reject an assignment in a backgrounded AND/OR or pipeline list, including a trailing ampersand on a later command in that list. A foreground AND/OR list remains eligible under the existing straight-line fresh-directory checks.
+  Acceptance evidence: `TestFreshDirectoryRejectsBackgroundAndOrList` in `internal/liveverify/affected/shell/fresh_background_pk_test.go`.
+
+- `TSP-V0-7318`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4576) The incremental-selection budget measurement MUST bracket each sample with the same fixed calibration workload before and after it and normalize against the mean of the two adjacent probes. On an absolute budget miss, its calibrated p95 MUST retain the existing 100 ms bound and three-round limit, while absolute over-budget results remain explicitly unenforced on a contended host. A sustained slowdown exceeding both adjacent probes MUST still fail. Parallel full-suite load qualification is separate from focused calibration tests.
+  Acceptance evidence: `TestSelectionCalibrationBracketsLoadChanges` and `TestIncrementalSelectionMeetsTheLiveBudget` in `internal/liveverify/affected/measure_test.go`.
+
+- `TSP-V0-7315`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4381) The command test executable builders MUST choose CORVINT_GOCACHE, then GOCACHE, before a TMPDIR fallback. Parallelized test candidates MUST exclude transitive environment changes, chdir, package-hook writes and timing-dependent helpers; retained serial command tests MUST carry a per-test reason inventory. Shuffled focused outcomes and measured host-specific timings MUST be retained separately from quiet-host or CI qualification.
+  Acceptance evidence: `TestExecutableBuildHelpersHonorSharedGoCache` in `cmd/corvint/build_cache_pk_test.go`; `docs/build-log/2026-11-04-pk-affected-serial-tests.tsv`; the lane build log.
+
+- `TSP-V0-7302`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3913) A foreign-caller completeness refusal caused by an undeclared comment mention MUST retain the conservative refusal and additionally name the offending candidate path and line. Declaring the file as a mention remains the recovery; comments MUST NOT silently grant caller authority.
+  Acceptance evidence: `TestForeignCallerCommentDiagnostic` in `internal/liveverify/affected/shell/callers_scan_test.go`.
+
 - **TSP-V0-001:** (experimental, amending AFP-V0-580, under the owner's standing lane auto-accept,
   2026-10-11; V1-3160) A unit MAY declare `frontierBears: OWN_FILES`. Its frontier SHALL then be
   named only on a plan with a dirty path whose directory is the unit's directory (the directory of
@@ -756,3 +780,10 @@ TSP-V0-980: make `boundedReaders` return its input. TSP-V0-720: restore the full
 TSP-V0-940: drop the `applyGatedLocators`
 call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
 declared package's dependents on every dirty path again, as before.
+
+### pk-affected boundaries and rollback
+
+These refinements change diagnostics, ordering advice, output projection and test measurement only.
+They grant no new narrowing authority. Missing or invalid evidence keeps the existing uncertainty.
+Revert the corresponding implementation and requirement together to restore the prior behavior.
+Qualification limits and explicit exclusions are retained in `docs/build-log/2026-11-04-pk-affected.md`.

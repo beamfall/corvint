@@ -1301,3 +1301,41 @@ func TestInScopeBatchPrecheckForms(t *testing.T) {
 		}
 	}
 }
+
+// Mandatory Node coverage cannot reuse an optional pass, in any ledger scope.
+func TestDigestKeyBindsHostCoverageEnvironment(t *testing.T) {
+	t.Parallel()
+	for _, step := range []string{"host-adapter-node-test", unresolved, packageStep} {
+		t.Run(step, func(t *testing.T) {
+			fixtureRepository(t)
+			setenv(t, "CORVINT_REQUIRE_NODE", "")
+			setenv(t, "CI", "")
+			key := func() string {
+				l := ledger{inv: *fixture(t), identity: "fixture"}
+				return l.digestKey(step, "same inputs", []string{"fixture/pkg"})
+			}
+			optional := key()
+			if key() != optional {
+				t.Fatal("unchanged optional inputs missed")
+			}
+			setenv(t, "CORVINT_REQUIRE_NODE", "1")
+			mandatory := key()
+			if mandatory == optional {
+				t.Fatal("mandatory Node reused optional key")
+			}
+			if key() != mandatory {
+				t.Fatal("unchanged mandatory inputs missed")
+			}
+			setenv(t, "CORVINT_REQUIRE_NODE", "")
+			setenv(t, "CI", "1")
+			ci := key()
+			if ci == optional {
+				t.Fatal("CI reused optional key")
+			}
+			setenv(t, "CI", "true")
+			if key() == ci {
+				t.Fatal("raw coverage environment values not bound")
+			}
+		})
+	}
+}

@@ -173,12 +173,12 @@ wait "$record_pid" || status=$?
 
 # GOC-V0-010 wiring: the clear is the gate's first prerequisite and the record is its recipe.
 awk '
-    /^gate:/ { split($0, parts, " "); first = parts[2]; ingate = 1; next }
+    /^gate: gate-receipt-clear/ { split($0, parts, " "); first = parts[2]; ingate = 1; next }
     ingate && /^\t/ { recipe = recipe $0 "\n"; next }
     ingate { ingate = 0 }
     END {
         if (first != "gate-receipt-clear") exit 1
-        if (recipe != "\t@script/gate-receipt record\n") exit 1
+        if (recipe !~ /command -v node/ || recipe !~ /\t@script\/gate-receipt record\n$/) exit 1
     }
 ' "$source_root/Makefile" || fail "Makefile gate does not clear first and record last"
 
@@ -200,7 +200,7 @@ MK
 make -pq -C "$source_root" -f "$source_root/Makefile" gate 2>/dev/null | awk '
     /^# Files/ { files = 1 }
     /^GATE_STEPS = / { for (i = 3; i <= NF; i++) step[$i] = 1 }
-    files && /^[A-Za-z0-9_.\/-]+:( |$)/ && $0 !~ /:=/ {
+    files && /^[A-Za-z0-9_.\/-]+:( |$)/ && $0 !~ /:=| = / {
         target = substr($1, 1, length($1) - 1); rest = substr($0, index($0, ":") + 1)
         sub(/\|.*/, "", rest); deps[target] = rest
     }
@@ -212,13 +212,82 @@ make -pq -C "$source_root" -f "$source_root/Makefile" gate 2>/dev/null | awk '
         }
         for (t in seen) print t ":\n\t@:"
     }' >> "$test_root/order.mk"
-CORVINT_GATE_LEDGER=off make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j8 gate ORDER_LOG="$order_log" 2>/dev/null ||
-    fail "ordering probe make failed"
+CORVINT_GATE_LEDGER=off make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j8 gate ORDER_LOG="$order_log" > "$test_root/order.out" 2>&1 ||
+    fail "ordering probe make failed: $(cat "$test_root/order.out")"
 [ "$(sed -n 1p "$order_log")" = clear ] || fail "a gate step started before gate-receipt-clear finished"
 [ "$(sed -n '$p' "$order_log")" = record ] || fail "gate recorded before its last step"
 rm "$order_log"
 make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j8 go-version ORDER_LOG="$order_log" 2>/dev/null ||
     fail "standalone probe make failed"
 [ "$(cat "$order_log")" = step ] || fail "a standalone gate step ran gate-receipt-clear"
+
+# Run the real final gate recipe with cheap stand-ins for its expensive steps.
+# The fake ledger launcher emulates recursive make; on a cached pass it launches
+# nothing, proving the uncached availability check still protects the receipt.
+probe="$test_root/mandatory"
+mkdir -p "$probe/bin" "$probe/script"
+# Keep system bin directories out of PATH so removing the Node stub really hides
+# Node on hosts that install it in /usr/bin or /bin (including Linux CI).
+for tool in env make stat; do
+    ln -s "$(command -v "$tool")" "$probe/bin/$tool"
+done
+cp "$source_root/Makefile" "$probe/Makefile"
+cat > "$probe/script/gate-receipt" <<'SH'
+#!/bin/sh
+echo receipt >> "$PROBE_LOG"
+SH
+cat > "$probe/bin/go" <<'SH'
+#!/bin/sh
+[ "$CORVINT_REQUIRE_NODE" = 1 ] || exit 71
+[ "${PROBE_CACHED:-}" != 1 ] || exit 0
+# go run ./tools/gate-ledger run STEP -- make ...
+while [ "$1" != -- ]; do shift; done
+shift
+exec "$@"
+SH
+cat > "$probe/bin/node" <<'SH'
+#!/bin/sh
+exit 0
+SH
+chmod +x "$probe/script/gate-receipt" "$probe/bin/go" "$probe/bin/node"
+cat > "$probe/override.mk" <<'MK'
+gate-receipt-clear:
+	@:
+host-adapter-node-test go-test:
+	@echo "$@:$${CORVINT_REQUIRE_NODE:-optional}" >> "$(PROBE_LOG)"
+	@$(MAKE) -s -f override.mk child
+child:
+	@echo "child:$${CORVINT_REQUIRE_NODE:-optional}" >> "$(PROBE_LOG)"
+MK
+probe_make() {
+    (cd "$probe" && PATH="$probe/bin" PROBE_LOG="$probe/log" \
+        "$probe/bin/make" -s -f Makefile -f override.mk GATE_STEPS=host-adapter-node-test \
+        HEAVY_NICE_PREFIX= "$@") > "$test_root/probe.out" 2>&1
+}
+for mode in off on; do
+    rm -f "$probe/log"
+    probe_make CORVINT_GATE_LEDGER="$mode" CORVINT_REQUIRE_NODE= gate || fail "mandatory Node probe $mode: $(cat "$test_root/probe.out")"
+    [ "$(cat "$probe/log")" = "host-adapter-node-test:1
+child:1
+receipt" ] || fail "gate lost mandatory Node through $mode prerequisites or recursion: $(cat "$probe/log")"
+done
+rm -f "$probe/log"
+probe_make CORVINT_REQUIRE_NODE= go-test || fail "standalone optional probe"
+[ "$(cat "$probe/log")" = "go-test:optional
+child:optional" ] || fail "standalone Go tests unexpectedly require Node"
+rm "$probe/bin/node" "$probe/log"
+if (PATH="$probe/bin" command -v node >/dev/null 2>&1); then
+    fail "missing Node fixture still resolves node"
+fi
+for mode in off on; do
+    rm -f "$probe/log"
+    if PROBE_CACHED=1 probe_make CORVINT_GATE_LEDGER="$mode" CORVINT_REQUIRE_NODE= gate; then
+        fail "gate $mode passed after Node disappeared"
+    fi
+    if [ -e "$probe/log" ]; then
+        grep -q '^receipt$' "$probe/log" && fail "missing Node wrote a receipt"
+    fi
+    grep -q 'required node is not on PATH' "$test_root/probe.out" || fail "missing Node diagnostic"
+done
 
 printf 'gate-receipt: binding, clear, refusals and gate wiring pass\n'

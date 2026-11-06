@@ -22,7 +22,7 @@ import (
 func affectedDriverContent(ctx context.Context, gitExecutable, root, tree, base string, dirty []string) map[string]affected.DriverRevision {
 	paths := []string{}
 	for _, relative := range dirty {
-		if affected.DriverInput(relative) && !strings.ContainsAny(relative, "\r\n") && len(paths) < playwrightBaseMaxPaths {
+		if (affected.DriverInput(relative) || relative == affected.ShellForeignCallersPath) && !strings.ContainsAny(relative, "\r\n") && len(paths) < playwrightBaseMaxPaths {
 			paths = append(paths, relative)
 		}
 	}

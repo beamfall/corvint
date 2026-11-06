@@ -194,6 +194,7 @@ func makeWindowsVetCommands(t *testing.T) []windowsVetCommand {
 // go vet commands, module by module, under the same file-selecting variables,
 // with persisted `go env -w` settings off and the go-version check first.
 func TestAFPV0054WindowsVetTargetMatchesTheCIStep(t *testing.T) {
+	t.Parallel()
 	ci, local := ciWindowsVetCommands(t), makeWindowsVetCommands(t)
 	for _, mismatch := range windowsVetMismatches(ci, local) {
 		t.Error(mismatch)
@@ -227,6 +228,7 @@ func TestAFPV0054WindowsVetTargetMatchesTheCIStep(t *testing.T) {
 // AFP-V0-054 (1): a step-level env entry overrides the job env, so a tag added
 // to the Windows vet step's own env is seen and breaks parity.
 func TestAFPV0054StepEnvOverridesJobEnv(t *testing.T) {
+	t.Parallel()
 	lines := readRepositoryFile(t, ".github/workflows/ci.yml")
 	index := slices.Index(lines, "      "+ciWindowsVetStep)
 	if index < 0 {
@@ -258,6 +260,7 @@ func TestAFPV0054StepEnvOverridesJobEnv(t *testing.T) {
 // AFP-V0-054 (1): GOENV=off keeps a GOFLAGS saved by `go env -w` out of the
 // recipe; an empty GOFLAGS alone falls back to the saved value.
 func TestAFPV0054WindowsVetIgnoresSavedGoEnv(t *testing.T) {
+	t.Parallel()
 	goTool, err := exec.LookPath("go")
 	if err != nil {
 		t.Fatalf("go tool: %v", err)
@@ -291,6 +294,7 @@ func TestAFPV0054WindowsVetIgnoresSavedGoEnv(t *testing.T) {
 // AFP-V0-054 (2): the repository's AGENTS.md Verify section declares
 // `make windows-vet`, so `corvint affected` lists it, conditional on a Go change.
 func TestAFPV0054AffectedListsWindowsVet(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
@@ -315,6 +319,7 @@ func TestAFPV0054AffectedListsWindowsVet(t *testing.T) {
 // file (the PR #1089 shape) passes the native vet and fails the windows-vet
 // recipe line, run as the Makefile states it, before any push.
 func TestAFPV0054WindowsVetFlagsUnixOnlyTestHelper(t *testing.T) {
+	t.Parallel()
 	goTool, err := exec.LookPath("go")
 	if err != nil {
 		t.Fatalf("go tool: %v", err)

@@ -84,6 +84,7 @@ func testSourceRuleCodes(t *testing.T) map[string]string {
 // V1-1892: every finding code testsHelp names is one a test-source reader can emit, and every
 // code a reader can emit is named in testsHelp, directly or by a trailing "*" wildcard.
 func TestTestsHelpCodesMatchTheReaderCodes(t *testing.T) {
+	t.Parallel()
 	emitted := testSourceRuleCodes(t)
 	if len(emitted) < 40 {
 		t.Fatalf("read only %d reader codes; the rule declarations moved", len(emitted))

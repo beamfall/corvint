@@ -305,9 +305,15 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   that cannot be resolved, SHALL fail the job, so a batch whose commits no sealed CEM binds cannot
   reach the merge queue.
 
-- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended by the owner's fix-round charter, 2026-11-04)
-  Every pull request SHALL start one GitHub-hosted `macos-15` job, `go-macos`, using the pinned
-  production Go toolchain and nightly macOS host provisioning. A verified `docs-plan` DOCS decision
+- `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended under the owner's standing auto-accept (2026-10-11), V1-4732)
+  Every pull request SHALL start the independent `.github/workflows/go-macos.yml` workflow,
+  retaining the advisory job and check name `go-macos`. A routine-change DEFER starts no macOS runner (CIN-V0-4754). It SHALL use at most four GitHub-hosted
+  `macos-15` matrix jobs with the pinned production Go toolchain and nightly macOS host provisioning.
+  The `CI` workflow SHALL contain no Darwin job or dependency on this workflow; its completion and
+  the `ci-control-plane` workflow-run status SHALL not wait for advisory Darwin execution.
+  The independent workflow SHALL recompute the trusted documentation classifier/verifier and
+  protected-base narrowing verdict, without waiting for CI or consuming its Linux selection.
+  A verified `docs-plan` DOCS decision
   MAY skip its tests; a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
   `go list` metadata for the root module and CI's existing nested modules `tools/local-authority`
   and `interop/cem01-go`, the job SHALL select packages containing Darwin filename/build constraints,
@@ -316,14 +322,30 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   negated OS tags such as `!linux` and `!windows`, and BSD forms); selecting every build
   constraint is permitted. Source and test files, including ignored platform files, SHALL be
   rescanned on every run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
-  package and the file/reason for inclusion. Tests SHALL run per package, without the full-suite
-  gate or a race run, sequentially with two build workers and two test workers. The job SHALL
-  occupy at most one hosted runner, have a 180-minute timeout, and retain selection evidence even
-  after failure. Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
+  package and the file/reason for inclusion. Tests SHALL run whole packages, without the full-suite
+  gate or a race run. A deterministic longest-cost-first partition SHALL assign every inventory
+  package exactly once across four shards using `.github/cishards/package-costs.json`, before each
+  shard filters its assigned packages by its admitted selection. Ownership SHALL be independent
+  of narrowing so mixed FULL/NARROWED matrix legs cannot omit affected packages. An unpriced
+  package SHALL use the median estimate. Invalid or empty cost content SHALL fall back to complete
+  round-robin placement; a cost-file I/O failure SHALL fail the shard before execution, so a
+  runner-local read failure cannot silently change ownership. Each shard SHALL run one `go test`
+  invocation per module over its package list, with
+  three build/package workers (`-p 3`) and two test workers (`-parallel 2`), retaining all module
+  failures rather than stopping after the first. A shard SHALL disable the `heavy.sh` host-load
+  queue (`HEAVY_LOAD_WAIT=0`), because a hosted runner is dedicated to the job, and a failed
+  module SHALL print each failed package/test with its last output lines rather than a raw
+  JSON tail. Each macOS shard SHALL have a 40-minute timeout,
+  with an under-30-minute FULL-selection wall-time target subject to hosted measurement. Shards
+  SHALL retain separate `macos-selection-shard-N` execution artifacts even after failure; shard zero
+  SHALL remain the single writer of the unchanged `macos-selection` inventory/narrowing artifact.
+  Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
   execution; Linux cost history is an estimate, never a native measurement.
-  The job is advisory: `go-product` SHALL NOT depend on it or inspect its result, and it SHALL
-  set job-level `continue-on-error: true` so its failure never concludes the workflow run as
-  failure, which would deny the PR verdict to merge-queue REUSE (amended 2026-11-05, V1-4727).
+  The workflow is advisory: `go-product` SHALL NOT depend on it or inspect its result. Its
+  matrix and summary job SHALL set job-level `continue-on-error: true`; the stable `go-macos`
+  summary SHALL inspect all four retained shard outcomes and expose any failure or missing result.
+  Only `.github/workflows/ci.yml` remains admissible to Linux merge-queue REUSE; an advisory Darwin
+  run SHALL never supply that proof (V1-4727, V1-4732).
   `go-macos` MAY intersect its root-module inventory with a native narrowed selection only after
   the existing `narrowing-verdict` reports MET and the existing trusted `narrow.sh` guards admit
   it: protected main-parent tools built for Darwin, native driver and shadow, matching event/base/
@@ -335,11 +357,12 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   patterns,
   so it cannot change their denominator. Activation remains subject to `ci-control-plane` admin
   review; no branch-protection change or new required status context is necessary.
-- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred by the owner's fix-round charter, 2026-11-04) PLANNED/deferred: make `go-macos`
-  required through `go-product` only after V1-4413, V1-4551 and V1-4553 fix the existing native
+- `CIN-V0-4626`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred by the owner's fix-round charter, 2026-11-04; location clarified V1-4732) PLANNED/deferred: make the independent `go-macos`
+  check required only after V1-4413, V1-4551 and V1-4553 fix the existing native
   failures and one hosted FULL run is green. Until then CIN-V0-4625 remains advisory.
-  The deferred integration SHALL check PR success before the batched-label early exit and
-  require the intentional job skip outside PRs. Nightly `macos-15` full-gate run 41849536472
+  The deferred integration SHALL require PR success even for a batched label, using the independent
+  workflow status rather than a dangling `ci.yml` needs edge. Non-PR CI SHALL not require a Darwin
+  job that exists only in the independent pull-request workflow. Nightly `macos-15` full-gate run 41849536472
   at base `6c33df33bc5670131482f5263b410cb980580657` fails in selected packages
   (`internal/contextindex`, `internal/tasks/cli`, `internal/tasks/store`, `internal/testsupport`,
   `interop/cem01-go`); requiring this result now would block FULL-fallback pull requests.
@@ -443,6 +466,67 @@ the single listing in the integrity step, and delete `.github/workflows/ci-route
   A push SHALL explicitly admit the shell job's intentional `skipped` result; a failed or
   cancelled shell job SHALL never pass through that exception.
 
+- `CIN-V0-4750`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  A routine-change classifier, `.github/ci-cadence/classify.sh`, SHALL decide DEFER or FULL for the
+  whole change from `git diff --raw -z -M` of the base against the tested commit. DEFER SHALL need
+  every changed path to be in one of two classes. DOCS is `docs/build-log/<name>.md`, top level
+  only. TESTS is an ordinary `*_test.go` under `cmd/`, `internal/` or `tools/`, excluding
+  `testdata`, paths with characters outside `A-Za-z0-9_./-`, the archive, selection, conformance
+  and release subtrees (`tools/selection-baseline`, `tools/gate-affected-select`,
+  `tools/docs-ci-plan`, `tools/ci-reuse-plan`, `tools/ci-forward-row`, `internal/releasecandidate`,
+  `internal/versionline`, `internal/companionrelease`, `internal/testplatform`,
+  `internal/testconfine`) and any GOOS/GOARCH file-name suffix, and whose content has no build
+  constraint, `go:embed`, `go:linkname`, `go:generate`, cgo import, `GOOS`, `"darwin"`,
+  `/private/var`, `/var/folders` or `TestMain`, that does not start with a UTF-8 byte-order mark,
+  and that is not in or under a directory holding a non-test Go file with a `go:embed` directive
+  (an embed pattern there could ship it in the binary). Only an A or M entry of a 100644 blob qualifies;
+  a rename, copy, delete, type change or mode change SHALL be FULL, as SHALL an empty diff and any
+  unclassified path.
+- `CIN-V0-4751`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  The classifier SHALL print exactly eight `key=value` lines, in order: `profile=corvint-ci-cadence/0`,
+  `cadence` (DEFER or FULL), `class` (NONE, DOCS, TESTS or DOCS+TESTS), `base`, `head`, `target`,
+  `helper=sha256:<digest of the script>` and `reason`. A DEFER reason SHALL be `routine-change`.
+  A FULL reason SHALL name its cause (`forced-full`, `invalid-oid`, `root-missing`,
+  `commit-missing`, `merge-topology-mismatch`, `queue-head-mismatch`, `queue-base-not-ancestor`,
+  `unsupported-event`, `tempdir-unavailable`, `diff-unreadable`, `embed-scan-failed`, `root-embed`, `empty-diff`, `diff-malformed`,
+  `unexpected-mode`, `mode-change`, `rename-or-copy`, `delete`, `status-*`, `mode-*` or
+  `unclassified:<path>`). A usage error exits 2; every other outcome exits zero.
+- `CIN-V0-4752`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  Only the classifier copy of the trusted event base (the pull request's base commit or the
+  queue's base) SHALL run, from a sparse checkout of `.github/ci-cadence`; the tested tree SHALL be
+  read through git only and never executed. For a pull request the tested commit SHALL be the
+  two-parent merge of exactly the base and head. For the merge queue the head SHALL equal the
+  tested commit and the base SHALL be its ancestor, and the whole base..head range SHALL be
+  classified, never a constituent pull request's decision. Any error, refusal or missing input
+  SHALL yield FULL. `.github/ci-cadence/run.sh` SHALL validate the receipt (the fixed schema, the
+  echoed base, head and tested commit, a DEFER class and a sha256 helper) and write `cadence`
+  once, DEFER only on a valid DEFER receipt; it SHALL always exit zero. The repository variable
+  `CI_CADENCE_FORCE=FULL` SHALL force FULL and is the rollback. A pull request SHALL fetch only its
+  merge commit and that commit's parents (depth 2); a queue entry fetches full history.
+- `CIN-V0-4753`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  `ci.yml` SHALL run a `cadence-plan` job on a pull request or merge-group event; a DEFER counts only
+  when that job succeeded with output DEFER (a verified DEFER). Only a verified pull-request DEFER
+  SHALL make `doc-gates` set `CORVINT_CI_CADENCE=DEFER` as step environment, so
+  `make selection-baseline-check` prints NOT_RUN; a queue entry, a main push, local runs and
+  `batch-precheck` leave it FULL, because the main push reuses the queue's `doc-gates` verdict. A
+  verified pull-request DEFER SHALL skip `artifact-integrity`; a queue entry SHALL still run it, so
+  the main push can reuse the queue's static verdicts. Under a pull-request DEFER
+  `doc-gates-record` and `artifact-integrity-record` SHALL record nothing, so the queue makes its own
+  `doc-gates` verdict.
+- `CIN-V0-4754`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  `go-macos.yml` SHALL run its own `cadence-plan` job. A DEFER SHALL start no macOS runner
+  (`docs-plan` and `go-macos-shard` are skipped only on a verified DEFER); the stable `go-macos` aggregator SHALL accept
+  only a verified DEFER (a successful `cadence-plan` job with output DEFER) and otherwise check
+  all four shards as before, so a skipped or failed plan runs every shard.
+- `CIN-V0-4755`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  The nightly `release-gates.yml` SHALL include a `selection-baseline` entry running
+  `make selection-baseline-check` in full. The native archive gate is already part of `make gate`,
+  which the release gates run.
+- `CIN-V0-4756`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
+  A first rollout whose event base lacks the classifier SHALL be FULL. Rollback SHALL be setting
+  the repository variable `CI_CADENCE_FORCE=FULL` or reverting the change. Product features,
+  evidence formats and persisted state are unchanged.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -452,6 +536,10 @@ changes and needs a trusted artifact handoff); reusing a narrowed queue record f
 (rejected, CIN-V0-005); planner selection of a `tools/local-authority` unit, which belongs to the
 affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
 `BOUNDED` scope check of `mq-narrow.sh`; adding `infra-reclassified.txt` keys (AFP-V0-463).
+
+CIN-V0-4750..4756 do not defer any change beyond DOCS and TESTS, do not change the required check names, the
+merge-queue `go-product` aggregate or the `make gate` contents, and do not weaken nightly or release
+coverage; they add no product feature and no persisted state.
 
 ## Darwin PR job boundaries and maintenance
 
@@ -510,6 +598,13 @@ workflow; that is NOT_OBSERVED until the change runs on `main`, and a run it nev
 caught only by the schedule. (11) CIN-V0-2301 and CIN-V0-2302 count only runs the collector saw: a
 collector that never runs names nothing, as in failure mode (3).
 
+(12) CIN-V0-4750..4756: a classifier refusal, a malformed receipt, a skipped `cadence-plan` job or an
+event base without the classifier runs every campaign (FULL), so a fault costs latency only. A
+DEFER pull request skips the archive gate and the selection-baseline replay until the nightly
+release gates; a regression those campaigns would have caught is found there, not on the pull
+request. The TESTS content guard is lexical; a test file outside it that still alters a deferred
+campaign's result would be missed until the nightly run.
+
 ## Acceptance evidence and traceability
 
 the tests in the traceability rows; the V1-3091 request counts in build log
@@ -543,14 +638,26 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
 | CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps`, `TestCINV02320RequiredCheckPropagatesShellFailure` in `tools/ci-reuse-plan/workflow_test.go` |
-| CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/ci.yml`; `.github/macos/select.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
+| CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/go-macos.yml`; `.github/macos/{select,shard}.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); `python3 -B .github/macos/shard_test.py` (complete deterministic cost partition, mixed FULL/NARROWED ownership, asymmetric cost-read failures, unknown-cost fallback, module concurrency and retained failures); `TestCINV04625AdvisoryDarwinIsOutsideRequiredNeedsGraph`, `TestCINV04625DarwinWorkflowNeverAdmitsLinuxReuse` in `tools/ci-reuse-plan`; existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
 | CIN-V0-4626 | PLANNED/deferred: V1-4636; no required-aggregate dependency/result check | Required integration NOT_PRODUCED: blocked on V1-4413, V1-4551, V1-4553 and one green hosted FULL run; nightly run 41849536472 is failing at the lane base |
+| CIN-V0-4750 | `.github/ci-cadence/classify.sh` DOCS and TESTS classes | `TestCINV04750CadenceClassifier` in `tools/ci-reuse-plan/cadence_test.go` |
+| CIN-V0-4751 | the fixed eight-line receipt of `classify.sh` | `TestCINV04750CadenceClassifier`, `TestCINV04752CadenceRefusals` |
+| CIN-V0-4752 | `classify.sh` topology and refusal checks; `.github/ci-cadence/run.sh` | `TestCINV04752CadenceRefusals`, `TestCINV04752CadenceRunWrapper` |
+| CIN-V0-4753 | the `cadence-plan` job and its consumers in `ci.yml`; `selection-baseline-check` in the `Makefile` | `TestCINV04753CadenceWorkflowWiring` |
+| CIN-V0-4754 | the `cadence-plan` job, `docs-plan`, `go-macos-shard` and `go-macos` aggregator in `go-macos.yml` | `TestCINV04753CadenceWorkflowWiring` |
+| CIN-V0-4755 | the `selection-baseline` entry of `release-gates.yml` | `TestCINV04753CadenceWorkflowWiring` |
+| CIN-V0-4756 | the `cadence-plan` fallback step and the `CI_CADENCE_FORCE` variable | `TestCINV04752CadenceRefusals`, `TestCINV04753CadenceWorkflowWiring` |
 
 ## Rollback
 
+CIN-V0-4750..4756: set the repository variable `CI_CADENCE_FORCE=FULL`, or revert the cadence-plan jobs, `.github/ci-cadence/`,
+the `CORVINT_CI_CADENCE` guard in `selection-baseline-check` and the nightly `selection-baseline` entry. No state migrates.
+
 CIN-V0-2320: delete the `shell-test-selected` job; shell-test steps then run only in `make gate`.
 
-CIN-V0-4625: revert advisory `go-macos` and `.github/macos/`. CIN-V0-4626 has no delivered
+CIN-V0-4625: revert the V1-4732 workflow extraction and sharder to restore the previous advisory
+`ci.yml` job, accepting its workflow-completion delay; no required-status setting changes. For the
+original capability rollback, remove advisory `go-macos` and `.github/macos/`. CIN-V0-4626 has no delivered
 aggregate integration to roll back; V1-4636 owns its future activation.
 The nightly macOS gate and existing Linux narrowing remain operative; no persistent data migrates.
 
