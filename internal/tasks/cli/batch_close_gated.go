@@ -189,7 +189,12 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 			r.unrunnable(wire.CodePrerequisiteUnsatisfied, "seal "+rev+" does not resolve to a commit in this clone", "fetch the lane branch or correct --seal, then rerun")
 			return
 		}
-		if !store.IsAncestor(b.root, seal, b.merge) {
+		contained, ancestryErr := store.Ancestry(b.root, seal, b.merge)
+		if ancestryErr != nil {
+			r.unrunnable(wire.CodeUnsupported, "seal ancestry NOT_OBSERVED: "+ancestryErr.Error(), "restore Git access, then rerun")
+			return
+		}
+		if !contained {
 			r.unrunnable(wire.CodePrerequisiteUnsatisfied, "seal "+seal+" is not contained in batch merge "+b.merge, "pass the sealed lane commit the batch merged, then rerun")
 			return
 		}

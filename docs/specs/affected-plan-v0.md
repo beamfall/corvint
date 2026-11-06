@@ -1911,7 +1911,10 @@ and container qualification; full fallback remains available.
   from the hash of the `--full` exclusion bytes, whose counts differ from the full lists, or a
   `--full` document that differs from the previous default. Rollback: delete
   `cmd/corvint/affected_compact.go` and the `--full` option, restore `affected-plan/0` as the
-  default, and restore the renamed core-freeze goldens.
+  default, and restore the renamed core-freeze goldens. Amended by AZU-V0-001
+  (`docs/specs/affected-zero-unknown-v0.md`, V1-4684): in both profiles a driver selection also
+  keeps `kind` (`DRIVER_TARGET` with `argv`, or `CI_JOB` with `workflow` and `job`), and its
+  witness kind may be `FRONTIER_SITE`; every other entry is unchanged.
 - **AFP-V0-036:** (proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
   indexed Go unit P are P's own declared `_test.go` files MUST select P's tests with a
   `DIRECT_TEST_CHANGE` witness and MUST NOT traverse from P: P's importers and the units whose
@@ -2360,6 +2363,19 @@ and container qualification; full fallback remains available.
   of package time against an ideal 1293.2 s; `tools/ci-test-slices replay` over it predicts
   2173.8 s with the previous files and 1293.7 s with the refreshed ones. Rollback: restore the
   previous `test-slices.json` and `package-costs.json`.
+  Amendment (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355):
+  `internal/liveverify/affected` is also allow-listed (no TestMain; read-only package tables;
+  per-process fixture builds; a shuffled whole-package race run passed in 452.2 s). In run
+  41760796927 (revision f13f52b16, 16 shards) it took 746.5 s, unsplit, against a committed cost of
+  532 s and an ideal shard of 644.2 s, and the Go-test shards ranged 402.8 s to 959.5 s. The files
+  are regenerated from that run with `--target 300s`: `cmd/corvint` in four slices,
+  `internal/liveverify/affected` in three, `internal/tasks/cli` in two and `internal/tasks/store`
+  in five, every slice at most 294.6 s. `tools/ci-test-slices replay` over that run predicts
+  shards of 426.1 s to 880.9 s with the previous files and 643.3 s to 644.6 s with the refreshed
+  ones (max/min 1.002). For narrowed selections (30 and 60 percent random package subsets, five
+  seeds each) the slowest shard is either within 3 percent of the fastest or exactly one
+  indivisible unit (a package outside the allow-list, or a slice), so placement meets the lower
+  bound. Rollback: restore the previous three files.
 - **AFP-V0-160:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0923); no
   GitHub issue) A repository MAY declare which of its paths are documentation rather than build or
   test inputs, so a change of documentation alone is not an unowned path. (1) The declaration is
@@ -2611,7 +2627,7 @@ traceability rows there.
   under CCF-V1-006. The count measures progress toward a bounded scope; it does not change `scope`,
   `unknown` or any selection. Falsifier: a plan whose count differs between two dirty sets over one
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
-  two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
+  two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`. Amended by AFP-V0-2406 (`docs/specs/affected-plan-selection-v0.md`, V1-4281): the count covers only the plugins the plan involves or whose frontier an unknown entry names, so an unrelated plugin changes no plan byte.
 
 - **AFP-V0-400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1817) The
   shell plugin MUST set a unit's `placesFileNames` (part of the AFP-V0-005 projection when true)
@@ -4208,14 +4224,16 @@ is the one to cut, without changing the merge queue's deciding run or the AFP-V0
 
 - **AFP-V0-540:** (accepted by the owner (owner chat, 2026-10-27: "I approve the ci.yml change for that scope, keep -race and leave the AFP-V0-014 qualification argv as-is"); V1-2890)
   The `go-product-shard` Go tests step SHALL take its `go test -p` value from `SHARD_TEST_P`
-  (set identically in the narrowing gate step, `AFP-V0-2181`), which is `4` only when the event
-  is `pull_request` and the runner environment is `self-hosted`, and `1` on every other run. There are five parts.
+  (set identically in the narrowing gate step, `AFP-V0-2181`), which is `4` when the event is
+  `pull_request` (self-hosted or hosted: hosted `ubuntu-24.04` runners of this public repository
+  have 4 vCPUs; amended 2026-11-05, V1-4728) and `1` on every other run. There are five parts.
   - (1) The whole-package, slice and AFP-V0-047 rerun invocations all take `-p "$SHARD_TEST_P"`
     and otherwise keep `-exec "$RUNNER_TEMP/test-confine" -json -count=1 -race -timeout 50m`,
     the AFP-V0-023 confinement and the job environment. `-race` and `-count=1` never change.
   - (2) A `merge_group` shard, the deciding full suite and the only AFP-V0-428 seed producer,
-    and a hosted shard keep `-p 1`, so the ci profile of `STR-V0-012` (`ciGoFlags`, `-p 1`)
-    still equals the merge queue's argv, and hosted AFP-V0-040 cost streams stay unshared.
+    keeps `-p 1`, so the ci profile of `STR-V0-012` (`ciGoFlags`, `-p 1`) still equals the
+    merge queue's argv. A hosted pull-request shard's package Elapsed is measured under `-p 4`
+    contention; it is never a merge-queue or AFP-V0-040 cost input.
   - (3) The AFP-V0-014 historical qualification argv (`go test -json -p 1 -count=1 -race
     -timeout 50m` in `tools/corvint-pr-tests`) is unchanged. No CI shard produces AFP-V0-014 or
     AFP-V0-015 evidence: that profile runs only in its own driver campaign.
@@ -6405,7 +6423,7 @@ traceability table.
 | AFP-V0-154 | the `_test.go` early return in `attributeStructure`, `internal/gateselect/select.go` | `TestSelectPackagesAttributesEveryDirtyPath` (a changed or deleted test file selects only its package; a deleted source still widens to its importers; a test file in an embedding package still selects its importer); both test-file cases fail before the change |
 | AFP-V0-155 | `compactAdviceUnknown` and `affectedPlanUnknownReference` in `cmd/corvint/affected_compact.go` | `TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown`; `resolveCompactAdvice` resolution against `--full` in `TestAFPV0038CompactAdviceReferencesProviderPackages` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the amended `affected-committed-range.json` core-freeze golden |
 | AFP-V0-163 | the `reuse` and `Retain integrity reuse decision` steps, `permissions`, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity`, and the `artifact-integrity-record` job, in `.github/workflows/ci.yml`; the `job:artifact-integrity` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163RecordJobRunsNoRepositoryCode`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (all fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement in build log 2026-11-01-ci-w34 (40 queue runs: the reuse fired on every entry whose tree its pull-request run tested) |
-| AFP-V0-164 | the `internal/tasks/cli` and `internal/tasks/authority` entries of `.github/cishards/test-split-allow.json` and their slices in `.github/cishards/test-slices.json` (regenerated from run 39613481398) | `TestAFPV0060CommittedSlicesBoundOversizedPackages` (requires `cmd/corvint`, `internal/tasks/store` and `internal/tasks/cli` split and every allowed package above the bound split, every test selected once, each slice within 400 s); amendment replay in build log 2026-10-21-cisplit-1021v-store-slices; `tools/ci-test-slices replay` before/after in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; shuffled package runs; hosted observed max shard `NOT_OBSERVED` |
+| AFP-V0-164 | the `internal/tasks/cli` and `internal/tasks/authority` entries of `.github/cishards/test-split-allow.json` and their slices in `.github/cishards/test-slices.json` (regenerated from run 39613481398) | `TestAFPV0060CommittedSlicesBoundOversizedPackages` (requires `cmd/corvint`, `internal/tasks/store` and `internal/tasks/cli` split and every allowed package above the bound split, every test selected once, each slice within 400 s); amendment replay in build log 2026-10-21-cisplit-1021v-store-slices; V1-4355 amendment replay (`internal/liveverify/affected` allow entry, run 41760796927) in build log 2026-11-04-shard-affected-split; `tools/ci-test-slices replay` before/after in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; shuffled package runs; hosted observed max shard `NOT_OBSERVED` |
 | AFP-V0-316 | `scanFiles`, `scanFile` and `record` in `internal/gateselect/readers.go` | `TestAFPV0316ParallelIndexMatchesSerial` (the pooled index deep-equals the `GOMAXPROCS=1` serial index over a 99-file fixture, five times) and `TestAFPV0316ParallelIndexReportsTheFirstErrorInWalkOrder` (two unparsable sources: always the walk-first one; recording in completion order fails it); `BenchmarkIndexRepository` |
 | AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.3 admitted; go1.27.1, go1.27.2, go1.27.4 and go1.28.2 refused, decision 0557), run green under go1.27.3 |
 | AFP-V0-160 | `readDocumentationPaths`, `declaredDocumentation` and `documentationPaths` in `internal/liveverify/affected/documentation.go`; the `documentation` graph field and digest member in `graph.go`; the `Select` call in `select.go`; `.corvint/documentation-paths.json` | `TestDeclaredDocumentationIsNonSourceNotUnknown_AFPV0160`, `TestDeclaredDocumentationKeepsEveryReader_AFPV0160`, `TestDeclaredDocumentationLeavesTaskStateAndSourceAlone_AFPV0160`, `TestDocumentationDeclarationIsValidated_AFPV0160`, `TestDocumentationDeclarationIsInTheDigest_AFPV0160`, `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160` |

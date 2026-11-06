@@ -118,16 +118,16 @@ var pluginDirs = []struct {
 	name string
 	dirs []string
 }{
-	{"cfamily", []string{"cmd/corvint-analyzer-c-jni", "cmd/corvint-analyzer-objective-c", "internal/analyzernativebridge", "internal/liveverify/affected/cfamily"}},
-	{"dotnet", []string{"cmd/corvint-analyzer-dotnet", "internal/analyzerdotnet", "internal/liveverify/affected/dotnet"}},
+	{"cfamily", []string{"cmd/corvint-analyzer-c-jni", "cmd/corvint-analyzer-objective-c", "internal/analyzernativebridge", "internal/liveverify/affected/cfamily", "internal/nativelinecov"}},
+	{"dotnet", []string{"cmd/corvint-analyzer-dotnet", "internal/analyzerdotnet", "internal/liveverify/affected/dotnet", "internal/nativelinecov"}},
 	{"go", []string{"cmd/corvint-analyzer-go", "cmd/corvint-go-test-provider", "internal/analyzergo", "internal/gotestrun", "internal/linecov", "internal/liveverify/affected/golang", "internal/liveverify/godiscovery", "internal/liveverify/gorunner", "internal/liveverify/gotest", "internal/liveverify/mutate"}},
-	{"java", []string{"cmd/corvint-analyzer-java", "internal/analyzernativebridge", "internal/liveverify/affected/java"}},
-	{"kotlin", []string{"cmd/corvint-analyzer-kotlin-android", "internal/analyzerkotlinandroid", "internal/liveverify/affected/kotlin"}},
+	{"java", []string{"cmd/corvint-analyzer-java", "internal/analyzernativebridge", "internal/liveverify/affected/java", "internal/nativelinecov"}},
+	{"kotlin", []string{"cmd/corvint-analyzer-kotlin-android", "internal/analyzerkotlinandroid", "internal/liveverify/affected/kotlin", "internal/nativelinecov"}},
 	{"python", []string{"cmd/corvint-analyzer-python", "internal/analyzerpython", "internal/liveverify/affected/python", "internal/liveverify/pymutate", "internal/liveverify/pyresolve", "internal/pythongrammar", "internal/pythonsyntax"}},
 	{"ruby", []string{"cmd/corvint-analyzer-ruby", "cmd/corvint-ruby-test-provider", "internal/analyzerruby", "internal/extmutate", "internal/liveverify/affected/ruby", "internal/liveverify/rbmutate", "internal/rubyautoload", "internal/rubydialect", "internal/rubylinecov", "internal/rubyprofile", "internal/rubytestprovider"}},
-	{"rust", []string{"cmd/corvint-analyzer-rust", "internal/analyzerrust", "internal/liveverify/affected/rust"}},
+	{"rust", []string{"cmd/corvint-analyzer-rust", "internal/analyzerrust", "internal/liveverify/affected/rust", "internal/nativelinecov"}},
 	{"shell", []string{"cmd/corvint-analyzer-shell", "internal/analyzershell", "internal/liveverify/affected/shell"}},
-	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/swiftimpact"}},
+	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/nativelinecov", "internal/swiftimpact"}},
 	{"typescript", []string{"cmd/corvint-analyzer-js", "cmd/corvint-js-test-provider", "internal/analyzerjs", "internal/browsercov", "internal/extmutate", "internal/jslinecov", "internal/jstestprovider", "internal/linecov", "internal/linecov/v8", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve", "internal/webdialect"}},
 	{"sql", []string{"cmd/corvint-analyzer-sql-native"}},
 	{"shader", []string{"cmd/corvint-analyzer-shader", "internal/analyzershader"}},

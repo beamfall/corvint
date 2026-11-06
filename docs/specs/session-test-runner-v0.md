@@ -49,6 +49,8 @@ of every requirement below and the binding gate until this spec is promoted.
 
 ## Requirements
 
+- `STR-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The declaration-runner regression MUST pin `CORVINT_GOCACHE` explicitly when it tests the declared GOCACHE, so an offload host override cannot change the fixture. The separate STR-V0-174 override regression MUST continue to prove intentional override precedence.
+
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
   [--dry-run] [--receipt PATH]` SHALL plan in process through the same code and profile as
   `corvint affected --base` and record that plan's graph and plan digests and the STR-V0-017
@@ -191,7 +193,9 @@ of every requirement below and the binding gate until this spec is promoted.
   execution unit terminal outcome. A narrowed run SHALL summarise as "selected units passed: N of M"
   and name where the full suite runs, never "suite passed".
 - `STR-V0-011`: Receipts are evidence only. They MUST NOT feed ranking, selection, learning or
-  authority; a later CEM citation needs its own accepted requirement.
+  authority; a later CEM citation needs its own accepted requirement. The one accepted reader
+  besides `verify-shards` is AFP-V0-2487's advisory `--fail-fast-order`, which reorders the
+  disclosed plan for its reader and changes no selection, run order, shard or authority.
 - `STR-V0-012`: Local and CI SHALL run the same binary code path. The CI profile adds only
   admission: planner and runner built outside the PR checkout from the reviewed pinned source
   (AFP-V0-013/028), the merge-queue backstop and the forward-qualification trip and kill switch
@@ -208,7 +212,7 @@ of every requirement below and the binding gate until this spec is promoted.
   branch of the `go-product-shard` job, the environment its `go test` sees (the job `env` over the
   runner's own) and its two `go test -exec` invocations, not the driver's closed environment
   (amended by `AFP-V0-540`, V1-2890: the job's `-p` is `SHARD_TEST_P`, which is `1`, this
-  profile's value, on every run except a self-hosted pull-request shard, where it is `4`); they
+  profile's value, on every run except a pull-request shard, where it is `4`; V1-4728); they
   are constants held equal to `.github/workflows/ci.yml` by a maintained test, not read from the
   declaration's `go` section, which declares the local full suite. The ci profile SHALL NOT launch
   a declared language command, a make target included: the CI full branch runs only Go, so a
@@ -396,7 +400,7 @@ two requirements make its version name its content and make each receipt carry i
   `make unbounded-readers-check` before merge and never narrows a run silently. Falsifier: a
   dirty path whose plan-selected `UNBOUNDED_READER` package is absent from the `--dry-run` run
   set, or a `--dry-run` run set that lacks a package `gateselect.Select` attributes by rules (a)
-  to (c). Rollback: call `gateselect.Select` from `testFillPlan` again.
+  to (c). Rollback: call `gateselect.Select` from `testFillPlan` again. Amended by AFP-V0-2402 (`docs/specs/affected-plan-selection-v0.md`, V1-4363): a `run` verdict runs only the plan's own Go selection; the attribution still decides FALLBACK and NOTHING.
 - `STR-V0-062`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2808) An `invalid-arguments`
   refusal of `corvint test` for an unknown flag, a flag without its value or a stray positional
   argument SHALL name the word at fault before the usage line (`flag provided but not defined:
@@ -853,3 +857,9 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 - Whether the Playwright profile's file commands become the first non-Go adapter or stay separate.
 - Adapter order after Go, likely by the languages adopters run most.
 - Whether balanced placement should ever become the default.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `STR-V0-7500` | `tools/test-commands-run/main_test.go`; `TestSTRV0006RunnerRunsTheDeclaration`, `TestSTRV0174InvocationHonoursCorvintGocache`. |

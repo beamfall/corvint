@@ -403,6 +403,7 @@
     ],
     "internal/docviews": [],
     "internal/dogfoodflow": [
+      ".gitignore",
       "docs/DOGFOOD.md",
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
@@ -519,6 +520,7 @@
       "internal/testvaliditydoc/"
     ],
     "internal/modelgateway": [],
+    "internal/nativelinecov": [],
     "internal/observations": [
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
@@ -696,7 +698,8 @@
       "protocol/cem-1.0/structural-tuples/"
     ],
     "tools/ci-forward-row": [
-      ".github/"
+      ".github/",
+      "Makefile"
     ],
     "tools/compat-trial": [
       "go.mod",

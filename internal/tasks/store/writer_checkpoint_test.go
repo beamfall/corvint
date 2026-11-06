@@ -98,7 +98,8 @@ func writerMutate(t *testing.T, repo *intent.Repository, id string, hook func(st
 
 // writerStore is historyStore with the writer-checkpoint threshold lowered
 // so the route serves it, after one complete-route write that retained the
-// first writer checkpoint.
+// first writer checkpoint. receipts is at least historyTickets+1, the receipts
+// the fixture's own setup writes; historyStoreAt refuses a smaller one.
 func writerStore(t *testing.T, receipts int) *intent.Repository {
 	t.Helper()
 	repo := historyStore(t, receipts)

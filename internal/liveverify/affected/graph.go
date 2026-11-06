@@ -52,8 +52,9 @@ type Graph struct {
 	// repository, so they are no part of the digest.
 	sourceBound   map[string]map[string]bool
 	fixtureClosed map[string]map[string]bool
-	// sites counts the repository's frontier sites by reason (AFP-V0-381).
-	sites map[string]int
+	// sites counts the repository's frontier sites by plugin and reason
+	// (AFP-V0-381, AFP-V0-2406).
+	sites map[string]map[string]int
 	// promoted marks each fixture unit whose own frontier no Go unit hosts, so
 	// it was raised to its plugin's frontier again (AFP-V0-446).
 	promoted map[string]bool
@@ -66,12 +67,22 @@ type Graph struct {
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
+	// nonSource is the repository's declared non-source entries
+	// (AZU-V0-002), sorted by path; it is part of the digest when present.
+	nonSource []NonSourcePath
 	// existenceReaders is the repository's declared existence readers with
 	// their manifest names (AFP-V0-980), sorted by package; it is part of the
 	// digest when present. existenceUnits maps each entry's package to its
 	// Go unit.
 	existenceReaders []ExistenceReader
 	existenceUnits   map[string]string
+	// testSelection is the repository's declared test owners and must-run
+	// tests (AFP-V0-2480); it is part of the digest when present. ownerUnits
+	// maps each owner pattern to its resolved units and mustRun lists the
+	// resolved must-run units (AFP-V0-2482 to AFP-V0-2484).
+	testSelection *testSelection
+	ownerUnits    map[string][]string
+	mustRun       []MustRun
 	// unobserved maps each plugin to the directories it owns but builds no
 	// unit for (AFP-V0-191), each list sorted.
 	unobserved map[string][]string
@@ -97,6 +108,13 @@ type Graph struct {
 	// root is the disk checkout the graph was observed from, empty for an
 	// fs.FS graph. Only AFP-V0-494's symlink hint reads it.
 	root string
+	// driverFiles maps each driver file, and each local action directory, to
+	// its driver units (AZU-V0-001).
+	driverFiles map[string][]string
+	// driverContent holds each dirty driver file's base and working-tree
+	// content, which attributes its diff to targets and jobs (AZU-V0-001).
+	// Like priorReadScopes it is a selection input.
+	driverContent map[string]DriverRevision
 }
 
 // WithReadScopeBase returns a copy of graph whose selection compares an edit
@@ -135,12 +153,18 @@ type digestBody struct {
 	// RuntimeReaders appears only when the repository declares runtime-readers
 	// paths (AFP-V0-602), so graphs without the declaration keep their digest.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
+	// NonSource appears only when the repository declares non-source paths
+	// (AZU-V0-002), so graphs without the declaration keep their digest.
+	NonSource []NonSourcePath `json:"nonSource,omitempty"`
 	// RuntimeEdges appears only when the repository declares runtime edges
 	// (AFP-V0-819).
 	RuntimeEdges []RuntimeEdge `json:"runtimeEdges,omitempty"`
 	// ExistenceReaders appears only when the repository declares existence
 	// readers (AFP-V0-980), so graphs without the declaration keep their digest.
 	ExistenceReaders []ExistenceReader `json:"existenceReaders,omitempty"`
+	// TestSelection appears only when the repository declares test owners or
+	// must-run tests (AFP-V0-2480), so graphs without it keep their digest.
+	TestSelection *testSelection `json:"testSelection,omitempty"`
 	// Unobserved appears only when a plugin reports a directory it owns but
 	// does not observe (AFP-V0-191), as "namespace:directory", sorted.
 	Unobserved []string `json:"unobserved,omitempty"`
@@ -168,6 +192,7 @@ type digestUnit struct {
 	Execs                []string `json:"execs,omitempty"`
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
+	PathImports          []string `json:"pathImports,omitempty"`
 	PathTokens           []string `json:"pathTokens"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
@@ -272,8 +297,10 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language, partia
 type declarations struct {
 	documentation    []string
 	runtimeReaders   []RuntimeReader
+	nonSource        []NonSourcePath
 	runtimeEdges     []RuntimeEdge
 	existenceReaders []ExistenceReader
+	testSelection    *testSelection
 	// partial marks a graph built from a subset of the plugins, which skips
 	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
 	partial bool
@@ -290,6 +317,10 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
+		nonSource, err := readNonSourcePaths(reader)
+		if err != nil {
+			return declarations{}, err
+		}
 		runtimeEdges, err := readRuntimeEdges(reader)
 		if err != nil {
 			return declarations{}, err
@@ -298,7 +329,11 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, partial: partial}, nil
+		testSelection, err := readTestSelection(reader)
+		if err != nil {
+			return declarations{}, err
+		}
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
 	}
 }
 
@@ -355,13 +390,19 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	}
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
+	graph.nonSource = repository.nonSource
 	graph.runtimeEdges = repository.runtimeEdges
 	if err := graph.applyRuntimeEdges(repository.partial); err != nil {
 		return nil, err
 	}
 	graph.existenceReaders = repository.existenceReaders
+	graph.resolvePathImports()
 	graph.finish()
 	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
+		return nil, err
+	}
+	graph.testSelection = repository.testSelection
+	if err := graph.resolveTestSelection(repository.partial); err != nil {
 		return nil, err
 	}
 	digest, err := graph.computeDigest()
@@ -477,6 +518,59 @@ func (graph *Graph) admit(ctx context.Context, namespace string, result Result, 
 		graph.order = append(graph.order, unit.ID)
 	}
 	return nil
+}
+
+// resolvePathImports turns each unit's PathImports into Imports edges to the
+// units owning the named paths (AZU-V0-001): "..." names every owner,
+// "dir/..." every owner below dir, and any other entry the owner of that
+// file and the owners of the files directly in that directory.
+func (graph *Graph) resolvePathImports() {
+	graph.driverFiles = graph.driverIndex()
+	var owned []string
+	for _, id := range graph.order {
+		unit := graph.units[id]
+		if len(unit.PathImports) == 0 {
+			continue
+		}
+		if owned == nil {
+			owned = make([]string, 0, len(graph.owner))
+			for path := range graph.owner {
+				owned = append(owned, path)
+			}
+			sort.Strings(owned)
+		}
+		targets := make(map[string]bool)
+		below := func(prefix string, direct bool) {
+			for index := sort.SearchStrings(owned, prefix); index < len(owned) && strings.HasPrefix(owned[index], prefix); index++ {
+				if direct && strings.Contains(owned[index][len(prefix):], "/") {
+					continue
+				}
+				targets[graph.owner[owned[index]]] = true
+			}
+		}
+		for _, entry := range unit.PathImports {
+			switch {
+			case entry == "...":
+				below("", false)
+			case strings.HasSuffix(entry, "/..."):
+				below(entry[:len(entry)-3], false)
+			default:
+				if owner, present := graph.owner[entry]; present {
+					targets[owner] = true
+				}
+				below(entry+"/", true)
+			}
+		}
+		delete(targets, id)
+		if len(targets) == 0 {
+			continue
+		}
+		for _, imported := range unit.Imports {
+			targets[imported] = true
+		}
+		unit.Imports = sortedKeys(targets)
+		graph.units[id] = unit
+	}
 }
 
 // finish materializes the reverse edges, with test-only imports kept apart. An
@@ -678,8 +772,10 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		Units:            units,
 		Documentation:    graph.documentation,
 		RuntimeReaders:   graph.runtimeReaders,
+		NonSource:        graph.nonSource,
 		RuntimeEdges:     graph.runtimeEdges,
 		ExistenceReaders: graph.existenceReaders,
+		TestSelection:    graph.testSelection,
 		Unobserved:       namespacedEntries(graph.unobserved),
 		Runnable:         namespacedEntries(graph.runnable),
 	}, json.Deterministic(true))
@@ -709,6 +805,7 @@ func projectUnit(unit Unit) digestUnit {
 		Execs:                unit.Execs,
 		AdvisoryImports:      unit.AdvisoryImports,
 		RouteDispatchImports: unit.RouteDispatchImports,
+		PathImports:          unit.PathImports,
 		PathTokens:           unit.PathTokens,
 		PathGlobs:            unit.PathGlobs,
 		PathTokensBounded:    unit.PathTokensBounded,
@@ -791,41 +888,82 @@ func (graph *Graph) UntestedCodeReached(dirty []string) []string {
 	return ids
 }
 
-// frontierSites counts every frontier site in the repository by reason
-// (AFP-V0-381): each plugin and unit frontier entry is one site of the reason
-// formed by its first two colon-separated fields, except a `reason:+N` entry,
-// which counts the N sites its list left unnamed. Plugin-wide and unit
-// frontiers are summed per list, so a count does not depend on the dirty set.
-// It is nil when the repository has no frontier.
-func (graph *Graph) frontierSites() map[string]int {
-	var sites map[string]int
-	add := func(entries []string) {
+// frontierSites counts every frontier site in the repository by plugin and
+// reason (AFP-V0-381): each plugin and unit frontier entry is one site of the
+// reason formed by its first two colon-separated fields, except a `reason:+N`
+// entry, which counts the N sites its list left unnamed. A plugin-wide entry
+// counts toward its plugin, a unit entry toward the plugin its unit id names.
+// Plugin-wide and unit frontiers are summed per list. It is nil when the
+// repository has no frontier.
+func (graph *Graph) frontierSites() map[string]map[string]int {
+	var sites map[string]map[string]int
+	add := func(plugin string, entries []string) {
 		for _, entry := range entries {
 			if sites == nil {
-				sites = make(map[string]int)
+				sites = make(map[string]map[string]int)
+			}
+			if sites[plugin] == nil {
+				sites[plugin] = make(map[string]int)
 			}
 			fields := strings.SplitN(entry, ":", 3)
 			if len(fields) < 2 {
-				sites[entry]++
+				sites[plugin][entry]++
 				continue
 			}
 			reason := fields[0] + ":" + fields[1]
 			if len(fields) == 3 && strings.HasPrefix(fields[2], "+") {
 				if n, err := strconv.Atoi(fields[2][1:]); err == nil && n > 0 {
-					sites[reason] += n
+					sites[plugin][reason] += n
 					continue
 				}
 			}
-			sites[reason]++
+			sites[plugin][reason]++
 		}
 	}
 	for _, name := range graph.languages {
-		add(graph.frontierBy[name])
+		add(name, graph.frontierBy[name])
 	}
 	for id, unit := range graph.units {
 		if !graph.promoted[id] {
-			add(unit.Frontier)
+			plugin, _, _ := strings.Cut(id, ":")
+			add(plugin, unit.Frontier)
 		}
 	}
 	return sites
+}
+
+// planFrontierSites is a plan's frontierSites (AFP-V0-2406, amending
+// AFP-V0-381): the repository sites, whether or not the dirty set reaches
+// them, of each plugin the plan involves (participants) or whose frontier one
+// of its unknown entries names. A plugin the change does not touch adds
+// nothing, so adding, removing or changing an unrelated plugin leaves the
+// plan's bytes unchanged. It is nil when those plugins have no site.
+func (graph *Graph) planFrontierSites(involved []string, unknown []Unknown) map[string]int {
+	if len(graph.sites) == 0 {
+		return nil
+	}
+	plugins := make(map[string]bool, len(involved))
+	for _, name := range involved {
+		plugins[name] = true
+	}
+	for _, entry := range unknown {
+		if entry.Reason == UnknownLanguageFrontier {
+			if name, _, ok := strings.Cut(entry.Detail, ":"); ok {
+				plugins[name] = true
+			}
+		}
+	}
+	var counted map[string]int
+	for plugin, reasons := range graph.sites {
+		if !plugins[plugin] {
+			continue
+		}
+		for reason, count := range reasons {
+			if counted == nil {
+				counted = make(map[string]int)
+			}
+			counted[reason] += count
+		}
+	}
+	return counted
 }

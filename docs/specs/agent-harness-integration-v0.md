@@ -83,6 +83,8 @@ separate exact extension tuple remains governed by AHI-024.
 
 ## Requirements
 
+- `AHI-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Claude Code host-package version bump MUST update the manifest, marketplace, adapter/matrix declarations and `.mcp.json` injected `CORVINT_PLUGIN_VERSION` together. The injected value MUST keep its `claude-code/` prefix, and version verification MUST reject a disagreement before changing any location.
+
 - `AHI-001`: Every adapter MUST consume and produce the transport-neutral Corvint request, receipt,
   CEM, frontier, and outcome contracts. It MUST NOT maintain a second graph or reinterpret authority.
 - `AHI-002`: Installation, discovery, upgrade, disable, and uninstall MUST be documented and tested
@@ -141,7 +143,7 @@ separate exact extension tuple remains governed by AHI-024.
   may be labelled full support. The `host-adapter` translator reports an unrecognised hook event as
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
-  continues (`cmd/corvint/host_adapter.go:42,168,172@f6d595d2`). These are faults under `AHI-021`.
+  continues (`cmd/corvint/host_adapter.go:43,170,174@f6d595d2`). These are faults under `AHI-021`.
   OpenCode and Gemini owned-process-group cleanup on a timeout, a cancellation or a normal leader
   exit, including which signal or probe answers confirm it and the visible degradation
   `corvint-process-cleanup-unconfirmed`, is governed by `AHI-050` (decision 0474), which supersedes
@@ -224,7 +226,9 @@ separate exact extension tuple remains governed by AHI-024.
   CLI hook subtracts `performance.now()` at invocation, so a slow Node start shortens the Corvint
   budget; under the declared kill its non-query hang detector applies when it is below that budget, and
   `compatibility.json` publishes the resulting query ceiling. The Claude Code and Codex adapters
-  bound the invocation by a declared-kill table that MUST equal their `hooks.json`; a watchdog
+  bound the invocation by one declared-kill table whose shipped entries MUST equal their `hooks.json`;
+  its opt-in entries (an event the adapter accepts but no shipped `hooks.json` registers, V1-3946)
+  MUST be absent from every shipped `hooks.json`; a watchdog
   emits `adapter-host-kill-deadline` at the derived deadline while the work is still running, and
   the work context expires 100 ms earlier so a promptly cancelled event keeps its own reason. A panic
   inside an adapter invocation is recovered and degrades as `adapter-internal-error`, so a defect
@@ -777,7 +781,7 @@ separate exact extension tuple remains governed by AHI-024.
   `subagent-start` (`AHI-630`). Live receipt (Claude Code 2.1.316, 2026-11-01): the host's
   SubagentStart payload carried `agent_id`, `agent_type`, `cwd`, `prompt_id`, `scratchpad_dir`,
   `session_id` and `transcript_path` and no task text; the adapter answered `{}` in 77 ms and the
-  spawn ran unchanged, so the registration stays unshipped (`docs/build-log/2026-11-01-hst-m27.md`). The event runs under the 2 s opt-in adapter host kill (`AHI-017`, `adapterOptInHostKill`).
+  spawn ran unchanged, so the registration stays unshipped (`docs/build-log/2026-11-01-hst-m27.md`). The event runs under the 2 s opt-in adapter host kill (an `AHI-017` opt-in entry of `adapterDeclaredHostKill`).
   Evidence:
   `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`,
   `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently` and
@@ -792,7 +796,7 @@ separate exact extension tuple remains governed by AHI-024.
   (not the root itself) is compiled as a one-path `user-prompt` anchor and its packet or named
   degradation is the `additionalContext` under `hookEventName` `PreToolUse`; another tool, an
   absent path or an outside path gets `{}`, so the host's own permission flow runs unchanged. The
-  event runs under the 2 s opt-in adapter host kill (`AHI-017`, `adapterOptInHostKill`), whose
+  event runs under the 2 s opt-in adapter host kill (an `AHI-017` opt-in entry of `adapterDeclaredHostKill`), whose
   expiry is a degradation without a decision. Invariant 4 decision: hook-driven unplanned-read recording is NOT admitted; the
   event writes only what the `user-prompt` path already writes, so unplanned-read rows stay gated
   on the operator marker (`SOL-V0-010`; decision recorded in
@@ -2793,7 +2797,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1424@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1442@898acc0f` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@167fae0d` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
@@ -2807,16 +2811,16 @@ there, which is the whole of what the row asserts.
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:73` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:378@b2bc66fa` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:771@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
-| `project-root-unavailable` | `cmd/corvint/host_adapter.go:359@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:777@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `project-root-unavailable` | `cmd/corvint/host_adapter.go:361@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `qualification-in-progress` | `internal/opencodequalification/record.go:433` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
-| `repository-identity-malformed` | `internal/gokernel/repository.go:179@3a35602c` | "Git object identity is malformed" |
+| `repository-identity-malformed` | `internal/gokernel/repository.go:181@3a35602c` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
-| `repository-probe-timeout` | `internal/gokernel/repository.go:166@cac16f24` | "Git repository probe exceeded its 10-second deadline" |
-| `repository-probe-too-large` | `internal/gokernel/repository.go:150` | "Git output exceeds its byte limit" |
+| `repository-probe-timeout` | `internal/gokernel/repository.go:167@cac16f24` | "Git repository probe exceeded its 10-second deadline" |
+| `repository-probe-too-large` | `internal/gokernel/repository.go:152@cba8c577` | "Git output exceeds its byte limit" |
 | `repository-profile-malformed` | `internal/gokernel/repository.go:270` | "Git profile path is not valid UTF-8" |
-| `repository-status-malformed` | `internal/gokernel/repository.go:215` | "Git status output is malformed" |
-| `repository-status-too-large` | `internal/gokernel/repository.go:240` | "Git status exceeds the <value>-path limit" |
+| `repository-status-malformed` | `internal/gokernel/repository.go:221@7e344f81` | "Git status output is malformed" |
+| `repository-status-too-large` | `internal/gokernel/repository.go:244@ce716050` | "Git status exceeds the <value>-path limit" |
 | `unsupported-git-object-format` | `internal/gokernel/repository.go:192` | "unsupported Git object format: <value>" |
 
 ## Over-bound prompts
@@ -2975,7 +2979,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-801` (experimental under the standing lane auto-accept (2026-11-01); V1-3556) | `cmd/corvint/host_adapter_deadline.go` (`withReducedPacket`) | `TestAHI801CompactSessionStartDeadlineEmitsReducedPacket`, `TestAHI801UserPromptDeadlineEmitsReducedPacket` |
 | `AHI-802` (experimental under the standing lane auto-accept (2026-11-01); V1-3676) | `cmd/corvint/host_adapter.go` (`alternatesCauseLine`) | `TestAHI802SharedCloneFallbackNamesObjectAlternates` |
 | `AHI-803` (experimental under the standing lane auto-accept (2026-11-01); V1-3728) | `cmd/corvint/host_adapter.go` (`postToolOwningRepository`, `invokeSiblingClaudePostTool`) | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner`, `TestAHI803SiblingRepositoryRootStaysRepositoryData` |
-| `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`), `cmd/corvint/host_adapter.go` (`adapterOptInHostKill`) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`, `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently`, `TestAHI804OptInEventsRunUnderTheHostKill` |
+| `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`), `cmd/corvint/host_adapter.go` (`adapterDeclaredHostKill` opt-in entry) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking`, `TestAHI804DocumentedSubagentStartPayloadAbstainsSilently`, `TestAHI804OptInEventsRunUnderTheHostKill` |
 | `AHI-805` (experimental under the standing lane auto-accept (2026-11-01); V1-0402) | `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`, `preToolReadTarget`) | `TestAHI805PreToolReadNeverDecidesPermission`, `TestAHI804OptInEventsRunUnderTheHostKill` |
 | `AHI-806` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_pretool.go` (`preToolPrompt`) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases) |
 | `AHI-630` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `internal/observations/observations.go` (`admittedAdapterEvents`) | `TestAHI630OptInAbstentionReachesTheLedger` |
@@ -3146,3 +3150,9 @@ records the explicit caller-reported outcome at a clean revision. Native RPC new
 and interactive TUI prompt/shutdown are exercised separately. The PTY harness has a regression
 for interrupted cleanup of a TERM-ignoring descendant. These functional witnesses do not establish
 protected FULL, arbitrary extension qualification, latency or equal-critical-recall promotion.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `AHI-7500` | `script/host-package-version.sh`; `script/host-package-version_test.sh` real-manifest five-location bump, evidence preservation and mismatch refusal; `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`. |

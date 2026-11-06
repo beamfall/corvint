@@ -1,0 +1,296 @@
+{
+  "full": {
+    "status": "NOT_QUALIFIED",
+    "loadOneMinuteRange": [
+      26.04,
+      78.42
+    ],
+    "samples": 40,
+    "groups": [
+      {
+        "receipts": 13500,
+        "verb": "claim",
+        "baseMedianMS": 74.950058,
+        "headMedianMS": 829.248774,
+        "ratio": 11.064017775676705,
+        "medianPairedRatio": 12.282236643500807,
+        "baseSamplesMS": [
+          84.560223,
+          74.950058,
+          59.272137,
+          77.272666,
+          70.440206
+        ],
+        "headSamplesMS": [
+          690.675394,
+          829.248774,
+          727.994413,
+          1053.20163,
+          1159.837568
+        ]
+      },
+      {
+        "receipts": 13500,
+        "verb": "complete",
+        "baseMedianMS": 160.804835,
+        "headMedianMS": 1020.034044,
+        "ratio": 6.343304565437974,
+        "medianPairedRatio": 6.177796450181248,
+        "baseSamplesMS": [
+          236.221796,
+          167.122448,
+          160.804835,
+          136.205014,
+          103.759498
+        ],
+        "headSamplesMS": [
+          1020.034044,
+          1032.448466,
+          775.547009,
+          897.086072,
+          1503.488849
+        ]
+      },
+      {
+        "receipts": 40000,
+        "verb": "claim",
+        "baseMedianMS": 79.794347,
+        "headMedianMS": 2532.221542,
+        "ratio": 31.734347572265992,
+        "medianPairedRatio": 31.734347572265992,
+        "baseSamplesMS": [
+          190.674245,
+          211.777954,
+          79.794347,
+          75.848424,
+          68.096623
+        ],
+        "headSamplesMS": [
+          1955.212808,
+          2251.022452,
+          2532.221542,
+          3769.778041,
+          3125.450256
+        ]
+      },
+      {
+        "receipts": 40000,
+        "verb": "complete",
+        "baseMedianMS": 244.825277,
+        "headMedianMS": 3345.315237,
+        "ratio": 13.664092523420283,
+        "medianPairedRatio": 13.664092523420283,
+        "baseSamplesMS": [
+          201.716496,
+          500.445182,
+          338.544489,
+          243.382914,
+          244.825277
+        ],
+        "headSamplesMS": [
+          2776.982054,
+          2879.606786,
+          3411.252109,
+          3867.173868,
+          3345.315237
+        ]
+      }
+    ]
+  },
+  "narrow": {
+    "status": "NOT_QUALIFIED",
+    "loadOneMinuteRange": [
+      34.26,
+      66.95
+    ],
+    "samples": 40,
+    "groups": [
+      {
+        "receipts": 13500,
+        "verb": "claim",
+        "baseMedianMS": 83.25498,
+        "headMedianMS": 361.149272,
+        "ratio": 4.337869902797406,
+        "medianPairedRatio": 4.120369141397437,
+        "baseSamplesMS": [
+          83.25498,
+          108.058991,
+          98.848472,
+          55.922799,
+          75.567466
+        ],
+        "headSamplesMS": [
+          515.394527,
+          361.149272,
+          384.658965,
+          278.112947,
+          311.365855
+        ]
+      },
+      {
+        "receipts": 13500,
+        "verb": "complete",
+        "baseMedianMS": 206.21904,
+        "headMedianMS": 579.212196,
+        "ratio": 2.808723171245487,
+        "medianPairedRatio": 2.7077019978872783,
+        "baseSamplesMS": [
+          206.21904,
+          297.813307,
+          236.867516,
+          156.720263,
+          180.385352
+        ],
+        "headSamplesMS": [
+          770.951795,
+          579.212196,
+          648.760206,
+          394.17375,
+          488.429778
+        ]
+      },
+      {
+        "receipts": 40000,
+        "verb": "claim",
+        "baseMedianMS": 78.259212,
+        "headMedianMS": 843.430438,
+        "ratio": 10.777394973003306,
+        "medianPairedRatio": 13.171123697312535,
+        "baseSamplesMS": [
+          84.522192,
+          131.106482,
+          78.259212,
+          55.070001,
+          41.77521
+        ],
+        "headSamplesMS": [
+          1113.252246,
+          971.743426,
+          630.768103,
+          837.622572,
+          843.430438
+        ]
+      },
+      {
+        "receipts": 40000,
+        "verb": "complete",
+        "baseMedianMS": 150.719383,
+        "headMedianMS": 942.677949,
+        "ratio": 6.254523673308827,
+        "medianPairedRatio": 4.425934865343012,
+        "baseSamplesMS": [
+          244.586749,
+          268.378786,
+          148.421303,
+          71.776668,
+          150.719383
+        ],
+        "headSamplesMS": [
+          1082.52502,
+          942.677949,
+          665.787852,
+          1002.752779,
+          515.689592
+        ]
+      }
+    ]
+  },
+  "final": {
+    "status": "NOT_QUALIFIED",
+    "loadOneMinuteRange": [
+      16.1,
+      45.15
+    ],
+    "samples": 40,
+    "groups": [
+      {
+        "receipts": 13500,
+        "verb": "claim",
+        "baseMedianMS": 44.26131,
+        "headMedianMS": 58.638258,
+        "ratio": 1.3248197579330572,
+        "medianPairedRatio": 1.332640177166017,
+        "baseSamplesMS": [
+          55.916098,
+          35.029646,
+          32.580675,
+          47.269626,
+          44.26131
+        ],
+        "headSamplesMS": [
+          70.687824,
+          58.638258,
+          56.223376,
+          55.607021,
+          58.9844
+        ]
+      },
+      {
+        "receipts": 13500,
+        "verb": "complete",
+        "baseMedianMS": 53.18431,
+        "headMedianMS": 79.533737,
+        "ratio": 1.4954360976009653,
+        "medianPairedRatio": 1.5311167334877522,
+        "baseSamplesMS": [
+          59.262532,
+          39.380233,
+          64.588992,
+          46.488246,
+          53.18431
+        ],
+        "headSamplesMS": [
+          71.97364,
+          79.533737,
+          69.788339,
+          147.990491,
+          81.431387
+        ]
+      },
+      {
+        "receipts": 40000,
+        "verb": "claim",
+        "baseMedianMS": 35.108127,
+        "headMedianMS": 68.760511,
+        "ratio": 1.9585354410960172,
+        "medianPairedRatio": 1.9370486782163001,
+        "baseSamplesMS": [
+          36.794475,
+          31.721137,
+          35.108127,
+          34.068717,
+          46.385439
+        ],
+        "headSamplesMS": [
+          76.015723,
+          82.494551,
+          68.006151,
+          61.138351,
+          68.760511
+        ]
+      },
+      {
+        "receipts": 40000,
+        "verb": "complete",
+        "baseMedianMS": 63.274666,
+        "headMedianMS": 113.780323,
+        "ratio": 1.798197133114855,
+        "medianPairedRatio": 1.9292158878368788,
+        "baseSamplesMS": [
+          63.406321,
+          63.274666,
+          48.350723,
+          79.924189,
+          58.559758
+        ],
+        "headSamplesMS": [
+          79.581546,
+          237.080057,
+          93.278983,
+          125.096502,
+          113.780323
+        ]
+      }
+    ]
+  }
+}

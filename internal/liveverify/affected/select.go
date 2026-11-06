@@ -92,7 +92,8 @@ type Witness struct {
 	// file makes the selected unit's reads unbounded, and why (AFP-V0-192).
 	Cause *UnboundedCause `json:"cause,omitempty"`
 	// Glob is set on a PATH_GLOB_READER witness only: the unit's literal glob
-	// pattern that matches DirtyPath (AFP-V0-401).
+	// pattern that matches DirtyPath (AFP-V0-401), and on a
+	// DECLARED_TEST_OWNER witness: the owner pattern (AFP-V0-2482).
 	Glob string `json:"glob,omitempty"`
 	// link holds the chain by reference while the selector runs, in place of
 	// Via (V1-2979, AFP-V0-641); see via.go.
@@ -112,6 +113,14 @@ type Selection struct {
 	UnitID  string   `json:"unitId"`
 	Tests   []string `json:"tests"`
 	Witness Witness  `json:"witness"`
+	// Kind is SelectionKindDriverTarget or SelectionKindCIJob for a driver
+	// unit (AZU-V0-001), empty for a unit whose Tests the runner runs.
+	Kind string `json:"kind,omitempty"`
+	// Argv runs a selected make target from the repository root.
+	Argv []string `json:"argv,omitempty"`
+	// Workflow and Job name a selected workflow job, left to CI.
+	Workflow string `json:"workflow,omitempty"`
+	Job      string `json:"job,omitempty"`
 }
 
 // Exclusion is a bounded certificate for one eligible unit the plan did not
@@ -183,6 +192,14 @@ type Plan struct {
 	// (TSP-V0-942). It restates Unknown and never changes selection or
 	// scope; it is omitted when no frontier bears.
 	FrontierBearers []FrontierBearer `json:"frontierBearers,omitempty"`
+	// MustRun names every declared must-run unit the plan selects whatever
+	// reaches it, sorted by unit then entry (AFP-V0-2484). It is omitted
+	// when none is declared or nothing is dirty.
+	MustRun []MustRun `json:"mustRun,omitempty"`
+	// DeclaredOwners names every unit an owner pattern selects for the plan,
+	// whatever reached it first, sorted by unit then pattern (AFP-V0-2489).
+	// It is omitted when no owner matches a dirty path.
+	DeclaredOwners []DeclaredOwner `json:"declaredOwners,omitempty"`
 }
 
 // FrontierBearer is one source that made the frontier entry Detail bear on a
@@ -275,13 +292,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
 	}
-	if len(graph.sites) != 0 {
-		plan.FrontierSites = make(map[string]int, len(graph.sites))
-		for reason, count := range graph.sites {
-			plan.FrontierSites[reason] = count
-		}
-	}
 	reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt := graph.reach(normalized, true)
+	graph.driverSites(reached, followed, normalized)
 	plan.GoAdditive = additiveSummary(additive)
 	through := graph.additiveExclusions(normalized, additive)
 	plan.NonSource, unknown = graph.taskState(unknown)
@@ -289,9 +301,18 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, documentation...)
 	runtimeReaders, unknown := graph.runtimeReaderPaths(unknown)
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
+	nonSource, unknown := graph.nonSourcePaths(unknown)
+	owned, unknown := graph.ownedPaths(unknown)
 	declaration, unknown := graph.declarationPath(unknown)
+	// AFP-V0-2488: an owner-declared path stays unowned for the frontier rules,
+	// so a declaration never removes a LANGUAGE_FRONTIER entry.
+	frontierNonSource := append(slices.Clip(plan.NonSource), declaration...)
+	// A declared non-source path, like an owned one, stays unowned for the
+	// frontier rules, so it still bears the AFP-V0-511 cascade (AZU-V0-002).
+	plan.NonSource = append(plan.NonSource, nonSource...)
+	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
+	frontier, excluded, bearers, involved := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
@@ -299,10 +320,23 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
+	plan.MustRun = graph.mustRunOf(reached, normalized)
+	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
+	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
 			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+		}
+		if strings.HasPrefix(id, DriverNamespace+":") {
+			// A reached make target or workflow job is selected whatever
+			// reached it; a driver unit is never excluded (AZU-V0-001).
+			if witness, hit := reached[id]; hit {
+				if selection, ok := graph.driverSelection(id, witness); ok {
+					plan.Selected = append(plan.Selected, selection)
+				}
+			}
+			continue
 		}
 		if len(unit.Tests) == 0 {
 			continue
@@ -336,6 +370,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
 	instructionHints(plan.Unknown)
+	driverInputHints(plan.Unknown)
+	plan.FrontierSites = graph.planFrontierSites(involved, plan.Unknown)
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
 	}
@@ -406,6 +442,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
+	graph.ownersOf(reached, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -480,6 +517,7 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 	seeds := make(map[string]Witness)
 	unknown := make([]Unknown, 0)
 	var packages map[string]string
+	fixtureClaims := map[string]bool{}
 	for _, path := range dirty {
 		id, owned := graph.owner[path]
 		if !owned {
@@ -487,6 +525,15 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 			// directory's own test root, whether or not a plugin claims it
 			// (AFP-V0-650); the observed side's selection is unchanged.
 			module, inModule := graph.unobservedModule(path)
+			if graph.driverSeed(path, seeds) {
+				// The driver claimant attributes the change to its targets
+				// and jobs (AZU-V0-001); readers of the file are selected as
+				// before.
+				if inModule {
+					unknown = append(unknown, module)
+				}
+				continue
+			}
 			if packages == nil {
 				packages = graph.goPackageDirectories()
 			}
@@ -508,7 +555,7 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			entry := graph.unownedUnknown(path)
+			entry := graph.unownedUnknown(path, packages, fixtureClaims)
 			if inModule && entry != module {
 				unknown = append(unknown, module)
 			}
@@ -567,7 +614,7 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // plugin out that way, and a unit the plan follows the dependents of
 // (AFP-V0-581) is no terminal selection. It last returns, for each named
 // entry, the sources that made it bear (TSP-V0-942).
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer) {
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer, []string) {
 	reasons := make(map[string]bool)
 	sources := make(map[string][]FrontierBearer)
 	bear := func(source FrontierBearer) {
@@ -585,6 +632,11 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	for id, witness := range reached {
 		if graph.frontierBears(id, witness, followed, reads) && graph.ownFilesBear(id, dirty) {
 			for _, reason := range graph.units[id].Frontier {
+				if reason == FrontierDriverComputedInvocation {
+					// A reached site is selected with its dependents, which
+					// is every unit the hidden edge can reach (driverSites).
+					continue
+				}
 				reasons[reason] = true
 				bear(FrontierBearer{Detail: reason, Via: FrontierBearerReachedUnit, Unit: id, Witness: witness.Kind, DirtyPath: witness.DirtyPath})
 			}
@@ -679,7 +731,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		sort.Strings(units)
 		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
 	}
-	return unknown, excluded, frontierBearerList(sources)
+	return unknown, excluded, frontierBearerList(sources), involved
 }
 
 // frontierBearerList orders each entry's sources (by Via, Language, Unit,
@@ -982,7 +1034,7 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner:
 		return true
 	}
 	return false
@@ -1025,7 +1077,7 @@ func (graph *Graph) claimantsOf(path string) []string {
 // reclassifies its UNOWNED entry. The path stays unowned for claimantsOf and
 // every frontier rule either way.
 func (graph *Graph) goReadData(path string, packages map[string]string) bool {
-	if _, goGraph := graph.claimants["go"]; !goGraph || driverInput(path) || IsTaskStoreProjectionPath(path) || graph.declaredDocumentation(path) {
+	if _, goGraph := graph.claimants["go"]; !goGraph || DriverInput(path) || IsTaskStoreProjectionPath(path) || graph.declaredDocumentation(path) {
 		return false
 	}
 	return graph.namedGoReadData(path, packages) && graph.confinedReaders(path, packages)
@@ -1078,6 +1130,12 @@ func (graph *Graph) confinedReaders(path string, packages map[string]string) boo
 		}
 	}
 	for _, id := range graph.order {
+		if strings.HasPrefix(id, DriverNamespace+":") {
+			// A driver unit's reads are those of the commands it runs,
+			// which the graph models (AZU-V0-001); the baseline without the
+			// claimant ignored the same executors.
+			continue
+		}
 		if !strings.HasPrefix(id, "go:") {
 			return false
 		}
@@ -1089,24 +1147,17 @@ func (graph *Graph) confinedReaders(path string, packages map[string]string) boo
 	return true
 }
 
-// driverInput reports a path a build or CI executor outside every plugin
-// runs as its own configuration (AFP-V0-601): a make file at any depth, or a
-// GitHub Actions workflow or action definition.
-func driverInput(path string) bool {
-	switch base := path[strings.LastIndex(path, "/")+1:]; {
-	case base == "Makefile" || base == "makefile" || base == "GNUmakefile" || strings.HasSuffix(base, ".mk"):
-		return true
-	}
-	return strings.HasPrefix(path, ".github/workflows/") || strings.HasPrefix(path, ".github/actions/")
-}
-
 // unownedUnknown distinguishes a dirty path some plugin claims as its own
 // source text — an unindexed source file — from a path no plugin claims at
 // all. A claimed path at or below a directory that plugin reported as
 // unobserved is that plugin's frontier instead: the file is known to lie
 // outside the observed graph, not merely to be missing from it (AFP-V0-191).
-func (graph *Graph) unownedUnknown(path string) Unknown {
+// A fixture-only claim (fixtureOnlyClaim, AFP-V0-2440) is no source claim:
+// with no other claimant the path stays UNOWNED_DIRTY_PATH, and its hint
+// names the plugins whose claim was set aside.
+func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo map[string]bool) Unknown {
 	reason := UnknownUnownedDirtyPath
+	var fixtureOnly []string
 	for _, name := range graph.languages {
 		if graph.claimants[name] == nil || !graph.claimants[name].Owns(path) {
 			continue
@@ -1118,9 +1169,40 @@ func (graph *Graph) unownedUnknown(path string) Unknown {
 			}
 			return Unknown{Reason: UnknownLanguageFrontier, Detail: name + ":" + category + ":" + directory + ":" + path}
 		}
+		if graph.fixtureOnlyClaim(name, path, packages, memo) {
+			fixtureOnly = append(fixtureOnly, name)
+			continue
+		}
 		reason = UnknownUnindexedSourcePath
 	}
-	return Unknown{Reason: reason, Detail: path}
+	entry := Unknown{Reason: reason, Detail: path}
+	if reason == UnknownUnownedDirtyPath && len(fixtureOnly) > 0 {
+		entry.Hint = "claimed only as fixture data by " + strings.Join(fixtureOnly, ", ") + ": the path lies below " +
+			fixtureDirectory(path) + ", a testdata directory a Go unit hosts, below which that plugin lists no path (AFP-V0-2440)"
+	}
+	return entry
+}
+
+// fixtureOnlyClaim reports whether the named plugin's claim on path is a
+// fixture-only claim (AFP-V0-2440): the plugin is not Go, the path lies below
+// a `testdata` directory a Go unit hosts (AFP-V0-446's hosting rule), and the
+// plugin lists no path below that directory, so no unit of the plugin there
+// can be missing the file (the AFP-V0-511 fixture condition). The Go toolchain
+// builds and runs nothing below `testdata`; the hosting package's tests read
+// the file as bytes, which rules (b) to (d) attribute as they do an unowned
+// path. memo caches the per-plugin, per-directory answer for one plan.
+func (graph *Graph) fixtureOnlyClaim(name, path string, packages map[string]string, memo map[string]bool) bool {
+	directory := fixtureDirectory(path)
+	if name == "go" || directory == "" || !graph.goUnitAbove(directory, packages) {
+		return false
+	}
+	key := name + "\x00" + directory
+	if answer, known := memo[key]; known {
+		return answer
+	}
+	answer := !graph.listsBelowAny(name, []string{directory})
+	memo[key] = answer
+	return answer
 }
 
 // FrontierUnobservedDirectory is the LANGUAGE_FRONTIER detail category of a
@@ -1176,7 +1258,29 @@ func (graph *Graph) witnessKind(id, path string) string {
 // or in units that depend on it, so a unit is untested when no unit it reaches,
 // itself included, declares a test.
 var untestedRules = map[string]func(*Graph, string) bool{
-	"go": func(graph *Graph, id string) bool { return len(graph.units[id].Tests) == 0 },
+	"go":            func(graph *Graph, id string) bool { return len(graph.units[id].Tests) == 0 },
+	DriverNamespace: func(graph *Graph, id string) bool { return graph.driverUntested(id) },
+}
+
+// driverUntested reports a driver unit that is no make target or workflow job
+// and that no such unit or test reaches along reverse edges (AZU-V0-001).
+func (graph *Graph) driverUntested(id string) bool {
+	seen := map[string]bool{id: true}
+	queue := []string{id}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if driverSelectable(current) || graph.testReach[current] {
+			return false
+		}
+		for _, dependent := range graph.dependents[current] {
+			if !seen[dependent] {
+				seen[dependent] = true
+				queue = append(queue, dependent)
+			}
+		}
+	}
+	return true
 }
 
 func (graph *Graph) untested(id string) bool {

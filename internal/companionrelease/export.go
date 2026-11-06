@@ -514,9 +514,9 @@ type stdinObservation struct {
 }
 
 func runWithStdin(ctx context.Context, dir string, env []string, timeout time.Duration, stdin []byte, argv ...string) stdinObservation {
-	stdout, stderr, err := runCapturedStdin(ctx, dir, env, timeout, stdin, argv...)
+	stdout, _, err := runCapturedStdin(ctx, dir, env, timeout, stdin, argv...)
 	if err != nil {
-		return stdinObservation{Stdout: stdout, err: fmt.Errorf("%v: %w (stderr=%s)", argv, err, trimForError(stderr))}
+		return stdinObservation{Stdout: stdout, err: err}
 	}
 	return stdinObservation{Stdout: stdout}
 }

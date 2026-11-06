@@ -228,3 +228,40 @@ func allCapitalWord(name string) bool {
 	}
 	return true
 }
+
+// orderLookupPairs keeps selected sources before their paired tests for lookups.
+// Frozen default scores and reasons remain unchanged (TCP-V0-8200).
+func (compiler *taskContextCompiler) orderLookupPairs(rows []contextRow) []contextRow {
+	positions := []int{}
+	ordinary := []contextRow{}
+	for i, row := range rows {
+		if reservedRelation(row.kind) || row.kind == "graph" {
+			continue
+		}
+		positions = append(positions, i)
+		ordinary = append(ordinary, row)
+	}
+	// A lookup asks for implementation. Keep a convention-paired test after
+	// its source when both survived selection; never invent an absent source.
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(compiler.task)), "where ") {
+		for i := 0; i < len(ordinary); i++ {
+			anchor := ordinary[i].testAnchor
+			if anchor == "" || contextIsTest(anchor) {
+				continue
+			}
+			for j := i + 1; j < len(ordinary); j++ {
+				if ordinary[j].path == anchor {
+					test := ordinary[i]
+					copy(ordinary[i:j], ordinary[i+1:j+1])
+					ordinary[j] = test
+					i--
+					break
+				}
+			}
+		}
+	}
+	for i, position := range positions {
+		rows[position] = ordinary[i]
+	}
+	return rows
+}

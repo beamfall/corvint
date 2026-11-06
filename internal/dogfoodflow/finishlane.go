@@ -27,6 +27,8 @@ type FinishLaneOptions struct {
 	// `dogfood inputs-check` pre-flight: it binds, commits and seals nothing
 	// (DCW-V0-380).
 	Preflight bool
+	// DTL-V0-004: check the bound change without sealing it.
+	StopBeforeSeal bool
 	// SealedSkip keeps a pre-flight on a seal head a SKIP that exits 0: the
 	// finish and closeout wrappers set it (`--sealed skip`) so a rerun there
 	// still reaches seal SKIP. Without it the pre-flight reports
@@ -213,9 +215,10 @@ func (l *finishLane) run() int {
 			l.line("inputs-check SKIP bind-commit=%s", l.target)
 			return 0
 		}
-		// A refused prepare stops with its map in place for the next pass to
-		// remove; the pre-flight leaves no map either way.
-		defer func() { _ = removeFile(l.root + "/" + finishLaneSidecar) }()
+		// DCW-V0-380: a pre-flight may replace the map temporarily, but
+		// must leave a tracked sidecar exactly as it found it on every exit.
+		restore := l.preservePreflightSidecar()
+		defer restore()
 		// A pre-flight over inputs a passing one already prepared reuses it
 		// (ICL-V0-010): the closeout's own pre-flight and dogfood-finish's
 		// then prepare once.
@@ -911,7 +914,13 @@ func (l *finishLane) checkAndSeal() int {
 	defer l.timed("check-seal")()
 	l.step = "check"
 	var verdict bytes.Buffer
-	code, err := Seal(l.ctx, l.options.Check, &verdict, l.stderr)
+	var code int
+	var err error
+	if l.options.StopBeforeSeal {
+		code, err = Check(l.ctx, l.options.Check, &verdict, l.stderr)
+	} else {
+		code, err = Seal(l.ctx, l.options.Check, &verdict, l.stderr)
+	}
 	checked := hasLine(verdict.Bytes(), "dogfood-check: PASS")
 	if err != nil {
 		l.sealInterrupted(verdict.Bytes())
@@ -919,7 +928,11 @@ func (l *finishLane) checkAndSeal() int {
 	switch {
 	case code == 0:
 		l.line("check PASS")
-		l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		if l.options.StopBeforeSeal {
+			l.line("seal NOT_RUN requested --seal no")
+		} else {
+			l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		}
 		defer l.reportReview()
 	case checked:
 		l.line("check PASS")
@@ -971,4 +984,38 @@ func (l *finishLane) sealInterrupted(verdict []byte) {
 	}
 	_, _ = l.stdout.Write(verdict)
 	l.exit(-1)
+}
+
+// preservePreflightSidecar restores tracked bytes and mode even when prepare
+// refuses or is interrupted. Untracked probe maps are removed as before.
+func (l *finishLane) preservePreflightSidecar() func() {
+	name := l.root + "/" + finishLaneSidecar
+	if !l.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar) {
+		return func() { _ = removeFile(name) }
+	}
+	data, err := os.ReadFile(name)
+	var mode os.FileMode
+	if err == nil {
+		var info os.FileInfo
+		info, err = os.Stat(name)
+		if err == nil {
+			mode = info.Mode().Perm()
+		}
+	}
+	refuse := func(err error) {
+		l.say("%s: REFUSE sidecar-not-removed\n  %s\n", l.prefix, oneLine(err.Error()))
+		l.line("prepare FAIL exit=2")
+		l.exit(2)
+	}
+	if err != nil {
+		refuse(err)
+	}
+	return func() {
+		if err := os.WriteFile(name, data, mode); err != nil {
+			refuse(err)
+		}
+		if err := os.Chmod(name, mode); err != nil {
+			refuse(err)
+		}
+	}
 }

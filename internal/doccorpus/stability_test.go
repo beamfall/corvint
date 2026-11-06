@@ -698,3 +698,29 @@ func TestStabilityOutcomeMatchesOrderedAttempts(t *testing.T) {
 		}
 	}
 }
+
+// TestStabilityEnvironmentDigestPreimage pins the V1-0623 documentation: the stability identity's
+// environment digest hashes the decoded map through the corpus encoding plus LF, so a receipt
+// environment of JSON null (a nil map) hashes as {} plus LF, not as null plus LF.
+func TestStabilityEnvironmentDigestPreimage(t *testing.T) {
+	const emptyObject = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+	const nullText = "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+	if Digest([]byte("{}\n")) != emptyObject || Digest([]byte("null\n")) != nullText {
+		t.Fatal("the documented example digests do not match their preimages")
+	}
+	var decoded struct {
+		Environment map[string]string `json:"environment"`
+	}
+	if err := json.Unmarshal([]byte(`{"environment":null}`), &decoded); err != nil || decoded.Environment != nil {
+		t.Fatalf("a null environment did not decode to a nil map: %v %v", err, decoded.Environment)
+	}
+	for name, env := range map[string]map[string]string{"nil": decoded.Environment, "empty": {}} {
+		if got, err := hashValue(env); err != nil || got != emptyObject {
+			t.Fatalf("%s environment digest = %s, %v; want the {}+LF digest %s", name, got, err, emptyObject)
+		}
+	}
+	got, err := hashValue(map[string]string{"PATH": "/bin", "LANG": "C"})
+	if err != nil || got != Digest([]byte(`{"LANG":"C","PATH":"/bin"}`+"\n")) {
+		t.Fatalf("a map environment digest = %s, %v; want sorted keys plus LF", got, err)
+	}
+}

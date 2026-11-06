@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"testing/fstest"
 )
 
 // Source is one explicit source universe. A disk source retains the existing
@@ -198,6 +199,7 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 // ReadBounded captures a smaller input contract without first asking an
 // immutable backend to Stat or Open, either of which may allocate its body.
 // An opaque filesystem cannot establish that admission bound and is refused.
+// DTL-V0-013 admits MapFS separately: its bodies already reside in memory.
 func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut error) {
 	if err := s.stopped(); err != nil {
 		return nil, err
@@ -215,10 +217,32 @@ func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut
 		bounded, ok := s.fsys.(interface {
 			OpenBounded(string, int) (fs.File, error)
 		})
-		if !ok {
+		if ok {
+			file, err = bounded.OpenBounded(relative, limit)
+		} else if memory, admitted := s.fsys.(fstest.MapFS); admitted {
+			entry, exists := memory[relative]
+			if len(memory) > MaxWalkEntries {
+				return nil, ErrWalkLimit
+			}
+			if !exists {
+				// An implicit MapFS directory exists even without an explicit map entry.
+				for name := range memory {
+					if strings.HasPrefix(name, relative+"/") {
+						return nil, ErrInvalidUnit
+					}
+				}
+				return nil, fs.ErrNotExist
+			}
+			if entry == nil || !entry.Mode.IsRegular() {
+				return nil, ErrInvalidUnit
+			}
+			if len(entry.Data) > limit {
+				return nil, ErrWalkLimit
+			}
+			file, err = memory.Open(relative)
+		} else {
 			return nil, fmt.Errorf("%w: immutable source lacks bounded open", ErrWalkUnrepresentable)
 		}
-		file, err = bounded.OpenBounded(relative, limit)
 	} else {
 		s.record.path(s.root, relative, false)
 		defer func() { s.record.failed(relative, errOut) }()

@@ -32,6 +32,12 @@ barrier the widen was refused too (V1-3190).
 
 ## Requirements
 
+### Tasks store and read-path repairs (2026-11-04)
+
+- `TRM-V0-7208`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3986) Release update and membership MUST pass through submitMutationContext, preserving its writer guard and caller context before the release-specific envelope and native writer. The shared submission dispatch recognizes only release.Operations, so ticket envelope validation remains unchanged. A canceled submission cannot commit release membership.
+  Evidence: `internal/tasks/cli/pk_tstore_internal_test.go` — `TestTRMV07208_ReleaseWritesUseSubmissionContext`.
+
+
 - `TRM-V0-001`: (proposed; V1-3193) `corvint-tasks release membership --target R
   --expected-revision N (--add T | --remove T)...` MUST apply one `RELEASE_MEMBERSHIP` mutation
   whose closed payload is `{"add":[...],"remove":[...]}` and MUST change only the release's

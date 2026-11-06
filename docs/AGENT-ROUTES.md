@@ -17,6 +17,7 @@ Read the matching row, then expand only the relevant original sources.
 | Does implementation meet intent? | Spec requirement → implementation/evidence table → exact definition and test named there. Use [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv) for the clause's spec file, then `rg -n -F ID` in it. | Follow acceptance provenance to the owner decision when status conflicts. Code/tests cannot accept intent; a test mention is not a passing run. |
 | Which requirements has the owner not read back? | `make spec-acceptance-audit` (`ACCEPTANCE=owner` or `unrecorded` for the others), then the `acceptance` and `acceptedBy` columns of [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv) and the [mode rule](SPEC-DRIVEN-DEVELOPMENT.md#status-model). | `standing` is agent-written under the 2026-10-11 standing auto-accept, not owner-read. `UNPARSED_STANDING` rows stay `unrecorded` until their marker leads the line, and `NOT_PROMOTABLE` is a report, not a gate. Only an owner read-back, recorded in a build-log Owner acceptances entry in the same commit, turns a marker into `owner`. |
 | Why did a command fail? | Preserve the exact error/receipt; search its code with `rg -n -F 'ERROR_CODE' internal cmd`, then read the matching implementation, tests and owning requirement. | Check profile, revision and worktree preconditions before changing code. Unsupported-by-design is a boundary; never discard local work to satisfy a read command. |
+| Search code for an identifier or string | `git grep -n 'TEXT' -- . ':!.agent-evidence' ':!.corvint/changes'`, or `rg -n -g '!.agent-evidence' -g '!.corvint/changes' 'TEXT' .`; then read the matching source slices. | Tracked change evidence under `.agent-evidence/` and `.corvint/changes/` is long single-line JSON that quotes source: at `6c33df33` an unscoped `git grep -n check-line-citations` printed 997 KB, 23 evidence lines, against 65 KB with the pathspec. Drop the exclusions only when the question is about that evidence. |
 | Review a change | [CEM non-claims](CHANGE-EVIDENCE-MAP.md#positioning-and-non-claims), [OCM digest](specs/ocm-v0-dogfood.md#agent-digest), then [reviewer reports](DOGFOOD.md#6-review-what-another-reviewer-sees). | Inspect mapped hunks, every scoped requirement, unknowns and test witnesses. Structural closure does not establish semantic support, test adequacy or a passing gate. |
 | Run Corvint from CI, a git hook or a team automation | [Triggered automation contract](AUTOMATION.md) → the step's `corvint VERB --help` and the source lines that page cites. | Only the listed read-only steps; each is one foreground process and a run grants no authority. `cem report` and `dogfood-check` write local state, and `dogfood-check` fails in a fresh clone (V1-0182). |
 | Resume or select work | If this checkout has an initialized `.taskman` store, read its native queue and current receipt first; otherwise route to a workspace with that store. Use [ROADMAP history](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings), [0.6 portfolio](PORTFOLIO-0.6.md), `rg -n '^### ' docs/agent-memory/*.md`, and the owning spec for intent. | Native store presence makes it operative for execution status; never initialize a replacement or treat AT/E/U Markdown as live state. Search `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` and `docs/build-log/` by heading or ID, then read matching entries. Re-pin status and coordinate owners; preserve pending gates and owner-goal gaps. |
@@ -155,3 +156,43 @@ reports `cited content changed`. Read the lines at the new position. If they sti
 sentence claims, run `script/check-line-citations.sh --hash path:N-M` with the new range. It prints
 the whole `path:N-M@hex` token, which replaces the old one. A changed hash over the same range
 means the cited text itself changed, so re-read it before repinning (`DCG-V0-006` to `DCG-V0-009`).
+
+## Resolving pre-snapshot evidence
+
+`CSD-V0-7515` (V1-3264): old GitHub numbers belong to `beamfall/corvint-history`, not the
+new single-root repository. With archive access, retrieve the original title and body with:
+
+```sh
+gh api repos/beamfall/corvint-history/issues/1897 --jq '{number,title,body,html_url}'
+```
+
+A `corvint-history/blob/REV/PATH` citation names the exact archived bytes. Read them without
+reinterpreting the URL as a current-main path:
+
+```sh
+gh api 'repos/beamfall/corvint-history/contents/docs/BUILD-LOG.md?ref=1c4d8793cf71cbb01b8509b68a6cb1502a40a13e' -H 'Accept: application/vnd.github.raw+json'
+```
+
+For a pre-snapshot full commit SHA in an acceptance criterion, first test whether the local object
+exists with `git cat-file -t SHA`. If absent, use an archive clone pinned to
+`1c4d8793cf71cbb01b8509b68a6cb1502a40a13e`, verify the SHA is its ancestor, and read with
+`git show SHA:PATH` or `git show SHA -- PATH`. A fresh archive clone is obtained using
+`git clone https://github.com/beamfall/corvint-history /tmp/corvint-history-audit`; use a fresh
+operator-chosen destination if that path exists. Never merge the archive lineage into current main.
+Closeout cites a current-main test or file in addition to historical SHA evidence, naming the
+historical identity as historical; an old SHA alone cannot prove the current implementation.
+
+On 2026-11-04, the available account's archive repository request returned HTTP 404 and the pinned
+archive commit was absent locally. That is an access blocker: issue title/body recovery and unrecovered archived
+text remain NOT_OBSERVED (the B3 rows recovered locally below are a separate retained observation). Preserve the original URL/SHA, request archive access or an
+owner-exported title/body and immutable evidence excerpt, and do not substitute guessed values.
+
+Some shared worktrees still hold individual original objects even when the archive pin is absent.
+Check the exact cited SHA before concluding that every original is unavailable. The
+[pk-ci recovery summary](build-log/2026-11-04-pk-ci.md#recovered-pre-snapshot-source-evidence-v1-3264)
+retains V1-2278's eight B3 widen/reap p50/p95 rows, host/load qualifications and source blob/hash
+from `c6c75440bf2cb6ef6d1f6f27bbdbdb467ad61ef5`, plus the original commit mapping of GH #1897 to
+V1-2800. The mapped implementation commit's subject/body are **not** the original GitHub issue's
+subject/body. Do not confuse GH #1897 with native ticket V1-1897. Original issue text and other
+unrecovered archive content remain access-blocked; recovered summaries are historical measurements,
+not present-host qualifications.

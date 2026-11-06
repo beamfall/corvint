@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
+import {hostAvailable,hostFile,missingHost} from '../pi/host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,rm,realpath} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -7,6 +8,7 @@ import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';
 
 test('PPI-V0-009 Bun resolves the fixed worker only for the exact replaced SDK importer',async t=>{
+ if(!(hostAvailable(t,'bun')))return;
  const dir=await realpath(await mkdtemp(join(tmpdir(),'corvint-fixed-image-')));
  t.after(()=>rm(dir,{recursive:true,force:true}));
  const sdk=join(dir,'sdk'),here=join(dir,'local'),utils=join(sdk,'dist/utils');

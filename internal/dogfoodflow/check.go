@@ -865,8 +865,8 @@ func (c *check) verifyBinding(report []byte) int {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")
 	}
-	if c.record(true, bootstrap) != nil {
-		c.fail("dogfood-report-write")
+	if err := c.record(true, bootstrap); err != nil {
+		c.fail("dogfood-report-write", "  cause: "+err.Error())
 	}
 	cemLine := firstLine(cem.stdout)
 	if cem.status != 0 {
@@ -1096,13 +1096,23 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	if replaced != 1 {
 		return fmt.Errorf("report has %d dogfoodCheck lines", replaced)
 	}
-	// Stage in the Git directory and rename, so an interrupted write never
-	// leaves a truncated report or an unignored file in the worktree.
-	staged := filepath.Join(c.gitDir, "corvint-dogfood-report.json.tmp")
-	if err := os.WriteFile(staged, []byte(strings.Join(lines, "\n")+"\n"), 0o666); err != nil {
+	return replaceCheckReport(c.report, []byte(strings.Join(lines, "\n")+"\n"))
+}
+
+// DTL-V0-016: stage beside the report, since the Git directory may be on a
+// different filesystem or sandbox mount. The unfinished name is ignored;
+// only a successful atomic rename publishes the completed verifier result.
+func replaceCheckReport(path string, data []byte) error {
+	staged, err := os.CreateTemp(filepath.Dir(path), ".dogfood-report-*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(staged, c.report)
+	defer os.Remove(staged.Name())
+	_, writeErr := staged.Write(data)
+	if err := errors.Join(writeErr, staged.Close()); err != nil {
+		return err
+	}
+	return os.Rename(staged.Name(), path)
 }
 
 func (c *check) unboundNotObserved(reason string) {

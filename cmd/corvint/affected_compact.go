@@ -39,6 +39,9 @@ type affectedCompactReceipt struct {
 	// Tiers ranks the selection for a bounded local run (AFP-V0-162); it is
 	// omitted when nothing is selected.
 	Tiers *affectedTiers `json:"tiers,omitempty"`
+	// Order is the opt-in fail-fast order of the selection (AFP-V0-2487);
+	// it is omitted without --fail-fast-order.
+	Order *affectedOrder `json:"order,omitempty"`
 	// Summary restates the plan's scope and counts in one object (AFP-V0-510).
 	Summary affectedSummary `json:"summary"`
 }
@@ -73,6 +76,10 @@ type affectedCompactPlan struct {
 	// instead of copied into every selection (AFP-V0-640). It is omitted when
 	// no chain has two units.
 	ViaLinks map[string]string `json:"viaLinks,omitempty"`
+	// MustRun is the plan's declared must-run units (AFP-V0-2484).
+	MustRun []affected.MustRun `json:"mustRun,omitempty"`
+	// DeclaredOwners is the plan's owner-selected units (AFP-V0-2489).
+	DeclaredOwners []affected.DeclaredOwner `json:"declaredOwners,omitempty"`
 }
 
 // affectedCompactAdvice is the affected-plan/0 advice except that the
@@ -104,6 +111,11 @@ type affectedCompactSelection struct {
 	UnitID    string                 `json:"unitId"`
 	TestCount int                    `json:"testCount"`
 	Witness   affectedCompactWitness `json:"witness"`
+	// Kind, Argv, Workflow and Job carry a driver selection (AZU-V0-001).
+	Kind     string   `json:"kind,omitempty"`
+	Argv     []string `json:"argv,omitempty"`
+	Workflow string   `json:"workflow,omitempty"`
+	Job      string   `json:"job,omitempty"`
 }
 
 // affectedCompactWitness is a plan witness whose chain is a reference, not a
@@ -175,6 +187,8 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			GoAdditive:         full.Plan.GoAdditive,
 			GoAdditiveExcluded: full.Plan.GoAdditiveExcluded,
 			ViaLinks:           links,
+			MustRun:            full.Plan.MustRun,
+			DeclaredOwners:     full.Plan.DeclaredOwners,
 		},
 		Profile:      affectedCompactProfile,
 		Provider:     full.Provider,
@@ -183,7 +197,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Tool:         full.Tool,
 		Warning:      full.Warning,
 		Degradations: full.Degradations,
-		Tiers:        tierAffectedSelections(full.Plan.Selected),
+		Tiers:        tierAffectedPlan(full.Plan),
 		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
 
 		DegradationDetails: full.DegradationDetails,
@@ -208,7 +222,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}
-		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact})
+		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job})
 	}
 	if len(links) == 0 {
 		links = nil

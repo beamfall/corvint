@@ -11,6 +11,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -649,7 +651,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
 		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
 		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--source PATH|NAME [--config FILE]] [--max-bytes 4096..262144] [--checkpoint NOTE]",
-		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
+		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit REV",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
 		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
@@ -997,6 +999,9 @@ func pagedFlags(verb string, args []string, extra ...string) (map[string]string,
 		return nil, page{}, err
 	}
 	if len(pos) > 0 {
+		if verb == "ticket search" {
+			return nil, page{}, wire.Errorf(wire.CodeMalformed, "argv", "unexpected argument %q; quote multiword --text values, for example --text \"impact Makefile\"", prose(pos[0]))
+		}
 		return nil, page{}, wire.Errorf(wire.CodeMalformed, "argv", "%s takes no positional argument", verb)
 	}
 	p, err := parsePage(fl)
@@ -2060,6 +2065,10 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 	offers := completionOffers{rc: rc, in: in}
 	offers.offer(&v)
 	val := v.Value(includeRecord)
+	if includeRecord && v.Record.Status == ticket.StatusArchived {
+		// ARCHIVE receipts retain the mutation digest but no reason payload.
+		val.Obj.Set("archiveReason", wire.String("NOT_OBSERVED"))
+	}
 	if includeRecord {
 		val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		// TCL-V0-865: every failing intent check named beside the verdict.
@@ -2121,7 +2130,8 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
 		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
 		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
-		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id)
+		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id) +
+		stagedSnapshotHint(rc, id, time.Now())
 }
 
 // snapshotRouteHint is the CTS-V0-680 addition to a journal-absent miss: a
@@ -2130,6 +2140,125 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 func snapshotRouteHint(id string) string {
 	return " On a host without that checkout, export a snapshot on the primary with `corvint-tasks queue snapshot --out FILE`, copy FILE here and retry with `" +
 		SnapshotEnv + "=FILE corvint-tasks ticket show " + id + "` (CTS-V0-680)."
+}
+
+// maxStagedEntries bounds the $HOME/lane-inputs directory entries a
+// journal-absent miss scans, and maxStagedProbes the newest staged snapshots
+// whose queue identity it reads (ASD-V0-2421).
+const (
+	maxStagedEntries = 1024
+	maxStagedProbes  = 4
+)
+
+// plainShellWord is a path a shell reads as one word without quoting.
+var plainShellWord = regexp.MustCompile(`^[A-Za-z0-9_./-]+$`)
+
+// stagedSnapshotHint is the ASD-V0-2421 addition to a journal-absent miss:
+// the newest queue snapshot of this checkout's queue that the dispatch kit
+// staged on this host under $HOME/lane-inputs (lane-dispatch.sh inputs,
+// lane-stage-inputs.sh), with its age and the exact retry, else the staging
+// command. It reads only a candidate's queue identity, never serves the
+// ticket from it.
+func stagedSnapshotHint(rc *readCtx, id string, now time.Time) string {
+	stage := "`script/lane-stage-inputs.sh --host HOST LANE " + id + "` (ASD-V0-2421)."
+	queueID := ""
+	if rc != nil && rc.store != nil && rc.store.Queue != nil {
+		queueID = rc.store.Queue.QueueID.Raw
+	}
+	none := " No queue snapshot is staged under $HOME/lane-inputs on this host"
+	if queueID == "" {
+		// Without this checkout's queue identity no staged snapshot can be
+		// matched, so none is named.
+		return none + "; on the host that owns the journal, stage one with " + stage
+	}
+	found, truncated := stagedSnapshots()
+	scanned := ""
+	if truncated {
+		scanned = " (the scan stopped at " + strconv.Itoa(maxStagedEntries) + " entries of $HOME/lane-inputs)"
+	}
+	path, mod := "", time.Time{}
+	for i, c := range found {
+		if i == maxStagedProbes {
+			break
+		}
+		if stagedSnapshotQueue(c.path) == queueID {
+			path, mod = c.path, c.mod
+			break
+		}
+	}
+	if path == "" {
+		if len(found) == 0 {
+			return none + scanned + "; on the host that owns the journal, stage one with " + stage
+		}
+		return " " + strconv.Itoa(len(found)) + " queue snapshot(s) are staged under $HOME/lane-inputs on this host" + scanned + ", but none of the newest " +
+			strconv.Itoa(min(len(found), maxStagedProbes)) + " carries this checkout's queue " + queueID + "; on the host that owns the journal, stage one with " + stage
+	}
+	quoted := path
+	if !plainShellWord.MatchString(path) {
+		quoted = "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
+	}
+	hours := max(int64(now.Sub(mod)/time.Hour), 0)
+	hint := " A queue snapshot of queue " + queueID + " is staged on this host at " + quoted + " (modified " + strconv.FormatInt(hours, 10) +
+		" hour(s) ago)" + scanned + ": retry with `" + SnapshotEnv + "=" + quoted + " corvint-tasks ticket show " + id + "` (ASD-V0-2421)."
+	if _, err := wire.ParseProse("", hint, 1, wire.MaxProseBytes); err != nil {
+		return none + "; on the host that owns the journal, stage one with " + stage
+	}
+	return hint
+}
+
+// stagedSnapshot is one non-empty staged snapshot file and its mtime.
+type stagedSnapshot struct {
+	path string
+	mod  time.Time
+}
+
+// stagedSnapshots is every non-empty regular file among
+// $HOME/lane-inputs/queue-snapshot.json and
+// $HOME/lane-inputs/ticket-bodies-*/queue-snapshot.json within the first
+// maxStagedEntries directory entries, newest modification time first, and
+// whether the directory held more entries. A ticket-bodies-* entry that is a
+// symlink is followed like the directory it names (the file stat follows
+// it), except links into protected home folders (ASD-V0-2421). It is
+// empty when HOME or the directory cannot be read.
+func stagedSnapshots() ([]stagedSnapshot, bool) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil, false
+	}
+	base := filepath.Join(home, "lane-inputs")
+	candidates := []string{filepath.Join(base, "queue-snapshot.json")}
+	truncated := false
+	if d, err := openStagedPath(base); err == nil {
+		entries, _ := d.ReadDir(maxStagedEntries + 1)
+		_ = d.Close()
+		if len(entries) > maxStagedEntries {
+			entries, truncated = entries[:maxStagedEntries], true
+		}
+		for _, e := range entries {
+			if (e.IsDir() || e.Type()&os.ModeSymlink != 0) && strings.HasPrefix(e.Name(), "ticket-bodies-") {
+				candidates = append(candidates, filepath.Join(base, e.Name(), "queue-snapshot.json"))
+			}
+		}
+	}
+	var found []stagedSnapshot
+	for _, c := range candidates {
+		f, err := openStagedPath(c)
+		if err != nil {
+			continue
+		}
+		fi, err := f.Stat()
+		_ = f.Close()
+		if err == nil && fi.Mode().IsRegular() && fi.Size() > 0 {
+			found = append(found, stagedSnapshot{c, fi.ModTime()})
+		}
+	}
+	sort.SliceStable(found, func(i, j int) bool {
+		if !found[i].mod.Equal(found[j].mod) {
+			return found[i].mod.After(found[j].mod)
+		}
+		return found[i].path < found[j].path
+	})
+	return found, truncated
 }
 
 func queueStatus(env Env, args []string) *wire.Result {

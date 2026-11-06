@@ -470,6 +470,7 @@ func judgeMutants(ctx context.Context, configuration settings, space workspace, 
 			return Report{}, fmt.Errorf("mutate: write mutant: %w", err)
 		}
 		outcome, output, outcomes := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true, false)
+		outcome = alarmEnded(outcome, output, outcomes)
 		if err := os.WriteFile(changedFile, source, 0o644); err != nil {
 			return Report{}, fmt.Errorf("mutate: restore %s: %w", configuration.changedPath, err)
 		}

@@ -31,10 +31,6 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff) linecov.Effect {
 	fail := func(format string, args ...any) linecov.Effect {
 		return linecov.Effect{Fallback: fmt.Sprintf(format, args...)}
 	}
-	files := map[string]*linecov.File{}
-	for i := range ix.Files {
-		files[ix.Files[i].Path] = &ix.Files[i]
-	}
 	testFiles := map[string]bool{}
 	load := int32(-1)
 	for i, t := range ix.Tests {
@@ -58,15 +54,18 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff) linecov.Effect {
 		if d.OldOID == "" || d.NewOID == "" {
 			return fail("added or deleted file %s", d.Path)
 		}
-		f := files[d.Path]
-		if f == nil {
+		f, ok := ix.FileByPath(d.Path)
+		if !ok {
 			return fail("uninstrumented file %s", d.Path)
+		}
+		if len(ix.TestsOfFile(d.Path)) == 0 {
+			return fail("unexecuted file %s", d.Path)
 		}
 		if f.OID != d.OldOID {
 			return fail("index records %s at another blob", d.Path)
 		}
 		for _, h := range d.Hunks {
-			if !selectHunk(f, h, e.Tests) {
+			if !selectHunk(ix, f, h, e.Tests) {
 				return fail("edit outside a method body %s:%d", d.Path, h.Start)
 			}
 		}
@@ -79,11 +78,12 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff) linecov.Effect {
 
 // selectHunk adds the tests of the innermost method whose body holds the
 // hunk, and reports whether there is one.
-func selectHunk(f *linecov.File, h linecov.Hunk, out map[int32]bool) bool {
+func selectHunk(ix *linecov.Index, f *linecov.File, h linecov.Hunk, out map[int32]bool) bool {
 	lo, hi := int32(h.Start), int32(h.End)
 	var method *linecov.Block
-	for i := range f.Blocks {
-		b := &f.Blocks[i]
+	candidates := ix.BlocksAtLine(f.Path, int32(h.Start))
+	for i := range candidates {
+		b := &candidates[i]
 		if b.StartCol == 0 { // an executable line, not a method
 			continue
 		}
@@ -95,7 +95,7 @@ func selectHunk(f *linecov.File, h linecov.Hunk, out map[int32]bool) bool {
 			method = b
 		}
 	}
-	if method == nil {
+	if method == nil || len(method.Tests) == 0 {
 		return false
 	}
 	for _, t := range method.Tests {

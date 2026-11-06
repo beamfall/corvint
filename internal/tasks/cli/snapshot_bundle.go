@@ -272,3 +272,54 @@ func snapshotRefusal(env Env, args []string) *wire.Result {
 func snapshotVerbList() []string {
 	return []string{"ticket search", "ticket show", "ticket export", "ticket similar", "ticket digest", "roadmap", "queue status", "queue parity"}
 }
+
+// stagedSnapshotQueue is the queueId of the queue.json a staged snapshot
+// carries, read by streaming its files up to that one and checking its
+// declared digest, or "" when the file is no readable snapshot within
+// maxSnapshotBundleBytes (ASD-V0-2421). It is a routing hint only: a read
+// through SnapshotEnv still verifies the whole bundle (TCL-V0-011).
+func stagedSnapshotQueue(path string) string {
+	f, err := openStagedPath(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	dec := json.NewDecoder(io.LimitReader(f, maxSnapshotBundleBytes))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return ""
+	}
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return ""
+		}
+		if key != "files" {
+			var skip json.RawMessage
+			if dec.Decode(&skip) != nil {
+				return ""
+			}
+			continue
+		}
+		if t, err := dec.Token(); err != nil || t != json.Delim('[') {
+			return ""
+		}
+		for dec.More() {
+			var sf snapshotBundleFile
+			if dec.Decode(&sf) != nil {
+				return ""
+			}
+			if sf.Path != "queue.json" {
+				continue
+			}
+			var q struct {
+				QueueID string `json:"queueId"`
+			}
+			if string(wire.Sum([]byte(sf.Content))) != sf.Sha256 || json.Unmarshal([]byte(sf.Content), &q) != nil {
+				return ""
+			}
+			return q.QueueID
+		}
+		return ""
+	}
+	return ""
+}

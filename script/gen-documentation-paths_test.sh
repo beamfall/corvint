@@ -95,6 +95,22 @@ got=$(jq -c '[.paths[] | select(startswith("integrations"))]' "$test_root/.corvi
 tool --check || fail "check refused a fresh declaration with integrations READMEs"
 cases=$((cases + 1))
 
+# AZU-V0-002: the explicitly declared native coverage README survives regeneration
+# only while tracked. Other internal files are not implicitly documentation.
+mkdir -p "$test_root/internal/nativelinecov"
+printf 'native coverage\n' >"$test_root/internal/nativelinecov/README.md"
+tool --check || fail "check counted an untracked native coverage README"
+git -C "$test_root" add internal/nativelinecov/README.md
+if tool --check 2>/dev/null; then fail "check missed a staged native coverage README"; fi
+tool && tool --check || fail "regenerating did not declare native coverage README"
+jq -e '.paths | index("internal/nativelinecov/README.md")' "$test_root/.corvint/documentation-paths.json" >/dev/null ||
+    fail "native coverage README not declared"
+git -C "$test_root" rm -qf internal/nativelinecov/README.md
+tool && tool --check || fail "regenerating did not drop removed native coverage README"
+jq -e '.paths | index("internal/nativelinecov/README.md") | not' "$test_root/.corvint/documentation-paths.json" >/dev/null ||
+    fail "removed native coverage README still declared"
+cases=$((cases + 1))
+
 # 5. An unknown argument is a usage refusal.
 status=0
 tool --nope >/dev/null 2>&1 || status=$?

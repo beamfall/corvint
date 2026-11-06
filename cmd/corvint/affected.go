@@ -133,6 +133,9 @@ type affectedInvocation struct {
 	Cache string
 	// NoCache turns off the default graph cache (AFP-V0-437).
 	NoCache bool
+	// FailFastOrder adds the compact plan's fail-fast order, read from the
+	// local `corvint test` receipts (AFP-V0-2487).
+	FailFastOrder bool
 	// Format is the --format value: "" or json writes the JSON document,
 	// text the affected-plan/1 projection as lines (AFP-V0-928).
 	Format string
@@ -149,6 +152,9 @@ type affectedInvocation struct {
 	// AuditChanges is set only by `affected audit`: the change manifest replayed
 	// against observed outcomes (AFP-V0-445).
 	AuditChanges string
+	// OwnershipAudit is set only by `affected --ownership-audit`, which lists the
+	// tracked paths no claimant or declaration claims (AZU-V0-002).
+	OwnershipAudit bool
 }
 
 type playwrightAffectedReceipt struct {
@@ -329,7 +335,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--format", "--full", "--no-cache", "--require-clean", "--worktree"}
+	names := []string{"--fail-fast-order", "--format", "--full", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -351,6 +357,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "audit" {
 		return parseAffectedAuditOptions(rest[1:])
+	}
+	if len(rest) != 0 && rest[0] == "--ownership-audit" {
+		return parseAffectedOwnershipAuditOptions(rest[1:])
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -392,6 +401,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
 			}
 			invocation.RequireClean = true
+			index++
+			continue
+		}
+		if rest[index] == "--fail-fast-order" || strings.HasPrefix(rest[index], "--fail-fast-order=") {
+			if invocation.FailFastOrder || rest[index] != "--fail-fast-order" {
+				return affectedInvocation{}, argumentError("argument --fail-fast-order: does not accept a value or repetition")
+			}
+			invocation.FailFastOrder = true
 			index++
 			continue
 		}
@@ -488,6 +505,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Summary && (invocation.Full || invocation.ByPath || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--summary writes the affected-summary/1 verdict and cannot be combined with --full, --by-path or --playwright-config")
+	}
+	if invocation.FailFastOrder && (invocation.Full || invocation.Summary || invocation.ByPath || invocation.Format == "text" || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--fail-fast-order adds an order to the affected-plan/1 JSON plan and cannot be combined with --full, --summary, --by-path, --format text or --playwright-config")
 	}
 	if invocation.ByPath && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.Full) {
 		return affectedInvocation{}, argumentError("--by-path requires --path or --paths-from and cannot be combined with --full")
@@ -803,6 +823,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if invocation.AuditChanges != "" {
 		return runAffectedAudit(ctx, invocation, stdout, stderr)
 	}
+	if invocation.OwnershipAudit {
+		return runAffectedOwnershipAudit(ctx, invocation, stdout, stderr)
+	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {
 		return runAffectedByPath(ctx, invocation, stdout, stderr)
@@ -821,6 +844,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if err == nil && !invocation.Full {
 		receipt, err = compactAffectedReceipt(receipt)
+	}
+	if err == nil && invocation.FailFastOrder {
+		receipt, err = affectedFailFastOrder(ctx, invocation.Root, receipt)
 	}
 	if err != nil {
 		emitError(stderr, err)
@@ -1421,6 +1447,10 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), graph, changed))
+		// The driver claimant diffs each dirty make file or workflow against
+		// the measured commit, so a hunk seeds its own target or job
+		// (AZU-V0-001).
+		graph = graph.WithDriverContent(affectedDriverContent(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	// A --path plan (additive off, ADN-V0-009) names paths to probe, not a

@@ -30,14 +30,31 @@ export function workflowSessionKey(session) {
 }
 // Repository identity is a bounded filesystem read, never a chain of extra Git
 // processes outside the event deadline. Device/inode pins detect same-path rebound.
-function boundedIdentityFile(path) {
+function boundedIdentityFile(path,limit=8192) {
  const fd=openSync(path,constants.O_RDONLY|constants.O_NOFOLLOW);
  try{
-  const before=fstatSync(fd);if(!before.isFile()||before.size>8192)throw Error('invalid-worktree-identity');
-  const buffer=Buffer.alloc(8193),size=readSync(fd,buffer,0,buffer.length,0),after=fstatSync(fd);
-  if(size>8192||size!==before.size||before.size!==after.size||before.mtimeMs!==after.mtimeMs)throw Error('invalid-worktree-identity');
+  const before=fstatSync(fd);if(!before.isFile()||before.size>limit)throw Error('invalid-worktree-identity');
+  const buffer=Buffer.alloc(limit+1),size=readSync(fd,buffer,0,buffer.length,0),after=fstatSync(fd);
+  if(size>limit||size!==before.size||before.size!==after.size||before.mtimeMs!==after.mtimeMs)throw Error('invalid-worktree-identity');
   return new TextDecoder('utf-8',{fatal:true}).decode(buffer.subarray(0,size));
  }finally{closeSync(fd)}
+}
+// HEAD's symbolic text is unchanged by a same-branch commit. Resolve its OID
+// without an unowned subprocess; native envelopes still own tree/base/policy truth.
+function workflowRevision(identity) {
+ const oid=/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
+ const head=identity.head.trim();if(oid.test(head))return head;
+ const ref=/^ref: (refs\/[^\0\r\n]+)$/.exec(head)?.[1];
+ if(!ref||ref.includes('\\')||ref.split('/').some(p=>!p||p==='.'||p==='..'))throw Error('invalid-worktree-identity');
+ let common=identity.gitDir;
+ try{const pointer=boundedIdentityFile(join(common,'commondir')).trim();if(!pointer||/[\0\r\n]/.test(pointer))throw Error('invalid-worktree-identity');common=realpathSync(resolve(common,pointer))}catch(error){if(error.code!=='ENOENT')throw error}
+ for(const dir of new Set([identity.gitDir,common])){
+  try{const value=boundedIdentityFile(join(dir,ref)).trim();if(!oid.test(value))throw Error('invalid-worktree-identity');return value}catch(error){if(error.code!=='ENOENT')throw error}
+ }
+ let packed;try{packed=boundedIdentityFile(join(common,'packed-refs'),1048576)}catch(error){if(error.code!=='ENOENT')throw error;throw Error('invalid-worktree-identity')}
+ const matches=packed.split('\n').filter(line=>line.endsWith(' '+ref));
+ if(matches.length!==1||!oid.test(matches[0].split(' ')[0]))throw Error('invalid-worktree-identity');
+ return matches[0].split(' ')[0];
 }
 export function workflowIdentity(ctx) {
  let root=realpathSync(ctx.cwd);
@@ -84,8 +101,17 @@ export function decodeWorkflowEnvelope(raw,event,input) {
 
 export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const text=`Corvint workflow unresolved: ${code}. Frontier authority remains unavailable.`;if(ctx.hasUI)ctx.ui.notify(text,'warning');else process.stderr.write(text+'\n')}}) {
  let generation=0,used=false,unresolved=false,knownIncomplete=false,recovery,closed=false,scope,activitySession;
+ // Navigation is not new operator input. Keep only hashed spent session IDs;
+ // at the bound, unknown sessions conservatively release until explicit input.
+ const spent=new Set();
+ function previouslyRemediated(ctx) {
+  // Read the existing branch entries, not a second transcript or custom ledger.
+  // Older/unknown hosts cannot prove a fresh allowance. Explicit new operator
+  // input still resets the live allowance through the input handler below.
+  try{const branch=ctx.sessionManager.getBranch();return !Array.isArray(branch)||branch.length>4096||branch.some(e=>e.type==='custom_message'&&e.customType==='corvint-workflow-remediation')}catch{return true}
+ }
  const pending=new Set(),jobs=new Set();
- const identify=workflowIdentity;
+ const identify=ctx=>{const identity=workflowIdentity(ctx);return {...identity,revision:workflowRevision(identity)}};
  const same=(a,b)=>a!==undefined&&b!==undefined&&canonicalWorkflowJSON(a)===canonicalWorkflowJSON(b);
  const clear=()=>{generation++;recovery=undefined;scope=undefined;for(const c of pending)c.abort();return Promise.allSettled([...jobs]);};
  const allowed=ctx=>{if(closed)return false;if(version!==TUPLE.hostVersion){notice(ctx,'unsupported-host-version');return false}if(!ctx.isProjectTrusted()){notice(ctx,'untrusted-project');return false}return !ctx.signal?.aborted};
@@ -100,20 +126,20 @@ export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const te
    jobs.add(job);let result;try{result=await job}finally{jobs.delete(job)}
    if(c.signal.aborted||closed||epoch!==generation||!allowed(ctx)||!same(identity,identify(ctx)))return;
    if(result.fault||result.exitCode!==0){unresolved=true;notice(ctx,'native-event-unavailable');return}
-   const value=validate(result.stdout,request);
+   const value=validate(result.stdout,request,identity);
    scope=identity;return value;
   }catch{unresolved=true;notice(ctx,'invalid-workflow-response')}
   finally{pending.delete(c);signal?.removeEventListener('abort',abort)}
  }
- const event=(ctx,name,extra={})=>invoke(ctx,['dogfood','event','--host','pi','--host-version',version,'--surface','extension','--adapter-version',PI_ADAPTER_VERSION,'--event',name,'--input','-','--budget-bytes','8000'],id=>({sessionIdSha256:id.session,...extra}),(raw,input)=>decodeWorkflowEnvelope(raw,name,input));
+ const event=(ctx,name,extra={})=>invoke(ctx,['dogfood','event','--host','pi','--host-version',version,'--surface','extension','--adapter-version',PI_ADAPTER_VERSION,'--event',name,'--input','-','--budget-bytes','8000'],id=>({sessionIdSha256:id.session,...extra}),(raw,input,identity)=>{const value=decodeWorkflowEnvelope(raw,name,input);if(value.repository.commitRevision!==identity.revision)throw Error('invalid-workflow-binding');return value});
  async function recover(ctx,startSource){
   const value=await event(ctx,'session-start',{startSource});
   if(value){knownIncomplete=unresolved=value.policy.lifecycle==='active'||value.policy.lifecycle==='satisfied'&&!value.policy.satisfied;if(['active','satisfied'].includes(value.policy.lifecycle))recovery={scope,context:value.context}}
  }
- pi.on('session_start',async(e,ctx)=>{clear();try{const next=identify(ctx).session;if(next!==activitySession){used=false;knownIncomplete=unresolved=false;activitySession=next}}catch{}await recover(ctx,({startup:'startup',reload:'resume',new:'clear',resume:'resume',fork:'resume'})[e.reason]??'resume')});
+ pi.on('session_start',async(e,ctx)=>{clear();try{const next=identify(ctx).session;if(next!==activitySession){used=spent.has(next)||spent.size>=128||previouslyRemediated(ctx);knownIncomplete=unresolved=false;activitySession=next}}catch{}await recover(ctx,({startup:'startup',reload:'resume',new:'clear',resume:'resume',fork:'resume'})[e.reason]??'resume')});
  pi.on('session_tree',async(_,ctx)=>{clear();await recover(ctx,'resume')});
  pi.on('session_compact',async(_,ctx)=>{clear();await recover(ctx,'compact')});
- pi.on('input',(e,ctx)=>{if(e.source==='interactive'||e.source==='rpc'){const saved=recovery,prior=scope;clear();try{const current=identify(ctx);if(same(prior,current))scope=current;else knownIncomplete=false;if(saved&&same(saved.scope,current))recovery=saved}catch{knownIncomplete=false}used=false;unresolved=knownIncomplete}});
+ pi.on('input',(e,ctx)=>{if(e.source==='interactive'||e.source==='rpc'){const saved=recovery,prior=scope;clear();try{const current=identify(ctx);activitySession=current.session;spent.delete(activitySession);if(same(prior,current))scope=current;else knownIncomplete=false;if(saved&&same(saved.scope,current))recovery=saved}catch{knownIncomplete=false}used=false;unresolved=knownIncomplete}});
  pi.on('context',(e,ctx)=>{
   const saved=recovery;recovery=undefined;
   if(!saved||!allowed(ctx))return;
@@ -122,15 +148,18 @@ export function registerWorkflow(pi,{runner,version,notice=(ctx,code)=>{const te
  });
  pi.on('agent_before_settle',async(e,ctx)=>{
   if(!Array.isArray(e.entries)||e.outcome!=='completed'||e.continue!==false||!Array.isArray(e.context?.pendingMessages)||e.context.pendingMessages.length||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
+  const epoch=generation;
+  let identity;try{identity=identify(ctx)}catch{return}
   const value=await event(ctx,'stop',{stopHookActive:used,changedPaths:[]});
-  if(!value||!allowed(ctx)||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
+  if(!value||epoch!==generation||!same(identity,scope)||!allowed(ctx)||ctx.hasPendingMessages()||ctx.signal?.aborted)return;
   knownIncomplete=unresolved=value.policy.lifecycle==='active'||value.policy.lifecycle==='satisfied'&&!value.policy.satisfied;
   if(value.completion.decision!=='block'||used)return;
   used=true;
+  if(spent.size<128)spent.add(scope.session);
   // Pi replaces the aggregate entries with this return value, so retain prior handlers.
   // Only our fixed instruction and the validated receipt handle enter the session.
   // Source packets and native status/verification output stay outside its transcript.
-  return {entries:[...(e.entries??[]),{type:'custom_message',customType:'corvint-workflow-remediation',content:'The explicitly enrolled Corvint workflow remains incomplete. Report its unresolved work and use the operator-approved workflow to address it. Do not claim completion or run expensive verification or recording automatically. Unmet policy categories: '+(value.policy.unmet.join(', ')||'none reported')+'. Inspect with Corvint argv: '+canonicalWorkflowJSON(['dogfood','status','--session-key',scope.session])+'. Receipt: '+value.resultDigest,display:true}],continue:true};
+  return {entries:[...(e.entries??[]),{type:'custom_message',customType:'corvint-workflow-remediation',content:'The explicitly enrolled Corvint workflow remains incomplete. Report its unresolved work and use the operator-approved workflow to address it. Do not claim completion or run expensive verification or recording automatically. Unmet policy categories: '+(value.policy.unmet.join(', ')||'none reported')+'. Inspect with Corvint argv: '+canonicalWorkflowJSON(['dogfood','status','--session-key',identity.session])+'. Receipt: '+value.resultDigest,display:true}],continue:true};
  });
  pi.on('agent_settled',(_,ctx)=>{if(unresolved)notice(ctx,'local-policy-incomplete')});
  const close=async()=>{if(closed)return;closed=true;await clear();await runner.close()};

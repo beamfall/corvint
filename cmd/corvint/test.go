@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -30,10 +31,13 @@ Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
     [--profile local|ci [--confine PATH]] [--go-parallel N]
-    [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
+    [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
+
+--format json explicitly selects the existing JSON output (default); it cannot
+combine with --summary or --pins. Example: corvint test --base HEAD --dry-run --format json.
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
 HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
@@ -175,6 +179,8 @@ func parseTestOptions(args []string) (testOptions, error) {
 			return nil
 		})
 	}
+	format := "json"
+	once("format", &format)
 	once("base", &options.base)
 	once("placement", &options.placement)
 	once("profile", &options.profile)
@@ -190,7 +196,7 @@ func parseTestOptions(args []string) (testOptions, error) {
 	f.BoolVar(&options.summary, "summary", false, "")
 	f.BoolVar(&options.pins, "pins", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -200,6 +206,10 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, argumentError(fmt.Sprintf("unexpected argument %q; %s", f.Arg(0), usage))
 	}
 	switch {
+	case format != "json":
+		return options, argumentError("--format supports json only (DTL-V0-009)")
+	case seen["format"] && (options.summary || options.pins):
+		return options, argumentError("--format json cannot combine with --summary or --pins (DTL-V0-009)")
 	case options.summary && !options.dryRun:
 		return options, argumentError("--summary applies only to --dry-run (STR-V0-800)")
 	case options.pins && (!options.dryRun || options.summary):
@@ -569,7 +579,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
 	}
 	for _, language := range affectedLanguages() {
-		if language.Name() == "go" {
+		if language.Name() == "go" || language.Name() == affected.DriverNamespace {
 			continue
 		}
 		for _, dirty := range receipt.Plan.Dirty {
@@ -588,9 +598,8 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	default:
 		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
 		if len(lines) != 0 {
-			input.GoSelection = lines[len(lines)-1]
+			input.GoSelection = testPlanRunSet(lines[len(lines)-1], plan.Provider.Go.Packages)
 		}
-		testAttributionReasons(input.GoSlices, lines)
 		// A change only inside nested modules no observed module builds
 		// selects no root package; their own units run it (STR-V0-064).
 		if strings.HasPrefix(input.GoSelection, "FALLBACK the selection is empty while ") && sessiontest.ModuleCovered(receipt.Plan.Dirty, input.Unknown) {
@@ -600,26 +609,25 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	return nil
 }
 
-// testAttributionReasons gives each package the AFP-V0-012 attribution adds
-// beyond the plan's own selections, which carries no slice yet, its attribution
-// line as its whole-package reason, such as `importer PKG <- PATH`, so every
-// whole-package selection in the manifest names the rule and path that chose
-// it (V1-3573). The plan's selections and the verdict line are left alone.
-func testAttributionReasons(slices map[string]sessiontest.GoSlice, lines []string) {
-	if len(lines) == 0 {
-		return
+// testPlanRunSet is the Go verdict `corvint test` runs (AFP-V0-2402, V1-4363,
+// amending STR-V0-061): the AFP-V0-012 attribution still decides FALLBACK and
+// NOTHING, but a `run` verdict runs exactly the plan's own Go selection, the
+// packages `corvint affected` selects with a witness. The attribution's rule
+// (a) to (c) lines re-add packages the plan's narrower reviewed rules exclude
+// (the lone-component and directory-resolving literal narrowings of
+// AFP-V0-021 and AFP-V0-072, namer edges for a path token that names a package
+// directory), so they no longer enter the run set; the CI PR tier's deciding
+// selector (gateselect.Select) keeps them. A run verdict over a plan that
+// selects no Go package is NOTHING with that reason.
+func testPlanRunSet(verdict string, planned []string) string {
+	if !strings.HasPrefix(verdict, "run ") {
+		return verdict
 	}
-	for _, line := range lines[:len(lines)-1] {
-		kind, rest, ok := strings.Cut(line, " ")
-		if !ok || kind == "selected" {
-			continue
-		}
-		pkg, _, _ := strings.Cut(rest, " ")
-		pkg = strings.TrimSuffix(pkg, ":")
-		if _, sliced := slices[pkg]; !sliced && pkg != "" {
-			slices[pkg] = sessiontest.GoSlice{Reason: "whole: attributed: " + line}
-		}
+	packages := slices.Compact(slices.Sorted(slices.Values(planned)))
+	if len(packages) == 0 {
+		return "NOTHING the plan selects no Go package; the AFP-V0-012 attribution names only packages the plan's rules exclude (AFP-V0-2402)"
 	}
+	return "run " + strings.Join(packages, " ")
 }
 
 // testGoUniverse is the root Go universe: every graph Go unit the root
