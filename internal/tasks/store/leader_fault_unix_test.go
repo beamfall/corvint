@@ -136,3 +136,45 @@ func checkOwnTestLeaders() error {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// TestATRV7202_ChildExitLeavesRootLeaders: a test child re-executing this
+// binary must not take the package-exit leader check, since every live leader
+// of the root's parallel tests shares its executable path. Before the fix the
+// child waited its grace, killed the root's leader and exited 1 (V1-4782).
+func TestATRV7202_ChildExitLeavesRootLeaders(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	leader := exec.Command(self, "lane-leader", "--directory", t.TempDir(), "--capsule", "idle")
+	leader.Env = append(os.Environ(), idleLeaderEnv+"=1")
+	leader.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	hold, err := leader.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = leader.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- leader.Wait() }()
+	t.Cleanup(func() {
+		_ = hold.Close()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			_ = leader.Process.Kill()
+			<-done
+		}
+	})
+	child := exec.Command(self, "-test.run=^$", "-test.count=1")
+	if out, err := child.CombinedOutput(); err != nil {
+		t.Fatalf("child exit check: %v\n%s", err, out)
+	}
+	select {
+	case err := <-done:
+		done <- err
+		t.Fatalf("root leader did not outlive the child: %v", err)
+	default:
+	}
+}

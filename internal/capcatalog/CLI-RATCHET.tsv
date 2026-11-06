@@ -30,7 +30,6 @@ corvint-postmerge-host-launcher	single-mode tool: its dispatch matches no subcom
 corvint-public-release-check	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-readiness-record	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-release-candidate	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
-corvint-release-gate	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-release-install	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-remote-provider	single-mode tool: its dispatch matches no subcommand word, so it has no command tree (CAP-V0-726); remove this row if it gains one
 corvint-test-runner	folded into corvint-test runner, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
