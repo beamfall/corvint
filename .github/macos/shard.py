@@ -98,6 +98,11 @@ def run(packages, out, root, runner=subprocess.run):
     return int(failed)
 
 
+BUILD = "(build)"
+# Framing lines that repeat what the FAIL row already says.
+NOISE = ("=== RUN", "--- FAIL", "FAIL\t")
+
+
 def failure_summary(lines, *, per_test=6, limit=60):
     """CIN-V0-4625: name each failed test with its last output lines, not a raw JSON tail."""
     output, failures, other = {}, [], deque(maxlen=20)
@@ -109,19 +114,22 @@ def failure_summary(lines, *, per_test=6, limit=60):
             continue
         if not isinstance(event, dict):
             continue
-        key = (event.get("Package", ""), event.get("Test", ""))
-        if event.get("Action") == "output":
+        action = event.get("Action")
+        if action in ("build-output", "build-fail"):
+            key = (event.get("ImportPath", ""), BUILD)
+        else:
+            key = (event.get("Package", ""), event.get("Test", ""))
+        if action in ("output", "build-output"):
             output.setdefault(key, deque(maxlen=per_test)).append(str(event.get("Output", "")).rstrip("\n"))
-        elif event.get("Action") == "fail" and key not in failures:
+        elif action in ("fail", "build-fail") and key not in failures:
             failures.append(key)
     if not failures:
         return "\n".join(other)
     rows = []
     for package, test in failures[:limit]:
         rows.append("FAIL %s %s" % (package, test or "(package)"))
-        if test:
-            rows.extend("    " + text.strip() for text in output.get((package, test), ())
-                        if text.strip() and not text.startswith("=== RUN"))
+        rows.extend("    " + text.strip() for text in output.get((package, test), ())
+                    if text.strip() not in ("", "FAIL") and not text.startswith(NOISE))
     if len(failures) > limit:
         rows.append("... %d more failures in the retained log" % (len(failures) - limit))
     return "\n".join(rows)
