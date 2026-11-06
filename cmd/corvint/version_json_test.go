@@ -18,6 +18,7 @@ import (
 // admitted harness host. Plain --version keeps its text line, and any other
 // argument after --json stays an argument error.
 func TestPRSV1020VersionJSONNamesVerbsAndHosts(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{"--version", "--json"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(args, strings.NewReader(""), &stdout, &stderr); code != 0 {
@@ -61,6 +62,7 @@ func TestPRSV1020VersionJSONNamesVerbsAndHosts(t *testing.T) {
 // states the source commit and its dirty state from the binary's own build
 // information, with explicit unknown markers when it carries none.
 func TestPUBV0050VersionJSONStatesSourceCommit(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"--version", "--json"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d, stderr %s", code, stderr.String())
@@ -137,6 +139,7 @@ func TestPUBV0052UnreleasedBuildIsPreRelease(t *testing.T) {
 // is `Corvint DISPLAY (build N, commit SHA[, modified])`, drops the build member
 // when unstamped, names `commit unknown` without a commit, and parses back.
 func TestPUBV0053PlainVersionLineFormat(t *testing.T) {
+	t.Parallel()
 	commit := strings.Repeat("a", 40)
 	for name, test := range map[string]struct {
 		build, stamp string

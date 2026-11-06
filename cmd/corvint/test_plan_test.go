@@ -129,6 +129,7 @@ func snapshotTree(t *testing.T, root string) string {
 // TCN-V0-001: consolidate reads only its named files and Git, writes only stdout, exits 0 with a
 // candidate plan, and leaves every byte of the repository, its index and .corvint unchanged.
 func TestTestPlanConsolidateIsReadOnly(t *testing.T) {
+	t.Parallel()
 	root, spec := testPlanRepository(t)
 	sum := sha256.Sum256([]byte("test('books')\n"))
 	receipt, _ := json.Marshal(map[string]any{"receipt": map[string]any{"kind": "e2e",
@@ -176,6 +177,7 @@ func TestTestPlanConsolidateIsReadOnly(t *testing.T) {
 
 // TCN-V0-001: invalid arguments or input exit 2 with nothing on stdout.
 func TestTestPlanRefusesInvalidUse(t *testing.T) {
+	t.Parallel()
 	input := testPlanInput(t, testPlanVariation("V1", nil))
 	plan := writeTestPlanFile(t, "plan.md", []byte("no table\n"))
 	big := writeTestPlanFile(t, "big.json", bytes.Repeat([]byte(" "), 8<<20+1))
@@ -220,6 +222,7 @@ func TestTestPlanRefusesInvalidUse(t *testing.T) {
 // TCN-V0-011: check exits 0 on a matching COMPLETE plan, 1 on a mismatch, a missing header or an
 // INCOMPLETE plan, with nothing on stdout when it fails.
 func TestTestPlanCheckExitCodes(t *testing.T) {
+	t.Parallel()
 	input := testPlanInput(t, testPlanVariation("V1", nil), testPlanVariation("V2", nil))
 	code, table, _ := runTestPlanCLI(t, "test-plan", "consolidate", "--input", input)
 	if code != 0 {
@@ -251,6 +254,7 @@ func TestTestPlanCheckExitCodes(t *testing.T) {
 }
 
 func TestTestPlanHelp(t *testing.T) {
+	t.Parallel()
 	code, stdout, _ := runTestPlanCLI(t, "test-plan", "--help")
 	if code != 0 || !strings.Contains(stdout, "test-plan consolidate --input FILE") || !strings.Contains(rootHelp, "test-plan") {
 		t.Fatalf("exit %d help %q", code, stdout)

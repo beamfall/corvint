@@ -86,6 +86,21 @@ func workBuildCorvintWithoutVCS(path string) error {
 	return workBuildExecutable(path, "-buildvcs=false")
 }
 
+// workBuildEnvironment reuses the caller's content-keyed compiler cache. A
+// heavy.sh run has its own temporary root, so putting GOCACHE there recompiles
+// the entire command on every package run (V1-4381). Executables and fixture
+// state remain private, and build flags still distinguish cached objects.
+func workBuildEnvironment() []string {
+	cache := os.Getenv("CORVINT_GOCACHE")
+	if cache == "" {
+		cache = os.Getenv("GOCACHE")
+	}
+	if cache == "" {
+		cache = filepath.Join(os.TempDir(), "corvint-go-build-cache")
+	}
+	return append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+cache)
+}
+
 // workBuildExecutable builds this command to path with an explicit 0755 mode:
 // go build applies the process umask, and the product refuses a group- or
 // world-writable executable (V1-3220).
@@ -95,7 +110,7 @@ func workBuildExecutable(path string, flags ...string) error {
 	}
 	arguments := append(append([]string{"build", "-trimpath"}, flags...), "-o", path, ".")
 	command := exec.Command("go", arguments...)
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+executableTestGoCache())
+	command.Env = workBuildEnvironment()
 	if output, err := command.CombinedOutput(); err != nil {
 		return errors.New(err.Error() + ": " + string(output))
 	}

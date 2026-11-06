@@ -40,6 +40,37 @@ measure. None of them drops a unit the change can reach.
 
 ## Requirements
 
+### Located runner locality (V1-4679)
+
+- **AFP-V0-2600:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Amending AFP-V0-511 (4): for a plugin that owns no dirty source, has no reached
+  unit, reads no arbitrary path and has no changed resolution input, a located
+  `AncestorBoundFrontiers` entry MAY be omitted when every unowned path is provably outside
+  its hidden runner/build edges. This optional plugin declaration MUST name only fixture-closed reasons whose hidden edges
+  bind the plugin's own sources or ancestor configuration, not arbitrary runner assets or
+  runtime reads. Build MUST validate the namespace/category grammar and fixture-closed subset;
+  malformed declarations fail with `ErrInvalidLanguage`. Without the declaration the existing
+  conservative behavior applies. TypeScript declares only unknown test runners,
+  whose classification inspects source imports and ancestor manifests/configs. The declaration
+  classifies plugin code, is reconstructed on cache reads and does not change the graph digest.
+  The site MUST be a source or test path actually owned by
+  that plugin; bare, summarized (`+N`) and unresolved sites stay unknown. Each unowned path
+  MUST independently satisfy either the existing Go-hosted fixture rule, or be outside the
+  site's directory and every ancestor directory, with no modelled read/dependency edge
+  reaching the plugin. The latter proof applies only to paths outside `testdata`; unhosted
+  fixtures retain their existing uncertainty. A build or CI driver input MUST NOT use this
+  proof, even when it is outside the site's ancestors: it can drive every job. Resolution
+  inputs, path-open reasons (including arbitrary dynamic loads), reached readers and
+  dependents retain the existing frontier rules. One unrelated path MUST NOT invalidate
+  another path's fixture proof when each independently meets these conditions.
+  `UNOWNED_DIRTY_PATH`, selections, wire members and graph digest are unchanged. A declared
+  non-source output remains unowned for this rule, but its plan can be `BOUNDED` when no
+  remaining uncertainty bears; missing evidence always retains `UNKNOWN`. Non-goals: closing
+  arbitrary dynamic loads, narrowing selected tests, or treating exclusions as authority.
+  Acceptance: regressions for sibling data, mixed fixture/data and declared output, plus
+  fail-closed controls for CI drivers, ancestor configs, unknown sites, resolution inputs
+  and real readers/dependents. Rollback: remove the located-runner proof, restoring AFP-V0-511's
+  conservative cascade.
+
 - **AFP-V0-548:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3414)
   When a `DirtyPaths` Git read ends because the read's own deadline elapsed, the returned error
   MUST carry `cemcode.GitTimeout`, not `cemcode.GitCancelled` or a bare context error. Git's runner
@@ -582,6 +613,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
 | AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.pathTokenCache` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
 | AFP-V0-550 | `affectedWhole`, `withWholePackages`, `testMainSource`, `testMainOf` in `cmd/corvint/affected_whole.go`; `WholePackages` in `cmd/corvint/affected.go`; `cmd/corvint/affected_compact.go` | `TestAFPV0550TestMainChangeMakesThePackageWhole` in `cmd/corvint/affected_whole_test.go` |

@@ -23,6 +23,15 @@ func (Language) FixtureClosedFrontiers() []string {
 	return []string{FrontierUnknownRunner, FrontierAmbiguousRunner}
 }
 
+// AncestorBoundFrontiers certifies the runner-resolution edges of classify:
+// possibleRunners uses the test's own directory and ancestor manifests/configs;
+// explicit runner imports bind source files Owns claims. Arbitrary dynamic
+// imports and runtime dependencies have separate, path-open reasons. Ambiguous
+// runner entries carry display tokens, so they retain their conservative floor.
+func (Language) AncestorBoundFrontiers() []string {
+	return []string{FrontierUnknownRunner}
+}
+
 // ResolutionInput reports a path the plugin scans without owning it
 // (AFP-V0-511): the manifests and runner, bundler and TypeScript configuration
 // files observedName admits beside source files, such as `package.json` or a

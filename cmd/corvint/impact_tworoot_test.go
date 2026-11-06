@@ -80,6 +80,7 @@ func runTwoRootImpactCLI(t *testing.T, args ...string) (impactTwoRootReport, str
 // an application path the map does not place, or an uncommitted application path, returns
 // full-suite-required with explicit unknown lines instead of an empty selection.
 func TestANLV0064TwoRootImpact(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	routes, err := os.ReadFile(filepath.Join(app, "app", "routes.js"))
 	if err != nil {
@@ -126,6 +127,7 @@ func TestANLV0064TwoRootImpact(t *testing.T) {
 // uncommitted or later application checkout does not change the answer; --test-at does the same
 // for the test root, and a dirty test root read at its HEAD refuses.
 func TestANLV0066TwoRootImpactAtRevision(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	routes, err := os.ReadFile(filepath.Join(app, "app", "routes.js"))
 	if err != nil {
@@ -158,6 +160,7 @@ func TestANLV0066TwoRootImpactAtRevision(t *testing.T) {
 
 // ANL-V0-063 ANL-V0-064: an incomplete or mixed two-root layout refuses typed before any output.
 func TestANLV0064TwoRootImpactRefusesInvalidLayout(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, _ := twoRootImpactRepos(t)
 	full := []string{"--app-root", app, "--test-root", "e2e=" + e2e, "--manifest", "appmap.json", "--base", appBase}
 	for _, args := range [][]string{
@@ -214,6 +217,7 @@ func TestANLV0072TwoRootUnknownNamesItsDetail(t *testing.T) {
 // `affected` in the test repository fails closed when that pin is not its HEAD, and a bound
 // checkout that moves after the report was bound refuses when the receipt is written.
 func TestANLV0067AffectedChecksTestRootPin(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	dir := t.TempDir()
 	code, mapJSON, diag := runFlowsCLI(app, "appmap", "build", "--manifest", "appmap.json", "--repo", "e2e="+e2e)
