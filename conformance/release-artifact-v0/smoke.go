@@ -109,7 +109,15 @@ func makeQueryFixture(ctx context.Context, workspace string, smoke Smoke) (strin
 		command := exec.CommandContext(ctx, "git", arguments...)
 		command.Dir = fixture
 		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
-		if output, err := command.CombinedOutput(); err != nil {
+		if err := configureLooseCommand(command); err != nil {
+			return "", err
+		}
+		output, err := command.CombinedOutput()
+		cleanupErr := cleanupLooseCommand(command)
+		if err == nil {
+			err = cleanupErr
+		}
+		if err != nil {
 			return "", fmt.Errorf("git %s: %w: %s", arguments[0], err, strings.TrimSpace(string(output)))
 		}
 	}
@@ -119,11 +127,15 @@ func makeQueryFixture(ctx context.Context, workspace string, smoke Smoke) (strin
 func gitStatus(ctx context.Context, root string) (string, error) {
 	command := exec.CommandContext(ctx, "git", "status", "--porcelain")
 	command.Dir = root
+	if err := configureLooseCommand(command); err != nil {
+		return "", err
+	}
 	output, err := command.Output()
+	cleanupErr := cleanupLooseCommand(command)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(output)), nil
+	return strings.TrimSpace(string(output)), cleanupErr
 }
 
 func runCaptured(ctx context.Context, binary string, arguments ...string) (string, error) {
