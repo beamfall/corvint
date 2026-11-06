@@ -232,14 +232,53 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 	}
 	for name, paths := range sets {
 		p := affected.Select(g, paths)
-		t.Logf("%s selected=%d scope=%s unknown=%+v", name, len(p.Selected), p.Scope, p.Unknown)
+		languageUnits, makeTargets, ciJobs := 0, 0, 0
 		for _, s := range p.Selected {
+			switch s.Kind {
+			case affected.SelectionKindDriverTarget:
+				makeTargets++
+			case affected.SelectionKindCIJob:
+				ciJobs++
+			default:
+				languageUnits++
+			}
 			if s.UnitID == "go:github.com/Beamfall/corvint/internal/tasks" && name == "declaration-spec" {
 				t.Errorf("%s selects the boundary test via %s", name, s.Witness.Kind)
 			}
 		}
-		if name == "heavy-only" && len(p.Selected) >= 86 {
-			t.Errorf("heavy-only selected %d, want below reported 86", len(p.Selected))
+		t.Logf("%s selected=%d language=%d make=%d ci=%d scope=%s unknown=%+v", name, len(p.Selected), languageUnits, makeTargets, ciJobs, p.Scope, p.Unknown)
+		if name == "heavy-only" {
+			// The historical 86-unit report predates the driver claimant.
+			// Keep its language-unit bound on the full integrated graph;
+			// AZU-V0-001's required drivers are additional selections.
+			if languageUnits >= 86 {
+				t.Errorf("heavy-only selected %d language units, want below reported 86", languageUnits)
+			}
+			selected := affprecIDs(p)
+			reached := g.ReachedUnitIDs(paths)
+			requiredDrivers := 0
+			for _, id := range g.UnitIDs() {
+				unit, _ := g.Unit(id)
+				if !strings.HasPrefix(id, affected.DriverNamespace+":") ||
+					(!slices.Contains(unit.PathTokens, "script/heavy.sh") && !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation)) {
+					continue
+				}
+				// Pattern rules are reached templates, not runnable targets.
+				_, target, _ := strings.Cut(id, "#")
+				if target == "*" || strings.Contains(target, "%") {
+					if !slices.Contains(reached, id) {
+						t.Errorf("heavy-only did not reach driver template %s", id)
+					}
+					continue
+				}
+				requiredDrivers++
+				if !slices.Contains(selected, id) {
+					t.Errorf("heavy-only omitted required driver %s", id)
+				}
+			}
+			if requiredDrivers == 0 || makeTargets == 0 || ciJobs == 0 {
+				t.Errorf("heavy-only lost driver coverage: required=%d make=%d ci=%d", requiredDrivers, makeTargets, ciJobs)
+			}
 		}
 	}
 	files := map[string]string{
