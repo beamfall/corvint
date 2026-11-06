@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestBaselineReplayHelper(t *testing.T) {
@@ -90,7 +90,7 @@ func TestBaselineReplayParallelBytesASDV0925(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := "#!/bin/sh\nexec '" + strings.ReplaceAll(testbin, "'", "'\\''") + "' -test.run=^TestBaselineReplayHelper$ -- \"$@\"\n"
-	if err := fixture.WriteExecutable(bin, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(bin, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("SB_BASELINE_HELPER", "1")
