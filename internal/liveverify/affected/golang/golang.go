@@ -380,6 +380,8 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var patterns []string
 	var reads unboundedReads
 	var leafReads []string
+	var kindReads unboundedReads
+	var kindLeafReads []string
 	moves := false
 	fileSet := token.NewFileSet()
 	// The disk walk drops a symlinked .go file, though the build compiles its
@@ -444,14 +446,18 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		for _, glob := range kinds {
 			globs[glob] = true
 		}
+		fileReads, fileLeafReads := &reads, &leafReads
+		if len(kinds) > 0 {
+			fileReads, fileLeafReads = &kindReads, &kindLeafReads
+		}
 		moves = moves || scan.movesDirectory
 		if scan.err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
 			reads.mark(relative+" does not tokenize", isTest)
 		}
 		for _, call := range scan.calls {
-			if kinds == nil {
-				reads.mark(relative+" calls "+call, isTest)
+			if kinds == nil || len(kinds) > 0 {
+				fileReads.mark(relative+" calls "+call, isTest)
 			}
 		}
 		for _, glob := range literalGlobs(directory, body, file.Imports) {
@@ -463,12 +469,12 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			}
 			reason := escapesPackage(directory, name, isTest)
 			switch {
-			case kinds != nil:
+			case kinds != nil && len(kinds) == 0:
 			case reason == "":
 			case leafPattern(directory, name, isTest, packages):
-				leafReads = append(leafReads, relative+" "+reason)
+				*fileLeafReads = append(*fileLeafReads, relative+" "+reason)
 			default:
-				reads.mark(relative+" "+reason, isTest)
+				fileReads.mark(relative+" "+reason, isTest)
 			}
 		}
 		if isTest {
@@ -484,6 +490,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		for _, reason := range leafReads {
 			reads.mark(reason, true)
 		}
+		for _, reason := range kindLeafReads {
+			kindReads.mark(reason, true)
+		}
 	}
 	if len(sources) == 0 && len(tests) == 0 {
 		return affected.Unit{}, nil, nil, false, nil, nil
@@ -492,6 +501,11 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	sort.Strings(tests)
 	bounded := len(names) > maxPathTokens || len(globs) > maxPathTokens
 	if bounded {
+		// AFP-V0-9000: suppress lexical reads only while the complete
+		// package dependency union survives, including other files' globs.
+		if kindReads.reason != "" {
+			reads.mark(kindReads.reason, true)
+		}
 		names, globs = nil, nil
 	}
 	for link, target := range targets {

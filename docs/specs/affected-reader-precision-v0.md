@@ -120,7 +120,7 @@ repair direction; it changes no selector behavior or wire contract.
 
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
-| AFP-V0-9000 | `testReadKinds`, `readKindAliases`, `Language.observeDirectory` | `TestReadKindsDeclaration_AFPV09000`, `TestReadKindsUnresolvedAlias_AFPV09000` in `internal/liveverify/affected/golang/readkinds_test.go`; `TestBoundaryAliasCache_AFPV09000` in `internal/liveverify/affected/affprec_repo_test.go` |
+| AFP-V0-9000 | `testReadKinds`, `readKindAliases`, `Language.observeDirectory` | `TestReadKindsDeclaration_AFPV09000`, `TestReadKindsUnresolvedAlias_AFPV09000`, `TestReadKindsDependencyOverflow_AFPV09000` in `internal/liveverify/affected/golang/readkinds_test.go`; `TestBoundaryAliasCache_AFPV09000` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9001 | `internal/tasks/boundary_test.go` | `TestBoundaryKindBound_AFPV09001`, `TestBoundarySymlinkTarget_AFPV09001` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9002 | `internal/tasks/cli/command_help.go`, embedded usage text | `TestHelpTextProvenance_AFPV09002` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9003 | reader selection and retained uncertainty | `TestPrecisionReplay_AFPV09003`, `TestTestOnlyImporterPrecision_AFPV09003` in `internal/liveverify/affected/affprec_repo_test.go` |
