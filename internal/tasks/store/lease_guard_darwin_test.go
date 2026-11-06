@@ -82,11 +82,13 @@ func TestCALV0026_LeaseCommitSweepsOutsideWriterLock(t *testing.T) {
 	t.Logf("commit sweep read %d over-budget files; 0 under the writer lock", window)
 }
 
-// CAL-V0-026 (V1-0845): the recorded bound of the over-budget guard. An
-// in-place edit of the over-budget intent policy made after the commit sweep
-// is not seen under the lock, so the claim commits on the canonical journal
-// content (commitLease rebinds head.json only) and the next audit refuses
-// INTENT_DIVERGED. The same edit before the sweep refuses the claim.
+// CAL-V0-026 (V1-0845), ATR-V0-7203: an in-place edit of the over-budget
+// intent policy is invisible to the change guard once the commit sweep has
+// read it, but the content binding under the writer lock re-reads the bound
+// decision inputs, so the edit refuses the same claim at either stage and no
+// receipt is published. The bound V1-0845 recorded (commit, then refuse at the
+// next audit) is superseded; only a write after that final binding remains
+// outside the snapshot guarantee.
 func TestCALV0026_InPlaceIntentEditAfterCommitSweep(t *testing.T) {
 	actor := mutation.Binding{ID: "tester", Role: "OWNER"}
 	for _, at := range []string{"sweep", "lock"} {
@@ -115,16 +117,10 @@ func TestCALV0026_InPlaceIntentEditAfterCommitSweep(t *testing.T) {
 			if !edited {
 				t.Fatal("edit stage not reached")
 			}
-			if at == "sweep" {
-				if err == nil || report.Receipt != "" {
-					t.Fatalf("edit before the sweep committed: %+v %v", report, err)
-				}
-				t.Logf("edit before the sweep refused: %s", wire.CodeOf(err))
-				return
+			if err == nil || report.Receipt != "" {
+				t.Fatalf("edit at the %s stage committed: %+v %v", at, report, err)
 			}
-			if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-				t.Fatalf("edit after the sweep: %+v %v", report, err)
-			}
+			t.Logf("edit at the %s stage refused: %s", at, wire.CodeOf(err))
 			next := choice
 			next.RequestID = "inventory-claim-next"
 			if _, err := Lease(context.Background(), repo, actor, next, fixture.Timestamp); wire.CodeOf(err) != wire.CodeIntentDiverged {
