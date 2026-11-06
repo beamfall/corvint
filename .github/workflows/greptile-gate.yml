@@ -18,8 +18,14 @@ name: Greptile gate
 # Reopening a resolved thread raises no workflow event, so a success can go stale before the PR
 # is queued. The merge queue therefore re-evaluates: on `merge_group` the job reads the queued
 # PR from the queue ref, applies the same rules to that PR's head with fresh reads, and posts the
-# result on the merge-group commit, which the ruleset also requires. Every other run also posts on
-# the PR's active merge-group commit, so a later Greptile edit refreshes a queued pass.
+# result on the merge-group commit, which the ruleset also requires. Every run posts on the PR head
+# and on the PR's active merge-group commit, so a later Greptile edit refreshes a queued pass.
+#
+# Runs for one PR are serialized: the resolve job names the PR for every event (a merge_group run
+# reads it from the queue ref), and the gate job's concurrency group is keyed by that number
+# without cancelling a running job. An older run therefore finishes before a newer one reads, so it
+# cannot post a stale pass over a newer result; a dropped pending run loses nothing because every
+# run refreshes both commits.
 
 on:
   pull_request_target:
@@ -39,15 +45,36 @@ permissions:
   statuses: write
 
 jobs:
-  gate:
+  resolve:
     if: >-
       github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch' ||
       github.event_name == 'merge_group' ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
       github.event.comment.user.login == 'greptile-apps[bot]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      pr: ${{ steps.pr.outputs.pr }}
+    steps:
+      - name: Name the pull request this run gates
+        id: pr
+        env:
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+          GROUP_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = merge_group ]; then
+            # The queue ref names the entry's PR: refs/heads/gh-readonly-queue/<base>/pr-<N>-<base sha>.
+            PR=$(printf '%s\n' "$GROUP_REF" | sed -nE 's#^refs/heads/gh-readonly-queue/.+/pr-([0-9]+)-[0-9a-f]{40}$#\1#p')
+          fi
+          case "$PR" in ''|*[!0-9]*) echo "greptile-gate: bad PR number '$PR'"; exit 1 ;; esac
+          echo "pr=$PR" >>"$GITHUB_OUTPUT"
+  gate:
+    needs: resolve
     concurrency:
-      group: greptile-gate-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr || github.event.merge_group.head_sha }}
-      cancel-in-progress: true
+      group: greptile-gate-pr-${{ needs.resolve.outputs.pr }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -56,19 +83,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
-          PR: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
-          GROUP_REF: ${{ github.event.merge_group.head_ref }}
+          PR: ${{ needs.resolve.outputs.pr }}
           GROUP_SHA: ${{ github.event.merge_group.head_sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          target=""
           if [ "$EVENT" = merge_group ]; then
-            # The queue ref names the entry's PR: refs/heads/gh-readonly-queue/<base>/pr-<N>-<base sha>.
-            PR=$(printf '%s\n' "$GROUP_REF" | sed -nE 's#^refs/heads/gh-readonly-queue/.+/pr-([0-9]+)-[0-9a-f]{40}$#\1#p')
             case "$GROUP_SHA" in *[!0-9a-f]*|'') echo "greptile-gate: bad merge-group sha '$GROUP_SHA'"; exit 1 ;; esac
             [ ${#GROUP_SHA} -eq 40 ] || { echo "greptile-gate: bad merge-group sha '$GROUP_SHA'"; exit 1; }
-            target=$GROUP_SHA
           fi
           case "$PR" in ''|*[!0-9]*) echo "greptile-gate: bad PR number '$PR'"; exit 1 ;; esac
           head=$(gh api "repos/$REPO/pulls/$PR" --jq 'select(.state == "open") | .head.sha')
@@ -76,7 +98,7 @@ jobs:
             echo "greptile-gate: PR $PR is not open; no status posted"
             exit 0
           fi
-          target=${target:-$head}
+          target=$head
           short=${head:0:9}
           post() {
             for t in $target; do
@@ -85,9 +107,11 @@ jobs:
                 -f state="$1" -f context=greptile-gate -f description="$2" -f target_url="$RUN_URL" >/dev/null
             done
           }
-          # A review change outside the queue also refreshes the PR's active merge-group commit, so a
-          # lowered score cannot leave an earlier queue success standing.
-          if [ "$EVENT" != merge_group ]; then
+          # Every run also refreshes the PR's merge-group commit, so a lowered score cannot leave an
+          # earlier queue success standing.
+          if [ "$EVENT" = merge_group ]; then
+            target="$target $GROUP_SHA"
+          else
             if ! queued=$(gh api graphql \
               -f query='query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){mergeQueueEntry{headCommit{oid}}}}}' \
               -f o="${REPO%%/*}" -f n="${REPO#*/}" -F p="$PR" \

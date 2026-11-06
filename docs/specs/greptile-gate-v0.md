@@ -42,8 +42,12 @@ resolved) was enforced only by the orchestrator remembering to check it.
   queued pass. Because reopening a
   thread raises no event, a `merge_group` run re-evaluates the queued pull request named by the
   queue ref (`gh-readonly-queue/<base>/pr-<N>-<sha>`) with fresh reads of its head and posts the
-  result (or `success` for an owner waiver on that head) on the merge-group commit; an
-  unparsable queue ref or commit stops with no post, so the queue entry fails.
+  result on the head and the merge-group commit (or `success` on the merge-group commit for an
+  owner waiver on that head); an unparsable queue ref or commit stops with no post, so the queue
+  entry fails. Runs for one pull request are serialized: a `resolve` job names the pull request for
+  every event, and the gate job's concurrency group is keyed by that number with
+  `cancel-in-progress: false`, so an older run (for example a `merge_group` run that read `5/5`)
+  finishes before a newer one reads and cannot post a stale pass over a newer result.
 
 ## Non-goals and failure modes
 
@@ -63,4 +67,4 @@ Drop `greptile-gate` from the main ruleset's required status checks, then delete
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (24 cases including 9 merge-queue cases; a mutation accepting `0/5` fails it, and so do dropping the pending-first post, the merge-group refresh, or the statuses pagination); a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
+| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (23 cases including 8 merge-queue cases; a mutation accepting `0/5` fails it, and so do dropping the pending-first post, the merge-group refresh of either commit, or the statuses pagination) and `TestGRGV0001GreptileGateSerializesRunsPerPR` (per-PR concurrency key without cancellation, and 6 resolve-step cases; a mutation to `cancel-in-progress: true` fails it); GitHub's concurrency scheduling itself is not exercisable locally; a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
