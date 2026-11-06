@@ -18,7 +18,7 @@ import (
 	"strings"
 
 	tr "github.com/Beamfall/corvint/internal/testrunner"
-	"github.com/Beamfall/corvint/internal/testrunner/registry"
+	"github.com/Beamfall/corvint/internal/testrunner/dynamic"
 )
 
 // The containerised runner (FPK-V0-078 to FPK-V0-081). A declared profile
@@ -214,7 +214,7 @@ func findContainerRunner(copy Copy, configuration settings) (specRunner, string)
 	}
 	probe := filepath.Join(workspace, "corvint-rbmutate-probe")
 	request := runner.request(probe, map[string]string{configuration.changedPath: tr.Digest(nil)}, "")
-	if _, err := registry.Build(request); err != nil {
+	if _, err := buildRSpec(request); err != nil {
 		return runner, "the rspec runner profile refuses the declared container profile"
 	}
 	return runner, ""
@@ -288,6 +288,19 @@ func hasAncestor(dir string, target os.FileInfo) bool {
 	}
 }
 
+// buildRSpec plans a request with the rspec runner's own family, dynamic,
+// behind the same shared admission and exec-member guard registry.Build
+// applies, without linking every other runner family into this package.
+func buildRSpec(request tr.Request) (tr.Invocation, error) {
+	return tr.BuildWith(request, dynamic.ExecMemberRunners(), dynamic.Build)
+}
+
+// parseRSpec parses a run's input with the dynamic family and normalizes it,
+// as registry.Parse does.
+func parseRSpec(input tr.Input) (tr.Observation, error) {
+	return tr.ParseWith(input, dynamic.Parse)
+}
+
 // request is the corvint-test-runner rspec request of one run directory.
 func (runner containerRunner) request(runDir string, inputs map[string]string, optionsDigest string) tr.Request {
 	prefix := make([]string, len(runner.profile.ExecPrefix))
@@ -354,13 +367,13 @@ func (runner containerRunner) execute(ctx context.Context, source []byte) (specR
 	}
 	inputs := map[string]string{runner.configuration.changedPath: tr.Digest(source), runner.configuration.testPath: tr.Digest(spec)}
 	request := runner.request(runDir, inputs, tr.Digest(options))
-	invocation, err := registry.Build(request)
+	invocation, err := buildRSpec(request)
 	if err != nil {
 		return specRun{}, fmt.Errorf("rbmutate: plan the run: %w", err)
 	}
 	plan := tr.PlanDocument{Profile: runnerPlanProfile, Request: request, Invocation: invocation}
 	execution, runErr := tr.Execute(ctx, request, invocation)
-	observation, parseErr := registry.Parse(execution.Input)
+	observation, parseErr := parseRSpec(execution.Input)
 	receipt := tr.ReceiptDocument{Profile: runnerReceiptProfile, PlanSha256: tr.Identity(plan), Execution: execution, Observation: observation, Error: joinErrors(runErr, parseErr)}
 	if err := admitRunnerReceipt(plan, receipt); err != nil {
 		return specRun{}, err
@@ -398,7 +411,7 @@ func (runner containerRunner) execute(ctx context.Context, source []byte) (specR
 // are this run's bytes, never a revision's blobs, so no target check
 // applies.
 func admitRunnerReceipt(plan tr.PlanDocument, receipt tr.ReceiptDocument) error {
-	rebuilt, err := registry.Build(plan.Request)
+	rebuilt, err := buildRSpec(plan.Request)
 	if err != nil || tr.Identity(rebuilt) != tr.Identity(plan.Invocation) {
 		return fmt.Errorf("rbmutate: runner plan does not match the rspec runner profile")
 	}
