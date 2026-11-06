@@ -154,6 +154,9 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 	}
 	if len(indexes) != len(declared) {
 		frontier[FrontierForeignCallersInvalid] = true
+		if detail := foreignCallerMismatch(root, declared, built); detail != "" {
+			frontier[FrontierForeignCallersInvalid+":"+detail] = true
+		}
 		return
 	}
 	complete := foreignCallersComplete(root, declared, built)
@@ -285,3 +288,45 @@ func foreignCallersCompleteMode(root *affected.Source, declared map[string]Forei
 // foreignCallerWorkers bounds the candidates foreignCallersComplete reads at
 // once (TSP-V0-943).
 const foreignCallerWorkers = 8
+
+// foreignCallerMismatch explains a failed completeness scan, including comment mentions
+// (TSP-V0-7302). It runs only after refusal and grants no declaration or edge.
+func foreignCallerMismatch(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) string {
+	candidates, err := root.Files(affected.ByName(CallerCandidate))
+	if err != nil {
+		return "candidate-list-unreadable"
+	}
+	for _, dir := range HiddenRoots {
+		hidden, err := root.FilesUnder(dir, CallerCandidate)
+		if err == nil {
+			candidates = append(candidates, hidden...)
+		}
+	}
+	slices.Sort(candidates)
+	for _, candidate := range candidates {
+		body, err := root.Read(candidate)
+		if err != nil {
+			return candidate + ":1:unreadable"
+		}
+		for _, script := range slices.Sorted(maps.Keys(declared)) {
+			if candidate == script {
+				continue
+			}
+			entry := declared[script]
+			listed := slices.Contains(entry.Callers, candidate) || slices.Contains(entry.Mentions, candidate)
+			offset := bytes.Index(body, []byte(path.Base(script)))
+			named := offset >= 0 || built[candidate].names(path.Base(script))
+			if named && !listed {
+				line := 1
+				if offset >= 0 {
+					line += bytes.Count(body[:offset], []byte("\n"))
+				}
+				return fmt.Sprintf("%s:%d:undeclared-mention-of:%s", candidate, line, script)
+			}
+			if listed && !named {
+				return candidate + ":1:stale-mention-of:" + script
+			}
+		}
+	}
+	return ""
+}

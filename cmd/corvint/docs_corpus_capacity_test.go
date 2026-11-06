@@ -9,6 +9,7 @@ import (
 )
 
 func TestDCPV1158CLITypesGitCapacityLikeTheBridge(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-158 the CLI maps an exhausted Git budget to corpus-capacity-exceeded, not internal-error", func(t *testing.T) {
 		var out bytes.Buffer
 		emitCorpusError(&out, cemcode.New(cemcode.GitBudgetExceeded, "Git operation budget exhausted"))

@@ -79,6 +79,7 @@ func stepInvoke(t *testing.T, args ...string) (int, []byte, []byte) {
 	return exit, out.Bytes(), stderr.Bytes()
 }
 func TestStepCLI(t *testing.T) {
+	t.Parallel()
 	t.Run("ASS-V0-006 read only snapshot verify and env preflight", func(t *testing.T) {
 		root, dp, hp := stepCLIInputs(t)
 		indexBefore, err := os.ReadFile(root + "/.git/index")
@@ -142,6 +143,7 @@ func TestStepCLI(t *testing.T) {
 }
 
 func TestStepCLIMissingMarkerRetainsWrites(t *testing.T) {
+	t.Parallel()
 	t.Run("ASS-V0-004 handler retains findings after administrative loss", func(t *testing.T) {
 		root, dp, hp := stepCLIInputs(t)
 		exit, data, stderr := stepInvoke(t, "step", "snapshot", "--declaration", dp, "--host", hp)

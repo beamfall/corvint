@@ -13,6 +13,7 @@ import (
 // runs whole, built from the units' own reasons (or the plan's), and none for
 // a -run slice or a non-Go declared command.
 func TestSTRV0073DryRunNamesHeavyWholeReason(t *testing.T) {
+	t.Parallel()
 	planned := []sessiontest.Planned{
 		{Adapter: "go", Argv: []string{"go", "test", "-json", "example.com/a", "example.com/b"}, Units: []sessiontest.Unit{
 			{Unit: "go:example.com/a", Reason: "whole: DIRECT_SOURCE_CHANGE via a.go"},
