@@ -190,6 +190,29 @@ func TestOwnershipFixtureTerminalReaders_AZU_V0_9901(t *testing.T) {
 			if slices.Contains(frontier, closed) != tc.wantClosed || slices.Contains(frontier, source) != tc.wantSource || !slices.Contains(frontier, dynamic) {
 				t.Fatalf("frontier=%q; closed=%v source=%v; dynamic must remain", frontier, tc.wantClosed, tc.wantSource)
 			}
+			if tc.membership && !tc.own && !tc.unbounded && !tc.other && !tc.testless && !tc.resolution {
+				if !slices.ContainsFunc(p.Unknown, func(u Unknown) bool {
+					return u.Reason == UnknownUnownedDirtyPath && u.Detail == fixture
+				}) {
+					t.Fatal("fixture must remain explicitly unowned")
+				}
+				found := false
+				for _, exclusion := range p.FrontierExcluded {
+					if exclusion.Language != "y" {
+						continue
+					}
+					found = true
+					if exclusion.Reason == FrontierExclusionReason || !strings.Contains(exclusion.Reason, "go:pkg") || !strings.Contains(exclusion.Reason, "SourceBoundFrontiers ("+source+")") {
+						t.Errorf("missing fixture-specific exclusion proof: %+v", exclusion)
+					}
+					if !tc.foreign && !strings.Contains(exclusion.Reason, "FixtureClosedFrontiers ("+closed+")") {
+						t.Errorf("missing fixture closure classification: %+v", exclusion)
+					}
+				}
+				if !found {
+					t.Fatal("missing frontier exclusion certificate")
+				}
+			}
 		})
 	}
 }

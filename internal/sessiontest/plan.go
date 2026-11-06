@@ -295,7 +295,7 @@ func Build(input Input) (Manifest, error) {
 		whole := make(map[string]GoSlice, len(input.GoSlices))
 		for pkg, slice := range input.GoSlices {
 			if slice.FullReason != "" {
-				whole[pkg] = GoSlice{Reason: slice.FullReason}
+				whole[pkg] = GoSlice{Reason: slice.FullReason, FullReason: slice.FullReason}
 			}
 		}
 		input.GoSlices = whole // FULL runs every package whole (STR-V0-063)
@@ -372,7 +372,7 @@ func (m *Manifest) placeGo(input Input, run []string) {
 		}
 		for _, slice := range shard.Slices {
 			if wanted[slice.Package] {
-				reason := input.GoSlices[slice.Package].Reason
+				reason := partitionObligationReason(input.GoSlices[slice.Package])
 				m.Units = append(m.Units, Unit{
 					Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: index,
 					Reason: reason, ReasonCode: ReasonCode(reason),
@@ -401,7 +401,7 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string, slices
 			shardOf[file] = shard.Index
 		}
 		for _, slice := range shard.Slices {
-			reason := slices[slice.Package].Reason
+			reason := partitionObligationReason(slices[slice.Package])
 			slicesOf[slice.Package] = append(slicesOf[slice.Package], Unit{
 				Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: shard.Index,
 				Reason: reason, ReasonCode: ReasonCode(reason),
@@ -431,6 +431,15 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string, slices
 		}
 		m.Units = append(m.Units, goUnit(slices, pkg, shardOf[pkg]))
 	}
+}
+
+// Only the explicit ownership obligation survives CI partitioning. Ordinary
+// package slicing reasons were historically omitted from partitioned units.
+func partitionObligationReason(slice GoSlice) string {
+	if slice.FullReason != "" {
+		return slice.Reason
+	}
+	return ""
 }
 
 // declaredOnly is the no-plan FULL run: the declared Go full suite and every

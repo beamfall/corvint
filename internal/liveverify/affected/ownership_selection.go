@@ -52,37 +52,56 @@ func (graph *Graph) selectOwnershipAudit(plan *Plan, reached map[string]Witness,
 	reached[id] = Witness{Kind: WitnessOwnershipAudit, DirtyPath: trigger, Via: []string{id}}
 }
 
-// ownershipFixtureHostsSelected keeps terminal readers terminal when every
+// ownershipFixtureHosts identifies the selected hosts that keep readers terminal when every
 // unowned input is a tracked membership change below a selected Go fixture
 // host. frontierUnknowns must still judge every plugin's reasons against
 // those paths; this only avoids bypassing that proof through participation.
 // Other plans retain their existing participation and serialized output.
-func (graph *Graph) ownershipFixtureHostsSelected(unowned []string, reached map[string]Witness) bool {
+func (graph *Graph) ownershipFixtureHosts(unowned []string, reached map[string]Witness) []string {
 	if len(graph.ownershipChanges) == 0 || len(unowned) == 0 {
-		return false
+		return nil
 	}
 	if _, exists := graph.owner[OwnershipAuditTestPath]; !exists {
-		return false
+		return nil
 	}
 	packages := graph.goPackageDirectories()
+	hosts := make(map[string]bool)
 	for _, path := range unowned {
 		directory := fixtureDirectory(path)
 		if directory == "" || !slices.Contains(graph.ownershipChanges, path) {
-			return false
+			return nil
 		}
 		for parent := relativeDirectory(directory); ; parent = relativeDirectory(parent) {
 			if id, exists := packages[parent]; exists {
 				if _, selected := reached[id]; !selected || graph.untested(id) {
-					return false
+					return nil
 				}
+				hosts[id] = true
 				break
 			}
 			if parent == "." {
-				return false
+				return nil
 			}
 		}
 	}
-	return true
+	return sortedKeys(hosts)
+}
+
+// These exclusions compose terminal traversal with the per-reason fixture
+// proof; they cannot use the ordinary certificate that denies unowned paths.
+func (graph *Graph) ownershipFixtureExclusionReason(name string, hosts, entries []string) string {
+	classifications := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		fields := strings.SplitN(entry, ":", 3)
+		reason := fields[0] + ":" + fields[1]
+		classification := "FixtureClosedFrontiers"
+		if graph.sourceBound[name][reason] {
+			classification = "SourceBoundFrontiers"
+		}
+		classifications = append(classifications, classification+" ("+entry+")")
+	}
+	return "unowned tracked fixture membership changes have selected Go hosts " + strings.Join(hosts, ", ") +
+		"; this plugin is reached only through terminal reader or binary-exec selections; excluded entries cannot bind those fixtures under FrontierReach: " + strings.Join(classifications, "; ")
 }
 
 func (graph *Graph) ownershipHints(unknown []Unknown) {
