@@ -140,9 +140,25 @@ class DarwinShards(unittest.TestCase):
                 self.assertNotIn("-run", command)
                 self.assertNotIn("-race", command)
                 self.assertEqual(kwargs["env"]["HEAVY_REMOTE"], "0")
+                self.assertEqual(kwargs["env"]["HEAVY_LOAD_WAIT"], "0")
             self.assertEqual((out / "module-0.jsonl").read_text(), "retained test output\n")
             self.assertEqual(m.run([], out, pathlib.Path("/repo"), runner), 0)
             self.assertEqual(len(calls), 2)
+
+    def test_CINV04625_failure_summary_names_failed_tests(self):
+        events = [
+            {"Action": "output", "Package": "ex/p", "Test": "TestA", "Output": "    a_test.go:9: boom\n"},
+            {"Action": "fail", "Package": "ex/p", "Test": "TestA"},
+            {"Action": "output", "Package": "ex/p", "Test": "TestB", "Output": "ok\n"},
+            {"Action": "pass", "Package": "ex/p", "Test": "TestB"},
+            {"Action": "fail", "Package": "ex/p"},
+        ]
+        lines = ["heavy.sh: banner\n"] + [json.dumps(e) + "\n" for e in events]
+        summary = m.failure_summary(lines)
+        self.assertIn("FAIL ex/p TestA\n    a_test.go:9: boom", summary)
+        self.assertIn("FAIL ex/p (package)", summary)
+        self.assertNotIn("TestB", summary)
+        self.assertEqual(m.failure_summary(["build failed\n"]), "build failed")
 
     def test_CINV04625_package_arguments_and_module_roots(self):
         self.assertEqual(m.module_groups([{"package": "example", "module": "example", "dir": "/repo"}]),

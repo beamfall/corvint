@@ -310,7 +310,10 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   runner-local read failure cannot silently change ownership. Each shard SHALL run one `go test`
   invocation per module over its package list, with
   three build/package workers (`-p 3`) and two test workers (`-parallel 2`), retaining all module
-  failures rather than stopping after the first. Each macOS shard SHALL have a 40-minute timeout,
+  failures rather than stopping after the first. A shard SHALL disable the `heavy.sh` host-load
+  queue (`HEAVY_LOAD_WAIT=0`), because a hosted runner is dedicated to the job, and a failed
+  module SHALL print each failed package/test with its last output lines rather than a raw
+  JSON tail. Each macOS shard SHALL have a 40-minute timeout,
   with an under-30-minute FULL-selection wall-time target subject to hosted measurement. Shards
   SHALL retain separate `macos-selection-shard-N` execution artifacts even after failure; shard zero
   SHALL remain the single writer of the unchanged `macos-selection` inventory/narrowing artifact.

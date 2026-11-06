@@ -82,8 +82,11 @@ def run(packages, out, root, runner=subprocess.run):
     for i, (directory, names) in enumerate(module_groups(packages).items()):
         command = ["bash", str(root / "script/heavy.sh"), "go", "test", "-json",
                    "-p", str(PARALLEL), "-parallel", "2", "-count=1", "-timeout", "30m", *names]
+        # A hosted runner is dedicated to this job, so heavy.sh's host-load queue only adds
+        # its 120 s wait to every shard (CIN-V0-4625).
         env = dict(os.environ, HEAVY_WHOLE_REASON="CIN-V0-4625 native Darwin shard",
-                   HEAVY_REMOTE="0", HEAVY_LOCAL_REASON="native Darwin qualification")
+                   HEAVY_REMOTE="0", HEAVY_LOCAL_REASON="native Darwin qualification",
+                   HEAVY_LOAD_WAIT="0")
         print("Darwin shard module:", directory, "packages:", len(names), flush=True)
         with (out / ("module-%d.jsonl" % i)).open("w") as log:
             result = runner(command, cwd=directory, env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -91,8 +94,37 @@ def run(packages, out, root, runner=subprocess.run):
             failed = True
             print("Module failed; full output retained in", log.name, flush=True)
             with pathlib.Path(log.name).open() as retained:
-                print("".join(deque(retained, maxlen=40)), flush=True)
+                print(failure_summary(retained), flush=True)
     return int(failed)
+
+
+def failure_summary(lines, *, per_test=6, limit=60):
+    """CIN-V0-4625: name each failed test with its last output lines, not a raw JSON tail."""
+    output, failures, other = {}, [], deque(maxlen=20)
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            other.append(line.rstrip("\n"))
+            continue
+        if not isinstance(event, dict):
+            continue
+        key = (event.get("Package", ""), event.get("Test", ""))
+        if event.get("Action") == "output":
+            output.setdefault(key, deque(maxlen=per_test)).append(str(event.get("Output", "")).rstrip("\n"))
+        elif event.get("Action") == "fail" and key not in failures:
+            failures.append(key)
+    if not failures:
+        return "\n".join(other)
+    rows = []
+    for package, test in failures[:limit]:
+        rows.append("FAIL %s %s" % (package, test or "(package)"))
+        if test:
+            rows.extend("    " + text.strip() for text in output.get((package, test), ())
+                        if text.strip() and not text.startswith("=== RUN"))
+    if len(failures) > limit:
+        rows.append("... %d more failures in the retained log" % (len(failures) - limit))
+    return "\n".join(rows)
 
 
 def main(args):
