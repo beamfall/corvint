@@ -640,8 +640,9 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // to its resolution (AFP-V0-511). A clean plan names none. It also returns, in
 // language order, the plugins left out only because the change reaches
 // nothing of them but terminal units, with the graph frontier reasons no other
-// source names (AFP-V0-560); a plan with a dirty path no plugin owns leaves no
-// plugin out that way, and a unit the plan follows the dependents of
+// source names (AFP-V0-560); an unowned path normally promotes terminal
+// readers to participation. Newly tracked fixtures with selected Go hosts
+// instead retain the per-reason unowned-path proof (AZU-V0-9901). A unit the plan follows the dependents of
 // (AFP-V0-581) is no terminal selection. It last returns, for each named
 // entry, the sources that made it bear (TSP-V0-942).
 func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer, []string) {
@@ -961,7 +962,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 	// and reason. A selected Go fixture host cannot close a computed reader
 	// in another language or an undeclared FrontierReach (AZU-V0-9901).
 	frontierPaths := sortedKeys(paths)
-	if len(frontierPaths) > 0 {
+	if len(frontierPaths) > 0 && !graph.ownershipFixtureHostsSelected(frontierPaths, reached) {
 		for name := range terminal {
 			names[name] = true
 		}

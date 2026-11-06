@@ -128,3 +128,68 @@ func TestOwnershipFixtureFrontierClassification_AZU_V0_9901(t *testing.T) {
 		})
 	}
 }
+
+// AZU-V0-9901: a terminal reader of a separate Go edit must not turn a
+// newly tracked, hosted fixture into participation in every language reason.
+// The usual per-reason proof still retains dynamic/bounded reads, resolution
+// inputs, foreign fixture sites, independently reached frontiers and any
+// other unowned path. Content-only plans keep their existing bytes.
+func TestOwnershipFixtureTerminalReaders_AZU_V0_9901(t *testing.T) {
+	const fixture = "pkg/testdata/new.json"
+	const closed = "y:runner-unknown:reader_test.y"
+	const source = "y:import-unresolved:reader.y"
+	const dynamic = "y:dynamic-load:reader.y"
+	for _, tc := range []struct {
+		name                                                   string
+		membership, resolution, foreign, own, unbounded, other bool
+		testless                                               bool
+		wantClosed, wantSource                                 bool
+	}{
+		{name: "terminal", membership: true},
+		{name: "content only", wantClosed: true, wantSource: true},
+		{name: "resolution input", membership: true, resolution: true, wantClosed: true, wantSource: true},
+		{name: "foreign fixture", membership: true, foreign: true, wantClosed: true},
+		{name: "own source", membership: true, own: true, wantClosed: true, wantSource: true},
+		{name: "unbounded reader", membership: true, unbounded: true, wantClosed: true, wantSource: true},
+		{name: "other unowned", membership: true, other: true, wantClosed: true, wantSource: true},
+		{name: "testless host", membership: true, testless: true, wantClosed: true, wantSource: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			y := reaching{fake: fake{name: "y", frontier: []string{closed, source, dynamic}, units: []Unit{{ID: "y:reader", Sources: []string{"reader.y"}, Tests: []string{"reader_test.y"}, PathTokens: []string{"pkg/pkg.go"}, Frontier: []string{dynamic}}}}, sourceBound: []string{"y:import-unresolved"}, fixtureClosed: []string{"y:runner-unknown"}}
+			if tc.foreign {
+				y.units = append(y.units, Unit{ID: "y:fixture", Sources: []string{"pkg/testdata/source.y"}})
+			}
+			y.inputs = func(path string) bool { return tc.resolution && path == fixture }
+			var plugin Language = y
+			if tc.unbounded {
+				plugin = reading{y}
+			}
+			host := Unit{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}}
+			if tc.testless {
+				host.Tests = nil
+			}
+			g, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+				host,
+				{ID: "go:gate", Tests: []string{OwnershipAuditTestPath}, ReadScoped: true},
+			}}, plugin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dirty := []string{fixture, "pkg/pkg.go"}
+			if tc.own {
+				dirty = append(dirty, "reader.y")
+			}
+			if tc.other {
+				dirty = append(dirty, "other/data.json")
+			}
+			if tc.membership {
+				g = g.WithOwnershipChanges([]string{fixture}, []string{fixture})
+			}
+			p := Select(g, dirty)
+			frontier := languageFrontier(p)
+			if slices.Contains(frontier, closed) != tc.wantClosed || slices.Contains(frontier, source) != tc.wantSource || !slices.Contains(frontier, dynamic) {
+				t.Fatalf("frontier=%q; closed=%v source=%v; dynamic must remain", frontier, tc.wantClosed, tc.wantSource)
+			}
+		})
+	}
+}

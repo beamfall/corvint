@@ -52,6 +52,39 @@ func (graph *Graph) selectOwnershipAudit(plan *Plan, reached map[string]Witness,
 	reached[id] = Witness{Kind: WitnessOwnershipAudit, DirtyPath: trigger, Via: []string{id}}
 }
 
+// ownershipFixtureHostsSelected keeps terminal readers terminal when every
+// unowned input is a tracked membership change below a selected Go fixture
+// host. frontierUnknowns must still judge every plugin's reasons against
+// those paths; this only avoids bypassing that proof through participation.
+// Other plans retain their existing participation and serialized output.
+func (graph *Graph) ownershipFixtureHostsSelected(unowned []string, reached map[string]Witness) bool {
+	if len(graph.ownershipChanges) == 0 || len(unowned) == 0 {
+		return false
+	}
+	if _, exists := graph.owner[OwnershipAuditTestPath]; !exists {
+		return false
+	}
+	packages := graph.goPackageDirectories()
+	for _, path := range unowned {
+		directory := fixtureDirectory(path)
+		if directory == "" || !slices.Contains(graph.ownershipChanges, path) {
+			return false
+		}
+		for parent := relativeDirectory(directory); ; parent = relativeDirectory(parent) {
+			if id, exists := packages[parent]; exists {
+				if _, selected := reached[id]; !selected || graph.untested(id) {
+					return false
+				}
+				break
+			}
+			if parent == "." {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (graph *Graph) ownershipHints(unknown []Unknown) {
 	// Guidance belongs to the repository's ownership ratchet. Repositories
 	// without that test retain their existing receipts, including frozen Core
