@@ -116,7 +116,7 @@ func fullRecordDelta(r run, tree, head string, shards int, jobs func(int64) ([]j
 	if r.Event != "pull_request" || commits == nil {
 		return nil
 	}
-	id, found := recordJobLine(r, RecordJob, recordLine, jobs, logs)
+	id, found, _ := recordJobLine(r, RecordJob, recordLine, jobs, logs)
 	if found == nil || found[1] == tree || found[3] != head || found[4] != strconv.Itoa(shards) {
 		return nil
 	}
@@ -134,96 +134,183 @@ func RecordName(tree string, shard, shards int) string {
 	return fmt.Sprintf("ci-tested-tree-%s-full-%d-of-%d", tree, shard, shards)
 }
 
-// admits reports whether r is a completed, successful run of this repository's CI workflow
+// admits checks the run identity only; CIN-V0-7600 takes completion and success from the
+// record and its required jobs, not the overall workflow. The run must belong to
+// this repository's CI workflow
 // that the deciding event may reuse: a pull-request run of head, the tested commit's second
 // parent (AFP-V0-024, AFP-V0-046), or, for a main push only, a merge-queue run of target, the
 // pushed commit itself (AFP-V0-024, V1-0760).
-func admits(r run, repository, event, head, target string) bool {
-	if r.ID <= 0 || r.Status != "completed" || r.Conclusion != "success" || r.Path != workflowPath || r.Repository.FullName != repository {
-		return false
+func admits(r run, repository, event, head, target string) (bool, string) {
+	if r.ID <= 0 {
+		return false, "run id must be positive"
+	}
+	if r.Path != workflowPath {
+		return false, "run workflow mismatch"
+	}
+	if r.Repository.FullName != repository {
+		return false, "run repository mismatch"
 	}
 	switch r.Event {
 	case "pull_request":
-		return r.HeadSHA == head
+		if r.HeadSHA != head {
+			return false, "run identity mismatch: pull-request head"
+		}
+		return true, ""
 	case "merge_group":
-		return event == "push" && r.HeadSHA == target
+		if event != "push" {
+			return false, "merge-queue run is reusable only by a push"
+		}
+		if r.HeadSHA != target {
+			return false, "run identity mismatch: merge-queue target"
+		}
+		return true, ""
 	}
-	return false
+	return false, "run event is neither pull_request nor merge_group"
 }
 
 // recorded returns the id of r's one latest ci-tested-tree-record job when that job passed on
 // r's head and its log holds exactly one record line naming tree, head and shards, and, for a
 // merge-queue run, r's own commit as the target (AFP-V0-170). Anything else is 0.
-func recorded(r run, tree, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) int64 {
-	id, found := recordJobLine(r, RecordJob, recordLine, jobs, logs)
-	if found == nil || found[1] != tree || found[3] != head || found[4] != strconv.Itoa(shards) || (r.Event == "merge_group" && found[2] != r.HeadSHA) {
-		return 0
+func recorded(r run, tree, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, string) {
+	id, found, reason := recordJobLine(r, RecordJob, recordLine, jobs, logs)
+	if found == nil {
+		return 0, reason
 	}
-	return id
+	if found[1] != tree {
+		return 0, "full record tree mismatch"
+	}
+	if found[3] != head {
+		return 0, "full record head mismatch"
+	}
+	if found[4] != strconv.Itoa(shards) {
+		return 0, "full record shard count mismatch"
+	}
+	if r.Event == "merge_group" && found[2] != r.HeadSHA {
+		return 0, "full record queue target mismatch"
+	}
+	return id, ""
 }
 
 // recordedNarrowed returns the id of pull-request run r's one latest ci-narrowed-tree-record job
 // when its log holds exactly one AFP-V0-734 line naming tree, base, head and shards. Anything
 // else, and any run but a pull-request run, is 0.
-func recordedNarrowed(r run, tree, base, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) int64 {
+func recordedNarrowed(r run, tree, base, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, string) {
 	if !oidPattern.MatchString(base) {
-		return 0
+		return 0, "narrowed record requires a valid queue base"
 	}
-	id, found := narrowedRecordOf(r, head, shards, jobs, logs)
-	if found == nil || found[1] != tree || found[3] != base {
-		return 0
+	id, found, reason := narrowedRecordOf(r, head, shards, jobs, logs)
+	if found == nil {
+		return 0, reason
 	}
-	return id
+	if found[1] != tree {
+		return 0, "narrowed record tree mismatch"
+	}
+	if found[3] != base {
+		return 0, "narrowed record base mismatch"
+	}
+	return id, ""
 }
 
 // narrowedRecordOf returns pull-request run r's one latest ci-narrowed-tree-record job and the
 // submatches of its one AFP-V0-734 line when that line names head and shards, whatever its tree
 // and base; anything else, and any run but a pull-request run, is 0 and nil.
-func narrowedRecordOf(r run, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string) {
+func narrowedRecordOf(r run, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string, string) {
 	if r.Event != "pull_request" {
-		return 0, nil
+		return 0, nil, "narrowed record requires a pull-request run"
 	}
-	id, found := recordJobLine(r, NarrowedRecordJob, narrowedLine, jobs, logs)
-	if found == nil || found[4] != head || found[5] != strconv.Itoa(shards) {
-		return 0, nil
+	id, found, reason := recordJobLine(r, NarrowedRecordJob, narrowedLine, jobs, logs)
+	if found == nil {
+		return 0, nil, reason
 	}
-	return id, found
+	if found[4] != head {
+		return 0, nil, "narrowed record head mismatch"
+	}
+	if found[5] != strconv.Itoa(shards) {
+		return 0, nil, "narrowed record shard count mismatch"
+	}
+	return id, found, ""
 }
 
 // recordJobLine returns r's one latest job named name, when it passed on r's head, and the
 // submatches of the one line of its log that line matches; anything else is 0 and nil.
-func recordJobLine(r run, name string, line *regexp.Regexp, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string) {
+func recordJobLine(r run, name string, line *regexp.Regexp, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string, string) {
 	listed, ok := jobs(r.ID)
 	if !ok {
-		return 0, nil
+		return 0, nil, "jobs listing unavailable"
 	}
-	var record *job
-	for i := range listed {
-		if listed[i].Name != name {
-			continue
-		}
-		if record != nil {
-			return 0, nil
-		}
-		record = &listed[i]
-	}
-	if record == nil || record.ID <= 0 || record.RunID != r.ID || record.HeadSHA != r.HeadSHA || record.Status != "completed" || record.Conclusion != "success" {
-		return 0, nil
+	record, reason := successfulJob(r, name, listed)
+	if reason != "" {
+		return 0, nil, reason
 	}
 	text, ok := logs(record.ID)
 	if !ok {
-		return 0, nil
+		return 0, nil, name + ": log unavailable"
 	}
 	var found []string
 	for _, l := range strings.Split(strings.ReplaceAll(string(text), "\r", ""), "\n") {
 		if m := line.FindStringSubmatch(l); m != nil {
 			if found != nil {
-				return 0, nil
+				return 0, nil, name + ": multiple record lines"
 			}
 			found = m
 		}
 	}
-	return record.ID, found
+	if found == nil {
+		return 0, nil, name + ": no record line"
+	}
+	// CIN-V0-7600: the record attests all indexed shards; the narrowed record also
+	// requires docs-plan, narrowing-verdict and go-product success in its condition.
+	n, err := strconv.Atoi(found[len(found)-1])
+	if err != nil || n < 1 || n > maxShards {
+		return 0, nil, name + ": invalid shard count"
+	}
+	required := make([]string, 0, n+3)
+	for i := 0; i < n; i++ {
+		required = append(required, fmt.Sprintf("go-product-shard (%d)", i))
+	}
+	if name == NarrowedRecordJob {
+		required = append(required, "docs-plan", "narrowing-verdict", "go-product")
+	}
+	for _, j := range listed {
+		if strings.HasPrefix(j.Name, "go-product-shard") && !contains(required, j.Name) {
+			return 0, nil, "ambiguous shard job identity: " + j.Name
+		}
+	}
+	for _, requiredName := range required {
+		if _, reason := successfulJob(r, requiredName, listed); reason != "" {
+			return 0, nil, reason
+		}
+	}
+	return record.ID, found, ""
+}
+
+// successfulJob requires one unambiguous latest job, bound to the candidate run and head.
+// Advisory jobs are ignored unless they collide with a required job's numeric identity.
+func successfulJob(r run, name string, listed []job) (*job, string) {
+	var found *job
+	for i := range listed {
+		if listed[i].Name == name {
+			if found != nil {
+				return nil, name + ": ambiguous job name"
+			}
+			found = &listed[i]
+		}
+	}
+	if found == nil {
+		return nil, name + ": missing job"
+	}
+	if found.ID <= 0 || found.RunID != r.ID || found.HeadSHA != r.HeadSHA {
+		return nil, name + ": job id, run or head mismatch"
+	}
+	for i := range listed {
+		if &listed[i] != found && listed[i].ID == found.ID {
+			return nil, name + ": ambiguous job id"
+		}
+	}
+	if found.Status != "completed" || found.Conclusion != "success" {
+		return nil, fmt.Sprintf("%s: requires completed success (status=%q conclusion=%q)", name, found.Status, found.Conclusion)
+	}
+	return found, ""
 }
 
 // Decide returns REUSE only when one admitted run's record job vouched for tree over every
@@ -242,15 +329,16 @@ func Decide(repository, event, tree, head, target, base string, shards int, runs
 // decideWith is Decide with an optional reader of retained commits API responses (AFP-V0-100).
 func decideWith(repository, event, tree, head, target, base string, shards int, runs []run, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool), commits func(string) (commit, bool)) decision {
 	d := decision{Profile: profile, Mode: "FULL", Tree: tree, Head: head, Shards: shards, Records: []string{}}
-	admitted := 0
 	var candidate, full *delta
 	for _, r := range runs {
-		if !admits(r, repository, event, head, target) {
+		if ok, reason := admits(r, repository, event, head, target); !ok {
+			if d.Reason == "" {
+				d.Reason = reason
+			}
 			continue
 		}
-		admitted++
 		if candidate == nil && event == "merge_group" && oidPattern.MatchString(base) {
-			if id, found := narrowedRecordOf(r, head, shards, jobs, logs); found != nil {
+			if id, found, _ := narrowedRecordOf(r, head, shards, jobs, logs); found != nil {
 				candidate = &delta{RunID: r.ID, RecordJobID: id, Tree: found[1], Target: found[2], Base: found[3], Head: found[4]}
 			}
 		}
@@ -258,11 +346,15 @@ func decideWith(repository, event, tree, head, target, base string, shards int, 
 			full = fullRecordDelta(r, tree, head, shards, jobs, logs, commits)
 		}
 		scope := "FULL"
-		jobID := recorded(r, tree, head, shards, jobs, logs)
+		jobID, reason := recorded(r, tree, head, shards, jobs, logs)
 		if jobID == 0 && event == "merge_group" {
-			scope, jobID = "NARROWED", recordedNarrowed(r, tree, base, head, shards, jobs, logs)
+			scope = "NARROWED"
+			var narrowedReason string
+			jobID, narrowedReason = recordedNarrowed(r, tree, base, head, shards, jobs, logs)
+			reason += "; " + narrowedReason
 		}
 		if jobID == 0 {
+			d.Reason = reason
 			continue
 		}
 		records := make([]string, 0, shards)
@@ -273,18 +365,16 @@ func decideWith(repository, event, tree, head, target, base string, shards int, 
 		d.Mode, d.Scope, d.RunID, d.RecordJobID, d.Records = "REUSE", scope, &id, &jobID, records
 		if scope == "NARROWED" {
 			d.Base = base
-			d.Reason = "the narrowed-record job of a successful pull-request run named this exact tree and this entry's base after its shards passed one proven narrowed selection of the same range"
+			d.Reason = "the narrowed-record job of a pull-request run named this exact tree and this entry's base after its shards passed one proven narrowed selection of the same range"
 		} else if r.Event == "merge_group" {
-			d.Reason = "the record job of a successful merge-queue run of this commit named this exact tree after every shard passed in full"
+			d.Reason = "the record job of a merge-queue run of this commit named this exact tree after every shard passed in full"
 		} else {
-			d.Reason = "the record job of a successful pull-request run named this exact tree after every shard passed in full"
+			d.Reason = "the record job of a pull-request run named this exact tree after every shard passed in full"
 		}
 		return d
 	}
-	if admitted == 0 {
+	if d.Reason == "" {
 		d.Reason = "no admitted successful run: a pull-request run of the merged head or, for a push, a merge-queue run of this commit"
-	} else {
-		d.Reason = "no admitted run's record job named this exact tree for every shard"
 	}
 	d.Delta = candidate
 	if d.Delta == nil {

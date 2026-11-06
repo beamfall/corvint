@@ -1,0 +1,300 @@
+{
+  "jobs": [
+    {
+      "id": 127523722434,
+      "run_id": 42106672783,
+      "name": "narrowing-verdict",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523722749,
+      "run_id": 42106672783,
+      "name": "web-flows-plan",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523722777,
+      "run_id": 42106672783,
+      "name": "docs-plan",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523722800,
+      "run_id": 42106672783,
+      "name": "doc-gates",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523722849,
+      "run_id": 42106672783,
+      "name": "host-adapters",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523722878,
+      "run_id": 42106672783,
+      "name": "artifact-integrity",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523722985,
+      "run_id": 42106672783,
+      "name": "go-interop",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523723068,
+      "run_id": 42106672783,
+      "name": "shell-test-selected",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523723190,
+      "run_id": 42106672783,
+      "name": "local-authority-deps",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523723302,
+      "run_id": 42106672783,
+      "name": "cce-live",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127523724719,
+      "run_id": 42106672783,
+      "name": "doc-gates-reuse",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 127523769677,
+      "run_id": 42106672783,
+      "name": "static-reuse",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 127523883571,
+      "run_id": 42106672783,
+      "name": "go-static",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345223,
+      "run_id": 42106672783,
+      "name": "go-macos",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 127524345653,
+      "run_id": 42106672783,
+      "name": "go-product-shard (15)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345664,
+      "run_id": 42106672783,
+      "name": "go-product-shard (3)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345688,
+      "run_id": 42106672783,
+      "name": "go-product-shard (14)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345690,
+      "run_id": 42106672783,
+      "name": "go-product-shard (10)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345705,
+      "run_id": 42106672783,
+      "name": "go-product-shard (13)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345706,
+      "run_id": 42106672783,
+      "name": "go-product-shard (2)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345717,
+      "run_id": 42106672783,
+      "name": "go-product-shard (12)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345741,
+      "run_id": 42106672783,
+      "name": "go-product-shard (7)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345800,
+      "run_id": 42106672783,
+      "name": "go-product-shard (0)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345802,
+      "run_id": 42106672783,
+      "name": "go-product-shard (5)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345807,
+      "run_id": 42106672783,
+      "name": "go-product-shard (11)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345820,
+      "run_id": 42106672783,
+      "name": "go-product-shard (6)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345853,
+      "run_id": 42106672783,
+      "name": "go-product-shard (1)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345898,
+      "run_id": 42106672783,
+      "name": "go-product-shard (8)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524345918,
+      "run_id": 42106672783,
+      "name": "go-product-shard (9)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524346013,
+      "run_id": 42106672783,
+      "name": "go-product-shard (4)",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127524679908,
+      "run_id": 42106672783,
+      "name": "web-flows",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127529876548,
+      "run_id": 42106672783,
+      "name": "doc-gates-record",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127532712921,
+      "run_id": 42106672783,
+      "name": "artifact-integrity-record",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127535318839,
+      "run_id": 42106672783,
+      "name": "go-product",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127535318875,
+      "run_id": 42106672783,
+      "name": "ci-shard-cost-drift",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 127535322105,
+      "run_id": 42106672783,
+      "name": "ci-tested-tree-record",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 127535388505,
+      "run_id": 42106672783,
+      "name": "ci-narrowed-tree-record",
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

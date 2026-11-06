@@ -348,19 +348,23 @@ cat "$STUB_DIR/$f" > "$out"
 	}
 	// AFP-V0-734: a narrowed pull-request run's ci-narrowed-tree-record job vouches only for a
 	// merge-queue entry whose first parent is the base it names; never for a main push.
+	// The narrowed record explicitly attests these successful guards and aggregate.
+	for i, name := range []string{"docs-plan", "narrowing-verdict", "go-product"} {
+		shards = append(shards, map[string]any{"id": 119345281250 + i, "run_id": runID, "name": name, "head_sha": head, "status": "completed", "conclusion": "success"})
+	}
 	narrowedJob := map[string]any{"id": recordID, "run_id": runID, "name": NarrowedRecordJob, "head_sha": head,
 		"status": "completed", "conclusion": "success"}
 	narrowed := func(base string) string {
 		return fmt.Sprintf("2026-10-28T10:00:00.0000000Z corvint-ci-tested-tree/2 scope=NARROWED tree=%s target=%s base=%s head=%s shards=8\n",
 			tree, strings.Repeat("e", 40), base, head)
 	}
-	if out, log := decide("merge_group", append(shards[:8:8], narrowedJob), narrowed(base)); out != "mode=REUSE\n" ||
+	if out, log := decide("merge_group", append(shards[:len(shards):len(shards)], narrowedJob), narrowed(base)); out != "mode=REUSE\n" ||
 		!strings.Contains(log, `"scope":"NARROWED"`) {
 		t.Errorf("merge_group: a narrowed record of this tree and base: output %q, want REUSE\n%s", out, log)
 	}
 	// AFP-V0-812: a narrowed record of another base is FULL and hands the record on as the delta
 	// candidate, one JSON line naming the record's run, job, tree, target, base and head.
-	out, log := decide("merge_group", append(shards[:8:8], narrowedJob), narrowed(head))
+	out, log := decide("merge_group", append(shards[:len(shards):len(shards)], narrowedJob), narrowed(head))
 	if strings.Contains(out, "mode=REUSE") || !strings.HasPrefix(out, "delta=") || strings.Count(out, "\n") != 1 {
 		t.Errorf("merge_group: a narrowed record of another base: output %q, want only a delta\n%s", out, log)
 	} else {
@@ -370,10 +374,10 @@ cat "$STUB_DIR/$f" > "$out"
 			t.Errorf("merge_group: delta = %+v (%v), want %+v", got, err, want)
 		}
 	}
-	if out, log := decide("merge_group", append(shards[:8:8], narrowedJob), narrowed(base)); strings.Contains(out, "delta=") {
+	if out, log := decide("merge_group", append(shards[:len(shards):len(shards)], narrowedJob), narrowed(base)); strings.Contains(out, "delta=") {
 		t.Errorf("merge_group: an exact narrowed reuse also named a delta %q\n%s", out, log)
 	}
-	if out, log := decide("push", append(shards[:8:8], narrowedJob), narrowed(base)); out != "" {
+	if out, log := decide("push", append(shards[:len(shards):len(shards)], narrowedJob), narrowed(base)); out != "" {
 		t.Errorf("push: a narrowed record decided %q, want nothing\n%s", out, log)
 	}
 	fullDelta(t, decide, git, put, commitFiles, &target, &tree, append(shards[:8:8], recordJob), line, head, base, runID, recordID)
