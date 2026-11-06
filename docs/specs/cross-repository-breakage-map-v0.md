@@ -188,7 +188,7 @@ the V1 entity seam and missing entities. `TestBreakageBaseAndModuleGaps` covers
 unchanged/renamed/deleted API states, foreign bases and hidden nested modules.
 `TestBreakageEdgeBound` checks truncation. CLI argument tests exercise the same runner:
 the handlers live in `internal/command/breakage` with their package-local tests, while
-`cmd/corvint/breakage.go` keeps the `--root` preamble, dispatch and help (V1-4747 slice 1).
+`cmd/corvint/breakage.go` keeps the `--root` preamble and a one-line wrapper that root dispatch calls (V1-4747 slice 1).
 `TestBreakageBuildConstraintLookalikes` retains callers for directive literals and
 interior platform filename components. `TestBreakageBuildConditional` distinguishes
 actual directive comments and platform suffixes from ordinary comment text and names.
