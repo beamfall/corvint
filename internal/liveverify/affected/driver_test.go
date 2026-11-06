@@ -423,3 +423,100 @@ func TestDriverUnresolvedLocalUses_AZU_V0_9853(t *testing.T) {
 		})
 	}
 }
+
+func TestDriverCallersOfContainedTests_AZU_V0_001(t *testing.T) {
+	graph := driverGraph(t, map[string]string{
+		"Makefile":                  "check:\n\tgo test -race ./core/...\nall: check\n",
+		".github/workflows/ci.yml":  "jobs:\n  check:\n    steps:\n      - run: make check\n  after:\n    needs: check\n    steps:\n      - run: echo done\n",
+		"consumer/consumer.go":      "package consumer\nimport \"example.test/m/core\"\nvar Value = core.Value\n",
+		"consumer/consumer_test.go": "package consumer\nimport \"testing\"\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+	}, nil)
+	dirty := []string{"core/core_test.go"}
+	plan := affected.Select(graph, dirty)
+	want := []string{"driver:make:Makefile#check", makeAll, "driver:ci:.github/workflows/ci.yml#check", "driver:ci:.github/workflows/ci.yml#after"}
+	wantDriverSelection(t, driverSelected(t, plan), want, nil)
+	selected := map[string]bool{}
+	for _, selection := range plan.Selected {
+		selected[selection.UnitID] = true
+	}
+	if !selected["go:example.test/m/core"] || selected["go:example.test/m/consumer"] {
+		t.Fatalf("test-only importer isolation lost: %v", selected)
+	}
+	beyond := graph.ReachedBeyondOwnTests(dirty)
+	for _, id := range want {
+		if _, ok := beyond[id]; !ok {
+			t.Errorf("driver %s absent beyond own tests", id)
+		}
+	}
+	if _, ok := beyond["go:example.test/m/core"]; ok {
+		t.Fatal("contained own tests included beyond own tests")
+	}
+	if _, ok := beyond["go:example.test/m/consumer"]; ok {
+		t.Fatal("ordinary importer reached beyond own tests")
+	}
+}
+
+func TestDriverImplicitGoPackage_AZU_V0_001(t *testing.T) {
+	for _, command := range []string{
+		"cd core && go test", "cd core && go test -race",
+		"cd core && go test -count 1", "cd core && go test -args -custom",
+		"go -C core test -race", "cd core && go vet", "cd core && go build",
+	} {
+		t.Run(command, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				"Makefile":                 "check:\n\t" + command + "\nall: check\n",
+				".github/workflows/ci.yml": "jobs:\n  check:\n    steps:\n      - run: make check\n  after:\n    needs: check\n    steps:\n      - run: echo done\n",
+			}, nil)
+			selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, "driver:ci:.github/workflows/ci.yml#check", "driver:ci:.github/workflows/ci.yml#after"}, nil)
+		})
+	}
+}
+
+func TestDriverFlowMappingKeepsUncertainty_AZU_V0_001(t *testing.T) {
+	for _, steps := range []string{
+		"\n      - {run: 'go test -race ./core/...'}",
+		"\n      - {run: 'go test -race ./core/...', name: race}",
+		" [{run: 'go test -race ./core/...'}]",
+	} {
+		t.Run(steps, func(t *testing.T) {
+			graph := driverGraph(t, map[string]string{
+				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:" + steps + "\n",
+			}, nil)
+			plan := affected.Select(graph, []string{"core/core.go"})
+			if plan.Scope == affected.ScopeUnknown && len(plan.Unknown) > 0 {
+				return
+			}
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == jobUnit }) {
+				t.Fatalf("flow step silently dropped: %+v", plan)
+			}
+		})
+	}
+}
+
+func TestDriverUnparsableReaderExclusions_AZU_V0_001(t *testing.T) {
+	files := map[string]string{
+		"data/evidence.json":        "{}",
+		affected.RuntimeReadersPath: `{"profile":"corvint-runtime-readers/0","entries":[{"path":"data/evidence.json","reason":"read only by literal readers"}]}`,
+		".github/workflows/ci.yml":  "jobs:\n  unit:\n    steps:\n      - &unsupported {run: 'go test -race ./core/...'}\n",
+	}
+	plan := affected.Select(driverGraph(t, files, nil), []string{"data/evidence.json"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("unproven data reader lost uncertainty: %+v", plan)
+	}
+	files[affected.UnboundedReaderExclusionsPath] = `{"profile":"corvint-unbounded-reader-exclusions/0","paths":["data/evidence.json"]}`
+	graph := driverGraph(t, files, nil)
+	plan = affected.Select(graph, []string{"data/evidence.json"})
+	if plan.Scope != affected.ScopeBounded || len(plan.Unknown) != 0 {
+		t.Fatalf("project reader proof ignored: %+v", plan)
+	}
+	plan = affected.Select(graph, []string{"data/evidence.json", "core/core.go"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("data proof hid code change: %+v", plan)
+	}
+	files[".github/workflows/ci.yml"] = "jobs:\n  unit:\n    steps:\n      - &unsupported {run: 'cat data/evidence.json'}\n"
+	plan = affected.Select(driverGraph(t, files, nil), []string{"data/evidence.json"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("data proof hid literal reader: %+v", plan)
+	}
+}
