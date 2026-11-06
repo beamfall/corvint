@@ -6,11 +6,14 @@
     {
       "name": "kernel",
       "layer": 0,
-      "summary": "process, Git, path and runtime primitives every area may use",
+      "summary": "process, Git, path and runtime primitives, and leaf packages, that every area may use",
       "prefixes": [
         "internal/archivepath",
+        "internal/cem/cemcode",
+        "internal/cem/coverprofile",
         "internal/cem/gitauth",
         "internal/cem/gitrun",
+        "internal/cem/witnesspaths",
         "internal/clitree",
         "internal/diagnostic",
         "internal/execfile",
@@ -21,6 +24,7 @@
         "internal/gokernel",
         "internal/groupreap",
         "internal/jsonend",
+        "internal/mcp/protocol",
         "internal/procgroup",
         "internal/procprofile",
         "internal/projectpath",
@@ -52,7 +56,7 @@
       "layer": 1,
       "summary": "wire and declaration packages shared across areas",
       "prefixes": [
-        "internal/cem/cemcode",
+        "internal/cem/patch",
         "internal/cem/wire",
         "internal/langplugin/decl",
         "internal/taskprojection",
