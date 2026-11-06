@@ -57,6 +57,20 @@ func inputDecision(ctx context.Context, root, base string) (bool, string) {
 	if _, err := os.Stat(filepath.Join(root, "vendor", "modules.txt")); err == nil || !os.IsNotExist(err) {
 		return true, "unknown read set: vendored compilation"
 	}
+	workspace, err := run(ctx, root, "go", "env", "GOWORK")
+	if err != nil {
+		return true, "unknown read set: workspace configuration unavailable"
+	}
+	if workspace = strings.TrimSpace(workspace); workspace != "" && workspace != "off" {
+		return true, "unknown read set: workspace or local-module compilation read set is unbounded"
+	}
+	modules, err := run(ctx, root, "go", "list", "-mod=readonly", "-m", "-json", "all")
+	if err != nil {
+		return true, "unknown read set: module graph unavailable"
+	}
+	if err := boundModuleGraph(root, strings.NewReader(modules)); err != nil {
+		return true, "unknown read set: " + err.Error()
+	}
 	listed, err := run(ctx, root, "go", "list", "-mod=readonly", "-deps", "-json", "./cmd/corvint", "./tools/gate-affected-select", "./tools/selection-baseline")
 	if err != nil {
 		return true, "unknown read set: compilation closure unavailable"
@@ -70,6 +84,38 @@ func inputDecision(ctx context.Context, root, base string) (bool, string) {
 		return true, "unknown read set: reader index unavailable"
 	}
 	return decideInputs(paths, dirs, bounds, module+"/tools/selection-baseline", base)
+}
+
+// Even a module with no imported package can affect version selection through
+// its requirements (or, in a workspace, replacements). Check the module graph,
+// rather than relying only on modules appearing in the package closure.
+func boundModuleGraph(root string, input io.Reader) error {
+	physical, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("module root unavailable")
+	}
+	dec := json.NewDecoder(input)
+	count := 0
+	for {
+		var module struct {
+			Main    bool
+			Dir     string
+			Replace *struct{ Version string }
+		}
+		if err := dec.Decode(&module); err == io.EOF {
+			break
+		} else if err != nil {
+			return fmt.Errorf("module graph malformed")
+		}
+		count++
+		if (module.Main && module.Dir != root && module.Dir != physical) || (module.Replace != nil && module.Replace.Version == "") {
+			return fmt.Errorf("workspace or local-module compilation read set is unbounded")
+		}
+	}
+	if count == 0 {
+		return fmt.Errorf("module graph empty")
+	}
+	return nil
 }
 
 // eventBase uses the tested event's immutable base, never HEAD^ (which could
@@ -128,6 +174,7 @@ func compilationDirs(root string, input io.Reader) ([]string, error) {
 			SFiles, SwigFiles, SwigCXXFiles, SysoFiles []string
 			Module                                     *struct {
 				Main    bool
+				Dir     string
 				Version string
 				Replace *struct{ Version string }
 			}
@@ -163,6 +210,12 @@ func compilationDirs(root string, input io.Reader) ([]string, error) {
 				return nil, fmt.Errorf("compilation reads an unpinned external directory")
 			}
 			continue
+		}
+		// Workspace modules and local replacements have their own manifests,
+		// sums and replacement graphs outside the package subtrees below. Their
+		// resolution is not bounded by the root manifests: run conservatively.
+		if pkg.Module != nil && ((pkg.Module.Main && pkg.Module.Dir != "" && filepath.Clean(pkg.Module.Dir) != lexicalRoot && filepath.Clean(pkg.Module.Dir) != root) || (pkg.Module.Replace != nil && pkg.Module.Replace.Version == "")) {
+			return nil, fmt.Errorf("workspace or local-module compilation read set is unbounded")
 		}
 		if rel == "." {
 			return nil, fmt.Errorf("compilation reads the root package")

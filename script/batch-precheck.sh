@@ -730,10 +730,10 @@ lane_own_skip() {
   done
 }
 
-# select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
-# diff read but no usable plan, only when no Go input and no declared input changed at all.
+# select_baseline retains selection for legacy recipes. Recipes with the shared
+# ASD-V0-944 preflight must reach it, including declaration-only edits and unknowns.
 select_baseline() {
-  local pkgs tok p expanded
+  local pkgs tok p expanded recipe
   grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
   # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
   if [[ $lane_closeout == 1 ]]; then
@@ -751,6 +751,10 @@ select_baseline() {
     printf 'batch-precheck: %s\n' "$sb_deferred"
     return 0
   fi
+  recipe=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null)
+  # The shared recipe bounds compilation and validates reader declarations.
+  # The old outer input list cannot prove either, even with a usable plan.
+  [[ $recipe != *SELECTION_BASELINE_INPUTS_BASE=* ]] || return 0
   # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')

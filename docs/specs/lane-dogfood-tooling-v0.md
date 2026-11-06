@@ -59,7 +59,7 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   `DOC_GATE_JOBS`; an empty or non-positive-integer value MUST be refused before any gate runs,
   never widened to an unbounded `-j`); every target MUST still run and failures MUST propagate. Each target MUST
   print elapsed seconds and status. A serial override MUST retain identical gate inventory. Selection-baseline replay defaults
-  to at most sixteen independent workers, bounded by CPUs, the change count and one GiB of available memory per worker (including observable cgroup remaining memory; two workers when memory is unobservable); its existing
+  to at most sixteen independent workers, bounded by CPUs, the change count and one GiB of available memory per worker (including remaining memory at the process’s cgroup and all visible ancestors resolved through membership and controller mounts; two workers when memory is unobservable); its existing
   SELECTION_BASELINE_JOBS override remains explicit. Every immutable range and result MUST still
   be measured, ordered and checked, with identical floor/miss/fallback semantics.
 - `DTL-V0-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4465; refines AFP-V0-041)

@@ -116,6 +116,50 @@ func TestBaselineUnknownReadSetASDV0944(t *testing.T) {
 	}
 }
 
+// A participating module's manifest can change resolution without touching its
+// imported package subtree. Local module graphs must not be declared disjoint.
+func TestBaselineModuleManifestOnlyASDV0944(t *testing.T) {
+	for _, workspace := range []bool{false, true} {
+		t.Run(map[bool]string{false: "replacement", true: "workspace"}[workspace], func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("GOWORK", "off")
+			baselineFile(t, root, "go.mod", "module example.com/baseline\n\ngo 1.27.0\nrequire example.com/lib v0.0.0\nreplace example.com/lib => ./lib\n")
+			baselineFile(t, root, "lib/go.mod", "module example.com/lib\n\ngo 1.27.0\n")
+			baselineFile(t, root, "lib/engine/engine.go", "package engine\n")
+			baselineFile(t, root, "cmd/corvint/main.go", "package main\nimport _ \"example.com/lib/engine\"\nfunc main() {}\n")
+			for _, p := range []string{"tools/gate-affected-select/main.go", "tools/selection-baseline/main.go"} {
+				baselineFile(t, root, p, "package main\nfunc main() {}\n")
+			}
+			baselineFile(t, root, ".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"tools/selection-baseline":["benchmarks/selection-baseline/"]}}`)
+			if workspace {
+				baselineFile(t, root, "go.work", "go 1.27.0\nuse (\n.\n./lib\n)\n")
+				t.Setenv("GOWORK", filepath.Join(root, "go.work"))
+				baselineFile(t, root, "go.mod", "module example.com/baseline\n\ngo 1.27.0\nrequire example.com/lib v0.0.0\n")
+			}
+			baselineGit(t, root, "init", "-q")
+			baselineGit(t, root, "add", ".")
+			baselineGit(t, root, "commit", "-qm", "base")
+			base := baselineGit(t, root, "rev-parse", "HEAD")
+			baselineFile(t, root, "lib/go.mod", "module example.com/lib\n\ngo 1.27.0\n// manifest-only change\n")
+			if diff := baselineGit(t, root, "diff", "--name-only", base); diff != "lib/go.mod" {
+				t.Fatalf("not a manifest-only fixture: %s", diff)
+			}
+			if run, why := inputDecision(context.Background(), root, base); !run || !strings.Contains(why, "workspace or local-module") {
+				t.Fatalf("manifest skipped: %v %s", run, why)
+			}
+			// Modules without imported packages can still change version selection.
+			baselineFile(t, root, "cmd/corvint/main.go", "package main\nfunc main() {}\n")
+			baselineGit(t, root, "add", ".")
+			baselineGit(t, root, "commit", "-qm", "no imported lib package")
+			base = baselineGit(t, root, "rev-parse", "HEAD")
+			baselineFile(t, root, "lib/go.mod", "module example.com/lib\n\ngo 1.27.0\n// another manifest-only change\n")
+			if run, why := inputDecision(context.Background(), root, base); !run || !strings.Contains(why, "workspace or local-module") {
+				t.Fatalf("unimported module manifest skipped: %v %s", run, why)
+			}
+		})
+	}
+}
+
 func TestBaselineCIBaseASDV0944(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "event.json")
 	base := strings.Repeat("a", 40)
