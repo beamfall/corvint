@@ -7001,6 +7001,8 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	`corvint dogfood handof
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --	owner	decision 0472; V1-0500
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and	owner	decision 0472; V1-0500
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --	owner	decision 0472; V1-0500
+STR-V0-7305	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard	standing	2026-10-11; V1-4472
+STR-V0-7313	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-05; V1-3424
 STR-V0-7500	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The decl	standing	2026-10-11; V1-4356
 STR-V0-001	docs/specs/session-test-runner-v0.md	`corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced	unrecorded	-
 STR-V0-002	docs/specs/session-test-runner-v0.md	The run set SHALL be, per language, the union of the plan's selected units and t	unrecorded	-
@@ -7736,6 +7738,14 @@ TRE-V0-078	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 20
 TRE-V0-079	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TRE-V0-080	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TRE-V0-087	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1553) A	standing	2026-10-11; V1-1553
+TSP-V0-7301	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3912) A scratc	standing	2026-10-11; V1-3912
+TSP-V0-7303	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4279) Every UN	standing	2026-10-11; V1-4279
+TSP-V0-7305	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-05; V1-4472
+TSP-V0-7311	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4439) Full, co	standing	2026-10-11; V1-4439
+TSP-V0-7317	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4484) The fres	standing	2026-10-11; V1-4484
+TSP-V0-7318	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4576) The incr	standing	2026-10-11; V1-4576
+TSP-V0-7315	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4381) The comm	standing	2026-10-11; V1-4381
+TSP-V0-7302	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3913) A foreig	standing	2026-10-11; V1-3913
 TSP-V0-001	docs/specs/test-selection-precision-v0.md	(experimental, amending AFP-V0-580, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-002	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3160)	standing	2026-10-11; V1-3160
 TSP-V0-003	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11
