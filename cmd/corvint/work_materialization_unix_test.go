@@ -264,6 +264,7 @@ func workInterruptActualProducer(t *testing.T, ctx context.Context, run *workMat
 // TestWorkGitGroupProducerHelper is the producer TestWorkCloseRetiresKilledProducerGit
 // kills: it acquires source in the run's scratch and blocks in a fixture Git read.
 func TestWorkGitGroupProducerHelper(t *testing.T) {
+	t.Parallel()
 	target := os.Getenv("CORVINT_WORK_TEST_GIT_PRODUCER_TARGET")
 	if target == "" {
 		t.Skip("producer helper")

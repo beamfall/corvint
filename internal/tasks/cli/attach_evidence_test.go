@@ -16,6 +16,7 @@ import (
 // unchanged, an identical retry replays, a repeated digest refuses, and
 // `receipt audit` stays CONSISTENT.
 func TestTEAV0001_TicketAttachEvidenceThroughTheCLI(t *testing.T) {
+	t.Parallel()
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())

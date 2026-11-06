@@ -79,9 +79,11 @@ measure. None of them drops a unit the change can reach.
   without a deadline keeps `GitCancelled`. `ErrStatusUnavailable` still wraps both.
 
 - **AFP-V0-549:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2728)
+  Amended under the owner's standing auto-accept, 2026-11-04, V1-4576, TSP-V0-7318:
   `TestIncrementalSelectionMeetsTheLiveBudget` MUST measure up to three rounds of 32 interleaved
-  selection and probe samples, stop at the first round within the budget, and enforce the budget
-  on the round with the lowest selection-to-probe p95 ratio. A slower Select is over the budget in
+  samples per representative edit, bracketing each selection with calibration probes before and
+  after it. It MUST normalize each selection against the mean of the two adjacent probes, stop at the first
+  round within the budget, and enforce the round with the lowest normalized p95. A slower Select is over the budget in
   every round and still fails; a transient spike from a concurrent heavy.sh run does not. The
   budget, the probe and the reference ratio are unchanged.
 
@@ -356,21 +358,28 @@ measure. None of them drops a unit the change can reach.
   labelled `static-reach` and selects no linked test by itself. The `strict` and `coverage`
   profiles are unchanged (AFU-V1-024).
 - **AFP-V0-2487:** (experimental under the owner's standing lane auto-accept (2026-10-11);
-  V1-1189) `corvint affected --fail-fast-order` MUST add an `order` member to the compact plan.
+  V1-1189; amended under the owner's standing auto-accept, 2026-11-04, V1-4472,
+  TSP-V0-7305; amended under the owner's standing auto-accept, 2026-11-05, self-review repair) `corvint affected --fail-fast-order` MUST add an `order` member to the compact plan.
   `order.key` is `["recent-local-failure", "plan-order"]`. `order.units` lists every
   `plan.selected` unit once, as `{unitId, recentFailure, planIndex}`: units with a recent local
   failure first, each group in `plan.selected` order. That order is already AFP-V0-007's: via
   length, then proximity, then unit id. `order.failures` names the evidence. Its `receipts` list
   holds each `corvint test` receipt read from `<git-dir>/corvint/test-run.json` and
-  `test-run.<n>.json`, at most 64: the most recently modified, ties broken by name, listed in
-  name order, so a fresh `test-run.json` is never dropped for older shard names that sort before
-  it. Each is read by the STR-V0-010 strict reader. Each entry has the
+  `test-run.<n>.json`, at most 64: probe the newest 64 mtime-ordered candidates (ties by name),
+  plus the unsharded `test-run.json` when outside that prefix. Retain the newest 64 of that pool
+  by valid RFC3339Nano `completedAt` from bounded 64 KiB headers, with mtime fallback and name
+  as tie breaker. List retained receipts in name order. At most 65 headers are probed; no
+  completion-time recency is claimed for older shards outside the pool. Metadata Info
+  failures MUST be disclosed in `order.failures.detail` even outside the retained 64 and make
+  no recency claim; they set the aggregate state to `UNREADABLE`. Each retained receipt is
+  read by the STR-V0-010 strict reader. Each entry has the
   `path` relative to the Git directory, `state` `OBSERVED` or `UNREADABLE` (with `detail`), and
   for an observed receipt its `sha256`, `revision` and `failed` (units with a `FAIL`,
-  `BUILD_FAILED` or `TIMED_OUT` outcome, sorted). `order.failures.state` is `OBSERVED` when any
-  receipt was read, `UNREADABLE` with a `detail` and no receipt when `<git-dir>/corvint` exists
-  but cannot be listed (a permission error, for example), and `NOT_OBSERVED` otherwise, an absent
-  directory included. The order only reorders: `plan.selected`, the
+  `BUILD_FAILED` or `TIMED_OUT` outcome, sorted). `order.failures.state` is `OBSERVED` when a
+  canonical receipt was observed and no candidate metadata failed. It is `UNREADABLE` with a
+  `detail` when `<git-dir>/corvint` exists but cannot be listed (no receipts), or when candidate
+  metadata fails (other observed receipts remain). It is `NOT_OBSERVED` otherwise, including
+  an absent directory. The order only reorders: `plan.selected`, the
   tiers and every other member are byte-identical with and without the flag. Without the flag
   nothing is read. The flag is refused with `--full`, `--summary`, `--by-path`,
   `--format text` and `--playwright-config`, whose documents carry no compact plan member.
@@ -606,7 +615,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 |---|---|---|
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
-| AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`) |
+| AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
 | AFP-V0-550 | `affectedWhole`, `withWholePackages`, `testMainSource`, `testMainOf` in `cmd/corvint/affected_whole.go`; `WholePackages` in `cmd/corvint/affected.go`; `cmd/corvint/affected_compact.go` | `TestAFPV0550TestMainChangeMakesThePackageWhole` in `cmd/corvint/affected_whole_test.go` |
 | AFP-V0-551 | `FixturePathMarker`, `fileScan.fixture`, `fixtureOnly`, `scannedLiteral`, `fixtureTokens`, `pathTokens` and `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestAFPV0551FixtureMarkedLiteralsNameNoRead` in `internal/liveverify/affected/golang/fixture_marker_test.go`; before/after counts in build log `2026-11-01-aff-w26` |
 | AFP-V0-552 | `astImports`, `differentialCorpus` in `internal/liveverify/affected/python/differential_test.go` | `TestScanImportsAgreesWithAst_V13322` |

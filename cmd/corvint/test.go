@@ -31,12 +31,12 @@ Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
     [--profile local|ci [--confine PATH]] [--go-parallel N]
-    [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
+    [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
 
---format json explicitly selects the existing JSON output (default); it cannot
+--format json explicitly selects JSON, including for a local dry run; it cannot
 combine with --summary or --pins. Example: corvint test --base HEAD --dry-run --format json.
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
@@ -91,9 +91,11 @@ receipt argv record it, and every shard of one manifest must pass the same
 value. Example: corvint test --base "$(git merge-base HEAD origin/main)"
 --go-parallel 4.
 
---dry-run prints the shard's argv as JSON and runs nothing but Git;
---manifest PATH writes the corvint-test-manifest/0 there. With --summary
-a dry run prints instead a text summary of at most 4 KiB: scope, reason,
+--dry-run runs nothing but Git. The local profile defaults to a text
+summary of at most 4 KiB; the CI profile retains JSON for pinned consumers.
+--full prints the complete JSON argv listing; --summary explicitly selects
+the default summary. --manifest PATH writes the same corvint-test-manifest/0
+in every form. The summary contains: scope, reason,
 unit counts by adapter and slice, the first selected units and the counts
 of checks and incomplete entries (STR-V0-800). Example: corvint test
 --base "$(git merge-base HEAD origin/main)" --dry-run --summary.
@@ -134,7 +136,9 @@ type testOptions struct {
 	dryRun     bool
 	// summary is --summary: a dry run prints the bounded text summary
 	// instead of the JSON plan (STR-V0-800).
-	summary bool
+	summaryNoticeBytes int // stderr degradation bytes reserved from the shared summary budget.
+	summary            bool
+	full               bool // --full retains the complete JSON dry-run document (STR-V0-7313).
 	// pins is --pins: a dry run prints the advisory pinned tests instead
 	// of the JSON plan (TSP-V0-944).
 	pins bool
@@ -194,9 +198,10 @@ func parseTestOptions(args []string) (testOptions, error) {
 	once("go-parallel", &goParallel)
 	f.BoolVar(&options.dryRun, "dry-run", false, "")
 	f.BoolVar(&options.summary, "summary", false, "")
+	f.BoolVar(&options.full, "full", false, "")
 	f.BoolVar(&options.pins, "pins", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -206,6 +211,8 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, argumentError(fmt.Sprintf("unexpected argument %q; %s", f.Arg(0), usage))
 	}
 	switch {
+	case options.full && (!options.dryRun || options.summary || options.pins):
+		return options, argumentError("--full applies only to --dry-run, without --summary or --pins")
 	case format != "json":
 		return options, argumentError("--format supports json only (DTL-V0-009)")
 	case seen["format"] && (options.summary || options.pins):
@@ -265,6 +272,9 @@ func parseTestOptions(args []string) (testOptions, error) {
 			return options, argumentError("a sharded --placement " + options.placement + " run needs --manifest PATH from one --dry-run, which every shard must reproduce (" + requirement + ")")
 		}
 	}
+	if seen["format"] {
+		options.full = true
+	}
 	return options, nil
 }
 
@@ -320,7 +330,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	started := time.Now()
 	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
 	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
-		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
+		notice := fmt.Sprintf("corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
+		_, _ = io.WriteString(stderr, notice)
+		options.summaryNoticeBytes = len(notice)
 	}
 	receiptFlag := "--receipt"
 	if options.receipt == "" && !options.dryRun {
@@ -370,7 +382,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
-	testVerdict(stderr, manifest)
+	if !testSummarySelected(options) {
+		testVerdict(stderr, manifest)
+	}
 	if options.dryRun {
 		if options.pins {
 			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
@@ -778,8 +792,8 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	switch {
 	case options.pins:
 		// The pins report was written in place of the JSON plan (TSP-V0-944).
-	case options.summary:
-		_, _ = io.WriteString(stdout, testDryRunSummary(m, digest, invocations, options.shard))
+	case testSummarySelected(options):
+		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes))
 	default:
 		encoded, err := gokernel.CanonicalJSON(document)
 		if err != nil {
@@ -788,7 +802,9 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 		}
 		_, _ = stdout.Write(append(encoded, '\n'))
 	}
-	testWholeReasons(invocations, m.Reason, stderr)
+	if !testSummarySelected(options) {
+		testWholeReasons(invocations, m.Reason, stderr)
+	}
 	if len(m.Incomplete) != 0 {
 		return testCommandExit[sessiontest.ResultIncomplete]
 	}
@@ -1012,4 +1028,10 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 	}
 	_, _ = stdout.Write(encoded)
 	return 0
+}
+
+// testSummarySelected chooses the bounded local/default or explicit summary projection.
+// Its verdict and whole-package advice live inside the same output budget (STR-V0-7313).
+func testSummarySelected(options testOptions) bool {
+	return options.dryRun && !options.pins && (options.summary || !options.full && options.profile != sessiontest.ProfileCI)
 }
