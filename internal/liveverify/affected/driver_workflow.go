@@ -295,9 +295,11 @@ func (p *driverYAMLParser) value(text string, parent int, mapValue bool) (*drive
 		}
 		return driverYAMLFlowSequence(flow)
 	case strings.HasPrefix(text, "{"):
-		// A mapping is not a scalar: treating it as one hides run/uses
-		// members. Keep the unparsable-file frontier for this unsupported form.
-		return nil, errDriverYAML
+		flow, err := p.flow(text, parent, '{', '}')
+		if err != nil {
+			return nil, err
+		}
+		return &driverYAML{scalar: flow}, nil
 	}
 	// A plain or quoted scalar continues on deeper lines.
 	parts := []string{text}
@@ -372,7 +374,7 @@ func driverYAMLFlowSequence(flow string) (*driverYAML, error) {
 	}
 	for _, item := range driverMakeSplitTop(inner, ',', 0) {
 		item = strings.TrimSpace(item)
-		if strings.HasPrefix(item, "&") || strings.HasPrefix(item, "*") || strings.HasPrefix(item, "!") || strings.HasPrefix(item, "{") || strings.HasPrefix(item, "[") {
+		if strings.HasPrefix(item, "&") || strings.HasPrefix(item, "*") || strings.HasPrefix(item, "!") {
 			return nil, errDriverYAML
 		}
 		if item != "" {

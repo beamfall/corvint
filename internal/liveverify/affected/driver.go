@@ -390,6 +390,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			}
 		}
 	}
+	shared.computed = shared.computed || fileExpander.ambiguous
 	all := registry.fileUnits[parsed.path]
 	units := make([]Unit, 0, len(parsed.order))
 	for _, target := range parsed.order {
@@ -435,6 +436,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		for _, script := range expander.shells {
 			builder.merge(registry, registry.scanBoth(script, parsed.dir))
 		}
+		builder.computed = builder.computed || expander.ambiguous
 		units = append(units, builder.unit())
 	}
 	return units
@@ -524,6 +526,9 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 			}
 		}
 		steps := node.get("steps")
+		if steps != nil && !steps.isSeq {
+			builder.computed = true
+		}
 		if steps != nil && steps.isSeq {
 			for _, step := range steps.items {
 				uses := step.get("uses").text()
@@ -537,6 +542,11 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 				}
 			}
 			for _, step := range steps.items {
+				// Flow maps remain scalars in the YAML subset (AZU-V0-9703).
+				// Preserve the job as a computed site instead of skipping it.
+				if !step.isMap {
+					builder.computed = true
+				}
 				registry.uses(builder, step.get("uses").text())
 				script := step.get("run").text()
 				if script == "" {
@@ -600,6 +610,7 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	builder.tokens[target] = ValidRelativePath(target)
 	if !ValidRelativePath(target) {
 		delete(builder.tokens, target)
+		builder.computed = true
 		return
 	}
 	if ids, present := registry.fileUnits[target]; present {
@@ -608,6 +619,10 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	}
 	if _, present := registry.actions[target]; present {
 		builder.imports[driverActionUnitID(target)] = true
+	} else {
+		// AZU-V0-9853: unresolved local actions, including those outside
+		// .github/actions, may run checks anywhere in the repository.
+		builder.computed = true
 	}
 }
 
@@ -648,8 +663,15 @@ func (registry *driverRegistry) actionUnit(file string, body []byte) Unit {
 		return unit
 	}
 	steps := root.get("runs").get("steps")
+	if steps != nil && !steps.isSeq {
+		builder.computed = true
+	}
 	if steps != nil && steps.isSeq {
 		for _, step := range steps.items {
+			// AZU-V0-9852: use the workflow's fallback for unsupported steps.
+			if !step.isMap {
+				builder.computed = true
+			}
 			registry.uses(builder, step.get("uses").text())
 			if script := step.get("run").text(); script != "" {
 				cwd := driverWorkflowDirectory(step.get("working-directory").text())

@@ -53,26 +53,61 @@ git add .corvint && git commit -q -m seal-missing
 [[ $? == 1 ]] && grep -q 'bbbb.cem.json: base 0123456789abcdef0123456789abcdef01234567 is not reachable' "$tmp/out" ||
   fail "missing base not refused: $(cat "$tmp/out")"
 
-# 4. Register labels admit exactly the labelled base.
-printf '# target\tbase\tlabel\tretained\naaaa\t%s\tarchive-lineage\tarchive@x\nbbbb\t0123456789abcdef0123456789abcdef01234567\tbase-unavailable\tnone\n' "$orphan" > .corvint/cem-lineage.tsv
-"$check" > "$tmp/out" 2>&1 && grep -q '2 labelled' "$tmp/out" || fail "labelled maps refused: $(cat "$tmp/out")"
-printf 'aaaa\t%s\tarchive-lineage\tarchive@x\nbbbb\t%s\tbase-unavailable\tnone\n' "$retained" "$retained" > .corvint/cem-lineage.tsv
+# 4. CEM-V1-8201: retained refs and archive locators bind the exact base.
+git update-ref refs/tags/lineage "$orphan"
+printf 'aaaa\t%s\tarchive-lineage\trefs/tags/lineage\n' "$orphan" > .corvint/cem-lineage.tsv
+# Remove the intentionally unavailable map before the positive control.
+git rm -q .corvint/changes/bbbb.cem.json && git commit -q -m remove-missing
+"$check" > "$tmp/out" 2>&1 && grep -q '1 labelled' "$tmp/out" || fail "retained labelled map refused: $(cat "$tmp/out")"
+git update-ref refs/tags/lineage "$retained"
 "$check" > "$tmp/out" 2>&1
-[[ $? == 1 ]] && grep -q "labels aaaa with base $retained, but the map's base is $orphan" "$tmp/out" || fail "mismatched label passed: $(cat "$tmp/out")"
-printf 'aaaa\t%s\tarchive-lineage\tarchive@x\nbbbb\t0123456789abcdef0123456789abcdef01234567\tbase-unavailable\tnone\ncccc\t%s\trebased-lane-base\tnone\n' "$orphan" "$retained" > .corvint/cem-lineage.tsv
+[[ $? == 1 ]] && grep -q 'is not retained by refs/tags/lineage' "$tmp/out" || fail "unrelated label ref passed: $(cat "$tmp/out")"
+git update-ref -d refs/tags/lineage
 "$check" > "$tmp/out" 2>&1
-[[ $? == 1 ]] && grep -q 'labels cccc, but .corvint/changes/cccc.cem.json is not tracked' "$tmp/out" || fail "stale label passed: $(cat "$tmp/out")"
-printf 'aaaa\t%s\ttrusted\tarchive@x\n' "$orphan" > .corvint/cem-lineage.tsv
+[[ $? == 0 ]] && grep -q 'NOT_RUN.*refs/tags/lineage absent locally' "$tmp/out" || fail "absent label ref not disclosed: $(cat "$tmp/out")"
+printf 'aaaa\t%s\tarchive-lineage\t%s\n' "$orphan" "$orphan" > .corvint/cem-lineage.tsv
 "$check" > "$tmp/out" 2>&1
-[[ $? == 1 ]] && grep -q "aaaa has unknown label 'trusted'" "$tmp/out" || fail "unknown label passed: $(cat "$tmp/out")"
+[[ $? == 1 ]] || fail "bare OID counted as a retained ref"
+printf 'aaaa\t%s\tarchive-lineage\trefs/tags/lineage\n' "$retained" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q "labels aaaa with base $retained, but the map's base is $orphan" "$tmp/out" || fail "mismatched label passed"
+printf 'cccc\t%s\trebased-lane-base\trefs/tags/lineage\n' "$retained" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q 'labels cccc, but .corvint/changes/cccc.cem.json is not tracked' "$tmp/out" || fail "stale label passed"
+printf 'aaaa\t%s\ttrusted\trefs/tags/lineage\n' "$orphan" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q "aaaa has unknown label 'trusted'" "$tmp/out" || fail "unknown label passed"
 
-# 5. Without a resolvable retained ref the check is skipped, saying so; a bad argument refuses.
+# 5. A fresh clone receives the original archive/none labels, with no private tags.
+# The missing historical object must remain NOT_RUN, never a claimed local verification.
+printf 'aaaa\t%s\tarchive-lineage\tbeamfall/corvint-history@%s\n' "$orphan" "$orphan" > .corvint/cem-lineage.tsv
+git add .corvint && git commit -q -m archive-label
+git update-ref "refs/tags/cem-lineage/base-$orphan" "$orphan"
+git clone -q --no-local --no-tags "$repo" "$tmp/clone" || fail "fresh clone"
+(cd "$tmp/clone" && "$check") > "$tmp/out" 2>&1 || fail "fresh clone refused: $(cat "$tmp/out")"
+grep -q 'NOT_RUN.*absent locally' "$tmp/out" || fail "archive absence hidden: $(cat "$tmp/out")"
+[[ -z $(git -C "$tmp/clone" tag -l) ]] || fail "fresh clone unexpectedly carries tags"
+# Locally available archive commits must actually reach the registered base.
+printf 'aaaa\t%s\tarchive-lineage\tbeamfall/corvint-history@%s\n' "$orphan" "$retained" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q 'is not retained by beamfall/corvint-history@' "$tmp/out" || fail "unrelated archive tip admitted"
+printf 'aaaa\t%s\tarchive-lineage\tbeamfall/corvint-history@%s\n' "$orphan" "$orphan" > .corvint/cem-lineage.tsv
+"$check" > "$tmp/out" 2>&1 || fail "available archive base refused: $(cat "$tmp/out")"
+map bbbb 0123456789abcdef0123456789abcdef01234567
+printf 'bbbb\t0123456789abcdef0123456789abcdef01234567\tbase-unavailable\tnone\n' >> .corvint/cem-lineage.tsv
+git add .corvint && git commit -q -m unavailable-label
+"$check" > "$tmp/out" 2>&1
+[[ $? == 0 ]] && grep -q 'NOT_RUN bbbb retention' "$tmp/out" || fail "unavailable historical base not disclosed"
+# With no retained default ref, skip reachability explicitly while validating labels.
 git update-ref -d refs/remotes/origin/main
-"$check" > "$tmp/out" 2>&1 && grep -q 'skipped: no retained ref resolves here' "$tmp/out" || fail "no retained ref: $(cat "$tmp/out")"
+"$check" > "$tmp/out" 2>&1
+[[ $? == 0 ]] && grep -q 'no default retained ref resolves here' "$tmp/out" || fail "no retained ref not skipped: $(cat "$tmp/out")"
 "$check" --retained > "$tmp/out" 2>&1
 [[ $? == 2 ]] || fail "--retained without a ref did not refuse: $(cat "$tmp/out")"
 # An explicit --retained ref replaces the default: the orphan base it reaches passes, the missing one does not.
+map bbbb 0123456789abcdef0123456789abcdef01234567
 rm .corvint/cem-lineage.tsv
+git add .corvint && git commit -q -m missing-again
 "$check" --retained "$orphan" > "$tmp/out" 2>&1
 [[ $? == 1 ]] && ! grep -q 'aaaa.cem.json' "$tmp/out" && grep -q 'bbbb.cem.json' "$tmp/out" ||
   fail "explicit --retained: $(cat "$tmp/out")"

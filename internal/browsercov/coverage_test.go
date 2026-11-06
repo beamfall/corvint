@@ -258,3 +258,31 @@ func TestAttributeInlineHTML(t *testing.T) {
 		t.Fatal("inline script offsets not shifted into the page")
 	}
 }
+
+// LPCV-V0-8301: anonymous eval and Function bodies cannot bind immutable code.
+func TestAnonymousScriptIncomplete(t *testing.T) {
+	r := repoWith(t, map[string]string{"app.js": app})
+	for _, source := range []string{app, `return new Function("return 7")()`} {
+		obs, reason := r.Attribute(Script{Source: source, Functions: []Function{{Ranges: []Range{{0, len(source), 1}}}}})
+		if len(obs) != 0 || reason != "script without a URL cannot bind coverage" {
+			t.Fatalf("anonymous attribution=%v reason=%q", obs, reason)
+		}
+	}
+}
+
+// LPCV-V0-8301: an external map on disk cannot legitimize untracked Node output.
+func TestBuildOutputMapRemainsIncomplete(t *testing.T) {
+	r := repoWith(t, map[string]string{"src/app.ts": "export const x:number=1;\n"})
+	for _, f := range []struct{ name, text string }{
+		{"bundle.js", "const x=1;\n//# sourceMappingURL=bundle.js.map\n"},
+		{"bundle.js.map", `{"version":3,"sources":["src/app.ts"],"sourcesContent":["export const x:number=1;\n"],"mappings":"AAAA"}`},
+	} {
+		if err := os.WriteFile(filepath.Join(r.Root, f.name), []byte(f.text), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	obs, reason := r.Attribute(Script{URL: "file://" + filepath.ToSlash(filepath.Join(r.Root, "bundle.js")), Functions: []Function{{Ranges: []Range{{0, 10, 1}}}}})
+	if len(obs) != 0 || reason != "bundle.js runs but is not tracked at the index commit" {
+		t.Fatalf("build attribution=%v reason=%q", obs, reason)
+	}
+}

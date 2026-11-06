@@ -1500,7 +1500,10 @@ After restore, check out the exported commit and run `corvint dogfood import --s
 --input "$HOME/enrollments/KEY.json"` in the restored worktree. The import is bound to that exact
 commit and tree, never replaces an existing enrollment, relocates the saved paths into the new Git
 directory and evaluates as the source did; it never makes the enrollment more satisfied
-(LCP-V0-883..885). Without a bundle a restored worktree reads `inactive`: whether it ever held an
+(LCP-V0-883..885). Status now also reports `enrollmentEvidence` (LCP-V0-8209):
+`PRESENT` for a read keyed record; `NOT_OBSERVED` for absent private state. The latter
+never proves historical inactivity or cancels an obligation. Without a bundle a restored
+worktree reads `inactive`: whether it ever held an
 enrollment cannot be told from it, so report that as `NOT_OBSERVED` and never re-enroll over it.
 Aggregate-outcome and sealed-continuation enrollments cannot be exported yet
 (`enrollment-export-unsupported`); keep their original checkout.

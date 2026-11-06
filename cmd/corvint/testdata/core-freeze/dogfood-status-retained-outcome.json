@@ -3,6 +3,7 @@
   "mutates": false,
   "ok": true,
   "policy": {
+    "enrollmentEvidence": "NOT_OBSERVED",
     "intentPointers": [],
     "intents": [],
     "lifecycle": "inactive",
