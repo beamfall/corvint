@@ -10,7 +10,7 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
 - Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review.
-- Exists: `tools/import-ratchet/areas.json`, `tools/import-ratchet/baseline.json` (78 edges at origin/main 670559b9e), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`.
+- Exists: `tools/import-ratchet/areas.json`, `tools/import-ratchet/baseline.json` (70 edges at origin/main 670559b9e), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`.
 - Blocked on: independent review; later restructuring steps shrink the baseline.
 - Read next: Requirements, then Failure modes.
 
@@ -19,7 +19,11 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 The panel found the module's internal packages in eleven logical areas that all sit in one
 dependency cycle: 78 of the 866 cross-area production imports point from a lower area into a
 higher or peer area. Nothing stops a new wrong-way import, so the cycle can only grow while the
-restructuring that removes it proceeds. The job is a cheap, hermetic check that freezes the
+restructuring that removes it proceeds. Eight of those 78 were artifacts of the panel's area
+assignment, not of the code: five leaf or near-leaf packages (`internal/cem/cemcode`,
+`internal/cem/coverprofile`, `internal/cem/witnesspaths`, `internal/mcp/protocol` and
+`internal/cem/patch`) sat in high areas. The manifest places them in the lowest area their own
+imports allow, so the baseline starts at 70 edges. The job is a cheap, hermetic check that freezes the
 current wrong-way set and lets it only shrink. The only existing direction check,
 `internal/tasks/boundary_test.go`, covers the Tasks/Core boundary alone.
 
@@ -39,8 +43,11 @@ current wrong-way set and lets it only shrink. The only existing direction check
   packages, read with `go/parser` in imports-only mode without running the go command or
   touching the network. A file counts when `go/build` constraint matching selects it for any of
   linux/amd64, darwin/arm64 or windows/amd64 (cgo off). Packages are those `go list ./...` walks
-  (hidden, underscore, `testdata`, `vendor`, `node_modules` and nested-module directories are
-  skipped) plus any module package they import, transitively, as `-deps` adds.
+  (hidden, underscore, `testdata`, `vendor` and nested-module directories are skipped) plus any
+  module package they import, transitively, as `-deps` adds. Unlike `go list`, the walk also
+  skips `node_modules` directories, so an installed JavaScript dependency tree (such as
+  `tools/web-flows/node_modules`) is never read; a Go package placed under a `node_modules`
+  directory is outside the graph unless a walked package imports it.
 - `IRT-V0-004`: `tools/import-ratchet/baseline.json` (profile
   `corvint-import-ratchet-baseline/0`) SHALL list the accepted wrong-way edges as sorted, unique
   `"FROM -> TO"` strings. The test MUST fail with `NEW_WRONG_WAY_EDGE` naming the edge, both areas
@@ -70,6 +77,9 @@ reviewed change.
   visible in the diff and need review. The NEW_WRONG_WAY_EDGE message says not to baseline it.
 - A platform outside the three named targets could select files whose imports are not counted.
   The product ships only those targets.
+- A non-test file selected only by a custom build tag (any `//go:build` tag other than the GOOS,
+  GOARCH and release tags of the three targets, such as `ignore` or an opt-in feature tag) is
+  excluded from the graph, so its imports are neither checked nor counted.
 - A malformed Go file fails the scan (the build would fail too); an import of a missing module
   directory fails it with the read error.
 
@@ -79,7 +89,7 @@ reviewed change.
 |---|---|
 | IRT-V0-001 | `TestCheckRefusesManifestGaps`; `TestImportRatchet` (strict decode, all packages mapped) |
 | IRT-V0-002 | `TestCheckAcceptsTheBaselinedGraph`, `TestCheckNamesNewWrongWayEdges` (peer-layer edge) |
-| IRT-V0-003 | `TestScanModuleFollowsGoListRules`; the 78-edge set equals the panel's `go list -deps -json ./...` computation exactly |
+| IRT-V0-003 | `TestScanModuleFollowsGoListRules`; under the panel's original area assignment the scanner's 78-edge set equals the panel's `go list -deps -json ./...` computation exactly, and the five-package reassignment removes exactly the eight listed edges (none added) |
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
 | IRT-V0-005 | `TestImportRatchet` controls |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages) |
