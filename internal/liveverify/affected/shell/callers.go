@@ -166,6 +166,9 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 		// verified by the previous literal/shell-expansion guard. Keep those
 		// callers, together with both uncertainty frontiers (AZU-V0-8901).
 		if !foreignCallersCompleteMode(root, declared, built, false) {
+			if detail := foreignCallerMismatch(root, declared, built); detail != "" {
+				frontier[FrontierForeignCallersInvalid+":"+detail] = true
+			}
 			return
 		}
 	}
