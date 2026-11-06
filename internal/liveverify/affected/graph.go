@@ -373,7 +373,8 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 		// An absent optional driver must not change the identity of a
 		// pre-existing graph (AZU-V0-8905). Its claimant still recognizes a
 		// probed new driver path, but there is no observed driver content.
-		if name != DriverNamespace || len(result.Units)+len(result.Frontier)+len(result.Unobserved)+len(result.Runnable) != 0 {
+		_, registeredDriver := language.(RegisteredDriver)
+		if registeredDriver || name != DriverNamespace || len(result.Units)+len(result.Frontier)+len(result.Unobserved)+len(result.Runnable) != 0 {
 			graph.languages = append(graph.languages, name)
 		}
 		own := make(map[string]bool)
