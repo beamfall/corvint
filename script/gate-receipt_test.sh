@@ -261,7 +261,7 @@ child:
 MK
 probe_make() {
     (cd "$probe" && PATH="$probe/bin" PROBE_LOG="$probe/log" \
-        /usr/bin/make -s -f Makefile -f override.mk GATE_STEPS=host-adapter-node-test \
+        "$probe/bin/make" -s -f Makefile -f override.mk GATE_STEPS=host-adapter-node-test \
         HEAVY_NICE_PREFIX= "$@") > "$test_root/probe.out" 2>&1
 }
 for mode in off on; do
