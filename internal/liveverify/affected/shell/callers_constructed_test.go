@@ -47,6 +47,9 @@ func TestConstructedForeignCallers_AZU_V0_8901(t *testing.T) {
 	if constructedForeignReference([]byte("# `run/other.sh`"), "run/run.sh") {
 		t.Fatal("literal backtick-delimited path matched as a construction")
 	}
+	if constructedForeignReference([]byte("'run/other.sh: keep only `#` comments'"), "run/run.sh") {
+		t.Fatal("backticks in prose after a literal path matched as a construction")
+	}
 }
 
 // AZU-V0-8901: a root callee has computed callers too. An incomplete

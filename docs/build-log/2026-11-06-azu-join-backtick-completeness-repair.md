@@ -16,9 +16,12 @@ inside quoted paths. Raw-string closing delimiters alone do not count as
 substitutions: the first repair candidate put backticks in the format-marker
 class and incorrectly matched literal Markdown spans in `script/heavy.sh`.
 The whole affected-package check exposed this overmatch (108.528 s, rc 1).
-Separating quoted substitutions from raw-string formatting fixes that candidate
-without broadening project declarations; a negative regression protects the
-literal backtick-delimited path case.
+Separating quoted substitutions from raw-string formatting avoids that match.
+A second candidate still matched backticks in diagnostic prose after a literal
+path (`script/check-line-citations_test.sh`; 135.560 s, rc 1). The final pattern
+stops at whitespace before the substitution, keeping it within the quoted path
+token. Negative regressions protect both literal backtick-delimited paths and
+backticks in prose after a literal path, without broadening project declarations.
 This deliberately widens possible callers and retains uncertainty rather than
 inferring execution edges. The existing declaration schema, diagnostics, goldens
 and all existing assertions stay fixed. No new requirement or design fork is
@@ -31,15 +34,16 @@ is declared and rejection when omitted, including `./run/` joins.
 `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` exercises both reported
 expressions through graph construction and selection, requiring foreign-invocation
 UNKNOWN and selection of the known literal caller's tests. The whole shell
-package failed before the repair and passed afterward (0.738 s), with every
+package failed before the repair and passed afterward (0.490 s), with every
 existing test included. Raw logs remain outside the repository:
 `/home/russell/lanes/azu-new-evidence/self-review-directory-backticks/`.
 
 | Log | SHA-256 |
 |---|---|
 | `shell-before.log` (rc 1) | `70a720e9883f952a58b1c74263f8523f6e23f84bb520fa4db9f0f79faaf87667` |
-| `shell.log` (rc 0) | `a7a2f1a5c2c7eb2426aa00c428834d1244113e6f12a8f94dca6e49afe649d753` |
+| `shell.log` (rc 0) | `e8e6292f097d761cee935381b05f6600d9e6fe88fff72926d4266beff4dc2768` |
 | `affected-overmatch.log` (rc 1) | `aea98117a99831b17787fb586e159d51ff4d5e6077578519a065721a0c031e79` |
+| `affected-prose-overmatch.log` (rc 1) | `2b20a466e8c9e6fa2bbe85119f3896214cb8ea8a9ea2329b7e70e9159f11aa24` |
 
 Self-development routes: the existing pre-change capture is preserved;
 `corvint affected --base 9208cc7e25bb82503ef9d61b0ce6a5f02039e649`

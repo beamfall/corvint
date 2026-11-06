@@ -31,8 +31,9 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 		`(?:[Jj]oin|joinpath)\s*\(\s*["'\x60](?:\./)?` + dir + `/?["'\x60]\s*,`,
 		`["'\x60](?:\./)?` + dir + `/[^"'\n]*[$%{]`,
 		// Backticks inside a quoted path can expand a computed basename;
-		// a raw-string closing delimiter alone is not a substitution.
-		`["'](?:\./)?` + dir + `/[^"'\n]*\x60`,
+		// stop at whitespace so a later prose span is not part of the path.
+		// A raw-string closing delimiter alone is not a substitution.
+		`["'](?:\./)?` + dir + `/[^"'\s\x60]*\x60`,
 	}
 	if directory == "." {
 		// A computed basename needs no directory literal. Without one we
