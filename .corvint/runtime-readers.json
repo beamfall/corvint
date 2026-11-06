@@ -94,6 +94,14 @@
       "reason": "command-tree snapshots read by internal/capcatalog, cmd/corvint, cmd/corvint-test, internal/tasks/cli and tools/capabilities-check through path literals"
     },
     {
+      "path": "internal/tasks/cli/helptext/archive-restore.txt",
+      "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
+    },
+    {
+      "path": "internal/tasks/cli/helptext/queue-snapshot.txt",
+      "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
+    },
+    {
       "path": "protocol/",
       "reason": "published protocol schemas, vectors and their guides; every test reader names its file or directory by a path literal or a filepath.Join of literals (internal/cem/*, cmd/corvint-*, conformance/*, tools/capabilities-check), measured for V1-3480 with no walk of the protocol root by a computed name; its Go and shell files stay owned by their plugins (AFP-V0-2404)"
     },
