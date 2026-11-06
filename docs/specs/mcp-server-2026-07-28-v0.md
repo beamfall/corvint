@@ -1105,6 +1105,8 @@ Each row cites the first emitting site and states only the condition checked the
   the `queryIntentAlternative` branch of `Result.TextJSON`.
 
 
+- `MCPV0-8300`: (experimental, V1-3624; refines MCPV0-950) The Claude Code plugin's declared stdio argv and environment MUST initialize and list tools when launched outside Git with a missing, non-worktree, empty or unexpanded project directory. Repository calls MUST keep the existing `invalid-root` tool result and the fixed path-free stderr cause. This regression guards the already implemented unusable-root startup repair; it grants no live-host qualification. Acceptance: `TestMCPV08300PluginUnavailableLaunchHandshake` replays the shipped declaration. Rollback: revert the regression only; rolling back MCPV0-950 restores the historical early close and must remain an explicit compatibility loss.
+
 ## Acceptance matrix
 
 The P0 profile is implemented only when all applicable rows pass on Go 1.27.0:

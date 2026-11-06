@@ -915,6 +915,7 @@ Usage:
           [--playwright-ungrepped-config PATH]]
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected audit --changes FILE
+  corvint [--root PATH] affected --ownership-audit
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -1092,6 +1093,13 @@ affected cache (experimental) reports the default cache's location, state
 (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON
 object, or with --format doctor-plugin as one AFFECTED_CACHE item for a
 corvint-tasks doctor plugin; it creates and writes nothing.
+
+affected --ownership-audit (experimental) lists, as one JSON object of profile
+affected-ownership-audit/0, each path tracked at HEAD that no plugin, the driver
+claimant or a project declaration claims: the paths a plan reports as
+UNOWNED_DIRTY_PATH. It refuses a dirty worktree, builds the graph without the
+cache, writes nothing, and exits 0 when no path is unowned, 1 when some path
+is, and 2 on an error.
 
 affected audit (experimental) reads a corvint-affected-audit-input/0 FILE
 listing changes: id, full base commit id, and kind replay (full head), revert

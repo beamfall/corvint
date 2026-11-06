@@ -290,8 +290,8 @@ func newActivationFixture(t *testing.T, objectFormat string) string {
 		}
 		t.Fatalf("git init: %v\n%s", err, output)
 	}
-	// Environment identity overrides user.name/email, so pin it alongside dates
-	// to keep the frozen inventory revisions stable (CCF-V1-002).
+	// CCF-V1-002 freezes this fixture's inventory revision and receipt digests.
+	// Pin identity alongside dates: inherited Git identity overrides config.
 	environment := []string{
 		"GIT_AUTHOR_NAME=Corvint Test", "GIT_AUTHOR_EMAIL=corvint@example.test",
 		"GIT_COMMITTER_NAME=Corvint Test", "GIT_COMMITTER_EMAIL=corvint@example.test",

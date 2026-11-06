@@ -37,6 +37,19 @@ frozen broad query profile. None of those legacy profile meanings is changed her
 
 ## Requirements
 
+- `LCP-V0-8209`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0580)
+  Status MUST expose `enrollmentEvidence`: `PRESENT` only when the keyed private enrollment
+  record was read, and `NOT_OBSERVED` when it is absent. An absent record may retain the local
+  lifecycle `inactive` and `satisfied:false`, but MUST NOT establish historical inactivity or
+  release a previously known obligation. Restore with the LCP-V0-883..885 export bundle at its
+  exact commit/tree; preserve both satisfied and unfinished states and verify relocated checks
+  and report bindings. Without original private state or a valid export, historical enrollment
+  is unrecoverable from source alone: preserve saved receipts and block that workflow, never
+  restart/cancel it as recovery. Tests: `TestLCPV08209MissingEnrollmentIsNotHistoricalInactivity`,
+  `TestLCPV0883ExportImportRestoresActiveEnrollment`, and
+  `TestLocalCompletionRealEvidenceWorkflow/LCP-V0-883_restore_satisfied`.
+  Rollback: remove the availability member; retain the same documented uncertainty.
+
 - `LCP-V0-001`: The local policy MUST remain caller-owned and non-authoritative. Its positive state
   means only that the explicitly selected local workflow conditions passed for the bound scope.
   It MUST NOT mint `HARNESS_ATTESTED`, close a Frontier, remove `frontier-authority-unavailable`,

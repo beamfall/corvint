@@ -45,7 +45,8 @@ if err=$(check 2>&1); then fail "an unstaged requirement edit passed the worktre
 case $err in *"docs/specs/{REQUIREMENTS.tsv} are stale against the working-tree specs"*"docs/specs/one.md"*"fix: git add the spec, then rerun make spec-requirements"*) ;;
   *) fail "the refusal did not name the stale file, the edit and the fix: $err" ;; esac
 test "$(g ls-files -s)" = "$before" || fail "the worktree check changed the real index"
-GIT_INDEX_FILE="$(g rev-parse --absolute-git-dir)/index" check || fail "a private GIT_INDEX_FILE was not skipped"
+# POSIX shells retain assignments made before function calls; keep this private-index case local.
+(GIT_INDEX_FILE="$(g rev-parse --absolute-git-dir)/index" check) || fail "a private GIT_INDEX_FILE was not skipped"
 
 # Staging and regenerating is the fix, once the regenerated files are staged too. SRG-V0-923
 # (V1-3362): regenerated but unstaged, they are what CI would not see, so the check fails.
