@@ -21,9 +21,11 @@ The builder uses Sol at medium effort for cross-layer coverage equivalence.
   receipt validity; those authorities are not evaluated by this interface.
 - `TestBoostTestRegistryDispatch` retains runner uniqueness, public Build and Parse,
   complete passed/skipped results and exact native Build/normalized Parse equality.
-  The removed failure-exit-without-failure and surplus-skipped assertions already
-  belong to native `TestBoostTestBoundaryContradictions`, cases `failure exit no
-  fail` and `surplus case`. The semantic matrix remains there unchanged.
+  The removed failure-exit-without-failure assertion belongs to native
+  `TestBoostTestBoundaryContradictions`, case `failure exit no fail`. Its `surplus
+  case` removes a failed case, so the distinct registry surplus-skipped assertion
+  is retained: unrequested `M::s/off` must become Unknown and incomplete.
+  Independent review identified and corrected this coverage mapping before closeout.
 - Each Java, C-JNI and Objective-C package retains its named
   `TestCLIInvocationFramingAndRefusal`. Their byte-identical harness is now one
   narrow helper in the existing `internal/testsupport` package. Each test still
@@ -82,3 +84,11 @@ feature implementation changed.
 `make windows-vet` passed for the main and interop modules with Go 1.27.3.
 Independent review is pending at this source freeze. Final CEM binding/check/seal
 and native completion remain the coordinator's closeout.
+
+Review repair verification: the focused `TestBoostTestRegistryDispatch` passed
+with the writable repository cache after the default machine cache refused access.
+`make windows-vet` passed. Raw results: `/private/tmp/v1-4746-repair-test.log` and
+`/private/tmp/v1-4746-repair-windows-vet.log`. Context and affected receipts are
+`/private/tmp/v1-4746-repair-context.json` and
+`/private/tmp/v1-4746-repair-affected.json`; affected retained the installed
+binary stale-source warning. No exhaustive gate was run for this scoped repair.
