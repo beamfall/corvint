@@ -95,8 +95,16 @@ def main(args):
     index = int(shard)
     if not 0 <= index < SHARDS:
         raise ValueError("invalid shard index")
-    packages = json.loads(pathlib.Path(selection).read_text())["selected"]
-    bins, loads = partition(packages, costs(cost_file))
+    report = json.loads(pathlib.Path(selection).read_text())
+    weights = costs(cost_file)
+    # Own packages before narrowing: a leg's FULL fallback must not move another
+    # leg's affected packages into its shard, where they could be filtered out.
+    bins, loads = partition(report["inventory"], weights)
+    selected = {p["package"] for p in report["selected"]}
+    bins = [[p for p in assigned if p["package"] in selected] for assigned in bins]
+    if weights:
+        median = sorted(weights.values())[len(weights) // 2]
+        loads = [sum(weights.get(p["package"], median) for p in assigned) for assigned in bins]
     out = pathlib.Path(output)
     out.mkdir(parents=True, exist_ok=True)
     (out / "packages.txt").write_text("".join(p["package"] + "\n" for p in bins[index]))
