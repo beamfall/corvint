@@ -88,10 +88,7 @@ var maxPathTokens = affected.MaxPathsPerUnit
 
 // The path-token lexicon of tools/gate-affected-select (AFP-V0-012): printf
 // verbs are removed, then every run of path characters is one token.
-var (
-	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
-	pathToken  = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
-)
+var printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
 
 // module is one go.mod directory. Listed modules are observed; an unlisted one
 // is a frontier. Path is empty when the manifest declares no readable module
@@ -649,9 +646,12 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
 	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
-	previous := [2]string{}
+	previous := [2]lexicalToken{}
 	var literals []scannedLiteral
-	markers := map[int]bool{}
+	var markers map[int]bool
+	// Most files have no fixture marker. Retain per-literal locations only
+	// when a marker could occur; the lexer still decides which are comments.
+	fixtures := bytes.Contains(body, []byte(FixturePathMarker))
 	var move directoryMove
 	for {
 		position, kind, text := lexer.Scan()
@@ -662,6 +662,9 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		}
 		if kind == token.COMMENT {
 			if strings.TrimSpace(text) == FixturePathMarker {
+				if markers == nil {
+					markers = map[int]bool{}
+				}
 				markers[source.Line(position)] = true
 			}
 			continue
@@ -670,7 +673,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		if kind == token.IDENT {
 			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
 		}
-		previous = [2]string{previous[1], kind.String() + text}
+		previous = [2]lexicalToken{previous[1], {kind: kind, text: text}}
 		if kind != token.STRING {
 			continue
 		}
@@ -678,9 +681,11 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		if err != nil {
 			continue
 		}
-		tokens := literalTokens(value, modulePath)
-		scan.tokens = append(scan.tokens, tokens...)
-		literals = append(literals, scannedLiteral{tokens: tokens, start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
+		start := len(scan.tokens)
+		scan.tokens = appendLiteralTokens(scan.tokens, value, modulePath)
+		if fixtures {
+			literals = append(literals, scannedLiteral{tokens: scan.tokens[start:], start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
+		}
 	}
 }
 
@@ -714,10 +719,24 @@ func fixtureTokens(literals []scannedLiteral, markers map[int]bool) map[string]b
 
 // literalTokens is the AFP-V0-021 lexicon over one unquoted string literal.
 func literalTokens(value, modulePath string) []string {
-	value = parentBackslash.Replace(printfVerb.ReplaceAllString(value, verbMark))
-	var tokens []string
-	for _, bounds := range pathToken.FindAllStringIndex(value, -1) {
-		start, end := bounds[0], bounds[1]
+	return appendLiteralTokens(nil, value, modulePath)
+}
+
+func appendLiteralTokens(tokens []string, value, modulePath string) []string {
+	if strings.Contains(value, "%") {
+		value = printfVerb.ReplaceAllString(value, verbMark)
+	}
+	value = parentBackslash.Replace(value)
+	for offset := 0; offset < len(value); {
+		if !pathCharacter(value[offset]) {
+			offset++
+			continue
+		}
+		start := offset
+		for offset < len(value) && pathCharacter(value[offset]) {
+			offset++
+		}
+		end := offset
 		// A `/` directly after `<` closes a markup tag (`</script>`), so it
 		// anchors nothing: the tag name is a lone name token (AFP-V0-505).
 		// The HTML-escaped `&lt;/script&gt;` closes one too (AFP-V0-840).
@@ -731,6 +750,13 @@ func literalTokens(value, modulePath string) []string {
 		tokens = append(tokens, wholeShortEnds(name, value, start, end))
 	}
 	return tokens
+}
+
+// pathCharacter is exactly the ASCII class [A-Za-z0-9._~@+/-] of AFP-V0-021.
+// Walking it directly avoids allocating a regexp match index for every token.
+func pathCharacter(c byte) bool {
+	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' ||
+		c == '.' || c == '_' || c == '~' || c == '@' || c == '+' || c == '/' || c == '-'
 }
 
 // closesEscapedTag reports a `/` at index directly after the HTML entity
@@ -758,15 +784,25 @@ const verbMark = "\x00"
 // beside a non-ASCII byte may continue the same name, so either stays a
 // fragment that matches by suffix or prefix.
 func wholeShortEnds(name, value string, start, end int) string {
-	components := strings.Split(name, "/")
-	last := len(components) - 1
-	if last < 1 {
+	first := strings.IndexByte(name, '/')
+	if first < 0 {
 		return name
 	}
-	if short(components[0]) && runComponent(components[1]) && delimited(value, start-1) {
+	last := strings.LastIndexByte(name, '/')
+	second := name[first+1:]
+	if next := strings.IndexByte(second, '/'); next >= 0 {
+		second = second[:next]
+	}
+	penultimate := name[:last]
+	if previous := strings.LastIndexByte(penultimate, '/'); previous >= 0 {
+		penultimate = penultimate[previous+1:]
+	}
+	wholeFirst := short(name[:first]) && runComponent(second) && delimited(value, start-1)
+	wholeLast := short(name[last+1:]) && runComponent(penultimate) && delimited(value, end)
+	if wholeFirst {
 		name = "./" + name
 	}
-	if short(components[last]) && runComponent(components[last-1]) && delimited(value, end) {
+	if wholeLast {
 		name += "/"
 	}
 	return name

@@ -21,7 +21,10 @@ import (
 type Graph struct {
 	units map[string]Unit
 	order []string
-	owner map[string]string
+	// tokens is derived once from the immutable units, shared by every plan
+	// and selection-input copy of this graph. It is not part of the wire data.
+	tokens [][]pathToken
+	owner  map[string]string
 	// embedded maps each file a unit's EmbedFiles lists to those units, in
 	// unit order (AFP-V0-600).
 	embedded   map[string][]string
@@ -578,6 +581,7 @@ func (graph *Graph) resolvePathImports() {
 // dependency, and an external dependency cannot be a dirty repository path.
 func (graph *Graph) finish() {
 	sort.Strings(graph.order)
+	graph.tokens = graph.splitPathTokens()
 	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
 	graph.advisory = graph.reverse(func(unit Unit) []string { return unit.AdvisoryImports })
 	graph.routed = graph.reverse(func(unit Unit) []string { return unit.RouteDispatchImports })
@@ -712,8 +716,10 @@ func (graph *Graph) computeDigest() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(append([]byte(graphDigestDomain), body...))
-	return "affected-graph:sha256:" + hex.EncodeToString(sum[:]), nil
+	sum := sha256.New()
+	sum.Write([]byte(graphDigestDomain))
+	sum.Write(body)
+	return "affected-graph:sha256:" + hex.EncodeToString(sum.Sum(nil)), nil
 }
 
 // Digest is the canonical identity of this graph.
