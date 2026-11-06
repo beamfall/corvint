@@ -1254,10 +1254,12 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 			return affectedReceipt{}, nil, err
 		}
 	}
-	graph, plan, provider, advice := planAffectedGraph(ctx, affectedPlanInputs{
+	ownership := &affectedOwnershipObservation{}
+	inputs := affectedPlanInputs{
 		gitExecutable: gitExecutable, repository: root, tree: root, base: invocation.Base, revision: revision,
-		additive: len(invocation.PathList) == 0, shared: invocation.sharedVia,
-	}, graph, changed)
+		additive: len(invocation.PathList) == 0, shared: invocation.sharedVia, ownership: ownership,
+	}
+	graph, plan, provider, advice := planAffectedGraph(ctx, inputs, graph, changed)
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		advice.TestSelection, err = affectedE2ESafeSelection(ctx, invocation, revision, graph, plan, advice)
 		if err != nil {
@@ -1279,13 +1281,14 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	// advice, provider and e2e selection, app navigations) are observations of
 	// one mutable worktree. A dirty set or HEAD that changed while they were
 	// read would bind a plan to inputs nobody observed together, so both are
-	// read again after the last source observation; refuse rather than publish
+	// read again after the last source observation, together with the index
+	// membership used for ownership selection; refuse rather than publish
 	// (AFP-V0-150, V1-1087).
 	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
-	if !equalStringSlices(dirty, recheck) {
+	if !equalStringSlices(dirty, recheck) || (inputs.additive && !ownership.unchanged(ctx, inputs)) {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
 	}
 	if len(invocation.PathList) != 0 && !invocation.Worktree {
@@ -1432,6 +1435,7 @@ func affectedSparseCheckout(ctx context.Context, gitExecutable, root string) boo
 type affectedPlanInputs struct {
 	gitExecutable, repository, tree, base, revision string
 	additive, shared                                bool
+	ownership                                       *affectedOwnershipObservation
 }
 
 // planAffectedGraph is the one planning tail of `corvint affected` and of a
