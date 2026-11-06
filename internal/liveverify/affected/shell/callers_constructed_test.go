@@ -299,6 +299,41 @@ func TestTraversalJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	}
 }
 
+// AZU-V0-004, AZU-V0-8901: a grouped literal suffix on a dynamic final
+// operand, name + (".sh"), can still reach run/run.sh through name="../run/run".
+// An undeclared caller must keep the foreign-invocation frontier.
+func TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.test/groupedsuffix\n\ngo 1.27\n")
+	write(t, root, "run/run.sh", "echo ok\n")
+	write(t, root, "caller/caller.go", "package caller\nvar script = \"run/run.sh\"\n")
+	write(t, root, "caller/caller_test.go", "package caller\n")
+	body := "package extra\nimport (\"os/exec\"; \"path/filepath\")\nvar name = \"../run/run\"\nvar cmd = exec.Command(\"sh\", filepath.Join(\"elsewhere\", name + (\".sh\")))\n"
+	write(t, root, "extra/extra.go", body)
+	write(t, root, "extra/extra_test.go", "package extra\n")
+	declared := map[string]ForeignCallers{
+		"run/run.sh": {Callers: []string{"caller/caller.go"}, Reason: "literal caller"},
+	}
+	declaration, err := json.Marshal(map[string]any{"profile": ForeignCallersProfile, "scripts": declared})
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, affected.ShellForeignCallersPath, string(declaration))
+	graph, err := affected.Build(context.Background(), root, golang.New(), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"run/run.sh"})
+	if plan.Scope != affected.ScopeUnknown || !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
+		return u.Detail == FrontierForeignInvocation
+	}) {
+		t.Fatalf("undeclared grouped-suffix caller certified: %+v", plan)
+	}
+	if foreignCallersComplete(affected.DiskSource(root), declared, nil) {
+		t.Fatal("undeclared grouped-suffix caller accepted")
+	}
+}
+
 // AZU-V0-8901: a terminal literal suffix may exclude a shell filename only
 // when it excludes every supported shell extension, including partial suffixes.
 func TestTraversalJoinSuffixBounds_AZU_V0_8901(t *testing.T) {
@@ -306,12 +341,16 @@ func TestTraversalJoinSuffixBounds_AZU_V0_8901(t *testing.T) {
 		`filepath.Join("scratch", up, "run", name+".json")`,
 		`filepath.Join("scratch", up, "data.txt")`,
 		`filepath.Join("scratch", up, "cmdline")`,
+		`filepath.Join("scratch", up, "run", name+(".json"))`,
+		`filepath.Join("scratch", up, "run", name+((".json")))`,
 	} {
 		if constructedForeignReference([]byte(expression), "run/run.sh") {
 			t.Fatalf("non-shell suffix matched: %s", expression)
 		}
 	}
-	for _, tail := range []string{`name+".sh"`, `name+"sh"`, `name+"h"`, `name+".bash"`, `name+".zsh"`, `name+".ksh"`, `name+".bats"`, `name+".SH"`, `name+".sh. "`, `".."`, `"."`, `"data.json/.."`, `"data.json\\.."`, `name`} {
+	for _, tail := range []string{`name+".sh"`, `name+"sh"`, `name+"h"`, `name+".bash"`, `name+".zsh"`, `name+".ksh"`, `name+".bats"`, `name+".SH"`, `name+".sh. "`, `".."`, `"."`, `"data.json/.."`, `"data.json\\.."`, `name`,
+		// Grouped suffixes must be judged like bare ones (AZU-V0-8901 review P1).
+		`name+(".sh")`, `name + ((".sh"))`, `(name)+(".sh")`, `name+(".s"+"h")`, `name+("(" + ".sh")`} {
 		expression := `filepath.Join("scratch", up, "run", ` + tail + `)`
 		for _, script := range []string{"run/a.sh", "run/run.sh"} {
 			if !constructedForeignReference([]byte(expression), script) {
@@ -391,6 +430,8 @@ func TestNormalizedJoinBounds_AZU_V0_8901(t *testing.T) {
 		// A dynamic final operand may be "../run/run" (AZU-V0-8901 review P1).
 		`filepath.Join(".", "elsewhere", name+".sh")`,
 		`filepath.Join("elsewhere", (name+".sh"))`,
+		`filepath.Join("elsewhere", name + (".sh"))`,
+		`filepath.Join("elsewhere", name+((".bash")))`,
 		`filepath.Join("scratch", "..", "elsewhere", name+".sh")`,
 		`joinpath('.', 'run', name)`,
 		`filepath.Join(".", "\x72un", name+".sh")`,
