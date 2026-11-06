@@ -568,11 +568,11 @@ what the row asserts.
 | Code | First emitting site | Message at the cited site |
 |---|---|---|
 | `ambiguous-claim-selector` | `internal/lrfrepo/ocm_write.go:863` | "claim selector does not identify exactly one claim" |
-| `bootstrap-intent-not-unknown` | `internal/lrfrepo/ocm.go:716` | "bootstrap intent hunk must remain unknown" |
+| `bootstrap-intent-not-unknown` | `internal/lrfrepo/ocm.go:582@ec64c2a6` | "bootstrap intent hunk must remain unknown" |
 | `cem-map-digest-mismatch` | `internal/lrfrepo/ocm.go:424` | "CEM map digest does not match" |
 | `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:411` | "CEM patch digest does not match" |
 | `claim-conflict` | `internal/lrfrepo/ocm_write.go:1068@1c03b150` | "claim ID has conflicting fields" |
-| `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
+| `claim-not-reextractable` | `internal/lrfrepo/ocm.go:602@0077c588` | "claim cannot be re-extracted at target" |
 | `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:842@df280c84` | "claim selectors must be unique" |
 | `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:787@c947a99d` | "hunk selectors must be unique" |
 | `duplicate-key` | `internal/lrfrepo/ocm_write.go:614` | "JSON contains a duplicate key" |
@@ -609,7 +609,7 @@ what the row asserts.
 | `invalid-selector` | `internal/lrfrepo/ocm.go:268` | "claim selector is invalid" |
 | `invalid-span` | `internal/lrfrepo/ocm.go:328` | "<value> must be non-empty" |
 | `invalid-span-digest` | `internal/lrfrepo/ocm.go:232` | "intent span digest is invalid" |
-| `invalid-unknown` | `internal/lrfrepo/ocm.go:775` | "unknown obligation has invalid fields" |
+| `invalid-unknown` | `internal/lrfrepo/ocm.go:641@0dbbad34` | "unknown obligation has invalid fields" |
 | `invalid-unknown-reason` | `internal/lrfrepo/ocm_write.go:94` | "unknown reason is outside the allowlist" |
 | `map-outdated` | `internal/lrfrepo/ocm_write.go:490@f57b71be` | "existing OCM map binds a different target, intent, or CEM" |
 | `map-type` | `internal/lrfrepo/ocm_write.go:611` | "OCM root must be an object" |
@@ -617,14 +617,14 @@ what the row asserts.
 | `missing-field` | `internal/lrfrepo/ocm.go:341` | "<value> is missing a required field" |
 | `missing-hunk` | `internal/lrfrepo/ocm_write.go:777@ba085cd5` | "at least one hunk is required" |
 | `noncanonical-map` | `internal/lrfrepo/ocm.go:133` | "OCM bytes are not canonical" |
-| `obligation-order-mismatch` | `internal/lrfrepo/ocm.go:770` | "obligations must retain requirement order" |
+| `obligation-order-mismatch` | `internal/lrfrepo/ocm.go:636@7be0890f` | "obligations must retain requirement order" |
 | `obligation-selector-out-of-range` | `internal/lrfrepo/ocm_write.go:60` | "obligation selector is outside the worklist" |
 | `obligation-set-mismatch` | `internal/lrfrepo/ocm.go:625@7b1fa4c9` | "obligations do not match requirements" |
 | `ocm-cli-error` | `internal/lrfrepo/ocm_read.go:218@e75df132` | one of "cannot read <label>", "<label> is not a regular file", "<label> exceeds the <limit>-byte limit", "<label> changed while being read", by the read failure kind |
 | `output-path-conflict` | `internal/lrfrepo/ocm_write.go:212` | "OCM and CEM map paths must differ" |
 | `unknown-claim-reference` | `internal/lrfrepo/ocm.go:660@f80c5e4f` | "linked claim is absent" |
 | `unknown-field` | `internal/lrfrepo/ocm.go:346` | "<value> has an unknown field" |
-| `unknown-hunk-reference` | `internal/lrfrepo/ocm.go:787` | "linked hunk is not verified and supported" |
+| `unknown-hunk-reference` | `internal/lrfrepo/ocm.go:653@2386680e` | "linked hunk is not verified and supported" |
 | `unknown-obligation-id` | `internal/lrfrepo/ocm_write.go:121` | "obligation ID must select exactly one row" |
 | `unsafe-output` | `internal/lrfrepo/ocm_read.go:476@e94429a6` | "output parent does not exist" |
 | `unsupported-spec` | `internal/lrfrepo/ocm.go:135` | "OCM profile is unsupported" |
