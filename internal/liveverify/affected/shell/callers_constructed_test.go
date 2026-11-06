@@ -18,10 +18,13 @@ func TestConstructedForeignCallers_AZU_V0_8901(t *testing.T) {
 		`var command = "run" + "/" + name + ".sh"`,
 		"cmd := fmt.Sprintf(`run/%s.sh`, name)",
 		`cmd := filepath.Join("run", name + ".sh")`,
+		`cmd := filepath.Join("run/", name + ".sh")`,
+		`cmd := filepath.Join("./run/", name + ".sh")`,
 		"cmd := filepath.Join(`run`, name + \".sh\")",
 		`subprocess.run([f"run/{name}.sh"])`,
 		`exec("run/$name.sh")`,
 		"exec.Command(\"sh\", \"-c\", \"run/`printf %s run`.sh\").Run()",
+		"exec.Command(\"sh\", \"-c\", \"run/`echo run`.sh\").Run()",
 		`exec("run/run.sh")`,
 	} {
 		t.Run(body, func(t *testing.T) {
@@ -155,7 +158,9 @@ func TestConstructedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	for _, expression := range []string{
 		"fmt.Sprintf(`run/%s.sh`, name)",
 		`"run" + "/" + name + ".sh"`,
+		`filepath.Join("run/", name+".sh")`,
 		"\"-c\", \"run/`printf %s run`.sh\"",
+		"\"-c\", \"run/`echo run`.sh\"",
 	} {
 		t.Run(expression, func(t *testing.T) {
 			root := t.TempDir()
@@ -166,6 +171,9 @@ func TestConstructedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
 			imports := "import \"os/exec\"\n"
 			if expression == "fmt.Sprintf(`run/%s.sh`, name)" {
 				imports += "import \"fmt\"\n"
+			}
+			if expression == `filepath.Join("run/", name+".sh")` {
+				imports += "import \"path/filepath\"\n"
 			}
 			write(t, root, "extra/extra.go", "package extra\n"+imports+"var name = \"run\"\nvar cmd = exec.Command(\"sh\", "+expression+")\n")
 			write(t, root, "extra/extra_test.go", "package extra\n")

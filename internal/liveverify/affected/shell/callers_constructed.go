@@ -28,9 +28,9 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 	patterns := []string{
 		// The separator may be in the next operand: "run" + "/" + name.
 		`["'\x60](?:\./)?` + dir + `/?["'\x60]\s*\+`,
-		`(?:[Jj]oin|joinpath)\s*\(\s*["'\x60](?:\./)?` + dir + `["'\x60]\s*,`,
+		`(?:[Jj]oin|joinpath)\s*\(\s*["'\x60](?:\./)?` + dir + `/?["'\x60]\s*,`,
 		// Backticks inside a quoted path can expand a computed basename.
-		`["'\x60](?:\./)?` + dir + `/[^"'\n]*[$%{]`,
+		`["'\x60](?:\./)?` + dir + `/[^"'\n]*[$%{\x60]`,
 	}
 	if directory == "." {
 		// A computed basename needs no directory literal. Without one we
