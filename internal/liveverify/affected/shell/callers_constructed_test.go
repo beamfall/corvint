@@ -21,6 +21,7 @@ func TestConstructedForeignCallers_AZU_V0_8901(t *testing.T) {
 		"cmd := filepath.Join(`run`, name + \".sh\")",
 		`subprocess.run([f"run/{name}.sh"])`,
 		`exec("run/$name.sh")`,
+		"exec.Command(\"sh\", \"-c\", \"run/`printf %s run`.sh\").Run()",
 		`exec("run/run.sh")`,
 	} {
 		t.Run(body, func(t *testing.T) {
@@ -148,11 +149,13 @@ func TestRawStringJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
 }
 
 // AZU-V0-004, AZU-V0-8901: raw formats and separately concatenated
-// directory separators must not certify an incomplete caller declaration.
+// directory separators and embedded backticks must not certify an incomplete
+// caller declaration.
 func TestConstructedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	for _, expression := range []string{
 		"fmt.Sprintf(`run/%s.sh`, name)",
 		`"run" + "/" + name + ".sh"`,
+		"\"-c\", \"run/`printf %s run`.sh\"",
 	} {
 		t.Run(expression, func(t *testing.T) {
 			root := t.TempDir()
