@@ -16,6 +16,7 @@ import (
 // signature is all basic types (the shape TSP-V0-006 can slice), a body change keeps the package
 // whole or keeps the frozen test in the slice, and never runs `-run ^$`.
 func TestTSPV0961CoreVerbChangeKeepsFrozenProfileTest(t *testing.T) {
+	t.Parallel()
 	const frozen = "TestCoreVerbsEmitTheFrozenProfiles"
 	root, err := filepath.Abs("../..")
 	if err != nil {

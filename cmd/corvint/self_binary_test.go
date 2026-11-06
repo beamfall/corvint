@@ -53,6 +53,7 @@ func stubSelfBuildInfo(t *testing.T, info *debug.BuildInfo) {
 // and HEAD, in the binary's own module, makes the binary stale; a commit that
 // cannot be compared is unverified, not stale.
 func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root, built := selfBinaryRepository(t)
 	own := selfBinaryInfo("example.test/self", built)
@@ -86,6 +87,7 @@ func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
 // or to the module files, makes it stale; a change to another command or to a
 // package nothing it builds imports does not.
 func TestSelfBinaryStaleCountsOnlyTheMainBuildGraph(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root, _ := selfBinaryRepository(t)
 	commitSelfBinaryFiles(t, root, map[string]string{
@@ -140,6 +142,7 @@ func TestSelfBinaryStaleCountsOnlyTheMainBuildGraph(t *testing.T) {
 // AFP-V0-846: output the bound truncated drops its possibly partial last path
 // and counts "at least" the rest.
 func TestSelfBinaryDiffPathsTruncation(t *testing.T) {
+	t.Parallel()
 	var output bytes.Buffer
 	writer := &limitedWriter{buffer: &output, limit: 10}
 	_, _ = writer.Write([]byte("a.go\x00b.go\x00cdef.go\x00"))

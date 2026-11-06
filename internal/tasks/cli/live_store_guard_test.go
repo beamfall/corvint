@@ -55,7 +55,7 @@ func TestPURV02211_LanePauseRefusesPrimary(t *testing.T) {
 	r := receiptFixture(t)
 	git(t, r.Root, "init", "-q", "-b", "main")
 	tcdCommit(t, r.Root, "fixture genesis")
-	lane := filepath.Join(t.TempDir(), "lane")
+	lane := filepath.Join(resolvedTempDir(t), "lane")
 	git(t, r.Root, "worktree", "add", "-q", "-b", "lane", lane)
 	t.Setenv(authority.ForbidCommonDirEnv, r.CommonDir)
 	before, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)

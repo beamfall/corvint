@@ -91,6 +91,9 @@ func checkIndex(root string, report func(format string, args ...any)) {
 			continue
 		}
 		text := string(body)
+		if prefix := strings.ReplaceAll(header(text, "Requirement prefix:"), "`", ""); prefix != "" && e.ReqPrefix != prefix {
+			report("%s reqPrefix %q != header %q", e.Path, e.ReqPrefix, prefix)
+		}
 		intent := header(text, "Intent status:")
 		delivery := header(text, "Delivery status:")
 		if intent == "" || delivery == "" {
