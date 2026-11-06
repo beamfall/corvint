@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -30,6 +31,9 @@ type unknown struct {
 type selection struct {
 	UnitID string   `json:"unitId"`
 	Tests  []string `json:"tests"`
+	// Argv, when present, is the command the selection runs; its test filter
+	// bounds which of the unit's tests count as selected (AZU-V0-009).
+	Argv []string `json:"argv,omitempty"`
 }
 type plan struct {
 	Raw                []byte      `json:"-"`
@@ -129,6 +133,71 @@ func selected(p plan) map[string]bool {
 		out[s.UnitID] = true
 	}
 	return out
+}
+
+// runFilters maps each selected unit to the -run patterns of its selections.
+// A nil pattern runs every test of the unit. A filter the replay cannot
+// evaluate refuses the safety check instead of counting the unit as run.
+func runFilters(p plan) (map[string][]*regexp.Regexp, error) {
+	out := map[string][]*regexp.Regexp{}
+	for _, s := range p.Selected {
+		filter, err := runFilter(s.Argv)
+		if err != nil {
+			return nil, fmt.Errorf("selection %s: %w", s.UnitID, err)
+		}
+		out[s.UnitID] = append(out[s.UnitID], filter)
+	}
+	return out, nil
+}
+
+// runFilter reads the go test -run pattern from argv. Go matches the pattern
+// unanchored against the top-level test name; subtest levels ("/"), -skip
+// and -list change which tests run in ways this check does not model.
+func runFilter(argv []string) (*regexp.Regexp, error) {
+	pattern, found := "", false
+	for i := 0; i < len(argv); i++ {
+		if !strings.HasPrefix(argv[i], "-") || argv[i] == "-" || argv[i] == "--" {
+			continue
+		}
+		name, value, inline := strings.Cut(strings.TrimLeft(argv[i], "-"), "=")
+		name = strings.TrimPrefix(name, "test.")
+		switch name {
+		case "run":
+		case "skip", "list":
+			return nil, fmt.Errorf("unsupported test filter %q", argv[i])
+		default:
+			continue
+		}
+		if found {
+			return nil, errors.New("repeated -run test filter")
+		}
+		if !inline {
+			if i+1 >= len(argv) {
+				return nil, errors.New("-run test filter without a pattern")
+			}
+			i++
+			value = argv[i]
+		}
+		pattern, found = value, true
+	}
+	if pattern == "" {
+		return nil, nil
+	}
+	if strings.Contains(pattern, "/") {
+		return nil, fmt.Errorf("subtest -run filter %q", pattern)
+	}
+	return regexp.Compile(pattern)
+}
+
+// runs reports whether a selected unit's filters run the named test.
+func runs(filters map[string][]*regexp.Regexp, unit, test string) bool {
+	top, _, _ := strings.Cut(test, "/")
+	for _, filter := range filters[unit] {
+		if filter == nil || filter.MatchString(top) {
+			return true
+		}
+	}
+	return false
 }
 func readPlan(binary, root, base string) (plan, int64, error) {
 	start := time.Now()
@@ -290,10 +359,13 @@ func safety(body []byte, merge, parent string, before, after plan, lines map[str
 			return fail(errors.New("parent test outcome absent from merge full suite"))
 		}
 	}
-	chosen := selected(after)
+	chosen, err := runFilters(after)
+	if err != nil {
+		return fail(err)
+	}
 	// A newly discovered test also differs from the parent's absent outcome.
 	for _, r := range receipt.MergeSuite.Results {
-		if old[r.Unit+"\x00"+r.Test] != r.Outcome && !chosen[r.Unit] {
+		if old[r.Unit+"\x00"+r.Test] != r.Outcome && !runs(chosen, r.Unit, r.Test) {
 			result.Misses = append(result.Misses, "outcome:"+r.Unit+":"+r.Test)
 		}
 	}
@@ -309,7 +381,7 @@ func safety(body []byte, merge, parent string, before, after plan, lines map[str
 			if killer.Test == "" || !knownKiller || !slices.Contains(units(after), killer.Unit) {
 				return fail(errors.New("unknown mutant killer"))
 			}
-			if !chosen[killer.Unit] {
+			if !runs(chosen, killer.Unit, killer.Test) {
 				result.Misses = append(result.Misses, "mutant:"+coordinate+":"+killer.Unit+":"+killer.Test)
 			}
 		}

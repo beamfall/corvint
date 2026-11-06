@@ -141,7 +141,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   reason, the selection size and its wall-clock cost. AZU-V0 is met when every plan in the list has
   `unknown: []` and the safety check finds no miss: on each merge, every test whose outcome differs
   between the parent and the merge in a full-suite run, or that a mutation on a changed line kills,
-  is in the selection.
+  is in the selection. A selection whose command filters its unit (`go test -run`) holds only the
+  tests that filter runs; a filter the replay cannot evaluate leaves safety `NOT_PRODUCED`.
 - `AZU-V0-9700`: Missing wrapper operands. As directed by the owner in the four Greptile P1
   fixes for batch PR #98 (2026-11-05), a recipe or workflow step ending in an operand-taking
   `env` or command-wrapper option SHALL NOT panic during graph construction. It SHALL retain
@@ -443,7 +444,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-006 | V1-4689 | not yet |
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
-| AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv), `TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903` (actual +/- records and canonical zero inter-hunk context; unchanged-line mutants remain NOT_PRODUCED on both sides); historical full-suite/mutation qualification remains NOT_PRODUCED |
+| AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv), `TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903` (actual +/- records and canonical zero inter-hunk context; unchanged-line mutants remain NOT_PRODUCED on both sides), `TestSafetyHonorsSelectionTestFilter_AZU_V0_009` (an ownership-only `-run` selection does not catch other tests of its package; subtest, `-skip`, `-list`, repeated or invalid filters remain NOT_PRODUCED); historical full-suite/mutation qualification remains NOT_PRODUCED |
 | AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
 | AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
 | AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |

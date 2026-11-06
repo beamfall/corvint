@@ -105,6 +105,50 @@ func TestSafetyRejectsUnsafeDrop_AZU_V0_8903(t *testing.T) {
 	}
 }
 
+// AZU-V0-009, AZU-V0-9900: an ownership-only selection runs one test of its
+// package. Another test in that package changing outcome or killing a mutant
+// is not caught by it, and an unevaluable filter refuses safety success.
+func TestSafetyHonorsSelectionTestFilter_AZU_V0_009(t *testing.T) {
+	ratchet := []string{"go", "test", "-run", "^(TestOwnershipAuditRatchet_AZU_V0_002)$", "a"}
+	for _, kind := range []string{"outcome", "mutant"} {
+		t.Run(kind, func(t *testing.T) {
+			r, old, now, lines := replayFixture()
+			now.Selected = []selection{{UnitID: "go:a", Tests: []string{"a_test.go"}, Argv: ratchet}}
+			r.ParentSuite.Results = append(r.ParentSuite.Results, observation{"go:a", "TestOwnershipAuditRatchet_AZU_V0_002", "pass"})
+			r.MergeSuite.Results = append(r.MergeSuite.Results, observation{"go:a", "TestOwnershipAuditRatchet_AZU_V0_002", "pass"})
+			if kind == "outcome" {
+				r.Mutants[0].KilledBy[0].Test = "TestOwnershipAuditRatchet_AZU_V0_002"
+				r.MergeSuite.Results[0].Outcome = "fail"
+			}
+			body, _ := json.Marshal(r)
+			got := safety(body, r.Merge, r.Parent, old, now, lines)
+			want := map[string]string{"outcome": "outcome:go:a:TestA", "mutant": "mutant:merge:a.go:2:go:a:TestA"}[kind]
+			if got.Status != "UNSAFE_DROP" || !slices.Equal(got.Misses, []string{want}) {
+				t.Fatalf("filtered-out test counted as run: %+v", got)
+			}
+			for _, argv := range [][]string{nil, {"go", "test", "-run", "TestA|TestOwnership", "a"}, {"go", "test", "-test.run=^(TestA|TestOwnershipAuditRatchet_AZU_V0_002)$", "-count=1", "a"}} {
+				now.Selected[0].Argv = argv
+				if got := safety(body, r.Merge, r.Parent, old, now, lines); got.Status != "OBSERVED_NO_MISS" {
+					t.Fatalf("matching filter %q rejected: %+v", argv, got)
+				}
+			}
+			for _, argv := range [][]string{
+				{"go", "test", "-run", "TestA/sub", "a"},
+				{"go", "test", "-run", "TestA", "-skip", "TestB", "a"},
+				{"go", "test", "-run", "TestA", "-run", "TestB", "a"},
+				{"go", "test", "-list", ".", "a"},
+				{"go", "test", "-run", "(", "a"},
+				{"go", "test", "a", "-run"},
+			} {
+				now.Selected[0].Argv = argv
+				if got := safety(body, r.Merge, r.Parent, old, now, lines); got.Status != "NOT_PRODUCED" || got.Detail == "" {
+					t.Fatalf("unevaluable filter %q admitted: %+v", argv, got)
+				}
+			}
+		})
+	}
+}
+
 // AZU-V0-8903: missing, incomplete, wrong-revision, unbound mutation and
 // unknown test evidence cannot turn an unobserved safety run into acceptance.
 func TestSafetyRefusesIncompleteEvidence_AZU_V0_8903(t *testing.T) {
