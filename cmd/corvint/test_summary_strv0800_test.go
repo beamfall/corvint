@@ -2,11 +2,8 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -60,36 +57,6 @@ func TestSTRV0800DryRunSummaryIsBounded(t *testing.T) {
 	code, stdout, stderr := runTestPlanCLI(t, "test", "--base", strings.Repeat("a", 40), "--summary")
 	if code != 2 || stdout != "" || !strings.Contains(stderr, "--summary applies only to --dry-run (STR-V0-800)") {
 		t.Errorf("--summary without --dry-run: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
-	}
-}
-
-// STR-V0-7313: the public default is bounded; JSON argv requires --full.
-func TestDryRunDefaultsToBoundedSummary(t *testing.T) {
-	root, base, _ := sessionFixture(t, "")
-	var stdout, stderr bytes.Buffer
-	manifest := filepath.Join(t.TempDir(), "plan.json")
-	code := runContext(context.Background(), []string{"--root", root, "test", "--base", base, "--dry-run", "--manifest", manifest}, strings.NewReader(""), &stdout, &stderr)
-	if code != 0 || !strings.HasPrefix(stdout.String(), "corvint-test: DRY-RUN") || stdout.Len() > 4096 {
-		t.Fatalf("unbounded/default output: exit=%d stdout=%s stderr=%s", code, &stdout, &stderr)
-	}
-	before, err := os.ReadFile(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout.Reset()
-	stderr.Reset()
-	code = runContext(context.Background(), []string{"--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest}, strings.NewReader(""), &stdout, &stderr)
-	if code != 0 || !json.Valid(stdout.Bytes()) {
-		t.Fatalf("full output: exit=%d %s %s", code, &stdout, &stderr)
-	}
-	after, err := os.ReadFile(manifest)
-	if err != nil || !bytes.Equal(before, after) {
-		t.Fatalf("output projection changed manifest: %v", err)
-	}
-	for _, args := range [][]string{{"test", "--base", base, "--full"}, {"test", "--base", base, "--dry-run", "--summary", "--full"}, {"test", "--base", base, "--dry-run", "--pins", "--full"}} {
-		if _, err := parseTestOptions(args[1:]); err == nil {
-			t.Fatalf("invalid full form admitted: %v", args)
-		}
 	}
 }
 

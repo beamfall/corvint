@@ -106,8 +106,7 @@ func (witness Witness) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		wire
 		AnyDirtyPath bool `json:"anyDirtyPath,omitzero"`
-		ViaLength    int  `json:"viaLength"`
-	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader, ViaLength: witness.ViaLength()})
+	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader})
 }
 
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:

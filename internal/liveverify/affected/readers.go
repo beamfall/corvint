@@ -726,6 +726,9 @@ func resolvesWithin(directory, value, dirtyPath string) bool {
 // pathTokens holds, in graph.order, each unit's path tokens with their
 // component runs split once, a token shared by several units split once.
 func (graph *Graph) pathTokens() [][]pathToken {
+	if graph.pathTokenCache != nil {
+		return graph.pathTokenCache
+	}
 	split := map[string]pathToken{}
 	tokens := make([][]pathToken, len(graph.order))
 	for i, id := range graph.order {

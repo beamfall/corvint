@@ -318,7 +318,7 @@ func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
 	}
 	plan := receipt["plan"].(map[string]any)
 	selected := fmt.Sprint(plan["selected"])
-	if want := "[map[tests:[core/core_test.go core/guide_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:docs/guide.md kind:PATH_LITERAL_READER via:[go:example.com/fixture/core] viaLength:1]]]"; selected != want {
+	if want := "[map[tests:[core/core_test.go core/guide_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:docs/guide.md kind:PATH_LITERAL_READER via:[go:example.com/fixture/core]]]]"; selected != want {
 		t.Fatalf("selected=%s\nwant    %s", selected, want)
 	}
 	unknown := fmt.Sprint(plan["unknown"])
@@ -379,7 +379,7 @@ func TestAffectedTaskStoreProjectionIsTaskState_AFPV0088(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
 	plan = receipt["plan"].(map[string]any)
-	if want := "[map[tests:[core/core_test.go core/policy_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:.taskman/policy.json kind:PATH_LITERAL_READER via:[go:example.com/fixture/core] viaLength:1]]]"; fmt.Sprint(plan["selected"]) != want {
+	if want := "[map[tests:[core/core_test.go core/policy_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:.taskman/policy.json kind:PATH_LITERAL_READER via:[go:example.com/fixture/core]]]]"; fmt.Sprint(plan["selected"]) != want {
 		t.Fatalf("the reader of a projection file must be selected: %v", plan["selected"])
 	}
 	// The read path is unowned as before, so every plugin's frontier bears on
@@ -1125,8 +1125,16 @@ func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]
 	for index, item := range compactSelected {
 		got, want := item.(map[string]any), fullSelected[index].(map[string]any)
 		witness := maps.Clone(got["witness"].(map[string]any))
-		// TSP-V0-7311 keeps viaLength in both forms; reconstruct only via.
-		witness["via"] = anyValues(chains[got["unitId"].(string)])
+		// Compact viaLength must agree with the reconstructed frozen full via.
+		chain := chains[got["unitId"].(string)]
+		if witness["viaLength"] != float64(len(chain)) {
+			t.Fatalf("selection %d: viaLength does not bind the full chain", index)
+		}
+		if _, added := want["witness"].(map[string]any)["viaLength"]; added {
+			t.Fatalf("selection %d: full witness changed the frozen wire", index)
+		}
+		delete(witness, "viaLength")
+		witness["via"] = anyValues(chain)
 		if _, listed := got["tests"]; listed || got["unitId"] != want["unitId"] || !reflect.DeepEqual(witness, want["witness"]) ||
 			int(got["testCount"].(float64)) != len(want["tests"].([]any)) {
 			t.Fatalf("selection %d: %v vs %v", index, got, want)

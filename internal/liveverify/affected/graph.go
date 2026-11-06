@@ -22,6 +22,9 @@ type Graph struct {
 	units map[string]Unit
 	order []string
 	owner map[string]string
+	// pathTokenCache is prepared before publication and shared read-only by
+	// selections over this immutable graph. It is derived from units and order.
+	pathTokenCache [][]pathToken
 	// embedded maps each file a unit's EmbedFiles lists to those units, in
 	// unit order (AFP-V0-600).
 	embedded   map[string][]string
@@ -511,6 +514,7 @@ func (graph *Graph) finish() {
 	called := graph.callerEdges()
 	graph.testReach = graph.unitsReachingTests(called)
 	graph.unbounded, graph.causes, graph.chains, graph.locatorReach = graph.unboundedReaders()
+	graph.pathTokenCache = graph.pathTokens()
 }
 
 // callerEdges adds the TSP-V0-005 edges of every unit's declared Callers to
