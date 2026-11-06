@@ -35,10 +35,12 @@ The external handback retains command results, digests, final identity and limit
   AFP-V0-021/549 parity compares complete plans against per-selection preparation for six
   dirty sets, including concurrent reads. The full affected package then passes: raw p95
   10.026378 ms, normalized p95 13.355637 ms, 542 units and 160 samples in its first round.
-- Scratch fixtures discover the sandbox's enclosing `/home/russell/lanes/.git` without
-  an explicit Git discovery boundary. Qualify the CLI package with
-  `GIT_CEILING_DIRECTORIES=/home/russell/lanes`; the mandated TMPDIR stays unchanged.
-  Negative-fixture assertions and production diagnostics are preserved.
+- Scratch fixtures discover the sandbox's enclosing `/home/russell/lanes/.git`.
+  A whole CLI rerun with `GIT_CEILING_DIRECTORIES=/home/russell/lanes` still reports
+  that enclosing repository and private-scratch ancestor ownership refusals. The mandated
+  TMPDIR stays unchanged. Whole CLI qualification remains externally blocked; negative-fixture
+  assertions and production diagnostics are preserved. The named frozen-output regressions
+  pass independently of these sandbox failures.
 
 ## Evidence and limits
 
