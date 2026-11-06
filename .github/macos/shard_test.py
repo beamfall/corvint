@@ -61,8 +61,10 @@ class DarwinShards(unittest.TestCase):
 
     def test_CINV04625_mixed_full_and_narrowed_legs_keep_package_ownership(self):
         packages = [package(name, "github.com/Beamfall/corvint") for name in "abcd"]
+        # CIN-V0-4627: the last case makes the affected package heavy enough to split.
         for weights in ({p["package"]: 1000 for p in packages}, {},
-                        {p["package"]: (i + 1) * 1000 for i, p in enumerate(packages)}):
+                        {p["package"]: (i + 1) * 1000 for i, p in enumerate(packages)},
+                        {p["package"]: 1127438 if i == 1 else 60000 for i, p in enumerate(packages)}):
             ownership, _ = m.partition(packages, weights)
             for full_legs in itertools.product((False, True), repeat=m.SHARDS):
                 with self.subTest(weights=weights, full_legs=full_legs), tempfile.TemporaryDirectory() as tmp:
@@ -81,12 +83,18 @@ class DarwinShards(unittest.TestCase):
                         with mock.patch.object(m, "run", return_value=0) as run:
                             self.assertEqual(m.main([str(selection), str(costs), str(i), str(out)]), 0)
                         assigned = run.call_args.args[0]
-                        expected = [p for p in ownership[i] if p in chosen]
+                        names = {p["package"] for p in chosen}
+                        expected = [p for p in ownership[i] if p["package"] in names]
                         self.assertEqual(assigned, expected)
                         self.assertEqual((out / "packages.txt").read_text().splitlines(),
-                                         [p["package"] for p in expected])
-                        executed.extend(p["package"] for p in assigned)
-                    self.assertIn(packages[1]["package"], executed)
+                                         [" ".join(filter(None, (p["package"], m.describe(p))))
+                                          for p in expected])
+                        executed.extend((p["package"], p.get("part")) for p in assigned)
+                    affected = [(p["package"], p.get("part")) for b in ownership for p in b
+                                if p["package"] == packages[1]["package"]]
+                    self.assertEqual(len(affected), 3 if len(weights) and max(weights.values()) > 10**6 else 1)
+                    self.assertEqual(sorted(k for k in executed if k[0] == packages[1]["package"]),
+                                     sorted(affected, key=lambda k: (k[0], k[1] or 0)))
                     self.assertEqual(len(executed), len(set(executed)))
 
     def test_CINV04625_balanced_complete_deterministic_partition(self):
@@ -170,6 +178,102 @@ class DarwinShards(unittest.TestCase):
         self.assertIn("FAIL ex/q [ex/q.test] (build)\n    q.go:3:1: undefined: x", summary)
         self.assertIn("FAIL ex/r (package)\n    panic: init failed", summary)
         self.assertNotIn("0.1s", summary)
+
+    def test_CINV04627_heavy_package_splits_into_parts_on_distinct_shards(self):
+        heavy = package("cmd/corvint", "github.com/Beamfall/corvint")
+        light = [package(str(i), "github.com/Beamfall/corvint") for i in range(9)]
+        weights = {heavy["package"]: 1127438}
+        weights.update({p["package"]: 60000 for p in light})
+        bins, loads = m.partition([heavy] + light, weights)
+        parts = [(i, p) for i, b in enumerate(bins) for p in b if p["package"] == heavy["package"]]
+        # 1127 s Linux x2 exceeds the 15 m budget: three parts, each the first item of its own shard.
+        self.assertEqual(sorted(p["part"] for _, p in parts), [0, 1, 2])
+        self.assertTrue(all(p["parts"] == 3 for _, p in parts))
+        self.assertEqual(len({i for i, _ in parts}), 3)
+        for i, p in parts:
+            self.assertIs(bins[i][0], p)
+            self.assertLessEqual(m.item_cost(p, weights) * m.DARWIN_SCALE, m.BUDGET_MS)
+        self.assertEqual(sum(loads), sum(m.item_cost(p, weights) for b in bins for p in b))
+        self.assertEqual(sorted(p["package"] for b in bins for p in b if "parts" not in p),
+                         sorted(p["package"] for p in light))
+        self.assertEqual(m.partition(list(reversed(light)) + [heavy], weights), (bins, loads))
+        # Light packages and missing cost history keep whole, grouped packages.
+        self.assertEqual(m.items(light, weights), light)
+        self.assertEqual(m.items([heavy], {}), [heavy])
+
+    def test_CINV04627_partitions_cover_every_listed_test_exactly_once(self):
+        names = ["Test%03d" % i for i in range(500)] + ["FuzzX", "ExampleY"]
+        for parts in (2, 3, 4, 7):
+            with self.subTest(parts=parts):
+                shares = [m.assigned_tests(list(reversed(names)), k, parts) for k in range(parts)]
+                flat = [n for share in shares for n in share]
+                self.assertEqual(sorted(flat), sorted(names))
+                self.assertEqual(len(flat), len(set(flat)))
+                self.assertTrue(all(shares))
+                self.assertEqual(shares, [m.assigned_tests(names, k, parts) for k in range(parts)])
+        listing = ["heavy.sh: banner\n", "TestA\n", "BenchmarkB\n", "FuzzC\n", "ExampleD\n",
+                   "ok  \tex/p\t0.2s\n"]
+        self.assertEqual(m.listed_tests(listing), ["TestA", "FuzzC", "ExampleD"])
+        for bad in (["TestA", "TestA"], ["TestÄ"], ["Test-x"]):
+            with self.assertRaises(ValueError):
+                m.listed_tests(bad)
+
+    def _partitioned_run(self, listing, ran, list_code=0):
+        item = dict(package("cmd/corvint", "github.com/Beamfall/corvint"), part=1, parts=3)
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            if "-list" in command:
+                kwargs["stdout"].write("".join(n + "\n" for n in listing) + "ok  \tx\t1s\n")
+                return types.SimpleNamespace(returncode=list_code)
+            for name in ran(command):
+                kwargs["stdout"].write(json.dumps({"Action": "pass", "Package": item["package"],
+                                                   "Test": name}) + "\n")
+                kwargs["stdout"].write(json.dumps({"Action": "pass", "Package": item["package"],
+                                                   "Test": name + "/sub"}) + "\n")
+            return types.SimpleNamespace(returncode=0)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        out = pathlib.Path(tmp.name)
+        with mock.patch("sys.stdout"):
+            code = m.run([item, package("light", "github.com/Beamfall/corvint")],
+                         out, pathlib.Path("/repo"), runner)
+        return item, calls, out, code
+
+    def test_CINV04627_partition_runs_alone_with_its_exact_tests(self):
+        names = ["Test%02d" % i for i in range(40)]
+        share = m.assigned_tests(names, 1, 3)
+        def ran(command):
+            pattern = command[command.index("-run") + 1] if "-run" in command else ""
+            return pattern[2:-2].split("|") if pattern else []
+        item, calls, out, code = self._partitioned_run(names, ran)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 3)
+        self.assertIn("-list", calls[0])
+        self.assertEqual(calls[1][-1], item["package"])
+        self.assertEqual(calls[1][calls[1].index("-run") + 1], "^(%s)$" % "|".join(share))
+        self.assertEqual(calls[1][calls[1].index("-timeout") + 1], "30m")
+        self.assertNotIn(item["package"], calls[2])
+        self.assertNotIn("-run", calls[2])
+        record = json.loads((out / "module-0.partition.json").read_text())
+        self.assertEqual((record["part"], record["parts"], record["listed"]), (1, 3, 40))
+        self.assertEqual(record["assigned"], share)
+
+    def test_CINV04627_missing_unlisted_or_failed_listing_fails_closed(self):
+        names = ["Test%02d" % i for i in range(40)]
+        share = m.assigned_tests(names, 1, 3)
+        for ran in (lambda c: share[1:] if "-run" in c else [],
+                    lambda c: share + ["TestExtra"] if "-run" in c else []):
+            with self.subTest(ran=ran):
+                _, _, _, code = self._partitioned_run(names, ran)
+                self.assertEqual(code, 1)
+        for listing, list_code in (([], 0), (names, 1), (["TestA", "TestA"], 0)):
+            with self.subTest(listing=listing, list_code=list_code):
+                _, calls, _, code = self._partitioned_run(listing, lambda c: [], list_code)
+                self.assertEqual(code, 1)
+                self.assertFalse(any("-run" in c for c in calls))
+                # The light module still runs after the partition's failure.
+                self.assertEqual(len(calls), 2)
 
     def test_CINV04625_package_arguments_and_module_roots(self):
         self.assertEqual(m.module_groups([{"package": "example", "module": "example", "dir": "/repo"}]),
