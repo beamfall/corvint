@@ -5255,6 +5255,12 @@ DLT-V0-007	docs/specs/immutable-delta-v0.md	Optional bounded work-key extraction
 DLT-V0-008	docs/specs/immutable-delta-v0.md	Output MUST be deterministic canonical JSON containing only validated paths,	unrecorded	-
 DLT-V0-009	docs/specs/immutable-delta-v0.md	The complete record MUST expose sorted uncertainty and a downstream decision	unrecorded	-
 DLT-V0-010	docs/specs/immutable-delta-v0.md	The command MUST be R0: no network, state, tracing, object/ref/index writes or	unrecorded	-
+IRT-V0-001	docs/specs/import-ratchet-v0.md	`tools/import-ratchet/areas.json` (profile `corvint-area-manifest/0`) SHALL name	unrecorded	-
+IRT-V0-002	docs/specs/import-ratchet-v0.md	An import from package A into package B is wrong-way when their areas differ, A'	unrecorded	-
+IRT-V0-003	docs/specs/import-ratchet-v0.md	The import graph SHALL hold the production (non-`_test.go`) imports of module	unrecorded	-
+IRT-V0-004	docs/specs/import-ratchet-v0.md	`tools/import-ratchet/baseline.json` (profile	unrecorded	-
+IRT-V0-005	docs/specs/import-ratchet-v0.md	On the real graph the test SHALL prove its own effectiveness: adding one	unrecorded	-
+IRT-V0-006	docs/specs/import-ratchet-v0.md	The test SHALL run inside `go test ./...` in well under 10 seconds (measured 0.7	unrecorded	-
 ICL-V0-001	docs/specs/incremental-closeout-v0.md	A closeout step MAY skip work only when a recorded result binds every input	unrecorded	-
 ICL-V0-010	docs/specs/incremental-closeout-v0.md	A repeated `dogfood-inputs-check` whose pre-flight key equals the key of a passi	unrecorded	-
 ICL-V0-020	docs/specs/incremental-closeout-v0.md	A batch-drift entry marked `@prebind` is one the bind cannot reach: its package	unrecorded	-

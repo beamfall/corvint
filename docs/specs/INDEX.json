@@ -4545,5 +4545,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/import-ratchet-v0.md",
+    "title": "Area Import Ratchet V0",
+    "reqPrefix": "IRT-V0",
+    "intent": "experimental",
+    "delivery": "experimental",
+    "claim": "A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
