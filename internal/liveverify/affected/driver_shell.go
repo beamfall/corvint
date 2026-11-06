@@ -406,6 +406,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 				break
 			}
 			if arg == "-c" || arg == "-e" {
+				// Inline programs in other languages are outside the shell
+				// scanner; their hidden invocations must retain this site.
+				s.scan.computed = true
 				break
 			}
 			if strings.HasPrefix(arg, "-") {
@@ -500,13 +503,24 @@ var driverGoBoolFlags = map[string]bool{
 // imports. A computed pattern, or a relative one under an unknown working
 // directory, imports every owner.
 func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
-	for len(words) >= 2 && words[0].text == "-C" {
-		if driverDynamic(words[1].text) || cwd == "" {
+	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
+		var directory string
+		switch {
+		case words[0].text == "-C" && len(words) >= 2:
+			directory = words[1].text
+			words = words[2:]
+		case strings.HasPrefix(words[0].text, "-C="):
+			directory = strings.TrimPrefix(words[0].text, "-C=")
+			words = words[1:]
+		default:
+			s.scan.computed = true
+			return
+		}
+		if driverDynamic(directory) || cwd == "" {
 			cwd = ""
 		} else {
-			cwd = driverJoin(cwd, words[1].text)
+			cwd = driverJoin(cwd, directory)
 		}
-		words = words[2:]
 	}
 	if len(words) == 0 || !driverGoPackageCommands[words[0].text] {
 		return
@@ -547,6 +561,11 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 
 func (s *driverShellScanner) goPattern(pattern, cwd string) {
 	switch {
+	case strings.ContainsAny(pattern, "*?["):
+		// Shell globs are not literal package paths. Retain the caller
+		// rather than silently importing a path that has no owner.
+		s.scan.computed = true
+		return
 	case driverDynamic(pattern):
 		s.scan.paths["..."] = true
 		return

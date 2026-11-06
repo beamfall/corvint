@@ -420,6 +420,18 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for id := range contained {
 		delete(start, id)
 	}
+	// Driver path imports execute the package's tests; Go's test-only
+	// containment applies to package importers, not these callers (AZU-V0-001).
+	for _, id := range sortedKeys(contained) {
+		for _, dependent := range graph.dependents[id] {
+			if strings.HasPrefix(dependent, DriverNamespace+":") {
+				addWitness(start, dependent, Witness{
+					Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath,
+					Via: append(slices.Clone(seeds[id].Chain()), dependent),
+				})
+			}
+		}
+	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
 	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
