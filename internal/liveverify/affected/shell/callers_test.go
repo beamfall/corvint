@@ -157,3 +157,19 @@ func TestForeignCallerDeclaration_TSP_V0_005(t *testing.T) {
 		})
 	}
 }
+
+// AZU-V0-8904 shares validation without changing the existing decoder's
+// diagnostic type names for invalid declaration shapes.
+func TestForeignCallerDecoderTypeDiagnostics_AZU_V0_8904(t *testing.T) {
+	for _, tc := range []struct{ body, diagnostic string }{
+		{`[]`, "Go shell.foreignCallersFile"},
+		{`{"profile":"corvint-shell-foreign-callers/0","scripts":{"run.sh":1}}`, "Go shell.ForeignCallers"},
+	} {
+		root := t.TempDir()
+		write(t, root, affected.ShellForeignCallersPath, tc.body)
+		err := CheckForeignCallers(affected.DiskSource(root))
+		if err == nil || !strings.Contains(err.Error(), tc.diagnostic) {
+			t.Fatalf("error %v, want existing diagnostic type %q", err, tc.diagnostic)
+		}
+	}
+}

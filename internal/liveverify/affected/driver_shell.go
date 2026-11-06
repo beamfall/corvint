@@ -529,7 +529,7 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 	}
 	command := words[0].text
 	words = words[1:]
-	packageSeen := false
+	hasPackage := false
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
 		if arg == "-args" || arg == "--" {
@@ -558,13 +558,15 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 			}
 			continue
 		}
+		hasPackage = true
 		s.goPattern(arg, cwd)
-		packageSeen = true
 		if command == "run" && !strings.HasSuffix(arg, ".go") {
 			return
 		}
 	}
-	if !packageSeen {
+	if !hasPackage && command != "run" {
+		// Package commands other than run default to the current package.
+		// goPattern keeps every owner when cd or -C left cwd unresolved.
 		s.goPattern(".", cwd)
 	}
 }

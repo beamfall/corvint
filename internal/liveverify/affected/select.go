@@ -327,7 +327,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
-	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
+	if _, closed := graph.inboundRevisionPaths(normalized); !closed {
+		plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
+	}
 	plan.Unknown = append(plan.Unknown, shellReadScopesChanged(normalized)...)
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
@@ -420,15 +422,12 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for id := range contained {
 		delete(start, id)
 	}
-	// Driver path imports execute the package's tests; Go's test-only
-	// containment applies to package importers, not these callers (AZU-V0-001).
+	// A package's tests do not affect ordinary importers, but drivers run
+	// those tests. Start at their direct driver callers and follow from there.
 	for _, id := range sortedKeys(contained) {
-		for _, dependent := range graph.dependents[id] {
-			if strings.HasPrefix(dependent, DriverNamespace+":") {
-				addWitness(start, dependent, Witness{
-					Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath,
-					Via: append(slices.Clone(seeds[id].Chain()), dependent),
-				})
+		for _, caller := range graph.dependents[id] {
+			if strings.HasPrefix(caller, DriverNamespace+":") {
+				addWitness(start, caller, Witness{Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath, link: seeds[id].extended(caller)})
 			}
 		}
 	}
@@ -464,6 +463,8 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
+	graph.inboundRuntimeCallers(reached, followed, normalized)
+	graph.inboundRevisionCallers(reached, followed, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -729,6 +730,12 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	}
 	unknown := make([]Unknown, 0, len(reasons))
 	for _, reason := range sortedKeys(reasons) {
+		if id := graph.inboundRuntimeSite(reason); id != "" {
+			if _, selected := reached[id]; selected {
+				delete(sources, reason)
+				continue
+			}
+		}
 		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})
 	}
 	var excluded []FrontierExclusion
