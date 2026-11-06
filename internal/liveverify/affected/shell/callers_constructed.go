@@ -84,8 +84,8 @@ var foreignJoinStart = regexp.MustCompile(`\b(?:[Jj]oin|joinpath)\s*\(`)
 var foreignJoinLiteral = regexp.MustCompile("^\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*([,)])")
 
 // AZU-V0-8901: consume whole literal operands before deciding which directory
-// a join can reach. A dot or ancestor prefix followed by an unresolved operand
-// cannot exclude the callee. Fully literal joins match the callee directory,
+// a join can reach. An unresolved intermediate operand may traverse out of
+// any literal prefix. Fully literal joins match the callee directory,
 // so results remain invariant across the directory cache in callers.go.
 func normalizedForeignJoin(body []byte, script string) bool {
 	directory := path.Dir(script)
@@ -94,7 +94,7 @@ func normalizedForeignJoin(body []byte, script string) bool {
 		for {
 			literal := foreignJoinLiteral.FindSubmatch(args)
 			if literal == nil {
-				if seen && (prefix == "." || prefix == directory || strings.HasPrefix(directory, prefix+"/")) {
+				if seen && (foreignJoinMayTraverse(args) || prefix == "." || prefix == directory || strings.HasPrefix(directory, prefix+"/")) {
 					return true
 				}
 				break
@@ -115,6 +115,77 @@ func normalizedForeignJoin(body []byte, script string) bool {
 		}
 	}
 	return false
+}
+
+// A dynamic directory operand can be "..", cancelling an unrelated prefix
+// before later operands supply the callee directory. Inspect only the current
+// call: commas inside strings or nested expressions are not operand boundaries.
+// Keep the existing terminal-basename bounds when there is no later operand.
+func foreignJoinMayTraverse(args []byte) bool {
+	depth, quote, last, more := 0, byte(0), 0, false
+	for i := 0; i < len(args); i++ {
+		c := args[i]
+		if quote != 0 {
+			if c == '\\' && quote != '`' {
+				i++
+			} else if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			if depth == 0 {
+				return more && !foreignJoinNonShellTail(args[last:i])
+			}
+			depth--
+		case ',':
+			if depth == 0 {
+				if bytes.HasPrefix(bytes.TrimSpace(args[i+1:]), []byte(")")) {
+					return more && !foreignJoinNonShellTail(args[last:i])
+				}
+				more, last = true, i+1
+			}
+		}
+	}
+	return more // An incomplete call cannot prove exclusion.
+}
+
+var foreignJoinTail = regexp.MustCompile("(?:^|\\+)\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*$")
+
+// A fixed final suffix such as .json cannot become a shell filename through
+// an earlier traversal. Check every supported shell suffix, keeping this proof
+// independent of the callee basename for the directory-level match cache.
+func foreignJoinNonShellTail(operand []byte) bool {
+	literal := foreignJoinTail.FindSubmatch(operand)
+	if literal == nil {
+		return false
+	}
+	value, ok := foreignJoinString(string(literal[1]))
+	// A foreign caller may run on Windows, where a backslash is a separator.
+	value = strings.ReplaceAll(value, `\`, "/")
+	if !ok || value == "" || strings.HasSuffix(value, "/") || strings.ContainsAny(value, "$%{}:") {
+		return false
+	}
+	tail := path.Base(value)
+	if tail == "." || tail == ".." {
+		return false // Cleaning may remove this operand and expose an earlier one.
+	}
+	// Windows may ignore case and trailing dots/spaces in a filename.
+	tail = strings.ToLower(strings.TrimRight(tail, " ."))
+	if tail == "" {
+		return false
+	}
+	for _, suffix := range Suffixes {
+		if strings.HasSuffix(tail, suffix) || strings.HasSuffix(suffix, tail) {
+			return false
+		}
+	}
+	return true
 }
 
 // Single quotes delimit strings in other source languages, not just Go runes.

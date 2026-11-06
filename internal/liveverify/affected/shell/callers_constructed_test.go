@@ -245,6 +245,82 @@ func TestNormalizedJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	}
 }
 
+// AZU-V0-004, AZU-V0-8901: an unresolved intermediate operand can cancel
+// an unrelated literal prefix. Completeness must retain the caller frontier.
+func TestTraversalJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
+	for _, operand := range []string{"up", "(up)", "strings.TrimSpace(up)"} {
+		t.Run(operand, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "go.mod", "module example.test/traversal\n\ngo 1.27\n")
+			write(t, root, "run/run.sh", "echo ok\n")
+			write(t, root, "caller/caller.go", "package caller\nvar script = \"run/run.sh\"\n")
+			write(t, root, "caller/caller_test.go", "package caller\n")
+			imports := "import (\"os/exec\"; \"path/filepath\")\n"
+			if strings.Contains(operand, "strings.") {
+				imports += "import \"strings\"\n"
+			}
+			body := "package extra\n" + imports + "var up = \"..\"\nvar name = \"run\"\nvar cmd = exec.Command(\"sh\", filepath.Join(\"scratch\", " + operand + ", \"run\", name+\".sh\"))\n"
+			write(t, root, "extra/extra.go", body)
+			write(t, root, "extra/extra_test.go", "package extra\n")
+			declared := map[string]ForeignCallers{
+				"run/run.sh": {Callers: []string{"caller/caller.go"}, Reason: "literal caller"},
+			}
+			writeDeclaration := func() {
+				t.Helper()
+				declaration, err := json.Marshal(map[string]any{"profile": ForeignCallersProfile, "scripts": declared})
+				if err != nil {
+					t.Fatal(err)
+				}
+				write(t, root, affected.ShellForeignCallersPath, string(declaration))
+			}
+			writeDeclaration()
+			graph, err := affected.Build(context.Background(), root, golang.New(), New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{"run/run.sh"})
+			if plan.Scope != affected.ScopeUnknown || !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
+				return u.Detail == FrontierForeignInvocation
+			}) {
+				t.Fatalf("undeclared traversal caller certified: %+v", plan)
+			}
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/traversal/caller" }) {
+				t.Fatalf("known caller dropped: %+v", plan)
+			}
+			if foreignCallersComplete(affected.DiskSource(root), declared, nil) {
+				t.Fatal("undeclared traversal caller accepted")
+			}
+			declared["run/run.sh"] = ForeignCallers{Callers: []string{"caller/caller.go", "extra/extra.go"}, Reason: "literal and traversal callers"}
+			writeDeclaration()
+			if !foreignCallersComplete(affected.DiskSource(root), declared, nil) {
+				t.Fatal("declared traversal caller refused")
+			}
+		})
+	}
+}
+
+// AZU-V0-8901: a terminal literal suffix may exclude a shell filename only
+// when it excludes every supported shell extension, including partial suffixes.
+func TestTraversalJoinSuffixBounds_AZU_V0_8901(t *testing.T) {
+	for _, expression := range []string{
+		`filepath.Join("scratch", up, "run", name+".json")`,
+		`filepath.Join("scratch", up, "data.txt")`,
+		`filepath.Join("scratch", up, "cmdline")`,
+	} {
+		if constructedForeignReference([]byte(expression), "run/run.sh") {
+			t.Fatalf("non-shell suffix matched: %s", expression)
+		}
+	}
+	for _, tail := range []string{`name+".sh"`, `name+"sh"`, `name+"h"`, `name+".bash"`, `name+".zsh"`, `name+".ksh"`, `name+".bats"`, `name+".SH"`, `name+".sh. "`, `".."`, `"."`, `"data.json/.."`, `"data.json\\.."`, `name`} {
+		expression := `filepath.Join("scratch", up, "run", ` + tail + `)`
+		for _, script := range []string{"run/a.sh", "run/run.sh"} {
+			if !constructedForeignReference([]byte(expression), script) {
+				t.Fatalf("possible shell suffix excluded (%s): %s", script, expression)
+			}
+		}
+	}
+}
+
 // AZU-V0-004, AZU-V0-8901: completeness caches constructed matches by
 // directory. An escaped basename in embedded Python must not disappear when
 // another script in the same directory is matched first.
