@@ -35,7 +35,7 @@ func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("SESSION_FAKE_LOG", filepath.Join(t.TempDir(), "go.log"))
 	t.Setenv("SESSION_FAKE_MODE", "pass")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--format", "json")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}
@@ -85,7 +85,7 @@ func TestOwnershipFullDryRun_AZU_V0_9900(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("SESSION_FAKE_LOG", filepath.Join(t.TempDir(), "go.log"))
 	t.Setenv("SESSION_FAKE_MODE", "pass")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--format", "json")
 	if code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr)
 	}

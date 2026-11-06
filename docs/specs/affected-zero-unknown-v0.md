@@ -177,6 +177,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   open, including plugins without `FrontierReach`. Independent participating, reached and
   resolution-input frontiers SHALL keep their reasons. The missing declaration remains unknown;
   selecting the ratchet is no proof of ownership and cannot admit arbitrary undeclared readers.
+  When every unowned path is such a tracked fixture membership change, terminal readers of
+  other changed paths SHALL retain terminal status: each unowned-path frontier is judged by
+  that same per-plugin/reason classifier instead of promoting the whole plugin. A non-fixture
+  unowned path, content-only plan, or unselected Go fixture host retains prior participation.
 - **AZU-V0-9902: One audit classifier.** The CLI and maintained ratchet SHALL use the same
   `AuditOwnership` code path and return the same raw unowned list for the same tracked tree.
   The CLI is the complete inventory required by AZU-V0-002; the ratchet additionally checks
@@ -232,6 +236,11 @@ per-plugin/reason classifier; `TestOwnershipFixtureComputedImport_AZU_V0_9901` r
 TypeScript computed `require` frontier, and
 `TestOwnershipFixtureFrontierClassification_AZU_V0_9901` retains dynamic, bounded and
 unclassified frontiers while excluding only classified unrelated reasons.
+`TestOwnershipFixtureTerminalReaders_AZU_V0_9901` covers terminal readers alongside
+resolution inputs, foreign fixture content, owned-source changes, unbounded readers and
+another unowned path. `TestOwnershipReplayTerminalReader_AZU_V0_9901` reproduces the
+historical source-edit-plus-fixtures shape with a real terminal TypeScript reader: its
+source-bound import reason is excluded while its computed data-load reason remains unknown.
 Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
 shape, error/exit contract, committed golden or baseline changes are authorized.
 

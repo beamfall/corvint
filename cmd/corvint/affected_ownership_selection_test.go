@@ -244,6 +244,46 @@ func TestOwnershipFixtureComputedImport_AZU_V0_9901(t *testing.T) {
 	}
 }
 
+// AZU-V0-9901: replay with a terminal foreign reader of the modified Go
+// source. Its source-bound import reason cannot observe the added fixtures;
+// a computed data load still can, and keeps its original unknown reason.
+func TestOwnershipReplayTerminalReader_AZU_V0_9901(t *testing.T) {
+	root, _ := ratchetSelectionRepo(t)
+	reader := "web/reader.test.ts"
+	cemWrite(t, root, reader, "import { test } from 'node:test';\nimport missing from 'missing';\ntest('read', () => { console.log('tools/ci-reuse-plan/main.go'); require(process.env.DATA); });\n")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "terminal reader")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	for _, path := range []string{"jobs/42106672783.json", "logs/127535388505.txt", "runs.json"} {
+		cemWrite(t, root, "tools/ci-reuse-plan/testdata/record-admission/"+path, "{}\n")
+	}
+	cemWrite(t, root, "tools/ci-reuse-plan/main.go", "package main\nfunc main() { println(1) }\n")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "replay fixtures and source edit")
+	p := ratchetPlan(t, root, base)
+	assertRatchetSelected(t, p)
+	if !slices.ContainsFunc(p.Selected, func(s affected.Selection) bool {
+		return slices.Contains(s.Tests, reader) && s.Witness.Kind == affected.WitnessPathLiteralReader
+	}) {
+		t.Fatalf("terminal reader not selected: %+v", p.Selected)
+	}
+	dynamic := false
+	for _, u := range p.Unknown {
+		if u.Reason != affected.UnknownLanguageFrontier {
+			continue
+		}
+		if strings.HasPrefix(u.Detail, "typescript:bare-import-undeclared:") {
+			t.Fatalf("source-bound reason promoted through fixture: %+v", u)
+		}
+		if strings.HasPrefix(u.Detail, "typescript:dynamic-import:") {
+			dynamic = true
+		}
+	}
+	if !dynamic {
+		t.Fatalf("computed reader unknown lost: %+v", p.Unknown)
+	}
+}
+
 // AZU-V0-9902: the CLI and the ratchet classify identical tracked content;
 // a baseline is outstanding debt, never a second ownership rule.
 func TestOwnershipCLIAndRatchetAgree_AZU_V0_9902(t *testing.T) {

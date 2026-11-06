@@ -4,7 +4,19 @@ Date: 2026-11-05
 Intent: owner lane charter V1-4729; experimental AZU-V0-9900..9902 refine AZU-V0-002.
 Base: `9db7a94169821d9b28701eaa88866aee2fec1083`.
 
-## Decision
+## Current replay correction (2026-11-06)
+
+The original patched counts below describe an earlier implementation and are superseded.
+The current repair retains per-plugin closure for terminal readers: the exact historical
+replay now has **43 execution units before and after, 290 affected selections before and
+after, and 78 unknowns before versus 58 after** (55 frontier reasons and three unowned
+paths). All three paths receive declaration hints and the named ratchet obligation is
+present. The earlier four-unknown result relied on the global fixture suppression removed
+by review; it is not current evidence. See
+[the terminal-reader repair](2026-11-06-ratchetsel-terminal-reader-repair.md) for the decision,
+current digests, preserved unknowns and verification limits.
+
+## Original decision and measurements
 
 Tracked path membership is an ownership-audit input even when no content reader names the path.
 Observe the base tree, HEAD tree and current index separately, so staged additions, deleted
