@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,6 +17,18 @@ import (
 var leaderFault func(dir string)
 
 var checkTestLeaders = func() error { return nil }
+
+// testRootEnv carries the package root test process's executable to every
+// process it starts. A test that re-executes the binary as a child inherits
+// it, so only the root, whose m.Run spans every test, checks for leaked lane
+// leaders. A child's check matched the live leaders of the root's parallel
+// tests by the same executable path and killed them after its grace
+// (ATR-V0-7202, V1-4782).
+const testRootEnv = "CORVINT_TEST_STORE_ROOT"
+
+// idleLeaderEnv makes a lane-leader invocation hold until its standard input
+// closes, standing in for another test's live leader (V1-4782).
+const idleLeaderEnv = "CORVINT_TEST_IDLE_LEADER"
 
 // holderStopEnv names a file whose creation, or its directory's removal,
 // releases the output holder (V1-2625).
@@ -49,6 +62,10 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	if len(os.Args) == 6 && os.Args[1] == "lane-leader" {
+		if os.Getenv(idleLeaderEnv) != "" {
+			_, _ = io.Copy(io.Discard, os.Stdin)
+			os.Exit(0)
+		}
 		if leaderFault != nil && os.Getenv("CORVINT_TEST_LEADER_FAULT") != "" {
 			leaderFault(os.Args[3])
 		}
@@ -78,10 +95,22 @@ func TestMain(m *testing.M) {
 			panic(err)
 		}
 	}
+	self, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	root := os.Getenv(testRootEnv) != self
+	if root {
+		if err := os.Setenv(testRootEnv, self); err != nil {
+			panic(err)
+		}
+	}
 	code := m.Run()
-	if err := checkTestLeaders(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		code = 1
+	if root {
+		if err := checkTestLeaders(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			code = 1
+		}
 	}
 	os.Exit(code)
 }
