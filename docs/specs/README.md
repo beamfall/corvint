@@ -287,6 +287,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Corvint Self-Development Selection Correctness V0 | [`corvint-self-development-selection-v0.md`](corvint-self-development-selection-v0.md) | per requirement, each experimental under the standing lane auto-accept (2026-11-03) | experimental | heavy.sh admits new packages, suggests an accepted manifest path and keeps every darwin-only command local; batch-precheck uses the CI allowlist. |
 | Lane Dogfood Tooling V0 | [`lane-dogfood-tooling-v0.md`](lane-dogfood-tooling-v0.md) DTL-V0-001..016 | accepted | experimental | Lane tooling preserves evidence boundaries while making verification, diagnostics and local scratch predictable. |
 | Corvint Self-Development Companion V0 | [`corvint-self-development-companion-v0.md`](corvint-self-development-companion-v0.md) | accepted | experimental | Local gate fixtures and batch verification expose platform drift, skipped inputs and unresolved historical evidence. |
+| Affected Reader Precision V0 | [`affected-reader-precision-v0.md`](affected-reader-precision-v0.md) | experimental | experimental | Affected selection bounds declared source scanners and keeps display-text provenance separate from executable path reads. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
