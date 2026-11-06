@@ -5571,6 +5571,9 @@ LPCV-V0-8204	docs/specs/live-proof-carrying-verification-v0.md	(accepted under t
 LPCV-V0-8205	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370;	standing	2026-10-11; V1-4369; V1-4370; V1-4371; V1-4375; V1-4376
 LPCV-V0-8206	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370;	standing	2026-10-11; V1-4369; V1-4370; V1-4371; V1-4375; V1-4376
 LPCV-V0-8207	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370;	standing	2026-10-11; V1-4369; V1-4370; V1-4371; V1-4375; V1-4376
+LPCV-V0-9400	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4371) Inventor	standing	2026-10-11; V1-4371
+LPCV-V0-9401	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370;	standing	2026-10-11; V1-4369; V1-4370; V1-4371; V1-4375; V1-4376
+LPCV-V0-9402	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4369) Simple t	standing	2026-10-11; V1-4369
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
