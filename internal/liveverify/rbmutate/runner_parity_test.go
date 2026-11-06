@@ -59,6 +59,9 @@ func TestRSpecPathMatchesTheRegistry(t *testing.T) {
 		"selection matcher": func(r *tr.Request) {
 			r.ExpectedSelection = &tr.Selection{Version: tr.SelectionVersion, Matcher: tr.NightwatchSessionElided}
 		},
+		// The two non-member cases are a tripwire: buildRSpec names only dynamic's
+		// exec members while the registry names every family's. They match while
+		// rspec is the only exec member; rbmutate itself always requests rspec.
 		"non-member runner": func(r *tr.Request) { r.Runner = "pytest" },
 		"non-member formatter": func(r *tr.Request) {
 			r.Runner = "minitest"
