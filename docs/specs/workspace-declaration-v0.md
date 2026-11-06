@@ -112,9 +112,9 @@ discovered workspace and no `--no-workspace`: `workspace-unsupported`, exit 2 (`
 | WSD-V0-001 | `internal/workspace/workspace.go` `Workspace`, `decode` | `TestWSDV0001Load` |
 | WSD-V0-002 | `readBounded`, `decode`, `validRevision` | `TestWSDV0001Load` |
 | WSD-V0-003 | `workspace.Discover`; `appmap.Roots.Resolve` | `TestWSDV0003Discover`, `TestWSDV0004BuildWorkspace`, `TestWSDV0004BuildCLI` |
-| WSD-V0-004 | `internal/appmap/rootflags.go` `BindRootFlags`, `Resolve`; `compile.go` revision check; `cmd/corvint/flows_appmap.go`; `cmd/corvint-test/main.go` | `TestWSDV0004BuildWorkspace`, `TestWSDV0004BuildCLI`, `TestWSDV0004ObligationsWorkspace` |
+| WSD-V0-004 | `internal/appmap/rootflags.go` `BindRootFlags`, `Resolve`; `compile.go` revision check; `internal/command/flows/flows_appmap.go`; `cmd/corvint-test/main.go` | `TestWSDV0004BuildWorkspace`, `TestWSDV0004BuildCLI`, `TestWSDV0004ObligationsWorkspace` |
 | WSD-V0-005 | `cmd/corvint-test/main.go` hosted prove refusal | `TestWSDV0004ObligationsWorkspace` |
-| WSD-V0-145 (experimental) | `cmd/corvint/flows_appmap_knowledge.go` `bindSourceRepos`, `sourceRepos.resolve`; refs, infer and how call sites | `TestWSDV0145SourceVerbsWorkspace` |
+| WSD-V0-145 (experimental) | `internal/command/flows/flows_appmap_knowledge.go` `bindSourceRepos`, `sourceRepos.resolve`; refs, infer and how call sites | `TestWSDV0145SourceVerbsWorkspace` |
 | WSD-V0-146 (experimental) | `cmd/corvint/workspace_guard.go` `guardWorkspace`, `checkWorkspace`; `parseWitnessInvocation`, `parseGuidanceInvocation`, the cem guard in `runContext` | `TestWSDV0146SingleRootVerbsRefuseWorkspace` |
 
 Compatibility: no wire change. Without a workspace file every verb behaves as before; the hosted

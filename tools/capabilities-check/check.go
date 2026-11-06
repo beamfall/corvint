@@ -107,7 +107,11 @@ func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	subcommands, err := parseSubcommands(filepath.Dir(helpGo))
+	tableDirs, err := commandPackageDirs(filepath.Dir(helpGo), filepath.Join(filepath.Dir(cmdDir), "internal", "command"))
+	if err != nil {
+		return Inventory{}, err
+	}
+	subcommands, err := parseSubcommands(tableDirs...)
 	if err != nil {
 		return Inventory{}, err
 	}
@@ -115,7 +119,27 @@ func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 		Experimental: experimental, Subcommands: subcommands}, nil
 }
 
-// subcommandTables names the code-declared subcommand tables in cmd/corvint (CAP-V0-007). An
+// commandPackageDirs lists the corvint main package and every command package under
+// internal/command (V1-4756), whose handlers moved out of cmd/corvint with their tables.
+func commandPackageDirs(mainDir, commandDir string) ([]string, error) {
+	dirs := []string{mainDir}
+	entries, err := os.ReadDir(commandDir)
+	if os.IsNotExist(err) {
+		return dirs, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, filepath.Join(commandDir, e.Name()))
+		}
+	}
+	return dirs, nil
+}
+
+// subcommandTables names the code-declared subcommand tables in cmd/corvint and its command
+// packages under internal/command (CAP-V0-007). An
 // empty command marks a nested table whose keys are verbs and whose values are subcommand sets.
 var subcommandTables = []struct{ variable, command string }{
 	{"helpSubcommands", ""},
@@ -125,14 +149,10 @@ var subcommandTables = []struct{ variable, command string }{
 }
 
 // parseSubcommands reads each declared table from the non-test Go files of the corvint main
-// package: a top-level []string or map literal, a nested map whose values are literals or
+// package and its command packages (dirs): a top-level []string or map literal, a nested map whose values are literals or
 // top-level identifiers, and any NAME["sub"] = ... registration. A missing table is an error,
 // so renaming one cannot silently disable the check.
-func parseSubcommands(dir string) (map[string][]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
+func parseSubcommands(dirs ...string) (map[string][]string, error) {
 	vars := map[string]ast.Expr{}
 	registered := map[string][]string{}
 	tracked := map[string]bool{}
@@ -140,12 +160,20 @@ func parseSubcommands(dir string) (map[string][]string, error) {
 		tracked[t.variable] = true
 	}
 	fset := token.NewFileSet()
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
+	var files []string
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, err
 		}
-		file, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.SkipObjectResolution)
+		for _, e := range entries {
+			if name := e.Name(); !e.IsDir() && strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
+				files = append(files, filepath.Join(dir, name))
+			}
+		}
+	}
+	for _, path := range files {
+		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +216,7 @@ func parseSubcommands(dir string) (map[string][]string, error) {
 	for _, t := range subcommandTables {
 		expr, ok := vars[t.variable]
 		if !ok {
-			return nil, fmt.Errorf("subcommand table %s not found in %s", t.variable, dir)
+			return nil, fmt.Errorf("subcommand table %s not found in %s", t.variable, strings.Join(dirs, ", "))
 		}
 		if t.command != "" {
 			out[t.command] = append(out[t.command], literalKeys(expr, vars)...)

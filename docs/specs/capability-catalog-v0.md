@@ -67,14 +67,16 @@ cannot silently go missing or outlive its command.
 - `CAP-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The check
   MUST read only the paths it is given (the catalog, the README, `cmd/corvint/help.go`,
   `cmd/corvint/main.go`, the `cmd/` tree and `internal/mcp/`, plus `os.Stat` of linked targets;
-  since V1-2020 also the non-test Go files of `cmd/corvint/` for CAP-V0-007 and the non-test Go
-  source under `cmd/` and `internal/`, outside `testdata/`, for CAP-V0-009), run no command, use no
-  network and write nothing.
+  since V1-2020 also the non-test Go files of `cmd/corvint/` (and since V1-4756 of each
+  `internal/command/` package) for CAP-V0-007 and the non-test Go source under `cmd/` and
+  `internal/`, outside `testdata/`, for CAP-V0-009), run no command, use no network and write
+  nothing.
 - `CAP-V0-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2020) The check
-  MUST read the code-declared subcommand tables of `cmd/corvint` (`helpSubcommands`, a nested map
-  whose values are literals or a top-level identifier such as `cemHelpActions`;
-  `docsSubcommands` for `docs`; `flowSubcommands` for `flows`, plus every
-  `flowSubcommands["NAME"] = ...` registration in a non-test file; `leaseActions` for `lease`) and
+  MUST read the code-declared subcommand tables of `cmd/corvint` and, since V1-4756, of each
+  command package under `internal/command/` (`helpSubcommands`, a nested map whose values are
+  literals or a top-level identifier such as `cemHelpActions`; `docsSubcommands` for `docs`;
+  `flowSubcommands` for `flows`, plus every `flowSubcommands["NAME"] = ...` registration in a
+  non-test file; `leaseActions` for `lease`) and
   report a `subcommand-undocumented` finding when a declared subcommand is not a word inside any
   backticked span of a catalog row for its verb. A verb without a row is left to the `missing`
   finding. A declared table that is no longer found is a check error (exit 2), so renaming a
