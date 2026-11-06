@@ -15,6 +15,8 @@ import (
 func TestConstructedForeignCallers_AZU_V0_8901(t *testing.T) {
 	for _, body := range []string{
 		`var command = "run/" + name + ".sh"`,
+		`var command = "run" + "/" + name + ".sh"`,
+		"cmd := fmt.Sprintf(`run/%s.sh`, name)",
 		`cmd := filepath.Join("run", name + ".sh")`,
 		"cmd := filepath.Join(`run`, name + \".sh\")",
 		`subprocess.run([f"run/{name}.sh"])`,
@@ -142,5 +144,42 @@ func TestRawStringJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	}
 	if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/rawjoin/caller" }) {
 		t.Fatalf("known caller dropped: %+v", plan)
+	}
+}
+
+// AZU-V0-004, AZU-V0-8901: raw formats and separately concatenated
+// directory separators must not certify an incomplete caller declaration.
+func TestConstructedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
+	for _, expression := range []string{
+		"fmt.Sprintf(`run/%s.sh`, name)",
+		`"run" + "/" + name + ".sh"`,
+	} {
+		t.Run(expression, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "go.mod", "module example.test/constructed\n\ngo 1.27\n")
+			write(t, root, "run/run.sh", "echo ok\n")
+			write(t, root, "caller/caller.go", "package caller\nvar script = \"run/run.sh\"\n")
+			write(t, root, "caller/caller_test.go", "package caller\n")
+			imports := "import \"os/exec\"\n"
+			if expression == "fmt.Sprintf(`run/%s.sh`, name)" {
+				imports += "import \"fmt\"\n"
+			}
+			write(t, root, "extra/extra.go", "package extra\n"+imports+"var name = \"run\"\nvar cmd = exec.Command(\"sh\", "+expression+")\n")
+			write(t, root, "extra/extra_test.go", "package extra\n")
+			write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{"callers":["caller/caller.go"],"reason":"literal caller"}}}`)
+			graph, err := affected.Build(context.Background(), root, golang.New(), New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{"run/run.sh"})
+			if plan.Scope != affected.ScopeUnknown || !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
+				return u.Detail == FrontierForeignInvocation
+			}) {
+				t.Fatalf("undeclared constructed caller certified: %+v", plan)
+			}
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/constructed/caller" }) {
+				t.Fatalf("known caller dropped: %+v", plan)
+			}
+		})
 	}
 }

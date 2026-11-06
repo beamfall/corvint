@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -149,6 +150,24 @@ func readPlan(binary, root, base string) (plan, int64, error) {
 	result.Plan.Raw = raw
 	return result.Plan, elapsed, nil
 }
+
+// diffHeaderPath decodes Git's C-quoted paths. Unquoted spaces belong to
+// the path; a literal tab separates the path from an optional header suffix.
+func diffHeaderPath(header, prefix string) string {
+	name, _, _ := strings.Cut(header, "\t")
+	if strings.HasPrefix(name, `"`) {
+		decoded, err := strconv.Unquote(name)
+		if err != nil {
+			return ""
+		}
+		name = decoded
+	}
+	if !strings.HasPrefix(name, prefix) {
+		return "" // Includes /dev/null for added and deleted files.
+	}
+	return strings.TrimPrefix(name, prefix)
+}
+
 func changedLines(diff string) map[string]map[int]bool {
 	lines := map[string]map[int]bool{}
 	oldFile, newFile := "", ""
@@ -159,12 +178,12 @@ func changedLines(diff string) map[string]map[int]bool {
 			headers = true
 			continue
 		}
-		if headers && strings.HasPrefix(line, "--- a/") {
-			oldFile = strings.TrimPrefix(line, "--- a/")
+		if headers && strings.HasPrefix(line, "--- ") {
+			oldFile = diffHeaderPath(strings.TrimPrefix(line, "--- "), "a/")
 			continue
 		}
-		if headers && strings.HasPrefix(line, "+++ b/") {
-			newFile = strings.TrimPrefix(line, "+++ b/")
+		if headers && strings.HasPrefix(line, "+++ ") {
+			newFile = diffHeaderPath(strings.TrimPrefix(line, "+++ "), "b/")
 			continue
 		}
 		if !strings.HasPrefix(line, "@@ ") {
