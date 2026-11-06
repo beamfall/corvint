@@ -406,7 +406,7 @@ func TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903(t *testing.T) {
 	}
 	refs := []string{merge("first"), merge("second")}
 	scratch := filepath.Join(t.TempDir(), "clone")
-	if _, err := git(root, "clone", "--quiet", "--shared", "--no-checkout", root, scratch); err != nil {
+	if err := cloneSnapshot(root, root, scratch); err != nil {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(t.TempDir(), "planner")
@@ -462,5 +462,26 @@ printf '%s\n' '{"ok":true,"plan":{"selected":[{"unitId":"go:a","tests":["a_test.
 				t.Fatalf("incomplete replay accepted or error lost: %v\n%s", err, body)
 			}
 		})
+	}
+}
+
+// AZU-V0-8903: the replay snapshot clone is self-contained, so the
+// candidate's immutable Git reader sees the same objects as a normal checkout.
+func TestSnapshotCloneHasNoAlternates_AZU_V0_8903(t *testing.T) {
+	root := t.TempDir()
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.name", "t"}, {"config", "user.email", "t@example.invalid"}, {"commit", "-q", "--allow-empty", "-m", "root"}} {
+		if _, err := git(root, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scratch := filepath.Join(t.TempDir(), "clone")
+	if err := cloneSnapshot(root, root, scratch); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(scratch, ".git", "objects", "info", "alternates")); !os.IsNotExist(err) {
+		t.Fatalf("snapshot clone has an alternates file (err=%v)", err)
+	}
+	if _, err := git(scratch, "cat-file", "-e", "HEAD^{commit}"); err != nil {
+		t.Fatalf("snapshot clone cannot read HEAD without alternates: %v", err)
 	}
 }
