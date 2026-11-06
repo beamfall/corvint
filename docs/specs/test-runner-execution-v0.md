@@ -1194,7 +1194,7 @@ admission as tampered.
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-081 | `testrunner/types.go` `Request.HasRSpecOnlyMembers`; `registry/registry.go` `Build`; `dynamic/build.go`; `dynamic/rspec_prefix.go` `rspecPathMapper`; `TestRSpecOnlyMembersRefusedForOtherRunners`, `TestRSpecExecPrefixRefusals` | Focused unit tests, 2026-10-20 |
+| TRE-V0-081 | `testrunner/types.go` `Request.HasRSpecOnlyMembers`; `testrunner/dispatch.go` `BuildWith` (the guard `registry/registry.go` `Build` and `liveverify/rbmutate` `buildRSpec` share, V1-4752); `dynamic/build.go`; `dynamic/rspec_prefix.go` `rspecPathMapper`; `TestRSpecOnlyMembersRefusedForOtherRunners`, `TestRSpecExecPrefixRefusals`, `TestBuildWithAppliesTheSharedAdmissionFirst`, `TestRSpecPathMatchesTheRegistry` | Focused unit tests, 2026-10-20 |
 | TRE-V0-082 | `dynamic/rspec_prefix.go` `rspecPathMapper`, `buildRSpec`; `TestRSpecExecPrefixPathMapArgv`, `TestRSpecExecPrefixRefusals`; `cmd/corvint-test-runner` `TestContainerisedRSpecPlanRunReceipt` | A fake docker-shaped prefix maps `--require` and `--out` back to its host mount and refuses an unmapped path; the runner read the report from the host directory |
 | TRE-V0-083 | `cmd/corvint-test-runner` `admittedInvocation`; `TestContainerisedRSpecPlanRunReceipt` subtests; `cemcandidate` `TestCEMV1280AdmitsContainerisedRSpecReceipt` | Edited prefix, mapping or formatter refused by `run` with no report directory created, and by plain admission as `runner-receipt-tampered` |
 | TRE-V0-084 | `rubytestprovider/runner.go` `CorvintFormatterSource`, `FormatterClass`; `dynamic/rspec_prefix.go` `buildRSpec`; `TestRSpecExecPrefixPathMapArgv` | The fake container found the profile-written formatter at the mapped path |
