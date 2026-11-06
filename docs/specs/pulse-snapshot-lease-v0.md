@@ -2,8 +2,12 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: proposed
-Delivery status: experimental (P0-A only)
+Intent status: retired 2026-11-06 (V1-4747 AC3)
+Delivery status: retired
+Retirement note: V1-4747 AC3 deleted the P0-A prototype (cmd/corvint-pulse, internal/pulse and
+conformance/pulse-snapshot-v0; 044058f1 is the last tree with them). It had no caller and never
+reached its dogfood keep-or-kill evidence. The body below is historical and its requirement IDs
+stay for traceability.
 Authoritative inputs: `docs/CORVINT-PULSE.md`,
 `docs/specs/live-proof-carrying-verification-v0.md`,
 `docs/specs/go-production-kernel-migration-v0.md`, `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
@@ -11,8 +15,8 @@ Authoritative inputs: `docs/CORVINT-PULSE.md`,
 
 ## Agent digest
 - Claim: A local Go coordinator provides bounded P0-A snapshot lifecycle state; full WSI capture, leases, and deltas are not delivered.
-- Status: proposed/experimental (P0-A only)
-- Exists: `cmd/corvint-pulse`, `internal/pulse`, and frozen P0-A lifecycle transcripts.
+- Status: retired 2026-11-06 (V1-4747 AC3) / retired
+- Exists: nothing; the P0-A coordinator, its actor and the frozen lifecycle transcripts were deleted (read them at 044058f1).
 - Blocked on: full WSI capture, token/delta schemas, P0-B conformance, and dogfood receipts.
 - Read next: Verified current state and contract gap; Delivery stages; Traceability.
 
@@ -147,17 +151,17 @@ parentheses the condition when the message does not state it.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `client-sequence-gap` | `cmd/corvint-pulse/protocol.go:447` | the `reason` of the `workspace.unknown` event emitted when `clientSeq` is not exactly one more than the last; the protocol error that follows carries the same code with "client sequence contains a gap" |
-| `client-sequence-regression` | `cmd/corvint-pulse/protocol.go:366` | "client sequence did not advance" |
-| `duplicate-request-id` | `cmd/corvint-pulse/protocol.go:382` | "request ID was already used" |
-| `invalid-protocol` | `cmd/corvint-pulse/protocol.go:214` | "unsupported protocol" |
-| `generation-mismatch` | `cmd/corvint-pulse/protocol.go:527` | "workspace generation does not match" (the actor did not accept the invalidation for the expected generation) |
-| `invalid-request` | `cmd/corvint-pulse/protocol.go:403` | "initialize request is invalid" (`clientSeq` is not 1, the body fields are not exactly `clientBootId` and `clientId`, or either is not a token) |
-| `pulse-server-failed` | `cmd/corvint-pulse/main.go:52@de6ef80f` | "Pulse stdio server failed" (the stdio server returned an error; exit 2) |
-| `resource-exhausted` | `cmd/corvint-pulse/protocol.go:390` | "request ID capacity was exhausted" (65,536 request IDs seen; an exact-field `shutdown` on an initialized session is still accepted) |
-| `session-already-initialized` | `cmd/corvint-pulse/protocol.go:458` | "session is already initialized" |
-| `session-not-initialized` | `cmd/corvint-pulse/protocol.go:398` | "initialize must be the first request" |
-| `session-unknown` | `cmd/corvint-pulse/protocol.go:438` | "session cannot continue after a sequence gap" (any request other than an exact-field `shutdown` once a gap has marked the session unknown) |
+| `client-sequence-gap` | `cmd/corvint-pulse/protocol.go` line 447 at 044058f1 | the `reason` of the `workspace.unknown` event emitted when `clientSeq` is not exactly one more than the last; the protocol error that follows carries the same code with "client sequence contains a gap" |
+| `client-sequence-regression` | `cmd/corvint-pulse/protocol.go` line 366 at 044058f1 | "client sequence did not advance" |
+| `duplicate-request-id` | `cmd/corvint-pulse/protocol.go` line 382 at 044058f1 | "request ID was already used" |
+| `invalid-protocol` | `cmd/corvint-pulse/protocol.go` line 214 at 044058f1 | "unsupported protocol" |
+| `generation-mismatch` | `cmd/corvint-pulse/protocol.go` line 527 at 044058f1 | "workspace generation does not match" (the actor did not accept the invalidation for the expected generation) |
+| `invalid-request` | `cmd/corvint-pulse/protocol.go` line 403 at 044058f1 | "initialize request is invalid" (`clientSeq` is not 1, the body fields are not exactly `clientBootId` and `clientId`, or either is not a token) |
+| `pulse-server-failed` | `cmd/corvint-pulse/main.go` line 52 at 044058f1 | "Pulse stdio server failed" (the stdio server returned an error; exit 2) |
+| `resource-exhausted` | `cmd/corvint-pulse/protocol.go` line 390 at 044058f1 | "request ID capacity was exhausted" (65,536 request IDs seen; an exact-field `shutdown` on an initialized session is still accepted) |
+| `session-already-initialized` | `cmd/corvint-pulse/protocol.go` line 458 at 044058f1 | "session is already initialized" |
+| `session-not-initialized` | `cmd/corvint-pulse/protocol.go` line 398 at 044058f1 | "initialize must be the first request" |
+| `session-unknown` | `cmd/corvint-pulse/protocol.go` line 438 at 044058f1 | "session cannot continue after a sequence gap" (any request other than an exact-field `shutdown` once a gap has marked the session unknown) |
 
 ## Proposed implementation surface
 

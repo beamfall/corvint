@@ -581,16 +581,6 @@ docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:32
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:36
 docs/specs/protected-local-execution-v0.md	internal/authorityevent/event.go:145
 docs/specs/protected-local-execution-v0.md	internal/localauthority/wire.go:13
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:214
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:366
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:382
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:390
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:398
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:403
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:438
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:447
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:458
-docs/specs/pulse-snapshot-lease-v0.md	cmd/corvint-pulse/protocol.go:527
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:108
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:188
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:205

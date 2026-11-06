@@ -43,7 +43,6 @@ var contracts = map[string]contract{
 	"corvint-postmerge-connect":  companion("./cmd/corvint-postmerge-connect"),
 	"corvint-postmerge-metrics":  companion("./cmd/corvint-postmerge-metrics"),
 	"corvint-postmerge-workflow": companion("./cmd/corvint-postmerge-workflow"),
-	"corvint-pulse":              companion("./cmd/corvint-pulse"),
 	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),
 	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
 	"corvint-test":               companion("./cmd/corvint-test"),

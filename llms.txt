@@ -48,8 +48,6 @@
   ([snapshot](internal/capcatalog/trees/corvint-postmerge-metrics.json))
 - `corvint-postmerge-workflow help --json`: the post-merge replay companion's tree
   ([snapshot](internal/capcatalog/trees/corvint-postmerge-workflow.json))
-- `corvint-pulse help --json`: the Pulse stdio server's tree
-  ([snapshot](internal/capcatalog/trees/corvint-pulse.json))
 - `corvint-ruby-test-provider help --json`: the Ruby test provider's tree
   ([snapshot](internal/capcatalog/trees/corvint-ruby-test-provider.json))
 - `corvint-tasks help --json`: the task store CLI's tree

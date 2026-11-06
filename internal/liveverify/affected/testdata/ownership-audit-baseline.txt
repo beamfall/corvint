@@ -615,8 +615,6 @@ conformance/postmerge-runtime-v2/semantic-types.contract.go.txt
 conformance/postmerge-runtime-v2/source-wire.schema.json
 conformance/postmerge-runtime-v2/typed-field-map.json
 conformance/postmerge-runtime-v2/verifier-contract.md
-conformance/pulse-snapshot-v0/README.md
-conformance/pulse-snapshot-v0/cases.json
 conformance/release-artifact-v0/README.md
 conformance/release-artifact-v0/archive-report-v2.schema.json
 conformance/release-artifact-v0/archive-report.schema.json
