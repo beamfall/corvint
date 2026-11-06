@@ -61,6 +61,7 @@ func streamCases(t *testing.T, data []byte) map[string][]byte {
 // decode admits, with the same records and digest tail, and refuses every shape the closed decoder
 // refuses, whichever window and carry room splits the bytes, so every value crosses a window
 // boundary at some size and carries both fit and overflow the room before a block.
+// DCR-V1-9502 retains every window/headroom/corruption comparison.
 func TestDCRV1431StreamedDecodeMatchesInMemory(t *testing.T) {
 	t.Parallel()
 	_, a, _ := builtFixture(t)
@@ -78,34 +79,45 @@ func TestDCRV1431StreamedDecodeMatchesInMemory(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := streamCases(t, data)
-	for _, window := range []int{1, 2, 3, 7, 61, 512, 1 << 20} {
-		for _, headroom := range []int{0, 1, 16, 4096} {
-			var header *Artifact
-			got, tail, err := decodeArtifactBlocks(bytes.NewReader(data), window, headroom, func(h *Artifact) { header = h }, nil, nil)
-			if err != nil || !reflect.DeepEqual(got, want) {
-				t.Fatalf("window %d room %d: streamed decode differs: %v", window, headroom, err)
-			}
-			if tail.digest != wantTail.digest || !bytes.Equal(tail.tail, wantTail.tail) || tail.verify(got) != nil {
-				t.Fatalf("window %d room %d: streamed digest tail differs", window, headroom)
-			}
-			if header == nil || header.Schema != want.Schema || header.Manifest.Repository != want.Manifest.Repository || header.Claims != nil {
-				t.Fatalf("window %d room %d: header members %+v", window, headroom, header)
-			}
-			for name, bad := range cases {
-				_, closed := ParseArtifact(bad)
-				decoded, err := decodeArtifactParallel(bad, nil)
-				if err == nil {
-					err = hashArtifactTail(bad).verify(decoded)
-				}
-				decoded, tail, streamed := decodeArtifactBlocks(bytes.NewReader(bad), window, headroom, nil, nil, nil)
-				if streamed == nil {
-					streamed = tail.verify(decoded)
-				}
-				if streamed == nil || closed == nil || err == nil || streamed.Error() != err.Error() {
-					t.Errorf("window %d room %d %s: streamed=%v in memory=%v closed=%v; all must refuse, the two decoders alike", window, headroom, name, streamed, err, closed)
-				}
-			}
+	// DCR-V1-9502: these two oracles depend only on the immutable corruption,
+	// not the streaming window or headroom. Keep every streamed comparison.
+	type refusal struct{ closed, memory error }
+	refusals := make(map[string]refusal, len(cases))
+	for name, bad := range cases {
+		_, closed := ParseArtifact(bad)
+		decoded, err := decodeArtifactParallel(bad, nil)
+		if err == nil {
+			err = hashArtifactTail(bad).verify(decoded)
 		}
+		refusals[name] = refusal{closed, err}
+	}
+	for _, window := range []int{1, 2, 3, 7, 61, 512, 1 << 20} {
+		t.Run(fmt.Sprintf("window-%d", window), func(t *testing.T) {
+			t.Parallel() // DCR-V1-9502: each decode owns its reader and state.
+			for _, headroom := range []int{0, 1, 16, 4096} {
+				var header *Artifact
+				got, tail, err := decodeArtifactBlocks(bytes.NewReader(data), window, headroom, func(h *Artifact) { header = h }, nil, nil)
+				if err != nil || !reflect.DeepEqual(got, want) {
+					t.Fatalf("window %d room %d: streamed decode differs: %v", window, headroom, err)
+				}
+				if tail.digest != wantTail.digest || !bytes.Equal(tail.tail, wantTail.tail) || tail.verify(got) != nil {
+					t.Fatalf("window %d room %d: streamed digest tail differs", window, headroom)
+				}
+				if header == nil || header.Schema != want.Schema || header.Manifest.Repository != want.Manifest.Repository || header.Claims != nil {
+					t.Fatalf("window %d room %d: header members %+v", window, headroom, header)
+				}
+				for name, bad := range cases {
+					closed, err := refusals[name].closed, refusals[name].memory
+					decoded, tail, streamed := decodeArtifactBlocks(bytes.NewReader(bad), window, headroom, nil, nil, nil)
+					if streamed == nil {
+						streamed = tail.verify(decoded)
+					}
+					if streamed == nil || closed == nil || err == nil || streamed.Error() != err.Error() {
+						t.Errorf("window %d room %d %s: streamed=%v in memory=%v closed=%v; all must refuse, the two decoders alike", window, headroom, name, streamed, err, closed)
+					}
+				}
+			}
+		})
 	}
 }
 

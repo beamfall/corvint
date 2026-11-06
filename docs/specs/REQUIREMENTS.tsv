@@ -933,6 +933,7 @@ AMAP-V0-600	docs/specs/application-map-v0.md	(experimental under the standing la
 AMAP-V0-881	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3954; amendin	standing	2026-11-01; V1-3954
 AMAP-V0-882	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3935; amendin	standing	2026-11-01; V1-3935
 AMAP-V0-960	docs/specs/application-map-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-4077; ref	standing	2026-10-11; V1-4077
+AMAP-V0-9501	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4660)	standing	2026-10-11; V1-4660
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -4539,6 +4540,7 @@ DCP-V1-760	docs/specs/documentation-corpus-v1.md	(accepted under standing lane a
 DCP-V1-761	docs/specs/documentation-corpus-v1.md	(accepted under standing lane authorization, 2026-10-28; V1-3099)	standing	2026-10-28; V1-3099
 DCP-V1-762	docs/specs/documentation-corpus-v1.md	(accepted under standing lane authorization, 2026-10-28; V1-3099)	standing	2026-10-28; V1-3099
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
+DCR-V1-9502	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2740)	standing	2026-10-11; V1-2740
 DCR-V1-8000	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-04; V1-4230
 DCR-V1-8001	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2588)	standing	2026-10-11; V1-2588
 DCR-V1-7800	docs/specs/documentation-corpus-verified-reads-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2571)	standing	2026-10-11; V1-2571
@@ -4891,6 +4893,7 @@ GL-V0-912	docs/specs/gate-ledger-v0.md	(experimental under the standing lane aut
 GL-V0-913	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune	standing	2026-11-01; V1-4241
 GL-V0-914	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-9	standing	2026-11-01; V1-4241
 GL-V0-787	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run	standing	2026-11-01; V1-4188
+GL-V0-9500	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2211)	standing	2026-10-11; V1-2211
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
 GVA-V0-003	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) Each command MUST map its outco	standing	2026-10-27; V1-2841
