@@ -26,12 +26,17 @@ The owner directed the goal ("figure out how to get the unknown to 0 safely", ow
 2026-11-02. Experimental candidates for driver ownership, inbound closure and frozen replay
 exist; AZU-V0 is NOT_QUALIFIED.
 
-Verifier repair 2 rolls back driver registration in the default CLI planner to preserve
-the frozen strict/coverage receipts (AFU-V1-024). The experimental ownership audit still
-includes the driver claimant. An empty audit therefore does not establish driver ownership
-in default planning: driver changes retain the preexisting uncertainty and wider fallback.
-AZU-V0-001 integration and dependent AZU-V0-002/004/009 qualification remain PARTIAL pending
-explicit approval for changed graph identities; no graph vertex is hidden from a digest.
+The merge-forward verifier repair restores the base's registered driver and historical
+namespace in default graph identities. Frozen strict/coverage receipts (AFU-V1-024) include
+both that namespace and observed driver units. Explicit optional driver sets retain
+AZU-V0-8905 absent-driver parity. The lane-only
+`TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002` instead requires Makefiles to
+remain unowned in default planning; it is retained unchanged and fails with the base's
+registered driver. Namespace-only registration still fails the frozen strict graph.
+AZU-V0-001/002 integration remains PARTIAL pending owner resolution of this incompatible
+assertion and frozen contract; neither may be weakened in this repair. AZU-V0-004/009
+aggregate qualification also retains the missing historical full-suite/mutation evidence.
+No observed graph vertex is hidden from a digest.
 
 The user is the engineer, agent or CI shard that runs only the tests a change can affect. A plan
 with any `unknown` entry has scope `UNKNOWN`, and every consumer that cannot trust it falls back
@@ -228,6 +233,8 @@ lanes and external full-suite/mutation observations at every historical revision
   the canonical graph identity of a tree with no driver units, frontiers or unobserved/runnable
   directories. Its claimant MAY still recognize a probed new driver path. Existing graph digests
   and committed application-flow goldens SHALL remain unchanged for such trees.
+  The default provider registry SHALL retain its already-frozen driver namespace even without
+  driver files; optional-provider parity SHALL not remove that historical namespace.
 
 
 ## Non-goals

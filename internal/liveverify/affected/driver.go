@@ -92,6 +92,11 @@ func DriverInput(path string) bool {
 // Driver is the built-in driver claimant (AZU-V0-001).
 type Driver struct{}
 
+// RegisteredDriver is the registered provider set's driver. Its namespace is
+// already part of frozen graph identities, including trees without driver
+// files (AZU-V0-8905). Driver remains optional for explicit provider sets.
+type RegisteredDriver struct{ Driver }
+
 // Name is the claimant's namespace.
 func (Driver) Name() string { return DriverNamespace }
 
