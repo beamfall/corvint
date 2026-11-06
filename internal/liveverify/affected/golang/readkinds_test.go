@@ -12,6 +12,61 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
+// AFP-V0-9000: the alias budget alone cannot establish a package's bound.
+// File-kind globs and literals from any file must fit before lexical reads
+// can be suppressed, including literals observed after the declared scanner.
+func TestReadKindsDependencyOverflow_AFPV09000(t *testing.T) {
+	for _, tc := range []struct {
+		name, globFile string
+		bound          int
+		overflow       bool
+	}{
+		{"exact bound", "", 4, false},
+		{"file kinds overflow", "", 3, true},
+		{"earlier glob overflow", "a_test.go", 4, true},
+		{"later glob overflow", "z_test.go", 4, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			golang.SetMaxPathTokens(t, tc.bound)
+			root := t.TempDir()
+			files := map[string]string{
+				"go.mod":           "module example.test/m\n",
+				"scan/s_test.go":   "//corvint:read-kinds .go go.mod\npackage scan\nimport \"os\"\nfunc scan() { os.Getwd() }\nvar root = \"..\"\n",
+				"data/imports.txt": "package probe\n",
+			}
+			if tc.globFile != "" {
+				files["scan/"+tc.globFile] = "package scan\nimport \"path/filepath\"\nfunc extra() { filepath.Glob(\"z/*.json\") }\n"
+			}
+			writeFiles(t, root, files)
+			if err := os.Mkdir(filepath.Join(root, "probe"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			alias := filepath.Join(root, "probe/check.go")
+			if err := os.Symlink("../data/imports.txt", alias); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			for _, body := range []string{"package probe\n", "package probe\nimport _ \"github.com/Beamfall/corvint/internal/tasks/store\"\n"} {
+				writeFiles(t, root, map[string]string{"data/imports.txt": body})
+				if got, err := os.ReadFile(alias); err != nil || string(got) != body {
+					t.Fatalf("alias content %q, error %v", got, err)
+				}
+				graph, err := affected.Build(context.Background(), root, golang.New())
+				if err != nil {
+					t.Fatal(err)
+				}
+				plan := affected.Select(graph, []string{"data/imports.txt"})
+				if len(plan.Selected) != 1 || plan.Selected[0].UnitID != "go:example.test/m/scan" {
+					t.Fatalf("dependency overflow lost scanner: %+v", plan)
+				}
+				unbounded := plan.Selected[0].Witness.Kind == affected.WitnessUnboundedReader
+				if unbounded != tc.overflow {
+					t.Fatalf("unbounded=%v, want %v: %+v", unbounded, tc.overflow, plan.Selected)
+				}
+			}
+		})
+	}
+}
+
 // AFP-V0-9000: an unresolved source alias prevents a file-kind bound from
 // removing the scanner's original unbounded read reasons.
 func TestReadKindsUnresolvedAlias_AFPV09000(t *testing.T) {
