@@ -301,3 +301,43 @@ func TestFailFastDroppedInfoFailureIsDisclosed(t *testing.T) {
 		t.Fatalf("missing disclosure: %q", detail)
 	}
 }
+
+// TSP-V0-7305 (V1-4472): completion times decide retention within the bounded
+// pool, including the unsharded run when all filesystem mtimes tie.
+func TestFailFastCompletionTimeDecidesRetention(t *testing.T) {
+	root := t.TempDir()
+	start := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	for i := 0; i <= maxFailFastReceipts; i++ {
+		name := fmt.Sprintf("test-run.%02d.json", i)
+		completed := start.Add(time.Duration(i) * time.Second)
+		if i == maxFailFastReceipts {
+			name = "test-run.json"
+		}
+		body, err := sessiontest.Encode(sessiontest.Receipt{Profile: sessiontest.ReceiptProfile, CompletedAt: completed.Format(time.RFC3339Nano)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFailFastFile(t, root, name, body)
+		if err := os.Chtimes(filepath.Join(root, ".git", "corvint", name), start, start); err != nil {
+			t.Fatal(err)
+		}
+	}
+	saved := readFailFastContentTime
+	t.Cleanup(func() { readFailFastContentTime = saved })
+	probes := 0
+	readFailFastContentTime = func(name string) (time.Time, bool) {
+		probes++
+		return saved(name)
+	}
+	receipts, detail := readFailFastReceipts(filepath.Join(root, ".git"))
+	var paths []string
+	for _, receipt := range receipts {
+		if receipt.State != affectedOrderObserved {
+			t.Fatalf("not canonical: %+v", receipt)
+		}
+		paths = append(paths, receipt.Path)
+	}
+	if detail != "" || len(paths) != maxFailFastReceipts || probes != maxFailFastReceipts+1 || !slices.IsSorted(paths) || !slices.Contains(paths, "corvint/test-run.json") || slices.Contains(paths, "corvint/test-run.00.json") {
+		t.Fatalf("retained=%v probes=%d detail=%q", paths, probes, detail)
+	}
+}

@@ -132,8 +132,9 @@ type testOptions struct {
 	dryRun     bool
 	// summary is --summary: a dry run prints the bounded text summary
 	// instead of the JSON plan (STR-V0-800).
-	summary bool
-	full    bool // --full retains the complete JSON dry-run document (STR-V0-7313).
+	summaryNoticeBytes int // stderr degradation bytes reserved from the shared summary budget.
+	summary            bool
+	full               bool // --full retains the complete JSON dry-run document (STR-V0-7313).
 	// pins is --pins: a dry run prints the advisory pinned tests instead
 	// of the JSON plan (TSP-V0-944).
 	pins bool
@@ -316,7 +317,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	started := time.Now()
 	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
 	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
-		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
+		notice := fmt.Sprintf("corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
+		_, _ = io.WriteString(stderr, notice)
+		options.summaryNoticeBytes = len(notice)
 	}
 	receiptFlag := "--receipt"
 	if options.receipt == "" && !options.dryRun {
@@ -779,7 +782,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	case options.pins:
 		// The pins report was written in place of the JSON plan (TSP-V0-944).
 	case testSummarySelected(options):
-		_, _ = io.WriteString(stdout, testDryRunSummary(m, digest, invocations, options.shard))
+		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes))
 	default:
 		encoded, err := gokernel.CanonicalJSON(document)
 		if err != nil {
