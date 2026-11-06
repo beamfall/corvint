@@ -100,6 +100,10 @@
     {
       "path": "script/line-citation-unpinned-inventory.txt",
       "reason": "line-citation debt inventory; read by script/check-line-citations.sh through a path literal, which CI runs unconditionally; its test uses its own fixture"
+    },
+    {
+      "path": "tools/ci-reuse-plan/testdata/",
+      "reason": "tools/ci-reuse-plan record-admission fixtures (V1-4727, CIN-V0-7600), hosted by the tools/ci-reuse-plan package and read by TestCINV07600ReplayPR99 through the testdata/record-admission path literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
     }
   ]
 }
