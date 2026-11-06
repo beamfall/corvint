@@ -124,6 +124,14 @@
     {
       "path": "tools/ci-reuse-plan/testdata/",
       "reason": "tools/ci-reuse-plan record-admission fixtures (V1-4727, CIN-V0-7600), hosted by the tools/ci-reuse-plan package and read by TestCINV07600ReplayPR99 through the testdata/record-admission path literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
+    },
+    {
+      "path": "tools/import-ratchet/areas.json",
+      "reason": "the import-ratchet area manifest (V1-4800, IRT-V0-001), read only by the tools/import-ratchet tests through the manifestPath literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
+    },
+    {
+      "path": "tools/import-ratchet/baseline.json",
+      "reason": "the import-ratchet wrong-way edge baseline (V1-4800, IRT-V0-002), read only by the tools/import-ratchet tests through the baselinePath literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
     }
   ]
 }
