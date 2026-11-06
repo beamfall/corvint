@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -eu
 
 # GAG-V0-006 real-producer injection: `script/go-archive-gate_test.sh` stubs the archive build, so
