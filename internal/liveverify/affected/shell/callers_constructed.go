@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"path"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
 // ForeignCallerReference compiles the literal and constructed reference check
@@ -74,8 +76,73 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 				return true
 			}
 		}
-		return false
+		return normalizedForeignJoin(body, script)
 	}
+}
+
+var foreignJoinStart = regexp.MustCompile(`\b(?:[Jj]oin|joinpath)\s*\(`)
+var foreignJoinLiteral = regexp.MustCompile("^\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*([,)])")
+
+// AZU-V0-8901: consume whole literal operands before deciding which directory
+// a join can reach. A dot or ancestor prefix followed by an unresolved operand
+// cannot exclude the callee; a fully literal join can be compared exactly.
+func normalizedForeignJoin(body []byte, script string) bool {
+	directory := path.Dir(script)
+	for _, call := range foreignJoinStart.FindAllIndex(body, -1) {
+		args, prefix, seen := body[call[1]:], "", false
+		for {
+			literal := foreignJoinLiteral.FindSubmatch(args)
+			if literal == nil {
+				if seen && (prefix == "." || prefix == directory || strings.HasPrefix(directory, prefix+"/")) {
+					return true
+				}
+				break
+			}
+			quoted := string(literal[1])
+			value, ok := foreignJoinString(quoted)
+			if !ok {
+				return true // Unsupported string escapes cannot prove exclusion.
+			}
+			prefix, seen = path.Clean(path.Join(prefix, value)), true
+			if literal[2][0] == ')' {
+				if prefix == script {
+					return true
+				}
+				break
+			}
+			args = args[len(literal[0]):]
+		}
+	}
+	return false
+}
+
+// Single quotes delimit strings in other source languages, not just Go runes.
+// Decode them a character at a time; their common short NUL spelling is also
+// a string-join separator, and cannot name a file in the repository.
+func foreignJoinString(quoted string) (string, bool) {
+	if quoted[0] == '`' {
+		value, err := strconv.Unquote(quoted)
+		return value, err == nil
+	}
+	var value strings.Builder
+	for rest := quoted[1 : len(quoted)-1]; rest != ""; {
+		if strings.HasPrefix(rest, `\0`) && (len(rest) == 2 || rest[2] < '0' || rest[2] > '7') {
+			value.WriteByte(0)
+			rest = rest[2:]
+			continue
+		}
+		char, multibyte, tail, err := strconv.UnquoteChar(rest, quoted[0])
+		if err != nil {
+			return "", false
+		}
+		if multibyte {
+			value.WriteRune(char)
+		} else {
+			value.WriteByte(byte(char))
+		}
+		rest = tail
+	}
+	return value.String(), true
 }
 
 func constructedForeignReference(body []byte, script string) bool {

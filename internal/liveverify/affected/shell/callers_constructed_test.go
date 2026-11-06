@@ -205,6 +205,73 @@ func TestConstructedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	}
 }
 
+// AZU-V0-004, AZU-V0-8901: literal join components are normalized before
+// completeness can discharge uncertainty, including unresolved suffixes.
+func TestNormalizedJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
+	for _, tc := range []struct{ script, expression string }{
+		{"run/run.sh", `filepath.Join(".", "run", name+".sh")`},
+		{"run/run.sh", "filepath.Join(`.`, `run`, name+`.sh`)"},
+		{"run/run.sh", `filepath.Join("scratch", "..", "run", name+".sh")`},
+		{"run/run.sh", `filepath.Join("./scratch/../run/.", name+".sh")`},
+		{"run/run.sh", `filepath.Join(".", directory, name+".sh")`},
+		{"run/run.sh", `filepath.Join("", directory, name+".sh")`},
+		{"café/run.sh", `filepath.Join(".", "caf\xc3\xa9", name+".sh")`},
+		{"tools/run/run.sh", `filepath.Join("tools", "run", name+".sh")`},
+		{"tools/run/run.sh", `filepath.Join(".", "tools", directory, name+".sh")`},
+	} {
+		t.Run(tc.expression, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "go.mod", "module example.test/normalized\n\ngo 1.27\n")
+			write(t, root, tc.script, "echo ok\n")
+			write(t, root, "caller/caller.go", "package caller\nvar script = "+strconv.Quote(tc.script)+"\n")
+			write(t, root, "caller/caller_test.go", "package caller\n")
+			write(t, root, "extra/extra.go", "package extra\nimport (\"os/exec\"; \"path/filepath\")\nvar name = \"run\"\nvar directory = \"run\"\nvar cmd = exec.Command(\"sh\", "+tc.expression+")\n")
+			write(t, root, "extra/extra_test.go", "package extra\n")
+			write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{`+strconv.Quote(tc.script)+`:{"callers":["caller/caller.go"],"reason":"literal caller"}}}`)
+			graph, err := affected.Build(context.Background(), root, golang.New(), New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := affected.Select(graph, []string{tc.script})
+			if plan.Scope != affected.ScopeUnknown || !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
+				return u.Detail == FrontierForeignInvocation
+			}) {
+				t.Fatalf("undeclared normalized join certified: %+v", plan)
+			}
+			if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/normalized/caller" }) {
+				t.Fatalf("known caller dropped: %+v", plan)
+			}
+		})
+	}
+}
+
+// AZU-V0-8901: consume the complete literal prefix, so a leading dot
+// does not turn an unrelated directory or another identifier into a caller.
+func TestNormalizedJoinBounds_AZU_V0_8901(t *testing.T) {
+	for _, expression := range []string{
+		`filepath.Join(".", "elsewhere", name+".sh")`,
+		`filepath.Join("scratch", "..", "elsewhere", name+".sh")`,
+		`filepath.Join(".", "elsewhere")`,
+		`driverJoin(".", value)`,
+		`items.join('\\n')`,
+		`items.join('\0')`,
+		`join("\0", values)`,
+	} {
+		if constructedForeignReference([]byte(expression), "run/run.sh") {
+			t.Fatalf("unrelated join matched: %s", expression)
+		}
+	}
+	for _, expression := range []string{
+		`filepath.Join(".", "run", "run.sh")`,
+		`joinpath('.', 'run', name)`,
+		`filepath.Join(".", "\x72un", name+".sh")`,
+	} {
+		if !normalizedForeignJoin([]byte(expression), "run/run.sh") {
+			t.Fatalf("normalized join missed: %s", expression)
+		}
+	}
+}
+
 // AZU-V0-004, AZU-V0-8901: every supported construction spelling must
 // retain foreign-invocation uncertainty for root and nested callees alike,
 // without removing selections of already verified literal callers.

@@ -6,7 +6,12 @@
         ".github/workflows/ci.yml",
         "tools/ci-forward-row/pinlag_test.go"
       ],
-      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names."
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. The normalized-join test fixtures construct isolated example.test graphs and never execute repository scripts. The citation checker and merge driver join text and do not invoke this script.",
+      "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "script/check-line-citations.sh",
+        "script/merge-use-case-pins.sh"
+      ]
     },
     "script/affected-zero-unknown-replay.sh": {
       "callers": [
@@ -22,6 +27,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -47,6 +53,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -77,6 +84,7 @@
       ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -100,6 +108,7 @@
       "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930); the dogfood-cache shell test checks the closeout's batch-precheck order and the Go CI-route test reads its source (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
         "internal/liveverify/affected/golang/ci_routes_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/dogfood-cache_test.sh",
         "script/lane-scripts_test.sh",
@@ -128,6 +137,7 @@
       ],
       "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -150,6 +160,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -172,6 +183,7 @@
       ],
       "reason": "Every tracked file naming check-cem-base-retained.sh: make cem-base-retention-check and its shell test run it (decision 0588) (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -194,6 +206,7 @@
       ],
       "reason": "Every tracked file naming check-fixed-tmp-paths.sh: make fixed-tmp-paths-check and the batch-precheck shell test run it (ASD-V0-720) (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -216,6 +229,7 @@
       ],
       "reason": "Every tracked file naming check-install-lifecycle.sh: its shell test runs it, and the release-gates workflow runs it through run-gate; the workflow owns no unit, so it adds no edge (TSP-V0-005; V1-3571, V1-4178). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -250,6 +264,7 @@
         "internal/contextindex/authority_trigger.go",
         "internal/doccitations/check.go",
         "internal/dogfoodflow/propose_repin_only.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/dogfood-fixture-scripts.sh",
         "script/gen-spec-requirements.sh",
         "script/merge-use-case-pins.sh",
@@ -279,6 +294,7 @@
       ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -300,6 +316,7 @@
       ],
       "reason": "Every tracked file naming dogfood-bind-coverage.sh: dogfood-bind-range_test.sh runs it (DCW-V0-831) (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -327,6 +344,7 @@
       "mentions": [
         "internal/dogfoodflow/bytes_span_test.go",
         "internal/dogfoodflow/change.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -351,6 +369,7 @@
       ],
       "reason": "AZU-V0-004: reviewed tracked caller completeness; source references that only read or print names are listed as mentions. dogfood-change.sh only names the ledger reporting command in comments.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/dogfood-change.sh",
         "script/merge-use-case-pins.sh",
@@ -389,6 +408,7 @@
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. dogfood-change_test.sh copies the script into a confined fixture; its declared read scope selects it on script-source edits, and it never runs the original site against repository data.",
       "mentions": [
         "internal/liveverify/affected/inbound_repo_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/dogfood-change_test.sh",
         "script/merge-use-case-pins.sh",
@@ -423,6 +443,7 @@
         "internal/dogfoodflow/check.go",
         "internal/dogfoodflow/check_timing.go",
         "internal/dogfoodflow/flow.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/localcompletion/storage.go",
         "internal/localcompletion/storage_test.go",
         "script/check-line-citations.sh",
@@ -448,6 +469,7 @@
       ],
       "reason": "Every tracked file naming dogfood-finish.sh: the make dogfood-finish, dogfood-inputs-check and closeout targets run it, and the dogfood-cache and lane-scripts tests run it with stub tools; gen-spec-requirements.sh, lane-guard.sh and spec-requirements-worktree-check.sh name it only in comments. Its dirty-tree filter names the sealed CEM paths (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/gen-spec-requirements.sh",
         "script/lane-guard.sh",
@@ -475,6 +497,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -496,6 +519,7 @@
       ],
       "reason": "AZU-V0-004: reviewed tracked caller completeness; source references that only read or print names are listed as mentions.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -522,6 +546,7 @@
         "internal/console/chain_stable_test.go",
         "internal/console/chain_test.go",
         "internal/liveverify/affected/replay_v12941_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/pre-push-dogfood-seal.sh",
@@ -546,6 +571,7 @@
       ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -589,6 +615,7 @@
         "internal/dogfoodflow/verify_run_match_test.go",
         "internal/liveverify/affected/measure_test.go",
         "internal/liveverify/affected/replay_v14170_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
         "script/analyzer-schema_test.sh",
@@ -630,6 +657,7 @@
       ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -651,6 +679,7 @@
       ],
       "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -673,6 +702,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -695,6 +725,7 @@
       ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -716,6 +747,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -737,6 +769,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -758,6 +791,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/spec-acceptance-audit.sh",
         "tools/flow-guide-check/main.go"
@@ -778,6 +812,7 @@
       ],
       "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data and check-bash32_test.sh names it only in a comment (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-bash32_test.sh",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
@@ -800,6 +835,7 @@
       ],
       "reason": "Every tracked file naming proof-tour.sh: its shell test runs it (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -821,6 +857,7 @@
       ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. repin_test.sh only matches make -n output and never runs or reads repin.sh.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/repin_test.sh",
@@ -845,6 +882,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
@@ -867,6 +905,7 @@
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts.",
       "mentions": [
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
         "script/check-line-citations.sh",
         "script/merge-use-case-pins.sh",
         "tools/flow-guide-check/main.go"

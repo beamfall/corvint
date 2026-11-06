@@ -380,6 +380,12 @@ func replayMerges(root string, refs []string, through string) ([]string, string,
 	return merged, tip, nil
 }
 
+func sourceDiff(root, parent, ref string) (string, error) {
+	// AZU-V0-8903: coordinates refer to source bytes, independently of local
+	// diff presentation settings or attributes enabling a textconv driver.
+	return git(root, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--src-prefix=a/", "--dst-prefix=b/", "--unified=0", parent, ref)
+}
+
 func run(root, binary, baseline, list, through, out, safetyDir string) error {
 	absolute, err := filepath.Abs(binary)
 	if err != nil {
@@ -527,7 +533,7 @@ func replayRevisions(root, scratch, binary, baseline, out, safetyDir string, ref
 			if err != nil {
 				return err
 			}
-			diff, err := git(root, "diff", "--no-ext-diff", "--no-renames", "--unified=0", parent, ref)
+			diff, err := sourceDiff(root, parent, ref)
 			if err != nil {
 				return err
 			}
