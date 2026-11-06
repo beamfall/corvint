@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"io"
 	"reflect"
@@ -44,7 +45,7 @@ type splitArray struct {
 	field       int
 	open, close int64 // offsets of '[' and of the byte after ']'
 	elements    []byteSpan
-	chunks      []*reflect.Value // worker-owned decoded slices, in dispatch order
+	chunks      []*reflect.Value // decoded elements, in order, allocated by their decode worker
 }
 
 // splitChunk is the number of split elements one decode job takes at most; a job also ends at
@@ -303,48 +304,58 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	// decoder does, before any canonical mismatch, so the refusal does not depend on which worker
 	// finishes first.
 	var undecodable, mismatched, stop atomic.Bool
-	jobs := make(chan decodeJob, runtime.GOMAXPROCS(0))
+	// Each active or queued job pins a streamed block. More workers than
+	// this inflate the live block/encoder set on many-core hosts without
+	// shortening the read's other serial stages (DCR-V1-7801).
+	workerCount := min(runtime.GOMAXPROCS(0), 16)
+	jobs := make(chan decodeJob, min(workerCount, 8))
 	var workers sync.WaitGroup
-	for range runtime.GOMAXPROCS(0) {
+	for range workerCount {
 		workers.Go(func() {
 			options := json.RejectUnknownMembers(true)
-			var canonical []byte
+			var comparison elementEncodingComparer
+			encoder := jsontext.NewEncoder(&comparison, json.Deterministic(true))
+			var batch, canonical []byte
 			for job := range jobs {
-				// Allocate and zero each batch on its worker, so page faults do not
-				// serialize the boundary scanner (DCR-V1-8001).
-				*job.chunk = reflect.MakeSlice(job.sliceType, len(job.raws), len(job.raws))
-				verified := true
-				for i, raw := range job.raws {
-					if stop.Load() {
-						verified = false
-						break
-					}
-					element := job.chunk.Index(i)
-					if json.Unmarshal(raw, element.Addr().Interface(), options) != nil {
-						undecodable.Store(true)
-						stop.Store(true)
-						verified = false
-						break
-					}
-					// A mismatch stops only the comparisons: every element is still decoded, so an
-					// undecodable element anywhere refuses first whatever the batches and their
-					// order (DCR-V1-431).
-					if !verified {
-						continue
-					}
-					encoded, typed := appendCanonicalRecord(canonical[:0], element.Addr().Interface())
-					equal := false
-					if typed {
-						canonical = encoded
-						equal = bytes.Equal(encoded, raw)
-					} else {
-						c := encodingComparer{want: raw}
-						_, err := EncodeTo(&c, element.Addr().Interface())
-						equal = err == nil && !c.differ && c.n == int64(len(raw))
-					}
-					if !equal {
-						mismatched.Store(true)
-						verified = false
+				// Allocate the large element storage on the worker, so dispatch does not
+				// serially fault in every chunk before any worker can decode it.
+				if stop.Load() {
+					job.ref.release()
+					continue
+				}
+				target := reflect.New(job.typ)
+				target.Elem().Set(reflect.MakeSlice(job.typ, len(job.raws), len(job.raws)))
+				*job.chunk = target.Elem()
+				// Batch framing amortizes JSON setup and reflection. Only element
+				// bytes are copied: the main scan independently checks the original
+				// separators and brackets before accepting any worker result.
+				batch = frameElements(batch, job.raws)
+				verified := json.Unmarshal(batch, target.Interface(), options) == nil
+				if !verified {
+					undecodable.Store(true)
+					stop.Store(true)
+				} else {
+					// The closed batch decoder has checked every element first, so an
+					// undecodable element still outranks a canonical mismatch. Reuse
+					// the typed record buffer for claims/subjects (DCR-V1-8001), and
+					// the batch encoder for every other record (DCR-V1-7801).
+					for i, raw := range job.raws {
+						encoded, typed := appendCanonicalRecord(canonical[:0], job.chunk.Index(i).Addr().Interface())
+						if typed {
+							canonical = encoded
+							verified = bytes.Equal(encoded, raw)
+						} else {
+							comparison = elementEncodingComparer{encodingComparer: encodingComparer{want: batch}}
+							encoder.Reset(&comparison, json.Deterministic(true))
+							verified = json.MarshalEncode(encoder, target.Interface()) == nil && comparison.equalElement()
+						}
+						if !verified {
+							mismatched.Store(true)
+							break
+						}
+						if !typed {
+							break
+						}
 					}
 				}
 				job.ref.release()
@@ -370,7 +381,7 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 		chunk := new(reflect.Value)
 		s.chunks = append(s.chunks, chunk)
 		d.cur.hold()
-		job := decodeJob{chunk: chunk, sliceType: value.Field(s.field).Type(), raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
+		job := decodeJob{chunk: chunk, typ: value.Field(s.field).Type(), raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
 		if s.field == claimsField {
 			job.claims = claims
 		}
@@ -529,6 +540,56 @@ func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, 
 	return &a, tail, nil
 }
 
+// frameElements adds array framing around exact element bytes. Validation of
+// these bytes is still the closed decoder's; validation of the source's own
+// framing remains the scan's. Buffer ownership is local to one decode worker.
+func frameElements(buffer []byte, raws [][]byte) []byte {
+	size := 1 + len(raws)
+	for _, raw := range raws {
+		size += len(raw)
+	}
+	if cap(buffer) < size {
+		buffer = make([]byte, 0, size)
+	} else {
+		buffer = buffer[:0]
+	}
+	buffer = append(buffer, '[')
+	for i, raw := range raws {
+		if i != 0 {
+			buffer = append(buffer, ',')
+		}
+		buffer = append(buffer, raw...)
+	}
+	return append(buffer, ']')
+}
+
+// elementEncodingComparer compares the exact element bytes and the one newline
+// MarshalEncode adds at top level. That newline is encoder framing, and is never
+// part of the element. Reusing a worker's encoder avoids its per-element setup
+// without relaxing the canonical byte comparison (DCR-V1-7801).
+type elementEncodingComparer struct {
+	encodingComparer
+	newline bool
+}
+
+func (c *elementEncodingComparer) Write(p []byte) (int, error) {
+	n := len(p)
+	left := len(c.want) - int(c.n)
+	if len(p) > left {
+		if c.newline || len(p) != left+1 || p[left] != '\n' {
+			c.differ = true
+		}
+		c.newline = true
+		p = p[:left]
+	}
+	c.encodingComparer.Write(p)
+	return n, nil
+}
+
+func (c *elementEncodingComparer) equalElement() bool {
+	return c.newline && !c.differ && c.n == int64(len(c.want))
+}
+
 // copyChunks sets each split member of the artifact value to its decoded chunks, in order. The
 // chunks are copied in contiguous runs, one goroutine per run, and each chunk is dropped once
 // copied.
@@ -559,12 +620,12 @@ func copyChunks(value reflect.Value, splits []*splitArray) {
 // decodeJob is one batch of consecutive split elements, the slice they decode into and the
 // offset of the first; claims is set for a batch of claims.
 type decodeJob struct {
-	chunk     *reflect.Value
-	sliceType reflect.Type
-	raws      [][]byte
-	lo        int
-	claims    func(lo int, chunk []Claim)
-	ref       *blockRef
+	chunk  *reflect.Value
+	typ    reflect.Type
+	raws   [][]byte
+	lo     int
+	claims func(lo int, chunk []Claim)
+	ref    *blockRef
 }
 
 // claimsField is the Artifact field index of the claims.

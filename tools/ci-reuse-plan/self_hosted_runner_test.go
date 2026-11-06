@@ -212,7 +212,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 	ci := readWorkflow(t, "ci.yml")
 	shard := jobBlock(t, ci, "go-product-shard")
 	wantLine(t, "stream retention", stepBlock(t, shard, "Retain package outcomes for the advisory cost-drift report"),
-		"        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted'")
+		"        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name != 'pull_request'")
 	marker := stepBlock(t, shard, "Mark a self-hosted shard for the advisory cost-drift report (AFP-V0-422)")
 	wantLine(t, "marker", marker, "        if: steps.tests.outputs.costs == '1' && runner.environment == 'self-hosted'")
 	wantLine(t, "marker", marker, "        continue-on-error: true")
@@ -221,7 +221,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 	drift := jobBlock(t, ci, "ci-shard-cost-drift")
 	wantLine(t, "drift download", drift, "          pattern: ci-shard-costs-*")
 	script := runScript(t, stepBlock(t, drift, "Require the outcomes of every shard"))
-	run := func(markers int) (string, string) {
+	run := func(markers int, event string) (string, string) {
 		t.Helper()
 		dir := t.TempDir()
 		costs := filepath.Join(dir, "shard-costs")
@@ -241,7 +241,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
 		cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir, "SHARDS=8", "SHARDS_RESULT=success",
-			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary)
+			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary, "EVENT_NAME="+event)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("the outcome check failed: %v\n%s", err, out)
 		}
@@ -249,13 +249,18 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 		s, _ := os.ReadFile(summary)
 		return string(o), string(s)
 	}
-	if out, summary := run(0); out != "ok=1\n" || summary != "" {
+	if out, summary := run(0, "merge_group"); out != "ok=1\n" || summary != "" {
 		t.Errorf("eight hosted streams must report: output %q, summary %q", out, summary)
 	}
 	// Even with every hosted-shaped stream present, one self-hosted shard abstains.
-	out, summary := run(1)
+	out, summary := run(1, "merge_group")
 	if strings.Contains(out, "ok=1") || !strings.Contains(summary, "Abstained: 1 of 8 shards ran on the self-hosted runner") {
 		t.Errorf("a self-hosted shard must abstain: output %q, summary %q", out, summary)
+	}
+	// AFP-V0-540 (V1-4728): a pull-request shard runs at -p 4, so its contended times never measure the table.
+	out, summary = run(0, "pull_request")
+	if strings.Contains(out, "ok=1") || !strings.Contains(summary, "Abstained: a pull-request shard runs at -p 4") {
+		t.Errorf("a pull-request run must abstain: output %q, summary %q", out, summary)
 	}
 }
 

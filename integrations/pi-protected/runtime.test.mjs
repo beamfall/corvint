@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
+import {hostAvailable,hostFile,missingHost} from '../pi/host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,existsSync} from 'node:fs';
@@ -44,6 +45,7 @@ test('PPI-V0-003 configuration rejects executable resources and shell credential
 });
 
 test('PPI-V0-001 PPI-V0-002 PWV-V0-016 native RPC uses embedded SDK with hostile global resources',async t=>{
+ if(!(process.platform==='darwin'&&hostFile(t,binary)||missingHost(t,'protected runtime qualification requires Darwin and a built SEA')))return;
  const scratch=mkdtempSync(join(tmpdir(),'pi-protected-host-'));
  t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const repo=join(scratch,'repo'),home=join(scratch,'home'),dataDir=join(scratch,'data');
