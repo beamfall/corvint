@@ -2185,13 +2185,16 @@ jobs:
           have=$(find "$d" -maxdepth 1 -name 'shard-*.json' -type f 2>/dev/null | wc -l | tr -d ' ')
           # AFP-V0-422: a shard on the self-hosted runner retains only a marker.
           boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
+          # AFP-V0-460: the advisory balance report reads the markers on every event, a pull request too.
+          if [ "$SHARDS_RESULT" = success ] && [ "$boxed" -ne 0 ] && [ "$boxed" -eq "$SHARDS" ]; then
+            echo 'boxed=1' >> "$GITHUB_OUTPUT"
+          fi
           if [ "$SHARDS_RESULT" != success ]; then
             reason="go-product-shard result is $SHARDS_RESULT"
           elif [ "${GITHUB_EVENT_NAME:-}" = pull_request ]; then
             reason="a pull-request shard runs at -p 4, so its package times are contended and not table costs (AFP-V0-540)"
           elif [ "$boxed" -ne 0 ]; then
             reason="$boxed of $SHARDS shards ran on the self-hosted runner, whose timings are not cloud timings (AFP-V0-422)"
-            [ "$boxed" -ne "$SHARDS" ] || echo 'boxed=1' >> "$GITHUB_OUTPUT"
           elif [ "$have" -ne "$SHARDS" ]; then
             reason="$have of $SHARDS shard outcome artifacts present (a docs-only, reused or selected run executes no complete shard)"
           else

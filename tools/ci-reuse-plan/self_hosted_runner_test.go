@@ -282,7 +282,9 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	bash := func(script string, env ...string) string {
 		t.Helper()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), env...)
+		// A merge-queue event by default, so the outcome step never takes its pull-request
+		// abstention from the runner's own environment; a case may override it.
+		cmd.Env = append(append(os.Environ(), "GITHUB_EVENT_NAME=merge_group"), env...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("step failed: %v\n%s", err, out)
@@ -317,7 +319,7 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	}
 	complete := runScript(t, stepBlock(t, drift, "Require the outcomes of every shard"))
 	balance := runScript(t, balanceStep)
-	run := func(sums []string) (string, string, string) {
+	run := func(sums []string, extra ...string) (string, string, string) {
 		t.Helper()
 		dir := t.TempDir()
 		costs := filepath.Join(dir, "shard-costs")
@@ -336,6 +338,7 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
 		env := []string{"RUNNER_TEMP=" + dir, "SHARDS=8", "SHARDS_RESULT=success", "BOUND_PERCENT=125",
 			"GITHUB_OUTPUT=" + output, "GITHUB_STEP_SUMMARY=" + summary}
+		env = append(env, extra...)
 		bash(complete, env...)
 		o, _ := os.ReadFile(output)
 		log := ""
@@ -368,6 +371,10 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	missing := append([]string{""}, even[1:]...)
 	if _, log, summary := run(missing); log != "" && strings.Contains(log, "::warning") || !strings.Contains(summary, "Not measured: 7 of 8 self-hosted shards recorded their package time.") {
 		t.Errorf("a marker without its sum must not measure: log %q, summary %q", log, summary)
+	}
+	// A pull request abstains from the cost table but still reports the balance (AFP-V0-540).
+	if out, log, _ := run(skewed, "GITHUB_EVENT_NAME=pull_request"); !strings.Contains(out, "boxed=1\n") || strings.Contains(out, "ok=1") || !strings.Contains(log, "::warning title=CI shard balance::") {
+		t.Errorf("a pull-request run must still report balance: output %q, log %q", out, log)
 	}
 	// Fewer than every shard on the self-hosted runner leaves the balance step off.
 	if out, _, _ := run(even[:7]); strings.Contains(out, "boxed=1") {
