@@ -316,7 +316,9 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   occupy at most one hosted runner, have a 180-minute timeout, and retain selection evidence even
   after failure. Native execution time and Darwin-only outcomes remain NOT_OBSERVED until hosted
   execution; Linux cost history is an estimate, never a native measurement.
-  The job is advisory: `go-product` SHALL NOT depend on it or inspect its result.
+  The job is advisory: `go-product` SHALL NOT depend on it or inspect its result, and it SHALL
+  set job-level `continue-on-error: true` so its failure never concludes the workflow run as
+  failure, which would deny the PR verdict to merge-queue REUSE (amended 2026-11-05, V1-4727).
   `go-macos` MAY intersect its root-module inventory with a native narrowed selection only after
   the existing `narrowing-verdict` reports MET and the existing trusted `narrow.sh` guards admit
   it: protected main-parent tools built for Darwin, native driver and shadow, matching event/base/
