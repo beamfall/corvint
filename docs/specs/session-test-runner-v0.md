@@ -49,6 +49,12 @@ of every requirement below and the binding gate until this spec is promoted.
 
 ## Requirements
 
+- `STR-V0-7305`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard executed by the session runner MUST record its completion wall time as optional RFC3339Nano completedAt. Legacy receipts without that field remain admissible. It is ordering advice, never an execution, revision or evidence-validity assertion.
+  Acceptance evidence: `TestFailFastContentTimeSurvivesTimestampTies` in `cmd/corvint/affected_order_test.go` and the session-runner round-trip tests.
+
+- `STR-V0-7313`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's standing auto-accept (2026-11-05), self-review repair; V1-3424) The default local-profile test --dry-run output MUST be a bounded summary (at most 4096 bytes across stdout and stderr), including counts, selection and fallback reasons sufficient to justify HEAVY_WHOLE_REASON. --full and explicit --format json MUST request the complete JSON argv listing. --summary remains an explicit synonym for the local default; the CI profile retains its JSON default for pinned shadow consumers, and --pins retains its own output. The shared budget includes stale or unverified binary degradation notices without changing their text. The bounded form MUST include top whole-package causes and a usable HEAVY_WHOLE_REASON; it MUST NOT append the full per-invocation advice or a duplicate verdict on stderr. All forms write identical manifests. --full outside --dry-run or with --summary or --pins MUST refuse. This amends STR-V0-800's output default, not planning or execution.
+  Acceptance evidence: `TestDryRunDefaultsToBoundedSummary`, `TestSTRV0800DryRunSummaryIsBounded` and `TestSTRV0800CLIDryRunSummary` and `TestDryRunStaleBinarySharesSummaryBudget` in `cmd/corvint`.
+
 - `STR-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The declaration-runner regression MUST pin `CORVINT_GOCACHE` explicitly when it tests the declared GOCACHE, so an offload host override cannot change the fixture. The separate STR-V0-174 override regression MUST continue to prove intentional override precedence.
 
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
@@ -529,7 +535,10 @@ two requirements make its version name its content and make each receipt carry i
   units' own reasons, or the plan's reason when a unit has none, naming at most three packages
   (more are counted), so a lane copying the plan into `script/heavy.sh` (`ASD-V0-030`) needs no
   hand-written reason; a `-run` slice and a non-Go declared command get no line, and the stdout
-  JSON plan is unchanged. Non-goals: exporting the variable or weakening heavy.sh's refusal of a
+  JSON plan is unchanged. Amended by STR-V0-7313 (V1-3424): the bounded dry-run summary
+  instead includes one whole-package count, top causes and a ready HEAVY_WHOLE_REASON within
+  its output budget; detailed JSON dry runs and executing runs retain the per-invocation stderr.
+  Non-goals: exporting the variable or weakening heavy.sh's refusal of a
   hand-typed whole run. Rollback: remove `testWholeReasons` and its call.
 - `STR-V0-173`: (experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint
   test --go-parallel N`, accepted once with N from 1 to 64 and only with `--profile local`, SHALL run
@@ -663,7 +672,8 @@ two requirements make its version name its content and make each receipt carry i
 | `test shards` list empty, oversized, repeated or malformed entry; bad count or K | exit 2, no plan |
 | `--shard-plan` a FIFO, device, directory, symbolic link, missing or oversized (STR-V0-055) | exit 2 `test-shard-plan-unreadable` at once, nothing runs |
 | `--shard-plan` non-canonical, incomplete, with a foreign digest, or with an incomplete, misflagged, oversized or co-located slice set | exit 2, nothing runs |
-| `test shards` supplied table not admitted (STR-V0-056) | STR-V0-053 fallback, reason begins `test-shards-history-invalid` |
+| `test shards` supplied table not admitted (STR-V0-056) | STR-V0-7305 | `Runner.Execute`, optional `Receipt.CompletedAt` | `TestExecuteCompletionTime_STRV07305` |
+| STR-V0-053 fallback, reason begins `test-shards-history-invalid` |
 | `test shards` only one of `--test-slices` and `--split-allow`, or either unreadable | exit 2, no plan |
 | Slice file or allow-list unusable, over 256 slices or 4 MiB of slices, or history fallback (STR-V0-057) | nothing split, every entry whole |
 | `refresh --history` refused refresh, bad `--keep` or `--at` | exit 2, neither table nor retained file written |
@@ -827,7 +837,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-052 | `PlanShards` placement, `ShardPartitionDigest` | TestSTRV0052LongestFirstExactlyOnceDeterministic (a worked longest-first example; 97 files on 1 to 16 shards placed once with equal bytes and digest on repeat) |
 | STR-V0-053 | `historyWeights` fallback reasons, round-robin branch of `PlanShards` | TestSTRV0053FallbackIsCompleteRoundRobin (thirteen history failures), TestSTRV0053FallbackReasonIsDeterministic (sixteen invalid durations give identical plan bytes over 50 runs; a long reason is cut), TestSTRV0053CLIShardsOverTableBound (65 tables: exit 0, FALLBACK), TestSTRV0050CLIShardsPlan (absent and missing history) |
 | STR-V0-054 | `ReadShardPlan`; `placeMeasured` and the measured partition digest in `Build`; `--placement measured --shard-plan` in `parseTestOptions` and `runTest` | TestSTRV0054ReadShardPlan (seven malformed plans), TestSTRV0054MeasuredPlacement (NARROWED, FULL, other count, omitted package, no plan); TestSTRV0054CLIMeasuredShards (two-shard run, `verify-shards` PASS and missing-shard `INCOMPLETE`, five usage refusals) |
-| STR-V0-055 | `DecodeShardPlan` in `internal/sessiontest/shards.go`; `readBoundedFile` of `--shard-plan` in `runTest` (`cmd/corvint/test.go`) | `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0055ShardPlanReadIsBounded (FIFO with no writer refused with `test-shard-plan-unreadable` within the deadline; symbolic link, directory and missing file refused; a regular plan still runs); TestSTRV0054ReadShardPlan |
+| STR-V0-055 | `DecodeShardPlan` in `internal/sessiontest/shards.go`; `readBoundedFile` of `--shard-plan` in `runTest` (`cmd/corvint/test.go`) | `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0055ShardPlanReadIsBounded (FIFO with no writer refused with `test-shard-plan-unreadable` within the unchanged 30-second deadline; symbolic link, directory and missing file refused; a regular plan still runs, requesting --full for its JSON assertion under STR-V0-7313); TestSTRV0054ReadShardPlan |
 | STR-V0-056 | `retain` and the `--history`, `--keep`, `--at` flags in `tools/ci-shard-costs/main.go`; `HistoryInvalidCode` in `historyWeights` | `tools/ci-shard-costs/main_test.go` TestSTRV0056RefreshRetainsDatedTables (byte-identical retained tables, newest N kept, foreign files untouched, refused refresh writes nothing, bad flags refused, retained files plan with no fallback); `internal/sessiontest/shards_test.go` TestSTRV0053FallbackIsCompleteRoundRobin (reasons begin `test-shards-history-invalid`); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0050CLIShardsPlan (absent table's reason begins `test-shards-history-invalid`) |
 | STR-V0-057 | `PlanShardsSliced`, `sliceUnits`, `placeUnits`, `checkPlannedSlices` in `DecodeShardPlan`, `ShardPartitionDigest` in `internal/sessiontest/shards.go`; `placeMeasured` slice units; `--test-slices`, `--split-allow` in `runTestShards` | `internal/sessiontest/shards_test.go` TestSTRV0057SlicedPlan (weights, distinct shards, digest binds slices, round trip, no-slice plans byte-identical, fallback and unusable inputs split nothing), TestSTRV0057ReadShardPlanSliceRefusals (flags, patterns, weights, siblings, missing, duplicate, whole and sliced, order, count, empty member, each under a recomputed digest), TestSTRV0057MeasuredPlacementRunsSlices (each slice on its planned shard with its flag and pattern); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0057CLIShardsSlices |
 | STR-V0-058 | `AdapterManifestProfile` and `adapterOperations` in `internal/sessiontest/adapter.go`; the pin table `adapterManifestVersionPins` in `internal/sessiontest/adapter_test.go` | `internal/sessiontest/adapter_test.go` TestSTRV0058AdapterManifestVersionPinned (every registered manifest matches its version's pin; an added or dropped operation under `corvint-test-adapter/0` and an unpinned `corvint-test-adapter/1` refused; a pinned bump passes beside the old pin); V1-2026: TestSTRV0058PinTableMatchesLock holds the pin table append-only against the committed lock `internal/sessiontest/testdata/adapter-manifest-pins.lock` (an edited or removed locked pin, a pin not appended to the lock, a duplicated or malformed lock row each fail; a synthetic edit of the shipped pin fails it). Editing the lock and the table together in one change remains review-only |
@@ -857,6 +867,13 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 - Whether the Playwright profile's file commands become the first non-Go adapter or stay separate.
 - Adapter order after Go, likely by the languages adopters run most.
 - Whether balanced placement should ever become the default.
+
+### pk-affected boundaries and rollback
+
+These refinements change diagnostics, ordering advice, output projection and test measurement only.
+They grant no new narrowing authority. Missing or invalid evidence keeps the existing uncertainty.
+Revert the corresponding implementation and requirement together to restore the prior behavior.
+Qualification limits and explicit exclusions are retained in `docs/build-log/2026-11-04-pk-affected.md`.
 
 ## Lane maintenance evidence (2026-11-04)
 

@@ -28,6 +28,12 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
 
 ## Requirements
 
+
+
+
+
+
+
 - **AFP-V0-001:** The command MUST be read-only: one bounded `git status`, one HEAD identity read,
   one source walk, at most two bounded advice-declaration reads (AFP-V0-009), one bounded
   read-scope declaration read (AFP-V0-023), one bounded binary-exec declaration read
@@ -113,7 +119,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `unsupported-affected-revision`, `unsupported-affected-status`, `unsupported-affected-graph`
   (including an unreadable subtree, or an accepted source file whose repository-relative path is no
   canonical unit path, such as a name holding a backslash, both of which `affected.SourceFiles` now
-  refuses instead of silently narrowing the unit set), `unsupported-affected-drift`, or
+  refuses instead of silently narrowing the unit set), `unsupported-affected-drift`,
+  `unsupported-affected-temp`, or
   `invalid-arguments`.
 - **AFP-V0-007:** `plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
   distance from the dirty path, ascending — the length of `witness.via`, so a directly changed
@@ -5516,6 +5523,10 @@ two single `--path --no-cache` calls 4.67 s and 3.78 s with 27 KB of overlapping
 `--by-path` call 2.08 s (cached) and 6.45 s (`--no-cache`), 13 KB, 44 shared units listed once and
 5 additions per path. Rollback: remove `--by-path` and `cmd/corvint/affected_by_path.go`.
 
+Changelog (2026-11-04; V1-4439, TSP-V0-7311): the by-path addition `witness` field
+changed from a kind string to the shared witness object, including `kind`, `dirtyPath`,
+`viaLength`, and optional chain and cause fields. Selection is unchanged.
+
 ### Historical replay of the shadow tiers (AFP-V0-991; V1-3664)
 
 Intent (lane friction, 2026-10-31): measuring the AFP-V0-480 tier plan's accuracy needs each
@@ -6632,3 +6643,9 @@ retained documentation checks. All other mandatory checks and AFP-V0-016 control
 remain. (accepted (decision 0431); amended by decision 0431) It does not alter this planner's
 UNKNOWN scope or enable general Go selection; AFP-V0-028/029 govern queue-backstopped general
 Go narrowing without the historical campaign. Missing or stale DCI qualification runs FULL.
+
+### Selection repair companion
+
+The bounded diagnostics, witness projection, receipt-ordering and qualification refinements
+requested by the pk-affected lane live in [Test Selection Precision V0](test-selection-precision-v0.md).
+This contract remains at its 256-obligation limit.

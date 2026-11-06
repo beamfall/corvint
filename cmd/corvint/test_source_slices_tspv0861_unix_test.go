@@ -41,7 +41,7 @@ func TestTSPV0861DryRunSlicesSourceAndTestChanges(t *testing.T) {
 			}
 		}
 		manifest := filepath.Join(t.TempDir(), "manifest.json")
-		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", manifest)
+		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest)
 		if code != 0 {
 			t.Fatalf("code %d stderr %q", code, stderr)
 		}
@@ -147,7 +147,7 @@ func TestTSPV0864DryRunSlicesAdditiveDeclarations(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "m.json"))
+		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", filepath.Join(t.TempDir(), "m.json"))
 		if code != 0 {
 			t.Fatalf("code %d stderr %q", code, stderr)
 		}
@@ -221,7 +221,7 @@ func TestTSPV0864DryRunSlicesAdditiveDeclarations(t *testing.T) {
 				defer func() { affectedGit(t, root, "reset", "-q", "--hard", base) }()
 				newBase := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 				write(tc.edits["r/r.go"])
-				code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", newBase, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "m.json"))
+				code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", newBase, "--dry-run", "--full", "--manifest", filepath.Join(t.TempDir(), "m.json"))
 				if code != 0 || !strings.Contains(stdout, "r/r.go changes more than plain functions") {
 					t.Fatalf("code %d stdout %q stderr %q", code, stdout, stderr)
 				}

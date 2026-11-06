@@ -12,6 +12,7 @@ import (
 // per-map OCM obligation bound, so a spec too large to declare can still be
 // deferred, and keeps refusing a document that is not an intent.
 func TestCEMV1644CounterAdmitsAnIntentOverTheOCMBound(t *testing.T) {
+	t.Parallel()
 	var spec strings.Builder
 	spec.WriteString("# Oversized\n\n## Requirements\n\n")
 	want := lrfrepo.MaxOCMObligations + 1

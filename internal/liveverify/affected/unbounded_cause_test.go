@@ -1,7 +1,9 @@
 package affected
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -45,5 +47,21 @@ func TestInstructionFileChangeNamesEachUnboundedReadersCause_V1_2075(t *testing.
 	}
 	if got := witnesses(plan); !reflect.DeepEqual(got, want) {
 		t.Fatalf("selected=%v\nwant     %v", got, want)
+	}
+}
+
+// TSP-V0-7303: the representative dirty path must not imply a bounded read.
+func TestUnboundedWitnessSaysAnyDirtyPath(t *testing.T) {
+	graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{{ID: "go:x", Sources: []string{"x/x.go"}, Tests: []string{"x/x_test.go"}, UnboundedReads: "x_test.go calls os.Getwd"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := Select(graph, []string{"Makefile", "other.go"})
+	body, err := json.Marshal(plan.Selected[0].Witness)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte(`"anyDirtyPath":true`)) {
+		t.Fatalf("misleading witness: %s", body)
 	}
 }

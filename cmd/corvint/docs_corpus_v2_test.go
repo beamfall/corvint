@@ -49,6 +49,7 @@ func TestBehaviorProviderV2CLI(t *testing.T) {
 }
 
 func TestDocsCorpusTypedCLIInvocation(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-038 typed argument parity", func(t *testing.T) {
 		root, e := filepath.Abs("../..")
 		if e != nil {

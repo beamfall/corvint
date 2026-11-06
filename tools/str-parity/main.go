@@ -314,7 +314,7 @@ func comparePair(ctx context.Context, o options, clone, bin, record, target, bas
 
 // corvintPlan reads `corvint test --dry-run` for the one unsharded shard.
 func corvintPlan(ctx context.Context, o options, clone string, env []string, base string, universe []string, profile ...string) Plan {
-	args := append([]string{"--root", clone, "test", "--base", base, "--dry-run"}, profile...)
+	args := append([]string{"--root", clone, "test", "--base", base, "--dry-run", "--full"}, profile...)
 	stdout, stderr, code := runCommand(ctx, clone, env, o.corvint, args...)
 	var printed struct {
 		Incomplete  []string `json:"incomplete"`

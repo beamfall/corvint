@@ -100,6 +100,15 @@ type Witness struct {
 	link *viaLink
 }
 
+// MarshalJSON labels the representative unbounded dirty path as any path (TSP-V0-7303).
+func (witness Witness) MarshalJSON() ([]byte, error) {
+	type wire Witness
+	return json.Marshal(struct {
+		wire
+		AnyDirtyPath bool `json:"anyDirtyPath,omitzero"`
+	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader})
+}
+
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
 // Unit is the unit itself, or the root-locating unit it depends on or whose
 // dependent its tests import, and Reads is that unit's unboundedReads.
@@ -410,6 +419,18 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	mergeWitnesses(start, traversed)
 	for id := range contained {
 		delete(start, id)
+	}
+	// Driver path imports execute the package's tests; Go's test-only
+	// containment applies to package importers, not these callers (AZU-V0-001).
+	for _, id := range sortedKeys(contained) {
+		for _, dependent := range graph.dependents[id] {
+			if strings.HasPrefix(dependent, DriverNamespace+":") {
+				addWitness(start, dependent, Witness{
+					Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath,
+					Via: append(slices.Clone(seeds[id].Chain()), dependent),
+				})
+			}
+		}
 	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))

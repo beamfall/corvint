@@ -20,6 +20,14 @@
     {
       "path": "tools/linecov/command-tree.json",
       "reason": "generated help snapshot (AZU-V0-002), read by tools/linecov TestCommandTreeSnapshot; enclosing-package, literal, declared and unbounded readers remain selected"
+    },
+    {
+      "path": "tools/str-parity/testdata/local-default.txt",
+      "reason": "captured local dry-run text output (AZU-V0-002, STR-V0-7313), replayed by tools/str-parity TestMain; no build executes it; enclosing-package, literal, declared and unbounded readers remain selected"
+    },
+    {
+      "path": "tools/str-parity/testdata/local-full.json",
+      "reason": "captured local dry-run full JSON output (AZU-V0-002, STR-V0-7313), replayed by tools/str-parity TestMain; no build executes it; enclosing-package, literal, declared and unbounded readers remain selected"
     }
   ]
 }

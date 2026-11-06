@@ -39,7 +39,7 @@ func sliceRebase(t *testing.T, root, fixture string, base, edits map[string]stri
 		}
 	}
 	manifest := filepath.Join(t.TempDir(), "manifest.json")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", revision, "--dry-run", "--manifest", manifest)
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", revision, "--dry-run", "--full", "--manifest", manifest)
 	if code != 0 {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}

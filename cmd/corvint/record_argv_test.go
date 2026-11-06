@@ -61,6 +61,7 @@ func TestRecordTypedArgvRoundTripAndRefusal(t *testing.T) {
 }
 
 func TestQueryTypedArgvAdmissionAndBatchDigest(t *testing.T) {
+	t.Parallel()
 	root := queryCLIRepository(t)
 	recorded, err := tracerecordrepo.Record(t.Context(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI, Task: "token parser", ChangedPaths: []string{"internal/parser/token.go"}, Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", ""}}})
 	if err != nil {

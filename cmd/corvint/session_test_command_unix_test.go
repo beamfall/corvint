@@ -117,7 +117,7 @@ func readSessionReceipt(t *testing.T, name string) sessiontest.Receipt {
 func TestSTRV0018CLIDryRunLaunchesNoRunner(t *testing.T) {
 	root, base, log := sessionFixture(t, "pass")
 	manifest := filepath.Join(t.TempDir(), "manifest.json")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", manifest)
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest)
 	if code != 0 || stderr != "corvint-test: NARROWED 1 execution units\n"+
 		"corvint-test: whole-package go test planned; under script/heavy.sh run it with HEAVY_WHOLE_REASON='corvint test selected example.test/m/a whole: whole: DIRECT_SOURCE_CHANGE via a/a.go' (STR-V0-073)\n" {
 		t.Fatalf("code %d stderr %q", code, stderr)
@@ -205,7 +205,7 @@ func TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand(t *testing.T) {
 	affectedGit(t, root, "commit", "-qam", "declare rust")
 	receiptPath := filepath.Join(t.TempDir(), "r.json")
 	manifestPath := filepath.Join(t.TempDir(), "m.json")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--dry-run", "--manifest", manifestPath)
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--dry-run", "--full", "--manifest", manifestPath)
 	if code != 0 || !strings.Contains(stdout, `"noSuite":["python: fixtures only"]`) {
 		t.Fatalf("dry run code %d stdout %s stderr %q", code, stdout, stderr)
 	}
@@ -368,7 +368,7 @@ func TestSTRV0009CLIShardsAndVerify(t *testing.T) {
 	root, base, _ := sessionFixture(t, "pass")
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.json")
-	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--shard", "0/2", "--dry-run", "--manifest", manifest); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--shard", "0/2", "--dry-run", "--full", "--manifest", manifest); code != 0 {
 		t.Fatalf("dry run %d %s", code, stderr)
 	}
 	receipts := []string{}
@@ -400,7 +400,7 @@ func TestSTRV0009CLIShardsAndVerify(t *testing.T) {
 		t.Fatalf("manifest as receipt %d %s", code, stdout)
 	}
 	other := filepath.Join(dir, "other.json")
-	if code, _, _ := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", other); code != 0 {
+	if code, _, _ := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", other); code != 0 {
 		t.Fatal("unsharded dry run failed")
 	}
 	receiptPath := filepath.Join(dir, "mismatch.json")
@@ -496,7 +496,7 @@ func TestSTRV0008CLIBalancedShards(t *testing.T) {
 	affectedGit(t, root, "commit", "-qam", "change b")
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.json")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--shard", "0/2", "--dry-run", "--manifest", manifest)
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--shard", "0/2", "--dry-run", "--full", "--manifest", manifest)
 	if code != 0 || stderr != "corvint-test: NARROWED 2 execution units\n"+
 		"corvint-test: whole-package go test planned; under script/heavy.sh run it with HEAVY_WHOLE_REASON='corvint test selected example.test/m/a whole: whole: DIRECT_SOURCE_CHANGE via a/a.go' (STR-V0-073)\n" || !strings.Contains(stdout, `"placement":"balanced"`) {
 		t.Fatalf("dry run %d %q %s", code, stderr, stdout)
@@ -533,7 +533,7 @@ func TestSTRV0008CLIBalancedShards(t *testing.T) {
 		t.Fatalf("a mismatched shard ran go test (%d before, %d after)", before, after)
 	}
 	confine := filepath.Join(dir, "test-confine")
-	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--profile", "ci", "--confine", confine, "--shard", "1/2", "--dry-run", "--manifest", filepath.Join(dir, "ci.json"))
+	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--profile", "ci", "--confine", confine, "--shard", "1/2", "--dry-run", "--full", "--manifest", filepath.Join(dir, "ci.json"))
 	if code != 0 || !strings.Contains(stdout, `"placement":"balanced"`) || !strings.Contains(stdout, `"-exec","`+confine+`"`) {
 		t.Fatalf("ci dry run %d %q %s", code, stderr, stdout)
 	}
@@ -569,7 +569,7 @@ func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "commit", "-qam", "declare c")
-	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
 	var printed struct {
 		Invocations []struct{ Argv []string } `json:"invocations"`
 	}
@@ -585,11 +585,11 @@ func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 }
 
 // STR-V0-800: --dry-run --summary prints the bounded text summary of the
-// same plan in place of the JSON, with the same stderr.
+// same plan in place of JSON, with verdict and heavy advice inside its bound.
 func TestSTRV0800CLIDryRunSummary(t *testing.T) {
 	root, base, log := sessionFixture(t, "pass")
 	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--summary")
-	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: NARROWED 1 execution units\n") {
+	if code != 0 || stderr != "" {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
 	if !strings.HasPrefix(stdout, "corvint-test: DRY-RUN scope=NARROWED placement=universe shard=0/1 manifest=sha256:") ||
@@ -599,5 +599,35 @@ func TestSTRV0800CLIDryRunSummary(t *testing.T) {
 	}
 	if got := sessionRunnerLog(t, log); got != "" {
 		t.Fatalf("a dry run launched runners:\n%s", got)
+	}
+}
+
+// STR-V0-7313: the public default is bounded; JSON argv requires --full.
+func TestDryRunDefaultsToBoundedSummary(t *testing.T) {
+	root, base, _ := sessionFixture(t, "")
+	var stdout, stderr bytes.Buffer
+	manifest := filepath.Join(t.TempDir(), "plan.json")
+	code := runContext(context.Background(), []string{"--root", root, "test", "--base", base, "--dry-run", "--manifest", manifest}, strings.NewReader(""), &stdout, &stderr)
+	if code != 0 || !strings.HasPrefix(stdout.String(), "corvint-test: DRY-RUN") || stdout.Len() > 4096 {
+		t.Fatalf("unbounded/default output: exit=%d stdout=%s stderr=%s", code, &stdout, &stderr)
+	}
+	before, err := os.ReadFile(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	code = runContext(context.Background(), []string{"--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest}, strings.NewReader(""), &stdout, &stderr)
+	if code != 0 || !json.Valid(stdout.Bytes()) {
+		t.Fatalf("full output: exit=%d %s %s", code, &stdout, &stderr)
+	}
+	after, err := os.ReadFile(manifest)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("output projection changed manifest: %v", err)
+	}
+	for _, args := range [][]string{{"test", "--base", base, "--full"}, {"test", "--base", base, "--dry-run", "--summary", "--full"}, {"test", "--base", base, "--dry-run", "--pins", "--full"}} {
+		if _, err := parseTestOptions(args[1:]); err == nil {
+			t.Fatalf("invalid full form admitted: %v", args)
+		}
 	}
 }

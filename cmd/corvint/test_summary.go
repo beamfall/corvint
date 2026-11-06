@@ -23,6 +23,11 @@ const testSummaryItem = 200
 // languages and incomplete entries, naming the first incomplete entries.
 // Lists stop with "(+N more)" once the bound would be passed.
 func testDryRunSummary(m sessiontest.Manifest, digest string, invocations []sessiontest.Planned, shard int) string {
+	return testDryRunSummaryBudget(m, digest, invocations, shard, testSummaryLimit)
+}
+
+// testDryRunSummaryBudget reserves stderr degradation notices within the same bound.
+func testDryRunSummaryBudget(m sessiontest.Manifest, digest string, invocations []sessiontest.Planned, shard, budget int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "corvint-test: DRY-RUN scope=%s placement=%s shard=%d/%d manifest=%s\n", m.Scope, m.Placement, shard, m.ShardCount, digest)
 	reason := "none"
@@ -67,14 +72,52 @@ func testDryRunSummary(m sessiontest.Manifest, digest string, invocations []sess
 	}
 	fmt.Fprintf(&b, "  units: %d; %s; invocations=%d\n", len(units), strings.Join(parts, ", "), len(invocations))
 	fmt.Fprintf(&b, "  checks still required: %d; no-suite languages: %d; incomplete: %d\n", len(m.Checks), len(m.NoSuite), len(m.Incomplete))
-	tail := "  full plan: rerun without --summary for the JSON argv\n"
+
+	// Summarize causes, including a usable heavy reason, rather than appending
+	// an unbounded per-invocation explanation on stderr (STR-V0-7313).
+	whole, reasons := 0, map[string]int{}
+	for _, unit := range m.Units {
+		if unit.Shard != shard || unit.Adapter != sessiontest.AdapterGo || unit.Slice == sessiontest.SliceSelected {
+			continue
+		}
+		whole++
+		reason := unit.Reason
+		if reason == "" {
+			reason = m.Reason
+		}
+		reason, _, _ = strings.Cut(reason, " via ")
+		if reason != "" {
+			reasons[summaryClip(reason, testSummaryItem)]++
+		}
+	}
+	if whole > 0 {
+		keys := make([]string, 0, len(reasons))
+		for reason := range reasons {
+			keys = append(keys, reason)
+		}
+		sort.Slice(keys, func(i, j int) bool {
+			if reasons[keys[i]] != reasons[keys[j]] {
+				return reasons[keys[i]] > reasons[keys[j]]
+			}
+			return keys[i] < keys[j]
+		})
+		why := make([]string, 0, 3)
+		for _, reason := range keys[:min(3, len(keys))] {
+			why = append(why, fmt.Sprintf("%s=%d", reason, reasons[reason]))
+		}
+		if len(why) > 0 {
+			fmt.Fprintf(&b, "  whole reasons: %s\n", strings.Join(why, "; "))
+		}
+		fmt.Fprintf(&b, "  heavy: HEAVY_WHOLE_REASON=%s\n", shellQuoteJoin([]string{fmt.Sprintf("corvint test selected %d whole Go packages; scope=%s; see whole reasons above", whole, m.Scope)}))
+	}
+	tail := "  full plan: rerun with --full for the JSON argv\n"
 	incomplete := make([]string, 0, len(m.Incomplete))
 	for _, entry := range m.Incomplete {
 		incomplete = append(incomplete, summaryClip(entry, testSummaryItem))
 	}
 	// Incomplete entries explain a nonzero exit, so they come before units.
-	summaryList(&b, "incomplete", incomplete, testSummaryLimit/2)
-	summaryList(&b, "selected", units, testSummaryLimit-len(tail))
+	summaryList(&b, "incomplete", incomplete, budget/2)
+	summaryList(&b, "selected", units, budget-len(tail))
 	b.WriteString(tail)
 	return b.String()
 }

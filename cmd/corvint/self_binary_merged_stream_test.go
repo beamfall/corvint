@@ -58,6 +58,7 @@ func TestAffectedStaleBinaryMergedStreamStillParses(t *testing.T) {
 // AFP-V0-871: only one pipe or regular file behind both streams is shared; a
 // terminal, two files or a non-file writer is not.
 func TestSharedOutputStream(t *testing.T) {
+	t.Parallel()
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
