@@ -17,6 +17,12 @@ DTL-V0-006 contracts, wire output, diagnostics, goldens and existing assertions.
   discovery files, both denied, a one-GiB host, and observed absence of a memory
   controller. Existing ancestor and exhausted-bound tests remain unchanged.
 
+The CEM input precheck initially refused AFP-V0-023: the new `t.Chdir` disables
+the package's AFP-V0-828 temporary-root exemption, exposing the existing
+`cmd/corvint/` string in a synthetic `decideInputs` comparison. Mark that
+fixture-only comparison with the established ASD-V0-895 annotation. It performs
+no repository read; its assertion and the package's declared reads are unchanged.
+
 Before the fixes, whole-package tests reproduced P1 and all five ample-host
 discovery failures (16 workers rather than two). After the fixes, the entire
 existing and added `tools/selection-baseline` package passed without a filter:
@@ -35,6 +41,14 @@ Their SHA-256 digests, respectively, are
 `babfe2526a8c70621cfd6dba5aaabc7ee7d75a219cfcde9445fabfce116c2c10`,
 `170df2c102049605d866c03d0438fc9bed4ecdd47354e584415f6f4a0fd768af` and
 `7fd048e1f4b9e734003a6e581cbd651afba5f391352b1772cfe9c10e235328d7`.
+
+After the annotation, `make -s test-read-scopes-check` passed, and the same
+whole-package heavy test route passed again in 1.495 seconds
+(`review-package-tests-final.log`, SHA-256
+`8d7cb4a2be9e60c61c7c98598d9faecb2e0c68ba996ad67563ead203f93648c7`).
+`make -s spec-requirements-check
+line-citations-check` also passed; the existing 180 non-root-basename citation
+exclusions and Linux's unqualified Darwin-only source remain explicit in its log.
 
 No intent amendment is needed: these fixes restore the existing required skip
 and unobservable-memory fallback. Rollback is reverting these four code/test

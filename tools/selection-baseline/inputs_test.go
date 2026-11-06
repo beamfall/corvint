@@ -217,7 +217,7 @@ func TestBaselineMemoryWorkersASDV0925(t *testing.T) {
 func TestBaselineInputReasonIsDeterministic(t *testing.T) {
 	bounds := []string{"bound m/tools/selection-baseline declared tools/selection-baseline/main.go\n"}
 	for _, paths := range [][]string{{"go.mod", "Makefile"}, {"Makefile", "go.mod"}} {
-		_, reason := decideInputs(paths, []string{"cmd/corvint/"}, bounds, "m/tools/selection-baseline", "base")
+		_, reason := decideInputs(paths, []string{"cmd/corvint/"}, bounds, "m/tools/selection-baseline", "base") //corvint:fixture-path
 		if reason != "matching input Makefile" {
 			t.Fatal(reason)
 		}
