@@ -59,8 +59,7 @@
           "kind": "DIRECT_SOURCE_CHANGE",
           "via": [
             "go:example.test/cli/pkg"
-          ],
-          "viaLength": 1
+          ]
         }
       }
     ],

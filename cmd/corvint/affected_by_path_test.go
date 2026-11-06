@@ -98,6 +98,14 @@ func TestWitnessFormsShareOneObjectDecoder(t *testing.T) {
 		if err := json.Unmarshal(body, &decoded); err != nil {
 			t.Fatalf("one decoder refused %s: %v", body, err)
 		}
+		// Full witnesses retain their frozen via array; compact forms carry
+		// viaLength. Recover the same chain length with the shared decoder.
+		if via := decoded.Witness.Via; via != nil {
+			if decoded.Witness.ViaLength != 0 {
+				t.Fatalf("full witness changed the frozen wire: %s", body)
+			}
+			decoded.Witness.ViaLength = len(via)
+		}
 		if decoded.Witness.Kind == "" || decoded.Witness.ViaLength < 1 {
 			t.Fatalf("incomplete witness: %s", body)
 		}
