@@ -376,8 +376,6 @@ func TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
 // does not turn an unrelated directory or another identifier into a caller.
 func TestNormalizedJoinBounds_AZU_V0_8901(t *testing.T) {
 	for _, expression := range []string{
-		`filepath.Join(".", "elsewhere", name+".sh")`,
-		`filepath.Join("scratch", "..", "elsewhere", name+".sh")`,
 		`filepath.Join(".", "elsewhere")`,
 		`driverJoin(".", value)`,
 		`items.join('\\n')`,
@@ -390,6 +388,9 @@ func TestNormalizedJoinBounds_AZU_V0_8901(t *testing.T) {
 	}
 	for _, expression := range []string{
 		`filepath.Join(".", "run", "run.sh")`,
+		// A dynamic final operand may be "../run/run" (AZU-V0-8901 review P1).
+		`filepath.Join(".", "elsewhere", name+".sh")`,
+		`filepath.Join("scratch", "..", "elsewhere", name+".sh")`,
 		`joinpath('.', 'run', name)`,
 		`filepath.Join(".", "\x72un", name+".sh")`,
 	} {

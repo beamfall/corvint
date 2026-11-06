@@ -120,7 +120,7 @@ func normalizedForeignJoin(body []byte, script string) bool {
 // A dynamic directory operand can be "..", cancelling an unrelated prefix
 // before later operands supply the callee directory. Inspect only the current
 // call: commas inside strings or nested expressions are not operand boundaries.
-// Keep the existing terminal-basename bounds when there is no later operand.
+// A suffixed dynamic final operand traverses too (foreignJoinSuffixedDynamic).
 func foreignJoinMayTraverse(args []byte) bool {
 	depth, quote, last, more := 0, byte(0), 0, false
 	for i := 0; i < len(args); i++ {
@@ -140,19 +140,28 @@ func foreignJoinMayTraverse(args []byte) bool {
 			depth++
 		case ')', ']', '}':
 			if depth == 0 {
-				return more && !foreignJoinNonShellTail(args[last:i])
+				return (more || foreignJoinSuffixedDynamic(args[last:i])) && !foreignJoinNonShellTail(args[last:i])
 			}
 			depth--
 		case ',':
 			if depth == 0 {
 				if bytes.HasPrefix(bytes.TrimSpace(args[i+1:]), []byte(")")) {
-					return more && !foreignJoinNonShellTail(args[last:i])
+					return (more || foreignJoinSuffixedDynamic(args[last:i])) && !foreignJoinNonShellTail(args[last:i])
 				}
 				more, last = true, i+1
 			}
 		}
 	}
 	return more // An incomplete call cannot prove exclusion.
+}
+
+var foreignJoinWholeLiteral = regexp.MustCompile("^\\s*(?:\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*$")
+
+// A dynamic final operand concatenated with a literal suffix, such as
+// name+".sh", can itself carry ".." (name="../run/run"). A bare identifier
+// keeps the terminal-basename bound; a non-shell suffix is excluded later.
+func foreignJoinSuffixedDynamic(operand []byte) bool {
+	return !foreignJoinWholeLiteral.Match(operand) && foreignJoinTail.Match(operand)
 }
 
 var foreignJoinTail = regexp.MustCompile("(?:^|\\+)\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*$")
