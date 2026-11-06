@@ -369,6 +369,10 @@
     "internal/changee2e": [
       "internal/appmap/testdata/fixture/"
     ],
+    "internal/command/flows": [
+      "internal/appflows/testdata/playwright-attribution.json",
+      "internal/appmap/testdata/"
+    ],
     "internal/compactionkernel": [],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
