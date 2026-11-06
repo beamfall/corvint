@@ -3,6 +3,7 @@ package golang_test
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -65,6 +66,35 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 	tokens, err := golang.FilePathTokens("m_test.go", []byte("package marked\n\nvar fixture = \"Makefile\" "+marker+"\n"), "") //corvint:fixture-path
 	if err != nil || fmt.Sprint(tokens) != "[Makefile]" {                                                                      //corvint:fixture-path
 		t.Fatalf("FilePathTokens = %v, %v", tokens, err)
+	}
+}
+
+// AFP-V0-551: Go's scanner removes carriage returns from comment text, so
+// both spellings of a fixture marker must exempt the same literal.
+func TestAFPV0551FixtureMarkerCarriageReturnParity(t *testing.T) {
+	var selections [][]affected.Selection
+	for _, carriageReturn := range []string{"", "\r"} {
+		marker := "//" + "corvint:fixture-" + carriageReturn + "path"
+		root := t.TempDir()
+		writeFiles(t, root, map[string]string{
+			"go.mod":           "module example.test/m\n", //corvint:fixture-path
+			"marked/m.go":      "package marked\n",
+			"marked/m_test.go": "package marked\n\nvar fixture = \"Makefile\" " + marker + "\n", //corvint:fixture-path
+			"reader/r.go":      "package reader\n",
+			"reader/r_test.go": "package reader\n\nvar real = \"Makefile\"\n", //corvint:fixture-path
+		})
+		graph, err := affected.Build(context.Background(), root, golang.New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan := affected.Select(graph, []string{"Makefile"}) //corvint:fixture-path
+		if len(plan.Selected) != 1 || plan.Selected[0].UnitID != "go:example.test/m/reader" || plan.Selected[0].Witness.Kind != "PATH_LITERAL_READER" {
+			t.Errorf("marker %q selects %+v; want only the unmarked reader", marker, plan.Selected)
+		}
+		selections = append(selections, plan.Selected)
+	}
+	if !reflect.DeepEqual(selections[0], selections[1]) {
+		t.Errorf("fixture marker selection differs with a carriage return: plain %+v, carriage return %+v", selections[0], selections[1])
 	}
 }
 

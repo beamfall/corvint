@@ -97,6 +97,7 @@ func ageStamp(t *testing.T, l *ledger, age time.Duration) {
 
 // GL-V0-910: a scan trims a ledger over the bound to exactly the newest maxRecords records.
 func TestPruneKeepsTheNewestRecords(t *testing.T) {
+	t.Parallel() // GL-V0-9500: private directory; serial lock hooks have finished.
 	const over = 50
 	l := fillLedger(t, maxRecords+over)
 	if err := l.prune(); err != nil {

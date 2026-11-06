@@ -128,10 +128,14 @@ if [[ \$1 == env ]]; then
   exit 0
 fi
 [[ -d \$TMPDIR && -d \$GOTMPDIR ]] || exit 31
-[[ \$TMPDIR == "$tmp/home/.cache/corvint-heavy/tmp/run."* ]] || exit 32
+if [[ \$1 == test ]]; then
+  [[ \$TMPDIR == "$tmp/home/.cache/corvint-heavy/tmp/heavy-go-test-$(id -u)" ]] || exit 32
+else
+  [[ \$TMPDIR == "$tmp/home/.cache/corvint-heavy/tmp/run."* ]] || exit 32
+fi
 [[ \$(uname -s) == Linux ]] || exit 33
 printf '%s\n' "\$GOCACHE" "\$CORVINT_GOCACHE" "\$TMPDIR" "\$GOTMPDIR" > "$tmp/observed"
-# Deliberately omit cleanup, including an unwritable Test* subtree: the remote EXIT trap owns it.
+# Deliberately omit cleanup, including an unwritable Test* subtree: the runner owns it.
 mkdir -p "\$TMPDIR/TestLeakedHelper/locked"
 touch "\$TMPDIR/TestLeakedHelper/locked/file"
 chmod 000 "\$TMPDIR/TestLeakedHelper/locked"
@@ -153,10 +157,12 @@ EOF
     [[ $(sed -n 1p "$tmp/observed") == "$cache" && $(sed -n 2p "$tmp/observed") == "$cache" ]] ||
       fail "remote Go/Makefile cache mismatch: $(cat "$tmp/observed")"
     scratch=$(sed -n 3p "$tmp/observed") gotmp=$(sed -n 4p "$tmp/observed")
-    # GOTMPDIR is the remote per-run directory. TMPDIR is that directory, or (V1-4319) the
-    # private heavy-run.* directory heavy.sh creates inside it for the command; both are removed.
+    # GOTMPDIR stays per-run. Go tests keep only the stable namespace and lock; other
+    # commands keep the private per-run cleanup contract. Neither may leave the Test* leak.
     [[ ${gotmp%/*} == "$tmp/home/.cache/corvint-heavy/tmp" && ${gotmp##*/} == run.* && ! -e $gotmp ]] &&
-      [[ $scratch == "$gotmp" || (${scratch%/*} == "$gotmp" && ${scratch##*/} == heavy-run.*) ]] ||
+      [[ $scratch == "$gotmp" || (${scratch%/*} == "$gotmp" && ${scratch##*/} == heavy-run.*) ||
+         ($scratch == "$tmp/home/.cache/corvint-heavy/tmp/heavy-go-test-$(id -u)" &&
+          -f $scratch/.lock && ! -e $scratch/TestLeakedHelper) ]] ||
       fail "remote scratch is not per-run and removed with Test* leak: $(cat "$tmp/observed")"
     grep -q '^heavy.sh: running on ' "$tmp/err" || fail "offload fell back locally: $(cat "$tmp/err")"
   }
@@ -677,9 +683,10 @@ out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 
 /bin/cp -R "$off/lc/." "$off/exp"
 want_tree=$(g -C "$off/exp" add -A && g -C "$off/exp" write-tree) || fail "expected tree"
 /bin/rm -rf "$off/exp"
-# The remote TMPDIR was a per-run directory under the remote root (not /tmp), removed with its leak.
-[[ $(cat "$off/tmpdir.last") == "$off/rhome/.cache/corvint-heavy/tmp/run."* && ! -e $(cat "$off/tmpdir.last") ]] ||
-  fail "heavy.sh remote TMPDIR $(cat "$off/tmpdir.last") is not a removed per-run directory under the remote root"
+# Go test TMPDIR is stable under the remote root, with its leaked contents removed.
+[[ $(cat "$off/tmpdir.last") == "$off/rhome/.cache/corvint-heavy/tmp/heavy-go-test-$(id -u)" &&
+   -f $(cat "$off/tmpdir.last")/.lock && ! -e $(cat "$off/tmpdir.last")/leak ]] ||
+  fail "heavy.sh remote test TMPDIR $(cat "$off/tmpdir.last") is not stable with leaked contents removed"
 grep -qE "^heavy.sh: running on .* at $(g -C "$off/lc" rev-parse HEAD) \+wip tree=$want_tree dirty=2\$" "$off/err" &&
   grep -q '^heavy.sh: slot 1/' "$off/err" ||
   fail "heavy.sh offload did not report the remote run, tested tree and slot: $(cat "$off/err")"
@@ -2204,6 +2211,76 @@ TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache tv --admit-only sh -c 'echo "$TMP
 rtmp=$(cat "$to/run.tmp")
 [[ ${rtmp%/*} == "$to/tmproot" && ${rtmp##*/} == heavy-run.* && -z $(/bin/ls -A "$to/tmproot") ]] ||
   fail "heavy.sh did not run the command in a private TMPDIR it removed (TMPDIR=$rtmp, left: $(/bin/ls -A "$to/tmproot"))"
+# V1-4725, ASD-V0-734: a real go-shaped argv sees stable test scratch,
+# with unchanged GOTMPDIR, across direct, env and leading-assignment runs. The stub leaves
+# read-only test scratch behind deliberately: the last wrapper must remove it, keeping the namespace.
+mkdir -p "$to/cache-bin" "$to/test-root" "$to/build-root"
+cat > "$to/cache-bin/go" <<'CACHEGO'
+#!/bin/sh
+printf '%s\n' "$TMPDIR" "${GOTMPDIR-unset}"
+mkdir -p "$TMPDIR/TestKilled123/ro"
+: > "$TMPDIR/TestKilled123/ro/file"
+chmod 555 "$TMPDIR/TestKilled123/ro"
+CACHEGO
+chmod +x "$to/cache-bin/go"
+cache_run() { TMPDIR=$to/test-root PATH=$to/cache-bin:$PATH tv "$@"; }
+# tv prepends its own go stub; invoke the absolute stub to retain a go-shaped executable name.
+for shape in direct env leading envtmp leadingtmp envdash envunset envclean count; do
+  case $shape in
+    direct) argv=("$to/cache-bin/go" test -run X ./x) ;;
+    env) argv=(env GOTOOLCHAIN=local "$to/cache-bin/go" test -run X ./x) ;;
+    leading) argv=(GOTOOLCHAIN=local "$to/cache-bin/go" test -run X ./x) ;;
+    envtmp) argv=(env TMPDIR="$to/test-root" "$to/cache-bin/go" test -run X ./x) ;;
+    leadingtmp) argv=(TMPDIR="$to/test-root" "$to/cache-bin/go" test -run X ./x) ;;
+    envdash) argv=(env -- "$to/cache-bin/go" test -run X ./x) ;;
+    envunset) argv=(env -u CACHE_UNUSED "$to/cache-bin/go" test -run X ./x) ;;
+    envclean) argv=(env -i TMPDIR="$to/test-root" "$to/cache-bin/go" test -run X ./x) ;;
+    count) argv=("$to/cache-bin/go" test -count=1 -run X ./x) ;;
+  esac
+  for repeat in 1 2; do
+    out=$(cache_run ${argv[@]+"${argv[@]}"}) || fail "go-test TMPDIR $shape run failed: $(cat "$to/err")"
+    test_tmp=$(printf '%s\n' "$out" | sed -n '1p')
+    build_tmp=$(printf '%s\n' "$out" | sed -n '2p')
+    [[ $test_tmp == "$to/test-root/heavy-go-test-$(id -u)" && -d $test_tmp &&
+       ! -e $test_tmp/TestKilled123 && -f $test_tmp/.lock &&
+       $build_tmp == unset ]] ||
+      fail "go-test TMPDIR $shape is unstable or leaked scratch: $out"
+  done
+done
+# V1-4738: a trailing-slash TMPDIR (macOS default) still yields a clean scratch path.
+out=$(TMPDIR=$to/test-root// PATH=$to/cache-bin:$PATH tv "$to/cache-bin/go" test -run X ./x) ||
+  fail "go-test trailing-slash TMPDIR run failed: $(cat "$to/err")"
+[[ $(printf '%s\n' "$out" | sed -n '1p') == "$to/test-root/heavy-go-test-$(id -u)" ]] ||
+  fail "go-test trailing-slash TMPDIR left an unclean scratch path: $out"
+out=$(GOTMPDIR=$to/build-root cache_run "$to/cache-bin/go" test -run X ./x)
+[[ $(printf '%s\n' "$out" | sed -n '2p') == "$to/build-root" && -d $to/build-root ]] ||
+  fail "go-test replaced an explicit GOTMPDIR: $out"
+# Recovery after a wrapper KILL: the next run clears old scratch before the command starts.
+mkdir -p "$test_tmp/TestWrapperKilled456"
+cat > "$to/cache-bin/go" <<'CACHEGO'
+#!/bin/sh
+[ ! -e "$TMPDIR/TestWrapperKilled456" ]
+CACHEGO
+cache_run "$to/cache-bin/go" test -run X ./x || fail 'go-test left a killed wrapper leak on recovery'
+# A nested test with the same caller root is a deterministic overlapping lock holder.
+# Its startup and completion must both preserve the outer test's files; no background job is needed.
+cat > "$to/cache-bin/go" <<'CACHEGO'
+#!/bin/sh
+if [ "${CACHE_INNER:-}" = yes ]; then
+  [ -f "$TMPDIR/outer-active" ] || exit 41
+  : > "$TMPDIR/inner-leak"
+else
+  : > "$TMPDIR/outer-active"
+  TMPDIR=$CACHE_ROOT CACHE_INNER=yes "$CACHE_HEAVY" --admit-only "$0" test || exit 42
+  [ -f "$TMPDIR/outer-active" ] && [ -f "$TMPDIR/inner-leak" ] || exit 43
+fi
+CACHEGO
+CACHE_ROOT=$to/test-root CACHE_HEAVY=$heavy cache_run "$to/cache-bin/go" test -run X ./x ||
+  fail "overlapping go tests removed active scratch: $(cat "$to/err")"
+[[ ! -e $test_tmp/outer-active && ! -e $test_tmp/inner-leak ]] || fail 'last go test left overlapping scratch'
+# A non-Go command merely naming the argv words go test still uses private scratch.
+TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache GOCACHE=$to/gocache tv --admit-only printf '%s\n' go test > /dev/null || fail 'non-go argv failed'
+[[ -z $(/bin/ls -A "$to/tmproot") ]] || fail 'non-go argv created persistent test scratch'
 leaker=$(cat <<'LEAKER'
 d=$(mktemp -d "$TMPDIR/leak.XXXXXX") || exit 2
 cleanup() { chmod -R u+w "$d"; rm -rf "$d"; }
@@ -3388,6 +3465,11 @@ if [[ $(id -u) != 0 ]]; then
   [[ $rc == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED index-copy-failed (exit 2)' && ! -e $hid/ran ]] && grep -q "in $hid/tmp on volume " "$hid/err" ||
     fail "heavy.sh unreadable index (rc=$rc): $(cat "$hid/out" "$hid/err")"
 fi
+# V1-4725: remove only the newly contracted persistent namespace and lock. rmdir must
+# prove it contains no leaked test files; the original scratch-index assertion stays intact.
+hid_test_tmp=$hid/tmp/heavy-go-test-$(id -u)
+[[ -f $hid_test_tmp/.lock ]] && /bin/rm "$hid_test_tmp/.lock" && rmdir "$hid_test_tmp" ||
+  fail "heavy.sh identity fixture left unexpected test scratch: $hid_test_tmp"
 [[ -z $(ls -A "$hid/tmp") ]] || fail "heavy.sh left a scratch index: $(ls -A "$hid/tmp")"
 # V1-3739: the reason as an env NAME=VALUE word is admitted and logged; go test -c needs none; the
 # refusal states both forms; a match-all -run still refuses.

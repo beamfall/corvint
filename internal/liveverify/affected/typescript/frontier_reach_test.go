@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -24,6 +25,37 @@ func writeReachRepository(t *testing.T) string {
 	write(t, root, "tests/dep.test.ts", "import { test } from \"vitest\"\nimport { dep } from \"../src/dep\"\nimport { gone } from \"./gone\"\n")
 	write(t, root, "tests/other.test.ts", "import { dep } from \"../src/dep\"\n")
 	return root
+}
+
+// AFP-V0-2600: the real runner classifier has ancestor-bound inputs. A
+// sibling data edit cannot change an unknown runner, but a resolution input,
+// CI driver or source read still keeps uncertainty. No fixture is rewritten.
+func TestRunnerFrontierLocality_AFPV02600(t *testing.T) {
+	root := writeReachRepository(t)
+	runner := FrontierUnknownRunner + ":tests/other.test.ts"
+	graph, err := affected.Build(context.Background(), root, golang.New(), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		dirty []string
+		bears bool
+	}{
+		{[]string{"data/payload.json"}, false},
+		{[]string{"data/payload.json", "pkg/testdata/cases.json"}, false},
+		{[]string{".github/workflows/ci.yml"}, true},
+		{[]string{"tests/config.json"}, true},
+		{[]string{"data/package.json"}, true},
+		{[]string{"src/dep.ts"}, true},
+	} {
+		plan := affected.Select(graph, tc.dirty)
+		if got := slices.Contains(frontierDetails(plan), runner); got != tc.bears {
+			t.Errorf("%v: runner bears=%v, want %v: %+v", tc.dirty, got, tc.bears, plan.Unknown)
+		}
+		if plan.Scope != affected.ScopeUnknown {
+			t.Errorf("%v: unowned paths and unresolved source keep UNKNOWN", tc.dirty)
+		}
+	}
 }
 
 // AFP-V0-511: the plugin's source-bound reasons bind only paths it owns, so a dirty path no
