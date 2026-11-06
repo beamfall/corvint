@@ -61,8 +61,10 @@ class DarwinShards(unittest.TestCase):
 
     def test_CINV04625_mixed_full_and_narrowed_legs_keep_package_ownership(self):
         packages = [package(name, "github.com/Beamfall/corvint") for name in "abcd"]
+        # CIN-V0-4627: the last case makes the affected package heavy enough to split.
         for weights in ({p["package"]: 1000 for p in packages}, {},
-                        {p["package"]: (i + 1) * 1000 for i, p in enumerate(packages)}):
+                        {p["package"]: (i + 1) * 1000 for i, p in enumerate(packages)},
+                        {p["package"]: 1127438 if i == 1 else 60000 for i, p in enumerate(packages)}):
             ownership, _ = m.partition(packages, weights)
             for full_legs in itertools.product((False, True), repeat=m.SHARDS):
                 with self.subTest(weights=weights, full_legs=full_legs), tempfile.TemporaryDirectory() as tmp:
@@ -81,12 +83,18 @@ class DarwinShards(unittest.TestCase):
                         with mock.patch.object(m, "run", return_value=0) as run:
                             self.assertEqual(m.main([str(selection), str(costs), str(i), str(out)]), 0)
                         assigned = run.call_args.args[0]
-                        expected = [p for p in ownership[i] if p in chosen]
+                        names = {p["package"] for p in chosen}
+                        expected = [p for p in ownership[i] if p["package"] in names]
                         self.assertEqual(assigned, expected)
                         self.assertEqual((out / "packages.txt").read_text().splitlines(),
-                                         [p["package"] for p in expected])
-                        executed.extend(p["package"] for p in assigned)
-                    self.assertIn(packages[1]["package"], executed)
+                                         [" ".join(filter(None, (p["package"], m.describe(p))))
+                                          for p in expected])
+                        executed.extend((p["package"], p.get("part")) for p in assigned)
+                    affected = [(p["package"], p.get("part")) for b in ownership for p in b
+                                if p["package"] == packages[1]["package"]]
+                    self.assertEqual(len(affected), 3 if len(weights) and max(weights.values()) > 10**6 else 1)
+                    self.assertEqual(sorted(k for k in executed if k[0] == packages[1]["package"]),
+                                     sorted(affected, key=lambda k: (k[0], k[1] or 0)))
                     self.assertEqual(len(executed), len(set(executed)))
 
     def test_CINV04625_balanced_complete_deterministic_partition(self):
