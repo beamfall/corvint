@@ -109,6 +109,15 @@ require re-review; no declaration authorizes a weaker test assertion.
 
 ## Acceptance evidence and traceability
 
+For V1-4497's heavy-only replay, the historical below-86 bound measures language
+units, before the AZU-V0-001 Make/CI claimant was integrated. Keep the full
+`languages.All()` graph and report total, language, Make target and CI job counts
+separately. Additional required drivers do not consume that historical language
+budget: every runnable driver naming `script/heavy.sh` and every runnable computed-invocation site
+must remain selected. Retain all frontiers and the same-path true-reader controls.
+This reconciles the measurement domain under the owner's 2026-11-06 self-review
+repair direction; it changes no selector behavior or wire contract.
+
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
 | AFP-V0-9000 | `testReadKinds`, `readKindAliases`, `Language.observeDirectory` | `TestReadKindsDeclaration_AFPV09000`, `TestReadKindsUnresolvedAlias_AFPV09000` in `internal/liveverify/affected/golang/readkinds_test.go`; `TestBoundaryAliasCache_AFPV09000` in `internal/liveverify/affected/affprec_repo_test.go` |
