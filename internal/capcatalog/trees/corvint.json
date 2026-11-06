@@ -6298,13 +6298,14 @@
       "command": "corvint test",
       "summary": "Run the affected test set (experimental, STR-V0)",
       "usage": [
-        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--format json] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
+        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
       ],
       "flags": [
         "--base",
         "--confine",
         "--dry-run",
         "--format",
+        "--full",
         "--go-parallel",
         "--manifest",
         "--pins",
