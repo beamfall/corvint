@@ -35,7 +35,11 @@ resolved) was enforced only by the orchestrator remembering to check it.
   raises no event). A closed or unreadable pull request gets no status. Every other refresh posts
   `pending` before it reads the review, so an unreadable status, comment or thread read stops the
   step leaving `pending` and never an earlier `success`. A `greptile-gate` success posted by a
-  creator of type `User` on the head is kept (owner waiver, as AFP-V0-171). Because reopening a
+  creator of type `User` on the head is kept (owner waiver, as AFP-V0-171); the waiver lookup reads
+  every page of the head's statuses, so newer statuses of other contexts cannot hide it. A run
+  outside the queue also posts on the pull request's active merge-group commit (read from its
+  `mergeQueueEntry`; an unreadable entry stops with `pending`), so a later Greptile edit refreshes a
+  queued pass. Because reopening a
   thread raises no event, a `merge_group` run re-evaluates the queued pull request named by the
   queue ref (`gh-readonly-queue/<base>/pr-<N>-<sha>`) with fresh reads of its head and posts the
   result (or `success` for an owner waiver on that head) on the merge-group commit; an
@@ -59,4 +63,4 @@ Drop `greptile-gate` from the main ruleset's required status checks, then delete
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (19 cases including 5 merge-queue re-evaluations; a mutation accepting `0/5` fails it, and so does dropping the pending-first post); a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
+| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (24 cases including 9 merge-queue cases; a mutation accepting `0/5` fails it, and so do dropping the pending-first post, the merge-group refresh, or the statuses pagination); a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |

@@ -17,7 +17,8 @@ import (
 // Greptile review thread is unresolved; it keeps a user-posted success, ends pending while the
 // head is unreviewed and failure otherwise, posts nothing for a closed or unreadable PR, and
 // leaves pending after a failed later read. On merge_group it re-evaluates the queued PR named by
-// the queue ref and posts the result on the merge-group commit.
+// the queue ref and posts the result on the merge-group commit; any other run also posts on the
+// PR's active merge-group commit, and an owner waiver is found past the first page of statuses.
 func TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the gate step runs under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq"} {
@@ -51,6 +52,7 @@ func TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead(t *testing.T) {
 	type input struct {
 		state, statuses, comments, threads string
 		groupRef                           string // non-empty: a merge_group event
+		queue                              string // merge-queue entry read; "" = not queued, "fail" = read fails
 	}
 	// run returns the status POSTs of one step run and whether the step exited zero. An empty
 	// field makes that read fail.
@@ -60,7 +62,16 @@ func TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead(t *testing.T) {
 		if err := os.Mkdir(bin, 0o700); err != nil {
 			t.Fatal(err)
 		}
+		queue := `{"data":{"repository":{"pullRequest":{"mergeQueueEntry":null}}}}`
+		switch in.queue {
+		case "":
+		case "fail":
+			queue = ""
+		default:
+			queue = `{"data":{"repository":{"pullRequest":{"mergeQueueEntry":{"headCommit":{"oid":"` + in.queue + `"}}}}}}`
+		}
 		files := map[string]string{
+			"queue.json":    queue,
 			"pull.json":     `{"state":"` + in.state + `","head":{"sha":"` + head + `"}}`,
 			"statuses.json": in.statuses,
 			"comments.json": in.comments,
@@ -81,6 +92,7 @@ shift
 for a; do last=$a; done
 case " $* " in
   *" -X POST "*) echo "$*" >>"$STUB_DIR/posts.log"; exit 0 ;;
+  *mergeQueueEntry*) f=queue.json ;;
   *" graphql "*|graphql\ *) f=threads.json ;;
   *"repos/$REPO/pulls/$PR "*) f=pull.json ;;
   *"repos/$REPO/commits/"*"/statuses?per_page=100 "*) f=statuses.json ;;
@@ -88,7 +100,11 @@ case " $* " in
   *) exit 22 ;;
 esac
 [ -f "$STUB_DIR/$f" ] || exit 22
-exec jq -r "$last" "$STUB_DIR/$f"
+# A fixture holds one JSON document per page; without --paginate gh returns only the first.
+case " $* " in
+  *" --paginate "*) exec jq -r "$last" "$STUB_DIR/$f" ;;
+  *) jq -cn input "$STUB_DIR/$f" | jq -r "$last" ;;
+esac
 `
 		if err := execfile.WriteFile(filepath.Join(bin, "gh"), []byte(stub), 0o700); err != nil {
 			t.Fatal(err)
@@ -107,33 +123,44 @@ exec jq -r "$last" "$STUB_DIR/$f"
 		return strings.Split(strings.TrimSuffix(string(posts), "\n"), "\n")[:strings.Count(string(posts), "\n")], err == nil
 	}
 	userSuccess := `[{"state":"success","context":"greptile-gate","creator":{"type":"User"}},{"state":"failure","context":"greptile-gate","creator":{"type":"Bot"}}]`
+	// A waiver behind more than 100 newer statuses of other contexts, on the second page.
+	var page1 []string
+	for i := 0; i < 100; i++ {
+		page1 = append(page1, `{"state":"success","context":"go-product","creator":{"type":"Bot"}}`)
+	}
+	deepWaiver := "[" + strings.Join(page1, ",") + "]\n" + userSuccess
 	clean := threads(2, thread(true, "greptile-apps"), thread(false, "Russe11"))
 	pass := "[" + summary("5/5", head) + "," + other + "]"
 	for name, tc := range map[string]struct {
 		in     input
-		state  string // final status; "" = no post
-		target string // commit the statuses land on
+		state  string   // final status; "" = no post
+		target []string // commits the statuses land on, each ending on state
 		ok     bool
 	}{
-		"5/5 on head, threads resolved": {input{"open", "[]", pass, clean, ""}, "success", head, true},
-		"5/5 on an older head":          {input{"open", "[]", "[" + summary("5/5", old) + "]", clean, ""}, "pending", head, true},
-		"no Greptile summary":           {input{"open", "[]", "[" + other + "]", clean, ""}, "pending", head, true},
-		"4/5 on head":                   {input{"open", "[]", "[" + summary("4/5", head) + "]", clean, ""}, "failure", head, true},
-		"unresolved Greptile thread":    {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), ""}, "failure", head, true},
-		"over 100 threads":              {input{"open", "[]", pass, threads(101), ""}, "failure", head, true},
-		"newer summary wins":            {input{"open", "[]", "[" + strings.Replace(summary("5/5", head), "10:00", "09:00", 1) + "," + summary("3/5", head) + "]", clean, ""}, "failure", head, true},
-		"bot success is re-evaluated":   {input{"open", `[{"state":"success","context":"greptile-gate","creator":{"type":"Bot"}}]`, "[" + summary("4/5", head) + "]", clean, ""}, "failure", head, true},
-		"user success kept":             {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, ""}, "", head, true},
-		"closed PR":                     {input{"closed", "[]", pass, clean, ""}, "", head, true},
-		"unreadable PR":                 {input{"", "[]", pass, clean, ""}, "", head, false},
-		"unreadable statuses":           {input{"open", "", pass, clean, ""}, "pending", head, false},
-		"unreadable comments":           {input{"open", "[]", "", clean, ""}, "pending", head, false},
-		"unreadable threads":            {input{"open", "[]", pass, "", ""}, "pending", head, false},
-		"queue: 5/5 on PR head":         {input{"open", "[]", pass, clean, groupRef}, "success", group, true},
-		"queue: thread reopened":        {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), groupRef}, "failure", group, true},
-		"queue: user waiver":            {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, groupRef}, "success", group, true},
-		"queue: unreadable threads":     {input{"open", "[]", pass, "", groupRef}, "pending", group, false},
-		"queue: bad ref":                {input{"open", "[]", pass, clean, "refs/heads/main"}, "", group, false},
+		"5/5 on head, threads resolved": {input{"open", "[]", pass, clean, "", ""}, "success", []string{head}, true},
+		"5/5 on an older head":          {input{"open", "[]", "[" + summary("5/5", old) + "]", clean, "", ""}, "pending", []string{head}, true},
+		"no Greptile summary":           {input{"open", "[]", "[" + other + "]", clean, "", ""}, "pending", []string{head}, true},
+		"4/5 on head":                   {input{"open", "[]", "[" + summary("4/5", head) + "]", clean, "", ""}, "failure", []string{head}, true},
+		"unresolved Greptile thread":    {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), "", ""}, "failure", []string{head}, true},
+		"over 100 threads":              {input{"open", "[]", pass, threads(101), "", ""}, "failure", []string{head}, true},
+		"newer summary wins":            {input{"open", "[]", "[" + strings.Replace(summary("5/5", head), "10:00", "09:00", 1) + "," + summary("3/5", head) + "]", clean, "", ""}, "failure", []string{head}, true},
+		"bot success is re-evaluated":   {input{"open", `[{"state":"success","context":"greptile-gate","creator":{"type":"Bot"}}]`, "[" + summary("4/5", head) + "]", clean, "", ""}, "failure", []string{head}, true},
+		"user success kept":             {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, "", ""}, "", []string{head}, true},
+		"closed PR":                     {input{"closed", "[]", pass, clean, "", ""}, "", []string{head}, true},
+		"unreadable PR":                 {input{"", "[]", pass, clean, "", ""}, "", []string{head}, false},
+		"unreadable statuses":           {input{"open", "", pass, clean, "", ""}, "pending", []string{head}, false},
+		"unreadable comments":           {input{"open", "[]", "", clean, "", ""}, "pending", []string{head}, false},
+		"unreadable threads":            {input{"open", "[]", pass, "", "", ""}, "pending", []string{head}, false},
+		"queue: 5/5 on PR head":         {input{"open", "[]", pass, clean, groupRef, ""}, "success", []string{group}, true},
+		"queue: thread reopened":        {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), groupRef, ""}, "failure", []string{group}, true},
+		"queue: user waiver":            {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, groupRef, ""}, "success", []string{group}, true},
+		"queue: unreadable threads":     {input{"open", "[]", pass, "", groupRef, ""}, "pending", []string{group}, false},
+		"queued: lowered score":         {input{"open", "[]", "[" + summary("4/5", head) + "]", clean, "", group}, "failure", []string{head, group}, true},
+		"queued: 5/5 refreshes both":    {input{"open", "[]", pass, clean, "", group}, "success", []string{head, group}, true},
+		"queued: waiver on queue":       {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, "", group}, "success", []string{group}, true},
+		"unreadable queue entry":        {input{"open", "[]", pass, clean, "", "fail"}, "pending", []string{head}, false},
+		"waiver past 100 statuses":      {input{"open", deepWaiver, "[" + summary("4/5", head) + "]", clean, "", ""}, "", []string{head}, true},
+		"queue: bad ref":                {input{"open", "[]", pass, clean, "refs/heads/main", ""}, "", []string{group}, false},
 	} {
 		posts, ok := run(tc.in)
 		if ok != tc.ok {
@@ -145,19 +172,30 @@ exec jq -r "$last" "$STUB_DIR/$f"
 			}
 			continue
 		}
+		byTarget := map[string][]string{}
 		for _, p := range posts {
-			if !strings.Contains(p, "repos/beamfall/corvint/statuses/"+tc.target+" ") || !strings.Contains(p, "context=greptile-gate") {
-				t.Errorf("%s: posted %q, want greptile-gate statuses on %s", name, p, tc.target)
+			matched := false
+			for _, target := range tc.target {
+				if strings.Contains(p, "repos/beamfall/corvint/statuses/"+target+" ") && strings.Contains(p, "context=greptile-gate") {
+					byTarget[target] = append(byTarget[target], p)
+					matched = true
+				}
+			}
+			if !matched {
+				t.Errorf("%s: posted %q, want greptile-gate statuses on %v", name, p, tc.target)
 			}
 		}
-		// A refresh withdraws any earlier success first, so only the last post may be success.
-		for i, p := range posts {
-			if i < len(posts)-1 && !strings.Contains(p, "state=pending ") {
-				t.Errorf("%s: post %d is %q, want pending before the final status", name, i, p)
+		// A refresh withdraws any earlier success first, so only each target's last post may be success.
+		for _, target := range tc.target {
+			got := byTarget[target]
+			for i, p := range got {
+				if i < len(got)-1 && !strings.Contains(p, "state=pending ") {
+					t.Errorf("%s: post %d on %s is %q, want pending before the final status", name, i, target, p)
+				}
 			}
-		}
-		if len(posts) == 0 || !strings.Contains(posts[len(posts)-1], "state="+tc.state+" ") {
-			t.Errorf("%s: posted %q, want a final %s status", name, posts, tc.state)
+			if len(got) == 0 || !strings.Contains(got[len(got)-1], "state="+tc.state+" ") {
+				t.Errorf("%s: posted %q on %s, want a final %s status", name, got, target, tc.state)
+			}
 		}
 	}
 }
