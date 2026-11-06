@@ -359,8 +359,10 @@ func rootLocatorImports(specs []*ast.ImportSpec) (aliases map[string]string, dot
 // alias, or a dot import), and any //go:embed directive.
 func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool) sourceScan {
 	var scan sourceScan
+	comparisonOnly := comparisonOnlyLocators(body, aliases)
 	var lexer scanner.Scanner
-	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
+	source := token.NewFileSet().AddFile("", -1, len(body))
+	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
 	type lexicalToken struct {
 		kind token.Token
 		text string
@@ -369,7 +371,7 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 	importing := importOutside
 	var move directoryMove
 	for {
-		_, kind, text := lexer.Scan()
+		position, kind, text := lexer.Scan()
 		if kind == token.EOF {
 			scan.movesDirectory = move.moved
 			return scan
@@ -382,7 +384,7 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 			move.observe(kind, text)
 		}
 		recent = [3]lexicalToken{recent[1], recent[2], {kind: kind, text: text}}
-		if kind == token.IDENT && recent[1].kind == token.PERIOD {
+		if kind == token.IDENT && recent[1].kind == token.PERIOD && !comparisonOnly[source.Offset(position)] {
 			qualifier := recent[0].text
 			if recent[0].kind != token.IDENT {
 				qualifier = recent[0].kind.String() + qualifier
