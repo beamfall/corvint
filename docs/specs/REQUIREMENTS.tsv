@@ -1923,6 +1923,7 @@ CWR-V0-012	docs/specs/change-witness-relation-v0.md	the relation adds no model c
 CWR-V0-013	docs/specs/change-witness-relation-v0.md	the relation MUST NOT be described as proof that a requirement is satisfied, tha	unrecorded	-
 CWR-V0-014	docs/specs/change-witness-relation-v0.md	the declared resolver is exactly Go `go/parser` plus `go/ast` over the target	unrecorded	-
 CWR-V0-015	docs/specs/change-witness-relation-v0.md	the evaluator returns exactly one outcome, `witnessed`, `withheld`, or `abstaine	unrecorded	-
+CIN-V0-7620	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
 CIN-V0-7500	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier	standing	2026-10-11; V1-2864
 CIN-V0-7501	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shar	standing	2026-10-11; V1-4119
 CIN-V0-7502	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merg	standing	2026-10-11; V1-4123

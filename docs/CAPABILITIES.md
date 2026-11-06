@@ -395,6 +395,12 @@ uncertainty instead of a guess.
 
 ## Deeper guides
 
+Developer tooling (run from source; outside the shipped `cmd/` command trees):
+
+| Tool | Question and smallest call | Result and limits | Maturity | Contract |
+|---|---|---|---|---|
+| `tools/ci-test-slices replay` | What does shard placement predict at the event's parallelism? `go run ./tools/ci-test-slices replay --shards 16 --parallel 4 --compile-link 6m shard-*.log` | Requires all passing source shard logs; reports whole and sliced wall estimates using the explicit common compile/link allowance. Defaults remain serial; this is neither CI measurement nor selection authority. `replay --help` lists required log inputs and options. | internal | [CIN-V0-7620](specs/ci-narrowing-v0.md) |
+
 [Agent routes](AGENT-ROUTES.md), [install](INSTALL.md), [V1 workflows](V1-WORKFLOWS.md),
 [automation](AUTOMATION.md), [change evidence map](CHANGE-EVIDENCE-MAP.md),
 [documentation corpus](DOCUMENTATION-CORPUS.md), [flow documentation](FLOW-DOCUMENTATION.md),
