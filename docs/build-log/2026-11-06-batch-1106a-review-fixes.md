@@ -53,14 +53,19 @@ Used: change-start collection, `affected`, focused session-runner tests, archive
 lifetime tests, real-producer injection, and the constituent CEM/OCM workflow.
 Original logs are retained in the worktree's private Git evidence directory under
 `corvint/batch-1106a-review-fixes/`; the requested external handback locates them.
-Pre-change context and query outputs were produced at H, but their binding and the
-impact receipt are `NOT_PRODUCED`: the supplied path set included the extensionless
-archive script and impact refused `unsupported-impact-path-suffix`. A later installed
+Pre-change context and query outputs were produced at H. The initial collector
+reported an incomplete receipt set because impact refused `unsupported-impact-path-suffix`
+for the extensionless archive script. Coordination recognizes the query as `OBSERVED`
+and bound; pre-change impact remains `NOT_OBSERVED agent-receipt-absent`. A later installed
 `affected` read reported `self-binary-stale`; its advice is retained as degraded.
 
 Independent semantic review is `NOT_PRODUCED`: the review runner could not initialize
 its in-process app-server client because its runtime state location is read-only.
 An ephemeral retry failed identically. Structural CEM review is a separate check.
+Automatic guarding-test observations are `NOT_PRODUCED guarding-tests-not-run`:
+verification uses the owner-required heavy-wrapper commands, not the optional CEM
+runner. Coordination-time query packet coverage is `NOT_PRODUCED packet-coverage-unreadable`;
+the original query receipt remains observed and this metadata gap is not a passing test.
 Session-wide measurement latency, source-open counts and billed tokens remain
 `NOT_OBSERVED`; no comparative savings are claimed. Retrieval/learning frozen
 evaluations and external host qualification are not applicable to these repairs.
