@@ -12,7 +12,7 @@ moves and no generic command framework is introduced.
   is `Run(ctx, root, args, out, diagnostic, env) int`, where `Env` injects the two root-owned
   behaviours the handlers need: `EmitError` (the root JSON diagnostic writer) and `BaseRefusal`
   (the root `unsupported-affected-revision` refusal shared with `affected`). `flows impact`
-  returns a private unresolved-base sentinel that `Run` converts through `BaseRefusal`, so the
+  returns a private unresolved-base sentinel that `runFlowSubcommand` converts through `BaseRefusal`, so the
   refusal bytes are unchanged.
 - `cmd/corvint/flows.go` keeps `flowInvocation` (the `--root` preamble and `how` alias argument
   shaping), and `runFlows` is a one-line wrapper, so `main.go` dispatch is untouched. Root help
