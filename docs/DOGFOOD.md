@@ -738,7 +738,7 @@ bind refuses an aggregate bound while merged sealed changes are in the range, th
 each such change by bind and seal commit and this route (`DCW-V0-113`).
 
 Run `make gate` before the first `dogfood-change` or after the sidecar commit, not between them. Its
-archive step requires a clean worktree (`conformance/release-artifact-v0/archive_run.go:422-424`),
+archive step requires a clean worktree (`conformance/release-artifact-v0/archive_run.go:469-472@2232501a`),
 and the prepared but uncommitted `.corvint/change.cem.json` is the one tracked path this loop leaves
 modified; the OCM maps and the report are ignored paths and do not make the worktree dirty.
 

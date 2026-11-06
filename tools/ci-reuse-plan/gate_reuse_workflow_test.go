@@ -15,14 +15,16 @@ import (
 )
 
 // gateReuse names one AFP-V0-670 gate: its workflow, decision job, record job and gated jobs.
+// cadence marks a gate whose record also waits on, and is withheld by, a CIN-V0-4753 DEFER.
 type gateReuse struct {
 	workflow, decide, record, label string
 	gated                           []string
+	cadence                         bool
 }
 
 var gateReuses = []gateReuse{
-	{"ci.yml", "doc-gates-reuse", "doc-gates-record", "doc-gates", []string{"doc-gates"}},
-	{"cem-release-gate.yml", "cem-release-reuse", "cem-release-record", "cem-release", []string{"cem-release-gate", "cem-release-readiness"}},
+	{"ci.yml", "doc-gates-reuse", "doc-gates-record", "doc-gates", []string{"doc-gates"}, true},
+	{"cem-release-gate.yml", "cem-release-reuse", "cem-release-record", "cem-release", []string{"cem-release-gate", "cem-release-readiness"}, false},
 }
 
 const gateReuseScript = "../../.github/gate-reuse/find.sh"
@@ -142,6 +144,10 @@ func TestAFPV0670RecordJobsRunNoRepositoryCode(t *testing.T) {
 		for _, job := range g.gated {
 			needs = append(needs, job)
 			results = append(results, "needs."+job+".result == 'success'")
+		}
+		if g.cadence {
+			needs = append(needs, "cadence-plan")
+			results = append(results, "(needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER')")
 		}
 		needLine := "    needs: " + needs[0]
 		if len(needs) > 1 {

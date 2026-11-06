@@ -367,13 +367,19 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 		}
 		seenLanguage[name] = true
 		graph.claimants[name] = language
-		graph.languages = append(graph.languages, name)
 		if err := graph.declareFrontierReach(name, language); err != nil {
 			return nil, err
 		}
 		result, err := observe(language)
 		if err != nil {
 			return nil, fmt.Errorf("language %s: %w", name, err)
+		}
+		// An absent optional driver must not change the identity of a
+		// pre-existing graph (AZU-V0-8905). Its claimant still recognizes a
+		// probed new driver path, but there is no observed driver content.
+		_, registeredDriver := language.(RegisteredDriver)
+		if registeredDriver || name != DriverNamespace || len(result.Units)+len(result.Frontier)+len(result.Unobserved)+len(result.Runnable) != 0 {
+			graph.languages = append(graph.languages, name)
 		}
 		own := make(map[string]bool)
 		if err := graph.admit(ctx, name, result, own); err != nil {

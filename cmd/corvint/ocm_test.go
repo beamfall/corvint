@@ -948,6 +948,7 @@ func TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach(t *testi
 // OIF-V0-001: --intent-form is an explicit closed choice; requirements and an
 // absent flag both select the default form.
 func TestOIFV0PrepareIntentFormFlag(t *testing.T) {
+	t.Parallel()
 	base := []string{"--target", "HEAD", "--intent", "docs/adr/0224-x.md"}
 	cases := map[string]string{"": "", "requirements": "", "adr-decisions": "adr-decisions", "roadmap-acceptance": "roadmap-acceptance"}
 	for flag, want := range cases {
@@ -966,6 +967,7 @@ func TestOIFV0PrepareIntentFormFlag(t *testing.T) {
 }
 
 func TestSTAV0006_PrepareIntentFormFlag(t *testing.T) {
+	t.Parallel()
 	base := []string{"--target", "HEAD", "--intent", "openspec/specs/auth/spec.md"}
 	for _, form := range []string{"openspec-spec", "openspec-delta", "speckit-spec"} {
 		parsed, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(append([]string{}, base...), "--intent-form", form))
@@ -984,6 +986,7 @@ func TestSTAV0006_PrepareIntentFormFlag(t *testing.T) {
 }
 
 func TestSTAV0004_PrepareEnvelopeNativeMembers(t *testing.T) {
+	t.Parallel()
 	status := "Draft"
 	prepared := &lrfrepo.PrepareResult{ToolchainPrepareMembers: lrfrepo.ToolchainPrepareMembers{
 		NativeNames:          map[string]string{"OSR-0123456789AB": "Session Expiry"},

@@ -11,6 +11,7 @@ import (
 // data row from `corvint cem status --path-policy base` names its readers
 // rather than data-reader-not-produced.
 func TestCAXV0064BinaryInstallsDataReaderFinder(t *testing.T) {
+	t.Parallel()
 	if cemcli.DataReaders == nil {
 		t.Fatal("cemcli.DataReaders is not installed")
 	}

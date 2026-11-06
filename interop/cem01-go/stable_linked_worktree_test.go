@@ -25,7 +25,7 @@ func TestCEMV1753LegacyEnvelopeNamesLinkedWorktree(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	linked := filepath.Join(t.TempDir(), "linked")
+	linked := filepath.Join(s0eTemp(t), "linked")
 	citationGit(t, f.repo, "worktree", "add", "-q", "--detach", linked, f.target)
 	r, n := runStable(ctx, linked, raw, f.base, f.target, t.TempDir())
 	if n != 2 || r.Stage != "repository" || r.Code == nil || *r.Code != "unsupported-repository-envelope" {

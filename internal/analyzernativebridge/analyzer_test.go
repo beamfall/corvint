@@ -1145,7 +1145,10 @@ func buildCandidate(t testing.TB, candidate candidateExecutable) string {
 		binary += ".exe"
 	}
 	cache := filepath.Join(t.TempDir(), "gocache")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Each candidate builds cold (its own empty GOCACHE) in parallel with the others, so on a
+	// 3-core macOS runner a correct build took over 30 s (PR #105). This bound is a hang
+	// detector, not a performance budget (decision 0082).
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, candidate.command)
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+cache, "GOPROXY=off", "GOSUMDB=off")

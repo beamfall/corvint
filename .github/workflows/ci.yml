@@ -23,6 +23,50 @@ permissions:
   contents: read
 
 jobs:
+  cadence-plan:
+    # CIN-V0-4752, CIN-V0-4753 (V1-4750): routine-change cadence. Only the classifier of the trusted
+    # event base (the pull request's base commit or the queue base) runs, over the whole change it
+    # verifies through git; a missing classifier, any refusal or error, a skipped job or the
+    # repository variable CI_CADENCE_FORCE=FULL leaves `cadence` other than DEFER, and every
+    # campaign runs as before. DEFER skips the selection-baseline replay of doc-gates (whose pull
+    # request run then records no reusable verdict) and, in a pull request only, artifact-integrity,
+    # so the queue still proves the archive and the main push can reuse it; the nightly release
+    # gates run both campaigns in full. A queue entry classifies its own whole base..head range and
+    # never copies a constituent pull request's decision. A pull request needs only its merge commit
+    # and that commit's two parents, so it fetches depth 2.
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      cadence: ${{ steps.plan.outputs.cadence }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-cadence
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          sparse-checkout: .github/ci-cadence
+          persist-credentials: false
+      - name: Classify the whole change with the trusted event-base classifier
+        id: plan
+        env:
+          CI_CADENCE_FORCE: ${{ vars.CI_CADENCE_FORCE }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: |
+          if [ -f trusted-cadence/.github/ci-cadence/run.sh ]; then
+            bash trusted-cadence/.github/ci-cadence/run.sh
+          else
+            echo 'Cadence FULL: the trusted event base has no cadence classifier.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   doc-gates-reuse:
     # AFP-V0-670, AFP-V0-671 (V1-2987): decides whether doc-gates may skip its steps. A merge-queue
     # entry reuses a successful pull-request run of its second parent whose doc-gates-record job
@@ -63,7 +107,7 @@ jobs:
     # host package version gate (AHI-020, V1-0782), which reads committed history. On a REUSE
     # decision (AFP-V0-671) every step is skipped and the job still concludes success, so the
     # required check and the main-push reuse keep working.
-    needs: doc-gates-reuse
+    needs: [doc-gates-reuse, cadence-plan]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     # 30, not 15 (V1-4482): the documentation gates alone took 9-14.5 minutes on main
@@ -88,6 +132,11 @@ jobs:
           go-version: "1.27.3"
       - name: Shared documentation gates (including host versions and use-case pins)
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
+        env:
+          # CIN-V0-4753: only a verified pull-request DEFER prints selection-baseline-check
+          # NOT_RUN. A queue entry always replays in full, because the main push reuses the queue's
+          # doc-gates verdict; a FULL or failed plan and every local run replay it in full too.
+          CORVINT_CI_CADENCE: ${{ github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence || 'FULL' }}
         run: make -s doc-gates
       - name: Refuse AI co-author trailers in the pull request's commits (CIN-V0-006)
         # V1-3227: no commit may credit an AI agent as a GitHub co-author. A make target, so
@@ -168,8 +217,9 @@ jobs:
     # test, build step or fork pull request in another job can write that log. Only ci.yml, gated
     # by the ci-control-plane admin review and part of the tree a reusing entry must equal, changes
     # what it prints.
-    needs: doc-gates
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.doc-gates.result == 'success' }}
+    # CIN-V0-4753: a DEFER run replayed no selection baseline, so it records nothing to reuse.
+    needs: [doc-gates, cadence-plan]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.doc-gates.result == 'success' && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1894,143 +1944,6 @@ jobs:
       - name: Run required web-flows consumers
         run: script/web-flows-gate
 
-  go-macos:
-    # CIN-V0-4625 (V1-4625): advisory until V1-4636 qualifies the required integration.
-    # Every PR, including ci:batched, gets this result. Only a verified DOCS decision
-    # skips tests; Linux REUSE and Linux package selections cannot skip Darwin tests.
-    needs: [docs-plan, narrowing-verdict]
-    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
-    # V1-4727: advisory, so a failure must not conclude the run as failure; a failed run is not
-    # admitted by the merge-queue REUSE decision, which then reruns all 16 Linux shards.
-    continue-on-error: true
-    runs-on: macos-15
-    timeout-minutes: 180
-    permissions:
-      contents: read
-    env:
-      GOTOOLCHAIN: local
-      GOENV: "off"
-      GOPROXY: "off"
-      GOSUMDB: "off"
-      GOWORK: "off"
-      GOFLAGS: ""
-      CGO_ENABLED: "1"
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Darwin selector regression checks
-        run: python3 -B .github/macos/select_test.py
-      - name: Report verified documentation-only selection
-        if: needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode == 'DOCS'
-        run: echo 'go-macos tests NOT_RUN; trusted docs-plan verified DOCS.' >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
-        with:
-          cache: false
-          go-version: "1.27.3"
-      - name: Provision the native tools as in the nightly macOS gate
-        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
-        run: |
-          test "$(go env GOVERSION)" = "go1.27.3"
-          sudo rm -rf /usr/local/go
-          sudo ln -s "$(go env GOROOT)" /usr/local/go
-          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
-          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ripgrep
-          git config --global user.name corvint-ci
-          git config --global user.email corvint-ci@users.noreply.github.com
-          git config --global maintenance.auto false
-          git config --global gc.auto 0
-      - name: Build native trusted narrowing tools
-        id: native-tools
-        if: needs.narrowing-verdict.outputs.verdict == 'MET' && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS')
-        continue-on-error: true
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          # The tested merge's main parent, never its PR parent or go.mod. The
-          # native planners see Darwin files that the Linux planner cannot see.
-          test "$(git rev-parse HEAD^2)" = "$PR_HEAD"
-          main=$(git rev-parse HEAD^1)
-          git merge-base --is-ancestor "$PR_BASE" "$main"
-          trusted="$RUNNER_TEMP/macos-trusted"
-          mkdir -p "$trusted" "$RUNNER_TEMP/macos-bin"
-          git archive "$main" | tar -x -C "$trusted"
-          cd "$trusted"
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/corvint" ./cmd/corvint
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/driver" ./tools/corvint-pr-tests
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/selector" ./tools/gate-affected-select
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/ci-shards" ./.github/cishards/cmd
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/test-confine" ./.github/testconfine/cmd
-          echo "source=$main" >> "$GITHUB_OUTPUT"
-      - name: Apply the existing narrowing guards on Darwin
-        id: native-narrow
-        if: steps.native-tools.outcome == 'success'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          TESTED_MERGE: ${{ github.sha }}
-          SHARD: "0"
-          SHARDS: "1"
-          TOOL_SOURCE: ${{ steps.native-tools.outputs.source }}
-          VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
-        run: |
-          export PR_BIN="$RUNNER_TEMP/macos-bin"
-          export SHADOW="$PR_BIN/corvint" CI_SHARDS="$PR_BIN/ci-shards" CONFINE="$PR_BIN/test-confine"
-          TRUSTED="$RUNNER_TEMP/macos-trusted"
-          sh "$TRUSTED/.github/forward-rows/narrow.sh"
-      - name: Select and run the Darwin-relevant packages
-        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
-        env:
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          NATIVE_NARROW_RESULT: ${{ steps.native-narrow.outcome }}
-        run: |
-          set -euo pipefail
-          out="$RUNNER_TEMP/macos-selection"
-          mkdir -p "$out"
-          # Same nested module provisioning as go-static; no downloads during tests.
-          (cd tools/local-authority && GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download)
-          go list -json ./... > "$out/packages.json"
-          (cd tools/local-authority && go list -json ./...) >> "$out/packages.json"
-          (cd interop/cem01-go && go list -json ./...) >> "$out/packages.json"
-          record="$out/no-native-record.json"
-          if [ "$NATIVE_NARROW_RESULT" = success ]; then
-            record="$RUNNER_TEMP/corvint-narrowing/narrowing.json"
-          fi
-          python3 -B .github/macos/select.py "$out/packages.json" \
-            "$record" "$GITHUB_SHA" "$PR_HEAD" "$GITHUB_RUN_ID" \
-            "$out/selection.json" > "$out/selected.tsv"
-          # No race run: Linux PR shards and nightly gates retain that coverage.
-          # Sequential invocations, two build workers; one hosted Actions slot.
-          failed=0
-          while IFS=$'\t' read -r dir pkg; do
-            echo "Darwin package: $pkg"
-            (cd "$dir" && HEAVY_WHOLE_REASON='CIN-V0-4625 native Darwin selection' HEAVY_REMOTE=0 \
-              HEAVY_LOCAL_REASON='native Darwin qualification' \
-              bash "$GITHUB_WORKSPACE/script/heavy.sh" go test -p 2 -parallel 2 -count=1 -timeout 30m .) || failed=1
-          done < "$out/selected.tsv"
-          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("go-macos: %s, %d/%d Darwin packages" % (r["mode"], len(r["selected"]), len(r["inventory"])))' \
-            "$out/selection.json" >> "$GITHUB_STEP_SUMMARY"
-          exit "$failed"
-      - name: Retain native selection, reasons and narrowing evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          # Not ci-narrowing-* or ci-coverage-*: the 16 Linux shard records have
-          # their own denominator and must never consume this one-shard record.
-          name: macos-selection
-          path: |
-            ${{ runner.temp }}/macos-selection
-            ${{ runner.temp }}/corvint-narrowing
-          if-no-files-found: ignore
-
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
@@ -2332,8 +2245,10 @@ jobs:
     # verdict. The tested tree is read only from the log of that run's artifact-integrity-record
     # job, which no repository code writes; artifact names are never trusted. Any mismatch,
     # refusal or unreadable listing or log runs the gate in full.
-    needs: static-reuse
-    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
+    # CIN-V0-4753 (V1-4750): a cadence DEFER skips the job, so artifact-integrity-record records
+    # nothing either; the nightly release gates build every archive in full.
+    needs: [static-reuse, cadence-plan]
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' && !(github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER') }}
     runs-on: ubuntu-24.04
     # AFP-V0-104: an 8 min wait then the full gate (12 to 16 min measured) must fit.
     timeout-minutes: 30

@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 
 function bunAvailable(t) {
  const result=spawnSync('bun',['--version'],{encoding:'utf8',timeout:10000});
@@ -26,9 +27,9 @@ test('PPI-V0-8100 the bundled SDK highlighter loads v11 and highlights C and C++
  if(!bunAvailable(t))return;
  const {mkdtemp,writeFile,rm}=await import('node:fs/promises');
  const {tmpdir}=await import('node:os');
- const {join,resolve}=await import('node:path');
+ const {join}=await import('node:path');
  const dir=await mkdtemp(join(tmpdir(),'pi-dependencies-'));t.after(()=>rm(dir,{recursive:true,force:true}));
- const sdk=resolve('integrations/pi-protected/node_modules/@earendil-works/pi-coding-agent');
+ const sdk=fileURLToPath(new URL('./node_modules/@earendil-works/pi-coding-agent',import.meta.url));
  const entry=join(dir,'entry.mjs'),bundle=join(dir,'bundle.cjs'),script=join(dir,'build.mjs');
  await writeFile(entry,`import {highlight,supportsLanguage,loadAllHighlightLanguages} from ${JSON.stringify(join(sdk,'dist/utils/syntax-highlight.js'))};
 import assert from 'node:assert/strict';
@@ -52,9 +53,9 @@ test('PPI-V0-8101 bundled SDK frontmatter retains mapping, alias and body parsin
  if(!bunAvailable(t))return;
  const {mkdtemp,writeFile,rm}=await import('node:fs/promises');
  const {tmpdir}=await import('node:os');
- const {join,resolve}=await import('node:path');
+ const {join}=await import('node:path');
  const dir=await mkdtemp(join(tmpdir(),'pi-yaml-'));t.after(()=>rm(dir,{recursive:true,force:true}));
- const sdk=resolve('integrations/pi-protected/node_modules/@earendil-works/pi-coding-agent');
+ const sdk=fileURLToPath(new URL('./node_modules/@earendil-works/pi-coding-agent',import.meta.url));
  const entry=join(dir,'entry.mjs'),bundle=join(dir,'bundle.cjs');
  await writeFile(entry,`import {parseFrontmatter} from ${JSON.stringify(join(sdk,'dist/utils/frontmatter.js'))};
 import assert from 'node:assert/strict';
@@ -68,10 +69,10 @@ test('PPI-V0-8100 exported HTML embeds the locked patched browser highlighter wi
  if(!bunAvailable(t))return;
  const {mkdtemp,writeFile,readFile,rm}=await import('node:fs/promises');
  const {tmpdir}=await import('node:os');
- const {join,resolve}=await import('node:path');
+ const {join}=await import('node:path');
  const {runInNewContext}=await import('node:vm');
  const dir=await mkdtemp(join(tmpdir(),'pi-browser-highlight-'));t.after(()=>rm(dir,{recursive:true,force:true}));
- const sdk=resolve('integrations/pi-protected/node_modules/@earendil-works/pi-coding-agent');
+ const sdk=fileURLToPath(new URL('./node_modules/@earendil-works/pi-coding-agent',import.meta.url));
  const script=join(dir,'browser.mjs'),output=join(dir,'highlight.js');
  await writeFile(script,`import {fixedAssets} from ${JSON.stringify(new URL('./assets.mjs',import.meta.url).href)};const assets=await fixedAssets(${JSON.stringify(sdk)},['package.json','dist/core/export-html/vendor/highlight.min.js']);if(JSON.parse(Buffer.from(assets['package.json'],'base64')).version!=='0.85.1')throw Error('wrong-sdk');await Bun.write(${JSON.stringify(output)},Buffer.from(assets['dist/core/export-html/vendor/highlight.min.js'],'base64'));`);
  const build=spawnSync('bun',[script],{encoding:'utf8',timeout:30000});assert.ifError(build.error);assert.equal(build.status,0,build.stderr);

@@ -10,6 +10,7 @@ import (
 // V1-3358: json.Decoder.More reports false before a trailing closing
 // delimiter, so these strict single-value decodes must refuse one.
 func TestStrictDecodesRefuseTrailingDelimiter(t *testing.T) {
+	t.Parallel()
 	if _, err := decodeJSONObject([]byte(`{"a":1}` + "\n")); err != nil {
 		t.Fatalf("valid object refused: %v", err)
 	}
