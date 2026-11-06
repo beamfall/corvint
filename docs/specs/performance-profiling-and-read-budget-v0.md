@@ -385,7 +385,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 - No TypeScript tree: `affected-path` measures the generated Ruby tree only.
 - No enforced product targets before #1598 and #1601 land, and no loosening of their numbers.
   V1-2954 changes no target's number or state: all five stay `pending`.
-- No profile for the internal child workers (PRB-V0-012), `corvint-lsp`, `corvint-pulse` or the
+- No profile for the internal child workers (PRB-V0-012), `corvint-lsp` or the
   other non-MCP binaries.
 - No Windows peak resident set (PRB-V0-027 reports it `NOT_OBSERVED`, and an enforced RSS ceiling
   then fails closed); the harness targets Unix hosts.

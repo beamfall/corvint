@@ -12,7 +12,6 @@ conformance/human-documentation-compiler-v0/README.md
 conformance/lrf-v0/README.md
 conformance/mcp-2026-07-28/README.md
 conformance/perf-v0/README.md
-conformance/pulse-snapshot-v0/README.md
 conformance/release-artifact-v0/README.md
 conformance/tcq-0/README.md
 conformance/use-cases-v0/README.md
