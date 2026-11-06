@@ -590,10 +590,10 @@ what the row asserts.
 | `invalid-field` | `internal/lrfrepo/ocm.go:355` | "<value> must be a string" |
 | `invalid-hunk-references` | `internal/lrfrepo/ocm_write.go:911` | "hunk references must be non-empty and unique" |
 | `invalid-integer` | `internal/lrfrepo/ocm.go:325` | "<value> must contain non-negative integers" |
-| `invalid-intent` | `internal/lrfrepo/ocm.go:557` | "intent scope must be UTF-8 Markdown" |
+| `invalid-intent` | `internal/lrfrepo/ocm.go:490@ba670c80` | "intent scope must be UTF-8 Markdown" |
 | `invalid-intent-blob` | `internal/lrfrepo/ocm.go:226` | "intent blob OID is invalid" |
 | `invalid-intent-scope` | `internal/lrfrepo/ocm_write.go:547@3d47dc64` | "intentScope must be an object" |
-| `invalid-linked` | `internal/lrfrepo/ocm.go:713` | "linked obligation has invalid fields" |
+| `invalid-linked` | `internal/lrfrepo/ocm.go:646@0fa327d8` | "linked obligation has invalid fields" |
 | `invalid-map` | `internal/lrfrepo/ocm_read.go:257@361a9362` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:746@bd4c9e59` returns it as "OCM verification failed" |
 | `invalid-object` | `internal/lrfrepo/ocm.go:311` | "<value> must be an object" |
 | `invalid-obligation` | `internal/lrfrepo/ocm_write.go:68` | "selected obligation has no valid id" |
@@ -604,8 +604,8 @@ what the row asserts.
 | `invalid-path` | `internal/lrfrepo/ocm.go:199` | "path is invalid" |
 | `invalid-reference-array` | `internal/lrfrepo/ocm.go:362` | "<value> must be a bounded array" |
 | `invalid-reference-id` | `internal/lrfrepo/ocm.go:368` | "<value> contains an invalid ID" |
-| `invalid-requirement-prefix` | `internal/lrfrepo/ocm.go:1312` | "requirement line is absent or ambiguous" |
-| `invalid-requirements-section` | `internal/lrfrepo/ocm.go:496` | "intent must contain exactly one ## Requirements heading" |
+| `invalid-requirement-prefix` | `internal/lrfrepo/ocm.go:1245@ec6fd493` | "requirement line is absent or ambiguous" |
+| `invalid-requirements-section` | `internal/lrfrepo/ocm.go:495@5fbf9570` | "intent must contain exactly one ## Requirements heading" |
 | `invalid-selector` | `internal/lrfrepo/ocm.go:268` | "claim selector is invalid" |
 | `invalid-span` | `internal/lrfrepo/ocm.go:328` | "<value> must be non-empty" |
 | `invalid-span-digest` | `internal/lrfrepo/ocm.go:232` | "intent span digest is invalid" |
@@ -619,10 +619,10 @@ what the row asserts.
 | `noncanonical-map` | `internal/lrfrepo/ocm.go:133` | "OCM bytes are not canonical" |
 | `obligation-order-mismatch` | `internal/lrfrepo/ocm.go:770` | "obligations must retain requirement order" |
 | `obligation-selector-out-of-range` | `internal/lrfrepo/ocm_write.go:60` | "obligation selector is outside the worklist" |
-| `obligation-set-mismatch` | `internal/lrfrepo/ocm.go:692` | "obligations do not match requirements" |
+| `obligation-set-mismatch` | `internal/lrfrepo/ocm.go:625@7b1fa4c9` | "obligations do not match requirements" |
 | `ocm-cli-error` | `internal/lrfrepo/ocm_read.go:218@e75df132` | one of "cannot read <label>", "<label> is not a regular file", "<label> exceeds the <limit>-byte limit", "<label> changed while being read", by the read failure kind |
 | `output-path-conflict` | `internal/lrfrepo/ocm_write.go:212` | "OCM and CEM map paths must differ" |
-| `unknown-claim-reference` | `internal/lrfrepo/ocm.go:727` | "linked claim is absent" |
+| `unknown-claim-reference` | `internal/lrfrepo/ocm.go:660@f80c5e4f` | "linked claim is absent" |
 | `unknown-field` | `internal/lrfrepo/ocm.go:346` | "<value> has an unknown field" |
 | `unknown-hunk-reference` | `internal/lrfrepo/ocm.go:787` | "linked hunk is not verified and supported" |
 | `unknown-obligation-id` | `internal/lrfrepo/ocm_write.go:121` | "obligation ID must select exactly one row" |
@@ -720,7 +720,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 |---|---|---|
 | OCM-V0-001..006, 008, 010..012 | `src/context_corvint_ocm.py` | `tests/test_context_corvint_ocm.py` |
 | OCM-V0-001 (native exact statement re-extraction) | `internal/lrfrepo/ocm.go` | `internal/lrfrepo/ocm_test.go:TestOCMLinkedVerificationAcceptsRequirementLineForms` |
-| OCM-V0-001 (fenced headings are not headings; bare `##` ends the section) | `internal/lrfrepo/ocm.go` (`requirementsFromBlob`, `fencedLines`) | `internal/lrfrepo/ocm_test.go:TestRequirementEnumerationIgnoresHeadingsInsideFences`, `internal/lrfrepo/ocm_test.go:TestRequirementEnumerationBareATXHeadingEndsSection` |
+| OCM-V0-001 (fenced headings are not headings; bare `##` ends the section) | `internal/lrfrepo/ocm.go` (`requirementsFromBlob`, `fencedLines`), `internal/lrfrepo/requirement_layout.go` (`ScanRequirementLayout`, `MarkdownFenced`) | `internal/lrfrepo/ocm_test.go:TestRequirementEnumerationIgnoresHeadingsInsideFences`, `internal/lrfrepo/ocm_test.go:TestRequirementEnumerationBareATXHeadingEndsSection`, `internal/lrfrepo/requirement_layout_test.go:TestScanRequirementLayoutReadsFencesHeadingsAndItems` |
 | OCM-V0-005 (JS regex-literal versus division masking) | `internal/lrfrepo/ocm.go` (`maskComments`, `jsSlashOpensRegex`, `jsRegexEnd`) | `internal/lrfrepo/ocm_jsindex_test.go:TestJSRegexLiteralKeepsCommentsMasked` |
 | OCM-V0-005 (JS template-expression masking) | `internal/lrfrepo/ocm.go` (`maskComments`) | `internal/lrfrepo/ocm_jsindex_test.go:TestJSTemplateExpressionKeepsCommentsMasked` |
 | OCM-V0-005 (each claim blob OID matches its target tree entry when the path repeats) | `internal/lrfrepo/ocm.go` (`ocmBlobReader.blob`) | `internal/lrfrepo/ocm_anchor_test.go:TestOCMClaimBlobOIDVerifiedWhenPathRepeats` |
@@ -742,7 +742,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
 | OCM-V0-017 | `internal/lrfrepo/ocm_write.go` (`withAnchorBoundaryHint`), `internal/lrfrepo/ocm.go` (`requirementBoundaryHint`) | `internal/lrfrepo/ocm_anchor_test.go:TestOCMLinkExplainsRequirementTokenBoundary`, `cmd/corvint/ocm_test.go:TestOCMLinkRejectsClaimWithoutExactObligationIDBeforePublication` |
 | OCM-V0-018 | `internal/lrfrepo/ocm.go` (`extractableGoClaim`), `internal/lrfrepo/ocm_claims.go` (`enumerateClaims`), `internal/lrfrepo/ocm_write.go` (`goCaseAnchorShapes`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMInlineGoRunCaseBoundary` |
-| OCM-V0-019 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `parseRequirements`, `namesRequirement`), `internal/dogfoodflow/check.go` (`checkSummary`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces`, `internal/dogfoodflow/check_test.go:TestDCWV0033CheckSummaryAbstainsOnUnobservedFields`, `cmd/corvint/dogfood_flow_portable_test.go:TestDogfoodDailyPathRunsFromBinaryInForeignRepository` |
+| OCM-V0-019 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `parseRequirements`, `namesRequirement`) on the shared `internal/lrfrepo/requirement_layout.go` (`ScanRequirementLayout`) layout, `internal/dogfoodflow/check.go` (`checkSummary`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces`, `internal/dogfoodflow/check_test.go:TestDCWV0033CheckSummaryAbstainsOnUnobservedFields`, `cmd/corvint/dogfood_flow_portable_test.go:TestDogfoodDailyPathRunsFromBinaryInForeignRepository`, `internal/dogfoodflow/requirement_layout_test.go:TestRequirementLayoutMatchesForBothConsumers` |
 | OCM-V0-020 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `changedLines`, `testsNaming`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces` (`adds two traced IDs`, `cites none`), `cmd/corvint/dogfood_ocm_dcw_test.go:TestDogfoodDCWLinksSurviveRebind` |
 | OCM-V0-021 | `internal/dogfoodocm/aggregate.go` (`validateScopeBindings`, `boundMessage`, `maxObligations`, `maxClaims`) | `internal/dogfoodocm/aggregate_test.go:TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes`, `internal/dogfoodocm/aggregate_test.go:TestOCMV0021AggregateBoundsDeriveFromScopeCount`, `cmd/corvint/dogfood_finish_aggregate_test.go:TestOCMV0021AggregateBoundIsDerivedFromScopeCount` (built binary: 151 + 105 + 15 bind; a 257-requirement intent refuses at its map); measurement `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-ocm-aggregate-obligation-bound.md` |
 | OCM-V0-022 | `internal/localcompletion/finish.go` (`aggregateRefusal`), `internal/localcompletion/types.go` (`EvidenceWorklist.Detail`) | `internal/localcompletion/aggregate_refusal_test.go:TestOCMV0022FinishRetainsAggregateRefusalDetail`; `cmd/corvint/dogfood_finish_aggregate_test.go:TestOCMV0022DogfoodFinishKeepsAggregateBoundRefusal` (built binary: `map-too-large` refuses at the aggregate with the bounded detail on the stdout row and the bare code on stderr; V1-1388; since V1-2971 accepted maps cannot reach the obligation and claim bounds, whose details `TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes` pins) |
@@ -755,7 +755,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-900 | `internal/dogfoodflow/ocm_coverage.go` (`testsNaming`, `namesCompactRequirement`, `rowRangeNames`) | `internal/dogfoodflow/ocm_coverage_test.go:TestOCMV0900TracesCompactTestSuffixesAndRowRanges` |
 | OCM-V0-950 | `internal/dogfoodflow/ocm_coverage.go` (`rangeNamesRequirement`, `namesRequirementSuffix`, `testsNaming`, `tracedForms`) | `internal/dogfoodflow/check_test.go:TestOCMV0950TracesTestNameSuffixesAndTableRanges` |
 | OCM-V0-951 | `internal/lrfrepo/ocm_write.go` (`linkObligation`, `existingClaimPaths`) | `internal/lrfrepo/ocm_multifile_test.go:TestOCMV0951LinkKeepsOtherTestPaths` |
-| OCM-V0-952 | `internal/lrfrepo/ocm.go` (`requirementID`), `internal/lrf/terms.go` (`obligationIDPattern`), `internal/dogfoodflow/ocm_coverage.go` (`requirementLine`), `internal/console/chain.go` (`requirementLine`) | `internal/lrfrepo/ocm_requirement_digits_test.go:TestOCMV0952IntentAcceptsFourDigitRequirementIDs`, `internal/lrf/obligation_id_test.go:TestOCMV0952ObligationIDsAcceptFourDigits`, `internal/dogfoodflow/ocm_requirement_digits_test.go:TestOCMV0952CoverageReadsFourDigitRequirementLines`, `internal/console/chain_requirement_digits_test.go:TestOCMV0952ChainShowsFourDigitRequirementLines` |
+| OCM-V0-952 | `internal/lrfrepo/ocm.go` (`requirementID`), `internal/lrf/terms.go` (`obligationIDPattern`), `internal/lrfrepo/requirement_layout.go` (`RequirementLineID`, which `internal/dogfoodflow/ocm_coverage.go` reads), `internal/console/chain.go` (`requirementLine`) | `internal/lrfrepo/requirement_layout_test.go:TestRequirementLineIDReadsTheOCMLineSyntax`, `internal/lrfrepo/ocm_requirement_digits_test.go:TestOCMV0952IntentAcceptsFourDigitRequirementIDs`, `internal/lrf/obligation_id_test.go:TestOCMV0952ObligationIDsAcceptFourDigits`, `internal/dogfoodflow/ocm_requirement_digits_test.go:TestOCMV0952CoverageReadsFourDigitRequirementLines`, `internal/console/chain_requirement_digits_test.go:TestOCMV0952ChainShowsFourDigitRequirementLines` |
 | OCM-V0-700 | `internal/lrfrepo/ocm_write.go` (`claimSelectorMissMessage`, `boundedFragment`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMClaimSelectorMiss` |
 | OCM-V0-080 | `obligationOrderMismatch` in `internal/lrfrepo/ocm_spec_test.go` | `internal/lrfrepo/ocm_spec_test.go:TestOCMV0080OrderMismatchNamesDocumentOrder` |
 | OCM-V0-940 | `internal/lrfrepo/ocm_write.go` (`LinkOCM`, `linkObligation`, `existingClaimPaths`), `cmd/corvint/ocm.go` (`parseOCMLinkFlags`), `internal/dogfoodflow/change.go` (`runOCMLinks`) | `internal/lrfrepo/ocm_accumulate_test.go:TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles` |

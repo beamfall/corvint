@@ -490,46 +490,22 @@ func scanRequirements(path, oid string, data []byte, limit int) (ocmIntent, []st
 		return ocmIntent{}, nil, nil, fail("invalid-intent", "intent scope must be UTF-8 Markdown")
 	}
 	lines := lineOffsets(data)
-	fenced := fencedLines(data, lines)
-	headings := headingStarts(data, lines, fenced, []byte("## Requirements"))
-	if len(headings) != 1 {
+	layout := ScanRequirementLayout(len(lines), lineText(data, lines))
+	if len(layout.Headings) != 1 {
 		return ocmIntent{}, nil, nil, fail("invalid-requirements-section", "intent must contain exactly one ## Requirements heading")
 	}
-	start := headings[0]
-	end := sectionEnd(data, lines, fenced, start)
+	start, end := lines[layout.Headings[0]], len(data)
+	if layout.End < len(lines) {
+		end = lines[layout.End]
+	}
 	requirements := make([]string, 0)
 	seen := map[string]bool{}
-	for _, offset := range lines {
-		if offset < start || offset >= end {
-			continue
-		}
-		line := lineWithoutEnding(data, offset)
-		identityStart := 3
-		closingMarkers := [][]byte{[]byte("`: ")}
-		if bytes.HasPrefix(line, []byte("- **")) {
-			identityStart = 4
-			closingMarkers = [][]byte{[]byte(":** "), []byte(".** ")}
-		} else if !bytes.HasPrefix(line, []byte("- `")) {
-			continue
-		}
-		closing := -1
-		for _, marker := range closingMarkers {
-			if candidate := bytes.Index(line[identityStart:], marker); candidate >= 0 && (closing < 0 || candidate < closing) {
-				closing = candidate
-			}
-		}
-		if closing < 0 {
-			continue
-		}
-		identity := string(line[identityStart : identityStart+closing])
-		if !requirementID.MatchString(identity) {
-			continue
-		}
-		if seen[identity] {
+	for _, item := range layout.Items {
+		if seen[item.ID] {
 			return ocmIntent{}, nil, nil, fail("duplicate-requirement", "Requirements section repeats an ID")
 		}
-		seen[identity] = true
-		requirements = append(requirements, identity)
+		seen[item.ID] = true
+		requirements = append(requirements, item.ID)
 	}
 	if len(requirements) == 0 {
 		return ocmIntent{}, nil, nil, fail("missing-requirements", "Requirements section has no requirement IDs")
@@ -544,12 +520,9 @@ func scanRequirements(path, oid string, data []byte, limit int) (ocmIntent, []st
 
 // headingStarts returns the offset of every unfenced line equal to heading.
 func headingStarts(data []byte, lines []int, fenced []bool, heading []byte) []int {
-	headings := make([]int, 0, 1)
-	for number, start := range lines {
-		line := lineWithoutEnding(data, start)
-		if !fenced[number] && bytes.Equal(line, heading) {
-			headings = append(headings, start)
-		}
+	headings := headingLines(len(lines), lineText(data, lines), fenced, heading)
+	for index, number := range headings {
+		headings[index] = lines[number]
 	}
 	return headings
 }
@@ -557,60 +530,20 @@ func headingStarts(data []byte, lines []int, fenced []bool, heading []byte) []in
 // sectionEnd returns the offset of the first unfenced level-2 heading after
 // start, or the end of data.
 func sectionEnd(data []byte, lines []int, fenced []bool, start int) int {
-	for number, offset := range lines {
-		if offset <= start || fenced[number] {
-			continue
-		}
-		if line := lineWithoutEnding(data, offset); bytes.Equal(line, []byte("##")) || bytes.HasPrefix(line, []byte("## ")) {
-			return offset
-		}
+	if number := sectionEndLine(len(lines), lineText(data, lines), fenced, sort.SearchInts(lines, start+1)); number < len(lines) {
+		return lines[number]
 	}
 	return len(data)
 }
 
-// fencedLines marks every line that opens, closes, or sits inside a CommonMark
-// fenced code block: a run of at least three backticks or tildes indented at most
-// three spaces opens one (a backtick fence's info string holds no backtick), and
-// only a run of the same character at least as long, followed by nothing but
-// spaces or tabs, closes it. An unclosed fence runs to the end of the document.
+// fencedLines marks the fenced lines of data (MarkdownFenced).
 func fencedLines(data []byte, lines []int) []bool {
-	fenced := make([]bool, len(lines))
-	char, length := byte(0), 0
-	for number, start := range lines {
-		line := lineWithoutEnding(data, start)
-		fenced[number] = length > 0
-		if length > 0 {
-			if runChar, run, rest := markdownFenceRun(line); runChar == char && run >= length && len(bytes.Trim(rest, " \t")) == 0 {
-				length = 0
-			}
-			continue
-		}
-		runChar, run, rest := markdownFenceRun(line)
-		if run < 3 || runChar == '`' && bytes.IndexByte(rest, '`') >= 0 {
-			continue
-		}
-		char, length = runChar, run
-		fenced[number] = true
-	}
-	return fenced
+	return MarkdownFenced(len(lines), lineText(data, lines))
 }
 
-// markdownFenceRun returns the backtick or tilde run that starts a line indented
-// at most three spaces, its length, and the bytes after it.
-func markdownFenceRun(line []byte) (byte, int, []byte) {
-	indent := 0
-	for indent < len(line) && indent < 4 && line[indent] == ' ' {
-		indent++
-	}
-	if indent > 3 || indent == len(line) || line[indent] != '`' && line[indent] != '~' {
-		return 0, 0, nil
-	}
-	char := line[indent]
-	end := indent
-	for end < len(line) && line[end] == char {
-		end++
-	}
-	return char, end - indent, line[end:]
+// lineText reads line number of data without its ending.
+func lineText(data []byte, lines []int) func(int) []byte {
+	return func(number int) []byte { return lineWithoutEnding(data, lines[number]) }
 }
 
 func lineOffsets(data []byte) []int {
