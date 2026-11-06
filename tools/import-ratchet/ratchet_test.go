@@ -316,9 +316,10 @@ func loadEmbedded(t *testing.T) (*manifest, *baseline) {
 	return &m, &b
 }
 
-// TestImportRatchet holds IRT-V0-002 and IRT-V0-004 on this checkout: every
-// package maps to an area, no wrong-way cross-area import exists outside the
-// baseline, and every baseline entry still exists.
+// TestImportRatchet holds IRT-V0-001, IRT-V0-002 and IRT-V0-004 on this
+// checkout: every package maps to an area, no wrong-way cross-area import
+// exists outside the baseline, and every baseline entry still exists. It runs
+// inside go test ./... (IRT-V0-006) and proves its own controls (IRT-V0-005).
 func TestImportRatchet(t *testing.T) {
 	m, b := loadEmbedded(t)
 	graph, err := scanModule(filepath.Join("..", ".."), m.Module)
@@ -328,43 +329,44 @@ func TestImportRatchet(t *testing.T) {
 	if len(graph) < 100 {
 		t.Fatalf("SCAN_INEFFECTIVE: only %d packages found; the module root walk is broken", len(graph))
 	}
-	for _, p := range check(m, graph, b) {
-		t.Error(p)
-	}
-	t.Logf("%d packages, %d baselined wrong-way edges", len(graph), len(b.Edges))
-
-	// IRT-V0-005 controls on the real graph: one added wrong-way import is
-	// named, and one removed baselined import is reported as stale.
-	if len(b.Edges) == 0 {
-		return
-	}
-	var low, high string
-	for pkg := range graph {
-		a, _, _ := m.areaOf(pkg)
-		switch {
-		case a == nil:
-		case a.Layer == 0 && !a.Entry && (low == "" || pkg < low):
-			low = pkg
-		case a.Name == "cli" && (high == "" || pkg < high):
-			high = pkg
+	t.Run("IRT-V0-006 the checkout graph holds the baseline under go test", func(t *testing.T) {
+		for _, p := range check(m, graph, b) {
+			t.Error(p)
 		}
-	}
-	if low == "" || high == "" {
-		t.Fatalf("no layer-0 or cli package to build the control edge from (low=%q high=%q)", low, high)
-	}
-	added := copyGraph(graph)
-	added[low] = append(added[low], high)
-	want := "NEW_WRONG_WAY_EDGE " + edgeKey(low, high) + ":"
-	if got := check(m, added, b); len(got) != 1 || !strings.HasPrefix(got[0], want) {
-		t.Errorf("SPY_INEFFECTIVE added edge: got %q, want one problem starting %q", got, want)
-	}
-	removed := copyGraph(graph)
-	from, to, _ := strings.Cut(b.Edges[0], " -> ")
-	removed[from] = without(removed[from], to)
-	want = "STALE_BASELINE_EDGE " + b.Edges[0] + ":"
-	if got := check(m, removed, b); len(got) != 1 || !strings.HasPrefix(got[0], want) {
-		t.Errorf("SPY_INEFFECTIVE removed edge: got %q, want one problem starting %q", got, want)
-	}
+		t.Logf("%d packages, %d baselined wrong-way edges", len(graph), len(b.Edges))
+	})
+	t.Run("IRT-V0-005 controls name an added and a removed real edge", func(t *testing.T) {
+		if len(b.Edges) == 0 {
+			t.Skip("no baselined edge to remove")
+		}
+		var low, high string
+		for pkg := range graph {
+			a, _, _ := m.areaOf(pkg)
+			switch {
+			case a == nil:
+			case a.Layer == 0 && !a.Entry && (low == "" || pkg < low):
+				low = pkg
+			case a.Name == "cli" && (high == "" || pkg < high):
+				high = pkg
+			}
+		}
+		if low == "" || high == "" {
+			t.Fatalf("no layer-0 or cli package to build the control edge from (low=%q high=%q)", low, high)
+		}
+		added := copyGraph(graph)
+		added[low] = append(added[low], high)
+		want := "NEW_WRONG_WAY_EDGE " + edgeKey(low, high) + ":"
+		if got := check(m, added, b); len(got) != 1 || !strings.HasPrefix(got[0], want) {
+			t.Errorf("SPY_INEFFECTIVE added edge: got %q, want one problem starting %q", got, want)
+		}
+		removed := copyGraph(graph)
+		from, to, _ := strings.Cut(b.Edges[0], " -> ")
+		removed[from] = without(removed[from], to)
+		want = "STALE_BASELINE_EDGE " + b.Edges[0] + ":"
+		if got := check(m, removed, b); len(got) != 1 || !strings.HasPrefix(got[0], want) {
+			t.Errorf("SPY_INEFFECTIVE removed edge: got %q, want one problem starting %q", got, want)
+		}
+	})
 }
 
 func copyGraph(g map[string][]string) map[string][]string {
