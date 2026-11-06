@@ -288,6 +288,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Lane Dogfood Tooling V0 | [`lane-dogfood-tooling-v0.md`](lane-dogfood-tooling-v0.md) DTL-V0-001..016 | accepted | experimental | Lane tooling preserves evidence boundaries while making verification, diagnostics and local scratch predictable. |
 | Corvint Self-Development Companion V0 | [`corvint-self-development-companion-v0.md`](corvint-self-development-companion-v0.md) | accepted | experimental | Local gate fixtures and batch verification expose platform drift, skipped inputs and unresolved historical evidence. |
 | Affected Reader Precision V0 | [`affected-reader-precision-v0.md`](affected-reader-precision-v0.md) | experimental | experimental | Affected selection bounds declared source scanners and keeps display-text provenance separate from executable path reads. |
+| Greptile Gate V0 | [`greptile-gate-v0.md`](greptile-gate-v0.md) GRG-V0-001 | accepted (owner instruction 2026-11-06: make Greptile a required check, "Yes, build it") | experimental | A trusted workflow posts the required `greptile-gate` status, `success` only when Greptile reviewed the exact PR head at 5/5 with no unresolved Greptile thread. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
