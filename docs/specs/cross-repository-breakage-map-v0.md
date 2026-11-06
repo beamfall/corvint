@@ -186,7 +186,9 @@ challenges ambiguous JSON and paths. `TestBreakageSymlinkAndHistoricalPins` veri
 mode refusal and historical disclosure. `TestBreakageV1EntityComposition` covers
 the V1 entity seam and missing entities. `TestBreakageBaseAndModuleGaps` covers
 unchanged/renamed/deleted API states, foreign bases and hidden nested modules.
-`TestBreakageEdgeBound` checks truncation. CLI argument tests exercise the same runner.
+`TestBreakageEdgeBound` checks truncation. CLI argument tests exercise the same runner:
+the handlers live in `internal/command/breakage` with their package-local tests, while
+`cmd/corvint/breakage.go` keeps the `--root` preamble and a one-line wrapper that root dispatch calls (V1-4747 slice 1).
 `TestBreakageBuildConstraintLookalikes` retains callers for directive literals and
 interior platform filename components. `TestBreakageBuildConditional` distinguishes
 actual directive comments and platform suffixes from ordinary comment text and names.
@@ -233,7 +235,9 @@ JS/TS declaration shapes above, no JSX/TSX, no dotted or member symbol resolutio
 `/3` symbol stays unresolved), no JS/TS caller or test reference mapping, no multiple spans
 per endpoint, no symbol-level traversal, no source discovery and no provider generation.
 
-Rollback removes the optional command registration and this package. There is no
+Rollback removes the optional command registration, `internal/command/breakage` and this
+package. Rolling back only the command-package move restores the handlers into
+`cmd/corvint/breakage.go` with no wire or behavior change. There is no
 persistent state, migration, daemon or changed default ranking to unwind.
 
 ## Named diagnostics

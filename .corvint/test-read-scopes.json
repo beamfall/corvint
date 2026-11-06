@@ -369,6 +369,7 @@
     "internal/changee2e": [
       "internal/appmap/testdata/fixture/"
     ],
+    "internal/command/breakage": [],
     "internal/command/flows": [
       "internal/appflows/testdata/playwright-attribution.json",
       "internal/appmap/testdata/"
@@ -424,6 +425,9 @@
     "internal/frontier": [
       "benchmarks/expert-audit-followup/finite-policy.json",
       "protocol/cem-1.0/stable/RESULT.schema.json"
+    ],
+    "internal/frontiernextrepo": [
+      "protocol/cem-1.0/stable/neutral-criterion/"
     ],
     "internal/frontierrepo": [
       "conformance/tcq-0/"
