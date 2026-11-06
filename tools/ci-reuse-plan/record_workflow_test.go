@@ -271,15 +271,33 @@ func TestAFPV0170ReuseStepRefusesForgedArtifacts(t *testing.T) {
 	}
 	// commitFiles are the retained commits API responses the stub serves (AFP-V0-100).
 	commitFiles := map[string]any{}
+	// prior are runs the API lists ahead of the reusable one, each with its own jobs and logs.
+	type priorRun struct {
+		id   int64
+		jobs []map[string]any
+		logs map[int64]string
+	}
+	var prior []priorRun
 	decide := func(event string, jobs []map[string]any, log string) (string, string) {
 		t.Helper()
 		dir := t.TempDir()
 		for sha, body := range commitFiles {
 			writeJSON(t, filepath.Join(dir, "commit-"+sha+".json"), body)
 		}
-		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": []any{map[string]any{
-			"id": runID, "head_sha": head, "event": "pull_request", "status": "completed", "conclusion": "success",
-			"path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repoName}}}})
+		runs := []any{}
+		for _, p := range prior {
+			runs = append(runs, map[string]any{"id": p.id, "head_sha": head, "event": "pull_request", "status": "completed",
+				"conclusion": "success", "path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repoName}})
+			writeJSON(t, filepath.Join(dir, fmt.Sprintf("jobs-%d.json", p.id)), map[string]any{"jobs": p.jobs})
+			for id, body := range p.logs {
+				if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("log-%d.txt", id)), []byte(body), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		runs = append(runs, map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "status": "completed",
+			"conclusion": "success", "path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repoName}})
+		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": runs})
 		writeJSON(t, filepath.Join(dir, fmt.Sprintf("artifacts-%d.json", runID)), map[string]any{"artifacts": artifacts})
 		writeJSON(t, filepath.Join(dir, fmt.Sprintf("jobs-%d.json", runID)), map[string]any{"jobs": jobs})
 		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("log-%d.txt", recordID)), []byte(log), 0o600); err != nil {
@@ -376,6 +394,40 @@ cat "$STUB_DIR/$f" > "$out"
 	if out, log := decide("push", append(shards[:8:8], narrowedJob), narrowed(base)); out != "" {
 		t.Errorf("push: a narrowed record decided %q, want nothing\n%s", out, log)
 	}
+	// The reuse window counts only runs that carry a passed record job (V1-4728): runs without
+	// one never use it up, and the scan stops after five record-bearing runs.
+	recordless := func(n int) []priorRun {
+		var rs []priorRun
+		for i := 0; i < n; i++ {
+			id := int64(39635500000 + i)
+			rs = append(rs, priorRun{id: id, jobs: []map[string]any{{"id": id*10 + 1, "run_id": id, "name": RecordJob,
+				"head_sha": head, "status": "completed", "conclusion": "failure"}}})
+		}
+		return rs
+	}
+	stale := func(n int) []priorRun {
+		var rs []priorRun
+		for i := 0; i < n; i++ {
+			id, job := int64(39635501000+i), int64(119345282000+i)
+			rs = append(rs, priorRun{id: id, jobs: []map[string]any{{"id": job, "run_id": id, "name": RecordJob,
+				"head_sha": head, "status": "completed", "conclusion": "success"}}, logs: map[int64]string{job: line(strings.Repeat("0", 40))}})
+		}
+		return rs
+	}
+	reusable := append(shards[:8:8], recordJob)
+	prior = recordless(6)
+	if out, log := decide("merge_group", reusable, line(tree)); out != "mode=REUSE\n" {
+		t.Errorf("six runs without a passed record job ahead: output %q, want REUSE\n%s", out, log)
+	}
+	prior = stale(4)
+	if out, log := decide("merge_group", reusable, line(tree)); out != "mode=REUSE\n" {
+		t.Errorf("four record-bearing runs of another tree ahead: output %q, want REUSE\n%s", out, log)
+	}
+	prior = stale(5)
+	if out, log := decide("merge_group", reusable, line(tree)); strings.Contains(out, "mode=REUSE") {
+		t.Errorf("five record-bearing runs ahead must end the scan before the sixth: output %q\n%s", out, log)
+	}
+	prior = nil
 	fullDelta(t, decide, git, put, commitFiles, &target, &tree, append(shards[:8:8], recordJob), line, head, base, runID, recordID)
 }
 
