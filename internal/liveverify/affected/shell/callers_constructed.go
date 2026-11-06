@@ -161,7 +161,31 @@ var foreignJoinWholeLiteral = regexp.MustCompile("^\\s*(?:\"(?:\\\\.|[^\"\\\\])*
 // name+".sh", can itself carry ".." (name="../run/run"). A bare identifier
 // keeps the terminal-basename bound; a non-shell suffix is excluded later.
 func foreignJoinSuffixedDynamic(operand []byte) bool {
+	operand = foreignJoinUnparen(operand)
 	return !foreignJoinWholeLiteral.Match(operand) && foreignJoinTail.Match(operand)
+}
+
+// foreignJoinUnparen strips grouping parentheses that enclose a whole operand,
+// so (name+".sh") is judged like name+".sh".
+func foreignJoinUnparen(operand []byte) []byte {
+	for {
+		operand = bytes.TrimSpace(operand)
+		if len(operand) < 2 || operand[0] != '(' || operand[len(operand)-1] != ')' {
+			return operand
+		}
+		depth := 0
+		for i, c := range operand {
+			if c == '(' {
+				depth++
+			} else if c == ')' {
+				depth--
+				if depth == 0 && i != len(operand)-1 {
+					return operand
+				}
+			}
+		}
+		operand = operand[1 : len(operand)-1]
+	}
 }
 
 var foreignJoinTail = regexp.MustCompile("(?:^|\\+)\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*$")
