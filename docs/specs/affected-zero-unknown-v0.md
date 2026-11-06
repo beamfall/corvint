@@ -199,6 +199,10 @@ V1-4729 witnesses AZU-V0-9900 with `TestOwnershipMembershipSelection_AZU_V0_9900
 `TestOwnershipReplay0c8ae2da9_AZU_V0_9901`, and AZU-V0-9902 with
 `TestOwnershipCLIAndRatchetAgree_AZU_V0_9902` in `cmd/corvint/affected_ownership_selection_test.go`.
 The lane build log retains the historical replay counts, frozen-byte comparison and limits.
+Verifier repair 1 retains AZU-V0-9901 as PARTIAL: declaration hints are emitted only when the
+observed graph contains the ownership ratchet. Repositories without it retain their frozen
+receipts, checked by `TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901`; extending guidance
+there requires owner resolution of the frozen-output conflict. Fixture closure is retained.
 Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
 shape, error/exit contract, committed golden or baseline changes are authorized.
 
