@@ -2,10 +2,80 @@
 package sessiontest
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
 )
+
+// Ordinary content selections keep the pre-obligation partitioned manifest:
+// execution slices omit package slicing reasons, in both JSON and its digest.
+func TestOwnershipPartitionedContentOnlyBytes_AZU_V0_9900(t *testing.T) {
+	files, universe := repositoryPartition(t)
+	const pkg = "github.com/Beamfall/corvint/internal/liveverify/affected"
+	plan, err := PlanShardsSliced(universe, 16, 1, []History{{Name: "committed", Raw: files.Costs}}, files.Allow, files.Slices)
+	if err != nil || plan.Fallback != "" {
+		t.Fatalf("measured partition: %v, fallback %q", err, plan.Fallback)
+	}
+	for _, placement := range []string{PlacementUniverse, PlacementBalanced, PlacementMeasured} {
+		for _, full := range []bool{false, true} {
+			for _, slice := range []GoSlice{
+				{Reason: "whole: DIRECT_SOURCE_CHANGE via pkg/pkg.go"},
+				{Pattern: "^(TestContent)$", Reason: "selected: TestContent via pkg/pkg_test.go"},
+			} {
+				t.Run(fmt.Sprintf("%s/full=%t/%s", placement, full, slice.Reason), func(t *testing.T) {
+					input := fixtureInput()
+					input.Universe, input.Partition, input.ShardCount = universe, files, 16
+					input.Placement, input.ShardPlan = placement, &plan
+					input.GoSelection = "run " + pkg
+					if full {
+						input.GoSelection = "FALLBACK go.mod changed"
+					}
+					want, err := Build(input)
+					if err != nil || len(want.Incomplete) != 0 {
+						t.Fatalf("compatibility manifest: %v, %+v", err, want)
+					}
+					input.GoSlices = map[string]GoSlice{pkg: slice}
+					got, err := Build(input)
+					if err != nil || len(got.Incomplete) != 0 {
+						t.Fatalf("content manifest: %v, %+v", err, got)
+					}
+					partitioned := 0
+					for _, unit := range got.Units {
+						if unit.Unit == "go:"+pkg && unit.Slice != SliceWhole && unit.Pattern != "" {
+							partitioned++
+							if unit.Reason != "" || unit.ReasonCode != "" {
+								t.Errorf("content-only partition %s acquired reason %q and code %q", unit.Key(), unit.Reason, unit.ReasonCode)
+							}
+						}
+					}
+					if partitioned < 2 {
+						t.Fatalf("expected partitioned execution units, got %d", partitioned)
+					}
+					wantJSON, err := Encode(want)
+					if err != nil {
+						t.Fatal(err)
+					}
+					gotJSON, err := Encode(got)
+					if err != nil {
+						t.Fatal(err)
+					}
+					wantDigest, err := Digest(want)
+					if err != nil {
+						t.Fatal(err)
+					}
+					gotDigest, err := Digest(got)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(gotJSON, wantJSON) || gotDigest != wantDigest {
+						t.Errorf("content-only partition changed manifest bytes or digest: got %s, want %s", gotDigest, wantDigest)
+					}
+				})
+			}
+		}
+	}
+}
 
 // AZU-V0-9900: FULL preserves explanations from both gate-only slices and
 // independently reached whole packages without mutating the caller's slices.

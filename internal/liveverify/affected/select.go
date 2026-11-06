@@ -253,7 +253,7 @@ type FrontierExclusion struct {
 	Units    []string `json:"units"`
 }
 
-// FrontierExclusionReason is the stated reason of every FrontierExclusion.
+// FrontierExclusionReason explains terminal exclusions without unowned paths.
 const FrontierExclusionReason = "no dirty path is this plugin's or unowned, and the change reaches its units only as reader or binary-exec selections the traversal does not continue from, so no edge its frontier hides can change this plan"
 
 // Select computes the plan for one dirty path set.
@@ -747,6 +747,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	fixtureHosts := graph.ownershipFixtureHosts(unowned, reached)
 	for _, name := range names {
 		left := make([]string, 0, len(graph.frontierBy[name]))
 		for _, reason := range graph.frontierBy[name] {
@@ -760,7 +761,11 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		sort.Strings(left)
 		units := terminal[name]
 		sort.Strings(units)
-		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
+		reason := FrontierExclusionReason
+		if len(fixtureHosts) > 0 {
+			reason = graph.ownershipFixtureExclusionReason(name, fixtureHosts, left)
+		}
+		excluded = append(excluded, FrontierExclusion{Language: name, Reason: reason, Frontier: left, Units: units})
 	}
 	return unknown, excluded, frontierBearerList(sources), involved
 }
@@ -917,7 +922,8 @@ func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
 // owned by none, the terminal rule is off and such a plugin takes part, as a
 // plugin with a reached unit does under AFP-V0-511 (3): the AFP-V0-560
 // soundness argument needs an unowned path to make every reached plugin take
-// part, so the two rules never compose into a narrower frontier than either.
+// part. AZU-V0-9901 permits terminal status for tracked fixture membership
+// changes with selected Go hosts, while preserving each unowned-path proof.
 func (graph *Graph) participants(reached map[string]Witness, carried, followed map[string]bool, dirty []string, nonSource []NonSource) (involved, unowned []string, terminal map[string][]string) {
 	if len(dirty) == 0 {
 		return nil, nil, nil
@@ -962,7 +968,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 	// and reason. A selected Go fixture host cannot close a computed reader
 	// in another language or an undeclared FrontierReach (AZU-V0-9901).
 	frontierPaths := sortedKeys(paths)
-	if len(frontierPaths) > 0 && !graph.ownershipFixtureHostsSelected(frontierPaths, reached) {
+	if len(frontierPaths) > 0 && len(graph.ownershipFixtureHosts(frontierPaths, reached)) == 0 {
 		for name := range terminal {
 			names[name] = true
 		}

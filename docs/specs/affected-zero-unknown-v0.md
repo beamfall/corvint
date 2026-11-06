@@ -229,6 +229,9 @@ and verifies the caller's narrowing input is unchanged.
 `TestOwnershipPartitionedReasons_AZU_V0_9900` covers the committed affected-package slices
 across 16 shards under universe, balanced and measured placement: each slice, including the
 catch-all, retains the obligation's reason and reason code during narrowed and FULL runs.
+`TestOwnershipPartitionedContentOnlyBytes_AZU_V0_9900` checks serialized manifest bytes and
+manifest digests for ordinary content-only selections in those same placements, including
+FULL fallback: partitioned units retain their prior omission of ordinary package reasons.
 `TestOwnershipContentOnlyBytes_AZU_V0_9900` compares owned and unowned plan bytes and compact
 dry-run digests. `TestOwnershipMembershipSelection_AZU_V0_9900/stage-worktree-delete` covers an
 indexed addition subsequently removed only from disk. Fixture closure uses the existing
@@ -241,6 +244,9 @@ resolution inputs, foreign fixture content, owned-source changes, unbounded read
 another unowned path. `TestOwnershipReplayTerminalReader_AZU_V0_9901` reproduces the
 historical source-edit-plus-fixtures shape with a real terminal TypeScript reader: its
 source-bound import reason is excluded while its computed data-load reason remains unknown.
+The terminal-reader fixture witness also checks that its exclusion certificate names the
+selected Go host and each excluded entry's `FrontierReach` classification while the fixture
+remains explicitly unowned. Ordinary terminal exclusion explanations retain their bytes.
 Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
 shape, error/exit contract, committed golden or baseline changes are authorized.
 
