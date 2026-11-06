@@ -131,6 +131,12 @@ func (g *ownedGroup) drain() bool {
 		}
 		if e = g.observe(); e != nil {
 			if pid, _, err := g.anchor(); err != nil || pid == 0 {
+				// A leader reaped between the inventory's listing and its
+				// identity read fails the observation and leaves no anchor;
+				// the kernel group boundary still decides (V1-4782).
+				if live, err := g.exists(g.group); err == nil && !live {
+					return true
+				}
 				return false
 			}
 			time.Sleep(20 * time.Millisecond)
