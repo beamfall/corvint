@@ -41,6 +41,7 @@ test('adds an item', async ({ page }) => {
 // formats, lint exit codes, and duplicates report and gate exit codes (TSA-V0-005, TSA-V0-016,
 // TSA-V0-021, TSA-V0-023).
 func TestTestsCLI(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{"tests", "--help"}, {"help", "tests"}} {
 		code, out, _ := runCLI(t, args...)
 		if code != 0 || !strings.Contains(out, "tests setup-select") || !strings.Contains(out, "test-source-analysis-v0.md") {
@@ -144,6 +145,7 @@ func testsRunReport(t *testing.T, path, revision string) {
 // exit status, --runs joins a report at the linted revision into a PRODUCED cross-variant line,
 // its absence is NOT_PRODUCED, and an unreadable report is refused (TSA-V0-031, TSA-V0-032).
 func TestTestsLintAdvisoryCLI(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
 	base := testsCommit(t, root, map[string]string{"src/app.ts": "export const x = 1;\n"})
@@ -197,6 +199,7 @@ end
 // its strength; advisory-only files exit 0; bad arguments refuse with exit 2 (TSA-V0-071,
 // TSA-V0-081, V1-1787).
 func TestTestsValidityCLI(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
 	head := testsCommit(t, root, map[string]string{"e2e/alpha.spec.ts": testsSerialSpec, "spec/widget_spec.rb": testsMemoizedSpec})
@@ -246,6 +249,7 @@ func TestTestsValidityCLI(t *testing.T) {
 // without --files and never changes the exit code; a malformed link refuses with exit 2
 // (TSA-V0-100, TSA-V0-108).
 func TestTSAV0108SeedParityCLI(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
 	testsCommit(t, root, map[string]string{
@@ -292,6 +296,7 @@ func TestTSAV0108SeedParityCLI(t *testing.T) {
 // exits 1 while a citation is unsupported and 0 when every citation holds; bad arguments refuse
 // with exit 2 (TSA-V0-255).
 func TestTestsCitationsCLI(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
 	testsCommit(t, root, map[string]string{"a/b.go": "package a\n\nfunc B() {}\n"})
@@ -360,6 +365,7 @@ end
 // --select and --requirements, and typed refusals for a malformed or unknown selector and a receipt
 // run at another revision.
 func TestTestsExampleJoinCLI(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
 	earlier := testsCommit(t, root, map[string]string{"README.md": "fixture\n"})

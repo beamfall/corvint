@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -41,15 +42,50 @@ func fixtureRepo(t *testing.T) (string, string) {
 	return fixtureRepoFrom(t, "testdata/fixture")
 }
 
-// fixtureRepoFrom commits one testdata fixture directory into a fresh repository.
+var fixtureSeeds = struct {
+	sync.Mutex
+	dir    string
+	byPath map[string]struct{ root, rev string }
+}{byPath: make(map[string]struct{ root, rev string })}
+
+// fixtureRepoFrom copies an immutable committed seed into a private repository.
+// AMAP-V0-9501: no working files, index or objects are shared with another test.
 func fixtureRepoFrom(t *testing.T, dir string) (string, string) {
 	t.Helper()
+	seed, rev := fixtureSeed(t, dir)
 	root := t.TempDir()
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+	copyFixture(t, seed, root)
+	return root, rev
+}
+
+func fixtureSeed(t *testing.T, dir string) (string, string) {
+	t.Helper()
+	fixtureSeeds.Lock()
+	defer fixtureSeeds.Unlock()
+	if seed, ok := fixtureSeeds.byPath[dir]; ok {
+		return seed.root, seed.rev
+	}
+	root, err := os.MkdirTemp(fixtureSeeds.dir, "seed-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	copyFixture(t, dir, root)
+	gitTest(t, root, "init", "-q")
+	rev := commitAll(t, root, "fixture")
+	fixtureSeeds.byPath[dir] = struct{ root, rev string }{root, rev}
+	return root, rev
+}
+
+func copyFixture(t *testing.T, from, root string) {
+	t.Helper()
+	err := filepath.WalkDir(from, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		rel, _ := filepath.Rel(dir, p)
+		rel, err := filepath.Rel(from, p)
+		if err != nil {
+			return err
+		}
 		data, err := os.ReadFile(p)
 		if err != nil {
 			return err
@@ -63,8 +99,6 @@ func fixtureRepoFrom(t *testing.T, dir string) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gitTest(t, root, "init", "-q")
-	return root, commitAll(t, root, "fixture")
 }
 
 func build(t *testing.T, root, rev string) *Map {

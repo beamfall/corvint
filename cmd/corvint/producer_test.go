@@ -78,6 +78,7 @@ func TestPUBV0029ProducerReleaseStampedBuild(t *testing.T) {
 // member to the impact receipt and leaves every other byte unchanged; and
 // (PUB-V0-030) that the default receipt carries no producer member.
 func TestPUBV0027ImpactProducerIsAdditive(t *testing.T) {
+	t.Parallel()
 	root := impactCLIRepository(t)
 	invoke := func(arguments ...string) string {
 		var stdout, stderr bytes.Buffer
@@ -98,6 +99,7 @@ func TestPUBV0027ImpactProducerIsAdditive(t *testing.T) {
 // TestPUBV0027TestValidityProducerIsAdditive covers the test-validity
 // receipt: the producer member follows the unchanged document members.
 func TestPUBV0027TestValidityProducerIsAdditive(t *testing.T) {
+	t.Parallel()
 	invoke := func(arguments ...string) string {
 		var stdout, stderr bytes.Buffer
 		if code := run(append([]string{"test-validity"}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 0 {
@@ -123,6 +125,7 @@ func TestPUBV0027TestValidityProducerIsAdditive(t *testing.T) {
 // TestPUBV0030DefaultReceiptsCarryNoProducer pins the frozen default bytes
 // (CCF-V1-006): without --producer neither receipt names a producer.
 func TestPUBV0030DefaultReceiptsCarryNoProducer(t *testing.T) {
+	t.Parallel()
 	root := impactCLIRepository(t)
 	for _, arguments := range [][]string{{"--root", root, "impact", "pkg/main.go"}, {"test-validity"}} {
 		var stdout, stderr bytes.Buffer
@@ -162,6 +165,7 @@ func assertProducerAdditive(t *testing.T, plain, with, stripped string) {
 // TestGPKV0084ImpactCapabilitiesListing checks the CLI listing envelope and
 // reads no repository content beyond the impact root check (GPK-V0-084).
 func TestGPKV0084ImpactCapabilitiesListing(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"--root", cliRepository(t), "impact", "--capabilities"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
@@ -222,6 +226,7 @@ func TestGPKV0084ImpactCapabilitiesOutsideGitRoot(t *testing.T) {
 // TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged keeps
 // --capabilities a sole, valueless argument and the suffix refusal intact.
 func TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged(t *testing.T) {
+	t.Parallel()
 	for _, arguments := range [][]string{{"--capabilities", "--limit", "3"}, {"--capabilities=yes"}, {"pkg/main.go", "--capabilities"}, {"--capabilities", "--capabilities"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(append([]string{"impact"}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {

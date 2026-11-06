@@ -21,7 +21,7 @@ func TestPreparedPathTokensPreserveSelection(t *testing.T) {
 	for _, dirty := range [][]string{{"docs/guide.md"}, {"reader/fixtures/a.md"}, {".corvint/change.cem.json"}, {"other/other.go", "docs/guide.md"}, {"unowned.md"}, nil} {
 		// Exercise the original per-selection preparation on the same graph.
 		uncached := *graph
-		uncached.pathTokenCache = nil
+		uncached.tokens = nil
 		want := Select(&uncached, dirty)
 		t.Run(strings.Join(dirty, ","), func(t *testing.T) {
 			t.Parallel()

@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
-Authoritative inputs: V1-4625 lane charter (2026-11-04); native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
+Authoritative inputs: lane cireuse charter (2026-11-05; follow-up to V1-4727); V1-4625 lane charter (2026-11-04); native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
 V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861, CIN-V0-2301, CIN-V0-2302: V1-3332; CIN-V0-2300: V1-4446; CIN-V0-2303: V1-4445; CIN-V0-2304: V1-2805; CIN-V0-010: V1-3748; CIN-V0-011: V1-4354; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
@@ -47,6 +47,28 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 - `CIN-V0-7505`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4574) An edit under `.github/` MUST select `tools/ci-forward-row` through its declared read scope and its workflow-executing tests in batch verification.
 - `CIN-V0-7506`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4154) A new binary source or command-tree entry MUST select `conformance/cli-errors-v0` catalog-equality tests in affected and in batch verification, including when source and catalog changes meet only in the batch.
 
+- **CIN-V0-7600:** (accepted by the owner, lane cireuse charter 2026-11-05; amends AFP-V0-024,
+  AFP-V0-046, AFP-V0-170 and AFP-V0-734) Tested-tree REUSE admission SHALL depend on the
+  record job and the required results it attests, regardless of the workflow run's overall
+  status or conclusion. A running run, or a run failed only by advisory `go-macos`, MAY be
+  reused once its one latest record job completed successfully. The full record requires
+  exactly one successful completed `go-product-shard (i)` for every index `0..N-1`; the
+  narrowed record additionally requires successful completed `docs-plan`, `narrowing-verdict`
+  and `go-product`, matching the record job's success predicates. The full record's conditional
+  docs-plan/narrowing checks do not attest their success; unrelated checks still run in the
+  deciding workflow. Every record and required job SHALL have a positive unique job ID and
+  belong to the admitted run and head. Missing, duplicate, renamed, extra or noncanonical shard
+  identities, ID collisions, unsuccessful (including failed, cancelled, skipped or unfinished)
+  required or record jobs, unreadable listings/logs and invalid records SHALL refuse REUSE
+  with a precise reason in the existing decision `reason` field. Run repository, workflow,
+  event and head admission, exact record tree/head/shard count, queue target and narrowed base
+  binding remain mandatory. An unfinished record never vouches for a tree; rejected required
+  evidence never produces a delta candidate. Advisory status supplies no authority. No JSON
+  shape, record format, exit code, stderr or golden changes are authorized. The workflow's
+  existing `status=success` listing filter must be removed separately before these candidate
+  runs can reach the tool; this lane changes no workflow. Rollback: restore whole-run success
+  admission, retaining FULL fallback. Acceptance: the CIN-V0-7600 tests and retained PR #99
+  replay in build log `2026-11-05-ci-reuse-record-admission`.
 - **CIN-V0-001:** (decided by the orchestrator under owner delegation, V1-3314; applies the
   AFP-V0-030 re-arm rule) `CORVINT_PR_FORWARD_EPOCH` in `ci.yml`, `FORWARD_EPOCH` in
   `ci-forward-bar.yml` and the narrowing-verdict acceptance, and the verdict artifact name
@@ -498,6 +520,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| CIN-V0-7600 | `admits`, `recordJobLine`, `successfulJob`, `recorded`, `recordedNarrowed` in `tools/ci-reuse-plan/main.go` | `TestCINV07600RecordAdmitsBeforeAdvisoryCompletion`, `TestCINV07600RecordAdmissionFailsClosed`, `TestCINV07600NarrowedRecordRequiresItsAggregateAndGuards`, `TestCINV07600ReplayPR99`; old/new retained-input replay in `2026-11-05-ci-reuse-record-admission`; hosted REUSE pending workflow listing follow-up |
 | CIN-V0-001 | `CORVINT_PR_FORWARD_EPOCH`, the shadow step's `forwardEpoch` argument and the narrowing-verdict `FORWARD_EPOCH` in `ci.yml`; `FORWARD_EPOCH` and the artifact name in `ci-forward-bar.yml`; `ci-control-plane.yml`; `selection.jq`; the epoch check of `collect.sh` | `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind`; the "producer epoch names the row" case of `TestAFPV0047CollectorNamesRows`; `TestAFPV0047SelectionDocument` |
 | CIN-V0-002 | the `pin-tool-*` and `pin-shadow-*` step ids and the "Fail loudly on an unreachable or unbuildable pin" step of `ci.yml` | `TestCINV0002UnreachablePinFailsTheShardLoudly` |
 | CIN-V0-003 | `list_names` stop time in `names.sh`; `since`, `covered` and `reachedEpochSince` in `verdict.sh`; `FORWARD_EPOCH_SINCE` in `ci-forward-bar.yml` | `TestCINV0003VerdictListsBackToTheEpochSince` |
