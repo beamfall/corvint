@@ -13,7 +13,7 @@ frontier bearers), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 3 a
 spec is at its OCM obligation limit, so these requirements take a new prefix.
 
 ## Agent digest
-- Claim: every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.
+- Claim: every `corvint affected` plan closes unknowns with sound selections or stated proofs, including bounded readers, never by dropping reached units.
 - Status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation); delivery experimental.
 - Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
 - Blocked on: nothing; each requirement lands on its own.
@@ -146,13 +146,33 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `uses` paths, including action directories outside `.github/actions`, SHALL retain their
   caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
 
+- **AZU-V0-9930: Comparison-only working directory.** (experimental, owner lane charter,
+  2026-11-05) The Go affected observer and mirrored gate selector SHALL exempt a qualified
+  `os.Getwd()` call from rule (d) when its first result is a fresh local identifier in a
+  two-identifier short assignment and every use of that binding is a direct equality or
+  inequality comparison with a string literal. The proof SHALL resolve local bindings, reject
+  shadowed import qualifiers, and preserve the original token offsets. A parse failure,
+  reassignment, returned path, alias, closure escape, variable comparison or any other use
+  SHALL retain the root locator. Dot imports and unsupported expressions remain conservative.
+  This amends AFP-V0-012 rule (d) only for a proven comparison that consumes no file contents;
+  path literals, dependent readers and real repository reads retain their existing selections.
+- **AZU-V0-9931: Bounded test consumers.** (experimental, owner lane charter, 2026-11-05)
+  The selection-precision slice SHALL use the existing AFP-V0-023 declaration grammar for
+  bounded fixture/build consumers, retaining every test read and nested build input. Reasons
+  SHALL be recorded per audited package in the build log. Existing read-scope checks SHALL
+  validate the declarations. History readers, repository-wide scans and consumers without an
+  admitted confinement proof SHALL stay unbounded. The four charter replay merges SHALL be
+  measured before and after against their first parents, with immutable input identities and
+  explicit declaration overlays recorded; no wire, golden, ownership or frontier policy change
+  is part of this slice.
+
 ## Non-goals
 
 - No requirement here may drop a reached, reading, executing, importing or embedding unit. Every
   rule turns an unknown into a selection or a stated proof.
-- This is not a cost optimisation. AZU-V0-003 can widen a selection (all site units of a bearing
-  reason). Narrowing that width is later work under its own requirements, once zero unknowns is
-  measured.
+- AZU-V0-003 can widen a selection (all site units of a bearing reason). Only the bounded
+  reader precision slice AZU-V0-9930/9931 narrows rule (d) here; it does not change frontier
+  classification or claim that all unknowns are closed.
 - No embeddings, network or learned ranking, and no change to the authority order.
 
 ## Failure modes
@@ -231,3 +251,12 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
+
+| AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
+| AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
+
+The comparison proof's failure mode is an escaped path mistaken for a pure guard. The binding
+and scanner regressions retain real reads, aliases, closures, shadowing and parse failures.
+Acceptance requires whole-package tests of both scanner packages and the existing read-scope
+check. Rollback removes the six added scope entries and the comparison proof/call sites, restoring
+the conservative rule (d) floor. Independent review and host-wide qualification remain separate.
