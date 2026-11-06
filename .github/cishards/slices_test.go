@@ -678,3 +678,170 @@ func TestAFPV0590SelectIsDeterministicAndKeepsFullPlan(t *testing.T) {
 		t.Fatalf("default-file Select: %v", err)
 	}
 }
+
+// AFP-V0-022 (V1-4802): membership comes from the universe alone. A priced
+// package that was deleted, a split package that was deleted and an added
+// unpriced package change no plan beyond the universe they leave behind.
+func TestAFPV0022MembershipDerivedFromUniverse(t *testing.T) {
+	const m = "github.com/Beamfall/corvint/x/"
+	big, gone, gonesplit, added := m+"big", m+"gone", m+"gonesplit", m+"added"
+	universe := []string{big, m + "a", m + "c", m + "d", m + "e"}
+	// The whole-table median is 50 with and without the stale "gone" entry.
+	priced := map[string]int64{big: 100, m + "a": 100, m + "c": 50, m + "d": 30, m + "e": 10}
+	withGone := map[string]int64{gone: 70, gonesplit: 20}
+	for p, n := range priced {
+		withGone[p] = n
+	}
+	pricedAdded := map[string]int64{added: 50}
+	for p, n := range withGone {
+		pricedAdded[p] = n
+	}
+	split := fixtureSplit{named: [][]string{{"TestA"}, {"TestB"}}, ms: []int64{40, 30, 30}}
+	allowLive, slicesLive := allowFile(big), slicesFile(map[string]fixtureSplit{big: split})
+	allowStale := allowFile(big, gonesplit)
+	slicesStale := slicesFile(map[string]fixtureSplit{big: split, gonesplit: split})
+	stale, clean, plusAdded := costsFile(withGone), costsFile(priced), costsFile(pricedAdded)
+	withAdded := append(append([]string(nil), universe...), added)
+	deleted := []string{big, m + "a", m + "d", m + "e"}
+
+	for _, parallel := range []int{1, 4} {
+		for total := 1; total <= 6; total++ {
+			name := fmt.Sprintf("total=%d parallel=%d", total, parallel)
+			plan := func(u []string, costs, allow, slices []byte) []Shard {
+				t.Helper()
+				got, err := PlanFromParallel(u, total, parallel, costs, allow, slices)
+				if err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+				requireComplete(t, u, got)
+				return got
+			}
+			want := plan(universe, clean, allowLive, slicesLive)
+			if got := plan(universe, stale, allowStale, slicesStale); !reflect.DeepEqual(got, want) {
+				t.Fatalf("%s: stale entries changed the plan:\n%v\n%v", name, got, want)
+			}
+			if total >= 3 {
+				if n := len(SplitPackages(universe, total, allowStale, slicesStale)); n != 1 {
+					t.Fatalf("%s: %d split packages, want only the live one", name, n)
+				}
+			}
+			unpriced := plan(withAdded, stale, allowStale, slicesStale)
+			if got := plan(withAdded, plusAdded, allowStale, slicesStale); !reflect.DeepEqual(unpriced, got) {
+				t.Fatalf("%s: an unpriced package is not placed at the median:\n%v\n%v", name, unpriced, got)
+			}
+			plan(deleted, stale, allowStale, slicesStale)
+
+			selected := append(append([]string(nil), universe...), gone, gonesplit)
+			sel, err := SelectFromParallel(universe, selected, total, parallel, stale, allowStale, slicesStale)
+			if err != nil || !reflect.DeepEqual(sel, want) {
+				t.Fatalf("%s: Select over a deleted package differs from Plan (%v):\n%v\n%v", name, err, sel, want)
+			}
+
+			whole, err := partition(universe, total, stale)
+			if err != nil {
+				t.Fatalf("%s: partition: %v", name, err)
+			}
+			if again, _ := partition(universe, total, clean); !reflect.DeepEqual(whole, again) {
+				t.Fatalf("%s: a stale cost entry changed the partition:\n%v\n%v", name, whole, again)
+			}
+			a, _ := partition(withAdded, total, stale)
+			b, _ := partition(withAdded, total, plusAdded)
+			if !reflect.DeepEqual(a, b) {
+				t.Fatalf("%s: partition does not price an unpriced package at the median:\n%v\n%v", name, a, b)
+			}
+			placed := map[string]int{}
+			for _, s := range a {
+				for _, p := range s {
+					placed[p]++
+				}
+			}
+			for _, p := range withAdded {
+				if placed[p] != 1 {
+					t.Fatalf("%s: partition placed %s %d times", name, p, placed[p])
+				}
+			}
+		}
+	}
+}
+
+// AFP-V0-022 (V1-4802): over the live `go list ./...` universe, the committed
+// tables need no edit when a package is added or deleted. Drift is logged, not
+// failed; the AFP-V0-040 advisory check reports it in CI.
+func TestAFPV0022RepositoryUniverseNeedsNoTableEdit(t *testing.T) {
+	root, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		mod, err := os.ReadFile(filepath.Join(root, "go.mod"))
+		if err == nil && bytes.HasPrefix(mod, []byte("module github.com/Beamfall/corvint\n")) {
+			break
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			t.Skip("repository module absent (isolated cishards copy); the synthetic test covers membership")
+		}
+		root = parent
+	}
+	cmd := exec.Command("go", "list", "./...")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("go list ./...: %v", err)
+	}
+	universe, err := Packages(out)
+	if err != nil {
+		t.Fatalf("go list universe: %v", err)
+	}
+	costs, ok := Costs(defaultCosts)
+	if !ok {
+		t.Fatal("committed cost table is unusable")
+	}
+	in := map[string]bool{}
+	for _, p := range universe {
+		in[p] = true
+		if _, ok := costs[p]; !ok {
+			t.Logf("unpriced (median estimate): %s", p)
+		}
+	}
+	heaviest := make([]string, 0, len(costs))
+	for p := range costs {
+		if !in[p] {
+			t.Logf("stale cost entry (ignored): %s", p)
+			continue
+		}
+		heaviest = append(heaviest, p)
+	}
+	sort.Slice(heaviest, func(i, j int) bool { return costs[heaviest[i]] > costs[heaviest[j]] })
+	for _, parallel := range []int{1, 4} {
+		plan, err := PlanParallel(universe, 16, parallel)
+		if err != nil {
+			t.Fatalf("parallel=%d: %v", parallel, err)
+		}
+		requireComplete(t, universe, plan)
+	}
+
+	removed := append([]string(nil), heaviest[:min(5, len(heaviest))]...)
+	for p := range SplitPackages(universe, 16, defaultAllow, defaultSlices) {
+		removed = append(removed, p)
+	}
+	for _, p := range removed {
+		rest := make([]string, 0, len(universe))
+		for _, q := range universe {
+			if q != p {
+				rest = append(rest, q)
+			}
+		}
+		plan, err := PlanParallel(rest, 16, 4)
+		if err != nil {
+			t.Fatalf("delete %s: %v", p, err)
+		}
+		requireComplete(t, rest, plan)
+	}
+	added := append(append([]string(nil), universe...), "github.com/Beamfall/corvint/internal/v14802addedprobe")
+	plan, err := PlanParallel(added, 16, 4)
+	if err != nil {
+		t.Fatalf("add a package: %v", err)
+	}
+	requireComplete(t, added, plan)
+}
