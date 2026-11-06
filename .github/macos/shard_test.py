@@ -21,6 +21,44 @@ def package(name, module="example", root="/repo"):
 
 
 class DarwinShards(unittest.TestCase):
+    def test_CINV04625_asymmetric_cost_read_failure_cannot_succeed(self):
+        packages = [package(name) for name in "abcd"]
+        weights = {p["package"]: i + 1 for i, p in enumerate(packages)}
+        ownership, _ = m.partition(packages, weights)
+        for failed_leg in range(m.SHARDS):
+            for error in (FileNotFoundError, PermissionError):
+                with self.subTest(failed_leg=failed_leg, error=error), tempfile.TemporaryDirectory() as tmp:
+                    root = pathlib.Path(tmp)
+                    selection, costs = root / "selection.json", root / "costs.json"
+                    selection.write_text(json.dumps({"inventory": packages, "selected": packages}))
+                    costs.write_text(json.dumps({"profile": "corvint-ci-package-costs/0",
+                                                 "milliseconds": weights}))
+                    read_text = pathlib.Path.read_text
+                    executed, failures = [], []
+                    for leg in range(m.SHARDS):
+                        def read(path, *args, **kwargs):
+                            if path == costs and leg == failed_leg:
+                                raise error("cost history unavailable on one runner")
+                            return read_text(path, *args, **kwargs)
+                        out = root / str(leg)
+                        with mock.patch.object(pathlib.Path, "read_text", read), mock.patch.object(m, "run", return_value=0) as run:
+                            args = [str(selection), str(costs), str(leg), str(out)]
+                            if leg == failed_leg:
+                                with self.assertRaises(error):
+                                    m.main(args)
+                                failures.append(leg)
+                                run.assert_not_called()
+                                self.assertFalse(out.exists())
+                            else:
+                                self.assertEqual(m.main(args), 0)
+                                self.assertEqual(run.call_args.args[0], ownership[leg])
+                                executed.extend(p["package"] for p in run.call_args.args[0])
+                    self.assertEqual(failures, [failed_leg])
+                    self.assertEqual(sorted(executed), sorted(
+                        p["package"] for leg, assigned in enumerate(ownership)
+                        if leg != failed_leg for p in assigned))
+                    self.assertEqual(len(executed), len(set(executed)))
+
     def test_CINV04625_mixed_full_and_narrowed_legs_keep_package_ownership(self):
         packages = [package(name, "github.com/Beamfall/corvint") for name in "abcd"]
         for weights in ({p["package"]: 1000 for p in packages}, {},

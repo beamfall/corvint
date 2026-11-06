@@ -18,7 +18,8 @@ PARALLEL = 3
 PACKAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~/-]*")
 
 
-def costs(path):
+def costs(path, *, required=False):
+    """Optional callers may omit history; matrix legs require a readable file."""
     try:
         record = json.loads(pathlib.Path(path).read_text())
         weights = record["milliseconds"]
@@ -27,7 +28,11 @@ def costs(path):
                 or any(type(n) is not int or n <= 0 for n in weights.values())):
             return {}
         return weights
-    except (OSError, ValueError, KeyError, TypeError):
+    except OSError:
+        if required:
+            raise
+        return {}
+    except (ValueError, KeyError, TypeError):
         return {}
 
 
@@ -96,7 +101,9 @@ def main(args):
     if not 0 <= index < SHARDS:
         raise ValueError("invalid shard index")
     report = json.loads(pathlib.Path(selection).read_text())
-    weights = costs(cost_file)
+    # A runner-local I/O failure cannot choose a different ownership algorithm
+    # from the other legs. Fail this leg instead of silently skipping packages.
+    weights = costs(cost_file, required=True)
     # Own packages before narrowing: a leg's FULL fallback must not move another
     # leg's affected packages into its shard, where they could be filtered out.
     bins, loads = partition(report["inventory"], weights)
