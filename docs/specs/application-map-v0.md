@@ -786,7 +786,7 @@ but does not read it; only non-Go syntax impact does.
   unknown, AMAP-V0-218). A substitution spanning several segments is AMAP-V0-217, YAML OpenAPI
   AMAP-V0-219, impact through the join AMAP-V0-220, and aliased roots AMAP-V0-222..223.
   Compatibility: a new verb and schema; no existing wire changes. Rollback: delete
-  `internal/appmap/endpoints.go`, `cmd/corvint/flows_appmap_endpoints.go` and the verb's dispatch.
+  `internal/appmap/endpoints.go`, `internal/command/flows/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
   (`appmap-builder/3`; bumped from `/1` by the V1-3932 React route ranking and to `/3` by the AMAP-V0-881 screen `dialect`), which is bumped in the same change as any change to what a build derives
@@ -2659,7 +2659,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
-`cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
+`internal/command/flows/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-application-map.md`, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-appmap-second-root.md`,
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-appmap-injected-state-names.md` (AMAP-V0-021..023,
 `internal/appmap/stateinject.go`), `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-09-v1-1061-appmap-enum-barrel.md`
@@ -2669,7 +2669,7 @@ Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 
 The slice is additive and experimental: a new package, one exported read-only contextindex
 wrapper and one `flows` subcommand. Rollback removes `internal/appmap`,
-`cmd/corvint/flows_appmap.go`, `internal/contextindex/webimport_api.go`, the `flowsAppmapHelp`
+`internal/command/flows/flows_appmap.go`, `internal/contextindex/webimport_api.go`, the `flowsAppmapHelp`
 reference in `cmd/corvint/help.go` and this spec's index rows; no stored state, schema or ledger
 needs migration. Map files are explicit outputs and may be discarded.
 AMAP-V0-016 adds two optional screen members (`name_from`, `parent_from`) that literal-only maps
@@ -2776,8 +2776,8 @@ rebuilds maps. No edge-ledger, test-plan or change-impact behavior is changed.
 | AMAP-V0-050, AMAP-V0-051, AMAP-V0-052, AMAP-V0-053 | `internal/appmap/entries.go`, `internal/appmap/router.go` | `TestEntriesClassification` |
 | AMAP-V0-054, AMAP-V0-055 | `internal/appmap/entries.go` | `TestEntriesRevisionBinding` |
 | AMAP-V0-056, AMAP-V0-058 | `internal/appmap/entries.go` | `TestEntriesLegacyAndUnprovenEdges` |
-| AMAP-V0-057, AMAP-V0-059 | `cmd/corvint/flows_appmap_entries.go` | `TestEntriesCLI`, `TestEntriesBudget` |
-| AMAP-V0-080, AMAP-V0-081, AMAP-V0-082 | `internal/appmap/entries.go`, `cmd/corvint/flows_appmap_entries.go` | `TestAMAPV0080EntriesLedgerPaths`, `TestEntriesCLI` |
+| AMAP-V0-057, AMAP-V0-059 | `internal/command/flows/flows_appmap_entries.go` | `TestEntriesCLI`, `TestEntriesBudget` |
+| AMAP-V0-080, AMAP-V0-081, AMAP-V0-082 | `internal/appmap/entries.go`, `internal/command/flows/flows_appmap_entries.go` | `TestAMAPV0080EntriesLedgerPaths`, `TestEntriesCLI` |
 
 V1-1168 (issue #778) adds `--ledger` (AMAP-V0-080..082): "runtime" paths are read from retained
 observed navigation evidence, the edge ledger's receipt-backed PROVEN edges, never by launching
@@ -2798,7 +2798,7 @@ error code.
 
 | Requirement | Implementation | Focused evidence |
 | --- | --- | --- |
-| AMAP-V0-090 | `internal/appmap/refs.go`, `cmd/corvint/flows_appmap_refs.go` | `TestAMAPV0090RefsReadOnlyContract`, `TestAMAPV0098RefsCLI` |
+| AMAP-V0-090 | `internal/appmap/refs.go`, `internal/command/flows/flows_appmap_refs.go` | `TestAMAPV0090RefsReadOnlyContract`, `TestAMAPV0098RefsCLI` |
 | AMAP-V0-091 | `internal/appmap/refs.go` | `TestAMAPV0091ScanRefs`, `TestAMAPV0095LabelledClasses` |
 | AMAP-V0-092 | `internal/appmap/refs.go`, `internal/appmap/jslex.go` | `TestAMAPV0092ValueModes` |
 | AMAP-V0-093 | `internal/appmap/refs.go`, `internal/appmap/router.go` | `TestAMAPV0093RouteCheck` |
@@ -2806,7 +2806,7 @@ error code.
 | AMAP-V0-095 | `internal/appmap/refs.go` | `TestAMAPV0095LabelledClasses` |
 | AMAP-V0-096 | `internal/appmap/refs.go` | `TestAMAPV0096BoundedOutput`, `TestAMAPV0098RefsCLI` |
 | AMAP-V0-097 | `internal/appmap/refs.go` | `TestAMAPV0097CorpusBounds` |
-| AMAP-V0-098 | `cmd/corvint/flows_appmap_refs.go` | `TestAMAPV0098RefsCLI`, `TestAMAPV0098UnlabelledCount` |
+| AMAP-V0-098 | `internal/command/flows/flows_appmap_refs.go` | `TestAMAPV0098RefsCLI`, `TestAMAPV0098UnlabelledCount` |
 | AMAP-V0-099 | `internal/appmap/refs.go` | `TestAMAPV0099SecretShapedValues` |
 
 Fixture: `internal/appmap/testdata/refs` (a `react-router/0` app with Playwright specs and a page
@@ -2827,7 +2827,7 @@ a screen that stays UNKNOWN, reads as a miss and `screens_unknown` says how many
 match; an unanchored regular expression is treated as a path prefix and labelled. Each outcome is
 named in the report rather than resolved by guessing.
 
-Rollback: remove `internal/appmap/refs.go`, `cmd/corvint/flows_appmap_refs.go`, the `refs` verb
+Rollback: remove `internal/appmap/refs.go`, `internal/command/flows/flows_appmap_refs.go`, the `refs` verb
 in `runFlowsAppmap` and its help text, the `regex` token member in `internal/appmap/jslex.go`
 (nothing else reads it) and this section's requirements and fixture; `urlPath` in
 `internal/appmap/router.go` is a behavior-preserving extraction that may stay. No stored state,
@@ -2847,27 +2847,27 @@ and test files; they add no map member, manifest member or error code.
 
 | Requirement | Implementation | Focused evidence |
 | --- | --- | --- |
-| AMAP-V0-100 | `internal/appmap/route_handlers.go`, `cmd/corvint/flows_appmap_actions.go` | `TestAMAPV0100ActionsReadOnlyContract`, `TestAMAPV0100ClientRoutersNotChecked`, `TestAMAPV0106ActionsCLI` |
+| AMAP-V0-100 | `internal/appmap/route_handlers.go`, `internal/command/flows/flows_appmap_actions.go` | `TestAMAPV0100ActionsReadOnlyContract`, `TestAMAPV0100ClientRoutersNotChecked`, `TestAMAPV0106ActionsCLI` |
 | AMAP-V0-101 | `internal/appmap/route_actions.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0101RouteCompilation`, `TestAMAPV0105ChainDoubtAndDraws`, `TestAMAPV0101AbsoluteControllersAndUpdateVerbs` |
 | AMAP-V0-102 | `internal/appmap/ruby_structure.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0100ActionsReadOnlyContract`, `TestAMAPV0103LookupOrderCases` |
 | AMAP-V0-103 | `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0105ChainDoubtAndDraws`, `TestAMAPV0103LookupOrderCases` |
 | AMAP-V0-104 | `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0103LookupOrderCases` |
 | AMAP-V0-105 | `internal/appmap/ruby_structure.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0105ChainDoubtAndDraws`, `TestAMAPV0103LookupOrderCases` |
-| AMAP-V0-106 | `internal/appmap/route_handlers.go`, `cmd/corvint/flows_appmap_actions.go` | `TestAMAPV0106ActionsBudget`, `TestAMAPV0106ActionsCLI` |
+| AMAP-V0-106 | `internal/appmap/route_handlers.go`, `internal/command/flows/flows_appmap_actions.go` | `TestAMAPV0106ActionsBudget`, `TestAMAPV0106ActionsCLI` |
 | AMAP-V0-107 | `internal/appmap/route_handlers.go` | `TestAMAPV0107OversizedHandler`, `TestAMAPV0116SharedReadBudget` |
-| AMAP-V0-110 | `internal/appmap/branch_tests.go`, `cmd/corvint/flows_appmap_branches.go` | `TestAMAPV0110BranchesReadOnlyContract`, `TestAMAPV0116BranchesCLI`, `TestAMAPV0116SharedReadBudget` |
+| AMAP-V0-110 | `internal/appmap/branch_tests.go`, `internal/command/flows/flows_appmap_branches.go` | `TestAMAPV0110BranchesReadOnlyContract`, `TestAMAPV0116BranchesCLI`, `TestAMAPV0116SharedReadBudget` |
 | AMAP-V0-111 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0113UnresolvedGuards` |
 | AMAP-V0-112 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0112CallbackAndHelperReach`, `TestAMAPV0112CallbackRestrictions`, `TestAMAPV0112CommentedCallsIgnored` |
 | AMAP-V0-113 | `internal/appmap/branch_tests.go` | `TestAMAPV0113UnresolvedGuards`, `TestAMAPV0111BranchReachAndSetup` |
 | AMAP-V0-114 | `internal/appmap/setup_writers.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0114FactoryInheritanceAndClass` |
 | AMAP-V0-115 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0113UnresolvedGuards` |
-| AMAP-V0-116 | `internal/appmap/branch_tests.go`, `cmd/corvint/flows_appmap_branches.go` | `TestAMAPV0116BudgetAndRedaction`, `TestAMAPV0116BranchesCLI`, `TestAMAPV0116SharedReadBudget` |
+| AMAP-V0-116 | `internal/appmap/branch_tests.go`, `internal/command/flows/flows_appmap_branches.go` | `TestAMAPV0116BudgetAndRedaction`, `TestAMAPV0116BranchesCLI`, `TestAMAPV0116SharedReadBudget` |
 
 Fixture: the inline Rails application of `internal/appmap/route_actions_test.go`
 (`railsFixtureFiles`: routes, controllers with an ancestor, a concern, a template-only action,
 a dynamic definition, an unresolved ancestor, a missing file and class, models, a factory with a
 trait, a YAML fixture, a setup endpoint, unit and request specs and a Playwright spec) and the
-CLI fixture of `cmd/corvint/flows_appmap_actions_test.go`. The setup-writer index
+CLI fixture of `internal/command/flows/flows_appmap_actions_test.go`. The setup-writer index
 (`newSetupWriterIndex`, `writersOf` in `internal/appmap/setup_writers.go`) is the reuse point
 for V1-1900.
 
@@ -2886,8 +2886,8 @@ naming false positive); a writer named by a factory or endpoint may not produce 
 guard needs. Each outcome carries its basis or reason rather than a guess.
 
 Rollback: remove `internal/appmap/route_actions.go`, `route_handlers.go`, `ruby_structure.go`,
-`branch_tests.go`, `setup_writers.go`, `cmd/corvint/flows_appmap_actions.go`,
-`cmd/corvint/flows_appmap_branches.go`, the `actions` and `branches` verbs in `runFlowsAppmap`
+`branch_tests.go`, `setup_writers.go`, `internal/command/flows/flows_appmap_actions.go`,
+`internal/command/flows/flows_appmap_branches.go`, the `actions` and `branches` verbs in `runFlowsAppmap`
 with their help text, and this section's requirements. No stored state, map schema or ledger
 needs migration; the reports are explicit stdout documents.
 
@@ -2904,15 +2904,15 @@ key is unset or empty, without ever printing a value. The reader is the new pack
 
 | Requirement | Implementation | Focused evidence |
 | --- | --- | --- |
-| AMAP-V0-130 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go`, `cmd/corvint/flows_request_path.go` | `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-130 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go`, `internal/command/flows/flows_request_path.go` | `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-131 | `internal/requestpath/requestpath.go`, `internal/requestpath/scan.go`, `internal/requestpath/parse.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain`, `TestAMAPV0134ReviewReproductions` |
 | AMAP-V0-132 | `internal/requestpath/scan.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain`, `TestAMAPV0134ReviewReproductions` |
 | AMAP-V0-133 | `internal/requestpath/requestpath.go` | `TestAMAPV0133GuardOrderFlagged`, `TestAMAPV0133GuardOrderNeedsProvenCheapGuard`, `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-134 | `internal/requestpath/scan.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0134DynamicConfigKey`, `TestAMAPV0134UnresolvedMiddlewareAndReceiver`, `TestAMAPV0134ReviewReproductions` |
 | AMAP-V0-135 | `internal/requestpath/profile.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0135ProfileRefusesByLineOnly`, `TestAMAPV0135QuotedEmptyWithComment`, `TestAMAPV0134DynamicConfigKey`, `TestAMAPV0138RequestPathCLI` |
-| AMAP-V0-136 | `internal/requestpath/profile.go`, `cmd/corvint/flows_request_path.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-136 | `internal/requestpath/profile.go`, `internal/command/flows/flows_request_path.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-137 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go` | `TestAMAPV0137Bounds` |
-| AMAP-V0-138 | `cmd/corvint/flows_request_path.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0138Refusals`, `TestAMAPV0138ImportedHandlerReadBound`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-138 | `internal/command/flows/flows_request_path.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0138Refusals`, `TestAMAPV0138ImportedHandlerReadBound`, `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-139 | `internal/requestpath/requestpath.go` | `TestAMAPV0139Deterministic` |
 
 Acceptance (issue 1200): (a) the token-exchange guard lists `OIDC_ISSUER` and
@@ -2950,7 +2950,7 @@ guard was handed some other object; a package missing from both lists reads
 `UNKNOWN` often, which keeps the guard-order finding conservative. Each
 over- or under-report is visible in the report rather than resolved by guessing.
 
-Rollback: remove `internal/requestpath`, `cmd/corvint/flows_request_path.go` and its test, the
+Rollback: remove `internal/requestpath`, `internal/command/flows/flows_request_path.go` and its test, the
 `flowsRequestPathHelp` term in `cmd/corvint/help.go`, the eight `request-path-*` error codes above
 and this section's requirements. No stored state, schema, ledger or other command changes; the
 report is an explicit stdout document.
@@ -2969,12 +2969,12 @@ note text and acts on the verdict and exit code.
 
 | Requirement | Implementation | Focused evidence |
 | --- | --- | --- |
-| AMAP-V0-140 | `internal/appmap/route_blocker.go`, `cmd/corvint/flows_appmap_blocker.go` | `TestAMAPV0141BlockerNoteBounds`, `TestAMAPV0145BlockerCLI` |
+| AMAP-V0-140 | `internal/appmap/route_blocker.go`, `internal/command/flows/flows_appmap_blocker.go` | `TestAMAPV0141BlockerNoteBounds`, `TestAMAPV0145BlockerCLI` |
 | AMAP-V0-141 | `internal/appmap/route_blocker.go` | `TestAMAPV0143BlockerVerdicts`, `TestAMAPV0141BlockerNoteBounds` |
 | AMAP-V0-142 | `internal/appmap/route_blocker.go`, `internal/appmap/route_actions.go` | `TestAMAPV0142RouteMatching`, `TestAMAPV0142BlockerUncertain`, `TestAMAPV0143BlockerVerdicts` |
 | AMAP-V0-143 | `internal/appmap/route_blocker.go` | `TestAMAPV0143BlockerVerdicts`, `TestAMAPV0142BlockerUncertain` |
 | AMAP-V0-144 | `internal/appmap/route_blocker.go` | `TestAMAPV0143BlockerVerdicts`, `TestAMAPV0142BlockerUncertain` |
-| AMAP-V0-145 | `internal/appmap/route_blocker.go`, `cmd/corvint/flows_appmap_blocker.go` | `TestAMAPV0145BlockerCLI` |
+| AMAP-V0-145 | `internal/appmap/route_blocker.go`, `internal/command/flows/flows_appmap_blocker.go` | `TestAMAPV0145BlockerCLI` |
 | AMAP-V0-146 | `internal/appmap/route_blocker.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0146BlockerDeterministic`, `TestAMAPV0107OversizedHandler` |
 
 Acceptance (issue 1215): (a) a note citing `404 POST /api/v2/widgets/42/archive` where only
@@ -2983,7 +2983,7 @@ Acceptance (issue 1215): (a) a note citing `404 POST /api/v2/widgets/42/archive`
 action is missing reads `ROUTE-ACTION-MISSING`; (c) a mounted, rack-endpoint or non-literal path,
 and an unmatched path while the table holds an uncompiled route, read `uncertain` with a reason.
 The fixtures are inline in `internal/appmap/route_blocker_test.go` and
-`cmd/corvint/flows_appmap_blocker_test.go`.
+`internal/command/flows/flows_appmap_blocker_test.go`.
 
 Non-goals: no blocker or obligation store, no rewrite or refusal of a recorded classification
 (the verdict and exit code are advisory to the caller); no Express, React or other non-Rails
@@ -2999,7 +2999,7 @@ citing a path on a line without `404` is not read; a mount written other than `=
 `at: "/p"` covers every path, so every unmatched request reads `uncertain` (conservative, never
 a false flag); nearest routes are a ranking hint, not a claim of intent.
 
-Rollback: remove `internal/appmap/route_blocker.go`, `cmd/corvint/flows_appmap_blocker.go`, their
+Rollback: remove `internal/appmap/route_blocker.go`, `internal/command/flows/flows_appmap_blocker.go`, their
 tests, the `opaque` route record in `route_actions.go` and `route_handlers.go`, the `blocker` verb
 and help text in `runFlowsAppmap`, and this section's requirements. No stored state, map schema
 or ledger needs migration.

@@ -1574,7 +1574,7 @@
     "implementation": [
       "internal/appflows/docs_maintain.go",
       "internal/doccorpus/apply_pair.go",
-      "cmd/corvint/flows_docs.go"
+      "internal/command/flows/flows_docs.go"
     ]
   },
   {
