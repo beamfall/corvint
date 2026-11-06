@@ -4,10 +4,14 @@ package shell
 
 import (
 	"context"
+	"encoding/json"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
-	"slices"
-	"testing"
 )
 
 // AZU-V0-8901: new literal/constructed foreign callers fail closed; listing
@@ -198,5 +202,105 @@ func TestConstructedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
 				t.Fatalf("known caller dropped: %+v", plan)
 			}
 		})
+	}
+}
+
+// AZU-V0-004, AZU-V0-8901: every supported construction spelling must
+// retain foreign-invocation uncertainty for root and nested callees alike,
+// without removing selections of already verified literal callers.
+func TestConstructedBasenameSpellings_AZU_V0_8901(t *testing.T) {
+	type construction struct{ name, expression string }
+	spellings := []construction{
+		{"backtick", "sh PREFIX`echo run`.sh"},
+		{"command", "sh PREFIX$(echo run).sh"},
+		{"braced", "sh PREFIX${name}.sh"},
+		{"variable", "sh PREFIX$name.sh"},
+		{"format", "PREFIX%s.sh"},
+	}
+	constructions := []construction{
+		{"format-spaced-basename", `fmt.Sprintf("PREFIX %s.sh", name)`},
+		{"concat", `"PREFIX" + name + ".sh"`},
+		{"concat-split-separator", `"DIRECTORY" + "/" + name + ".sh"`},
+		{"concat-raw", "`PREFIX` + name + `.sh`"},
+		{"join", `filepath.Join("DIRECTORY", name+".sh")`},
+		{"join-trailing-slash", `filepath.Join("PREFIX", name+".sh")`},
+		{"join-dot-slash", `filepath.Join("./PREFIX", name+".sh")`},
+		{"join-raw", "filepath.Join(`DIRECTORY`, name+`.sh`)"},
+		{"join-lowercase", `join("DIRECTORY", name+".sh")`},
+		{"joinpath", `joinpath("DIRECTORY", name+".sh")`},
+	}
+	for _, script := range []string{"run.sh", "run/run.sh"} {
+		prefix, directory := "", "."
+		if script == "run/run.sh" {
+			prefix, directory = "run/", "run"
+		}
+		cases := append([]construction{}, constructions...)
+		for _, spelling := range spellings {
+			// Exercise quoted command strings, including a command before the
+			// path and shell quotes inside the host-language string.
+			for _, quote := range []string{"", "'", "\""} {
+				command := spelling.expression
+				if strings.HasPrefix(command, "sh ") {
+					command = "sh " + quote + strings.TrimPrefix(command, "sh ") + quote
+				} else {
+					command = quote + command + quote
+				}
+				expression := `"-c", ` + strconv.Quote(command)
+				if spelling.name == "format" {
+					expression = `"-c", fmt.Sprintf(` + strconv.Quote(command) + `, name)`
+				}
+				cases = append(cases, construction{spelling.name + "/quoted-" + strconv.Quote(quote), expression})
+			}
+			if spelling.name != "backtick" {
+				expression := "\"-c\", `" + spelling.expression + "`"
+				if spelling.name == "format" {
+					expression = "\"-c\", fmt.Sprintf(`" + spelling.expression + "`, name)"
+				}
+				cases = append(cases, construction{spelling.name + "/raw", expression})
+			}
+		}
+		for _, tc := range cases {
+			t.Run(script+"/"+tc.name, func(t *testing.T) {
+				root := t.TempDir()
+				write(t, root, "go.mod", "module example.test/spellings\n\ngo 1.27\n")
+				write(t, root, script, "echo ok\n")
+				write(t, root, "caller/caller.go", "package caller\nvar script = "+strconv.Quote(script)+"\n")
+				write(t, root, "caller/caller_test.go", "package caller\n")
+				expression := strings.NewReplacer("PREFIX", prefix, "DIRECTORY", directory).Replace(tc.expression)
+				write(t, root, "extra/extra.go", "package extra\nimport (\"os/exec\"; \"path/filepath\"; \"fmt\")\nvar name = \"run\"\nvar cmd = exec.Command(\"sh\", "+expression+")\n")
+				write(t, root, "extra/extra_test.go", "package extra\n")
+				declaration := map[string]any{"profile": "corvint-shell-foreign-callers/0", "scripts": map[string]ForeignCallers{script: {Callers: []string{"caller/caller.go"}, Reason: "literal caller"}}}
+				body, err := json.Marshal(declaration)
+				if err != nil {
+					t.Fatal(err)
+				}
+				write(t, root, affected.ShellForeignCallersPath, string(body))
+				graph, err := affected.Build(context.Background(), root, golang.New(), New())
+				if err != nil {
+					t.Fatal(err)
+				}
+				plan := affected.Select(graph, []string{script})
+				if plan.Scope != affected.ScopeUnknown || !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool { return u.Detail == FrontierForeignInvocation }) {
+					t.Fatalf("undeclared constructed caller certified (%s): %+v", expression, plan)
+				}
+				if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/spellings/caller" }) {
+					t.Fatalf("known caller dropped: %+v", plan)
+				}
+			})
+		}
+	}
+}
+
+// AZU-V0-8901: command-prefix support must keep markers in later arguments
+// and diagnostic prose outside the computed basename of a nested script.
+func TestConstructedCommandPrefixBounds_AZU_V0_8901(t *testing.T) {
+	for _, body := range []string{
+		`"sh run/other.sh --flag=$name"`,
+		`"check-test: FAIL %s:%s names %s, but run/%s"`,
+		`'fixture: REFUSE missing-script run/%s'`,
+	} {
+		if constructedForeignReference([]byte(body), "run/run.sh") {
+			t.Errorf("marker outside computed basename matched: %s", body)
+		}
 	}
 }
