@@ -2685,8 +2685,8 @@
     "path": "docs/specs/pulse-snapshot-lease-v0.md",
     "title": "Pulse Snapshot Lease V0",
     "reqPrefix": "PSL-V0",
-    "intent": "proposed",
-    "delivery": "experimental (P0-A only)",
+    "intent": "retired 2026-11-06 (V1-4747 AC3)",
+    "delivery": "retired",
     "claim": "A local Go coordinator provides bounded P0-A snapshot lifecycle state; full WSI capture, leases, and deltas are not delivered.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
@@ -2694,11 +2694,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-pulse",
-      "internal/pulse",
-      "conformance/pulse-snapshot-v0"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/qualified-lifecycle-v0.md",

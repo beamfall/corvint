@@ -56,7 +56,6 @@ var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint-postmerge-connect", Command: "corvint-postmerge-connect help --json", Snapshot: "internal/capcatalog/trees/corvint-postmerge-connect.json"},
 	{Binary: "corvint-postmerge-metrics", Command: "corvint-postmerge-metrics help --json", Snapshot: "internal/capcatalog/trees/corvint-postmerge-metrics.json"},
 	{Binary: "corvint-postmerge-workflow", Command: "corvint-postmerge-workflow help --json", Snapshot: "internal/capcatalog/trees/corvint-postmerge-workflow.json"},
-	{Binary: "corvint-pulse", Command: "corvint-pulse help --json", Snapshot: "internal/capcatalog/trees/corvint-pulse.json"},
 	{Binary: "corvint-ruby-test-provider", Command: "corvint-ruby-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-ruby-test-provider.json"},
 	{Binary: "corvint-tasks", Command: "corvint-tasks help --json", Snapshot: "internal/capcatalog/trees/corvint-tasks.json"},
 	{Binary: "corvint-test", Command: "corvint-test help --json", Snapshot: "internal/capcatalog/trees/corvint-test.json"},
