@@ -94,6 +94,16 @@
 # as neither passed nor failed, and a receipt otherwise written records it as a trailing
 # `not-run TARGET REASON` line, which --verify-receipt accepts and prints. A host with node runs it.
 #
+# Unattributed failures (ASD-V0-110, V1-4153): a step with declared inputs (UNATTRIBUTED_INPUTS:
+# host-adapter-node-test reads integrations/, its Makefile recipe, cmd/corvint/pi_adapter.go,
+# docs/specs/pi-workflow-v0.md and conformance/) that fails at HEAD, not the same way at REV, and
+# whose inputs the diff since REV (tracked changes plus untracked, unignored files, compared as
+# NUL-delimited paths) does not touch runs the same bytes at both commits, so the change cannot have
+# caused it. A parent-relative path literal in the recipe's test files or the JavaScript beside them
+# that resolves outside those inputs makes coverage uncertain and keeps the introduced FAIL.
+# It prints `WARN NAME unattributed: ...` with the 1-minute load, never `introduced`, and is not
+# counted; like a base-present WARN it writes no receipt, so the step is rerun at a lower load.
+#
 # Sealed CEM names (ASD-V0-109, V1-3267): before the steps, every `.corvint/changes/NAME.cem.json`
 # the branch adds since the base (--base, BATCH_PRECHECK_BASE, else `git merge-base HEAD origin/main`)
 # must name, as NAME, a full commit in HEAD's history; a seal made on another lineage (a pre-rewrite
@@ -125,7 +135,9 @@
 #
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
-# docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
+# docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks. The doc-gates
+# CIN-V0-2304 trusted batch-check step is CI-only (ASD-V0-2472); its local twin is
+# `make dogfood-batch-check`.
 set -uo pipefail
 export LC_ALL=C
 
@@ -154,7 +166,7 @@ need_gocache() {
 
 # Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the node
 # half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062).
-EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test)
+EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test)
 # What capability-catalog-check reads beyond Go source: the root guides (README.md, llms.txt,
 # AGENTS.md) and top-level docs (CAPABILITIES.md, E2E-ADOPTION.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
@@ -175,7 +187,12 @@ SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
 # What script/lane-scripts_test.sh reads: its groups drive the scripts under script/ and read the
 # Makefile, docs/DOGFOOD.md and benchmarks/retained-data.tsv (the ASD-V0-646 group). Its groups run in sequence and share fixtures, so the step runs the
 # whole file, on the merged tree, when one of these changed (ASD-V0-640, V1-3744).
-LST_INPUTS='^(script/|Makefile$|docs/DOGFOOD\.md$|benchmarks/retained-data\.tsv$)'
+LST_INPUTS='^(script/|Makefile$|docs/(DOGFOOD|CAPABILITIES)\.md$|internal/capcatalog/|benchmarks/retained-data\.tsv$)'
+# Every input of a step whose result the diff can change only through these paths (ASD-V0-110):
+# a failure with none of them changed since the base is unattributed, not introduced. The node
+# tests also read cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md and conformance/; the
+# coverage scan in `unattributed` keeps the FAIL when a scanned file reaches any other path.
+UNATTRIBUTED_INPUTS=('make host-adapter-node-test|integrations/ Makefile cmd/corvint/pi_adapter.go docs/specs/pi-workflow-v0.md conformance/')
 # "<dir>|<gofmt -l arguments>": go-static runs from the root, go-interop from interop/cem01-go.
 GOFMT_SETS=(
   ".|cmd internal tools .github/cishards .github/testconfine"
@@ -207,10 +224,32 @@ else
     "./internal/tasks/store TestCALV0070_ @prebind"
     "./internal/tasks/journal TestCALV0070_ @prebind"
     "./internal/tasks/safeopen TestCALV0070_ @prebind"
+    "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
+    "./tools/ci-forward-row Test .github/"
     "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi
+
+# ASD-V0-2472 (V1-4525): the doc-gates step whose name carries `(CIN-V0-2304` is CI-only: it needs
+# the pull request's base and head, RUNNER_TEMP and a claude/batch-* head ref, and its local twin
+# is `make dogfood-batch-check` (DCW-V0-039). The sync check accepts that step only while its run
+# body, each line trimmed, is exactly the text below. Any other body fails closed, and so do these
+# lines under another step name. Change the step and this copy in one commit.
+IFS= read -r -d '' CI_ONLY_BATCH_CHECK << 'EOF' || true
+set -eu
+case "$EVENT_NAME:$HEAD_REF" in
+pull_request:claude/batch-*) ;;
+*) echo "not a batch pull request; skipped"; exit 0 ;;
+esac
+base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
+git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
+cd "$RUNNER_TEMP/batch-head"
+test "$(git rev-parse HEAD)" = "$PR_HEAD"
+"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
+EOF
 
 # job_block NAME prints the lines of one top-level job of the workflow.
 job_block() {
@@ -230,13 +269,14 @@ contains() {
 # `- {run: make x}`, a quoted key, an empty `run:`, a plain scalar continued on the next line), a
 # merge key or alias, or a `shell:`/`working-directory:` key is printed after a tab, as a form it
 # cannot classify, so doc_gates reports it unknown and the sync check fails closed (ASD-V0-036).
+# A command of the step named `(CIN-V0-2304` is printed after a FS (\034) byte (ASD-V0-2472).
 doc_gate_commands() {
   job_block doc-gates | awk -v cont=-1 '
     function emit(s) {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
       if (pending != "") { s = pending " " s; pending = "" }
       if (s ~ /\\$/) { pending = substr(s, 1, length(s) - 1); return }
-      if (s != "" && s !~ /^#/) print s
+      if (s != "" && s !~ /^#/) print (step == "ci-only" ? "\034" : "") s
     }
     function unparsed(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); print "\t" s }
     block {
@@ -252,7 +292,9 @@ doc_gate_commands() {
         cont = -1
       }
     }
-    /^[[:space:]]*#/ || /^[[:space:]]*(- )?name:/ { next }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*- / { step = "" }
+    /^[[:space:]]*(- )?name:/ { step = ($0 ~ /\(CIN-V0-2304[,)]/) ? "ci-only" : ""; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[|>][-+]?[[:space:]]*$/ { match($0, /^[[:space:]]*/); indent = RLENGTH; block = 1; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[^[:space:]]/ {
       s = $0; match(s, /run:/); cont = RSTART - 1
@@ -267,10 +309,15 @@ doc_gate_commands() {
 # doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
 # command; a make option other than -s/-k/--silent/--no-print-directory, a VAR=value, a target that
 # is not a plain name and a package that is not a plain ./path are unknown, so no shell syntax from
-# ci.yml ever reaches a step.
+# ci.yml ever reaches a step. The CI-only step prints one "cionly<TAB>CIN-V0-2304" row while its body
+# matches CI_ONLY_BATCH_CHECK and one "cionly-drift<TAB>CIN-V0-2304" row otherwise (ASD-V0-2472).
 doc_gates() {
-  local cmd words w targets ok
+  local cmd words w targets ok ci_only=
   while IFS= read -r cmd; do
+    if [[ $cmd == $'\034'* ]]; then
+      ci_only+="${cmd#$'\034'}"$'\n'
+      continue
+    fi
     if [[ $cmd == $'\t'* ]]; then
       printf 'unknown\t%s\n' "${cmd#$'\t'}"
       continue
@@ -295,6 +342,11 @@ doc_gates() {
     fi
     printf 'unknown\t%s\n' "$cmd"
   done < <(doc_gate_commands)
+  if [[ -n $ci_only && $ci_only == "$CI_ONLY_BATCH_CHECK" ]]; then
+    printf 'cionly\tCIN-V0-2304\n'
+  elif [[ -n $ci_only ]]; then
+    printf 'cionly-drift\tCIN-V0-2304\n'
+  fi
 }
 
 # doc_gate_env prints the doc-gates job-level `env:` as KEY=VALUE lines for env(1).
@@ -339,8 +391,11 @@ sync_check() {
   [[ -n $(job_block doc-gates) ]] || { printf 'batch-precheck: no doc-gates job in %s\n' "$workflow" >&2; return 1; }
   [[ -n $(doc_gates) ]] || { printf 'batch-precheck: the doc-gates job in %s has no run command\n' "$workflow" >&2; return 1; }
   while IFS=$'\t' read -r kind value; do
-    [[ $kind == unknown ]] || continue
-    printf 'batch-precheck: %s doc-gates runs `%s`, which batch-precheck cannot mirror (only make targets and go run)\n' "$workflow" "$value" >&2
+    case $kind in
+      unknown) printf 'batch-precheck: %s doc-gates runs `%s`, which batch-precheck cannot mirror (only make targets and go run)\n' "$workflow" "$value" >&2 ;;
+      cionly-drift) printf 'batch-precheck: %s doc-gates CI-only step (%s) no longer matches CI_ONLY_BATCH_CHECK in script/batch-precheck.sh; restore its run body, or change both in one commit if it stays CI-only (ASD-V0-2472)\n' "$workflow" "$value" >&2 ;;
+      *) continue ;;
+    esac
     bad=1
   done < <(doc_gates)
   # Every gofmt -l of go-static (root) and go-interop (interop/cem01-go).
@@ -395,11 +450,18 @@ drift_on=() cat_skip='' sb_skip='' sb_deferred='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
-# ASD-V0-912 (V1-3804): the selection only decides Go drift tests and the Go catalog check, so a
-# frontier detail of a language no Go test is selected through (its `LANG:` prefix) cannot change
-# it; every plan of this checkout carries dozens of TypeScript ones. Go and shell details still
-# need FRONTIER_OK, and any other prefix runs everything.
-FRONTIER_OTHER_LANGS='["cfamily","dotnet","python","ruby","swift","typescript"]'
+# ASD-V0-2402 (V1-3804, amends ASD-V0-912): the selection only decides Go drift tests, the Go
+# catalog check and selection-baseline-check, so it admits exactly the unknowns CI's deciding
+# selector narrows with (the shared allowlist gateselect.AllowedUnknown, AFP-V0-982, CIN-V0-860:
+# a LANGUAGE_FRONTIER that is not a `go:` frontier other than go:build-constraint-variants or
+# go:nested-module-frontier, an UNOWNED_DIRTY_PATH or a NO_SELECTABLE_TEST) and a well-formed
+# UNSELECTED_BINARY_CONSUMER, a non-Go file no Go run covers (gateselect.BinaryConsumer,
+# STR-V0-750). Every real plan carries some of these, so a first precheck never narrowed. Any
+# other unknown (an UNINDEXED_SOURCE_PATH, a module-level `go:` frontier) still runs everything.
+SELECT_ALLOWED='(.reason == "LANGUAGE_FRONTIER" and ((.detail | tostring | startswith("go:") | not) or .detail == "go:build-constraint-variants" or .detail == "go:nested-module-frontier"))
+  or .reason == "UNOWNED_DIRTY_PATH" or .reason == "NO_SELECTABLE_TEST"
+  or (.reason == "UNSELECTED_BINARY_CONSUMER" and (.detail | type) == "string" and .detail != "" and .detail != "."
+    and (.detail | test("^/|\\\\|[[:cntrl:]]|(^|/)\\.\\.?(/|$)|//|/$") | not))'
 
 # select_plan reads the batch diff and the affected plan into sel_changed, sel_go and sel_planned
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
@@ -437,7 +499,7 @@ select_plan() {
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
-  reasons=$(jq -r --argjson ok "$FRONTIER_OK" --argjson other "$FRONTIER_OTHER_LANGS" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or (([.detail] - $ok | length) > 0 and ([(.detail | tostring | split(":")[0])] - $other | length) > 0)) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
+  reasons=$(jq -r "[.plan.unknown[] | select(($SELECT_ALLOWED) | not) | \"\\(.reason) \\(.detail)\"] | unique | .[]" <<< "$plan") ||
     { sel_why='the plan unknowns are unreadable'; return 0; }
   # ASD-V0-893 (V1-3260): a count, the first unknown and a retained file of all of them, never the
   # whole list on one line.
@@ -745,6 +807,9 @@ doc_gate_expansion() {
       # ASD-V0-782: the first may also run through script/doc-gates-summary.sh.
       sub(/^\t@script\/doc-gates-summary\.sh /, "\t@", recipe[1])
       for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
+      # DTL-V0-006: the timed bounded-parallel wrapper runs precisely the same inventory.
+      if (recipe[1] == "\t@$(MAKE) --no-print-directory --keep-going -j$(DOC_GATE_JOBS) $(addprefix doc-gate/,$(DOC_GATE_TARGETS))")
+        recipe[1] = "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)"
       if (n == 0) exit
       if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") { print "drift"; exit }
       m = split(targets, t, /[[:space:]]+/)
@@ -817,6 +882,7 @@ steps() {
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
+  printf 'github-split (%s)\t%q %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/github-split-check.sh" "$base" # ASD-V0-706, V1-3292: a code range carries no .github commit
   printf 'test-script-refs\t%q\n' "${0%/*}/check-test-script-refs.sh" # ASD-V0-641, V1-3745
   printf 'dr-numbers\t%q\n' "${0%/*}/check-dr-numbers.sh" # ASD-V0-642, V1-3764
   printf 'merge-conflict-comments (%s)\t%q --conflict-comments %q\n' "$(git rev-parse --short HEAD)" "$0" "$base" # ASD-V0-784, V1-3504
@@ -1211,6 +1277,85 @@ at_base() {
   [[ ! -s $baselog.new ]]
 }
 
+# covered PATH TOKENS succeeds when repository path PATH is one of TOKENS or lies under a TOKEN
+# ending in `/` (ASD-V0-110).
+covered() {
+  local tok
+  for tok in $2; do
+    if [[ $tok == */ ]]; then [[ $1 == "$tok"* || $1 == "${tok%/}" ]] && return 0; else [[ $1 == "$tok" ]] && return 0; fi
+  done
+  return 1
+}
+
+# normpath DIR REL prints DIR/REL with `.` and `..` segments resolved, relative to the root, or
+# fails when it leaves the repository; the root itself prints as `.`.
+normpath() {
+  local -a out=() segs
+  local seg
+  IFS=/ read -ra segs <<< "$1/$2"
+  for seg in "${segs[@]}"; do
+    case $seg in
+      '' | .) ;;
+      ..) ((${#out[@]})) || return 1; unset 'out[${#out[@]}-1]' ;;
+      *) out+=("$seg") ;;
+    esac
+  done
+  local IFS=/
+  ((${#out[@]})) && printf '%s' "${out[*]}" || printf .
+}
+
+# inputs_cover NAME TOKENS succeeds when every parent-relative path literal (`..`, `../x`) in the
+# test files step NAME's recipe runs, and in the tracked non-test JavaScript under their
+# directories, resolves inside TOKENS (ASD-V0-110). A recipe that names no tracked test file, a
+# literal reaching the root or outside the repository, any other uncovered path, or a module
+# outside the scanned directories is uncertain dependency coverage.
+inputs_cover() {
+  local target=${1#make } files run dirs rest f lit q rel
+  q=\'
+  files=$(awk -v t="$target:" '$1 == t { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
+    grep -oE 'integrations/[^[:space:]]+\.test\.mjs' | sort -u)
+  [[ -n $files ]] || return 1
+  # shellcheck disable=SC2086 # the recipe's globs expand as make would expand them.
+  run=$(git -c core.quotePath=false ls-files -- $files 2> /dev/null) && [[ -n $run ]] || return 1
+  dirs=$(sed 's|/[^/]*$|/|' <<< "$run" | sort -u)
+  # shellcheck disable=SC2046 # one pathspec pair per directory; directory names hold no spaces.
+  rest=$(git -c core.quotePath=false ls-files -- $(sed 's|$|*.js|; p; s|\.js$|.mjs|' <<< "$dirs") 2> /dev/null) || return 1
+  rest=$(grep -v '\.test\.mjs$' <<< "$rest")
+  while IFS= read -r f; do
+    [[ -n $f ]] || continue
+    [[ -f $f ]] || return 1
+    while IFS= read -r lit; do
+      lit=${lit:1:${#lit}-2}
+      rel=$(normpath "${f%/*}" "$lit") || return 1
+      covered "$rel" "$2" || return 1
+      # A module outside the scanned directories may read further paths.
+      if [[ $rel == *.js || $rel == *.mjs ]] && ! covered "$rel" "$dirs"; then return 1; fi
+    done < <(grep -oE "[\"$q\`]\.\.(/[^\"$q\`[:space:]]*)?[\"$q\`]" "$f")
+  done <<< "$run"$'\n'"$rest"
+  return 0
+}
+
+# unattributed NAME prints the declared inputs of step NAME and succeeds when the diff since the
+# base (tracked changes and untracked, unignored files, read NUL-delimited so quoted names compare
+# as paths) touches none of them and the coverage scan finds no other input (ASD-V0-110). A step
+# without declared inputs, uncertain coverage or any git error fails, so its failure stays introduced.
+unattributed() {
+  local entry step inputs p
+  for entry in "${UNATTRIBUTED_INPUTS[@]}"; do
+    step=${entry%%|*}
+    [[ $step == "$1" ]] || continue
+    inputs=${entry#*|}
+    { git diff --name-only -z --no-renames "$base" -- && git ls-files -z -o --exclude-standard; } > "$dir/unattributed.paths" 2> /dev/null || return 1
+    while IFS= read -r -d '' p; do
+      covered "$p" "$inputs" && return 1
+    done < "$dir/unattributed.paths"
+    inputs_cover "$step" "$inputs" || return 1
+    printf '%s' "$inputs"
+    return 0
+  done
+  return 1
+}
+
 dir=
 # unstage_repin (ASD-V0-787, NEW-D4): the line-citation repin stages what it rewrites, because its
 # check reads the index, so each index entry the mechanical repin changed is put back as it was
@@ -1583,6 +1728,11 @@ if [[ -n $base ]]; then
     elif at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
+      tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
+    elif [[ -z $baseerr ]] && inputs=$(unattributed "$name"); then
+      : > "$dir/$i.warn"
+      printf 'batch-precheck: WARN %s (%ss) unattributed: fails at HEAD, not the same way at %s, but the diff changes none of its inputs (%s), so the change cannot have caused it; host load %s: rerun it at a lower load\n' \
+        "$name" "$secs" "$base" "${inputs// /, }" "$(cut -d ' ' -f 1 /proc/loadavg 2> /dev/null || sysctl -n vm.loadavg 2> /dev/null | awk '{ print $2 }' || printf unknown)"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
     else
       printf 'batch-precheck: FAIL %s (%ss) introduced: %s\n' "$name" "$secs" "${baseerr:-not present at $base}"

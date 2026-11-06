@@ -34,6 +34,30 @@ what any packet says.
 
 ## Requirements
 
+- `IDX-SNAP-V0-7560`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4553) A lazy mapped gob-body read MUST check the size of its exact backing inode before copying uncached bytes. A truncation MUST refuse even on systems whose private mapped pages remain readable. The mapping MUST retain a close-on-exec descriptor independent of the opening reader, and release it with its last mapping lease. Verified heap-cache hits need no further backing read.
+
+- `IDX-SNAP-V0-7803`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2746)
+  Document path-reference and generic import extraction MUST use linear scans with the frozen
+  regexes retained only as differential test oracles. Every result over the self corpus and
+  adversarial edge fixtures MUST equal the oracle, including non-overlapping match consumption,
+  Unicode whitespace and word boundaries. Whole-checkout build profiles and race timings remain
+  measured evidence, never a reason to shrink the self-documentation fixture.
+- `IDX-SNAP-V0-7804`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4199)
+  Evaluating a non-gob snapshot body MUST retain a same-host interleaved format-gate record
+  against `corvint-index-snapshot/3`, reporting bytes, cold/reuse index, context p50/p95, RSS,
+  CPU, decode share and hook latency, with byte-identical consumer outputs. Existing experimental
+  encodings MAY be challengers. The default format MUST NOT change unless decode's context CPU
+  share is at least halved and the DNIP benchmark/format gate passes. A losing or unqualified
+  challenger stays experimental; a new format must make old headers a rebuild miss. Rollback
+  selects the previous writer and its separate engine namespace without rewriting old files.
+
+Traceability for the 2026-11-04 evaluation:
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| IDX-SNAP-V0-7803 | `reference_scan.go`, `sourceImports` | `TestReferenceScannersMatchTheirRegexes`; `docs/build-log/2026-11-04-docperf.md` |
+| IDX-SNAP-V0-7804 | existing experimental pack reader/writer; default format unchanged | `TestDocperfPackSelfCorpusParity`, `TestDocperfSnapshotProfile`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`; `docs/build-log/2026-11-04-docperf.md` |
+
 - `IDX-SNAP-V0-001`: `corvint [--root PATH] index` builds the index of the committed tree exactly as
   `context` would and writes it under `.corvint/index/` as
   `<object-format>-<tree-oid>-<engine>.gob`. Location amendment 2026-09-23 (V1-0212, pending owner
@@ -136,7 +160,7 @@ what any packet says.
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
   the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1112-1114@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1487-1488@c39315fe` and `cmd/corvint/harness_context.go:70-71@70282d2c`) before
+  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1487-1488@c39315fe` and `cmd/corvint/harness_context.go:73-74@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
   (`cmd/corvint/prove.go:632@7ad2b2af`, `cmd/corvint/prove.go:653-654@38c3dce4`, `cmd/corvint/prove.go:675-676@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
@@ -1765,3 +1789,9 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-114 (standing auto-accept, V1-3016) | `joinLinesCapped`, `encodeLinesCapped` in `internal/contextindex/symbolwindows.go` | `TestJoinLinesCappedMatchesTruncatedJoin`, `TestSymbolContextTextAllocatesWithinTheCap` |
 | IDX-SNAP-V0-115 (standing lane auto-accept, V1-3133) | `noteSnapshotMissBuild` in `cmd/corvint/index_snapshot.go`; `impactSnapshotMissNotice` in `internal/dogfoodflow/flow.go` | `TestSnapshotMissNoticeNamesTheBuild`, `TestIDXSNAPV0115TreeNoticeKeepsTypedAbstention` |
 | IDX-SNAP-V0-955 (standing auto-accept, V1-3574) | `TestAnalyzerSchemaInputs` (no input pin), `script/analyzer-schema.sh` (`pins`, `check`, `bump`), `script/analyzer-inputs.sh` (IDX-SNAP-V0-890..892 govern) | `TestAnalyzerSchemaOutputDetectsAnalyzerMutation`, `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh` (two output-neutral `receipt.go` edits merge without conflict; changed inputs noted at check) |
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `IDX-SNAP-V0-7560` | `snapshot_mapping.go`, `snapshot_sectioned_mmap_unix.go`, `snapshot_bodies.go`; `TestSnapshotCachedPagesStillCheckBackingSize_IDXSNAPV07560`, `TestSnapshotBackingDescriptorLifetime_IDXSNAPV07560`, `TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811`; descriptor lives until mapping release. Adds one fstat per uncached lazy body, no cost/savings claim. |

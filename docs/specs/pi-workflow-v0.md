@@ -57,6 +57,17 @@ that exception grants neither a native claim nor native completion and changes n
 - `PWV-V0-019`: (proposed, V1-2573) When every failing reconciliation read refuses with native code `REDO_PENDING`, the Tasks service MUST return `pending-operation` with mutation `not-attempted`, retain the native receipts under `reconciliation`, and dispatch no writer. The wrapper MUST NOT redo the pending receipt (TM-V0-008): the next native writer redoes it. Any other reconciliation refusal stays `reconciliation-unavailable`.
 - `PWV-V0-020`: (proposed, V1-2783) A request with empty input MUST give the child `/dev/null` as stdin and write no stdin pipe; only a non-empty input opens one, and a failed write of it remains `stdin-failed`. Failure mode: a successful leader that exits without reading stdin, such as `git rev-parse` on a fast Linux host, raced the pipe close into EPIPE, reported `stdin-failed`, and Git identity returned `identity-unavailable` (rc.3 gate on linux/amd64).
 
+- `PWV-V0-8100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2149) The protected ordinary fallback MUST exercise the real lifecycle envelope validator for an admitted host version; an unadmitted embedded version MUST refuse visibly before spawn. The embedded version MUST NOT be relabelled as a different admitted host to obtain context. Source qualification and the macOS built-image witness remain distinct.
+- `PWV-V0-8101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3896) The documented Pi MCP registration MUST use `--local` from the project root, write `.pi/mcp.json`, retain the required protocol flag and leave the global MCP configuration byte-identical. The recipe MUST explain project trust and local removal.
+- `PWV-V0-8102`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0507) The explicit operator command MAY negotiate `ticket create` and `ticket refine` against native help on every call. Create takes only a native `payload`; refine also requires a ticket ID and fresh expected revision passed as native CAS. Payload fields MUST be a closed native create/refine projection, at most 65,536 serialized bytes, sent over stdin and never copied into the replay ledger. Native schema, secret screening, queue policy and role admission remain authoritative. Creation reconciles queue and audit; refinement additionally reconciles the target ticket. Both persist the logical ID before dispatch and retain same-ID uncertain recovery, frozen argv, conflict and terminal refusal semantics. Neither is a model tool or a manual completion route.
+- `PWV-V0-8103`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0509) Fork, resume and extension reload MUST NOT replenish an original session's spent remediation allowance. Retain at most 128 hashed spent session IDs in memory and inspect only the current native branch's existing remediation entry on a fresh load. Missing branch API or over 4096 entries MUST conservatively release until new interactive/RPC input. Generated input never resets allowance; record no additional transcript or secret. This conservative guard grants no workflow, ticket or protected authority.
+
+- `PWV-V0-8104`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0509) Workflow recovery and in-flight settlement MUST bind the resolved Git HEAD commit, not only its symbolic branch text. Bounded filesystem resolution MUST support loose refs, detached HEAD and linked-worktree common/packed refs (packed file at most 1 MiB); missing, malformed or over-bound identity refuses visibly. A changed same-branch commit MUST discard cached recovery and in-flight remediation. Native event commit identity MUST equal the captured commit, while native Core remains authoritative for tree, base, plan, attempt and report generation.
+
+- `PWV-V0-8300`: (experimental, V1-4662) The normal Node adapter entry point MUST discover every Pi and protected-Pi `*.test.mjs`, including native host checks. Missing optional tools or built host artifacts MUST skip with a named reason; an installed tool that fails MUST fail the check. Linux CI MUST install Pi 0.99.1 and the native candidates and require the Pi host prerequisites. Protected Darwin SEA qualification remains separate. Acceptance: package test commands, `host-prerequisites.test.mjs`, and `.github/workflows/pi-host.yml`; a remote CI run is required before claiming hosted qualification. Rollback: restore the explicit unit list and remove the qualification job.
+- `PWV-V0-8301`: (experimental, V1-4663; refines PWV-V0-004 and PWV-V0-008) Settlement MUST capture its identity and transition generation before awaiting the native event. A synchronous clear between response validation and caller resumption MUST discard that response without remediation, allowance consumption or an exception. Acceptance: `workflow.test.mjs` clears directly and through input, tree and session handlers between awaits. Rollback: restore the preceding settlement callback; retain the regression as a known failure until repaired.
+- `PWV-V0-8302`: (experimental, V1-4663; preserves PWV-V0-011) The closed Tasks facade MUST reject unwrapped `requiredRoles` and `requiresPool` inputs to `ticket create` and `ticket refine` without native dispatch. Valid operator payloads use only the explicit negotiated surface of PWV-V0-8102; this regression grants no additional mutation or model-tool authority. Acceptance: `tasks.test.mjs` checks `invalid-input` and no native dispatch alongside PWV-V0-8102's native-payload and same-ID recovery checks. Rollback: revert the additional malformed-input regression; the PWV-V0-8102 contract continues to govern valid requests.
+
 ## Trust boundary, limits and failure modes
 
 The process helper defaults to 15 seconds and 65,536 aggregate stdout/stderr bytes; configuration
@@ -90,17 +101,17 @@ as runtime admission.
 ```json
 {
   "profile": "corvint-pi-capabilities/0",
-  "tuple": {"adapterVersion": "0.3.12", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
+  "tuple": {"adapterVersion": "0.3.15", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
   "tools": {"corvint_context": "NATIVE_READ", "corvint_core_read": "NATIVE_READ", "corvint_expand": "NATIVE_READ", "corvint_record_outcome": "EXPLICIT_RECORD", "corvint_tasks": "NATIVE_READ"},
   "commands": {"corvint": "NATIVE_READ", "corvint-context": "LIFECYCLE", "corvint-outcome": "LIFECYCLE", "corvint-record": "EXPLICIT_RECORD", "corvint-tasks": "OPERATOR_NATIVE_WRITE", "corvint-workflow": "LOCAL_POLICY"},
   "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],
   "coreReadOperations": ["affected", "cem-status", "context", "dogfood-status", "features", "frontier", "impact", "ocm-status", "overview", "prove", "query", "review", "witness"],
   "tasksReadOperations": ["attempt", "audit", "blockers", "gate", "gates", "help", "list", "plan", "queue", "readiness", "release", "releases", "roadmap", "search", "ticket"],
-  "tasksWriteOperations": ["claim", "complete", "gate run", "release", "renew", "submit", "ticket prioritize"],
+  "tasksWriteOperations": ["claim", "complete", "gate run", "release", "renew", "submit", "ticket create", "ticket prioritize", "ticket refine"],
   "tasksWriteAdmission": "native-help-implemented-per-call",
   "skills": ["corvint-context", "corvint-impact", "corvint-review", "corvint-tasks"],
   "unavailable": ["Windows descendant cleanup", "authoritative completion continuation", "formal FULL qualification", "protected authority"],
-  "deferred": {"approved ticket create and refine": "V1-0507", "comparative qualification and support-matrix release": "V1-0511", "non-fixture native write qualification": "V1-0507", "workflow recovery qualification": "V1-0509"}
+  "deferred": {"comparative qualification and support-matrix release": "V1-0511", "non-fixture native write qualification": "V1-0507", "workflow recovery qualification": "V1-0509"}
 }
 ```
 
@@ -122,6 +133,9 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-001, PWV-V0-002 | `integrations/pi/core.js` | `core.test.mjs`: literal read argv, unknown preservation, native vs transport errors, no write operations; exact native installed-binary smoke retained separately |
 | PWV-V0-003 | `integrations/pi/process.js` | `process.test.mjs`: stdin/argv literalness, aggregate output bounds, timeout/abort/close, leader-exit descendant cleanup, missing executable |
 | PWV-V0-020 | `integrations/pi/process.js` | `process.test.mjs`: `PWV-V0-020 empty input gives the child no stdin pipe; non-empty input keeps it` |
+| PWV-V0-8300 | Normal Node test discovery and exact-host Linux job | Package test commands and `host-prerequisites.test.mjs`; hosted execution remains separately observed |
+| PWV-V0-8301 | Settlement identity and transition fence | `workflow.test.mjs` between-await invalidation regression |
+| PWV-V0-8302 | Closed Tasks operation inventory | `tasks.test.mjs` create/refine no-dispatch regression |
 | PWV-V0-004 | Core dispatch plus host handle/cockpit owners | Untrusted dispatch test; canonical identity and transition invalidation require host integration checks |
 | PWV-V0-005, PWV-V0-006 | Tasks service and operation metadata owner | Native capability and temporary-store mutation/CAS/reconciliation qualification required; mocks alone insufficient |
 | PWV-V0-007 | Cockpit owner | Narrow/wide and control-character fixture tests plus exact TUI/RPC/print host checks required |
@@ -129,8 +143,7 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-009 | Pi package/compatibility and native qualification owner | Exact candidate install/load/unload/rollback observations required |
 | PWV-V0-010 | Integration owner | Independent review, scoped frozen evidence, host tuple and honest measurement exclusions required |
 | PWV-V0-011 | Capability contract above plus every registering module | `capabilities.test.mjs`: registered tools/commands/events, operation sets and unavailable set equal the inventory; per-call native write negotiation and out-of-inventory refusal |
-| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Manual qualification only: excluded from `make host-adapter-test`, CI and every gate; run by hand with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
-
+| PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Included in normal adapter discovery and the Linux qualification job; also run directly with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
 | PWV-V0-013 | `integrations/pi/tasks.js` reads | `tasks.test.mjs`: literal search/list argv, Unicode and spaced labels, and every refusal (unknown status or kind, duplicate status, label bounds) with zero native calls; `tasks-host.test.mjs` returns tickets, page and warnings from native search/list on an initialized store without mutation; `core-host.test.mjs` shows the `UNINITIALIZED` refusal without a store |
 | PWV-V0-014 | `integrations/pi/core.js` | `core.test.mjs`: literal overview/features/witness argv, required base, refused CEM flags, `evidence` mapped to `--evidence-in-repo` and every lexical refusal named with zero native calls; `core-host.test.mjs` byte-identical worktree after the real reads, an in-checkout evidence document reported as a source, and an outside link refused natively |
 | PWV-V0-015 | `core.js`, `tasks.js`, `tools.js` registration | `capabilities.test.mjs`: each tool's annotations follow its inventory state; live `getAllTools` receipt in the build-log matrix |
@@ -138,6 +151,13 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-017 | `integrations/pi/skills/`, `package.json` | `capabilities.test.mjs`: shipped skill set, frontmatter names, tool routes, and no named native command or instruction to run tests or checks; `core-host.test.mjs`: the review skill's head rule (a head other than HEAD is refused); live `get_commands` receipt in the build-log matrix |
 | PWV-V0-018 | `integrations/pi/process.js`, `tasks.js` writer dispatch | `process.test.mjs`: a TERM-handling leader finishes its record under a 5,000 ms grace and is killed under the default and a 150 ms grace; out-of-range `graceMs` refuses; a leader exit after a graced sweep sends no further signal; `tasks.test.mjs`: the writer call carries 40,000 ms and reads carry none |
 | PWV-V0-019 | `integrations/pi/tasks.js` reconciliation | `tasks.test.mjs`: `REDO_PENDING` gives `pending-operation` with no dispatch and other refusals stay `reconciliation-unavailable`; manual `tasks-host.test.mjs` restores the pre-apply head after a real native gate run and requires `pending-operation`, then a native writer redo and clean reads |
+
+| PWV-V0-8100 | Protected ordinary fallback plus real lifecycle runner | `integrations/pi-protected/host-version.test.mjs`: admitted response validated and mismatched SDK visibly refused; final macOS built-image check remains separate |
+| PWV-V0-8101 | `integrations/pi/README.md` | `integrations/pi/mcp-scope.test.mjs`: exact documented recipe against Pi 0.99.1, local config and unchanged global bytes |
+| PWV-V0-8102 | `integrations/pi/tasks.js` | `integrations/pi/tasks.test.mjs`: native payload/CAS argv, durable pre-dispatch ID, lost response, frozen same-ID recovery and absence of prose in ledger; `capabilities.test.mjs`: per-call negotiation |
+| PWV-V0-8103 | `integrations/pi/workflow.js` | `integrations/pi/workflow.test.mjs`: fork/resume spent allowance and fresh-extension branch reconstruction, missing API and bounded-history negatives |
+
+| PWV-V0-8104 | `integrations/pi/workflow.js` | `integrations/pi/workflow.test.mjs`: cached and in-flight same-branch commit negatives; loose/packed/detached/linked refs and unresolved identity |
 
 A test path names required evidence, not an assertion that it passed. Final outcome belongs in the
 combined build-log and bound CEM/OCM. Missing or failed acceptance rows keep delivery experimental.
@@ -161,3 +181,8 @@ Protected continuation and supervisor participation depend on their owning accep
 native interfaces. Comparative productivity, token/cache/cost savings and broad host support are
 NOT_OBSERVED. Halt a slice if it cannot preserve native admission, bound process lifetime, distinguish
 uncertainty, or reproduce its exact-host evidence. Do not weaken those boundaries to advertise delivery.
+
+The PWV-V0-8102 additions roll back by removing create/refine from the inventory and write
+projection; preserve pending metadata for native reconciliation rather than deleting it.
+PWV-V0-8103 rolls back with the continuation guard; that reopens the replenishment defect, so
+disable automatic remediation when reverting it. The native branch history remains unchanged.

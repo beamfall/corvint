@@ -26,3 +26,14 @@ func unmapReadOnly(mapping []byte) {
 		_ = syscall.Munmap(mapping)
 	}
 }
+
+func duplicateSnapshotFile(file *os.File) (*os.File, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	fd, err := syscall.Dup(int(file.Fd()))
+	if err != nil {
+		return nil, err
+	}
+	syscall.CloseOnExec(fd)
+	return os.NewFile(uintptr(fd), file.Name()), nil
+}

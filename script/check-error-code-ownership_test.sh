@@ -86,11 +86,17 @@ esac
 git -C "$test_root" add -A
 output=$(run) || fail "removing the stale entry did not restore a pass: $output"
 
-# 4. Test files and untracked files are outside the scan.
+# 4. ECO-V0-7500: files omitted by the index scan must be named.
 printf 'package pkg\n\nvar _ = Error{Code: "test-only-code"}\n' > "$test_root/internal/pkg/pkg_test.go"
 git -C "$test_root" add internal/pkg/pkg_test.go
 printf 'package pkg\n\nvar _ = Error{Code: "untracked-code"}\n' > "$test_root/internal/pkg/scratch.go"
 output=$(run) || fail "a test-file or untracked code failed the gate: $output"
+case $output in *'NOT_CHECKED unstaged internal/pkg/scratch.go (git add this path, then rerun)'*) ;; *) fail "untracked omission not named: $output" ;; esac
+printf '\nvar _ = Error{Code: "unstaged-code"}\n' >> "$test_root/internal/pkg/pkg.go"
+output=$(run) || fail "unstaged omission failed: $output"
+case $output in *'NOT_CHECKED unstaged internal/pkg/pkg.go '*) ;; *) fail "unstaged omission not named: $output" ;; esac
+git -C "$test_root" checkout -- internal/pkg/pkg.go
+rm "$test_root/internal/pkg/scratch.go"
 
 # 5. A git grep failure is refused, never read as an empty emitted set.
 cat > "$fakebin/git" <<'EOF'

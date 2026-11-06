@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Native read-chain witness (PWV-V0-012); this does not claim Pi host/OS support.
 import test from 'node:test';
+import {hostAvailable,hostFile} from './host-prerequisites.mjs';
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -29,6 +30,7 @@ async function snapshot(root) {
 }
 
 test('PWV-V0-012 named task -> governing clause -> immutable source -> impact -> selected tests, without mutation',async t=>{
+ if(!(hostAvailable(t,process.env.CORVINT_BIN??'corvint')&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const cwd=await mkdtemp(join(tmpdir(),'pi-core-native-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
  const env={PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'};
  const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
@@ -111,6 +113,7 @@ test('PWV-V0-012 named task -> governing clause -> immutable source -> impact ->
 // PWV-V0-013: without a store, native search and list refuse UNINITIALIZED and initialize nothing.
 // Successful reads on an initialized store are qualified in tasks-host.test.mjs.
 test('PWV-V0-013 search and list refuse UNINITIALIZED in a repository without a task store, without mutation',async t=>{
+ if(!(hostAvailable(t,process.env.CORVINT_BIN??'corvint')&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const cwd=await mkdtemp(join(tmpdir(),'pi-tasks-absent-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
  const env={PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'};
  const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
@@ -134,6 +137,7 @@ test('PWV-V0-013 search and list refuse UNINITIALIZED in a repository without a 
 // reported as a source, a link that leaves the checkout is refused natively with
 // a named reason, and a path the facade does not admit never reaches the binary.
 test('PWV-V0-014 witness evidence is read only from inside the checkout, without mutation',async t=>{
+ if(!(hostAvailable(t,process.env.CORVINT_BIN??'corvint')&&hostAvailable(t,process.env.CORVINT_TASKS_BIN??'corvint-tasks')))return;
  const cwd=await mkdtemp(join(tmpdir(),'pi-core-evidence-'));t.after(()=>rm(cwd,{recursive:true,force:true}));
  const outside=await mkdtemp(join(tmpdir(),'pi-core-evidence-outside-'));t.after(()=>rm(outside,{recursive:true,force:true}));
  const env={PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'};

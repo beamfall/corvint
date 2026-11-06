@@ -187,6 +187,7 @@ func TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired(t *testing.T) 
 	if err := os.Mkdir(plain, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	skipInsideGit(t, plain)
 	for _, arguments := range [][]string{
 		{"--root", "core=" + repository, "--root", "web=" + plain},
 		{"--root", plain, "--follow-ref", "main"},

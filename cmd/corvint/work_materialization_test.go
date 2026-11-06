@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
@@ -938,4 +939,28 @@ func workRunParentEnvironment() []string {
 		return []string{"CORVINT_WORK_RUN_PARENT=" + parent}
 	}
 	return nil
+}
+
+// WQO-V0-971, ASD-V0-2476 (V1-4511): a .git that is a file, as in a linked worktree, does
+// not end the comparison at the root: the entries after it are still checked.
+func TestVerifyMaterializedTreeGitFileKeepsSiblings(t *testing.T) {
+	entries := []worksource.Entry{{Path: "a.txt"}, {Path: "dir/b.txt"}}
+	tree := fstest.MapFS{
+		".git":      {Data: []byte("gitdir: /elsewhere\n")},
+		"a.txt":     {Data: []byte("a")},
+		"dir/b.txt": {Data: []byte("b")},
+	}
+	if err := verifyMaterializedTree(tree, entries); err != nil {
+		t.Fatalf("a .git file hid the later entries: %v", err)
+	}
+	tree["zz-extra"] = &fstest.MapFile{Data: []byte("x")}
+	if err := verifyMaterializedTree(tree, entries); err == nil || !strings.Contains(err.Error(), `"zz-extra"`) {
+		t.Fatalf("an unexpected entry after a .git file was not reported: %v", err)
+	}
+	delete(tree, "zz-extra")
+	tree[".git"] = &fstest.MapFile{Mode: fs.ModeDir}
+	tree[".git/HEAD"] = &fstest.MapFile{Data: []byte("ref: refs/heads/main\n")}
+	if err := verifyMaterializedTree(tree, entries); err != nil {
+		t.Fatalf("a .git directory was compared as materialized content: %v", err)
+	}
 }

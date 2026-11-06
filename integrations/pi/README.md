@@ -106,10 +106,20 @@ permission extensions can read through `getAllTools`; they are hints, not author
 package also ships the `corvint-context`, `corvint-impact`, `corvint-review` and
 `corvint-tasks` skills, loaded on demand or with `/skill:<name>`; `--no-skills` disables them.
 
-Pi 0.99.1 also has a native MCP client. To add the `corvint-mcp` companion, register it with
-the legacy protocol Pi speaks: `pi mcp add corvint -- corvint-mcp --protocol-version 2025-11-25
---root <repo>`, then check it with `pi mcp list`. Without the flag Pi reports `corvint: failed`; the
-server's answer (`-32602`) names the `--protocol-version 2025-11-25` flag (V1-2507, `MCPV0-820`). The extension does not register it for you.
+Pi 0.99.1 also has a native MCP client. From the repository root, register the
+`corvint-mcp` companion in this project only:
+
+```sh
+pi mcp add corvint --local -- corvint-mcp --protocol-version 2025-11-25 --root "$PWD"
+```
+
+`--local` writes `.pi/mcp.json` in the current project and leaves
+`~/.pi/agent/mcp.json` unchanged. Without it, Pi writes global configuration.
+Start Pi in the project and explicitly trust it before `pi mcp list` will use its local
+configuration. Keep the legacy protocol flag: without it Pi reports `corvint: failed`;
+the server's `-32602` answer names the required flag (V1-2507, `MCPV0-820`).
+The extension does not register it for you. Remove this registration with
+`pi mcp remove corvint --local` from the same project.
 
 `/corvint` opens Evidence, Changes, Tasks, Verification and Gaps. Use left/right or
 1–5 to select a view, `r` to refresh, arrows/PageUp/PageDown to scroll and `q`/Escape
@@ -126,9 +136,9 @@ claiming authenticated human provenance. Example:
 {"operation":"ticket prioritize","requestId":"operator-priority-001","input":{"ticketId":"ticket:project:main:V1-0001","expectedRevision":"2","priority":"P1","order":"3"}}
 ```
 
-Supported writes are prioritize, claim, renew, release, submit, gate run and complete,
+Supported writes are ticket create, refine and prioritize, claim, renew, release, submit, gate run and complete,
 subject to native capabilities, policy, current revisions and attempt ownership.
-Free-text create/refine, initialization, migration and manual-completion bypass are absent.
+Create takes `input:{"payload":{...}}`; refine takes `input:{"ticketId":"...","expectedRevision":"...","payload":{...}}`. Both send the approved native payload over stdin, and native Tasks validates schema, secrets and queue policy. Initialization, migration and manual-completion bypass are absent.
 A private bounded Git-directory ledger stores replay metadata and terminal truth, never
 a competing queue. After uncertainty, inspect the returned audit/ticket/attempt receipts
 and repeat the identical command with `resume:true` when native replay is safe; do not
@@ -154,14 +164,32 @@ plan; `/corvint-workflow status` inspects it. The plan uses the existing native
 `corvint dogfood begin` schema. Session identity is separately namespaced for Pi.
 Only a completed idle final-settlement boundary may request one remediation for a
 validated incomplete policy. A second boundary releases with a visible unresolved
-notice; aborts, errors and queued work never become successful completion. Recovery
+notice; aborts, errors and queued work never become successful completion. Fork/resume retains a spent remediation allowance; a fresh extension also inspects its
+existing branch remediation entries. Missing branch history or more than 4096 entries
+conservatively releases until new interactive/RPC input. Recovery also binds the resolved HEAD commit, including loose/packed and linked-worktree refs; a same-branch external commit invalidates cached recovery. Missing or over-bound identity refuses. No extra transcript is saved. Recovery
 packets remain ephemeral. Settlement runs no tests, report writers or outcome recording.
 Verification and finishing remain explicit native CLI operations with the shown session key.
 
-The expanded dependency-free unit suite is the `host-adapter-test` Makefile target's
-Node command. Native qualification additionally runs `host.test.mjs`,
-`tasks-host.test.mjs`, `cockpit-host.test.mjs` and `workflow-host.test.mjs`; the latter
-requires `CORVINT_PI_WORKFLOW_BIN` pointing to the matching committed candidate.
+Run `npm --prefix integrations/pi test` for the complete Pi suite and
+`npm --prefix integrations/pi-protected test` for the protected suite. Both are in
+`make host-adapter-node-test`. Optional native prerequisites skip with named reasons;
+`CORVINT_REQUIRE_PI=1` makes a missing prerequisite fail qualification. The Linux
+`Pi host qualification` workflow (landed in its own control-plane change) installs Pi 0.99.1 and native candidates, then runs
+the full Pi suite with that requirement. `.github/` changes need the existing
+ci-control-plane admin status before landing; a workflow file is not CI-run evidence.
+Set `PI_BIN` for a non-PATH host, `CORVINT_PI_SDK_ROOT` for the npm installation prefix,
+and `CORVINT_PI_WORKFLOW_BIN` for the matching Core candidate. Native Tasks fixture
+writes can be explicitly disabled with `CORVINT_PI_TASK_WRITES=0`; they then remain
+unqualified. The protected SEA checks require their built Darwin artifacts.
+
+Workflow identification calls `workflowRevision` to bind the commit behind HEAD,
+including symbolic HEAD via loose or packed refs and linked-worktree common refs.
+Detached HEAD is supported. Missing, malformed or over-bound identity refuses with
+`invalid-worktree-identity`, including an unborn branch or a symbolic ref that cannot
+be resolved through the supported files. A same-branch commit invalidates cached
+recovery and in-flight remediation. Native Core remains authoritative for tree,
+base, plan, attempt and report identity; these checks do not establish reftable support.
+
 Preserve installed official binaries; a local candidate is a source build with separate
 provenance and rollback, never a released update. Supervisor participation remains
 blocked on its host-neutral native foundation. Comparative productivity, provider tokens,

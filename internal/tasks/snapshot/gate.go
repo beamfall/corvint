@@ -184,6 +184,7 @@ func (g *GateResult) Encode() ([]byte, error) {
 // null docs, CEM and OCM results, because it applies only reducer rows 1-6
 // and 12 (CAL amendment A13).
 type Manifest struct {
+	CompletionCommit   string // optional full OID retained by new completions
 	Supervision        *Supervision
 	AttemptID          string
 	Generation         wire.Size
@@ -215,6 +216,9 @@ func (m *Manifest) Encode() ([]byte, error) {
 	o.Set("policySha256", wire.String(string(m.PolicySha256)))
 	o.Set("configSha256", wire.String(string(m.ConfigSha256)))
 	o.Set("baseCommit", wire.String(m.BaseCommit))
+	if m.CompletionCommit != "" {
+		o.Set("completionCommit", wire.String(m.CompletionCommit))
+	}
 	o.Set("candidateTreeOid", wire.String(m.CandidateTreeOid))
 	o.Set("acceptanceMap", wire.Array())
 	o.Set("gateResults", wire.Strings(m.GateResults))
@@ -250,7 +254,7 @@ func DecodeManifest(data []byte) (*Manifest, error) {
 	if err := wire.ProfileVersion("/profile", v, ProfileManifest); err != nil {
 		return nil, err
 	}
-	r.Closed(wire.OptionalKeys(v, manifestFields, "supervision")...)
+	r.Closed(wire.OptionalKeys(v, manifestFields, "supervision", "completionCommit")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -269,6 +273,9 @@ func DecodeManifest(data []byte) (*Manifest, error) {
 	m.PolicySha256 = r.Field("policySha256").Digest()
 	m.ConfigSha256 = r.Field("configSha256").Digest()
 	m.BaseCommit = r.Field("baseCommit").OID()
+	if wire.Has(v, "completionCommit") {
+		m.CompletionCommit = r.Field("completionCommit").OID()
+	}
 	m.CandidateTreeOid = r.Field("candidateTreeOid").OID()
 	r.Field("acceptanceMap").Array(0, false)
 	m.GateResults = r.Field("gateResults").Strings(-1, false, readDigestString)

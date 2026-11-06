@@ -44,6 +44,9 @@ the mutable global Pi installation: this is feasibility evidence only.
 - `PPI-V0-008`: FULL requires independently completed exact-image TUI and RPC qualification: all eleven AHI cases, actual OPEN/EMPTY/recursive Stop, permission/privacy negatives, cold query and lifecycle p95, equal-critical-evidence recall, final FULL-shaped output bounds, installation/revocation and cleanup. Candidate campaigns remain bounded to 900 seconds, FALLBACK/UNQUALIFIED and never self-renew or self-promote. Source tests, manifests, signatures and local workflow receipts cannot fill missing qualification evidence.
 - `PPI-V0-009`: Rollback removes/revokes only the optional Pi campaign/admission/runtime and restores ordinary FALLBACK use. Installation refuses to overwrite a different host/root or an existing unreviewed asset set. Image, asset, dependency, OS or policy drift invalidates qualification and requires fresh review; old receipts are retained unchanged.
 
+- `PPI-V0-8100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4345) The locked protected dependency closure MUST use highlight.js 11.12.0, never 10.7.3. The build MUST resolve the pinned SDK highlighter's legacy core, language and full-library imports through v11's public exports without editing installed packages or admitting other importers. A bundled SDK smoke MUST exercise C, C++ and Arduino highlighting, including lazy full-library loading. The embedded HTML-export browser asset MUST also be built from the locked v11 library instead of the SDK’s older vendored copy, retaining its license.
+- `PPI-V0-8101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4346) A clean pinned npm installation MUST resolve yaml 2.9.1 instead of 2.9.0 throughout the protected dependency closure; the bundled SDK frontmatter parser MUST retain ordinary mapping, alias and body behavior. Lockfile-only changes without clean-install evidence are insufficient. The Bun-built dependency checks for PPI-V0-8100 and PPI-V0-8101 MUST skip before any work with the named cause `bun is not installed` only when a `bun --version` probe fails with ENOENT and `CORVINT_REQUIRE_BUN` is not `1`; required-mode absence, other probe failures and an installed Bun version other than 1.3.11 MUST fail, preserving all build and content assertions.
+
 ## Runtime boundary
 
 The first implementation uses Node SEA with `execArgvExtension: "none"` and embedded
@@ -140,3 +143,15 @@ No fixture seam, test result, image signature or release manifest admits a root 
 Stop promotion when a mutable executable dependency remains, real native behavior fails, or any
 required independent/measurement evidence is missing. Repair implementation within this intent;
 never weaken the admission or FULL definition to make the prototype pass.
+
+## Dependency repair acceptance
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| PPI-V0-8100 | `integrations/pi-protected/highlight-import.mjs`, `build.mjs`, dependency overrides | `integrations/pi-protected/dependencies.test.mjs`: closure check and bundled SDK highlighter smoke |
+| PPI-V0-8101 | dependency overrides and lock | `integrations/pi-protected/dependencies.test.mjs`: closure check and bundled frontmatter smoke |
+
+These dependency changes invalidate prior image qualification under PPI-V0-009. They do not
+admit another host version. Rollback reverts the overrides, resolver and lock together and retains
+the vulnerable-dependency finding; never advertise that rollback as a security fix. Final macOS
+SEA qualification and external scanner disposition remain separate observations.

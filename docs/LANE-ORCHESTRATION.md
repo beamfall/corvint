@@ -14,8 +14,11 @@ one branch: spec, implementation, focused checks, one dogfood finish, one push a
 writes no Tasks store state: it reports ticket state as `Corvint-Ticket` commit trailers from
 `corvint-tasks work start|deliver|block` (read-only; [TASKS-EXTERNAL-AGENTS](TASKS-EXTERNAL-AGENTS.md)
 "Report lane work with commit trailers"), and the orchestrator ingests them with `work
-close-merged` after the merge (TAW-V0-017). A lane never edits `.taskman/` or `.github/`, never
-starts background jobs or subagents, and never touches another lane's checkout.
+close-merged` after the merge (TAW-V0-017). A lane never writes to Tasks itself (no `claim`,
+`submit`, `complete` or ticket mutation), never edits `.taskman/` or `.github/`, never starts
+background jobs or subagents, and never touches another lane's checkout. Reading is allowed
+(V1-4165): a lane may read its assigned tickets with `corvint-tasks ticket show <ID>` or `ticket
+search` on the Mac, or on an SSH host through a staged body or queue snapshot (section 14).
 
 ## 1. Admission: cap heavy lanes by host pressure (ASD-V0-013)
 
@@ -116,6 +119,14 @@ the last shard `-skip`s the others' names, so together the shards run every test
 including one added after the listing. Run one shard per command. Placement is not cost-balanced:
 on 2026-10-21 (load 16-170) the slowest store shard took 447 s and the slowest cli shard 154 s. A
 shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` adds `go test` flags.
+
+V1-4081 / ASD-V0-026: do not put Go test executables under noexec `/dev/shm`.
+Use an executable writable `TMPDIR` (for example a private directory under the user cache;
+`/var/tmp` only where writable). The eight store commands above are the supported split,
+not one whole-package call with Go's implicit 600-second timeout. `make host-adapter-node-test`
+is a separate Node-only qualification: at the mixbugs base Opencode passed 55/55 tests;
+Pi passed 134 of 135 with one intentional skip and zero failures. That observed pass refutes a persistent failure at this
+base; it does not retroactively pass an earlier host run.
 
 The other way round, `script/heavy-groups.sh [--budget 480] PACKAGE...` packs several small
 packages into as few commands as fit the budget (ASD-V0-832). It reads each package's latest
@@ -654,8 +665,12 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `make batch-precheck` refuses any commit in `BASE..HEAD` (default `origin/main..HEAD`) that
   carries one, naming the commit and the line, and prints the `--strip` rebase that removes it. The dogfood
   loop supports linked worktrees with per-worktree trace stores and locks (`DCW-V0-044`); never
-  switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
-  run `dogfood-finish` and `dogfood-batch-check` in a linked worktree
+  switch one checkout between lanes. Linked worktrees are the lane checkout (V1-1754): every lane
+  since the 2026-10-18 cutover is created by `lane-setup.sh` as a worktree of the shared clone, and
+  the plain-clone rule is retired. Open qualification step (orchestrator-owned, since lanes stop at
+  the inputs check): retain one live `dogfood-finish` plus `make dogfood-batch-check` run in a
+  linked worktree with its receipt; until then a fresh plain clone stays the recovery for a
+  worktree-specific dogfood refusal
   (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-18-v1-1627-lane-orchestration.md`).
 - Lanes share `rr-cache`, `MERGE_RR` and its lock through the common directory (ASD-V0-965,
   V1-3651). `lane-setup.sh` sets `rerere.enabled=false` in each lane worktree's own config
@@ -760,11 +775,21 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   cem-verdict gate's two legs share their source; `--check` reads the installed pair without
   building and names a stale consumer `MISMATCH`.
 
+- Each lane's scratch directory is its own (ASD-V0-765, V1-4056): `dir=$(script/lane-scratch.sh)`
+  prints `~/lane-scratch/<lane>` (mode 0700, `LANE_SCRATCH_ROOT` overrides the root) and refuses
+  `foreign-scratch` when the directory's `.lane` marker names another lane or another worktree. A
+  shared scratch directory let one lane's copy overwrite another lane's files.
+- A lane worktree is cut from the lane BASE, never from the host checkout's HEAD (ASD-V0-772,
+  V1-3061): `git worktree add <lanes>/<LANE> -b <branch> <BASE>` with an explicit full SHA, then
+  `script/lane-base-check.sh <BASE>` in the worktree before building. It refuses the shared
+  checkout, a branch whose oldest reflog entry is not BASE, and a HEAD that does not contain BASE.
+
 ### Lane build-log entry shape
 
 One entry per lane, `docs/build-log/YYYY-MM-DD-<lane>.md`: the `BUILD_LOG` that
 `script/lane-dispatch.sh inputs` writes into `lane.env`, so the brief and the charter quote one name
-(V1-3816; older entries carry a `-<slug>` suffix). It has these sections in order:
+(V1-3816, V1-4174; older entries carry a `-<slug>` suffix, and a lane adds one only when it writes a
+second entry). It has these sections in order:
 problem, decisions, evidence, `NOT_RUN`, rollback, and **Outcome** (V1-2234). Outcome states the
 final disposition per ticket (delivered, already delivered with evidence, skipped with reason), the
 dogfood result and every `NOT_PRODUCED` reason. Fill it before the final commit; text in earlier
@@ -1041,6 +1066,21 @@ exact `CORVINT_TASKS_SNAPSHOT=` retry, or, when none is staged, the
 all-lane-branch screen needs no journal: `corvint-tasks ticket delivery-screen <ID>... --lane-refs
 --unaudited` runs in a journal-less clone; the audited form there refuses and names `--unaudited`.
 
+Capability screen before filing (ASD-V0-771, V1-3697). A friction item that reads as a missing
+capability is checked against `docs/CAPABILITIES.md` first:
+`script/capability-screen.sh 'FRICTION TEXT'` prints each row whose command the text names, with
+the text's flags the row covers and every flag the row names. V1-3649 ("corvint test --dry-run
+prints 77 KB") matches row `corvint test`, which already names `--dry-run --summary` (at most
+4 KiB). A MATCH is read before filing: a delivered capability becomes a docs or discoverability
+ticket, not a gap.
+
+Pickaxe screening on a lane host (V1-4102). `git log --all -S'TEXT'` walks every lane ref and
+takes about 7.5 s on both lane hosts, while `git log origin/main -S'TEXT'` takes about 2 s
+(2026-11-01, lnt-u32 build log). Screen `origin/main` first, then name only the in-flight
+branches that matter (`git log origin/main claude/lane-X -S'TEXT'`); a `--branches='claude/*'`
+glob over about 95 lane branches costs as much as `--all`. `--grep` is fast on any ref set.
+Repacking loose objects saved about 5% in the measurement, so it is an owner hygiene step that
+`script/lane-host-check.sh --only hygiene` reports, not the fix.
 Store parity (TCL-V0-742, V1-3931). A lane host's store copy or snapshot can fall behind the owning
 store, and a lane that reads it reports tickets as absent that exist. Before claiming anything about
 store contents on a lane host, compare it with the staged authoritative snapshot:
@@ -1080,7 +1120,11 @@ main passes `queue parity` and its preflight `tasks-store` row reads `in sync`.
 
 One lane runs this flow, in order; each step names the command and the section that owns it.
 
-1. Orient: `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
+1. Orient with the current worktree build (DTL-V0-003): run `script/lane-corvint.sh`, which
+   checks the installed binary against fetched origin/main, builds the current worktree, and prints
+   its absolute executable path. Use that path for the following reads; rerun it after source edits.
+   A build failure stops orientation. Keep the emitted freshness verdict with the task evidence.
+   Run `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
    `corvint context --task "..."`; retain the `query` and `impact` receipts (DOGFOOD section 1).
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
@@ -1089,6 +1133,21 @@ One lane runs this flow, in order; each step names the command and the section t
    (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
    a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
    line means that package runs whole.
+   For an explicit unrelated-path control while edits are uncommitted, use
+   `corvint affected --worktree --path PATH --format json` (DTL-V0-010). This asks about exactly
+   PATH against the current graph; retain the actual dirty-range plan separately.
+   To run the complete command package in foreground slices, run
+   `script/go-test-shard.sh ./cmd/corvint/ 1 8`, then the same command for indexes 2 through 8
+   against unchanged inputs. `--list-only` prints each pattern. Every Test, Example and Fuzz seed
+   belongs to exactly one slice; failures propagate and no selection evidence is used to skip one.
+   The recipe clears inherited test-selection flags such as `-skip` and `-list`, keeps build
+   settings such as `-tags`, and refuses any other GOFLAGS word with
+   `inherited-goflags-unsupported` (DTL-V0-007); unset that word and rerun.
+   For local Linux confinement, build the wrapper with
+   `script/heavy.sh --admit-only env GOTOOLCHAIN=local go build -o /absolute/scratch/test-confine ./.github/testconfine/cmd`.
+   Export `CORVINT_CONFINE_ROOT=$(git rev-parse --show-toplevel)` before running a focused package
+   through heavy.sh with `go test -exec /absolute/scratch/test-confine`; an unset root refuses
+   before executing the test (DTL-V0-010).
    A change to a `cmd/corvint` verb also runs the verb's use-case and help tests,
    which a batch otherwise finds failing only after the lane sealed (V1-4138, ASD-V0-616):
    `script/heavy.sh go test -count=1 -run '^(TestUseCase|Test[A-Za-z0-9]*Help|TestVERB[A-Za-z0-9]*CLI)' ./cmd/corvint`
@@ -1109,6 +1168,11 @@ One lane runs this flow, in order; each step names the command and the section t
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
+   `SEAL=0` on `make dogfood-finish LANE=1` stops after bind, the bind commit, rebind and a passing
+   dogfood-check; the sidecar remains at HEAD and no seal commit is made (DTL-V0-004).
+   The direct CLI equivalent is `corvint dogfood finish-lane --base FULL_SHA --seal no` with the
+   same citation, intent, verify and outcome inputs. The default SEAL=1 still seals. Every rerun
+   or fix hint from such a run keeps SEAL=0 (or `--seal no`), including dogfood-closeout retries.
    After the last commit, run `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
    finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
@@ -1300,6 +1364,25 @@ both paths in its last message. The orchestrator fetches them with
 `ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted
 so the remote shell expands `$HOME`; or `scp`) when no message arrived in the round the lane ends.
 
+Remote commands and edits. Charter template lines for an SSH lane (ASD-V0-768, ASD-V0-769,
+ASD-V0-770, ASD-V0-772):
+
+- Send a multi-line remote script on stdin, never inside a quoted argument:
+  `ssh HOST 'bash -s' <<'EOF'` ... `EOF`. In `ssh HOST '... <<EOF ... EOF'` one apostrophe in the
+  body ends the quote and the rest runs locally (V1-3868). `script/ssh-heredoc-check.sh 'COMMAND'`
+  refuses the quoted form; wiring it into the lane hook is an owner change.
+- Edit a remote worktree with a patch: `git diff | script/lane-remote-edit.sh [--check] HOST WT`
+  applies it with `git apply -` there, the patch travelling on stdin (V1-3834), so no perl
+  one-liner and no nested quoting.
+- Before dispatching to a host, publish the unmerged lane branches it must screen against:
+  `script/lane-inflight-branches.sh publish --remote HOST:REPO BRANCH...` (refs under
+  `refs/remotes/inflight/`, never forced), then `... check --repo REPO BRANCH...` there (V1-3867).
+- Cut the worktree from an explicit BASE and run `script/lane-base-check.sh BASE` (section 6).
+- Check the host first: `script/lane-host-check.sh --peer <other host>` reports missing toolchains,
+  ssh identity and BatchMode reach, the adopter checkout, `~/lanes/heavy.sh` drift from
+  `script/lane-host-heavy.sh` (the tracked wrapper source; installing it is an owner step) and repo
+  hygiene (ASD-V0-766, ASD-V0-767). Every finding names its owner step; the script changes nothing.
+
 ## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
 
 Shared worktree. Subagents of one lane share the lane's worktree, so a package one subagent has
@@ -1383,3 +1466,87 @@ orchestrator writes it on the lane's host after the fact and the dead lane does 
 
 `lane-clean.sh` keeps a dirty or unmerged checkout (section 6), so an interrupted worktree is not
 removed before it is recorded.
+
+## 18. Lane-host routing, stale lanes and `.github` side branches (ASD-V0-704, ASD-V0-706)
+
+The dispatch screen is `script/lane-dispatch.sh screen` (section 14; `ASD-V0-2200` to `ASD-V0-2203`),
+and lane setup checks the installed `corvint` build against `origin/main` (`ASD-V0-2203`). This
+section collects the routing rules around them.
+
+Pre-snapshot SHAs (V1-3298). A ticket or note SHA that no local object resolves, or that only the
+archived pre-snapshot lineage holds, is old-lineage history: resolve it at
+`https://github.com/beamfall/corvint-history` (or the local `archive/private-main-be0d614` tag),
+never cherry-pick or merge it. At closeout, cite the current-main test or path that carries the
+behaviour, not the old SHA.
+
+Lane-host tools (V1-4146, V1-4125). At lane start the lane runs `script/lane-host-check.sh --only
+toolchain` in its checkout (`ASD-V0-767`; set `LANE_HOST_TOOLS` to the tools its criteria need). It
+prints `WARN toolchain tail-count-unsupported` when `tail -N` fails: write `tail -n N`, never the
+obsolete count form. The check installs nothing; every repair is an operator step:
+
+- Live LSP or editor criteria (`gopls`, `code`, `nvim`): Unraid has none of them. The orchestrator
+  routes such criteria to a host where `LANE_HOST_TOOLS='gopls code nvim'` prints `OK toolchain`
+  lines (the Mac), or the operator installs them; a lane never installs software.
+- Missing `node`, `rg` or `bc` on Unraid: avoid them in lane recipes (`grep -E`, `awk`), or route
+  the step to the Mac.
+
+Host routing and fetch (V1-4162, V1-4107, V1-4133, V1-4130).
+
+- On Unraid, `git fetch -q origin` hits a ref-lock error; fetch with `git fetch -q origin main`.
+- The `unraid-lanes` and `wsl-lanes` ssh aliases exist only in the Mac's ssh config, and WSL cannot
+  reach Unraid. A lane never ssh's between lane hosts: the Mac relays. Move a branch with
+  `git bundle create` on the source host, copy the bundle through the Mac (`ssh SRC 'cat B' > B`,
+  then `ssh DST 'cat > B' < B`), and `git fetch B <branch>` on the destination.
+- Host-only files (lane inputs under `~/lane-inputs`, scratch logs, uncommitted lane work) are not
+  in the Mac mirror: a grep on the Mac that finds nothing proves nothing about the host. Grep on the
+  host (`ssh HOST 'grep ...'`), or fetch the lane head first.
+
+One head per lane name (V1-4134). A lane name is unique across hosts: the charter records the host
+and branch, and the orchestrator fetches that one head as `refs/remotes/<host>/<branch>`. When the
+same branch name exists on two hosts with different heads, assembly stops and the orchestrator
+picks the head the charter names; it never merges both.
+
+Assembly-only lanes (V1-4136). A batch whose lanes are all sealed needs no build: the orchestrator
+creates the batch branch from `origin/main`, merges each sealed lane head (`--no-ff`, in charter
+order), runs `make batch-precheck` and the dogfood batch check, and pushes one PR. No lane, spec or
+ticket work happens in an assembly-only round.
+
+Porting a stale lane (V1-4111). A lane whose base is far behind `origin/main`: (1) fetch
+`origin main`; (2) list the lane's own commits (`git log --oneline BASE..HEAD`); (3) start a fresh
+worktree from `origin/main` and cherry-pick them in order; (4) re-screen the tickets
+(`script/lane-dispatch.sh screen`) and the requirement-ID block, since main may have delivered or
+used them meanwhile; (5) `make repin` and `make spec-requirements` for moved citations and specs;
+(6) rerun the focused tests and the inputs check against the new BASE. Never rebase a sealed range in place.
+
+Recipes without a root `go.sum` (V1-4161). The root module has no `go.sum` on `origin/main`, so a
+recipe that names it (`git archive origin/main go.mod go.sum`, `cp go.sum ...`) fails. Name only
+paths that exist (`git ls-tree --name-only origin/main -- go.mod go.sum` prints the present ones),
+or a nested module's own `go.mod` and `go.sum`.
+
+Review before bind (V1-3294). The orchestrator's one review runs on the lane's code-complete head,
+before any bind: the lane stops at the final commit plus a passing `make dogfood-inputs-check`
+(section 13, step 5), the orchestrator reviews that head, the lane fixes findings as new commits,
+and only then is the change bound and sealed once. The two-run dogfood limit therefore never has to
+absorb a review reseal. When a seal is superseded anyway (a finding after sealing), remove the
+superseded seal file under `.corvint/changes/` in its own chore commit, then rerun
+`dogfood-change`, `dogfood-check` and `dogfood-seal` against the same BASE as one change; that
+counts as the lane's second run (observed 2026-10-30, lane remainders-w6).
+
+`.github` changes on a side branch (V1-3292). A `.github/` path forces every PR shard FULL, so it
+never rides on a code lane. A lane that needs one writes it on a side branch from the lane base
+(`git branch <lane>-github BASE`), commits it there, and names the branch in its report; the lane
+branch stays code-only, so review fixes and reseals never interleave with it. `make batch-precheck`
+runs `script/github-split-check.sh` on the batch range: a range mixing `.github/` commits with
+other paths fails with `refuse github-in-code-range SHA SUBJECT` and the side-branch recovery; a
+`.github`-only range passes.
+
+## Dogtools scratch recovery (DTL-V0-014)
+
+Set CORVINT_SCRATCH_ROOT to an absolute roomy disk directory before lane commands. heavy.sh
+uses it for default Go scratch and caches; explicit TMPDIR, GOTMPDIR and cache variables still win.
+Per-run scratch is private and cleaned by the foreground runner. A low-space /tmp refuses even
+when Go scratch lives elsewhere, because host command output still needs /tmp headroom. Remove
+only scratch you own. When the host reports Disk full, redirect diagnostics to a file under
+~/.cache until the operator restores /tmp headroom; never delete another lane's cache.
+Doc gates print one doc-gate-timing line per target. DOC_GATE_JOBS=1 runs the same inventory
+serially; the default bounded concurrency is four (DTL-V0-006).

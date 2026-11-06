@@ -73,7 +73,7 @@ func TestSourceReadBoundedCapabilityAndStickyErrors_DLT_V0_002(t *testing.T) {
 		}
 	})
 	t.Run("DLT-V0-002 opaque filesystem cannot claim optional absence", func(t *testing.T) {
-		source := FSSource(fstest.MapFS{})
+		source := FSSource(opaqueMapFS{fstest.MapFS{}})
 		if _, err := source.ReadBounded(ReadScopesPath, 1<<20); !errors.Is(err, ErrWalkUnrepresentable) || !errors.Is(source.Err(), ErrWalkUnrepresentable) {
 			t.Fatalf("opaque filesystem admitted: %v, retained %v", err, source.Err())
 		}
@@ -224,4 +224,49 @@ func TestSourceFilesOffersRelativePath_V1_3583(t *testing.T) {
 			t.Errorf("%s: Files(ByName) = %v, %v", label, byName, err)
 		}
 	}
+}
+
+// opaqueMapFS deliberately exposes no bounded-open capability.
+type opaqueMapFS struct{ fs.FS }
+
+func TestDTLV0013MapFSBounded(t *testing.T) {
+	t.Run("DTL-V0-013", func(t *testing.T) {
+		for _, tc := range []struct {
+			name  string
+			body  string
+			mode  fs.FileMode
+			limit int
+			want  error
+		}{
+			{"exact", "abc", 0, 3, nil}, {"oversize", "abcd", 0, 3, ErrWalkLimit},
+			{"symlink", "abc", fs.ModeSymlink, 3, ErrInvalidUnit},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				source := FSSource(fstest.MapFS{"a": {Data: []byte(tc.body), Mode: tc.mode}})
+				body, err := source.ReadBounded("a", tc.limit)
+				if !errors.Is(err, tc.want) {
+					t.Fatalf("body=%q err=%v want=%v", body, err, tc.want)
+				}
+				if tc.want == nil && string(body) != tc.body {
+					t.Fatalf("body=%q", body)
+				}
+				if tc.want != nil && !errors.Is(source.Err(), tc.want) {
+					t.Fatal(source.Err())
+				}
+			})
+		}
+		source := FSSource(fstest.MapFS{})
+		if _, err := source.ReadBounded("missing", 1); !errors.Is(err, fs.ErrNotExist) || source.Err() != nil {
+			t.Fatalf("err=%v sticky=%v", err, source.Err())
+		}
+	})
+}
+
+func TestDTLV0013ImplicitDirectoryIsNotOptionalAbsence(t *testing.T) {
+	t.Run("DTL-V0-013", func(t *testing.T) {
+		source := FSSource(fstest.MapFS{"dir/child": {Data: []byte("x")}})
+		if _, err := source.ReadBounded("dir", 8); !errors.Is(err, ErrInvalidUnit) || !errors.Is(source.Err(), ErrInvalidUnit) {
+			t.Fatalf("err=%v sticky=%v", err, source.Err())
+		}
+	})
 }

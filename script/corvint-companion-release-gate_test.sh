@@ -27,6 +27,12 @@ mkdir "$corvint/script"
 cp "$source_root/script/corvint-companion-release-gate" "$corvint/script/"
 
 real_git=$(command -v git)
+real_ps=$(command -v ps)
+cat > "$fake/ps" <<EOF
+#!/bin/sh
+[ -z "\${CORVINT_WRAPPER_SLOW_PS:-}" ] || sleep 0.05
+exec "$real_ps" "\$@"
+EOF
 cat >"$fake/go" <<'EOF'
 #!/bin/sh
 if [ "$1" = env ] && [ "$2" = GOVERSION ]; then printf '%s\n' go1.27.3; exit 0; fi
@@ -72,7 +78,7 @@ CORVINT_COMPANION_OUTPUT="$test_root/output-no-npm" PATH="$fake:/usr/bin:/bin" \
 [ ! -e "$test_root/npm-invoked" ] || fail "core bundle resolved npm"
 
 
-CORVINT_WRAPPER_ARGS="$test_root/interrupt-args" CORVINT_WRAPPER_DESC_PID="$test_root/descendant" CORVINT_WRAPPER_IGNORE_TERM=1 \
+CORVINT_WRAPPER_ARGS="$test_root/interrupt-args" CORVINT_WRAPPER_DESC_PID="$test_root/descendant" CORVINT_WRAPPER_IGNORE_TERM=1 CORVINT_WRAPPER_SLOW_PS=1 \
 CORVINT_NPM_CACHE="$test_root/npm-cache" CORVINT_COMPANION_OUTPUT="$test_root/output-interrupt" \
 PATH="$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate" &
 wrapper=$!

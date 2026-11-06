@@ -237,7 +237,7 @@ func TestSnapshotRefreshDisabledAndFailures(t *testing.T) {
 	root := staleSnapshotRepository(t)
 	ctx := adapterEnvContext(context.Background(), map[string]string{"CORVINT_INDEX_AUTO_REFRESH": "0"})
 	before := readSnapshotDirectoryState(t, root)
-	if notice := snapshotRemediation(ctx, root); !strings.Contains(notice, "Refresh the snapshot once, outside the hook") || strings.Contains(notice, "started") {
+	if notice := snapshotRemediation(ctx, root); !strings.Contains(notice, "fix: refresh once outside the hook") || strings.Contains(notice, "started") {
 		t.Fatal(notice)
 	}
 	if len(readSnapshotDirectoryState(t, root)) != len(before) {
@@ -597,7 +597,7 @@ func TestSnapshotRefreshPreviousOutcomeYieldsToOutputLimit(t *testing.T) {
 	}
 	ctx, commands := refreshTestContext(t, root)
 	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
-	plain := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh started. Manual fallback, outside the hook:\n" + string(refresh)
+	plain := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh started.\ncause: index-snapshot-missing\nfix: refresh outside the hook:\n" + string(refresh)
 	probe, _ := json.Marshal(map[string]any{"systemMessage": plain})
 	frame := "Corvint FALLBACK degraded: " + claudeSnapshotStaleReason + "; coding continues" + strings.Repeat(" ", adapterOutputLimit-1-len(probe)-200)
 	output := withSnapshotRemediation(ctx, root, "stop", claudeSnapshotStaleReason, map[string]any{"systemMessage": frame})

@@ -30,8 +30,10 @@ func main() {
 	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
 		os.Exit(code)
 	}
-	// CAP-V0-701: an unknown action is refused before any state is read; a
-	// named one carries UNKNOWN_COMMAND and the typed word (ACX-V0-664).
+	// CAP-V0-701: an unknown action is refused before any state is read. serveHelp
+	// already refused an unknown operation word with the shared envelope
+	// (ACX-V0-904); any other named one carries UNKNOWN_COMMAND and the typed word
+	// (ACX-V0-664).
 	if len(os.Args) < 2 || (os.Args[1] != "check" && os.Args[1] != "apply" && os.Args[1] != "rollback") {
 		if len(os.Args) >= 2 {
 			fmt.Fprintf(os.Stderr, "UNKNOWN_COMMAND: unknown command %q\n", os.Args[1])

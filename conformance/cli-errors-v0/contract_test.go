@@ -26,26 +26,39 @@ type contract struct {
 }
 
 // contracts is keyed by binary name; the package path literal is the build
-// input (AFP-V0-037).
+// input (AFP-V0-037). Every companion refuses with the one shared envelope
+// (ACX-V0-904, V1-3878); corvint keeps its argparse-parity invalid-arguments
+// envelope (ACX-V0-859), corvint-tasks its Tasks command result on stdout
+// and corvint-work-queue the exact text WQO-V0-007 and WQO-V0-030 pin.
 var contracts = map[string]contract{
 	"corvint":                    {"./cmd/corvint", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "argument command: invalid choice: '"+unknownVerb+"'")},
-	"corvint-cem-candidate":      {"./cmd/corvint-cem-candidate", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
-	"corvint-cem-experiments":    {"./cmd/corvint-cem-experiments", 1, "stderr", text(`experiment refused: UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
-	"corvint-corpus-republish":   {"./cmd/corvint-corpus-republish", 1, "stderr", text(`UNKNOWN_COMMAND: republish command unavailable: "` + unknownVerb + `"`)},
-	"corvint-dashboard-snapshot": {"./cmd/corvint-dashboard-snapshot", 2, "stderr", jsonFields(map[string]any{"code": "DASHBOARD_INVALID_ARGUMENT", "profile": "corvint-dashboard-error/0"}, "")},
-	"corvint-gateway":            {"./cmd/corvint-gateway", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
-	"corvint-go-test-provider":   {"./cmd/corvint-go-test-provider", 2, "stdout", jsonFields(map[string]any{"code": "IDENTITY_MISMATCH", "profile": "go-live-error/0"}, "")},
-	"corvint-intake":             {"./cmd/corvint-intake", 2, "stderr", text("INTAKE_ARGUMENTS")},
-	"corvint-js-test-provider":   {"./cmd/corvint-js-test-provider", 2, "stderr", text(`UNKNOWN_COMMAND: unknown subcommand "` + unknownVerb + `"`)},
-	"corvint-postmerge-connect":  {"./cmd/corvint-postmerge-connect", 1, "stderr", text(`unknown-operation: "` + unknownVerb + `"`)},
-	"corvint-postmerge-metrics":  {"./cmd/corvint-postmerge-metrics", 1, "stderr", jsonFields(map[string]any{"error": "invalid-input"}, "")},
-	"corvint-postmerge-workflow": {"./cmd/corvint-postmerge-workflow", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
-	"corvint-pulse":              {"./cmd/corvint-pulse", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "")},
-	"corvint-ruby-test-provider": {"./cmd/corvint-ruby-test-provider", 2, "stderr", text(`UNKNOWN_COMMAND: unknown subcommand "` + unknownVerb + `"`)},
+	"corvint-cem-candidate":      companion("./cmd/corvint-cem-candidate"),
+	"corvint-cem-experiments":    companion("./cmd/corvint-cem-experiments"),
+	"corvint-corpus-republish":   companion("./cmd/corvint-corpus-republish"),
+	"corvint-dashboard-snapshot": companion("./cmd/corvint-dashboard-snapshot"),
+	"corvint-gateway":            companion("./cmd/corvint-gateway"),
+	"corvint-go-test-provider":   companion("./cmd/corvint-go-test-provider"),
+	"corvint-intake":             companion("./cmd/corvint-intake"),
+	"corvint-js-test-provider":   companion("./cmd/corvint-js-test-provider"),
+	"corvint-postmerge-connect":  companion("./cmd/corvint-postmerge-connect"),
+	"corvint-postmerge-metrics":  companion("./cmd/corvint-postmerge-metrics"),
+	"corvint-postmerge-workflow": companion("./cmd/corvint-postmerge-workflow"),
+	"corvint-pulse":              companion("./cmd/corvint-pulse"),
+	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),
 	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
-	"corvint-test":               {"./cmd/corvint-test", 1, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
-	"corvint-update":             {"./cmd/corvint-update", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-test":               companion("./cmd/corvint-test"),
+	"corvint-update":             companion("./cmd/corvint-update"),
 	"corvint-work-queue":         {"./cmd/corvint-work-queue", 2, "stderr", text("unsupported operation")},
+}
+
+// companion is the shared unknown-verb refusal row (ACX-V0-904): exit 2 and
+// one JSON line on stderr naming the binary, the unknown-verb code and the word.
+func companion(pkg string) contract {
+	binary := pkg[len("./cmd/"):]
+	return contract{pkg, 2, "stderr", envelope(map[string]any{
+		"binary": binary, "code": "unknown-verb", "error": `unknown command "` + unknownVerb + `"`,
+		"help": binary + " --help", "ok": false,
+	})}
 }
 
 // TestCLIErrorContracts_ACXV0859 (ACX-V0-859, TCL-V0-859; V1-3736) builds
@@ -140,6 +153,7 @@ func launch(t *testing.T, binary, dir string, args ...string) (int, string, stri
 	return 0, stdout.String(), stderr.String()
 }
 
+// text checks that a plain-text refusal contains want.
 func text(want string) func(string) error {
 	return func(out string) error {
 		if !strings.Contains(out, want) {
@@ -164,6 +178,28 @@ func jsonFields(want map[string]any, errorPrefix string) func(string) error {
 		}
 		if message, _ := got["error"].(string); errorPrefix != "" && !strings.HasPrefix(message, errorPrefix) {
 			return fmt.Errorf("error %q does not start with %q", message, errorPrefix)
+		}
+		return nil
+	}
+}
+
+// envelope checks one JSON line whose fields are exactly want.
+func envelope(want map[string]any) func(string) error {
+	return func(out string) error {
+		if strings.Count(out, "\n") != 1 || !strings.HasSuffix(out, "\n") {
+			return fmt.Errorf("want one line")
+		}
+		var got map[string]any
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			return fmt.Errorf("not one JSON object: %v", err)
+		}
+		if len(got) != len(want) {
+			return fmt.Errorf("fields %v, want %v", got, want)
+		}
+		for key, value := range want {
+			if got[key] != value {
+				return fmt.Errorf("field %s = %v, want %v", key, got[key], value)
+			}
 		}
 		return nil
 	}

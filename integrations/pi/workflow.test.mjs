@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync, symlinkSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync, symlinkSync, realpathSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { canonicalWorkflowJSON as canonical, decodeWorkflowEnvelope, registerWorkflow, workflowSessionKey, workflowIdentity } from './workflow.js';
 import { PI_ADAPTER_VERSION } from './runtime.js';
@@ -21,8 +21,8 @@ function envelope(event,input,{lifecycle='active',satisfied=false}={}) {
 }
 function fixture(t,options={}) {
  const handlers=new Map(),commands=new Map(),calls=[],notices=[];
- let session='one';const root=mkdtempSync(join(tmpdir(),'pi-workflow-unit-'));mkdirSync(join(root,'.git'));writeFileSync(join(root,'.git/HEAD'),'ref: refs/heads/main\n');t.after(()=>rmSync(root,{recursive:true,force:true}));
- const ctx={cwd:root,hasUI:true,mode:'json',isProjectTrusted:()=>true,hasPendingMessages:()=>false,sessionManager:{getSessionId:()=>session},ui:{notify:(...v)=>notices.push(v)}};
+ let session='one';const root=mkdtempSync(join(tmpdir(),'pi-workflow-unit-'));mkdirSync(join(root,'.git/refs/heads'),{recursive:true});writeFileSync(join(root,'.git/HEAD'),'ref: refs/heads/main\n');writeFileSync(join(root,'.git/refs/heads/main'),'a'.repeat(40)+'\n');t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const ctx={cwd:root,hasUI:true,mode:'json',isProjectTrusted:()=>true,hasPendingMessages:()=>false,sessionManager:{getSessionId:()=>session,getBranch:()=>[]},ui:{notify:(...v)=>notices.push(v)}};
  const runner={async run(req){calls.push(req);if(req.args[1]!=='event')return {exitCode:0,stdout:JSON.stringify({ok:true,profile:'corvint-local-completion/0',tool:'dogfood-'+req.args[1],mutates:req.args[1]==='begin',claim:'caller-owned-selected-workflow-only',policy:{lifecycle:'active',satisfied:false}})};const event=req.args[req.args.indexOf('--event')+1];return {exitCode:0,stdout:JSON.stringify(envelope(event,JSON.parse(req.input),options))}},async close(){}};
  const bridge=registerWorkflow({on:(name,fn)=>handlers.set(name,fn),registerCommand:(name,fn)=>commands.set(name,fn)},{runner,version:'0.99.1',notice:(ctx,code)=>notices.push(code)});
  t.after(()=>bridge.close());
@@ -129,5 +129,71 @@ test('LCP-V0-008 repository rebound and branch switches discard native in-flight
 });
 test('LCP-V0-008 Git identity refuses symlink markers and oversized pointer files',t=>{
  const f=fixture(t);renameSync(join(f.root,'.git'),join(f.root,'gitdir'));symlinkSync('gitdir',join(f.root,'.git'));
- assert.throws(()=>workflowIdentity(f.ctx));rmSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
+ assert.throws(()=>workflowIdentity(f.ctx));unlinkSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
+});
+
+test('PWV-V0-8103 fork and resume cannot replenish a spent original-session remediation',async t=>{
+ const f=fixture(t);await f.emit('session_start',{reason:'startup'});
+ assert.equal((await f.emit('agent_before_settle',f.boundary)).continue,true);
+ f.setSession('fork');await f.emit('session_start',{reason:'fork'});
+ f.setSession('one');await f.emit('session_start',{reason:'resume'});
+ assert.equal(await f.emit('agent_before_settle',f.boundary),undefined,'original session keeps its spent allowance');
+ await f.emit('input',{source:'extension'});assert.equal(await f.emit('agent_before_settle',f.boundary),undefined);
+ await f.emit('input',{source:'rpc'});assert.equal((await f.emit('agent_before_settle',f.boundary)).continue,true);
+});
+
+test('PWV-V0-8103 a fresh extension restores spent allowance from existing branch entries only',async t=>{
+ for(const state of ['remediated','missing-api','over-bound'])await t.test(state,async t=>{
+  const f=fixture(t);
+  f.ctx.sessionManager.getBranch=state==='missing-api'?undefined:()=>state==='over-bound'?Array(4097).fill({type:'message'}):[{type:'custom_message',customType:'corvint-workflow-remediation',content:'existing fixed guidance'}];
+  await f.emit('session_start',{reason:'reload'});
+  assert.equal(await f.emit('agent_before_settle',f.boundary),undefined);
+  await f.emit('input',{source:'extension'});assert.equal(await f.emit('agent_before_settle',f.boundary),undefined);
+  await f.emit('input',{source:'interactive'});assert.equal((await f.emit('agent_before_settle',f.boundary)).continue,true);
+ });
+});
+
+test('PWV-V0-8104 same-branch commits discard cached recovery and in-flight remediation',async t=>{
+ for(const mode of ['cached','in-flight'])await t.test(mode,async t=>{
+  const f=fixture(t);mkdirSync(join(f.root,'.git/refs/heads'),{recursive:true});writeFileSync(join(f.root,'.git/refs/heads/main'),'a'.repeat(40)+'\n');
+  if(mode==='cached'){
+   await f.emit('session_start',{reason:'startup'});writeFileSync(join(f.root,'.git/refs/heads/main'),'c'.repeat(40)+'\n');
+   assert.equal(await f.emit('context',{messages:[]}),undefined);
+  }else{
+   let release;const normal=f.runner.run;f.runner.run=async req=>{await new Promise(r=>release=r);return normal(req)};
+   const pending=f.emit('agent_before_settle',f.boundary);writeFileSync(join(f.root,'.git/refs/heads/main'),'c'.repeat(40)+'\n');release();
+   assert.equal(await pending,undefined);
+  }
+ });
+});
+
+test('PWV-V0-8104 packed refs, detached HEAD and linked common refs bind exact recovery revision',async t=>{
+ for(const mode of ['packed','detached','linked','unresolved'])await t.test(mode,async t=>{
+  const f=fixture(t);
+  if(mode==='packed'){rmSync(join(f.root,'.git/refs'),{recursive:true});writeFileSync(join(f.root,'.git/packed-refs'),'# pack-refs with: peeled fully-peeled sorted\n'+'a'.repeat(40)+' refs/heads/main\n')}
+  if(mode==='detached')writeFileSync(join(f.root,'.git/HEAD'),'a'.repeat(40)+'\n');
+  if(mode==='linked'){
+   const gitdir=join(f.root,'.git/worktrees/lane');mkdirSync(gitdir,{recursive:true});writeFileSync(join(gitdir,'HEAD'),'ref: refs/heads/main\n');writeFileSync(join(gitdir,'commondir'),'../..\n');
+   const checkout=join(f.root,'checkout');mkdirSync(checkout);writeFileSync(join(checkout,'.git'),'gitdir: ../.git/worktrees/lane\n');f.ctx.cwd=checkout;
+  }
+  if(mode==='unresolved')rmSync(join(f.root,'.git/refs'),{recursive:true});
+  await f.emit('session_start',{reason:'startup'});
+  if(mode==='unresolved'){assert.equal(f.calls.length,0);assert.equal(await f.emit('context',{messages:[]}),undefined);return}
+  assert.match((await f.emit('context',{messages:[]})).messages[0].content,/source packet/);
+ });
+});
+
+// PWV-V0-8301: invalidate after invoke validates, before its caller resumes.
+test('PWV-V0-8301 settlement discards a response cleared between awaits',async t=>{
+ for(const transition of ['clear','input','session_tree','session_start']) {
+  const f=fixture(t),normal=f.runner.run;
+  f.runner.run=req=>normal(req).then(result=>{
+   if(req.args.includes('stop'))queueMicrotask(()=>queueMicrotask(()=>{
+    if(transition==='clear')f.bridge.clear();
+    else f.emit(transition,transition==='input'?{source:'interactive'}:{reason:'reload'});
+   }));
+   return result;
+  });
+  assert.equal(await f.emit('agent_before_settle',f.boundary),undefined,transition);
+ }
 });

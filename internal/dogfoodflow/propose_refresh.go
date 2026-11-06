@@ -554,8 +554,16 @@ func addedDefinitions(hunk *patch.Hunk) []string {
 // test-name form such as TestDCWV0440 or dcw_v0_440, and the path defining it.
 // The defining hunk itself is not matched (DCW-V0-440).
 func (p *proposal) sameChangeRequirement(hunk *patch.Hunk) (string, string) {
-	if len(p.changeIDs) == 0 || hunk == nil {
+	ids := p.sameChangeRequirements(hunk)
+	if len(ids) == 0 {
 		return "", ""
+	}
+	return ids[0], p.changeIDs[ids[0]]
+}
+
+func (p *proposal) sameChangeRequirements(hunk *patch.Hunk) []string {
+	if len(p.changeIDs) == 0 || hunk == nil {
+		return nil
 	}
 	var added bytes.Buffer
 	added.WriteString(anchorPath(hunk))
@@ -573,6 +581,7 @@ func (p *proposal) sameChangeRequirement(hunk *patch.Hunk) (string, string) {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	matched := []string{}
 	for _, id := range ids {
 		where := p.changeIDs[id]
 		if where == hunk.DisplayPath {
@@ -580,10 +589,10 @@ func (p *proposal) sameChangeRequirement(hunk *patch.Hunk) (string, string) {
 		}
 		if namesToken(text, id) || namesToken(text, strings.ReplaceAll(id, "-", "")) ||
 			namesToken(lower, strings.ToLower(strings.ReplaceAll(id, "-", "_"))) {
-			return id, where
+			matched = append(matched, id)
 		}
 	}
-	return "", ""
+	return matched
 }
 
 // namesToken reports whether token occurs in text not preceded by a letter of

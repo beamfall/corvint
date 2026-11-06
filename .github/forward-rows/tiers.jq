@@ -62,6 +62,6 @@ def documentation($raw): (try ($raw | if utf8bytelength <= 65536 then fromjson e
 | importers($C) as $D
 | (if ($full | length) > 0 then "FULL" else null end) as $all
 | {tiers: {changed: ($all // $B), hop1: ($all // $C), hop2: ($all // $D),
-           full: ($full | unique | map(if length > 300 then .[0:300] + "..." else . end))[0:20],
+           full: ($full | unique | map(if length > 300 then .[0:300] + "..." else . end)),
            universe: ($list | length)},
    tierIncomplete: (if ($list | length) == 0 then ["go list named no package of module \($module)"] else [] end)}

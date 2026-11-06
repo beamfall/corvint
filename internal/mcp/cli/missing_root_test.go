@@ -160,6 +160,45 @@ func TestMCPV0861NonWorktreeRootServesLaunchWorktree(t *testing.T) {
 	}
 }
 
+// skipInsideGit skips a case whose premise is a directory outside every Git worktree when dir
+// or an ancestor of it holds a .git entry (V1-4526): a TMPDIR below such an ancestor, as below a
+// home directory kept in Git, makes the premise false without any regression.
+func skipInsideGit(t *testing.T, dir string) {
+	t.Helper()
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = resolved
+	}
+	for current := dir; ; current = filepath.Dir(current) {
+		if _, err := os.Lstat(filepath.Join(current, ".git")); err == nil {
+			t.Skipf("%s is inside %s, which holds a .git entry; run with TMPDIR outside every Git worktree (V1-4526)", dir, current)
+		}
+		if filepath.Dir(current) == current {
+			return
+		}
+	}
+}
+
+// V1-4526: a directory below an ancestor holding a .git entry skips the cases that need a
+// directory outside every worktree instead of failing them.
+func TestSkipInsideGitSkipsBelowAGitEntry(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	below := filepath.Join(home, "cache", "tmp")
+	if err := os.MkdirAll(below, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(home, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ran := false
+	t.Run("below", func(t *testing.T) {
+		skipInsideGit(t, below)
+		ran = true
+	})
+	if ran {
+		t.Fatalf("%s ran as if it were outside every worktree", below)
+	}
+}
+
 // MCPV0-115 with MCPV0-950: with no launch worktree to stand in, a missing --root
 // keeps its MCPV0-950 outcome, served unavailable with a reason that names no path.
 func TestMCPV0115MissingRootOutsideWorktreeServesUnavailable(t *testing.T) {
@@ -213,6 +252,9 @@ func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 		{"missing root with --corpus-artifact", []string{"--root", missing, "--tool-profile", "test-validity,corpus", "--corpus-artifact", "corpus.json"}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.arguments[1] == plain || tc.arguments[1] == "core="+plain {
+				skipInsideGit(t, plain)
+			}
 			exit, stderr, responses := startupSession(t, tc.arguments, toolCall(1, "corvint.status", map[string]any{}))
 			if exit != tc.wantExit || (exit == 2) != (len(responses) == 0) || stderr != tc.wantStderr {
 				t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)

@@ -321,7 +321,25 @@ func LaneHeads(root, base string, namespaces ...string) ([]LaneHead, error) {
 				detached = true
 			}
 		}
-		if detached && commit != "" && !seen[commit] && !IsAncestor(root, commit, base) && slices.ContainsFunc(roots, func(r string) bool { return IsAncestor(root, r, commit) }) {
+		if !detached || commit == "" || seen[commit] {
+			continue
+		}
+		inBase, err := Ancestry(root, commit, base)
+		if err != nil {
+			return nil, err
+		}
+		fromRoot := false
+		for _, r := range roots {
+			in, err := Ancestry(root, r, commit)
+			if err != nil {
+				return nil, err
+			}
+			if in {
+				fromRoot = true
+				break
+			}
+		}
+		if !inBase && fromRoot {
 			seen[commit] = true
 			heads = append(heads, LaneHead{Ref: "worktree:" + path, Commit: commit})
 		}

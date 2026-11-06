@@ -41,7 +41,8 @@ locations() {
         claude-code) printf '%s\n' \
             'integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json|.version' \
             'integrations/claude-code/.claude-plugin/marketplace.json|.plugins[]|select(.name=="corvint")|.version' \
-            'integrations/claude-code/plugins/corvint/compatibility.json|.adapter.version' "$matrix" ;;
+            'integrations/claude-code/plugins/corvint/compatibility.json|.adapter.version' "$matrix" \
+            'integrations/claude-code/plugins/corvint/.mcp.json|plugin:.mcpServers.corvint.env.CORVINT_PLUGIN_VERSION' ;;
         codex) printf '%s\n' \
             'integrations/codex/plugins/corvint/.codex-plugin/plugin.json|.version' \
             'integrations/codex/plugins/corvint/compatibility.json|.adapter.version' "$matrix" ;;
@@ -96,6 +97,7 @@ tuple_field() {
 # read_field PATH FILTER: the value at one location, or a refusal naming it.
 read_field() {
     case $2 in
+        plugin:*) value=$(jq -er "${2#plugin:} | select(startswith(\"claude-code/\")) | ltrimstr(\"claude-code/\")" "$1") || value= ;;
         lit:*) value=$(lit_field "${2#lit:}" "$1") || value= ;;
         tuple:*) value=$(tuple_field "${2#tuple:}" "$1") || value= ;;
         yaml:*) key=${2#yaml:}; value=$(yaml_field "${key%%.*}" "${key#*.}" "$1") || value= ;;
@@ -109,6 +111,12 @@ read_field() {
 set_field() {
     file=$1 filter=$2 old=$3 new=$4
     tmp="$file.version-tmp.$$"
+    case $filter in
+        plugin:*)
+            filter=${filter#plugin:}
+            old=claude-code/$old new=claude-code/$new
+            ;;
+    esac
     case $filter in
         lit:*)
             N=${filter#lit:} O=$old V=$new perl -0pe 's/(\b\Q$ENV{N}\E\s*=\s*["\x27])\Q$ENV{O}\E(["\x27])/$1$ENV{V}$2/' "$file" >"$tmp"

@@ -1915,7 +1915,10 @@ and container qualification; full fallback remains available.
   from the hash of the `--full` exclusion bytes, whose counts differ from the full lists, or a
   `--full` document that differs from the previous default. Rollback: delete
   `cmd/corvint/affected_compact.go` and the `--full` option, restore `affected-plan/0` as the
-  default, and restore the renamed core-freeze goldens.
+  default, and restore the renamed core-freeze goldens. Amended by AZU-V0-001
+  (`docs/specs/affected-zero-unknown-v0.md`, V1-4684): in both profiles a driver selection also
+  keeps `kind` (`DRIVER_TARGET` with `argv`, or `CI_JOB` with `workflow` and `job`), and its
+  witness kind may be `FRONTIER_SITE`; every other entry is unchanged.
 - **AFP-V0-036:** (proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
   indexed Go unit P are P's own declared `_test.go` files MUST select P's tests with a
   `DIRECT_TEST_CHANGE` witness and MUST NOT traverse from P: P's importers and the units whose
@@ -2625,7 +2628,7 @@ traceability rows there.
   under CCF-V1-006. The count measures progress toward a bounded scope; it does not change `scope`,
   `unknown` or any selection. Falsifier: a plan whose count differs between two dirty sets over one
   graph, omits an unreached unit's site, counts a truncation entry as one, or differs between the
-  two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`.
+  two profiles. Rollback: remove `Plan.FrontierSites` and `Graph.frontierSites`. Amended by AFP-V0-2406 (`docs/specs/affected-plan-selection-v0.md`, V1-4281): the count covers only the plugins the plan involves or whose frontier an unknown entry names, so an unrelated plugin changes no plan byte.
 
 - **AFP-V0-400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1817) The
   shell plugin MUST set a unit's `placesFileNames` (part of the AFP-V0-005 projection when true)
@@ -4214,14 +4217,16 @@ is the one to cut, without changing the merge queue's deciding run or the AFP-V0
 
 - **AFP-V0-540:** (accepted by the owner (owner chat, 2026-10-27: "I approve the ci.yml change for that scope, keep -race and leave the AFP-V0-014 qualification argv as-is"); V1-2890)
   The `go-product-shard` Go tests step SHALL take its `go test -p` value from `SHARD_TEST_P`
-  (set identically in the narrowing gate step, `AFP-V0-2181`), which is `4` only when the event
-  is `pull_request` and the runner environment is `self-hosted`, and `1` on every other run. There are five parts.
+  (set identically in the narrowing gate step, `AFP-V0-2181`), which is `4` when the event is
+  `pull_request` (self-hosted or hosted: hosted `ubuntu-24.04` runners of this public repository
+  have 4 vCPUs; amended 2026-11-05, V1-4728) and `1` on every other run. There are five parts.
   - (1) The whole-package, slice and AFP-V0-047 rerun invocations all take `-p "$SHARD_TEST_P"`
     and otherwise keep `-exec "$RUNNER_TEMP/test-confine" -json -count=1 -race -timeout 50m`,
     the AFP-V0-023 confinement and the job environment. `-race` and `-count=1` never change.
   - (2) A `merge_group` shard, the deciding full suite and the only AFP-V0-428 seed producer,
-    and a hosted shard keep `-p 1`, so the ci profile of `STR-V0-012` (`ciGoFlags`, `-p 1`)
-    still equals the merge queue's argv, and hosted AFP-V0-040 cost streams stay unshared.
+    keeps `-p 1`, so the ci profile of `STR-V0-012` (`ciGoFlags`, `-p 1`) still equals the
+    merge queue's argv. A hosted pull-request shard's package Elapsed is measured under `-p 4`
+    contention; it is never a merge-queue or AFP-V0-040 cost input.
   - (3) The AFP-V0-014 historical qualification argv (`go test -json -p 1 -count=1 -race
     -timeout 50m` in `tools/corvint-pr-tests`) is unchanged. No CI shard produces AFP-V0-014 or
     AFP-V0-015 evidence: that profile runs only in its own driver campaign.

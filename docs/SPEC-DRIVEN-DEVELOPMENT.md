@@ -205,8 +205,17 @@ other INDEX.json fields and README.md cells stay hand-owned. The index carries n
 orders rows by definition position, so changes to different specs or different sections of one
 spec merge without conflict (`SRG-V0-015`, `SRG-V0-016`). Changes whose new rows are adjacent
 still conflict there; resolve the spec and regenerate the index, never hand-merge it
-(`SRG-V0-013`). The generated rows are projections of
+(`SRG-V0-013`). Two changes that move the requirement ranges of specs whose README rows are
+adjacent conflict in README.md; `make spec-requirements-resolve` finishes that merge
+(`SRG-V0-752`). Definitions may appear in any order in a Requirements section; `--lines` prints
+them by id (`SRG-V0-751`). The README description cell after its one-sentence claim (the binding
+evidence or next gate) is hand-owned: no check reads it, so a change that alters a spec's delivered
+evidence updates that cell in the same change, or the cell goes stale. The generated rows are projections of
 the spec headers and never a source of intent.
+
+The Agent digest `Claim` is one sentence of at most 160 characters (`SRG-V0-040`), and its
+fields are only `Blocked on`, `Claim`, `Exists`, `Read next` and `Status` (`Successor` and `Why`
+for a superseded spec, `SRG-V0-082`).
 
 ## Backfill and generated documentation
 

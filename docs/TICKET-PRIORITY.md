@@ -20,3 +20,9 @@ Adjustments:
 - **External reports.** A defect reported from a real user repository is at least P2.
 - **Residuals inherit nothing.** A residual filed from a delivered ticket is rated on its own test,
   not its parent's level.
+
+Agent-memory category labels and ticket kind (TCL-V0-7211): `fixes` and `tests`
+use kind `CHORE`; a confirmed product defect uses kind `BUG` with label `bugs`.
+`FIX` and `TEST` are not kinds. Keep the `agent-memory` label and the category
+label independently of the kind. `ticket create --help` and `--template` carry
+this mapping.

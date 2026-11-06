@@ -27,6 +27,7 @@ local trace store (`DCW-V0-023`); without them the worktree is dirty or the reco
 
 ```text
 .corvint/dogfood-report.json
+.corvint/.dogfood-report-*.tmp
 .corvint/change.ocm-intents
 .corvint/change.ocm-status.json
 .corvint/change.ocm.*.json
@@ -38,6 +39,11 @@ Build a helper binary into scratch, `go build -o "$TMPDIR/NAME" ./cmd/NAME`, nev
 `go build ./cmd/NAME`, which writes `NAME` into the worktree, where the recorder counts it as
 dirty; `dogfood change` names such an untracked `NAME` or `NAME.exe` beside a `cmd/NAME` directory
 before it prepares (`DCW-V0-386`).
+
+Check report updates stage a private temporary beside the ignored report, so the atomic rename
+also works when the Git directory is on a different filesystem or sandbox mount (`DTL-V0-016`).
+Only the completed report is evidence. The temporary is removed on success or an ordinary error;
+an abrupt process kill can leave ignored unfinished output for its operator to inspect and remove.
 
 In Corvint's own tree the `make dogfood-change`, `make dogfood-check` and `make dogfood-seal` targets
 used below wrap the same subverbs: they also require `VERSION` to match `CORVINT_BIN` and build
@@ -520,6 +526,11 @@ needed, `DCW-V0-350`), then run
 ```console
 $ make dogfood-finish BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed
 ```
+
+`make dogfood-finish LANE=1 SEAL=0` stops after the checked bind commit, without a seal
+(DTL-V0-004); its CLI form is `corvint dogfood finish-lane --base FULL_SHA --seal no` with the
+same inputs. SEAL=1 (default) retains the complete sealing flow. Rerun and fix hints from a
+stop-before-seal run keep `SEAL=0` (or `--seal no` for the direct CLI), so a retry never seals.
 
 `make dogfood-finish` builds the base and tree verifiers as `dogfood-seal` does and runs
 `corvint dogfood finish-lane --base BASE_SHA --citations FILE [--intents FILE] [--verify FILE]
@@ -1236,7 +1247,9 @@ or `ocm mark` to preserve an honest unknown. A requirement the change does not t
 `unassessed`: that reason means "not assessed by this change" and needs no mark (decision 0029). A
 Go test anchors a requirement by naming its ID in a table case `name` or a `t.Run("...")` literal.
 Include a descriptive word with the ID: numeric-only suffixes disappear during selector
-normalization, so multiple bare IDs in one test function can collide. A whole-function selector
+normalization, so multiple bare IDs in one test function can collide. The normalization (lower-casing, plural `s`/`ies` folding, dropped
+digit-only words) is stated in `docs/specs/ocm-v0-dogfood.md`; a miss names the given and the
+normalized fragment (`OCM-V0-700`). A whole-function selector
 whose function-name anchor lacks the exact requirement ID is not a substitute.
 
 The ID must appear as an exact token: a requirement token continues through `A-Z`, `a-z`, `0-9`, `_`
@@ -1487,7 +1500,10 @@ After restore, check out the exported commit and run `corvint dogfood import --s
 --input "$HOME/enrollments/KEY.json"` in the restored worktree. The import is bound to that exact
 commit and tree, never replaces an existing enrollment, relocates the saved paths into the new Git
 directory and evaluates as the source did; it never makes the enrollment more satisfied
-(LCP-V0-883..885). Without a bundle a restored worktree reads `inactive`: whether it ever held an
+(LCP-V0-883..885). Status now also reports `enrollmentEvidence` (LCP-V0-8209):
+`PRESENT` for a read keyed record; `NOT_OBSERVED` for absent private state. The latter
+never proves historical inactivity or cancels an obligation. Without a bundle a restored
+worktree reads `inactive`: whether it ever held an
 enrollment cannot be told from it, so report that as `NOT_OBSERVED` and never re-enroll over it.
 Aggregate-outcome and sealed-continuation enrollments cannot be exported yet
 (`enrollment-export-unsupported`); keep their original checkout.

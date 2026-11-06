@@ -915,6 +915,7 @@ Usage:
           [--playwright-ungrepped-config PATH]]
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected audit --changes FILE
+  corvint [--root PATH] affected --ownership-audit
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -1092,6 +1093,13 @@ affected cache (experimental) reports the default cache's location, state
 (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON
 object, or with --format doctor-plugin as one AFFECTED_CACHE item for a
 corvint-tasks doctor plugin; it creates and writes nothing.
+
+affected --ownership-audit (experimental) lists, as one JSON object of profile
+affected-ownership-audit/0, each path tracked at HEAD that no plugin, the driver
+claimant or a project declaration claims: the paths a plan reports as
+UNOWNED_DIRTY_PATH. It refuses a dirty worktree, builds the graph without the
+cache, writes nothing, and exits 0 when no path is unowned, 1 when some path
+is, and 2 on an error.
 
 affected audit (experimental) reads a corvint-affected-audit-input/0 FILE
 listing changes: id, full base commit id, and kind replay (full head), revert
@@ -2114,7 +2122,7 @@ Usage:
     [--override-verifier PATH] BASE
   corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
     [--override-verifier PATH] BASE
-  corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE
+  corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--seal yes|no]
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
     [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
@@ -2184,7 +2192,9 @@ the worktree top level.
 
 finish-lane runs the bind loop on a committed change: prepare, bind with the
 --citations plan, commit .corvint/change.cem.json as "chore: bind change evidence",
-rebind, check and seal, one stdout line per step, then every NOT_PRODUCED row and
+rebind, check and seal (default --seal yes); --seal no stops at the checked bind
+commit without sealing. Example: corvint dogfood finish-lane --base BASE --citations FILE --seal no.
+One stdout line per step is followed by every NOT_PRODUCED row and
 the check's SUMMARY and verdict. It stops at the first failing step with that
 step's own reason and fix line; rerun from a bind commit continues at rebind.
 Prepare also cites each plan row against the prepared map without writing it,

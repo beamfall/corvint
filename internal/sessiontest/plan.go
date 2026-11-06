@@ -87,6 +87,10 @@ func goUnit(slices map[string]GoSlice, pkg string, shard int) Unit {
 // (STR-V0-064): "go-module:<directory>".
 const ModuleUnitPrefix = "go-module:"
 
+// driverNamespace is the affected plan's namespace of make targets and CI
+// jobs (AZU-V0-001), which no language adapter runs.
+const driverNamespace = "driver"
+
 // moduleReason is the stated reason a nested-module unit runs whole.
 const moduleReason = "a nested Go module the root does not build: its packages are not indexed, so its own go test ./... runs whole from its directory (AFP-V0-650)"
 
@@ -232,7 +236,9 @@ func Build(input Input) (Manifest, error) {
 	}
 	languages := map[string]bool{}
 	for _, id := range input.Selected {
-		if language, _, ok := strings.Cut(id, ":"); ok && language != "go" {
+		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
+		// a language adapter; the affected plan reports it.
+		if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
 	}
@@ -240,7 +246,9 @@ func Build(input Input) (Manifest, error) {
 	for _, entry := range input.Unknown {
 		// An unknown unit with no selectable test still needs its language's
 		// declared full command when no adapter covers it (STR-V0-004).
-		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" {
+		// Driver units are make/CI inputs, not an adapter language, even
+		// when an unparsable file has no selectable target (AZU-V0-9704).
+		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
 		if directory, ok := moduleDirectory(entry); ok && input.RunnerProfile != ProfileCI {

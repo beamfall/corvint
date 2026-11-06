@@ -631,16 +631,16 @@ func leaseDetachAwait(env Env, name, dir, requestID, holder string, deadline tim
 			continue
 		}
 		if state == "LOST" {
-			return emit(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeSupervisorLost}, NotRetryable: true,
+			return emit(env.Stdout, leaseDetachDrainNotice(name, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodeSupervisorLost}, NotRetryable: true,
 				Warnings: []string{prose("the detached " + name + " ended without keeping a result; nothing was signalled; repeat " + name + " --detach with the same arguments and request id: the store replays a committed request and otherwise runs it once")},
-				Items:    []wire.Value{leaseDetachItem(name, dir, requestID, holder, state, &child)}})
+				Items:    []wire.Value{leaseDetachItem(name, dir, requestID, holder, state, &child)}}))
 		}
 		if !time.Now().Before(deadline) {
 			item := leaseDetachItem(name, dir, requestID, holder, state, &child)
 			item.Obj.Set("progress", leaseDetachProgressValue(dir))
-			return emitCode(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused,
+			return emitCode(env.Stdout, leaseDetachDrainNotice(name, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused,
 				Warnings: []string{prose("the detached " + name + " has not finished; attach again with " + name + " --attach --request-id " + requestID)},
-				Items:    []wire.Value{item}}, runExitPending)
+				Items:    []wire.Value{item}}), runExitPending)
 		}
 		time.Sleep(min(leaseDetachPoll, time.Until(deadline)))
 	}
@@ -704,4 +704,13 @@ func (l *leaseDetachLogWriter) Write(p []byte) (int, error) {
 		_, _ = l.w.Write(p[:n])
 	}
 	return len(p), nil
+}
+
+// leaseDetachDrainNotice applies claim's drain contract to transport-generated
+// PENDING and LOST envelopes; retained command result bytes are never changed.
+func leaseDetachDrainNotice(name string, result *wire.Result) *wire.Result {
+	if name == "claim" {
+		return withDrainNotice(result)
+	}
+	return result
 }

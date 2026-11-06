@@ -7,7 +7,9 @@ import (
 	"encoding/gob"
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
+	"sync/atomic"
 	"testing"
 )
 
@@ -138,5 +140,52 @@ func TestGobBodiesInlineAndRegionRoundTrip_IDXSNAPV0811(t *testing.T) {
 	joined[0] ^= 0xff
 	if _, err := decodeSnapshotBody(gob.NewDecoder(&buffer), snapshotBodyFull, &snapshotBodies{region: joined, objectFormat: wire.ObjectFormat}); err == nil {
 		t.Fatal("a changed region body decoded")
+	}
+}
+
+// IDX-SNAP-V0-7560: emulate private pages remaining readable after backing-file truncation.
+func TestSnapshotCachedPagesStillCheckBackingSize_IDXSNAPV07560(t *testing.T) {
+	data := []byte("immutable evidence")
+	path := filepath.Join(t.TempDir(), "snapshot")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	bodies := &gobBodies{region: data, mapping: &snapshotMapping{file: file, size: int64(len(data))}, objectFormat: "sha1", cache: make([]atomic.Pointer[[]byte], 1)}
+	if err := os.Truncate(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bodies.read(0, 0, uint64(len(data)), gitBlobHash(data, "sha1")); !errors.Is(err, errSnapshotBody) {
+		t.Fatalf("readable stale pages admitted: %v", err)
+	}
+}
+
+// IDX-SNAP-V0-7560: closing the reader cannot close the mapping's backing inode.
+func TestSnapshotBackingDescriptorLifetime_IDXSNAPV07560(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "snapshot")
+	if err := os.WriteFile(path, []byte("retained bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mapping := mapSnapshot(file, 14)
+	_ = file.Close()
+	if mapping == nil {
+		t.Skip("mapping unavailable on this platform")
+	}
+	backing := mapping.file
+	if _, err := backing.Stat(); err != nil {
+		mapping.release()
+		t.Fatal(err)
+	}
+	mapping.release()
+	if _, err := backing.Stat(); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("backing descriptor leaked: %v", err)
 	}
 }

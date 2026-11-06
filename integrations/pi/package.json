@@ -1,6 +1,6 @@
 {
   "name": "@corvint/pi",
-  "version": "0.3.12",
+  "version": "0.3.15",
   "type": "module",
   "description": "Experimental native Core, Tasks, evidence cockpit and local workflow integration for Pi",
   "license": "Apache-2.0",
@@ -31,7 +31,7 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "corvintIntegration": {
-    "adapterVersion": "0.3.12",
+    "adapterVersion": "0.3.15",
     "host": "pi",
     "surface": "extension",
     "protocol": "corvint-harness-event/0",
@@ -47,5 +47,8 @@
   },
   "keywords": [
     "pi-package"
-  ]
+  ],
+  "scripts": {
+    "test": "node --test --test-concurrency=1 *.test.mjs"
+  }
 }

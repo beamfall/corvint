@@ -692,6 +692,30 @@ Context, non-goals, failure modes and rollback: the "Version source identity ame
   free-space guard MUST measure the file system of that same `GOTMPDIR` (its nearest existing
   ancestor), not `TMPDIR`. Rollback: drop the `GOTMPDIR` entry, its directory creation and the
   guard's measured path.
+- `PUB-V0-027`: `corvint impact ... --producer` and `corvint test-validity ... --producer` MUST
+  add exactly one `producer` member to their stdout JSON, and every other byte MUST equal the
+  same call without `--producer`. `producer` has four string members: `version` (the compiled
+  `VERSION`), `build` (the `PUB-V0-021` stamped number), `commit` and `commitState`. The flag
+  takes no value and may be given once; otherwise the call exits 2 with no stdout. It does not
+  change refusals, exit codes or stderr.
+- `PUB-V0-028`: Each member MUST come from its own source only, and a member that source cannot
+  state MUST be an explicit marker, never a guess: `build` is `unstamped` when the binary carries
+  the unstamped value `0`; `commit` is the Go toolchain's `vcs.revision` only when `vcs` is `git`
+  and the revision is 40 or 64 lower-case hex digits, otherwise `unknown`; `commitState` is
+  `clean` or `modified` from `vcs.modified` when a commit is stated, otherwise `unknown`.
+- `PUB-V0-029`: Build `0` is correct only for an unstamped source build (for example the
+  README's `go build -o corvint ./cmd/corvint`). Release and candidate archives are stamped with a
+  non-zero first-parent count by `PUB-V0-021` (`conformance/release-artifact-v0/build.go`
+  `buildArguments`, `internal/companionrelease`), so an installed release reports a non-zero
+  build. Those archives are built with `-trimpath -buildvcs=false`, so their `commit` is
+  `unknown`; consumers identify a release build, as `PUB-V0-021` already states, by `VERSION`
+  plus the released commit named in the release manifest and the installed executable digest.
+  `make build` stamps the build and keeps VCS settings, so a local `make build` states both.
+- `PUB-V0-030`: Without `--producer`, both receipts MUST stay byte-identical to their frozen
+  form. Making `producer` default-on changes `impact` stdout pinned by `CCF-V1-006`
+  (`conformance/cli-parity-v0`), the VS Code envelope's closed top-level keys (`VSC-V0`) and the
+  `MTV-V0-005` CLI/MCP test-validity equality; it needs its own owner decision and divergence
+  record and is not part of this amendment.
 
 ## Non-goals and failure modes
 
@@ -831,30 +855,8 @@ Source: GitHub #1300. An `impact` or `test-validity` receipt states nothing abou
 that produced it, and `corvint --version` of a source `go build` prints build `0`. The owner's
 standing auto-accept of lane requirements (2026-10-11) accepts `PUB-V0-027..030`.
 
-- `PUB-V0-027`: `corvint impact ... --producer` and `corvint test-validity ... --producer` MUST
-  add exactly one `producer` member to their stdout JSON, and every other byte MUST equal the
-  same call without `--producer`. `producer` has four string members: `version` (the compiled
-  `VERSION`), `build` (the `PUB-V0-021` stamped number), `commit` and `commitState`. The flag
-  takes no value and may be given once; otherwise the call exits 2 with no stdout. It does not
-  change refusals, exit codes or stderr.
-- `PUB-V0-028`: Each member MUST come from its own source only, and a member that source cannot
-  state MUST be an explicit marker, never a guess: `build` is `unstamped` when the binary carries
-  the unstamped value `0`; `commit` is the Go toolchain's `vcs.revision` only when `vcs` is `git`
-  and the revision is 40 or 64 lower-case hex digits, otherwise `unknown`; `commitState` is
-  `clean` or `modified` from `vcs.modified` when a commit is stated, otherwise `unknown`.
-- `PUB-V0-029`: Build `0` is correct only for an unstamped source build (for example the
-  README's `go build -o corvint ./cmd/corvint`). Release and candidate archives are stamped with a
-  non-zero first-parent count by `PUB-V0-021` (`conformance/release-artifact-v0/build.go`
-  `buildArguments`, `internal/companionrelease`), so an installed release reports a non-zero
-  build. Those archives are built with `-trimpath -buildvcs=false`, so their `commit` is
-  `unknown`; consumers identify a release build, as `PUB-V0-021` already states, by `VERSION`
-  plus the released commit named in the release manifest and the installed executable digest.
-  `make build` stamps the build and keeps VCS settings, so a local `make build` states both.
-- `PUB-V0-030`: Without `--producer`, both receipts MUST stay byte-identical to their frozen
-  form. Making `producer` default-on changes `impact` stdout pinned by `CCF-V1-006`
-  (`conformance/cli-parity-v0`), the VS Code envelope's closed top-level keys (`VSC-V0`) and the
-  `MTV-V0-005` CLI/MCP test-validity equality; it needs its own owner decision and divergence
-  record and is not part of this amendment.
+The four clauses are defined in `## Requirements` (moved there verbatim by V1-0659,
+2026-11-01, so its OCM map enumerates them; the clause text is unchanged).
 
 Failure modes: a guessed commit or build (prevented by `PUB-V0-028` markers); a default-output
 change that breaks frozen parity pins (prevented by opt-in and `PUB-V0-030`); a consumer treating

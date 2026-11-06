@@ -52,8 +52,10 @@ of every requirement below and the binding gate until this spec is promoted.
 - `STR-V0-7305`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard executed by the session runner MUST record its completion wall time as optional RFC3339Nano completedAt. Legacy receipts without that field remain admissible. It is ordering advice, never an execution, revision or evidence-validity assertion.
   Acceptance evidence: `TestFailFastContentTimeSurvivesTimestampTies` in `cmd/corvint/affected_order_test.go` and the session-runner round-trip tests.
 
-- `STR-V0-7313`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's standing auto-accept (2026-11-05), self-review repair; V1-3424) The default local-profile test --dry-run output MUST be a bounded summary (at most 4096 bytes across stdout and stderr), including counts, selection and fallback reasons sufficient to justify HEAVY_WHOLE_REASON. --full MUST request the complete JSON argv listing. --summary remains an explicit synonym for the local default; the CI profile retains its JSON default for pinned shadow consumers, and --pins retains its own output. The shared budget includes stale or unverified binary degradation notices without changing their text. The bounded form MUST include top whole-package causes and a usable HEAVY_WHOLE_REASON; it MUST NOT append the full per-invocation advice or a duplicate verdict on stderr. All forms write identical manifests. --full outside --dry-run or with --summary or --pins MUST refuse. This amends STR-V0-800's output default, not planning or execution.
+- `STR-V0-7313`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's standing auto-accept (2026-11-05), self-review repair; V1-3424) The default local-profile test --dry-run output MUST be a bounded summary (at most 4096 bytes across stdout and stderr), including counts, selection and fallback reasons sufficient to justify HEAVY_WHOLE_REASON. --full and explicit --format json MUST request the complete JSON argv listing. --summary remains an explicit synonym for the local default; the CI profile retains its JSON default for pinned shadow consumers, and --pins retains its own output. The shared budget includes stale or unverified binary degradation notices without changing their text. The bounded form MUST include top whole-package causes and a usable HEAVY_WHOLE_REASON; it MUST NOT append the full per-invocation advice or a duplicate verdict on stderr. All forms write identical manifests. --full outside --dry-run or with --summary or --pins MUST refuse. This amends STR-V0-800's output default, not planning or execution.
   Acceptance evidence: `TestDryRunDefaultsToBoundedSummary`, `TestSTRV0800DryRunSummaryIsBounded` and `TestSTRV0800CLIDryRunSummary` and `TestDryRunStaleBinarySharesSummaryBudget` in `cmd/corvint`.
+
+- `STR-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The declaration-runner regression MUST pin `CORVINT_GOCACHE` explicitly when it tests the declared GOCACHE, so an offload host override cannot change the fixture. The separate STR-V0-174 override regression MUST continue to prove intentional override precedence.
 
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
   [--dry-run] [--receipt PATH]` SHALL plan in process through the same code and profile as
@@ -216,7 +218,7 @@ of every requirement below and the binding gate until this spec is promoted.
   branch of the `go-product-shard` job, the environment its `go test` sees (the job `env` over the
   runner's own) and its two `go test -exec` invocations, not the driver's closed environment
   (amended by `AFP-V0-540`, V1-2890: the job's `-p` is `SHARD_TEST_P`, which is `1`, this
-  profile's value, on every run except a self-hosted pull-request shard, where it is `4`); they
+  profile's value, on every run except a pull-request shard, where it is `4`; V1-4728); they
   are constants held equal to `.github/workflows/ci.yml` by a maintained test, not read from the
   declaration's `go` section, which declares the local full suite. The ci profile SHALL NOT launch
   a declared language command, a make target included: the CI full branch runs only Go, so a
@@ -404,7 +406,7 @@ two requirements make its version name its content and make each receipt carry i
   `make unbounded-readers-check` before merge and never narrows a run silently. Falsifier: a
   dirty path whose plan-selected `UNBOUNDED_READER` package is absent from the `--dry-run` run
   set, or a `--dry-run` run set that lacks a package `gateselect.Select` attributes by rules (a)
-  to (c). Rollback: call `gateselect.Select` from `testFillPlan` again.
+  to (c). Rollback: call `gateselect.Select` from `testFillPlan` again. Amended by AFP-V0-2402 (`docs/specs/affected-plan-selection-v0.md`, V1-4363): a `run` verdict runs only the plan's own Go selection; the attribution still decides FALLBACK and NOTHING.
 - `STR-V0-062`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2808) An `invalid-arguments`
   refusal of `corvint test` for an unknown flag, a flag without its value or a stray positional
   argument SHALL name the word at fault before the usage line (`flag provided but not defined:
@@ -872,3 +874,9 @@ These refinements change diagnostics, ordering advice, output projection and tes
 They grant no new narrowing authority. Missing or invalid evidence keeps the existing uncertainty.
 Revert the corresponding implementation and requirement together to restore the prior behavior.
 Qualification limits and explicit exclusions are retained in `docs/build-log/2026-11-04-pk-affected.md`.
+
+## Lane maintenance evidence (2026-11-04)
+
+| Requirement | Implementation and regression |
+| --- | --- |
+| `STR-V0-7500` | `tools/test-commands-run/main_test.go`; `TestSTRV0006RunnerRunsTheDeclaration`, `TestSTRV0174InvocationHonoursCorvintGocache`. |

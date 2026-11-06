@@ -71,12 +71,12 @@ func TestSTRV0012CIConstantsMatchFullBranch(t *testing.T) {
 	if want := slices.Sorted(slices.Values(ciGoEnv)); !slices.Equal(slices.Sorted(slices.Values(env)), want) {
 		t.Fatalf("go-product-shard job Go environment %v, ciGoEnv %v", env, want)
 	}
-	// AFP-V0-540: the job takes -p from SHARD_TEST_P, which is above 1 only on a self-hosted
-	// pull-request shard; the merge queue's deciding full suite, like this profile, runs -p 1.
+	// AFP-V0-540: the job takes -p from SHARD_TEST_P, which is above 1 only on a pull-request
+	// shard; the merge queue's deciding full suite, like this profile, runs -p 1.
 	if ciGoFlags[0] != "-p" || ciGoFlags[1] != "1" {
 		t.Fatalf("ciGoFlags %v must start with -p 1", ciGoFlags)
 	}
-	const shardP = `          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}`
+	const shardP = `          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}`
 	if !slices.Contains(job, shardP) {
 		t.Fatalf("go-product-shard does not set %q, so the merge-queue suite's -p is not this profile's -p 1", strings.TrimSpace(shardP))
 	}

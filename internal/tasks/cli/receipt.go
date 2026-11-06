@@ -47,7 +47,7 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	body := func(rc *readCtx) error {
 		observed = nil
 		verified, manual = 0, 0
-		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, IntentTree: rc.tree}
+		reader := journal.Reader{ReadExtraDirectories: true, Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, IntentTree: rc.tree}
 		reader.ReceiptFold = func() func(*snapshot.Receipt, wire.Digest) error { return store.ReceiptBindingFold(rc.repo) }
 		var audited *journal.Result
 		var err error

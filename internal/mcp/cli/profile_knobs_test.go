@@ -14,6 +14,7 @@ import (
 // without changing its output.
 func TestPRBV0010ServerHonoursProfileKnobs(t *testing.T) {
 	dir := t.TempDir()
+	skipInsideGit(t, dir) // PRB-V0-013 refuses a profile inside any worktree.
 	cpu, mem := filepath.Join(dir, "cpu.pprof"), filepath.Join(dir, "heap.pprof")
 	env := map[string]string{"CORVINT_CPUPROFILE": cpu, "CORVINT_MEMPROFILE": mem}
 	var profiled, plain, stderr bytes.Buffer

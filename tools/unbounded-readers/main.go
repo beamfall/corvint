@@ -7,10 +7,14 @@ import (
 	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
+	"maps"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -165,6 +169,37 @@ func dynamicSources(root string, graph *affected.Graph, id string) []string {
 	return hints
 }
 
+// droppedDeclarations lists, sorted, the package directories that HEAD's
+// committed declaration names and the working tree's copy no longer does. Without Git,
+// a commit or a readable committed declaration it lists none. tools/test-read-scopes-check holds
+// the same reader; the two main packages cannot share it.
+func droppedDeclarations(root string) []string {
+	// "HEAD:./" resolves against root, not an enclosing repository's top level.
+	command := exec.Command("git", "-C", root, "show", "HEAD:./"+affected.ReadScopesPath)
+	command.Stderr = io.Discard
+	committed, err := command.Output()
+	if err != nil {
+		return nil
+	}
+	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath)))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	var before, after struct {
+		Packages map[string]any `json:"packages"`
+	}
+	if json.Unmarshal(committed, &before) != nil || len(current) > 0 && json.Unmarshal(current, &after) != nil {
+		return nil
+	}
+	var dropped []string
+	for _, directory := range slices.Sorted(maps.Keys(before.Packages)) {
+		if _, ok := after.Packages[directory]; !ok {
+			dropped = append(dropped, directory)
+		}
+	}
+	return dropped
+}
+
 func run(root string, stdout, stderr io.Writer) int {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -224,11 +259,18 @@ func run(root string, stdout, stderr io.Writer) int {
 	if len(unrecorded) > 0 {
 		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible, as for a package whose tests launch a nested sandbox recorded in .corvint/test-nested-sandboxes.json (AFP-V0-615); a shell test is registered as described in docs/SHELL-TEST-REGISTRATION.md.\n",
 			unrecorded, recordPath, affected.ReadScopesPath)
+		dropped := droppedDeclarations(root)
 		for _, directory := range slices.Compact(slices.Clone(unrecorded)) {
 			// V1-3780, TSP-V0-723: name the record's entry shape, so the last-resort
 			// route needs no reading of the record's reader first.
 			fmt.Fprintf(stderr, "  %s: to record it, insert %q into units of %s in ascending order and add %q: \"<the unbounded read, and why %s cannot declare it>\" to its reasons\n",
 				directory, directory, recordPath, directory, affected.ReadScopesPath)
+			if slices.Contains(dropped, directory) {
+				// AFP-V0-2540 (V1-4532): a declaration removed from the working
+				// tree is the usual cause, and the fix is in the other file.
+				fmt.Fprintf(stderr, "  %s: likely cause: its entry in %s, declared at HEAD, was removed from the working tree; restore it, or record the package as above\n",
+					directory, affected.ReadScopesPath)
+			}
 			for _, id := range ids[directory] {
 				fmt.Fprintf(stderr, "  %s\n", explain(graph, id))
 				for _, hint := range dynamicSources(root, graph, id) {

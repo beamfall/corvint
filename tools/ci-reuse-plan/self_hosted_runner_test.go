@@ -212,7 +212,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 	ci := readWorkflow(t, "ci.yml")
 	shard := jobBlock(t, ci, "go-product-shard")
 	wantLine(t, "stream retention", stepBlock(t, shard, "Retain package outcomes for the advisory cost-drift report"),
-		"        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted'")
+		"        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name != 'pull_request'")
 	marker := stepBlock(t, shard, "Mark a self-hosted shard for the advisory cost-drift report (AFP-V0-422)")
 	wantLine(t, "marker", marker, "        if: steps.tests.outputs.costs == '1' && runner.environment == 'self-hosted'")
 	wantLine(t, "marker", marker, "        continue-on-error: true")
@@ -221,7 +221,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 	drift := jobBlock(t, ci, "ci-shard-cost-drift")
 	wantLine(t, "drift download", drift, "          pattern: ci-shard-costs-*")
 	script := runScript(t, stepBlock(t, drift, "Require the outcomes of every shard"))
-	run := func(markers int) (string, string) {
+	run := func(markers int, event string) (string, string) {
 		t.Helper()
 		dir := t.TempDir()
 		costs := filepath.Join(dir, "shard-costs")
@@ -241,7 +241,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
 		cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir, "SHARDS=8", "SHARDS_RESULT=success",
-			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary)
+			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary, "GITHUB_EVENT_NAME="+event)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("the outcome check failed: %v\n%s", err, out)
 		}
@@ -249,13 +249,18 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 		s, _ := os.ReadFile(summary)
 		return string(o), string(s)
 	}
-	if out, summary := run(0); out != "ok=1\n" || summary != "" {
+	if out, summary := run(0, "merge_group"); out != "ok=1\n" || summary != "" {
 		t.Errorf("eight hosted streams must report: output %q, summary %q", out, summary)
 	}
 	// Even with every hosted-shaped stream present, one self-hosted shard abstains.
-	out, summary := run(1)
+	out, summary := run(1, "merge_group")
 	if strings.Contains(out, "ok=1") || !strings.Contains(summary, "Abstained: 1 of 8 shards ran on the self-hosted runner") {
 		t.Errorf("a self-hosted shard must abstain: output %q, summary %q", out, summary)
+	}
+	// AFP-V0-540 (V1-4728): a pull-request shard runs at -p 4, so its contended times never measure the table.
+	out, summary = run(0, "pull_request")
+	if strings.Contains(out, "ok=1") || !strings.Contains(summary, "Abstained: a pull-request shard runs at -p 4") {
+		t.Errorf("a pull-request run must abstain: output %q, summary %q", out, summary)
 	}
 }
 
@@ -277,7 +282,9 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	bash := func(script string, env ...string) string {
 		t.Helper()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(os.Environ(), env...)
+		// A merge-queue event by default, so the outcome step never takes its pull-request
+		// abstention from the runner's own environment; a case may override it.
+		cmd.Env = append(append(os.Environ(), "GITHUB_EVENT_NAME=merge_group"), env...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("step failed: %v\n%s", err, out)
@@ -312,7 +319,7 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	}
 	complete := runScript(t, stepBlock(t, drift, "Require the outcomes of every shard"))
 	balance := runScript(t, balanceStep)
-	run := func(sums []string) (string, string, string) {
+	run := func(sums []string, extra ...string) (string, string, string) {
 		t.Helper()
 		dir := t.TempDir()
 		costs := filepath.Join(dir, "shard-costs")
@@ -331,6 +338,7 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
 		env := []string{"RUNNER_TEMP=" + dir, "SHARDS=8", "SHARDS_RESULT=success", "BOUND_PERCENT=125",
 			"GITHUB_OUTPUT=" + output, "GITHUB_STEP_SUMMARY=" + summary}
+		env = append(env, extra...)
 		bash(complete, env...)
 		o, _ := os.ReadFile(output)
 		log := ""
@@ -363,6 +371,10 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	missing := append([]string{""}, even[1:]...)
 	if _, log, summary := run(missing); log != "" && strings.Contains(log, "::warning") || !strings.Contains(summary, "Not measured: 7 of 8 self-hosted shards recorded their package time.") {
 		t.Errorf("a marker without its sum must not measure: log %q, summary %q", log, summary)
+	}
+	// A pull request abstains from the cost table but still reports the balance (AFP-V0-540).
+	if out, log, _ := run(skewed, "GITHUB_EVENT_NAME=pull_request"); !strings.Contains(out, "boxed=1\n") || strings.Contains(out, "ok=1") || !strings.Contains(log, "::warning title=CI shard balance::") {
+		t.Errorf("a pull-request run must still report balance: output %q, log %q", out, log)
 	}
 	// Fewer than every shard on the self-hosted runner leaves the balance step off.
 	if out, _, _ := run(even[:7]); strings.Contains(out, "boxed=1") {
