@@ -38,8 +38,34 @@ witness="$git_dir/corvint/release-go-archive-report.json"
 # earlier run's witness for the status check below to read. Removing it first means the check can
 # only ever read a witness this run recorded; an unrecorded one makes archive-status fail.
 rm -f "$witness"
-go run ./conformance/release-artifact-v0 archive \
-  --revision HEAD --output "$parent/corvint-go-release"
+# Go preserves an inherited SIGHUP ignore, but resets SIGTERM. Isolate the
+# launcher from group signals and relay cancellation as SIGHUP, which the
+# producer explicitly subscribes to. Keep waiting until its workers retire.
+(
+  launcher=
+  pending_signal=0
+  cancel_archive() {
+    pending_signal=$1
+    # A signal can arrive between starting the job and recording its PID.
+    [[ -n "$launcher" ]] || return 0
+    trap '' HUP INT TERM
+    kill -HUP -- "-$launcher" 2>/dev/null || :
+    wait "$launcher" || :
+    exit "$pending_signal"
+  }
+  trap 'cancel_archive 129' HUP
+  trap 'cancel_archive 130' INT
+  trap 'cancel_archive 143' TERM
+  set -m
+  (trap '' HUP; exec go run ./conformance/release-artifact-v0 archive \
+    --revision HEAD --output "$parent/corvint-go-release") &
+  launcher=$!
+  set +m
+  if ((pending_signal != 0)); then
+    cancel_archive "$pending_signal"
+  fi
+  wait "$launcher"
+)
 
 expected=(
   SHA256SUMS

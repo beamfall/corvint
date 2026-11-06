@@ -4942,6 +4942,10 @@ GAG-V0-006	docs/specs/go-archive-gate-v0.md	The gate MUST require the output dir
 GAG-V0-007	docs/specs/go-archive-gate-v0.md	The gate MUST cross-check the build against the private witness the build record	unrecorded	-
 GAG-V0-008	docs/specs/go-archive-gate-v0.md	The gate MUST exit non-zero when any of its build, closed-set, or witness checks	unrecorded	-
 GAG-V0-009	docs/specs/go-archive-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3238) When the	standing	2026-10-30; V1-3238
+GAG-V0-9960	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
+GAG-V0-9961	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
+GAG-V0-9962	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
+GAG-V0-9963	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
 GFG-V0-001	docs/specs/go-format-gate-v0.md	The gate MUST check every Go file in the repository's tracked set, obtained from	unrecorded	-
 GFG-V0-002	docs/specs/go-format-gate-v0.md	The tracked set spans every Go module in the repository. The gate MUST NOT carry	unrecorded	-
 GFG-V0-003	docs/specs/go-format-gate-v0.md	The formatter MUST be the `gofmt` of the toolchain `go env GOROOT` names under	unrecorded	-
