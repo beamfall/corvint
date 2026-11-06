@@ -405,9 +405,11 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 				}
 				break
 			}
-			if arg == "-c" || arg == "-e" {
+			if arg == "-c" || arg == "-e" || (!driverShells[base] && strings.HasPrefix(arg, "-")) {
 				// Inline programs in other languages are outside the shell
-				// scanner; their hidden invocations must retain this site.
+				// scanner. Unsupported options may contain a program or
+				// consume the next word; retain the site rather than guess
+				// which word names a script.
 				s.scan.computed = true
 				break
 			}
@@ -534,12 +536,20 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 			break
 		}
 		if strings.HasPrefix(arg, "-") {
-			if arg == "-C" && index+1 < len(words) {
-				index++
-				if driverDynamic(words[index].text) || cwd == "" {
+			if arg == "-C" || strings.HasPrefix(arg, "-C=") {
+				directory := strings.TrimPrefix(arg, "-C=")
+				if arg == "-C" {
+					if index+1 == len(words) {
+						s.scan.computed = true
+						return
+					}
+					index++
+					directory = words[index].text
+				}
+				if driverDynamic(directory) || cwd == "" {
 					cwd = ""
 				} else {
-					cwd = driverJoin(cwd, words[index].text)
+					cwd = driverJoin(cwd, directory)
 				}
 				continue
 			}

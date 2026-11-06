@@ -58,18 +58,20 @@ func TestDriverGoGlobComputed_AZU_V0_001(t *testing.T) {
 }
 
 func TestDriverGoEqualsDirectory_AZU_V0_001(t *testing.T) {
-	for _, flag := range []string{"-C=service", "-C service"} {
-		t.Run(flag, func(t *testing.T) {
+	for _, invocation := range []string{"-C=service test", "-C service test", "test -C=service", "test -C service"} {
+		t.Run(invocation, func(t *testing.T) {
 			graph := driverGraph(t, map[string]string{
-				"Makefile":                  "check:; go " + flag + " test ./pkg\nall: check\n",
-				".github/workflows/ci.yml":  "jobs:\n  unit:\n    steps:\n      - run: make all\n  direct:\n    steps:\n      - run: go " + flag + " test ./pkg\n",
+				"Makefile":                  "check:; go " + invocation + " ./pkg\nall: check\n",
+				".github/workflows/ci.yml":  "jobs:\n  unit:\n    steps:\n      - run: make all\n  build:\n    needs: unit\n    steps:\n      - run: echo done\n  direct:\n    steps:\n      - run: go " + invocation + " ./pkg\n",
 				"service/pkg/value.go":      "package pkg\n",
 				"service/pkg/value_test.go": "package pkg\nimport \"testing\"\nfunc TestValue(t *testing.T) {}\n",
 			}, nil)
-			wantDriverSelection(t, driverSelected(t, affected.Select(graph, []string{"service/pkg/value.go"})),
-				[]string{"driver:make:Makefile#check", makeAll, jobUnit, "driver:ci:.github/workflows/ci.yml#direct"}, nil)
+			for _, dirty := range []string{"service/pkg/value.go", "service/pkg/value_test.go"} {
+				wantDriverSelection(t, driverSelected(t, affected.Select(graph, []string{dirty})),
+					[]string{"driver:make:Makefile#check", makeAll, jobUnit, jobBuild, "driver:ci:.github/workflows/ci.yml#direct"}, nil)
+			}
 			selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
-			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit})
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit, jobBuild, "driver:ci:.github/workflows/ci.yml#direct"})
 		})
 	}
 }
@@ -78,17 +80,32 @@ func TestDriverInlineInterpreterComputed_AZU_V0_001(t *testing.T) {
 	for _, command := range []string{
 		`node -e 'require("child_process").execFileSync("go", ["test", "./core"])'`,
 		`python3 -c 'import subprocess; subprocess.run(["go", "test", "./core"])'`,
+		`node --eval 'require("child_process").execFileSync("go", ["test", "." + "/core"])'`,
+		`node --eval='require("child_process").execFileSync("go", ["test", "." + "/core"])'`,
+		`node -e'require("child_process").execFileSync("go", ["test", "." + "/core"])'`,
+		`node --print 'require("child_process").execFileSync("go", ["test", "." + "/core"])'`,
+		`node --print='require("child_process").execFileSync("go", ["test", "." + "/core"])'`,
+		`node -p'require("child_process").execFileSync("go", ["test", "." + "/core"])'`,
+		`python3 -c'import subprocess; subprocess.run(["go", "test", "." + "/core"])'`,
+		`python3 -B -c 'import subprocess; subprocess.run(["go", "test", "." + "/core"])'`,
+		`ruby -e'exec("go", "test", "." + "/core")'`,
+		`perl -E'exec "go", "test", "." . "/core"'`,
+		`pwsh -Command '& go test ("." + "/core")'`,
 	} {
 		t.Run(command, func(t *testing.T) {
 			graph := driverGraph(t, map[string]string{
 				"Makefile":                 "check:; " + command + "\nall: check\nother:; echo other\n",
-				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make all\n  build:\n    needs: unit\n    steps:\n      - run: echo done\n",
+				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make all\n  build:\n    needs: unit\n    steps:\n      - run: echo done\n  direct:\n    steps:\n      - run: " + command + "\n",
 			}, nil)
-			wantDriverSelection(t, driverSelected(t, affected.Select(graph, []string{"core/core.go"})),
-				[]string{"driver:make:Makefile#check", makeAll, jobUnit, jobBuild}, []string{"driver:make:Makefile#other"})
-			unit, found := graph.Unit("driver:make:Makefile#check")
-			if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
-				t.Error("inline interpreter did not retain computed invocation")
+			for _, dirty := range []string{"core/core.go", "core/core_test.go"} {
+				wantDriverSelection(t, driverSelected(t, affected.Select(graph, []string{dirty})),
+					[]string{"driver:make:Makefile#check", makeAll, jobUnit, jobBuild, "driver:ci:.github/workflows/ci.yml#direct"}, []string{"driver:make:Makefile#other"})
+			}
+			for _, id := range []string{"driver:make:Makefile#check", "driver:ci:.github/workflows/ci.yml#direct"} {
+				unit, found := graph.Unit(id)
+				if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
+					t.Errorf("inline interpreter did not retain computed invocation at %s", id)
+				}
 			}
 		})
 	}
