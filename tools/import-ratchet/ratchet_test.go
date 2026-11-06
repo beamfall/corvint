@@ -190,7 +190,9 @@ var platforms = func() []build.Context {
 }()
 
 // skipDir reports directories that `go list ./...` never walks: hidden and
-// underscore directories, test data, dependencies and nested modules.
+// underscore directories, test data, vendor and nested modules. It also skips
+// node_modules, which go list would walk, so an installed JavaScript tree is
+// never read (IRT-V0-003).
 func skipDir(path string, d fs.DirEntry, root string) bool {
 	if path == root {
 		return false
