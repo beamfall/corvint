@@ -219,6 +219,67 @@ func TestChangedLineGitPaths_AZU_V0_8903(t *testing.T) {
 	}
 }
 
+// AZU-V0-009, AZU-V0-8903: local diff presentation settings and textconv
+// drivers cannot change the source coordinates used to admit mutation receipts.
+func TestSourceDiffConfiguration_AZU_V0_8903(t *testing.T) {
+	root := t.TempDir()
+	gitOK := func(args ...string) string {
+		t.Helper()
+		out, err := git(root, args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	gitOK("init", "--initial-branch=main")
+	gitOK("config", "user.name", "Russell Lewis")
+	gitOK("config", "user.email", "me@russe11.com")
+	file := filepath.Join(root, "a.go")
+	if err := os.WriteFile(file, []byte("unchanged\nold\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitattributes"), []byte("*.go diff=source-test\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOK("add", ".")
+	gitOK("commit", "-m", "parent")
+	parent := gitOK("rev-parse", "HEAD")
+	if err := os.WriteFile(file, []byte("unchanged\nnew\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOK("commit", "-am", "merge")
+	ref := gitOK("rev-parse", "HEAD")
+	for _, config := range []string{"diff.noprefix", "diff.mnemonicPrefix", "diff.source-test.textconv"} {
+		t.Run(config, func(t *testing.T) {
+			value := "true"
+			if config == "diff.source-test.textconv" {
+				// Both sides convert to the same Git version, hiding the edit.
+				value = "git --version"
+			}
+			gitOK("config", config, value)
+			t.Cleanup(func() { gitOK("config", "--unset", config) })
+			diff, err := sourceDiff(root, parent, ref)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines := changedLines(diff)
+			if len(lines) != 2 || len(lines["parent:a.go"]) != 1 || !lines["parent:a.go"][2] || len(lines["merge:a.go"]) != 1 || !lines["merge:a.go"][2] {
+				t.Fatalf("source coordinates changed by %s: %+v\n%s", config, lines, diff)
+			}
+			r, old, now, _ := replayFixture()
+			r.Merge, r.Parent = ref, parent
+			r.ParentSuite.Revision, r.MergeSuite.Revision = parent, ref
+			body, err := json.Marshal(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := safety(body, r.Merge, r.Parent, old, now, lines); got.Status != "OBSERVED_NO_MISS" {
+				t.Fatalf("valid source-line receipt rejected under %s: %+v", config, got)
+			}
+		})
+	}
+}
+
 func TestBeforeAfterNamesEveryRemovedUnknown_AZU_V0_8903(t *testing.T) {
 	old := plan{Selected: []selection{{UnitID: "kept"}, {UnitID: "dropped"}}, Unknown: []unknown{{"LANGUAGE_FRONTIER", "shell:foreign"}}}
 	now := plan{Selected: []selection{{UnitID: "kept"}, {UnitID: "added"}}, Unknown: []unknown{}}
