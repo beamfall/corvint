@@ -1125,8 +1125,16 @@ func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]
 	for index, item := range compactSelected {
 		got, want := item.(map[string]any), fullSelected[index].(map[string]any)
 		witness := maps.Clone(got["witness"].(map[string]any))
+		// Compact viaLength must agree with the reconstructed frozen full via.
+		chain := chains[got["unitId"].(string)]
+		if witness["viaLength"] != float64(len(chain)) {
+			t.Fatalf("selection %d: viaLength does not bind the full chain", index)
+		}
+		if _, added := want["witness"].(map[string]any)["viaLength"]; added {
+			t.Fatalf("selection %d: full witness changed the frozen wire", index)
+		}
 		delete(witness, "viaLength")
-		witness["via"] = anyValues(chains[got["unitId"].(string)])
+		witness["via"] = anyValues(chain)
 		if _, listed := got["tests"]; listed || got["unitId"] != want["unitId"] || !reflect.DeepEqual(witness, want["witness"]) ||
 			int(got["testCount"].(float64)) != len(want["tests"].([]any)) {
 			t.Fatalf("selection %d: %v vs %v", index, got, want)
@@ -1209,6 +1217,7 @@ func resolveCompactAdvice(t *testing.T, compact map[string]any) any {
 // entries by one count line instead of repeating each, keeps every
 // advice-specific line, and resolves to the --full advice.
 func TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown(t *testing.T) {
+	t.Parallel()
 	planUnknown := []affected.Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "python:dynamic-import"}, {Reason: "UNOWNED_DIRTY_PATH", Detail: "docs/x.md"}}
 	full := []string{"LANGUAGE_FRONTIER: python:dynamic-import", "NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION", "UNOWNED_DIRTY_PATH: docs/x.md"}
 	got := compactAffectedAdvice(affectedAdvice{Unknown: full}, nil, planUnknown).Unknown

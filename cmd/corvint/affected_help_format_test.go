@@ -8,6 +8,7 @@ import (
 // V1-3343: every plan form of `affected` that accepts --format text (the worktree, --path and
 // --base forms, AFP-V0-928) says so in its usage line, as its own example does.
 func TestAffectedHelpNamesFormatOnEveryPlanForm_V13343(t *testing.T) {
+	t.Parallel()
 	usage, _, _ := strings.Cut(affectedHelp, "\n\nThe command reads")
 	forms := strings.Split(usage, "\n  corvint ")
 	for _, want := range []string{"--path PATH [PATH ...]", "[--require-clean]\n          --base FULL_COMMIT_ID"} {

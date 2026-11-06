@@ -134,6 +134,7 @@ func TestProveAttackUnavailableAndDefault(t *testing.T) {
 // TAT-V0-004: a partially observed set retains all counters and survivors
 // while the legacy verdict remains NOT_RUN. This is report projection only.
 func TestProveAttackPreservesPartialReport(t *testing.T) {
+	t.Parallel()
 	report := mutate.Report{Verdict: mutate.BudgetExceeded, Mutants: 5, Killed: 1, Survived: 1, Uncompilable: 1, Skipped: 2,
 		Survivors: []mutate.Survivor{{Operator: "swap-binary", Line: 7, Start: 40, End: 42}}, Detail: "budget exhausted after 3 of 5 mutants"}
 	attack := attackReport(report, "pkg/a.go", "commit", map[string]citedBlob{"pkg/a.go": {oid: "blob", objectType: "blob"}})
@@ -150,6 +151,7 @@ func TestProveAttackPreservesPartialReport(t *testing.T) {
 
 // TAT-V0-001, TAT-V0-004: unsupported languages and dirty inputs cannot run.
 func TestProveAttackPreflight(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, changed, testPath string
 		dirty                   bool

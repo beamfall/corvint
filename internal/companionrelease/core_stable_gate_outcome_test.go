@@ -10,6 +10,7 @@ import (
 // the canonical READY and REFUSED encodings round-trip, and every other shape
 // is refused with the gate-outcome class.
 func TestCEMV1613GateOutcomeIsExact(t *testing.T) {
+	t.Parallel()
 	ready := StableGateOutcome{Profile: StableGateOutcomeProfile, Revision: strings.Repeat("a", 40), DeclarationSha256: strings.Repeat("b", 64), Verdict: StableGateReady}
 	raw, err := EncodeStableGateOutcome(ready)
 	if err != nil {

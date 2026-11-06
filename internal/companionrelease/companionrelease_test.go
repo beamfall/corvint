@@ -30,6 +30,7 @@ import (
 // --- target validation ---
 
 func TestValidateTargetRefusesUnsupported(t *testing.T) {
+	t.Parallel()
 	for _, target := range []string{"darwin/amd64", "linux/arm64", "windows/amd64", "", "bogus"} {
 		if err := validateTarget(target); err == nil {
 			t.Fatalf("target %q: want refusal, got nil", target)
@@ -43,6 +44,7 @@ func TestValidateTargetRefusesUnsupported(t *testing.T) {
 // --- unsafe path refusal ---
 
 func TestRefuseUnsafePath(t *testing.T) {
+	t.Parallel()
 	bad := []string{"", "/abs", "a/../b", "..", ".", "a\\b", ".git/config", "a/.git/x", ".GIT/config", "a/.Git/x"}
 	for _, p := range bad {
 		if err := refuseUnsafePath(p); err == nil {
@@ -60,6 +62,7 @@ func TestRefuseUnsafePath(t *testing.T) {
 // --- blob digest refusal ---
 
 func TestVerifyBlobDigestRefusesMismatch(t *testing.T) {
+	t.Parallel()
 	data := []byte("hello world")
 	// sha1("blob 11\x00hello world")
 	if err := verifyBlobDigest("95d09f2b10159347eece71399a7e2e907ea3df4f", data); err != nil {
@@ -92,6 +95,7 @@ func fakeLsTreeGit(output string) func(time.Duration, []byte, ...string) ([]byte
 // TestExportSourceRefusesOversizedEntryCount below drives that refusal
 // end-to-end.
 func TestListTreeEntriesParsesLargeEntryCount(t *testing.T) {
+	t.Parallel()
 	var b strings.Builder
 	for i := 0; i < maxExportEntries+1; i++ {
 		fmt.Fprintf(&b, "100644 blob 95d09f2b10159347eece71399a7e2e907ea3df4f\tf%d\x00", i)
@@ -162,6 +166,7 @@ func TestExportSourceRefusesOversizedEntryCount(t *testing.T) {
 }
 
 func TestListTreeEntriesRefusesSymlinkAndSubmodule(t *testing.T) {
+	t.Parallel()
 	cases := []string{
 		"120000 blob 95d09f2b10159347eece71399a7e2e907ea3df4f\tlink\x00",
 		"160000 commit 95d09f2b10159347eece71399a7e2e907ea3df4f\tsubmod\x00",
@@ -174,6 +179,7 @@ func TestListTreeEntriesRefusesSymlinkAndSubmodule(t *testing.T) {
 }
 
 func TestListTreeEntriesRefusesDuplicatePaths(t *testing.T) {
+	t.Parallel()
 	raw := "100644 blob 95d09f2b10159347eece71399a7e2e907ea3df4f\ta\x00" +
 		"100644 blob 95d09f2b10159347eece71399a7e2e907ea3df4f\ta\x00"
 	if _, err := listTreeEntries(fakeLsTreeGit(raw), "HEAD"); err == nil {
@@ -190,6 +196,7 @@ func TestListTreeEntriesRefusesDuplicatePaths(t *testing.T) {
 // the directory-prefix variant: a file "A" case-folds onto the implied
 // directory segment of "a/b.go".
 func TestListTreeEntriesRefusesCaseFoldCollisions(t *testing.T) {
+	t.Parallel()
 	cases := []string{
 		"100644 blob 95d09f2b10159347eece71399a7e2e907ea3df4f\tA.go\x00" +
 			"100644 blob 95d09f2b10159347eece71399a7e2e907ea3df4f\ta.go\x00",
@@ -300,6 +307,7 @@ func TestExportSourceRefusesTotalBytesBound(t *testing.T) {
 // --batch` stream carrying more than what listTreeEntries actually asked
 // for went unnoticed instead of refused.
 func TestBatchBlobsRefusesTrailingData(t *testing.T) {
+	t.Parallel()
 	entries := []treeEntry{{oid: "95d09f2b10159347eece71399a7e2e907ea3df4f", path: "f"}}
 	valid := fmt.Sprintf("%s blob %d\n%s\n", entries[0].oid, len("hello"), "hello")
 	fakeGit := func(time.Duration, []byte, ...string) ([]byte, error) {
@@ -316,6 +324,7 @@ func TestBatchBlobsRefusesTrailingData(t *testing.T) {
 // --- canonical tar.gz archive corruption refusal ---
 
 func TestVerifyTarGzRefusesTamperedArchive(t *testing.T) {
+	t.Parallel()
 	entries := []ArchiveEntry{
 		{Path: "a.txt", Mode: 0o644, Data: []byte("alpha")},
 		{Path: "dir/b.txt", Mode: 0o755, Data: []byte("beta")},
@@ -354,6 +363,7 @@ func TestVerifyTarGzRefusesTamperedArchive(t *testing.T) {
 // hidden after the tar terminator inside the one member, must both be refused
 // rather than silently decoded and discarded.
 func TestVerifyTarGzRefusesSecondGzipMember(t *testing.T) {
+	t.Parallel()
 	entries := []ArchiveEntry{{Path: "a.txt", Mode: 0o644, Data: []byte("alpha")}}
 	archive, err := buildTarGz(entries)
 	if err != nil {
@@ -400,6 +410,7 @@ func TestVerifyTarGzRefusesSecondGzipMember(t *testing.T) {
 // of an export at maxExportEntries verifies: verifyTarGz's entry bound must
 // not refuse what exportSource admits (V1-1528).
 func TestVerifyTarGzAdmitsFullSizeExportArchive(t *testing.T) {
+	t.Parallel()
 	entries := make([]ArchiveEntry, maxExportEntries)
 	for i := range entries {
 		entries[i] = ArchiveEntry{Path: fmt.Sprintf("d%d/f%d.go", i%97, i), Mode: 0o644}
@@ -421,6 +432,7 @@ func TestVerifyTarGzAdmitsFullSizeExportArchive(t *testing.T) {
 // replaced, over every pair and triple of a corpus that includes multi-byte
 // folds (Kelvin sign, long s), byte-length-changing folds and invalid UTF-8.
 func TestRefuseCaseFoldCollisionsMatchesPairwiseEqualFold(t *testing.T) {
+	t.Parallel()
 	pairwise := func(paths []string) bool {
 		dirPrefix := func(file, other string) bool {
 			return len(other) > len(file) && other[len(file)] == '/' && strings.EqualFold(file, other[:len(file)])
@@ -462,6 +474,7 @@ func TestRefuseCaseFoldCollisionsMatchesPairwiseEqualFold(t *testing.T) {
 // the archive is retained, since extracting it onto a case-insensitive
 // filesystem collapses the two members into one.
 func TestVerifyTarGzRefusesCaseFoldedMembers(t *testing.T) {
+	t.Parallel()
 	entries := []ArchiveEntry{
 		{Path: "A.go", Mode: 0o644, Data: []byte("upper")},
 		{Path: "a.go", Mode: 0o644, Data: []byte("lower")},
@@ -476,6 +489,7 @@ func TestVerifyTarGzRefusesCaseFoldedMembers(t *testing.T) {
 }
 
 func TestBuildTarGzRefusesDuplicatePathsAndBadModes(t *testing.T) {
+	t.Parallel()
 	if _, err := buildTarGz([]ArchiveEntry{
 		{Path: "a", Mode: 0o644, Data: []byte("x")},
 		{Path: "a", Mode: 0o644, Data: []byte("y")},
@@ -488,6 +502,7 @@ func TestBuildTarGzRefusesDuplicatePathsAndBadModes(t *testing.T) {
 }
 
 func TestBuildTarGzTwiceIsDeterministic(t *testing.T) {
+	t.Parallel()
 	entries := []ArchiveEntry{
 		{Path: "z.txt", Mode: 0o644, Data: []byte("last")},
 		{Path: "a.txt", Mode: 0o644, Data: []byte("first")},
@@ -506,6 +521,7 @@ func TestBuildTarGzTwiceIsDeterministic(t *testing.T) {
 }
 
 func TestBuildTarGzTwiceRefusesDivergingBuilds(t *testing.T) {
+	t.Parallel()
 	calls := 0
 	build := func() ([]ArchiveEntry, error) {
 		calls++
@@ -524,6 +540,7 @@ func TestBuildTarGzTwiceRefusesDivergingBuilds(t *testing.T) {
 }
 
 func TestBuildTarGzTwiceAcceptsAgreeingIndependentBuilds(t *testing.T) {
+	t.Parallel()
 	calls := 0
 	build := func() ([]ArchiveEntry, error) {
 		calls++
@@ -541,6 +558,7 @@ func TestBuildTarGzTwiceAcceptsAgreeingIndependentBuilds(t *testing.T) {
 // --- notices: sourced from the Git-verified export, not the live checkout ---
 
 func TestNoticeEntriesReadsFromExportNotWorktree(t *testing.T) {
+	t.Parallel()
 	moduleRoot := t.TempDir()
 	// A worktree file that disagrees with what the (pinned) export carries.
 	// If noticeEntries ever falls back to disk, this tampered content would
@@ -571,6 +589,7 @@ func TestNoticeEntriesReadsFromExportNotWorktree(t *testing.T) {
 // --- retainBundle: no output on failure, never overwrite ---
 
 func TestRetainBundleNeverOverwrites(t *testing.T) {
+	t.Parallel()
 	scratch := t.TempDir()
 	outputParent := t.TempDir()
 	files := []ArchiveEntry{{Path: "a.txt", Mode: 0o644, Data: []byte("x")}}
@@ -597,6 +616,7 @@ func TestRetainBundleNeverOverwrites(t *testing.T) {
 // no longer includes it, or the installed smoke test would run against
 // extra files that were never part of what got assembled.
 func TestWriteTreeClearsStaleEntries(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	if err := writeTree(dir, []ArchiveEntry{
 		{Path: "a.txt", Mode: 0o644, Data: []byte("first")},
@@ -622,6 +642,7 @@ func TestWriteTreeClearsStaleEntries(t *testing.T) {
 // still be runnable after retention, not just after the separate
 // smoke-extract staging chmod.
 func TestRetainBundlePreservesExecutableMode(t *testing.T) {
+	t.Parallel()
 	scratch := t.TempDir()
 	outputParent := t.TempDir()
 	files := []ArchiveEntry{{Path: "bin/corvint", Mode: 0o755, Data: []byte("binary")}}
@@ -642,6 +663,7 @@ func TestRetainBundlePreservesExecutableMode(t *testing.T) {
 // --- validateOutputParent ---
 
 func TestValidateOutputParentRefusesNestedLocation(t *testing.T) {
+	t.Parallel()
 	corvintRoot := t.TempDir()
 	taskmanRoot := t.TempDir()
 	nested := filepath.Join(corvintRoot, "out")
@@ -664,6 +686,7 @@ func TestValidateOutputParentRefusesNestedLocation(t *testing.T) {
 // output parent (existing or not yet created) nor a symlinked root spelling
 // lets a bundle be retained inside a checkout root.
 func TestValidateOutputParentRefusesSymlinkedNestedLocation(t *testing.T) {
+	t.Parallel()
 	base := t.TempDir()
 	corvintRoot := filepath.Join(base, "corvint")
 	taskmanRoot := filepath.Join(base, "taskman")
@@ -692,6 +715,7 @@ func TestValidateOutputParentRefusesSymlinkedNestedLocation(t *testing.T) {
 // PUB-V0-011: the bundle name is one path element, so it cannot carry the
 // retained directory out of the validated output parent into a root.
 func TestValidateBundleNameRefusesPathTraversal(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"../corvint/out", "nested/out", "..", ".", ""} {
 		if err := validateBundleName(name); err == nil {
 			t.Errorf("bundle name %q: want refusal, got nil", name)
@@ -1319,6 +1343,7 @@ func doubleBuildWorkers(free uint64, components int) int {
 
 // TestDoubleBuildWorkersFitFreeScratch_V1_3221 pins the PUB-V0-054 bound.
 func TestDoubleBuildWorkersFitFreeScratch_V1_3221(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		free uint64
 		want int
@@ -1402,6 +1427,7 @@ func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 // Decision 0397: the corvint-tasks source archive is the standalone subset of
 // the recorded Corvint tree, with that tree's commit and exact bytes.
 func TestTasksExportKeepsOnlyTheStandaloneSubset(t *testing.T) {
+	t.Parallel()
 	export := Export{HeadCommit: strings.Repeat("a", 40), HeadTree: strings.Repeat("b", 40)}
 	for _, path := range []string{"LICENSE", "PROVENANCE.md", "cmd/corvint-tasks/main.go", "cmd/corvint/main.go", "go.mod", "internal/taskman/decode.go", "internal/tasks/wire/codes.go"} {
 		export.Files = append(export.Files, SourceFile{Path: path, Mode: "100644", Data: []byte(path)})
@@ -1573,6 +1599,7 @@ func TestRunFailuresRetainNoOutputAndNoQualifiedReport(t *testing.T) {
 // TestRetainBundleClearsStaleStaging ensures a staging directory left behind
 // by an earlier failed retain cannot add its files to a new retained bundle.
 func TestRetainBundleClearsStaleStaging(t *testing.T) {
+	t.Parallel()
 	scratch, outputParent := t.TempDir(), t.TempDir()
 	stale := filepath.Join(scratch, "retain-staging-bundle", "stale.txt")
 	if err := os.MkdirAll(filepath.Dir(stale), 0o700); err != nil {
@@ -1595,6 +1622,7 @@ func TestRetainBundleClearsStaleStaging(t *testing.T) {
 // expected member absent from the archive, a member whose same-size content
 // differs, and a non-regular member that otherwise matches its expectation.
 func TestVerifyTarGzRefusesMissingChangedAndNonRegularMembers(t *testing.T) {
+	t.Parallel()
 	entries := []ArchiveEntry{{Path: "a.txt", Mode: 0o644, Data: []byte("alpha")}}
 	archive, err := buildTarGz(entries)
 	if err != nil {
@@ -1654,6 +1682,7 @@ func TestExportSourceRefusesBlobDigestMismatch(t *testing.T) {
 // TestSourceArchiveEntriesMapsGitModes checks that the Git file mode decides
 // the archive mode: 100755 ships executable and 100644 does not.
 func TestSourceArchiveEntriesMapsGitModes(t *testing.T) {
+	t.Parallel()
 	got := sourceArchiveEntries(Export{Files: []SourceFile{
 		{Path: "run.sh", Mode: "100755", Data: []byte("#!/bin/sh\n")},
 		{Path: "a.go", Mode: "100644", Data: []byte("package a\n")},
@@ -1722,6 +1751,7 @@ func TestExportSourceAdmitsCountsAtTheirBounds(t *testing.T) {
 // TestBatchBlobsRefusesWrongRecordTerminator checks that each cat-file record
 // must end in a newline byte, not merely in some byte.
 func TestBatchBlobsRefusesWrongRecordTerminator(t *testing.T) {
+	t.Parallel()
 	entries := []treeEntry{{oid: "95d09f2b10159347eece71399a7e2e907ea3df4f", path: "f"}}
 	fakeGit := func(time.Duration, []byte, ...string) ([]byte, error) {
 		return []byte(entries[0].oid + " blob 11\nhello worldX"), nil
@@ -1737,6 +1767,7 @@ func TestBatchBlobsRefusesWrongRecordTerminator(t *testing.T) {
 // TestVerifyStagedTreeRefusesMissingFile checks the staged build tree must
 // hold every exported file, not merely no file the export lacks.
 func TestVerifyStagedTreeRefusesMissingFile(t *testing.T) {
+	t.Parallel()
 	var files []SourceFile
 	for _, name := range []string{"a.go", "b.go"} {
 		data := []byte("package " + strings.TrimSuffix(name, ".go") + "\n")
@@ -1775,6 +1806,7 @@ func TestResolveToolchainRefusesMismatchedGoVersion(t *testing.T) {
 // TestCheckRefusedRequiresTheNamedReason checks a 403 passes the refusal step
 // only when its body names the expected reason.
 func TestCheckRefusedRequiresTheNamedReason(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unexpected Origin", http.StatusForbidden)
 	}))

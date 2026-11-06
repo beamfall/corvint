@@ -75,7 +75,7 @@ func TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980(t *testing.T) {
 		t.Fatalf("gate selector omitted the existence reader:\n%s", strings.Join(lines, "\n"))
 	}
 
-	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--dry-run")
+	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
 	if code != 0 || !strings.Contains(stdout, `"go:example.test/m/index"`) || !strings.Contains(stdout, `"scope":"NARROWED"`) {
 		t.Fatalf("shadow dry run code %d omitted the existence reader: stdout %s stderr %q", code, stdout, stderr)
 	}
