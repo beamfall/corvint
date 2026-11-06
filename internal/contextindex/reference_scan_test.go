@@ -1,11 +1,13 @@
 package contextindex
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -46,7 +48,8 @@ var referenceScanEdgeCases = []string{
 // IDX-SNAP-V0-7803 also pins the public extraction path's necessary-condition
 // prefilter: testing only the scanner would miss a false negative in that gate.
 func TestReferenceScannersMatchTheirRegexes(t *testing.T) {
-	check := func(name, text string) {
+	t.Parallel()
+	check := func(t *testing.T, name, text string) {
 		t.Helper()
 		if got, want := documentReferences(text), documentReference.FindAllString(text, -1); !reflect.DeepEqual(got, want) {
 			t.Fatalf("%s: documentReferences = %q, regex %q", name, got, want)
@@ -61,7 +64,7 @@ func TestReferenceScannersMatchTheirRegexes(t *testing.T) {
 		}
 	}
 	for index, text := range referenceScanEdgeCases {
-		check("edge "+string(rune('A'+index%26)), text)
+		check(t, "edge "+string(rune('A'+index%26)), text)
 	}
 	// The self corpus: every tracked file of this checkout up to the source bound.
 	root, err := filepath.Abs("../..")
@@ -72,7 +75,7 @@ func TestReferenceScannersMatchTheirRegexes(t *testing.T) {
 	if err != nil {
 		t.Skipf("no checkout to read: %v", err)
 	}
-	checked := 0
+	var files []string
 	for _, name := range strings.Split(string(listed), "\x00") {
 		if name == "" {
 			continue
@@ -81,14 +84,27 @@ func TestReferenceScannersMatchTheirRegexes(t *testing.T) {
 		if err != nil || !info.Mode().IsRegular() || info.Size() > maxSourceBytes {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(root, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		check(name, string(data))
-		checked++
+		files = append(files, name)
 	}
-	if checked < 1000 {
-		t.Fatalf("checked %d tracked files, want the whole checkout", checked)
+	if len(files) < 1000 {
+		t.Fatalf("checked %d tracked files, want the whole checkout", len(files))
+	}
+	// Keep every eligible tracked file and both regex oracles. Bounded
+	// partitions overlap independent comparisons without one subtest per file
+	// or retaining the whole corpus in memory (IDX-SNAP-V0-7803, V1-2740).
+	workers := min(8, runtime.GOMAXPROCS(0))
+	t.Logf("comparing %d tracked files in %d partitions", len(files), workers)
+	for worker := range workers {
+		t.Run(fmt.Sprintf("corpus-%d", worker), func(t *testing.T) {
+			t.Parallel()
+			for index := worker; index < len(files); index += workers {
+				name := files[index]
+				data, err := os.ReadFile(filepath.Join(root, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				check(t, name, string(data))
+			}
+		})
 	}
 }

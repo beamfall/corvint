@@ -13,11 +13,23 @@ import (
 // stat fewer records than they globbed. Before the change the slice bound went negative and
 // the tool panicked with "slice bounds out of range [:-N]".
 func TestPruneSurvivesConcurrentPrunes(t *testing.T) {
+	t.Parallel() // GL-V0-9500: private directory; serial lock hooks have finished.
 	dir := t.TempDir()
 	const extra = 64
+	// All filler records have identical bytes and remain immutable: pruning
+	// only unlinks names, and writers use distinct keys below. GL-V0-9500 keeps
+	// the full directory cardinality and race while avoiding 32K tiny writes.
+	seed := filepath.Join(t.TempDir(), "record")
+	if err := os.WriteFile(seed, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < maxRecords+extra; i++ {
-		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%064x.json", i)), []byte("{}\n"), 0o600); err != nil {
-			t.Fatal(err)
+		path := filepath.Join(dir, fmt.Sprintf("%064x.json", i))
+		if err := os.Link(seed, path); err != nil {
+			// Filesystems without hard links still exercise the same race.
+			if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 	// Every writer records then prunes, as record() does, so a prune's glob goes stale while
