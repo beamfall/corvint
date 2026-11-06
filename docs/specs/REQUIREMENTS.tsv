@@ -406,6 +406,8 @@ AZU-V0-9850	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 r
 AZU-V0-9851	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's	unrecorded	-
 AZU-V0-9852	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Composite action	unrecorded	-
 AZU-V0-9853	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Unresolved local	unrecorded	-
+AZU-V0-9930	docs/specs/affected-zero-unknown-v0.md	Comparison-only working directory.** (experimental, owner lane charter,	unrecorded	-
+AZU-V0-9931	docs/specs/affected-zero-unknown-v0.md	Bounded test consumers.** (experimental, owner lane charter, 2026-11-05)	unrecorded	-
 AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	**Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-
 AZU-V0-8901	docs/specs/affected-zero-unknown-v0.md	**Constructed foreign callers.** The shell caller completeness guard SHALL rejec	unrecorded	-
 AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	**Located runtime caller closure.** A located TypeScript end-to-end runtime site	unrecorded	-
