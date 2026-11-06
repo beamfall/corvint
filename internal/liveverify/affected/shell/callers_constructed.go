@@ -158,11 +158,33 @@ func foreignJoinMayTraverse(args []byte) bool {
 var foreignJoinWholeLiteral = regexp.MustCompile("^\\s*(?:\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*$")
 
 // A dynamic final operand concatenated with a literal suffix, such as
-// name+".sh", can itself carry ".." (name="../run/run"). A bare identifier
-// keeps the terminal-basename bound; a non-shell suffix is excluded later.
+// name+".sh" or name+(".sh"), can itself carry ".." (name="../run/run"). A
+// bare identifier keeps the terminal-basename bound; a non-shell suffix is
+// excluded later.
 func foreignJoinSuffixedDynamic(operand []byte) bool {
-	operand = foreignJoinUnparen(operand)
-	return !foreignJoinWholeLiteral.Match(operand) && foreignJoinTail.Match(operand)
+	term, concatenated := foreignJoinFinalTerm(operand)
+	return concatenated && foreignJoinWholeLiteral.Match(term)
+}
+
+// foreignJoinFinalTerm returns the last top-level "+" term of operand with
+// grouping parentheses removed, descending into a grouped concatenation such
+// as (".s"+"h"), and reports whether any concatenation was crossed.
+func foreignJoinFinalTerm(operand []byte) ([]byte, bool) {
+	concatenated := false
+	for {
+		operand = foreignJoinUnparen(operand)
+		plus := -1
+		foreignJoinScan(operand, func(i, depth int) bool {
+			if depth == 0 && operand[i] == '+' {
+				plus = i
+			}
+			return true
+		})
+		if plus < 0 {
+			return operand, concatenated
+		}
+		operand, concatenated = operand[plus+1:], true
+	}
 }
 
 // foreignJoinUnparen strips grouping parentheses that enclose a whole operand,
@@ -173,32 +195,59 @@ func foreignJoinUnparen(operand []byte) []byte {
 		if len(operand) < 2 || operand[0] != '(' || operand[len(operand)-1] != ')' {
 			return operand
 		}
-		depth := 0
-		for i, c := range operand {
-			if c == '(' {
-				depth++
-			} else if c == ')' {
-				depth--
-				if depth == 0 && i != len(operand)-1 {
-					return operand
-				}
+		whole := true
+		foreignJoinScan(operand, func(i, depth int) bool {
+			if operand[i] == ')' && depth == 0 && i != len(operand)-1 {
+				whole = false
 			}
+			return whole
+		})
+		if !whole {
+			return operand
 		}
 		operand = operand[1 : len(operand)-1]
 	}
 }
 
-var foreignJoinTail = regexp.MustCompile("(?:^|\\+)\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)\\s*$")
+// foreignJoinScan visits each unquoted byte of operand with its bracket depth
+// after that byte, so a closing bracket reports its outer depth. Quoted
+// strings are skipped whole: "(" or "+" inside a literal is not structure.
+func foreignJoinScan(operand []byte, visit func(i, depth int) bool) {
+	depth, quote := 0, byte(0)
+	for i := 0; i < len(operand); i++ {
+		c := operand[i]
+		if quote != 0 {
+			if c == '\\' && quote != '`' {
+				i++
+			} else if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+			continue
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		}
+		if !visit(i, depth) {
+			return
+		}
+	}
+}
 
 // A fixed final suffix such as .json cannot become a shell filename through
 // an earlier traversal. Check every supported shell suffix, keeping this proof
 // independent of the callee basename for the directory-level match cache.
 func foreignJoinNonShellTail(operand []byte) bool {
-	literal := foreignJoinTail.FindSubmatch(operand)
-	if literal == nil {
+	term, _ := foreignJoinFinalTerm(operand)
+	if !foreignJoinWholeLiteral.Match(term) {
 		return false
 	}
-	value, ok := foreignJoinString(string(literal[1]))
+	value, ok := foreignJoinString(string(bytes.TrimSpace(term)))
 	// A foreign caller may run on Windows, where a backslash is a separator.
 	value = strings.ReplaceAll(value, `\`, "/")
 	if !ok || value == "" || strings.HasSuffix(value, "/") || strings.ContainsAny(value, "$%{}:") {
