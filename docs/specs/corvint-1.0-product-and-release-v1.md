@@ -192,8 +192,8 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint-remote-provider` | companion | Network consent places it outside the default local product. |
 | `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
 | `corvint-companion-release`, `corvint-public-release-check` | companion | Build and qualify the companion bundle (`/3` written, `/2` still read). |
-| `corvint-release-gate` | experimental | Self-described experimental offline evidence gate. |
-| `corvint-corpus-mcp`, `corvint-behavior-falsify`, `corvint-playwright-minimize`, `corvint-web-flows`, `corvint-pulse`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
+| `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` stays for the hostile-regression row. |
+| `corvint-corpus-mcp`, `corvint-behavior-falsify`, `corvint-playwright-minimize`, `corvint-web-flows`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
 | `corvint-analyzer-*` external analyzer binaries and `corvint-go-toolchain-receipt` | deferred | Analyzer candidate profiles are deferred; Core analysis is the in-binary kernel. |
 | `corvint-analyzer-structured-data` | rejected | Its candidate spec is rejected as specified. |
 | Claude Code plugin, Codex plugin trees | Core (decision 0373, question 5: yes) | Carry the hooks for the two Core host rows. |

@@ -114,12 +114,7 @@
       "internal/capcatalog/trees/"
     ],
     "cmd/corvint-public-release-check": [],
-    "cmd/corvint-pulse": [
-      "conformance/pulse-snapshot-v0/",
-      "internal/capcatalog/trees/corvint-pulse.json"
-    ],
     "cmd/corvint-readiness-record": [],
-    "cmd/corvint-release-gate": [],
     "cmd/corvint-ruby-test-provider": [
       "internal/capcatalog/trees/corvint-ruby-test-provider.json"
     ],
@@ -195,12 +190,6 @@
       "go.mod",
       "go.sum",
       "internal/"
-    ],
-    "conformance/pulse-snapshot-v0": [
-      "cmd/corvint-pulse/",
-      "go.mod",
-      "internal/clitree/",
-      "internal/pulse/"
     ],
     "conformance/release-artifact-v0/archive-verifier": [],
     "conformance/release-artifact-v0/archiveverify": [
@@ -348,21 +337,6 @@
     ],
     "internal/cem/workflow": [
       "protocol/cem-1.0/stable/repository-envelope-packet/"
-    ],
-    "internal/cem2proto": [
-      ".corvint/changes/",
-      ".github/",
-      "benchmarks/",
-      "cmd/",
-      "conformance/",
-      "examples/",
-      "experimental/",
-      "integrations/",
-      "internal/",
-      "interop/",
-      "protocol/",
-      "script/",
-      "tools/"
     ],
     "internal/cemcandidate": [
       "interop/cem01-go/testdata/multi-runner/",
