@@ -184,8 +184,8 @@ its witness write fails, was not taken: it changes the release command that
   A terminal target error MUST immediately cancel higher-index in-flight work and prevent dispatch
   beyond the earliest known failure. Parent cancellation MUST reach active workers. Every worker
   and owned subprocess group on qualified Unix archive hosts MUST quiesce before collection returns
-  and scratch cleanup runs. SIGHUP to the gate process group MUST reach parent
-  cancellation; the launcher MUST survive it and wait for producer retirement before wrapper cleanup.
+  and scratch cleanup runs. SIGHUP and SIGTERM to the gate process group MUST reach parent
+  cancellation; the launcher MUST survive both and wait for producer retirement before wrapper cleanup.
   Speculative loose suffix binaries, caches and temporary directories
   MUST be removed after a terminal error. No archive candidate may be retained on failure.
 - `GAG-V0-9963`: (accepted under the owner's standing auto-accept (2026-11-06); V1-4733)
@@ -311,7 +311,7 @@ the same assertions and does not change the producer or wrapper contract.
 | GAG-V0-009 | `looseGateFailure` in `conformance/release-artifact-v0/archive_run.go` | `TestGAGV0009LooseGateFailureNamesItsFailLines`: a legal-file-altered and a targeted legal-file-missing reason each appear as a FAIL line after the summary, and a mis-bound PASS names its verdict and commit |
 | GAG-V0-9960 | `TestTargetWorkersBoundedOverlap`, `TestTargetWorkerOverride`, `TestTargetWorkersEmpty` in `conformance/release-artifact-v0/target_workers_test.go` |
 | GAG-V0-9961 | `TestParallelLooseReportMatchesSerial`, `TestParallelArchiveFailureMatchesSerial`, `TestParallelArchiveSuccessMatchesSerial` in `conformance/release-artifact-v0/target_workers_test.go` |
-| GAG-V0-9962 | `TestTargetWorkersCancelOnlySuffixAndJoin`, `TestTargetWorkersParentCancellation` in `conformance/release-artifact-v0/target_workers_test.go`; `TestParallelLooseCancellationReapsBuildAndRemovesSuffix` in `conformance/release-artifact-v0/target_workers_posix_test.go`; `TestParallelLooseCancellationReapsSmokeGitAndRemovesSuffix` in `conformance/release-artifact-v0/smoke_cancellation_posix_test.go` (inherited commit and status hooks with pipe-holding descendants); `TestGroupHangupJoinsLooseDescendantsBeforeWrapperCleanup` in `conformance/release-artifact-v0/hangup_posix_test.go` (group SIGHUP, recorded isolated build/child PIDs, scratch lifetime); existing `TestBuildArchivesCancellationRemovesScratchStageAndOutput` in `conformance/release-artifact-v0/archive_gate_test.go` |
+| GAG-V0-9962 | `TestTargetWorkersCancelOnlySuffixAndJoin`, `TestTargetWorkersParentCancellation` in `conformance/release-artifact-v0/target_workers_test.go`; `TestParallelLooseCancellationReapsBuildAndRemovesSuffix` in `conformance/release-artifact-v0/target_workers_posix_test.go`; `TestParallelLooseCancellationReapsSmokeGitAndRemovesSuffix` in `conformance/release-artifact-v0/smoke_cancellation_posix_test.go` (inherited commit and status hooks with pipe-holding descendants); `TestGroupHangupJoinsLooseDescendantsBeforeWrapperCleanup` in `conformance/release-artifact-v0/hangup_posix_test.go` (group SIGHUP and SIGTERM, recorded isolated build/child PIDs, scratch lifetime); existing `TestBuildArchivesCancellationRemovesScratchStageAndOutput` in `conformance/release-artifact-v0/archive_gate_test.go` |
 | GAG-V0-9963 | existing `TestArchiveBuildPathsProveSeparateColdInputs`, `TestFinalGitRecheckRejectsDirtyStagedUntrackedAndHeadMovement` in `conformance/release-artifact-v0/archive_gate_test.go`; `TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses` in `conformance/release-artifact-v0/loose_gate_ignored_source_test.go`; real before/after gate evidence in `docs/build-log/2026-11-05-archive-gate-parallel.md` |
 
 
