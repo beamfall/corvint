@@ -12,10 +12,12 @@ import (
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
-// GRG-V0-001: the gate job of .github/workflows/greptile-gate.yml posts `greptile-gate` success
-// on an open PR head only when Greptile's newest summary reviewed that exact head at 5/5 and no
-// Greptile review thread is unresolved; it keeps a user-posted success, posts pending while the
-// head is unreviewed, failure otherwise, and posts nothing for a closed PR or a failed read.
+// GRG-V0-001: the gate job of .github/workflows/greptile-gate.yml ends on `greptile-gate` success
+// for an open PR head only when Greptile's newest summary reviewed that exact head at 5/5 and no
+// Greptile review thread is unresolved; it keeps a user-posted success, ends pending while the
+// head is unreviewed and failure otherwise, posts nothing for a closed or unreadable PR, and
+// leaves pending after a failed later read. On merge_group it re-evaluates the queued PR named by
+// the queue ref and posts the result on the merge-group commit.
 func TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the gate step runs under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq"} {
@@ -25,6 +27,8 @@ func TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead(t *testing.T) {
 	}
 	const head = "0c28ca2a4b1e2f3a4b5c6d7e8f90a1b2c3d4e5f6"
 	const old = "8f05365360a1b2c3d4e5f60718293a4b5c6d7e8f"
+	const group = "6d1e0a7b2c3d4e5f60718293a4b5c6d7e8f90a1b"
+	const groupRef = "refs/heads/gh-readonly-queue/main/pr-112-" + old
 	script := filepath.Join(t.TempDir(), "step.sh")
 	if err := os.WriteFile(script, []byte(runScript(t, jobBlock(t, readWorkflow(t, "greptile-gate.yml"), "gate"))), 0o600); err != nil {
 		t.Fatal(err)
@@ -46,10 +50,11 @@ func TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead(t *testing.T) {
 	}
 	type input struct {
 		state, statuses, comments, threads string
+		groupRef                           string // non-empty: a merge_group event
 	}
 	// run returns the status POSTs of one step run and whether the step exited zero. An empty
 	// field makes that read fail.
-	run := func(in input) (string, bool) {
+	run := func(in input) ([]string, bool) {
 		dir := t.TempDir()
 		bin := filepath.Join(dir, "bin")
 		if err := os.Mkdir(bin, 0o700); err != nil {
@@ -88,50 +93,71 @@ exec jq -r "$last" "$STUB_DIR/$f"
 		if err := execfile.WriteFile(filepath.Join(bin, "gh"), []byte(stub), 0o700); err != nil {
 			t.Fatal(err)
 		}
+		event, pr, sha := "pull_request_target", "112", ""
+		if in.groupRef != "" {
+			event, pr, sha = "merge_group", "", group
+		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-			"STUB_DIR="+dir, "REPO=beamfall/corvint", "PR=112",
+			"STUB_DIR="+dir, "REPO=beamfall/corvint", "EVENT="+event, "PR="+pr,
+			"GROUP_REF="+in.groupRef, "GROUP_SHA="+sha,
 			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub")
 		err := cmd.Run()
 		posts, _ := os.ReadFile(filepath.Join(dir, "posts.log"))
-		return string(posts), err == nil
+		return strings.Split(strings.TrimSuffix(string(posts), "\n"), "\n")[:strings.Count(string(posts), "\n")], err == nil
 	}
 	userSuccess := `[{"state":"success","context":"greptile-gate","creator":{"type":"User"}},{"state":"failure","context":"greptile-gate","creator":{"type":"Bot"}}]`
 	clean := threads(2, thread(true, "greptile-apps"), thread(false, "Russe11"))
 	pass := "[" + summary("5/5", head) + "," + other + "]"
 	for name, tc := range map[string]struct {
-		in    input
-		state string // "" = no post
-		ok    bool
+		in     input
+		state  string // final status; "" = no post
+		target string // commit the statuses land on
+		ok     bool
 	}{
-		"5/5 on head, threads resolved": {input{"open", "[]", pass, clean}, "success", true},
-		"5/5 on an older head":          {input{"open", "[]", "[" + summary("5/5", old) + "]", clean}, "pending", true},
-		"no Greptile summary":           {input{"open", "[]", "[" + other + "]", clean}, "pending", true},
-		"4/5 on head":                   {input{"open", "[]", "[" + summary("4/5", head) + "]", clean}, "failure", true},
-		"unresolved Greptile thread":    {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps"))}, "failure", true},
-		"over 100 threads":              {input{"open", "[]", pass, threads(101)}, "failure", true},
-		"newer summary wins":            {input{"open", "[]", "[" + strings.Replace(summary("5/5", head), "10:00", "09:00", 1) + "," + summary("3/5", head) + "]", clean}, "failure", true},
-		"bot success is re-evaluated":   {input{"open", `[{"state":"success","context":"greptile-gate","creator":{"type":"Bot"}}]`, "[" + summary("4/5", head) + "]", clean}, "failure", true},
-		"user success kept":             {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean}, "", true},
-		"closed PR":                     {input{"closed", "[]", pass, clean}, "", true},
-		"unreadable PR":                 {input{"", "[]", pass, clean}, "", false},
-		"unreadable statuses":           {input{"open", "", pass, clean}, "", false},
-		"unreadable comments":           {input{"open", "[]", "", clean}, "", false},
-		"unreadable threads":            {input{"open", "[]", pass, ""}, "", false},
+		"5/5 on head, threads resolved": {input{"open", "[]", pass, clean, ""}, "success", head, true},
+		"5/5 on an older head":          {input{"open", "[]", "[" + summary("5/5", old) + "]", clean, ""}, "pending", head, true},
+		"no Greptile summary":           {input{"open", "[]", "[" + other + "]", clean, ""}, "pending", head, true},
+		"4/5 on head":                   {input{"open", "[]", "[" + summary("4/5", head) + "]", clean, ""}, "failure", head, true},
+		"unresolved Greptile thread":    {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), ""}, "failure", head, true},
+		"over 100 threads":              {input{"open", "[]", pass, threads(101), ""}, "failure", head, true},
+		"newer summary wins":            {input{"open", "[]", "[" + strings.Replace(summary("5/5", head), "10:00", "09:00", 1) + "," + summary("3/5", head) + "]", clean, ""}, "failure", head, true},
+		"bot success is re-evaluated":   {input{"open", `[{"state":"success","context":"greptile-gate","creator":{"type":"Bot"}}]`, "[" + summary("4/5", head) + "]", clean, ""}, "failure", head, true},
+		"user success kept":             {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, ""}, "", head, true},
+		"closed PR":                     {input{"closed", "[]", pass, clean, ""}, "", head, true},
+		"unreadable PR":                 {input{"", "[]", pass, clean, ""}, "", head, false},
+		"unreadable statuses":           {input{"open", "", pass, clean, ""}, "pending", head, false},
+		"unreadable comments":           {input{"open", "[]", "", clean, ""}, "pending", head, false},
+		"unreadable threads":            {input{"open", "[]", pass, "", ""}, "pending", head, false},
+		"queue: 5/5 on PR head":         {input{"open", "[]", pass, clean, groupRef}, "success", group, true},
+		"queue: thread reopened":        {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), groupRef}, "failure", group, true},
+		"queue: user waiver":            {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, groupRef}, "success", group, true},
+		"queue: unreadable threads":     {input{"open", "[]", pass, "", groupRef}, "pending", group, false},
+		"queue: bad ref":                {input{"open", "[]", pass, clean, "refs/heads/main"}, "", group, false},
 	} {
 		posts, ok := run(tc.in)
 		if ok != tc.ok {
 			t.Errorf("%s: exit ok %v, want %v (posts %q)", name, ok, tc.ok, posts)
 		}
 		if tc.state == "" {
-			if posts != "" {
+			if len(posts) != 0 {
 				t.Errorf("%s: posted %q, want nothing", name, posts)
 			}
 			continue
 		}
-		if strings.Count(posts, "\n") != 1 || !strings.Contains(posts, "repos/beamfall/corvint/statuses/"+head+" ") ||
-			!strings.Contains(posts, "state="+tc.state+" ") || !strings.Contains(posts, "context=greptile-gate") {
-			t.Errorf("%s: posted %q, want one %s greptile-gate status on %s", name, posts, tc.state, head)
+		for _, p := range posts {
+			if !strings.Contains(p, "repos/beamfall/corvint/statuses/"+tc.target+" ") || !strings.Contains(p, "context=greptile-gate") {
+				t.Errorf("%s: posted %q, want greptile-gate statuses on %s", name, p, tc.target)
+			}
+		}
+		// A refresh withdraws any earlier success first, so only the last post may be success.
+		for i, p := range posts {
+			if i < len(posts)-1 && !strings.Contains(p, "state=pending ") {
+				t.Errorf("%s: post %d is %q, want pending before the final status", name, i, p)
+			}
+		}
+		if len(posts) == 0 || !strings.Contains(posts[len(posts)-1], "state="+tc.state+" ") {
+			t.Errorf("%s: posted %q, want a final %s status", name, posts, tc.state)
 		}
 	}
 }

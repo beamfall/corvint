@@ -32,11 +32,14 @@ resolved) was enforced only by the orchestrator remembering to check it.
   commit; `failure` for any other score, an unreadable score, an unresolved Greptile thread, or more
   than 100 review threads (not provable). It runs on `pull_request_target` head events, on
   Greptile's own issue comments, and on `workflow_dispatch` with a PR number (resolving a thread
-  raises no event). A closed pull request gets no status; an unreadable pull, status, comment or
-  thread read stops the step with no post, so the merge stays blocked. A `greptile-gate` success
-  posted by a creator of type `User` on the head is kept (owner waiver, as AFP-V0-171). Its
-  `merge-queue` job posts `success` on a `merge_group` commit, whose pull requests each passed the
-  gate on their own head before they could be queued.
+  raises no event). A closed or unreadable pull request gets no status. Every other refresh posts
+  `pending` before it reads the review, so an unreadable status, comment or thread read stops the
+  step leaving `pending` and never an earlier `success`. A `greptile-gate` success posted by a
+  creator of type `User` on the head is kept (owner waiver, as AFP-V0-171). Because reopening a
+  thread raises no event, a `merge_group` run re-evaluates the queued pull request named by the
+  queue ref (`gh-readonly-queue/<base>/pr-<N>-<sha>`) with fresh reads of its head and posts the
+  result (or `success` for an owner waiver on that head) on the merge-group commit; an
+  unparsable queue ref or commit stops with no post, so the queue entry fails.
 
 ## Non-goals and failure modes
 
@@ -56,4 +59,4 @@ Drop `greptile-gate` from the main ruleset's required status checks, then delete
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| GRG-V0-001 | the `gate` and `merge-queue` jobs of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (14 cases; a mutation accepting `0/5` fails it); a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
+| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (19 cases including 5 merge-queue re-evaluations; a mutation accepting `0/5` fails it, and so does dropping the pending-first post); a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
