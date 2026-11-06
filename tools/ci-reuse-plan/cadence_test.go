@@ -346,10 +346,16 @@ func TestCINV04753CadenceWorkflowWiring(t *testing.T) {
 	if strings.Contains(plan, "GITHUB_OUTPUT") || strings.Count(plan, "run.sh") != 2 {
 		t.Error("only run.sh may write the cadence output")
 	}
-	// A verified DEFER (pull request or queue entry) skips the selection-baseline replay; only a pull
-	// request skips artifact-integrity, so the queue still proves the archive for the main push.
-	wantLine(t, "doc-gates", jobBlock(t, ci, "doc-gates"),
-		"          CORVINT_CI_CADENCE: ${{ needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence || 'FULL' }}")
+	// Only a verified pull-request DEFER skips the selection-baseline replay or artifact-integrity: the
+	// main push reuses the queue's doc-gates and archive verdicts, so a queue entry runs both in full.
+	docGates := jobBlock(t, ci, "doc-gates")
+	wantLine(t, "doc-gates", docGates,
+		"          CORVINT_CI_CADENCE: ${{ github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence || 'FULL' }}")
+	for _, l := range strings.Split(docGates, "\n") {
+		if strings.Contains(l, "CORVINT_CI_CADENCE:") && !strings.Contains(l, "github.event_name == 'pull_request' && ") {
+			t.Errorf("a merge-queue doc-gates run must never get CORVINT_CI_CADENCE=DEFER (its verdict is reused by the main push): %s", strings.TrimSpace(l))
+		}
+	}
 	if n := strings.Count(ci, "CORVINT_CI_CADENCE:"); n != 1 {
 		t.Errorf("ci.yml sets CORVINT_CI_CADENCE %d times, want only on the doc-gates step", n)
 	}

@@ -505,11 +505,12 @@ the single listing in the integrity step, and delete `.github/workflows/ci-route
   merge commit and that commit's parents (depth 2); a queue entry fetches full history.
 - `CIN-V0-4753`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
   `ci.yml` SHALL run a `cadence-plan` job on a pull request or merge-group event; a DEFER counts only
-  when that job succeeded with output DEFER (a verified DEFER). A verified DEFER of a pull request or
-  queue entry SHALL make `doc-gates` set `CORVINT_CI_CADENCE=DEFER` as step environment, so
-  `make selection-baseline-check` prints NOT_RUN; a main push, local runs and `batch-precheck` leave
-  it FULL. A verified pull-request DEFER SHALL skip `artifact-integrity`; a queue entry SHALL still
-  run it, so the main push can reuse the queue's static verdicts. Under a pull-request DEFER
+  when that job succeeded with output DEFER (a verified DEFER). Only a verified pull-request DEFER
+  SHALL make `doc-gates` set `CORVINT_CI_CADENCE=DEFER` as step environment, so
+  `make selection-baseline-check` prints NOT_RUN; a queue entry, a main push, local runs and
+  `batch-precheck` leave it FULL, because the main push reuses the queue's `doc-gates` verdict. A
+  verified pull-request DEFER SHALL skip `artifact-integrity`; a queue entry SHALL still run it, so
+  the main push can reuse the queue's static verdicts. Under a pull-request DEFER
   `doc-gates-record` and `artifact-integrity-record` SHALL record nothing, so the queue makes its own
   `doc-gates` verdict.
 - `CIN-V0-4754`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)

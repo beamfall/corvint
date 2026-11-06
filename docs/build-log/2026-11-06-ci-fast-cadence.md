@@ -10,14 +10,15 @@ doubt, runs FULL exactly as before.
 - The native archive gate (`artifact-integrity`): skipped under a pull-request DEFER only. The merge
   queue still runs it, so `static-reuse` lets the main push reuse it, and it is part of `make gate`
   (`go-archive-gate`) in the nightly release gates.
-- The selection-baseline replay inside `doc-gates`: prints NOT_RUN under a verified DEFER in a pull
-  request or queue entry. It replays historical commits with binaries that never compile
+- The selection-baseline replay inside `doc-gates`: prints NOT_RUN under a verified pull-request
+  DEFER only. A queue entry replays in full, because the main push reuses the queue's `doc-gates`
+  verdict (a Greptile finding on the first head). It replays historical commits with binaries that never compile
   `_test.go` files, so a DOCS or TESTS change cannot alter it; the nightly release gates run
   `make selection-baseline-check` as a new `selection-baseline` entry (CIN-V0-4755).
 - The macOS shards of `go-macos`: no runner starts under DEFER; the nightly macOS gate runs them
   (CIN-V0-4754).
 - `doc-gates-record` and `artifact-integrity-record` record nothing under a pull-request DEFER, so the
-  queue runs its own `doc-gates` (minus the deferred replay) instead of reusing a partial verdict.
+  queue runs its own full `doc-gates` instead of reusing a partial verdict.
 
 ## Trust model
 
@@ -33,8 +34,8 @@ with output DEFER.
 ## Independent review
 
 One independent review found no way for a pull request to get DEFER for a change that can affect the
-skipped campaigns. It found seven issues, all fixed here: queue `artifact-integrity` skipping broke
-the main push's static reuse; the queue ran the full replay for routine changes; an embedded-directory
+skipped campaigns. It found six issues, all fixed here: queue `artifact-integrity` skipping broke
+the main push's static reuse; an embedded-directory
 test file and a byte-order-mark build constraint could DEFER; the missing-classifier fallback was
 untested; DEFER checks were inconsistent; and a full-history clone sat on every pull request's
 critical path (now depth 2).

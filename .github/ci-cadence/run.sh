@@ -28,7 +28,7 @@ echo "cadence=$cadence" >> "${GITHUB_OUTPUT:-/dev/null}"
 {
   echo "### CI cadence (CIN-V0-4752): $cadence"
   if [ "$cadence" = DEFER ]; then
-    echo 'Routine change: the selection-baseline replay, the macOS shards and, in a pull request, the archive gate are NOT_RUN here; the merge queue runs the archive gate and the nightly release gates run all of them in full. Set CI_CADENCE_FORCE=FULL to run them on every change.'
+    echo 'Routine change: the macOS shards and, in a pull request, the selection-baseline replay and the archive gate are NOT_RUN here; the merge queue runs the replay and the archive gate, and the nightly release gates run all of them in full. Set CI_CADENCE_FORCE=FULL to run them on every change.'
   fi
   echo '```'
   cat "$receipt"
