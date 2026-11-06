@@ -262,7 +262,8 @@
     ],
     "internal/analyzerruby": [
       "cmd/corvint-analyzer-ruby/",
-      "go.mod"
+      "go.mod",
+      "internal/analyzerenvelope/"
     ],
     "internal/analyzershader": [
       "cmd/corvint-analyzer-shader/"
