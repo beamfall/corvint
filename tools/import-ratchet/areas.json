@@ -130,7 +130,6 @@
         "internal/observedstale",
         "internal/outcomecal",
         "internal/plansnapshot",
-        "internal/proofabstraction",
         "internal/requestpath",
         "internal/semescalate",
         "internal/slotlearn",
@@ -217,7 +216,6 @@
       "prefixes": [
         "internal/attest",
         "internal/cem",
-        "internal/cem2proto",
         "internal/cemcandidate",
         "internal/cemchain",
         "internal/cemdiscriminate",
@@ -286,7 +284,6 @@
         "internal/mcp",
         "internal/modelgateway",
         "internal/opencodequalification",
-        "internal/pulse",
         "internal/remoteprovider",
         "internal/skillexport",
         "internal/upgradechanges"
