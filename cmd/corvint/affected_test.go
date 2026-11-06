@@ -322,7 +322,7 @@ func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
 		t.Fatalf("selected=%s\nwant    %s", selected, want)
 	}
 	unknown := fmt.Sprint(plan["unknown"])
-	if plan["scope"] != "UNKNOWN" || !strings.Contains(unknown, "map[detail:docs/guide.md hint:declare runtime/test inputs in .corvint/runtime-readers.json, documentation in .corvint/documentation-paths.json, or evidence/output in .corvint/non-source-paths.json (AZU-V0-9901) reason:UNOWNED_DIRTY_PATH] map[detail:docs/unread.md reason:UNOWNED_DIRTY_PATH]") {
+	if plan["scope"] != "UNKNOWN" || !strings.Contains(unknown, "map[detail:docs/guide.md reason:UNOWNED_DIRTY_PATH] map[detail:docs/unread.md reason:UNOWNED_DIRTY_PATH]") {
 		t.Fatalf("both documents must stay unknown: scope=%v unknown=%s", plan["scope"], unknown)
 	}
 	if packages := fmt.Sprint(receipt["provider"]); !strings.Contains(packages, "packages:[example.com/fixture/core] state:RUNNABLE") {
@@ -385,7 +385,7 @@ func TestAffectedTaskStoreProjectionIsTaskState_AFPV0088(t *testing.T) {
 	// The read path is unowned as before, so every plugin's frontier bears on
 	// the plan again (V1-0289); the unread projection added none above.
 	unknown := fmt.Sprint(plan["unknown"])
-	if plan["scope"] != "UNKNOWN" || strings.Count(unknown, "UNOWNED_DIRTY_PATH") != 1 || !strings.Contains(unknown, "map[detail:.taskman/policy.json hint:declare runtime/test inputs in .corvint/runtime-readers.json, documentation in .corvint/documentation-paths.json, or evidence/output in .corvint/non-source-paths.json (AZU-V0-9901) reason:UNOWNED_DIRTY_PATH]") || !strings.Contains(fmt.Sprint(plan["nonSource"]), "paths:[.taskman/queue.json .taskman/tickets/V1-0001.json]") {
+	if plan["scope"] != "UNKNOWN" || strings.Count(unknown, "UNOWNED_DIRTY_PATH") != 1 || !strings.Contains(unknown, "map[detail:.taskman/policy.json reason:UNOWNED_DIRTY_PATH]") || !strings.Contains(fmt.Sprint(plan["nonSource"]), "paths:[.taskman/queue.json .taskman/tickets/V1-0001.json]") {
 		t.Fatalf("a read projection file stays unknown: scope=%v unknown=%v nonSource=%v", plan["scope"], plan["unknown"], plan["nonSource"])
 	}
 }

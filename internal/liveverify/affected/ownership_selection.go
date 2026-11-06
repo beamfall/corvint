@@ -53,6 +53,12 @@ func (graph *Graph) selectOwnershipAudit(plan *Plan, reached map[string]Witness,
 }
 
 func (graph *Graph) ownershipHints(unknown []Unknown) {
+	// Guidance belongs to the repository's ownership ratchet. Repositories
+	// without that test retain their existing receipts, including frozen Core
+	// output; a tracked-path observation alone does not enable the feature.
+	if _, exists := graph.owner[OwnershipAuditTestPath]; !exists {
+		return
+	}
 	for i := range unknown {
 		entry := &unknown[i]
 		if entry.Reason != UnknownUnownedDirtyPath || !graph.committedPaths[entry.Detail] {

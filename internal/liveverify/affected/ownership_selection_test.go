@@ -42,6 +42,28 @@ func TestOwnershipSelectionAndUnknowns_AZU_V0_9900(t *testing.T) {
 	}
 }
 
+// AZU-V0-9901 is limited by the frozen Core contract in repositories without
+// the ownership ratchet. Observing committed paths must preserve those bytes.
+func TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901(t *testing.T) {
+	g, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirty := []string{"data/new.json"}
+	before := Select(g, dirty)
+	after := Select(g.WithOwnershipChanges(dirty, dirty), dirty)
+	if !slices.ContainsFunc(after.Unknown, func(u Unknown) bool {
+		return u.Reason == UnknownUnownedDirtyPath && u.Detail == dirty[0]
+	}) {
+		t.Fatalf("unowned path lost: %+v", after.Unknown)
+	}
+	a, _ := json.Marshal(before)
+	b, _ := json.Marshal(after)
+	if string(a) != string(b) {
+		t.Fatalf("repository without ratchet changed frozen plan bytes:\n%s\n%s", a, b)
+	}
+}
+
 // AZU-V0-9901: fixture closure removes only the unowned-path cascade. It never
 // removes a reached unit's frontier, a foreign unit below that fixture, a
 // resolution input, or an unrelated unowned path in the same dirty set.
