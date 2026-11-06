@@ -40,10 +40,10 @@ Candidate assertion-conflict log SHA-256:
 
 ## P2: canonical validation at both revisions
 
-Decision: move the existing shell declaration decoder/validator into the
-parent affected package, maintaining the import direction. Both immutable
-snapshot reads and the shell reader call it. Alias the existing shell entry
-type, profile and suffix list to the shared definitions. Keep the existing
+Decision: move the existing shell declaration validator into the parent
+affected package, maintaining the import direction. Both immutable snapshot
+reads and the shell reader call it. Share the profile and suffix list, while
+retaining the original shell decoder types. Keep the existing
 JSON members, profile, limits and error strings. Current-tree completeness
 and the graph's current-unit/caller comparison remain required in addition
 to syntax validation. A historical declaration cannot close uncertainty merely
@@ -74,3 +74,15 @@ Applicable self-development routes are affected selection and final CEM
 binding/report inspection. Independent review, broader host checks and native
 ticket completion remain orchestrator-owned. Raw evidence and binding inputs:
 `/home/russell/lanes/azu-new-evidence/self-review-final-operands/`.
+
+Final contract inspection found that aliasing the shell decoder types changed
+Go JSON semantic errors (`Go shell.foreignCallersFile` and
+`Go shell.ForeignCallers` became affected-package type names). The new
+`TestForeignCallerDecoderTypeDiagnostics_AZU_V0_8904` covers both names and reproduces the root-type difference
+before correction. Retain those original shell types and decoding operation;
+convert their entries to the common validator's unchanged member shape. The
+historical decoder can use the shared shape because its errors only retain
+uncertainty and are not exposed as diagnostics. This is a required frozen-text
+repair, not a new diagnostic. The final touched-package runs and a second,
+terminal CEM binding cycle are necessary after this observed blocker; the
+initial CEM binding is superseded rather than claimed as final.

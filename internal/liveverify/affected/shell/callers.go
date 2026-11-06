@@ -2,6 +2,7 @@ package shell
 
 import (
 	"bytes"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -37,8 +38,18 @@ const FrontierForeignCallersInvalid = "shell:foreign-callers-invalid"
 // ForeignCallersProfile is the declaration's closed profile name.
 const ForeignCallersProfile = affected.ShellForeignCallersProfile
 
-// ForeignCallers is the canonical caller/mention split and project reason.
-type ForeignCallers = affected.ShellForeignCallerEntry
+// ForeignCallers is one declared script's caller/mention split and project reason.
+// Retain this decoder type: JSON semantic errors include its name.
+type ForeignCallers struct {
+	Callers  []string `json:"callers"`
+	Mentions []string `json:"mentions,omitempty"`
+	Reason   string   `json:"reason"`
+}
+
+type foreignCallersFile struct {
+	Profile string                    `json:"profile"`
+	Scripts map[string]ForeignCallers `json:"scripts"`
+}
 
 // readForeignCallers returns the declared scripts by path: nil with no
 // declaration, an error for one that is unreadable, oversized, not a regular
@@ -53,7 +64,18 @@ func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error
 	if err != nil {
 		return nil, err
 	}
-	return affected.ParseShellForeignCallers(body)
+	var declared foreignCallersFile
+	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
+		return nil, err
+	}
+	entries := make(map[string]affected.ShellForeignCallerEntry, len(declared.Scripts))
+	for script, entry := range declared.Scripts {
+		entries[script] = affected.ShellForeignCallerEntry(entry)
+	}
+	if err := affected.ValidateShellForeignCallers(declared.Profile, entries); err != nil {
+		return nil, err
+	}
+	return declared.Scripts, nil
 }
 
 // CheckForeignCallers returns why the project's foreign-caller declaration
