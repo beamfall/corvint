@@ -1,0 +1,15 @@
+{
+  "workflow_runs": [
+    {
+      "id": 42106672783,
+      "head_sha": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "path": ".github/workflows/ci.yml",
+      "repository": {
+        "full_name": "beamfall/corvint"
+      }
+    }
+  ]
+}
