@@ -546,3 +546,25 @@ func TestConstructedCommandPrefixBounds_AZU_V0_8901(t *testing.T) {
 		}
 	}
 }
+
+// The directory prefilter skips only bodies no nested-directory pattern can
+// match: every accepted spelling still reaches the regular expressions.
+func TestForeignDirectoryMentionPrefilter_AZU_V0_8901(t *testing.T) {
+	match := constructedForeignMatcher("script/run.sh")
+	for _, body := range []string{
+		`x = "script/" + name`,
+		`x = './script' + "/" + name`,
+		"x = `script/$name`",
+		`exec("sh script/$(name).sh")`,
+		`exec("bash	script/` + "`name`" + `")`,
+	} {
+		if !foreignDirectoryMention([]byte(body), []byte("script")) || !match([]byte(body)) {
+			t.Errorf("%q: prefilter or matcher dropped a constructed reference", body)
+		}
+	}
+	for _, body := range []string{`description = "subscripts/" + name`, `x = "transcript" + name`} {
+		if foreignDirectoryMention([]byte(body), []byte("script")) || match([]byte(body)) {
+			t.Errorf("%q: not a mention of the script directory", body)
+		}
+	}
+}
