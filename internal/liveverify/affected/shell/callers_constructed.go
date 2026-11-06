@@ -29,11 +29,6 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 		// The separator may be in the next operand: "run" + "/" + name.
 		`["'\x60](?:\./)?` + dir + `/?["'\x60]\s*\+`,
 		`(?:[Jj]oin|joinpath)\s*\(\s*["'\x60](?:\./)?` + dir + `/?["'\x60]\s*,`,
-		`["'\x60](?:\./)?` + dir + `/[^"'\n]*[$%{]`,
-		// Backticks inside a quoted path can expand a computed basename;
-		// stop at whitespace so a later prose span is not part of the path.
-		// A raw-string closing delimiter alone is not a substitution.
-		`["'](?:\./)?` + dir + `/[^"'\s\x60]*\x60`,
 	}
 	if directory == "." {
 		// A computed basename needs no directory literal. Without one we
@@ -42,8 +37,32 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 		patterns = []string{
 			`(?:[Jj]oin|joinpath)\s*\(`,
 			`["'\x60][^"'\x60\n]*["'\x60]\s*\+|\+\s*["'\x60]`,
-			`["'\x60][^"'\x60\n]*[$%{]`,
 		}
+	}
+	// Keep the substitution vocabulary shared for root and nested scripts.
+	// Root callees have no directory literal with which to exclude a basename.
+	prefix := ""
+	backtickPrefix := `[^"'\x60\n]*`
+	if directory != "." {
+		prefix = `(?:\./)?` + dir + `/`
+		backtickPrefix = prefix
+	}
+	patterns = append(patterns,
+		`["'\x60]`+prefix+`[^"'\x60\n]*[$%{]`,
+		// Stop at whitespace after a nested directory so backticks in later
+		// prose are not part of its path. A raw-string closing delimiter
+		// alone is not a substitution.
+		`["']`+backtickPrefix+`[^"'\s\x60]*\x60`,
+	)
+	if directory != "." {
+		// A quoted command can precede the path ("sh run/$(name).sh").
+		// Bound this extension to command words and a single path token;
+		// markers in later arguments or diagnostic prose are not basenames.
+		commandPrefix := `(?:[A-Za-z0-9_./=-]+[ \t]+)+` + prefix
+		patterns = append(patterns,
+			`["'\x60]`+commandPrefix+`[^"'\x60\s]*[$%{]`,
+			`["']`+commandPrefix+`[^"'\s\x60]*\x60`,
+		)
 	}
 	compiled := make([]*regexp.Regexp, 0, len(patterns))
 	for _, pattern := range patterns {
