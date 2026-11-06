@@ -1,0 +1,309 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Go macOS
+
+# CIN-V0-4625 / V1-4732: advisory native coverage never delays CI completion or
+# its workflow_run control-plane status. Recompute trusted DOCS/MET inputs here;
+# never wait for CI, and never consume Linux package selection or REUSE.
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docs-plan:
+    # DCI-V0: only trusted event-base code may classify the tested merge. This
+    # job always runs; absent tools/qualification select FULL, never an empty skip.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-docs
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Classify and verify immutable documentation inputs
+        id: plan
+        working-directory: trusted-docs
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          TESTED_MERGE: ${{ github.sha }}
+        run: |
+          mode=FULL
+          echo 'mode=FULL' >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then
+            echo 'Full CI: main/push or trusted documentation classifier unavailable.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test "$(git rev-parse HEAD)" = "$PR_BASE"
+          if ! go build -trimpath -o "$RUNNER_TEMP/docs-ci-plan" ./tools/docs-ci-plan; then
+            echo 'Full CI: trusted documentation classifier could not build.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # A classifier refusal exits zero with FULL. An admitted document that
+          # fails verification exits nonzero and must fail this required dependency.
+          "$RUNNER_TEMP/docs-ci-plan" --root "$GITHUB_WORKSPACE/source" \
+            --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" \
+            > "$RUNNER_TEMP/docs-ci-plan.json"
+          cat "$RUNNER_TEMP/docs-ci-plan.json" >> "$GITHUB_STEP_SUMMARY"
+          if jq -e --arg base "$PR_BASE" --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" \
+            '.profile == "corvint-docs-ci/0" and .mode == "DOCS" and .verified == true and .base == $base and .head == $head and .target == $target' \
+            "$RUNNER_TEMP/docs-ci-plan.json" > /dev/null; then
+            mode=DOCS
+            # DCI-V0-857: tools/capabilities-check reads the README capability table.
+            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex ./tools/capabilities-check)
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+      - name: Retain documentation decision
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-ci-plan
+          path: ${{ runner.temp }}/docs-ci-plan.json
+          if-no-files-found: ignore
+
+  narrowing-verdict:
+    # AFP-V0-097 (V1-0812): a same-repository pull request into main may narrow its Go shards
+    # only when the repository variable CORVINT_PR_NARROWING is `on` (unset by default) and
+    # accept.sh, run from the pull request's base commit, accepts the newest trusted
+    # afp-shadow-bar-epoch-<N> verdict of ci-forward-bar.yml. Any other outcome, a skipped job
+    # or a failure of this job leaves `verdict` other than MET, and every shard runs full.
+    # A fork pull request never runs it.
+    # AFP-V0-730 (V1-3064): a merge-queue entry on main runs it too, from the queue base, only
+    # while CORVINT_MQ_NARROWING is `on` (unset by default); the verdict is the same one.
+    if: (github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'main') || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    # V1-4360: room for the 60-page KILL_PAGES budget, with page retries, before the job is killed.
+    timeout-minutes: 12
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      verdict: ${{ steps.accept.outputs.verdict }}
+      reason: ${{ steps.accept.outputs.reason }}
+      verdictRun: ${{ steps.accept.outputs.verdictRun }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The pull request's base commit on main, or the queue base, never the tested head.
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          path: trusted
+          sparse-checkout: .github/forward-rows
+          persist-credentials: false
+      - name: Accept or refuse the trusted whole-epoch verdict
+        id: accept
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # Must equal CORVINT_PR_FORWARD_EPOCH below and FORWARD_EPOCH in ci-forward-bar.yml.
+          FORWARD_EPOCH: "2"
+          VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml
+          # V1-4360: 60 pages of 100 (about 8 hours at the 2026-11-02 rate) reach back past an hour
+          # before an hourly verdict's listing even when GitHub delays the schedule; the listing
+          # stops at that point, so a fresh verdict still reads only a few pages.
+          KILL_PAGES: "60"
+        run: sh trusted/.github/forward-rows/accept.sh
+
+  go-macos-shard:
+    # CIN-V0-4625 / V1-4732: independent advisory Darwin selection. No CI dependency.
+    needs: [docs-plan, narrowing-verdict]
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3]
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    env:
+      GOTOOLCHAIN: local
+      GOENV: "off"
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      MACOS_SHARD: ${{ matrix.shard }}
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Darwin selector regression checks
+        run: python3 -B .github/macos/select_test.py
+      - name: Report verified documentation-only selection
+        if: needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode == 'DOCS'
+        run: echo 'go-macos tests NOT_RUN; trusted docs-plan verified DOCS.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Provision the native tools as in the nightly macOS gate
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.3"
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ripgrep
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Build native trusted narrowing tools
+        id: native-tools
+        if: needs.narrowing-verdict.outputs.verdict == 'MET' && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS')
+        continue-on-error: true
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # The tested merge's main parent, never its PR parent or go.mod. The
+          # native planners see Darwin files that the Linux planner cannot see.
+          test "$(git rev-parse HEAD^2)" = "$PR_HEAD"
+          main=$(git rev-parse HEAD^1)
+          git merge-base --is-ancestor "$PR_BASE" "$main"
+          trusted="$RUNNER_TEMP/macos-trusted"
+          mkdir -p "$trusted" "$RUNNER_TEMP/macos-bin"
+          git archive "$main" | tar -x -C "$trusted"
+          cd "$trusted"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/corvint" ./cmd/corvint
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/driver" ./tools/corvint-pr-tests
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/selector" ./tools/gate-affected-select
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/ci-shards" ./.github/cishards/cmd
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/macos-bin/test-confine" ./.github/testconfine/cmd
+          echo "source=$main" >> "$GITHUB_OUTPUT"
+      - name: Apply the existing narrowing guards on Darwin
+        id: native-narrow
+        if: steps.native-tools.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_MERGE: ${{ github.sha }}
+          SHARD: "0"
+          SHARDS: "1"
+          TOOL_SOURCE: ${{ steps.native-tools.outputs.source }}
+          VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
+        run: |
+          export PR_BIN="$RUNNER_TEMP/macos-bin"
+          export SHADOW="$PR_BIN/corvint" CI_SHARDS="$PR_BIN/ci-shards" CONFINE="$PR_BIN/test-confine"
+          TRUSTED="$RUNNER_TEMP/macos-trusted"
+          sh "$TRUSTED/.github/forward-rows/narrow.sh"
+      - name: Select and run the Darwin-relevant packages
+        id: tests
+        if: needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS'
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          NATIVE_NARROW_RESULT: ${{ steps.native-narrow.outcome }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/macos-selection"
+          mkdir -p "$out"
+          # Same nested module provisioning as go-static; no downloads during tests.
+          (cd tools/local-authority && GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download)
+          go list -json ./... > "$out/packages.json"
+          (cd tools/local-authority && go list -json ./...) >> "$out/packages.json"
+          (cd interop/cem01-go && go list -json ./...) >> "$out/packages.json"
+          record="$out/no-native-record.json"
+          if [ "$NATIVE_NARROW_RESULT" = success ]; then
+            record="$RUNNER_TEMP/corvint-narrowing/narrowing.json"
+          fi
+          python3 -B .github/macos/select.py "$out/packages.json" \
+            "$record" "$GITHUB_SHA" "$PR_HEAD" "$GITHUB_RUN_ID" \
+            "$out/selection.json" > "$out/selected.tsv"
+          # Whole packages, up to three at once on the 3-core hosted runner.
+          # Each module gets one invocation; no race run and no per-package loop.
+          python3 -B .github/macos/shard.py "$out/selection.json" \
+            .github/cishards/package-costs.json "$MACOS_SHARD" "$out/shard-$MACOS_SHARD"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("go-macos: %s, %d/%d Darwin packages" % (r["mode"], len(r["selected"]), len(r["inventory"])))' \
+            "$out/selection.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Record the shard outcome
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.tests.outcome }}
+          JOB_RESULT: ${{ job.status }}
+          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}
+          DOCS_RESULT: ${{ needs.docs-plan.result }}
+        run: |
+          out="$RUNNER_TEMP/macos-selection/shard-$MACOS_SHARD"
+          mkdir -p "$out"
+          result=failure
+          if [ "$JOB_RESULT" = success ] && { [ "$TEST_RESULT" = success ] || { [ "$DOCS_RESULT" = success ] && [ "$DOCS_MODE" = DOCS ]; }; }; then
+            result=success
+          fi
+          printf '%s\n' "$result" > "$out/result.txt"
+      - name: Retain each shard's execution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-selection-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/macos-selection/shard-${{ matrix.shard }}
+          if-no-files-found: error
+      - name: Retain native selection, reasons and narrowing evidence
+        if: always() && matrix.shard == 0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # One record writer preserves the V1-4636 artifact and its unchanged schema.
+          # Never ci-narrowing-* or ci-coverage-*: Linux keeps its own denominator.
+          name: macos-selection
+          path: |
+            ${{ runner.temp }}/macos-selection
+            ${{ runner.temp }}/corvint-narrowing
+          if-no-files-found: ignore
+
+  go-macos:
+    # Stable advisory check name; no required CI job waits for this workflow.
+    needs: [go-macos-shard]
+    if: ${{ always() }}
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: macos-selection-shard-*
+          path: ${{ runner.temp }}/macos-shards
+      - name: Check all four advisory shard outcomes
+        env:
+          SHARD_RESULT: ${{ needs.go-macos-shard.result }}
+        run: |
+          set -euo pipefail
+          test "$SHARD_RESULT" = success
+          for shard in 0 1 2 3; do
+            test "$(cat "$RUNNER_TEMP/macos-shards/macos-selection-shard-$shard/result.txt")" = success
+          done
