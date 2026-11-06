@@ -37,3 +37,18 @@ func TestNativeNodeHelpFullyHandled(t *testing.T) {
 		}
 	}
 }
+
+// CAP-V0-9300: provider help belongs to its authored handler, which appends
+// flag-set detail to the synopsis (V1-1221); delegation must leave streams untouched.
+func TestNativeProviderHelpDoesNotWrite(t *testing.T) {
+	for _, sub := range []string{"negate", "external-origins"} {
+		for _, help := range []string{"-h", "--help", "-help"} {
+			var out, errout bytes.Buffer
+			args := []string{sub, help}
+			code, handled := Answer("corvint-js-test-provider", args, &out, &errout)
+			if code != 0 || handled || out.Len() != 0 || errout.Len() != 0 {
+				t.Fatalf("%v: code=%d handled=%v stdout=%q stderr=%q", args, code, handled, out.String(), errout.String())
+			}
+		}
+	}
+}
