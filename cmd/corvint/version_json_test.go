@@ -18,6 +18,7 @@ import (
 // admitted harness host. Plain --version keeps its text line, and any other
 // argument after --json stays an argument error.
 func TestPRSV1020VersionJSONNamesVerbsAndHosts(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{"--version", "--json"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(args, strings.NewReader(""), &stdout, &stderr); code != 0 {
@@ -61,6 +62,7 @@ func TestPRSV1020VersionJSONNamesVerbsAndHosts(t *testing.T) {
 // states the source commit and its dirty state from the binary's own build
 // information, with explicit unknown markers when it carries none.
 func TestPUBV0050VersionJSONStatesSourceCommit(t *testing.T) {
+	t.Parallel()
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"--version", "--json"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d, stderr %s", code, stderr.String())
@@ -94,6 +96,7 @@ func TestPUBV0050VersionJSONStatesSourceCommit(t *testing.T) {
 // TestPUBV0051UnstampedBuildOmitsBuild (V1-2839): an unstamped binary never
 // reports a constant build 0 in --version --json; the member is omitted.
 func TestPUBV0051UnstampedBuildOmitsBuild(t *testing.T) {
+	t.Parallel()
 	for _, stamp := range []string{"0", ""} {
 		if identity := versionIdentityFrom("1.0.0-rc.3", stamp, "", nil); identity.Build != producerUnstamped {
 			t.Fatalf("build %q: %+v", stamp, identity)
@@ -108,6 +111,7 @@ func TestPUBV0051UnstampedBuildOmitsBuild(t *testing.T) {
 // builder stamped with both its build number and source commit reports the
 // compiled VERSION; every other build reports a pre-release of it.
 func TestPUBV0052UnreleasedBuildIsPreRelease(t *testing.T) {
+	t.Parallel()
 	commit := strings.Repeat("e", 40)
 	for name, test := range map[string]struct {
 		version, build, stamp, display string
@@ -135,6 +139,7 @@ func TestPUBV0052UnreleasedBuildIsPreRelease(t *testing.T) {
 // is `Corvint DISPLAY (build N, commit SHA[, modified])`, drops the build member
 // when unstamped, names `commit unknown` without a commit, and parses back.
 func TestPUBV0053PlainVersionLineFormat(t *testing.T) {
+	t.Parallel()
 	commit := strings.Repeat("a", 40)
 	for name, test := range map[string]struct {
 		build, stamp string

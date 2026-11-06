@@ -55,7 +55,7 @@ Traceability for the 2026-11-04 evaluation:
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| IDX-SNAP-V0-7803 | `reference_scan.go`, `sourceImports` | `TestReferenceScannersMatchTheirRegexes`; `docs/build-log/2026-11-04-docperf.md` |
+| IDX-SNAP-V0-7803 | `reference_scan.go`, `sourceImports` | `TestReferenceScannersMatchTheirRegexes`; `docs/build-log/2026-11-04-docperf.md`; bounded full-corpus parallel comparisons and timings: `docs/build-log/2026-11-05-slow-test-speedups.md` |
 | IDX-SNAP-V0-7804 | existing experimental pack reader/writer; default format unchanged | `TestDocperfPackSelfCorpusParity`, `TestDocperfSnapshotProfile`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`; `docs/build-log/2026-11-04-docperf.md` |
 
 - `IDX-SNAP-V0-001`: `corvint [--root PATH] index` builds the index of the committed tree exactly as
