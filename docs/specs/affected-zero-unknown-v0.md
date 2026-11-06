@@ -16,10 +16,27 @@ spec is at its OCM obligation limit, so these requirements take a new prefix.
 - Claim: every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.
 - Status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation); delivery experimental.
 - Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
-- Blocked on: nothing; each requirement lands on its own.
+- Blocked on: aggregate sibling integration, empty unknown lists on every frozen merge, and historical full-suite/mutation receipts; lane verification retains sandbox CLI failures; the registered-driver assertion conflict is repaired without changing frozen receipts.
 - Read next: User and current state, then the requirement you are implementing.
 
 ## User and current state
+
+The owner directed the goal ("figure out how to get the unknown to 0 safely", owner chat,
+2026-11-04), and the orchestrator made the design choices under the owner's delegation of
+2026-11-02. Experimental candidates for driver ownership, inbound closure and frozen replay
+exist; AZU-V0 is NOT_QUALIFIED.
+
+The merge-forward verifier repair restores the base's registered driver and historical
+namespace in default graph identities. Frozen strict/coverage receipts (AFU-V1-024) include
+both that namespace and observed driver units. Explicit optional driver sets retain
+AZU-V0-8905 absent-driver parity. The self-review repair reconciles the lane-only
+`TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002` with the accepted registered
+registry: a changed Makefile selects its driver target with BOUNDED scope. Frozen receipt
+assertions remain unchanged. Go raw-string directory joins also retain unknowns for
+undeclared callers, and partial replay reports remain unaccepted until every listed merge
+qualifies. AZU-V0-004/009 aggregate qualification still lacks historical full-suite/mutation
+evidence; CLI sandbox failures remain explicit verification limits.
+No observed graph vertex is hidden from a digest.
 
 The user is the engineer, agent or CI shard that runs only the tests a change can affect. A plan
 with any `unknown` entry has scope `UNKNOWN`, and every consumer that cannot trust it falls back
@@ -43,7 +60,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
 ## Requirements
 
-- **AZU-V0-001: Driver claimant.** A built-in claimant SHALL own every driver input that
+- **AZU-V0-001:** **Driver claimant.** A built-in claimant SHALL own every driver input that
   `driverInput` recognises (make files at any depth, `.github/workflows/**`, `.github/actions/**`),
   so such a path is never `UNOWNED_DIRTY_PATH` and never triggers the AFP-V0-511 cascade. Its units
   are make targets and workflow jobs. Edges are the repository paths a recipe or step names
@@ -56,19 +73,28 @@ participation, and inbound shell callers. The remaining classes are small and lo
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
   before. Supersedes the AFP-V0-2405 hint for claimed paths.
+  Go package commands with no package argument SHALL depend on the current package after
+  `cd` or `go -C`; an unresolved directory SHALL retain uncertainty or depend on every owner.
+  YAML flow mappings outside the supported subset SHALL retain the unparsable-file frontier
+  rather than silently discard execution members. Flow steps accepted as scalar text by the
+  supported parser SHALL retain their job or action as a computed invocation when execution
+  members are not modelled (AZU-V0-9703, AZU-V0-9852). Unparsable driver
+  fallback units SHALL be reached for dirty paths not covered by the existing project-owned
+  no-unbounded-reader proof (AFP-V0-772), preserving uncertainty even when the hidden execution
+  edge cannot participate in traversal. Literal readers remain selected under that proof.
   Driver execution edges SHALL survive Go test-only containment (AFP-V0-036), selecting
   the target/job and its callers when only the invoked package's tests change; ordinary Go
   importers remain contained. Go's `-C=DIR` form SHALL resolve like `-C DIR`. Shell globs in
   Go package operands and unsupported inline interpreter programs SHALL resolve their
   dependencies or retain the invocation site as computed under AZU-V0-003.
-- **AZU-V0-002: Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
+- **AZU-V0-002:** **Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
   `.corvint/non-source-paths.json` for evidence output such as `.agent-evidence/`. A maintained test
   SHALL fail while that list is non-empty at `HEAD`, so a merged tree has no unowned tracked path
   and `UNOWNED_DIRTY_PATH` can arise only for an uncommitted new path. The audit is read-only (AGENTS
   invariant 4).
-- **AZU-V0-003: Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOUND`
+- **AZU-V0-003:** **Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOUND`
   or `INBOUND` through a new optional `FrontierDirection` method on its claimant. `OUTBOUND` means
   the hidden edge starts at the reference in the site's own file: an unresolved, dynamic or bare
   import, an include, an executable config, or a computed invocation. A reason with no declaration
@@ -80,7 +106,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   needs a complete site list: a plugin SHALL record every site unit in the graph, even when its
   display truncates to `reason:+N`. A plugin that cannot locate a site in a unit keeps that entry
   unknown.
-- **AZU-V0-004: Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site unit,
+- **AZU-V0-004:** **Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site unit,
   such as `shell:foreign-invocation-unmodelled`, `shell:foreign-callers-changed` or
   `typescript:e2e-runtime-dependency`) SHALL close when the project declares the site's callers.
   Declarations are `.corvint/shell-foreign-callers.json` (TSP-V0-005) and driver edges
@@ -90,26 +116,26 @@ participation, and inbound shell callers. The remaining classes are small and lo
   builds a callee path from a computed name under a declared callee directory SHALL also fail the
   check, so the declaration stays complete under project authority (AGENTS invariant 3). An inbound
   entry whose site has no declaration stays unknown.
-- **AZU-V0-005: Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of the
+- **AZU-V0-005:** **Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of the
   main module that lie below a directory whose name starts with `.` or `_`, which `./...` skips (for
   example `.github/testconfine` and `.github/testconfine/cmd`). Such a file is then owned source,
   not `UNINDEXED_SOURCE_PATH`.
-- **AZU-V0-006: Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
+- **AZU-V0-006:** **Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
   first select its declared or modelled callers (AZU-V0-001, AZU-V0-004). When no selectable test
   anywhere can observe it, the plan SHALL record it in a new `uncovered` list, not in `unknown`.
   This is a coverage gap, not a selection gap: no test exists whose outcome the change can alter. A
   unit with any undeclared `INBOUND` entry stays unknown.
-- **AZU-V0-007: Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
+- **AZU-V0-007:** **Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
   MAY carry `run`, the argv that runs it from the repository root. When the change reaches the
   consumed binary's build, an entry with `run` SHALL be selected with kind `DECLARED_CONSUMER` and
   that argv, instead of `UNSELECTED_BINARY_CONSUMER`. An entry without `run` keeps today's unknown.
-- **AZU-V0-008: Package-level runner fallback.** A frontier reason that hides only which tests run
+- **AZU-V0-008:** **Package-level runner fallback.** A frontier reason that hides only which tests run
   inside a known package or project SHALL select that package's whole test command. Examples are
   `typescript:test-runner-unknown`, `typescript:runtime-flags-unresolved`,
   `dotnet:test-runner-filter-unresolved` and `dotnet:dynamic-test-discovery`. The plugin declares
   the reason `PACKAGE_RUNNABLE`. Only a reason whose package has no runnable command stays unknown,
   as `NO_RUNNER`.
-- **AZU-V0-009: Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`
+- **AZU-V0-009:** **Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`
   SHALL run `corvint affected --base M^1` for each merge in a frozen list. The list starts with the
   eight merges above and adds every merge since. It SHALL report per merge the unknown count by
   reason, the selection size and its wall-clock cost. AZU-V0 is met when every plan in the list has
@@ -150,6 +176,86 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - `AZU-V0-9853`: (experimental, owner PR #99 repair request 2026-11-05) Unresolved local
   `uses` paths, including action directories outside `.github/actions`, SHALL retain their
   caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
+
+### Lane qualification details
+
+- **AZU-V0-8900:** **Conservative verification ownership.** Remaining tracked data MAY be assigned
+  verification owners through the existing `corvint-test-selection/0` contract. An owner SHALL add
+  its tests without removing any existing reader, executor, import or embed selection. Owner paths
+  SHALL remain unowned for frontier bearing. The exact parser-owned control declarations SHALL count as declared ownership in the audit,
+  even when frozen selection rules retain uncertainty for a reader of the declaration. No such
+  audit claim may remove a selection or a plan unknown. The maintained ownership baseline SHALL be empty;
+  a new tracked path outside all claims SHALL fail the ownership gate. Declarations include
+  `.github/forward-rows/tiers.jq` and `script/ci-least-privilege-exceptions.tsv`.
+- **AZU-V0-8901:** **Constructed foreign callers.** The shell caller completeness guard SHALL reject
+  an undeclared source file constructing a declared callee directory through a quoted directory
+  concatenation, a path join or a formatted directory path. Existing shell value expansion SHALL
+  remain in force. These checks widen possible callers; they SHALL NOT infer that another caller
+  cannot exist. Existing declaration shapes, bounds and invalid-declaration diagnostics stay fixed. A declaration
+  newly rejected only by the stronger directory-construction check SHALL retain caller edges
+  admitted by the legacy literal/shell-expansion guard, while retaining both invalid-declaration
+  and foreign-invocation unknowns. New uncertainty SHALL never remove those prior selections.
+  Root-directory callees SHALL also check computed basenames: without a directory literal to
+  exclude a callee, joins, quoted concatenations and formatted paths remain possible callers.
+  A literal prefix SHALL NOT exclude an unresolved intermediate join operand that may traverse
+  out of that prefix before later operands name the callee directory.
+  A fixed final suffix MAY exclude that join only when it cannot name any supported shell script;
+  partial shell suffixes and components removed by path cleaning are not exclusion proofs.
+  A dynamic final operand with a literal suffix, bare (`name+".sh"`) or parenthesized, MAY carry
+  `..` itself and SHALL count as traversal. Known limit: a bare identifier final operand
+  (`filepath.Join("elsewhere", name)`) is still read as a file directly under its literal
+  prefix, because counting it as traversal flagged 75 source files against all 34 `script/`
+  callees on 2026-11-06 and made completeness unusable; V1-4779 tracks a bounded sound rule.
+  For root and nested scripts alike, quoted computed basenames include backtick substitution,
+  `$()`, `${}`, `$VAR` and percent formats, including paths after a command prefix.
+- **AZU-V0-8902:** **Located runtime caller closure.** A located TypeScript end-to-end runtime site
+  covered by an existing runtime edge SHALL select its declared test unit and traverse its
+  dependents on every nonempty code-bearing change, including changes within TypeScript. Only after selection
+  SHALL that site's inbound unknown close. Unlocated, truncated, stale or undeclared sites SHALL
+  remain unknown. A declared-data-only change SHALL not introduce runtime code selections. Computed shell
+  outbound targets retain uncertainty until modelled; the literal repository-root query of a
+  wrapper MAY resolve its known root-relative shell target. Changed caller declarations use
+  AZU-V0-8904; without historical caller completeness they retain their existing uncertainty.
+- **AZU-V0-8903:** **Replay evidence admission.** The replay SHALL use a supplied implementation binary
+  over exact historical merge trees in private clones outside the repository. It SHALL retain the
+  binary digest, frozen-list digest, immutable merge/parent/tree IDs, per-merge plans, unknown
+  entries and counts, selection/test counts and wall time. An optional baseline binary SHALL
+  produce named removed unknowns, added selections and dropped selections. The initial eight full
+  SHAs are committed; subsequent first-parent merges through a pinned local ref are appended.
+  Safety receipts SHALL bind each merge and parent, complete suite inventories and per-test
+  outcomes at both revisions, plus mutation observations bound to unique mutant IDs and changed lines on either the parent
+  or merge side, including deleted lines. Missing or invalid receipts, including a parent test absent from the merge outcomes,
+  SHALL report `NOT_PRODUCED`, never safety success. Every changed or new outcome and every mutant
+  killer SHALL belong to a selected unit; a deliberately removed killer or differing-outcome unit
+  SHALL fail the same checker. External runner completeness statements are required evidence,
+  not authenticated by this comparator; it cannot establish mutation adequacy or independent
+  full-suite execution itself. AZU acceptance SHALL remain false with any unknown or absent safety
+  receipt. No synthetic fixture result may fill a historical qualification cell.
+
+These details preserve the rollback rule above. The lane's repository ownership and constructed
+caller tests are verification evidence; overall AZU-V0-009 promotion still requires the aggregate
+lanes and external full-suite/mutation observations at every historical revision.
+
+- **AZU-V0-8904:** **Revision-bound caller changes.** A changed shell caller declaration SHALL close
+  its change frontier only with bounded base/head content observed at the measured revisions and
+  a current declaration admitted by the shell plugin. Selection SHALL seed the union of the old
+  and new callee/caller/mention paths and traverse their dependents, test users and executable
+  users. A missing historical read, invalid declaration or caller absent from the current graph
+  SHALL retain the existing changed-declaration unknown. Both snapshots SHALL pass the canonical
+  shell declaration validation: nonempty, sorted, unique, disjoint caller/mention lists, clean
+  paths and supported script suffixes, and bounded, nonempty, control-free UTF-8 reasons.
+  A valid current declaration SHALL NOT discharge an invalid historical declaration.
+  A bare selector without revision content
+  SHALL keep its existing uncertainty. This uses the existing measured-content seam and adds no
+  receipt members or diagnostics.
+
+- **AZU-V0-8905:** **Absent driver identity parity.** The optional driver claimant SHALL not change
+  the canonical graph identity of a tree with no driver units, frontiers or unobserved/runnable
+  directories. Its claimant MAY still recognize a probed new driver path. Existing graph digests
+  and committed application-flow goldens SHALL remain unchanged for such trees.
+  The default provider registry SHALL retain its already-frozen driver namespace even without
+  driver files; optional-provider parity SHALL not remove that historical namespace.
+
 
 ## Non-goals
 
@@ -229,16 +335,16 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 
 | Requirement | Tickets | Evidence |
 |---|---|---|
-| AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
-| AZU-V0-002 | V1-4685; V1-4659, V1-3480 | partial: `affected --ownership-audit` (`cmd/corvint/affected_ownership_audit.go`, `OwnershipAudit` in `ownership_audit.go`), `.corvint/non-source-paths.json` (`non_source_paths.go`); `TestOwnershipAuditListsUnclaimedPaths_AZU_V0_002`, `TestNonSourcePathsRefusesInvalidDeclarations_AZU_V0_002`, `TestAffectedOwnershipAuditListsUnownedReadOnly_AZU_V0_002`; the maintained test `TestOwnershipAuditRatchet_AZU_V0_002` is a ratchet over a 1694-path baseline, not yet the empty list the requirement names |
+| AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
+| AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | not yet |
-| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | not yet |
+| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |
 | AZU-V0-005 | V1-4688 | not yet |
 | AZU-V0-006 | V1-4689 | not yet |
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
-| AZU-V0-009 | V1-4692 | not yet |
+| AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv), `TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903` (actual +/- records and canonical zero inter-hunk context; unchanged-line mutants remain NOT_PRODUCED on both sides); historical full-suite/mutation qualification remains NOT_PRODUCED |
 | AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
 | AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
 | AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |
