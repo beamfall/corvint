@@ -34,7 +34,7 @@ func TestOwnershipSelectionAndUnknowns_AZU_V0_9900(t *testing.T) {
 	if !slices.ContainsFunc(p.Unknown, func(u Unknown) bool { return u.Reason == UnknownLanguageFrontier && u.Detail == pathOpenY }) {
 		t.Fatalf("unbounded real consumer lost: %+v", p.Unknown)
 	}
-	after := Select(g.WithOwnershipChanges(nil, nil), dirty)
+	after := Select(g.WithOwnershipChanges(nil, dirty), dirty)
 	a, _ := json.Marshal(before)
 	b, _ := json.Marshal(after)
 	if string(a) != string(b) {
@@ -69,6 +69,9 @@ func TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901(t *testing.T) {
 // resolution input, or an unrelated unowned path in the same dirty set.
 func TestOwnershipFixtureClosureBounds_AZU_V0_9901(t *testing.T) {
 	fixture := "pkg/testdata/new.json"
+	// Exercise actual fixture-closed reasons. Dynamic loads are path-open
+	// and must survive even when their sites are outside testdata.
+	const frontier = "y:runner-unknown:reader_test.y"
 	for _, tc := range []struct {
 		name  string
 		extra []Unit
@@ -77,13 +80,13 @@ func TestOwnershipFixtureClosureBounds_AZU_V0_9901(t *testing.T) {
 		want  bool
 	}{
 		{name: "closed", want: false},
-		{name: "reached frontier", extra: []Unit{{ID: "y:reader", Sources: []string{"reader.y"}, Tests: []string{"reader_test.y"}, PathTokens: []string{fixture}, Frontier: []string{pathOpenY}}}, want: true},
+		{name: "reached frontier", extra: []Unit{{ID: "y:reader", Sources: []string{"reader.y"}, Tests: []string{"reader_test.y"}, PathTokens: []string{fixture}, Frontier: []string{frontier}}}, want: true},
 		{name: "foreign fixture unit", extra: []Unit{{ID: "y:fixture", Sources: []string{"pkg/testdata/source.y"}}}, want: true},
 		{name: "resolution input", input: fixture, want: true},
 		{name: "other unowned", other: "other/data.json", want: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			y := reaching{fake: fake{name: "y", units: tc.extra, frontier: []string{pathOpenY}}, inputs: func(path string) bool { return tc.input != "" && path == tc.input }}
+			y := reaching{fake: fake{name: "y", units: tc.extra, frontier: []string{frontier}}, fixtureClosed: []string{"y:runner-unknown"}, inputs: func(path string) bool { return tc.input != "" && path == tc.input }}
 			g, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}}, {ID: "go:gate", Tests: []string{OwnershipAuditTestPath}, ReadScoped: true}}}, y)
 			if err != nil {
 				t.Fatal(err)
@@ -93,9 +96,34 @@ func TestOwnershipFixtureClosureBounds_AZU_V0_9901(t *testing.T) {
 				dirty = append(dirty, tc.other)
 			}
 			p := Select(g.WithOwnershipChanges(dirty, dirty), dirty)
-			has := slices.ContainsFunc(p.Unknown, func(u Unknown) bool { return u.Reason == UnknownLanguageFrontier && u.Detail == pathOpenY })
+			has := slices.ContainsFunc(p.Unknown, func(u Unknown) bool { return u.Reason == UnknownLanguageFrontier && u.Detail == frontier })
 			if has != tc.want {
 				t.Fatalf("frontier present=%v want=%v: %+v", has, tc.want, p.Unknown)
+			}
+		})
+	}
+}
+
+// AZU-V0-9901 / AFP-V0-511: each plugin and reason supplies its own closure
+// proof. A selected Go host supplies none for dynamic or unclassified readers.
+func TestOwnershipFixtureFrontierClassification_AZU_V0_9901(t *testing.T) {
+	fixture := "pkg/testdata/new.json"
+	for _, plugin := range []Language{bystander(), fake{name: "z", frontier: []string{"z:unclassified:reader.z"}}} {
+		t.Run(plugin.Name(), func(t *testing.T) {
+			g, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+				{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}},
+				{ID: "go:gate", Tests: []string{OwnershipAuditTestPath}, ReadScoped: true},
+			}}, plugin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := Select(g.WithOwnershipChanges([]string{fixture}, []string{fixture}), []string{fixture})
+			want := []string{pathOpenY, boundY}
+			if plugin.Name() == "z" {
+				want = []string{"z:unclassified:reader.z"}
+			}
+			if got := languageFrontier(p); !slices.Equal(got, want) {
+				t.Fatalf("frontiers=%q want=%q", got, want)
 			}
 		})
 	}

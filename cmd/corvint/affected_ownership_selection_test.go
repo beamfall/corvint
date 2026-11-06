@@ -12,6 +12,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 func ratchetSelectionRepo(t *testing.T) (string, string) {
@@ -69,11 +70,11 @@ func assertRatchetSelected(t *testing.T, p affected.Plan) {
 // AZU-V0-9900: membership changes, staged additions and each declaration edit
 // select the named gate; renames exercise both the old and new tracked names.
 func TestOwnershipMembershipSelection_AZU_V0_9900(t *testing.T) {
-	for _, change := range []string{"add", "stage", "untracked", "delete", "worktree-delete", "rename", affected.RuntimeReadersPath, affected.DocumentationPathsPath, affected.NonSourcePathsPath} {
+	for _, change := range []string{"add", "stage", "stage-worktree-delete", "untracked", "delete", "worktree-delete", "rename", affected.RuntimeReadersPath, affected.DocumentationPathsPath, affected.NonSourcePathsPath} {
 		t.Run(change, func(t *testing.T) {
 			root, base := ratchetSelectionRepo(t)
 			switch change {
-			case "add", "stage", "untracked":
+			case "add", "stage", "stage-worktree-delete", "untracked":
 				cemWrite(t, root, "data/new.txt", "new\n")
 			case "delete", "worktree-delete":
 				if err := os.Remove(filepath.Join(root, "data/old.txt")); err != nil {
@@ -96,7 +97,15 @@ func TestOwnershipMembershipSelection_AZU_V0_9900(t *testing.T) {
 			if change != "untracked" && change != "worktree-delete" {
 				affectedGit(t, root, "add", ".")
 			}
-			if change != "stage" && change != "untracked" && change != "worktree-delete" {
+			if change == "stage-worktree-delete" {
+				if err := os.Remove(filepath.Join(root, "data/new.txt")); err != nil {
+					t.Fatal(err)
+				}
+				if got := affectedGit(t, root, "ls-files", "--cached", "data/new.txt"); strings.TrimSpace(got) != "data/new.txt" {
+					t.Fatalf("addition not indexed: %q", got)
+				}
+			}
+			if change != "stage" && change != "stage-worktree-delete" && change != "untracked" && change != "worktree-delete" {
 				affectedGit(t, root, "commit", "-qm", "change")
 			}
 			p := ratchetPlan(t, root, base)
@@ -164,20 +173,74 @@ func TestOwnershipReplay0c8ae2da9_AZU_V0_9901(t *testing.T) {
 // AZU-V0-9900: measuring content-only edits adds no selection metadata and
 // leaves canonical plan bytes identical to the same graph without the input.
 func TestOwnershipContentOnlyBytes_AZU_V0_9900(t *testing.T) {
-	root, base := ratchetSelectionRepo(t)
-	cemWrite(t, root, "tools/ci-reuse-plan/main.go", "package main\nfunc main() { println(1) }\n")
-	affectedGit(t, root, "add", ".")
-	affectedGit(t, root, "commit", "-qm", "content only")
-	graph, err := affected.Build(context.Background(), root, languages.All()...)
-	if err != nil {
-		t.Fatal(err)
+	for _, path := range []string{"tools/ci-reuse-plan/main.go", "data/old.txt"} {
+		t.Run(path, func(t *testing.T) {
+			root, base := ratchetSelectionRepo(t)
+			body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			content := string(body) + "\n"
+			if path == "tools/ci-reuse-plan/main.go" {
+				content = "package main\nfunc main() { println(1) }\n"
+			}
+			cemWrite(t, root, path, content)
+			affectedGit(t, root, "add", ".")
+			affectedGit(t, root, "commit", "-qm", "content only")
+			graph, err := affected.Build(context.Background(), root, languages.All()...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dirty := []string{path}
+			measured := affectedOwnershipInputs(context.Background(), affectedPlanInputs{gitExecutable: "git", repository: root, tree: root, base: base, revision: strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))}, graph, dirty)
+			before, _ := json.Marshal(affected.Select(graph, dirty))
+			after, _ := json.Marshal(affected.Select(measured, dirty))
+			if string(before) != string(after) {
+				t.Fatalf("content-only plan changed:\n%s\n%s", before, after)
+			}
+			// testFillPlan uses this compact receipt digest for test --dry-run.
+			digest := func(plan affected.Plan) string {
+				t.Helper()
+				compact, err := compactAffectedReceipt(affectedReceipt{Plan: plan})
+				if err != nil {
+					t.Fatal(err)
+				}
+				value, err := sessiontest.Digest(compact)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return value
+			}
+			if a, b := digest(affected.Select(graph, dirty)), digest(affected.Select(measured, dirty)); a != b {
+				t.Fatalf("content-only dry-run planDigest changed: %s != %s", a, b)
+			}
+		})
 	}
-	dirty := []string{"tools/ci-reuse-plan/main.go"}
-	measured := affectedOwnershipInputs(context.Background(), affectedPlanInputs{gitExecutable: "git", repository: root, tree: root, base: base, revision: strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))}, graph, dirty)
-	before, _ := json.Marshal(affected.Select(graph, dirty))
-	after, _ := json.Marshal(affected.Select(measured, dirty))
-	if string(before) != string(after) {
-		t.Fatalf("content-only plan changed:\n%s\n%s", before, after)
+}
+
+// AZU-V0-9901: JSON can be read by an unchanged test's computed require even
+// when its selected Go host also consumes it. The dynamic frontier must remain.
+func TestOwnershipFixtureComputedImport_AZU_V0_9901(t *testing.T) {
+	root, _ := ratchetSelectionRepo(t)
+	cemWrite(t, root, "web/data.test.ts", "import { test } from 'node:test';\ntest('data', () => { require(process.env.DATA_FILE); });\n")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "computed reader")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	fixture := "tools/ci-reuse-plan/testdata/new.json"
+	cemWrite(t, root, fixture, "{}\n")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "new fixture")
+	p := ratchetPlan(t, root, base)
+	assertRatchetSelected(t, p)
+	if !slices.ContainsFunc(p.Selected, func(s affected.Selection) bool {
+		return slices.Contains(s.Tests, "tools/ci-reuse-plan/main_test.go")
+	}) {
+		t.Fatalf("Go fixture host not selected: %+v", p.Selected)
+	}
+	if !slices.ContainsFunc(p.Unknown, func(u affected.Unknown) bool {
+		return u.Reason == affected.UnknownLanguageFrontier && strings.HasPrefix(u.Detail, "typescript:dynamic-import:web/data.test.ts:") && strings.Contains(u.Hint, fixture)
+	}) {
+		t.Fatalf("computed import uncertainty lost: %+v", p.Unknown)
 	}
 }
 
