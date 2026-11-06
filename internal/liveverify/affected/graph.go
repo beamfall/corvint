@@ -67,6 +67,9 @@ type Graph struct {
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
+	// nonSource is the repository's declared non-source entries
+	// (AZU-V0-002), sorted by path; it is part of the digest when present.
+	nonSource []NonSourcePath
 	// existenceReaders is the repository's declared existence readers with
 	// their manifest names (AFP-V0-980), sorted by package; it is part of the
 	// digest when present. existenceUnits maps each entry's package to its
@@ -105,6 +108,13 @@ type Graph struct {
 	// root is the disk checkout the graph was observed from, empty for an
 	// fs.FS graph. Only AFP-V0-494's symlink hint reads it.
 	root string
+	// driverFiles maps each driver file, and each local action directory, to
+	// its driver units (AZU-V0-001).
+	driverFiles map[string][]string
+	// driverContent holds each dirty driver file's base and working-tree
+	// content, which attributes its diff to targets and jobs (AZU-V0-001).
+	// Like priorReadScopes it is a selection input.
+	driverContent map[string]DriverRevision
 }
 
 // WithReadScopeBase returns a copy of graph whose selection compares an edit
@@ -143,6 +153,9 @@ type digestBody struct {
 	// RuntimeReaders appears only when the repository declares runtime-readers
 	// paths (AFP-V0-602), so graphs without the declaration keep their digest.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
+	// NonSource appears only when the repository declares non-source paths
+	// (AZU-V0-002), so graphs without the declaration keep their digest.
+	NonSource []NonSourcePath `json:"nonSource,omitempty"`
 	// RuntimeEdges appears only when the repository declares runtime edges
 	// (AFP-V0-819).
 	RuntimeEdges []RuntimeEdge `json:"runtimeEdges,omitempty"`
@@ -179,6 +192,7 @@ type digestUnit struct {
 	Execs                []string `json:"execs,omitempty"`
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
+	PathImports          []string `json:"pathImports,omitempty"`
 	PathTokens           []string `json:"pathTokens"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
@@ -286,6 +300,7 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language, partia
 type declarations struct {
 	documentation    []string
 	runtimeReaders   []RuntimeReader
+	nonSource        []NonSourcePath
 	runtimeEdges     []RuntimeEdge
 	existenceReaders []ExistenceReader
 	testSelection    *testSelection
@@ -305,6 +320,10 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
+		nonSource, err := readNonSourcePaths(reader)
+		if err != nil {
+			return declarations{}, err
+		}
 		runtimeEdges, err := readRuntimeEdges(reader)
 		if err != nil {
 			return declarations{}, err
@@ -317,7 +336,7 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
 	}
 }
 
@@ -374,11 +393,13 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	}
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
+	graph.nonSource = repository.nonSource
 	graph.runtimeEdges = repository.runtimeEdges
 	if err := graph.applyRuntimeEdges(repository.partial); err != nil {
 		return nil, err
 	}
 	graph.existenceReaders = repository.existenceReaders
+	graph.resolvePathImports()
 	graph.finish()
 	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
 		return nil, err
@@ -500,6 +521,59 @@ func (graph *Graph) admit(ctx context.Context, namespace string, result Result, 
 		graph.order = append(graph.order, unit.ID)
 	}
 	return nil
+}
+
+// resolvePathImports turns each unit's PathImports into Imports edges to the
+// units owning the named paths (AZU-V0-001): "..." names every owner,
+// "dir/..." every owner below dir, and any other entry the owner of that
+// file and the owners of the files directly in that directory.
+func (graph *Graph) resolvePathImports() {
+	graph.driverFiles = graph.driverIndex()
+	var owned []string
+	for _, id := range graph.order {
+		unit := graph.units[id]
+		if len(unit.PathImports) == 0 {
+			continue
+		}
+		if owned == nil {
+			owned = make([]string, 0, len(graph.owner))
+			for path := range graph.owner {
+				owned = append(owned, path)
+			}
+			sort.Strings(owned)
+		}
+		targets := make(map[string]bool)
+		below := func(prefix string, direct bool) {
+			for index := sort.SearchStrings(owned, prefix); index < len(owned) && strings.HasPrefix(owned[index], prefix); index++ {
+				if direct && strings.Contains(owned[index][len(prefix):], "/") {
+					continue
+				}
+				targets[graph.owner[owned[index]]] = true
+			}
+		}
+		for _, entry := range unit.PathImports {
+			switch {
+			case entry == "...":
+				below("", false)
+			case strings.HasSuffix(entry, "/..."):
+				below(entry[:len(entry)-3], false)
+			default:
+				if owner, present := graph.owner[entry]; present {
+					targets[owner] = true
+				}
+				below(entry+"/", true)
+			}
+		}
+		delete(targets, id)
+		if len(targets) == 0 {
+			continue
+		}
+		for _, imported := range unit.Imports {
+			targets[imported] = true
+		}
+		unit.Imports = sortedKeys(targets)
+		graph.units[id] = unit
+	}
 }
 
 // finish materializes the reverse edges, with test-only imports kept apart. An
@@ -701,6 +775,7 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		Units:            units,
 		Documentation:    graph.documentation,
 		RuntimeReaders:   graph.runtimeReaders,
+		NonSource:        graph.nonSource,
 		RuntimeEdges:     graph.runtimeEdges,
 		ExistenceReaders: graph.existenceReaders,
 		TestSelection:    graph.testSelection,
@@ -733,6 +808,7 @@ func projectUnit(unit Unit) digestUnit {
 		Execs:                unit.Execs,
 		AdvisoryImports:      unit.AdvisoryImports,
 		RouteDispatchImports: unit.RouteDispatchImports,
+		PathImports:          unit.PathImports,
 		PathTokens:           unit.PathTokens,
 		PathGlobs:            unit.PathGlobs,
 		PathTokensBounded:    unit.PathTokensBounded,

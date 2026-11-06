@@ -114,6 +114,10 @@ type affectedCompactSelection struct {
 	UnitID    string                 `json:"unitId"`
 	TestCount int                    `json:"testCount"`
 	Witness   affectedCompactWitness `json:"witness"`
+	// Argv, Workflow and Job carry a driver selection (AZU-V0-001).
+	Argv     []string `json:"argv,omitempty"`
+	Workflow string   `json:"workflow,omitempty"`
+	Job      string   `json:"job,omitempty"`
 }
 
 // affectedCompactWitness is a plan witness whose chain is a reference, not a
@@ -221,7 +225,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}
-		selected = append(selected, affectedCompactSelection{Kind: selection.Kind, Run: selection.Run, UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact})
+		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Run: selection.Run, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job})
 	}
 	if len(links) == 0 {
 		links = nil

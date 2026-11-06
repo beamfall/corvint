@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf16"
+
+	"github.com/Beamfall/corvint/internal/linecov/v8"
 )
 
 // Script is one script's precise coverage as V8 reports it, from the browser
@@ -104,34 +106,15 @@ type Observation struct {
 	Lines map[int]bool // mapped: 0-based original line -> executed
 }
 
-// paint returns the per-unit execution state of a script of n UTF-16 units.
-// Inner ranges follow their enclosing range, so painting in start order,
-// outer before inner, leaves each unit with its innermost count.
+// paint adapts browser ranges to the shared Node/browser V8 painter.
 func paint(n int, fns []Function) []int8 {
-	units := make([]int8, n)
-	for i := range units {
-		units[i] = -1
-	}
-	var rs []Range
+	var ranges []v8.Range
 	for _, f := range fns {
-		rs = append(rs, f.Ranges...)
-	}
-	sort.SliceStable(rs, func(i, j int) bool {
-		if rs[i].StartOffset != rs[j].StartOffset {
-			return rs[i].StartOffset < rs[j].StartOffset
-		}
-		return rs[i].EndOffset > rs[j].EndOffset
-	})
-	for _, r := range rs {
-		st := int8(0)
-		if r.Count > 0 {
-			st = 1
-		}
-		for i := max(r.StartOffset, 0); i < min(r.EndOffset, n); i++ {
-			units[i] = st
+		for _, r := range f.Ranges {
+			ranges = append(ranges, v8.Range{Start: r.StartOffset, End: r.EndOffset, Count: r.Count})
 		}
 	}
-	return units
+	return v8.PaintUnits(n, ranges)
 }
 
 // Attribute maps one script's coverage onto tracked files. A script it
@@ -139,7 +122,10 @@ func paint(n int, fns []Function) []int8 {
 // from a loopback origin, or a file: URL inside the repository) returns a
 // reason that makes the record incomplete (LPCV-V0-954, LPCV-V0-972).
 func (r *Repo) Attribute(s Script) ([]Observation, string) {
-	if s.URL == "" || ignoredURL(s.URL) {
+	if s.URL == "" {
+		return nil, "script without a URL cannot bind coverage"
+	}
+	if ignoredURL(s.URL) {
 		return nil, ""
 	}
 	if strings.HasPrefix(s.URL, "file:") {

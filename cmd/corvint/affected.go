@@ -152,6 +152,9 @@ type affectedInvocation struct {
 	// AuditChanges is set only by `affected audit`: the change manifest replayed
 	// against observed outcomes (AFP-V0-445).
 	AuditChanges string
+	// OwnershipAudit is set only by `affected --ownership-audit`, which lists the
+	// tracked paths no claimant or declaration claims (AZU-V0-002).
+	OwnershipAudit bool
 }
 
 type playwrightAffectedReceipt struct {
@@ -354,6 +357,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if len(rest) != 0 && rest[0] == "audit" {
 		return parseAffectedAuditOptions(rest[1:])
+	}
+	if len(rest) != 0 && rest[0] == "--ownership-audit" {
+		return parseAffectedOwnershipAuditOptions(rest[1:])
 	}
 	invocation := affectedInvocation{}
 	baseSet := false
@@ -816,6 +822,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if invocation.AuditChanges != "" {
 		return runAffectedAudit(ctx, invocation, stdout, stderr)
+	}
+	if invocation.OwnershipAudit {
+		return runAffectedOwnershipAudit(ctx, invocation, stdout, stderr)
 	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {
@@ -1438,6 +1447,10 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), graph, changed))
+		// The driver claimant diffs each dirty make file or workflow against
+		// the measured commit, so a hunk seeds its own target or job
+		// (AZU-V0-001).
+		graph = graph.WithDriverContent(affectedDriverContent(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	// A --path plan (additive off, ADN-V0-009) names paths to probe, not a

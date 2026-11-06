@@ -49,6 +49,10 @@ type IntentPointer struct {
 }
 
 type Evaluation struct {
+	// EnrollmentEvidence distinguishes an observed local record from absence
+	// after a source-only restore. Absence cannot establish historical inactivity.
+	EnrollmentEvidence string `json:"enrollmentEvidence"`
+
 	EvidenceTarget  string             `json:"evidenceTarget,omitempty"`
 	Lifecycle       string             `json:"lifecycle"`
 	Owner           string             `json:"owner,omitempty"`

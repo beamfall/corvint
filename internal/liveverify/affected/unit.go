@@ -103,6 +103,11 @@ const MaxPathsPerUnit = 20_000
 // that lists packages it does not name, which reads the whole module's. A
 // plan selects the unit through these edges only when the change alters an
 // import set in that closure (IMPORT_GRAPH_READER, AFP-V0-2201).
+// PathImports name repository paths whose owning units the unit runs, as an
+// edge the plugin cannot name by unit identity (AZU-V0-001): a file selects its
+// owner, a directory the owners of the files directly in it, `dir/...` the
+// owners of every file below it and `...` every owner. Build resolves them
+// into Imports before it reverses the edges.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -116,6 +121,7 @@ type Unit struct {
 	Execs                []string `json:"execs,omitempty"`
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
+	PathImports          []string `json:"pathImports,omitempty"`
 	PathTokens           []string `json:"pathTokens,omitempty"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
@@ -299,6 +305,9 @@ func validUnit(unit Unit, namespace string) error {
 	if err := validIdentifierList(unit.PathGlobs); err != nil {
 		return err
 	}
+	if err := validPathImports(unit.PathImports); err != nil {
+		return err
+	}
 	return validIdentifierList(unit.PathTokens)
 }
 
@@ -347,6 +356,20 @@ func validPathList(values []string) error {
 			return ErrInvalidUnit
 		}
 		previous = value
+	}
+	return nil
+}
+
+// validPathImports accepts a sorted, unique list of canonical relative paths,
+// each optionally ending in "/...", or the lone "..." (AZU-V0-001).
+func validPathImports(values []string) error {
+	if err := validIdentifierList(values); err != nil {
+		return err
+	}
+	for _, value := range values {
+		if value != "..." && !ValidRelativePath(strings.TrimSuffix(value, "/...")) {
+			return ErrInvalidUnit
+		}
 	}
 	return nil
 }

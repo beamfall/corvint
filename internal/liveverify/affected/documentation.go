@@ -157,7 +157,7 @@ func (graph *Graph) documentationPaths(unknown []Unknown) ([]NonSource, []Unknow
 func (graph *Graph) declarationPath(unknown []Unknown) ([]NonSource, []Unknown) {
 	var paths []string
 	kept := unknown
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, UnboundedReaderExclusionsPath, DeclaredSelectionPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, NonSourcePathsPath, UnboundedReaderExclusionsPath, DeclaredSelectionPath} {
 		index := slices.IndexFunc(kept, func(entry Unknown) bool {
 			return entry.Reason == UnknownUnownedDirtyPath && entry.Detail == declaration
 		})
@@ -209,7 +209,7 @@ const driverInputUnownedHint = "build or CI driver input: every recipe or job it
 func driverInputHints(unknown []Unknown) {
 	for index := range unknown {
 		entry := &unknown[index]
-		if entry.Reason == UnknownUnownedDirtyPath && entry.Hint == "" && driverInput(entry.Detail) {
+		if entry.Reason == UnknownUnownedDirtyPath && entry.Hint == "" && DriverInput(entry.Detail) {
 			entry.Hint = driverInputUnownedHint
 		}
 	}

@@ -418,6 +418,8 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 // the selected unit whose first unit the dirty path reaches by a rule: it owns
 // the path, or a Go structural rule of AFP-V0-012 selects it (V1-0564,
 // V1-0739), and each consecutive pair of which is a traversed edge (V1-1491).
+// AFP-V0-495 also traverses a testless literal reader of an unowned path;
+// its origin must name that exact dirty path and have no tests of its own.
 // An ENCLOSING_PACKAGE witness is selected without traversal, so its chain is
 // the enclosing package alone.
 func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
@@ -466,6 +468,12 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 		return len(witness.Via) == 1 && enclosesDataPath(graph, origin, witness.DirtyPath, false)
 	}
 	owner, owned := graph.OwnerOf(witness.DirtyPath)
+	if witness.Kind == affected.WitnessDependency && len(witness.Via) > 1 && !owned {
+		unit, found := graph.Unit(origin)
+		if found && len(unit.Tests) == 0 && slices.Contains(graph.Namers(witness.DirtyPath), origin) {
+			return true
+		}
+	}
 	switch {
 	case owned && owner == origin:
 		return true

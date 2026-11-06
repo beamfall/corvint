@@ -593,7 +593,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
 	}
 	for _, language := range affectedLanguages() {
-		if language.Name() == "go" {
+		if language.Name() == "go" || language.Name() == affected.DriverNamespace {
 			continue
 		}
 		for _, dirty := range receipt.Plan.Dirty {

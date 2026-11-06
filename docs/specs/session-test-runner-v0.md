@@ -212,7 +212,7 @@ of every requirement below and the binding gate until this spec is promoted.
   branch of the `go-product-shard` job, the environment its `go test` sees (the job `env` over the
   runner's own) and its two `go test -exec` invocations, not the driver's closed environment
   (amended by `AFP-V0-540`, V1-2890: the job's `-p` is `SHARD_TEST_P`, which is `1`, this
-  profile's value, on every run except a self-hosted pull-request shard, where it is `4`); they
+  profile's value, on every run except a pull-request shard, where it is `4`; V1-4728); they
   are constants held equal to `.github/workflows/ci.yml` by a maintained test, not read from the
   declaration's `go` section, which declares the local full suite. The ci profile SHALL NOT launch
   a declared language command, a make target included: the CI full branch runs only Go, so a
