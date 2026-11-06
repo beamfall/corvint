@@ -11,6 +11,7 @@ import (
 )
 
 func TestPiClosedInput(t *testing.T) {
+	t.Parallel()
 	t.Run("AHI-024 closed input refusal", func(t *testing.T) {
 		for _, raw := range []string{`null`, `{"hostVersion":"0.99.1","input":{},"root":"/"}`, `{"hostVersion":"0.99.1","hostVersion":"0.99.1","input":{}}`, `{"hostVersion":null,"input":{}}`, `{"hostVersion":"0.99.1","input":{"task":null}}`, strings.Repeat(" ", piInputLimit+1)} {
 			var out bytes.Buffer
@@ -23,6 +24,7 @@ func TestPiClosedInput(t *testing.T) {
 	})
 }
 func TestPiUnknownVersion(t *testing.T) {
+	t.Parallel()
 	t.Run("AHI-024 unsupported version remains unknown", func(t *testing.T) {
 		for _, version := range []string{"other", "0.85.1", "0.99.0", "0.99.2"} {
 			v := piAdapterResult(context.Background(), "stop", strings.NewReader(`{"hostVersion":"`+version+`","input":{}}`))
@@ -55,6 +57,7 @@ func TestPiNativeStopReceipt(t *testing.T) {
 }
 
 func TestPiInvalidOutcomeInput(t *testing.T) {
+	t.Parallel()
 	for _, input := range []string{`{"outcome":"passed"}`, `{"unknown":true}`, `{"verification":[{"commandSha256":"bad","status":"passed"}]}`} {
 		v := piAdapterResult(context.Background(), "session-end", strings.NewReader(`{"hostVersion":"0.99.1","input":`+input+`}`))
 		if v["fault"] != "invalid-input" || v["receiptId"] != nil {

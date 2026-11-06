@@ -1,6 +1,7 @@
 package cli
 
 import (
+	_ "embed"
 	"sort"
 	"strings"
 
@@ -341,7 +342,7 @@ var commandUsage = map[string]string{
 	"ticket split":             "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R (--request-id Q | --dry-run) [--issued-at TS] [--role OWNER|OPERATOR]   (example: corvint-tasks ticket split V1-3577 --criteria 2,3 --expected-revision 4 --request-id split-3577)",
 	"queue status":             "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
 	"queue parity":             "corvint-tasks queue parity --against FILE   (compares the store this host reads, its worktree store or the CORVINT_TASKS_SNAPSHOT snapshot, with the authoritative `queue snapshot` FILE by intent file digest; OK when the trees match, else REFUSED STALE_TICKET; the item names both trees, producedAt, age and journal seq, and the missing, stale and extra ticket IDs and other differing files, each list capped at 200 with whole counts (TCL-V0-742). Example: corvint-tasks queue parity --against ~/lane-inputs/queue-snapshot.json)",
-	"queue snapshot":           "corvint-tasks queue snapshot [--out FILE] [--worktree DIR]   (writes the intent tree as one taskman-intent-snapshot/0 object for a lane host without a journal, which reads it with CORVINT_TASKS_SNAPSHOT=FILE; --worktree reads DIR/.taskman instead of the primary checkout's store, so a linked or pruned worktree's store is validated with ticket show/blockers, queue status and roadmap; example: corvint-tasks queue snapshot --worktree ../lane --out /tmp/lane-snapshot.json)",
+	"queue snapshot":           queueSnapshotUsage,
 	"roadmap":                  "corvint-tasks roadmap [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"critical-path":            "corvint-tasks critical-path <ticketId|local>",
 	"gate list":                "corvint-tasks gate list",
@@ -360,7 +361,7 @@ var commandUsage = map[string]string{
 	"reconcile intent":         "corvint-tasks reconcile intent (--keep-journal | --adopt-file) --request-id ID --target TICKET|RELEASE --file FILE|- [--canonical-sha256 SHA256] [--role OWNER|OPERATOR]",
 	"archive export":           "corvint-tasks archive export [--staging DIR]",
 	"archive verify":           "corvint-tasks archive verify [FILE|-]",
-	"archive restore":          "corvint-tasks archive restore FILE   (example: corvint-tasks archive restore ../queue-export.tar)",
+	"archive restore":          archiveRestoreUsage,
 	"init":                     "corvint-tasks init [--role ROLE] [--request-id ID]",
 	"pause":                    "corvint-tasks pause --request-id ID [--role OWNER|OPERATOR]",
 	"unpause":                  "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]",
@@ -496,3 +497,13 @@ func helpFlags(o *wire.Object, key string) []string {
 	sort.Strings(flags)
 	return flags
 }
+
+// queueSnapshotUsage is display text, embedded verbatim so examples carry no executable path provenance (AFP-V0-9002).
+//
+//go:embed helptext/queue-snapshot.txt
+var queueSnapshotUsage string
+
+// archiveRestoreUsage is display text, embedded verbatim so examples carry no executable path provenance (AFP-V0-9002).
+//
+//go:embed helptext/archive-restore.txt
+var archiveRestoreUsage string

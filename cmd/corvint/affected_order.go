@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -23,7 +24,7 @@ import (
 )
 
 // affectedOrder is the opt-in fail-fast order of a compact plan's selection
-// (AFP-V0-2487): the units a recent local `corvint test` receipt records as
+// (TSP-V0-7305): the units a recent local `corvint test` receipt records as
 // failing first, each group in plan.selected order. It only reorders: it
 // names exactly the selected units and changes no other member.
 type affectedOrder struct {
@@ -40,7 +41,8 @@ type affectedOrderUnit struct {
 
 // affectedOrderFailures discloses the local state the order read: OBSERVED
 // when at least one receipt was read, UNREADABLE (with Detail) when the
-// receipt directory exists but cannot be listed, NOT_OBSERVED otherwise.
+// directory cannot be listed or any candidate's metadata cannot be read,
+// NOT_OBSERVED otherwise. Metadata failures retain the other observed receipts.
 type affectedOrderFailures struct {
 	State    string                 `json:"state"`
 	Detail   string                 `json:"detail,omitempty"`
@@ -61,8 +63,9 @@ const (
 	affectedOrderObserved    = "OBSERVED"
 	affectedOrderNotObserved = "NOT_OBSERVED"
 	affectedOrderUnreadable  = "UNREADABLE"
-	// maxFailFastReceipts bounds the receipts read; maxFailFastReceiptBytes
-	// bounds each one.
+	// maxFailFastReceipts bounds canonical receipt reads. Header probes are
+	// bounded to that mtime prefix plus the unsharded receipt (at most 65).
+	// maxFailFastReceiptBytes bounds each canonical read.
 	maxFailFastReceipts     = 64
 	maxFailFastReceiptBytes = 64 << 20
 )
@@ -74,7 +77,7 @@ var affectedOrderKey = []string{"recent-local-failure", "plan-order"}
 var failFastReceiptName = regexp.MustCompile(`^test-run(\.[0-9]+)?\.json$`)
 
 // affectedFailFastOrder adds the fail-fast order to a compact receipt, reading
-// the `corvint test` receipts under root's Git directory (AFP-V0-2487). Every
+// the `corvint test` receipts under root's Git directory (TSP-V0-7305). Every
 // other member is returned unchanged.
 func affectedFailFastOrder(ctx context.Context, root string, receipt any) (any, error) {
 	compact, ok := receipt.(affectedCompactReceipt)
@@ -130,14 +133,16 @@ func orderAffectedSelection(selected []affectedCompactSelection, receipts []affe
 }
 
 // readFailFastReceipts reads at most maxFailFastReceipts `corvint test`
-// receipts under gitDir/corvint: the most recently modified, ties broken by
-// name, listed in name order. A receipt that cannot be read, is not canonical,
+// receipts under gitDir/corvint: newest mtime prefix plus the unsharded receipt,
+// then newest bounded completedAt headers (mtime fallback), ties by name.
+// Retained receipts are listed in name order. A receipt that cannot be read, is not canonical,
 // or changes while read is UNREADABLE with its reason and contributes no
 // failure. An absent directory reads nothing; a directory that exists but
-// cannot be listed returns no receipt and the reason as unlisted.
+// cannot be listed returns no receipt and the reason as unlisted. Candidate
+// metadata failures also return a reason as unlisted, even outside the retained set.
 func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlisted string) {
 	directory := filepath.Join(gitDir, "corvint")
-	entries, err := os.ReadDir(directory)
+	entries, err := readFailFastDirectory(directory)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, ""
 	}
@@ -153,13 +158,50 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 		if !entry.Type().IsRegular() || !failFastReceiptName.MatchString(entry.Name()) {
 			continue
 		}
-		// A receipt whose metadata cannot be read sorts as the oldest; its
-		// read below then reports why it is UNREADABLE.
+		// A metadata failure is disclosed even if the receipt is outside the
+		// retained set (TSP-V0-7305); it contributes no recency claim.
 		var modified time.Time
 		if info, err := entry.Info(); err == nil {
 			modified = info.ModTime()
+		} else {
+			if len(unlisted) < 4096 {
+				detail := "receipt metadata unreadable: corvint/" + entry.Name()
+				if unlisted != "" {
+					detail = "; " + detail
+				}
+				unlisted += detail[:min(len(detail), 4096-len(unlisted))]
+			}
 		}
 		candidates = append(candidates, candidate{entry.Name(), modified})
+	}
+	slices.SortFunc(candidates, func(left, right candidate) int {
+		if order := right.modified.Compare(left.modified); order != 0 {
+			return order
+		}
+		return strings.Compare(left.name, right.name)
+	})
+	if len(candidates) > maxFailFastReceipts {
+		// Always consider the current unsharded run, even when equal mtimes
+		// put its name after all shard names. Other older candidates remain
+		// outside the bounded probe pool (TSP-V0-7305).
+		var unsharded *candidate
+		for i := maxFailFastReceipts; i < len(candidates); i++ {
+			if failFastReceiptName.FindStringSubmatch(candidates[i].name)[1] == "" {
+				kept := candidates[i]
+				unsharded = &kept
+				break
+			}
+		}
+		candidates = candidates[:maxFailFastReceipts]
+		if unsharded != nil {
+			candidates = append(candidates, *unsharded)
+		}
+	}
+	// Probe at most 65 headers, each capped at 64 KiB, before retention.
+	for i := range candidates {
+		if completed, ok := readFailFastContentTime(filepath.Join(directory, candidates[i].name)); ok {
+			candidates[i].modified = completed
+		}
 	}
 	slices.SortFunc(candidates, func(left, right candidate) int {
 		if order := right.modified.Compare(left.modified); order != 0 {
@@ -179,7 +221,7 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 	for _, name := range names {
 		receipts = append(receipts, readFailFastReceipt(directory, name))
 	}
-	return receipts, ""
+	return receipts, unlisted
 }
 
 func readFailFastReceipt(directory, name string) affectedOrderReceipt {
@@ -221,4 +263,41 @@ func readFailFastReceipt(directory, name string) affectedOrderReceipt {
 	}
 	sort.Strings(result.Failed)
 	return result
+}
+
+var readFailFastDirectory = os.ReadDir
+var readFailFastContentTime = failFastContentTime
+
+// failFastContentTime reads only a bounded header for ordering; a missing,
+// invalid or over-bound timestamp falls back to mtime. Strict receipt admission
+// still happens after retention. completedAt precedes invocations in canonical JSON.
+func failFastContentTime(name string) (time.Time, bool) {
+	file, err := os.Open(name)
+	if err != nil {
+		return time.Time{}, false
+	}
+	defer file.Close()
+	decoder := json.NewDecoder(io.LimitReader(file, 64<<10))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return time.Time{}, false
+	}
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		if key == "completedAt" {
+			var stamp string
+			if decoder.Decode(&stamp) != nil {
+				break
+			}
+			parsed, err := time.Parse(time.RFC3339Nano, stamp)
+			return parsed, err == nil && !parsed.IsZero()
+		}
+		var skip json.RawMessage
+		if decoder.Decode(&skip) != nil {
+			break
+		}
+	}
+	return time.Time{}, false
 }

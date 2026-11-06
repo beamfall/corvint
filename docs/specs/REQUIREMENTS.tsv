@@ -382,6 +382,12 @@ AFP-V0-984	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)	standing	2026-10-11; V1-3600
 AFP-V0-2180	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); owner direction 2	standing	2026-10-11; 2026-11-02
 AFP-V0-2181	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
+AFP-V0-9000	docs/specs/affected-reader-precision-v0.md	A Go test file may declare `//corvint:read-kinds .go go.mod`	unrecorded	-
+AFP-V0-9001	docs/specs/affected-reader-precision-v0.md	The Tasks import-direction, know-how authority and error-rewrap scans SHALL use	unrecorded	-
+AFP-V0-9002	docs/specs/affected-reader-precision-v0.md	Parent-path examples in Tasks command help SHALL be embedded	unrecorded	-
+AFP-V0-9003	docs/specs/affected-reader-precision-v0.md	Replays of script-only, test-only and data/spec changes MUST	unrecorded	-
+AFP-V0-9004	docs/specs/affected-reader-precision-v0.md	A dirty shell foreign-caller declaration MUST retain	unrecorded	-
+AFP-V0-9005	docs/specs/affected-reader-precision-v0.md	A Go test file may instead declare	unrecorded	-
 AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
 AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list e	unrecorded	-
 AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOU	unrecorded	-
@@ -400,9 +406,6 @@ AZU-V0-9850	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 r
 AZU-V0-9851	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's	unrecorded	-
 AZU-V0-9852	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Composite action	unrecorded	-
 AZU-V0-9853	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Unresolved local	unrecorded	-
-AZU-V0-9900	docs/specs/affected-zero-unknown-v0.md	Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**	unrecorded	-
-AZU-V0-9901	docs/specs/affected-zero-unknown-v0.md	Committed ownership guidance and fixture closure.** A committed	unrecorded	-
-AZU-V0-9902	docs/specs/affected-zero-unknown-v0.md	One audit classifier.** The CLI and maintained ratchet SHALL use the same	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
@@ -1957,8 +1960,8 @@ CIN-V0-2301	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standi
 CIN-V0-2302	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;	standing	2026-10-11; V1-3332
 CIN-V0-2303	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4445;	standing	2026-10-11; V1-4445
 CIN-V0-2304	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;	standing	2026-10-11; V1-2805
-CIN-V0-4625	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended	standing	2026-10-11; V1-4625; 2026-11-04
-CIN-V0-4626	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred	standing	2026-10-11; V1-4636; 2026-11-04
+CIN-V0-4625	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended	standing	2026-10-11; V1-4625; V1-4732
+CIN-V0-4626	docs/specs/ci-narrowing-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4636; deferred	standing	2026-10-11; V1-4636; 2026-11-04; V1-4732
 AFP-V0-100	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;	standing	2026-10-11; V1-4232
 AFP-V0-101	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;	standing	2026-10-11; V1-4232
 AFP-V0-102	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4232;	standing	2026-10-11; V1-4232
@@ -2368,7 +2371,7 @@ ASD-V0-742	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-730	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B3 heavy.sh r	standing	2026-11-02
 ASD-V0-731	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B6 short boun	standing	2026-11-02
 ASD-V0-732	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B6) The Makef	standing	2026-11-02
-ASD-V0-734	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; amended by owner-	standing	2026-11-02; V1-4725; 2026-11-05
+ASD-V0-734	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; amended by owner-	standing	2026-11-02; V1-4725; 2026-11-05; V1-4738; 2026-11-06
 ASD-V0-733	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B1 the record	standing	2026-11-02
 ASD-V0-815	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4183) `script/	standing	2026-11-01; V1-4183
 ASD-V0-1970	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4326) Case 1b	standing	2026-10-11; V1-4326
@@ -4945,6 +4948,10 @@ GAG-V0-006	docs/specs/go-archive-gate-v0.md	The gate MUST require the output dir
 GAG-V0-007	docs/specs/go-archive-gate-v0.md	The gate MUST cross-check the build against the private witness the build record	unrecorded	-
 GAG-V0-008	docs/specs/go-archive-gate-v0.md	The gate MUST exit non-zero when any of its build, closed-set, or witness checks	unrecorded	-
 GAG-V0-009	docs/specs/go-archive-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3238) When the	standing	2026-10-30; V1-3238
+GAG-V0-9960	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
+GAG-V0-9961	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
+GAG-V0-9962	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
+GAG-V0-9963	docs/specs/go-archive-gate-v0.md	(accepted under the owner's standing auto-accept (2026-11-06); V1-4733)	standing	2026-11-06; V1-4733
 GFG-V0-001	docs/specs/go-format-gate-v0.md	The gate MUST check every Go file in the repository's tracked set, obtained from	unrecorded	-
 GFG-V0-002	docs/specs/go-format-gate-v0.md	The tracked set spans every Go module in the repository. The gate MUST NOT carry	unrecorded	-
 GFG-V0-003	docs/specs/go-format-gate-v0.md	The formatter MUST be the `gofmt` of the toolchain `go env GOROOT` names under	unrecorded	-
@@ -7004,6 +7011,8 @@ SESSION-V0-019	docs/specs/session-context-dividend-v0.md	`corvint dogfood handof
 SESSION-V0-020	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --	owner	decision 0472; V1-0500
 SESSION-V0-021	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) The bundle MUST bind the complete receipt and	owner	decision 0472; V1-0500
 SESSION-V0-022	docs/specs/session-context-dividend-v0.md	(accepted, decision 0472; V1-0500) `corvint dogfood handoff --session-key KEY --	owner	decision 0472; V1-0500
+STR-V0-7305	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4472) A shard	standing	2026-10-11; V1-4472
+STR-V0-7313	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-06; V1-3424
 STR-V0-7500	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4356) The decl	standing	2026-10-11; V1-4356
 STR-V0-001	docs/specs/session-test-runner-v0.md	`corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced	unrecorded	-
 STR-V0-002	docs/specs/session-test-runner-v0.md	The run set SHALL be, per language, the union of the plan's selected units and t	unrecorded	-
@@ -7739,6 +7748,14 @@ TRE-V0-078	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 20
 TRE-V0-079	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TRE-V0-080	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TRE-V0-087	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1553) A	standing	2026-10-11; V1-1553
+TSP-V0-7301	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3912) A scratc	standing	2026-10-11; V1-3912
+TSP-V0-7303	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4279) Every UN	standing	2026-10-11; V1-4279
+TSP-V0-7305	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); amended under the	standing	2026-10-11; 2026-11-05; V1-4472
+TSP-V0-7311	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4439) Full, co	standing	2026-10-11; V1-4439
+TSP-V0-7317	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4484) The fres	standing	2026-10-11; V1-4484
+TSP-V0-7318	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4576) The incr	standing	2026-10-11; V1-4576
+TSP-V0-7315	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4381) The comm	standing	2026-10-11; V1-4381
+TSP-V0-7302	docs/specs/test-selection-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3913) A foreig	standing	2026-10-11; V1-3913
 TSP-V0-001	docs/specs/test-selection-precision-v0.md	(experimental, amending AFP-V0-580, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-002	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3160)	standing	2026-10-11; V1-3160
 TSP-V0-003	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11

@@ -237,6 +237,7 @@ func declName(unit ast.Node) (string, map[*ast.Ident]bool) {
 // ranking, selection, learning or authority, fails it until a reviewed
 // requirement admits it.
 func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
+	t.Parallel()
 	// The spy must see each kind of second reader.
 	for rel, source := range map[string]string{
 		"internal/rank/rank.go":       "package rank\nimport st \"" + sessiontestImport + "\"\nfunc Weight(n string) { r, _ := st.ReadReceipt(n); _ = r }\n",

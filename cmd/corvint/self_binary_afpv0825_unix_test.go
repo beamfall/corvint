@@ -103,6 +103,7 @@ func TestAFPV0825StaleCheckReusesThePlanHEAD(t *testing.T) {
 // moves back to A; a read that failed or used up the check's deadline is
 // unverified even when it names the binary's own commit.
 func TestAFPV0825StaleCheckJudgesTheReadRevision(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root, built := selfBinaryRepository(t)
 	info := selfBinaryInfo("example.test/self", built)
