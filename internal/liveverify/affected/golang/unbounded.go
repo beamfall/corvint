@@ -79,10 +79,15 @@ func qualifiedImports(specs []*ast.ImportSpec, wanted func(string) bool) (aliase
 
 // rootLocatorCall names the root-locating call an identifier completes, given
 // the two tokens before it: `qualifier . Getwd` or a dot-imported `Getwd`.
-func rootLocatorCall(previous [2]string, ident string, aliases map[string]string, dotImported map[string]bool) []string {
-	if previous[1] == "." {
-		importPath, ok := aliases[strings.TrimPrefix(previous[0], "IDENT")]
-		if ok && strings.HasPrefix(previous[0], "IDENT") && rootLocatorFuncs[importPath][ident] {
+type lexicalToken struct {
+	kind token.Token
+	text string
+}
+
+func rootLocatorCall(previous [2]lexicalToken, ident string, aliases map[string]string, dotImported map[string]bool) []string {
+	if previous[1].kind == token.PERIOD {
+		importPath, ok := aliases[previous[0].text]
+		if ok && previous[0].kind == token.IDENT && rootLocatorFuncs[importPath][ident] {
 			return []string{importPath + "." + ident}
 		}
 		return nil
@@ -107,7 +112,7 @@ func escapesPackage(directory, value string, test bool) string {
 		return fmt.Sprintf("carries the literal %q", value)
 	}
 	climbs, parents := false, true
-	for _, component := range strings.Split(value, "/") {
+	for component := range strings.SplitSeq(value, "/") {
 		climbs = climbs || component == ".."
 		parents = parents && (component == ".." || component == "." || component == "")
 	}
@@ -206,8 +211,7 @@ func changesDirectory(text string) bool {
 	if err != nil {
 		return false
 	}
-	words := strings.FieldsFunc(value, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(";&|()`{}", r) })
-	for _, word := range words {
+	for word := range strings.FieldsFuncSeq(value, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(";&|()`{}", r) }) {
 		if word == "cd" || word == "pushd" || word == "-C" || word == "--chdir" || strings.HasPrefix(word, "-C=") || strings.HasPrefix(word, "--chdir=") {
 			return true
 		}
