@@ -970,7 +970,7 @@ jobs:
           MQ_DELTA: ${{ needs.docs-plan.outputs.mqDelta }}
           # AFP-V0-2181: ci-shards places by the shard's go test -p; the same value as the
           # tests step, so the pinned narrow.sh placement equals the one it recomputes.
-          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}
+          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
             # AFP-V0-731: the scripts come from a commit of main, never an entry: the queue base, or
@@ -1032,11 +1032,11 @@ jobs:
           NARROW_RECORDED: ${{ steps.narrow-record.outcome }}
           # AFP-V0-441: the bound on the one rerun of a failed shard's invocations, all together.
           RERUN_MINUTES: "15"
-          # AFP-V0-540 (V1-2890): a self-hosted pull-request shard runs up to 4 test binaries at
+          # AFP-V0-540 (V1-2890, V1-4728): a pull-request shard runs up to 4 test binaries at
           # once and its slices beside its whole packages (AFP-V0-541). Every other shard, the
           # merge queue's deciding full suite and AFP-V0-428 seed producer among them, keeps
           # -p 1, the ci profile's argv (STR-V0-012).
-          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}
+          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
         run: |
           test "$(go env GOVERSION)" = "go1.27.3"
           # AFP-V0-097/098: the only route to a narrowed shard is the gate above. A skipped, refused
@@ -1890,6 +1890,9 @@ jobs:
     # skips tests; Linux REUSE and Linux package selections cannot skip Darwin tests.
     needs: [docs-plan, narrowing-verdict]
     if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    # V1-4727: advisory, so a failure must not conclude the run as failure; a failed run is not
+    # admitted by the merge-queue REUSE decision, which then reruns all 16 Linux shards.
+    continue-on-error: true
     runs-on: macos-15
     timeout-minutes: 180
     permissions:
