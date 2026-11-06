@@ -39,7 +39,7 @@ func TestTCLV0802_PolicyShowAndUpdateWarnReservedFields(t *testing.T) {
 	}
 	v.Obj.Set("policyVersion", wire.String(fmt.Sprint(loaded.Policy.PolicyVersion.Uint64()+1)))
 	v.Obj.Set("cemRequired", wire.Bool(false))
-	path := filepath.Join(t.TempDir(), "policy.json")
+	path := filepath.Join(resolvedTempDir(t), "policy.json")
 	fixture.Write(t, path, wire.EncodeFile(v))
 	update := handoffCLI(t, root, "policy", "update", "--request-id", "clear-reserved", "--expected-policy-version", string(loaded.Policy.PolicyVersion), "--file", path)
 	if update.res.Outcome != wire.OutcomeOK || reserved(update.res.Warnings) {

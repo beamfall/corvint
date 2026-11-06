@@ -155,13 +155,15 @@ func stageAndPublishEvidence(parent *os.File, handle string, m authoritystore.Ev
 		return err
 	}
 	defer stage.Close()
-	published := false
+	// at is the stage's current name: the pending name, then the handle once
+	// renamed. Any failure removes the held directory under that name.
+	at, published := name, false
 	defer func() {
 		if !published {
 			_ = removeEvidenceStageFD(stage)
 			var named, held unix.Stat_t
-			if unix.Fstat(int(stage.Fd()), &held) == nil && unix.Fstatat(int(parent.Fd()), name, &named, unix.AT_SYMLINK_NOFOLLOW) == nil && held.Dev == named.Dev && held.Ino == named.Ino {
-				_ = unix.Unlinkat(int(parent.Fd()), name, unix.AT_REMOVEDIR)
+			if unix.Fstat(int(stage.Fd()), &held) == nil && unix.Fstatat(int(parent.Fd()), at, &named, unix.AT_SYMLINK_NOFOLLOW) == nil && held.Dev == named.Dev && held.Ino == named.Ino {
+				_ = unix.Unlinkat(int(parent.Fd()), at, unix.AT_REMOVEDIR)
 			}
 		}
 	}()
@@ -175,7 +177,23 @@ func stageAndPublishEvidence(parent *os.File, handle string, m authoritystore.Ev
 	if unix.Fstat(int(stage.Fd()), &held) != nil || unix.Fstatat(int(parent.Fd()), name, &named, unix.AT_SYMLINK_NOFOLLOW) != nil || held.Dev != named.Dev || held.Ino != named.Ino || held.Mode != named.Mode {
 		return errors.New("evidence stage replaced")
 	}
+	// Renaming a directory needs write access to the directory itself (XNU
+	// vn_authorize_renamex: KAUTH_VNODE_ADD_SUBDIRECTORY on the source even
+	// within one parent; macOS 15 enforces it for a non-root owner). The
+	// audited stage root is owner-writable only across the exclusive rename,
+	// then takes its final 0550 before success is reported. A crash in that
+	// window leaves a 0700 root, which every evidence reader refuses.
+	if err = unix.Fchmod(int(stage.Fd()), 0700); err != nil {
+		return err
+	}
 	if err = unix.RenameatxNp(int(parent.Fd()), name, int(parent.Fd()), handle, unix.RENAME_EXCL); err != nil {
+		return err
+	}
+	at = handle
+	if err = unix.Fchmod(int(stage.Fd()), 0550); err != nil {
+		return err
+	}
+	if err = stage.Sync(); err != nil {
 		return err
 	}
 	published = true
