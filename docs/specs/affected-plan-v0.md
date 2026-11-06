@@ -607,9 +607,11 @@ and container qualification; full fallback remains available.
   no selection or skip authority here and needs no AFP-V0-014 qualification. Rollback removes
   `--order` from the workflow.
   (V1-4802) Membership is derived and the committed tables are advisory weights. The package set
-  of every `cishards` plan and selection SHALL be the runtime universe alone; `package-costs.json`,
+  of every `cishards` plan SHALL be the runtime universe alone, and of every selection the requested
+  packages that lie in it (AFP-V0-590: an empty selection runs nothing); the tables never add a
+  package to or remove one from either. `package-costs.json`,
   `test-split-allow.json` and `test-slices.json` only weight and slice packages of it, and no
-  checked-in package list decides membership. A universe package the cost table lacks SHALL be
+  checked-in package list decides membership. An unsplit universe package the cost table lacks SHALL be
   placed whole at the median of the whole table, and one the allow-list or slice file lacks SHALL
   run whole. An entry naming a package outside the universe SHALL be ignored for placement and
   never refuse, fail or empty the plan: the plan is identical with and without it, except that a
