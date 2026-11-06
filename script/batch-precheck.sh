@@ -910,6 +910,9 @@ doc_gate_rows() {
         elif [[ $value == selection-baseline-check && -n ${sb_skip-} ]]; then
           printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
         else
+          # The target makes the shared ASD-V0-944 reader-bound decision too,
+          # even when this conservative outer plan cannot narrow a Go edit.
+          [[ $value != selection-baseline-check || -z $sel_sha ]] || envs+=("SELECTION_BASELINE_BASE=$sel_sha")
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
         fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;

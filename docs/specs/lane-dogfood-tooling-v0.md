@@ -54,12 +54,12 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   definition, including new code files. A definition without historical support MUST stay unknown;
   same-change intent MUST NOT be laundered into BASE evidence. The diagnostic MUST name the
   immutable BASE constraint and the new requirement's defining spec.
-- `DTL-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3790; refines DCW-V0-813)
+- `DTL-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3790; amended under the owner-delegated sbgate charter, 2026-11-05; V1-4724; refines DCW-V0-813)
   Doc gates MAY run independent targets with bounded concurrency (default four, configurable
   `DOC_GATE_JOBS`; an empty or non-positive-integer value MUST be refused before any gate runs,
   never widened to an unbounded `-j`); every target MUST still run and failures MUST propagate. Each target MUST
   print elapsed seconds and status. A serial override MUST retain identical gate inventory. Selection-baseline replay defaults
-  to at most eight independent workers, bounded by CPUs and the change count; its existing
+  to at most sixteen independent workers, bounded by CPUs, the change count and one GiB of available memory per worker (including observable cgroup remaining memory; two workers when memory is unobservable); its existing
   SELECTION_BASELINE_JOBS override remains explicit. Every immutable range and result MUST still
   be measured, ordered and checked, with identical floor/miss/fallback semantics.
 - `DTL-V0-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4465; refines AFP-V0-041)

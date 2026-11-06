@@ -2264,7 +2264,7 @@ ASD-V0-924	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-926	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; review fix for `A	standing	2026-10-31
 ASD-V0-927	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3619; refines	standing	2026-11-01; V1-3619
 ASD-V0-928	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3747; refines	standing	2026-11-01; V1-3747
-ASD-V0-925	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3469; refines	standing	2026-10-31; V1-3469
+ASD-V0-925	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; amended under the	standing	2026-10-31; 2026-11-05; V1-4724; V1-3469
 ASD-V0-940	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3247; refines	standing	2026-10-31; V1-3247
 ASD-V0-941	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3037; refines	standing	2026-10-31; V1-3037
 ASD-V0-942	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2393; refines	standing	2026-10-31; V1-2393
@@ -2294,7 +2294,7 @@ ASD-V0-104	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-955	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-1629; extends	standing	2026-11-01; V1-1629
 ASD-V0-956	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2426) `interna	standing	2026-11-01; V1-2426
 ASD-V0-943	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3550; refines	standing	2026-10-31; V1-3550
-ASD-V0-944	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3550; amended	standing	2026-10-31; V1-3550; V1-4329; 2026-11-02
+ASD-V0-944	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3550; amended	standing	2026-10-31; V1-3550; 2026-11-05; V1-4329; V1-4724
 ASD-V0-960	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3472) `make re	standing	2026-10-31; V1-3472
 ASD-V0-961	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3394; refines	standing	2026-10-31; V1-3394
 ASD-V0-962	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3472; extends	standing	2026-10-31; V1-3472
@@ -2374,7 +2374,7 @@ ASD-V0-2200	docs/specs/corvint-self-development-v0.md	(accepted under the owner'
 ASD-V0-2201	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3494, V1-3654)	standing	2026-10-11; V1-3494; V1-3654
 ASD-V0-2202	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3867) A charte	standing	2026-10-11; V1-3867
 ASD-V0-2203	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3761; amends A	standing	2026-10-11; V1-3761
-ASD-V0-1990	docs/specs/corvint-self-development-v0.md	(accepted, owner-delegated V1-4329 lane charter, 2026-11-02; amends `ASD-V0-944`	owner	V1-4329; 2026-11-02
+ASD-V0-1990	docs/specs/corvint-self-development-v0.md	(accepted, owner-delegated V1-4329 lane charter, 2026-11-02; amended under the o	owner	V1-4329; 2026-11-02; 2026-11-05; V1-4724
 ASD-V0-1991	docs/specs/corvint-self-development-v0.md	(accepted, owner-requested V1-4329 independent-review fixes, 2026-11-02; amends	owner	V1-4329; 2026-11-02; V0-1990
 ASD-V0-1992	docs/specs/corvint-self-development-v0.md	(accepted, owner-requested V1-4329 independent-review fixes, 2026-11-02; extends	owner	V1-4329; 2026-11-02; V0-1990
 ASD-V0-2130	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3776) The anal	standing	2026-10-11; V1-3776
@@ -5351,7 +5351,7 @@ DTL-V0-002	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's sta
 DTL-V0-003	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3761; refines	standing	2026-10-11; V1-3761
 DTL-V0-004	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4457; refines	standing	2026-10-11; V1-4457
 DTL-V0-005	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3955; refines	standing	2026-10-11; V1-3955
-DTL-V0-006	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3790; refines	standing	2026-10-11; V1-3790
+DTL-V0-006	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3790; amended	standing	2026-10-11; V1-3790; 2026-11-05; V1-4724
 DTL-V0-007	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4465; refines	standing	2026-10-11; V1-4465
 DTL-V0-008	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4467; refines	standing	2026-10-11; V1-4467
 DTL-V0-009	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4460; refines	standing	2026-10-11; V1-4460
