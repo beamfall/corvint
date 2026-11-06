@@ -67,10 +67,70 @@ func unitKeys(t *testing.T, m Manifest, total int) []string {
 // included; its units equal universe placement's; a run set of at least N
 // units uses every shard; and sibling slices land on different shards.
 func TestSTRV0008BalancedPlacesEveryUnitOnce(t *testing.T) {
+	files, universe, split := balancedPartitionFixture(t)
+	runSets := balancedRunSets(universe, split)
+	totals := []int{}
+	for total := 1; total <= 16; total++ {
+		totals = append(totals, total)
+	}
+	assertBalancedPlacement(t, files, universe, split, runSets, totals)
+}
+
+// Keep real committed-table compatibility separate from the algorithm matrix.
+// STR-V0-008: the complete production run set retains every unit and split
+// catch-all at 16 shards, where every currently committed split is admitted.
+func TestSTRV0008BalancedCommittedTables(t *testing.T) {
 	files, universe := repositoryPartition(t)
-	const split = "github.com/Beamfall/corvint/internal/tasks/store"
-	// count is the committed slice count of the split package; with fewer
-	// shards than slices it runs whole (AFP-V0-041).
+	assertBalancedPlacement(t, files, universe, "github.com/Beamfall/corvint/internal/tasks/store",
+		map[string][]string{"committed universe": universe}, []int{16})
+}
+
+// Seventeen packages exercise both fewer and more execution units than shards.
+// Three slices keep the below/at/above split threshold in the 1..16 matrix
+// without repeatedly decoding the production table's thousands of test names.
+func balancedPartitionFixture(t *testing.T) (PartitionFiles, []string, string) {
+	t.Helper()
+	universe := []string{}
+	costs := map[string]int64{}
+	for i := 0; i < 17; i++ {
+		pkg := fmt.Sprintf("example.test/m/p%02d", i)
+		universe = append(universe, pkg)
+		costs[pkg] = int64(100 + i*10)
+	}
+	split := universe[1]
+	marshal := func(value any) []byte {
+		raw, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	source := map[string]string{"revision": strings.Repeat("a", 40), "runURL": "https://github.com/beamfall/corvint/actions/runs/1", "goVersion": "go1.27.3"}
+	files := PartitionFiles{
+		Allow: marshal(map[string]any{"profile": "corvint-ci-test-split-allow/0", "packages": map[string]string{split: "fixture: order-independent tests"}}),
+		Costs: marshal(map[string]any{"profile": "corvint-ci-package-costs/0", "source": source, "milliseconds": costs}),
+		Slices: marshal(map[string]any{"profile": "corvint-ci-test-slices/0", "source": source, "packages": map[string]any{split: map[string]any{
+			"named":            []any{map[string]any{"milliseconds": 70, "tests": []string{"TestFirst"}}, map[string]any{"milliseconds": 30, "tests": []string{"TestSecond"}}},
+			"restMilliseconds": 10,
+		}}}),
+	}
+	return files, universe, split
+}
+
+func balancedRunSets(universe []string, split string) map[string][]string {
+	runSets := map[string][]string{"one package": {universe[0]}, "split package only": {split}}
+	thirds, all := []string{}, append([]string{}, universe...)
+	for index, pkg := range universe {
+		if index%3 == 0 || pkg == split {
+			thirds = append(thirds, pkg)
+		}
+	}
+	runSets["every third and the split package"], runSets["whole universe narrowed"] = thirds, all
+	return runSets
+}
+
+func assertBalancedPlacement(t *testing.T, files PartitionFiles, universe []string, split string, runSets map[string][]string, totals []int) {
+	t.Helper()
 	var sliceFile struct {
 		Packages map[string]struct {
 			Named []json.RawMessage `json:"named"`
@@ -81,18 +141,10 @@ func TestSTRV0008BalancedPlacesEveryUnitOnce(t *testing.T) {
 	}
 	count := len(sliceFile.Packages[split].Named) + 1
 	if count < 2 {
-		t.Fatalf("the committed slice file does not split %s", split)
+		t.Fatalf("fixture does not split %s", split)
 	}
-	runSets := map[string][]string{"one package": {universe[0]}, "split package only": {split}}
-	thirds, all := []string{}, append([]string{}, universe...)
-	for index, pkg := range universe {
-		if index%3 == 0 || pkg == split {
-			thirds = append(thirds, pkg)
-		}
-	}
-	runSets["every third and the split package"], runSets["whole universe narrowed"] = thirds, all
 	for name, run := range runSets {
-		for total := 1; total <= 16; total++ {
+		for _, total := range totals {
 			build := func(placement string) Manifest {
 				input := fixtureInput()
 				input.Universe, input.Partition, input.ShardCount, input.Placement = universe, files, total, placement
@@ -121,17 +173,23 @@ func TestSTRV0008BalancedPlacesEveryUnitOnce(t *testing.T) {
 			if containsString(run, split) && total >= count && (slices != count || !containsString(got, catchAll)) {
 				t.Fatalf("%s, %d shards: the split package's slices, catch-all included, are missing: %v", name, total, got)
 			}
+			if containsString(run, split) && total < count && (slices != 0 || !containsString(got, "go:"+split+" "+SliceWhole)) {
+				t.Fatalf("%s, %d shards: below-threshold split must run whole: %v", name, total, got)
+			}
 			used := map[int]bool{}
-			siblings := map[string]int{}
+			siblings := map[string]map[int]bool{}
 			for _, unit := range balanced.Units {
 				used[unit.Shard] = true
 				if unit.Slice == SliceWhole {
 					continue
 				}
-				if shard, ok := siblings[unit.Unit]; ok && shard == unit.Shard {
-					t.Fatalf("%s, %d shards: sibling slices of %s share shard %d", name, total, unit.Unit, shard)
+				if siblings[unit.Unit][unit.Shard] {
+					t.Fatalf("%s, %d shards: sibling slices of %s share shard %d", name, total, unit.Unit, unit.Shard)
 				}
-				siblings[unit.Unit] = unit.Shard
+				if siblings[unit.Unit] == nil {
+					siblings[unit.Unit] = map[int]bool{}
+				}
+				siblings[unit.Unit][unit.Shard] = true
 			}
 			if len(got) >= total && len(used) != total {
 				t.Fatalf("%s, %d shards: %d units use only %d shards", name, total, len(got), len(used))
