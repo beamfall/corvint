@@ -335,7 +335,8 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   failures rather than stopping after the first. A shard SHALL disable the `heavy.sh` host-load
   queue (`HEAVY_LOAD_WAIT=0`), because a hosted runner is dedicated to the job, and a failed
   module SHALL print each failed package/test with its last output lines rather than a raw
-  JSON tail. Each macOS shard SHALL have a 40-minute timeout,
+  JSON tail. Each macOS shard SHALL have a 55-minute timeout (V1-4760: shards plan about 37.6
+  minutes of measured cost, and run 42266013561 ran out at 40 minutes),
   with an under-30-minute FULL-selection wall-time target subject to hosted measurement. Shards
   SHALL retain separate `macos-selection-shard-N` execution artifacts even after failure; shard zero
   SHALL remain the single writer of the unchanged `macos-selection` inventory/narrowing artifact.
