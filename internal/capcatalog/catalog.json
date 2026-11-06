@@ -4723,11 +4723,6 @@
       "snapshot": "internal/capcatalog/trees/corvint-postmerge-workflow.json"
     },
     {
-      "binary": "corvint-pulse",
-      "command": "corvint-pulse help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-pulse.json"
-    },
-    {
       "binary": "corvint-ruby-test-provider",
       "command": "corvint-ruby-test-provider help --json",
       "snapshot": "internal/capcatalog/trees/corvint-ruby-test-provider.json"

@@ -24,7 +24,7 @@ const (
 	// ratchetCeiling is the committed size of the ratchet. It may only fall: the check fails
 	// when the file grows past it, and when the file shrinks the ceiling must follow, so a
 	// removed row cannot quietly be re-added later.
-	ratchetCeiling = 38
+	ratchetCeiling = 37
 )
 
 // ratchetBaseline is every binary the ratchet held when it was introduced (V1-2685). A row must
@@ -41,8 +41,8 @@ corvint-corpus-http corvint-corpus-mcp corvint-corpus-parity corvint-corpus-repu
 corvint-dashboard-snapshot corvint-docs-mcp corvint-go-test-provider
 corvint-go-toolchain-receipt corvint-intake corvint-js-test-provider corvint-lsp corvint-mcp
 corvint-playwright-minimize corvint-postmerge-connect corvint-postmerge-host-launcher
-corvint-postmerge-metrics corvint-postmerge-workflow corvint-public-release-check corvint-pulse
-corvint-readiness-record corvint-release-candidate corvint-release-gate corvint-release-install
+corvint-postmerge-metrics corvint-postmerge-workflow corvint-public-release-check
+corvint-readiness-record corvint-release-candidate corvint-release-install
 corvint-remote-provider corvint-ruby-test-provider corvint-test-runner corvint-test-validity-mcp
 corvint-tests-accept corvint-update corvint-web-flows corvint-work-queue
 `)

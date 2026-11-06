@@ -2,15 +2,18 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-06 (V1-4747 AC3)
+Delivery status: retired
+Retirement note: V1-4747 AC3 deleted the isolated `internal/proofabstraction` library, which had no
+importer and never ran its hostile corpus, sealed trial or replication (044058f1 is the last tree
+with it). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/ARCHITECTURE.md`, `docs/PRODUCT.md`,
 `docs/specs/proof-carrying-context-optimization-v0.md`
 
 ## Agent digest
 - Claim: An isolated Go library projects proof state into smaller views without strengthening claims or authority.
-- Status: proposed/experimental
-- Exists: isolated `internal/proofabstraction` library and non-strengthening certificate tests.
+- Status: retired 2026-11-06 (V1-4747 AC3) / retired
+- Exists: nothing; the library and its certificate tests were deleted (read them at 044058f1).
 - Blocked on: large hostile corpus, sealed task trial, and independent replication remain `NOT_RUN`.
 - Read next: Verified current state; Requirements; Traceability.
 
