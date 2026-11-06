@@ -334,24 +334,15 @@ reproduced on this base: NOT_OBSERVED.
 - The owner's accept, amend or reject decision, recorded later; until then delivery stays
   experimental and CEM2-V0-001 holds.
 
-Rollback: delete `internal/cem2proto`, this spec and its README row, then regenerate the
-requirement index. Nothing else imports or reads them, and no committed map changes.
+Rollback: delete this spec and its README row, then regenerate the requirement index. The codec
+prototype is already retired (V1-4747 AC3); nothing imports or reads this spec, and no committed
+map changes.
 
 ## Traceability
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| CEM2-V0-001, -016 | `internal/cem2proto` (label `cem/2.0-proto`, no importers) | `TestCEM2V0001PrototypeIsUnwired` |
-| CEM2-V0-003, -004, -008 | `internal/cem2proto/format.go` | `TestCEM2V0003HeaderIsClosed`, fixture round-trips |
-| CEM2-V0-005, -006 | `internal/cem2proto/project.go`, `gitsource.go` | `TestCEM2V0005FixtureRoundTrip`, `TestCEM2V0005CorpusRoundTrip`, `TestCEM2V0006HunkReorderPermutesClaims` |
-| CEM2-V0-007, -017, -018 | `internal/cem2proto/project.go` | `TestCEM2V0007BodySha256Mismatch`, `TestCEM2V0007PatchSha256Mismatch`, `TestCEM2V0007HunkCountMismatch`, `TestCEM2V0007IndexOutOfRange`, `TestCEM2V0007CodeOutOfRange`, `TestCEM2V0007MalformedBody`, `TestCEM2V0007UnknownCriticalIsUnsupported`, `TestCEM2V0007ParentsAreUnsupported`, `TestCEM2V0007PinnedMismatch`, `TestCEM2V0007EvidenceUnresolved` |
-| CEM2-V0-010 | `internal/cem2proto/format.go` | `TestCEM2V0010BoundsRefusedBeforeGit`, `TestCEM2V0010HeaderBoundsRefusedBeforeGit` |
-| CEM2-V0-019 | `internal/cem2proto/format.go`, `encode.go` | `TestCEM2V0019DerivedVectorsAreUnrepresentable`, `TestCEM2V0019CheckedEncodeRefusesForgedInput`, `TestCEM2V0019AdmissibleClaimEdits` |
-| CEM2-V0-020 | `internal/cem2proto/encode.go` | `TestCEM2V0020EncoderAbstains` |
-| CEM2-V0-021, -022 | `internal/cem2proto/*_test.go` | `TestCEM2V0022CorpusMeasurements`, build log |
-| CEM2-V0-023 | `internal/cem2proto/format.go`, `project.go` | `TestCEM2V0023SpanRefusedBeforeGit`, `TestCEM2V0023ResolveRefusesNegativeStart` |
-| CEM2-V0-024 | `internal/cem2proto/format.go`, `project.go` | `TestCEM2V0024BasesPerHunkBound`, `TestCEM2V0024ReferenceTotalBound`, `TestCEM2V0024MinProjectedBasisBytes`, `TestCEM2V0024ExpandedOutputBound` |
-| CEM2-V0-025 | `internal/cem2proto/project.go` | `TestCEM2V0025HostileBodiesNeverPanic`, `FuzzCEM2V0025Project` |
+| CEM2-V0-001, -003 to -008, -010, -016 to -025 | none: the `cem/2.0-proto` codec prototype was deleted under V1-4747 AC3 (read it at 044058f1) | retired; measurements in `docs/build-log/2026-11-01-cem2-w14.md` |
 | CEM2-V0-002, -009, -011 to -015 | intent only | owner decision pending |
 
 ## Unresolved decisions
