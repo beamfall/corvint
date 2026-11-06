@@ -196,9 +196,18 @@ func stageAndPublishEvidence(parent *os.File, handle string, m authoritystore.Ev
 	if err = stage.Sync(); err != nil {
 		return err
 	}
+	// Success only after the parent's entry is durable: a sync failure is a
+	// failed publication, so the deferred cleanup removes the renamed handle.
+	if err = evidenceParentSync(parent); err != nil {
+		return err
+	}
 	published = true
-	return parent.Sync()
+	return nil
 }
+
+// evidenceParentSync is the final durability step; tests replace it to
+// inject a post-rename failure.
+var evidenceParentSync = (*os.File).Sync
 
 func removeEvidenceStageFD(stage *os.File) error {
 	root, err := evidenceOpenDirectory(int(stage.Fd()), ".")
