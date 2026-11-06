@@ -121,12 +121,15 @@ func TestRunnerOutputOverflowCancelsGroup(t *testing.T) {
 import("testing";"fmt";"strings";"time")
 func TestRepair(t *testing.T){fmt.Print(strings.Repeat("X",2<<20));time.Sleep(120*time.Second)}
 `)}
+	// The bound covers the scenario's cold go-test build as well as the
+	// cancellation, so it must stay well below the 120 s sleep but above a
+	// slow macOS runner's compile time (35.9 s observed on PR #105).
 	started := time.Now()
 	stdout, _, _, complete, e := runScenario(context.Background(), r, c, files, nil, t.TempDir())
 	if e != nil {
 		t.Fatal(e)
 	}
-	if complete || len(stdout) > 1<<20 || time.Since(started) > 30*time.Second {
+	if complete || len(stdout) > 1<<20 || time.Since(started) > 90*time.Second {
 		t.Fatalf("overflow not bounded: complete=%t bytes=%d elapsed=%s", complete, len(stdout), time.Since(started))
 	}
 }
