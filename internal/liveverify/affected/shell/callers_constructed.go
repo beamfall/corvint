@@ -27,7 +27,7 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 	dir := regexp.QuoteMeta(directory)
 	patterns := []string{
 		`["'\x60](?:\./)?` + dir + `/["'\x60]\s*\+`,
-		`(?:[Jj]oin|joinpath)\s*\(\s*["'](?:\./)?` + dir + `["']\s*,`,
+		`(?:[Jj]oin|joinpath)\s*\(\s*["'\x60](?:\./)?` + dir + `["'\x60]\s*,`,
 		`["'](?:\./)?` + dir + `/[^"'\n]*[$%{]`,
 	}
 	if directory == "." {

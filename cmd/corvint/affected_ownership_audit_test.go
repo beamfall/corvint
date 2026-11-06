@@ -51,9 +51,9 @@ func TestAffectedOwnershipAuditListsUnownedReadOnly_AZU_V0_002(t *testing.T) {
 	}
 }
 
-// AZU-V0-002, AFU-V1-024: the experimental audit may claim a driver input,
-// but default planning keeps its frozen registry and uncertainty until the
-// owner admits the driver integration's changed receipt identities.
+// AZU-V0-002, AFU-V1-024: the experimental audit and default planning both
+// recognize the registered driver. Its target selection retains the accepted
+// default registry and frozen receipt identities.
 func TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002(t *testing.T) {
 	t.Parallel()
 	root := compileAdviceRepository(t)
@@ -75,9 +75,9 @@ func TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002(t *testing.T) {
 	if err := json.Unmarshal(stdout, &receipt); err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Plan.Scope != "UNKNOWN" || !slices.ContainsFunc(receipt.Plan.Unknown, func(entry affected.Unknown) bool {
-		return entry.Reason == affected.UnknownUnownedDirtyPath && entry.Detail == "Makefile"
+	if receipt.Plan.Scope != "BOUNDED" || len(receipt.Plan.Unknown) != 0 || !slices.ContainsFunc(receipt.Plan.Selected, func(entry affected.Selection) bool {
+		return entry.UnitID == "driver:make:Makefile#check"
 	}) {
-		t.Fatalf("default planner lost driver uncertainty: %+v", receipt.Plan)
+		t.Fatalf("default planner lost registered driver selection: %+v", receipt.Plan)
 	}
 }
