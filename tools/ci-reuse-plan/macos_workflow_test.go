@@ -28,11 +28,11 @@ func TestCINV04625AdvisoryDarwinIsOutsideRequiredNeedsGraph(t *testing.T) {
 		t.Fatal("Darwin workflow must start independently of CI completion")
 	}
 	b := jobBlock(t, w, "go-macos")
-	wantLine(t, "go-macos", b, "    needs: [go-macos-shard]")
+	wantLine(t, "go-macos", b, "    needs: [cadence-plan, go-macos-shard]")
 	wantLine(t, "go-macos", b, "    continue-on-error: true")
 	b = jobBlock(t, w, "go-macos-shard")
 	for _, line := range []string{
-		"    needs: [docs-plan, narrowing-verdict]",
+		"    needs: [cadence-plan, docs-plan, narrowing-verdict]",
 		"    continue-on-error: true",
 		"      fail-fast: false",
 		"      max-parallel: 4",

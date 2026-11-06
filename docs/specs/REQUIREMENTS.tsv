@@ -1973,6 +1973,13 @@ AFP-V0-104	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standin
 AFP-V0-105	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)	standing	2026-10-11; V1-4234
 AFP-V0-106	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4234)	standing	2026-10-11; V1-4234
 CIN-V0-2320	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3489;	standing	2026-10-11; V1-3489
+CIN-V0-4750	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-4751	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-4752	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-4753	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-4754	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-4755	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-4756	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-
