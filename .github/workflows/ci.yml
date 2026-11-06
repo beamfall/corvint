@@ -342,9 +342,11 @@ jobs:
           }
           # An unreadable listing leaves an empty file that contributes no run, so the tool
           # still retains a FULL decision when no listing is readable.
+          # CIN-V0-7600 (V1-4727): no status filter, so a run still in progress or failed only on an
+          # advisory job reaches the tool, which admits it from its successful record and required jobs.
           runs=()
           list() {
-            get "$api/workflows/ci.yml/runs?$1&status=success&per_page=20" "$d/$2" || : > "$d/$2"
+            get "$api/workflows/ci.yml/runs?$1&per_page=20" "$d/$2" || : > "$d/$2"
             for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2" | head -n 5); do
               get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs/$id.json" || continue
               # Only a passed record job has a log; a skipped one would answer 404 (V1-3051).
