@@ -387,12 +387,17 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 	cond := "    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}"
 	for _, job := range []string{"go-static", "go-interop", "artifact-integrity"} {
 		b := jobBlock(t, ci, job)
-		needs := "    needs: static-reuse"
-		if job == "go-static" {
+		needs, jobCond := "    needs: static-reuse", cond
+		switch job {
+		case "go-static":
 			needs = "    needs: [static-reuse, local-authority-deps]" // CIN-V0-7503 module cache
+		case "artifact-integrity":
+			// CIN-V0-4753: a verified pull-request DEFER leaves the archive gate to the queue and nightly gates.
+			needs = "    needs: [static-reuse, cadence-plan]"
+			jobCond = strings.Replace(cond, " }}", " && !(github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER') }}", 1)
 		}
 		wantLine(t, job, b, needs)
-		wantLine(t, job, b, cond)
+		wantLine(t, job, b, jobCond)
 	}
 	gp := jobBlock(t, ci, "go-product")
 	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
