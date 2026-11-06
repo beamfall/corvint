@@ -52,6 +52,7 @@ type Graph struct {
 	// repository, so they are no part of the digest.
 	sourceBound   map[string]map[string]bool
 	fixtureClosed map[string]map[string]bool
+	ancestorBound map[string]map[string]bool
 	// sites counts the repository's frontier sites by plugin and reason
 	// (AFP-V0-381, AFP-V0-2406).
 	sites map[string]map[string]int
@@ -449,6 +450,21 @@ func (graph *Graph) declareFrontierReach(name string, language Language) error {
 		if sourceBound[reason] {
 			return fmt.Errorf("%w: language %s declares %q both source-bound and fixture-closed", ErrInvalidLanguage, name, reason)
 		}
+	}
+	if local, ok := language.(AncestorBoundFrontiers); ok {
+		bound, err := record("ancestor-bound", local.AncestorBoundFrontiers())
+		if err != nil {
+			return err
+		}
+		for reason := range bound {
+			if !fixtureClosed[reason] {
+				return fmt.Errorf("%w: language %s declares %q ancestor-bound but not fixture-closed", ErrInvalidLanguage, name, reason)
+			}
+		}
+		if graph.ancestorBound == nil {
+			graph.ancestorBound = make(map[string]map[string]bool)
+		}
+		graph.ancestorBound[name] = bound
 	}
 	if graph.sourceBound == nil {
 		graph.sourceBound = make(map[string]map[string]bool)
