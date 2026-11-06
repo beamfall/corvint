@@ -44,11 +44,15 @@ func TestBoostTestRegistryDispatch(t *testing.T) {
 	if e != nil || !o.Complete || len(o.Tests) != 2 || o.Tests[0].ID != "M::s/off" || o.Tests[0].State != tr.Skipped || o.Tests[1].State != tr.Passed {
 		t.Fatal(o, e)
 	}
-	// The native suite owns the contradiction matrix (including failure exit
-	// without a failure and surplus skipped cases); this layer proves dispatch
-	// and normalization preserve the native observation.
+	// The native suite owns failure-exit contradictions; this layer also proves
+	// dispatch and normalization preserve the native observation.
 	parsed, err := native.Parse(in)
 	if err != nil || !reflect.DeepEqual(o, tr.Normalize(in, parsed)) {
 		t.Fatalf("registry/native parse mismatch: %+v %+v %v", o, parsed, err)
+	}
+	in.Expected = []string{"M::s/ok"}
+	o, e = registry.Parse(in)
+	if e != nil || o.Complete || o.Tests[0].ID != "M::s/off" || o.Tests[0].State != tr.Unknown {
+		t.Fatal("surplus skipped case admitted", o, e)
 	}
 }
