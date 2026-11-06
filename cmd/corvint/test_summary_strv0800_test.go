@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -124,41 +125,89 @@ func TestDryRunStaleBinarySharesSummaryBudget(t *testing.T) {
 	}
 }
 
-// STR-V0-7313: valid multi-component paths can consume the summary budget
-// before the fixed sections (and can even exceed it in the notice alone).
+// STR-V0-7313: long filesystem-valid paths consume the notice's share of
+// the budget before the fixed summary sections, even with a macOS temp root.
 func TestDryRunLongStalePathsStayWithinSummaryBudget(t *testing.T) {
 	root, built := selfBinaryRepository(t)
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
-	for _, depth := range []int{4, 7} {
-		files := map[string]string{
-			sessiontest.DeclarationPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
+	files := map[string]string{
+		sessiontest.DeclarationPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
+	}
+	// Cap the entire absolute path at 800 bytes, including root and separators;
+	// each component is at most 200 bytes (below macOS's 255-byte bound).
+	const pathLimit = 800
+	componentBytes := min(200, (pathLimit-len(filepath.Join(root, "long0", "source.go"))-3)/3)
+	if componentBytes <= 0 {
+		t.Fatal("temp root leaves no room for the long-path fixture")
+	}
+	for i := range 3 {
+		path := fmt.Sprintf("long%d/", i) + strings.Repeat(strings.Repeat("x", componentBytes)+"/", 3) + "source.go"
+		if absolute := filepath.Join(root, filepath.FromSlash(path)); len(absolute) > pathLimit {
+			t.Fatalf("fixture path is %d bytes, over %d", len(absolute), pathLimit)
 		}
-		for i := range 3 {
-			path := fmt.Sprintf("long%d/", i) + strings.Repeat(strings.Repeat("x", 240)+"/", depth) + "source.go"
-			files[path] = "package fixture\n\nfunc Value() int { return 1 }\n"
-		}
-		commitSelfBinaryFiles(t, root, files)
+		files[path] = "package fixture\n\nfunc Value() int { return 1 }\n"
+	}
+	commitSelfBinaryFiles(t, root, files)
+	freshness := selfBinaryStale(context.Background(), root)
+	originalNotice := fmt.Sprintf("corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
+	if len(originalNotice) <= testSummaryLimit/2 || len(originalNotice) > testSummaryLimit {
+		t.Fatalf("fixture notice must exhaust its share but fit within the total budget: %d bytes", len(originalNotice))
+	}
+	for _, flags := range [][]string{nil, {"--summary"}} {
 		var out, errout bytes.Buffer
-		code := runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &out, &errout)
+		args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+		code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
 		if code != 0 {
-			t.Fatalf("depth=%d exit=%d %s%s", depth, code, &out, &errout)
+			t.Fatalf("flags=%v exit=%d %s%s", flags, code, &out, &errout)
 		}
 		if out.Len()+errout.Len() > testSummaryLimit {
-			t.Errorf("depth=%d combined=%d stdout=%d stderr=%d; limit=%d", depth, out.Len()+errout.Len(), out.Len(), errout.Len(), testSummaryLimit)
+			t.Errorf("flags=%v combined=%d stdout=%d stderr=%d; limit=%d", flags, out.Len()+errout.Len(), out.Len(), errout.Len(), testSummaryLimit)
 		}
 		for _, want := range []string{"corvint-test: DEGRADED self-binary-stale:", "corvint-test: DRY-RUN", "HEAVY_WHOLE_REASON", "truncated"} {
 			if !strings.Contains(out.String()+errout.String(), want) {
-				t.Errorf("depth=%d missing %q", depth, want)
+				t.Errorf("flags=%v missing %q", flags, want)
 			}
 		}
-		for _, flags := range [][]string{{"--full"}, {"--format", "json"}} {
-			out.Reset()
-			errout.Reset()
-			args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
-			code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
-			if code != 0 || !json.Valid(out.Bytes()) || strings.Contains(errout.String(), "truncated") || errout.Len() <= testSummaryLimit/2 {
-				t.Errorf("depth=%d flags=%v exit=%d: full form lost JSON or original notice", depth, flags, code)
-			}
+	}
+	for _, flags := range [][]string{{"--full"}, {"--format", "json"}} {
+		var out, errout bytes.Buffer
+		args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+		code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
+		if code != 0 || !json.Valid(out.Bytes()) || !strings.HasPrefix(errout.String(), originalNotice) {
+			t.Errorf("flags=%v exit=%d: full form lost JSON or original notice", flags, code)
+		}
+	}
+}
+
+// STR-V0-7313: a notice alone can exceed the total budget. Supply its text
+// directly so the test requires no filesystem path beyond platform limits.
+func TestDryRunOversizedNoticeSharesSummaryBudget(t *testing.T) {
+	t.Parallel()
+	const prefix = "corvint-test: DEGRADED self-binary-stale: "
+	originalNotice := prefix + strings.Repeat("long/界/source.go, ", 400) + "rebuild from this checkout\n"
+	if len(originalNotice) <= testSummaryLimit {
+		t.Fatal("fixture notice must exceed the entire summary budget")
+	}
+	notice := summaryNoticeBudget(originalNotice, testSummaryLimit/2)
+	if len(notice) > testSummaryLimit/2 || !utf8.ValidString(notice) || !strings.HasPrefix(notice, prefix) || !strings.HasSuffix(notice, " (truncated; rerun with --full)\n") {
+		t.Errorf("notice lost its bound, UTF-8, prefix or truncation marker: %d bytes: %q", len(notice), notice)
+	}
+	m := sessiontest.Manifest{Scope: "FULL", Placement: "universe", ShardCount: 1}
+	for i := range 100 {
+		m.Units = append(m.Units, sessiontest.Unit{Adapter: "go", Slice: "whole", Unit: fmt.Sprintf("go:example.test/%03d/%s", i, strings.Repeat("x", 100)), Reason: "whole: DIRECT_SOURCE_CHANGE"})
+	}
+	var out, errout bytes.Buffer
+	errout.WriteString(notice)
+	options := testOptions{profile: "local", dryRun: true, summaryNoticeBytes: len(notice)}
+	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), options, &out, &errout); code != 0 {
+		t.Fatalf("exit=%d %s", code, &errout)
+	}
+	if out.Len()+errout.Len() > testSummaryLimit {
+		t.Errorf("combined=%d stdout=%d stderr=%d; limit=%d", out.Len()+errout.Len(), out.Len(), errout.Len(), testSummaryLimit)
+	}
+	for _, want := range []string{prefix, "corvint-test: DRY-RUN", "HEAVY_WHOLE_REASON", "truncated"} {
+		if !strings.Contains(out.String()+errout.String(), want) {
+			t.Errorf("missing %q", want)
 		}
 	}
 }
