@@ -49,27 +49,37 @@ func ParseShellForeignCallers(body []byte) (map[string]ShellForeignCallerEntry, 
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
 		return nil, err
 	}
-	if declared.Profile != ShellForeignCallersProfile || len(declared.Scripts) == 0 || len(declared.Scripts) > maxForeignCallerScripts {
-		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d scripts", ShellForeignCallersPath, ShellForeignCallersProfile, maxForeignCallerScripts)
+	if err := ValidateShellForeignCallers(declared.Profile, declared.Scripts); err != nil {
+		return nil, err
 	}
-	for script, entry := range declared.Scripts {
+	return declared.Scripts, nil
+}
+
+// ValidateShellForeignCallers is the canonical member validation for current
+// and historical declarations. The shell reader retains its original decoder
+// types because JSON semantic errors include those type names. AZU-V0-8904.
+func ValidateShellForeignCallers(profile string, scripts map[string]ShellForeignCallerEntry) error {
+	if profile != ShellForeignCallersProfile || len(scripts) == 0 || len(scripts) > maxForeignCallerScripts {
+		return fmt.Errorf("%s: profile must be %s with 1 to %d scripts", ShellForeignCallersPath, ShellForeignCallersProfile, maxForeignCallerScripts)
+	}
+	for script, entry := range scripts {
 		if !ValidRelativePath(script) || !slices.ContainsFunc(ShellSuffixes, func(suffix string) bool { return strings.HasSuffix(script, suffix) }) {
-			return nil, fmt.Errorf("%s: script %q", ShellForeignCallersPath, script)
+			return fmt.Errorf("%s: script %q", ShellForeignCallersPath, script)
 		}
 		named := append(slices.Clone(entry.Callers), entry.Mentions...)
 		if len(named) == 0 || len(named) > maxForeignCallers || !shellCallerSortedUnique(entry.Callers) || !shellCallerSortedUnique(entry.Mentions) {
-			return nil, fmt.Errorf("%s: script %q callers and mentions must be 1 to %d sorted unique paths", ShellForeignCallersPath, script, maxForeignCallers)
+			return fmt.Errorf("%s: script %q callers and mentions must be 1 to %d sorted unique paths", ShellForeignCallersPath, script, maxForeignCallers)
 		}
 		for _, file := range named {
 			if !ValidRelativePath(file) || file == script || slices.Contains(entry.Callers, file) && slices.Contains(entry.Mentions, file) {
-				return nil, fmt.Errorf("%s: script %q file %q", ShellForeignCallersPath, script, file)
+				return fmt.Errorf("%s: script %q file %q", ShellForeignCallersPath, script, file)
 			}
 		}
 		if entry.Reason == "" || len(entry.Reason) > maxForeignCallerReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
-			return nil, fmt.Errorf("%s: script %q reason has %d bytes; want non-empty valid UTF-8 without control characters, at most %d bytes", ShellForeignCallersPath, script, len(entry.Reason), maxForeignCallerReason)
+			return fmt.Errorf("%s: script %q reason has %d bytes; want non-empty valid UTF-8 without control characters, at most %d bytes", ShellForeignCallersPath, script, len(entry.Reason), maxForeignCallerReason)
 		}
 	}
-	return declared.Scripts, nil
+	return nil
 }
 
 func shellCallerSortedUnique(paths []string) bool {
