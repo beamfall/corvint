@@ -347,11 +347,18 @@ jobs:
           runs=()
           list() {
             get "$api/workflows/ci.yml/runs?$1&per_page=20" "$d/$2" || : > "$d/$2"
-            for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2" | head -n 5); do
+            # The listing has no status filter, so newer unsuccessful runs must not displace an older
+            # run with record evidence: scan every listed run and stop after five that carry a
+            # passed record job, rather than after the first five listed.
+            found=0
+            for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2"); do
+              [ "$found" -lt 5 ] || break
               get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs/$id.json" || continue
               # Only a passed record job has a log; a skipped one would answer 404 (V1-3051).
               # AFP-V0-734: a merge-queue entry also reads the narrowed-record job's log.
-            for job in $(jq -r --arg event "$GITHUB_EVENT_NAME" '.jobs[]? | select((.name == "ci-tested-tree-record" or ($event == "merge_group" and .name == "ci-narrowed-tree-record")) and .conclusion == "success") | .id | select(type == "number")' "$d/jobs/$id.json" | head -n 4); do
+              jobs=$(jq -r --arg event "$GITHUB_EVENT_NAME" '.jobs[]? | select((.name == "ci-tested-tree-record" or ($event == "merge_group" and .name == "ci-narrowed-tree-record")) and .conclusion == "success") | .id | select(type == "number")' "$d/jobs/$id.json" | head -n 4)
+              [ -z "$jobs" ] || found=$((found + 1))
+              for job in $jobs; do
                 get "$api/jobs/$job/logs" "$d/logs/$job.txt" || continue
                 # AFP-V0-100: the commit of a full record's target names the record base; the
                 # tool admits it only when its parents bind that target to this head.
@@ -2180,7 +2187,7 @@ jobs:
           boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
           if [ "$SHARDS_RESULT" != success ]; then
             reason="go-product-shard result is $SHARDS_RESULT"
-          elif [ "${EVENT_NAME:-}" = pull_request ]; then
+          elif [ "${GITHUB_EVENT_NAME:-}" = pull_request ]; then
             reason="a pull-request shard runs at -p 4, so its package times are contended and not table costs (AFP-V0-540)"
           elif [ "$boxed" -ne 0 ]; then
             reason="$boxed of $SHARDS shards ran on the self-hosted runner, whose timings are not cloud timings (AFP-V0-422)"
