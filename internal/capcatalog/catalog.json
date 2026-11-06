@@ -3646,6 +3646,7 @@
         "--durations",
         "--files",
         "--format",
+        "--full",
         "--go-parallel",
         "--manifest",
         "--pins",
@@ -3674,7 +3675,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "It writes only stdout.",
-        "--dry-run prints the shard's argv as JSON and runs nothing but Git; --manifest PATH writes the corvint-test-manifest/0 there.",
+        "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
         "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)."
       ],
       "unknowns": [
