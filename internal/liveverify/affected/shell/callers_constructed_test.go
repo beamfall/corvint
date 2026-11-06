@@ -245,6 +245,57 @@ func TestNormalizedJoinRetainsUnknown_AZU_V0_8901(t *testing.T) {
 	}
 }
 
+// AZU-V0-004, AZU-V0-8901: completeness caches constructed matches by
+// directory. An escaped basename in embedded Python must not disappear when
+// another script in the same directory is matched first.
+func TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.test/sharedjoin\n\ngo 1.27\n")
+	for _, script := range []string{"run/a.sh", "run/run.sh"} {
+		write(t, root, script, "echo ok\n")
+	}
+	write(t, root, "caller/caller.go", "package caller\nvar scripts = []string{\"run/a.sh\", \"run/run.sh\"}\n")
+	write(t, root, "caller/caller_test.go", "package caller\n")
+	body := "package extra\nimport \"os/exec\"\nvar cmd = exec.Command(\"python3\", \"-c\", `import os.path, subprocess\nsubprocess.run([os.path.join(\".\", \"run\", \"r\\u0075n.sh\")])`)\n"
+	write(t, root, "extra/extra.go", body)
+	write(t, root, "extra/extra_test.go", "package extra\n")
+	declared := map[string]ForeignCallers{
+		"run/a.sh":   {Callers: []string{"caller/caller.go"}, Reason: "literal caller"},
+		"run/run.sh": {Callers: []string{"caller/caller.go"}, Reason: "literal caller"},
+	}
+	declaration, err := json.Marshal(map[string]any{"profile": "corvint-shell-foreign-callers/0", "scripts": declared})
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, affected.ShellForeignCallersPath, string(declaration))
+	graph, err := affected.Build(context.Background(), root, golang.New(), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"run/run.sh"})
+	if plan.Scope != affected.ScopeUnknown || !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
+		return u.Detail == FrontierForeignInvocation
+	}) {
+		t.Fatalf("undeclared escaped join certified through directory cache: %+v", plan)
+	}
+	if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "go:example.test/sharedjoin/caller" }) {
+		t.Fatalf("known caller dropped: %+v", plan)
+	}
+	if foreignCallersComplete(affected.DiskSource(root), declared, nil) {
+		t.Fatal("directory cache certified an undeclared escaped join")
+	}
+	for script, callers := range declared {
+		if !constructedForeignReference([]byte(body), script) {
+			t.Fatalf("constructed match depends on basename: %s", script)
+		}
+		callers.Callers = append(callers.Callers, "extra/extra.go")
+		declared[script] = callers
+	}
+	if !foreignCallersComplete(affected.DiskSource(root), declared, nil) {
+		t.Fatal("declared shared-directory caller refused")
+	}
+}
+
 // AZU-V0-8901: consume the complete literal prefix, so a leading dot
 // does not turn an unrelated directory or another identifier into a caller.
 func TestNormalizedJoinBounds_AZU_V0_8901(t *testing.T) {
