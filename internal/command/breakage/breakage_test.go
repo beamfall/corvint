@@ -61,8 +61,6 @@ func TestBreakageCLIComplete(t *testing.T) {
 		return strings.TrimSpace(string(output))
 	}
 	git("init", "-q")
-	git("config", "user.email", "corvint@example.test")
-	git("config", "user.name", "Corvint Test")
 	files := map[string]string{"go.mod": "module example.test/cli\n", "api.go": "package cli\nfunc Changed() {}\n", "caller.go": "package cli\nfunc Caller() { Changed() }\n"}
 	for p, b := range files {
 		if err := os.WriteFile(filepath.Join(root, p), []byte(b), 0o644); err != nil {
