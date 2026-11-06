@@ -159,6 +159,17 @@ class DarwinShards(unittest.TestCase):
         self.assertIn("FAIL ex/p (package)", summary)
         self.assertNotIn("TestB", summary)
         self.assertEqual(m.failure_summary(["build failed\n"]), "build failed")
+        build = [
+            {"Action": "build-output", "ImportPath": "ex/q [ex/q.test]", "Output": "q.go:3:1: undefined: x\n"},
+            {"Action": "build-fail", "ImportPath": "ex/q [ex/q.test]"},
+            {"Action": "output", "Package": "ex/r", "Output": "panic: init failed\n"},
+            {"Action": "output", "Package": "ex/r", "Output": "FAIL\tex/r\t0.1s\n"},
+            {"Action": "fail", "Package": "ex/r"},
+        ]
+        summary = m.failure_summary([json.dumps(e) + "\n" for e in build])
+        self.assertIn("FAIL ex/q [ex/q.test] (build)\n    q.go:3:1: undefined: x", summary)
+        self.assertIn("FAIL ex/r (package)\n    panic: init failed", summary)
+        self.assertNotIn("0.1s", summary)
 
     def test_CINV04625_package_arguments_and_module_roots(self):
         self.assertEqual(m.module_groups([{"package": "example", "module": "example", "dir": "/repo"}]),
