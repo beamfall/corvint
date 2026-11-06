@@ -90,6 +90,10 @@ func inputDecision(ctx context.Context, root, base string) (bool, string) {
 // its requirements (or, in a workspace, replacements). Check the module graph,
 // rather than relying only on modules appearing in the package closure.
 func boundModuleGraph(root string, input io.Reader) error {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("module root unavailable")
+	}
 	physical, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return fmt.Errorf("module root unavailable")

@@ -34,7 +34,11 @@ func memoryJobsFrom(readFile func(string) ([]byte, error)) int {
 	if available == 0 {
 		return 2
 	}
-	for _, pair := range cgroupMemoryFiles(readFile) {
+	pairs, observed := cgroupMemoryFiles(readFile)
+	if !observed {
+		available = min(available, 2<<30)
+	}
+	for _, pair := range pairs {
 		limit, e1 := readFile(pair[0])
 		if e1 == nil && strings.TrimSpace(string(limit)) == "max" {
 			continue
@@ -59,14 +63,14 @@ func memoryJobsFrom(readFile func(string) ([]byte, error)) int {
 // include every visible ancestor: a parent's remaining budget is shared with
 // siblings and can be tighter than the leaf's limit. Mount roots can be subtrees
 // (bind mounts); only ancestors visible in that mount can be observed.
-func cgroupMemoryFiles(readFile func(string) ([]byte, error)) [][2]string {
+// observed distinguishes readable discovery with no limits from failed reads.
+func cgroupMemoryFiles(readFile func(string) ([]byte, error)) (pairs [][2]string, observed bool) {
 	membership, e1 := readFile("/proc/self/cgroup")
 	mounts, e2 := readFile("/proc/self/mountinfo")
 	if e1 != nil || e2 != nil {
-		return nil
+		return nil, false
 	}
 	unescape := strings.NewReplacer(`\040`, " ", `\011`, "\t", `\012`, "\n", `\134`, `\`)
-	var pairs [][2]string
 	for _, line := range strings.Split(string(mounts), "\n") {
 		left, right, ok := strings.Cut(line, " - ")
 		fields, fs := strings.Fields(left), strings.Fields(right)
@@ -106,7 +110,7 @@ func cgroupMemoryFiles(readFile func(string) ([]byte, error)) [][2]string {
 			}
 		}
 	}
-	return pairs
+	return pairs, true
 }
 
 func jobsForMemory(available uint64) int {

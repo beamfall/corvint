@@ -52,6 +52,14 @@ func TestBaselineInputDecisionASDV0944(t *testing.T) {
 	baselineGit(t, root, "add", ".")
 	baselineGit(t, root, "commit", "-qm", "base")
 	base := baselineGit(t, root, "rev-parse", "HEAD")
+	t.Run("relative root", func(t *testing.T) {
+		t.Chdir(root)
+		baselineFile(t, root, "docs/guide.md", "guide\n")
+		defer os.Remove(filepath.Join(root, "docs", "guide.md"))
+		if run, reason := inputDecision(context.Background(), ".", base); run || !strings.Contains(reason, "disjoint") {
+			t.Fatalf("relative root: run=%v reason=%q, want disjoint skip", run, reason)
+		}
+	})
 	for _, tc := range []struct {
 		path, body string
 		want       bool
