@@ -44,10 +44,7 @@ var rootLocatorFuncs = map[string]string{"os": "Getwd"}
 // package's own source does not carry it.
 var rootLocatorToken = "--show-" + "toplevel"
 
-var (
-	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
-	pathToken  = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
-)
+var printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
 
 type goPackage struct {
 	embeds         bool
@@ -236,8 +233,13 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 	aliases, dotImported := rootLocatorImports(file.Imports)
 	scanned.scan = scanSource(body, aliases, dotImported)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
+	var tokens []string
 	for offset, literal := range scanned.scan.literals {
-		scanned.tokens[offset] = pathTokens(literal, module)
+		start := len(tokens)
+		tokens = appendPathTokens(tokens, literal, module)
+		if len(tokens) != start {
+			scanned.tokens[offset] = tokens[start:]
+		}
 	}
 	return scanned
 }
@@ -359,7 +361,11 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 	var scan sourceScan
 	var lexer scanner.Scanner
 	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
-	recent := [3]string{}
+	type lexicalToken struct {
+		kind token.Token
+		text string
+	}
+	recent := [3]lexicalToken{}
 	importing := importOutside
 	var move directoryMove
 	for {
@@ -375,9 +381,12 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 		if kind != token.COMMENT {
 			move.observe(kind, text)
 		}
-		recent = [3]string{recent[1], recent[2], kind.String() + text}
-		if kind == token.IDENT && recent[1] == "." {
-			qualifier := strings.TrimPrefix(recent[0], "IDENT")
+		recent = [3]lexicalToken{recent[1], recent[2], {kind: kind, text: text}}
+		if kind == token.IDENT && recent[1].kind == token.PERIOD {
+			qualifier := recent[0].text
+			if recent[0].kind != token.IDENT {
+				qualifier = recent[0].kind.String() + qualifier
+			}
 			if importPath, ok := aliases[qualifier]; ok && rootLocatorFuncs[importPath] == text {
 				scan.calls = append(scan.calls, importPath+"."+text)
 			}
@@ -425,8 +434,23 @@ func importState(state int, kind token.Token) int {
 // pathTokens splits a literal into path-shaped tokens with printf verbs
 // removed; an import path under the module becomes a root-anchored path.
 func pathTokens(literal, module string) []string {
-	var tokens []string
-	for _, value := range pathToken.FindAllString(printfVerb.ReplaceAllString(literal, " "), -1) {
+	return appendPathTokens(nil, literal, module)
+}
+
+func appendPathTokens(tokens []string, literal, module string) []string {
+	if strings.Contains(literal, "%") {
+		literal = printfVerb.ReplaceAllString(literal, " ")
+	}
+	for offset := 0; offset < len(literal); {
+		if !pathCharacter(literal[offset]) {
+			offset++
+			continue
+		}
+		start := offset
+		for offset < len(literal) && pathCharacter(literal[offset]) {
+			offset++
+		}
+		value := literal[start:offset]
 		if value == module {
 			value = "/"
 		} else if rest, ok := strings.CutPrefix(value, module+"/"); ok {
@@ -435,6 +459,13 @@ func pathTokens(literal, module string) []string {
 		tokens = append(tokens, value)
 	}
 	return tokens
+}
+
+// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-]. Keep
+// this attribution lexicon independent of the planner's narrower token rules.
+func pathCharacter(c byte) bool {
+	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' ||
+		c == '.' || c == '_' || c == '~' || c == '@' || c == '+' || c == '/' || c == '-'
 }
 
 // escapesPackage names why a token read from directory's files cannot be
@@ -449,7 +480,7 @@ func escapesPackage(directory, value string, test bool) string {
 		return fmt.Sprintf("carries the literal %q", value)
 	}
 	climbs, parents := false, true
-	for _, component := range strings.Split(value, "/") {
+	for component := range strings.SplitSeq(value, "/") {
 		climbs = climbs || component == ".."
 		parents = parents && (component == ".." || component == "." || component == "")
 	}
@@ -548,8 +579,7 @@ func changesDirectory(text string) bool {
 	if err != nil {
 		return false
 	}
-	words := strings.FieldsFunc(value, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(";&|()`{}", r) })
-	for _, word := range words {
+	for word := range strings.FieldsFuncSeq(value, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune(";&|()`{}", r) }) {
 		if word == "cd" || word == "pushd" || word == "-C" || word == "--chdir" || strings.HasPrefix(word, "-C=") || strings.HasPrefix(word, "--chdir=") {
 			return true
 		}
