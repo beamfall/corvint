@@ -41,8 +41,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  statuses: write
 
 jobs:
   resolve:
@@ -72,6 +70,11 @@ jobs:
           echo "pr=$PR" >>"$GITHUB_OUTPUT"
   gate:
     needs: resolve
+    # Reads the PR and its review threads, and posts the greptile-gate status (ARTIFACT-V0-008 row).
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
     concurrency:
       group: greptile-gate-pr-${{ needs.resolve.outputs.pr }}
       cancel-in-progress: false
