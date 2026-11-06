@@ -44,5 +44,6 @@ same 30 m detector.
 - Local Darwin end-to-end run of `run()` on two real parts of `.github/cishards` through
   `script/heavy.sh`: 25 listed tests, 11 and 14 assigned, both green, partition records retained.
 - Hosted `go-macos` wall time and the ticket's two consecutive green main runs: NOT_OBSERVED. The
-  shard's 40-minute job timeout is unchanged. Running parts alone gives up `-p 3` concurrency for
+  shard's job timeout rose from 40 to 55 minutes (CIN-V0-4625 amended): shards plan about
+  37.6 minutes of measured cost, and shard 0 of run 42266013561 ran out at 40 minutes. Running parts alone gives up `-p 3` concurrency for
   them, so hosted measurement must confirm the shard still fits.
