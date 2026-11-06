@@ -651,7 +651,9 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	var markers map[int]bool
 	// Most files have no fixture marker. Retain per-literal locations only
 	// when a marker could occur; the lexer still decides which are comments.
-	fixtures := bytes.Contains(body, []byte(FixturePathMarker))
+	// The scanner strips carriage returns from comments, so a raw-byte miss
+	// cannot rule out a marker when the body contains a carriage return.
+	fixtures := bytes.Contains(body, []byte(FixturePathMarker)) || bytes.IndexByte(body, '\r') >= 0
 	var move directoryMove
 	for {
 		position, kind, text := lexer.Scan()
