@@ -240,4 +240,297 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   | `context.omissions.samples[].reason` | `impact` | `non-Go path outside native Go range profile` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:278@7b21b9c6` |
   | `plan.unknown[].reason` | `affected` | `UNINDEXED_SOURCE_PATH`, `UNOWNED_DIRTY_PATH`, `LANGUAGE_FRONTIER`, `NO_SELECTABLE_TEST` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:58@644f277c` |
   | `plan.excluded[].reason` | `affected` | `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:49@93004a33` |
-  | `plan.excluded[].invalidation` | `affected` | `NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:368@b74c00a2` |
+  | `plan.excluded[].invalidation` | `affected` | `NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:370@b74c00a2` |
+  | `inventory.semanticFrontier[].reason` | `init`, `adopt` | `mechanical-inventory-only`, `declared-source-absent` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/genesis/inventory.go:419@9ce6e141`, `internal/genesis/inventory.go:427@dc024f8c` |
+  | `inventory.semanticFrontier[].sourceClass` | `init`, `adopt` | `INSTRUCTIONS`, `DOCUMENTATION`, `SPECIFICATION`, `TEST`, `E2E_TEST`, `CI`, `MANIFEST`, `OWNERSHIP`, `RUNBOOK`, `INCIDENT`, `SCHEMA`, `CONFIGURATION`, `CODE`, `OTHER_TEXT` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/genesis/classifier.go:14@40a932fe` |
+  | `inventory.gaps[].code` | `init`, `adopt` | `binary-asset`, `binary-content`, `blob-budget-exhausted`, `blob-size-unavailable`, `blob-too-large`, `blob-unavailable`, `dirty-worktree`, `entry-budget-exhausted`, `git-budget-exceeded`, `git-input-budget-exceeded`, `git-output-budget-exceeded`, `git-read-failed`, `git-timeout`, `git-unavailable`, `gitlink`, `invalid-activation`, `invalid-authority-id`, `invalid-commit-object`, `invalid-exclusions`, `invalid-git-output-budget`, `invalid-repository`, `invalid-revision`, `invalid-tree-object`, `malformed-blob-batch`, `malformed-tree-entry`, `non-utf8-or-binary`, `receipt-budget-exceeded`, `special-tree-entry`, `symlink`, `unsafe-or-non-utf8-path`, `HISTORY_NOT_SCANNED` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/genesis/inventory.go:477@a7d278da`, `docs/specs/genesis-backfill.md:269@3cb61d7d` |
+  | `packet.mode` | `prove` | `query`, `impact`, `range-impact` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:388@c076902a`, `internal/contextindex/receipt.go:618@d6f9a459` |
+  | `proof.rows[].falsifier` | `prove` | `history-consistent`, `reference-resolves`, `verifier-accepts`, `test-kills-mutant`, `none` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:43@f81f3f8e` |
+  | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:49@7313a787` |
+  | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:783@f6741c9b`, `internal/liveverify/affected/select.go:78@884d7796` |
+  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:488@56698a09`, `internal/contextindex/index.go:1423@f6b4c05b`, `internal/contextindex/index.go:1427@14914a09`, `internal/contextindex/index.go:1430@f91f4e9c`, `internal/contextindex/index.go:571@4b59a221`, `internal/contextindex/index.go:772@e27ec283`, `internal/contextindex/index.go:36@b7c4315f` |
+  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2697@f3806eef`, `internal/contextindex/taskcontext.go:347@7b32d74a`, `internal/contextindex/taskcontext.go:348@4da20476`, `internal/contextindex/taskcontext.go:349@73a4650c` |
+  | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2697@f3806eef`, `internal/contextindex/taskcontext.go:348@4da20476`, `internal/contextindex/taskcontext.go:349@73a4650c` |
+  | `coverage.governance_refused[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:101@35a83646`, `internal/contextindex/taskcontext.go:347@7b32d74a`, `internal/contextindex/taskcontext.go:348@4da20476`, `internal/contextindex/taskcontext.go:349@73a4650c` |
+  | `coverage.governance_refused[].trust` | `context` | `repository-content`, `external-provider`, `tool-output` | closed | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:101@35a83646`, `internal/contextindex/trust.go:13@b8cc52f2`, `internal/contextindex/trust.go:19@e4aee023`, `internal/contextindex/trust.go:23@e580f876` |
+  | `coverage.governance_refused[].warnings[]` | `context` | `hidden-unicode`, `hidden-unicode-unscreened`, `self-modified-authority` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/authority_screen.go:19@6a804eb8`, `internal/contextindex/authority_screen.go:22@184ddd00`, `internal/contextindex/authority_screen.go:25@000b28cc` |
+
+  The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
+  (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
+  `REJECTED` (CCF-V1-003). NOT_PRODUCED: this change registers no enumeration inside
+  `coverage.answerability`, `context.intent`, `context.learning`, `context.range`, `plan.unknown`,
+  `plan.excluded` or the `prove` rows' falsifier verdicts. Until a later change registers them, CCF-V1-006
+  decides a value added there by review. NOT_PRODUCED: no release gate builds the N-1 tag and replays
+  the Core modes against this one.
+  (accepted 2026-09-26, decision 0422; from decision 0398; V1-0350) The rows marked decision 0398 register the enumerations inside
+  `coverage.answerability`, `context.intent`, `context.learning`, `context.range`, `context.omissions`,
+  `plan.unknown`, `plan.excluded`, `inventory.gaps` and `inventory.semanticFrontier`, the `prove` rows'
+  falsifier verdicts, `proof.affected.scope` and `packet.mode`. That replaces the first NOT_PRODUCED
+  above. `prove` embeds its query or impact packet unchanged as `packet`: the `query` rows govern it
+  when `packet.mode` is `query`, and the `impact` rows when it is `impact` or `range-impact`, with
+  `context.` read as `packet.`. An `open` row here is one a reader decides beside, not on: on
+  `inventory.operationalState` rather than a gap code, on `plan.scope` rather than an unknown reason,
+  and on the packet rather than its ranking intent. Outside the register, because no reader branches
+  on them: free text (`coverage.answerability.reason`, `context.coverage.uncertainty`,
+  `advice.unknown`), kind-prefixed identifiers (`context.coverage.critical` and `critical_missing`),
+  enumerations carried as member names (`inventory.denominator`, `proof.counts`), which the
+  CCF-V1-002 goldens and the CCF-V1-006 member rule pin, and the result rows (`context.results[]`,
+  `results[]`, `proof.rows[]` `kind`, `authority` and `trust`, `plan.selected[].witness`), which
+  CCF-V1-005 does not freeze. (accepted 2026-09-26, decision 0422; V1-0350) The rows marked V1-0350 register
+  `context.exclusions.samples[].reason` of `query` and `impact`, and the `relation` of `context`'s
+  `coverage.critical` and `critical_missing` rows. The frozen modes `query excluded sources` and
+  `impact path excluded sources` commit one source per UTF-8 exclusion reason: vendored, protected,
+  generated by path, generated by header, over the size bound, and a Git LFS pointer. `impact path
+  non-utf8 source` commits a Latin-1 path, which `query` refuses as history, and which the N-1 replay
+  skips because 0.8.1 refused it. `context reserved rows` commits a requirement-bearing spec that the
+  task names and runs at `--limit 1`, so the governing row is carried and the spec row is missing.
+  With subject ancestors, additional `governing` rows can be missing at that limit (V1-0411).
+  Both relation rows remain `open`: a reader decides on
+  `exclusions.count` and `coverage.governance`, not on a reason or a relation. A critical row carries
+  no `trust` member (`internal/contextindex/taskcontext.go:2697@f3806eef`). Commit 53c02369 (panel B9,
+  IDX-SNAP-V0-024) added `unsafe-or-non-utf8-path` after 0.8.1, which refused a repository with such
+  a path (`git show v0.8.1:internal/contextindex/git.go`, line 384); under the `open` status that
+  addition is compatible. (accepted 2026-10-08, decision 0468; V1-0653) The rows marked V1-0653 register the `relation`,
+  `trust` and `warnings` of `coverage.governance_refused`. Before V1-0414 no generator wrote such a row,
+  because every reserved authority maps to the untainted `project-authority`. The authority screen
+  (TCP-V0-055..058) now names a downgraded reserved row there with `trust` `repository-content` and its
+  warning codes; a tainted class (`external-provider`, `tool-output`) is named the same way. The
+  frozen mode `context downgraded governing row` commits a governing `AGENTS.md` hiding bidirectional
+  controls, so the rows are reached. 0.8.1 has no screen and emits an empty array, so the member stays
+  additive and that mode skips the N-1 replay. `reason` is free text and stays outside the register. Two further changes after 0.8.1 reached members this register now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
+  row, which is compatible; that value is absent from the `v0.8.1` tree. V1-0340 (ec50af2d) removed
+  the `plan.excluded[].reason` value `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which 0.8.1
+  writes (AFP-V0-012). Both shipped before the register reached their member. Decision 0422
+  accepts this removal into the baseline; V1-0340's rollback would restore the value.
+
+  (accepted 2026-09-26, decision 0422; from decision 0398; V1-0350) N-1 replay. `make core-n1-replay` builds `CORE_N1_TAG` (by
+  default the tag `script/select-previous-release.sh` selects for `HEAD`; see the V1-3203 note below) from
+  `git archive` and runs `TestCoreVerbsEmitTheFrozenProfiles` with `CORVINT_CORE_N1_BINARY` naming that
+  binary. Each frozen mode then also runs under the N-1 binary over a fresh fixture. It MUST exit alike
+  and carry the same CCF-V1-002 identifiers. Every member path it emits, arrays spread, MUST be emitted
+  here with the same JSON type. Every value it writes at a registered path MUST be a value of this
+  register. `index --if-stale` on a fresh snapshot is skipped: its setup writes the snapshot with this
+  build, and an engine mismatch is a miss by design under (a). (accepted 2026-09-26, decision 0424)
+  `impact path non-utf8 source` is also skipped: 0.8.1 refuses a repository with a non-UTF-8 path,
+  and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. (proposed;
+  V1-0943) The `affected worktree` and `affected committed range` defaults are skipped because 0.8.1
+  predates `affected-plan/1`; their `affected full` counterparts replay without `--full`, which is the
+  N-1 default and the same `affected-plan/0` document. (accepted under the owner's standing
+  auto-accept (2026-10-11); V1-0285) The `cem status`, `cem verify`, `ocm status` and `ocm verify`
+  modes are skipped because decision 0525 §6 superseded the `cem/0.2` freeze and its N-1 reader:
+  their fixture is a `cem/1.0` map, which 0.8.1 cannot read (`cem` refuses `--artifacts`, `ocm`
+  reports `invalid-cem`). The `frontier --json` golden is retired (CEM-V1-212), so `frontier` is
+  replayed by no mode, and the replay reaches nine of the twelve Core verbs. Until V1-3203 the `CORE_N1_TAG`
+  default excluded pre-release tags and so resolved to `v0.8.1`, while decision 0434 names
+  `v1.0.0-rc.1` the baseline; release-runbook step 8 passes the tag explicitly. On 2026-10-14 the
+  replay passed against `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2`. (Owner decision 2026-10-30,
+  V1-3177) Those tags and their published releases are not in this repository, recreated that day
+  as a single-root history, so they are no longer baselines. N-1 is the previous release published
+  in this repository: `script/core-n1-source.sh` takes `script/select-previous-release.sh`'s tag
+  (the newest reachable prior `v*` tag, or the operator's explicit `previous_release_tag` and
+  `previous_release_oid`) and requires a published, non-draft release of that exact tag. The
+  `core-n1-replay` gate of `.github/workflows/release-gates.yml` replays against it, and
+  `linux-core`'s N-1 lifecycle steps download its archive. The first release, `v1.0.0-rc.3`, has no
+  N-1: when no tag precedes the candidate and every published release of the repository is the
+  candidate or a descendant, both report FIRST_RELEASE, not applicable, in the log, a notice and the
+  step summary, never a silent pass or skip. (V1-3203, 2026-10-30) Left unset, the Makefile's
+  `CORE_N1_TAG` default is that same selector's tag for `HEAD`, so pre-release tags count, and the selector ranks a final release above its pre-releases
+  (`versionsort.suffix=-`), which also governs `script/core-n1-source.sh`; when no
+  release tag precedes `HEAD`, `make core-n1-replay` prints `NOT_APPLICABLE FIRST_RELEASE` and exits
+  0 rather than failing on an empty tag, a selector refusal exits 2, and an explicit empty
+  `CORE_N1_TAG=` is still refused (`script/core-n1-replay-default_test.sh`). A predecessor that exists but cannot be selected,
+  found as a published release, fetched or verified fails the gate. The target
+  is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
+  `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
+  above. A member, value or order that no fixture exercises stays unreplayed.
+- **CCF-V1-008:** Root help MUST label every dispatched top-level verb with its maturity. (amended,
+  accepted by decision 0539 item 7; V1-0994, applied under V1-0945) The `Commands:` list names each
+  `topLevelCommands` verb exactly once, in one of two groups: the `Core (` group lists exactly the
+  Core verbs of CCF-V1-001, and the `Experimental, no stability promise;` group lists every other
+  verb with the requirement prefix of its owning spec in trailing parentheses, which
+  `docs/specs/INDEX.json` MUST index. No separate `Command maturity:` section repeats the verbs.
+  Every dispatched verb is exactly one of Core or labelled, and
+  `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every `topLevelCommands` verb in
+  `Commands:`. (amended under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-01)
+  The experimental verbs are split by job into headers that each start `Experimental, ` (context
+  and review; tests; agent hosts and local records; lab research metrics), after the single Core
+  group. One line MAY name a family of verbs that share one help topic and one owner, separated by
+  ` | `. The verbs of `hiddenCommands` (internal or historical: `lrf`, `dogfood-ocm`,
+  `migrate-traces`, `migration-ratchet`, `changes`, `prove-observe`) are the one exception to
+  listing: they stay dispatched and in `topLevelCommands`, are absent from `Commands:`, are listed by
+  `corvint help --json`, and their own help ends with a note that they are unlisted. `init` is
+  listed as an alias of `adopt`; both share one help topic. The only verbs dispatched outside `topLevelCommands` are the three CCF-V1-003
+  plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
+  `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`.
+- **CCF-V1-009:** (accepted, decision 0548; V1-0945) Root help is a compact verb index of at most
+  `rootHelpMaxBytes` (4,096) bytes. Its `Usage:` has exactly three generic lines (`COMMAND
+  [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has the CCF-V1-008
+  group headers and exactly one line per listed verb or verb family, the name and a short gloss; and
+  it carries no per-verb option. Per-verb usage, options and writes stay in each verb's shared help
+  topic (GPK-V0-059). The support boundary's local-only, read-only, self-observation-ledger and
+  writer disclosures stay. Help invocations still read no stdin and inspect no repository. Root
+  help bytes are not pinned by `conformance/cli-parity-v0`. Limit: measured at 3,665 bytes on
+  2026-10-20 (3,967 before the CCF-V1-008 amendment, 11,710 before CCF-V1-009). The ticket's
+  ~1.5 KB target is not reached and is recorded as a limit, not a requirement: the 50 verbs with
+  their glosses and labels take 2,578 bytes and the support boundary 761, both required above.
+  The `context` and `query` default limits were reviewed against the frozen evaluations and are
+  unchanged (build log 2026-10-07-v1-0945-root-help-verb-index; 2026-10-20-v1-0945-root-help-maturity).
+- **CCF-V1-650:** (accepted under the owner's standing auto-accept (2026-10-11); V1-3730,
+  2026-11-01) Every `topLevelCommands` verb's help MUST follow the house format: a first line that
+  is a one-line summary ending in `.`, then a blank line, then `Usage:`, and at least one
+  `  corvint ` usage line. `feature` help MUST give an example ID that passes the feature-ID check
+  and name the requirement-prefix form the check refuses. Non-goals: renaming, removing or merging
+  any dispatched verb; a stability promise for any experimental verb. Failure modes: a family line
+  hides that its verbs differ in options, so each verb keeps its own usage in its help topic; a
+  hidden verb is harder to discover from root help, so `help --json` and its own help still list
+  it. Rollback: restore the previous `rootHelp`, help constants and tests; help is stdout text only
+  and no stored state changes.
+- **CCF-V1-010:** (accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel
+  blocker B6) N-1 refusal replay. `make core-n1-replay` also runs `TestCoreRefusalsKeepTheFrozenEnvelope`
+  with `CORVINT_CORE_N1_BINARY`, so each of its twelve refusal cases, one per Core verb, also runs
+  under the N-1 binary over a fresh fixture (`replayCoreRefusalN1`). The N-1 refusal MUST keep the
+  CCF-V1-004 frame: exit 2, empty stdout and one stderr JSON line. A `frontier` refusal MUST be the
+  same `frontier-error/0` document. Any other N-1 refusal MUST carry `ok=false` and `error`; a `code` it
+  carries MUST be the code this build emits, while a codeless N-1 refusal may gain one, which
+  CCF-V1-004 makes compatible. Every envelope member path the N-1 refusal emits, arrays spread, MUST
+  be emitted here with the same JSON type. With the CCF-V1-007 mode replay, which reaches nine verbs
+  because `cem`, `ocm` and `frontier` have no replayable success mode, the target reaches all twelve
+  Core verbs. `make core-n1-replay` builds the tag from local Git objects with `git archive`; the module
+  declares no dependencies at `v0.8.1`, `v1.0.0-rc.1` or `v1.0.0-rc.2`, so it runs with `GOPROXY=off`. The skipped `cem` and `ocm` success
+  modes stay skipped against every published tag: `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2` all
+  refuse the `cem/1.0` fixture (`cem` rejects `--artifacts`; `ocm` exits 1), observed 2026-10-16.
+  NOT_PRODUCED: a success-mode N-1 replay of `cem`, `ocm` and `frontier`, and any refusal other than
+  these twelve cases.
+- **CCF-V1-620:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3342;
+  refines CCF-V1-002) Regenerating a golden (`CORVINT_UPDATE_GOLDEN=1`, run by `make batch-regen`)
+  MUST keep each `<varies:KIND>` leaf of the previous golden whose path the two new runs pin to a
+  value of that same JSON kind, because two runs can agree on a value that varies (a build time in
+  milliseconds); a regenerated golden that froze it failed the next `batch-precheck`. A leaf whose
+  kind changed, a path the previous golden lacks, and every pinned value follow the new runs.
+  Non-goals: making a newly varying value a placeholder on one pair of runs. Rollback: drop
+  `keepCoreVaries`.
+
+## Non-goals
+
+- No runtime or wire change to any verb other than the CCF-V1-004 refusal classification of
+  2026-09-25 (panel blocker B5), its V1-0284 partial-clone extension and the codes added under
+  decision 0398, and no new profile version.
+- No freeze of companion, research or experimental verbs, modes or profiles (CCF-V1-003, CCF-V1-008).
+- No ratification of the Core boundary: that is the owner's decision in V1-0001.
+- No change to the portable proof wire, CEM, OCM or frontier contracts, which have their own owners.
+- No platform qualification claim beyond the existing support boundary (Darwin and Linux).
+
+## Failure modes
+
+- A Core identifier changes silently: `TestCoreVerbsEmitTheFrozenProfiles` fails.
+- A Core refusal changes exit class, stdout or code family: `TestCoreRefusalsKeepTheFrozenEnvelope` fails.
+- A frozen Core mode emits a value outside its CCF-V1-007 (d) register row, or a row is reached by no
+  frozen mode: `TestCoreVerbsEmitTheFrozenProfiles` fails through `observeCoreEnumerations`.
+- (accepted 2026-09-26, decision 0422; from decision 0398) The N-1 tag emits a frozen member, identifier or registered value that
+  this build lost, retyped or dropped from the register: `make core-n1-replay` fails.
+- (CCF-V1-010) A Core verb's refusal under the N-1 tag leaves the CCF-V1-004 frame, carries a code
+  this build renamed or dropped, or emits an envelope member this build lost or retyped:
+  `make core-n1-replay` fails in `replayCoreRefusalN1`.
+- A refusal drops a code it gained under decision 0398: `TestRepositoryFailureEnvelopeCarriesItsCode`
+  or `TestReadFailuresKeepTheFixedTextAndAddTheirCode` fails.
+- A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
+  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`,
+  `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike` or `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
+- (accepted 2026-09-26, decision 0422; V1-0284) A Core read reaches a promisor remote, refuses a missing promisor object without
+  its code, or names an object the failed read did not: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`,
+  `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` (a Git that ignores `GIT_NO_LAZY_FETCH`)
+  or `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` fails. Residual: readers outside
+  these verbs whose Git environment still allows a transport.
+- A new verb is dispatched without a maturity label, or a label names an unindexed owner:
+  `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails. A verb listed twice in root help, or a
+  separate `Command maturity:` section, fails `TestRootHelpIsACompactVerbIndex`.
+- A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
+  `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` fails.
+- The owner changes the Core set of decision 0332: this contract, its test list and decision 0358
+  must change together.
+- (accepted 2026-09-26, decision 0422; from decision 0398) A frozen mode's member is removed, renamed, retyped or added, an array
+  changes length, or a fixture-stable value changes, for example the `affected` `plan.graphDigest`
+  change between 0.7.0 and 0.8.1: `TestCoreVerbsEmitTheFrozenProfiles` fails against that mode's
+  CCF-V1-002 golden. Residual: a value the golden pins by type only, and a member, value or order that
+  no test fixture exercises. Only the cli-parity replay (for the four pinned verbs) and each verb's own
+  spec tests catch those.
+
+## Acceptance evidence
+
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching|TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`
+  and `GOTOOLCHAIN=local go test -count=1 -run 'TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed' ./internal/contextindex`.
+- The cli-parity replay over the 133-case manifest against a candidate built from this change.
+- The cited N-1 and migration tests in Traceability.
+- (accepted 2026-09-26, decision 0422; from decision 0398) `make core-n1-replay` against the N-1, at each release
+  (runbook step 8). (Owner decision 2026-10-30, V1-3177) The N-1 is the previous release published in
+  this repository, never `v0.8.1` or `v1.0.0-rc.1`, which are not restored or replayed; the
+  `core-n1-replay` gate of `.github/workflows/release-gates.yml` runs `script/core-n1-source.sh --replay`,
+  and for the first release, `v1.0.0-rc.3`, its retained `NOT_APPLICABLE FIRST_RELEASE` line is the evidence.
+
+## Traceability
+
+| Requirement | Evidence |
+|---|---|
+| CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
+| CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` (both also run `affected`, which reads no blob and plans without a fetch), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cem status` and `cem verify`), `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
+| CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
+| CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
+| CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
+| CCF-V1-007 (b) | `TestMigrateTracesDryRunMatchesPythonOracleBytes`, `TestMigrateTracesApplyMatchesPythonOracle`, `TestMigrateTracesPlanDigestMismatchWritesNothing`, `TestMigrationCandidateDriftCheckCoversWholePlan`, `TestMigrationQuarantineBindingDetectsReplacement`, `TestPythonOracleMigrationTransform`, `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories`, `TestStoreReadRejectsWholeStoreViolations` |
+| CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
+| CCF-V1-007 (d), CCF-V1-006 enumerations | `TestCoreVerbsEmitTheFrozenProfiles` (every registered member it reaches, including the rows of the `prove` `packet`); (accepted 2026-09-26, decision 0422; from decision 0398) the same test under `make core-n1-replay` (`replayCoreModeN1`) for the N-1 replay, run against the documented baselines `v1.0.0-rc.1` and `v0.8.1` by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml` (V1-1382; a deliberately broken N-1 `dogfood status` claim fails the target locally, build log 2026-10-15-gate-tooling; hosted run NOT_RUN) |
+| CCF-V1-010 | `TestCoreRefusalsKeepTheFrozenEnvelope` under `make core-n1-replay` (`replayCoreRefusalN1`), run by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml`; three stand-in N-1 binaries (renamed code, exit 1, an extra member) each fail all twelve cases, build log 2026-10-16-v1-0285-n1-refusal-replay |
+| CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`, `TestHiddenVerbsStayCallableButUnlisted`, `TestInitIsDocumentedAsAnAliasOfAdopt` |
+| CCF-V1-650 | `TestEveryVerbHelpFollowsTheHouseFormat`, `TestFeatureHelpGivesAValidFeatureIDExample` |
+| CCF-V1-620 | `TestCCFV1620GoldenRegenKeepsAPreviousVariesLeaf`; the V1-3342 rerun in `docs/build-log/2026-11-01-dgs-u28.md` |
+| CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
+
+## Rollback
+
+Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
+maturity labelling (originally a `Command maturity:` section) and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
+changes, so rollback needs no migration. The CCF-V1-004 classification of 2026-09-25 rolls back
+alone by reverting its change; it writes no stored state. Its V1-0284 extension rolls back the same
+way, with its `FIX-REGISTRY.tsv` row and the diagnostic coverage count. The decision 0398 codes roll back the same
+way, with `DR-0041` and its two `knownDivergence` declarations.
+Reverting only the per-mode goldens (accepted 2026-09-26, decision 0422; from decision 0398) means deleting `cmd/corvint/testdata/core-freeze/` and
+the golden comparison in `TestCoreVerbsEmitTheFrozenProfiles`. That returns the freeze to identifier-only pinning.
+Reverting the V1-0350 amendment (accepted 2026-09-26, decision 0422; from decision 0398) means deleting its register rows, the `prove`
+`packet` mapping, `replayCoreModeN1` and the `core-n1-replay` target. That restores the two NOT_PRODUCED
+statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-reason and critical-relation
+rows (accepted 2026-09-26, decision 0422; V1-0350) means deleting those three rows, the cases `query excluded sources`, `context
+reserved rows`, `impact path excluded sources` and `impact path non-utf8 source` with their helpers,
+N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.
+Reverting the V1-0285 skips deletes the four `cem`/`ocm` entries from `coreN1Skips`; `make core-n1-replay`
+against 0.8.1 then fails on those modes again. No stored state changes.
+Reverting CCF-V1-010 (V1-0285) deletes `replayCoreRefusalN1` and `TestCoreRefusalsKeepTheFrozenEnvelope`
+from the `core-n1-replay` run pattern; no stored state changes.
+Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tests; root help is
+stdout text only, so no stored state changes. Reverting only the CCF-V1-008 amendment restores
+`commandMaturityHelp`, the flat `Commands:` list and the previous test parsers; no stored state
+changes.
+
+## Typed verification extension (issue 408, accepted 2026-09-30)
+
+`LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2
+verification union. This owner-accepted additive extension preserves existing schema-1 bytes,
+IDs, acceptance and refusals. Frozen CLI/dashboard manifests and old golden expectations are
+unchanged. New spec-authored tests pin the schema-2 canonical preimage and identity separately;
+no candidate output regenerates historical oracle expectations. All trace consumers validate
+the typed profile, and mixed dashboard snapshots use the distinct `LOD-V0-035` registry.
+Rollback stops new v2 writes while retaining v2 readers. This does not qualify a release or
+prove a retrieval-quality improvement.
+
+## Trace producer extension (V1-0745, decision 0429)
+
+`LTPM-V0-015`/`LTPM-V0-016` make every new local trace row schema 3 with a closed `producer`.
+They also add `--exclude-producer` and producer counts to `calibrate` and `eval`. Neither verb
+is a Core verb, and no CCF-V1-002 identifier, CCF-V1-007 (d) enumeration row or
+cli-parity-pinned byte changes. CCF-V1-007 (b) still holds: this build reads the schema-1 and
+schema-2 rows that N-1 wrote, and those rows read as producer `UNKNOWN`. The reverse direction is
+an explicit release limitation, as it was for schema 2. Once a store holds a schema-3 row, 0.8.1
+and every binary predating this profile refuse that store (observed 2026-10-04 with 1.0.0-rc.1:
+`unsupported-query-trace-state`) rather than misread it. Rollback stops schema-3 writes. Before an
+older binary is used, each whole revision file containing a schema-3 row is moved out of
+`.context-corvint/traces/`. This does not qualify a release.
