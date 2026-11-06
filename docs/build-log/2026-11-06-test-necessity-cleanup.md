@@ -72,18 +72,20 @@ rounding); analyzer tests recorded 0.69/0.69/0.70s before and 0.52/0.50/0.49s
 after. These are one before/after observation on a shared host with changing
 cache state, not a quiet-host benchmark or a repeatable speedup claim.
 
-Across the five changed `_test.go` files, lines fall from 490 to 138. The new
+Across the five changed `_test.go` files, lines fall from 490 to 142. The new
 shared helper adds 93 non-`_test.go` source lines, exclusively for test support;
-total Go source plus tests therefore falls by 259 lines. This explicitly counts
+total Go source plus tests therefore falls by 255 lines. This explicitly counts
 the moved helper rather than treating its filename as deleted test complexity.
 The six named tests in the focused tuple remain six; analyzer invocations remain
-five per executable and frontier refusals remain two. Two registry negative
-cases are removed; their native semantic cases remain unchanged. No production
+five per executable and frontier refusals remain two. One registry negative
+case is removed; its native semantic case remains unchanged. The unique
+surplus-skipped case remains covered in the registry. No production
 feature implementation changed.
 
 `make windows-vet` passed for the main and interop modules with Go 1.27.3.
-Independent review is pending at this source freeze. Final CEM binding/check/seal
-and native completion remain the coordinator's closeout.
+Independent review r2 passed at `535c2c28c` after the skipped-case repair
+(coordinator review relay). Final CEM binding/check/seal follows this correction;
+native completion remains the coordinator's closeout.
 
 Review repair verification: the focused `TestBoostTestRegistryDispatch` passed
 with the writable repository cache after the default machine cache refused access.
