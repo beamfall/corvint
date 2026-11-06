@@ -61,57 +61,12 @@ func (graph *Graph) ownershipHints(unknown []Unknown) {
 	}
 	for i := range unknown {
 		entry := &unknown[i]
-		if entry.Reason != UnknownUnownedDirtyPath || !graph.committedPaths[entry.Detail] {
+		// Content-only edits retain their frozen plan bytes (AZU-V0-9900),
+		// including committed unowned paths in a repository with the ratchet.
+		if entry.Reason != UnknownUnownedDirtyPath || !graph.committedPaths[entry.Detail] || !slices.Contains(graph.ownershipChanges, entry.Detail) {
 			continue
 		}
 		hint := "declare runtime/test inputs in " + RuntimeReadersPath + ", documentation in " + DocumentationPathsPath + ", or evidence/output in " + NonSourcePathsPath + " (AZU-V0-9901)"
 		entry.Hint = strings.TrimPrefix(entry.Hint+"; "+hint, "; ")
 	}
-}
-
-// A newly tracked Go-hosted fixture is read by its selected enclosing package.
-// Its missing ownership declaration remains an unknown for the ratchet to judge;
-// it is not also evidence of an unrelated language's hidden edge (AZU-V0-9901).
-// Resolution inputs and paths listed by another plugin remain open.
-func (graph *Graph) ownershipFrontierPaths(paths []string, reached map[string]Witness) []string {
-	if len(paths) == 0 || len(graph.ownershipChanges) == 0 || len(graph.committedPaths) == 0 {
-		return paths
-	}
-	packages := graph.goPackageDirectories()
-	var open []string
-	for _, path := range paths {
-		closed := slices.Contains(graph.ownershipChanges, path) && graph.committedPaths[path]
-		directory := fixtureDirectory(path)
-		closed = closed && directory != "" && graph.goUnitAbove(directory, packages)
-		if closed {
-			hostSelected := false
-			for dir, id := range packages {
-				if dir == "." || strings.HasPrefix(directory, dir+"/") {
-					if _, ok := reached[id]; ok {
-						hostSelected = true
-					}
-				}
-			}
-			closed = hostSelected
-		}
-		if closed {
-			for _, name := range graph.languages {
-				if name == "go" || name == DriverNamespace {
-					continue
-				}
-				if graph.listsBelowAny(name, []string{directory}) {
-					closed = false
-					break
-				}
-				if reach, declares := graph.claimants[name].(FrontierReach); declares && reach.ResolutionInput(path) {
-					closed = false
-					break
-				}
-			}
-		}
-		if !closed {
-			open = append(open, path)
-		}
-	}
-	return open
 }

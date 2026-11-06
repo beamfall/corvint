@@ -43,7 +43,10 @@ func affectedOwnershipInputs(ctx context.Context, in affectedPlanInputs, graph *
 		}
 		_, err := os.Lstat(filepath.Join(in.tree, filepath.FromSlash(path)))
 		exists := err == nil
-		if !baseOK || !currentOK || before[path] != (current[path] && exists) || (err != nil && !os.IsNotExist(err)) {
+		// Indexed membership can change even when an added path has since
+		// disappeared from the worktree. Observe that change independently of
+		// missing tracked files, which also need the ratchet.
+		if !baseOK || !currentOK || before[path] != current[path] || (current[path] && !exists) || (err != nil && !os.IsNotExist(err)) {
 			changes = append(changes, path)
 		}
 	}

@@ -936,7 +936,10 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 			names[name] = true
 		}
 	}
-	frontierPaths := graph.ownershipFrontierPaths(sortedKeys(paths), reached)
+	// Keep every unowned path for frontierUnknowns to classify per plugin
+	// and reason. A selected Go fixture host cannot close a computed reader
+	// in another language or an undeclared FrontierReach (AZU-V0-9901).
+	frontierPaths := sortedKeys(paths)
 	if len(frontierPaths) > 0 {
 		for name := range terminal {
 			names[name] = true

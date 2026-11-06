@@ -153,14 +153,17 @@ participation, and inbound shell callers. The remaining classes are small and lo
   when its test file exists in the observed graph. `affected` SHALL name that test and the
   triggering path; `test --dry-run` SHALL carry the same reason. A gate-only selection MAY run
   just that named test; any independently reached package coverage SHALL remain whole.
-  Staged membership changes count; an untracked file alone does not. Content-only changes to
+  Staged membership changes count even if the indexed addition is missing from the worktree;
+  an untracked file alone does not. Content-only changes to
   other existing files SHALL add no selection or alter frozen dry-run output.
 - **AZU-V0-9901: Committed ownership guidance and fixture closure.** A committed
   `UNOWNED_DIRTY_PATH` SHALL retain its reason and name `runtime-readers.json` for test/runtime
   inputs, `documentation-paths.json` for documentation, and `non-source-paths.json` for output.
   A newly tracked fixture below a Go-hosted `testdata/` ancestor whose package is selected
   SHALL NOT also bear unrelated language-frontier unknowns when no other plugin lists content
-  there or treats the path as a resolution input. Independent participating, reached and
+  there or treats the path as a resolution input and the existing conservative `FrontierReach`
+  classifier proves closure per plugin and reason. Dynamic and unclassified frontiers remain
+  open, including plugins without `FrontierReach`. Independent participating, reached and
   resolution-input frontiers SHALL keep their reasons. The missing declaration remains unknown;
   selecting the ratchet is no proof of ownership and cannot admit arbitrary undeclared readers.
 - **AZU-V0-9902: One audit classifier.** The CLI and maintained ratchet SHALL use the same
@@ -202,7 +205,17 @@ The lane build log retains the historical replay counts, frozen-byte comparison 
 Verifier repair 1 retains AZU-V0-9901 as PARTIAL: declaration hints are emitted only when the
 observed graph contains the ownership ratchet. Repositories without it retain their frozen
 receipts, checked by `TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901`; extending guidance
-there requires owner resolution of the frozen-output conflict. Fixture closure is retained.
+there requires owner resolution of the frozen-output conflict. Self-review repair also preserves
+content-only receipts for existing unowned paths with the ratchet present: guidance is emitted
+only for committed paths whose membership changed, as required by AZU-V0-9900. General guidance
+for content-only edits remains PARTIAL under the same frozen-output conflict.
+`TestOwnershipContentOnlyBytes_AZU_V0_9900` compares owned and unowned plan bytes and compact
+dry-run digests. `TestOwnershipMembershipSelection_AZU_V0_9900/stage-worktree-delete` covers an
+indexed addition subsequently removed only from disk. Fixture closure uses the existing
+per-plugin/reason classifier; `TestOwnershipFixtureComputedImport_AZU_V0_9901` retains a real
+TypeScript computed `require` frontier, and
+`TestOwnershipFixtureFrontierClassification_AZU_V0_9901` retains dynamic, bounded and
+unclassified frontiers while excluding only classified unrelated reasons.
 Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
 shape, error/exit contract, committed golden or baseline changes are authorized.
 
