@@ -46,7 +46,7 @@ const (
 )
 
 // Suffixes are the file-name endings this plugin owns (NSA-V0-006).
-var Suffixes = []string{".sh", ".bash", ".zsh", ".ksh", ".bats"}
+var Suffixes = affected.ShellSuffixes
 
 // HiddenRoots are the hidden top-level directories whose shell files the
 // plugin indexes although the shared source walk skips every hidden
