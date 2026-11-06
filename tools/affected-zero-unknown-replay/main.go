@@ -411,7 +411,7 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 	if _, err := git(root, "clone", "--quiet", "--shared", "--no-checkout", rootAbs, scratch); err != nil {
 		return err
 	}
-	output := report{Profile: "affected-zero-unknown-replay/0", ImplementationSHA256: digest(implementation), FrozenListSHA256: digest(frozen), Through: tip, Accepted: true, Merges: []row{}}
+	output := report{Profile: "affected-zero-unknown-replay/0", ImplementationSHA256: digest(implementation), FrozenListSHA256: digest(frozen), Through: tip, Merges: []row{}}
 	if baseline != "" {
 		baseline, err = filepath.Abs(baseline)
 		if err != nil {
@@ -423,8 +423,37 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 		}
 		output.BaselineSHA256 = digest(body)
 	}
+	return replayRevisions(root, scratch, binary, baseline, out, safetyDir, refs, output)
+}
+
+// replayRevisions keeps intermediate and failed reports unaccepted. Only a
+// completed replay of every pinned revision may promote the aggregate result.
+func replayRevisions(root, scratch, binary, baseline, out, safetyDir string, refs []string, output report) (replayErr error) {
+	writeReport := func() error {
+		encoded, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(out, "report.json"), append(encoded, '\n'), 0600)
+	}
+	output.Accepted = false
+	if err := writeReport(); err != nil {
+		return err
+	}
+	var pending *row
+	defer func() {
+		if replayErr != nil && pending != nil {
+			pending.Safety.Detail = "replay incomplete: " + replayErr.Error()
+			output.Merges = append(output.Merges, *pending)
+			// Preserve the original replay error even if the report cannot be
+			// updated; the previously written report is already unaccepted.
+			_ = writeReport()
+		}
+	}()
+	qualified := len(refs) > 0
 	seen := map[string]bool{}
 	for _, ref := range refs {
+		pending = &row{Merge: ref, Unknown: []unknown{}, UnknownByReason: map[string]int{}, Safety: safetyResult{Status: "NOT_PRODUCED", Misses: []string{}}}
 		if len(ref) != 40 {
 			return fmt.Errorf("frozen merge must be full SHA: %s", ref)
 		}
@@ -441,6 +470,7 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 			return fmt.Errorf("not a pinned merge: %s", ref)
 		}
 		parent := fields[1]
+		pending.Parent = parent
 		if _, err := git(scratch, "checkout", "--quiet", "--detach", "--force", ref); err != nil {
 			return err
 		}
@@ -462,6 +492,7 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 		for _, s := range p.Selected {
 			r.Tests += len(s.Tests)
 		}
+		pending = &r
 		if baseline != "" {
 			b, _, err := readPlan(baseline, scratch, parent)
 			if err != nil {
@@ -493,14 +524,18 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 			r.Safety = safety(body, ref, parent, b, p, changedLines(diff))
 		}
 		if len(r.Unknown) > 0 || r.Safety.Status != "OBSERVED_NO_MISS" {
-			output.Accepted = false
+			qualified = false
 		}
 		output.Merges = append(output.Merges, r)
-		encoded, _ := json.MarshalIndent(output, "", "  ")
-		if err := os.WriteFile(filepath.Join(out, "report.json"), append(encoded, '\n'), 0600); err != nil {
+		pending = nil
+		if err := writeReport(); err != nil {
 			return err
 		}
 		fmt.Printf("merge=%s unknown=%d selected=%d tests=%d wallMs=%d safety=%s\n", ref, len(r.Unknown), r.Selected, r.Tests, r.WallMillis, r.Safety.Status)
+	}
+	output.Accepted = qualified
+	if err := writeReport(); err != nil {
+		return err
 	}
 	if !output.Accepted {
 		return errors.New("AZU-V0-009 NOT_ACCEPTED: unknowns or missing/failed safety evidence; see report.json")

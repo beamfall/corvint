@@ -4,6 +4,9 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -167,5 +170,101 @@ func TestFrozenMergePrefix_AZU_V0_8903(t *testing.T) {
 	altered[1] = strings.Repeat("0", 40)
 	if validFrozenPrefix(altered) {
 		t.Fatal("repointed frozen merge accepted")
+	}
+}
+
+// AZU-V0-009, AZU-V0-8903: one qualified merge cannot accept an incomplete
+// replay. Missing receipts and planning errors retain an explicit failed row.
+func TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture planner is a POSIX shell executable")
+	}
+	root := t.TempDir()
+	gitOK := func(args ...string) string {
+		t.Helper()
+		out, err := git(root, args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	write := func(path string, body []byte, mode os.FileMode) {
+		t.Helper()
+		if err := os.WriteFile(path, body, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitOK("init", "--initial-branch=main")
+	gitOK("config", "user.name", "Russell Lewis")
+	gitOK("config", "user.email", "me@russe11.com")
+	gitOK("commit", "--allow-empty", "-m", "root")
+	merge := func(branch string) string {
+		t.Helper()
+		gitOK("checkout", "-b", branch)
+		write(filepath.Join(root, "change.go"), []byte(branch+"\n"), 0600)
+		gitOK("add", "change.go")
+		gitOK("commit", "-m", branch)
+		gitOK("checkout", "main")
+		gitOK("merge", "--no-ff", "-m", "merge "+branch, branch)
+		return gitOK("rev-parse", "HEAD")
+	}
+	refs := []string{merge("first"), merge("second")}
+	scratch := filepath.Join(t.TempDir(), "clone")
+	if _, err := git(root, "clone", "--quiet", "--shared", "--no-checkout", root, scratch); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(t.TempDir(), "planner")
+	write(binary, []byte(`#!/bin/sh
+if [ -n "$REPLAY_FAIL_REV" ] && [ "$(git -C "$2" rev-parse HEAD)" = "$REPLAY_FAIL_REV" ]; then
+    exit 1
+fi
+printf '%s\n' '{"ok":true,"plan":{"selected":[{"unitId":"go:a","tests":["a_test.go"]}],"excluded":[{"unitId":"go:b"}],"unknown":[]}}'
+`), 0700)
+	safetyDir := t.TempDir()
+	writeReceipt := func(ref string) {
+		t.Helper()
+		r, _, _, _ := replayFixture()
+		r.Merge, r.Parent = ref, gitOK("rev-parse", ref+"^1")
+		r.ParentSuite.Revision, r.MergeSuite.Revision = r.Parent, r.Merge
+		r.Mutants[0].Path, r.Mutants[0].Line = "change.go", 1
+		body, err := json.Marshal(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(filepath.Join(safetyDir, ref+".json"), body, 0600)
+	}
+	writeReceipt(refs[0])
+	for _, kind := range []string{"missing-receipt", "planning-error", "complete"} {
+		t.Run(kind, func(t *testing.T) {
+			t.Setenv("REPLAY_FAIL_REV", "")
+			if kind == "planning-error" {
+				t.Setenv("REPLAY_FAIL_REV", refs[1])
+			}
+			if kind == "complete" {
+				writeReceipt(refs[1])
+			}
+			out := t.TempDir()
+			err := replayRevisions(root, scratch, binary, "", out, safetyDir, refs, report{Through: refs[1], Merges: []row{}})
+			body, readErr := os.ReadFile(filepath.Join(out, "report.json"))
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			var got report
+			if decodeErr := json.Unmarshal(body, &got); decodeErr != nil {
+				t.Fatal(decodeErr)
+			}
+			if len(got.Merges) != 2 || got.Merges[0].Safety.Status != "OBSERVED_NO_MISS" {
+				t.Fatalf("missing qualifying first merge or incomplete second row: %s", body)
+			}
+			if kind == "complete" {
+				if err != nil || !got.Accepted || got.Merges[1].Safety.Status != "OBSERVED_NO_MISS" {
+					t.Fatalf("complete replay not accepted: %v\n%s", err, body)
+				}
+				return
+			}
+			if err == nil || got.Accepted || got.Merges[1].Merge != refs[1] || got.Merges[1].Safety.Status != "NOT_PRODUCED" || !strings.Contains(got.Merges[1].Safety.Detail, "replay incomplete:") {
+				t.Fatalf("incomplete replay accepted or error lost: %v\n%s", err, body)
+			}
+		})
 	}
 }

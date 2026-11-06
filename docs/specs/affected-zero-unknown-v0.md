@@ -16,7 +16,7 @@ spec is at its OCM obligation limit, so these requirements take a new prefix.
 - Claim: every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.
 - Status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation); delivery experimental.
 - Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
-- Blocked on: aggregate sibling integration, empty unknown lists on every frozen merge, and historical full-suite/mutation receipts; lane verification also retains a whole-package latency failure and frozen receipt identity conflict.
+- Blocked on: aggregate sibling integration, empty unknown lists on every frozen merge, and historical full-suite/mutation receipts; lane verification retains sandbox CLI failures; the registered-driver assertion conflict is repaired without changing frozen receipts.
 - Read next: User and current state, then the requirement you are implementing.
 
 ## User and current state
@@ -29,13 +29,13 @@ exist; AZU-V0 is NOT_QUALIFIED.
 The merge-forward verifier repair restores the base's registered driver and historical
 namespace in default graph identities. Frozen strict/coverage receipts (AFU-V1-024) include
 both that namespace and observed driver units. Explicit optional driver sets retain
-AZU-V0-8905 absent-driver parity. The lane-only
-`TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002` instead requires Makefiles to
-remain unowned in default planning; it is retained unchanged and fails with the base's
-registered driver. Namespace-only registration still fails the frozen strict graph.
-AZU-V0-001/002 integration remains PARTIAL pending owner resolution of this incompatible
-assertion and frozen contract; neither may be weakened in this repair. AZU-V0-004/009
-aggregate qualification also retains the missing historical full-suite/mutation evidence.
+AZU-V0-8905 absent-driver parity. The self-review repair reconciles the lane-only
+`TestAffectedAuditDriverDoesNotChangeDefaultPlan_AZU_V0_002` with the accepted registered
+registry: a changed Makefile selects its driver target with BOUNDED scope. Frozen receipt
+assertions remain unchanged. Go raw-string directory joins also retain unknowns for
+undeclared callers, and partial replay reports remain unaccepted until every listed merge
+qualifies. AZU-V0-004/009 aggregate qualification still lacks historical full-suite/mutation
+evidence; CLI sandbox failures remain explicit verification limits.
 No observed graph vertex is hidden from a digest.
 
 The user is the engineer, agent or CI shard that runs only the tests a change can affect. A plan
@@ -308,12 +308,12 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | not yet |
-| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904` |
+| AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904` |
 | AZU-V0-005 | V1-4688 | not yet |
 | AZU-V0-006 | V1-4689 | not yet |
 | AZU-V0-007 | V1-4690 | not yet |
 | AZU-V0-008 | V1-4691 | not yet |
-| AZU-V0-009 | V1-4692 | replay tool and `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`; historical full-suite/mutation qualification remains NOT_PRODUCED |
+| AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903` and `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903`; historical full-suite/mutation qualification remains NOT_PRODUCED |
 | AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
 | AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
 | AZU-V0-9702 | PR #98 review | `TestDriverAlternativeMakeValues_AZU_V0_9702` |
