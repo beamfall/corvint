@@ -343,6 +343,8 @@ func TestTraversalJoinSuffixBounds_AZU_V0_8901(t *testing.T) {
 		`filepath.Join("scratch", up, "cmdline")`,
 		`filepath.Join("scratch", up, "run", name+(".json"))`,
 		`filepath.Join("scratch", up, "run", name+((".json")))`,
+		// A grouped choice before a suffix still always ends in that suffix.
+		`os.path.join("scratch", up, (name or "run") + ".json")`,
 	} {
 		if constructedForeignReference([]byte(expression), "run/run.sh") {
 			t.Fatalf("non-shell suffix matched: %s", expression)
@@ -350,7 +352,10 @@ func TestTraversalJoinSuffixBounds_AZU_V0_8901(t *testing.T) {
 	}
 	for _, tail := range []string{`name+".sh"`, `name+"sh"`, `name+"h"`, `name+".bash"`, `name+".zsh"`, `name+".ksh"`, `name+".bats"`, `name+".SH"`, `name+".sh. "`, `".."`, `"."`, `"data.json/.."`, `"data.json\\.."`, `name`,
 		// Grouped suffixes must be judged like bare ones (AZU-V0-8901 review P1).
-		`name+(".sh")`, `name + ((".sh"))`, `(name)+(".sh")`, `name+(".s"+"h")`, `name+("(" + ".sh")`} {
+		`name+(".sh")`, `name + ((".sh"))`, `(name)+(".sh")`, `name+(".s"+"h")`, `name+("(" + ".sh")`,
+		// A suffix on one branch of a conditional is not proven (AZU-V0-8901 review P1).
+		`(name if flag else name + ".json")`, `name if flag else name + ".json"`, `(flag ? name : name + ".json")`,
+		`name + (x if flag else ".json")`, `(name or name + ".json")`, `(flag && name + ".json")`} {
 		expression := `filepath.Join("scratch", up, "run", ` + tail + `)`
 		for _, script := range []string{"run/a.sh", "run/run.sh"} {
 			if !constructedForeignReference([]byte(expression), script) {

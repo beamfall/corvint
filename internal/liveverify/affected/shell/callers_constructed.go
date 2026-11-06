@@ -161,30 +161,57 @@ var foreignJoinWholeLiteral = regexp.MustCompile("^\\s*(?:\"(?:\\\\.|[^\"\\\\])*
 // name+".sh" or name+(".sh"), can itself carry ".." (name="../run/run"). A
 // bare identifier keeps the terminal-basename bound; a non-shell suffix is
 // excluded later.
+// An operand whose concatenation sits beside other structure, such as
+// (name if flag else name+".sh"), is treated as possibly traversing.
 func foreignJoinSuffixedDynamic(operand []byte) bool {
-	term, concatenated := foreignJoinFinalTerm(operand)
-	return concatenated && foreignJoinWholeLiteral.Match(term)
+	term, concatenated, proven := foreignJoinFinalTerm(operand)
+	return concatenated && (!proven || foreignJoinWholeLiteral.Match(term))
 }
 
 // foreignJoinFinalTerm returns the last top-level "+" term of operand with
 // grouping parentheses removed, descending into a grouped concatenation such
-// as (".s"+"h"), and reports whether any concatenation was crossed.
-func foreignJoinFinalTerm(operand []byte) ([]byte, bool) {
-	concatenated := false
+// as (".s"+"h"), and reports whether any concatenation was crossed. proven is
+// false when any level it crossed is not a plain "+" chain of simple terms:
+// in (name if flag else name+".json") or (flag ? name : name+".json") the
+// last term applies only on one branch, so it cannot prove the whole suffix.
+func foreignJoinFinalTerm(operand []byte) (term []byte, concatenated, proven bool) {
+	proven = true
 	for {
 		operand = foreignJoinUnparen(operand)
 		plus := -1
+		started, gap := false, false
 		foreignJoinScan(operand, func(i, depth int) bool {
-			if depth == 0 && operand[i] == '+' {
-				plus = i
+			c := operand[i]
+			if depth != 0 && !(depth == 1 && (c == '(' || c == '[' || c == '{')) {
+				return true // Inside a call or index argument.
+			}
+			switch {
+			case c == '+' && depth == 0:
+				plus, started, gap = i, false, false
+			case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+				gap = started
+			case foreignJoinSimpleTermByte(c):
+				if gap {
+					proven = false // Two words, such as "if flag" or "or name".
+				}
+				started = true
+			default:
+				proven = false // An operator other than "+", such as ?, :, | or %.
 			}
 			return true
 		})
 		if plus < 0 {
-			return operand, concatenated
+			return operand, concatenated, proven
 		}
 		operand, concatenated = operand[plus+1:], true
 	}
+}
+
+// foreignJoinSimpleTermByte reports whether c may appear unquoted at the top
+// level of one concatenation term: a name, selector, call or index.
+func foreignJoinSimpleTermByte(c byte) bool {
+	return c == '_' || c == '.' || c == '$' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
+		'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
 }
 
 // foreignJoinUnparen strips grouping parentheses that enclose a whole operand,
@@ -243,8 +270,8 @@ func foreignJoinScan(operand []byte, visit func(i, depth int) bool) {
 // an earlier traversal. Check every supported shell suffix, keeping this proof
 // independent of the callee basename for the directory-level match cache.
 func foreignJoinNonShellTail(operand []byte) bool {
-	term, _ := foreignJoinFinalTerm(operand)
-	if !foreignJoinWholeLiteral.Match(term) {
+	term, _, proven := foreignJoinFinalTerm(operand)
+	if !proven || !foreignJoinWholeLiteral.Match(term) {
 		return false
 	}
 	value, ok := foreignJoinString(string(bytes.TrimSpace(term)))
