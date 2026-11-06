@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -16,8 +17,9 @@ import (
 // The normal-build ratchet is intentionally excluded from -race: race
 // instrumentation changes every allocation and is not performance evidence.
 // Allocation caps are causal against the restored decoder. The 2x latency
-// guard pairs and alternates calls so host load cannot bias disjoint windows;
-// it remains deliberately non-promotional because host scheduling is noisy.
+// guard pairs and alternates calls so host load cannot bias disjoint windows,
+// and compares per-call medians so one descheduled call cannot dominate a
+// side; it remains deliberately non-promotional because host scheduling is noisy.
 func TestRepresentativeAllocationRatchetAndRestoredDecoder(t *testing.T) {
 	previous := runtime.GOMAXPROCS(1)
 	defer runtime.GOMAXPROCS(previous)
@@ -42,7 +44,7 @@ func TestRepresentativeAllocationRatchetAndRestoredDecoder(t *testing.T) {
 		t.Fatalf("candidate decoder did not beat restored decoder: candidate=%d B/op %d allocs/op restored=%d B/op %d allocs/op", candidate.AllocedBytesPerOp(), candidate.AllocsPerOp(), restored.AllocedBytesPerOp(), restored.AllocsPerOp())
 	}
 	candidateLatency, restoredLatency := pairedDecodeLatency(t, request, 512)
-	t.Logf("paired candidate=%s restored=%s", candidateLatency, restoredLatency)
+	t.Logf("paired median candidate=%s restored=%s", candidateLatency, restoredLatency)
 	if candidateLatency > restoredLatency*2 {
 		t.Fatalf("candidate latency regression: candidate=%s restored=%s", candidateLatency, restoredLatency)
 	}
@@ -54,19 +56,24 @@ func TestRepresentativeAllocationRatchetAndRestoredDecoder(t *testing.T) {
 	}
 }
 
+// pairedDecodeLatency returns each decoder's median per-call latency. A sum
+// let a single sub-millisecond call that the host descheduled for hundreds of
+// milliseconds decide the whole comparison (V1-4761).
 func pairedDecodeLatency(t *testing.T, request Request, pairs int) (time.Duration, time.Duration) {
 	t.Helper()
-	var candidate, restored time.Duration
+	candidate, restored := make([]time.Duration, 0, pairs), make([]time.Duration, 0, pairs)
 	for index := 0; index < pairs; index++ {
 		if index%2 == 0 {
-			candidate += measuredDecode(t, request, decode)
-			restored += measuredDecode(t, request, restoredDecode)
+			candidate = append(candidate, measuredDecode(t, request, decode))
+			restored = append(restored, measuredDecode(t, request, restoredDecode))
 			continue
 		}
-		restored += measuredDecode(t, request, restoredDecode)
-		candidate += measuredDecode(t, request, decode)
+		restored = append(restored, measuredDecode(t, request, restoredDecode))
+		candidate = append(candidate, measuredDecode(t, request, decode))
 	}
-	return candidate, restored
+	slices.Sort(candidate)
+	slices.Sort(restored)
+	return candidate[pairs/2], restored[pairs/2]
 }
 
 func measuredDecode(t *testing.T, request Request, decoder func(Request) ([][]byte, string)) time.Duration {
