@@ -3,6 +3,7 @@
 package supervisor
 
 import (
+	"fmt"
 	"syscall"
 	"testing"
 	"time"
@@ -56,5 +57,31 @@ func TestCALV0086_DrainWaitsOutUnprovableGroupProbe(t *testing.T) {
 	g.exists = func(int) (bool, error) { return true, syscall.EPERM }
 	if g.drain() {
 		t.Fatal("a group that never stops answering EPERM was counted gone")
+	}
+}
+
+// TestCALV0086_DrainDecidesAtGroupBoundaryAfterAnchorReaped: a leader
+// reaped between the group inventory's listing and its identity read fails
+// the observation and leaves no anchor. The drain then decides at the kernel
+// group boundary: a group proved gone is clean, as a stop observed a moment
+// later would be, while a group that remains stays uncertain (V1-4782).
+func TestCALV0086_DrainDecidesAtGroupBoundaryAfterAnchorReaped(t *testing.T) {
+	for _, remains := range []bool{false, true} {
+		reaped := false
+		g := &ownedGroup{group: 12, members: map[int]string{12: "owned"}, groupOf: func(int) (int, error) { return 12, nil }, signal: func(map[int]string, syscall.Signal) error { t.Fatal("signalled a group without an anchor"); return nil }}
+		g.identity = func(int) (string, error) {
+			if reaped {
+				return "", nil
+			}
+			return "owned", nil
+		}
+		g.inventory = func(int) (map[int]string, error) {
+			reaped = true
+			return nil, fmt.Errorf("group member changed during identity observation")
+		}
+		g.exists = func(int) (bool, error) { return !reaped || remains, nil }
+		if clean := g.drain(); clean == remains {
+			t.Fatalf("remaining group %v: drain clean %v", remains, clean)
+		}
 	}
 }

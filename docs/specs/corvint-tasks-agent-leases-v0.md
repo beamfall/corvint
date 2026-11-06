@@ -3162,7 +3162,10 @@ failed unlocked program read. That read had raced a concurrent writer's journal 
   recorded `UNKNOWN`, and the owner stays unreleased. Such a stage MUST NOT journal `FINISHED`, and a
   role MUST NOT go on to gates, `READY` or integration after it. The drain MUST treat `EPERM` from the process-group
   probe as neither gone nor observable. It re-probes until the group is proved gone (`ESRCH`) or the drain deadline passes,
-  and it never signals on, or counts as gone, an `EPERM` answer. The stage watcher MUST tolerate
+  and it never signals on, or counts as gone, an `EPERM` answer. An observation that fails because
+  its anchor was reaped between the group inventory and its identity read is likewise decided at the
+  group boundary: clean once the group is proved gone (`ESRCH`), uncertain while it remains
+  (V1-4782). The stage watcher MUST tolerate
   failing unlocked program reads for at most 30 seconds of continuous failure before it stops the
   stage, and a successful read resets that window. A heartbeat refusal still stops the stage at once.
 
