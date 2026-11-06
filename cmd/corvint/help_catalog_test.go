@@ -196,11 +196,14 @@ func TestCAPV0950HelpJSONCommandSlice(t *testing.T) {
 	t.Parallel()
 	catalog := runCatalogHelp(t, "help", "--json")
 	for _, command := range topLevelCommands {
-		slice := runCatalogHelp(t, "help", "--json", command)
-		want, _, ok := capcatalog.Slice([]byte(catalog), command)
-		if !ok || slice != string(want) || len(slice) >= 5*1024 {
-			t.Fatalf("help --json %s: %d bytes, equal to the catalog slice %v", command, len(slice), slice == string(want))
-		}
+		t.Run(command, func(t *testing.T) {
+			t.Parallel()
+			slice := runCatalogHelp(t, "help", "--json", command)
+			want, _, ok := capcatalog.Slice([]byte(catalog), command)
+			if !ok || slice != string(want) || len(slice) >= 5*1024 {
+				t.Fatalf("help --json %s: %d bytes, equal to the catalog slice %v", command, len(slice), slice == string(want))
+			}
+		})
 	}
 	var stdout, stderr bytes.Buffer
 	if code := runContext(context.Background(), []string{"help", "--json", "nope"}, strings.NewReader(""), &stdout, &stderr); code != 2 ||

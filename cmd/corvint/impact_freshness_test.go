@@ -28,6 +28,7 @@ func runFreshnessImpact(t *testing.T, root string, args ...string) (map[string]a
 
 // DIRTY-CACHE-014: staged, unstaged and untracked status never changes read authority.
 func TestImpactMixedCLIReadOnly(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"unstaged", "staged", "untracked"} {
 		t.Run(kind, func(t *testing.T) {
 			root := impactCLIRepository(t)
@@ -56,6 +57,7 @@ func TestImpactMixedCLIReadOnly(t *testing.T) {
 }
 
 func TestImpactRequireCleanCLI(t *testing.T) {
+	t.Parallel()
 	root := impactCLIRepository(t)
 	_, ordinary := runFreshnessImpact(t, root, "pkg/main.go")
 	_, strict := runFreshnessImpact(t, root, "--require-clean", "pkg/main.go")
@@ -90,6 +92,7 @@ func TestImpactRequireCleanCLI(t *testing.T) {
 }
 
 func TestImpactRequireCleanArguments(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"--require-clean=true", "pkg/main.go"},
 		{"--require-clean", "--require-clean", "pkg/main.go"},
@@ -108,6 +111,7 @@ func TestImpactRequireCleanArguments(t *testing.T) {
 // V1-1141: prove embeds ordinary impact and has no strict abstention form, so
 // it refuses --require-clean instead of ignoring it.
 func TestProveRefusesRequireClean(t *testing.T) {
+	t.Parallel()
 	root := impactCLIRepository(t)
 	var stdout, stderr bytes.Buffer
 	if exit := run([]string{"--root", root, "prove", "pkg/main.go", "--require-clean"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "prove does not support --require-clean") {
@@ -118,6 +122,7 @@ func TestProveRefusesRequireClean(t *testing.T) {
 // DIRTY-CACHE-017: Tasks store projection dirt alone is source-clean, so
 // impact neither warns nor abstains under --require-clean, and stays read-only.
 func TestImpactTaskStoreProjectionDirtIsSourceCleanCLI(t *testing.T) {
+	t.Parallel()
 	root := impactCLIRepository(t)
 	if err := os.MkdirAll(filepath.Join(root, ".taskman", "tickets"), 0755); err != nil {
 		t.Fatal(err)
@@ -151,6 +156,7 @@ func TestImpactTaskStoreProjectionDirtIsSourceCleanCLI(t *testing.T) {
 // DIRTY-CACHE-017: a committed projection file is never indexed evidence, so a
 // modified tracked `.taskman/queue.json` cannot be served as fresh evidence.
 func TestImpactTrackedTaskStoreProjectionIsNotEvidence(t *testing.T) {
+	t.Parallel()
 	root := impactCLIRepository(t)
 	queue := filepath.Join(root, ".taskman", "queue.json")
 	if err := os.MkdirAll(filepath.Dir(queue), 0o755); err != nil {
