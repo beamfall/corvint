@@ -965,7 +965,10 @@ instead of JSON: "affected <summary.line> worktree=N revision=SHA [base=SHA]", a
 "selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]" line per selection,
 one "unknown REASON DETAIL [hint TEXT]" line per plan unknown, the exclusion
 count and digest, and one "check KIND COMMAND" line per advice check with the
-advisory packages appended. It cannot be combined with --full or
+advisory packages appended. UNOWNED_DIRTY_PATH lines also name the runtime/test,
+documentation and output declaration files, including for committed content-only
+edits in repositories without the ownership ratchet (AZU-V0-9901).
+It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
