@@ -1043,6 +1043,7 @@
     "closableToday": false,
     "implementation": [
       "internal/breakagemap",
+      "internal/command/breakage",
       "cmd/corvint/breakage.go"
     ]
   },
