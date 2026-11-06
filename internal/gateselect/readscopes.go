@@ -471,7 +471,10 @@ func baseFixtureModule(listed map[string]bool, directory string) bool {
 // walkedDirectory reports whether the observer's walk descends into
 // directory: no component is hidden or skipped.
 func walkedDirectory(directory string) bool {
-	for _, name := range strings.Split(directory, "/") {
+	for index, name := range strings.Split(directory, "/") {
+		if index == 0 && name == ".github" { // AZU-V0-9920 indexes root CI helpers.
+			continue
+		}
 		if strings.HasPrefix(name, ".") || skippedDirectories[name] {
 			return false
 		}

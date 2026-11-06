@@ -206,7 +206,7 @@ func (index *repositoryIndex) enterDirectory(root, relative string) error {
 	if relative == "" {
 		return nil
 	}
-	if hiddenDirectory(path.Base(relative)) {
+	if hiddenDirectory(relative) {
 		return filepath.SkipDir
 	}
 	if exists(filepath.Join(root, relative, "go.mod")) {
