@@ -60,7 +60,7 @@ pi-protected-test: pi-protected-build
 # One step per line (V1-3470, STR-V0-920): the first five run first in this order; the rest
 # stay sorted, so lanes adding different steps insert at different lines and merge cleanly.
 GATE_STEPS = \
-  host-adapter-test \
+  host-adapter-node-test \
   go-version \
   go-test \
   go-vet \
@@ -141,7 +141,13 @@ GATE_STEPS = \
   walk-skipdir-check \
   # end of GATE_STEPS: add a step above, in sorted order, ending its line with a backslash
 .PHONY: gate
+# Mandatory even when a caller supplied an empty value; inherited by every sub-make.
+gate: override CORVINT_REQUIRE_NODE = 1
+# Recursive make otherwise replays a caller's empty command-line assignment.
+gate: override MAKEOVERRIDES += CORVINT_REQUIRE_NODE=1
+export CORVINT_REQUIRE_NODE
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS)) ## Run the exhaustive repository gate (heavy)
+	@command -v node >/dev/null 2>&1 || { echo "gate: required node is not on PATH" >&2; exit 1; }
 	@script/gate-receipt record
 
 # GOC-V0-010: when gate is a goal, every step waits for the clear to finish, so under `make -j`
