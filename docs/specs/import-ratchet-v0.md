@@ -44,7 +44,8 @@ current wrong-way set and lets it only shrink. The only existing direction check
   touching the network. A file counts when `go/build` constraint matching selects it for any of
   linux/amd64, darwin/arm64 or windows/amd64 (cgo off). Packages are those `go list ./...` walks
   (hidden, underscore, `testdata`, `vendor` and nested-module directories are skipped) plus any
-  module package they import, transitively, as `-deps` adds. Unlike `go list`, the walk also
+  module package they import, transitively, as `-deps` adds. The module root package, when it
+  exists, is the node `.`, and an import of the bare module path names it. Unlike `go list`, the walk also
   skips `node_modules` directories, so an installed JavaScript dependency tree (such as
   `tools/web-flows/node_modules`) is never read; a Go package placed under a `node_modules`
   directory is outside the graph unless a walked package imports it.
@@ -89,7 +90,7 @@ reviewed change.
 |---|---|
 | IRT-V0-001 | `TestCheckRefusesManifestGaps`; `TestImportRatchet` (strict decode, all packages mapped) |
 | IRT-V0-002 | `TestCheckAcceptsTheBaselinedGraph`, `TestCheckNamesNewWrongWayEdges` (peer-layer edge) |
-| IRT-V0-003 | `TestScanModuleFollowsGoListRules`; under the panel's original area assignment the scanner's 78-edge set equals the panel's `go list -deps -json ./...` computation exactly, and the five-package reassignment removes exactly the eight listed edges (none added) |
+| IRT-V0-003 | `TestScanModuleFollowsGoListRules` and `TestScanModuleRootPackage` (root package edges in both directions); under the panel's original area assignment the scanner's 78-edge set equals the panel's `go list -deps -json ./...` computation exactly, and the five-package reassignment removes exactly the eight listed edges (none added) |
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
 | IRT-V0-005 | `TestImportRatchet` controls |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages) |
