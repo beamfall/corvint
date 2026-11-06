@@ -67,6 +67,7 @@ func guidanceRead(t *testing.T, root, command, base string) (guidanceReceipt, []
 }
 
 func TestRepositoryGuidanceImmutableDiscovery(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-003 immutable evidence", func(t *testing.T) {
 		t.Run("RGV-V0-005 overview composition", func(t *testing.T) {
 			t.Run("RGV-V0-012 deterministic nonmutation", func(t *testing.T) {
@@ -119,6 +120,7 @@ func TestRepositoryGuidanceImmutableDiscovery(t *testing.T) {
 }
 
 func TestRepositoryGuidanceReviewBranches(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-007 affected composition", func(t *testing.T) {
 		t.Run("RGV-V0-009 ancestry exclusions", func(t *testing.T) {
 			root, base := guidanceFixture(t)
@@ -181,6 +183,7 @@ func TestRepositoryGuidanceReviewBranches(t *testing.T) {
 }
 
 func TestRepositoryGuidanceRefBoundsAndDrift(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-008 ref capture and drift", func(t *testing.T) {
 		t.Run("RGV-V0-010 bounded branch paths", func(t *testing.T) {
 			root, base := guidanceFixture(t)
@@ -211,6 +214,7 @@ func TestRepositoryGuidanceRefBoundsAndDrift(t *testing.T) {
 }
 
 func TestRepositoryGuidanceRefusalsDoNotObserve(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-002 clean read-only refusal", func(t *testing.T) {
 		root, base := guidanceFixture(t)
 		guidanceWrite(t, root, "go.mod", "module example.test/dirty\n")
@@ -229,6 +233,7 @@ func TestRepositoryGuidanceRefusalsDoNotObserve(t *testing.T) {
 }
 
 func TestRepositoryGuidanceAncestryTrustAndDeadline(t *testing.T) {
+	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceWrite(t, root, ".git/info/grafts", base+"\n")
 	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, nil); err == nil {
@@ -250,6 +255,7 @@ func guidanceGit(t *testing.T, root string, args ...string) string {
 }
 
 func TestRepositoryGuidanceCandidateAndOverlapBounds(t *testing.T) {
+	t.Parallel()
 	root, base := guidanceFixture(t)
 	var markers strings.Builder
 	for i := 0; i < 300; i++ {
@@ -295,6 +301,7 @@ func TestRepositoryGuidanceCandidateAndOverlapBounds(t *testing.T) {
 }
 
 func TestRepositoryGuidanceCLIAndLiteralRegistration(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-001 public dispatch", func(t *testing.T) {
 		t.Run("RGV-V0-004 literal registrations", func(t *testing.T) {
 			t.Run("RGV-V0-006 inert calls", func(t *testing.T) {
@@ -321,6 +328,7 @@ func TestRepositoryGuidanceCLIAndLiteralRegistration(t *testing.T) {
 }
 
 func TestRepositoryGuidanceCurrentRefDrift(t *testing.T) {
+	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceGit(t, root, "branch", "same-tip")
 	_, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, func() { guidanceGit(t, root, "checkout", "-q", "same-tip") })
@@ -330,6 +338,7 @@ func TestRepositoryGuidanceCurrentRefDrift(t *testing.T) {
 }
 
 func TestRepositoryGuidanceCurrentRefExcludedBeforeBudget(t *testing.T) {
+	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceGit(t, root, "branch", "aaa")
 	guidanceGit(t, root, "branch", "bbb")
@@ -350,6 +359,7 @@ func TestRepositoryGuidanceCurrentRefExcludedBeforeBudget(t *testing.T) {
 }
 
 func TestRepositoryGuidanceCleanupFailureRefuses(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-011 cleanup failure refuses success", func(t *testing.T) {
 		root, base := guidanceFixture(t)
 		before := treeDigest(t, root)
@@ -385,6 +395,7 @@ func TestRepositoryGuidanceCleanupFailureRefuses(t *testing.T) {
 }
 
 func TestRepositoryGuidanceDeletedFeatureIsExplicitUnknown(t *testing.T) {
+	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceGit(t, root, "rm", "web/e2e/greeting.spec.ts")
 	guidanceGit(t, root, "commit", "-qm", "delete scenario")
@@ -398,6 +409,7 @@ func TestRepositoryGuidanceDeletedFeatureIsExplicitUnknown(t *testing.T) {
 }
 
 func TestRepositoryGuidanceEmptyOverviewFieldsRemainExplicit(t *testing.T) {
+	t.Parallel()
 	root, _ := guidanceFixture(t)
 	guidanceGit(t, root, "rm", "-r", "cmd", "web", "go.mod", "package.json")
 	guidanceGit(t, root, "commit", "-qm", "empty overview")
@@ -410,6 +422,7 @@ func TestRepositoryGuidanceEmptyOverviewFieldsRemainExplicit(t *testing.T) {
 }
 
 func TestRepositoryGuidancePrivateStatusBudget(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-011 private Git status budget", func(t *testing.T) {
 		t.Run("RGV-V0-010 bounded public output", func(t *testing.T) {
 			root, base := guidanceFixture(t)
@@ -463,6 +476,7 @@ func guidanceOverCapFixture(t *testing.T) (string, string) {
 }
 
 func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
+	t.Parallel()
 	t.Run("RGV-V0-013 over-cap inventory uses the standalone affected path", func(t *testing.T) {
 		root, base := guidanceOverCapFixture(t)
 		before := treeDigest(t, root)
@@ -521,6 +535,7 @@ func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
 // read-scope declaration selects only that key's package by declaration, and
 // review.affected stays the affected-plan/1 projection of the standalone plan.
 func TestRepositoryGuidanceSnapshotPlanSharesTheAffectedTail_AFPV0930(t *testing.T) {
+	t.Parallel()
 	root, _ := guidanceFixture(t)
 	scopes := func(lib string) string {
 		return `{"profile":"corvint-test-read-scopes/0","packages":{"cmd/demo":["docs/"],"lib":["` + lib + `"]}}` + "\n"
@@ -612,6 +627,7 @@ func affectedChecksOf(checks []affectedCompactCheck) []affectedCheck {
 // plans the same tree with that path dirty instead of refusing, while review and
 // a tracked change still refuse.
 func TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed(t *testing.T) {
+	t.Parallel()
 	root, base := guidanceFixture(t)
 	guidanceWrite(t, root, ".claude/settings.local.json", "{}\n")
 	for _, command := range []string{"overview", "features"} {
@@ -645,6 +661,7 @@ func TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed(t *testing.T) {
 // RGV-V0-956 (V1-3532): a features label that is a canonical feature ID carries
 // featureId and an inert featureCall, and that call is answered by `corvint feature`.
 func TestRepositoryGuidanceFeaturesRoundTripToFeature(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "test@example.test"}, {"config", "user.name", "Test"}} {
 		guidanceGit(t, root, args...)

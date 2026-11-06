@@ -58,7 +58,7 @@ func transportBuild(t *testing.T, path string, args ...string) {
 		t.Fatal(err)
 	}
 	command := exec.Command("go", append(append([]string{"build"}, args...), "-buildvcs=false", "-o", path, ".")...)
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(os.TempDir(), "corvint-go-build-cache"))
+	command.Env = workBuildEnvironment()
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build %s: %v %s", path, err, output)
 	}
