@@ -44,3 +44,10 @@ func cleanupContainedCommand(command *exec.Cmd, deadline time.Duration) error {
 	}
 	return errors.New("owned subprocess group did not quiesce")
 }
+
+// Loose builds and smoke executions need the same descendant ownership when
+// target workers cancel speculative work.
+func configureLooseCommand(command *exec.Cmd) error { return configureContainedCommand(command) }
+func cleanupLooseCommand(command *exec.Cmd) error {
+	return cleanupContainedCommand(command, time.Second)
+}

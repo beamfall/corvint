@@ -7,7 +7,6 @@ conformance/cli-parity-v0/README.md	conformance/cli-parity-v0/runner.go:176-218
 conformance/cli-parity-v0/README.md	conformance/cli-parity-v0/runner.go:459-498
 conformance/cli-parity-v0/README.md	conformance/cli-parity-v0/runner.go:99-136
 conformance/cli-parity-v0/README.md	docs/specs/lexical-relevance-floor-v0.md:314-320
-docs/DOGFOOD.md	conformance/release-artifact-v0/archive_run.go:422-424
 docs/DOGFOOD.md	internal/cem/wire/canonical.go:68-79
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:103
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:422
@@ -211,7 +210,6 @@ docs/specs/genesis-backfill.md	internal/genesis/inventory.go:58
 docs/specs/go-archive-gate-v0.md	conformance/release-artifact-v0/archive_cli.go:29
 docs/specs/go-archive-gate-v0.md	conformance/release-artifact-v0/archive_cli.go:29
 docs/specs/go-archive-gate-v0.md	conformance/release-artifact-v0/archive_gate_test.go:206
-docs/specs/go-archive-gate-v0.md	conformance/release-artifact-v0/archive_run.go:422
 docs/specs/go-archive-gate-v0.md	script/go-archive-gate:35
 docs/specs/go-archive-gate-v0.md	script/go-archive-gate:35
 docs/specs/go-archive-gate-v0.md	script/go-archive-gate:36
@@ -599,7 +597,6 @@ docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:205
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:207
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:23
 docs/specs/qualified-lifecycle-v0.md	cmd/corvint/qualified_lifecycle.go:95
-docs/specs/release-artifact-integrity-v0.md	conformance/release-artifact-v0/archive_run.go:422
 docs/specs/scope-lease-v0.md	internal/scopelease/lease.go:247
 docs/specs/scope-lease-v0.md	internal/scopelease/lease.go:329
 docs/specs/snapshot-batch-v0.md	cmd/corvint/batch.go:291-292

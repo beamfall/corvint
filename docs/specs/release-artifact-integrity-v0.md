@@ -310,7 +310,7 @@ recorded by the current assessment; that evidence is not a legal conclusion or r
   `false`, so no such path is disjoint from the gated binary. Failure modes: any listed untracked
   path fails the loose gate as `dirty-worktree`. It fails the archive builder as `git-state-invalid`
   ("worktree is not clean"), and, when it appears after capture, as `git-state-changed`
-  (`conformance/release-artifact-v0/archive_run.go:422`). A path excluded by ignore rules is never
+  (`conformance/release-artifact-v0/archive_run.go:471@f0223702`). A path excluded by ignore rules is never
   listed, leaves the stamp `false`, and does not refuse.
 
 Acceptance requires adversarial fixtures for every forbidden member/container form, notice or

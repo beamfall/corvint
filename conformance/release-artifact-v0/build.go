@@ -49,10 +49,15 @@ func buildOnce(ctx context.Context, root string, manifest Manifest, target Targe
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	command.Stdout = io.Discard
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
+	if err := configureLooseCommand(command); err != nil {
+		return err
 	}
-	return nil
+	runErr := command.Run()
+	cleanupErr := cleanupLooseCommand(command)
+	if runErr != nil {
+		return fmt.Errorf("%w: %s", runErr, strings.TrimSpace(stderr.String()))
+	}
+	return cleanupErr
 }
 
 // buildEnvironment is a closed allowlist. An inherited GOFLAGS, GOPROXY, or

@@ -109,7 +109,7 @@ On the fresh-clone question that `decision-number-gate-v0.md` pins: this script 
 worktree-enumeration defect. It passes `--revision HEAD` and derives `HEAD^{commit}` and
 `HEAD^{tree}` from Git, so it builds and verifies committed content. An uncommitted change does not
 pass silently either: the delegated `archive` command refuses unless `git status --porcelain
---untracked-files=all` is empty (`conformance/release-artifact-v0/archive_run.go:422`), so any
+--untracked-files=all` is empty (`conformance/release-artifact-v0/archive_run.go:471@f0223702`), so any
 staged, unstaged, or untracked change fails this gate until it is committed or removed.
 
 GAG-V0-007 requires that a witness the current run did not record cannot satisfy the status check.
@@ -167,6 +167,33 @@ its witness write fails, was not taken: it changes the release command that
   summary line, and a PASS bound to another commit, tree or target count MUST name that verdict and
   binding, so the cause is never swallowed by the generic summary. `make batch-precheck` checks the
   legal-file pins before CI (`ASD-V0-073`).
+
+- `GAG-V0-9960`: (accepted under the owner's standing auto-accept (2026-11-06); V1-4733)
+  The delegated loose and archive phases MUST build independent manifest targets with a bounded
+  worker pool. The default worker count is `max(1, min(runtime.NumCPU(), target count))`.
+  `CORVINT_ARCHIVE_WORKERS` overrides it with a positive decimal integer, clamped to the target
+  count; absent, zero, negative, malformed or overflowing values use the default. The setting
+  controls scheduling only and MUST NOT enter either build's closed environment or alter flags.
+- `GAG-V0-9961`: (accepted under the owner's standing auto-accept (2026-11-06); V1-4733)
+  Parallel completion MUST preserve manifest report order, checksum order, failure classification,
+  target IDs and existing summary/error text. On a terminal target error the collector MUST return
+  the lowest-index failing target, with exactly the serial report prefix; it MUST allow lower
+  indices to finish rather than replacing their result with cancellation. The loose gate's existing
+  nonterminal report findings still collect across all targets, in manifest order.
+- `GAG-V0-9962`: (accepted under the owner's standing auto-accept (2026-11-06); V1-4733)
+  A terminal target error MUST immediately cancel higher-index in-flight work and prevent dispatch
+  beyond the earliest known failure. Parent cancellation MUST reach active workers. Every worker
+  and owned subprocess group on qualified Unix archive hosts MUST quiesce before collection returns
+  and scratch cleanup runs. Speculative loose suffix binaries, caches and temporary directories
+  MUST be removed after a terminal error. No archive candidate may be retained on failure.
+- `GAG-V0-9963`: (accepted under the owner's standing auto-accept (2026-11-06); V1-4733)
+  Scheduling MUST preserve the loose gate plus the two independent raw-commit archive builds,
+  separate cold caches, private indexes and temporary/assembly directories required by
+  `ARTIFACT-GO-V0-001`, `ARTIFACT-GO-V0-003`, `ARTIFACT-GO-V0-005` and `ARTIFACT-GO-V0-007`.
+  Exported source metadata MUST be initialized before parallel readers start and remain immutable
+  during their builds. Live-root loose outputs MUST NOT replace raw-export builds: ignored source
+  can change the former without changing the commit/tree. All clean-state rechecks, offline
+  verification, byte comparisons, closed-set checks and same-run witness checks remain mandatory.
 
 ## Non-goals and simpler baseline
 
@@ -275,6 +302,11 @@ has Go tests; those cover the command, not this wrapper.
 | GAG-V0-007 | the pre-build `rm -f "$witness"` at `script/go-archive-gate:35` and the `archive-status --witness --revision --tree` invocation with its `PASS` comparison; `conformance/release-artifact-v0/archive_witness.go` writes the witness | `script/go-archive-gate_test.sh` cases 2 and 3b: an unrecorded witness, a recorded non-`PASS` verdict, and a witness bound to another revision each fail |
 | GAG-V0-008 | the `Makefile` `go-archive-gate` target and its listing in the `gate` target | `make gate` membership; PASS at `c937bc669f47d9df1feb8cd0e2bcd43d53fc2201` on 2026-09-12 (exit 0, 291s) with the pinned toolchain first on `PATH` |
 | GAG-V0-009 | `looseGateFailure` in `conformance/release-artifact-v0/archive_run.go` | `TestGAGV0009LooseGateFailureNamesItsFailLines`: a legal-file-altered and a targeted legal-file-missing reason each appear as a FAIL line after the summary, and a mis-bound PASS names its verdict and commit |
+| GAG-V0-9960 | `TestTargetWorkersBoundedOverlap`, `TestTargetWorkerOverride`, `TestTargetWorkersEmpty` in `conformance/release-artifact-v0/target_workers_test.go` |
+| GAG-V0-9961 | `TestParallelLooseReportMatchesSerial`, `TestParallelArchiveFailureMatchesSerial`, `TestParallelArchiveSuccessMatchesSerial` in `conformance/release-artifact-v0/target_workers_test.go` |
+| GAG-V0-9962 | `TestTargetWorkersCancelOnlySuffixAndJoin`, `TestTargetWorkersParentCancellation` in `conformance/release-artifact-v0/target_workers_test.go`; `TestParallelLooseCancellationReapsBuildAndRemovesSuffix` in `conformance/release-artifact-v0/target_workers_posix_test.go`; existing `TestBuildArchivesCancellationRemovesScratchStageAndOutput` in `conformance/release-artifact-v0/archive_gate_test.go` |
+| GAG-V0-9963 | existing `TestArchiveBuildPathsProveSeparateColdInputs`, `TestFinalGitRecheckRejectsDirtyStagedUntrackedAndHeadMovement` in `conformance/release-artifact-v0/archive_gate_test.go`; `TestIgnoredLiveSourcePassesLooseGateButArchiveBindingRefuses` in `conformance/release-artifact-v0/loose_gate_ignored_source_test.go`; real before/after gate evidence in `docs/build-log/2026-11-05-archive-gate-parallel.md` |
+
 
 ## Rollout, rollback, and drift
 

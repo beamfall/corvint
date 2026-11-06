@@ -131,10 +131,15 @@ func runCaptured(ctx context.Context, binary string, arguments ...string) (strin
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &stderr
-	if err := command.Run(); err != nil {
-		return stdout.String() + stderr.String(), err
+	if err := configureLooseCommand(command); err != nil {
+		return "", err
 	}
-	return stdout.String(), nil
+	runErr := command.Run()
+	cleanupErr := cleanupLooseCommand(command)
+	if runErr != nil {
+		return stdout.String() + stderr.String(), runErr
+	}
+	return stdout.String(), cleanupErr
 }
 
 func truncate(value string) string {

@@ -65,6 +65,16 @@ name by a manifest edit.
 
 ## Run
 
+Both the loose gate and archive phase build independent targets concurrently. The default
+worker count is the smaller of `runtime.NumCPU()` and the target count (at least one).
+Set `CORVINT_ARCHIVE_WORKERS=1` for serial scheduling, or another positive integer to bound
+concurrency; values above the target count are clamped, and invalid values use the default.
+For example, `CORVINT_ARCHIVE_WORKERS=2 make go-archive-gate` uses two target workers in each
+phase. This setting never enters the closed build environment. Each target still has two
+cold-cache loose builds plus two separate raw-commit archive builds and two assemblies.
+Reports and terminal failures retain manifest order; later work is canceled and joined
+when an earlier target fails. Loose report-level findings still collect across all targets.
+
 The output directory must be outside the repository; the gate refuses an in-repository output so a
 run can never leave a binary where it could be committed.
 
