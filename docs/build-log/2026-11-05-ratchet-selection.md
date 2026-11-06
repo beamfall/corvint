@@ -76,7 +76,7 @@ At the same historical tree, append only a newline to existing
 Both stdout (11,810 bytes) and stderr (3,832 bytes) compare byte for byte with `cmp`:
 stdout SHA-256 `e9481057602f43510baec8f81bacd99eef88596a10652f58d5db435350948900`,
 stderr SHA-256 `e9668b91625de6bc1f0e9cdf601b64c6abb67cefc4a59914373536f5f27f6d5f`.
-A final-tree binary reproduced both the replay receipts and this content-only comparison byte for byte after the final code edits. No committed golden, JSON shape, field name, error/exit contract or core-freeze output changes.
+A final-tree binary reproduced both the replay receipts and this content-only comparison byte for byte after the final code edits. No committed golden, JSON shape, field name or error/exit contract was edited. The required committed-path hints do change the affected core-freeze receipts: the final complete CLI run fails `TestCoreVerbsEmitTheFrozenProfiles/affected_full_committed_range` and `/affected_committed_range` because `plan.unknown[0..2].hint` is absent from their goldens. Golden updates are expressly prohibited by this lane charter. V1-4729 remains PARTIAL pending owner resolution of that frozen-contract conflict; the content-only dry-run comparison above still passes.
 The two moved documentation citations retain their original content hashes after repinning.
 
 The first complete affected-package run failed only the existing incremental live-budget test:
@@ -85,7 +85,7 @@ The new closure helper unnecessarily built a Go-package directory map on ordinar
 now returns immediately when there is no membership or committed-path input. No performance
 assertion or threshold changed. The second whole-package run also exceeded the budget (best ratio 6.22). A focused unchanged-base run passed; a subsequent focused patched run passed at p95 77.83 ms / probe p95 21.46 ms (ratio 3.63). The final complete affected-package run passed (including the maintained ownership ratchet and existing performance test). Both earlier failures remain retained; no performance assertion or threshold was changed.
 
-The whole CLI package also exposed pre-existing sandbox failures. Three representative tests reproduce on the unchanged base: profile paths are discovered inside `/home/russell/lanes`, a nominal non-repository resolves to that parent, and scratch materialization rejects an ancestor owned by another UID (`/home` reports UID 65534). These block full package qualification here; the host verifier must rerun it. Two exact unowned-entry expectations were extended with the authorized new hint, keeping their existing reason, detail, scope, count and selection checks. The focused rerun passes.
+The whole CLI package also exposed pre-existing sandbox failures. Three representative tests reproduce on the unchanged base: profile paths are discovered inside `/home/russell/lanes`, a nominal non-repository resolves to that parent, and scratch materialization rejects an ancestor owned by another UID (`/home` reports UID 65534). These also block full package qualification here; three representative sandbox failures reproduce on the unchanged base. The final complete CLI package run fails (329.218 s, 46 top-level failing tests); the frozen-hint failures above are a separate observed limitation, not attributed to the sandbox. The host verifier must rerun it after the owner resolves the golden restriction. Two exact unowned-entry expectations were extended with the authorized new hint, keeping their existing reason, detail, scope, count and selection checks. The focused rerun passes.
 
 Focused regressions cover membership, staged and untracked distinctions, declaration edits,
 the three historical fixture paths, named dry-run projection, content-only byte equality,
@@ -101,7 +101,7 @@ The requirement-named context, query and impact receipts were retained through
 `make dogfood-prechange` before edits. A tree-built binary supplied affected selection before
 package tests. The installed binary refused `--ownership-audit`, so no audit claim uses it.
 Spec requirements were regenerated from the staged spec; line citations were repinned.
-Final binding/checking uses the same base and stops without sealing, publishing or task writes.
+Final binding/checking uses the same base and stops without sealing, publishing or task writes. The first structural check passed, but subsequent inspection of its already-finished CLI log exposed the frozen-hint conflict. This evidence correction requires the charter-permitted final rebind; the local outcome is failed, not a claim that package qualification passed.
 The native ticket body is NOT_OBSERVED: both the local intent projection and supplied queue
 snapshot predate V1-4729. The owner's complete lane charter supplies this slice's intent.
 
