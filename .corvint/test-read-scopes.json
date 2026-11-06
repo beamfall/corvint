@@ -660,37 +660,6 @@
     "internal/tasks/authority": [
       "go.mod"
     ],
-    "internal/tasks/cli": [
-      ".taskman/tickets/",
-      "cmd/corvint-tasks/",
-      "docs/TASKS-EXTERNAL-AGENTS.md",
-      "docs/build-log/",
-      "go.mod",
-      "go.sum",
-      "integrations/opencode/src/dispatch-notice.js",
-      "internal/capcatalog/trees/corvint-tasks.json",
-      "internal/cem/",
-      "internal/clitree/",
-      "internal/contextindex/",
-      "internal/criterionexperiment/testdata/capture.json",
-      "internal/diagnostic/",
-      "internal/gitstatus/",
-      "internal/groupreap/",
-      "internal/langplugin/",
-      "internal/projectprofile/",
-      "internal/pythongrammar/",
-      "internal/pythonsyntax/",
-      "internal/rubyautoload/",
-      "internal/rubydialect/",
-      "internal/runtimeenv/",
-      "internal/secretscreen/",
-      "internal/taskprojection/",
-      "internal/tasks/",
-      "internal/untrackedallowance/",
-      "script/lane-stage-inputs.sh",
-      "script/tasks-reconcile.sh",
-      "script/tasks-scratch-queue.sh"
-    ],
     "internal/tasks/intent": [
       "go.mod"
     ],
