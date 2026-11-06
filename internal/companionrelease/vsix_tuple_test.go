@@ -5,6 +5,7 @@ import "testing"
 // PUB-V0-013 (V1-2690): new VSIX builds require the one declared Node/npm
 // pair, and retained rc.3 manifests stay readable on their exact pair only.
 func TestV12690VSIXNodeNPMPairs(t *testing.T) {
+	t.Parallel()
 	if requiredNodeVersion != "v24.11.1" || requiredNPMVersion != "11.6.2" {
 		t.Fatalf("declared VSIX tuple = %s/%s", requiredNodeVersion, requiredNPMVersion)
 	}

@@ -659,6 +659,7 @@ func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
 // internal markers and GOMAXPROCS are replaced as before and every other entry
 // passes in order (IDX-SNAP-V0-805).
 func TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805(t *testing.T) {
+	t.Parallel()
 	got := snapshotRefreshEnv([]string{
 		"PATH=/usr/bin", "CORVINT_CPUPROFILE=/tmp/hook.prof", "CORVINT_MEMPROFILE=/tmp/hook.mem",
 		snapshotRefreshWorkerEnv + "=0", snapshotRefreshPriorityEnv + "=1", "GOMAXPROCS=8", "CORVINT_CPUPROFILE_NOT=kept", "HOME=/h",

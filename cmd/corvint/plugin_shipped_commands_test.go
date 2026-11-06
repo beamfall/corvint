@@ -14,6 +14,7 @@ import (
 // AHI-373: every executable an installed host plugin launches from PATH ships in the Core
 // release archive, so a release user never meets an ENOENT server or hook.
 func TestAHI373PluginCommandsShipInCoreRelease(t *testing.T) {
+	t.Parallel()
 	type hook struct {
 		Command string `json:"command"`
 	}
@@ -77,6 +78,7 @@ func TestAHI373PluginCommandsShipInCoreRelease(t *testing.T) {
 // AHI-820: the Claude Code plugin declares its corvint server with the test-validity and docs
 // tool groups over the legacy handshake Claude Code speaks (V1-2513).
 func TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "claude-code", "plugins", "corvint", ".mcp.json"))
 	if err != nil {
 		t.Fatal(err)

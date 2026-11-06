@@ -126,7 +126,14 @@ func (b *gatedBatch) ciRunFile(id string) (string, error) {
 		if err != nil {
 			return "", wire.Errorf(wire.CodeUnsupportedFilesystem, "--runs", "cannot create the CI run record directory: %s", prose(err.Error()))
 		}
-		b.ciDir = dir
+		// The --ci-run reader refuses symlinked ancestry, and the default
+		// macOS temporary directory lives under the /var -> /private/var link.
+		resolved, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			_ = os.RemoveAll(dir)
+			return "", wire.Errorf(wire.CodeUnsupportedFilesystem, "--runs", "cannot resolve the CI run record directory: %s", prose(err.Error()))
+		}
+		b.ciDir = resolved
 	}
 	path := filepath.Join(b.ciDir, "ci-run-"+strconv.Itoa(len(b.ciFiles))+".json")
 	if err := os.WriteFile(path, c.raw, 0o600); err != nil {

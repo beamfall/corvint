@@ -38,6 +38,7 @@ func TestTasksArchiveAssembly(t *testing.T) {
 // UPD-V0-017: each Tasks archive publishes its own per-platform report bound to
 // the archive digest, so one release can qualify both platforms.
 func TestUPDV0017TasksReportAssetPerPlatform(t *testing.T) {
+	t.Parallel()
 	for target, want := range map[string]string{supportedTarget: "build-verification_darwin_arm64.json", tasksCrossTarget: "build-verification_linux_amd64.json"} {
 		r := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: target, Build: "401", ArchivePath: "/host/local/path", ArchiveSHA256: strings.Repeat("a", 64), Qualification: "q"}
 		e, err := tasksReportAsset(r)
@@ -61,6 +62,7 @@ func TestUPDV0017TasksReportAssetPerPlatform(t *testing.T) {
 }
 
 func TestTasksArchiveHelpRefusesOldRuntime(t *testing.T) {
+	t.Parallel()
 	for _, raw := range []string{`{}`, `{"outcome":"OK","items":[{"implemented":["claim"]}]}`} {
 		if err := verifyTasksArchiveHelp([]byte(raw)); err == nil {
 			t.Fatalf("old runtime admitted: %s", raw)
@@ -81,6 +83,7 @@ func TestTasksArchiveRefusesOtherTargets(t *testing.T) {
 }
 
 func TestTasksArchiveRequiresSetupResources(t *testing.T) {
+	t.Parallel()
 	paths := []string{"docs/TASKS-EXTERNAL-AGENTS.md", "internal/tasks/cli/testdata/external-agents/policy.json", "internal/tasks/cli/testdata/external-agents/queue.json", "internal/tasks/cli/testdata/external-agents/ticket-create.json"}
 	for missing := -1; missing < len(paths); missing++ {
 		source := Export{}
@@ -100,6 +103,7 @@ func TestTasksArchiveRequiresSetupResources(t *testing.T) {
 }
 
 func TestTasksArchiveCrossTargetIsLinuxAmd64Only(t *testing.T) {
+	t.Parallel()
 	// CAL-V0-320: linux/amd64 is admitted for the Tasks archive on a darwin host, never for the
 	// full bundle, and the native-host restriction still refuses every other foreign target.
 	native, err := admitTasksTarget("linux/amd64", "darwin/arm64")
@@ -145,6 +149,7 @@ func TestTasksArchiveCrossBuildExecutesNothing(t *testing.T) {
 }
 
 func TestTasksArchiveCrossManifestStatesTheLimit(t *testing.T) {
+	t.Parallel()
 	r := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: "linux/amd64", Qualification: tasksCrossQualification}
 	entries, err := tasksArchiveEntries([]ArchiveEntry{{Path: "bin/corvint-tasks", Mode: 0o755, Data: []byte("b")}}, r)
 	if err != nil {

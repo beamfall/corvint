@@ -1,10 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
+import importlib.machinery
 import importlib.util
 import pathlib
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 
-spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("select.py"))
+spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("darwin_select.py"))
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 
@@ -87,16 +91,56 @@ class DarwinSelection(unittest.TestCase):
 
     def test_CINV04625_workflow_wiring(self):
         ci = pathlib.Path(".github/workflows/ci.yml").read_text()
-        job = ci.split("  go-macos:\n")[1].split("\n  go-product:\n")[0]
+        workflow = pathlib.Path(".github/workflows/go-macos.yml").read_text()
+        job = workflow.split("  go-macos-shard:\n")[1].split("\n  go-macos:\n")[0]
         self.assertIn("runs-on: macos-15", job)
         self.assertIn("needs.narrowing-verdict.outputs.verdict == 'MET'", job)
         self.assertIn('sh "$TRUSTED/.github/forward-rows/narrow.sh"', job)
-        self.assertIn('script/heavy.sh', job)
+        self.assertIn('.github/macos/shard.py', job)
+        self.assertIn('script/heavy.sh', pathlib.Path('.github/macos/shard.py').read_text())
         self.assertIn('if [ "$NATIVE_NARROW_RESULT" = success ]; then', job)
         self.assertIn("github.event_name == 'pull_request'", job)
         aggregate = ci.split("  go-product:\n")[1].split("\n  ci-tested-tree-record:\n")[0]
         self.assertNotIn('go-macos', aggregate)
         self.assertNotIn('MACOS_RESULT', aggregate)
+        self.assertNotIn('  go-macos:', ci)
+        self.assertIn('  pull_request:', workflow)
+        self.assertNotIn('workflow_run:', workflow)
+        self.assertIn('name: macos-selection\n', job)
+        self.assertIn('name: macos-selection-shard-${{ matrix.shard }}', job)
+        self.assertIn('shard: [0, 1, 2, 3]', job)
+        self.assertIn('fail-fast: false', job)
+        self.assertNotIn('while IFS=', job)
+
+
+    def test_CINV04625_helpers_never_shadow_stdlib_modules(self):
+        # Python puts a script's own directory first on sys.path, so a helper
+        # named like a stdlib module (select.py) breaks every stdlib import of it.
+        here = pathlib.Path(__file__).resolve().parent
+        others = [d for d in sys.path if d and pathlib.Path(d).resolve() != here]
+        names = sorted(p.stem for p in here.glob("*.py"))
+        shadows = [n for n in names if n in sys.builtin_module_names
+                   or importlib.machinery.PathFinder.find_spec(n, others) is not None]
+        self.assertEqual(shadows, [], "rename .github/macos helpers that shadow stdlib modules")
+
+    def test_CINV04625_summary_retains_actual_shard_failures(self):
+        workflow = pathlib.Path(".github/workflows/go-macos.yml").read_text()
+        block = workflow.split("      - name: Record the shard outcome\n")[1]
+        shell = block.split("        run: |\n")[1].split("      - name:")[0]
+        shell = "\n".join(line[10:] for line in shell.splitlines())
+        for test, docs, docs_result, job, expected in [
+                ("success", "FULL", "success", "success", "success"),
+                ("skipped", "DOCS", "success", "success", "success"),
+                ("failure", "FULL", "success", "failure", "failure"),
+                ("skipped", "DOCS", "success", "failure", "failure"),
+                ("skipped", "DOCS", "failure", "success", "failure"),
+                ("skipped", "FULL", "success", "success", "failure")]:
+            with self.subTest(test=test, docs=docs, job=job), tempfile.TemporaryDirectory() as tmp:
+                env = dict(os.environ, RUNNER_TEMP=tmp, MACOS_SHARD="0", TEST_RESULT=test,
+                           DOCS_MODE=docs, DOCS_RESULT=docs_result, JOB_RESULT=job)
+                subprocess.run(["bash", "-eu", "-c", shell], env=env, check=True)
+                self.assertEqual((pathlib.Path(tmp) / "macos-selection/shard-0/result.txt").read_text(),
+                                 expected + "\n")
 
 
 if __name__ == "__main__":

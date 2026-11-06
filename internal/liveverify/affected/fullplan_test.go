@@ -28,8 +28,8 @@ func TestFullplanReplay_AZU_V0_9920_9921(t *testing.T) {
 		".github/testconfine/scopes_test.go":         "package testconfine\nimport \"testing\"\nfunc TestScopes(t *testing.T) {}\n",
 		".github/testconfine/cmd/main.go":            "package main\nimport _ \"example.test/m/.github/testconfine\"\nfunc main() {}\n",
 		".github/testconfine/cmd/main_test.go":       "package main\nimport \"testing\"\nfunc TestMainCommand(t *testing.T) {}\n",
-		".github/macos/select.py":                    "def selection():\n    return []\n",
-		".github/macos/select_test.py":               "import importlib.util\nimport unittest\nspec = importlib.util.spec_from_file_location('macselect', 'select.py')\n",
+		".github/macos/darwin_select.py":                    "def selection():\n    return []\n",
+		".github/macos/select_test.py":               "import importlib.util\nimport unittest\nspec = importlib.util.spec_from_file_location('macselect', 'darwin_select.py')\n",
 		"other/other_test.go":                        "package other\nimport \"testing\"\nfunc TestOther(t *testing.T) {}\n",
 		".agent-evidence/pk-tstore-fix1/env-base.sh": "export EXAMPLE=1\n",
 		".agent-evidence/pk-tstore-fix1/env.sh":      "export EXAMPLE=2\n",
@@ -79,7 +79,7 @@ func TestFullplanReplay_AZU_V0_9920_9921(t *testing.T) {
 				path, test, scope string
 				units             int
 			}{
-				{".github/macos/select.py", ".github/macos/select_test.py", sessiontest.ScopeNarrowed, 1},
+				{".github/macos/darwin_select.py", ".github/macos/select_test.py", sessiontest.ScopeNarrowed, 1},
 				{".github/testconfine/cmd/main.go", ".github/testconfine/cmd/main_test.go", sessiontest.ScopeNarrowed, 1},
 				{".github/testconfine/scopes.go", ".github/testconfine/cmd/main_test.go", sessiontest.ScopeNarrowed, 2},
 				{".agent-evidence/pk-tstore-fix1/env-base.sh", "", sessiontest.ScopeNothing, 0},
@@ -97,7 +97,7 @@ func TestFullplanReplay_AZU_V0_9920_9921(t *testing.T) {
 					if manifest.Scope != tc.scope || len(manifest.Units) != tc.units {
 						t.Fatalf("scope=%s units=%v unknown=%v reason=%s; want %s %d", manifest.Scope, manifest.Units, plan.Unknown, manifest.Reason, tc.scope, tc.units)
 					}
-					if tc.path == ".github/macos/select.py" {
+					if tc.path == ".github/macos/darwin_select.py" {
 						want := []string{"python3", "-B", ".github/macos/select_test.py"}
 						declared := sessiontest.ReadDeclared(repositoryRoot(t))
 						invocations := sessiontest.Invocations(manifest, declared, 0, disk, "")

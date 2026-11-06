@@ -3,8 +3,8 @@
   "edges": [
     {
       "tests": ".github/macos/select_test.py",
-      "runs": "python:.github.macos.select",
-      "reason": "select_test.py dynamically loads select.py with importlib.util.spec_from_file_location; the native Darwin inventory and narrowing tests exercise this helper (AZU-V0-9920)."
+      "runs": "python:.github.macos.darwin_select",
+      "reason": "select_test.py dynamically loads darwin_select.py with importlib.util.spec_from_file_location; the native Darwin inventory and narrowing tests exercise this helper (AZU-V0-9920)."
     },
     {
       "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",

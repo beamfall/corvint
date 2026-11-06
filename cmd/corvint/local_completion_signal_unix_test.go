@@ -25,6 +25,7 @@ import (
 // V1-1498: the finish-signal helper is bound to its parent's lifetime, so one
 // whose named parent is not its parent exits 3 before it runs finish.
 func TestLocalCompletionFinishSignalHelperExitsWhenParentGone(t *testing.T) {
+	t.Parallel()
 	command := exec.Command(os.Args[0], "-test.run=^TestLocalCompletionFinishSignalHelper$")
 	command.Env = append(os.Environ(), "CORVINT_FINISH_SIGNAL_ROOT="+t.TempDir(), "CORVINT_FINISH_SIGNAL_MARKER="+filepath.Join(t.TempDir(), "held"), testsupport.ParentPIDEnv+"="+strconv.Itoa(os.Getppid()))
 	var stderr bytes.Buffer

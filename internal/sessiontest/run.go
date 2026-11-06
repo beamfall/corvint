@@ -91,8 +91,9 @@ type Invocation struct {
 
 // Receipt is the STR-V0-010 corvint-test-run/0 document of one shard.
 type Receipt struct {
-	Base   string   `json:"base"`
-	Checks []string `json:"checks"`
+	CompletedAt string   `json:"completedAt,omitempty"`
+	Base        string   `json:"base"`
+	Checks      []string `json:"checks"`
 	// Excluded copies the manifest's STR-V0-069 list; absent when empty.
 	Excluded        []string       `json:"excluded,omitempty"`
 	GraphDigest     string         `json:"graphDigest"`
@@ -316,6 +317,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			receipt.Incomplete = append(receipt.Incomplete, reason+when)
 		}
 	}
+	receipt.CompletedAt = r.clock().UTC().Format(time.RFC3339Nano)
 	return Finish(receipt, m)
 }
 

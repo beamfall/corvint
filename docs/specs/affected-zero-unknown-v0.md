@@ -56,6 +56,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
   before. Supersedes the AFP-V0-2405 hint for claimed paths.
+  Driver execution edges SHALL survive Go test-only containment (AFP-V0-036), selecting
+  the target/job and its callers when only the invoked package's tests change; ordinary Go
+  importers remain contained. Go's `-C=DIR` form SHALL resolve like `-C DIR`. Shell globs in
+  Go package operands and unsupported inline interpreter programs SHALL resolve their
+  dependencies or retain the invocation site as computed under AZU-V0-003.
 - **AZU-V0-002: Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
@@ -146,7 +151,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `uses` paths, including action directories outside `.github/actions`, SHALL retain their
   caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
 
-- `AZU-V0-9920`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05; amended under the owner's standing auto-accept (2026-11-05), fullplan Verifier repair 1) The Go and Python plugins SHALL index helper sources and tests below `.github/` through the bounded, cache-stamped source reader, on disk and immutable inputs. Existing module boundaries, skipped subdirectories and source failures remain effective. A helper edit SHALL select its tested unit and modelled or declared consumers; the dynamic load of `.github/macos/select.py` by `select_test.py` is declared through `.corvint/runtime-edges.json`. The maintained test-command declaration SHALL name the existing CI Python suite, `python3 -B .github/macos/select_test.py`; the replay SHALL use that declaration and check the local invocation and required CI check (STR-V0-004). The Go runner SHALL confirm these indexed helpers through its real inventory probe as well as ordinary packages, retaining refusal for extra or missing units (STR-V0-069). Its independently enumerated helper directories SHALL retain the graph's skipped-directory, testdata and nested-module boundaries. Test read declarations SHALL bound helper tests when confinement qualifies their actual reads (AFP-V0-023); discovery alone SHALL NOT add an unreasoned unbounded-reader exemption. This is the `.github/` slice of AZU-V0-005, not general hidden-directory discovery.
+- `AZU-V0-9920`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05; amended under the owner's standing auto-accept (2026-11-05), fullplan Verifier repair 1) The Go and Python plugins SHALL index helper sources and tests below `.github/` through the bounded, cache-stamped source reader, on disk and immutable inputs. Existing module boundaries, skipped subdirectories and source failures remain effective. A helper edit SHALL select its tested unit and modelled or declared consumers; the dynamic load of `.github/macos/darwin_select.py` by `select_test.py` is declared through `.corvint/runtime-edges.json`. The maintained test-command declaration SHALL name the existing CI Python suite, `python3 -B .github/macos/select_test.py`; the replay SHALL use that declaration and check the local invocation and required CI check (STR-V0-004). The Go runner SHALL confirm these indexed helpers through its real inventory probe as well as ordinary packages, retaining refusal for extra or missing units (STR-V0-069). Its independently enumerated helper directories SHALL retain the graph's skipped-directory, testdata and nested-module boundaries. Test read declarations SHALL bound helper tests when confinement qualifies their actual reads (AFP-V0-023); discovery alone SHALL NOT add an unreasoned unbounded-reader exemption. This is the `.github/` slice of AZU-V0-005, not general hidden-directory discovery.
 - `AZU-V0-9921`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) A path covered by `.corvint/non-source-paths.json` that no indexed unit owns SHALL be classified as `DECLARED_NON_SOURCE` even when a language claims its suffix. This applies to retained `.agent-evidence/` scripts and source-shaped dumps under AZU-V0-002. The declaration itself adds no test units; existing embed, literal, declared, enclosing-directory and unbounded readers remain selected, and frontier diagnostics remain effective. Indexed source, driver inputs, task projections and undeclared source SHALL retain their existing treatment. In particular, an undeclared unindexed source still forces FULL under AFP-V0-028; its allowlist is unchanged.
 - `AZU-V0-9922`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) Reduced replay fixtures for merges `39c031980`, `8e2c13aa9` and `cdeed7ee6` SHALL select the named helper tests, classify retained evidence without adding units or unindexed uncertainty, and retain FULL for new unknown source. Acceptance retains before/after unit counts with the replay input scope, complete touched-package tests, and declaration-reader safety checks. No wire shape, output golden or workflow change is required.
 
@@ -173,6 +178,17 @@ participation, and inbound shell callers. The remaining classes are small and lo
   workflow selects every target or job of that file.
 
 ## Acceptance evidence
+
+The pk-affected independent-review repair checks AZU-V0-001 with
+`TestDriverTestOnlyPackageChange_AZU_V0_001` (target, direct job and transitive callers,
+with ordinary Go importers still excluded), `TestDriverGoGlobComputed_AZU_V0_001`,
+`TestDriverGoEqualsDirectory_AZU_V0_001`, and
+`TestDriverInlineInterpreterComputed_AZU_V0_001` in `driver_review_test.go`.
+The glob and inline cases check the stored frontier as well as caller selection;
+the directory case checks that an unrelated package does not select those drivers.
+Acceptance requires these regressions and the complete affected package. This repair
+does not qualify AZU-V0-009. Reverting it restores the four missing-driver risks,
+without a wire migration or changes to Go importer containment.
 
 The PR #97/#98 merge integration declares the three exact retained linecov experiment JSON
 outputs and `tools/linecov/command-tree.json` under AZU-V0-002. Existing literal, enclosing-package,

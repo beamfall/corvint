@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -163,4 +164,48 @@ func TestContextOrderAcronymProse(t *testing.T) {
 			}
 		}
 	})
+}
+
+// V1-4087: acronym prose changes term ordering, never the path's test classification.
+// A diff.go below tests is a test in both modes; internal/plan/diff.go is neither.
+func TestDiffGoTestKindIsIndependentOfAcronymMode(t *testing.T) {
+	for _, mode := range []string{"", "prose"} {
+		t.Setenv("CORVINT_CONTEXT_ACRONYMS", mode)
+		for name, want := range map[string]bool{"internal/plan/diff.go": false, "internal/plan/diff_test.go": true, "tests/diff.go": true} {
+			if got := contextIsTest(name); got != want {
+				t.Errorf("mode=%q path=%s test=%v want=%v", mode, name, got, want)
+			}
+		}
+		compiler := newTaskContextCompiler(recipeFixtureIndex(t), "inspect parser diff", "")
+		if compiler.acronymProse != (mode == "prose") {
+			t.Fatal("test did not exercise acronym mode")
+		}
+		for _, row := range compiler.testRows([]string{"pkg/parser/parser.go"}) {
+			if !contextIsTest(row.path) {
+				t.Fatalf("production path classified as test: %+v", row)
+			}
+		}
+	}
+}
+
+// V1-4087 minimal reproduction: kind=test names the test-link relation,
+// including its implementation counterpart, not the candidate's path classification.
+func TestDiffGoLinkedFromTestUsesTestRelationInBothAcronymModes(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":                     "module example.test/diff\n\ngo 1.27.0\n",
+		"internal/plan/diff.go":      "package plan\nfunc Diff() int {return 1}\n",
+		"internal/plan/diff_test.go": "package plan\nfunc TestDiff() {_=Diff()}\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"", "prose"} {
+		t.Setenv("CORVINT_CONTEXT_ACRONYMS", mode)
+		compiler := newTaskContextCompiler(index, "inspect diff_test.go", "")
+		rows := compiler.testRows([]string{"internal/plan/diff_test.go"})
+		if len(rows) != 1 || rows[0].path != "internal/plan/diff.go" || rows[0].kind != "test" || contextIsTest(rows[0].path) {
+			t.Fatalf("mode=%q: %v", mode, rows)
+		}
+	}
 }

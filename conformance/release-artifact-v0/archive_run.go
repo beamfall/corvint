@@ -114,7 +114,6 @@ func buildArchives(ctx context.Context, options ArchiveOptions) (report ArchiveR
 	if err != nil || !equalLegal(legalA, legalB) {
 		return failArchive(report, "legal-export-mismatch", "", err)
 	}
-	retained := map[string][]byte{}
 	gitDirectoryBytes, err := closedGit(ctx, options.Root, scratch, "rev-parse", "--absolute-git-dir")
 	if err != nil {
 		return failArchive(report, "git-directory-invalid", "", err)
@@ -124,21 +123,22 @@ func buildArchives(ctx context.Context, options ArchiveOptions) (report ArchiveR
 	if err := buildOfflineVerifier(ctx, sourceA, gitDirectory, state.commit, scratch, manifest, verifierPath); err != nil {
 		return failArchive(report, "offline-verifier-build-failed", "", err)
 	}
-	var maximumArchive, maximumTotal int64
-	for index, target := range manifest.Targets {
-		entry, archiveBytes, archiveLimit, err := buildArchiveTarget(ctx, options, scratch, sourceA, sourceB, gitDirectory, verifierPath, state, manifestBytes, manifest, target, legalA, looseReport.Targets[index])
-		if err != nil {
-			report.Targets = append(report.Targets, entry)
-			return failArchive(report, classifyArchiveError(err), target.id(), err)
-		}
-		report.Targets = append(report.Targets, entry)
-		retained[entry.ArchiveName] = archiveBytes
-		if archiveLimit > maximumArchive {
-			maximumArchive = archiveLimit
-		}
-		maximumTotal += archiveLimit
+	// Source A is initialized by the verifier build. Initialize source B before
+	// workers read it too; preserve the first target's build-B failure report.
+	if err := prepareBuildSource(sourceB, gitDirectory); err != nil {
+		target := manifest.Targets[0]
+		name, _ := archiveTargetName(target)
+		report.Targets = append(report.Targets, ArchiveTargetReport{GOOS: target.GOOS, GOARCH: target.GOARCH, BinaryName: manifest.Profile.BinaryName + target.Suffix, ArchiveName: name})
+		return failArchive(report, classifyArchiveError(err), target.id(), err)
 	}
-	report.Limits = ArchiveLimits{Targets: len(manifest.Targets), MembersPerArchive: archivewire.MaxMembers, MaximumArchiveBytes: maximumArchive, MaximumTotalBytes: maximumTotal, MaximumReportBytes: maximumArchiveReportBytes, MaximumWitnessBytes: maxWitnessBytes}
+	var retained map[string][]byte
+	report, retained, err = buildArchiveTargets(ctx, manifest, report, func(ctx context.Context, index int) (archiveTargetResult, error) {
+		entry, content, limit, err := buildArchiveTarget(ctx, options, scratch, sourceA, sourceB, gitDirectory, verifierPath, state, manifestBytes, manifest, manifest.Targets[index], legalA, looseReport.Targets[index])
+		return archiveTargetResult{entry: entry, content: content, limit: limit}, err
+	})
+	if err != nil {
+		return report, err
+	}
 	if err := recheckCleanState(ctx, options, scratch, state); err != nil {
 		return failArchive(report, "git-state-changed", "", err)
 	}
@@ -148,6 +148,30 @@ func buildArchives(ctx context.Context, options ArchiveOptions) (report ArchiveR
 		return failArchive(report, "retention-failed", "", err)
 	}
 	return report, nil
+}
+
+type archiveTargetResult struct {
+	entry   ArchiveTargetReport
+	content []byte
+	limit   int64
+}
+
+func buildArchiveTargets(ctx context.Context, manifest Manifest, report ArchiveReport, build func(context.Context, int) (archiveTargetResult, error)) (ArchiveReport, map[string][]byte, error) {
+	results := runTargetWorkers(ctx, len(manifest.Targets), build)
+	retained := map[string][]byte{}
+	var maximumArchive, maximumTotal int64
+	for index, result := range results {
+		report.Targets = append(report.Targets, result.value.entry)
+		if result.err != nil {
+			report, err := failArchive(report, classifyArchiveError(result.err), manifest.Targets[index].id(), result.err)
+			return report, nil, err
+		}
+		retained[result.value.entry.ArchiveName] = result.value.content
+		maximumArchive = max(maximumArchive, result.value.limit)
+		maximumTotal += result.value.limit
+	}
+	report.Limits = ArchiveLimits{Targets: len(manifest.Targets), MembersPerArchive: archivewire.MaxMembers, MaximumArchiveBytes: maximumArchive, MaximumTotalBytes: maximumTotal, MaximumReportBytes: maximumArchiveReportBytes, MaximumWitnessBytes: maxWitnessBytes}
+	return report, retained, nil
 }
 
 func buildArchiveTarget(ctx context.Context, options ArchiveOptions, scratch, sourceA, sourceB, gitDirectory, verifierPath string, state gitState, manifestBytes []byte, manifest Manifest, target Target, legal []archivewire.ExpectedFile, looseTarget TargetReport) (ArchiveTargetReport, []byte, int64, error) {
@@ -229,8 +253,19 @@ func bindLooseGateTarget(loose TargetReport, target Target, binary []byte) error
 	return nil
 }
 
+// Keep the exported .git file immutable while parallel builds read it. Standalone
+// build helpers still initialize a fresh export for their existing callers.
+func prepareBuildSource(source, gitDirectory string) error {
+	name := filepath.Join(source, ".git")
+	want := []byte("gitdir: " + gitDirectory + "\n")
+	if current, err := os.ReadFile(name); err == nil && bytes.Equal(current, want) {
+		return nil
+	}
+	return os.WriteFile(name, want, 0o600)
+}
+
 func archiveBuildOnce(ctx context.Context, source, gitDirectory, commit string, manifest Manifest, target Target, output, cache, temporary string) error {
-	if err := os.WriteFile(filepath.Join(source, ".git"), []byte("gitdir: "+gitDirectory+"\n"), 0o600); err != nil {
+	if err := prepareBuildSource(source, gitDirectory); err != nil {
 		return err
 	}
 	for _, directory := range []string{filepath.Dir(output), cache, temporary} {
@@ -255,7 +290,7 @@ func archiveBuildOnce(ctx context.Context, source, gitDirectory, commit string, 
 }
 
 func buildOfflineVerifier(ctx context.Context, source, gitDirectory, commit, scratch string, manifest Manifest, output string) error {
-	if err := os.WriteFile(filepath.Join(source, ".git"), []byte("gitdir: "+gitDirectory+"\n"), 0o600); err != nil {
+	if err := prepareBuildSource(source, gitDirectory); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(output), 0o700); err != nil {

@@ -431,6 +431,7 @@ func shellQuote(value string) string {
 
 // DCW-V0-036: both public record path lists expose the overflow code without writing a trace.
 func TestRecordTracePathLimitPublicCode(t *testing.T) {
+	t.Parallel()
 	for _, flag := range []string{"--opened", "--changed"} {
 		for _, count := range []int{200, 201} {
 			t.Run(fmt.Sprintf("%s/%d", flag, count), func(t *testing.T) {
@@ -477,6 +478,7 @@ func TestRecordTracePathLimitPublicCode(t *testing.T) {
 
 // DCW-V0-036: stored overflow reaches both CLI envelopes without changing the store.
 func TestRecordStoredTracePathLimitPublicCode(t *testing.T) {
+	t.Parallel()
 	for _, schema := range []int{1, 3} {
 		for _, label := range []string{"opened_paths", "changed_paths"} {
 			t.Run(fmt.Sprintf("%d/%s", schema, label), func(t *testing.T) {
