@@ -468,41 +468,20 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	case affected.WitnessDeclaredTestOwner:
 		return slices.Contains(graph.DeclaredTestOwners(witness.DirtyPath), selection.UnitID)
 	case affected.WitnessPathGlobReader:
+		// AFP-V0-401: the selected unit alone passes the named literal glob, the
+		// dirty path is inside its read scope, and the glob matches the dirty path
+		// or one of its ancestors.
 		unit, exists := graph.Unit(selection.UnitID)
-		if !exists || !slices.Contains(unit.PathGlobs, witness.Glob) {
+		if !exists || len(witness.Via) != 1 || witness.Via[0] != selection.UnitID || !slices.Contains(unit.PathGlobs, witness.Glob) {
 			return false
 		}
 		files := append(slices.Clone(unit.Sources), unit.Tests...)
 		if unit.ReadScoped && (len(files) == 0 || !affected.InReadScope(path.Dir(files[0]), unit.ReadScope, witness.DirtyPath)) {
 			return false
 		}
-		components := strings.Split(strings.TrimPrefix(witness.Glob, "/"), "/")
-		parts := strings.Split(witness.DirtyPath, "/")
-		for offset := 0; offset+len(components) <= len(parts); offset++ {
-			matched := true
-			for index, component := range components {
-				ok, err := path.Match(component, parts[offset+index])
-				if err != nil || !ok {
-					matched = false
-					break
-				}
-			}
-			if matched {
-				return true
-			}
-			if strings.HasPrefix(witness.Glob, "/") {
-				break
-			}
-		}
-		return false
+		return globMatchesPath(witness.Glob, witness.DirtyPath)
 	case affected.WitnessPathLiteralReader:
 		return slices.Contains(graph.Namers(witness.DirtyPath), selection.UnitID)
-	case affected.WitnessPathGlobReader:
-		// AFP-V0-401: the selected unit alone passes the named literal glob,
-		// and that glob matches the dirty path or one of its ancestors.
-		unit, found := graph.Unit(selection.UnitID)
-		return found && len(witness.Via) == 1 && witness.Via[0] == selection.UnitID &&
-			slices.Contains(unit.PathGlobs, witness.Glob) && globMatchesPath(witness.Glob, witness.DirtyPath)
 	case affected.WitnessUnboundedReader:
 		return slices.Contains(graph.UnboundedReaders(), selection.UnitID)
 	case affected.WitnessDeclaredReadScope:
