@@ -47,6 +47,7 @@ cannot silently go missing or outlive its command.
   Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
   `TestCAPV07700ShippedHelp`, `TestCAPV0047SyntheticDriftFails`,
   `TestCAPV07700GuardedRouteDrift`, `TestCLIProfile9300HelpOptions`,
+  `TestCLIProfile9300LiteralHelpValues`,
   `TestTasksCLIRecursiveReadSelection`; `script/capability-catalog_test.sh`.
 - `CAP-V0-9302`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3738)
   The additive CLI profile MUST report every selected binary on the common release version

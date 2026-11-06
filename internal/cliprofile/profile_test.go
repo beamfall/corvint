@@ -71,3 +71,27 @@ func TestCLIProfile9300HelpOptions(t *testing.T) {
 		}
 	}
 }
+
+// CAP-V0-9300: authored literal values have the same arity as placeholders.
+func TestCLIProfile9300LiteralHelpValues(t *testing.T) {
+	for _, row := range []struct {
+		command string
+		args    []string
+	}{
+		{"cem prepare", []string{"cem", "prepare", "--non-regular", "unknown", "--help"}},
+		{"cem prepare", []string{"cem", "prepare", "--spec", "cem/1.0", "--path-policy", "base", "--help"}},
+		{"context", []string{"context", "--instruction-profile", "default", "--help"}},
+		{"context", []string{"--instruction-profile", "default", "context", "--help"}},
+		{"cem prepare", []string{"cem", "prepare", "--replace", "--help"}},
+		{"eval", []string{"eval", "--reset-slot-weights", "--help"}},
+		{"eval", []string{"eval", "--learn-slot-weights", "--help"}},
+	} {
+		t.Run(strings.Join(row.args, " "), func(t *testing.T) {
+			var out, errout bytes.Buffer
+			code := Profile(context.Background(), t.TempDir(), append([]string{"--binary", "corvint"}, row.args...), nil, &out, &errout)
+			if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "corvint "+row.command) {
+				t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), errout.String())
+			}
+		})
+	}
+}

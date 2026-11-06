@@ -143,17 +143,24 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 }
 
 // helpPath separates command words from options using the selected tree's
-// authored value placeholders. A consumed option value is never a help flag;
+// authored placeholders and literal values. A consumed option value is never a help flag;
 // -- ends option interpretation, including help detection.
 func helpPath(tree clitree.Tree, args []string) ([]string, bool) {
 	values := make(map[string]bool)
 	for _, node := range tree.Nodes {
 		for _, form := range node.Usage {
-			// Preserve | as a boundary: [--full | --summary] has no value.
-			fields := strings.Fields(strings.NewReplacer("[", " ", "]", " ", "(", " ", ")", " ").Replace(form))
+			// Keep group boundaries: [--json] COMMAND has no option value.
+			fields := strings.Fields(strings.NewReplacer("[", " [ ", "]", " ] ", "(", " ( ", ")", " ) ").Replace(form))
 			for i := 0; i+1 < len(fields); i++ {
 				flag, next := fields[i], fields[i+1]
-				if strings.HasPrefix(flag, "-") && !strings.Contains(flag, "=") && next != "|" && !strings.HasPrefix(next, "-") && (next[0] >= 'A' && next[0] <= 'Z' || strings.HasPrefix(next, "<") || strings.Contains(next, "|")) {
+				if !strings.HasPrefix(flag, "-") || strings.Contains(flag, "=") || next == "|" || strings.ContainsAny(next, "[]()") || strings.HasPrefix(next, "-") {
+					continue
+				}
+				// A literal occupies one value slot before the next option, group
+				// boundary or end of synopsis. Do not infer values from trailing
+				// prose such as "--reset-slot-weights restores the default order".
+				literal := i+2 == len(fields) || strings.ContainsAny(fields[i+2], "[]()") || strings.HasPrefix(fields[i+2], "-")
+				if literal || next[0] >= 'A' && next[0] <= 'Z' || strings.HasPrefix(next, "<") || strings.Contains(next, "|") {
 					values[flag] = true
 				}
 			}
