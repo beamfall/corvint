@@ -443,7 +443,7 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 		return err
 	}
 	defer os.RemoveAll(scratch)
-	if _, err := git(root, "clone", "--quiet", "--shared", "--no-checkout", rootAbs, scratch); err != nil {
+	if err := cloneSnapshot(root, rootAbs, scratch); err != nil {
 		return err
 	}
 	output := report{Profile: "affected-zero-unknown-replay/0", ImplementationSHA256: digest(implementation), FrozenListSHA256: digest(frozen), Through: tip, Merges: []row{}}
@@ -459,6 +459,14 @@ func run(root, binary, baseline, list, through, out, safetyDir string) error {
 		output.BaselineSHA256 = digest(body)
 	}
 	return replayRevisions(root, scratch, binary, baseline, out, safetyDir, refs, output)
+}
+
+// cloneSnapshot makes a self-contained clone. A --shared clone leaves an
+// objects/info/alternates file that the candidate's immutable Git reader
+// refuses, which silently widens its plans and can hide selection misses.
+func cloneSnapshot(root, source, scratch string) error {
+	_, err := git(root, "clone", "--quiet", "--no-local", "--no-checkout", source, scratch)
+	return err
 }
 
 // replayRevisions keeps intermediate and failed reports unaccepted. Only a
