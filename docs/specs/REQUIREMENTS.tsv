@@ -400,6 +400,8 @@ AZU-V0-9850	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 r
 AZU-V0-9851	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's	unrecorded	-
 AZU-V0-9852	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Composite action	unrecorded	-
 AZU-V0-9853	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Unresolved local	unrecorded	-
+AZU-V0-9930	docs/specs/affected-zero-unknown-v0.md	Comparison-only working directory.** (experimental, owner lane charter,	unrecorded	-
+AZU-V0-9931	docs/specs/affected-zero-unknown-v0.md	Bounded test consumers.** (experimental, owner lane charter, 2026-11-05)	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
