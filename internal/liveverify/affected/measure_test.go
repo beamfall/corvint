@@ -425,6 +425,32 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 	}
 }
 
+// globMatchesPath reports whether glob matches the components of dirtyPath or
+// of one of its ancestors, component by component; a leading "/" anchors the
+// glob at the repository root. It restates the AFP-V0-401 match independently
+// of the package's own matcher.
+func globMatchesPath(glob, dirtyPath string) bool {
+	parts := strings.Split(dirtyPath, "/")
+	components := strings.Split(strings.TrimPrefix(glob, "/"), "/")
+	last := len(parts) - len(components)
+	if strings.HasPrefix(glob, "/") {
+		last = min(last, 0)
+	}
+	for offset := 0; offset <= last; offset++ {
+		matched := true
+		for index, component := range components {
+			if ok, err := path.Match(component, parts[offset+index]); err != nil || !ok {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
 // witnessResolves checks one selection's witness against the rule that can
 // produce its kind. A reader witness resolves to a unit whose path literals
 // name its dirty path (AFP-V0-021); a declared-scope witness to a declared unit
@@ -471,6 +497,12 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 		return false
 	case affected.WitnessPathLiteralReader:
 		return slices.Contains(graph.Namers(witness.DirtyPath), selection.UnitID)
+	case affected.WitnessPathGlobReader:
+		// AFP-V0-401: the selected unit alone passes the named literal glob,
+		// and that glob matches the dirty path or one of its ancestors.
+		unit, found := graph.Unit(selection.UnitID)
+		return found && len(witness.Via) == 1 && witness.Via[0] == selection.UnitID &&
+			slices.Contains(unit.PathGlobs, witness.Glob) && globMatchesPath(witness.Glob, witness.DirtyPath)
 	case affected.WitnessUnboundedReader:
 		return slices.Contains(graph.UnboundedReaders(), selection.UnitID)
 	case affected.WitnessDeclaredReadScope:
