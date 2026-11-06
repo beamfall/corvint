@@ -3,6 +3,7 @@
 package importratchet
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -48,7 +49,7 @@ type baseline struct {
 // decodeStrict decodes one JSON document and refuses unknown fields, so a
 // misspelt key cannot silently drop an area or the baseline.
 func decodeStrict(data []byte, v any) error {
-	dec := json.NewDecoder(strings.NewReader(string(data)))
+	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	return dec.Decode(v)
 }
