@@ -158,6 +158,7 @@ func incrementalHistory(t *testing.T, seed int64, length int) (string, []string)
 // AMAP-V0-211: over seeded fixture histories, a map built from the map of any other commit has
 // the digest a full build gives, whether it was carried forward or rebuilt; both happen.
 func TestAMAPV0211IncrementalDigestEqualsFullBuild(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: histories and maps are private to this test.
 	ctx := context.Background()
 	reused, rederived, rebuilt := 0, 0, 0
 	// Seed 24 commits flow-only changes on adjacent commits (AMAP-V0-240).
