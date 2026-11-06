@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // GAG-V0-9962: a group hangup must join isolated loose builds before the
@@ -45,7 +47,7 @@ func TestGroupHangupJoinsLooseDescendantsBeforeWrapperCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	gate := filepath.Join(root, "script", "go-archive-gate")
-	if err := os.WriteFile(gate, wrapper, 0o700); err != nil {
+	if err := execfile.WriteFile(gate, wrapper, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	manifest := workerManifest(t)
@@ -68,7 +70,7 @@ func TestGroupHangupJoinsLooseDescendantsBeforeWrapperCleanup(t *testing.T) {
 	shim := "#!/bin/sh\ncase $1 in\nenv) case $2 in GOVERSION) echo go1.27.3;; GOTOOLCHAIN) echo local;; esac;;\n" +
 		"run) exec " + quote(os.Args[0]) + " -test.run=^TestHangupProcessHelper$ -- launcher;;\n" +
 		"build) exec " + quote(os.Args[0]) + " -test.run=^TestHangupProcessHelper$ -- build " + quote(listener.Addr().String()) + ";;\nesac\n"
-	if err := os.WriteFile(filepath.Join(scratch, "bin", "go"), []byte(shim), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(scratch, "bin", "go"), []byte(shim), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	command := exec.Command(gate)
