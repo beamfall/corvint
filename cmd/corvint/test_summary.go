@@ -23,6 +23,11 @@ const testSummaryItem = 200
 // languages and incomplete entries, naming the first incomplete entries.
 // Lists stop with "(+N more)" once the bound would be passed.
 func testDryRunSummary(m sessiontest.Manifest, digest string, invocations []sessiontest.Planned, shard int) string {
+	return testDryRunSummaryBudget(m, digest, invocations, shard, testSummaryLimit)
+}
+
+// testDryRunSummaryBudget reserves stderr degradation notices within the same bound.
+func testDryRunSummaryBudget(m sessiontest.Manifest, digest string, invocations []sessiontest.Planned, shard, budget int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "corvint-test: DRY-RUN scope=%s placement=%s shard=%d/%d manifest=%s\n", m.Scope, m.Placement, shard, m.ShardCount, digest)
 	reason := "none"
@@ -111,8 +116,8 @@ func testDryRunSummary(m sessiontest.Manifest, digest string, invocations []sess
 		incomplete = append(incomplete, summaryClip(entry, testSummaryItem))
 	}
 	// Incomplete entries explain a nonzero exit, so they come before units.
-	summaryList(&b, "incomplete", incomplete, testSummaryLimit/2)
-	summaryList(&b, "selected", units, testSummaryLimit-len(tail))
+	summaryList(&b, "incomplete", incomplete, budget/2)
+	summaryList(&b, "selected", units, budget-len(tail))
 	b.WriteString(tail)
 	return b.String()
 }

@@ -63,8 +63,9 @@ const (
 	affectedOrderObserved    = "OBSERVED"
 	affectedOrderNotObserved = "NOT_OBSERVED"
 	affectedOrderUnreadable  = "UNREADABLE"
-	// maxFailFastReceipts bounds the receipts read; maxFailFastReceiptBytes
-	// bounds each one.
+	// maxFailFastReceipts bounds canonical receipt reads. Header probes are
+	// bounded to that mtime prefix plus the unsharded receipt (at most 65).
+	// maxFailFastReceiptBytes bounds each canonical read.
 	maxFailFastReceipts     = 64
 	maxFailFastReceiptBytes = 64 << 20
 )
@@ -132,8 +133,9 @@ func orderAffectedSelection(selected []affectedCompactSelection, receipts []affe
 }
 
 // readFailFastReceipts reads at most maxFailFastReceipts `corvint test`
-// receipts under gitDir/corvint: newest mtime prefix, then bounded completedAt headers, ties broken by
-// name, listed in name order. A receipt that cannot be read, is not canonical,
+// receipts under gitDir/corvint: newest mtime prefix plus the unsharded receipt,
+// then newest bounded completedAt headers (mtime fallback), ties by name.
+// Retained receipts are listed in name order. A receipt that cannot be read, is not canonical,
 // or changes while read is UNREADABLE with its reason and contributes no
 // failure. An absent directory reads nothing; a directory that exists but
 // cannot be listed returns no receipt and the reason as unlisted. Candidate
@@ -179,14 +181,36 @@ func readFailFastReceipts(gitDir string) (receipts []affectedOrderReceipt, unlis
 		return strings.Compare(left.name, right.name)
 	})
 	if len(candidates) > maxFailFastReceipts {
+		// Always consider the current unsharded run, even when equal mtimes
+		// put its name after all shard names. Other older candidates remain
+		// outside the bounded probe pool (TSP-V0-7305).
+		var unsharded *candidate
+		for i := maxFailFastReceipts; i < len(candidates); i++ {
+			if failFastReceiptName.FindStringSubmatch(candidates[i].name)[1] == "" {
+				kept := candidates[i]
+				unsharded = &kept
+				break
+			}
+		}
 		candidates = candidates[:maxFailFastReceipts]
+		if unsharded != nil {
+			candidates = append(candidates, *unsharded)
+		}
 	}
-	// TSP-V0-7305: header I/O is bounded by the mtime prefix, including on
-	// repositories that have accumulated arbitrarily many receipt files.
+	// Probe at most 65 headers, each capped at 64 KiB, before retention.
 	for i := range candidates {
 		if completed, ok := readFailFastContentTime(filepath.Join(directory, candidates[i].name)); ok {
 			candidates[i].modified = completed
 		}
+	}
+	slices.SortFunc(candidates, func(left, right candidate) int {
+		if order := right.modified.Compare(left.modified); order != 0 {
+			return order
+		}
+		return strings.Compare(left.name, right.name)
+	})
+	if len(candidates) > maxFailFastReceipts {
+		candidates = candidates[:maxFailFastReceipts]
 	}
 	names := make([]string, 0, len(candidates))
 	for _, kept := range candidates {

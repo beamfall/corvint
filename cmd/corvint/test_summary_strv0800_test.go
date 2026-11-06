@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -88,5 +89,36 @@ func TestDryRunSummaryBoundsBothOutputStreams(t *testing.T) {
 	}
 	if !strings.Contains(out.String()+errout.String(), "HEAVY_WHOLE_REASON") {
 		t.Fatal("bounded summary lost the whole-package reason")
+	}
+}
+
+// STR-V0-7313: exercise the command entry point so the stale-binary notice
+// emitted before planning counts against the combined stdout/stderr budget.
+func TestDryRunStaleBinarySharesSummaryBudget(t *testing.T) {
+	root, built := selfBinaryRepository(t)
+	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
+	files := map[string]string{
+		"self.go":                   "package self\n\nfunc Self() int { return 2 }\n",
+		sessiontest.DeclarationPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
+	}
+	for i := 0; i < 100; i++ {
+		prefix := fmt.Sprintf("package%03d%s/", i, strings.Repeat("x", 60))
+		files[prefix+"source.go"] = "package fixture\n\nfunc Value() int { return 1 }\n"
+		files[prefix+"source_test.go"] = "package fixture\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n"
+	}
+	commitSelfBinaryFiles(t, root, files)
+	for _, flags := range [][]string{nil, {"--summary"}} {
+		var out, errout bytes.Buffer
+		args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+		code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
+		if code != 0 {
+			t.Fatalf("%v exit=%d %s%s", flags, code, &out, &errout)
+		}
+		if !strings.Contains(errout.String(), "corvint-test: DEGRADED self-binary-stale: ") || !strings.Contains(out.String(), "(+") || !strings.Contains(out.String(), "HEAVY_WHOLE_REASON") || !strings.Contains(out.String(), "full plan: rerun with --full") {
+			t.Fatalf("%v missing notice or summary: %s%s", flags, &out, &errout)
+		}
+		if out.Len()+errout.Len() > testSummaryLimit {
+			t.Fatalf("%v combined=%d stdout=%d stderr=%d", flags, out.Len()+errout.Len(), out.Len(), errout.Len())
+		}
 	}
 }

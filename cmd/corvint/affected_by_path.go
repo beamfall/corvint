@@ -94,22 +94,24 @@ func runAffectedByPath(ctx context.Context, invocation affectedInvocation, stdou
 func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []string) affectedByPathReceipt {
 	result := affectedByPathReceipt{Profile: affectedByPathProfile, Tool: "affected", Revision: receipt.Revision, Scope: receipt.Plan.Scope, Shared: []affectedByPathUnit{}, Paths: []affectedByPathEntry{}, OK: true}
 	plans := make([]affected.Plan, len(paths))
-	selectedBy, unbounded, tests := map[string]int{}, map[string]bool{}, map[string]int{}
+	selectedBy, unbounded, tests := map[string]int{}, map[string]affected.Witness{}, map[string]int{}
 	for index, path := range paths {
 		plans[index] = affected.SelectLinked(graph, []string{path})
 		for _, selection := range plans[index].Selected {
 			selectedBy[selection.UnitID]++
 			tests[selection.UnitID] = len(selection.Tests)
 			if selection.Witness.Kind == affected.WitnessUnboundedReader {
-				unbounded[selection.UnitID] = true
+				if _, exists := unbounded[selection.UnitID]; !exists {
+					unbounded[selection.UnitID] = selection.Witness
+				}
 			}
 		}
 	}
 	shared := map[string]bool{}
 	for _, selection := range receipt.Plan.Selected {
-		if unbounded[selection.UnitID] && selectedBy[selection.UnitID] == len(paths) {
+		if witness, ok := unbounded[selection.UnitID]; ok && selectedBy[selection.UnitID] == len(paths) {
 			shared[selection.UnitID] = true
-			result.Shared = append(result.Shared, affectedByPathUnit{UnitID: selection.UnitID, TestCount: tests[selection.UnitID], Witness: compactWitness(affected.Witness{Kind: affected.WitnessUnboundedReader, Via: []string{selection.UnitID}, Cause: selection.Witness.Cause})})
+			result.Shared = append(result.Shared, affectedByPathUnit{UnitID: selection.UnitID, TestCount: tests[selection.UnitID], Witness: compactWitness(witness)})
 		}
 	}
 	for index, path := range paths {
