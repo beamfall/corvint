@@ -50,14 +50,17 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	if o.Parallel < 1 {
 		o.Parallel = 1
 	}
-	// The go command names package files from getcwd, which resolves symlinks
-	// (macOS /var is /private/var). Overlay keys built from an unresolved root
-	// would never match, silently dropping every test window.
+	// Overlay keys and the go command's working directory must use the same
+	// absolute physical path (macOS /var is /private/var). Go also preserves
+	// a valid symlinked PWD, so pin the build's PWD to this path below.
 	resolved, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return nil, err
 	}
-	root = resolved
+	root, err = filepath.Abs(resolved)
+	if err != nil {
+		return nil, err
+	}
 	// The runner's GOFLAGS (build tags among them) still apply.
 	flags := strings.TrimSpace(o.GOFLAGS + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
 	// Clipped, so each worker's append below copies instead of sharing storage.
@@ -95,7 +98,7 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 			}
 		}
 		build := exec.CommandContext(ctx, "go", append(buildArgs, "./"+pkg)...)
-		build.Dir, build.Env = root, env
+		build.Dir, build.Env = root, append(env, "PWD="+root)
 		if out, err := build.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("linecov: build %s: %v: %s", pkg, err, out)
 		}
