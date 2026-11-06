@@ -607,7 +607,7 @@ func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
 // tables is checked through the corvint command tree: `flows coverage` is in no table, yet
 // dropping it from the flows row fails.
 func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
-	declared, err := parseSubcommands("../../cmd/corvint")
+	declared, err := parseSubcommands("../../cmd/corvint", "../../internal/command/flows")
 	if err != nil {
 		t.Fatal(err)
 	}
