@@ -94,6 +94,10 @@
       "reason": "command-tree snapshots read by internal/capcatalog, cmd/corvint, cmd/corvint-test, internal/tasks/cli and tools/capabilities-check through path literals"
     },
     {
+      "path": "internal/command/flows/testdata/",
+      "reason": "flows command fixtures and goldens moved from cmd/corvint/testdata/flows with the handlers (V1-4756); hosted by the internal/command/flows package and read by its tests through path literals and computed golden names"
+    },
+    {
       "path": "internal/tasks/cli/helptext/archive-restore.txt",
       "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
     },
