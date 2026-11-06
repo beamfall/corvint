@@ -381,6 +381,12 @@ AFP-V0-984	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)	standing	2026-10-11; V1-3600
 AFP-V0-2180	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); owner direction 2	standing	2026-10-11; 2026-11-02
 AFP-V0-2181	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4355)	standing	2026-10-11; V1-4355
+AFP-V0-9000	docs/specs/affected-reader-precision-v0.md	A Go test file may declare `//corvint:read-kinds .go go.mod`	unrecorded	-
+AFP-V0-9001	docs/specs/affected-reader-precision-v0.md	The Tasks import-direction, know-how authority and error-rewrap scans SHALL use	unrecorded	-
+AFP-V0-9002	docs/specs/affected-reader-precision-v0.md	Parent-path examples in Tasks command help SHALL be embedded	unrecorded	-
+AFP-V0-9003	docs/specs/affected-reader-precision-v0.md	Replays of script-only, test-only and data/spec changes MUST	unrecorded	-
+AFP-V0-9004	docs/specs/affected-reader-precision-v0.md	A dirty shell foreign-caller declaration MUST retain	unrecorded	-
+AFP-V0-9005	docs/specs/affected-reader-precision-v0.md	A Go test file may instead declare	unrecorded	-
 AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
 AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list e	unrecorded	-
 AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOU	unrecorded	-
