@@ -306,7 +306,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 case "$url" in
-  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&status=success&per_page=20") f=runs.json ;;
+  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&per_page=20") f=runs.json ;;
   "$STUB_API/runs/"*"/artifacts?per_page=100") id=${url#"$STUB_API/runs/"}; f=artifacts-${id%%/*}.json ;;
   "$STUB_API/runs/"*"/jobs?filter=latest&per_page=100") id=${url#"$STUB_API/runs/"}; f=jobs-${id%%/*}.json ;;
   "$STUB_API/jobs/"*"/logs") id=${url#"$STUB_API/jobs/"}; f=log-${id%%/*}.txt ;;
