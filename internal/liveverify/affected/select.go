@@ -1045,6 +1045,12 @@ func terminalWitness(witness Witness) bool {
 // embeds or other attributed read data (goReadData, AFP-V0-600, AFP-V0-601)
 // is claimed by none: it stays an unowned path for every frontier rule.
 func (graph *Graph) claimantsOf(path string) []string {
+	// Project-declared output with no indexed owner is data even when its
+	// filename looks like source (AZU-V0-9921). Keep it unowned for frontier
+	// rules, so path-open frontiers and actual readers still bear.
+	if graph.declaredUnindexedOutput(path) {
+		return nil
+	}
 	claimed := make([]string, 0, 1)
 	if id, owned := graph.owner[path]; owned {
 		name, _, _ := strings.Cut(id, ":")
@@ -1156,6 +1162,9 @@ func (graph *Graph) confinedReaders(path string, packages map[string]string) boo
 // with no other claimant the path stays UNOWNED_DIRTY_PATH, and its hint
 // names the plugins whose claim was set aside.
 func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo map[string]bool) Unknown {
+	if graph.declaredUnindexedOutput(path) {
+		return Unknown{Reason: UnknownUnownedDirtyPath, Detail: path}
+	}
 	reason := UnknownUnownedDirtyPath
 	var fixtureOnly []string
 	for _, name := range graph.languages {

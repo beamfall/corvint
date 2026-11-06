@@ -146,6 +146,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `uses` paths, including action directories outside `.github/actions`, SHALL retain their
   caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
 
+- `AZU-V0-9920`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) The Go and Python plugins SHALL index helper sources and tests below `.github/` through the bounded, cache-stamped source reader, on disk and immutable inputs. Existing module boundaries, skipped subdirectories and source failures remain effective. A helper edit SHALL select its tested unit and modelled or declared consumers; the dynamic load of `.github/macos/select.py` by `select_test.py` is declared through `.corvint/runtime-edges.json`. This is the `.github/` slice of AZU-V0-005, not general hidden-directory discovery.
+- `AZU-V0-9921`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) A path covered by `.corvint/non-source-paths.json` that no indexed unit owns SHALL be classified as `DECLARED_NON_SOURCE` even when a language claims its suffix. This applies to retained `.agent-evidence/` scripts and source-shaped dumps under AZU-V0-002. The declaration itself adds no test units; existing embed, literal, declared, enclosing-directory and unbounded readers remain selected, and frontier diagnostics remain effective. Indexed source, driver inputs, task projections and undeclared source SHALL retain their existing treatment. In particular, an undeclared unindexed source still forces FULL under AFP-V0-028; its allowlist is unchanged.
+- `AZU-V0-9922`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) Reduced replay fixtures for merges `39c031980`, `8e2c13aa9` and `cdeed7ee6` SHALL select the named helper tests, classify retained evidence without adding units or unindexed uncertainty, and retain FULL for new unknown source. Acceptance retains before/after unit counts with the replay input scope, complete touched-package tests, and declaration-reader safety checks. No wire shape, output golden or workflow change is required.
+
 ## Non-goals
 
 - No requirement here may drop a reached, reading, executing, importing or embedding unit. Every
@@ -203,6 +207,8 @@ showing which unknown entries it removed and the selection growth; and for AZU-V
 the soundness fixtures above. AZU-V0 as a whole is accepted when the replay shows `unknown: []` on
 every listed merge with zero safety misses.
 
+The fullplan slice (AZU-V0-9920 through AZU-V0-9922) is bounded to `.github/` helper discovery and declared non-source precedence over suffix-only claims. `TestFullplanReplay_AZU_V0_9920_9921` covers disk and immutable plans, the Python runtime edge, Go helper dependencies, zero-unit evidence and the unchanged FULL fallback. Whole touched-package results and path-set replay measurements are retained in `docs/build-log/2026-11-05-fullplan-selection-precision.md`. Existing consumers of evidence still run; zero units describes an isolated fixture without such readers, not permission to discard real readers. Revert the discovery changes, declared Python edge and non-source precedence to restore conservative FULL behavior. Wider AZU-V0 acceptance, native Darwin execution and hosted workflow behavior remain unqualified.
+
 ## Rollback
 
 Each requirement only turns an unknown into a selection, behind its own code path. Reverting its
@@ -231,3 +237,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
+
+| AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
+| AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `non_source_paths.go`; declaration preserves reader selection |
+| AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
