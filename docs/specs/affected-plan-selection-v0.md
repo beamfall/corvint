@@ -5,13 +5,6 @@ Date: 2026-11-01
 Requirement prefix: `AFP-V0`
 Intent status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)
 Delivery status: experimental
-Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
-failure codes and acceptance gates), `docs/specs/affected-plan-python-playwright-v0.md` (the
-Python adapter), `docs/specs/corvint-self-development-v0.md` (ASD-V0-895, the
-`//corvint:fixture-path` marker), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 4
-and 8. The parent's Requirements section is at the 256-obligation OCM limit, so lane aff-w26's
-requirements live here under the parent's `AFP-V0` prefix; see build-log entry
-`2026-11-01-aff-w26`.
 
 ## Agent digest
 - Claim: Affected plans name timeouts and deletions, narrow fixture and go-list reads, retain runtime-rooted Go readers, match CI, and honour owners and must-run tests.
@@ -20,7 +13,13 @@ requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
-Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
+Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
+failure codes and acceptance gates), `docs/specs/affected-plan-python-playwright-v0.md` (the
+Python adapter), `docs/specs/corvint-self-development-v0.md` (ASD-V0-895, the
+`//corvint:fixture-path` marker), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 4
+and 8. The parent's Requirements section is at the 256-obligation OCM limit, so lane aff-w26's
+requirements live here under the parent's `AFP-V0` prefix; see build-log entry
+`2026-11-01-aff-w26`. Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
 `2026-11-03-selprec-selection-precision`. Lane selprec2 (2026-11-03; native tickets V1-4437,
 V1-4173, V1-4284) adds AFP-V0-2240 to AFP-V0-2244, and its third round (V1-4173, V1-3282)
