@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """CIN-V0-4625: native Darwin inventory, optionally intersected with AFP-V0-098.
 
-Usage: python3 .github/macos/select.py LIST_JSON NARROW_JSON TARGET HEAD RUN_ID OUT
+Usage: python3 .github/macos/darwin_select.py LIST_JSON NARROW_JSON TARGET HEAD RUN_ID OUT
 LIST_JSON is concatenated `go list -json ./...` output from the native root module
 and the two nested modules CI already tests. OUT retains reasons and exact argv inputs.
 """
