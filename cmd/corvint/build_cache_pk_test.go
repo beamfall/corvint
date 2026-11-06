@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TSP-V0-7315: both executable builders honor the admitted shared build cache
@@ -14,7 +16,7 @@ func TestExecutableBuildHelpersHonorSharedGoCache(t *testing.T) {
 	fake := t.TempDir()
 	record := filepath.Join(t.TempDir(), "cache")
 	script := "#!/bin/sh\nprintf '%s' \"$GOCACHE\" > \"$PK_CACHE_RECORD\"\nwhile [ $# -gt 0 ]; do if [ \"$1\" = -o ]; then shift; : > \"$1\"; fi; shift; done\n"
-	if err := os.WriteFile(filepath.Join(fake, "go"), []byte(script), 0755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(fake, "go"), []byte(script), 0755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fake+string(os.PathListSeparator)+os.Getenv("PATH"))
