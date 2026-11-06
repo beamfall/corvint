@@ -4551,5 +4551,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/greptile-gate-v0.md",
+    "title": "Greptile Gate V0",
+    "reqPrefix": "GRG-V0",
+    "intent": "accepted (owner instruction 2026-11-06: make Greptile a required check, \"Yes, build it\")",
+    "delivery": "experimental",
+    "claim": "A trusted workflow posts the required `greptile-gate` status, `success` only when Greptile reviewed the exact PR head at 5/5 with no unresolved Greptile thread.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
