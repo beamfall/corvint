@@ -57,7 +57,18 @@ func realTemp(t *testing.T) string {
 // interop/cem01-go module, into a private directory.
 func build(t *testing.T, dir, pkg, name string) string {
 	t.Helper()
-	out := filepath.Join(realTemp(t), name)
+	// A gate argv entry is at most 128 bytes and the cem-verdict gate names
+	// built binaries, so they live under a short directory: the test name in
+	// a t.TempDir path under the default macOS TMPDIR exceeds the limit.
+	binDir, err := os.MkdirTemp("", "cemchain")
+	if err == nil {
+		t.Cleanup(func() { os.RemoveAll(binDir) })
+		binDir, err = filepath.EvalSymlinks(binDir)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(binDir, name)
 	command := exec.Command("go", "build", "-o", out, pkg)
 	command.Dir = dir
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")

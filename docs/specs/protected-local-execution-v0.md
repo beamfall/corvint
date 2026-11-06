@@ -321,7 +321,7 @@ The evidence parent /Library/CorvintAuthority/evidence is authorityUID:authority
 <handle>/ directory and descendant directory is 0550; manifest and files are 0440, same owner/GID,
 no ACL, symlink or file hardlink. Private key/enrollment/journal0700/0600 remains unchanged. A private
 stage creates repo/.git/{HEAD,config,objects/xx/rest,refs/}; Go zlib encodes independently verified raw
-objects without executing Git. Descriptor-relative creation sets exact ownership and file mode 0440 after writing regardless of umask; final files and directories are synced child-first before the exclusive descriptor-relative rename and parent sync. A corvint-protected-git-evidence/0 manifest binds root/epoch/generation,
+objects without executing Git. Descriptor-relative creation sets exact ownership and file mode 0440 after writing regardless of umask; final files and directories are synced child-first before the exclusive descriptor-relative rename and parent sync. Because XNU authorizes any directory rename as a write to the renamed directory (macOS 15 enforces it for the non-root authority owner), only the audited stage root is owner-writable 0700 across that rename and takes its final 0550, synced, before success; a failure removes the held view, and a crash in that window leaves a 0700 root that every reader refuses (V1-4734). A corvint-protected-git-evidence/0 manifest binds root/epoch/generation,
 handle, original capsule digest, base/target/tree/format/reader GID, and sorted unique file paths,
 lengths and SHA-256 values plus object OID/type/decoded size. It excludes its own digest. The view
 is audited completely before atomic rename; the public active pointer is published only afterward.
