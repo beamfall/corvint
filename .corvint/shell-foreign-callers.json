@@ -124,7 +124,7 @@
     },
     "script/heavy.sh": {
       "callers": [
-        ".github/workflows/ci.yml",
+        ".github/macos/shard.py",
         "Makefile",
         "internal/liveverify/affected/golang/golang_test.go",
         "script/analyzer-schema.sh",
@@ -139,6 +139,7 @@
       ],
       "mentions": [
         ".github/macos/select_test.py",
+        ".github/macos/shard_test.py",
         "cmd/corvint/session_test_command_unix_test.go",
         "cmd/corvint/test.go",
         "cmd/corvint/test_module_strv0064_unix_test.go",
@@ -170,7 +171,7 @@
         "tools/test-commands-check/dogtools_test.go",
         "tools/test-shards/main.go"
       ],
-      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; lane-host-heavy.sh execs it (ASD-V0-766); codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-host-check.sh, lane-host-tools_test.sh, lane-tmp-sweep.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it."
+      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; lane-host-heavy.sh execs it (ASD-V0-766); codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-host-check.sh, lane-host-tools_test.sh, lane-tmp-sweep.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it. shard.py runs it for Darwin modules; shard_test.py asserts the command with a stub runner (CIN-V0-4625)."
     },
     "script/lane-guard.sh": {
       "callers": [
