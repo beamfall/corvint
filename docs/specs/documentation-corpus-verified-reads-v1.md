@@ -32,6 +32,18 @@ read start. Former IDs: DCP-V1-NNN is DCR-V1-NNN for every ID listed here.
 
 ## Requirements
 
+### Streamed-decoder conformance fixture reuse (V1-2740)
+
+- `DCR-V1-9502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2740)
+  The streamed-decoder conformance matrix may compute each immutable corruption's closed and
+  in-memory refusal oracle once. Every original window, headroom, corruption and assertion
+  still runs against the streamed decoder; no oracle input may be mutated or shared decoder
+  state introduced. Compare three runs with identical commands. Rollback restores repeated
+  oracle computation without changing product decoding or refusal order.
+  Independent window groups may run in parallel with call-local readers, callbacks and decoder
+  state and immutable shared inputs/oracles; retain all four headrooms per window. Measure
+  complete suite or active event spans, since parent Elapsed excludes parallel subtest work.
+
 ### Allocation-bounded checkout stamps (V1-4230)
 
 - `DCR-V1-8000`: (accepted under the owner's standing auto-accept (2026-10-11); amended under the owner's fix-round instruction (2026-11-04); V1-4230)
@@ -754,6 +766,7 @@ DCPV1.
 
 | Requirements | Implementation boundary | Required evidence |
 | --- | --- | --- |
+| DCR-V1-9502 | `internal/doccorpus/read_stream_test.go` | `TestDCRV1431StreamedDecodeMatchesInMemory`; three-run comparison in `docs/build-log/2026-11-05-slowperf.md` |
 | DCR-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCRV1410VerifiedReadSkipsRederivation`, `TestDCRV1410VerifiedReadRefusals`, `TestDCRV1410UnattestedBuilderRederives`, `TestDCRV1411ObserveTreeMatchesBuildContext`, `TestDCRV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCRV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCRV1413CorpusReadsWithoutRederivation`, `TestDCRV1414ParallelDecodeMatchesClosedDecode`, `TestDCRV1416CorpusMCPFirstAndWarmCalls`, `TestDCRV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCRV1417WarmStampRefusesParentSymlink`, `TestDCRV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCRV1418VerifiedRead`, `TestDCRV1419FastIndexMatchesReference`, `TestDCRV1419FastIndexDeclinesEveryRefusal`, `TestDCRV1419BoundaryScanFindsStringContent`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCR-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCRV1431StreamedDecodeMatchesInMemory`, `TestDCRV1431StreamedReadReusesBlocks`, `TestDCRV1431OpenReadFile`, `TestDCRV1431StreamedTruncationAtWindowEnd`, `TestDCRV1431CorpusRefusalJoinsFreshness`, `TestDCRV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCRV1434DecodeTimeClaimTermsMatchIndex`, `TestDCRV1434ConcurrentQueriesShareClaimTerms`, `TestDCRV1416CorpusMCPFirstAndWarmCalls`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-corpus-read-residual.md |
 | DCR-V1-551..553 | `internal/doccorpus/artifact_scan.go`, `artifact_decode.go` | `TestDCRV1551ParallelElementsMatchScan`, `TestDCRV1551ParallelElementsCorrupt`, `TestDCRV1552ParallelScanMatchesSequential`; measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-parallel-boundary-scan.md` |

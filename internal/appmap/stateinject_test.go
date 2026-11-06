@@ -43,6 +43,7 @@ func nameUnknownIn(m *Map, path string) bool {
 // registration and the parameter list; a registration outside the scope and lodash's `_.constant`
 // are not read; editing the registration makes the screen's lineage STALE.
 func TestAMAPV0022InjectedStateNames(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	router := `const WidgetRoutes = ($stateProvider, WidgetConstants, AppStateNames) => {
   $stateProvider
     .state(AppStateNames.WIDGETS, { url: 'widgets' })
@@ -114,6 +115,7 @@ angular.module('admin')
 
 // AMAP-V0-022: each injectable function shape and annotation the router file proves resolves.
 func TestAMAPV0022InjectionAnnotations(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	reg := map[string]string{"app/setup/names.ts": "angular.module('admin').constant('Names', { X: 'app.x' });\n"}
 	for name, router := range map[string]string{
 		"implicit arrow":     "const R = ($stateProvider, Names) => {\n  $stateProvider.state(Names.X, { url: 'x' });\n};\nexport default R;\n",
@@ -138,6 +140,7 @@ func TestAMAPV0022InjectionAnnotations(t *testing.T) {
 // AMAP-V0-023: an injected name the map cannot prove stays UNKNOWN non-literal-name (a parent
 // non-literal-value); nothing is guessed.
 func TestAMAPV0023UnprovableInjectionStaysUnknown(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: each case builds a private repository and map.
 	const reg = "app/setup/names.ts"
 	plain := "const R = ($stateProvider, Names) => {\n  $stateProvider.state(Names.X, { url: 'x' });\n  $stateProvider.state('kid', { parent: Names.X, url: '/k' });\n};\n"
 	good := "angular.module('admin').constant('Names', { X: 'app.x' });\n"
@@ -218,6 +221,7 @@ func TestAMAPV0023UnprovableInjectionStaysUnknown(t *testing.T) {
 // AMAP-V0-023: a scope source the reader cannot read as text could register any name, so every
 // injected name in that build stays UNKNOWN.
 func TestAMAPV0023ScopePoisoned(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	router := "const R = ($stateProvider, Names) => {\n  $stateProvider.state(Names.X, { url: 'x' });\n};\n"
 	files := map[string]string{"app/setup/names.ts": "angular.module('admin').constant('Names', { X: 'app.x' });\n"}
 	_, _, m, err := injectRepo(t, `["app/setup"]`, router, files)
@@ -237,6 +241,7 @@ func TestAMAPV0023ScopePoisoned(t *testing.T) {
 // AMAP-V0-021: a malformed di_constants scope refuses; a valid one that no router reads through
 // leaves every literal screen as it was.
 func TestAMAPV0021DIConstantsManifest(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	router := "$stateProvider.state('app.lit', { url: 'lit' });\n"
 	files := map[string]string{"app/setup/names.ts": "angular.module('admin').constant('Names', { X: 'app.x' });\n"}
 	many := `["` + strings.Repeat(`app/setup", "`, 16) + `app/setup"]`
@@ -295,6 +300,7 @@ func diResolved(t *testing.T, m *Map) bool {
 // initializer; one numeric, computed or auto-numbered member makes it no table, and the build says
 // so with a di-constant non-literal-member unknown.
 func TestAMAPV0024InjectedStringEnum(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	for name, c := range map[string]struct {
 		table string
 		ok    bool
@@ -349,6 +355,7 @@ func TestAMAPV0024InjectedStringEnum(t *testing.T) {
 // between the declaration and the import; a second candidate, a second level, or a module the
 // reader cannot see stays UNKNOWN with its reason.
 func TestAMAPV0025InjectedTableThroughBarrel(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
 	object := "export const SectionTable = {\n  REPORTS: 'ledger',\n} as const;\n"
@@ -426,6 +433,7 @@ func checkBarrel(t *testing.T, reg string, files map[string]string, reason, via 
 // namespace import, dynamic import or require of a module that is the declaring file or may
 // re-export it. One that cannot be proved only read leaves the name UNKNOWN (not-read-whole).
 func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl, index = "app/tables/routes/routes.constants.ts", "app/tables/routes/index.ts"
 	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
 	star := "export * from './routes.constants';\n"
@@ -750,6 +758,7 @@ func TestAMAPV0025ChainBindingsFailClosed(t *testing.T) {
 // AMAP-V0-025: the lexer does not read JSX, whose text can open a string that hides a write, so a
 // .tsx or .jsx file holding any `<` is unread.
 func TestAMAPV0025JSXFileUnread(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.tsx"
 	files := map[string]string{decl: "export const SectionTable = { REPORTS: 'ledger' };\n" +
 		"export const el = <p>it's {SectionTable.REPORTS = 'other'}</p>;\n"}
@@ -765,6 +774,7 @@ func TestAMAPV0025JSXFileUnread(t *testing.T) {
 // AMAP-V0-025: a hashbang line ends at any line terminator (LF, CR, U+2028, U+2029); one ended by a
 // lone CR or a separator, after which code shares the counted line, makes the file unread.
 func TestAMAPV0025HashbangLineEnds(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	for name, end := range map[string]string{"carriage": "\r", "separator": "\u2028", "paragraph": "\u2029"} {
 		files := map[string]string{decl: "#!/usr/bin/env node" + end + "setTimeout(() => { SectionTable.REPORTS = 'other'; });\n" +
@@ -789,6 +799,7 @@ func TestAMAPV0025HashbangLineEnds(t *testing.T) {
 // in ECMAScript; the reader does not follow it, so the name stays UNKNOWN instead of resolving the
 // star source's table.
 func TestAMAPV0025LocalExportShadowsStar(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
 	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
@@ -825,6 +836,7 @@ func TestAMAPV0025LocalExportShadowsStar(t *testing.T) {
 // namespace, destructuring or local export list), or whose brackets do not balance, is still a
 // candidate, so beside a readable table the name is ambiguous, and alone it is not found.
 func TestAMAPV0025UnreadStarExportIsAmbiguous(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
 	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
@@ -861,6 +873,7 @@ func TestAMAPV0025UnreadStarExportIsAmbiguous(t *testing.T) {
 // carries a di-constant unknown naming the registration and why; a resolving build, a build
 // without the scope and an unregistered name carry none.
 func TestAMAPV0026DIConstantDiagnostics(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
 	for name, c := range map[string]struct {
 		reg, table, reason string
@@ -910,6 +923,7 @@ func TestAMAPV0026DIConstantDiagnostics(t *testing.T) {
 // not close, or an escaped identifier the lexer splits -- may export any name, so the table never
 // resolves through it by elimination, as the barrel or as a competing star source.
 func TestAMAPV0025UnlistableExportsFailClosed(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	enum := "export enum SectionTable {\n  REPORTS = 'ledger',\n}\n"
 	reg := strings.Replace(diRegText, "'./tables'", "'../tables/routes'", 1)
@@ -942,6 +956,7 @@ func TestAMAPV0025UnlistableExportsFailClosed(t *testing.T) {
 // through a star or named barrel or imported directly: an escaped identifier can write the table,
 // and a skipped or undecodable statement, or source the lexer cannot place, can hide such a write.
 func TestAMAPV0025UnreadDeclaringFileFailsClosed(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
 	other := "export const Unrelated = { A: 'a' };\n"
@@ -995,6 +1010,7 @@ func TestAMAPV0025UnreadDeclaringFileFailsClosed(t *testing.T) {
 // destructuring element, an alias -- makes it not read whole, behind a star barrel or imported
 // directly.
 func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl = "app/tables/routes/routes.constants.ts"
 	table := "export const SectionTable = { REPORTS: 'ledger' };\n"
 	for name, write := range map[string]string{
@@ -1064,6 +1080,7 @@ func TestAMAPV0026PossibleWritesFailClosed(t *testing.T) {
 
 // A template substitution is plain only when it is one name, member chain or literal (round 17).
 func TestAMAPV0025SubstOpaque(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	for src, want := range map[string]bool{
 		"`${a}`":                 false,
 		"`x${ a.b }y${a?.b}`":    false,
@@ -1096,6 +1113,7 @@ func TestAMAPV0025SubstOpaque(t *testing.T) {
 // AMAP-V0-025: a computed member or object key whose name is not one number or string removes
 // the angular.module exemption; array literals, patterns and literal or empty brackets do not.
 func TestAMAPV0025ComputedName(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	for src, want := range map[string]bool{
 		"[a, b]":                  false,
 		"f([a, b])":               false,
@@ -1150,6 +1168,7 @@ func diDetails(m *Map) []string {
 // and an enum with literal members -- resolves, a second star export declaring the name reads
 // UNKNOWN naming both candidate paths, and a not-read-whole unknown names the hop that failed.
 func TestAMAPV0070DirectoryStarEnum(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	reg := "import { SectionTable } from './routes';\nangular.module('core')\n  .constant('SectionNames', SectionTable);\n"
 	const decl, index, copy = "app/setup/routes/routes.constants.ts", "app/setup/routes/index.ts", "app/setup/routes/copy.ts"
 	enum := "export enum SectionTable { REPORTS = 'ledger', HOME = 'home' }\n"
@@ -1190,6 +1209,7 @@ func TestAMAPV0070DirectoryStarEnum(t *testing.T) {
 // object literal registration read at a member it lacks, fails for its own reason and must not
 // carry the first lookup's hop as its detail.
 func TestAMAPV0072FailedHopDoesNotLeakBetweenLookups(t *testing.T) {
+	t.Parallel() // AMAP-V0-9501: private fixture; serial hooks have finished.
 	const decl, index, copy = "app/setup/routes/routes.constants.ts", "app/setup/routes/index.ts", "app/setup/routes/copy.ts"
 	enum := "export enum SectionTable { REPORTS = 'ledger', HOME = 'home' }\n"
 	reg := "import { SectionTable } from './routes';\nangular.module('core')\n  .constant('SectionNames', SectionTable)\n  .constant('OtherNames', { HOME: 'home' });\n"

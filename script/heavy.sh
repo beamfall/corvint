@@ -116,7 +116,10 @@
 #                        (else /tmp), removed with all its contents when the run ends, including
 #                        after a forwarded signal or a timeout or cap kill; only a KILL of the
 #                        wrapper itself leaves it. A local run's CORVINT_GOCACHE stays the cache
-#                        derived from the caller's TMPDIR (ASD-V0-734, V1-4319).
+#                        derived from the caller's TMPDIR (ASD-V0-734, V1-4319). Go tests instead
+#                        share a stable heavy-go-test-UID child for Go result-cache reuse; the last
+#                        active test run cleans its contents under a lock (ASD-V0-734, V1-4725).
+#                        GOTMPDIR is unchanged, including when it is unset.
 #
 # Run telemetry (ASD-V0-037, V1-2905). This file is the one runner: its remote half is the same file,
 # shipped over ssh on every offload, so no copy lives on a remote host. Every run prints
@@ -256,7 +259,8 @@
 # the remote is unavailable (97), with a fix naming HEAVY_REMOTE_ENV (ASD-V0-2120).
 # HEAVY_REMOTE_GOCACHE is
 # read on the remote. No remote command default touches /tmp for the Go cache; trim it with
-# `make go-cache-trim` if it grows. The remote command's TMPDIR is a fresh directory under
+# `make go-cache-trim` if it grows. Except for Go tests' stable, locked namespace (ASD-V0-734),
+# the remote command's TMPDIR is a fresh directory under
 # ${HEAVY_REMOTE_TMPDIR:-HEAVY_REMOTE_ROOT/tmp} (read on the remote), removed with everything in it
 # when the command ends (V1-2563: the remote disk, as on the CI runners, not a tmpfs /tmp), and its
 # GOTMPDIR is that directory too unless HEAVY_REMOTE_GOTMPDIR or the env file sets one (ASD-V0-938).
@@ -380,6 +384,7 @@ use strict;
 use warnings;
 use Fcntl qw(:flock F_SETFD);
 use File::Path ();
+use File::Find ();
 use File::Temp ();
 use POSIX qw(setpgid strftime);
 use Time::HiRes qw(time);
@@ -398,6 +403,7 @@ my $loadwait = delete $ENV{HEAVY_RUN_LOAD} // 0;
 my $cls = delete $ENV{HEAVY_RUN_CLASS} // "";
 my $cap = delete $ENV{HEAVY_RUN_CAP} // 0;
 my $hint = delete $ENV{HEAVY_RUN_CAP_HINT} // "";
+my $test_parent = delete $ENV{HEAVY_RUN_TEST_PARENT};
 my $pfx = length $cls ? "$cls " : "";
 my $t0 = time;
 my ($lock, $slot, $path, $held, $told);
@@ -451,10 +457,79 @@ if ($held) {
 fcntl($lock, F_SETFD, 0) or die "heavy.sh: fcntl failed: $!\n";
 # ASD-V0-734 (V1-4319): the command gets a private TMPDIR under the caller's, removed once the run
 # is over, after a forwarded INT/TERM/HUP or a timeout or cap kill too, so files a killed test's
-# own cleanup never removed do not pile up in a shared (often RAM-backed) /tmp.
+# own cleanup never removed do not pile up in a shared (often RAM-backed) /tmp. Go tests use
+# a stable test namespace instead, managed below; GOTMPDIR is left unchanged.
 my $tparent = length($ENV{TMPDIR} // "") && -d $ENV{TMPDIR} ? $ENV{TMPDIR} : "/tmp";
 my $rtmp = eval { File::Temp::tempdir("heavy-run.XXXXXX", DIR => $tparent) };
 printf STDERR "heavy.sh: no private TMPDIR under %s; the run uses it directly\n", $tparent unless $rtmp;
+# ASD-V0-734 (V1-4725): Go's result cache observes TMPDIR. Use a stable,
+# private namespace for test binaries, leaving GOTMPDIR unchanged. Shared locks
+# cover concurrent test runs; only an exclusive holder may clear leaked test temporaries.
+# The remote runner adds exactly this timeout prefix. env/leading assignments are the local
+# forms normalized by main; inspect argv, never words embedded in a shell command or prompt.
+my $test_at = @cmd >= 2 && $cmd[0] eq "timeout" ? 2 : 0;
+my ($assigned_tmp, $test_env);
+if (($cmd[$test_at] // "") eq "env") {
+    $test_env = 1;
+    ++$test_at;
+    # Match the env options already recognized by writable_paths before its assignments.
+    while ($test_at < @cmd) {
+        my $a = $cmd[$test_at];
+        my $unset;
+        if ($a eq "--") { ++$test_at; last }
+        if ($a eq "-i" || $a eq "-" || $a eq "--ignore-environment") {
+            $assigned_tmp = "/tmp";
+        } elsif ($a eq "-u" && $test_at + 1 < @cmd) {
+            $unset = $cmd[++$test_at];
+        } elsif ($a =~ /^(?:-u|--unset=)(.+)$/s) {
+            $unset = $1;
+        } else { last }
+        $assigned_tmp = "/tmp" if defined($unset) && $unset eq "TMPDIR";
+        ++$test_at;
+    }
+    while ($test_at < @cmd && $cmd[$test_at] =~ /^[A-Za-z_][A-Za-z0-9_]*=/) {
+        if ($cmd[$test_at] =~ /^TMPDIR=(.*)$/s) {
+            $assigned_tmp = length($1) ? $1 : "/tmp";
+        }
+        ++$test_at;
+    }
+}
+my $go_test = $test_at + 1 < @cmd && $cmd[$test_at] =~ m{(?:^|/)go$} && $cmd[$test_at + 1] eq "test";
+my ($ttmp, $tlock);
+sub clear_test_tmp {
+    return unless $ttmp && flock($tlock, LOCK_EX | LOCK_NB);
+    opendir(my $dh, $ttmp) or return;
+    my @entries = grep { $_ ne "." && $_ ne ".." && $_ ne ".lock" } readdir($dh);
+    closedir $dh;
+    if (@entries) {
+        # File::Path cannot enter mode-000 trees on Unix. Restore directory access before
+        # removal, without following symlinks out of this current-user private namespace.
+        File::Find::find({ no_chdir => 1, wanted => sub {
+            chmod 0700, $File::Find::name if -d $File::Find::name && !-l $File::Find::name;
+        } }, map { "$ttmp/$_" } @entries);
+        File::Path::remove_tree((map { "$ttmp/$_" } @entries), { error => \my $err });
+        printf STDERR "heavy.sh: could not remove the run's TMPDIR %s\n", $ttmp if @$err;
+    }
+}
+if ($go_test) {
+    my $parent = $test_parent // $assigned_tmp // $tparent;
+    # macOS TMPDIR ends in "/": a "//" here reaches os.TempDir unchanged and makes every
+    # t.TempDir() unclean, which absolute-clean-path guards then refuse (V1-4738).
+    $parent =~ s{/+\z}{};
+    my $candidate = "$parent/heavy-go-test-$<";
+    mkdir($candidate, 0700);
+    my @st = lstat($candidate);
+    if (@st && -d _ && !-l _ && $st[4] == $< && ($st[2] & 0777) == 0700 &&
+        open($tlock, ">>", "$candidate/.lock")) {
+        $ttmp = $candidate;
+        clear_test_tmp(); # Recover leftovers after a KILL of the wrapper, before joining readers.
+        if (flock($tlock, LOCK_SH)) {
+            fcntl($tlock, F_SETFD, 0) or die "heavy.sh: fcntl failed: $!\n";
+        } else {
+            $ttmp = undef;
+        }
+    }
+}
 my $pid = fork;
 unless (defined $pid) {
     File::Path::remove_tree($rtmp) if $rtmp;
@@ -462,7 +537,15 @@ unless (defined $pid) {
 }
 if ($pid == 0) {
     setpgid(0, 0);
-    $ENV{TMPDIR} = $rtmp if $rtmp;
+    if ($go_test) {
+        if ($ttmp) {
+            $ENV{TMPDIR} = $ttmp;
+            # env -i/-u can erase the inherited value; append after existing assignments.
+            splice @cmd, $test_at, 0, "TMPDIR=$ttmp" if $test_env;
+        }
+    } else {
+        $ENV{TMPDIR} = $rtmp if $rtmp;
+    }
     setpriority(0, 0, $nice) if $nice > getpriority(0, 0);
     @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = ($slot, fileno($lock));
     no warnings "exec";
@@ -502,6 +585,7 @@ if ($capped) {
         select(undef, undef, undef, 0.1);
     }
 }
+clear_test_tmp();
 if ($rtmp) {
     File::Path::remove_tree($rtmp, { error => \my $err });
     printf STDERR "heavy.sh: could not remove the run's TMPDIR %s\n", $rtmp if -e $rtmp;
@@ -919,7 +1003,7 @@ serve() {
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
   : > "$w/marker" || infra "marker unwritable"
   t3=$(heavy_now)
-  perl -e "$slot_perl" "$root/slots" "$slots" "$nice_level" timeout "$TIMEOUT" ${cmd[@]+"${cmd[@]}"} < /dev/null
+  HEAVY_RUN_TEST_PARENT=${HEAVY_REMOTE_TMPDIR:-$root/tmp} perl -e "$slot_perl" "$root/slots" "$slots" "$nice_level" timeout "$TIMEOUT" ${cmd[@]+"${cmd[@]}"} < /dev/null
   rc=$?
   t4=$(heavy_now)
   # run is the build and the test or vet together (Go does not report them apart).
