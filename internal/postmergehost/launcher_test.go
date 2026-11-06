@@ -661,6 +661,18 @@ func hostTestNativeControlBinding(t *testing.T, ctx context.Context, root, base,
 	if err != nil {
 		t.Fatal(err)
 	}
+	if runtime.GOOS == "linux" {
+		// The step verifier pins only a single-link regular file, and some
+		// hosts install git hardlinked into git-core (V1-4896). Linux git has
+		// a compiled-in exec path, so pin a private single-link copy instead.
+		private := filepath.Join(t.TempDir(), "git")
+		if err := os.WriteFile(private, gitBytes, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if binary, err = filepath.EvalSymlinks(private); err != nil {
+			t.Fatal(err)
+		}
+	}
 	h := stepverify.Host{Profile: "corvint-step-host/0", ObserverID: "observer_" + run, SessionID: d.SessionID, CapabilityID: d.CapabilityID, DeclarationDigest: stepverify.DeclarationDigest(d), MetadataProtected: true, FilesystemConfined: true, GitBinary: binary, GitBinaryDigest: hostDigest(gitBytes), Environment: &d.Environment}
 	output, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
