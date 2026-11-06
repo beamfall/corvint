@@ -11,6 +11,7 @@ import (
 // `bears` line naming the entry, its source and the unit or plugin, after the
 // unknown lines; the JSON plan carries them as plan.frontierBearers.
 func TestAffectedTextNamesFrontierBearers_TSP_V0_942(t *testing.T) {
+	t.Parallel()
 	var receipt affectedCompactReceipt
 	receipt.Plan.Unknown = []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: "shell:foreign-invocation-unmodelled"}}
 	receipt.Plan.FrontierBearers = []affected.FrontierBearer{

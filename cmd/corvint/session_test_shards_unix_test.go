@@ -122,7 +122,7 @@ func TestSTRV0054CLIMeasuredShards(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest := filepath.Join(dir, "manifest.json")
-	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--placement", "measured", "--shard-plan", planPath, "--shard", "0/2", "--dry-run", "--manifest", manifest)
+	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--placement", "measured", "--shard-plan", planPath, "--shard", "0/2", "--dry-run", "--full", "--manifest", manifest)
 	if code != 0 || !strings.Contains(stdout, `"placement":"measured"`) {
 		t.Fatalf("dry run %d %q %s", code, stderr, stdout)
 	}
@@ -276,7 +276,8 @@ func TestSTRV0055ShardPlanReadIsBounded(t *testing.T) {
 			t.Fatalf("%s: reading the shard plan blocked", refused)
 		}
 	}
-	if code, stdout, stderr := runCLI(t, dryRun(planPath)...); code != 0 || !strings.Contains(stdout, `"placement":"measured"`) {
+	// STR-V0-7313: the regular-plan JSON assertion requests the full form.
+	if code, stdout, stderr := runCLI(t, append(dryRun(planPath), "--full")...); code != 0 || !strings.Contains(stdout, `"placement":"measured"`) {
 		t.Fatalf("regular plan %d %q %s", code, stderr, stdout)
 	}
 }

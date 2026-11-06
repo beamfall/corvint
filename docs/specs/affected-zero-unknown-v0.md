@@ -56,6 +56,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
   before. Supersedes the AFP-V0-2405 hint for claimed paths.
+  Driver execution edges SHALL survive Go test-only containment (AFP-V0-036), selecting
+  the target/job and its callers when only the invoked package's tests change; ordinary Go
+  importers remain contained. Go's `-C=DIR` form SHALL resolve like `-C DIR`. Shell globs in
+  Go package operands and unsupported inline interpreter programs SHALL resolve their
+  dependencies or retain the invocation site as computed under AZU-V0-003.
 - **AZU-V0-002: Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list every
   tracked path at a commit that no plugin, the driver claimant or a project declaration claims.
   Declarations are documentation paths, runtime readers, task state, and a new
@@ -230,6 +235,16 @@ unclassified frontiers while excluding only classified unrelated reasons.
 Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
 shape, error/exit contract, committed golden or baseline changes are authorized.
 
+The pk-affected independent-review repair checks AZU-V0-001 with
+`TestDriverTestOnlyPackageChange_AZU_V0_001` (target, direct job and transitive callers,
+with ordinary Go importers still excluded), `TestDriverGoGlobComputed_AZU_V0_001`,
+`TestDriverGoEqualsDirectory_AZU_V0_001`, and
+`TestDriverInlineInterpreterComputed_AZU_V0_001` in `driver_review_test.go`.
+The glob and inline cases check the stored frontier as well as caller selection;
+the directory case checks that an unrelated package does not select those drivers.
+Acceptance requires these regressions and the complete affected package. This repair
+does not qualify AZU-V0-009. Reverting it restores the four missing-driver risks,
+without a wire migration or changes to Go importer containment.
 
 The PR #97/#98 merge integration declares the three exact retained linecov experiment JSON
 outputs and `tools/linecov/command-tree.json` under AZU-V0-002. Existing literal, enclosing-package,

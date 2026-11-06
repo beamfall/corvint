@@ -237,12 +237,39 @@ func checkModuleRequirements(root string, report *Report) error {
 }
 
 func buildTargets(ctx context.Context, options Options, manifest Manifest, report *Report) error {
-	for _, target := range manifest.Targets {
-		entry, err := buildTarget(ctx, options, manifest, target, report)
-		if err != nil {
-			return err
+	return buildTargetsUsing(ctx, options, manifest, report, buildTarget)
+}
+
+func buildTargetsUsing(ctx context.Context, options Options, manifest Manifest, report *Report, build func(context.Context, Options, Manifest, Target, *Report) (TargetReport, error)) error {
+	type looseResult struct {
+		entry   TargetReport
+		reasons []Reason
+	}
+	results := runTargetWorkers(ctx, len(manifest.Targets), func(ctx context.Context, index int) (looseResult, error) {
+		// Workers own their findings; only the collector mutates the shared report.
+		local := Report{Commit: report.Commit, build: report.build}
+		entry, err := build(ctx, options, manifest, manifest.Targets[index], &local)
+		return looseResult{entry: entry, reasons: local.Reasons}, err
+	})
+	for index, result := range results {
+		report.Reasons = append(report.Reasons, result.value.reasons...)
+		if result.err != nil {
+			// Retain the serial prefix, removing any speculative later builds only
+			// after their subprocesses have quiesced.
+			for _, target := range manifest.Targets[index+1:] {
+				name := manifest.Profile.BinaryName + "-" + target.GOOS + "-" + target.GOARCH + target.Suffix
+				if isNative(target) {
+					_ = os.RemoveAll(filepath.Join(options.Output, "smoke-fixture"))
+				}
+				for _, side := range []string{"a", "b"} {
+					_ = os.Remove(filepath.Join(options.Output, "build-"+side, name))
+					_ = os.RemoveAll(filepath.Join(options.Output, "cache-"+side+"-"+target.GOOS+"-"+target.GOARCH))
+					_ = os.RemoveAll(filepath.Join(options.Output, "tmp-"+side+"-"+target.GOOS+"-"+target.GOARCH))
+				}
+			}
+			return result.err
 		}
-		report.Targets = append(report.Targets, entry)
+		report.Targets = append(report.Targets, result.value.entry)
 	}
 	recordBinaryDependencies(report)
 	return writeChecksums(filepath.Join(options.Output, "SHA256SUMS"), report.Targets)

@@ -43,7 +43,7 @@ func freshDirectorySource(r *resolver, parsed script, text string, at int, targe
 		return false
 	}
 	assignment, source := parsed.commands[assigned], parsed.commands[at]
-	if assignment.substituted || assignment.block != source.block || assignment.block < 0 {
+	if assignment.substituted || assignment.block != source.block || assignment.block < 0 || backgroundedFreshList(parsed, assigned) {
 		return false
 	}
 	switch assignment.lead {
@@ -378,4 +378,28 @@ func occurrences(text, name string) (int, bool) {
 
 func nameByte(c byte) bool {
 	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
+}
+
+// backgroundedFreshList checks the whole AND/OR/pipeline list, since its final
+// ampersand backgrounds earlier assignments too (TSP-V0-7317).
+func backgroundedFreshList(parsed script, assigned int) bool {
+	block := parsed.commands[assigned].block
+	for at := assigned; at < len(parsed.commands); at++ {
+		command := parsed.commands[at]
+		if command.substituted {
+			continue
+		}
+		if command.block != block {
+			return true
+		} // the straight-line proof cannot cross a compound arm
+		switch command.trail {
+		case "&":
+			return true
+		case "&&", "||", "|":
+			continue
+		default:
+			return false
+		}
+	}
+	return false
 }

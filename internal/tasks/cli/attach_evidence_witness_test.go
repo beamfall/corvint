@@ -49,6 +49,7 @@ func ticketFile(t *testing.T, r *fixture.Repo, id string) string {
 // restore` into the emptied store rebuilds the record and every receipt
 // byte-for-byte (TRL-V0-871).
 func TestTEAV0001_ArchiveCarriesAttachedEvidence(t *testing.T) {
+	t.Parallel()
 	r, id := attachStore(t)
 	if x := atm(t, r.Root, nil, attachArgs(id, "1", "ev-1", "archived log")...); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("attach-evidence: %s", x.stdout)
@@ -165,6 +166,7 @@ func TestTEAV0001_TwoProcessAttachEvidenceCAS(t *testing.T) {
 // (crash point C2, after journal append and before commit) is redone by the
 // next writer to the same record bytes.
 func TestTEAV0001_InterruptedAttachmentIsRedone(t *testing.T) {
+	t.Parallel()
 	r, id := attachStore(t)
 	headPath, recordPath := filepath.Join(r.StateDir, "head.json"), ticketFile(t, r, id)
 	head, err := os.ReadFile(headPath)
