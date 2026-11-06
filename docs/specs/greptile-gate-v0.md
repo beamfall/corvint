@@ -9,7 +9,7 @@ Authoritative inputs: owner instructions 2026-11-06 (merge only at Greptile 5/5 
 
 ## Agent digest
 - Claim: A trusted workflow posts the required `greptile-gate` status, `success` only when Greptile reviewed the exact PR head at 5/5 with no unresolved Greptile thread.
-- Status: accepted / experimental until the hosted workflow has run and the ruleset requires it.
+- Status: accepted (owner instruction 2026-11-06: make Greptile a required check, "Yes, build it") / experimental
 - Exists: `.github/workflows/greptile-gate.yml`; `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead`.
 - Blocked on: merge, a first hosted run, and adding `greptile-gate` to the main ruleset's required checks.
 - Read next: Requirements; Non-goals and failure modes.
