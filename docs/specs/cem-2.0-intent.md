@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-01
 Requirement prefix: `CEM2-V0`
 Intent status: proposed
-Delivery status: experimental
+Delivery status: not-started; codec prototype retired 2026-11-06 (V1-4747 AC3)
 Authoritative inputs: the CEM 2.0 counterfactual-receipt plan of 2026-10-24, recorded in full in
 V1-2600 to V1-2609 (umbrella V1-2609); `AGENTS.md` invariants 1, 2, 3, 4, 7 and 8;
 `docs/specs/cem-stable-v1.md` (the accepted cem/1.0 contract, unchanged here); V1-3759 (no extension
@@ -15,8 +15,8 @@ closeout); the four CEM audits of 2026-10-31 and the CEM 2.0 audit of 2026-11-01
 
 ## Agent digest
 - Claim: CEM 2.0 is the V1-2609 counterfactual-receipt plan; cheaper closeout and a kill-gated value replay come first, a compact 1.0 codec is optional.
-- Status: proposed / experimental
-- Exists: this intent and the unwired experimental codec prototype `internal/cem2proto` (label `cem/2.0-proto`), with round-trip, refusal, bound and fuzz tests.
+- Status: proposed / not-started; codec prototype retired 2026-11-06 (V1-4747 AC3)
+- Exists: this intent only. The unwired codec prototype `internal/cem2proto` (label `cem/2.0-proto`) and its tests were deleted under V1-4747 AC3; read them at 044058f1, and the measurements in `docs/build-log/2026-11-01-cem2-w14.md`.
 - Blocked on: owner acceptance; V1-3980 (content-keyed claims, incremental closeout); the V1-2600 value replay verdict. No cem/2.0 wire, producer, verifier or CLI exists.
 - Read next: Plan order; Requirements; Failure modes; Phases and kill criteria.
 

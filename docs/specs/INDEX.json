@@ -2593,17 +2593,15 @@
     "path": "docs/specs/proof-preserving-abstraction-v0.md",
     "title": "Proof-Preserving Abstraction V0",
     "reqPrefix": "PPA-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-06 (V1-4747 AC3)",
+    "delivery": "retired",
     "claim": "An isolated Go library projects proof state into smaller views without strengthening claims or authority.",
     "dependsOn": [
       "docs/specs/proof-carrying-context-optimization-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/proofabstraction"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/proof-tour-v0.md",
@@ -2685,8 +2683,8 @@
     "path": "docs/specs/pulse-snapshot-lease-v0.md",
     "title": "Pulse Snapshot Lease V0",
     "reqPrefix": "PSL-V0",
-    "intent": "proposed",
-    "delivery": "experimental (P0-A only)",
+    "intent": "retired 2026-11-06 (V1-4747 AC3)",
+    "delivery": "retired",
     "claim": "A local Go coordinator provides bounded P0-A snapshot lifecycle state; full WSI capture, leases, and deltas are not delivered.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
@@ -2694,11 +2692,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-pulse",
-      "internal/pulse",
-      "conformance/pulse-snapshot-v0"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/qualified-lifecycle-v0.md",
@@ -4279,7 +4273,7 @@
     "title": "CEM 2.0 intent",
     "reqPrefix": "CEM2-V0",
     "intent": "proposed",
-    "delivery": "experimental",
+    "delivery": "not-started; codec prototype retired 2026-11-06 (V1-4747 AC3)",
     "claim": "CEM 2.0 is the V1-2609 counterfactual-receipt plan; cheaper closeout and a kill-gated value replay come first, a compact 1.0 codec is optional.",
     "dependsOn": [],
     "supersededBy": null,
