@@ -133,10 +133,10 @@ jobs:
       - name: Shared documentation gates (including host versions and use-case pins)
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         env:
-          # CIN-V0-4753: a verified DEFER (pull request or queue entry) prints
-          # selection-baseline-check NOT_RUN; a main push, a FULL or failed plan and every local
-          # run replay it in full.
-          CORVINT_CI_CADENCE: ${{ needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence || 'FULL' }}
+          # CIN-V0-4753: only a verified pull-request DEFER prints selection-baseline-check
+          # NOT_RUN. A queue entry always replays in full, because the main push reuses the queue's
+          # doc-gates verdict; a FULL or failed plan and every local run replay it in full too.
+          CORVINT_CI_CADENCE: ${{ github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence || 'FULL' }}
         run: make -s doc-gates
       - name: Refuse AI co-author trailers in the pull request's commits (CIN-V0-006)
         # V1-3227: no commit may credit an AI agent as a GitHub co-author. A make target, so
