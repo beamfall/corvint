@@ -80,6 +80,7 @@ func runTwoRootImpactCLI(t *testing.T, args ...string) (impactTwoRootReport, str
 // an application path the map does not place, or an uncommitted application path, returns
 // full-suite-required with explicit unknown lines instead of an empty selection.
 func TestANLV0064TwoRootImpact(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	routes, err := os.ReadFile(filepath.Join(app, "app", "routes.js"))
 	if err != nil {
@@ -126,6 +127,7 @@ func TestANLV0064TwoRootImpact(t *testing.T) {
 // uncommitted or later application checkout does not change the answer; --test-at does the same
 // for the test root, and a dirty test root read at its HEAD refuses.
 func TestANLV0066TwoRootImpactAtRevision(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	routes, err := os.ReadFile(filepath.Join(app, "app", "routes.js"))
 	if err != nil {
@@ -158,6 +160,7 @@ func TestANLV0066TwoRootImpactAtRevision(t *testing.T) {
 
 // ANL-V0-063 ANL-V0-064: an incomplete or mixed two-root layout refuses typed before any output.
 func TestANLV0064TwoRootImpactRefusesInvalidLayout(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, _ := twoRootImpactRepos(t)
 	full := []string{"--app-root", app, "--test-root", "e2e=" + e2e, "--manifest", "appmap.json", "--base", appBase}
 	for _, args := range [][]string{
@@ -185,6 +188,7 @@ func TestANLV0064TwoRootImpactRefusesInvalidLayout(t *testing.T) {
 
 // ANL-V0-065: a reported change that selected no spec file is never an empty targeted answer.
 func TestANLV0065TwoRootImpactNeverEmptyForAChange(t *testing.T) {
+	t.Parallel()
 	pin := &appmap.RootPin{Repo: "e2e", Revision: "r"}
 	r := twoRootImpactVerdict(appmap.ImpactReport{App: "admin", Verdict: appmap.VerdictTargeted, Changed: 1, TestRoot: pin}, 0, false)
 	if r.Verdict != appmap.VerdictFullSuite || !slices.Contains(r.Reasons, "change-selected-no-spec-files") || len(r.Unknown) != 1 || len(r.SpecFiles) != 0 {
@@ -198,6 +202,7 @@ func TestANLV0065TwoRootImpactNeverEmptyForAChange(t *testing.T) {
 
 // ANL-V0-072: an unknown path's line names the file and line, or the bound, behind its reason.
 func TestANLV0072TwoRootUnknownNamesItsDetail(t *testing.T) {
+	t.Parallel()
 	pin := &appmap.RootPin{Repo: "e2e", Revision: "r"}
 	r := twoRootImpactVerdict(appmap.ImpactReport{App: "admin", Verdict: appmap.VerdictFullSuite, Changed: 2, TestRoot: pin, Unknown: []appmap.ImpactUnknown{
 		{Path: "app/a.html", Reason: "unresolved-reference", Detail: "app/b.js:7"},
@@ -212,6 +217,7 @@ func TestANLV0072TwoRootUnknownNamesItsDetail(t *testing.T) {
 // `affected` in the test repository fails closed when that pin is not its HEAD, and a bound
 // checkout that moves after the report was bound refuses when the receipt is written.
 func TestANLV0067AffectedChecksTestRootPin(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	dir := t.TempDir()
 	code, mapJSON, diag := runFlowsCLI(app, "appmap", "build", "--manifest", "appmap.json", "--repo", "e2e="+e2e)
@@ -286,6 +292,7 @@ func TestANLV0067AffectedChecksTestRootPin(t *testing.T) {
 // ANL-V0-066: the final recheck refuses a test-root worktree that changed after the map was built,
 // and a stated --at whose commit is not the one the map and the diff read.
 func TestANLV0066TwoRootImpactDriftRecheck(t *testing.T) {
+	t.Parallel()
 	app, appBase, e2e, e2eRev := twoRootImpactRepos(t)
 	ctx := context.Background()
 	pinned := func() *appmap.ImpactReport {
