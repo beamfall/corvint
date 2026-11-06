@@ -2,6 +2,7 @@ package perfbudget
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 	"os/exec"
@@ -9,10 +10,56 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
+
+// The smoke and scenario-selection tests execute the same two immutable
+// binaries. Build them once per package run; each test retains its own mutable
+// fixture, budgets and measurements (PRB-V0-024, PRB-V0-970, V1-2740).
+var harnessBinaries struct {
+	once  sync.Once
+	root  string
+	paths map[string]string
+	err   error
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if harnessBinaries.root != "" {
+		if err := os.RemoveAll(harnessBinaries.root); err != nil {
+			fmt.Fprintln(os.Stderr, "remove harness binaries:", err)
+			code = 1
+		}
+	}
+	os.Exit(code)
+}
+
+func sharedHarnessBinaries(t *testing.T) map[string]string {
+	t.Helper()
+	harnessBinaries.once.Do(func() {
+		harnessBinaries.root, harnessBinaries.err = os.MkdirTemp("", "corvint-perfbudget-binaries-")
+		if harnessBinaries.err != nil {
+			return
+		}
+		harnessBinaries.paths = make(map[string]string)
+		for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
+			path := filepath.Join(harnessBinaries.root, testplatform.Executable(pkg))
+			build := exec.Command("go", "build", "-o", path, "../../cmd/"+pkg)
+			if out, err := build.CombinedOutput(); err != nil {
+				harnessBinaries.err = fmt.Errorf("go build %s: %w %s", pkg, err, out)
+				return
+			}
+			harnessBinaries.paths[pkg] = path
+		}
+	})
+	if harnessBinaries.err != nil {
+		t.Fatal(harnessBinaries.err)
+	}
+	return harnessBinaries.paths
+}
 
 func float(v float64) *float64 { return &v }
 
@@ -415,14 +462,7 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 		t.Skip("builds corvint and corvint-corpus-mcp")
 	}
 	dir := t.TempDir()
-	bin := map[string]string{}
-	for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
-		bin[pkg] = filepath.Join(dir, testplatform.Executable(pkg))
-		build := exec.Command("go", "build", "-o", bin[pkg], "../../cmd/"+pkg)
-		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("go build %s: %v %s", pkg, err, out)
-		}
-	}
+	bin := sharedHarnessBinaries(t)
 	b, err := LoadBudgets("budgets.json")
 	if err != nil {
 		t.Fatal(err)
@@ -590,14 +630,7 @@ func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 		t.Skip("builds corvint and corvint-corpus-mcp")
 	}
 	dir := t.TempDir()
-	bin := map[string]string{}
-	for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
-		bin[pkg] = filepath.Join(dir, testplatform.Executable(pkg))
-		build := exec.Command("go", "build", "-o", bin[pkg], "../../cmd/"+pkg)
-		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("go build %s: %v %s", pkg, err, out)
-		}
-	}
+	bin := sharedHarnessBinaries(t)
 	b, err := LoadBudgets("budgets.json")
 	if err != nil {
 		t.Fatal(err)

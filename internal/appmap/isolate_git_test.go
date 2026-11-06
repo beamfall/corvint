@@ -1,6 +1,7 @@
 package appmap
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -11,5 +12,16 @@ import (
 // system configuration (testsupport.IsolateGit, V1-2635).
 func TestMain(m *testing.M) {
 	testsupport.IsolateGit()
-	os.Exit(m.Run())
+	var err error
+	fixtureSeeds.dir, err = os.MkdirTemp("", "appmap-fixture-seeds-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	if err := os.RemoveAll(fixtureSeeds.dir); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		code = 1
+	}
+	os.Exit(code)
 }
