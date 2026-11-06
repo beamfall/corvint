@@ -12,6 +12,7 @@ import (
 )
 
 func TestVerifyRetainedBundleAndFreshExtraction(t *testing.T) {
+	t.Parallel()
 	dir := makeRetainedFixture(t)
 	verified, err := VerifyRetainedBundle(dir)
 	if err != nil {
@@ -33,6 +34,7 @@ func TestVerifyRetainedBundleAndFreshExtraction(t *testing.T) {
 }
 
 func TestVerifyRetainedBundleRejectsChangedSidecarAndSmoke(t *testing.T) {
+	t.Parallel()
 	for _, mutate := range []func(string){
 		func(dir string) { mustWrite(t, filepath.Join(dir, "fixture.tar.gz.sha256"), []byte("bad\n")) },
 		func(dir string) {
@@ -50,6 +52,7 @@ func TestVerifyRetainedBundleRejectsChangedSidecarAndSmoke(t *testing.T) {
 }
 
 func TestVerifyRetainedBundleRejectsArbitraryPassingSmoke(t *testing.T) {
+	t.Parallel()
 	dir := makeRetainedFixture(t)
 	archive, err := os.ReadFile(filepath.Join(dir, "fixture.tar.gz"))
 	if err != nil {

@@ -1,3 +1,5 @@
+//corvint:read-kinds .go go.mod
+
 // Package tasks holds only the import-direction test for the in-tree
 // corvint-tasks companion (decision 0397). The companion's code lives in the
 // subpackages and cmd/corvint-tasks.

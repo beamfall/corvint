@@ -256,7 +256,7 @@ The implementation is accepted for this experimental slice when:
    obligation this step formerly tested: each is superseded by a named `ARTIFACT-GO-V0-0NN`
    requirement (separately accepted; see `## Accepted amendment: Go binary archive profile`),
    still live, or retired; and
-5. the `make gate` target (`Makefile:144@e0f6fc30`) remains green. There is no separate Python gate: decision
+5. the `make gate` target (`Makefile:149@e0f6fc30`) remains green. There is no separate Python gate: decision
    0088 (`docs/decisions/0088-go-only-cutover-and-oracle-retirement-2026-09-11.md`) retired the
    Python oracle and packaging, and the Makefile defines no python target (`grep -n -i python
    Makefile` returns nothing).
@@ -310,7 +310,7 @@ recorded by the current assessment; that evidence is not a legal conclusion or r
   `false`, so no such path is disjoint from the gated binary. Failure modes: any listed untracked
   path fails the loose gate as `dirty-worktree`. It fails the archive builder as `git-state-invalid`
   ("worktree is not clean"), and, when it appears after capture, as `git-state-changed`
-  (`conformance/release-artifact-v0/archive_run.go:422`). A path excluded by ignore rules is never
+  (`conformance/release-artifact-v0/archive_run.go:471@f0223702`). A path excluded by ignore rules is never
   listed, leaves the stamp `false`, and does not refuse.
 
 Acceptance requires adversarial fixtures for every forbidden member/container form, notice or

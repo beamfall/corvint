@@ -13,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -38,20 +36,10 @@ import (
 const FrontierForeignCallersInvalid = "shell:foreign-callers-invalid"
 
 // ForeignCallersProfile is the declaration's closed profile name.
-const ForeignCallersProfile = "corvint-shell-foreign-callers/0"
+const ForeignCallersProfile = affected.ShellForeignCallersProfile
 
-const (
-	maxForeignCallerBytes   = 64 << 10
-	maxForeignCallerScripts = 64
-	maxForeignCallers       = 256
-	// maxForeignCallerReason is 1024 bytes (V1-4062, TSP-V0-820): the
-	// longest declared reason reached 512 bytes with 24 files.
-	maxForeignCallerReason = 1024
-)
-
-// ForeignCallers is one declared script: every file naming it, split into
-// the callers that run it and the mentions that only name it, and the
-// project's stated reason.
+// ForeignCallers is one declared script's caller/mention split and project reason.
+// Retain this decoder type: JSON semantic errors include its name.
 type ForeignCallers struct {
 	Callers  []string `json:"callers"`
 	Mentions []string `json:"mentions,omitempty"`
@@ -69,7 +57,7 @@ type foreignCallersFile struct {
 // sorted and unique, disjoint, together non-empty and of clean relative paths
 // other than the script.
 func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error) {
-	body, err := root.ReadBounded(affected.ShellForeignCallersPath, maxForeignCallerBytes)
+	body, err := root.ReadBounded(affected.ShellForeignCallersPath, affected.MaxShellForeignCallerBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -80,25 +68,12 @@ func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
 		return nil, err
 	}
-	if declared.Profile != ForeignCallersProfile || len(declared.Scripts) == 0 || len(declared.Scripts) > maxForeignCallerScripts {
-		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d scripts", affected.ShellForeignCallersPath, ForeignCallersProfile, maxForeignCallerScripts)
-	}
+	entries := make(map[string]affected.ShellForeignCallerEntry, len(declared.Scripts))
 	for script, entry := range declared.Scripts {
-		if !affected.ValidRelativePath(script) || !hasAnySuffix(script, Suffixes) {
-			return nil, fmt.Errorf("%s: script %q", affected.ShellForeignCallersPath, script)
-		}
-		named := append(slices.Clone(entry.Callers), entry.Mentions...)
-		if len(named) == 0 || len(named) > maxForeignCallers || !sortedUnique(entry.Callers) || !sortedUnique(entry.Mentions) {
-			return nil, fmt.Errorf("%s: script %q callers and mentions must be 1 to %d sorted unique paths", affected.ShellForeignCallersPath, script, maxForeignCallers)
-		}
-		for _, file := range named {
-			if !affected.ValidRelativePath(file) || file == script || slices.Contains(entry.Callers, file) && slices.Contains(entry.Mentions, file) {
-				return nil, fmt.Errorf("%s: script %q file %q", affected.ShellForeignCallersPath, script, file)
-			}
-		}
-		if entry.Reason == "" || len(entry.Reason) > maxForeignCallerReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
-			return nil, fmt.Errorf("%s: script %q reason has %d bytes; want non-empty valid UTF-8 without control characters, at most %d bytes", affected.ShellForeignCallersPath, script, len(entry.Reason), maxForeignCallerReason)
-		}
+		entries[script] = affected.ShellForeignCallerEntry(entry)
+	}
+	if err := affected.ValidateShellForeignCallers(declared.Profile, entries); err != nil {
+		return nil, err
 	}
 	return declared.Scripts, nil
 }
@@ -152,14 +127,30 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 			}
 		}
 	}
-	if len(indexes) != len(declared) || !foreignCallersComplete(root, declared, built) {
+	if len(indexes) != len(declared) {
 		frontier[FrontierForeignCallersInvalid] = true
+		if detail := foreignCallerMismatch(root, declared, built); detail != "" {
+			frontier[FrontierForeignCallersInvalid+":"+detail] = true
+		}
 		return
+	}
+	complete := foreignCallersComplete(root, declared, built)
+	if !complete {
+		frontier[FrontierForeignCallersInvalid] = true
+		// A newly discovered directory construction must not discard edges
+		// verified by the previous literal/shell-expansion guard. Keep those
+		// callers, together with both uncertainty frontiers (AZU-V0-8901).
+		if !foreignCallersCompleteMode(root, declared, built, false) {
+			if detail := foreignCallerMismatch(root, declared, built); detail != "" {
+				frontier[FrontierForeignCallersInvalid+":"+detail] = true
+			}
+			return
+		}
 	}
 	for script, index := range indexes {
 		unit := &units[index]
 		unit.Callers = slices.Clone(declared[script].Callers)
-		if !built[script].empty() {
+		if !complete || !built[script].empty() {
 			// A script that itself runs a name it builds keeps the frontier
 			// (TSP-V0-960); only its callers are declared.
 			continue
@@ -180,6 +171,10 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 // dropped as soon as it is matched, so the scan holds at most that many
 // bodies; the verdict is that of a serial pass (TSP-V0-943).
 func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
+	return foreignCallersCompleteMode(root, declared, built, true)
+}
+
+func foreignCallersCompleteMode(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames, extended bool) bool {
 	candidates, err := root.Files(affected.ByName(CallerCandidate))
 	if err != nil {
 		return false
@@ -195,8 +190,10 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 	}
 	scripts := slices.Sorted(maps.Keys(declared))
 	bases := make([][]byte, len(scripts))
+	constructed := make([]func([]byte) bool, len(scripts))
 	for index, script := range scripts {
 		bases[index] = []byte(path.Base(script))
+		constructed[index] = constructedForeignMatcher(script)
 	}
 	// names[offset] lists, by script index, the scripts candidate offset
 	// names; failed is set by any unreadable candidate.
@@ -209,8 +206,18 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 			failed.Store(true)
 			return
 		}
+		// Constructed-reference patterns depend on the callee directory, not
+		// its basename. Scan a candidate once per directory, rather than
+		// repeating the same regular expressions for every declared script.
+		directories := map[string]bool{}
 		for index, script := range scripts {
-			if candidate != script && (bytes.Contains(body, bases[index]) || built[candidate].names(string(bases[index]))) {
+			directory := path.Dir(script)
+			computes, checked := directories[directory]
+			if extended && !checked {
+				computes = constructed[index](body)
+				directories[directory] = computes
+			}
+			if candidate != script && (bytes.Contains(body, bases[index]) || computes || built[candidate].names(string(bases[index]))) {
 				names[offset] = append(names[offset], index)
 			}
 		}
@@ -259,3 +266,45 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 // foreignCallerWorkers bounds the candidates foreignCallersComplete reads at
 // once (TSP-V0-943).
 const foreignCallerWorkers = 8
+
+// foreignCallerMismatch explains a failed completeness scan, including comment mentions
+// (TSP-V0-7302). It runs only after refusal and grants no declaration or edge.
+func foreignCallerMismatch(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) string {
+	candidates, err := root.Files(affected.ByName(CallerCandidate))
+	if err != nil {
+		return "candidate-list-unreadable"
+	}
+	for _, dir := range HiddenRoots {
+		hidden, err := root.FilesUnder(dir, CallerCandidate)
+		if err == nil {
+			candidates = append(candidates, hidden...)
+		}
+	}
+	slices.Sort(candidates)
+	for _, candidate := range candidates {
+		body, err := root.Read(candidate)
+		if err != nil {
+			return candidate + ":1:unreadable"
+		}
+		for _, script := range slices.Sorted(maps.Keys(declared)) {
+			if candidate == script {
+				continue
+			}
+			entry := declared[script]
+			listed := slices.Contains(entry.Callers, candidate) || slices.Contains(entry.Mentions, candidate)
+			offset := bytes.Index(body, []byte(path.Base(script)))
+			named := offset >= 0 || built[candidate].names(path.Base(script))
+			if named && !listed {
+				line := 1
+				if offset >= 0 {
+					line += bytes.Count(body[:offset], []byte("\n"))
+				}
+				return fmt.Sprintf("%s:%d:undeclared-mention-of:%s", candidate, line, script)
+			}
+			if listed && !named {
+				return candidate + ":1:stale-mention-of:" + script
+			}
+		}
+	}
+	return ""
+}

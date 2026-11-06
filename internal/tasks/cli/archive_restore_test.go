@@ -66,6 +66,7 @@ func sameBytes(t *testing.T, what string, want, got map[string]string) {
 // archive to the same ticket and receipt bytes, re-exports to the same
 // archive bytes, and audits CONSISTENT.
 func TestTRLV0871_RestoreRoundTripsByteIdentically(t *testing.T) {
+	t.Parallel()
 	r, path, archived := restoreSource(t)
 	state, intentTree := treeBytes(t, r.StateDir), treeBytes(t, r.IntentDir)
 	if err := os.RemoveAll(r.StateDir); err != nil {
@@ -95,6 +96,7 @@ func TestTRLV0871_RestoreRoundTripsByteIdentically(t *testing.T) {
 // that disagrees with the archive each refuse with a typed code in the
 // top-level codes, writing nothing and taking no lock.
 func TestTRLV0870_RestoreRefusalsWriteNothing(t *testing.T) {
+	t.Parallel()
 	src, path, archived := restoreSource(t)
 	record, err := os.ReadFile(filepath.Join(src.IntentDir, "queue.json"))
 	if err != nil {
@@ -160,6 +162,7 @@ func TestTRLV0870_RestoreRefusalsWriteNothing(t *testing.T) {
 // archive restored into another repository warns with the relocate step,
 // and relocate from the recorded path binds the store there.
 func TestTRLV0871_RestoreAtANewPathThenRelocate(t *testing.T) {
+	t.Parallel()
 	src, path, _ := restoreSource(t)
 	old := src.Root
 	if err := os.RemoveAll(old); err != nil {
@@ -188,6 +191,7 @@ func TestTRLV0871_RestoreAtANewPathThenRelocate(t *testing.T) {
 // a leading --root, a relative archive argument is taken from the target
 // directory, not from the caller's or the process's directory.
 func TestCTSV0871_RootGovernsRelativeFileArguments(t *testing.T) {
+	t.Parallel()
 	r, path, archived := restoreSource(t)
 	fixture.Write(t, filepath.Join(r.Root, "backup.tar"), archived)
 	if err := os.Remove(path); err != nil {

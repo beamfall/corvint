@@ -245,6 +245,7 @@ func commitDogfoodChange(t *testing.T, root, message string) {
 // bound writes the complete nonlearning aggregate receipt and leaves the trace
 // store unchanged.
 func TestDCWV0374DogfoodRecordAggregateOverLimit(t *testing.T) {
+	t.Parallel()
 	root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))
 	base := recordRevision(t, root)
 	for i := 0; i < 201; i++ {
@@ -270,6 +271,7 @@ func TestDCWV0374DogfoodRecordAggregateOverLimit(t *testing.T) {
 }
 
 func TestDogfoodRecordNativeLegacyPathLimit(t *testing.T) {
+	t.Parallel()
 	for _, n := range []int{200, 201} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))

@@ -12,5 +12,6 @@ import (
 // exit, the old one-second bound fails that run, and a held pipe still fails
 // within a finite bound (V1-0391).
 func TestWorkContainVersionPipeDrainBound(t *testing.T) {
+	t.Parallel()
 	testsupport.CheckPipeDrainBound(t, workContainVersion)
 }

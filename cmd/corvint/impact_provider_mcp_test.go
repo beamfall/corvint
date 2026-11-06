@@ -6,6 +6,7 @@ import (
 )
 
 func TestImpactProviderMCP(t *testing.T) {
+	t.Parallel()
 	t.Run("EEP-MCP-001 explicit flag", func(t *testing.T) {
 		parsed, err := parseImpactArgumentsForPlatform(options{impactLimit: 10}, []string{"--provider-mcp", `["/bin/false"]`, "pkg/main.go"}, "darwin")
 		if err != nil || len(parsed.impactProviders) != 1 || !strings.HasPrefix(parsed.impactProviders[0], "\x00mcp\x00") {
