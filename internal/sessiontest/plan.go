@@ -71,6 +71,10 @@ type Input struct {
 type GoSlice struct {
 	Pattern string
 	Reason  string
+	// FullReason retains a named whole-package obligation when FULL drops
+	// the selection's narrowing pattern. Ordinary slicing reasons stay local
+	// to narrowed plans, preserving existing fallback receipts.
+	FullReason string
 }
 
 // goUnit is one Go package's execution unit on a shard: the selected slice
@@ -286,7 +290,15 @@ func Build(input Input) (Manifest, error) {
 	if fullReason != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, fullReason
 		goRun = append([]string{}, input.Universe...)
-		input.GoSlices = nil // FULL runs every package whole (STR-V0-063)
+		// FULL removes narrowing patterns, but named obligations and their
+		// triggering paths still explain why a package must run (AZU-V0-9900).
+		whole := make(map[string]GoSlice, len(input.GoSlices))
+		for pkg, slice := range input.GoSlices {
+			if slice.FullReason != "" {
+				whole[pkg] = GoSlice{Reason: slice.FullReason, FullReason: slice.FullReason}
+			}
+		}
+		input.GoSlices = whole // FULL runs every package whole (STR-V0-063)
 		// A fallback need not name the language it widened for (a deleted
 		// source file is only a path), so FULL runs every declared language
 		// full command, records every declared no-suite assertion and covers
@@ -360,8 +372,10 @@ func (m *Manifest) placeGo(input Input, run []string) {
 		}
 		for _, slice := range shard.Slices {
 			if wanted[slice.Package] {
+				reason := partitionObligationReason(input.GoSlices[slice.Package])
 				m.Units = append(m.Units, Unit{
 					Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: index,
+					Reason: reason, ReasonCode: ReasonCode(reason),
 					Slice: fmt.Sprintf("%d/%d", slice.Index, slice.Count), Unit: "go:" + slice.Package,
 				})
 			}
@@ -387,8 +401,10 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string, slices
 			shardOf[file] = shard.Index
 		}
 		for _, slice := range shard.Slices {
+			reason := partitionObligationReason(slices[slice.Package])
 			slicesOf[slice.Package] = append(slicesOf[slice.Package], Unit{
 				Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: shard.Index,
+				Reason: reason, ReasonCode: ReasonCode(reason),
 				Slice: fmt.Sprintf("%d/%d", slice.Index, slice.Count), Unit: "go:" + slice.Package,
 			})
 		}
@@ -415,6 +431,15 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string, slices
 		}
 		m.Units = append(m.Units, goUnit(slices, pkg, shardOf[pkg]))
 	}
+}
+
+// Only the explicit ownership obligation survives CI partitioning. Ordinary
+// package slicing reasons were historically omitted from partitioned units.
+func partitionObligationReason(slice GoSlice) string {
+	if slice.FullReason != "" {
+		return slice.Reason
+	}
+	return ""
 }
 
 // declaredOnly is the no-plan FULL run: the declared Go full suite and every

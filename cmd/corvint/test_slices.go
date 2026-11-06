@@ -56,11 +56,20 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 			continue
 		}
 		if reason := testMustRunReason(plan, selection.UnitID); reason != "" {
-			sliced[pkg] = sessiontest.GoSlice{Reason: reason}
+			slice := sessiontest.GoSlice{Reason: reason}
+			if strings.Contains(reason, affected.OwnershipAuditTest) {
+				slice.FullReason = reason
+			}
+			sliced[pkg] = slice
 			continue
 		}
 		if reason := testDeclaredOwnerReason(plan, selection.UnitID); reason != "" {
 			sliced[pkg] = sessiontest.GoSlice{Reason: reason}
+			continue
+		}
+		if selection.Witness.Kind == affected.WitnessOwnershipAudit {
+			reason := affected.OwnershipAuditTest + " via " + selection.Witness.DirtyPath + " (AZU-V0-9900)"
+			sliced[pkg] = sessiontest.GoSlice{Pattern: "^(" + affected.OwnershipAuditTest + ")$", Reason: "selected: " + reason, FullReason: "whole: FULL; required " + reason}
 			continue
 		}
 		candidate, reason := testSliceCandidateOf(plan, graph, selection)

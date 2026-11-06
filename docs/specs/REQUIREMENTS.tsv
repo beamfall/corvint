@@ -414,6 +414,9 @@ AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	**Located runtime caller clos
 AZU-V0-8903	docs/specs/affected-zero-unknown-v0.md	**Replay evidence admission.** The replay SHALL use a supplied implementation bi	unrecorded	-
 AZU-V0-8904	docs/specs/affected-zero-unknown-v0.md	**Revision-bound caller changes.** A changed shell caller declaration SHALL clos	unrecorded	-
 AZU-V0-8905	docs/specs/affected-zero-unknown-v0.md	**Absent driver identity parity.** The optional driver claimant SHALL not change	unrecorded	-
+AZU-V0-9900	docs/specs/affected-zero-unknown-v0.md	Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**	unrecorded	-
+AZU-V0-9901	docs/specs/affected-zero-unknown-v0.md	Committed ownership guidance and fixture closure.** A committed	unrecorded	-
+AZU-V0-9902	docs/specs/affected-zero-unknown-v0.md	One audit classifier.** The CLI and maintained ratchet SHALL use the same	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-

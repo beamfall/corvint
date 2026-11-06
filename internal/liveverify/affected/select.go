@@ -253,7 +253,7 @@ type FrontierExclusion struct {
 	Units    []string `json:"units"`
 }
 
-// FrontierExclusionReason is the stated reason of every FrontierExclusion.
+// FrontierExclusionReason explains terminal exclusions without unowned paths.
 const FrontierExclusionReason = "no dirty path is this plugin's or unowned, and the change reaches its units only as reader or binary-exec selections the traversal does not continue from, so no edge its frontier hides can change this plan"
 
 // Select computes the plan for one dirty path set.
@@ -334,6 +334,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
+	graph.selectOwnershipAudit(&plan, reached, normalized)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
@@ -377,8 +378,16 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			Witness: witness,
 		})
 	}
+	for i := range plan.Selected {
+		selection := &plan.Selected[i]
+		if selection.Witness.Kind == WitnessOwnershipAudit {
+			selection.Tests = []string{OwnershipAuditTestPath}
+			selection.Argv = []string{"go", "test", "-run", "^(" + OwnershipAuditTest + ")$", strings.TrimPrefix(selection.UnitID, "go:")}
+		}
+	}
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
+	graph.ownershipHints(plan.Unknown)
 	graph.symlinkHints(plan.Unknown)
 	instructionHints(plan.Unknown)
 	driverInputHints(plan.Unknown)
@@ -632,8 +641,9 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // to its resolution (AFP-V0-511). A clean plan names none. It also returns, in
 // language order, the plugins left out only because the change reaches
 // nothing of them but terminal units, with the graph frontier reasons no other
-// source names (AFP-V0-560); a plan with a dirty path no plugin owns leaves no
-// plugin out that way, and a unit the plan follows the dependents of
+// source names (AFP-V0-560); an unowned path normally promotes terminal
+// readers to participation. Newly tracked fixtures with selected Go hosts
+// instead retain the per-reason unowned-path proof (AZU-V0-9901). A unit the plan follows the dependents of
 // (AFP-V0-581) is no terminal selection. It last returns, for each named
 // entry, the sources that made it bear (TSP-V0-942).
 func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer, []string) {
@@ -744,6 +754,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	fixtureHosts := graph.ownershipFixtureHosts(unowned, reached)
 	for _, name := range names {
 		left := make([]string, 0, len(graph.frontierBy[name]))
 		for _, reason := range graph.frontierBy[name] {
@@ -757,7 +768,11 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		sort.Strings(left)
 		units := terminal[name]
 		sort.Strings(units)
-		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
+		reason := FrontierExclusionReason
+		if len(fixtureHosts) > 0 {
+			reason = graph.ownershipFixtureExclusionReason(name, fixtureHosts, left)
+		}
+		excluded = append(excluded, FrontierExclusion{Language: name, Reason: reason, Frontier: left, Units: units})
 	}
 	return unknown, excluded, frontierBearerList(sources), involved
 }
@@ -914,7 +929,8 @@ func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
 // owned by none, the terminal rule is off and such a plugin takes part, as a
 // plugin with a reached unit does under AFP-V0-511 (3): the AFP-V0-560
 // soundness argument needs an unowned path to make every reached plugin take
-// part, so the two rules never compose into a narrower frontier than either.
+// part. AZU-V0-9901 permits terminal status for tracked fixture membership
+// changes with selected Go hosts, while preserving each unowned-path proof.
 func (graph *Graph) participants(reached map[string]Witness, carried, followed map[string]bool, dirty []string, nonSource []NonSource) (involved, unowned []string, terminal map[string][]string) {
 	if len(dirty) == 0 {
 		return nil, nil, nil
@@ -955,7 +971,11 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 			names[name] = true
 		}
 	}
-	if len(paths) > 0 {
+	// Keep every unowned path for frontierUnknowns to classify per plugin
+	// and reason. A selected Go fixture host cannot close a computed reader
+	// in another language or an undeclared FrontierReach (AZU-V0-9901).
+	frontierPaths := sortedKeys(paths)
+	if len(frontierPaths) > 0 && len(graph.ownershipFixtureHosts(frontierPaths, reached)) == 0 {
 		for name := range terminal {
 			names[name] = true
 		}
@@ -964,7 +984,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 	for name := range names {
 		delete(terminal, name)
 	}
-	return sortedKeys(names), sortedKeys(paths), terminal
+	return sortedKeys(names), frontierPaths, terminal
 }
 
 // hostedFixtureDirectories returns, for the dirty paths no plugin owns, the

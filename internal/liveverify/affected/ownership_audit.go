@@ -1,5 +1,18 @@
 package affected
 
+import "context"
+
+// AuditOwnership is the common repository ownership classifier for the CLI
+// and its maintained ratchet. The caller supplies its immutable tracked list
+// (or the index list during development); no baseline alters ownership.
+func AuditOwnership(ctx context.Context, root string, tracked []string, languages ...Language) ([]string, error) {
+	graph, err := Build(ctx, root, languages...)
+	if err != nil {
+		return nil, err
+	}
+	return graph.OwnershipAudit(tracked), nil
+}
+
 // OwnershipAudit lists, in byte order, each of the tracked paths that no
 // plugin, the driver claimant or a project declaration claims (AZU-V0-002):
 // plus the planner control declarations themselves. Each

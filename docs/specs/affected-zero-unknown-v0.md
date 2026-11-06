@@ -196,6 +196,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   measured before and after against their first parents, with immutable input identities and
   explicit declaration overlays recorded; no wire, golden, ownership or frontier policy change
   is part of this slice.
+
 ### Lane qualification details
 
 - **AZU-V0-8900:** **Conservative verification ownership.** Remaining tracked data MAY be assigned
@@ -275,6 +276,42 @@ lanes and external full-suite/mutation observations at every historical revision
   The default provider registry SHALL retain its already-frozen driver namespace even without
   driver files; optional-provider parity SHALL not remove that historical namespace.
 
+- **AZU-V0-9900: Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**
+  An addition, deletion or rename of a tracked path, or an edit to
+  `.corvint/documentation-paths.json`, `.corvint/runtime-readers.json` or
+  `.corvint/non-source-paths.json`, SHALL select `TestOwnershipAuditRatchet_AZU_V0_002`
+  when its test file exists in the observed graph. `affected` SHALL name that test and the
+  triggering path; `test --dry-run` SHALL carry the same reason, including during FULL fallback.
+  FULL removes narrowing patterns while retaining explanatory reasons. Index membership used
+  for selection SHALL be retained and rechecked before emitting a receipt; drift is refused
+  through the existing worktree-drift diagnostic. A gate-only selection MAY run
+  just that named test; any independently reached package coverage SHALL remain whole.
+  Staged membership changes count even if the indexed addition is missing from the worktree;
+  an untracked file alone does not. Content-only changes to
+  other existing files SHALL add no selection or alter frozen dry-run output.
+- **AZU-V0-9901: Committed ownership guidance and fixture closure.** A committed
+  `UNOWNED_DIRTY_PATH` SHALL retain its reason and name `runtime-readers.json` for test/runtime
+  inputs, `documentation-paths.json` for documentation, and `non-source-paths.json` for output.
+  The compatible diagnostic channel is `affected --format text`: every unowned-path line
+  provides this guidance, including committed content-only edits without the ratchet. JSON
+  receipts and frozen content-only dry-run bytes retain their existing contracts.
+  A newly tracked fixture below a Go-hosted `testdata/` ancestor whose package is selected
+  SHALL NOT also bear unrelated language-frontier unknowns when no other plugin lists content
+  there or treats the path as a resolution input and the existing conservative `FrontierReach`
+  classifier proves closure per plugin and reason. Dynamic and unclassified frontiers remain
+  open, including plugins without `FrontierReach`. Independent participating, reached and
+  resolution-input frontiers SHALL keep their reasons. The missing declaration remains unknown;
+  selecting the ratchet is no proof of ownership and cannot admit arbitrary undeclared readers.
+  When every unowned path is such a tracked fixture membership change, terminal readers of
+  other changed paths SHALL retain terminal status: each unowned-path frontier is judged by
+  that same per-plugin/reason classifier instead of promoting the whole plugin. A non-fixture
+  unowned path, content-only plan, or unselected Go fixture host retains prior participation.
+- **AZU-V0-9902: One audit classifier.** The CLI and maintained ratchet SHALL use the same
+  `AuditOwnership` code path and return the same raw unowned list for the same tracked tree.
+  The CLI is the complete inventory required by AZU-V0-002; the ratchet additionally checks
+  additions and stale entries against its pre-existing shrinking baseline. A passing ratchet
+  does not assert an empty inventory. The baseline SHALL NOT claim paths, change selection,
+  suppress unknowns or change the CLI's inventory or exit contract.
 
 ## Non-goals
 
@@ -299,6 +336,49 @@ lanes and external full-suite/mutation observations at every historical revision
   workflow selects every target or job of that file.
 
 ## Acceptance evidence
+
+V1-4729 witnesses AZU-V0-9900 with `TestOwnershipMembershipSelection_AZU_V0_9900` and
+`TestOwnershipContentOnlyBytes_AZU_V0_9900`, AZU-V0-9901 with
+`TestOwnershipReplay0c8ae2da9_AZU_V0_9901`, and AZU-V0-9902 with
+`TestOwnershipCLIAndRatchetAgree_AZU_V0_9902` in `cmd/corvint/affected_ownership_selection_test.go`.
+The lane build log retains the historical replay counts, frozen-byte comparison and limits.
+Independent review repair resolves the former guidance gap through the existing text diagnostic
+channel. `TestOwnershipTextGuidance_AZU_V0_9901` covers committed content-only unowned edits
+with and without the ratchet; `TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901` continues to
+check the JSON compatibility boundary. `TestOwnershipIndexDriftAfterSources_AZU_V0_9900`
+stages an initially untracked path after source observation and requires the existing drift refusal.
+`TestOwnershipInvalidUTF8Membership_AZU_V0_9900` covers raw Git filename additions,
+deletions and replacements sharing a normalized dirty path, while content-only edits retain
+their selection boundary. `TestOwnershipInvalidUTF8IndexDrift_AZU_V0_9900` requires drift
+refusal when distinct raw index names share that normalized path. These Unix witnesses live
+in `cmd/corvint/affected_ownership_invalid_utf8_unix_test.go`.
+`TestOwnershipFullDryRun_AZU_V0_9900` covers public dry-run FULL fallback after deleting a
+package's last source while retaining its directory. `TestOwnershipFullReasons_AZU_V0_9900`
+in `internal/sessiontest/ownership_full_test.go` covers both gate-only and whole-package reasons
+and verifies the caller's narrowing input is unchanged.
+`TestOwnershipPartitionedReasons_AZU_V0_9900` covers the committed affected-package slices
+across 16 shards under universe, balanced and measured placement: each slice, including the
+catch-all, retains the obligation's reason and reason code during narrowed and FULL runs.
+`TestOwnershipPartitionedContentOnlyBytes_AZU_V0_9900` checks serialized manifest bytes and
+manifest digests for ordinary content-only selections in those same placements, including
+FULL fallback: partitioned units retain their prior omission of ordinary package reasons.
+`TestOwnershipContentOnlyBytes_AZU_V0_9900` compares owned and unowned plan bytes and compact
+dry-run digests. `TestOwnershipMembershipSelection_AZU_V0_9900/stage-worktree-delete` covers an
+indexed addition subsequently removed only from disk. Fixture closure uses the existing
+per-plugin/reason classifier; `TestOwnershipFixtureComputedImport_AZU_V0_9901` retains a real
+TypeScript computed `require` frontier, and
+`TestOwnershipFixtureFrontierClassification_AZU_V0_9901` retains dynamic, bounded and
+unclassified frontiers while excluding only classified unrelated reasons.
+`TestOwnershipFixtureTerminalReaders_AZU_V0_9901` covers terminal readers alongside
+resolution inputs, foreign fixture content, owned-source changes, unbounded readers and
+another unowned path. `TestOwnershipReplayTerminalReader_AZU_V0_9901` reproduces the
+historical source-edit-plus-fixtures shape with a real terminal TypeScript reader: its
+source-bound import reason is excluded while its computed data-load reason remains unknown.
+The terminal-reader fixture witness also checks that its exclusion certificate names the
+selected Go host and each excluded entry's `FrontierReach` classification while the fixture
+remains explicitly unowned. Ordinary terminal exclusion explanations retain their bytes.
+Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
+shape, error/exit contract, committed golden or baseline changes are authorized.
 
 The pk-affected independent-review repair checks AZU-V0-001 with
 `TestDriverTestOnlyPackageChange_AZU_V0_001` (target, direct job and transitive callers,
