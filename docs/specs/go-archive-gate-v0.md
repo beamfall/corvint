@@ -280,6 +280,11 @@ five-target build, and is not a `make gate` prerequisite because `go-archive-gat
 one real build per run. The delegated archive command
 has Go tests; those cover the command, not this wrapper.
 
+The gate and both real-producer injection harnesses explicitly require Bash. The harnesses use
+noninteractive job-control process groups and `kill --` to exercise SIGINT cleanup; Ubuntu dash
+under `/bin/sh` cannot run that test protocol from a non-TTY command. Selecting Bash preserves
+the same assertions and does not change the producer or wrapper contract.
+
 | Requirement | Evidence |
 |---|---|
 | GAG-V0-001, GAG-V0-002, GAG-V0-003 | the private directory creation, permission changes, and exported environment in `script/go-archive-gate`; one hermetic build executed offline at `f9dc568b` |
