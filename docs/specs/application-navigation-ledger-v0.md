@@ -620,9 +620,9 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-001 | `internal/appmap/ledger.go` | `TestANLV0001Identity` |
 | ANL-V0-002 | `internal/appmap/ledger.go` | `TestANLV0002EvidenceAndDrift`, `TestANLV0002MixedEvidenceFailsClosed` |
 | ANL-V0-003 | `internal/appmap/ledger.go` | `TestANLV0003Redundancy`, `TestANLV0003SameKeyUncertaintyBlocks` |
-| ANL-V0-004 | `cmd/corvint/flows_appmap_edges.go` | `TestANLV0004EdgesCLI` |
+| ANL-V0-004 | `internal/command/flows/flows_appmap_edges.go` | `TestANLV0004EdgesCLI` |
 | ANL-V0-005 | `internal/appmap/ledger.go` | `TestANLV0005Budgets` |
-| ANL-V0-006 | `internal/appmap/observe.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0006Observe`, `TestANLV0006HashRouted`, `TestANLV0006ObserveCLI` |
+| ANL-V0-006 | `internal/appmap/observe.go`, `internal/command/flows/flows_appmap_observe.go` | `TestANLV0006Observe`, `TestANLV0006HashRouted`, `TestANLV0006ObserveCLI` |
 | ANL-V0-007 | `internal/appmap/observe.go` | `TestANLV0007Redaction` |
 | ANL-V0-008 | `internal/appmap/observe.go` `trimToBudget` | `TestANLV0008InputsAndBudget`, `TestANLV0008BudgetTrimIsLinear` |
 | ANL-V0-009 | `internal/appmap/prefixes.go` | `TestANLV0009FlagsProvenPrefix` |
@@ -631,11 +631,11 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0012RequiredSetsStayDistinct` |
 | ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` |
 | ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
-| ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
+| ANL-V0-015 | `internal/appmap/impact.go`, `internal/command/flows/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
-| ANL-V0-022 | `internal/appmap/tracezip.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
-| ANL-V0-023 | `internal/appmap/ledger.go`, `cmd/corvint/flows_appmap_edges.go` | `TestANLV0023ObservedEdgesFeedLedger`, `TestANLV0023EdgesObservationCLI` |
+| ANL-V0-022 | `internal/appmap/tracezip.go`, `internal/command/flows/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
+| ANL-V0-023 | `internal/appmap/ledger.go`, `internal/command/flows/flows_appmap_edges.go` | `TestANLV0023ObservedEdgesFeedLedger`, `TestANLV0023EdgesObservationCLI` |
 | ANL-V0-024 | `internal/appmap/ledger.go` | `TestANLV0024SelfProofExcluded`, `TestANLV0004EdgesCLI` |
 | ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
 | ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
@@ -666,7 +666,7 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-065 | `cmd/corvint/impact_tworoot.go` `twoRootImpactVerdict` | `TestANLV0064TwoRootImpact`, `TestANLV0065TwoRootImpactNeverEmptyForAChange` |
 | ANL-V0-066 | `cmd/corvint/impact_tworoot.go` `twoRootImpactDrift`, `cmd/corvint/affected_appmap.go`, `cmd/corvint/affected.go` | `TestANLV0066TwoRootImpactAtRevision`, `TestANLV0066TwoRootImpactDriftRecheck`, `TestANLV0067AffectedChecksTestRootPin` |
 | ANL-V0-067 | `internal/appmap/impact.go` `testRootPin`, `cmd/corvint/affected_appmap.go` | `TestANLV0067AffectedChecksTestRootPin` |
-| ANL-V0-068 | `internal/appmap/tracezip.go` `LoadTraceZip`, `internal/appmap/observe.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0068MultiContextTraceZip`, `TestANLV0068TraceZipKeysAndBounds`, `TestANLV0022TraceZip` |
+| ANL-V0-068 | `internal/appmap/tracezip.go` `LoadTraceZip`, `internal/appmap/observe.go`, `internal/command/flows/flows_appmap_observe.go` | `TestANLV0068MultiContextTraceZip`, `TestANLV0068TraceZipKeysAndBounds`, `TestANLV0022TraceZip` |
 | ANL-V0-069 | `internal/appmap/impacthop.go` `loadReferenceGraph`, `hopRuns`, `mayMention`, `templateHop` | `TestANLV0069OversizedFileIsANamedBound`, `TestANLV0069TotalBoundNamesTheFile`, `TestANLV0069NodeBoundNamesTheBound` |
 | ANL-V0-070 | `internal/appmap/impacthop.go` `hopClassify`, `hopLoadSpans`, `hopPathLike` | `TestANLV0070CommonStemIdentifiersAreNotReferences`, `TestANLV0032TemplateHopPlacesReferencedFiles`, `TestANLV0047IndexIdentifiersDoNotHideTheIndexFileReference` |
 | ANL-V0-071 | `internal/appmap/impacthop.go` `registrations`, `hopDINames`, `hopNgForms`, `references` | `TestANLV0071AngularDIRegistrationsAreReferences`, `TestANLV0071FiltersAndDirectiveSpellingsAreReferences` |

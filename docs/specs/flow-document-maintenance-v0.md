@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Drafted: 2026-09-28
 Intent status: accepted (decision 0451; V1-0465)
 Delivery status: experimental
-Implementation: `internal/appflows/docs_maintain.go`, `internal/doccorpus/apply_pair.go`, `cmd/corvint/flows_docs.go`
+Implementation: `internal/appflows/docs_maintain.go`, `internal/doccorpus/apply_pair.go`, `internal/command/flows/flows_docs.go`
 Authoritative inputs: `docs/specs/application-flow-understanding-v1.md` AFU-V1-030..033 and AFU-V1-036..038; owner-approved V1-0465 bounded maintenance plan.
 
 ## Agent digest
@@ -108,7 +108,7 @@ validation is deferred to the integrated release boundary, not replaced by focus
 | Requirements | Implementation | Evidence |
 |---|---|---|
 | FDM-V0-001..003 | `internal/appflows/docs_maintain.go` | `TestFlowDocMaintenanceLifecycle`, `TestFlowDocMaintenanceRefusals`, `TestFlowDocMaintenanceAdoption`, `TestFlowDocMaintenanceOversizedProposal`, `TestFlowDocMaintenanceAbsentIgnoredInput`, `TestFlowDocMaintenanceDerivationRaces` |
-| FDM-V0-004..005 | `internal/doccorpus/apply_pair.go`, `cmd/corvint/flows_docs.go` | `TestMaintenancePairRecovery`, `TestMaintenancePairPostPublishRecheck`, `TestFlowDocMaintenanceCLIGuards`, `TestFlowDocMaintenanceCompiled`, `TestFlowDocMaintenanceEncodingBounds`, `TestFlowDocMaintenanceReceiptRoundTrip` |
+| FDM-V0-004..005 | `internal/doccorpus/apply_pair.go`, `internal/command/flows/flows_docs.go` | `TestMaintenancePairRecovery`, `TestMaintenancePairPostPublishRecheck`, `TestFlowDocMaintenanceCLIGuards`, `TestFlowDocMaintenanceCompiled`, `TestFlowDocMaintenanceEncodingBounds`, `TestFlowDocMaintenanceReceiptRoundTrip` |
 | FDM-V0-006..007 | `internal/appflows/docs_maintain.go` | `TestFlowDocMaintenanceLifecycle`, `TestFlowDocMaintenanceCompiled` |
 
 V1-0660 adds test evidence for existing requirements without changing intent or behavior:
