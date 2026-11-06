@@ -552,11 +552,6 @@ docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:371
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:411
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:424
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:466
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:716
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:736
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:770
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:775
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm.go:787
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:121
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:163
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:212
