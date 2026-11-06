@@ -11,7 +11,7 @@ from unittest import mock
 spec = importlib.util.spec_from_file_location("macshard", pathlib.Path(__file__).with_name("shard.py"))
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
-select_spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("select.py"))
+select_spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("darwin_select.py"))
 selector = importlib.util.module_from_spec(select_spec)
 select_spec.loader.exec_module(selector)
 
