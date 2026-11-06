@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -19,6 +20,10 @@ import (
 // latest heartbeat, and receipt audit and doctor still read the journal.
 // The defect does not reproduce: compaction elides only the attempt record
 // of a superseded heartbeat or renew, and every CLI read restores it.
+// compactedObservedAt is attempt show's wall-clock read time, which can tick to
+// the next second between the reads before and after compaction.
+var compactedObservedAt = regexp.MustCompile(`"observedAt":"[^"]*"`)
+
 func TestCALV0302_CompactedStepsKeepTheirPostState(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	root, claims := leaseCLIStore(t, 1, now.Add(-11*time.Minute))
@@ -45,7 +50,8 @@ func TestCALV0302_CompactedStepsKeepTheirPostState(t *testing.T) {
 		if show.code != 0 || len(show.res.Items) != 1 {
 			t.Fatalf("attempt show: %s", show.stdout)
 		}
-		return append(out, string(wire.EncodeFile(show.res.Items[0])))
+		show0 := compactedObservedAt.ReplaceAllString(string(wire.EncodeFile(show.res.Items[0])), `"observedAt":""`)
+		return append(out, show0)
 	}
 	before := recorded()
 	compact := atm(t, root, nil, "receipt", "compact")
