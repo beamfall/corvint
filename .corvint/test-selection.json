@@ -1,0 +1,1464 @@
+{
+  "profile": "corvint-test-selection/0",
+  "owners": [
+    {
+      "paths": ".claude/skills/corvint-lane-flow/SKILL.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".gitattributes",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".github/cishards/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".github/forward-rows/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".github/nightly-signal/body.jq",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".github/qualifications/docs-only.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".gitignore",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": ".taskman/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "CONTRIBUTING.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "CONTRIBUTOR-AGREEMENT.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "LICENSE",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "LICENSE-APACHE-2.0",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "PROVENANCE.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "ROADMAP.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "SECURITY.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "VERSION",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "artifacts/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "assets/brand/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "benchmarks/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-analyzer-go/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-cem-candidate/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-corpus-republish/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-postmerge-connect/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-postmerge-metrics/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-test-runner/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-test/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "cmd/corvint-tests-accept/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/beta-rung-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/cli-errors-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/cli-parity-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/dashboard-snapshot-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/dashboard-snapshot-v0/cases.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/dashboard-snapshot-v0/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/delta-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/divergence-register.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/frontier-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/frontier-v0/manifest.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/frontier-v0/vectors/codec.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/frontier-v0/vectors/identity.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/go-live-test-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/go-live-test-v0/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/go-query-start-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/harness-event-v0/common-logical-interaction.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/host-lifecycle-v1/results/1.0.0-rc.1-darwin-arm64/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/host-lifecycle-v1/results/1.0.0-rc.2-darwin-arm64/claude-code.txt",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/host-lifecycle-v1/results/2026-09-28-hlq-diagnostics/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/host-lifecycle-v1/results/2026-10-09-v1-0844-frontier/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/host-lifecycle-v1/results/2026-10-28-v1-2955-live/opencode-2.2.0.txt",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/cases.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/corvint-material/docs/assets/extra.css",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/corvint-material/docs/compiler.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/corvint-material/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/corvint-material/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/corvint-material/overrides/main.html",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/false-strict-pass/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/false-strict-pass/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/false-strict-pass/project-env.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/hook-canary/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/hook-canary/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/include-escape/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/include-escape/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/inherit-escape/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/material-build-safe/docs/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/material-build-safe/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/material-build-safe/overrides/main.html",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/offline-plugin/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/offline-plugin/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/output-escape/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/output-escape/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/output-flood/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/plugin-canary/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/plugin-canary/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/remote-assets/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/remote-assets/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/search-omitted/docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/search-omitted/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/subprocess-hang/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/symlink-escape/.fixture.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/symlink-escape/mkdocs.yml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/human-documentation-compiler-v0/fixtures/symlink-escape/outside-docs/index.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/interactive-alpha/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/interactive-alpha/fixture/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/local-authority-v0/results/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/local-authority-v0/templates/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/lrf-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/mcp-2026-07-28/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/mcp-test-validity-v0/cases.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/fixtures/cem-and-target-binding/case.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/fixtures/disposition-witnesses/case.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/fixtures/every-unknown-reason/case.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/fixtures/intent-scope-drift/case.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/fixtures/obligation-order-and-set/case.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/manifest.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ocm-v0/vectors/structural.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/opencode-native-v1/results/2.1.3-darwin-arm64/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/perf-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/postmerge-runtime-v2/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/pulse-snapshot-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/release-artifact-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ruby-profile-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/tcq-0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/test-validity-v0/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/use-cases-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/use-cases-v0/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/vscode-extension-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/vscode-extension-v0/cases.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/work-queue-v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/work-queue-v0/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "docs/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "evidence/issues-167-175/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "examples/cem/experiments/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "examples/documentation-corpus/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "examples/evidence-provider/v0/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "experimental/analyzers/sqlnative/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "extensions/vscode/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "go.mod",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/claude-code/.claude-plugin/marketplace.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/claude-code/plugins/corvint/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/codex/.agents/plugins/marketplace.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/codex/plugins/corvint/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/codex/profiles/corvint-review.config.toml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/fixtures/opencode-native-report.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/gemini-cli/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/instruction-profiles.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/opencode/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/pi-protected/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "integrations/pi/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/analyzergo/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/analyzerkotlinandroid/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/analyzernativebridge/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/analyzershader/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/analyzershell/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/analyzerswift/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/appflows/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/appmap/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/attest/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/betarung/admissions.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/browsercov/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/capcatalog/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/cem/corpusbinding/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/cem/verify/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/changee2e/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/contextindex/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/criterionexperiment/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/dashboard/adapters/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/dashboard/repository/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/doccorpus/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/dogfoodflow/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/extevidence/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/frictionmetric/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/gokernel/host-schema.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/jslinecov/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/jstestprovider/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/linecov/v8/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/golang/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/typescript/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/gotest/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/lrfrepo/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/mcp/cli/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/mcp/corpusbridge/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/obscorpus/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/opencodequalification/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/perfbudget/budgets.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/playwrightruns/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/postmergehost/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/postmergeworkflow/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/pythonsyntax/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/rubylinecov/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/rubytestprovider/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/secretscreen/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/sessiontest/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/taskman/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/tasks/cli/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/tasks/similar/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/tasks/testhooks/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/tasks/ticket/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/tcq/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testplan/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/dynamic/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/dynamic/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/mobile/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/mobile/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/native/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/native/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/platform/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/platform/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/sql/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testrunner/sql/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testvaliditydoc/externalorigins/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/wp3codec/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/cem01-go/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/openspec/openspec/changes/add-session-timeout/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/openspec/openspec/changes/archive/2026-10-01-add-invoice-export/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/openspec/openspec/config.yaml",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/openspec/openspec/specs/auth/spec.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/openspec/openspec/specs/billing/invoices/spec.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/speckit/.specify/feature.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/speckit/.specify/memory/constitution.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/fixtures/speckit/specs/001-session-timeout/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/npm/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/speckit/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "interop/spec-toolchains/versions.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "llms.txt",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/affected-zero-unknown-merges.txt",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "testing/context-retrieval-goldens.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tests/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/affected-zero-unknown-replay/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/beamfall-shadow/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/beamfall-shadow/fixtures/matrix/html-css/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/beamfall-shadow/fixtures/matrix/kotlin-java-jni-glsl/input.glsl",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/beamfall-shadow/fixtures/matrix/sql/input.sql",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/beamfall-shadow/fixtures/matrix/structured-web-assets/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/beamfall-shadow/fixtures/matrix/swift-objc-c-metal/input.metal",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/cem-release-suites/READINESS.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/cem-stable-regen/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/cem-trial/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/cem-trial/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/ci-forward-row/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/ci-nightly-signal/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/compat-trial/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/corvint-pr-tests/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/cw-trial/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/cw-trial/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/flow-guide-check/unhinted-refusals.tsv",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/gotest-evidence/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/heading-nav-bench/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/heading-nav-bench/results/pilot/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/heading-nav-bench/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/local-authority/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/lsp-editors/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/native-hook-observer/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/paired-trial/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/retrieval-bench/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/retrieval-bench/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/str-parity/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/web-flows/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    }
+  ],
+  "mustRun": []
+}

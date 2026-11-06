@@ -79,6 +79,27 @@ func TestC(t *testing.T) { g() }
 	}
 }
 
+// LPCV-V0-7600: a root reached through a symlink (macOS TMPDIR under /var is
+// one) still builds its window overlay, so ordering stays available.
+func TestInOrderWindowsSymlinkedRoot(t *testing.T) {
+	requireGo(t)
+	real := t.TempDir()
+	writeTree(t, real, map[string]string{"go.mod": fixture["go.mod"], "ord/ord.go": fixture["ord/ord.go"], "ord/ord_test.go": fixture["ord/ord_test.go"]})
+	root := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(real, root); err != nil {
+		t.Skipf("symlink: %v", err)
+	}
+	out, err := Collect(context.Background(), root, CollectOptions{Module: "example.com/m", Packages: []string{"ord"}, Work: t.TempDir(), Timeout: time.Minute, SuiteTimeout: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range out {
+		if o.Record == nil || o.WindowFallback != "" {
+			t.Fatalf("outcome %+v", o)
+		}
+	}
+}
+
 // LPCV-V0-7600: retain the original dump failure even if the corresponding
 // test window is consequently absent, or its order marker is unavailable.
 func TestInvalidWindowDumpReason(t *testing.T) {

@@ -388,15 +388,15 @@ AFP-V0-9002	docs/specs/affected-reader-precision-v0.md	Parent-path examples in T
 AFP-V0-9003	docs/specs/affected-reader-precision-v0.md	Replays of script-only, test-only and data/spec changes MUST	unrecorded	-
 AFP-V0-9004	docs/specs/affected-reader-precision-v0.md	A dirty shell foreign-caller declaration MUST retain	unrecorded	-
 AFP-V0-9005	docs/specs/affected-reader-precision-v0.md	A Go test file may instead declare	unrecorded	-
-AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
-AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list e	unrecorded	-
-AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTBOU	unrecorded	-
-AZU-V0-004	docs/specs/affected-zero-unknown-v0.md	Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site uni	unrecorded	-
-AZU-V0-005	docs/specs/affected-zero-unknown-v0.md	Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of th	unrecorded	-
-AZU-V0-006	docs/specs/affected-zero-unknown-v0.md	Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHA	unrecorded	-
-AZU-V0-007	docs/specs/affected-zero-unknown-v0.md	Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.jso	unrecorded	-
-AZU-V0-008	docs/specs/affected-zero-unknown-v0.md	Package-level runner fallback.** A frontier reason that hides only which tests r	unrecorded	-
-AZU-V0-009	docs/specs/affected-zero-unknown-v0.md	Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`	unrecorded	-
+AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	**Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
+AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	**Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list	unrecorded	-
+AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	**Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTB	unrecorded	-
+AZU-V0-004	docs/specs/affected-zero-unknown-v0.md	**Inbound caller closure.** An `INBOUND` reason (a hidden caller into the site u	unrecorded	-
+AZU-V0-005	docs/specs/affected-zero-unknown-v0.md	**Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of	unrecorded	-
+AZU-V0-006	docs/specs/affected-zero-unknown-v0.md	**Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) S	unrecorded	-
+AZU-V0-007	docs/specs/affected-zero-unknown-v0.md	**Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.j	unrecorded	-
+AZU-V0-008	docs/specs/affected-zero-unknown-v0.md	**Package-level runner fallback.** A frontier reason that hides only which tests	unrecorded	-
+AZU-V0-009	docs/specs/affected-zero-unknown-v0.md	**Zero-unknown acceptance.** The replay `script/affected-zero-unknown-replay.sh`	unrecorded	-
 AZU-V0-9700	docs/specs/affected-zero-unknown-v0.md	Missing wrapper operands. As directed by the owner in the four Greptile P1	unrecorded	-
 AZU-V0-9701	docs/specs/affected-zero-unknown-v0.md	Implicit current Go package. A supported Go package command without package	unrecorded	-
 AZU-V0-9702	docs/specs/affected-zero-unknown-v0.md	Complete make alternatives. Alternative variable assignments SHALL preserve	unrecorded	-
@@ -406,6 +406,14 @@ AZU-V0-9850	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 r
 AZU-V0-9851	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) An `env` wrapper's	unrecorded	-
 AZU-V0-9852	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Composite action	unrecorded	-
 AZU-V0-9853	docs/specs/affected-zero-unknown-v0.md	(experimental, owner PR #99 repair request 2026-11-05) Unresolved local	unrecorded	-
+AZU-V0-9930	docs/specs/affected-zero-unknown-v0.md	Comparison-only working directory.** (experimental, owner lane charter,	unrecorded	-
+AZU-V0-9931	docs/specs/affected-zero-unknown-v0.md	Bounded test consumers.** (experimental, owner lane charter, 2026-11-05)	unrecorded	-
+AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	**Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-
+AZU-V0-8901	docs/specs/affected-zero-unknown-v0.md	**Constructed foreign callers.** The shell caller completeness guard SHALL rejec	unrecorded	-
+AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	**Located runtime caller closure.** A located TypeScript end-to-end runtime site	unrecorded	-
+AZU-V0-8903	docs/specs/affected-zero-unknown-v0.md	**Replay evidence admission.** The replay SHALL use a supplied implementation bi	unrecorded	-
+AZU-V0-8904	docs/specs/affected-zero-unknown-v0.md	**Revision-bound caller changes.** A changed shell caller declaration SHALL clos	unrecorded	-
+AZU-V0-8905	docs/specs/affected-zero-unknown-v0.md	**Absent driver identity parity.** The optional driver claimant SHALL not change	unrecorded	-
 AZU-V0-9900	docs/specs/affected-zero-unknown-v0.md	Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**	unrecorded	-
 AZU-V0-9901	docs/specs/affected-zero-unknown-v0.md	Committed ownership guidance and fixture closure.** A committed	unrecorded	-
 AZU-V0-9902	docs/specs/affected-zero-unknown-v0.md	One audit classifier.** The CLI and maintained ratchet SHALL use the same	unrecorded	-

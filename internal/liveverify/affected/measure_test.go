@@ -439,6 +439,36 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	witness := selection.Witness
 	switch witness.Kind {
+	case affected.WitnessDeclaredTestOwner:
+		return slices.Contains(graph.DeclaredTestOwners(witness.DirtyPath), selection.UnitID)
+	case affected.WitnessPathGlobReader:
+		unit, exists := graph.Unit(selection.UnitID)
+		if !exists || !slices.Contains(unit.PathGlobs, witness.Glob) {
+			return false
+		}
+		files := append(slices.Clone(unit.Sources), unit.Tests...)
+		if unit.ReadScoped && (len(files) == 0 || !affected.InReadScope(path.Dir(files[0]), unit.ReadScope, witness.DirtyPath)) {
+			return false
+		}
+		components := strings.Split(strings.TrimPrefix(witness.Glob, "/"), "/")
+		parts := strings.Split(witness.DirtyPath, "/")
+		for offset := 0; offset+len(components) <= len(parts); offset++ {
+			matched := true
+			for index, component := range components {
+				ok, err := path.Match(component, parts[offset+index])
+				if err != nil || !ok {
+					matched = false
+					break
+				}
+			}
+			if matched {
+				return true
+			}
+			if strings.HasPrefix(witness.Glob, "/") {
+				break
+			}
+		}
+		return false
 	case affected.WitnessPathLiteralReader:
 		return slices.Contains(graph.Namers(witness.DirtyPath), selection.UnitID)
 	case affected.WitnessUnboundedReader:
