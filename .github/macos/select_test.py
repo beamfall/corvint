@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
+import importlib.machinery
 import importlib.util
 import pathlib
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 
-spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("select.py"))
+spec = importlib.util.spec_from_file_location("macselect", pathlib.Path(__file__).with_name("darwin_select.py"))
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 
@@ -110,6 +112,16 @@ class DarwinSelection(unittest.TestCase):
         self.assertIn('fail-fast: false', job)
         self.assertNotIn('while IFS=', job)
 
+
+    def test_CINV04625_helpers_never_shadow_stdlib_modules(self):
+        # Python puts a script's own directory first on sys.path, so a helper
+        # named like a stdlib module (select.py) breaks every stdlib import of it.
+        here = pathlib.Path(__file__).resolve().parent
+        others = [d for d in sys.path if d and pathlib.Path(d).resolve() != here]
+        names = sorted(p.stem for p in here.glob("*.py"))
+        shadows = [n for n in names if n in sys.builtin_module_names
+                   or importlib.machinery.PathFinder.find_spec(n, others) is not None]
+        self.assertEqual(shadows, [], "rename .github/macos helpers that shadow stdlib modules")
 
     def test_CINV04625_summary_retains_actual_shard_failures(self):
         workflow = pathlib.Path(".github/workflows/go-macos.yml").read_text()

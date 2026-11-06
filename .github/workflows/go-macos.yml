@@ -159,7 +159,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Darwin selector regression checks
-        run: python3 -B .github/macos/select_test.py
+        run: |
+          python3 -B .github/macos/select_test.py
+          python3 -B .github/macos/shard_test.py
       - name: Report verified documentation-only selection
         if: needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode == 'DOCS'
         run: echo 'go-macos tests NOT_RUN; trusted docs-plan verified DOCS.' >> "$GITHUB_STEP_SUMMARY"
@@ -243,7 +245,7 @@ jobs:
           if [ "$NATIVE_NARROW_RESULT" = success ]; then
             record="$RUNNER_TEMP/corvint-narrowing/narrowing.json"
           fi
-          python3 -B .github/macos/select.py "$out/packages.json" \
+          python3 -B .github/macos/darwin_select.py "$out/packages.json" \
             "$record" "$GITHUB_SHA" "$PR_HEAD" "$GITHUB_RUN_ID" \
             "$out/selection.json" > "$out/selected.tsv"
           # Whole packages, up to three at once on the 3-core hosted runner.
