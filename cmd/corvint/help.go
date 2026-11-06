@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 )
 
 const authorityStartPrompt = "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
@@ -270,7 +272,7 @@ func topicText(topic string) string {
 	case "flows":
 		return flowsHelp
 	case "how":
-		return howHelp
+		return flowscmd.HowHelp
 	case "step":
 		return stepHelp
 	case "changes":
@@ -854,7 +856,7 @@ The separate corvint-web-flows companion parses JS/TS and optionally observes an
 explicitly trusted local app. Its proposed execution profile remains experimental.
 record explicitly writes one screened private evidence file and refuses overwrite;
 it does not update ranking or accept inferred intent. No automatic ledger is written.
-` + flowsIntentHelp + flowsNavigateHelp + flowsAppmapHelp + flowsAppmapPlanHelp + flowsRequestPathHelp
+` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp
 
 const obligationsHelp = `Compose the external-frontier-obligations-stable/0 sidecar for one cem/1.0 map.
 

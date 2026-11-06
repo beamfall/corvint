@@ -292,7 +292,7 @@ passes no overlay. This slice implements no ledger or run.
 | AMSP-V0-009 | `TestAMSPV0009BudgetRefusesNotTruncates`, `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0010CorpusMCPMapPlan` |
 
-Implementation: `internal/appmap/plan.go`, `cmd/corvint/flows_appmap_plan.go`,
+Implementation: `internal/appmap/plan.go`, `internal/command/flows/flows_appmap_plan.go`,
 `cmd/corvint-corpus-mcp/mapplan.go`. Build log:
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-application-map-scenario-planner.md`.
 
@@ -301,8 +301,8 @@ Implementation: `internal/appmap/plan.go`, `cmd/corvint/flows_appmap_plan.go`,
 The slice is additive and experimental. Rollback removes:
 - `internal/appmap/plan.go`, `internal/appmap/plan_test.go` and
   `internal/appmap/testdata/plan`;
-- `cmd/corvint/flows_appmap_plan.go` and its test;
-- the `plan` dispatch line in `cmd/corvint/flows_appmap.go` and the help reference in
+- `internal/command/flows/flows_appmap_plan.go` and its test;
+- the `plan` dispatch line in `internal/command/flows/flows_appmap.go` and the help reference in
   `cmd/corvint/help.go`;
 - `cmd/corvint-corpus-mcp/mapplan.go` and its test;
 - the `--map` arguments and planner field in `cmd/corvint-corpus-mcp/main.go`;

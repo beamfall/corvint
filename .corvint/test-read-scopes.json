@@ -374,6 +374,10 @@
       "internal/appmap/testdata/fixture/"
     ],
     "internal/command/breakage": [],
+    "internal/command/flows": [
+      "internal/appflows/testdata/playwright-attribution.json",
+      "internal/appmap/testdata/"
+    ],
     "internal/compactionkernel": [],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
