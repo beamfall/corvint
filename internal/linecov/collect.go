@@ -53,11 +53,11 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	// Overlay keys and the go command's working directory must use the same
 	// absolute physical path (macOS /var is /private/var). Go also preserves
 	// a valid symlinked PWD, so pin the build's PWD to this path below.
-	resolved, err := filepath.EvalSymlinks(root)
+	absolute, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
-	root, err = filepath.Abs(resolved)
+	root, err = filepath.EvalSymlinks(absolute)
 	if err != nil {
 		return nil, err
 	}
