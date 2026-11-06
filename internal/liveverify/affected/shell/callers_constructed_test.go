@@ -390,6 +390,7 @@ func TestNormalizedJoinBounds_AZU_V0_8901(t *testing.T) {
 		`filepath.Join(".", "run", "run.sh")`,
 		// A dynamic final operand may be "../run/run" (AZU-V0-8901 review P1).
 		`filepath.Join(".", "elsewhere", name+".sh")`,
+		`filepath.Join("elsewhere", (name+".sh"))`,
 		`filepath.Join("scratch", "..", "elsewhere", name+".sh")`,
 		`joinpath('.', 'run', name)`,
 		`filepath.Join(".", "\x72un", name+".sh")`,
