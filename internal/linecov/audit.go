@@ -55,7 +55,7 @@ func collectorOverlay(work, overlay, module string) (string, error) {
 			if strings.Count(s, decl) != 1 {
 				return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", p)
 			}
-			s = strings.Replace(s, decl, decl+"\ncorvintLinecovProof func()", 1)
+			s = strings.Replace(s, decl, decl+"\ncorvintLinecovProof func()\ncorvintLinecovReference bool", 1)
 		}
 		dst := filepath.Join(work, fmt.Sprintf("stdlib-%d.go", i))
 		if err := os.WriteFile(dst, []byte(s+e.tail), 0600); err != nil {
@@ -71,6 +71,7 @@ func collectorOverlay(work, overlay, module string) (string, error) {
 const auditHelper = `
 // corvintLinecovAudit is present only in the collector's scratch overlay.
 func corvintLinecovAudit(c *Cmd) {
+ if c.corvintLinecovReference { return }
  p := os.Getenv("CORVINT_LINECOV_AUDIT")
  if p == "" { return }
  c.corvintLinecovProof = corvintLinecovBuildPlan(c)
@@ -119,8 +120,8 @@ func corvintLinecovAudit(c *Cmd) {
 func corvintLinecovBuilt(c *Cmd, waitErr error) {
  proof:=c.corvintLinecovProof
  c.corvintLinecovProof=nil
- // Consume even a failed wait. Only this successful Wait may snapshot the
- // build's output digest; a repeated Wait must never certify replacement bytes.
+ // Consume even a failed wait. Neither a delayed first Wait nor a repeated
+ // Wait may certify replacement bytes from the caller's output path.
  if waitErr==nil && c.ProcessState!=nil && c.ProcessState.Success() && proof!=nil {proof()}
 }
 
@@ -148,10 +149,29 @@ func corvintLinecovBuildPlan(c *Cmd) func() {
  if flags.Lookup("n").Value.String()=="true" {return nil}
  path:=*output; if !filepath.IsAbs(path){path=filepath.Join(c.Dir,path)}
  path,err=filepath.Abs(path);if err!=nil{return nil}
- // Freeze argv, environment and output identity before Start: callers may
- // mutate Cmd fields while the build is running, but cannot rewrite its proof.
+ // Freeze the reference command before Start. BuildInfo cannot prove coverpkg,
+ // and hashing the public output at Wait would certify a replacement if the
+ // caller delayed even its first Wait. Only independently produced private
+ // bytes may establish a digest; a different public executable gets no proof.
+ goPath,buildDir,ctx:=c.Path,c.Dir,c.ctx
+ env=append(append([]string(nil),env...),"GOFLAGS=")
+ split:=len(args)-len(flags.Args())
+ buildArgs:=append([]string(nil),args[:split]...)
+ packages:=append([]string(nil),flags.Args()...)
  return func(){
- digest:=corvintLinecovDigest(path);if digest==""{return}
+ work,err:=os.MkdirTemp(filepath.Dir(p),"module-build-");if err!=nil{return};defer os.RemoveAll(work)
+ output:=filepath.Join(work,filepath.Base(path))
+ argv:=append([]string{"build"},buildArgs...)
+ argv=append(argv,"-o",output);argv=append(argv,packages...)
+ reference:=Command(goPath,argv...)
+ if ctx!=nil{reference=CommandContext(ctx,goPath,argv...)}
+ reference.Dir=buildDir;reference.Env=env
+ reference.Stdout=io.Discard;reference.Stderr=io.Discard
+ // This private build is checked here, rather than recursively making another
+ // reference build. Its Go tool subprocesses keep the same collector overlay.
+ reference.corvintLinecovReference=true
+ if err:=reference.Run();err!=nil{return}
+ digest:=corvintLinecovDigest(output);if digest==""{return}
  dir:=p+".module-builds"
  if err:=os.MkdirAll(dir,0700);err!=nil{panic(err)}
  if err:=os.WriteFile(filepath.Join(dir,digest),nil,0600);err!=nil{panic(err)}

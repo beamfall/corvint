@@ -109,7 +109,7 @@ func TestInvalidWindowDumpReason(t *testing.T) {
 // record, even when its build explicitly strips GOFLAGS.
 func TestUninstrumentedChild(t *testing.T) {
 	requireGo(t)
-	for _, mode := range []string{"covered", "partial", "partial-replace", "partial-replace-wait", "cleared", "prebuilt", "missing-second"} {
+	for _, mode := range []string{"covered", "covered-delayed-wait", "partial", "partial-replace", "partial-replace-wait", "partial-replace-first-wait", "cleared", "prebuilt", "missing-second"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			tree := map[string]string{}
@@ -140,6 +140,22 @@ func TestUninstrumentedChild(t *testing.T) {
  if out, err := build.CombinedOutput(); err != nil {`, 1)
 				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "out, err := exec.Command(bin).Output()", `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
  if err:=build.Wait();err==nil{t.Fatal("repeated Wait must fail")}
+ out, err := exec.Command(bin).Output()`, 1)
+			}
+			if mode == "covered-delayed-wait" || mode == "partial-replace-first-wait" {
+				// EOF observes completion without calling Cmd.Wait. The first Wait
+				// must not certify bytes installed by a subsequent partial build.
+				src := strings.Replace(tree["e2e/e2e_test.go"], `"os/exec"`, `"os/exec"; "io"`, 1)
+				src = strings.Replace(src, `if out, err := exec.Command("go", "build", "-o", bin, "../cmd/tool").CombinedOutput(); err != nil {`, `build := exec.Command("go", "build", "-o", bin, "../cmd/tool")
+ stderr, err := build.StderrPipe(); if err != nil { t.Fatal(err) }
+ if err := build.Start(); err != nil { t.Fatal(err) }
+ if out, err := io.ReadAll(stderr); err != nil || len(out) != 0 {`, 1)
+				beforeWait := ""
+				if mode == "partial-replace-first-wait" {
+					beforeWait = `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
+ `
+				}
+				tree["e2e/e2e_test.go"] = strings.Replace(src, "out, err := exec.Command(bin).Output()", beforeWait+`if err:=build.Wait();err!=nil{t.Fatalf("first Wait: %v",err)}
  out, err := exec.Command(bin).Output()`, 1)
 			}
 			if mode == "prebuilt" {
@@ -177,7 +193,7 @@ func TestUninstrumentedChild(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, o := range out {
-				if mode == "covered" {
+				if mode == "covered" || mode == "covered-delayed-wait" {
 					if o.Record == nil {
 						t.Fatalf("covered child refused %+v", o)
 					}

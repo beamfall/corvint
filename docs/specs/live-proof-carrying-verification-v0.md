@@ -699,9 +699,9 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   record as `uninstrumented-child` or `missing-child-counters`. The scratch audit marks an
   instrumented launch `covered-child`; that observation alone is not a completed-counter receipt.
   A child instrumenting only its main package is incomplete even when it writes counters.
-  Build flags are frozen before launch; partial rebuilds cannot reuse an earlier path's proof.
-  Build proof is consumed once and requires that Wait itself to succeed. Its completion-time
-  output digest cannot be reassigned to replacement bytes by calling Wait again.
+  Build flags and environment are frozen before launch; proof is consumed once and requires
+  that Wait itself to succeed. A private reference build with those frozen settings supplies
+  the digest; delaying the first Wait or replaying Wait cannot certify replacement output.
   Unknown flags, quoted GOFLAGS or unobserved builds produce no instrumentation proof.
   Build-tool processes are exempt;
   unknown launchers conservatively reject the record. This implements the detection rule of
