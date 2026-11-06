@@ -2,6 +2,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+
+function bunAvailable(t) {
+ const result=spawnSync('bun',['--version'],{encoding:'utf8',timeout:10000});
+ if(result.error?.code==='ENOENT'&&process.env.CORVINT_REQUIRE_BUN!=='1'){
+  t.skip('bun is not installed');return false;
+ }
+ assert.ifError(result.error);
+ assert.equal(result.status,0,result.stderr);
+ assert.equal(result.stdout.trim(),'1.3.11','pinned-bun-required');
+ return true;
+}
 
 test('PPI-V0-8100 protected dependency closure excludes vulnerable highlight.js',()=>{
  const lock=JSON.parse(readFileSync(new URL('./package-lock.json',import.meta.url)));
@@ -11,10 +23,10 @@ test('PPI-V0-8100 protected dependency closure excludes vulnerable highlight.js'
 });
 
 test('PPI-V0-8100 the bundled SDK highlighter loads v11 and highlights C and C++',async t=>{
+ if(!bunAvailable(t))return;
  const {mkdtemp,writeFile,rm}=await import('node:fs/promises');
  const {tmpdir}=await import('node:os');
  const {join,resolve}=await import('node:path');
- const {spawnSync}=await import('node:child_process');
  const dir=await mkdtemp(join(tmpdir(),'pi-dependencies-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const sdk=resolve('integrations/pi-protected/node_modules/@earendil-works/pi-coding-agent');
  const entry=join(dir,'entry.mjs'),bundle=join(dir,'bundle.cjs'),script=join(dir,'build.mjs');
@@ -37,10 +49,10 @@ test('PPI-V0-8101 protected dependency closure excludes yaml 2.9.0',()=>{
 });
 
 test('PPI-V0-8101 bundled SDK frontmatter retains mapping, alias and body parsing',async t=>{
+ if(!bunAvailable(t))return;
  const {mkdtemp,writeFile,rm}=await import('node:fs/promises');
  const {tmpdir}=await import('node:os');
  const {join,resolve}=await import('node:path');
- const {spawnSync}=await import('node:child_process');
  const dir=await mkdtemp(join(tmpdir(),'pi-yaml-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const sdk=resolve('integrations/pi-protected/node_modules/@earendil-works/pi-coding-agent');
  const entry=join(dir,'entry.mjs'),bundle=join(dir,'bundle.cjs');
@@ -53,10 +65,10 @@ assert.deepEqual(value,{frontmatter:{name:'Corvint',alias:'Corvint'},body:'Body'
 });
 
 test('PPI-V0-8100 exported HTML embeds the locked patched browser highlighter with its license',async t=>{
+ if(!bunAvailable(t))return;
  const {mkdtemp,writeFile,readFile,rm}=await import('node:fs/promises');
  const {tmpdir}=await import('node:os');
  const {join,resolve}=await import('node:path');
- const {spawnSync}=await import('node:child_process');
  const {runInNewContext}=await import('node:vm');
  const dir=await mkdtemp(join(tmpdir(),'pi-browser-highlight-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const sdk=resolve('integrations/pi-protected/node_modules/@earendil-works/pi-coding-agent');
