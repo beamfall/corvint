@@ -1,3 +1,5 @@
+//corvint:read-kinds .go go.mod
+
 package tasks
 
 import (

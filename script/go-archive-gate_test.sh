@@ -41,10 +41,28 @@ witness="$repository/.git/corvint/release-go-archive-report.json"
 cat > "$test_root/bin/go" <<'STUB'
 #!/bin/sh
 set -eu
+# Model a go run launcher that ignores SIGHUP during compilation, then
+# starts the producer only after the test releases it. The build-first path
+# uses the same pause, but leaves the shell in control before producer exec.
+if [ "${CORVINT_FIXTURE_STARTUP:-}" ]; then
+    trap '' HUP
+    printf '%s\n' "$$" > "$CORVINT_FIXTURE_STARTUP"
+    while [ ! -f "$CORVINT_FIXTURE_STARTUP.release" ]; do sleep 0.05; done
+fi
+if [ "$1" = build ]; then
+    [ "$2" = -o ]
+    printf '#!/bin/sh\nexec "%s" run ./conformance/release-artifact-v0 "$@"\n' "$0" > "$3"
+    chmod 0700 "$3"
+    exit 0
+fi
 subcommand=$3
 shift 3
 case $subcommand in
 archive)
+    if [ "${CORVINT_FIXTURE_STARTUP:-}" ]; then
+        : > "$CORVINT_FIXTURE_STARTUP.archive-began"
+        exit 0
+    fi
     output=; revision=
     while [ $# -gt 0 ]; do
         case $1 in
@@ -245,5 +263,39 @@ gate_pid=
 test ! -e "$(cat "$observe")" || fail "a signalled run left its private parent behind"
 test -z "$(git -C "$repository" status --porcelain --untracked-files=all)" ||
     fail "the wrapper cases changed the fixture worktree"
+
+# 7. Cancel the wrapper group before the producer starts. The compiler deliberately
+# ignores the forwarded HUP, then returns successfully: cancellation must persist
+# so that no archive work begins after compilation finishes (GAG-V0-9962).
+startup="$test_root/startup"
+cat > "$test_root/cancel-startup" <<'CANCEL'
+#!/usr/bin/env bash
+set -eu
+set -m
+CORVINT_FIXTURE_STARTUP=$2 "$1" &
+pid=$!
+set +m
+trap 'kill -KILL -- "-$pid" 2>/dev/null || :' EXIT
+for ((i=0; i<600; i++)); do
+    [[ ! -s $2 ]] || break
+    sleep 0.05
+done
+[[ -s $2 ]] || exit 2
+kill -TERM -- "-$pid"
+# Wait for the supervising shell to forward its cancellation before releasing
+# the deliberately uncooperative compiler.
+sleep 0.2
+: > "$2.release"
+status=0
+wait "$pid" || status=$?
+printf 'startup-cancellation: gate-exit=%s archive-began=%s\n' "$status" "$([[ -e $2.archive-began ]] && echo yes || echo no)"
+[[ $status == 143 ]]
+[[ ! -e $2.archive-began ]]
+CANCEL
+bash "$test_root/cancel-startup" "$repository/script/go-archive-gate" "$startup" > "$test_root/startup.log" 2>&1 || {
+    cat "$test_root/startup.log" >&2
+    fail "startup cancellation was lost or archive work began after cancellation"
+}
+cat "$test_root/startup.log"
 
 printf 'go-archive-gate: private setup, cleanup, failure, interruption, witness, and closed-set checks pass\n'

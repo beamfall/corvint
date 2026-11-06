@@ -1,0 +1,6 @@
+corvint-test: DRY-RUN scope=NARROWED placement=universe shard=0/1 manifest=sha256:a0fc0ab29b90a723a5e08d79f15da173d021436e8eb03732fe2576ffe9c21559
+  reason: none
+  units: 1; go 1 (selected=1); invocations=1
+  checks still required: 0; no-suite languages: 0; incomplete: 0
+  selected: go:example.test/parity [selected]
+  full plan: rerun with --full for the JSON argv

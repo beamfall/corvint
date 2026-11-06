@@ -1043,6 +1043,7 @@
     "closableToday": false,
     "implementation": [
       "internal/breakagemap",
+      "internal/command/breakage",
       "cmd/corvint/breakage.go"
     ]
   },
@@ -4528,6 +4529,18 @@
     "intent": "experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation)",
     "delivery": "experimental",
     "claim": "every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/affected-reader-precision-v0.md",
+    "title": "Affected Reader Precision V0",
+    "reqPrefix": "AFP-V0",
+    "intent": "experimental",
+    "delivery": "experimental",
+    "claim": "Affected selection bounds declared source scanners and keeps display-text provenance separate from executable path reads.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

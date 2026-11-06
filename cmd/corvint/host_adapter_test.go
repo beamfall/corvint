@@ -1028,6 +1028,7 @@ func TestHostAdapterPanicDegradesInsteadOfBlocking(t *testing.T) {
 // forked resume; the adapter maps it to resume instead of a fault notice per
 // forked session, and the Codex SessionStart matcher lets fork reach it.
 func TestClaudeAdapterForkSessionStartIsResume(t *testing.T) {
+	t.Parallel()
 	for _, host := range []string{"claude-code", "codex"} {
 		normalized, reason := normalizeAdapterInput(host, "session-start", map[string]any{"session_id": "s", "source": "fork"}, t.TempDir())
 		if reason != "" || normalized["startSource"] != "resume" {

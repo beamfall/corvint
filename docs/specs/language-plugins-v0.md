@@ -261,7 +261,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-004..006 | `langplugin.go`, `internal/liveverify/affected/languages/languages.go` | `TestManifestConformance_LGPV0008`, `languages_test.go` |
 | LGP-V0-007, 008 | `langplugin.Validate` | `TestValidateRefusesAnUndeclaredPiece_LGPV0007`, `TestManifestConformance_LGPV0008` |
 | LGP-V0-009 | ratchet baseline in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
-| LGP-V0-010, 011 | `internal/testrunner/registry/registry.go`, `internal/testrunner/dynamic/rspec_prefix.go` | `TestFamiliesAreDisjointAndComplete_LGPV0010`, `TestRSpecOnlyMembersRefusedForOtherRunners` |
+| LGP-V0-010, 011 | `internal/testrunner/registry/registry.go`, `internal/testrunner/dispatch.go` (`BuildWith`, `ParseWith`, V1-4752), `internal/testrunner/dynamic/rspec_prefix.go` | `TestFamiliesAreDisjointAndComplete_LGPV0010`, `TestRSpecOnlyMembersRefusedForOtherRunners`, `TestBuildWithAppliesTheSharedAdmissionFirst` |
 | LGP-V0-012 | unchanged behavior | existing runner, registry and selection tests |
 | LGP-V0-013, 014 | manifest `Coverage` and `Mutation` lists; ruby `Coverage` is `linecov-ruby` (`internal/rubylinecov`) | `TestManifestConformance_LGPV0008`, `make plugin-test PLUGIN=ruby` |
 | LGP-V0-015, 017, 018 | manifest `Dialects`, `Dependencies`, `SubPlugin.Suffixes` | `TestDialectsAndDependencies_LGPV0015`, `TestValidateRefusesAnUndeclaredPiece_LGPV0007` |

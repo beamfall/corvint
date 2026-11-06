@@ -50,6 +50,17 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	if o.Parallel < 1 {
 		o.Parallel = 1
 	}
+	// Overlay keys and the go command's working directory must use the same
+	// absolute physical path (macOS /var is /private/var). Go also preserves
+	// a valid symlinked PWD, so pin the build's PWD to this path below.
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	root, err = filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return nil, err
+	}
 	// The runner's GOFLAGS (build tags among them) still apply.
 	flags := strings.TrimSpace(o.GOFLAGS + " -cover -covermode=atomic -coverpkg=" + o.Module + "/...")
 	// Clipped, so each worker's append below copies instead of sharing storage.
@@ -58,10 +69,6 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 	var jobs []job
 	windows := map[string]string{}
 	fallback := map[string]string{}
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return nil, err
-	}
 	for i, pkg := range o.Packages {
 		bin := filepath.Join(o.Work, fmt.Sprintf("p%d.test", i))
 		dir := filepath.Join(root, filepath.FromSlash(pkg))
@@ -91,11 +98,7 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 			}
 		}
 		build := exec.CommandContext(ctx, "go", append(buildArgs, "./"+pkg)...)
-		// The overlay keys are paths under root as given. With an explicit Env,
-		// os/exec leaves the inherited PWD stale, so the go command would fall
-		// back to getcwd's symlink-resolved path (macOS /var -> /private/var) and
-		// silently skip every window wrapper. PWD keeps both spellings equal.
-		build.Dir, build.Env = root, append(env, "PWD="+absRoot)
+		build.Dir, build.Env = root, append(env, "PWD="+root)
 		if out, err := build.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("linecov: build %s: %v: %s", pkg, err, out)
 		}

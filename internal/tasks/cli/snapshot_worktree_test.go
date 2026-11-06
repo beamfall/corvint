@@ -68,12 +68,12 @@ func TestTCLV0869_SnapshotValidatesAWorktreeStore(t *testing.T) {
 	}
 
 	file := func(id string) string { return id[strings.LastIndex(id, ":")+1:] + ".json" }
-	wt := t.TempDir()
+	wt := resolvedTempDir(t)
 	copyIntentDir(t, r.IntentDir, wt)
 	if err := os.Remove(filepath.Join(wt, ".taskman", "tickets", file(dep))); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(t.TempDir(), "wt-snapshot.json")
+	path := filepath.Join(resolvedTempDir(t), "wt-snapshot.json")
 	x := atm(t, r.Root, nil, "queue", "snapshot", "--worktree", wt, "--out", path)
 	if x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "lastSeq").Str != "NOT_OBSERVED" {
 		t.Fatalf("snapshot --worktree: %s", x.stdout)
@@ -103,13 +103,13 @@ func TestTCLV0869_SnapshotValidatesAWorktreeStore(t *testing.T) {
 	}
 	os.Unsetenv(cli.SnapshotEnv)
 
-	if x := atm(t, r.Root, nil, "queue", "snapshot", "--worktree", t.TempDir()); x.res.Outcome == wire.OutcomeOK || x.res.Codes[0] != wire.CodeUninitialized {
+	if x := atm(t, r.Root, nil, "queue", "snapshot", "--worktree", resolvedTempDir(t)); x.res.Outcome == wire.OutcomeOK || x.res.Codes[0] != wire.CodeUninitialized {
 		t.Fatalf("no store: %s", x.stdout)
 	}
-	bad := t.TempDir()
+	bad := resolvedTempDir(t)
 	copyIntentDir(t, r.IntentDir, bad)
 	fixture.Write(t, filepath.Join(bad, ".taskman", "tickets", file(child)), []byte("{\"not\":\"a ticket\"}\n"))
-	badOut := filepath.Join(t.TempDir(), "bad.json")
+	badOut := filepath.Join(resolvedTempDir(t), "bad.json")
 	if x := atm(t, r.Root, nil, "queue", "snapshot", "--worktree", bad, "--out", badOut); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("malformed worktree store: %s", x.stdout)
 	}

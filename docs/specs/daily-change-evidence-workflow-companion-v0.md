@@ -96,6 +96,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | Generated path is a symlink or non-regular file, or a mode changed | Replay refuses without following it |
 | Replay fails or exceeds 5 minutes | `merge-resolution-unbound` |
 | Tracked changes or missing REV | Script exits 2 |
+| Check report staging crosses a mount boundary | Sibling staging preserves exact bytes and atomic publication |
+| Any other publication failure | Prior report stays unchanged; failure and temporary cleanup remain visible |
 
 ## Acceptance evidence
 

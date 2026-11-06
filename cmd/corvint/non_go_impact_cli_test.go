@@ -76,6 +76,7 @@ func TestNonGoImpactCLIProfile(t *testing.T) {
 }
 
 func TestNonGoImpactCLIProfileAdmission(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{
 		{"a.ts", "--language-profile", ""},
 		{"a.ts", "--language-profile", "NON-GO-SYNTAX-V0"},

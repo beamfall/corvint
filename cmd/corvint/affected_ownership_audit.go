@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 )
 
 // affectedOwnershipAuditProfile names the `affected --ownership-audit` report.
@@ -79,7 +81,9 @@ func compileAffectedOwnershipAudit(ctx context.Context, invocation affectedInvoc
 			tracked = append(tracked, name)
 		}
 	}
-	graph, err := affectedBuildGraph(affectedGraphContext(ctx), invocation)
+	// The experimental audit includes the driver claimant (AZU-V0-002).
+	// Default planning retains its pre-driver registry for frozen receipts.
+	graph, err := affected.Build(affectedGraphContext(ctx), invocation.Root, languages.All()...)
 	if err != nil {
 		return affectedOwnershipAuditReport{}, err
 	}

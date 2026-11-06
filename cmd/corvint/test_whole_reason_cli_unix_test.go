@@ -25,7 +25,7 @@ func TestSTRV0073CommandNamesHeavyWholeReasonInBothModes(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"dry-run", []string{"--root", root, "test", "--base", base, "--dry-run"}},
+		{"dry-run", []string{"--root", root, "test", "--base", base, "--dry-run", "--full"}},
 		{"execute", []string{"--root", root, "test", "--base", base}},
 	} {
 		t.Run(mode.name, func(t *testing.T) {

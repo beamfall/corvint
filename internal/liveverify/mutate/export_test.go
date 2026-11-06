@@ -1,3 +1,5 @@
+//corvint:read-kinds fixtures
+
 package mutate
 
 import (

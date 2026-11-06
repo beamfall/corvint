@@ -170,7 +170,7 @@ func TestTSPV0720BaseRevisionExpressionResolves(t *testing.T) {
 	}
 	manifest := filepath.Join(t.TempDir(), "manifest.json")
 	var stdout, testStderr bytes.Buffer
-	runContext(context.Background(), []string{"--root", root, "test", "--base", "HEAD~1", "--dry-run", "--manifest", manifest}, strings.NewReader(""), &stdout, &testStderr)
+	runContext(context.Background(), []string{"--root", root, "test", "--base", "HEAD~1", "--dry-run", "--full", "--manifest", manifest}, strings.NewReader(""), &stdout, &testStderr)
 	raw, err := os.ReadFile(manifest)
 	if err != nil {
 		t.Fatalf("test --base HEAD~1 wrote no manifest: %v\n%s", err, testStderr.String())

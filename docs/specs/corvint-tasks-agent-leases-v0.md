@@ -1611,15 +1611,15 @@ can any other registration failure. Two limits apply beyond the budget:
   happens, so no store write between the sweep and the locked check is lost; no Tasks writer edits a
   watched file in place. An in-place write or mode change to an over-budget file by an actor that
   does not take the writer lock (an external editor or tool), made after the sweep read that file,
-  is not seen by the locked guard check. V1-0845 recorded that the lease then committed and only the
-  next audit refused the content edit; ATR-V0-7203's content binding under the writer lock
-  supersedes that bound for content: the edit refuses the same lease (`INTENT_DIVERGED` for an
-  intent projection such as `policy.json` or a ticket) and no receipt is published
-  (`TestCALV0026_InPlaceIntentEditAfterCommitSweep`, darwin). A mode change that leaves the file
-  readable and its content unchanged can still pass, because projection validation compares
-  content digests and compares mode only between observations within one audit, and a write after
-  the final content binding remains outside the snapshot guarantee. Other `Check` callers still
-  re-read every tuple.
+  is not seen by the locked stat check. Since ATR-V0-7203 the locked content binding in
+  `commitLease` re-reads the prepared intent and state bytes, so such a content edit refuses the
+  same lease (`INTENT_DIVERGED` for an intent projection such as `policy.json` or a ticket) and
+  publishes no receipt; that binding superseded the earlier window in which the lease committed
+  and only the next audit refused (`TestCALV0026_InPlaceIntentEditAfterCommitSweep`, darwin). A
+  mode change that leaves the file readable and its content unchanged can still pass, because
+  projection validation compares content digests and compares mode only between observations
+  within one audit. Such an actor is not ordered against the lock, so the stat re-read under the lock only
+  moved where that window began, by the lock wait. Other `Check` callers still re-read every tuple.
 
 Linux inotify holds no descriptor per watched path and needs no budget.
 

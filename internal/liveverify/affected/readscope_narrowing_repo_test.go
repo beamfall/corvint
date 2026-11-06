@@ -67,6 +67,7 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 		readers  []string
 	}{
 		{"docs/specs/test-selection-precision-v0.md", narrowed, []string{"internal/specindex", "internal/lrfrepo"}},
+		{"docs/specs/source-documentation-draft-v0.md", narrowed, []string{"internal/lrfrepo"}},
 		{"docs/specs/REQUIREMENTS.tsv", append([]string{"internal/compactionkernel", "internal/dashboard/roadmap",
 			"internal/sharedpath", "script/spec-coverage-audit"}, narrowed...), []string{"internal/lrfrepo"}},
 	} {
@@ -135,5 +136,14 @@ func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
 		if _, selected := units[unit]; !selected {
 			t.Errorf("Makefile: declared reader %s not selected", unit)
 		}
+	}
+}
+
+// V1-4043: Core import additions select the repository-wide import-direction guard.
+func TestNewCoreImportSelectsTasksBoundary(t *testing.T) {
+	graph, module := repositoryNarrowingGraph(t)
+	units := selectedUnits(graph, module, "internal/mcp/newbridge/bridge.go")
+	if _, ok := units["internal/tasks"]; !ok {
+		t.Fatalf("TestImportDirection is absent: %v", units)
 	}
 }
