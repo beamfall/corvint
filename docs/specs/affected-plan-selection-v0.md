@@ -323,16 +323,17 @@ measure. None of them drops a unit the change can reach.
   profiles are unchanged (AFU-V1-024).
 - **AFP-V0-2487:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-1189; amended under the owner's standing auto-accept, 2026-11-04, V1-4472,
-  TSP-V0-7305) `corvint affected --fail-fast-order` MUST add an `order` member to the compact plan.
+  TSP-V0-7305; amended under the owner's standing auto-accept, 2026-11-05, self-review repair) `corvint affected --fail-fast-order` MUST add an `order` member to the compact plan.
   `order.key` is `["recent-local-failure", "plan-order"]`. `order.units` lists every
   `plan.selected` unit once, as `{unitId, recentFailure, planIndex}`: units with a recent local
   failure first, each group in `plan.selected` order. That order is already AFP-V0-007's: via
   length, then proximity, then unit id. `order.failures` names the evidence. Its `receipts` list
   holds each `corvint test` receipt read from `<git-dir>/corvint/test-run.json` and
-  `test-run.<n>.json`, at most 64: first retain the newest mtime-ordered prefix (ties by name), then read
-  only those candidates' bounded 64 KiB headers for valid RFC3339Nano `completedAt`,
-  with mtime as fallback and name as tie breaker. List retained receipts in name order.
-  Content times never admit candidates outside that prefix. Metadata Info
+  `test-run.<n>.json`, at most 64: probe the newest 64 mtime-ordered candidates (ties by name),
+  plus the unsharded `test-run.json` when outside that prefix. Retain the newest 64 of that pool
+  by valid RFC3339Nano `completedAt` from bounded 64 KiB headers, with mtime fallback and name
+  as tie breaker. List retained receipts in name order. At most 65 headers are probed; no
+  completion-time recency is claimed for older shards outside the pool. Metadata Info
   failures MUST be disclosed in `order.failures.detail` even outside the retained 64 and make
   no recency claim; they set the aggregate state to `UNREADABLE`. Each retained receipt is
   read by the STR-V0-010 strict reader. Each entry has the
