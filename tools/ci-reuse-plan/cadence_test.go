@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -274,7 +275,7 @@ func copyCadence(t *testing.T, names ...string) string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, n), b, 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(dir, n), b, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -299,7 +300,7 @@ func TestCINV04752CadenceRunWrapper(t *testing.T) {
 	liar := copyCadence(t, "run.sh")
 	fake := "#!/usr/bin/env bash\nprintf 'profile=corvint-ci-cadence/0\\ncadence=DEFER\\nclass=TESTS\\nbase=%s\\nhead=%s\\ntarget=%s\\nhelper=sha256:" +
 		strings.Repeat("0", 64) + "\\nreason=routine-change\\n' " + base + " " + head + " " + head + "\n"
-	if err := os.WriteFile(filepath.Join(liar, "classify.sh"), []byte(fake), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(liar, "classify.sh"), []byte(fake), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for name, c := range map[string]struct {
