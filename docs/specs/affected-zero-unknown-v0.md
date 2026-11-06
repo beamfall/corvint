@@ -201,6 +201,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
   out of that prefix before later operands name the callee directory.
   A fixed final suffix MAY exclude that join only when it cannot name any supported shell script;
   partial shell suffixes and components removed by path cleaning are not exclusion proofs.
+  A dynamic final operand with a literal suffix, bare (`name+".sh"`) or parenthesized, MAY carry
+  `..` itself and SHALL count as traversal. Known limit: a bare identifier final operand
+  (`filepath.Join("elsewhere", name)`) is still read as a file directly under its literal
+  prefix, because counting it as traversal flagged 75 source files against all 34 `script/`
+  callees on 2026-11-06 and made completeness unusable; V1-4779 tracks a bounded sound rule.
   For root and nested scripts alike, quoted computed basenames include backtick substitution,
   `$()`, `${}`, `$VAR` and percent formats, including paths after a command prefix.
 - **AZU-V0-8902:** **Located runtime caller closure.** A located TypeScript end-to-end runtime site
