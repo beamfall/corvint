@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -119,6 +120,64 @@ func TestDryRunStaleBinarySharesSummaryBudget(t *testing.T) {
 		}
 		if out.Len()+errout.Len() > testSummaryLimit {
 			t.Fatalf("%v combined=%d stdout=%d stderr=%d", flags, out.Len()+errout.Len(), out.Len(), errout.Len())
+		}
+	}
+}
+
+// STR-V0-7313: valid multi-component paths can consume the summary budget
+// before the fixed sections (and can even exceed it in the notice alone).
+func TestDryRunLongStalePathsStayWithinSummaryBudget(t *testing.T) {
+	root, built := selfBinaryRepository(t)
+	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
+	for _, depth := range []int{4, 7} {
+		files := map[string]string{
+			sessiontest.DeclarationPath: `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":{"none":"no suite"},"typescript":{"none":"no suite"}}}` + "\n",
+		}
+		for i := range 3 {
+			path := fmt.Sprintf("long%d/", i) + strings.Repeat(strings.Repeat("x", 240)+"/", depth) + "source.go"
+			files[path] = "package fixture\n\nfunc Value() int { return 1 }\n"
+		}
+		commitSelfBinaryFiles(t, root, files)
+		var out, errout bytes.Buffer
+		code := runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &out, &errout)
+		if code != 0 {
+			t.Fatalf("depth=%d exit=%d %s%s", depth, code, &out, &errout)
+		}
+		if out.Len()+errout.Len() > testSummaryLimit {
+			t.Errorf("depth=%d combined=%d stdout=%d stderr=%d; limit=%d", depth, out.Len()+errout.Len(), out.Len(), errout.Len(), testSummaryLimit)
+		}
+		for _, want := range []string{"corvint-test: DEGRADED self-binary-stale:", "corvint-test: DRY-RUN", "HEAVY_WHOLE_REASON", "truncated"} {
+			if !strings.Contains(out.String()+errout.String(), want) {
+				t.Errorf("depth=%d missing %q", depth, want)
+			}
+		}
+		for _, flags := range [][]string{{"--full"}, {"--format", "json"}} {
+			out.Reset()
+			errout.Reset()
+			args := append([]string{"--root", root, "test", "--base", built, "--dry-run"}, flags...)
+			code := runContext(context.Background(), args, strings.NewReader(""), &out, &errout)
+			if code != 0 || !json.Valid(out.Bytes()) || strings.Contains(errout.String(), "truncated") || errout.Len() <= testSummaryLimit/2 {
+				t.Errorf("depth=%d flags=%v exit=%d: full form lost JSON or original notice", depth, flags, code)
+			}
+		}
+	}
+}
+
+// STR-V0-7313: every section must respect even a nearly exhausted budget.
+func TestDryRunSummaryEverySectionHonorsBudget(t *testing.T) {
+	m := sessiontest.Manifest{Scope: "FULL", Placement: "universe", ShardCount: 1,
+		Reason: strings.Repeat("reason 界 ", 100), Incomplete: []string{"incomplete"},
+		Units: []sessiontest.Unit{{Adapter: "go", Slice: "whole", Unit: "go:fixture", Reason: "whole cause"}}}
+	for _, budget := range []int{-1, 0, 1, 30, 100, 300, 600, 4096} {
+		got := testDryRunSummaryBudget(m, "sha256:fixture", nil, 0, budget)
+		if len(got) > max(0, budget) {
+			t.Errorf("budget=%d got %d bytes", budget, len(got))
+		}
+		if !utf8.ValidString(got) || budget >= 100 && !strings.HasSuffix(got, "\n") {
+			t.Errorf("budget=%d invalid UTF-8 or partial summary line: %q", budget, got)
+		}
+		if budget >= 100 && budget <= 300 && !strings.Contains(got, "truncated") {
+			t.Errorf("budget=%d missing explicit truncation marker: %q", budget, got)
 		}
 	}
 }

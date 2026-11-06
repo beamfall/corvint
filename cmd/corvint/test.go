@@ -331,6 +331,11 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
 	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
 		notice := fmt.Sprintf("corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
+		if testSummarySelected(options) {
+			// Leave room for scope, counts and whole-package advice. Long valid
+			// repository paths can exceed the shared budget in the notice alone.
+			notice = summaryNoticeBudget(notice, testSummaryLimit/2)
+		}
 		_, _ = io.WriteString(stderr, notice)
 		options.summaryNoticeBytes = len(notice)
 	}
