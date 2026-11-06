@@ -148,6 +148,77 @@ func TestChangedLineCoordinates_AZU_V0_8903(t *testing.T) {
 	}
 }
 
+// AZU-V0-009, AZU-V0-8903: use Git's actual quoting and header delimiters
+// to bind valid mutants, including the parent coordinates of deleted files.
+func TestChangedLineGitPaths_AZU_V0_8903(t *testing.T) {
+	for _, name := range []string{"café.go", "with space.go", "with\ttab.go"} {
+		for _, deleted := range []bool{false, true} {
+			operation := "modify"
+			if deleted {
+				operation = "delete"
+			}
+			t.Run(name+"/"+operation, func(t *testing.T) {
+				if runtime.GOOS == "windows" && strings.Contains(name, "\t") {
+					t.Skip("Windows file names cannot contain tabs")
+				}
+				root := t.TempDir()
+				gitOK := func(args ...string) string {
+					t.Helper()
+					out, err := git(root, args...)
+					if err != nil {
+						t.Fatal(err)
+					}
+					return out
+				}
+				gitOK("init", "--initial-branch=main")
+				gitOK("config", "user.name", "Russell Lewis")
+				gitOK("config", "user.email", "me@russe11.com")
+				gitOK("config", "core.quotePath", "true")
+				file := filepath.Join(root, name)
+				// These content lines resemble headers after Git's +/- prefix.
+				if err := os.WriteFile(file, []byte("-- a/phantom.go\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				gitOK("add", "--", name)
+				gitOK("commit", "-m", "parent")
+				if deleted {
+					if err := os.Remove(file); err != nil {
+						t.Fatal(err)
+					}
+				} else if err := os.WriteFile(file, []byte("++ b/phantom.go\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				diff := gitOK("diff", "--no-ext-diff", "--no-textconv", "--unified=0", "--", name)
+				lines := changedLines(diff)
+				if !lines["parent:"+name][1] || len(lines["parent:"+name]) != 1 {
+					t.Fatalf("parent coordinates lost: %+v\n%s", lines, diff)
+				}
+				wantFiles := 2
+				if deleted {
+					wantFiles = 1
+				} else if !lines["merge:"+name][1] || len(lines["merge:"+name]) != 1 {
+					t.Fatalf("merge coordinates lost: %+v\n%s", lines, diff)
+				}
+				if len(lines) != wantFiles {
+					t.Fatalf("unexpected changed paths: %+v\n%s", lines, diff)
+				}
+				r, old, now, _ := replayFixture()
+				r.Mutants[0].Path, r.Mutants[0].Line = name, 1
+				if deleted {
+					r.Mutants[0].Side = "parent"
+				}
+				body, err := json.Marshal(r)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := safety(body, r.Merge, r.Parent, old, now, lines); got.Status != "OBSERVED_NO_MISS" {
+					t.Fatalf("bound changed-line mutant rejected: %+v\n%s", got, diff)
+				}
+			})
+		}
+	}
+}
+
 func TestBeforeAfterNamesEveryRemovedUnknown_AZU_V0_8903(t *testing.T) {
 	old := plan{Selected: []selection{{UnitID: "kept"}, {UnitID: "dropped"}}, Unknown: []unknown{{"LANGUAGE_FRONTIER", "shell:foreign"}}}
 	now := plan{Selected: []selection{{UnitID: "kept"}, {UnitID: "added"}}, Unknown: []unknown{}}

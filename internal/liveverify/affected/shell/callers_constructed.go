@@ -26,9 +26,10 @@ func constructedForeignMatcher(script string) func([]byte) bool {
 	directory := path.Dir(script)
 	dir := regexp.QuoteMeta(directory)
 	patterns := []string{
-		`["'\x60](?:\./)?` + dir + `/["'\x60]\s*\+`,
+		// The separator may be in the next operand: "run" + "/" + name.
+		`["'\x60](?:\./)?` + dir + `/?["'\x60]\s*\+`,
 		`(?:[Jj]oin|joinpath)\s*\(\s*["'\x60](?:\./)?` + dir + `["'\x60]\s*,`,
-		`["'](?:\./)?` + dir + `/[^"'\n]*[$%{]`,
+		`["'\x60](?:\./)?` + dir + `/[^"'\x60\n]*[$%{]`,
 	}
 	if directory == "." {
 		// A computed basename needs no directory literal. Without one we
