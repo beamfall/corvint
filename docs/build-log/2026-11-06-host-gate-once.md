@@ -67,3 +67,27 @@ remote integration or native ticket completion, which remain pending at source r
 Rollback: restore the original first gate step, mandatory setting and prior key inputs together;
 restore cwd-relative SDK paths only if intentionally reinstating the prior invocation limitation.
 No stored ledger records or dependency state are deleted.
+
+
+## Independent-review repair: isolated missing-Node fixture
+
+The first independent review found that the mandatory gate probe appended `/usr/bin:/bin` to
+its fake-tool PATH. Removing its Node stub therefore did not hide a system Node installation,
+including typical Linux installations. The repair limits that probe to its private `bin`
+directory, links only `env`, `make` and `stat` for the real Makefile, and keeps its existing Go
+and Node stubs. After deleting Node, a separate `command -v` assertion verifies fixture absence
+before the gate refusal is exercised. Product code and the prior verification inputs are unchanged.
+
+The full `sh -x script/gate-receipt_test.sh` passed locally on macOS. Its retained trace proves
+successful fixture initialization, both ledger modes' mandatory environment inheritance through
+recursive make with a caller-empty assignment, standalone optional behavior, and both missing-Node
+diagnostics with no receipt. The private bin inventory is exactly `env`, `make`, `stat`, `go`,
+`node` before deletion and the same set without `node` afterwards; the trace inventory and refusal
+assertions were checked independently. Evidence: `repair-r1-receipt-trace.log` and
+`repair-r1-summary.json` under the existing private evidence directory. `corvint affected` ran
+before this check and retained its installed-binary `self-binary-stale` uncertainty in
+`repair-r1-affected.json`. `git diff --check` passed. Linux execution is `NOT_RUN`: the configured
+`heavy.sh` offload accepts Go test/vet and Windows vet, not a shell-only test. The isolated PATH
+has no system-directory fallback on either platform. No full gate, Node suite or Windows gate
+was repeated for this test-only correction. Fresh independent review and root-coordinated
+CEM/OCM closure remain pending.

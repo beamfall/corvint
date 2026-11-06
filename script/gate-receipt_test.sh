@@ -226,6 +226,11 @@ make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j
 # nothing, proving the uncached availability check still protects the receipt.
 probe="$test_root/mandatory"
 mkdir -p "$probe/bin" "$probe/script"
+# Keep system bin directories out of PATH so removing the Node stub really hides
+# Node on hosts that install it in /usr/bin or /bin (including Linux CI).
+for tool in env make stat; do
+    ln -s "$(command -v "$tool")" "$probe/bin/$tool"
+done
 cp "$source_root/Makefile" "$probe/Makefile"
 cat > "$probe/script/gate-receipt" <<'SH'
 #!/bin/sh
@@ -255,7 +260,7 @@ child:
 	@echo "child:$${CORVINT_REQUIRE_NODE:-optional}" >> "$(PROBE_LOG)"
 MK
 probe_make() {
-    (cd "$probe" && PATH="$probe/bin:/usr/bin:/bin" PROBE_LOG="$probe/log" \
+    (cd "$probe" && PATH="$probe/bin" PROBE_LOG="$probe/log" \
         /usr/bin/make -s -f Makefile -f override.mk GATE_STEPS=host-adapter-node-test \
         HEAVY_NICE_PREFIX= "$@") > "$test_root/probe.out" 2>&1
 }
@@ -271,6 +276,9 @@ probe_make CORVINT_REQUIRE_NODE= go-test || fail "standalone optional probe"
 [ "$(cat "$probe/log")" = "go-test:optional
 child:optional" ] || fail "standalone Go tests unexpectedly require Node"
 rm "$probe/bin/node" "$probe/log"
+if (PATH="$probe/bin" command -v node >/dev/null 2>&1); then
+    fail "missing Node fixture still resolves node"
+fi
 for mode in off on; do
     rm -f "$probe/log"
     if PROBE_CACHED=1 probe_make CORVINT_GATE_LEDGER="$mode" CORVINT_REQUIRE_NODE= gate; then
