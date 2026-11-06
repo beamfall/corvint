@@ -85,7 +85,8 @@ var foreignJoinLiteral = regexp.MustCompile("^\\s*(\"(?:\\\\.|[^\"\\\\])*\"|'(?:
 
 // AZU-V0-8901: consume whole literal operands before deciding which directory
 // a join can reach. A dot or ancestor prefix followed by an unresolved operand
-// cannot exclude the callee; a fully literal join can be compared exactly.
+// cannot exclude the callee. Fully literal joins match the callee directory,
+// so results remain invariant across the directory cache in callers.go.
 func normalizedForeignJoin(body []byte, script string) bool {
 	directory := path.Dir(script)
 	for _, call := range foreignJoinStart.FindAllIndex(body, -1) {
@@ -105,7 +106,7 @@ func normalizedForeignJoin(body []byte, script string) bool {
 			}
 			prefix, seen = path.Clean(path.Join(prefix, value)), true
 			if literal[2][0] == ')' {
-				if prefix == script {
+				if path.Dir(prefix) == directory {
 					return true
 				}
 				break
