@@ -237,6 +237,15 @@ type FrontierReach interface {
 	FixtureClosedFrontiers() []string
 }
 
+// AncestorBoundFrontiers strengthens FrontierReach for located runner reasons
+// (AFP-V0-2600). Their hidden edges bind only the plugin's own source units or
+// configuration in the site's directory and ancestors. Arbitrary runtime
+// reads, external runner assets and inbound callers must not be declared.
+// Reasons must also be fixture-closed; Build validates the declaration.
+type AncestorBoundFrontiers interface {
+	AncestorBoundFrontiers() []string
+}
+
 func validUnit(unit Unit, namespace string) error {
 	if !strings.HasPrefix(unit.ID, namespace+":") || len(unit.ID) == len(namespace)+1 {
 		return ErrInvalidUnit

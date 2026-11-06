@@ -672,7 +672,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			}
 			steered := graph.readsResolutionInput(name, unowned)
 			for _, entry := range graph.frontierBy[name] {
-				if steered || graph.bearsOnUnowned(name, entry, closed) {
+				if steered || (graph.bearsOnUnowned(name, entry, closed) && !graph.unownedOutsideRunnerSite(name, entry, unowned)) {
 					bear(FrontierBearer{Detail: entry, Via: FrontierBearerUnownedPath, Language: name, DirtyPath: unowned[0]})
 					if !reasons[entry] {
 						reasons[entry] = true
@@ -989,6 +989,42 @@ func (graph *Graph) bearsOnUnowned(name, entry string, fixtures []string) bool {
 		}
 	}
 	return false
+}
+
+// unownedOutsideRunnerSite proves that every unowned path is outside a
+// located, fixture-closed runner site's hidden edges (AFP-V0-2600). This is
+// used only for a plugin with no dirty source, reached unit or resolution
+// input. Its modelled read/dependency edges have therefore already been
+// checked. The remaining hidden edge binds a runner, the plugin's own units
+// or an ancestor configuration, as FrontierReach declares. Unknown sites,
+// driver inputs and unhosted fixtures retain the conservative floor.
+func (graph *Graph) unownedOutsideRunnerSite(name, entry string, unowned []string) bool {
+	fields := strings.SplitN(entry, ":", 4)
+	if len(fields) < 3 || !graph.ancestorBound[name][fields[0]+":"+fields[1]] {
+		return false
+	}
+	site := fields[2]
+	if !strings.HasPrefix(graph.owner[site], name+":") {
+		return false
+	}
+	directory := relativeDirectory(site)
+	for _, dirtyPath := range unowned {
+		if DriverInput(dirtyPath) {
+			return false
+		}
+		if fixtureDirectory(dirtyPath) != "" {
+			fixtures := graph.hostedFixtureDirectories([]string{dirtyPath})
+			if len(fixtures) == 0 || graph.listsBelowAny(name, fixtures) || graph.bearsOnUnowned(name, entry, fixtures) {
+				return false
+			}
+			continue
+		}
+		parent := relativeDirectory(dirtyPath)
+		if parent == "." || parent == directory || strings.HasPrefix(directory, parent+"/") {
+			return false
+		}
+	}
+	return len(unowned) != 0
 }
 
 // readsResolutionInput reports whether the named plugin reads one of the dirty

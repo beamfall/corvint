@@ -145,6 +145,7 @@
         "cmd/corvint/test_whole_reason.go",
         "cmd/corvint/test_whole_reason_cli_unix_test.go",
         "cmd/corvint/test_whole_reason_test.go",
+        "cmd/corvint/work_adopt_test.go",
         "internal/dogfoodflow/verify_run_match_test.go",
         "internal/liveverify/affected/affprec_repo_test.go",
         "internal/liveverify/affected/golang/readkinds_test.go",
