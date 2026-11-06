@@ -5147,6 +5147,7 @@ GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its proces
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
 GCS-V0-004	docs/specs/gopls-client-session-v0.md	Framing, documents, messages, requests, output, locations and lifetime MUST be b	unrecorded	-
 GCS-V0-005	docs/specs/gopls-client-session-v0.md	Experimental evidence MUST retain one explicit local dependency-free Go overlay	unrecorded	-
+GRG-V0-001	docs/specs/greptile-gate-v0.md	`.github/workflows/greptile-gate.yml` SHALL post the `greptile-gate` commit stat	unrecorded	-
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	the relation string is exactly `harness-execution-attested-v0`. It is a **new**	unrecorded	-
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla	unrecorded	-
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	an `harness-execution-attested-v0` edge is admissible only when its attestation	unrecorded	-
