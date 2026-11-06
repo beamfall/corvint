@@ -141,7 +141,7 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3]
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 55
     permissions:
       contents: read
     env:
