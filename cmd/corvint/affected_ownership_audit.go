@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // affectedOwnershipAuditProfile names the `affected --ownership-audit` report.
@@ -79,7 +80,7 @@ func compileAffectedOwnershipAudit(ctx context.Context, invocation affectedInvoc
 			tracked = append(tracked, name)
 		}
 	}
-	graph, err := affectedBuildGraph(affectedGraphContext(ctx), invocation)
+	unowned, err := affected.AuditOwnership(affectedGraphContext(ctx), invocation.Root, tracked, affectedLanguages()...)
 	if err != nil {
 		return affectedOwnershipAuditReport{}, err
 	}
@@ -87,6 +88,6 @@ func compileAffectedOwnershipAudit(ctx context.Context, invocation affectedInvoc
 		Profile:  affectedOwnershipAuditProfile,
 		Revision: observation.revision,
 		Tracked:  len(tracked),
-		Unowned:  graph.OwnershipAudit(tracked),
+		Unowned:  unowned,
 	}, nil
 }

@@ -63,6 +63,10 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 			sliced[pkg] = sessiontest.GoSlice{Reason: reason}
 			continue
 		}
+		if selection.Witness.Kind == affected.WitnessOwnershipAudit {
+			sliced[pkg] = sessiontest.GoSlice{Pattern: "^(" + affected.OwnershipAuditTest + ")$", Reason: "selected: " + affected.OwnershipAuditTest + " via " + selection.Witness.DirtyPath + " (AZU-V0-9900)"}
+			continue
+		}
 		candidate, reason := testSliceCandidateOf(plan, graph, selection)
 		if selection.Witness.Kind == affected.WitnessDirectSource {
 			if unit, ok := graph.Unit(selection.UnitID); ok {

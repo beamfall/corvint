@@ -146,6 +146,30 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `uses` paths, including action directories outside `.github/actions`, SHALL retain their
   caller as a computed invocation. A missing or invalid local lookup SHALL NOT imply no dependency.
 
+- **AZU-V0-9900: Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**
+  An addition, deletion or rename of a tracked path, or an edit to
+  `.corvint/documentation-paths.json`, `.corvint/runtime-readers.json` or
+  `.corvint/non-source-paths.json`, SHALL select `TestOwnershipAuditRatchet_AZU_V0_002`
+  when its test file exists in the observed graph. `affected` SHALL name that test and the
+  triggering path; `test --dry-run` SHALL carry the same reason. A gate-only selection MAY run
+  just that named test; any independently reached package coverage SHALL remain whole.
+  Staged membership changes count; an untracked file alone does not. Content-only changes to
+  other existing files SHALL add no selection or alter frozen dry-run output.
+- **AZU-V0-9901: Committed ownership guidance and fixture closure.** A committed
+  `UNOWNED_DIRTY_PATH` SHALL retain its reason and name `runtime-readers.json` for test/runtime
+  inputs, `documentation-paths.json` for documentation, and `non-source-paths.json` for output.
+  A newly tracked fixture below a Go-hosted `testdata/` ancestor whose package is selected
+  SHALL NOT also bear unrelated language-frontier unknowns when no other plugin lists content
+  there or treats the path as a resolution input. Independent participating, reached and
+  resolution-input frontiers SHALL keep their reasons. The missing declaration remains unknown;
+  selecting the ratchet is no proof of ownership and cannot admit arbitrary undeclared readers.
+- **AZU-V0-9902: One audit classifier.** The CLI and maintained ratchet SHALL use the same
+  `AuditOwnership` code path and return the same raw unowned list for the same tracked tree.
+  The CLI is the complete inventory required by AZU-V0-002; the ratchet additionally checks
+  additions and stale entries against its pre-existing shrinking baseline. A passing ratchet
+  does not assert an empty inventory. The baseline SHALL NOT claim paths, change selection,
+  suppress unknowns or change the CLI's inventory or exit contract.
+
 ## Non-goals
 
 - No requirement here may drop a reached, reading, executing, importing or embedding unit. Every
@@ -169,6 +193,15 @@ participation, and inbound shell callers. The remaining classes are small and lo
   workflow selects every target or job of that file.
 
 ## Acceptance evidence
+
+V1-4729 witnesses AZU-V0-9900 with `TestOwnershipMembershipSelection_AZU_V0_9900` and
+`TestOwnershipContentOnlyBytes_AZU_V0_9900`, AZU-V0-9901 with
+`TestOwnershipReplay0c8ae2da9_AZU_V0_9901`, and AZU-V0-9902 with
+`TestOwnershipCLIAndRatchetAgree_AZU_V0_9902` in `cmd/corvint/affected_ownership_selection_test.go`.
+The lane build log retains the historical replay counts, frozen-byte comparison and limits.
+Rollback removes these selection inputs and restores the missed ownership-gate risk; no JSON
+shape, error/exit contract, committed golden or baseline changes are authorized.
+
 
 The PR #97/#98 merge integration declares the three exact retained linecov experiment JSON
 outputs and `tools/linecov/command-tree.json` under AZU-V0-002. Existing literal, enclosing-package,

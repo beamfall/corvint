@@ -49,11 +49,10 @@ func TestOwnershipAuditRatchet_AZU_V0_002(t *testing.T) {
 		baseline[line] = true
 		previous = line
 	}
-	graph, err := affected.Build(context.Background(), root, languages.All()...)
+	unowned, err := affected.AuditOwnership(context.Background(), root, tracked, languages.All()...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	unowned := graph.OwnershipAudit(tracked)
 	var added, stale []string
 	for _, path := range unowned {
 		if !baseline[path] {

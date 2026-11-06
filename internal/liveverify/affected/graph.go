@@ -115,6 +115,9 @@ type Graph struct {
 	// content, which attributes its diff to targets and jobs (AZU-V0-001).
 	// Like priorReadScopes it is a selection input.
 	driverContent map[string]DriverRevision
+	// Ownership inputs are measured per plan, never cached as graph state.
+	ownershipChanges []string
+	committedPaths   map[string]bool
 }
 
 // WithReadScopeBase returns a copy of graph whose selection compares an edit

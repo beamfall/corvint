@@ -323,6 +323,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.MustRun = graph.mustRunOf(reached, normalized)
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
+	graph.selectOwnershipAudit(&plan, reached, normalized)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
@@ -366,8 +367,16 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			Witness: witness,
 		})
 	}
+	for i := range plan.Selected {
+		selection := &plan.Selected[i]
+		if selection.Witness.Kind == WitnessOwnershipAudit {
+			selection.Tests = []string{OwnershipAuditTestPath}
+			selection.Argv = []string{"go", "test", "-run", "^(" + OwnershipAuditTest + ")$", strings.TrimPrefix(selection.UnitID, "go:")}
+		}
+	}
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
+	graph.ownershipHints(plan.Unknown)
 	graph.symlinkHints(plan.Unknown)
 	instructionHints(plan.Unknown)
 	driverInputHints(plan.Unknown)
@@ -927,7 +936,8 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 			names[name] = true
 		}
 	}
-	if len(paths) > 0 {
+	frontierPaths := graph.ownershipFrontierPaths(sortedKeys(paths), reached)
+	if len(frontierPaths) > 0 {
 		for name := range terminal {
 			names[name] = true
 		}
@@ -936,7 +946,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 	for name := range names {
 		delete(terminal, name)
 	}
-	return sortedKeys(names), sortedKeys(paths), terminal
+	return sortedKeys(names), frontierPaths, terminal
 }
 
 // hostedFixtureDirectories returns, for the dirty paths no plugin owns, the
