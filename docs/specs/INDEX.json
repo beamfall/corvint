@@ -4532,17 +4532,5 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
-  },
-  {
-    "path": "docs/specs/affected-reader-precision-v0.md",
-    "title": "Affected Reader Precision V0",
-    "reqPrefix": "AFP-V0",
-    "intent": "experimental",
-    "delivery": "experimental",
-    "claim": "Affected selection bounds declared source scanners and keeps display-text provenance separate from executable path reads.",
-    "dependsOn": [],
-    "supersededBy": null,
-    "closableToday": false,
-    "implementation": []
   }
 ]

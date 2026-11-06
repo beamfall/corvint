@@ -624,8 +624,9 @@ const citeSpanRule = "rule: a cited BASE span must survive the change, so its ex
 // byte bound, and is named only when its text classifies stable or relocated
 // against the patched blob, so a named span is citable as stated. It also
 // names the unstable bound and the longest accepted span inside span
-// (CEM-V1-710). At most three candidates are classified, so the refusal stays
-// linear in the file.
+// (CEM-V1-710). CEM-V1-8600 searches at most 16 runs per side, so
+// ambiguous text beside an insertion does not hide the next stable run.
+// The fixed candidate bound keeps classification linear in the file.
 func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wire.Span) string {
 	targetExists := group.NewPath != nil && *group.NewPath == *group.OldPath
 	if !targetExists {
@@ -653,10 +654,12 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 		return ""
 	}
 	var found []string
-	name := func(start, end int64) {
+	name := func(start, end int64) bool {
 		if named := stable(start, end); named != "" {
 			found = append(found, named)
+			return true
 		}
+		return false
 	}
 	// Before: the run ending at the nearest unedited line above the span,
 	// clipped from its far (upper) end to the byte bound.
@@ -664,15 +667,25 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 	for end >= 1 && edited[end] {
 		end--
 	}
-	if end >= 1 {
+	for tries := 0; end >= 1 && tries < 16; tries++ {
+		for end >= 1 && edited[end] {
+			end--
+		}
+		if end < 1 {
+			break
+		}
 		start := end
 		for start > 1 && !edited[start-1] && !splitBefore[start] {
 			start--
 		}
+		next := start - 1
 		for start < end && bytesOf(start, end).End-bytesOf(start, end).Start > wire.MaxCitationSpanBytes {
 			start++
 		}
-		name(start, end)
+		if name(start, end) {
+			break
+		}
+		end = next
 	}
 	// After: the run starting at the nearest unedited line below the span,
 	// clipped from its far (lower) end.
@@ -680,15 +693,25 @@ func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wir
 	for start <= lines && edited[start] {
 		start++
 	}
-	if start <= lines {
+	for tries := 0; start <= lines && tries < 16; tries++ {
+		for start <= lines && edited[start] {
+			start++
+		}
+		if start > lines {
+			break
+		}
 		end := start
 		for end < lines && !edited[end+1] && !splitBefore[end+1] {
 			end++
 		}
+		next := end + 1
 		for end > start && bytesOf(start, end).End-bytesOf(start, end).Start > wire.MaxCitationSpanBytes {
 			end--
 		}
-		name(start, end)
+		if name(start, end) {
+			break
+		}
+		start = next
 	}
 	// V1-3855: name which bound of the span made it unstable and, when one
 	// exists, the longest accepted span inside it (CEM-V1-710).

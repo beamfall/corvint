@@ -342,9 +342,11 @@ jobs:
           }
           # An unreadable listing leaves an empty file that contributes no run, so the tool
           # still retains a FULL decision when no listing is readable.
+          # CIN-V0-7600 (V1-4727): no status filter, so a run still in progress or failed only on an
+          # advisory job reaches the tool, which admits it from its successful record and required jobs.
           runs=()
           list() {
-            get "$api/workflows/ci.yml/runs?$1&status=success&per_page=20" "$d/$2" || : > "$d/$2"
+            get "$api/workflows/ci.yml/runs?$1&per_page=20" "$d/$2" || : > "$d/$2"
             for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2" | head -n 5); do
               get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs/$id.json" || continue
               # Only a passed record job has a log; a skipped one would answer 404 (V1-3051).
@@ -970,7 +972,7 @@ jobs:
           MQ_DELTA: ${{ needs.docs-plan.outputs.mqDelta }}
           # AFP-V0-2181: ci-shards places by the shard's go test -p; the same value as the
           # tests step, so the pinned narrow.sh placement equals the one it recomputes.
-          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}
+          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
             # AFP-V0-731: the scripts come from a commit of main, never an entry: the queue base, or
@@ -1032,11 +1034,11 @@ jobs:
           NARROW_RECORDED: ${{ steps.narrow-record.outcome }}
           # AFP-V0-441: the bound on the one rerun of a failed shard's invocations, all together.
           RERUN_MINUTES: "15"
-          # AFP-V0-540 (V1-2890): a self-hosted pull-request shard runs up to 4 test binaries at
+          # AFP-V0-540 (V1-2890, V1-4728): a pull-request shard runs up to 4 test binaries at
           # once and its slices beside its whole packages (AFP-V0-541). Every other shard, the
           # merge queue's deciding full suite and AFP-V0-428 seed producer among them, keeps
           # -p 1, the ci profile's argv (STR-V0-012).
-          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && runner.environment == 'self-hosted' && '4' || '1' }}
+          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
         run: |
           test "$(go env GOVERSION)" = "go1.27.3"
           # AFP-V0-097/098: the only route to a narrowed shard is the gate above. A skipped, refused
@@ -1338,7 +1340,8 @@ jobs:
       - name: Retain package outcomes for the advisory cost-drift report
         # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes, and
         # AFP-V0-422: only on the hosted image, because self-hosted timings are not cloud timings.
-        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted'
+        # AFP-V0-540 (V1-4728): not on a pull request, whose shards run at -p 4 and so measure contended times.
+        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name != 'pull_request'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1890,6 +1893,9 @@ jobs:
     # skips tests; Linux REUSE and Linux package selections cannot skip Darwin tests.
     needs: [docs-plan, narrowing-verdict]
     if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    # V1-4727: advisory, so a failure must not conclude the run as failure; a failed run is not
+    # admitted by the merge-queue REUSE decision, which then reruns all 16 Linux shards.
+    continue-on-error: true
     runs-on: macos-15
     timeout-minutes: 180
     permissions:
@@ -2042,6 +2048,7 @@ jobs:
           WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
           WEB_RESULT: ${{ needs.web-flows.result }}
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+          EVENT_NAME: ${{ github.event_name }}
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
           SHELL_RESULT: ${{ needs.shell-test-selected.result }}
@@ -2173,6 +2180,8 @@ jobs:
           boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
           if [ "$SHARDS_RESULT" != success ]; then
             reason="go-product-shard result is $SHARDS_RESULT"
+          elif [ "${EVENT_NAME:-}" = pull_request ]; then
+            reason="a pull-request shard runs at -p 4, so its package times are contended and not table costs (AFP-V0-540)"
           elif [ "$boxed" -ne 0 ]; then
             reason="$boxed of $SHARDS shards ran on the self-hosted runner, whose timings are not cloud timings (AFP-V0-422)"
             [ "$boxed" -ne "$SHARDS" ] || echo 'boxed=1' >> "$GITHUB_OUTPUT"
