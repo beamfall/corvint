@@ -490,7 +490,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-021` | `internal/perfbudget/fixture.go` | `TestPRBV0021FullScaleIsRealistic`, `TestPRBV0020FixtureIsDeterministicAndShaped`, `TestPRBV0031CommittedBudgets` |
 | `PRB-V0-022` | `internal/perfbudget/fixture.go` | `TestPRBV0020FixtureIsDeterministicAndShaped`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-023` | `internal/perfbudget/fixture.go` | `TestPRBV0023InvalidScaleRefused`, `TestPRBV0023UninspectableDirectoryRefused` |
-| `PRB-V0-024` | `internal/perfbudget/harness.go`, `internal/perfbudget/measure.go` | `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-024` | `internal/perfbudget/harness.go`, `internal/perfbudget/measure.go` | `TestPRBV0024HarnessSmokeRun`; shared read-only test binaries (also PRB-V0-970): `docs/build-log/2026-11-05-slow-test-speedups.md` |
 | `PRB-V0-025` | `internal/perfbudget/fixture.go`, `internal/perfbudget/harness.go` | `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-026` | `internal/perfbudget/measure.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-027` | `internal/perfbudget/rusage_unix.go`, `internal/perfbudget/rusage_other.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |

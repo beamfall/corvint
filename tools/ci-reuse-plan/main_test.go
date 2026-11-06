@@ -150,6 +150,17 @@ func TestAFPV0170OnlyTheRecordJobLogVouchesForTheTree(t *testing.T) {
 	}
 }
 
+// incompletePR carries the unsuccessful shard behind an unsuccessful run; a failure
+// caused only by an advisory job is covered separately by CIN-V0-7600.
+func incompletePR(conclusion string) evidence {
+	e := prEvidence(evidence{}, 7, testTree, 4)
+	e.jobs[7][0].Conclusion = conclusion
+	if conclusion == "" {
+		e.jobs[7][0].Status = "in_progress"
+	}
+	return e
+}
+
 func TestAFPV0024AnythingElseRunsInFull(t *testing.T) {
 	alter := func(f func(*run)) []run { r := passedRun(7); f(&r); return []run{r} }
 	good := prEvidence(evidence{}, 7, testTree, 4)
@@ -159,9 +170,9 @@ func TestAFPV0024AnythingElseRunsInFull(t *testing.T) {
 		shards   int
 	}{
 		"no runs":                    {nil, good, 4},
-		"failed run":                 {alter(func(r *run) { r.Conclusion = "failure" }), good, 4},
-		"cancelled run":              {alter(func(r *run) { r.Conclusion = "cancelled" }), good, 4},
-		"in progress":                {alter(func(r *run) { r.Status = "in_progress" }), good, 4},
+		"failed run":                 {alter(func(r *run) { r.Conclusion = "failure" }), incompletePR("failure"), 4},
+		"cancelled run":              {alter(func(r *run) { r.Conclusion = "cancelled" }), incompletePR("cancelled"), 4},
+		"in progress":                {alter(func(r *run) { r.Status = "in_progress" }), incompletePR(""), 4},
 		"push event":                 {alter(func(r *run) { r.Event = "push" }), good, 4},
 		"other workflow":             {alter(func(r *run) { r.Path = ".github/workflows/other.yml" }), good, 4},
 		"run of another repository":  {alter(func(r *run) { r.Repository.FullName = "other/corvint" }), good, 4},
@@ -199,13 +210,21 @@ func TestAFPV0024PushReusesTheQueueRunOfThePushedCommit(t *testing.T) {
 func TestAFPV0024QueueRunRefusalsRunInFull(t *testing.T) {
 	alter := func(f func(*run)) run { r := passedQueueRun(11); f(&r); return r }
 	good := queueEvidence(evidence{}, 11, testTree, 4)
+	incomplete := func(conclusion string) evidence {
+		e := queueEvidence(evidence{}, 11, testTree, 4)
+		e.jobs[11][0].Conclusion = conclusion
+		if conclusion == "" {
+			e.jobs[11][0].Status = "in_progress"
+		}
+		return e
+	}
 	cases := map[string]struct {
 		run      run
 		evidence evidence
 	}{
-		"failed":                   {alter(func(r *run) { r.Conclusion = "failure" }), good},
-		"cancelled":                {alter(func(r *run) { r.Conclusion = "cancelled" }), good},
-		"in progress":              {alter(func(r *run) { r.Status = "in_progress"; r.Conclusion = "" }), good},
+		"failed":                   {alter(func(r *run) { r.Conclusion = "failure" }), incomplete("failure")},
+		"cancelled":                {alter(func(r *run) { r.Conclusion = "cancelled" }), incomplete("cancelled")},
+		"in progress":              {alter(func(r *run) { r.Status = "in_progress"; r.Conclusion = "" }), incomplete("")},
 		"other workflow path":      {alter(func(r *run) { r.Path = ".github/workflows/ci-control-plane.yml" }), good},
 		"other repository":         {alter(func(r *run) { r.Repository.FullName = "fork/corvint" }), good},
 		"wrong head":               {alter(func(r *run) { r.HeadSHA = testTree }), good},
@@ -278,7 +297,11 @@ func narrowedLog(tree, target, base, head string, shards int) string {
 // narrowedEvidence is a narrowed pull-request run whose only record job is ci-narrowed-tree-record.
 func narrowedEvidence(runID int64, name, log string) evidence {
 	e := evidence{jobs: map[int64][]job{}, logs: map[int64]string{}}
-	e.jobs[runID] = append(shardJobs(runID, testHead, 4), job{ID: runID * 10, RunID: runID, Name: name, HeadSHA: testHead, Status: "completed", Conclusion: "success"})
+	e.jobs[runID] = shardJobs(runID, testHead, 4)
+	for i, required := range []string{"docs-plan", "narrowing-verdict", "go-product"} {
+		e.jobs[runID] = append(e.jobs[runID], job{ID: runID*100 + 50 + int64(i), RunID: runID, Name: required, HeadSHA: testHead, Status: "completed", Conclusion: "success"})
+	}
+	e.jobs[runID] = append(e.jobs[runID], job{ID: runID * 10, RunID: runID, Name: name, HeadSHA: testHead, Status: "completed", Conclusion: "success"})
 	e.logs[runID*10] = log
 	return e
 }
@@ -359,11 +382,13 @@ func TestAFPV0812NamesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 			t.Errorf("%s: decision = %+v, delta = %+v", name, d, d.Delta)
 		}
 	}
-	// An unadmitted run (another head, a failed run) names no delta either.
+	// A run whose required shard failed names no delta either.
 	failed := passedRun(7)
 	failed.Conclusion = "failure"
-	if d := Decide(testRepo, "merge_group", testTree, testHead, testTarget, testBase, 4, []run{failed}, narrowedEvidence(7, NarrowedRecordJob, moved).listJobs,
-		narrowedEvidence(7, NarrowedRecordJob, moved).readLog); d.Delta != nil {
+	failedEvidence := narrowedEvidence(7, NarrowedRecordJob, moved)
+	failedEvidence.jobs[7][0].Conclusion = "failure"
+	if d := Decide(testRepo, "merge_group", testTree, testHead, testTarget, testBase, 4, []run{failed}, failedEvidence.listJobs,
+		failedEvidence.readLog); d.Delta != nil {
 		t.Fatalf("failed run: delta = %+v", d.Delta)
 	}
 }
