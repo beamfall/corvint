@@ -71,6 +71,12 @@ jobs:
             os: ubuntu-24.04
             timeout: 60
             command: make interop-gate
+          # CIN-V0-4755 (V1-4750): the selection-baseline replay a routine pull request defers
+          # (cadence DEFER) runs here in full every night; `make gate` does not include it.
+          - gate: selection-baseline
+            os: ubuntu-24.04
+            timeout: 60
+            command: make selection-baseline-check
           # Runbook step 8's CCF-V1-007 N-1 replay against the previous published release of this
           # repository, selected as linux-core's n1 step does; with none it reports FIRST_RELEASE.
           - gate: core-n1-replay
