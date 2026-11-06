@@ -241,7 +241,11 @@ func scanPackage(root, rel, module string) ([]string, bool, error) {
 		}
 		for _, spec := range file.Imports {
 			path, _ := strconv.Unquote(spec.Path.Value)
-			if target, ok := strings.CutPrefix(path, module+"/"); ok && target != rel {
+			target, ok := strings.CutPrefix(path, module+"/")
+			if path == module {
+				target, ok = ".", true
+			}
+			if ok && target != rel {
 				set[target] = true
 			}
 		}
@@ -256,7 +260,8 @@ func scanPackage(root, rel, module string) ([]string, bool, error) {
 
 // scanModule builds the production import graph of the module at root: every
 // package `go list ./...` walks, plus every module package one of them
-// imports (such as a package under a hidden directory), as `-deps` adds.
+// imports (such as a package under a hidden directory), as `-deps` adds. The
+// module root package, when it exists, is the node "." (IRT-V0-003).
 func scanModule(root, module string) (map[string][]string, error) {
 	graph := map[string][]string{}
 	var queue []string
@@ -274,9 +279,7 @@ func scanModule(root, module string) (map[string][]string, error) {
 		if err != nil {
 			return err
 		}
-		if rel != "." {
-			queue = append(queue, filepath.ToSlash(rel))
-		}
+		queue = append(queue, filepath.ToSlash(rel))
 		return nil
 	})
 	if err != nil {
@@ -385,4 +388,37 @@ func without(list []string, drop string) []string {
 		}
 	}
 	return out
+}
+
+// TestScanModuleRootPackage proves IRT-V0-003 for the module root: a root
+// package is walked as "." and an import of the bare module path names it.
+func TestScanModuleRootPackage(t *testing.T) {
+	t.Run("IRT-V0-003 the module root package and imports of it are scanned", func(t *testing.T) {
+		root := t.TempDir()
+		files := map[string]string{
+			"go.mod":  "module example.com/m\n",
+			"root.go": "package m\n\nimport _ \"example.com/m/a\"\n",
+			"a/a.go":  "package a\n",
+			"b/b.go":  "package b\n\nimport _ \"example.com/m\"\n",
+		}
+		for name, body := range files {
+			path := filepath.Join(root, filepath.FromSlash(name))
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		graph, err := scanModule(root, "example.com/m")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := graph["."]; len(got) != 1 || got[0] != "a" {
+			t.Errorf("root package imports = %q, want [a]", got)
+		}
+		if got := graph["b"]; len(got) != 1 || got[0] != "." {
+			t.Errorf("b imports = %q, want [.] (the root package)", got)
+		}
+	})
 }
