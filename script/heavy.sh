@@ -516,7 +516,6 @@ if ($go_test) {
     # macOS TMPDIR ends in "/": a "//" here reaches os.TempDir unchanged and makes every
     # t.TempDir() unclean, which absolute-clean-path guards then refuse (V1-4738).
     $parent =~ s{/+\z}{};
-    $parent = "/" unless length $parent;
     my $candidate = "$parent/heavy-go-test-$<";
     mkdir($candidate, 0700);
     my @st = lstat($candidate);
