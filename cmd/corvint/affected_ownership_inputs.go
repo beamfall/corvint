@@ -56,17 +56,48 @@ func affectedOwnershipInputs(ctx context.Context, in affectedPlanInputs, graph *
 			*in.ownership = affectedOwnershipObservation{paths: current, ok: currentOK}
 		}
 	}
-	var changes, atHead []string
+	// Compare raw Git names before converting to the representation used by
+	// DirtyPaths and RangePaths. Distinct raw names can share a display path.
+	membershipChanges := map[string]bool{}
+	for path := range before {
+		if !current[path] {
+			membershipChanges[path] = true
+		}
+	}
+	for path := range current {
+		if !before[path] {
+			membershipChanges[path] = true
+		}
+	}
+	dirtySet := map[string]bool{}
 	for _, path := range dirty {
-		if committed[path] {
+		dirtySet[path] = true
+	}
+	// Worktree checks must also use raw names: the display path may not exist.
+	for path := range current {
+		if !dirtySet[strings.ToValidUTF8(path, "\uFFFD")] {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(in.tree, filepath.FromSlash(path))); err != nil {
+			membershipChanges[path] = true
+		}
+	}
+	changed := map[string]bool{}
+	for path := range membershipChanges {
+		changed[strings.ToValidUTF8(path, "\uFFFD")] = true
+	}
+	var changes, atHead []string
+	for path := range committed {
+		if path = strings.ToValidUTF8(path, "\uFFFD"); dirtySet[path] {
 			atHead = append(atHead, path)
 		}
+	}
+	for _, path := range dirty {
 		_, err := os.Lstat(filepath.Join(in.tree, filepath.FromSlash(path)))
-		exists := err == nil
 		// Indexed membership can change even when an added path has since
 		// disappeared from the worktree. Observe that change independently of
 		// missing tracked files, which also need the ratchet.
-		if !baseOK || !currentOK || before[path] != current[path] || (current[path] && !exists) || (err != nil && !os.IsNotExist(err)) {
+		if !baseOK || !currentOK || changed[path] || (err != nil && !os.IsNotExist(err)) {
 			changes = append(changes, path)
 		}
 	}
