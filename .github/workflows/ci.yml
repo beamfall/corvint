@@ -1338,7 +1338,8 @@ jobs:
       - name: Retain package outcomes for the advisory cost-drift report
         # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes, and
         # AFP-V0-422: only on the hosted image, because self-hosted timings are not cloud timings.
-        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted'
+        # AFP-V0-540 (V1-4728): not on a pull request, whose shards run at -p 4 and so measure contended times.
+        if: steps.tests.outputs.costs == '1' && runner.environment != 'self-hosted' && github.event_name != 'pull_request'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -2045,6 +2046,7 @@ jobs:
           WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
           WEB_RESULT: ${{ needs.web-flows.result }}
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
+          EVENT_NAME: ${{ github.event_name }}
           STATIC_RESULT: ${{ needs.go-static.result }}
           STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
           SHELL_RESULT: ${{ needs.shell-test-selected.result }}
@@ -2176,6 +2178,8 @@ jobs:
           boxed=$(find "$d" -maxdepth 1 -name 'shard-*.self-hosted' -type f 2>/dev/null | wc -l | tr -d ' ')
           if [ "$SHARDS_RESULT" != success ]; then
             reason="go-product-shard result is $SHARDS_RESULT"
+          elif [ "${EVENT_NAME:-}" = pull_request ]; then
+            reason="a pull-request shard runs at -p 4, so its package times are contended and not table costs (AFP-V0-540)"
           elif [ "$boxed" -ne 0 ]; then
             reason="$boxed of $SHARDS shards ran on the self-hosted runner, whose timings are not cloud timings (AFP-V0-422)"
             [ "$boxed" -ne "$SHARDS" ] || echo 'boxed=1' >> "$GITHUB_OUTPUT"
