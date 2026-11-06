@@ -322,20 +322,21 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   negated OS tags such as `!linux` and `!windows`, and BSD forms); selecting every build
   constraint is permitted. Source and test files, including ignored platform files, SHALL be
   rescanned on every run; no frozen package allowlist governs the selection. The retained inventory SHALL name each
-  package and the file/reason for inclusion. Tests SHALL run whole packages, without the full-suite
-  gate or a race run. A deterministic longest-cost-first partition SHALL assign every inventory
+  package and the file/reason for inclusion. Tests SHALL run whole packages, except the test
+  partitions of CIN-V0-4627, without the full-suite gate or a race run. A deterministic longest-cost-first partition SHALL assign every inventory
   package exactly once across four shards using `.github/cishards/package-costs.json`, before each
   shard filters its assigned packages by its admitted selection. Ownership SHALL be independent
   of narrowing so mixed FULL/NARROWED matrix legs cannot omit affected packages. An unpriced
   package SHALL use the median estimate. Invalid or empty cost content SHALL fall back to complete
   round-robin placement; a cost-file I/O failure SHALL fail the shard before execution, so a
   runner-local read failure cannot silently change ownership. Each shard SHALL run one `go test`
-  invocation per module over its package list, with
+  invocation per module over its unsplit package list, with
   three build/package workers (`-p 3`) and two test workers (`-parallel 2`), retaining all module
   failures rather than stopping after the first. A shard SHALL disable the `heavy.sh` host-load
   queue (`HEAVY_LOAD_WAIT=0`), because a hosted runner is dedicated to the job, and a failed
   module SHALL print each failed package/test with its last output lines rather than a raw
-  JSON tail. Each macOS shard SHALL have a 40-minute timeout,
+  JSON tail. Each macOS shard SHALL have a 55-minute timeout (V1-4760: shards plan about 37.6
+  minutes of measured cost, and run 42266013561 ran out at 40 minutes),
   with an under-30-minute FULL-selection wall-time target subject to hosted measurement. Shards
   SHALL retain separate `macos-selection-shard-N` execution artifacts even after failure; shard zero
   SHALL remain the single writer of the unchanged `macos-selection` inventory/narrowing artifact.
@@ -366,6 +367,24 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   at base `6c33df33bc5670131482f5263b410cb980580657` fails in selected packages
   (`internal/contextindex`, `internal/tasks/cli`, `internal/tasks/store`, `internal/testsupport`,
   `interop/cem01-go`); requiring this result now would block FULL-fallback pull requests.
+- `CIN-V0-4627`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4760) Placement
+  SHALL scale each package's Linux cost by two as a conservative Darwin estimate (`cmd/corvint`
+  took 1127 s on Linux and exceeded the 30-minute detector on `macos-15`). A package whose scaled
+  estimate exceeds 15 minutes, half the per-package hang detector, SHALL be split into
+  `ceil(scaled / 15 min)` parts; each part SHALL be one placement item costing the package estimate
+  divided by the part count, so the longest-cost-first rule spreads the parts of one heavy package
+  across shards before lighter packages. Missing or invalid cost history SHALL split nothing. A
+  shard SHALL run each assigned part alone, in its own `go test` invocation over only that package,
+  before its module invocations. The part SHALL list the package's top-level tests on the runner
+  with `go test -list .`, drop benchmarks (never run without `-bench`), and assign each listed
+  name to exactly one part by SHA-256 of the name modulo the part count, running its share with an
+  anchored `-run '^(A|B|...)$'` so subtests run with their parent. A failed or empty listing, a
+  listed name that is not a plain ASCII identifier, a duplicate name, an assigned test without a
+  `pass`/`fail`/`skip` event in the `-json` log, or a top-level test that ran without being assigned
+  SHALL fail the shard rather than skip a test; the shard SHALL still run its remaining
+  invocations. An empty share SHALL run nothing. Each part SHALL retain its listing and a partition
+  record (package, part, part count, listed count, SHA-256 of the sorted listing and its assigned
+  names) in the shard artifact. The 30-minute `-timeout` SHALL NOT change (decision 0082).
 
 ### Merge-queue reuse on a moved or stacked base, integrity-record wait and fast-route liveness (AFP-V0-100 to AFP-V0-106; V1-4232, V1-4233, V1-4234)
 
@@ -639,6 +658,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
 | CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps`, `TestCINV02320RequiredCheckPropagatesShellFailure` in `tools/ci-reuse-plan/workflow_test.go` |
 | CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/go-macos.yml`; `.github/macos/{select,shard}.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); `python3 -B .github/macos/shard_test.py` (complete deterministic cost partition, mixed FULL/NARROWED ownership, asymmetric cost-read failures, unknown-cost fallback, module concurrency and retained failures); `TestCINV04625AdvisoryDarwinIsOutsideRequiredNeedsGraph`, `TestCINV04625DarwinWorkflowNeverAdmitsLinuxReuse` in `tools/ci-reuse-plan`; existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
+| CIN-V0-4627 | `.github/macos/shard.py` (`items`, `assigned_tests`, `listed_tests`, `ran_tests`, `partition_tests`, `run`) | `python3 -B .github/macos/shard_test.py`: `test_CINV04627_heavy_package_splits_into_parts_on_distinct_shards`, `test_CINV04627_partitions_cover_every_listed_test_exactly_once`, `test_CINV04627_partition_runs_alone_with_its_exact_tests`, `test_CINV04627_missing_unlisted_or_failed_listing_fails_closed`; local Darwin end-to-end run of two real parts of `.github/cishards` (25 listed tests, both parts green); hosted `go-macos` wall time NOT_OBSERVED |
 | CIN-V0-4626 | PLANNED/deferred: V1-4636; no required-aggregate dependency/result check | Required integration NOT_PRODUCED: blocked on V1-4413, V1-4551, V1-4553 and one green hosted FULL run; nightly run 41849536472 is failing at the lane base |
 | CIN-V0-4750 | `.github/ci-cadence/classify.sh` DOCS and TESTS classes | `TestCINV04750CadenceClassifier` in `tools/ci-reuse-plan/cadence_test.go` |
 | CIN-V0-4751 | the fixed eight-line receipt of `classify.sh` | `TestCINV04750CadenceClassifier`, `TestCINV04752CadenceRefusals` |
@@ -658,7 +678,9 @@ CIN-V0-2320: delete the `shell-test-selected` job; shell-test steps then run onl
 CIN-V0-4625: revert the V1-4732 workflow extraction and sharder to restore the previous advisory
 `ci.yml` job, accepting its workflow-completion delay; no required-status setting changes. For the
 original capability rollback, remove advisory `go-macos` and `.github/macos/`. CIN-V0-4626 has no delivered
-aggregate integration to roll back; V1-4636 owns its future activation.
+aggregate integration to roll back; V1-4636 owns its future activation. CIN-V0-4627: revert the
+V1-4760 change to `.github/macos/shard.py` to run every package whole again; no artifact or cost
+file format changes.
 The nightly macOS gate and existing Linux narrowing remain operative; no persistent data migrates.
 
 CIN-V0-2140..2142: stop invoking the standalone alarm and remove its tool and replay. It writes
