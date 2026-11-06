@@ -531,7 +531,7 @@ func benchmarkCandidate(raw []byte, analyze func([]byte) []byte) testing.Benchma
 func productionSourceFiles(t *testing.T, root string) []string {
 	t.Helper()
 	files := make([]string, 0, 4)
-	for _, dir := range []string{filepath.Join(root, "internal", "analyzershell"), filepath.Join(root, "cmd", "corvint-analyzer-shell")} {
+	for _, dir := range []string{filepath.Join(root, "internal", "analyzershell"), filepath.Join(root, "internal", "analyzerenvelope"), filepath.Join(root, "cmd", "corvint-analyzer-shell")} {
 		err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err

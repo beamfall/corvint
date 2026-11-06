@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
 // changeCoverage is what the check SUMMARY's requirements, linked and
@@ -75,10 +77,6 @@ func (coverage *changeCoverage) summaryFields() []string {
 		"change-untraced=" + strconv.Itoa(coverage.requirements-coverage.linked)}
 }
 
-// requirementLine is the OCM requirement-line syntax (OCM-V0-001, with the
-// three-or-more-digit number of OCM-V0-952).
-var requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3,})[.:]\\*\\*[ ])")
-
 // requirementItem is one requirement of a blob's `## Requirements` section:
 // its lines [first, end) (zero-based) and bytes [start, stop).
 type requirementItem struct {
@@ -99,105 +97,59 @@ type requirementSection struct {
 	outside []requirementItem
 }
 
-// parseRequirements enumerates a blob's requirements as OCM-V0-001 does
-// (internal/lrfrepo requirementsFromBlob): one unfenced `## Requirements`
-// heading, the section ending at the next unfenced line that is `##` or starts
-// with `## `, and each requirement line in it, fenced or not, starting an item
-// that runs to the next one or the section end.
+// parseRequirements enumerates a blob's requirements on the OCM-V0-001 layout
+// that internal/lrfrepo requirementsFromBlob reads (lrfrepo.ScanRequirementLayout):
+// one unfenced `## Requirements` heading, the section ending at the next
+// unfenced line that is `##` or starts with `## `, and each requirement line in
+// it, fenced or not, starting an item that runs to the next one or the section
+// end. Unlike the verifier it refuses nothing: two headings read as no section,
+// and repeated IDs and invalid UTF-8 are kept. A line's text drops every
+// trailing carriage return, where the verifier drops one.
 func parseRequirements(blob []byte) requirementSection {
 	lines := strings.SplitAfter(string(blob), "\n")
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
 	offsets := make([]int, len(lines)+1)
-	fenced := make([]bool, len(lines))
-	var fence byte
-	fenceLength := 0
 	for i, line := range lines {
 		offsets[i+1] = offsets[i] + len(line)
-		text := strings.TrimRight(line, "\r\n")
-		char, run, rest := fenceRun(text)
-		switch {
-		case fence == 0 && run >= 3 && (char != '`' || !strings.Contains(rest, "`")):
-			fence, fenceLength, fenced[i] = char, run, true
-		case fence != 0:
-			fenced[i] = true
-			if char == fence && run >= fenceLength && strings.Trim(rest, " \t") == "" {
-				fence = 0
-			}
-		}
 	}
+	text := func(i int) []byte {
+		return blob[offsets[i] : offsets[i]+len(strings.TrimRight(lines[i], "\r\n"))]
+	}
+	layout := lrfrepo.ScanRequirementLayout(len(lines), text)
 	section := requirementSection{lines: lines, first: -1, end: len(lines)}
-	for i, line := range lines {
-		if !fenced[i] && strings.TrimRight(line, "\r\n") == "## Requirements" {
-			if section.first >= 0 {
-				return requirementSection{lines: lines, first: -1, end: len(lines)}
-			}
-			section.first = i
-		}
+	if len(layout.Headings) > 1 {
+		return section
 	}
-	if section.first >= 0 {
-		for i := section.first + 1; i < len(lines); i++ {
-			text := strings.TrimRight(lines[i], "\r\n")
-			if !fenced[i] && (text == "##" || strings.HasPrefix(text, "## ")) {
-				section.end = i
-				break
-			}
-		}
+	if len(layout.Headings) == 1 {
+		section.first, section.end = layout.Headings[0], layout.End
 	}
 	open := -1
 	for i, line := range lines {
 		inside := section.first >= 0 && i > section.first && i < section.end
-		if fenced[i] || inside {
+		if layout.Fenced[i] || inside {
 			continue
 		}
-		if strings.HasPrefix(line, "#") || requirementLine.MatchString(line) {
+		identity := lrfrepo.RequirementLineID(text(i))
+		if strings.HasPrefix(line, "#") || identity != "" {
 			if open >= 0 {
 				section.outside[open].end, section.outside[open].stop = i, offsets[i]
 				open = -1
 			}
 		}
-		if match := requirementLine.FindStringSubmatch(line); match != nil {
-			section.outside = append(section.outside, requirementItem{id: match[1] + match[2], first: i, end: len(lines), start: offsets[i], stop: offsets[len(lines)]})
+		if identity != "" {
+			section.outside = append(section.outside, requirementItem{id: identity, first: i, end: len(lines), start: offsets[i], stop: offsets[len(lines)]})
 			open = len(section.outside) - 1
 		}
 	}
-	if section.first < 0 {
-		return section
-	}
-	for i := section.first + 1; i < section.end; i++ {
-		match := requirementLine.FindStringSubmatch(lines[i])
-		if match == nil {
-			continue
-		}
+	for _, item := range layout.Items {
 		if count := len(section.items); count > 0 {
-			section.items[count-1].end, section.items[count-1].stop = i, offsets[i]
+			section.items[count-1].end, section.items[count-1].stop = item.Line, offsets[item.Line]
 		}
-		section.items = append(section.items, requirementItem{id: match[1] + match[2], first: i, end: section.end, start: offsets[i], stop: offsets[section.end]})
+		section.items = append(section.items, requirementItem{id: item.ID, first: item.Line, end: section.end, start: offsets[item.Line], stop: offsets[section.end]})
 	}
 	return section
-}
-
-// fenceRun is a line's run of backticks or tildes after at most three spaces,
-// and the rest of the line after it; a backtick run whose rest holds a backtick
-// opens no fence (CommonMark, as internal/lrfrepo fencedLines).
-func fenceRun(text string) (byte, int, string) {
-	indent := len(text) - len(strings.TrimLeft(text, " "))
-	if indent > 3 || indent == len(text) {
-		return 0, 0, ""
-	}
-	char := text[indent]
-	if char != '`' && char != '~' {
-		return 0, 0, ""
-	}
-	run := indent
-	for run < len(text) && text[run] == char {
-		run++
-	}
-	if run-indent < 3 {
-		return 0, 0, ""
-	}
-	return char, run - indent, text[run:]
 }
 
 // namesRequirement reports whether line holds id as an exact token: no

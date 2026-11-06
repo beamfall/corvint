@@ -16,11 +16,11 @@ func TestOCMV0952CoverageReadsFourDigitRequirementLines(t *testing.T) {
 		"- `ASD-V0-2230` text":    "",
 	} {
 		got := ""
-		if match := requirementLine.FindStringSubmatch(line); match != nil {
-			got = match[1] + match[2]
+		if items := parseRequirements([]byte("## Requirements\n" + line + "\n")).items; len(items) == 1 {
+			got = items[0].id
 		}
 		if got != want {
-			t.Errorf("requirementLine(%q) = %q, want %q", line, got, want)
+			t.Errorf("requirement line %q reads as %q, want %q", line, got, want)
 		}
 	}
 }
