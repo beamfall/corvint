@@ -229,6 +229,7 @@
       "experimental/analyzers/sqlnative/",
       "go.mod",
       "internal/analyzerdotnet/",
+      "internal/analyzerenvelope/",
       "internal/analyzergo/",
       "internal/analyzerhtmlcss/",
       "internal/analyzerjs/",
@@ -267,7 +268,8 @@
     ],
     "internal/analyzershell": [
       "cmd/corvint-analyzer-shell/",
-      "go.mod"
+      "go.mod",
+      "internal/analyzerenvelope/"
     ],
     "internal/analyzerstructured": [
       ".github/cishards/",

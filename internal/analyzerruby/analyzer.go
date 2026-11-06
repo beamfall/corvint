@@ -15,11 +15,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/json/jsontext"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/analyzerenvelope"
 )
 
 const (
@@ -160,7 +161,7 @@ func decodeInputs(r Request) ([]decoded, string) {
 	inputs := make([]decoded, 0, len(r.Inputs))
 	total := 0
 	for _, in := range r.Inputs {
-		size, exact := decodedLength(in.ContentBase64)
+		size, exact := analyzerenvelope.DecodedLength(in.ContentBase64)
 		if !exact {
 			return nil, "MALFORMED_INPUT"
 		}
@@ -192,80 +193,12 @@ func digestMatches(body []byte, declared string) bool {
 	return declared == string(encoded[:])
 }
 
-func decodedLength(encoded string) (int, bool) {
-	if len(encoded)%4 != 0 {
-		return 0, false
-	}
-	size := base64.StdEncoding.DecodedLen(len(encoded))
-	if len(encoded) > 0 && encoded[len(encoded)-1] == '=' {
-		size--
-	}
-	if len(encoded) > 1 && encoded[len(encoded)-2] == '=' {
-		size--
-	}
-	return size, size >= 0
-}
-
 func overBound(value, bound int) bool { return value > bound }
-
-func duplicateJSONName(raw []byte) bool {
-	d := json.NewDecoder(bytes.NewReader(raw))
-	tokens := 0
-	var walk func(int) bool
-	walk = func(depth int) bool {
-		tokens++
-		if depth > MaxJSONDepth || tokens > MaxJSONTokens {
-			return true
-		}
-		token, err := d.Token()
-		if err != nil {
-			return true
-		}
-		delim, object := token.(json.Delim)
-		if !object {
-			return false
-		}
-		switch delim {
-		case '{':
-			seen := map[string]bool{}
-			for d.More() {
-				key, err := d.Token()
-				if err != nil {
-					return true
-				}
-				value, ok := key.(string)
-				if !ok || seen[value] {
-					return true
-				}
-				seen[value] = true
-				if walk(depth + 1) {
-					return true
-				}
-			}
-			_, err := d.Token()
-			return err != nil
-		case '[':
-			for d.More() {
-				if walk(depth + 1) {
-					return true
-				}
-			}
-			_, err := d.Token()
-			return err != nil
-		}
-		return true
-	}
-	if walk(0) {
-		return true
-	}
-	_, err := d.Token()
-	return err == nil
-}
 
 // envelope returns a sentinel reason, or UNKNOWN_FIELD when the only defect is
 // a safe canonical extension (decision 0222).
 func envelope(body []byte) (r Request, why string) {
-	if duplicateJSONName(body) {
+	if analyzerenvelope.DuplicateJSONName(body, MaxJSONDepth, MaxJSONTokens) {
 		return r, "NONCANONICAL_REQUEST"
 	}
 	dec := json.NewDecoder(bytes.NewReader(body))
@@ -274,7 +207,7 @@ func envelope(body []byte) (r Request, why string) {
 		if json.Unmarshal(body, &Request{}) != nil {
 			return r, "MALFORMED_INPUT"
 		}
-		if known, ok := withoutExtensions(body); ok && len(known) < len(body) {
+		if known, ok := analyzerenvelope.WithoutExtensions(body); ok && len(known) < len(body) {
 			if r, why = envelope(known); why == "" {
 				why = "UNKNOWN_FIELD"
 			}
@@ -296,47 +229,6 @@ func envelope(body []byte) (r Request, why string) {
 		return r, "INVALID_IDENTIFIER"
 	}
 	return r, validPreEnvelope(&r)
-}
-
-var extensionFields = map[string]string{"": " profile family request_id scope_id compilation_unit_id target inputs ", "target": " os architecture abi features ", "inputs": " handle family path sha256 content_base64 "}
-
-func withoutExtensions(body []byte) ([]byte, bool) {
-	decoder, encoded, known, at := jsontext.NewDecoder(bytes.NewReader(body)), &bytes.Buffer{}, []byte{}, int64(0)
-	encoder := jsontext.NewEncoder(encoded)
-	var value func(kind string) bool
-	value = func(kind string) bool {
-		token, err := decoder.ReadToken()
-		delimiter, text := token.Kind(), token.String()
-		ok, fields, extended, last := err == nil && encoder.WriteToken(token) == nil, extensionFields[kind], false, ""
-		for ok && delimiter == '[' && decoder.PeekKind() != ']' {
-			ok = value(kind)
-		}
-		for ok && delimiter == '{' && decoder.PeekKind() == '"' {
-			start := decoder.InputOffset()
-			token, _ = decoder.ReadToken()
-			name := token.String()
-			ok = encoder.WriteToken(token) == nil
-			if _, nested := extensionFields[name]; !strings.Contains(name, " ") && strings.Contains(fields, " "+name+" ") {
-				if !nested {
-					name = "-"
-				}
-				ok = ok && !extended && value(name)
-				continue
-			}
-			ok = ok && (!extended || name > last) && value("-")
-			extended, last = true, name
-			if fields != "" {
-				known, at = append(known, body[at:start]...), decoder.InputOffset()
-			}
-		}
-		if delimiter == '[' || delimiter == '{' {
-			token, err = decoder.ReadToken()
-			ok = ok && err == nil && encoder.WriteToken(token) == nil
-		}
-		return ok && (delimiter != '0' || text != "-0" && !strings.ContainsAny(text, ".eE"))
-	}
-	ok := value("") && encoded.String() == string(body)+"\n"
-	return append(known, body[at:]...), ok
 }
 
 func sentinel(reason string) []byte {
