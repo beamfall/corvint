@@ -372,8 +372,10 @@ func (m *Manifest) placeGo(input Input, run []string) {
 		}
 		for _, slice := range shard.Slices {
 			if wanted[slice.Package] {
+				reason := input.GoSlices[slice.Package].Reason
 				m.Units = append(m.Units, Unit{
 					Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: index,
+					Reason: reason, ReasonCode: ReasonCode(reason),
 					Slice: fmt.Sprintf("%d/%d", slice.Index, slice.Count), Unit: "go:" + slice.Package,
 				})
 			}
@@ -399,8 +401,10 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string, slices
 			shardOf[file] = shard.Index
 		}
 		for _, slice := range shard.Slices {
+			reason := slices[slice.Package].Reason
 			slicesOf[slice.Package] = append(slicesOf[slice.Package], Unit{
 				Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: shard.Index,
+				Reason: reason, ReasonCode: ReasonCode(reason),
 				Slice: fmt.Sprintf("%d/%d", slice.Index, slice.Count), Unit: "go:" + slice.Package,
 			})
 		}

@@ -217,6 +217,9 @@ stages an initially untracked path after source observation and requires the exi
 package's last source while retaining its directory. `TestOwnershipFullReasons_AZU_V0_9900`
 in `internal/sessiontest/ownership_full_test.go` covers both gate-only and whole-package reasons
 and verifies the caller's narrowing input is unchanged.
+`TestOwnershipPartitionedReasons_AZU_V0_9900` covers the committed affected-package slices
+across 16 shards under universe, balanced and measured placement: each slice, including the
+catch-all, retains the obligation's reason and reason code during narrowed and FULL runs.
 `TestOwnershipContentOnlyBytes_AZU_V0_9900` compares owned and unowned plan bytes and compact
 dry-run digests. `TestOwnershipMembershipSelection_AZU_V0_9900/stage-worktree-delete` covers an
 indexed addition subsequently removed only from disk. Fixture closure uses the existing
