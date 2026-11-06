@@ -222,6 +222,11 @@ channel. `TestOwnershipTextGuidance_AZU_V0_9901` covers committed content-only u
 with and without the ratchet; `TestOwnershipGuidanceRequiresRatchet_AZU_V0_9901` continues to
 check the JSON compatibility boundary. `TestOwnershipIndexDriftAfterSources_AZU_V0_9900`
 stages an initially untracked path after source observation and requires the existing drift refusal.
+`TestOwnershipInvalidUTF8Membership_AZU_V0_9900` covers raw Git filename additions,
+deletions and replacements sharing a normalized dirty path, while content-only edits retain
+their selection boundary. `TestOwnershipInvalidUTF8IndexDrift_AZU_V0_9900` requires drift
+refusal when distinct raw index names share that normalized path. These Unix witnesses live
+in `cmd/corvint/affected_ownership_invalid_utf8_unix_test.go`.
 `TestOwnershipFullDryRun_AZU_V0_9900` covers public dry-run FULL fallback after deleting a
 package's last source while retaining its directory. `TestOwnershipFullReasons_AZU_V0_9900`
 in `internal/sessiontest/ownership_full_test.go` covers both gate-only and whole-package reasons
