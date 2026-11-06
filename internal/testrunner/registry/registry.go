@@ -10,7 +10,6 @@ package registry
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testrunner/dynamic"
@@ -83,26 +82,24 @@ func has(list []string, name string) bool {
 	return false
 }
 
+// Build admits r through testrunner.BuildWith, the shared admission, and
+// then builds it with the family that registers its runner.
 func Build(r testrunner.Request) (testrunner.Invocation, error) {
-	if err := testrunner.AdmitSelection(r); err != nil {
-		return testrunner.Invocation{}, err
-	}
-	if admitted := execMemberRunners(); r.HasRSpecOnlyMembers() && !has(admitted, r.Runner) {
-		return testrunner.Invocation{}, fmt.Errorf("execPrefix, pathMap and formatter are admitted only for %s", strings.Join(admitted, ", "))
-	}
-	if f, ok := Lookup(r.Runner); ok {
-		return f.Build(r)
-	}
-	return testrunner.Invocation{}, fmt.Errorf("unsupported runner")
+	return testrunner.BuildWith(r, execMemberRunners(), func(r testrunner.Request) (testrunner.Invocation, error) {
+		if f, ok := Lookup(r.Runner); ok {
+			return f.Build(r)
+		}
+		return testrunner.Invocation{}, fmt.Errorf("unsupported runner")
+	})
 }
 
+// Parse parses in with the family that registers its runner and normalizes
+// the observation through testrunner.ParseWith.
 func Parse(in testrunner.Input) (testrunner.Observation, error) {
-	var o testrunner.Observation
-	var e error
-	if f, ok := Lookup(in.Runner); ok {
-		o, e = f.Parse(in)
-	} else {
-		e = fmt.Errorf("unsupported runner")
-	}
-	return testrunner.Normalize(in, o), e
+	return testrunner.ParseWith(in, func(in testrunner.Input) (testrunner.Observation, error) {
+		if f, ok := Lookup(in.Runner); ok {
+			return f.Parse(in)
+		}
+		return testrunner.Observation{}, fmt.Errorf("unsupported runner")
+	})
 }
