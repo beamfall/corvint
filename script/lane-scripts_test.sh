@@ -2247,6 +2247,11 @@ for shape in direct env leading envtmp leadingtmp envdash envunset envclean coun
       fail "go-test TMPDIR $shape is unstable or leaked scratch: $out"
   done
 done
+# V1-4738: a trailing-slash TMPDIR (macOS default) still yields a clean scratch path.
+out=$(TMPDIR=$to/test-root// PATH=$to/cache-bin:$PATH tv "$to/cache-bin/go" test -run X ./x) ||
+  fail "go-test trailing-slash TMPDIR run failed: $(cat "$to/err")"
+[[ $(printf '%s\n' "$out" | sed -n '1p') == "$to/test-root/heavy-go-test-$(id -u)" ]] ||
+  fail "go-test trailing-slash TMPDIR left an unclean scratch path: $out"
 out=$(GOTMPDIR=$to/build-root cache_run "$to/cache-bin/go" test -run X ./x)
 [[ $(printf '%s\n' "$out" | sed -n '2p') == "$to/build-root" && -d $to/build-root ]] ||
   fail "go-test replaced an explicit GOTMPDIR: $out"
