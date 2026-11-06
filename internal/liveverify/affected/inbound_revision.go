@@ -3,21 +3,9 @@
 package affected
 
 import (
-	json "encoding/json/v2"
 	"slices"
 	"strings"
 )
-
-// These are the existing shell declaration's members, read here without a
-// dependency from the graph back into a language plugin.
-type inboundCallerSnapshot struct {
-	Profile string `json:"profile"`
-	Scripts map[string]struct {
-		Callers  []string `json:"callers"`
-		Mentions []string `json:"mentions,omitempty"`
-		Reason   string   `json:"reason"`
-	} `json:"scripts"`
-}
 
 // inboundRevisionPaths requires actual base/head bytes from the CLI's bounded
 // immutable base reader. A bare Select has no historical caller evidence and
@@ -40,17 +28,14 @@ func (graph *Graph) inboundRevisionPaths(dirty []string) ([]string, bool) {
 		if index == 0 && !revision.BaseExists {
 			continue
 		}
-		if len(body) == 0 || len(body) > 64<<10 {
+		if len(body) == 0 || len(body) > MaxShellForeignCallerBytes {
 			return nil, false
 		}
-		var snapshot inboundCallerSnapshot
-		if json.Unmarshal(body, &snapshot, json.RejectUnknownMembers(true)) != nil || snapshot.Profile != "corvint-shell-foreign-callers/0" || len(snapshot.Scripts) == 0 || len(snapshot.Scripts) > 64 {
+		scripts, err := ParseShellForeignCallers(body)
+		if err != nil {
 			return nil, false
 		}
-		for script, entry := range snapshot.Scripts {
-			if !ValidRelativePath(script) || len(entry.Callers)+len(entry.Mentions) > 256 || entry.Reason == "" {
-				return nil, false
-			}
+		for script, entry := range scripts {
 			if index == 1 {
 				unit, exists := graph.units["shell:"+script]
 				// Current completeness is granted only by the shell plugin.
@@ -60,9 +45,6 @@ func (graph *Graph) inboundRevisionPaths(dirty []string) ([]string, bool) {
 			}
 			paths = append(paths, script)
 			for _, file := range append(slices.Clone(entry.Callers), entry.Mentions...) {
-				if !ValidRelativePath(file) {
-					return nil, false
-				}
 				paths = append(paths, file)
 			}
 		}

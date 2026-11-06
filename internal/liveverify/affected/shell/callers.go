@@ -2,7 +2,6 @@ package shell
 
 import (
 	"bytes"
-	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -13,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -38,30 +35,10 @@ import (
 const FrontierForeignCallersInvalid = "shell:foreign-callers-invalid"
 
 // ForeignCallersProfile is the declaration's closed profile name.
-const ForeignCallersProfile = "corvint-shell-foreign-callers/0"
+const ForeignCallersProfile = affected.ShellForeignCallersProfile
 
-const (
-	maxForeignCallerBytes   = 64 << 10
-	maxForeignCallerScripts = 64
-	maxForeignCallers       = 256
-	// maxForeignCallerReason is 1024 bytes (V1-4062, TSP-V0-820): the
-	// longest declared reason reached 512 bytes with 24 files.
-	maxForeignCallerReason = 1024
-)
-
-// ForeignCallers is one declared script: every file naming it, split into
-// the callers that run it and the mentions that only name it, and the
-// project's stated reason.
-type ForeignCallers struct {
-	Callers  []string `json:"callers"`
-	Mentions []string `json:"mentions,omitempty"`
-	Reason   string   `json:"reason"`
-}
-
-type foreignCallersFile struct {
-	Profile string                    `json:"profile"`
-	Scripts map[string]ForeignCallers `json:"scripts"`
-}
+// ForeignCallers is the canonical caller/mention split and project reason.
+type ForeignCallers = affected.ShellForeignCallerEntry
 
 // readForeignCallers returns the declared scripts by path: nil with no
 // declaration, an error for one that is unreadable, oversized, not a regular
@@ -69,38 +46,14 @@ type foreignCallersFile struct {
 // sorted and unique, disjoint, together non-empty and of clean relative paths
 // other than the script.
 func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error) {
-	body, err := root.ReadBounded(affected.ShellForeignCallersPath, maxForeignCallerBytes)
+	body, err := root.ReadBounded(affected.ShellForeignCallersPath, affected.MaxShellForeignCallerBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var declared foreignCallersFile
-	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
-		return nil, err
-	}
-	if declared.Profile != ForeignCallersProfile || len(declared.Scripts) == 0 || len(declared.Scripts) > maxForeignCallerScripts {
-		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d scripts", affected.ShellForeignCallersPath, ForeignCallersProfile, maxForeignCallerScripts)
-	}
-	for script, entry := range declared.Scripts {
-		if !affected.ValidRelativePath(script) || !hasAnySuffix(script, Suffixes) {
-			return nil, fmt.Errorf("%s: script %q", affected.ShellForeignCallersPath, script)
-		}
-		named := append(slices.Clone(entry.Callers), entry.Mentions...)
-		if len(named) == 0 || len(named) > maxForeignCallers || !sortedUnique(entry.Callers) || !sortedUnique(entry.Mentions) {
-			return nil, fmt.Errorf("%s: script %q callers and mentions must be 1 to %d sorted unique paths", affected.ShellForeignCallersPath, script, maxForeignCallers)
-		}
-		for _, file := range named {
-			if !affected.ValidRelativePath(file) || file == script || slices.Contains(entry.Callers, file) && slices.Contains(entry.Mentions, file) {
-				return nil, fmt.Errorf("%s: script %q file %q", affected.ShellForeignCallersPath, script, file)
-			}
-		}
-		if entry.Reason == "" || len(entry.Reason) > maxForeignCallerReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
-			return nil, fmt.Errorf("%s: script %q reason has %d bytes; want non-empty valid UTF-8 without control characters, at most %d bytes", affected.ShellForeignCallersPath, script, len(entry.Reason), maxForeignCallerReason)
-		}
-	}
-	return declared.Scripts, nil
+	return affected.ParseShellForeignCallers(body)
 }
 
 // CheckForeignCallers returns why the project's foreign-caller declaration
