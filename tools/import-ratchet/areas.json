@@ -1,0 +1,317 @@
+{
+  "profile": "corvint-area-manifest/0",
+  "module": "github.com/Beamfall/corvint",
+  "rule": "A package may import a package in its own area or in an area with a strictly lower layer. An entry area may import any area. A package belongs to the area whose prefix is its longest path-segment match.",
+  "areas": [
+    {
+      "name": "kernel",
+      "layer": 0,
+      "summary": "process, Git, path and runtime primitives, and leaf packages, that every area may use",
+      "prefixes": [
+        "internal/archivepath",
+        "internal/cem/cemcode",
+        "internal/cem/coverprofile",
+        "internal/cem/gitauth",
+        "internal/cem/gitrun",
+        "internal/cem/witnesspaths",
+        "internal/clitree",
+        "internal/diagnostic",
+        "internal/execfile",
+        "internal/gitancestry",
+        "internal/gitnotes",
+        "internal/gitprobe",
+        "internal/gitstatus",
+        "internal/gokernel",
+        "internal/groupreap",
+        "internal/jsonend",
+        "internal/mcp/protocol",
+        "internal/procgroup",
+        "internal/procprofile",
+        "internal/projectpath",
+        "internal/projectprofile",
+        "internal/repoenvelope",
+        "internal/rootalias",
+        "internal/runhygiene",
+        "internal/runidentity",
+        "internal/runtimeenv",
+        "internal/scopelease",
+        "internal/secretscreen",
+        "internal/sharedpath",
+        "internal/testsupport",
+        "internal/versionline",
+        "internal/workspace",
+        "internal/wp3codec"
+      ]
+    },
+    {
+      "name": "github",
+      "layer": 0,
+      "summary": "Go data packages under .github that CI and the CLI read",
+      "prefixes": [
+        ".github"
+      ]
+    },
+    {
+      "name": "spi",
+      "layer": 1,
+      "summary": "wire and declaration packages shared across areas",
+      "prefixes": [
+        "internal/cem/patch",
+        "internal/cem/wire",
+        "internal/langplugin/decl",
+        "internal/taskprojection",
+        "internal/tasks/wire"
+      ]
+    },
+    {
+      "name": "analyzers",
+      "layer": 2,
+      "summary": "language analyzers, LSP providers and dependency sources",
+      "prefixes": [
+        "internal/analyzercap",
+        "internal/analyzerdotnet",
+        "internal/analyzerenvelope",
+        "internal/analyzerexec",
+        "internal/analyzergo",
+        "internal/analyzerhtmlcss",
+        "internal/analyzerjs",
+        "internal/analyzerkotlinandroid",
+        "internal/analyzernativebridge",
+        "internal/analyzerpython",
+        "internal/analyzerruby",
+        "internal/analyzerrust",
+        "internal/analyzershader",
+        "internal/analyzershell",
+        "internal/analyzerstructured",
+        "internal/analyzerswift",
+        "internal/depsource",
+        "internal/goplsclient",
+        "internal/langplugin",
+        "internal/lspevidence",
+        "internal/lspprovider",
+        "internal/lspsnapshot",
+        "internal/lspstdio",
+        "internal/pythongrammar",
+        "internal/pythonsyntax",
+        "internal/rubyautoload",
+        "internal/rubydialect",
+        "internal/rubyprofile",
+        "internal/swiftimpact"
+      ]
+    },
+    {
+      "name": "contextindex",
+      "layer": 3,
+      "summary": "context index, trace, frontier, authority and evidence stores",
+      "prefixes": [
+        "internal/authorityevent",
+        "internal/authoritystore",
+        "internal/capcatalog",
+        "internal/compactionkernel",
+        "internal/contextindex",
+        "internal/contextsummary",
+        "internal/corpusindex",
+        "internal/delta",
+        "internal/disagree",
+        "internal/evalrepo",
+        "internal/evidencereach",
+        "internal/frontier",
+        "internal/frontiernext",
+        "internal/frontiernextrepo",
+        "internal/frontierrepo",
+        "internal/funclink",
+        "internal/genesis",
+        "internal/localauthority",
+        "internal/lrf",
+        "internal/lrfrepo",
+        "internal/necessity",
+        "internal/obscorpus",
+        "internal/observations",
+        "internal/observedstale",
+        "internal/outcomecal",
+        "internal/plansnapshot",
+        "internal/requestpath",
+        "internal/semescalate",
+        "internal/slotlearn",
+        "internal/specindex",
+        "internal/touchsurprise",
+        "internal/trace",
+        "internal/tracemigraterepo",
+        "internal/tracerecordrepo",
+        "internal/tracerepopaths",
+        "internal/unplannedread",
+        "internal/untrackedallowance",
+        "internal/witness",
+        "internal/witnesscollapse",
+        "internal/witnesspaths"
+      ]
+    },
+    {
+      "name": "doccorpus",
+      "layer": 4,
+      "summary": "documentation corpus, compiler and flow docs",
+      "prefixes": [
+        "internal/corpusrepublish",
+        "internal/corpusserve",
+        "internal/doccitations",
+        "internal/doccompiler",
+        "internal/doccorpus",
+        "internal/docmaintain",
+        "internal/docviews",
+        "internal/flowdocs"
+      ]
+    },
+    {
+      "name": "appmap",
+      "layer": 4,
+      "summary": "application map and flows",
+      "prefixes": [
+        "internal/appflows",
+        "internal/appmap"
+      ]
+    },
+    {
+      "name": "affected",
+      "layer": 5,
+      "summary": "test selection, test evidence, coverage and validity",
+      "prefixes": [
+        "internal/behaviorfalsify",
+        "internal/breakagemap",
+        "internal/browsercov",
+        "internal/changee2e",
+        "internal/changewitness",
+        "internal/extmutate",
+        "internal/flowcoverage",
+        "internal/gateselect",
+        "internal/gotestrun",
+        "internal/jslinecov",
+        "internal/jstestprovider",
+        "internal/linecov",
+        "internal/liveverify",
+        "internal/nativelinecov",
+        "internal/playwrightminimize",
+        "internal/playwrightruns",
+        "internal/repro",
+        "internal/rubylinecov",
+        "internal/rubytestprovider",
+        "internal/sessiontest",
+        "internal/stepnegation",
+        "internal/stepverify",
+        "internal/tcq",
+        "internal/testacceptance",
+        "internal/testevidence",
+        "internal/testplan",
+        "internal/testplatform",
+        "internal/testrunner",
+        "internal/testsource",
+        "internal/testvalidity",
+        "internal/testvaliditydoc",
+        "internal/worktreeimpact"
+      ]
+    },
+    {
+      "name": "cem",
+      "layer": 5,
+      "summary": "change evidence manifests, attestation and receipts",
+      "prefixes": [
+        "internal/attest",
+        "internal/cem",
+        "internal/cemcandidate",
+        "internal/cemchain",
+        "internal/cemdiscriminate",
+        "internal/criterionexperiment",
+        "internal/extevidence",
+        "internal/gateagreement",
+        "internal/receiptbundle",
+        "internal/revieworder",
+        "internal/skhproof"
+      ]
+    },
+    {
+      "name": "dogfood",
+      "layer": 6,
+      "summary": "dogfood flow, operation and friction metrics",
+      "prefixes": [
+        "internal/dogfoodflow",
+        "internal/dogfoodocm",
+        "internal/dogfoodoperation",
+        "internal/frictionmetric",
+        "internal/perfbudget"
+      ]
+    },
+    {
+      "name": "tasks",
+      "layer": 6,
+      "summary": "Tasks companion, task projection and work queues",
+      "prefixes": [
+        "internal/intake",
+        "internal/localcompletion",
+        "internal/taskbarrier",
+        "internal/taskman",
+        "internal/tasks",
+        "internal/worklistadapter",
+        "internal/workqueue",
+        "internal/worksource"
+      ]
+    },
+    {
+      "name": "release-ci",
+      "layer": 7,
+      "summary": "release candidates, gates, post-merge and update",
+      "prefixes": [
+        "internal/betarung",
+        "internal/companionrelease",
+        "internal/migrationratchet",
+        "internal/postmergeconnector",
+        "internal/postmergehost",
+        "internal/postmergemetrics",
+        "internal/postmergeproof",
+        "internal/postmergeworkflow",
+        "internal/releasecandidate",
+        "internal/releasegate",
+        "internal/toolchainreceipt",
+        "internal/update"
+      ]
+    },
+    {
+      "name": "integrations",
+      "layer": 7,
+      "summary": "MCP, model gateway, console, dashboard and companion integrations",
+      "prefixes": [
+        "internal/companioncli",
+        "internal/console",
+        "internal/dashboard",
+        "internal/mcp",
+        "internal/modelgateway",
+        "internal/opencodequalification",
+        "internal/remoteprovider",
+        "internal/skillexport",
+        "internal/upgradechanges"
+      ]
+    },
+    {
+      "name": "cli",
+      "layer": 8,
+      "summary": "internal/command packages behind the CLI entrypoints",
+      "prefixes": [
+        "internal/command"
+      ]
+    },
+    {
+      "name": "entry",
+      "layer": 9,
+      "summary": "binaries, tools, conformance, benchmarks and other entrypoints; may import any area",
+      "entry": true,
+      "prefixes": [
+        "benchmarks",
+        "cmd",
+        "conformance",
+        "examples",
+        "experimental",
+        "integrations",
+        "script",
+        "tools"
+      ]
+    }
+  ]
+}
