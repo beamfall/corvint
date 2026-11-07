@@ -12,6 +12,8 @@
 //	                                        and the unresolved packages under a tree-keyed record;
 //	                                        --packages limits the run to LIST's go list patterns
 //	gate-ledger plan STEP...                print HIT or RUN per step; reads nothing but the ledger
+//	gate-ledger digest [--verify] FILE      write the worktree digest the run's steps share through
+//	                                        GATE_LEDGER_SHARED_DIGEST, or check it still holds
 //
 // Every doubt is a RUN: a step with no declared scope, a worktree the tool cannot
 // digest (skip-worktree or assume-unchanged entries, an ignored Go file, a failed
@@ -121,6 +123,7 @@ type record struct {
 	Packages   []string `json:"packages,omitempty"`
 	Bound      string   `json:"bound,omitempty"` // how a per-package bound was proven (GL-V0-009)
 	Scope      []string `json:"scope,omitempty"` // the --packages patterns of a scoped go-test (GL-V0-720)
+	Label      string   `json:"label,omitempty"` // the caller's step name, never part of the key (ASC-V0-776)
 }
 
 // packageKey is one resolved package's per-package content key, or the reason
@@ -159,6 +162,7 @@ type ledger struct {
 	dirErr    string
 	identity  string
 	scope     []string // go-test --packages patterns; nil means ./... (GL-V0-720)
+	stage     string   // where a shared-digest process stages passes until digest --verify (GL-V0-786)
 	stdout    io.Writer
 	stderr    io.Writer
 }
@@ -237,6 +241,8 @@ func run(inv invocation, args []string, stdout, stderr io.Writer) int {
 		l := open(inv, stdout, stderr)
 		l.scope = scope
 		return l.goTest(command)
+	case "digest":
+		return digestCommand(inv, args[1:], stdout, stderr)
 	case "plan":
 		if len(args) < 2 {
 			return usage(stderr)
@@ -247,7 +253,7 @@ func run(inv invocation, args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(stderr io.Writer) int {
-	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP...")
+	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP... | digest [--verify] FILE")
 	return 2
 }
 
@@ -293,6 +299,9 @@ func open(inv invocation, stdout, stderr io.Writer) *ledger {
 		l.stdout = io.Discard
 		return l
 	}
+	if shared, ok := openShared(inv, stdout, stderr); ok {
+		return shared
+	}
 	root, err := inv.gitOutput("", "rev-parse", "--show-toplevel")
 	if err != nil {
 		l.dirErr = "not inside a git worktree: " + err.Error()
@@ -322,8 +331,10 @@ func (l *ledger) plan(steps []string) int {
 	return 0
 }
 
-// runStep executes command unless a pass for step's current inputs is recorded,
-// and records a pass when the command exits zero.
+// runStep executes command unless a pass for step's current inputs is recorded
+// before it takes the step's lock, and records a pass when the command exits
+// zero and the step's key, derived again from the worktree immediately before
+// and after it, is unchanged (GL-V0-786).
 func (l *ledger) runStep(step string, packages []string, command []string) int {
 	key, reason := l.key(step, packages)
 	if reason != "" {
@@ -340,21 +351,25 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 		return l.inv.execute(command)
 	}
 	defer unlock()
-	if rec, hit := l.lookup(key); hit {
-		fmt.Fprintf(l.stdout, "%sHIT %s %s (recorded %s on %s while waiting)\n", prefixOut, step, short(key), rec.RecordedAt, rec.Host)
-		return 0
-	}
-	fmt.Fprintf(l.stdout, "%sRUN %s: no recorded pass for %s\n", prefixOut, step, short(key))
+	fmt.Fprintf(l.stdout, "%sRUN %s: %s\n", prefixOut, step, l.afterLock(key))
+	moved := l.stepMoved(movedBefore, step, packages, key)
 	started := time.Now()
 	code := l.inv.execute(command)
 	if code != 0 {
 		return code
 	}
-	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope}); err != nil {
+	if moved == "" {
+		moved = l.stepMoved(movedDuring, step, packages, key)
+	}
+	if moved != "" {
+		fmt.Fprintf(l.stdout, "%sRECORD %s skipped: %s\n", prefixOut, step, moved)
+		return 0
+	}
+	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope, Label: l.stepLabel()}); err != nil {
 		fmt.Fprintf(l.stderr, "%sRECORD %s failed: %s\n", prefixOut, step, err)
 		return 0
 	}
-	fmt.Fprintf(l.stdout, "%sRECORD %s %s\n", prefixOut, step, short(key))
+	fmt.Fprintf(l.stdout, "%sRECORD %s %s%s\n", prefixOut, step, short(key), l.stagedNote())
 	return 0
 }
 
@@ -466,7 +481,7 @@ func (l *ledger) key(step string, packages []string) (string, string) {
 	if l.digestErr != "" {
 		return "", l.digestErr
 	}
-	return l.digestKey(step, l.inputs(scope), packages), ""
+	return l.digestKey(step, l.scopedInputs(scope), packages), ""
 }
 
 // digestKey is the key of step over inputs: the schema, the tool identity,
@@ -582,7 +597,12 @@ func (l *ledger) selectorBounds(module string) (map[string]map[string]string, er
 // of its test binary's transitive closure within the module, from one
 // `go list -deps -test -json ./...`.
 func (l *ledger) listedFiles(module string) (map[string][]string, error) {
-	out, err := l.inv.output(l.root, "go", "list", "-deps", "-test", "-json="+listFields, "./...")
+	return l.listedFilesFor(module, "./...")
+}
+
+// listedFilesFor is listedFiles over the packages patterns match and their deps.
+func (l *ledger) listedFilesFor(module string, patterns ...string) (map[string][]string, error) {
+	out, err := l.inv.output(l.root, "go", append([]string{"list", "-deps", "-test", "-json=" + listFields}, patterns...)...)
 	if err != nil {
 		return nil, errors.New("go list -deps -test failed: " + err.Error())
 	}
@@ -654,10 +674,12 @@ func sortedKeys(set map[string]bool) []string {
 	return keys
 }
 
-// runPackages runs the resolved packages whose key has no recorded pass in one
-// go test invocation, holding each key's lock, and records each package on
-// a proven package pass, even on batch failure (GL-V0-002/009). A package with a reason runs in the same invocation
-// and is not recorded.
+// runPackages runs the resolved packages whose key had no recorded pass before
+// it took the key's lock in one go test invocation, holding each key's lock,
+// and records each package on a proven package pass, even on batch failure
+// (GL-V0-002/009), when the worktree digested to the keys' tree immediately
+// before and after the batch (GL-V0-786).
+// A package with a reason runs in the same invocation and is not recorded.
 func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	var pending []packageKey
 	for _, p := range keyed {
@@ -693,11 +715,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 			continue
 		}
 		unlocks = append(unlocks, unlock)
-		if rec, hit := l.lookup(p.key); hit {
-			fmt.Fprintf(l.stdout, "%sHIT %s %s %s (recorded %s on %s while waiting)\n", prefixOut, packageStep, p.pkg, short(p.key), rec.RecordedAt, rec.Host)
-			continue
-		}
-		fmt.Fprintf(l.stdout, "%sRUN %s %s: no recorded pass for %s\n", prefixOut, packageStep, p.pkg, short(p.key))
+		fmt.Fprintf(l.stdout, "%sRUN %s %s: %s\n", prefixOut, packageStep, p.pkg, l.afterLock(p.key))
 		run = append(run, p)
 	}
 	if len(run) == 0 {
@@ -705,8 +723,14 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	}
 	sort.Slice(run, func(i, j int) bool { return run[i].pkg < run[j].pkg })
 	command := append(append([]string{}, goTest...), "-json")
+	recordable := false
 	for _, p := range run {
 		command = append(command, p.pkg)
+		recordable = recordable || p.reason == ""
+	}
+	moved := ""
+	if recordable {
+		moved = l.treeMoved(movedBefore)
 	}
 	started := time.Now()
 	outcomes := newPackageOutcomes(run, os.Stdout)
@@ -715,8 +739,16 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	if passes == nil {
 		fmt.Fprintf(l.stderr, "%sresolved output incomplete or invalid; no package records\n", prefixOut)
 	}
+	checked := moved != ""
 	for _, p := range run {
 		if p.reason != "" || !passes[p.pkg] || code >= 128 {
+			continue
+		}
+		if !checked {
+			moved, checked = l.treeMoved(movedDuring), true
+		}
+		if moved != "" {
+			fmt.Fprintf(l.stdout, "%sRECORD %s %s skipped: %s\n", prefixOut, packageStep, p.pkg, moved)
 			continue
 		}
 		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound, Scope: l.scope}
@@ -724,7 +756,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 			fmt.Fprintf(l.stderr, "%sRECORD %s %s failed: %s\n", prefixOut, packageStep, p.pkg, err)
 			continue
 		}
-		fmt.Fprintf(l.stdout, "%sRECORD %s %s %s\n", prefixOut, packageStep, p.pkg, short(p.key))
+		fmt.Fprintf(l.stdout, "%sRECORD %s %s %s%s\n", prefixOut, packageStep, p.pkg, short(p.key), l.stagedNote())
 	}
 	return code
 }
@@ -1215,7 +1247,16 @@ func (l *ledger) record(rec record) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(l.dir, "record.")
+	dir := l.dir
+	if l.stage != "" {
+		// GL-V0-786: a shared-digest pass stays private to its run until
+		// digest --verify finds the tree unchanged and promotes it.
+		if err := privateStage(l.stage); err != nil {
+			return err
+		}
+		dir = l.stage
+	}
+	tmp, err := os.CreateTemp(dir, "record.")
 	if err != nil {
 		return err
 	}
@@ -1227,8 +1268,11 @@ func (l *ledger) record(rec record) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp.Name(), l.recordPath(rec.Key)); err != nil {
+	if err := os.Rename(tmp.Name(), filepath.Join(dir, rec.Key+".json")); err != nil {
 		return err
+	}
+	if l.stage != "" {
+		return nil
 	}
 	return l.prune()
 }
@@ -1346,8 +1390,20 @@ func overflow[T any](records []T, keep int) []T {
 	return records[:len(records)-keep]
 }
 
-// lock serialises concurrent runs of one key so the step executes once and the
-// waiter reads the record. The holder removes locks/KEY.lock before releasing it,
+// afterLock is why a run that now holds key's lock executes its step. A pass
+// recorded since the run's own lookup, while it waited for the lock, was tested
+// on the holder's tree, and this worktree may have moved after it was digested,
+// so it is never reused: the step runs again under the stepMoved checks.
+// Disabled for 1.0 (GL-V0-786, amends GL-V0-008).
+func (l *ledger) afterLock(key string) string {
+	if _, hit := l.lookup(key); hit {
+		return "a pass for " + short(key) + " recorded while this run waited for its lock is not reused"
+	}
+	return "no recorded pass for " + short(key)
+}
+
+// lock serialises concurrent runs of one key; the waiter then runs the step
+// again (afterLock). The holder removes locks/KEY.lock before releasing it,
 // and an acquirer whose file was removed or replaced meanwhile opens the path
 // again, at most maxLockAttempts times, so no lock file outlives its run, two
 // holders never coexist, and a symlinked lock file cannot loop (GL-V0-912).

@@ -78,12 +78,12 @@ a contract.
 The current OCM reader requires exactly one `## Requirements` section and line prefixes
 `- ` followed by a backticked ID and `: `, or `- **` followed by an ID and `:** ` or `.** `.
 The ID itself matches `^[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}$` (three or more digits since `OCM-V0-952`)
-(`internal/lrfrepo/ocm.go:35@8869dfac`, `internal/lrfrepo/ocm.go:494-496@31a3a489`, `internal/lrfrepo/requirement_layout.go:55-77@996e9b71`).
+(`internal/lrfrepo/ocm.go:35@8869dfac`, `internal/lrfrepo/ocm.go:506-508@31a3a489`, `internal/lrfrepo/requirement_layout.go:55-77@996e9b71`).
 An adapter must map native identifiers and definition lines into that complete grammar.
 
 ## The three constraints any integration must respect
 
-1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:450-453@2d724bbb`). A flow
+1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:453-456@2d724bbb`). A flow
    where the agent writes the spec and the code together needs a two-commit shape or an explicit
    bootstrap-unknown. This is a hard ordering constraint, not a preference.
 2. **Intent identity is a byte span, and specs get edited.** `ocmIntent` pins

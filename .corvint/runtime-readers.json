@@ -2,6 +2,10 @@
   "profile": "corvint-runtime-readers/0",
   "entries": [
     {
+      "path": ".corvint/agent-grep-exclude",
+      "reason": "agent search exclusion globs (ASD-V0-573), read through its declared path by script/agent-grep.sh and script/long-lines-check.sh; never executed or imported."
+    },
+    {
       "path": ".corvint/cem-lineage.tsv",
       "reason": "CEM lineage declaration, read through its declared path by the CEM workflow and existing repository readers; never executed or imported."
     },
@@ -28,6 +32,10 @@
     {
       "path": ".corvint/gated-root-locators.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
+      "path": ".corvint/long-line-allow",
+      "reason": "long-line allow list (ASD-V0-573), read through its declared path by script/long-lines-check.sh; never executed or imported."
     },
     {
       "path": ".corvint/runtime-edges.json",

@@ -201,3 +201,89 @@ func readText(t *testing.T, root, name string) string {
 	}
 	return string(data)
 }
+
+// TestProposeCitationsDWCV0748CitesTheWholeRequirementEntry (V1-4091): a hunk
+// naming a requirement whose BASE entry spans several indented lines cites the
+// entry, not its definition line alone, as a lane's mcp-server edit drafted
+// 984:984 for an entry spanning 984:1017; an entry line the change edits ends
+// the span before it, and the drafted plan passes the pre-flight.
+func TestProposeCitationsDWCV0748CitesTheWholeRequirementEntry(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	spec := "# X v0\n\n## Requirements\n\n" +
+		"- `XYZ-V0-001`: the server MUST\n  serve one root\n  and refuse a second.\n  Evidence: `TestServe`.\n" +
+		"- `XYZ-V0-002`: the server MUST\n  log each request\n  to standard error.\n  Evidence: `TestLog`.\n" + numbered("requirement", 8)
+	source := "package x\n\n" + numbered("// filler", 10)
+	writeTree(t, root, map[string]string{"docs/specs/x-v0.md": spec, "internal/x/x.go": source, "internal/x/y.go": source})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{
+		"docs/specs/x-v0.md": strings.Replace(spec, "  Evidence: `TestLog`.\n", "  Evidence: `TestLog`, `TestLogTwice`.\n", 1),
+		"internal/x/x.go":    strings.Replace(source, "// filler line 5\n", "// Serve implements XYZ-V0-001.\n", 1),
+		"internal/x/y.go":    strings.Replace(source, "// filler line 5\n", "// Log implements XYZ-V0-002.\n", 1),
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "change")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	spans := map[string]string{}
+	for _, row := range textLines(stdout.Bytes()) {
+		id, rest, _ := strings.Cut(row, "\t")
+		for _, name := range []string{"internal/x/x.go", "internal/x/y.go"} {
+			if strings.Contains(stderr.String(), "  hunk "+id+" edits "+name+" ") {
+				spans[name] = rest
+			}
+		}
+	}
+	// XYZ-V0-001's entry is lines 5 to 8; XYZ-V0-002's runs from 9, but the
+	// change edits line 12 and the hunk's context reaches back to line 9, so
+	// only its definition line is stable.
+	if spans["internal/x/x.go"] != "docs/specs/x-v0.md\t5:8\tspecification" {
+		t.Errorf("x.go row = %q, want the whole XYZ-V0-001 entry 5:8:\n%s\n%s", spans["internal/x/x.go"], stdout.String(), stderr.String())
+	}
+	if got := spans["internal/x/y.go"]; strings.Contains(got, "\t9:1") {
+		t.Errorf("y.go row = %q reaches an edited entry line:\n%s\n%s", got, stdout.String(), stderr.String())
+	}
+	code, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: writeInput(t, stdout.String())})
+	if code != 0 || strings.Contains(out+errText, "cite-span-not-stable") {
+		t.Fatalf("the drafted plan failed the pre-flight: exit=%d\n%s\n%s\nplan:\n%s", code, out, errText, stdout.String())
+	}
+}
+
+// TestProposeCitationsDWCV0749UndefinedRequirementStaysUnknown (V1-3955): in
+// the change that adds XYZ-V0-003 refining XYZ-V0-001, a hunk naming an ID no
+// BASE or changed spec defines stays unknown, and the same-change hunk's row
+// passes the CEM-V1-081 anchoring check (DWC-V0-926/927).
+func TestProposeCitationsDWCV0749UndefinedRequirementStaysUnknown(t *testing.T) {
+	root, base := selfDevelopmentRepository(t)
+	writeTree(t, root, map[string]string{"internal/x/other.go": "package x\n\n// Other implements XYZ-V0-099.\nfunc Other() int { return 3 }\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "name an undefined requirement")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	var sameChange, undefined string
+	for _, row := range textLines(stdout.Bytes()) {
+		id, rest, _ := strings.Cut(row, "\t")
+		switch {
+		case strings.Contains(stderr.String(), "  hunk "+id+" edits internal/x/x.go at BASE 7,7"):
+			sameChange = rest
+		case strings.Contains(stderr.String(), "  hunk "+id+" edits internal/x/other.go at BASE 0,0"):
+			undefined = rest
+		}
+	}
+	// The accepted DWC-V0-926/927 supersede the unanchored cross-file guess
+	// for the same-change hunk (batch-1107x resolution): every remaining cite
+	// is checked with the CEM verifier, as in the DCW-V0-966 test.
+	if sameChange == "" {
+		t.Errorf("no row for the hunk naming the same-change XYZ-V0-003:\n%s\n%s", stdout.String(), stderr.String())
+	}
+	assertAnchoredDraft(t, root, base, stdout.String())
+	if !strings.HasPrefix(undefined, "unknown\t") {
+		t.Errorf("the hunk naming the undefined XYZ-V0-099 = %q, want unknown:\n%s\n%s", undefined, stdout.String(), stderr.String())
+	}
+}

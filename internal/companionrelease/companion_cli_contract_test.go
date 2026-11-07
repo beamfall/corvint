@@ -29,7 +29,7 @@ func buildContractCompanions(t *testing.T) string {
 	t.Helper()
 	bin := t.TempDir()
 	root := filepath.Join("..", "..")
-	arguments := []string{"build", "-trimpath", "-o", bin + string(filepath.Separator)}
+	arguments := []string{"build", "-trimpath", "-buildvcs=false", "-o", bin + string(filepath.Separator)}
 	for _, name := range contractCompanions {
 		arguments = append(arguments, "./cmd/"+name)
 	}
