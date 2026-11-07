@@ -118,12 +118,12 @@ head=$(git rev-parse HEAD)
 out=$(DOGFOOD_CLOSEOUT_REGEN=$mechanical CORVINT_BIN=$tmp/corvint-flaky "$script" "$base" "$tmp/plan-retry.tsv" 2>&1)
 rc=$?
 [[ $rc == 0 && $(git rev-parse HEAD) == "$head" ]] || fail "refresh retry: rc=$rc $out"
-[[ $(wc -l < "$tmp/refresh.calls") == 2 ]] || fail "the rerun did not retry the refresh: $out"
+[[ $(grep -c . "$tmp/refresh.calls") == 2 ]] || fail "the rerun did not retry the refresh: $out"
 grep -q 'retried$' "$tmp/plan-retry.tsv" && [[ $(cat "$tmp/plan-retry.tsv.pre-repin") == $'1\tdoc.md\t1:1\timplementation' ]] || fail "the retried refresh did not install the plan: $out"
 grep -qF "dogfood-closeout-repin: nothing to repin; retrying the plan refresh the repin commit $head left pending" <<< "$out" &&
   [[ $(tail -n 1 <<< "$out") == "dogfood-closeout-repin: refreshed $tmp/plan-retry.tsv for the repin hunks (previous plan: $tmp/plan-retry.tsv.pre-repin)" ]] || fail "refresh retry output: $out"
 out=$(DOGFOOD_CLOSEOUT_REGEN=$mechanical CORVINT_BIN=$tmp/corvint-flaky "$script" "$base" "$tmp/plan-retry.tsv" 2>&1) || fail "after the retry: rc=$?"
-[[ $out == 'dogfood-closeout-repin: nothing to repin' && $(wc -l < "$tmp/refresh.calls") == 2 ]] || fail "the retried refresh stayed pending: $out"
+[[ $out == 'dogfood-closeout-repin: nothing to repin' && $(grep -c . "$tmp/refresh.calls") == 2 ]] || fail "the retried refresh stayed pending: $out"
 
 # 6. Usage.
 "$script" > /dev/null 2>&1
