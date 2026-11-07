@@ -313,6 +313,15 @@ lanes and external full-suite/mutation observations at every historical revision
   additions and stale entries against its pre-existing shrinking baseline. A passing ratchet
   does not assert an empty inventory. The baseline SHALL NOT claim paths, change selection,
   suppress unknowns or change the CLI's inventory or exit contract.
+- **AZU-V0-9950: Named non-source declaration faults.** (experimental under the standing lane
+  auto-accept, 2026-11-06; V1-4919) When `.corvint/non-source-paths.json` has an entry out of
+  strictly ascending byte order, a duplicate path, or an undeclarable path, the refusal SHALL name
+  the entry's index and path and say which rule it breaks: for order, the earlier entry it fails
+  to follow and the fix (move it, or reorder all entries with `jq '.entries |= sort_by(.path)'`);
+  for a duplicate, the entry it repeats; for an undeclarable path, the declarable forms. The
+  accepted grammar and its fail-closed result are unchanged. Evidence:
+  `TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950`. Rollback: restore the single `path %q`
+  error.
 
 ## Non-goals
 
@@ -456,6 +465,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
+| AZU-V0-9950 | V1-4919; standing lane auto-accept, 2026-11-06 | `TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950` (out-of-order, duplicate and undeclarable entries) |
 
 The comparison proof's failure mode is an escaped path mistaken for a pure guard. The binding
 and scanner regressions retain real reads, aliases, closures, shadowing and parse failures.

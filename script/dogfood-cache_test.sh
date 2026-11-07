@@ -348,9 +348,9 @@ done
 # BATCH_PRECHECK_SKIP_DRIFT=1 (ASD-V0-837, ICL-V0-020), shown as skip-drift:.
 # The lane-closeout step runs the batch precheck script directly under BATCH_PRECHECK_LANE_CLOSEOUT=1
 # (ASD-V0-1991), shown as lane-closeout:skip-drift:batch-precheck. Spec capacity and README rows
-# are checked first (V1-4331, V1-4332).
+# are checked first (V1-4331, V1-4332), against the derived SHA when BASE=merge-forward (DWC-V0-7601).
 recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(BASE)" dogfood-inputs-check lane-closeout:skip-drift:batch-precheck dogfood-finish next:dogfood-closeout-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; fail "$LINENO"; }
+[[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))" dogfood-inputs-check lane-closeout:skip-drift:batch-precheck dogfood-finish next:dogfood-closeout-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; fail "$LINENO"; }
 recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == *'BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1'*'script/batch-precheck.sh'* ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; fail "$LINENO"; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
@@ -481,4 +481,20 @@ chmod +x script/check-line-citations.sh
 : > "$TEST_BUILD_LOG"
 status=0
 make -s dogfood-inputs-check BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
-[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" || fail "$LINENO"
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" &&
+  grep -qF "git commit -m 'Repin moved line citations' && make dogfood-inputs-check BASE=$base CITATIONS=$root/closeout-cites.tsv INTENTS=$root/closeout-cites.tsv VERIFY=$root/closeout-cites.tsv OUTCOME=passed before binding" "$root/output" || fail "$LINENO"
+# DWC-V0-7603: a literal $ in an input path survives the printed rerun. The fix line doubles it for
+# Make before the shell quoting, so the copied rerun reads the same file and prints the same line.
+dollar_cites=$root/'cites$foo.tsv'
+/bin/cp -f "$root/closeout-cites.tsv" "$dollar_cites"
+status=0
+make -s dogfood-inputs-check BASE="$base" CITATIONS="${dollar_cites//\$/\$\$}" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
+fix=$(grep '^fix: run script/check-line-citations.sh --repin' "$root/output") || fail "$LINENO"
+rerun=${fix#*"&& "}
+rerun=${rerun%" before binding"}
+[[ $status == 2 && $rerun == "make dogfood-inputs-check BASE=$base CITATIONS=$root/cites\\\$\\\$foo.tsv INTENTS="* ]] || fail "$LINENO"
+status=0
+# A child bash, not eval: bash 3.2 runs the ERR trap inside an eval even in an || list, with the
+# output redirection still open, so the trap's cat of the output would append to itself forever.
+bash -c "$rerun" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -qxF "$fix" "$root/output" && ! grep -q unreadable "$root/output" || fail "$LINENO"

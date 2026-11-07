@@ -57,6 +57,12 @@
       ],
       "reason": "Outside script/, it reads docs/DOGFOOD.md and .gitignore and runs go build ./cmd/corvint; the dogfood wrappers run on copies in a temporary repository (V1-3616)."
     },
+    "script/dogfood-merge-base_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it runs make -f on a probe makefile in a temporary repository that includes the Makefile, whose parse runs only the copied script/dogfood-merge-base.sh; the Makefile includes nothing (DWC-V0-7601)."
+    },
     "script/gate-affected-corvint_test.sh": {
       "reads": [
         ".github/cishards/",
