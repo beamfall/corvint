@@ -1504,13 +1504,22 @@ whole_run_pattern() {
   return 1
 }
 
+# go_test_value_flag FLAG: flags whose separate next word is an operand, even when it looks
+# like -run. FLAG has no leading dashes or test. prefix and no inline value (ASD-V0-2478).
+go_test_value_flag() {
+  case $1 in
+    run | skip | count | list | fuzz | exec | timeout | parallel | cpu | bench | benchtime | shuffle | vet | fuzztime | fuzzminimizetime | outputdir | blockprofile | blockprofilerate | coverprofile | cpuprofile | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | trace | C | p | tags | ldflags | gcflags | asmflags | gccgoflags | mod | modfile | o | coverpkg | covermode | overlay | pkgdir | toolexec | buildmode | compiler | installsuffix | pgo) return 0 ;;
+  esac
+  return 1
+}
+
 # source_tests_unfiltered MODE COMMAND...: ASD-V0-2478. Source edits justify running every
 # test, never silently excluding one. Preserve all environment assignments when inspecting Go's
 # defaults; refuse unsupported env options instead of discarding their effect on the child.
 # The manifest path may validate a direct -skip itself;
 # inherited filters conservatively require an explicit command instead of a whole-unit witness.
 source_tests_unfiltered() {
-  local mode=$1 seen=0 count_next=0 run_next=0 run_set=0 run_value= arg flag go=go flags quoted=
+  local mode=$1 seen=0 count_next=0 run_next=0 value_next=0 run_set=0 run_value= arg flag go=go flags quoted=
   local inherited_run_set=0 inherited_run= goenv=() words=()
   shift
   for arg in "$@"; do
@@ -1540,9 +1549,13 @@ source_tests_unfiltered() {
       count_next=0
       continue
     fi
+    if ((value_next)); then value_next=0; continue; fi
     flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
     case $flag in
-      skip | skip=*) [[ $mode == manifest && $arg == -skip* ]] || return 1 ;;
+      skip | skip=*)
+        [[ $mode == manifest && $arg == -skip* ]] || return 1
+        [[ $flag != skip ]] || value_next=1
+        ;;
       run | run=*)
         case $arg in -test.* | --test.*) return 1 ;; esac
         if [[ $flag == run ]]; then run_next=1; else run_value=${flag#run=} run_set=1; fi
@@ -1551,9 +1564,10 @@ source_tests_unfiltered() {
       count) count_next=1 ;;
       count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
       n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
+      *) if [[ $arg == -* ]] && go_test_value_flag "$flag"; then value_next=1; fi ;;
     esac
   done
-  ((seen == 2 && !run_next && !count_next)) || return 1
+  ((seen == 2 && !run_next && !count_next && !value_next)) || return 1
   (( !run_set )) || whole_run_pattern "$run_value" || return 1
   flags=$(env ${goenv[@]+"${goenv[@]}"} GOTOOLCHAIN=local "$go" env GOFLAGS 2> /dev/null) || return 1
   # GOFLAGS permits quoted words. Removing quotes is conservative: even a filter-looking word
@@ -1576,24 +1590,32 @@ source_tests_unfiltered() {
   (( !inherited_run_set )) || whole_run_pattern "$inherited_run"
 }
 
-# run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
+# run_selects_all COMMAND...: whether the final effective -run matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
-  local value next=""
+  local arg flag value= next=0 skip=0 seen=0 prev_go=0 run_set=0
   for arg in "$@"; do
-    if [[ -n $next ]]; then
-      value=$arg next=""
-    else
-      case $arg in
-        -run | --run) next=1; continue ;;
-        -run=* | --run=*) value=${arg#*=} ;;
-        *) continue ;;
-      esac
+    if ((!seen)); then
+      [[ $arg == test && $prev_go == 1 ]] && seen=1
+      [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0
+      continue
     fi
-    value=${value%%/*}
-    value=${value#^}
-    case $value in '' | . | '.*' | '.+' | Test | 'Test.*' | 'Test.+') return 0 ;; esac
+    if ((skip)); then skip=0; continue; fi
+    if ((next)); then value=$arg run_set=1 next=0; continue; fi
+    case $arg in
+      -run | --run) next=1 ;;
+      -run=* | --run=*) value=${arg#*=} run_set=1 ;;
+      -args | --) break ;;
+      -*)
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
+    esac
   done
+  ((run_set)) || return 0 # No effective -run leaves the default whole-package selection.
+  value=${value%%/*}
+  value=${value#^}
+  case $value in '' | . | '.*' | '.+' | Test | 'Test.*' | 'Test.+') return 0 ;; esac
   return 1
 }
 

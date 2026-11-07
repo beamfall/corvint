@@ -66,7 +66,7 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, scripts, work, env := dogtoolsShardFixture(t, "#!/bin/sh\nexec \"$HEAVYCAP_GO\" \"$@\"\n")
+	root, scripts, work, env := dogtoolsShardFixture(t, "#!/bin/sh\nexec \"$HEAVYCAP_GO\" \"$@\"\n")
 	env = heavycapEnv(env, "HEAVYCAP_GO", realGo)
 	write := func(name, body string) {
 		t.Helper()
@@ -190,6 +190,53 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 	// The final repeated -run is effective; a restrictive inherited pattern stays refused.
 	run(1, "go", "test", "-run=TestOther", "-run=.", "./p")
 	run(2, "env", "GOFLAGS=-run=TestOther", "go", "test", "-run=.", "./p")
+	// Flag operands are not independent selections. Check the whole-source guard directly
+	// as well as the actual tests and selection log, so narrow classification cannot hide
+	// a guard that would still grant whole-package authority to a filtered command.
+	body, err := os.ReadFile(filepath.Join(scripts, "heavy.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(string(body), "\n# whole_run_pattern ")
+	end := strings.Index(string(body), "\n# manifest_perl:")
+	if start < 0 || end <= start {
+		t.Fatal("missing selection functions")
+	}
+	guard := string(body[start:end]) + "\nsource_tests_unfiltered whole \"$@\"\n"
+	for _, flags := range [][]string{
+		{"-run=TestOther", "-tags", "-run=."},
+		{"-run", "TestOther", "-tags", "--run=.*"},
+		{"-run=.", "-run=TestOther"},
+		{"--run", ".", "--run", "TestOther"},
+		{"-run=.", "-buildvcs", "-run=TestOther"}, // Boolean flags consume no operand.
+	} {
+		args := append([]string{"go", "test", "-count=1", "-v"}, flags...)
+		args = append(args, "./p")
+		cmd := exec.Command("bash", append([]string{"-c", guard, "selection-guard"}, args...)...)
+		cmd.Dir, cmd.Env = work, env
+		guardOut, guardErr := cmd.CombinedOutput()
+		if guardErr == nil || cmd.ProcessState.ExitCode() != 1 {
+			t.Fatalf("filtered command received whole-source authority: %v: %v %s", args, guardErr, guardOut)
+		}
+		selection := filepath.Join(root, "selection.log")
+		if err := os.WriteFile(selection, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		out = run(0, args...)
+		if !strings.Contains(out, "--- PASS: TestOther") || strings.Contains(out, "=== RUN   TestExisting") {
+			t.Fatalf("final effective narrow selection ran different tests: %s", out)
+		}
+		log, err := os.ReadFile(selection)
+		if err != nil || !strings.Contains(string(log), " selected pwd=") || strings.Contains(string(log), " whole reason=") {
+			t.Fatalf("narrow run misclassified: %v %s", err, log)
+		}
+	}
+	// With no effective -run, the flag-looking operand cannot turn a whole run into
+	// a narrow one. It must still reach the existing failure.
+	out = run(1, "go", "test", "-count=1", "-v", "-tags", "-run=TestOther", "./p")
+	if !strings.Contains(out, "=== RUN   TestExisting") || !strings.Contains(out, "source regression") || !strings.Contains(out, "--- PASS: TestOther") {
+		t.Fatalf("operand-only run did not execute the whole package: %s", out)
+	}
 
 	// A HEAD-bound manifest must select the exact exclusion; a whole-unit witness is not
 	// authority for -skip. A supported exclusion still reaches the broken TestExisting.
