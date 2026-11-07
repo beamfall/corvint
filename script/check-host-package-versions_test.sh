@@ -225,4 +225,60 @@ esac
 skill 0.1.1 "changed body again"
 commit "change the OpenSpec skill body with a bump" 2026-01-04T00:02:00
 output=$(run) || fail "an OpenSpec body change with its bump did not pass: $output"
-printf 'check-host-package-versions_test: 19 cases passed\n'
+
+# LVT-V0-005 (V1-4252): a version file's history is read in one batch, so twenty more commits that
+# touch Pi's package.json without changing either version field cost no more git spawns, and the
+# verdict is unchanged: the last bump is still the commit that changed the fields, so the gate
+# passes, and a later shipped change with no bump still fails.
+spawn_dir=$(mktemp -d "${TMPDIR:-/tmp}/corvint-host-package-versions-spawns.XXXXXX")
+trap 'rm -rf "$test_root" "$spawn_dir"' EXIT
+real_git=$(command -v git)
+printf '#!/bin/sh\necho git >> "%s/log"\nexec "%s" "$@"\n' "$spawn_dir" "$real_git" > "$spawn_dir/git"
+chmod +x "$spawn_dir/git"
+count_spawns() { : > "$spawn_dir/log"; (cd "$test_root" && PATH="$spawn_dir:$PATH" script/check-host-package-versions.sh > /dev/null 2>&1) || true; grep -c . "$spawn_dir/log"; }
+pi_version=$(jq -r .version "$test_root/integrations/pi/package.json")
+i=0
+while [ "$i" -lt 22 ]; do
+    i=$((i + 1))
+    printf '{"version":"%s","description":"edit %s","corvintIntegration":{"adapterVersion":"%s"}}\n' "$pi_version" "$i" "$pi_version" \
+        >"$test_root/integrations/pi/package.json"
+    commit "describe Pi $i" "2026-01-05T00:$(printf '%02d' "$i"):00"
+    [ "$i" -ne 2 ] || few=$(count_spawns)
+done
+output=$(run) || fail "edits that keep the Pi version did not pass: $output"
+many=$(count_spawns)
+[ "$many" = "$few" ] || fail "git spawns grew with the version file's history: $few after two commits, $many after twenty more"
+printf 'changed\n' >"$test_root/integrations/pi/index.ts"
+commit "change Pi shipped content after the description edits" 2026-01-06T00:00:00
+if output=$(run); then fail "a Pi shipped change after twenty unchanged-version commits passed the gate"; fi
+case $output in
+    *'pi: integrations/pi/package.json last bumped'*) ;;
+    *) fail "the late Pi shipped change was not named: $output" ;;
+esac
+# Fault injection: a broken batch reader must use the full legacy history algorithm.
+sed '2i\
+if [ "${LANE_BAD_BATCH:-}" = 1 ] && [ "$1 $2" = "cat-file --batch" ]; then printf "invalid batch\\n"; exit 1; fi
+' "$spawn_dir/git" > "$spawn_dir/newgit"
+mv "$spawn_dir/newgit" "$spawn_dir/git"; chmod +x "$spawn_dir/git"
+if output=$(cd "$test_root" && LANE_BAD_BATCH=1 PATH="$spawn_dir:$PATH" script/check-host-package-versions.sh 2>&1); then
+ fail "a broken batch fallback passed an unbumped shipped change"
+fi
+case $output in *'pi: integrations/pi/package.json last bumped'*) ;; *) fail "fallback lost the shipped-change verdict: $output" ;; esac
+# LVT-V0-005: a package whose only shipped path contains a newline still exists,
+# and deletion does not erase its historical shipped change from the absence filter.
+odd_repo=$test_root/odd-history
+mkdir -p "$odd_repo/script" "$odd_repo/integrations/opencode/src"
+cp "$source_root/script/check-host-package-versions.sh" "$odd_repo/script/"
+git -C "$odd_repo" init -q
+odd_git() { git -C "$odd_repo" -c user.name=Fixture -c user.email=fixture@example.test "$@"; }
+odd_name=$(printf 'line\nbreak.ts')
+printf '{"version":"0.1.0"}\n' > "$odd_repo/integrations/opencode/package.json"
+odd_git add -A && odd_git commit -q -m manifest
+(cd "$odd_repo" && script/check-host-package-versions.sh) || fail "an unshipped manifest failed"
+printf 'first\n' > "$odd_repo/integrations/opencode/src/$odd_name"
+odd_git add -A && odd_git commit -q -m unusual-path
+if output=$(cd "$odd_repo" && script/check-host-package-versions.sh 2>&1); then fail "a newline-only shipped path was skipped"; fi
+case $output in *'opencode: integrations/opencode/package.json last bumped'*) ;; *) fail "unusual path failure not named: $output" ;; esac
+odd_git rm -q "integrations/opencode/src/$odd_name" && odd_git commit -q -m delete-unusual-path
+if output=$(cd "$odd_repo" && script/check-host-package-versions.sh 2>&1); then fail "deleting the only shipped path erased its history"; fi
+printf 'check-host-package-versions_test: 24 cases passed (%s git spawns)\n'  "$many"

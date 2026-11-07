@@ -750,6 +750,14 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   inspection keeps everything; argv, open files and working directories are checked again
   before removal. A process starting after that final check remains a race, so run the sweep
   while lanes are idle. This is an operator action, never an automatic precheck cleanup.
+- Native Pi host tests own `corvint-pi-host-*` scratch with a private owner marker
+  (`LVT-V0-009`). Exit and INT/TERM/HUP remove it. The next host-test startup recovers only
+  marked, private, same-user directories older than 24 hours with a demonstrably absent owner.
+  On Linux, the recorded PID namespace must match; missing or mismatched identities survive.
+  An explicit bounded recovery is `node --input-type=module -e 'import {sweepHostScratch} from
+  "./integrations/pi/host-scratch.mjs"; console.log(sweepHostScratch())'` from the checkout.
+  Live or ambiguous owners, symlinks and unmarked legacy directories stay for operator inspection;
+  SIGKILL recovery never guesses ownership from a directory prefix alone.
 - Focus the shell suite with `LANE_SCRIPTS_GROUPS='admission portability sweep' bash
   script/lane-scripts_test.sh` (`ASD-V0-2192`). Available names are `core` (1–7), `offload`
   (8–19), `workflow` (20–26), `policy` (27–28), `admission` (29–33), `guard` (34–35), `install`
@@ -1129,6 +1137,16 @@ One lane runs this flow, in order; each step names the command and the section t
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.
+   `make requirement-ids-next PREFIX=AFP-V0 SIZE=20` lists the lowest currently free block.
+   `make requirement-ids-free PREFIX=AFP-V0 RANGE=2480..2519` checks four-digit blocks,
+   origin/main and unmerged local/remote branches and worktrees. Before assigning a free block,
+   use `make requirement-ids-reserve PREFIX=AFP-V0 RANGE=2480..2519 OWNER=<lane>`; release it
+   with `make requirement-ids-release OWNER=<lane>` after integration (`LVT-V0-001..004`).
+   The shared host-local ledger defaults to the Git common directory's
+   `corvint/requirement-id-reservations.tsv`; `REQUIREMENT_ID_RESERVATIONS=/absolute/path`
+   explicitly relocates it when that directory is read-only. Reads do not create it, and
+   malformed evidence or lock contention refuses. `make spec-claims-check` checks worktree
+   digest Claims before staging a spec, including new files (`LVT-V0-010`).
 3. Focused tests through `script/heavy.sh`, one package per command, `set -o pipefail` when piped
    (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
    a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
