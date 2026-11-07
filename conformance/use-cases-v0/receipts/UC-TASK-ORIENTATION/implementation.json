@@ -6,7 +6,7 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "e6dfea5521947836f16a57c137f3d73bf005365d",
+  "repositoryRevision": "77db30b17b7a6fca7448d2faf7cd0f8c8e6f4a80",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
