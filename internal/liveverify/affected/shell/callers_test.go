@@ -48,7 +48,7 @@ func TestForeignCallerReasonLimit_TSPV0820(t *testing.T) {
 func TestForeignCallerDeclaration_TSP_V0_005(t *testing.T) {
 	base := map[string]string{
 		"go.mod":                "module example.test/m\n",
-		"run/run.sh":            "#!/bin/sh\n. \"$ENVDIR/env.sh\"\n",
+		"run/run.sh":            "#!/bin/sh\n. \"$ENVFILE\"\n",
 		"caller/caller.go":      "package caller\n\nvar script = \"run\" + \"/run.sh\"\n",
 		"caller/caller_test.go": "package caller\n",
 		"direct/direct.go":      "package direct\n",

@@ -1,7 +1,6 @@
 package shell
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -418,55 +417,4 @@ func onlyAssigned(r *resolver, name string) bool {
 	}
 	assignments, ok := occurrences(r.text, name)
 	return ok && assignments == r.counts[name]
-}
-
-// environmentSources reports whether every source command at the given
-// indexes (none a literal or fresh-directory source) reads a file the
-// environment names (AFP-V0-2953): its only operand is an expansion of a name
-// the file's text never assigns, declares, reads into or iterates
-// (onlyRead), and no other `source`, `.` or `load` command of the file is
-// anything but a fresh-directory source, so no sourced repository file could
-// give the name a value. text is the file's text; commands is the scanned
-// command list, command strings included.
-func environmentSources(r *resolver, parsed script, text string, indexes []int, commands []command) bool {
-	pending := map[int]bool{}
-	for _, index := range indexes {
-		pending[index] = true
-	}
-	for index, cmd := range commands {
-		word, args := commandWord(plainWords(cmd.words))
-		switch {
-		case word == "source" || word == "." || word == "load":
-		default:
-			continue
-		}
-		if !pending[index] {
-			// A literal source links a repository file; only a fresh-directory
-			// source (TSP-V0-004) reads nothing of the repository. The same
-			// test resolved the literal above, so a resolved, unlisted source
-			// here is a literal one.
-			if len(args) == 0 || index >= len(parsed.commands) || !freshDirectorySource(r, parsed, text, index, unquote(args[0])) {
-				return false
-			}
-			continue
-		}
-		if len(args) != 1 || !environmentName(text, unquote(args[0])) {
-			return false
-		}
-	}
-	return true
-}
-
-// environmentExpansion matches `$NAME`, `${NAME}` and `${NAME` followed by a
-// `/`, `#` or `%` pattern operator and anything to the closing brace.
-var environmentExpansion = regexp.MustCompile(`^\$(?:([A-Za-z_][A-Za-z0-9_]*)|\{([A-Za-z_][A-Za-z0-9_]*)(?:[/#%][^}]*)?\})$`)
-
-// environmentName reports a source operand that is one expansion of a name
-// the file's text only ever expands (AFP-V0-2953).
-func environmentName(text, operand string) bool {
-	match := environmentExpansion.FindStringSubmatch(operand)
-	if match == nil {
-		return false
-	}
-	return onlyRead(text, match[1]+match[2])
 }

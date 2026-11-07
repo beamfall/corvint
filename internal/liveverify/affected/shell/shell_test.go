@@ -705,9 +705,6 @@ func TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "fresh.sh", serve)
 	write(t, root, "fresh-path.sh", pathServe)
-	// The environment-named source after the fresh one is admitted by
-	// AFP-V0-2953 (it was a near miss before V1-4283).
-	write(t, root, "envfile.sh", "w=$(mktemp -d)\n. \"$w/meta.env\"\n[[ -n $ENVFILE ]] && { . \"${ENVFILE/#\\~/$HOME}\" || exit 97; }\n")
 	negatives := map[string]string{
 		// Between the assignment and the source only allow-listed commands run.
 		"ln-between.sh":     "w=$(mktemp -d)\nln -s \"$PWD/lib\" \"$w/runtime\"\n. \"$w/runtime/meta.env\"\n",
@@ -760,6 +757,7 @@ func TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004(t *testing.T) {
 		"file-temp.sh":         "w=$(mktemp)\n. \"$w/meta.env\"\n",
 		"dry-run.sh":           "w=$(mktemp -du)\n. \"$w/meta.env\"\n",
 		"prefix.sh":            "w=$(mktemp -d) true\n. \"$w/meta.env\"\n",
+		"envfile.sh":           "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"${ENVFILE/#\\~/$HOME}\"\n",
 		"source-between.sh":    "w=$(mktemp -d)\n. ./lib.sh\n. \"$w/meta.env\"\n",
 		"after-source.sh":      "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"$w/more.env\"\n",
 		"later-source.sh":      ". \"$w/meta.env\"\nw=$(mktemp -d)\n",
@@ -770,7 +768,7 @@ func TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004(t *testing.T) {
 	}
 	write(t, root, "lib.sh", "true\n")
 	result := units(t, root)
-	for _, name := range []string{"fresh.sh", "fresh-path.sh", "envfile.sh"} {
+	for _, name := range []string{"fresh.sh", "fresh-path.sh"} {
 		if unit := unitOf(t, result, name); unit.UnboundedReads != "" || unit.LocatesRoot {
 			t.Fatalf("%s: fresh temporary directory source stayed dynamic: %+v", name, unit)
 		}
@@ -821,56 +819,41 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 	}
 }
 
-// AFP-V0-2953 (V1-4283): a source of a file the environment names is not a
-// dynamic source when the file never gives the name a value and sources no
-// repository file; every near miss stays dynamic.
-func TestEnvironmentInputSourceIsBounded_AFPV02953(t *testing.T) {
+// AFP-V0-2953 (V1-4283, review fix): a source of a file the environment
+// names stays a dynamic source. A file that never assigns the name proves
+// nothing about where the caller's value points: run with ENVFILE naming the
+// repository's lib.sh, the test below reads it, so an edit of lib.sh selects
+// it.
+func TestEnvironmentNamedSourceStaysDynamic_AFPV02953(t *testing.T) {
 	root := t.TempDir()
+	write(t, root, "go.mod", "module example.test/m\n")
 	write(t, root, "lib.sh", "true\n")
-	positives := map[string]string{
+	write(t, root, "unrelated.txt", "x\n")
+	forms := map[string]string{
 		"plain.sh":      ". \"$ENVFILE\"\n",
 		"braced.sh":     "source \"${ENVFILE}\"\n",
 		"tilde.sh":      "[[ -n $ENVFILE ]] && { . \"${ENVFILE/#\\~/$HOME}\" || exit 97; }\n",
 		"suffix.sh":     ". \"${ENVFILE%.env}\"\n",
 		"with-fresh.sh": "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"$ENVFILE\"\n",
 	}
-	negatives := map[string]string{
-		"assigned.sh":     "ENVFILE=lib.sh\n. \"$ENVFILE\"\n",
-		"read.sh":         "read -r ENVFILE\n. \"$ENVFILE\"\n",
-		"for.sh":          "for ENVFILE in lib.sh; do :; done\n. \"$ENVFILE\"\n",
-		"default.sh":      ". \"${ENVFILE:-lib.sh}\"\n",
-		"default-bind.sh": ": \"${ENVFILE=lib.sh}\"\n. \"$ENVFILE\"\n",
-		"trailing.sh":     ". \"$ENVDIR/lib.sh\"\n",
-		"positional.sh":   ". \"$1\"\n",
-		"with-literal.sh": ". ./lib.sh\n. \"$ENVFILE\"\n",
-		"with-dynamic.sh": ". \"$other/x.sh\"\n. \"$ENVFILE\"\n",
-		"two-operands.sh": ". \"$ENVFILE\" extra\n",
-		"local.sh":        "f() {\n  local ENVFILE\n  . \"$ENVFILE\"\n}\n",
-	}
-	for name, text := range positives {
+	for name, text := range forms {
 		write(t, root, name, text)
 	}
-	for name, text := range negatives {
-		write(t, root, name, text)
-	}
+	write(t, root, "t/env_test.sh", ". \"$ENVFILE\"\n")
 	result := units(t, root)
-	for name := range positives {
-		if unit := unitOf(t, result, name); unit.UnboundedReads != "" || unit.LocatesRoot || len(unit.Imports) != 0 {
-			t.Errorf("%s: an environment-named source stayed dynamic or linked: %+v", name, unit)
+	for name := range forms {
+		if unit := unitOf(t, result, name); unit.UnboundedReads != UnboundedDynamicSource || !unit.LocatesRoot {
+			t.Errorf("%s: an environment-named source lost its dynamic-source protection: %+v", name, unit)
 		}
 	}
-	for name := range negatives {
-		unit := unitOf(t, result, name)
-		if name == "with-literal.sh" {
-			// The literal links lib.sh; the environment source beside it is
-			// not admitted, so the unit stays dynamic.
-			if unit.UnboundedReads != UnboundedDynamicSource || !slices.Contains(unit.Imports, "shell:lib.sh") {
-				t.Errorf("%s: want a linked literal and a dynamic source, got %+v", name, unit)
-			}
-			continue
-		}
-		if unit.UnboundedReads != UnboundedDynamicSource || !unit.LocatesRoot {
-			t.Errorf("%s is not a dynamic source: %+v", name, unit)
+	graph, err := affected.Build(context.Background(), root, golang.New(), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range []string{"lib.sh", "unrelated.txt"} {
+		plan := affected.Select(graph, []string{dirty})
+		if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "shell:t/env_test.sh" }) {
+			t.Errorf("%s: the test sourcing \"$ENVFILE\" was not selected", dirty)
 		}
 	}
 }

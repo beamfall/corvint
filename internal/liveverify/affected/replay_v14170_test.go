@@ -11,12 +11,11 @@ import (
 // TestHeavyShEditKeepsShellReaders_V14170: the shell units
 // analyzer-schema_test.sh and codex-review_test.sh run script/heavy.sh through
 // a variable (`heavy=${...-script/heavy.sh}` run in a `sh -c` string, and
-// `${heavy:+"$heavy" ...}` with a `$(dirname "$0")` default), so both are
-// selected for a heavy.sh edit through that invocation edge (AFP-V0-553).
-// Before AFP-V0-553 neither invocation was an edge. Until V1-4283 heavy.sh
-// also read as a dynamic source, which made both unbounded readers selected
-// for an unrelated edit too; AFP-V0-2953 and AFP-V0-2955 bound every source
-// heavy.sh holds, so an unrelated edit now selects neither.
+// `${heavy:+"$heavy" ...}` with a `$(dirname "$0")` default). heavy.sh sources
+// a computed path, so both are unbounded readers, as
+// .corvint/unbounded-readers.json records: they stay selected for a
+// heavy.sh edit and for an unrelated one (AFP-V0-553). Before AFP-V0-553
+// neither invocation was an edge, and an unrelated edit dropped both.
 func TestHeavyShEditKeepsShellReaders_V14170(t *testing.T) {
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
@@ -25,14 +24,13 @@ func TestHeavyShEditKeepsShellReaders_V14170(t *testing.T) {
 	}
 	for _, dirty := range []string{"script/heavy.sh", "docs/AUTOMATION.md"} { //corvint:fixture-path
 		plan := affected.Select(graph, []string{dirty})
-		want := dirty == "script/heavy.sh"
 		for _, unit := range []string{"shell:script/analyzer-schema_test.sh", "shell:script/codex-review_test.sh"} { //corvint:fixture-path
 			selected := false
 			for _, selection := range plan.Selected {
 				selected = selected || selection.UnitID == unit
 			}
-			if selected != want {
-				t.Errorf("%s selected=%v for a %s edit, want %v; scope %s", unit, selected, dirty, want, plan.Scope)
+			if !selected {
+				t.Errorf("%s is not selected for a %s edit; scope %s", unit, dirty, plan.Scope)
 			}
 		}
 	}
