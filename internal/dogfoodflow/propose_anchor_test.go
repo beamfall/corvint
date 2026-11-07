@@ -75,7 +75,7 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	}
 	for index, row := range rows {
 		ordinal, rest, _ := strings.Cut(row, "\t")
-		if ordinal != strconv.Itoa(index+1) || rest != want[hunks[index].Path] {
+		if ordinal != strconv.Itoa(index+1) || want[hunks[index].Path] == "unknown" && !strings.HasPrefix(rest, "unknown\t") || want[hunks[index].Path] != "unknown" && rest != want[hunks[index].Path] {
 			t.Errorf("row %d = %q; want %q for %s", index+1, row, want[hunks[index].Path], hunks[index].Path)
 		}
 	}
@@ -98,9 +98,6 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 		Path string `json:"path"`
 	}
 	statusHunks := []statusHunk{}
-	if !strings.Contains(stderr.String(), "  drafted proposal: 2\tinternal/x/plain.go\t4:4\tdependency\n") {
-		t.Errorf("the plain.go proposal is not marked:\n%s", stderr.String())
-	}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
 		if fields[1] == "unknown" || strings.Contains(stderr.String(), "  drafted proposal: "+row+"\n") {

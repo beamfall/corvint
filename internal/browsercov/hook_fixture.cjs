@@ -56,4 +56,24 @@ vm.runInNewContext(fs.readFileSync(hook,'utf8')+'\nmodule.exports.fixture={cdpCo
  assert.equal((await disconnectedTake).length,0,'closed transport must reject its pending take');
  const raced=fs.readFileSync(path.join(dir,'incomplete-777.jsonl'),'utf8');
  assert.match(raced,/"kind":"cdp-take"/);
+ // LPCV-V0-8301 review fix: a successful take clears untaken, but parsed app
+ // code can run again; losing the transport afterwards is still incomplete,
+ // and every later take refuses instead of reporting nothing as complete.
+ holdTake=false;
+ const resumed=await api.cdpCoverage(1);
+ await attach('already-parsed');
+ event('Debugger.scriptParsed',{scriptId:'app',url:'http://localhost/app.js'},'already-parsed');
+ assert.equal((await resumed.take()).length,1);
+ const beforeLoss=fs.readFileSync(path.join(dir,'incomplete-777.jsonl'),'utf8');
+ socket.close();
+ assert.match(fs.readFileSync(path.join(dir,'incomplete-777.jsonl'),'utf8').slice(beforeLoss.length),/"kind":"cdp-detached"/);
+ await assert.rejects(resumed.take(),/DevTools connection closed/);
+ // Control: an intentional close after the final take records no loss.
+ const intentional=await api.cdpCoverage(1);
+ await attach('intentional');
+ event('Debugger.scriptParsed',{scriptId:'app',url:'http://localhost/app.js'},'intentional');
+ assert.equal((await intentional.take()).length,1);
+ const beforeClose=fs.readFileSync(path.join(dir,'incomplete-777.jsonl'),'utf8');
+ intentional.close();
+ assert.equal(fs.readFileSync(path.join(dir,'incomplete-777.jsonl'),'utf8'),beforeClose);
 })().catch(error=>{console.error(error);process.exitCode=1});

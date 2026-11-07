@@ -1,0 +1,820 @@
+{
+  "chunks": [
+    {
+      "Entries": 1,
+      "WallMS": 3925.458142,
+      "LockMS": 3902.409423,
+      "Phases": {
+        "batch.fsync": 29.589512,
+        "batch.guards": 4.233956,
+        "batch.lockWait": 0.322988,
+        "batch.redo": 0.422378
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 864.339928,
+      "LockMS": 813.505242,
+      "Phases": {
+        "batch.fsync": 210.213256,
+        "batch.guards": 5.34977,
+        "batch.lockWait": 0.370638,
+        "batch.redo": 0.320868,
+        "fast.apply": 319.82514199999997,
+        "fast.bind": 36.771387000000004,
+        "fast.checkpoint": 1.491802,
+        "fast.model": 185.56349999999998,
+        "fast.observe": 244.80815199999998,
+        "fast.readCheckpoint": 19.139083
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 781.399676,
+      "LockMS": 730.306303,
+      "Phases": {
+        "batch.fsync": 144.934024,
+        "batch.guards": 3.288381,
+        "batch.lockWait": 0.350258,
+        "batch.redo": 0.329698,
+        "fast.apply": 248.818885,
+        "fast.bind": 37.591566,
+        "fast.checkpoint": 2.169446,
+        "fast.model": 163.11662700000002,
+        "fast.observe": 255.04450500000002,
+        "fast.readCheckpoint": 19.749587
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 903.985078,
+      "LockMS": 853.450404,
+      "Phases": {
+        "batch.fsync": 218.924157,
+        "batch.guards": 3.878318,
+        "batch.lockWait": 0.402557,
+        "batch.redo": 0.480637,
+        "fast.apply": 333.782089,
+        "fast.bind": 38.484397,
+        "fast.checkpoint": 1.519221,
+        "fast.model": 189.18644900000004,
+        "fast.observe": 263.705573,
+        "fast.readCheckpoint": 22.227532
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 808.673778,
+      "LockMS": 757.728902,
+      "Phases": {
+        "batch.fsync": 163.210929,
+        "batch.guards": 4.590053,
+        "batch.lockWait": 0.452728,
+        "batch.redo": 0.483017,
+        "fast.apply": 260.590653,
+        "fast.bind": 41.56711700000001,
+        "fast.checkpoint": 1.4360309999999998,
+        "fast.model": 166.95844699999998,
+        "fast.observe": 259.483555,
+        "fast.readCheckpoint": 22.38897
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 781.189759,
+      "LockMS": 730.655566,
+      "Phases": {
+        "batch.fsync": 134.526906,
+        "batch.guards": 3.600254,
+        "batch.lockWait": 0.339628,
+        "batch.redo": 0.329288,
+        "fast.apply": 237.37582500000002,
+        "fast.bind": 33.96332,
+        "fast.checkpoint": 1.406321,
+        "fast.model": 162.213591,
+        "fast.observe": 268.65193700000003,
+        "fast.readCheckpoint": 22.921321000000002
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 746.904272,
+      "LockMS": 696.090067,
+      "Phases": {
+        "batch.fsync": 125.513547,
+        "batch.guards": 3.185751,
+        "batch.lockWait": 0.335878,
+        "batch.redo": 0.308418,
+        "fast.apply": 230.316563,
+        "fast.bind": 34.822621,
+        "fast.checkpoint": 1.416062,
+        "fast.model": 145.993069,
+        "fast.observe": 263.600036,
+        "fast.readCheckpoint": 16.270236999999998
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 766.522175,
+      "LockMS": 715.745135,
+      "Phases": {
+        "batch.fsync": 131.059946,
+        "batch.guards": 3.173802,
+        "batch.lockWait": 0.335268,
+        "batch.redo": 0.301298,
+        "fast.apply": 230.979076,
+        "fast.bind": 34.953512,
+        "fast.checkpoint": 1.136163,
+        "fast.model": 148.436105,
+        "fast.observe": 275.969488,
+        "fast.readCheckpoint": 20.622662
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 949.409985,
+      "LockMS": 898.591437,
+      "Phases": {
+        "batch.fsync": 209.143723,
+        "batch.guards": 3.24106,
+        "batch.lockWait": 0.387838,
+        "batch.redo": 0.289148,
+        "fast.apply": 330.191645,
+        "fast.bind": 34.873597,
+        "fast.checkpoint": 2.7783629999999997,
+        "fast.model": 174.4184,
+        "fast.observe": 332.26628300000004,
+        "fast.readCheckpoint": 20.338032
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 907.533124,
+      "LockMS": 856.385801,
+      "Phases": {
+        "batch.fsync": 270.518334,
+        "batch.guards": 3.666218,
+        "batch.lockWait": 0.407958,
+        "batch.redo": 0.344268,
+        "fast.apply": 377.566734,
+        "fast.bind": 35.58122,
+        "fast.checkpoint": 1.5443099999999998,
+        "fast.model": 184.322396,
+        "fast.observe": 234.33395299999998,
+        "fast.readCheckpoint": 18.768233
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1049.996262,
+      "LockMS": 998.589179,
+      "Phases": {
+        "batch.fsync": 427.849859,
+        "batch.guards": 4.092201,
+        "batch.lockWait": 0.511217,
+        "batch.redo": 0.341992,
+        "fast.apply": 536.3088580000001,
+        "fast.bind": 33.709133,
+        "fast.checkpoint": 1.524282,
+        "fast.model": 159.984241,
+        "fast.observe": 242.474969,
+        "fast.readCheckpoint": 19.963083
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 902.090451,
+      "LockMS": 851.276506,
+      "Phases": {
+        "batch.fsync": 299.745941,
+        "batch.guards": 3.218131,
+        "batch.lockWait": 0.343778,
+        "batch.redo": 0.358678,
+        "fast.apply": 409.21586399999995,
+        "fast.bind": 35.459782999999995,
+        "fast.checkpoint": 1.322961,
+        "fast.model": 146.962556,
+        "fast.observe": 234.985121,
+        "fast.readCheckpoint": 19.546133
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1348.17813,
+      "LockMS": 1297.32342,
+      "Phases": {
+        "batch.fsync": 374.424831,
+        "batch.guards": 3.42616,
+        "batch.lockWait": 0.382508,
+        "batch.redo": 0.293278,
+        "fast.apply": 515.311641,
+        "fast.bind": 58.77426300000001,
+        "fast.checkpoint": 2.110327,
+        "fast.model": 323.33938399999994,
+        "fast.observe": 364.52376499999997,
+        "fast.readCheckpoint": 29.368523000000003
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1064.263178,
+      "LockMS": 1013.569703,
+      "Phases": {
+        "batch.fsync": 286.879728,
+        "batch.guards": 3.754358,
+        "batch.lockWait": 0.525277,
+        "batch.redo": 0.302878,
+        "fast.apply": 407.248845,
+        "fast.bind": 49.40391900000001,
+        "fast.checkpoint": 1.7984789999999997,
+        "fast.model": 207.22494600000002,
+        "fast.observe": 321.41245000000004,
+        "fast.readCheckpoint": 22.23619
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 995.934777,
+      "LockMS": 945.37004,
+      "Phases": {
+        "batch.fsync": 292.698484,
+        "batch.guards": 3.52154,
+        "batch.lockWait": 0.374738,
+        "batch.redo": 0.305408,
+        "fast.apply": 407.06775400000004,
+        "fast.bind": 35.775866,
+        "fast.checkpoint": 1.479811,
+        "fast.model": 171.175364,
+        "fast.observe": 306.54164399999996,
+        "fast.readCheckpoint": 19.277344
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 971.355531,
+      "LockMS": 920.790056,
+      "Phases": {
+        "batch.fsync": 225.896805,
+        "batch.guards": 3.826127,
+        "batch.lockWait": 0.392768,
+        "batch.redo": 0.292428,
+        "fast.apply": 340.479888,
+        "fast.bind": 39.999615999999996,
+        "fast.checkpoint": 1.8283399999999999,
+        "fast.model": 186.143667,
+        "fast.observe": 320.820321,
+        "fast.readCheckpoint": 27.039490999999995
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1515.083904,
+      "LockMS": 1463.831612,
+      "Phases": {
+        "batch.fsync": 220.476309,
+        "batch.guards": 6.631112,
+        "batch.lockWait": 0.675836,
+        "batch.redo": 0.692496,
+        "fast.apply": 377.224517,
+        "fast.bind": 75.73126299999998,
+        "fast.checkpoint": 3.362831,
+        "fast.model": 457.20886700000005,
+        "fast.observe": 511.62468,
+        "fast.readCheckpoint": 31.137887
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 881.738083,
+      "LockMS": 831.078466,
+      "Phases": {
+        "batch.fsync": 239.884289,
+        "batch.guards": 3.662399,
+        "batch.lockWait": 0.485037,
+        "batch.redo": 0.291338,
+        "fast.apply": 350.09883,
+        "fast.bind": 37.935223,
+        "fast.checkpoint": 1.3753220000000002,
+        "fast.model": 172.343934,
+        "fast.observe": 243.480164,
+        "fast.readCheckpoint": 21.714256999999996
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1231.55465,
+      "LockMS": 1180.750487,
+      "Phases": {
+        "batch.fsync": 306.070581,
+        "batch.guards": 14.074518,
+        "batch.lockWait": 0.451457,
+        "batch.redo": 0.410207,
+        "fast.apply": 475.63907600000005,
+        "fast.bind": 77.441854,
+        "fast.checkpoint": 2.207237,
+        "fast.model": 254.492381,
+        "fast.observe": 311.512945,
+        "fast.readCheckpoint": 44.63018
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1230.143509,
+      "LockMS": 1175.783946,
+      "Phases": {
+        "batch.fsync": 375.605525,
+        "batch.guards": 16.922382,
+        "batch.lockWait": 0.640316,
+        "batch.redo": 0.498687,
+        "fast.apply": 519.781637,
+        "fast.bind": 51.43240899999999,
+        "fast.checkpoint": 2.0849789999999997,
+        "fast.model": 209.51148799999999,
+        "fast.observe": 348.214752,
+        "fast.readCheckpoint": 27.005713
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1823.919142,
+      "LockMS": 1772.169883,
+      "Phases": {
+        "batch.fsync": 762.828664,
+        "batch.guards": 4.642483,
+        "batch.lockWait": 1.006993,
+        "batch.redo": 0.553207,
+        "fast.apply": 1039.378105,
+        "fast.bind": 49.339498999999996,
+        "fast.checkpoint": 2.016269,
+        "fast.model": 239.892574,
+        "fast.observe": 399.320194,
+        "fast.readCheckpoint": 36.802014
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 2262.846164,
+      "LockMS": 2211.58996,
+      "Phases": {
+        "batch.fsync": 744.339655,
+        "batch.guards": 4.850792,
+        "batch.lockWait": 0.685036,
+        "batch.redo": 0.451128,
+        "fast.apply": 1137.93524,
+        "fast.bind": 84.095247,
+        "fast.checkpoint": 5.336637,
+        "fast.model": 381.77916899999997,
+        "fast.observe": 521.536133,
+        "fast.readCheckpoint": 75.267348
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1757.26073,
+      "LockMS": 1706.100191,
+      "Phases": {
+        "batch.fsync": 319.095585,
+        "batch.guards": 7.801032,
+        "batch.lockWait": 0.662656,
+        "batch.redo": 1.674541,
+        "fast.apply": 535.96432,
+        "fast.bind": 118.581279,
+        "fast.checkpoint": 2.443447,
+        "fast.model": 449.055753,
+        "fast.observe": 520.6805579999999,
+        "fast.readCheckpoint": 69.563222
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1730.817388,
+      "LockMS": 1679.609625,
+      "Phases": {
+        "batch.fsync": 531.320878,
+        "batch.guards": 5.86875,
+        "batch.lockWait": 0.635267,
+        "batch.redo": 0.450928,
+        "fast.apply": 813.0638120000001,
+        "fast.bind": 56.051345,
+        "fast.checkpoint": 2.3206890000000002,
+        "fast.model": 263.472594,
+        "fast.observe": 496.271452,
+        "fast.readCheckpoint": 41.850817
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1662.85335,
+      "LockMS": 1611.876167,
+      "Phases": {
+        "batch.fsync": 759.572546,
+        "batch.guards": 3.38502,
+        "batch.lockWait": 0.418588,
+        "batch.redo": 0.302438,
+        "fast.apply": 927.7764380000001,
+        "fast.bind": 49.354476,
+        "fast.checkpoint": 7.0972859999999995,
+        "fast.model": 210.548959,
+        "fast.observe": 388.21542900000003,
+        "fast.readCheckpoint": 24.901433
+      }
+    },
+    {
+      "Entries": 6,
+      "WallMS": 2264.53575,
+      "LockMS": 2213.117436,
+      "Phases": {
+        "batch.fsync": 1434.251479,
+        "batch.guards": 6.486542,
+        "batch.lockWait": 0.580107,
+        "batch.redo": 6.775996,
+        "fast.apply": 1626.6344589999999,
+        "fast.bind": 41.983417,
+        "fast.checkpoint": 1.2860239999999998,
+        "fast.model": 188.098574,
+        "fast.observe": 286.398773,
+        "fast.readCheckpoint": 55.271043000000006
+      }
+    },
+    {
+      "Entries": 7,
+      "WallMS": 2154.84305,
+      "LockMS": 2103.939662,
+      "Phases": {
+        "batch.fsync": 1331.354453,
+        "batch.guards": 3.546344,
+        "batch.lockWait": 0.444148,
+        "batch.redo": 0.323649,
+        "fast.apply": 1516.555824,
+        "fast.bind": 47.099683,
+        "fast.checkpoint": 2.102588,
+        "fast.model": 183.79103700000002,
+        "fast.observe": 300.91115299999996,
+        "fast.readCheckpoint": 49.288796000000005
+      }
+    },
+    {
+      "Entries": 6,
+      "WallMS": 2343.136256,
+      "LockMS": 2292.297023,
+      "Phases": {
+        "batch.fsync": 1206.253778,
+        "batch.guards": 3.691468,
+        "batch.lockWait": 0.383827,
+        "batch.redo": 0.332588,
+        "fast.apply": 1409.862568,
+        "fast.bind": 63.369644,
+        "fast.checkpoint": 2.664198,
+        "fast.model": 383.14084099999997,
+        "fast.observe": 407.80981199999997,
+        "fast.readCheckpoint": 21.145214999999997
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1975.292305,
+      "LockMS": 1923.081571,
+      "Phases": {
+        "batch.fsync": 1063.648082,
+        "batch.guards": 4.970061,
+        "batch.lockWait": 0.655956,
+        "batch.redo": 0.496367,
+        "fast.apply": 1217.808753,
+        "fast.bind": 48.688438000000005,
+        "fast.checkpoint": 2.099378,
+        "fast.model": 281.515996,
+        "fast.observe": 343.70415299999996,
+        "fast.readCheckpoint": 23.439308000000004
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1549.376939,
+      "LockMS": 1497.205387,
+      "Phases": {
+        "batch.fsync": 788.056894,
+        "batch.guards": 5.208421,
+        "batch.lockWait": 0.877994,
+        "batch.redo": 0.425047,
+        "fast.apply": 908.33692,
+        "fast.bind": 45.879057,
+        "fast.checkpoint": 2.4729349999999997,
+        "fast.model": 212.73833499999998,
+        "fast.observe": 303.055811,
+        "fast.readCheckpoint": 18.770723
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1506.719137,
+      "LockMS": 1455.143338,
+      "Phases": {
+        "batch.fsync": 763.240453,
+        "batch.guards": 4.316595,
+        "batch.lockWait": 0.434377,
+        "batch.redo": 0.354908,
+        "fast.apply": 891.2955440000001,
+        "fast.bind": 37.521204,
+        "fast.checkpoint": 1.810459,
+        "fast.model": 180.367863,
+        "fast.observe": 317.60509,
+        "fast.readCheckpoint": 21.598488
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1277.515478,
+      "LockMS": 1226.131893,
+      "Phases": {
+        "batch.fsync": 588.827901,
+        "batch.guards": 4.175886,
+        "batch.lockWait": 0.713605,
+        "batch.redo": 0.355338,
+        "fast.apply": 700.053309,
+        "fast.bind": 36.888672,
+        "fast.checkpoint": 1.69382,
+        "fast.model": 159.920483,
+        "fast.observe": 304.201817,
+        "fast.readCheckpoint": 18.580859
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1347.235506,
+      "LockMS": 1296.30791,
+      "Phases": {
+        "batch.fsync": 603.184722,
+        "batch.guards": 3.610138,
+        "batch.lockWait": 0.525637,
+        "batch.redo": 0.374868,
+        "fast.apply": 709.244501,
+        "fast.bind": 43.971006,
+        "fast.checkpoint": 1.6111600000000001,
+        "fast.model": 168.725808,
+        "fast.observe": 350.960975,
+        "fast.readCheckpoint": 17.614425
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1448.8619,
+      "LockMS": 1398.058805,
+      "Phases": {
+        "batch.fsync": 671.345641,
+        "batch.guards": 4.835622,
+        "batch.lockWait": 0.357268,
+        "batch.redo": 0.428907,
+        "fast.apply": 824.366772,
+        "fast.bind": 38.540839000000005,
+        "fast.checkpoint": 3.2027089999999996,
+        "fast.model": 176.23077999999998,
+        "fast.observe": 323.17233999999996,
+        "fast.readCheckpoint": 27.057537000000004
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1822.56511,
+      "LockMS": 1771.681267,
+      "Phases": {
+        "batch.fsync": 1132.648053,
+        "batch.guards": 3.46035,
+        "batch.lockWait": 0.343308,
+        "batch.redo": 0.393018,
+        "fast.apply": 1276.9054529999999,
+        "fast.bind": 36.137569,
+        "fast.checkpoint": 1.679388,
+        "fast.model": 166.61489400000002,
+        "fast.observe": 264.186643,
+        "fast.readCheckpoint": 22.079363
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1613.677033,
+      "LockMS": 1562.664314,
+      "Phases": {
+        "batch.fsync": 954.983936,
+        "batch.guards": 3.932528,
+        "batch.lockWait": 0.502637,
+        "batch.redo": 0.314318,
+        "fast.apply": 1072.560639,
+        "fast.bind": 42.633365000000005,
+        "fast.checkpoint": 1.550911,
+        "fast.model": 161.27561800000004,
+        "fast.observe": 260.307252,
+        "fast.readCheckpoint": 19.885314
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 2137.621885,
+      "LockMS": 2086.761954,
+      "Phases": {
+        "batch.fsync": 1185.297191,
+        "batch.guards": 3.335066,
+        "batch.lockWait": 0.390348,
+        "batch.redo": 0.286698,
+        "fast.apply": 1353.040539,
+        "fast.bind": 70.249569,
+        "fast.checkpoint": 1.8005399999999998,
+        "fast.model": 268.718768,
+        "fast.observe": 340.32022399999994,
+        "fast.readCheckpoint": 48.755531000000005
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1455.110245,
+      "LockMS": 1404.280462,
+      "Phases": {
+        "batch.fsync": 780.294862,
+        "batch.guards": 3.50523,
+        "batch.lockWait": 0.364228,
+        "batch.redo": 0.290978,
+        "fast.apply": 899.087397,
+        "fast.bind": 41.907692,
+        "fast.checkpoint": 1.85491,
+        "fast.model": 154.67352,
+        "fast.observe": 286.793384,
+        "fast.readCheckpoint": 15.974523
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1353.718143,
+      "LockMS": 1302.91286,
+      "Phases": {
+        "batch.fsync": 631.286494,
+        "batch.guards": 3.935718,
+        "batch.lockWait": 0.348168,
+        "batch.redo": 0.428837,
+        "fast.apply": 762.4224829999999,
+        "fast.bind": 41.534739,
+        "fast.checkpoint": 1.819382,
+        "fast.model": 160.67986399999998,
+        "fast.observe": 314.685961,
+        "fast.readCheckpoint": 17.216157
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1402.601381,
+      "LockMS": 1351.819795,
+      "Phases": {
+        "batch.fsync": 678.654928,
+        "batch.guards": 3.789296,
+        "batch.lockWait": 0.310908,
+        "batch.redo": 0.343128,
+        "fast.apply": 810.1631859999999,
+        "fast.bind": 38.695453,
+        "fast.checkpoint": 1.7078,
+        "fast.model": 165.97745600000002,
+        "fast.observe": 309.58965,
+        "fast.readCheckpoint": 21.354917
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1349.307975,
+      "LockMS": 1298.405693,
+      "Phases": {
+        "batch.fsync": 639.829024,
+        "batch.guards": 3.5215,
+        "batch.lockWait": 0.426157,
+        "batch.redo": 0.295918,
+        "fast.apply": 760.165295,
+        "fast.bind": 35.825359,
+        "fast.checkpoint": 1.604479,
+        "fast.model": 156.448301,
+        "fast.observe": 318.684518,
+        "fast.readCheckpoint": 21.644464000000003
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1312.61284,
+      "LockMS": 1261.779,
+      "Phases": {
+        "batch.fsync": 631.845564,
+        "batch.guards": 3.675899,
+        "batch.lockWait": 0.375648,
+        "batch.redo": 0.385748,
+        "fast.apply": 748.117023,
+        "fast.bind": 32.32638,
+        "fast.checkpoint": 3.2796629999999998,
+        "fast.model": 155.04694599999996,
+        "fast.observe": 297.627314,
+        "fast.readCheckpoint": 21.126078999999997
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1286.132339,
+      "LockMS": 1235.322955,
+      "Phases": {
+        "batch.fsync": 651.623401,
+        "batch.guards": 4.637084,
+        "batch.lockWait": 0.345448,
+        "batch.redo": 0.411487,
+        "fast.apply": 776.8521250000001,
+        "fast.bind": 35.447656,
+        "fast.checkpoint": 1.563371,
+        "fast.model": 156.412695,
+        "fast.observe": 231.51284199999998,
+        "fast.readCheckpoint": 28.313056
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1767.149978,
+      "LockMS": 1716.111307,
+      "Phases": {
+        "batch.fsync": 996.287682,
+        "batch.guards": 4.427545,
+        "batch.lockWait": 0.498727,
+        "batch.redo": 0.470497,
+        "fast.apply": 1187.693013,
+        "fast.bind": 35.871466,
+        "fast.checkpoint": 1.6665580000000002,
+        "fast.model": 168.082109,
+        "fast.observe": 285.33931,
+        "fast.readCheckpoint": 32.32338
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1731.779595,
+      "LockMS": 1680.996469,
+      "Phases": {
+        "batch.fsync": 1020.294369,
+        "batch.guards": 3.116042,
+        "batch.lockWait": 0.336148,
+        "batch.redo": 0.350248,
+        "fast.apply": 1194.355877,
+        "fast.bind": 39.712551999999995,
+        "fast.checkpoint": 1.495201,
+        "fast.model": 147.51305000000002,
+        "fast.observe": 271.44068500000003,
+        "fast.readCheckpoint": 22.804785
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 2039.405328,
+      "LockMS": 1988.58377,
+      "Phases": {
+        "batch.fsync": 1185.564725,
+        "batch.guards": 3.699147,
+        "batch.lockWait": 0.374258,
+        "batch.redo": 10.514776,
+        "fast.apply": 1397.4107040000001,
+        "fast.bind": 35.36207,
+        "fast.checkpoint": 1.5430320000000002,
+        "fast.model": 167.849018,
+        "fast.observe": 346.791479,
+        "fast.readCheckpoint": 25.204816
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1580.331957,
+      "LockMS": 1529.367987,
+      "Phases": {
+        "batch.fsync": 911.760148,
+        "batch.guards": 3.317155,
+        "batch.lockWait": 0.496107,
+        "batch.redo": 0.375528,
+        "fast.apply": 1028.3110649999999,
+        "fast.bind": 45.098852,
+        "fast.checkpoint": 1.7367299999999997,
+        "fast.model": 149.68821699999998,
+        "fast.observe": 279.044407,
+        "fast.readCheckpoint": 21.590145
+      }
+    },
+    {
+      "Entries": 5,
+      "WallMS": 879.444164,
+      "LockMS": 828.498561,
+      "Phases": {
+        "batch.fsync": 432.368253,
+        "batch.guards": 4.008517,
+        "batch.lockWait": 0.447977,
+        "batch.redo": 0.284759,
+        "fast.apply": 499.349043,
+        "fast.bind": 24.503073,
+        "fast.checkpoint": 0.8755949999999999,
+        "fast.model": 97.23689,
+        "fast.observe": 189.27110899999997,
+        "fast.readCheckpoint": 12.816996
+      }
+    }
+  ],
+  "cpuCount": 32,
+  "entries": 369,
+  "goVersion": "go1.27.3",
+  "loadAfter": "17.53 15.47 12.18",
+  "loadBefore": "16.71 14.73 11.70",
+  "wallMS": 69462.49159
+}

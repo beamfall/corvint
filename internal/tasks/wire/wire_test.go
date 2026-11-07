@@ -516,3 +516,13 @@ func TestTMV0022_AS10_ParseWithWidensOnlyTheNamedArray(t *testing.T) {
 		t.Errorf("ordinary decode bounds must be unchanged by the archive freeze")
 	}
 }
+
+// V1-3988: canonical framing remains strict and the refusal names the LF.
+func TestWireMissingNewlineDiagnostic(t *testing.T) {
+	if _, err := Parse([]byte("{}\n")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Parse([]byte("{}")); err == nil || !strings.Contains(err.Error(), "missing the single trailing LF") {
+		t.Fatalf("%v", err)
+	}
+}
