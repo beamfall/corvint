@@ -82,11 +82,12 @@ func TestCALV0026_LeaseCommitSweepsOutsideWriterLock(t *testing.T) {
 	t.Logf("commit sweep read %d over-budget files; 0 under the writer lock", window)
 }
 
-// CAL-V0-026 (V1-0845): the recorded bound of the over-budget guard. An
-// in-place edit of the over-budget intent policy made after the commit sweep
-// is not seen under the lock, so the claim commits on the canonical journal
-// content (commitLease rebinds head.json only) and the next audit refuses
-// INTENT_DIVERGED. The same edit before the sweep refuses the claim.
+// CAL-V0-026 (V1-0845): an in-place edit of the over-budget intent policy is
+// refused at either commit stage. Before the sweep the sweep sees it. After
+// the sweep the stat guard under the lock does not, but the locked content
+// binding of ATR-V0-7203 does (it superseded the window this test once
+// recorded), so the claim publishes no receipt and the next audit still
+// refuses INTENT_DIVERGED while the edit stays in place.
 func TestCALV0026_InPlaceIntentEditAfterCommitSweep(t *testing.T) {
 	actor := mutation.Binding{ID: "tester", Role: "OWNER"}
 	for _, at := range []string{"sweep", "lock"} {
@@ -122,8 +123,8 @@ func TestCALV0026_InPlaceIntentEditAfterCommitSweep(t *testing.T) {
 				t.Logf("edit before the sweep refused: %s", wire.CodeOf(err))
 				return
 			}
-			if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-				t.Fatalf("edit after the sweep: %+v %v", report, err)
+			if wire.CodeOf(err) != wire.CodeIntentDiverged || report.Receipt != "" {
+				t.Fatalf("edit after the sweep: receipt %q, err %v, want INTENT_DIVERGED", report.Receipt, err)
 			}
 			next := choice
 			next.RequestID = "inventory-claim-next"
