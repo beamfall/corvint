@@ -1064,8 +1064,6 @@ func driverMakeClose(text string, open int) int {
 	return -1
 }
 
-var driverMakePassThrough = map[string]bool{"strip": true}
-
 func (e *driverExpander) reference(inner string) string {
 	name, args, spaced := strings.Cut(inner, " ")
 	if !spaced {
@@ -1169,10 +1167,20 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		return driverComputed, true
 	}
 	switch name {
-	case "if", "or", "and", "filter", "filter-out", "findstring", "word", "wordlist", "firstword", "lastword", "join":
+	case "strip", "if", "or", "and", "filter", "filter-out", "findstring", "word", "wordlist", "firstword", "lastword", "join":
 		e.evaluated = true
 	}
 	switch name {
+	case "strip":
+		value := e.expand(args)
+		if !definite(value) {
+			return retain()
+		}
+		// GNU make collapses ASCII whitespace after expansion, before a
+		// surrounding conditional tests the result (AFP-V0-3121).
+		return strings.Join(strings.FieldsFunc(value, func(r rune) bool {
+			return strings.ContainsRune(" \t\n\r\v\f", r)
+		}), " "), true
 	case "wildcard":
 		// Literal names that exist in the explicit repository source are
 		// their own wildcard result. Patterns, absent names and unknown
@@ -1397,9 +1405,6 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 			delete(e.locals, variable)
 		}
 		return strings.Join(out, " "), true
-	}
-	if driverMakePassThrough[name] {
-		return e.expand(args), true
 	}
 	switch name {
 	case "shell":

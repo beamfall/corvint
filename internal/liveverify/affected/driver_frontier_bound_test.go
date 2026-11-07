@@ -662,3 +662,117 @@ func TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127(t *testing.T) {
 		t.Errorf("check witness %+v; want FRONTIER_SITE", witness)
 	}
 }
+
+// AFP-V0-3121: strip normalizes expanded whitespace before if tests it.
+func TestFrontierSiteStripCondition_AFP_V0_3121(t *testing.T) {
+	for _, condition := range []string{
+		"$(strip $(subst x, ,x))",
+		"$(strip $(subst x, \t,x))",
+	} {
+		t.Run(condition, func(t *testing.T) {
+			files := boundFiles("check:; go test ./$(if " + condition + ",ci,local)\nall: check\n")
+			files["ci/ci.go"] = "package ci\n"
+			files["local/local.go"] = "package local\n"
+			graph := driverGraph(t, files, nil)
+			selected := driverSelections(affected.Select(graph, []string{"local/local.go"}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+		})
+	}
+}
+
+// AFP-V0-3128: attached file values cannot be certified while the operand
+// scanner cannot represent them, even when their names have no extension.
+func TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128(t *testing.T) {
+	for _, recipe := range []string{
+		"$(if $(CI),grep,grep) --file=LICENSE known.txt",
+		"$(if $(CI),grep,grep) --file='LICENSE COPY' known.txt",
+		"cd data && $(if $(CI),grep,grep) --file=LICENSE known.txt",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			files := boundFiles("check:; " + recipe + "\nall: check\n")
+			operand := "LICENSE"
+			if strings.Contains(recipe, "COPY") {
+				operand = "LICENSE COPY"
+			}
+			if strings.HasPrefix(recipe, "cd ") {
+				operand = "data/" + operand
+			}
+			files[operand] = "pattern\n"
+			files["known.txt"] = "pattern\n"
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unrecorded attached file value certified check")
+			}
+			for _, dirty := range []string{operand, sealedCEM} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			}
+		})
+	}
+}
+
+// AFP-V0-3122/3128: make options that evaluate text or load code can read
+// paths absent from the literal goals' modeled dependencies.
+func TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128(t *testing.T) {
+	for _, option := range []string{
+		"--eval='X := $$(shell script/audit.sh)'",
+		"--eval 'X := $$(shell script/audit.sh)'",
+		"-E 'X := $$(shell script/audit.sh)'",
+		"--load=script/plugin.so",
+		"--load script/plugin.so",
+		"-l script/plugin.so",
+		"--file=other.mk",
+		"-f other.mk",
+		"--include-dir=other",
+		"--unrecognized",
+		"--directory=",
+		"-- -unmodeled",
+	} {
+		t.Run(option, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles("check:; $(if $(CI),make,make) "+option+" other\nother:; echo ok\nall: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unsupported make option certified check")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness != affected.WitnessFrontierSite {
+				t.Fatalf("got %s; want FRONTIER_SITE", witness)
+			}
+		})
+	}
+	for _, options := range []string{"", "-s", "--no-print-directory", "-j2", "--jobs=2", "-C . -j 2"} {
+		t.Run("bounded/"+options, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles("check:; $(if $(CI),make,make) "+options+" other\nother:; echo ok\nall: check\n"), nil)
+			if computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("modeled make options should preserve certification")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit})
+		})
+	}
+}
+
+// AFP-V0-3128: explicit GOFLAGS is part of the command's read boundary,
+// including when env or another shell wraps the Go invocation.
+func TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128(t *testing.T) {
+	for _, recipe := range []string{
+		"env GOFLAGS=-toolexec=script/audit.sh $(if $(CI),go,go) test ./tools/local",
+		"GOFLAGS=-toolexec=script/audit.sh $(if $(CI),go,go) test ./tools/local",
+		"env GOFLAGS='-toolexec=script/audit.sh' $(if $(CI),go,go) test ./tools/local",
+		"env GOFLAGS=$(FLAGS) $(if $(CI),go,go) test ./tools/local",
+		"env GOFLAGS=\"$$FLAGS\" $(if $(CI),go,go) test ./tools/local",
+		"GOFLAGS=-toolexec=script/audit.sh $(if $(CI),sh,sh) -c 'go test ./tools/local'",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles("check:; "+recipe+"\nall: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unmodeled GOFLAGS certified check")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness != affected.WitnessFrontierSite {
+				t.Fatalf("got %s; want FRONTIER_SITE", witness)
+			}
+		})
+	}
+}
