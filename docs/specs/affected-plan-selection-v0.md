@@ -25,7 +25,9 @@ Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
 Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
 build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
-to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
+to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`. Lane selmin
+(2026-11-07; V1-5029, V1-5026, V1-5030) adds AFP-V0-9009 to AFP-V0-9011 here for the same reason;
+see build-log entry `2026-11-07-selmin`.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -226,8 +228,10 @@ measure. None of them drops a unit the change can reach.
   import set; a changed directory that holds no unit of the graph (a removed package), a dirty
   `go.mod`, `go.sum`, `go.work`, `go.work.sum` or `vendor/modules.txt` changes the module's import
   graph. A path under `testdata` or a directory whose name starts with `_` or `.` is no package
-  file. Without the comparison (a `--path` plan, an unreadable base, a caller of `affected.Select`
-  that supplies none) the selector SHALL assume every dirty `.go` file of a Go unit changes its
+  file. Unconstrained test files fold into their package's test import sets (AFP-V0-9010).
+  Without the comparison (a `--path` plan, an unreadable base, a caller of `affected.Select`
+  that supplies none; library planners that measure from a base supply it, AFP-V0-9011) the
+  selector SHALL assume every dirty `.go` file of a Go unit changes its
   unit's import set and every unowned one, or a module file, changes the module's, so no reader is
   lost. Measured (build-log entry `2026-11-03-selprec-selection-precision`): deleting
   `cmd/corvint-lsp/swift_impact.go`, an import-set change in a binary that
@@ -710,6 +714,54 @@ measure. None of them drops a unit the change can reach.
   the `go-static` job runs it in the checkout beside the AFP-V0-2701 and AFP-V0-2702 tests, on
   every pull request, merge-queue entry and main push that runs go-static.
 
+### Test-file import edges, line-less runtime sites and library planning (V1-5029, V1-5026, V1-5030)
+
+- **AFP-V0-9009:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5026; amending AZU-V0-8902) The file of a located
+  `typescript:e2e-runtime-dependency:` site SHALL be the site text with its trailing backquoted
+  token (a space and a backquoted spelling, cut at the last space-backquote) removed, then a trailing `:LINE` of digits
+  removed. A line-less site such as `` dir/tests/items.spec.cjs `playwright` `` therefore reaches
+  a directory runtime edge (`.corvint/runtime-edges.json`) that declares its test, selects the
+  declared caller and closes, as a site with a line already did. A site ending in a backquote
+  with no space-backquote, a truncated `+N` entry, or one whose file no unit owns as a test still
+  names no declared caller and stays unknown. Measured on this tree with `corvint affected
+  --worktree --path extensions/vscode/src/extension.ts`: the three live-1.61.1 Playwright specs
+  (`internal/doccorpus/.../behavior-events/live-1.61.1/tests/items.spec.cjs` and the two
+  `internal/jstestprovider/.../route-stubs/live-1.61.1*/tests/*.spec.cjs`) become selections
+  (264 to 267 selected units), and their three `e2e-runtime-dependency` unknowns close (67 to 64).
+
+- **AFP-V0-9010:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5029; amending AFP-V0-2202) A test file adds an import edge to no other package unless it
+  changes its package's test import set. The package header compared by AFP-V0-2202 SHALL
+  therefore fold every *unconstrained* test file of a directory into one summary line, when
+  the directory's non-test files declare exactly one package clause N that neither ends in
+  `_test` nor is `documentation`, and every unconstrained test file declares N or `N_test`. The
+  summary holds the sorted set of import paths of the N test files, that of the `N_test` files,
+  and the sorted `//go:embed` lines of both. A test file is unconstrained when it has no
+  `//go:build` or `// +build` line, imports no `"C"`, and its name names no GOOS or GOARCH
+  (`go/build.Context.MatchFile` accepts it for a platform no name names). A new, edited or
+  removed test file that leaves both role sets and the embed lines as they were changes no import
+  set and selects no import-graph reader outside its package. A test file that adds an import
+  path to its role's set, moves one between roles, shrinks a set, adds an embed line, declares
+  another package clause, carries a constraint or a platform name, or imports `"C"` still
+  changes it. So does any test file of a directory without exactly one non-test clause, which
+  keeps its own header line. Unproven readers (AFP-V0-2200) are still modelled as listing the
+  import graph: package identity, constraints, embeds and per-role import edges. A reader whose
+  output depends on test file *names* (`TestGoFiles`, `-json`) is outside that model, as a
+  reader of `Stale` or `Export` already is for a body edit.
+
+- **AFP-V0-9011:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5030) Library planning from a known base SHALL compare import sets as `corvint affected
+  --base` does. `languages.SelectAt(ctx, root, head, commit, graph, dirty)` compares at a
+  pinned commit read from the repository under root, and `languages.SelectBetween(base, head,
+  graph, dirty)` compares two source trees; both then call `affected.Select`. The library callers
+  that measure a change from a base use them: `prove`'s affected-test rows, `flows impact`
+  (`appflows.FlowImpactAt`) and `delta.Compile`. So does `corvint affected --snapshot`, which
+  pins its base. An unpinned or unreadable base (or a nil base tree) leaves the comparison
+  unknown, and the plan counts every dirty Go file as an import-set change, exactly as a
+  `--path` plan and plain `affected.Select` do. A caller with no base keeps that conservative
+  fallback; none drops a reader.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -757,7 +809,10 @@ owns is an author error: the path's real readers are still selected by the reade
 the unowned-path unknown is lifted, as for a documentation declaration (AFP-V0-160). A mapping
 whose tests no longer exist refuses the build (AFP-V0-2483). A must-run entry makes every plan
 larger; it never makes one smaller. An unreadable `corvint test` receipt leaves the order with
-that receipt `UNREADABLE` and contributes no failure; it never fails the plan.
+that receipt `UNREADABLE` and contributes no failure; it never fails the plan. A test file
+whose header cannot be parsed on either side changes its directory, as any unparsable file
+does (AFP-V0-9010). A base that `SelectAt` cannot resolve or read never narrows a plan: it
+falls back to the unknown comparison (AFP-V0-9011).
 A stale AFP-V0-2400 declaration misses an input the
 test later reads, as before the declaration; it can never narrow. An AFP-V0-2402 run set misses a
 package only where the plan's reviewed rules exclude a real reader, which AFP-V0-2403 measures on
@@ -845,10 +900,16 @@ dependency.
 | AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
+| AFP-V0-9009 | `inboundRuntimeSiteFile` and its call in `inboundRuntimeSite` (`internal/liveverify/affected/inbound_runtime.go`) | `TestLinelessInboundRuntimeSite_AFP_V0_9009` (declared directory edge selects the caller and closes the entry; the undeclared fault injection keeps it unknown) and `TestInboundRuntimeSiteFile_AFP_V0_9009` in `internal/liveverify/affected/inbound_runtime_test.go`; `TestDeclaredInboundRuntime_AZU_V0_8902`; the before/after repro in build-log entry `2026-11-07-selmin` |
+| AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` in `internal/liveverify/affected/golang/importsets.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change nothing and select no reader; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestImportSetRecordsCompareHeaders_AFPV02202` |
+| AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
 
 ## Rollback
 
-Revert the lane's commits for the requirement and delete its row here. For AFP-V0-2720 to
+Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
+site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
+line, so every test-file header change counts again. For AFP-V0-9011, call `affected.Select`
+directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-2720 to
 AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete
 `github-guard.sh`: every `.github/` change is FULL again. For AFP-V0-2723 to AFP-V0-2725, delete
 `shard-plan.sh`, `size.go` and the `shard-plan` job, restore the literal sixteen-shard matrix and
