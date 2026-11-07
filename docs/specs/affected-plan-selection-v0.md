@@ -801,6 +801,53 @@ in `docs/build-log/2026-11-07-binary-runners.md`.
   `TestPrecisionReplay_AFPV09003` keeps its bound of 86 on the heavy.sh-only plan's units beyond
   the rule (d) floor, because this record holds the floor unit by unit (AFP-V0-025).
 
+### Additive narrowing follows every traversal class (V1-4983)
+
+The fix-only review of 2026-11-07 (round 5) found that additive narrowing missed the code-run class
+that AFP-V0-2993 added to the dependency walk. `traverseWhere` walks four edge classes, but
+`reachedThrough`, which demotes a `NARROWED` record whose package the walk reaches from another
+changed unit (ADN-V0-004), checked only the three import classes. Take a change that edits a
+command that locates nothing and adds an unused exported function to a library whose existing
+`Run` executes that command. The library kept its `NARROWED` record, and an importer that calls
+`Run` but names no new declaration was excluded, although its tests observe the changed command.
+The requirements below close the gap in both analyzers. They derive the walk and the check from
+one list, so a later class cannot reopen it.
+
+- **AFP-V0-3140:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  Applying ADN-V0-004's walk clause to AFP-V0-2993's code-run class, a `NARROWED` record whose
+  package the dependency walk reaches by a code-run edge from another reached unit SHALL fall back with `REACHED_THROUGH_ANOTHER_CHANGED_UNIT` naming
+  that unit, as it does for an import, advisory or route-dispatch edge, and the plan SHALL follow
+  the package's importers. In the review's case, `harness`'s code runs `quiet` through
+  `exec.Command("go", "run", ...)` or a `.corvint/test-binary-execs.json` entry. An edit of `quiet`
+  together with an unused `Fresh` added to `harness` SHALL select `consumer`, which calls
+  `harness.Run`.
+- **AFP-V0-3141:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  A record whose package no followed edge reaches SHALL keep its narrowing. A unit whose tests alone
+  run a changed command is added one level past the walk (`execUsersOf`), never through a followed
+  edge. So when only `harness`'s tests run `quiet`, a change of `quiet` together with `harness`'s
+  additive change keeps the record `NARROWED` and leaves `consumer` out, as `harness`'s additive
+  change alone does.
+- **AFP-V0-3142:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  The edge classes the dependency walk follows SHALL be one list (`traversalEdges`): imports,
+  advisory imports, route-dispatch imports and code runs. `traverseWhere` and `reachedThrough` SHALL
+  both take their classes from it, so a class that one follows cannot be missing from the other. A
+  test SHALL add, for each listed class, one edge from a changed unit to a narrowed package. It SHALL
+  require the fall-back and the selection of every importer and test user the record would exclude.
+  It SHALL fail when the list changes length, until this row and the test name the new class.
+- **AFP-V0-3143:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  Amending AFP-V0-2993's CI-selector clause and ADN-V0-006, the CI selector's rules (a) and (b)
+  SHALL walk a command's code runners (AFP-V0-2994's `codeRunners`, declared runs included) as they
+  walk its importers and namers. `attributeNarrowed` SHALL start from a narrowed package's code
+  runners as well as its referencing importers and namers, because a record prunes import edges
+  only, as the planner's `follows` does. The plugin never narrows a `main` package (ADN-V0-004), so
+  that start matters for a stale or forged receipt, which the selector does not trust to prove it.
+  Before this requirement, a run declared in
+  `.corvint/test-binary-execs.json` was no namer edge. Once the runner's own path was narrowed, a
+  changed command therefore missed the runner's importers. On the review's case, with the record
+  `NARROWED` as the planner emitted it before AFP-V0-3140, `SelectStructural` SHALL select every
+  package the planner selects. `Select` keeps the whole attribution and takes the same walk, which
+  can only add packages.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -829,6 +876,10 @@ import-path or climbing pattern, and the nested-module reader path (`nested.go`)
 every `/...` token. Its directory-move check reads only the package's own tokens: a helper in
 another package that changes the directory, or a directory built by `filepath.Join` or string
 concatenation into a command argument other than `Dir`, `-C` or a `cd` word, is not seen.
+AFP-V0-3143 does not add a command's test-only runners to the CI selector's rules (a) and (b): the
+planner selects them one edge past a rebuilt command (`execUsersOf`, AFP-V0-037), and CI unions the
+plan's packages. AFP-V0-3140 to AFP-V0-3143 do not narrow a code-run edge itself: a record prunes
+import edges only, so a narrowed package's code runners are always followed.
 AFP-V0-2990 to AFP-V0-2995 do not narrow AFP-V0-402's rule for which literal positions reach a
 process, and they keep the language manifests' directory literals as code runs. They do not make a
 path-literal, glob, declared-scope, existence or import-graph reader that has its own tests select
@@ -933,6 +984,10 @@ module-level `go:test-binary-execs-invalid` frontier sends the CI tier to its fu
 | AFP-V0-2993 | the `codeRunners` class of `traverseWhere`, which `traverse` and so `additiveTraverse` take; `execUsersOf` (`execs.go`) | `TestBuildReachWalksCodeRunners_AFPV02993` (a library change that rebuilds `tool` selects a code runner's importer and the runner of a command whose code runs `tool`; a test-only runner's importer is not selected); `TestSelectionOnTheLiveDirtyWorktree` and `TestAppmapOnlyChangeSelectsOnlyJustifiedUnboundedReaders_V1_0999` resolve every chain |
 | AFP-V0-2994 | `internal/gateselect/runners.go` (`linkRunners`, `commandTargets`, `applyBinaryExecs`, `readBinaryExecs`, `runReach`); `command` in `scanFile`, `record` and `goPackage` (`readers.go`); the `execsErr` branch and `runReach` call of `unresolved`; the memo's `command` entry (`scanmemo.go`) | `TestGoRunRunnerParity_AFPV02990`, `TestGetwdRunnerParity_AFPV02990`, `TestExecutionEdgeParity_AFPV02992` (both analyzers agree, cold and warm memo agree, the verdict runs each runner), `TestBinaryExecsDeclarationWidens_AFPV02994` and `TestRunnerEdgesNeverNarrowerThanThePlanner_AFPV02994` in `internal/gateselect/binary_runner_parity_test.go`; `TestReachMatchesThePlannerGraph_V12727` (unchanged) |
 | AFP-V0-2995 | `.corvint/unbounded-readers.json` | `make unbounded-readers-check`; `TestPrecisionReplay_AFPV09003`; the before and after plans in build log `2026-11-07-binary-runners` |
+| AFP-V0-3140 | the code-run class in `reachedThrough` (`internal/liveverify/affected/additive.go`) | `TestAdditiveNarrowingFollowsCodeRuns_AFPV03140` in `internal/liveverify/affected/golang/additive_exec_test.go` (the review's case, by a `go run` literal and by a declared run: `harness` falls back naming `quiet`, `consumer` is selected); both cases fail at `ec11d63c3`; build log `2026-11-07-additive-code-runs` |
+| AFP-V0-3141 | `reachedThrough` follows only the walk's classes; `execUsersOf` adds a test-only runner past the walk | `TestAdditiveNarrowingKeepsUnrunRecords_AFPV03141` (an additive change alone and a test-only run keep `NARROWED` and leave `consumer` out) |
+| AFP-V0-3142 | `traversalEdges` and the class constants in `internal/liveverify/affected/select.go`; their use in `traverseWhere`, `reachedThrough` and `follows` | `TestReachedThroughCoversEveryTraversalClass_AFPV03142` in `internal/liveverify/affected/additive_classes_test.go` (one injected edge per listed class demotes the record; it fails for the code-run class when `reachedThrough` drops it) |
+| AFP-V0-3143 | the `codeRunners` edges of `reach` (`internal/gateselect/readers.go`) and the code-runner start of `attributeNarrowed` (`internal/gateselect/select.go`) | `TestNarrowedRunnerFollowsTheChangedCommand_AFPV03143`, `TestNarrowedRunnerKeepsItsNarrowing_AFPV03143` and `TestNarrowedCommandKeepsItsRunners_AFPV03143` in `internal/gateselect/additive_runner_parity_test.go` (the structural verdict holds the planner's narrowed selection; the declared case and the narrowed command each fail without their mechanism); `TestReachMatchesThePlannerGraph_V12727` and `TestSelectStructuralHonorsAdditiveNarrowing_ADNV0006` (unchanged) |
 
 ## Rollback
 
@@ -969,3 +1024,7 @@ For AFP-V0-2990 to AFP-V0-2995, drop the `codeRunners` class of `traverseWhere`,
 source-first split of `literalExecs`; delete `internal/gateselect/runners.go`, its two calls, the
 `command` flag and the memo's `command` entry, and restore `reach(false, …)` in `unresolved`; then
 remove the 24 record entries. Rule (d) then stops at a command again and misses its runners.
+For AFP-V0-3140 to AFP-V0-3143, inline the class list back into `traverseWhere`, drop the code-run
+class from `reachedThrough`, and drop `codeRunners` from the CI selector's `reach` and from
+`attributeNarrowed`'s start. Additive narrowing then misses a changed command that a narrowed
+package's code runs, and `corvint test` misses that package's importers.
