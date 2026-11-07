@@ -1550,7 +1550,11 @@ one list, so a later class cannot reopen it.
   `SHARD_TEST_P` (1), by the same expression the gate and tests steps use. A queue entry that docs-plan
   decides DOCS or REUSE starts no shard, as before. The full fixed-count paths stay sixteen: the
   docs-plan `REUSE_SHARDS`, `ci-tested-tree-record` (which runs only when all sixteen shards record
-  FULL) and the forward-row collector.
+  FULL) and the forward-row collector's `SHARDS`. `row.jq` (amending AFP-V0-2725) gives a queue row's
+  outcomes the one count every readable outcomes document of the queue run names, when it is within
+  1..`SHARDS`, and still requires them to cover shards 0..count-1: a sized queue run whose shards all
+  fall back to FULL ran the complete universe over that count, so it is a complete row, not a false
+  INCOMPLETE that counts toward the narrowing kill switch. Any other count keeps `SHARDS`.
 
 - **AFP-V0-2360:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-0643, owner direction 2026-11-03) `internal/companionrelease` SHALL be declared in
@@ -2099,7 +2103,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
-| AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
+| AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 
 ## Rollback
 
@@ -2112,7 +2116,7 @@ checks in `row.jq` and the `shards` equality in `narrowedRecordOf`; the pins may
 workflow level. Either half reverts alone. For AFP-V0-2726, delete
 `.github/cishards/isolated_copies_test.go` and its alternative in the go-static `-run` pattern; the
 `size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-3260, drop the
-`merge_group` clause from the `shard-plan` job's `if:`: queue entries keep sixteen shards again. For AFP-V0-2370 to
+`merge_group` clause from the `shard-plan` job's `if:`: queue entries keep sixteen shards again. The `$qcounts` choice in `row.jq` may stay: an unsized queue run names sixteen. For AFP-V0-2370 to
 AFP-V0-2378, emptying `typedReachPackages` restores whole-package selection; the package and the
 tool can then be deleted. For AFP-V0-2360 to AFP-V0-2363, deleting a declaration and restoring its
 `.corvint/unbounded-readers.json` row returns the package to the floor; the fixtures stay correct. For AFP-V0-551, removing

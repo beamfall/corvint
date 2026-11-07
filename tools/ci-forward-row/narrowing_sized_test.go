@@ -239,6 +239,26 @@ func TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725(t *testing.T) {
 	if row["class"] != "NARROWED" || num(row["selectionShards"]) != sized {
 		t.Fatalf("pull-request row = %v", row)
 	}
+	// AFP-V0-3260: a sized queue run whose shards fell back to FULL reports its own count; the row
+	// takes it and still checks its coverage.
+	queueSized := func(drop int) *fixture {
+		f := queueFixture(t)
+		fail(f.out[0], p, "fail", "RAN", "pass")
+		for k := range f.out {
+			if k >= sized || k == drop {
+				delete(f.out, k)
+				continue
+			}
+			f.out[k]["shards"] = sized
+		}
+		return f
+	}
+	row, _ = queueSized(-1).classify(t, nil)
+	if row["class"] != "CLEAN" || len(strs(row["incomplete"])) != 0 || len(strs(row["selectedFailedInQueue"])) != 1 {
+		t.Fatalf("a sized queue row = %v", row)
+	}
+	row, _ = queueSized(2).classify(t, nil)
+	wantIncomplete(t, row, "outcomes documents cover shards 0,1,3 of 4")
 }
 
 // TestAFPV03260ShardPlanSizesMergeQueueEntries: a merge-queue entry on main sizes its matrix too.
