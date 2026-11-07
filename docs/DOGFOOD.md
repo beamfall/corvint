@@ -962,8 +962,9 @@ not a workaround:
 The helper refuses, with exit 2 and a `fix:` line, when HEAD has no merge, the merge is not two
 parents, the named merge is not in HEAD, the mainline ref is missing, or the merged parent is not on
 `DOGFOOD_MAINLINE_REF` (default `origin/main`): a merged lane branch is not mainline, so bind from
-the lane's original base instead. A refusal leaves `BASE` empty, so the target's own `BASE` refusal
-follows. Not reproduced by `make dogfood-merge-base-test`: the end-to-end batch-check pass, which
+the lane's original base instead. A refusal stops make with `BASE=merge-forward refused` before any
+target runs, so `dogfood-check` never falls back to the bound base and the batch prechecks never run
+without a base. Not reproduced by `make dogfood-merge-base-test`: the end-to-end batch-check pass, which
 was observed by hand on 2026-11-06.
 
 #### Bind a landed range after the fact

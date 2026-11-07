@@ -1085,8 +1085,16 @@ core-n1-replay:
 # BASE must come from the command line or the environment, or the target refuses before any work
 # (ASD-V0-019, V1-1755). dogfood-finish passes the empty value on so its one-line refusal names it.
 # DWC-V0-7601 (V1-4721): BASE=merge-forward is the merged mainline commit of the lane's newest
-# merge-forward (script/dogfood-merge-base.sh), derived once; a refusal leaves BASE empty.
+# merge-forward (script/dogfood-merge-base.sh), derived once. A refused lookup stops make before any
+# target runs: an empty DOGFOOD_BASE reads as an omitted BASE, so dogfood-check would check the
+# bound base and the batch prechecks would run with no base. The helper prints only a SHA, so the
+# empty output is the refusal (make 3.81 has no .SHELLSTATUS).
 DOGFOOD_MERGE_FORWARD_BASE := $(if $(filter merge-forward,$(BASE)),$(shell script/dogfood-merge-base.sh))
+ifneq ($(filter merge-forward,$(BASE)),)
+ifeq ($(DOGFOOD_MERGE_FORWARD_BASE),)
+$(error BASE=merge-forward refused: script/dogfood-merge-base.sh derived no BASE and printed its REFUSE and fix lines above; no target runs, so fix that or pass BASE=<full origin/main sha> (DWC-V0-7601))
+endif
+endif
 DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(if $(filter merge-forward,$(BASE)),$(DOGFOOD_MERGE_FORWARD_BASE),$(BASE)))
 DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (origin/main) is not used by dogfood targets
 
@@ -1222,7 +1230,7 @@ doc-gates: ## Run the documentation gates
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
-	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)"
+	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 	@$(MAKE) --no-print-directory dogfood-finish
