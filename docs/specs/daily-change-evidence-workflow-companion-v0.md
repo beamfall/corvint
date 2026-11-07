@@ -251,13 +251,18 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   test-read-scopes-check`, doc-gates and the `dogfood-inputs-check` static checks run, MUST check its
   read-scoped packages on a pool of `GOMAXPROCS` workers and each package's test files on goroutines
   of their own, and merge every package's findings, used literals and first error in unit and file
-  order, so its output is byte-identical to the sequential check's. The `ASD-V0-982` parse and go
-  list memos MUST be safe for those goroutines: each entry is computed once and every caller reads
-  that one result. Non-goals: changing any finding, message or exit status, or the affected graph it
-  reads. Evidence: `TestDWCV0759ParallelCheckMatchesTheSequentialCheck` (a fixture with a named
-  path, a go list and a go build dependency, a nested sandbox and a stale literal, and this
-  repository: the parallel and the sequential check print the same bytes and exit code) and the
-  package's tests under `-race`. Rollback: set `checkWorkers` to 1 and `parallelFiles` false.
+  order, so its output is byte-identical to the sequential check's. The `go list` processes those
+  goroutines start MUST share one bound of `checkWorkers` across every package (review,
+  2026-11-07), so the concurrent go commands never exceed it however many test files a package
+  has. The `ASD-V0-982` parse and go list memos MUST be safe for those goroutines: each entry is
+  computed once and every caller reads that one result. Non-goals: changing any finding, message
+  or exit status, or the affected graph it reads. Evidence:
+  `TestDWCV0759ParallelCheckMatchesTheSequentialCheck` (a fixture with a named path, a go list and
+  a go build dependency, a nested sandbox and a stale literal, and this repository: the parallel
+  and the sequential check print the same bytes and exit code),
+  `TestDWCV0759GoListCommandsShareOneBound` (twelve test files with distinct go list targets under
+  a bound of 2 never run more than 2 commands at once) and the package's tests under `-race`.
+  Rollback: set `checkWorkers` to 1 and `parallelFiles` false.
 - `DWC-V0-3720`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4131; refines `DCW-V0-048`) A record hunk (a `RecordPath` such as a `docs/build-log/` entry) is neither counted nor compared by the uniform-plan check: its row cites what the work it records cites, so one test hunk plus its build-log entry citing the same span is not `citation-plan-uniform`, while two or more other hunks citing one span still are. Evidence: `TestDWCV03720RecordHunkSharesItsTestSpan`, `TestDWCV03720UniformCitationSkipsRecordHunks`. Rollback: count record hunks again.
 - `DWC-V0-3721`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4106; refines `DCW-V0-046`) A passing inputs-check prints `inputs-check NOTE unknown-rows=N reasons=REASON:N,...` for the plan's `unknown` rows. The NOTE changes no exit status: an honest unknown is admitted by design and dogfood-check's policy allowance bounds it. Evidence: `TestDWCV03721InputsCheckNamesThePlansUnknownRows`. Rollback: drop the NOTE.
 - `DWC-V0-3722`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4105; refines `DCW-V0-804`) A verify-file refusal names the first refused line and quotes that line's command, not the first refused command in sorted order, and an unquoted `-run` word holding `^` or `$` is refused with the quoted form that admits it. Evidence: `TestDWCV03722InputsCheckNamesTheRefusedLineItQuotes`, `TestDWCV03722InputsCheckHintsQuotingForAnUnquotedCaret`. Rollback: restore the sorted-order detail and the generic hint.
@@ -309,7 +314,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-756` (experimental under the standing lane auto-accept; V1-4197) | `internal/dogfoodflow/change.go` `startImpact`; `flow.go` `Runner.Concurrent`; `TestChangeDWCV0756ImpactBesideQueryMatchesTheSequentialRun` | implemented; focused test PASS (also -race) |
 | `DWC-V0-757` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `static_input_key`, `dogfood-static-pass`; `script/dogfood-cache_test.sh` (`DWC-V0-757` case) | implemented; shell test PASS; measured in the build log |
 | `DWC-V0-758` (experimental under the standing lane auto-accept; V1-3850) | `Makefile` `dogfood-closeout-precheck` DONE line; `script/dogfood-cache_test.sh` | implemented; shell test PASS |
-| `DWC-V0-759` (experimental under the standing lane auto-accept; V1-4238) | `tools/test-read-scopes-check/main.go` `check`, `checkUnit`, `checkFile`, `checkWorkers`, `parallelFiles` and the `sync.Once` memo entries; `TestDWCV0759ParallelCheckMatchesTheSequentialCheck` | implemented; focused tests PASS (package also under -race) |
+| `DWC-V0-759` (experimental under the standing lane auto-accept; V1-4238) | `tools/test-read-scopes-check/main.go` `check`, `checkUnit`, `checkFile`, `checkWorkers`, `parallelFiles`, the shared `goListSlots` bound and the `sync.Once` memo entries; `TestDWCV0759ParallelCheckMatchesTheSequentialCheck`, `TestDWCV0759GoListCommandsShareOneBound` | implemented; focused tests PASS (package also under -race) |
 | `DWC-V0-3720` (experimental under the standing lane auto-accept; V1-4131) | `TestDWCV03720RecordHunkSharesItsTestSpan`, `TestDWCV03720UniformCitationSkipsRecordHunks` | implemented; focused tests PASS |
 | `DWC-V0-3721` (experimental under the standing lane auto-accept; V1-4106) | `TestDWCV03721InputsCheckNamesThePlansUnknownRows` | implemented; focused tests PASS |
 | `DWC-V0-3722` (experimental under the standing lane auto-accept; V1-4105) | `TestDWCV03722InputsCheckNamesTheRefusedLineItQuotes`, `TestDWCV03722InputsCheckHintsQuotingForAnUnquotedCaret` | implemented; focused tests PASS |
