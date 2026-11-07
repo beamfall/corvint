@@ -64,7 +64,7 @@ func resolveAppend(data []byte, size int) ([]byte, bool) {
 			s := lines[i]
 			if strings.HasPrefix(s, bar) && part == 0 {
 				part = 1
-			} else if strings.TrimRight(s, "\r\n") == eq && part <= 1 {
+			} else if strings.TrimRight(s, "\r\n") == eq && part == 1 {
 				part = 2
 			} else if strings.HasPrefix(s, gt) && part == 2 {
 				break
