@@ -58,8 +58,11 @@ func ServeContextWorker(root string, in io.Reader, out io.Writer) int {
 	if _, err := gitstatus.Pin(); err != nil {
 		return 1
 	}
-	registry, failure := bridge.NewTaskReview(root)
-	if failure != nil {
+	// The constructor returns error while Call and Object return *bridge.Error
+	// (V1-3916): reusing one variable for both would hold a typed nil, which is
+	// never == nil, so the worker would refuse every call.
+	registry, err := bridge.NewTaskReview(root)
+	if err != nil {
 		return 1
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), contextBudget)
