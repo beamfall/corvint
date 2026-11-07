@@ -203,6 +203,8 @@ type cachedUnit struct {
 	ExecConsumers        []string `json:"execConsumers"`
 	ImportGraphReads     []string `json:"importGraphReads"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll"`
+	// ImportGraphReadsFiles mirrors Unit (AFP-V0-9010).
+	ImportGraphReadsFiles bool `json:"importGraphReadsFiles"`
 }
 
 type cachedStamp struct {
