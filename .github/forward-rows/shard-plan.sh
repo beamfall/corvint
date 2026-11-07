@@ -16,6 +16,12 @@
 # GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, RUNNER_TEMP, GITHUB_OUTPUT, GITHUB_STEP_SUMMARY) plus
 # FULL_SHARDS, MIN_SHARDS, WALL_BUDGET_MS and SHARD_TEST_P. SHARD and SHARDS are set here. This
 # script never fails the job.
+# AFP-V0-3260 (V1-4353): with QUEUE_BASE set (a merge-queue entry on main) it runs mq-narrow.sh
+# beside it instead, the queue-range selection every shard's gate runs, with that script's
+# environment (QUEUE_BASE, QUEUE_BASE_REF, QUEUE_HEAD, QUEUE_HEAD_REF). The job runs this copy from
+# the same commit of main the shards take mq-narrow.sh from, never the entry. It passes no MQ_DELTA,
+# so its selection is the whole queue range: a superset of any shard selection the delta narrows,
+# so the sized count is never smaller than that selection needs.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 full=${FULL_SHARDS:-16}
@@ -42,7 +48,9 @@ digits "$min" && [ "$min" -le "$full" ] || emit "$full" "MIN_SHARDS '$min' is no
 digits "$budget" || emit "$full" "WALL_BUDGET_MS '$budget' is not a positive number"
 out="$RUNNER_TEMP/corvint-narrowing"
 /bin/rm -f "$out/narrowing.json"
-SHARD=0 SHARDS=$full sh "$here/narrow.sh" || emit "$full" "narrow.sh exited $?"
+gate=narrow.sh
+[ -z "${QUEUE_BASE:-}" ] || gate=mq-narrow.sh
+SHARD=0 SHARDS=$full MQ_DELTA= sh "$here/$gate" || emit "$full" "$gate exited $?"
 mode=$(jq -r '.mode' "$out/narrowing.json" 2> /dev/null) || mode=""
 [ "$mode" = NARROWED ] || emit "$full" "the trusted decision is ${mode:-missing}, so every shard runs its partition"
 jq -r '.selected[]? | select(type == "string")' "$out/narrowing.json" > "$out/plan-selected" 2> /dev/null ||
