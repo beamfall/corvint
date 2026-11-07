@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -52,5 +53,46 @@ func TestPUBV0965ClosedGoEnvPinsItsOwnGOTMPDIR(t *testing.T) {
 	}
 	if _, err := os.Stat(caller); err == nil {
 		t.Fatalf("the caller's temp directory %s was created", caller)
+	}
+}
+
+// TestPUBV0700ClosedGoEnvTurnsGoTelemetryOff (V1-3823): the runner turns the
+// go command's telemetry off under a closedGoEnv home before it starts, so no
+// detached telemetry child writes there after the command exits and the
+// home's removal cannot race it; a caller environment whose GOTMPDIR is not
+// HOME/gotmp keeps its home untouched.
+func TestPUBV0700ClosedGoEnvTurnsGoTelemetryOff(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home")
+	env := closedGoEnv(home, "")
+	if err := ensureGoTmp(env); err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(home, ".config")
+	if runtime.GOOS == "darwin" {
+		config = filepath.Join(home, "Library", "Application Support")
+	}
+	if runtime.GOOS != "windows" {
+		mode, err := os.ReadFile(filepath.Join(config, "go", "telemetry", "mode"))
+		if err != nil || string(mode) != "off" {
+			t.Fatalf("closed home telemetry mode = %q, %v; want off", mode, err)
+		}
+	}
+	other := filepath.Join(t.TempDir(), "other")
+	if err := ensureGoTmp([]string{"HOME=" + other, "GOTMPDIR=" + filepath.Join(t.TempDir(), "gotmp")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(other); !os.IsNotExist(err) {
+		t.Fatalf("a non-closed environment's home was touched: %v", err)
+	}
+	goPath, err := exec.LookPath("go")
+	if err != nil || runtime.GOOS == "windows" {
+		t.Skip("go tool unavailable or telemetry config not under HOME")
+	}
+	out, stderr, err := runCaptured(context.Background(), home, env, subprocessTimeout, goPath, "telemetry")
+	if err != nil {
+		t.Fatalf("go telemetry: %v (%s)", err, stderr)
+	}
+	if got := strings.TrimSpace(string(out)); got != "off" {
+		t.Fatalf("go telemetry under the closed home = %q, want off", got)
 	}
 }

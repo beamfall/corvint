@@ -718,6 +718,42 @@ Context, non-goals, failure modes and rollback: the "Version source identity ame
   (`conformance/cli-parity-v0`), the VS Code envelope's closed top-level keys (`VSC-V0`) and the
   `MTV-V0-005` CLI/MCP test-validity equality; it needs its own owner decision and divergence
   record and is not part of this amendment.
+- `PUB-V0-700`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3823; refines
+  PUB-V0-965) Before a closed-environment Go invocation starts, the runner MUST write telemetry
+  mode `off` into the go command's config directory under the build's own home (`HOME/.config`
+  or `XDG_CONFIG_HOME`, `HOME/Library/Application Support` on macOS), keeping an existing mode
+  file. Only an environment in the `closedGoEnv` layout (`GOTMPDIR` is `HOME/gotmp`) is touched;
+  a caller's real home never is. Failure mode: with the default mode the go command starts a
+  detached child that writes counters under that home after the command exits, so removing the
+  home raced it and failed with `directory not empty` (observed 2 of 2 `-count=20` runs on
+  unraid-lanes, go1.27.3); `GOTELEMETRY=off` in the environment does not change that mode.
+  Non-goals: Windows, whose config directory is not under `HOME`. Rollback: drop
+  `quietGoTelemetry` and its call in `ensureGoTmp`.
+
+### Bounded release-test reads (V1-0643)
+
+- `PUB-V0-670`: (experimental under the owner's standing lane auto-accept, 2026-11-01; V1-0643)
+  `internal/companionrelease` MUST NOT locate a repository root itself. Its proofs over a
+  checkout's committed Git content are exported functions that take the checkout root as a
+  parameter (`ProveCurrentExportedTasksAndVSIX`, `ProveCurrentTasksSmokeGenerator`,
+  `ProveCurrentTasksSourceArchiveBuildsOffline`). The tests that call them with the enclosing
+  checkout keep their names and subtests, and they live in the root-locator package
+  `internal/companionrelease/currentproof`, which stays on the affected-plan `UNBOUNDED_READER`
+  floor (`.corvint/unbounded-readers.json`). The tests left in `internal/companionrelease` read
+  only working-tree content through a declared `.corvint/test-read-scopes.json` entry (AFP-V0-023),
+  never `.git`. Its nested `go build` of the companion commands passes `-buildvcs=false`, as the
+  other nested builds already do.
+- `PUB-V0-671`: (experimental under the owner's standing lane auto-accept, 2026-11-01; V1-0643)
+  `conformance/release-artifact-v0 publication-status` MUST read the Git state of its `-root`
+  argument (default `.`, as for the archive gate), never the process working directory. Its tests
+  that read committed Git content MUST use a disposable fixture repository
+  (`initArchiveTestRepository`), not the enclosing checkout. The Darwin arm64 host archive proof
+  (`TestCorvintHostArchivePartialProof`), which archives the enclosing checkout's clean `HEAD`,
+  runs only when `CORVINT_HOST_ARCHIVE_PROOF=1` is set. That proof reads `.git` and builds all of
+  `cmd/corvint`, and the planner does not condition a read scope on the variable, so the package
+  MUST stay on the `UNBOUNDED_READER` floor with that reason and MUST NOT declare a
+  `.corvint/test-read-scopes.json` entry, which would let a change confined to `cmd/corvint`
+  exclude it (rescue-c review, 2026-11-04).
 
 ## Non-goals and failure modes
 
@@ -771,7 +807,7 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-010 | `internal/console` (`/roadmap`) | `TestRoadmapGroupingAndBlockers`; `atm roadmap`, planning-ticket seeding and duplicate avoidance live in the separate `corvint-taskman` repository and are not exercised by this repository's tests |
 | PUB-V0-011 | `internal/companionrelease/target.go`, `internal/companionrelease/clean.go`, `internal/companionrelease/companionrelease.go`, `internal/gitstatus/status.go`, `script/corvint-companion-release-gate`, `script/local-console-release-gate` | Existing path/cleanliness tests; `script/corvint-companion-release-gate_test.sh` proves a real linked worktree reaches the release command while preserving the clean clone boundary; `TestGateScriptsPassOnlyDefinedFlags` proves both gate scripts pass only flags the release command defines, including `-source-root` (V1-0346); `TestLocalConsoleGateBuildsFromRepositoryRoot` proves `script/local-console-release-gate` builds in its own checkout when run from outside it (V1-0353). |
 | PUB-V0-012 | `internal/companionrelease/export.go`, `internal/companionrelease/verify.go` | `TestListTreeEntriesRefusesSymlinkAndSubmodule`, `TestListTreeEntriesRefusesDuplicatePaths`, `TestListTreeEntriesRefusesCaseFoldCollisions`, `TestVerifyTarGzRefusesCaseFoldedMembers`, `TestExportSourceRefusesOversizedEntryCount`, `TestExportSourceRefusesTotalBytesBound`, `TestVerifyBlobDigestRefusesMismatch`, `TestRefuseUnsafePath`, `TestExportSourceRefusesDisagreeingPasses`, `TestBatchBlobsRefusesTrailingData` (data after the last requested object in either independent `cat-file --batch` pass is refused, not silently dropped from the byte-for-byte agreement check); `TestExportSourceAdmitsCountsAtTheirBounds` (exactly 50,000 entries are admitted; the inclusive byte bound and its refusal run at a lowered 4 MiB bound through the same code, and the production bounds are pinned at 50,000 entries and 512 MiB), `TestBatchBlobsRefusesWrongRecordTerminator`, `TestVerifyTarGzAdmitsFullSizeExportArchive` (the source archive of a 50,000-entry export verifies), `TestRefuseCaseFoldCollisionsMatchesPairwiseEqualFold` (the linear fold-key check refuses exactly the pairs pairwise `strings.EqualFold` does), `TestPUBV0012IncompressibleExportRefusedBeforeVerifierBound` (`buildTarGz` in `internal/companionrelease/archive.go` refuses an incompressible archive past the verifier bound at a lowered limit) |
-| PUB-V0-013 | `internal/companionrelease/build.go`, `internal/companionrelease/vsix.go`, `internal/companionrelease/npm_notices.go`, `internal/companionrelease/companionrelease.go` | `TestCurrentTasksSourceArchiveBuildsOffline` (actual archive, offline default rebuild, removed-transitive-dependency negative control); existing staged-export/double-Go-build tests plus `TestCanonicalVSIXRequiresClosedAgreeingMembers` and `TestBuildOnlyNPMNoticeIsExplicitlyUnshipped`; final exact-source nine-binary/VSIX build remains the retained companion gate. |
+| PUB-V0-013 | `internal/companionrelease/build.go`, `internal/companionrelease/vsix.go`, `internal/companionrelease/npm_notices.go`, `internal/companionrelease/companionrelease.go`, `internal/companionrelease/current_proof.go` | `TestCurrentTasksSourceArchiveBuildsOffline` in `internal/companionrelease/currentproof` (actual archive, offline default rebuild, removed-transitive-dependency negative control); existing staged-export/double-Go-build tests plus `TestCanonicalVSIXRequiresClosedAgreeingMembers` and `TestBuildOnlyNPMNoticeIsExplicitlyUnshipped`; final exact-source nine-binary/VSIX build remains the retained companion gate. |
 | PUB-V0-014 | `internal/companionrelease/archive.go`, `internal/companionrelease/verify.go`, `internal/companionrelease/manifest.go`, `internal/companionrelease/packages.go`, `internal/companionrelease/companionrelease.go` | Existing archive tests plus shared-source/manifest-reference and exact exported host-package-tree tests in `internal/companionrelease`. |
 | PUB-V0-015 | `internal/companionrelease/smoke.go`, `internal/companionrelease/workflow_smoke.go`, `internal/companionrelease/retain.go`, `internal/companionrelease/companionrelease.go`, `internal/companionrelease/proc.go` | Existing installed smoke/process tests plus `TestMCPDiscoveryRequiresExactProtocolAndIdentity` and `TestRetainedSmokeReportBindsArchiveOutsideArchive`; `TestV13179ExtractConfinesEntriesToTarget` and `TestV13179WriteTreeConfinesEntriesToDir` (V1-3179 shared join); the retained exact-binary run remains the final companion gate. |
 | PUB-V0-016 | `extensions/vscode/test/installed`, `conformance/interactive-alpha`, `internal/companionrelease/installed.go`, `cmd/corvint-public-release-check`, `script/public-release-check` | retained verifier, no-overwrite and wrapper refusal tests (`script/public-release-check_test.sh`); the final exact retained installed run remains required. |
@@ -782,6 +818,7 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-024 | `internal/companionrelease/core_smoke.go`, `internal/companionrelease/smoke.go`, `internal/releasecandidate` (`buildQualification`, `validateQualification`) | `TestPUBV0024InstalledCoreDiscoveryWorkflows`, `TestPUBV0024DocumentationCorpusSearchProfiles` (supported profiles, rejection and trailing-byte controls, V1-0588/V1-0589), `TestInitSmokeRepoPinsIntentBranch`; retained-bundle tests require the five new `/2` steps while preserving legacy profiles |
 | PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate`, `TestPUBV0025RecoveryLifecycle`, `TestPUBV0025HostileStore` |
 | PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`, `TestPUBV0026ScratchAndOutputCannotOverlapInputs`, `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `TestPUBV0026CancelledInstallRetainsNothing`; completed staging is reverified before promotion, command errors precede retention and neither command has a publication operation |
+| PUB-V0-700 | `internal/companionrelease/toolchain.go` (`quietGoTelemetry`, `ensureGoTmp`) | `TestPUBV0700ClosedGoEnvTurnsGoTelemetryOff`; `TestPUBV0965ClosedGoEnvPinsItsOwnGOTMPDIR` passes `-count=100` where the base failed `-count=20` |
 | PUB-V0-965 | `internal/companionrelease/toolchain.go` (`closedGoEnv`, `goTmpDir`, `ensureGoTmp`), `internal/companionrelease/proc.go`; the PUB-V0-054 guard in `TestCorvintBundledBinariesBuildTwiceIdentically` | `TestPUBV0965ClosedGoEnvPinsItsOwnGOTMPDIR` |
 
 ## Core release scope amendment (2026-09-16)
@@ -926,3 +963,44 @@ read it. No stored state depends on them; manifests of either form stay verifiab
 | PUB-V0-054 | `doubleBuildScratchBytes`, `doubleBuildWorkers` and the bounded subtests of `TestCorvintBundledBinariesBuildTwiceIdentically` in `internal/companionrelease/companionrelease_test.go` | `TestDoubleBuildWorkersFitFreeScratch_V1_3221`; `TestCorvintBundledBinariesBuildTwiceIdentically` (run 2026-10-30) |
 | PUB-V0-053 | `internal/versionline`, `cmd/corvint/version_json.go` (`versionText`, `emitVersion`), the consumers listed above | `TestPUBV0053PlainVersionLineFormat`, `TestPUBV0053ParseIsTolerant`, `TestPUBV0053FormatRoundTrips`, `TestPUBV0053ManifestVersionLineIsTolerant`, `TestPUBV0053UpdateReadsTheCommitBearingLine` |
 | PUB-V0-052 | `cmd/corvint/version_json.go` (`developmentVersion`), `conformance/release-artifact-v0/build.go` (`buildArguments`), `internal/companionrelease/companionrelease.go` | `TestPUBV0052UnreleasedBuildIsPreRelease`, `TestPUBV0052ArchiveStampsSourceCommit` |
+
+## Bounded release-test reads amendment (V1-0643, 2026-11-01)
+
+Source: V1-0643. Status: experimental under the standing lane auto-accept (2026-11-01). The
+requirements are `PUB-V0-670..671` under "Bounded release-test reads (V1-0643)" in the
+Requirements section. Before this, `corvint affected` selected `internal/companionrelease` (24
+tests, about 194 s on unraid-lanes) and `conformance/release-artifact-v0` through
+`UNBOUNDED_READER` for every change, including one unrelated dirty documentation path. This
+reverses the 2026-10-31 V1-2292 floor acceptance of `internal/companionrelease`: the proofs over
+the real checkout keep running unchanged, from the root-locator package `currentproof`.
+`conformance/release-artifact-v0` stays on the floor. The 2026-11-01 lane declared its reads
+instead, but the rescue-c review (2026-11-04) found that declaration unsound for the opt-in host
+archive proof. The orchestrator-made, fail-closed decision kept the floor entry, which costs only
+the package's own tests, since no package imports it.
+
+Non-goals: a hermetic fixture for the current-checkout proofs, which exist to prove the real
+`HEAD` export; widening AFP-V0-023 to grant `.git`; changing `script/release-checklist`, which
+already runs `publication-status` from the checkout root; conditioning a read scope on an
+environment variable.
+Failure modes: a too-narrow declaration fails the confined CI shard loudly (AFP-V0-023), and
+`make test-read-scopes-check` names an undeclared literal before that; a nested `go build`
+inherits the confinement, which is why it must not stamp VCS state; a declaration for a package
+whose opt-in test reads more than it declares lets a change outside the declaration exclude it,
+which `TestPUBV0671HostArchiveProofKeepsTheUnboundedFloor` refuses for `release-artifact-v0`.
+Acceptance evidence: `TestPUBV0671PublicationStatusReadsTheRootArgument`;
+`TestPUBV0671HostArchiveProofKeepsTheUnboundedFloor`; the converted
+`TestArchiveDestinationRequiresTrustedAbsentExternalChild` and
+`TestBuildArchivesCancellationRemovesScratchStageAndOutput`; the moved
+`TestCurrentExportedTasksSmokeGenerator` and `TestCurrentTasksSourceArchiveBuildsOffline` passing
+from `currentproof`; `make test-read-scopes-check` and `make unbounded-readers-check`; and the
+measured `corvint affected` plan for one unrelated dirty path, before and after, in
+`docs/build-log/2026-11-01-rmd-u28.md`.
+Rollback: restore `internal/companionrelease` to `.corvint/unbounded-readers.json` with its
+reason, remove its read-scope entry and `currentproof`, and move the three tests back; restore
+`os.Getwd` in `publication-status`. `release-artifact-v0` keeps its floor entry. No stored state
+depends on them.
+
+| Requirement | Implementation | Test |
+|---|---|---|
+| PUB-V0-670 | `internal/companionrelease/current_proof.go`, `internal/companionrelease/currentproof`, `.corvint/test-read-scopes.json`, `.corvint/unbounded-readers.json` | `TestCurrentExportedTasksSmokeGenerator`, `TestCurrentTasksSourceArchiveBuildsOffline` |
+| PUB-V0-671 | `conformance/release-artifact-v0/publication_status.go` (`runPublicationStatusCLI`), `conformance/release-artifact-v0/archive_gate_test.go`, `conformance/release-artifact-v0/corvint_archive_test.go`, `.corvint/unbounded-readers.json`, `conformance/release-artifact-v0/host_archive_floor_test.go` | `TestPUBV0671PublicationStatusReadsTheRootArgument`, `TestPUBV0671HostArchiveProofKeepsTheUnboundedFloor`, `TestArchiveDestinationRequiresTrustedAbsentExternalChild`, `TestBuildArchivesCancellationRemovesScratchStageAndOutput` |

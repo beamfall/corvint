@@ -82,6 +82,7 @@ func planPreview(env Env, args []string) *wire.Result {
 	}
 	var item wire.Value
 	entries := 0
+	developmentMode := false
 	rc, err := withStore(env, func(rc *readCtx) error {
 		entries = 0
 		in, digest, err := planInput(rc)
@@ -101,6 +102,7 @@ func planPreview(env Env, args []string) *wire.Result {
 			return err
 		}
 		plan := transaction.PriorityFirst(in)
+		developmentMode = selectsInDevelopmentMode(plan)
 		if selectedOnly {
 			item = selectedPlanValue(rc, plan)
 			return nil
@@ -120,7 +122,29 @@ func planPreview(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	res.MaxNodes = planNodeBound(entries)
+	if developmentMode {
+		res.Warnings = append(res.Warnings, developmentModeWarning)
+	}
 	return res
+}
+
+// developmentModeWarning names the rule behind a SELECTED DEVELOPMENT_MODE
+// entry and how to proceed (NTP-V0-670, V1-3535): the reason is the
+// selection's disposition, not a build check.
+const developmentModeWarning = "SELECTED DEVELOPMENT_MODE is the selection's disposition, not a build or qualification check: " +
+	"claim --next admits a SELECTED entry on any corvint-tasks build, verified or not, and an unverified build only means its output is not qualification evidence. " +
+	"To proceed, run claim --next and keep this build's version in your evidence. " +
+	"The rule that gates claims is the queue's execution cutover: until cutover --execution is recorded, every entry shows BLOCKED CUTOVER_MISSING and claim --next refuses with that code"
+
+// selectsInDevelopmentMode reports whether plan selects any entry with the
+// DEVELOPMENT_MODE disposition.
+func selectsInDevelopmentMode(plan transaction.TicketPlan) bool {
+	for _, entry := range plan.Entries {
+		if entry.State == transaction.PlanSelected && entry.Reason == wire.CodeDevelopmentMode {
+			return true
+		}
+	}
+	return false
 }
 
 // planEntryNodes is the decoded-node budget of one plan entry. A typical
