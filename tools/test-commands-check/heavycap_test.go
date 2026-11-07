@@ -383,8 +383,9 @@ exec env -i PATH="$PATH" HOME="`+root+`" TMPDIR="`+root+`" LC_ALL=C bash -s
 	t.Run("unknown-env-form-refused", func(t *testing.T) {
 		write(goenv, "GOFLAGS=-skip=TestExisting\n")
 		write(envfile, "export GOENV="+goenv+"\nunset GOFLAGS\n")
-		cmd := exec.Command("bash", filepath.Join(scripts, "heavy.sh"),
-			"/usr/bin/env", "--heavycap-unknown", "GOFLAGS=", "go", "test", "-count=1", "./p")
+		args := []string{filepath.Join(scripts, "heavy.sh"),
+			"/usr/bin/env", "--heavycap-unknown", "GOFLAGS=", "go", "test", "-count=1", "./p"} //corvint:fixture-path
+		cmd := exec.Command("bash", args...)
 		cmd.Dir, cmd.Env = work, env
 		out, err := cmd.CombinedOutput()
 		if err == nil || cmd.ProcessState.ExitCode() != 2 ||
