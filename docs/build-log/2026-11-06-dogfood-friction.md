@@ -51,6 +51,29 @@ regression that fails on the reviewed head.
   still open, and the trap's `cat` of the output then appended to itself until it was killed at
   166 GB.
 
+## Second review fixes
+
+The PR review (Greptile) returned two findings. Both were reproduced and are fixed in new commits,
+each with a regression that fails on the reviewed head `676df6bf`.
+
+- `DWC-V0-7600`: `git ls-files` matches a pathspec case-exactly, so on a case-folding filesystem a
+  tracked `intents.txt` passed as `INTENTS.txt` read as untracked and was rewritten, leaving
+  `M intents.txt`. Tracked now follows file identity. `trackedAlias` lists the tracked paths that
+  equal the entry ignoring case at the same depth (`:(literal,icase)`, `-z`) and compares each with
+  the manifest using `os.SameFile`. Git folds only ASCII case, so a non-ASCII path with no tracked
+  match stays unknown and is kept. The regression has a case-folding branch and a case-sensitive
+  branch, each skipped on the other filesystem kind. The case-folding branch was run with `TMPDIR`
+  on the WSL host's Windows drive, which folds case. The case-sensitive branch hard-links
+  `INTENTS.txt` to the tracked file and checks that a distinct alias is still rewritten.
+- `DWC-V0-7601`: a refused `BASE=merge-forward` lookup left `DOGFOOD_BASE` empty, which reads as an
+  omitted BASE: `dogfood-check` fell back to `--bound-base`, and `dogfood-closeout-precheck` ran
+  batch-precheck with no base. The refusal is now a parse-time make error, so no target runs. The
+  helper prints only a SHA, so the empty output is the signal, because make 3.81 has no
+  `.SHELLSTATUS`. While testing it, `dogfood-closeout` turned out to pass the literal word
+  `merge-forward` to spec-capacity-check, which refused it as no commit. It now passes the
+  derived SHA. The shell test stubs the scripts the targets run, and it declares the two stubbed
+  names as mentions in `.corvint/shell-foreign-callers.json`.
+
 ## Checks
 
 - `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run
@@ -65,6 +88,12 @@ regression that fails on the reviewed head.
   `go run ./tools/unbounded-readers` is ok. Against the reviewed sources, the new
   `TestDWCV07600` case fails, `dogfood-merge-base_test.sh` fails at the injected `git show` case,
   and `dogfood-cache_test.sh` fails at the `$$` rerun check.
+- Second review fixes: the `TestDWCV07600` run above (with `TestDCWV0882`, `TestDCWV0731`,
+  `IntentManifest` and `Intents`), `script/dogfood-merge-base_test.sh`, `script/check-bash32.sh`,
+  `TestRepositoryShellReadScopes` and `TestRepositoryShellForeignCallersComplete_TSP_V0_005` pass.
+  Against `676df6bf`, `TestDWCV07600FinishLaneKeepsATrackedManifestUnderAnotherCase` fails on both
+  filesystems, and `dogfood-merge-base_test.sh` fails at the refused-lookup case. With only the
+  parse-time refusal restored, it fails at the closeout spec-check case.
 
 ## Limits
 
