@@ -1305,7 +1305,7 @@ for lane in a b; do
   git -C "$run_root" checkout -qb "lane-$lane" "$batch_base"
   if test "$lane" = a; then ids='255 256'; else ids='257 258'; fi
   for i in $ids; do printf -- '- `BATCH-V0-%s`: (proposed) Lane.\n' "$i"; done >> "$run_root/docs/specs/batch.md"
-  git -C "$run_root" commit -qam "lane $lane"
+  git -C "$run_root" -c user.name=t -c user.email=t@t commit -qam "lane $lane"
   run > /dev/null 2>&1 || fail "individual lane $lane not admitted"
 done
 before=$(git -C "$run_root" status --porcelain; git -C "$run_root" rev-parse HEAD; git -C "$run_root" write-tree)
@@ -1323,7 +1323,7 @@ case $batch_out in *'batch.md base=256 added=2 count=258 limit=256 lanes=lane-b(
 git -C "$run_root" checkout -q lane-b
 sed '/BATCH-V0-001/d' "$run_root/docs/specs/batch.md" > "$run_root/reduced"
 cp "$run_root/reduced" "$run_root/docs/specs/batch.md"
-git -C "$run_root" commit -qam deletion
+git -C "$run_root" -c user.name=t -c user.email=t@t commit -qam deletion
 run --batch-capacity "$batch_base" lane-a lane-b > /dev/null 2>&1 && fail "deletion hid overflow"
 run_root=
 
