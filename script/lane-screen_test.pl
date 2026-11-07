@@ -11,7 +11,7 @@ use JSON::PP;
 my $script=abs_path('script');
 delete @ENV{grep { /^GIT_/ } keys %ENV};
 $ENV{LC_ALL}='C';
-my $tmp=tempdir('lane-screen-test.XXXXXX',TMPDIR=>1,CLEANUP=>1);
+my $tmp=abs_path(tempdir('lane-screen-test.XXXXXX',TMPDIR=>1,CLEANUP=>1)); # canonical: macOS TMPDIR is a /var -> /private/var link
 my $repo="$tmp/repo";
 make_path("$repo/pkg/live","$repo/docs/specs");
 sub write_file { my ($f,$s)=@_; open my $h,'>',$f or die "$f: $!"; print $h $s; close $h or die $! }
