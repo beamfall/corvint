@@ -63,12 +63,14 @@ func matchesPattern(pattern, base string) bool {
 
 func (names computedNames) empty() bool { return len(names) == 0 }
 
-// variableValues returns every value the file gives each name: each
-// assignment's value, as written, and each word of a `for NAME in` list.
+// variableValues returns every distinct value the file gives each name: each
+// assignment's value, as written, and each word of a `for NAME in` list. A
+// value repeated verbatim (the same word list in several loops) expands to
+// the same values, so it counts once toward maxNameValues (AFP-V0-3148).
 func variableValues(commands []command) map[string][]string {
 	values := map[string][]string{}
 	add := func(name, value string) {
-		if len(values[name]) < maxNameValues+1 {
+		if len(values[name]) < maxNameValues+1 && !slices.Contains(values[name], value) {
 			values[name] = append(values[name], value)
 		}
 	}
@@ -232,7 +234,7 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 	for _, operator := range []string{":-", ":=", "-", "="} {
 		if strings.HasPrefix(rest, operator) {
 			if depth >= maxValueDepth {
-				return []string{wildcard}
+				return truncated(cut)
 			}
 			alternatives := append(named(name, values, depth, cut), expand(unquote(rest[len(operator):]), values, depth+1, cut)...)
 			if len(alternatives) > maxValueCount {
@@ -244,8 +246,11 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 	for _, operator := range []string{":+", "+"} {
 		if strings.HasPrefix(rest, operator) {
 			fields := fieldsTop(rest[len(operator):])
-			if depth >= maxValueDepth || len(fields) == 0 {
+			if len(fields) == 0 {
 				return []string{wildcard}
+			}
+			if depth >= maxValueDepth {
+				return truncated(cut)
 			}
 			return append([]string{""}, expand(unquote(fields[0]), values, depth+1, cut)...)
 		}
@@ -254,20 +259,138 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 }
 
 // named expands one variable: its in-file values, or wildcard for a name the
-// file never sets, sets more often than the bound, or that recurses too deep.
+// file never sets. A name it sets more often than maxNameValues, or one that
+// recurses past maxValueDepth, is a truncated expansion: the values the file
+// does give are dropped, so it sets *cut as the count bound does
+// (AFP-V0-3146, AFP-V0-3147).
 func named(name string, values map[string][]string, depth int, cut *bool) []string {
 	given := values[name]
-	if len(given) == 0 || len(given) > maxNameValues || depth >= maxValueDepth {
+	if len(given) == 0 {
 		return []string{wildcard}
+	}
+	if len(given) > maxNameValues || depth >= maxValueDepth {
+		return truncated(cut)
 	}
 	var out []string
 	for _, value := range given {
-		out = append(out, expand(value, values, depth+1, cut)...)
+		// An unrolled value expands at this depth: its reference takes values
+		// that no longer refer to name, so it adds no level to a chain and
+		// cannot recur on itself (AFP-V0-3149).
+		expanded, next := values, depth+1
+		if others, ok := unrolled(name, value, values, depth); ok {
+			expanded, next = others, depth
+		}
+		out = append(out, expand(value, expanded, next, cut)...)
 	}
 	if len(out) > maxValueCount {
 		out, *cut = out[:maxValueCount], true
 	}
 	return out
+}
+
+// unrolled returns the values to expand value, one of name's, with, and
+// whether it unrolled a reference to name. When
+// value refers to name and no unrolling of it can be a literal path, the
+// reference takes name's other values once and wildcard for any earlier value
+// (AFP-V0-3149): an unknown part precedes the first reference, so every
+// unrolled value holds it, links nothing and has a file name the single
+// unrolling's or the wildcard's pattern already matches; or value is the
+// reference alone (`dir=${dir:-script}`), whose unrollings are the values
+// themselves. Otherwise it unrolls nothing, so a literal wrapper
+// (`x="../$x"`) recurses to the depth bound and is a cut (AFP-V0-3147).
+func unrolled(name, value string, values map[string][]string, depth int) (map[string][]string, bool) {
+	at, end := selfReference(name, value)
+	if at < 0 {
+		return nil, false
+	}
+	if at > 0 || end != len(value) {
+		if at == 0 || !topLevel(value[:at]) {
+			return nil, false
+		}
+		var cut bool
+		prefixes := expand(value[:at], values, depth+1, &cut)
+		if cut || slices.ContainsFunc(prefixes, func(prefix string) bool { return !strings.Contains(prefix, wildcard) }) {
+			return nil, false
+		}
+	}
+	others := []string{wildcard}
+	for _, other := range values[name] {
+		if at, _ := selfReference(name, other); at < 0 {
+			others = append(others, other)
+		}
+	}
+	copied := make(map[string][]string, len(values))
+	for key, list := range values {
+		copied[key] = list
+	}
+	copied[name] = others
+	return copied, true
+}
+
+// selfReference returns where the first `$name` or `${name...}` in value
+// starts and ends, or -1 when value does not refer to name.
+func selfReference(name, value string) (int, int) {
+	for at := strings.IndexByte(value, '$'); at >= 0 && at < len(value); {
+		rest := value[at+1:]
+		switch {
+		case strings.HasPrefix(rest, "{"+name) && !identifierByte(rest, len(name)+1):
+			if end := closing(value, at+1); end >= 0 {
+				return at, end + 1
+			}
+			return at, len(value)
+		case strings.HasPrefix(rest, name) && !identifierByte(rest, len(name)):
+			return at, at + 1 + len(name)
+		}
+		next := strings.IndexByte(rest, '$')
+		if next < 0 {
+			break
+		}
+		at += 1 + next
+	}
+	return -1, -1
+}
+
+// topLevel reports whether prefix closes every `${`, `$(` and backquote it
+// opens, so a reference right after it is not nested in another expansion
+// (`${y:-abc$x}`), whose unrollings could be literal.
+func topLevel(prefix string) bool {
+	for index := 0; index < len(prefix); index++ {
+		switch {
+		case prefix[index] == '`':
+			end := strings.IndexByte(prefix[index+1:], '`')
+			if end < 0 {
+				return false
+			}
+			index += end + 1
+		case prefix[index] == '$' && index+1 < len(prefix) && (prefix[index+1] == '{' || prefix[index+1] == '('):
+			end := closing(prefix, index+1)
+			if end < 0 {
+				return false
+			}
+			index = end
+		}
+	}
+	return true
+}
+
+// identifierByte reports whether text has a name character at index.
+func identifierByte(text string, index int) bool {
+	if index >= len(text) {
+		return false
+	}
+	c := text[index]
+	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
+}
+
+// truncated is the wildcard a value bound stands in for values the file
+// gives: it records the cut, so the caller keeps the unbounded-reader
+// protection instead of reading the wildcard as an environment input that
+// names no owned script (AFP-V0-3147). A wildcard for a part no text fixes
+// (an unset name, `$1`, a command substitution, an operator the model does
+// not follow) is no cut: nothing the file gives was dropped.
+func truncated(cut *bool) []string {
+	*cut = true
+	return []string{wildcard}
 }
 
 // constructed links each fully literal value of a computed target and
@@ -276,6 +399,15 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 // bound dropped values, which may be scripts it links to no edge.
 func constructed(target string, resolve *resolver, values map[string][]string, known, edges map[string]bool, names *computedNames) (unresolved, cut bool) {
 	if !strings.ContainsAny(target, "$`") {
+		return false, false
+	}
+	// A target whose file name is literal, carries no shell suffix and is the
+	// name of no owned extensionless script (`"$sdk/go"`, a binary in a
+	// computed directory) names no script this plugin owns under any
+	// expansion, so no dropped value could be one: it stays outside the model
+	// without expanding (TSP-V0-960, AFP-V0-3144). A name such a script has
+	// (`"$dir/check"` beside script/check) is expanded, so its values link.
+	if base := path.Base(target); !strings.ContainsAny(base, "$`{}") && !hasAnySuffix(base, Suffixes) && !ownedExtensionless(known, base) {
 		return false, false
 	}
 	for _, value := range expand(target, values, 0, &cut) {
@@ -295,4 +427,17 @@ func constructed(target string, resolve *resolver, values map[string][]string, k
 		}
 	}
 	return unresolved, cut
+}
+
+// ownedExtensionless reports whether an owned file in known has the file name
+// base, which carries no shell suffix: an ExtensionlessScript (AFP-V0-2205,
+// AFP-V0-3144). A target value links only a known path, and that path's file
+// name is the target's literal one, so a name no known file has links nothing.
+func ownedExtensionless(known map[string]bool, base string) bool {
+	for relative := range known {
+		if path.Base(relative) == base {
+			return true
+		}
+	}
+	return false
 }

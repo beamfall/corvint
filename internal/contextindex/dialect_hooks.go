@@ -3,6 +3,7 @@ package contextindex
 import (
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
 	"github.com/Beamfall/corvint/internal/langplugin/dialect"
+	"github.com/Beamfall/corvint/internal/webdialect"
 	// The Ruby plugin registers its impact and region dialects on link; every
 	// binary that links this package links it (LGP-V0-025).
 	_ "github.com/Beamfall/corvint/internal/rubydialect"
@@ -18,7 +19,7 @@ func init() {
 		web := false
 		for _, d := range language.Dialects {
 			if d.Kind == decl.ImpactDialect && d.Rule == decl.ModuleImports {
-				dialect.RegisterImpact(d.Name, webImpact)
+				dialect.RegisterImpact(d.Name, webdialect.Impact(flowWebCodeLines))
 				web = true
 			}
 		}

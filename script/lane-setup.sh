@@ -10,6 +10,7 @@
 # ASD-V0-831, V1-3337); a hook it cannot install is named and exits 1 (the lane is still created).
 # It also turns rerere off in the lane worktree's own config, since every linked worktree shares
 # rr-cache and MERGE_RR.lock (ASD-V0-965, V1-3651); a config write it cannot make likewise exits 1.
+# Then script/merge-drivers.sh --install configures each .gitattributes merge driver (ASD-V0-571).
 # Last it judges the installed corvint against the new lane's base with script/lane-binary-check.sh
 # (ASD-V0-757, V1-3761): a STALE or UNVERIFIED binary is named with both builds and exits 1 (the
 # lane is still created); --rebuild-corvint rebuilds and installs it from the lane instead.
@@ -54,6 +55,12 @@ guard=$dir/script/check-ai-coauthor-trailers.sh
 [[ -x $guard ]] || guard=$here/check-ai-coauthor-trailers.sh
 if ! (cd "$dir" && "$guard" --install-hook); then
   printf 'lane-setup: %s was created, but the ai-trailer commit-msg hook was not installed; see above\n' "$dir" >&2
+  exit 1
+fi
+# ASD-V0-571 (V1-4167): the lane's checkout config gets each .gitattributes merge driver.
+drivers=$dir/script/merge-drivers.sh
+if [[ -x $drivers ]] && ! (cd "$dir" && "$drivers" --install); then
+  printf 'lane-setup: %s was created, but a merge driver is not configured; see above\n' "$dir" >&2
   exit 1
 fi
 if ! "$here/lane-binary-check.sh" ${rebuild[@]+"${rebuild[@]}"} "$dir"; then

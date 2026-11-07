@@ -123,9 +123,9 @@ func TestMigrateTracesQuarantinesTraceStrandedByAmend(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(directory, stranded+".jsonl"), row, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	amend := exec.Command("git", "commit", "-q", "--amend", "-m", "amended")
+	amend := fixtureGitCommand("commit", "-q", "--amend", "-m", "amended")
 	amend.Dir = root
-	amend.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
+	amend.Env = append(fixtureGitEnvironment(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
 	if output, err := amend.CombinedOutput(); err != nil {
 		t.Fatalf("git commit --amend: %v\n%s", err, output)
 	}
@@ -193,9 +193,9 @@ func bareMigrationRepository(t *testing.T) string {
 	for _, arguments := range [][]string{
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
-		command.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
+		command.Env = append(fixtureGitEnvironment(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
 		}

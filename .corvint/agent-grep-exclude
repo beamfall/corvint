@@ -1,0 +1,22 @@
+# Generated and data paths kept out of agent searches (ASD-V0-573, V1-3461). One Git glob
+# pathspec per line, relative to the repository root; script/agent-grep.sh excludes each, and
+# script/long-lines-check.sh accepts lines over 4 KB under them. Blank lines and # comments are
+# ignored. Source, specs and tests stay searched: list a long-line file there in
+# .corvint/long-line-allow instead.
+**/results/**
+**/testdata/**
+.agent-evidence/**
+.corvint/changes/**
+.taskman/**
+artifacts/**
+assets/**
+benchmarks/**
+conformance/use-cases-v0/receipts/**
+docs/experiments/*.json
+docs/specs/INDEX.json
+docs/specs/REQUIREMENTS.tsv
+evidence/**
+protocol/**/*.pack.json
+protocol/**/cases/**
+protocol/cem-1.0/stable/drift-resource-limit/**
+protocol/cem-completeness-1/maps/**

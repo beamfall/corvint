@@ -22,7 +22,7 @@
 // package or test is missing, repeated or unterminated:
 //
 //	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 16] [--log-shards N] [--target 0] LOG...
-//	ci-test-slices replay [--root DIR] [--shards 16] [--log-shards N] [--costs FILE] [--slices FILE] LOG...
+//	ci-test-slices replay [--root DIR] [--shards 16] [--log-shards N] [--costs FILE] [--slices FILE] [--parallel N] [--compile-link DURATION] LOG...
 //
 // --shards sets the output partition; --log-shards declares the complete source
 // run, allowing eight measured logs to rebalance a sixteen-shard partition.
@@ -49,7 +49,14 @@
 // Whatever cannot be enumerated stays whole.
 //
 // replay places the observed run with and without the --slices file and prints the
-// predicted per-shard sums of package time. A slice's predicted time is its
+// predicted per-shard sums of package time by default. With --parallel it uses
+// the shard's go test -p value for placement and predicts max(longest, sum/p),
+// plus an explicit common --compile-link allowance (CIN-V0-7620). For example:
+//
+//	ci-test-slices replay --shards 16 --parallel 4 --compile-link 6m shard-*.log
+//
+// These are predictions, not measured wall times; package elapsed times alone
+// cannot establish compile/link overhead. A slice's predicted time is its
 // package's observed time scaled by its tests' share of the package's summed
 // top-level test time; that share model is an inference, not a measurement.
 package main
@@ -118,10 +125,14 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	target := fs.Duration("target", 0, "generate: split packages slower than this (0: the ideal shard share)")
 	costs := fs.String("costs", "", "replay: placement cost table (default: the observed run)")
 	slices := fs.String("slices", "", "replay: slice file (default: ROOT/"+slicesPath+")")
+	parallel := fs.Int("parallel", 1, "replay: shard go test -p value, 1..64; e.g. replay --parallel 4 shard-*.log")
+	compileLink := fs.Duration("compile-link", 0, "replay: explicit common per-shard compile/link allowance; e.g. 6m (prediction only)")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
 	}
-	if (mode != "generate" && mode != "replay") || fs.NArg() == 0 || *shards < 2 || *shards > cishards.MaxShards || *target < 0 {
+	if (mode != "generate" && mode != "replay") || fs.NArg() == 0 || *shards < 2 || *shards > cishards.MaxShards || *target < 0 ||
+		*parallel < 1 || *parallel > cishards.MaxParallel || *compileLink < 0 ||
+		(mode == "generate" && (*parallel != 1 || *compileLink != 0)) {
 		return 2, errors.New("usage: ci-test-slices generate|replay [flags] LOG...")
 	}
 	if *logShards == 0 {
@@ -140,7 +151,13 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	if mode == "generate" {
 		return generate(ctx, obs, *root, *revision, *runURL, *shards, *target, notes)
 	}
-	return replay(obs, *root, *shards, *costs, *slices, out)
+	// Round the allowance upward too: a positive sub-millisecond estimate must
+	// not silently disappear from the predicted wall.
+	compileMS := compileLink.Milliseconds()
+	if *compileLink%time.Millisecond != 0 {
+		compileMS++
+	}
+	return replay(obs, *root, *shards, *costs, *slices, *parallel, compileMS, out)
 }
 
 type observation struct {
@@ -747,7 +764,7 @@ func replace(path string, raw []byte) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-func replay(obs *observation, root string, shards int, costsFile, slicesFile string, out io.Writer) (int, error) {
+func replay(obs *observation, root string, shards int, costsFile, slicesFile string, parallel int, compileMS int64, out io.Writer) (int, error) {
 	// ROOT is the tree the run tested: its allow-list and slice file say which
 	// packages ran as slices, whatever --slices places.
 	runAllow, _ := os.ReadFile(filepath.Join(root, allowPath))
@@ -789,11 +806,11 @@ func replay(obs *observation, root string, shards int, costsFile, slicesFile str
 	for p := range obs.packages {
 		universe = append(universe, p)
 	}
-	whole, err := cishards.PlanFrom(universe, shards, costsRaw, allowRaw, nil)
+	whole, err := cishards.PlanFromParallel(universe, shards, parallel, costsRaw, allowRaw, nil)
 	if err != nil {
 		return 2, err
 	}
-	sliced, err := cishards.PlanFrom(universe, shards, costsRaw, allowRaw, slicesRaw)
+	sliced, err := cishards.PlanFromParallel(universe, shards, parallel, costsRaw, allowRaw, slicesRaw)
 	if err != nil {
 		return 2, err
 	}
@@ -804,8 +821,11 @@ func replay(obs *observation, root string, shards int, costsFile, slicesFile str
 	fmt.Fprintf(out, "universe %d packages %.1fs ideal %.1fs over %d shards\n", len(universe), seconds(obs.total()), seconds(obs.total()/int64(shards)), shards)
 	fmt.Fprintf(out, "units    %s\n", units)
 	fmt.Fprintf(out, "observed %s\n", sums(obs.files))
-	fmt.Fprintf(out, "whole    %s\n", sums(predict(obs, whole)))
-	fmt.Fprintf(out, "sliced   %s\n", sums(predict(obs, sliced)))
+	if parallel != 1 || compileMS != 0 {
+		fmt.Fprintf(out, "model    parallel=%d compile-link=%.3fs (predicted wall; observed and ideal above are serial package sums)\n", parallel, seconds(compileMS))
+	}
+	fmt.Fprintf(out, "whole    %s\n", sums(predict(obs, whole, parallel, compileMS)))
+	fmt.Fprintf(out, "sliced   %s\n", sums(predict(obs, sliced, parallel, compileMS)))
 	for i, s := range sliced {
 		for _, sl := range s.Slices {
 			fmt.Fprintf(out, "slice    shard=%d %s#%d/%d %s %d tests predicted=%.1fs planned=%.1fs\n", i, sl.Package, sl.Index, sl.Count, sl.Flag, members(obs, sl), seconds(sliceTime(obs, sl)), seconds(sl.Milliseconds))
@@ -861,15 +881,23 @@ func placedOnce(universe []string, plan []cishards.Shard) (string, error) {
 	return fmt.Sprintf("%d placed exactly once: %d whole packages, %d test slices", len(whole)+n, len(whole), n), nil
 }
 
-func predict(obs *observation, plan []cishards.Shard) []int64 {
+// predict includes each whole package and each slice once. Wall is
+// scaled by parallel; round upward instead of truncating fractional milliseconds.
+func predict(obs *observation, plan []cishards.Shard, parallel int, compileMS int64) []int64 {
 	out := make([]int64, len(plan))
 	for i, s := range plan {
+		var sum, longest int64
 		for _, p := range s.Packages {
-			out[i] += obs.packages[p]
+			ms := obs.packages[p]
+			sum += ms
+			longest = max(longest, ms)
 		}
 		for _, sl := range s.Slices {
-			out[i] += sliceTime(obs, sl)
+			ms := sliceTime(obs, sl)
+			sum += ms
+			longest = max(longest, ms)
 		}
+		out[i] = (cishards.Wall(sum, longest, parallel)+int64(parallel)-1)/int64(parallel) + compileMS
 	}
 	return out
 }

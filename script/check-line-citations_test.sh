@@ -431,9 +431,10 @@ printf '// unstaged\n' >> "$test_root/internal/demo/demo.go"
 rc=0
 output=$(run) || rc=$?
 [ "$rc" = 1 ] || fail "the ordered failing run exited $rc, not 1: $output"
+# ASD-V0-578: the fix line names make repin first and --repin as the citation-only alternative.
 expected_head="line citations: 1 citation(s) do not resolve:
   docs/agent-memory/fixture.md:3  \`$span\`  cited content moved unchanged to \`internal/demo/demo.go:5-6@$pin\` (script/check-line-citations.sh --repin rewrites it)
-line citations: fix: 1 citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check
+line citations: fix: 1 citation(s) moved unchanged; run make repin, the one command for every mechanical repin, or script/check-line-citations.sh --repin alone (both stage the documents they rewrite), then rerun make line-citations-check
 line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it
 line citations: note: skipped 1 citation(s) whose basename is not tracked at repository root (--verbose lists them)
 line citations: note: this gate reads the Git index, so unstaged edits to 1 file(s) it read were not checked (git add them to include them):

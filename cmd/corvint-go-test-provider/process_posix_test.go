@@ -84,9 +84,13 @@ func TestDirectCommandHelper(t *testing.T) {
 		if err := command.Start(); err != nil {
 			os.Exit(94)
 		}
+		// Wait for the PID itself, not the file: os.WriteFile creates the
+		// file before writing it, and the group cleanup after this leader
+		// exits can stop the child in between, leaving an empty handoff.
 		deadline := time.Now().Add(time.Second)
 		for {
-			if _, err := os.Stat(os.Getenv("DIRECT_COMMAND_READY")); err == nil {
+			raw, err := os.ReadFile(os.Getenv("DIRECT_COMMAND_READY"))
+			if pid, parseErr := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && parseErr == nil && pid > 0 {
 				break
 			}
 			if time.Now().After(deadline) {

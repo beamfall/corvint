@@ -538,3 +538,14 @@ Examples:
 		t.Fatalf("inline usage synopses = %q", inline)
 	}
 }
+
+// TestCAPV07701PulseRequiredPreamble pins the exact V1-3781 report.
+func TestCAPV07701PulseRequiredPreamble(t *testing.T) {
+	b := NewBuilder("corvint-pulse")
+	b.AddForm("corvint-pulse --root ROOT serve", "Serve Pulse")
+	tree := b.Tree("corvint-pulse help --json", "test", nil, nil, nil)
+	n, ok := tree.Find([]string{"serve"})
+	if !ok || !slices.Equal(n.Path, []string{"serve"}) || !slices.Equal(n.Required, []string{"--root ROOT"}) || n.Example != "corvint-pulse --root ROOT serve" {
+		t.Fatalf("required preamble: %+v %v", n, ok)
+	}
+}

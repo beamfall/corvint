@@ -1,0 +1,52 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-test-validity-mcp",
+  "helpJson": "corvint-test-validity-mcp help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-test-validity-mcp"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-test-validity-mcp",
+      "summary": "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-test-validity-mcp --version\nA local read-only stdio MCP server for the experimental test-validity tools of the Git worktree at ROOT.\nDeprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile test-validity\nserves the same tools with the same results.\nExample: corvint-test-validity-mcp --root /absolute/repo",
+      "usage": [
+        "corvint-test-validity-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25] [--help] [-h]",
+        "corvint-test-validity-mcp --version"
+      ],
+      "flags": [
+        "--help",
+        "--protocol-version",
+        "--root",
+        "--version",
+        "-h"
+      ],
+      "required": [
+        "--root ROOT"
+      ],
+      "example": "corvint-test-validity-mcp --root ROOT",
+      "help": "corvint-test-validity-mcp --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-test-validity-mcp help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-test-validity-mcp help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-test-validity-mcp help --json",
+      "help": "corvint-test-validity-mcp help --help"
+    }
+  ]
+}

@@ -26,6 +26,13 @@ var gitIsolation = [][2]string{
 // (V1-1030). A test that exercises ambient configuration or identity sets its
 // own values with t.Setenv, which override these.
 func IsolateGit() {
+	// Caller dates override fixture clocks just as caller names override config.
+	// Leave dates unset so each fixture can pin its own clock (V1-4719).
+	for _, name := range []string{"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} {
+		if err := os.Unsetenv(name); err != nil {
+			panic("testsupport.IsolateGit: " + err.Error())
+		}
+	}
 	for _, variable := range gitIsolation {
 		if err := os.Setenv(variable[0], variable[1]); err != nil {
 			panic("testsupport.IsolateGit: " + err.Error())

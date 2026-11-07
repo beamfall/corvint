@@ -123,6 +123,18 @@ repository policy may consume a complete receipt, but Corvint does not invent or
 
 ## Requirements
 
+- `LPCV-V0-7705`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3938)
+  An unrecognized `test-validity --receipt` kind MUST list accepted JavaScript provider
+  documents, completed `corvint-go-live-session-event/0` events and
+  `corvint-ruby-test-provider/0` documents, naming their producer commands. A recognizable
+  plain Playwright JSON report (`config` object and `suites` array) MUST be identified as such
+  and routed to `corvint-js-test-provider e2e --external-server --config FILE` and its
+  `qualified-reporter.cjs`. It MUST NOT invent a conversion or admit plain reports as receipts:
+  reporter observations require a new bound run. Input contents MUST NOT be echoed. Test:
+  `TestLPCVV07705PlainPlaywrightReceiptGuidance`. Rollback restores only refusal prose;
+  receipt-kind admission, canonicality and evidence authority remain unchanged.
+
+
 ### Snapshot identity and event ordering
 
 - `LPCV-V0-001`: Every edit event MUST produce or reference one WSI before selection begins.
@@ -681,19 +693,29 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 `LPCV-V0-020`.
 
 - `LPCV-V0-7600`: (accepted under standing implementation authority, V1-4379) Go collection
-  uses scratch overlays to dump/reset atomic counters at serial top-level test windows, including
-  cleanup. Each record unions isolated and in-order reach; reach absent from that same test's
+  uses scratch overlays to dump cumulative atomic counters at serial top-level test entry and
+  cleanup, without resetting counters. The independent suite exit profile retains all reach.
+  Each record unions isolated and in-order reach; reach absent from that same test's
   isolated record retains preceding tests as prerequisites, even if another test reaches it alone. Parallel, unsupported entry points or missing instrumentable source
   retain the suite union with a named reason. Setup, teardown and child reach retain the residual
-  union owner. Residual: counts from a goroutine leaked by a test after its window dump can be
-  lost when the next window clears counters; this does not qualify concurrent goroutine attribution.
+  union owner. Reach between cleanup and the next entry, or after the last cleanup, has unknown
+  ownership and MUST be retained for every test, even when another isolated test reaches it.
+  Missing or decreasing snapshots conservatively retain the reset-free suite reach on every test;
+  no incomplete attribution may support exclusion. This does not qualify concurrent goroutine attribution.
   Invalid dumps retain `window-dump-invalid` rather than a secondary missing-window reason.
-  Witness: `TestInOrderWindows`, `TestInvalidWindowDumpReason`, `TestFaultInjection`.
+  Witness: `TestInOrderWindows`, `TestInvalidWindowDumpReason`, `TestBetweenWindowReach`, `TestFaultInjection`.
 - `LPCV-V0-7601`: (accepted under standing implementation authority, V1-4380) The Go collector
   observes os/exec launches in its scratch toolchain overlay. A child without coverage build
-  metadata, with a different coverage destination, or without completed counters rejects the
-  record as `uninstrumented-child` or `missing-child-counters`; a child that is instrumented logs
-  `covered-child`. Build-tool processes are exempt;
+  metadata and a digest-bound successful build proving the collector's exact module-wide
+  coverage selector and audit overlay, with a different coverage destination, or without completed counters rejects the
+  record as `uninstrumented-child` or `missing-child-counters`. The scratch audit marks an
+  instrumented launch `covered-child`; that observation alone is not a completed-counter receipt.
+  A child instrumenting only its main package is incomplete even when it writes counters.
+  Build flags and environment are frozen before launch; proof is consumed once and requires
+  that Wait itself to succeed. A private reference build with those frozen settings supplies
+  the digest; delaying the first Wait or replaying Wait cannot certify replacement output.
+  Unknown flags, quoted GOFLAGS or unobserved builds produce no instrumentation proof.
+  Build-tool processes are exempt;
   unknown launchers conservatively reject the record. This implements the detection rule of
   `LPCV-V0-954`; no parent-only record supports exclusion. Witness: `TestUninstrumentedChild`.
 - `LPCV-V0-7602`: (accepted under standing implementation authority, V1-4423) Language collectors
@@ -735,11 +757,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-7607`: (accepted under standing implementation authority, V1-4372) `linecov watch`
   consumes foreground save events and replans staged, unstaged and untracked working-tree edits
   against the immutable index commit with the same analyzers and fallbacks. Native Linux
-  directory events observe close-write and atomic replacement; other platforms use explicit
+  directory events observe close-write and atomic replacement, including existing untracked and
+  newly created or moved directory trees. Lost events force a recursive watch rescan before the
+  next replan; failure to restore complete watches stops automatic watching. Other platforms use explicit
   editor stdin notifications or one-shot execution. Native output and per-run results stream;
   failures do not prevent the next save from repairing them. Every event is user-scoped and
   ineligible to close a CI gate. Non-Go effective runs retain the unqualified static suite.
-  Witness: `TestWatchWorkingTree`, `TestWatchIgnoredGoSource`, `TestNativeSaveNotification`.
+  Witness: `TestWatchWorkingTree`, `TestWatchIgnoredGoSource`, `TestNativeSaveNotification`, `TestNativeNewDirectorySaves`, `TestNativeLostDirectoryEvents`.
 - `LPCV-V0-950`: (accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** names one test identity (`LPCV-V0-022`), the runner
   and its exact version, the instrumentation mode, the commit and the Git blob OID of every source
   file the instrumented process tree could report, and per such file the executed line ranges with a
@@ -973,7 +997,7 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   the fixture serves on `[::1]` for that reason. Evidence: `make plugin-test PLUGIN=typescript`.
 
 - `LPCV-V0-8300`: (experimental, V1-4430; refines LPCV-V0-965 and LPCV-V0-973) Browser and Node V8 block attribution MUST share one innermost-range painter. The shared UTF-16 states MUST distinguish units outside every range from unexecuted units, clip ranges to source bounds and preserve equal-span input order. Existing wire types and line/block outputs remain unchanged. Acceptance: `TestPaintInnermostWins`, `TestPaintUnits`, `TestE2EPlaywright` and `TestE2ECypress`. Rollback: restore the two previous private painters together, retaining their regression expectations.
-- `LPCV-V0-8301`: (experimental, V1-4431; refines LPCV-V0-979) Remaining browser collector limits MUST be recorded explicitly with their observation boundary. When an anonymous script is supplied to attribution, it MUST refuse with `script without a URL cannot bind coverage`. Browser and Node collection still do not observe anonymous eval/new Function scripts: Playwright keeps anonymous reporting off, Cypress drops empty URLs, and Node dumps have neither source nor attribution provenance for empty URLs, because framework-owned anonymous evaluation cannot yet be separated from application evaluation without invalidating the frozen E2E completeness assertions. That collection criterion remains PARTIAL, not qualified. A Node build output absent from the indexed tree MUST remain incomplete even with an on-disk source map. A Cypress target detached after parsing possible application code but before taking coverage MUST record `cdp-detached`; pending requests for that target, or for a closed transport, MUST reject so collection cannot wait forever on them. An unexpected transport close MUST record `cdp-detached` even after a successful take, since already-parsed code can run again without a new parse; the closed state MUST persist and every later take MUST refuse, while the collector's own close records nothing. Acceptance: `TestAnonymousScriptIncomplete`, `TestBuildOutputMapRemainsIncomplete`, `TestHookRendererSwapIncomplete` and its real-hook offline CDP fixture. Rollback: revert the additional anonymous-attribution refusal and pending-command cleanup; retain the documented unobserved boundary and existing incomplete paths.
+- `LPCV-V0-8301`: (experimental, V1-4431; refines LPCV-V0-979) Remaining browser collector limits MUST be recorded explicitly with their observation boundary. When an anonymous script is supplied to attribution, it MUST refuse with `script without a URL cannot bind coverage`. Browser and Node collection still do not observe anonymous eval/new Function scripts: Playwright keeps anonymous reporting off, Cypress drops empty URLs, and Node dumps have neither source nor attribution provenance for empty URLs, because framework-owned anonymous evaluation cannot yet be separated from application evaluation without invalidating the frozen E2E completeness assertions. That collection criterion remains PARTIAL, not qualified. A Node build output absent from the indexed tree MUST remain incomplete even with an on-disk source map. A Cypress target detached after parsing possible application code but before taking coverage MUST record `cdp-detached`; pending requests for that target, or for a closed transport, MUST reject so collection cannot wait forever on them. An unexpected transport close MUST record `cdp-detached` even after a successful take, since already-parsed code can run again without a new parse; the closed state MUST persist and every later take MUST refuse, while the collector's own close records nothing. Subsequent requests on a closed transport MUST reject immediately, including the remaining source requests in a multi-script take. Acceptance: `TestAnonymousScriptIncomplete`, `TestBuildOutputMapRemainsIncomplete`, `TestHookRendererSwapIncomplete` and its real-hook offline CDP fixture, including close during source retrieval. Rollback: revert the additional anonymous-attribution refusal and pending-command cleanup; retain the documented unobserved boundary and existing incomplete paths.
 
 | Remaining limit | Observation / incomplete evidence | Fixture |
 |---|---|---|
@@ -993,6 +1017,26 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-8206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Native coverage exports are bounded to 4 MiB each and 32 processes, restricted to an explicit tracked repository-relative source mapping, and unioned into the unchanged linecov profile/index format. Missing source mappings refuse rather than silently erase repository coverage. Zero-hit lines survive union; malformed and negative counts refuse. Collection scratch directories are private and fresh, never recursively deleting caller-owned paths.
 - `LPCV-V0-8207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Fixture selection binds explicit executable body boundaries to the indexed base blob. Covered edits select their owners, zero-hit edits select none, insertions check both neighbours, and uncovered body lines select all tests reaching that body. Missing or mismatched boundaries, declarations and structural edits keep the static plan. Production exclusion remains disabled for every native family until LPCV-V0-963 passes on its pinned real repository. Fixture fault tests are development evidence only.
 
+### Native live qualification follow-up (V1-4369, V1-4370, V1-4371, V1-4375, V1-4376)
+
+- `LPCV-V0-9400`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4371) Inventory-based native collectors preserve the caller's expected identity inventory when constructing their ordinary-suite invocation. Boost.Test retains that inventory during isolation; cmocka narrows it to the sole selected identity as required by its existing native filter contract. A missing inventory still refuses; collection never invents an inventory from an incomplete terminal report.
+- `LPCV-V0-9401`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Opt-in Linux live evidence retains original native terminal reports, coverage exports and event-driven process launch/retirement observations from controlled projects. A stock build/runner launcher without its own native export remains uninstrumented, even if its child writes a profile. Live export decoding and controlled-project selection are development evidence, not the pinned-real-repository fault-injection qualification in LPCV-V0-963. Every native family's production exclusion remains disabled. Missing toolchain dependencies, process dumps, official checksum material and Xcode on Linux remain explicit gaps.
+- `LPCV-V0-9402`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369) Simple top-level JVM discovery IDs with an unescaped class and zero-argument method are isolated through ConsoleLauncher's exact class#method selector. The collector does not rely on an unsupported unique-ID CLI option for those tests. Nested, dynamic, escaped and parameterized IDs still require an explicit caller selector mapping or refuse; exact passing identity verification is unchanged.
+
+The live harness uses operator-provided tools only, writes its owned projects beneath private
+scratch, and retains raw receipts outside the repository. It does not install tools through Core,
+change native report formats, admit unobserved launchers, or relax the existing qualification gate.
+Failure to observe a complete process tree or to export every process preserves static selection.
+Executable-image history is cumulative within each PID: a later covered Java image cannot
+erase an earlier uninstrumented launcher. PID-scoped sessions cannot independently prove repeated
+Java images in one PID. The positive JVM controlled-project witness explicitly uses the JDK's
+FORK launch mechanism; default POSIX_SPAWN's uninstrumented jspawnhelper remains a refusal.
+Native candidate analysis also requires a source-provider eligibility classification bound to
+both blob OIDs and the complete hunk list. Body boundaries alone do not classify macros or
+structural changes. Unavailable or stale classification keeps the static plan. Controlled
+literal-return mutants supply explicit fixture classifications, not a qualified native parser.
+Rollback removes the opt-in harness and inventory preservation fix; it never enables exclusion.
+
 The implementation is `internal/nativelinecov`, shared by the five families; it adds no command,
 wire member or index version. The execution/capture boundary deliberately accepts the existing
 native report input and native coverage formats, not a synthetic per-test report protocol.
@@ -1005,7 +1049,10 @@ index and static selection remain compatible.
 |---|---|
 | LPCV-V0-8200..8204 | `internal/nativelinecov`: `TestCollectorFamilies`, `TestInstrumentation`, `TestNativeReports` |
 | LPCV-V0-8205..8206 | `TestCollectorRefusals`, `TestProcessCoverage`, `TestNativeReports` |
-| LPCV-V0-8207 | `TestSelectionFaults` |
+| LPCV-V0-8207 | `TestSelectionFaults`, `TestNativeEditClassification` |
+| LPCV-V0-9400 | `TestCollectorInventories`, opt-in `TestNativeLiveCMocka` |
+| LPCV-V0-9401 | opt-in `TestNativeLiveFamilies`, `TestLiveTraceRefusals`, `TestLiveImageHistory` |
+| LPCV-V0-9402 | `TestJUnitMethodSelectors`, opt-in `TestNativeLiveFamilies` |
 
 Failure modes for this section:
 
@@ -2416,3 +2463,5 @@ through this projection, including the Corvint formatter's inclusion frames (`LP
 Rollback: revert the V1-2045 and V1-2046 change. `location` and `static` disappear from projected
 documents, `--static` is refused as an unknown option, and every other member is unchanged; no
 retained document or receipt format changes.
+
+| LPCV-V0-7705 | `internal/testvaliditydoc.unrecognizedProvider` | `TestLPCVV07705PlainPlaywrightReceiptGuidance` |

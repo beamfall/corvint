@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -19,7 +18,7 @@ func TestGPKV0880SuffixRefusalNamesAffectedForDirectoryAndMakefile(t *testing.T)
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"add", "Makefile"}, {"commit", "-qm", "add Makefile"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

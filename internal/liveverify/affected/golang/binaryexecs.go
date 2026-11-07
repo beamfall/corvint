@@ -2,6 +2,7 @@ package golang
 
 import (
 	"bytes"
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
@@ -52,32 +53,67 @@ const BinaryConsumersProfile = "corvint-test-binary-consumers/0"
 // a file of its own, so a planner that predates it ignores it rather than
 // refusing affected.BinaryExecsPath.
 type binaryConsumersFile struct {
-	Profile   string              `json:"profile"`
-	Consumers map[string][]string `json:"consumers"`
+	Profile   string                    `json:"profile"`
+	Consumers map[string]jsontext.Value `json:"consumers"`
 }
 
 // readBinaryConsumers returns the declared consumers: nil with no
 // declaration, an error for one that is unreadable, oversized or invalid in
 // any member, under the packages entry grammar.
 func readBinaryConsumers(root *affected.Source) (map[string][]string, error) {
+	commands, _, err := readRunnableBinaryConsumers(root)
+	return commands, err
+}
+
+func readRunnableBinaryConsumers(root *affected.Source) (map[string][]string, map[string][]string, error) {
 	body, err := root.ReadBounded(affected.BinaryConsumersPath, maxBinaryExecBytes)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var declared binaryConsumersFile
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if declared.Profile != BinaryConsumersProfile || len(declared.Consumers) == 0 || len(declared.Consumers) > maxBinaryExecPackages {
-		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d consumers", affected.BinaryConsumersPath, BinaryConsumersProfile, maxBinaryExecPackages)
+		return nil, nil, fmt.Errorf("%s: profile must be %s with 1 to %d consumers", affected.BinaryConsumersPath, BinaryConsumersProfile, maxBinaryExecPackages)
 	}
-	if err := validExecEntries(declared.Consumers); err != nil {
-		return nil, err
+	commands := make(map[string][]string)
+	runs := make(map[string][]string)
+	for file, body := range declared.Consumers {
+		if len(body) != 0 && body[0] == '[' {
+			var entries []string
+			if err := json.Unmarshal(body, &entries); err != nil {
+				return nil, nil, err
+			}
+			commands[file] = entries
+		} else {
+			var entry struct {
+				Commands []string       `json:"commands"`
+				Run      jsontext.Value `json:"run"`
+			}
+			if err := json.Unmarshal(body, &entry, json.RejectUnknownMembers(true)); err != nil {
+				return nil, nil, err
+			}
+			commands[file] = entry.Commands
+			if entry.Run != nil {
+				var run []string
+				if err := json.Unmarshal(entry.Run, &run); err != nil {
+					return nil, nil, err
+				}
+				if !affected.ValidConsumerRun(run) {
+					return nil, nil, fmt.Errorf("%s: consumer %q invalid run", affected.BinaryConsumersPath, file)
+				}
+				runs[file] = run
+			}
+		}
 	}
-	return declared.Consumers, nil
+	if err := validExecEntries(commands); err != nil {
+		return nil, nil, err
+	}
+	return commands, runs, nil
 }
 
 // validExecEntries checks each key and its 1 to 256 strictly ascending
@@ -117,7 +153,7 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 		frontier[FrontierBinaryExecsInvalid] = true
 	}
 	// A consumer declaration defect drops only its own entries (AFP-V0-762).
-	consumers, consumersErr := readBinaryConsumers(root)
+	consumers, runs, consumersErr := readRunnableBinaryConsumers(root)
 	var callers map[string][]string
 	if consumersErr == nil {
 		callers, consumersErr = matchBinaryConsumers(consumers, commands)
@@ -127,14 +163,33 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 		callers = nil
 	}
 	for index := range units {
+		// A declared edge does not say which file runs the binary, so it is
+		// never test-only (AFP-V0-2991).
 		for _, id := range declaredEdges[index] {
 			edges[index][id] = true
 		}
 		if len(edges[index]) != 0 {
 			units[index].Execs = sortedKeys(edges[index])
+			testOnly := map[string]bool{}
+			for id, code := range edges[index] {
+				if !code {
+					testOnly[id] = true
+				}
+			}
+			if len(testOnly) != 0 {
+				units[index].TestOnlyExecs = sortedKeys(testOnly)
+			}
 		}
 		if files := callers[units[index].ID]; len(files) != 0 {
 			units[index].ExecConsumers = files
+			for _, file := range files {
+				if run := runs[file]; len(run) != 0 {
+					if units[index].ExecConsumerRuns == nil {
+						units[index].ExecConsumerRuns = make(map[string][]string)
+					}
+					units[index].ExecConsumerRuns[file] = run
+				}
+			}
 		}
 	}
 }
@@ -165,7 +220,10 @@ func matchBinaryConsumers(consumers map[string][]string, commands map[string]str
 // (AFP-V0-402). A literal that is only an argument of a proven `go list`
 // call, which listed holds by file, lists the command's import graph and
 // runs no binary: it adds no edge here (AFP-V0-2200). Only files that name a
-// command are parsed in full.
+// command are parsed in full. Each command maps to true when a non-test file
+// uses it, which the unit's code may run, and to false when only test files
+// do (AFP-V0-2991): the sources are searched first, so a command they use is
+// never test-only, and an unparsed source names every candidate.
 func literalExecs(root *affected.Source, unit affected.Unit, directory string, owner module, commands map[string]string, listed map[string]goListFile) map[string]bool {
 	candidates := map[string]string{}
 	for _, value := range unit.PathTokens {
@@ -181,9 +239,9 @@ func literalExecs(root *affected.Source, unit affected.Unit, directory string, o
 	if len(candidates) == 0 {
 		return edges
 	}
-	for _, relative := range slices.Concat(unit.Sources, unit.Tests) {
+	for index, relative := range slices.Concat(unit.Sources, unit.Tests) {
 		for target := range usedCommandLiterals(root, relative, directory, owner, candidates, listed[relative].listed) {
-			edges[candidates[target]] = true
+			edges[candidates[target]] = index < len(unit.Sources)
 			delete(candidates, target)
 		}
 		if len(candidates) == 0 {

@@ -29,6 +29,7 @@ type citationMap struct {
 	} `json:"evidence"`
 	Hunks []struct {
 		ID          string `json:"id"`
+		Path        string `json:"path"`
 		Disposition string `json:"disposition"`
 		Reason      string `json:"reason"`
 		Basis       []struct {

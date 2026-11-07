@@ -98,6 +98,9 @@ func runtimeEdgeHolds(entry, path string) bool {
 // applyRuntimeEdges adds each declared edge's Runs to the Execs of every unit
 // with a test file the edge holds, so the unit is selected with a BINARY_EXEC
 // witness whenever a change reaches the unit it runs (AFP-V0-037, AFP-V0-819).
+// A test file holds the edge, so an edge the unit's code does not already
+// run is test-only (TestOnlyExecs, AFP-V0-2991): it adds the unit one level
+// past what reaches the run unit and walks no further.
 // An edge whose Runs names no unit of the graph, or whose tests hold no test
 // file, fails a full build: a stale declaration must not silently stop
 // selecting. A partial graph, built from a subset of the plugins, cannot tell
@@ -128,6 +131,8 @@ func (graph *Graph) applyRuntimeEdges(partial bool) error {
 			if !slices.Contains(unit.Execs, edge.Runs) {
 				unit.Execs = append(slices.Clone(unit.Execs), edge.Runs)
 				slices.Sort(unit.Execs)
+				unit.TestOnlyExecs = append(slices.Clone(unit.TestOnlyExecs), edge.Runs)
+				slices.Sort(unit.TestOnlyExecs)
 				graph.units[id] = unit
 			}
 		}

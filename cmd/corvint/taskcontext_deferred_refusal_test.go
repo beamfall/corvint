@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -35,7 +34,7 @@ func TestCompileTaskContextRefusesAfterInstructionReads_IDXSNAPV0814(t *testing.
 		}
 	}
 	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.test", "commit", "-qm", "fixture"}} {
-		command := exec.Command("git", args...)
+		command := fixtureGitCommand(args...)
 		command.Dir = root
 		if out, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v: %s", args, err, out)

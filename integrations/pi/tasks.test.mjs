@@ -174,6 +174,15 @@ test('PWV-V0-018/019 writer grace and REDO_PENDING reconciliation',async t=>{
  assert.equal((await service.command({...request,requestId:'malformed',input:{...request.input,expectedRevision:'2'}},ctx)).fault,'reconciliation-unavailable','other refusals stay unavailable');
 });
 
+test('PWV-V0-8302 create and refine reject malformed envelopes before native dispatch',async t=>{
+ const {service,ctx,calls}=await setup(t);
+ for(const operation of ['ticket create','ticket refine']) {
+  const r=await service.command({operation,requestId:'closed-'+operation.replace(' ','-'),input:{requiredRoles:['OPERATOR'],requiresPool:true}},ctx);
+  assert.equal(r.fault,'invalid-input');assert.equal(r.mutation,'not-attempted');
+ }
+ assert.deepEqual(calls,[]);
+});
+
 test('PWV-V0-8102 operator create and refine use native payloads, CAS and durable same-ID recovery',async t=>{
  for(const operation of ['ticket create','ticket refine'])await t.test(operation,async t=>{
   const f=await setup(t),payload=operation==='ticket create'?{title:'Approved task',kind:'BUG',priority:'P2',order:'0'}:{title:'Approved refinement'};

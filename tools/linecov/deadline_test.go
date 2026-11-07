@@ -2,12 +2,13 @@
 package main
 
 import (
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // LPCV-V0-7603: qualification passes exactly the recorded deadline to mutants.

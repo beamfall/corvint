@@ -74,6 +74,14 @@ expect "FAIL map""file script/tool:2:" "$tmp/out"
 absent 'tool.py' "$tmp/out"
 /bin/rm -f "$repo/script/tool" "$repo/script/tool.py"
 
+# 4b. A binary file whose first line is not UTF-8 (a PNG signature) is read as bytes and not
+# listed, under a UTF-8 locale where BSD awk refuses an invalid multibyte record (V1-4553).
+utf8=$(locale -a 2>/dev/null | grep -i -m 1 -E '^(c|en_us)\.utf-?8$' || true)
+printf '\211PNG\r\n\032\n' > "$repo/image.png"
+LC_ALL=${utf8:-C} run_gate || { cat "$tmp/out" >&2; fail "a binary first line stopped the script finder (locale ${utf8:-C})"; }
+expect 'check-bash32: ok, 0 scripts' "$tmp/out"
+/bin/rm -f "$repo/image.png"
+
 # 5. Comment lines, quoted operators and the allow marker pass; Bash 3.2 forms pass.
 {
   echo '#!/usr/bin/env bash'

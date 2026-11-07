@@ -169,13 +169,41 @@ func PinDir(root *os.Root) (*os.File, error) {
 // InDir opens one path component beneath a PinDir descriptor with the same
 // validation, flags and errors as InRoot's final step. It never descends.
 func InDir(dir *os.File, name string, flags int, perm os.FileMode) (*os.File, error) {
-	if name != "." && (!filepath.IsLocal(name) || filepath.Clean(name) != name || strings.Contains(name, "\\")) {
-		return nil, fmt.Errorf("unclean relative path %q", name)
-	}
-	if strings.Contains(name, "/") {
-		return nil, fmt.Errorf("pinned directory opens one component, not %q", name)
+	if err := oneComponent(name); err != nil {
+		return nil, err
 	}
 	return child(dir, name, flags, perm)
+}
+
+// oneComponent refuses anything but one clean path component.
+func oneComponent(name string) error {
+	if name != "." && (!filepath.IsLocal(name) || filepath.Clean(name) != name || strings.Contains(name, "\\")) {
+		return fmt.Errorf("unclean relative path %q", name)
+	}
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("pinned directory opens one component, not %q", name)
+	}
+	return nil
+}
+
+// PinTraversalRoot pins the filesystem root with the traversal-only handle
+// Root itself starts from. With StepDir, LstatIn, ReadlinkIn and InDir a
+// caller resolves an absolute path one pinned component at a time without
+// reading any ancestor: on Linux the handles are O_PATH, which needs no
+// directory read access (Landlock READ_DIR), and only the final InDir open
+// does (ASD-V0-2421). The caller closes it.
+func PinTraversalRoot() (*os.File, error) {
+	return os.OpenFile("/", traversalFlags|syscall.O_NOFOLLOW, 0)
+}
+
+// StepDir pins name, one directory component beneath the traversal handle
+// dir, with another traversal-only handle. A symbolic link or a
+// non-directory fails. The caller closes it.
+func StepDir(dir *os.File, name string) (*os.File, error) {
+	if err := oneComponent(name); err != nil {
+		return nil, err
+	}
+	return child(dir, name, traversalFlags, 0)
 }
 
 // PinSubDir opens sub, one directory component beneath root, exactly as

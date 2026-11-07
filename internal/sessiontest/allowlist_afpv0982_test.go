@@ -3,6 +3,7 @@ package sessiontest
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,11 +19,14 @@ import (
 // alone fails here. The one named exception is a well-formed unobserved-module
 // frontier, which both sides read through gateselect.UnobservedModule: the
 // driver admits it, and the shadow runs the module's own suite outside the ci
-// profile. The table holds every reason the planner emits and every Go frontier
+// profile and names it as a check on the ci profile (AFP-V0-2742). The table holds every reason the planner emits and every Go frontier
 // detail it reports, beside non-Go frontiers. The other named exception is a
 // well-formed UNSELECTED_BINARY_CONSUMER, which both sides read through
 // gateselect.BinaryConsumer (V1-4361): the driver admits it, and Build names it
 // as a check on every profile (STR-V0-750) rather than through the allowlist.
+// The third is a non-Go, non-driver frontier, which both sides read through
+// gateselect.FrontierSuite (AFP-V0-2750): the driver narrows and names its
+// language in a `suite` line, and Build adds that language's declared suite.
 func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 	root := t.TempDir()
 	for name, body := range map[string]string{
@@ -44,6 +48,7 @@ func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 		"go:module-path-unresolved", "go:included-directory-walk-bounded", "go:test-read-scopes-invalid",
 		"go:test-binary-execs-invalid", "go:gated-root-locators-invalid", "go:gated-root-locators-changed",
 		"typescript:dynamic-import:a.ts:1", "shell:foreign-invocation-unmodelled", "cfamily:jni-boundary", "",
+		"driver:unparsable-file", "ruby", "Ruby:implicit-test-dependency:x", "ruby :x", ":x",
 	}
 	type entry struct{ reason, detail string }
 	var entries []entry
@@ -74,6 +79,12 @@ func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 		if _, consumer := binaryConsumer(Unknown{Reason: e.reason, Detail: e.detail}); consumer {
 			if !driver || shadow {
 				t.Errorf("%s %q: a binary consumer: driver narrows=%v, shadow allowlist=%v, want true and false", e.reason, e.detail, driver, shadow)
+			}
+			continue
+		}
+		if language, suite := frontierSuite(Unknown{Reason: e.reason, Detail: e.detail}); suite {
+			if !driver || shadow || !slices.Contains(lines, "suite "+language+" <- "+e.detail) {
+				t.Errorf("%s %q: a non-Go frontier: driver narrows=%v with lines %q, shadow allowlist=%v, want a run naming suite %s and false", e.reason, e.detail, driver, lines, shadow, language)
 			}
 			continue
 		}

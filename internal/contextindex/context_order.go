@@ -12,8 +12,7 @@ import (
 // (docs/specs/context-ranking-v0.md, CRK-V0-004..008). Unset, `off` or any
 // other value leaves decision 0027's corroboration order and the packet bytes
 // unchanged. Neither ordering admits, withholds or caps a row: membership is
-// the slots' (TCP-V0-049), and only the order the `--limit` truncation follows
-// changes.
+// the slots' (TCP-V0-049), and only the final ordinary row order changes.
 
 // contextRRFConstant is TCP-V0-048's k, fixed before any reading.
 const contextRRFConstant = 60
@@ -147,6 +146,26 @@ func (compiler *taskContextCompiler) fuseSelectedRows(rows []contextRow) []conte
 		positions = append(positions, position)
 	}
 	ordinary = compiler.fuseRanks(ordinary)
+	for index, position := range positions {
+		rows[position] = ordinary[index]
+	}
+	return rows
+}
+
+// addSelectedSlotBonuses orders only the final ordinary members (CRK-V0-7900).
+// Reservations and graph rows retain their positions and fields; no lexical
+// pair admitted after the initial ordering misses its additive score.
+func (compiler *taskContextCompiler) addSelectedSlotBonuses(rows []contextRow) []contextRow {
+	ordinary := make([]contextRow, 0, len(rows))
+	positions := make([]int, 0, len(rows))
+	for position, row := range rows {
+		if reservedRelation(row.kind) || row.kind == contextGraphRelation {
+			continue
+		}
+		ordinary = append(ordinary, row)
+		positions = append(positions, position)
+	}
+	ordinary = compiler.addSlotBonuses(ordinary)
 	for index, position := range positions {
 		rows[position] = ordinary[index]
 	}
