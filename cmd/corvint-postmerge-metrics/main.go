@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -16,14 +18,21 @@ import (
 )
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-postmerge-metrics", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-postmerge-metrics", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	code := run(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())
 	stop()
 	cancel()
-	os.Exit(code)
+	os.Exit(streams.Status(code))
 }
 func read(path string, limit int) ([]byte, error) {
 	f, e := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)

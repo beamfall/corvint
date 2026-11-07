@@ -24,9 +24,15 @@
         "go.mod",
         "go.sum",
         "go.work",
-        "internal/toolchainreceipt/"
+        "internal/capcatalog/",
+        "internal/cliapp/",
+        "internal/clierror/",
+        "internal/clitree/",
+        "internal/companioncli/",
+        "internal/toolchainreceipt/",
+        "internal/versionline/"
       ],
-      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 runs go build ./cmd/corvint-go-toolchain-receipt, whose only non-standard package is internal/toolchainreceipt (TSP-V0-951, V1-2167)."
+      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 builds cmd/corvint-go-toolchain-receipt, compiling internal/toolchainreceipt and its offline CLI help, framing and release metadata closure (TSP-V0-951, CAP-V0-7700, V1-2167)."
     },
     "script/core-n1-replay-default_test.sh": {
       "reads": [

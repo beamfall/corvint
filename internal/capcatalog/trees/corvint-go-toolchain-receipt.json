@@ -1,0 +1,45 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-go-toolchain-receipt",
+  "helpJson": "corvint-go-toolchain-receipt help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-go-toolchain-receipt"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-go-toolchain-receipt",
+      "summary": "usage: corvint-go-toolchain-receipt GOROOT",
+      "usage": [
+        "corvint-go-toolchain-receipt GOROOT"
+      ],
+      "flags": [],
+      "required": [
+        "GOROOT"
+      ],
+      "example": "corvint-go-toolchain-receipt GOROOT",
+      "help": "corvint-go-toolchain-receipt --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-go-toolchain-receipt help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-go-toolchain-receipt help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-go-toolchain-receipt help --json",
+      "help": "corvint-go-toolchain-receipt help --help"
+    }
+  ]
+}

@@ -10,7 +10,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -70,8 +69,8 @@ func materializeCEMStableRoot(t *testing.T) cemStableRootFixture {
 		t.Fatal(err)
 	}
 	f.repo, f.alias, f.artifacts = filepath.Join(base, "repo"), filepath.Join(base, "alias"), filepath.Join(base, "artifacts")
-	command := exec.Command("git", "init", "-q", "--object-format=sha1", f.repo)
-	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	command := fixtureGitCommand("init", "-q", "--object-format=sha1", f.repo)
+	command.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	if out, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v: %s", err, out)
 	}

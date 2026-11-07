@@ -7,6 +7,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -20,10 +22,17 @@ func run(ctx context.Context, args []string, in io.Reader, out io.Writer) error 
 }
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-tests-accept", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-tests-accept", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if e := run(ctx, os.Args[1:], os.Stdin, os.Stdout); e != nil {
-		fmt.Fprintln(os.Stderr, e)
-		os.Exit(2)
+	if e := run(ctx, os.Args[1:], os.Stdin, streams.Stdout()); e != nil {
+		fmt.Fprintln(streams.Stderr(), e)
+		os.Exit(streams.Status(2))
 	}
 }

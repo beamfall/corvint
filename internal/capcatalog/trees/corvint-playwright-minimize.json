@@ -1,0 +1,99 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-playwright-minimize",
+  "helpJson": "corvint-cli --binary corvint-playwright-minimize help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-playwright-minimize",
+    "internal/playwrightminimize/cli"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [
+    {
+      "word": "worker",
+      "reason": "accept worker the accept group re-enters this executable as (CTF-V0-006)"
+    },
+    {
+      "word": "-help",
+      "reason": "single-dash help spelling the runner group accepts"
+    },
+    {
+      "word": "--gradle-user-home",
+      "reason": "argument of the pinned Gradle invocation the runner group compares, not a corvint-test option"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-playwright-minimize",
+      "summary": "Folded corvint-playwright-minimize: plan and execute Playwright test minimization (CTF-V0)",
+      "usage": [
+        "corvint-playwright-minimize execute --experimental --approve-plan DIGEST",
+        "corvint-playwright-minimize plan --experimental"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [],
+      "example": "corvint-playwright-minimize execute --experimental --approve-plan DIGEST",
+      "help": "corvint-cli --binary corvint-playwright-minimize --help"
+    },
+    {
+      "path": [
+        "execute"
+      ],
+      "command": "corvint-playwright-minimize execute",
+      "summary": "Execute exactly the approved minimization plan read on stdin",
+      "usage": [
+        "corvint-playwright-minimize execute --experimental --approve-plan DIGEST"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--approve-plan DIGEST"
+      ],
+      "example": "corvint-playwright-minimize execute --experimental --approve-plan DIGEST",
+      "help": "corvint-cli --binary corvint-playwright-minimize execute --help"
+    },
+    {
+      "path": [
+        "plan"
+      ],
+      "command": "corvint-playwright-minimize plan",
+      "summary": "Plan a minimization from the live request JSON on stdin",
+      "usage": [
+        "corvint-playwright-minimize plan --experimental"
+      ],
+      "flags": [
+        "--experimental"
+      ],
+      "required": [
+        "--experimental"
+      ],
+      "example": "corvint-playwright-minimize plan --experimental",
+      "help": "corvint-cli --binary corvint-playwright-minimize plan --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-playwright-minimize help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-playwright-minimize help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-playwright-minimize help --json",
+      "help": "corvint-cli --binary corvint-playwright-minimize help --help"
+    }
+  ]
+}

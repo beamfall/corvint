@@ -918,6 +918,7 @@ Usage:
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected audit --changes FILE
   corvint [--root PATH] affected --ownership-audit
+  corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -1105,6 +1106,20 @@ claimant or a project declaration claims: the paths a plan reports as
 UNOWNED_DIRTY_PATH. It refuses a dirty worktree, builds the graph without the
 cache, writes nothing, and exits 0 when no path is unowned, 1 when some path
 is, and 2 on an error.
+
+affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the
+project-owned input declaration of non-test CI jobs (--declaration, default
+.corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range
+--base..HEAD and the dirty worktree, and writes one corvint-ci-job-plan/0:
+per job RUN or SKIP with its reason and witnesses. A job runs when its
+workflow file, the declaration, a declared path or directory/, go.mod, go.sum
+or the directory of a package its goPackages build on any declared platform
+changed, when the affected plan selects one of its goTests or is UNKNOWN, or,
+for an exportedTree job, when a changed entry is not a regular blob within the
+export bounds. SKIP means no declared input changed (NO_DECLARED_INPUT_CHANGED);
+it is not a pass of the job. Exit 0 with a plan; 3, with every job absent, when
+the declaration cannot be read (DECLARATION_INVALID), so a caller runs every
+job. Example: corvint affected jobs --base "$(git merge-base HEAD origin/main)"
 
 affected audit (experimental) reads a corvint-affected-audit-input/0 FILE
 listing changes: id, full base commit id, and kind replay (full head), revert

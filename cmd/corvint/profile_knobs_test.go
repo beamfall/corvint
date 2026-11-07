@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -31,7 +30,7 @@ func profileCorpusFixture(t *testing.T) string {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		c := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
+		c := fixtureGitCommand(append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
 		c.Dir = root
 		out, err := c.CombinedOutput()
 		if err != nil {
@@ -220,7 +219,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Contains(source, []byte("procprofile.Run(")) || !bytes.Contains(source, []byte(call)) {
+		if !bytes.Contains(source, []byte("procprofile.Run(")) || (!bytes.Contains(source, []byte(call)) && !bytes.Contains(source, []byte(strings.Replace(call, "os.Exit(", "os.Exit(streams.Status(", 1)))) {
 			t.Errorf("%s does not apply the profile bracket at its entry point", dir)
 		}
 	}

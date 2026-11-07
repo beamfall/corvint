@@ -202,3 +202,42 @@ func TestContextEnclosingManySymbols_TCPV02220(t *testing.T) {
 		t.Fatal("enclosure lookup over 200000 declarations took over 10s")
 	}
 }
+
+// CRK-V0-7900: limit, reservations, pair and graph placement select exactly
+// the same rows in both arms; only the ordinary order/reasons may change.
+func TestContextAdditiveMembership_CRKV07900(t *testing.T) {
+	index := recipeFixtureIndex(t)
+	for _, graph := range []string{"", "on"} {
+		t.Setenv("CORVINT_CONTEXT_GRAPH", graph)
+		for limit := 1; limit <= 50; limit++ {
+			t.Setenv("CORVINT_CONTEXT_ADDITIVE", "")
+			off := newTaskContextCompiler(index, recipeFixtureTask, "").compile(limit)
+			t.Setenv("CORVINT_CONTEXT_ADDITIVE", "on")
+			on := newTaskContextCompiler(index, recipeFixtureTask, "").compile(limit)
+			byPath := map[string]contextRow{}
+			for _, row := range off {
+				byPath[row.path] = row
+			}
+			if len(on) != len(off) {
+				t.Fatalf("limit %d: membership size differs", limit)
+			}
+			for position, row := range on {
+				original, exists := byPath[row.path]
+				if !exists {
+					t.Fatalf("limit %d: additive admitted %s", limit, row.path)
+				}
+				if reservedRelation(row.kind) || row.kind == contextGraphRelation {
+					if !reflect.DeepEqual(row, off[position]) {
+						t.Fatalf("limit %d: reserved/graph row moved", limit)
+					}
+				} else {
+					row.reason = strings.Split(row.reason, "; additive ")[0]
+					row.score = original.score
+					if !reflect.DeepEqual(row, original) {
+						t.Fatalf("limit %d: additive changed row beyond reason: %#v vs %#v", limit, row, original)
+					}
+				}
+			}
+		}
+	}
+}

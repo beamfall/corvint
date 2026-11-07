@@ -44,6 +44,9 @@ func TestIsolateGitSurvivesAnUnopenableGlobalConfiguration(t *testing.T) {
 		t.Fatalf("control failed for another reason: %v: %s", err, output)
 	}
 
+	for _, name := range []string{"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} {
+		t.Setenv(name, os.Getenv(name))
+	}
 	for _, variable := range gitIsolation {
 		t.Setenv(variable[0], os.Getenv(variable[0])) // restored after the test
 	}
@@ -66,4 +69,25 @@ func withoutGitIsolation(environ []string) []string {
 		kept = append(kept, entry)
 	}
 	return kept
+}
+
+// CCF-V1-9800: package-level fixture isolation also removes caller dates.
+func TestIsolateGitRemovesCallerDates_CCFV19800(t *testing.T) {
+	for _, variable := range gitIsolation {
+		t.Setenv(variable[0], "foreign")
+	}
+	for _, name := range []string{"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} {
+		t.Setenv(name, "2033-04-05T06:07:08+0300")
+	}
+	IsolateGit()
+	for _, variable := range gitIsolation {
+		if got := os.Getenv(variable[0]); got != variable[1] {
+			t.Errorf("%s = %q, want %q", variable[0], got, variable[1])
+		}
+	}
+	for _, name := range []string{"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} {
+		if value, exists := os.LookupEnv(name); exists {
+			t.Errorf("%s still inherited: %q", name, value)
+		}
+	}
 }
