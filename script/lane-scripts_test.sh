@@ -2391,6 +2391,38 @@ static_make CORVINT_BIN=no-such-corvint-bin
 rc=$?
 ((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'SKIP no-static-binary .*CORVINT_BIN=no-such-corvint-bin' "$to/static/err" ||
   fail "an unresolvable CORVINT_BIN did not SKIP (rc=$rc): $(cat "$to/static/err")"
+# DCW-V0-2140 (V1-4406): a set CORVINT_BIN runs the static pre-check instead of the corvint on PATH,
+# and its refusal carries no installed-binary hint.
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/cbin-args"\necho "dogfood-inputs-check: REFUSE citation-plan-uniform" >&2\nexit 2\n' "$to" > "$to/static/cbin" &&
+  chmod +x "$to/static/cbin" || fail "static CORVINT_BIN stub"
+/bin/rm -f "$to/static/args"
+static_make CORVINT_BIN="$to/static/cbin"
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted && ! -e $to/static/args ]] && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" &&
+  ! grep -q 'ran the installed' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "the static pre-check did not prefer CORVINT_BIN (rc=$rc): $(cat "$to/static/err")"
+# Review fix: a relative CORVINT_BIN keeps naming the caller's file after the check moves to the root.
+/bin/rm -f "$to/static/cbin-args"
+(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=./cbin \
+  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
+  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
+rc=$?
+((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "a relative CORVINT_BIN did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
+# Review fix: so does a PATH-only name found through a relative PATH entry.
+mkdir -p "$to/static/rel" && cp "$to/static/cbin" "$to/static/rel/cbin-rel" || fail "relative PATH fixture"
+/bin/rm -f "$to/static/cbin-args"
+(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK PATH="rel:$PATH" DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=cbin-rel \
+  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
+  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
+rc=$?
+((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "a PATH-only CORVINT_BIN on a relative PATH entry did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
+printf '#!/bin/sh\nexit 0\n' > "$to/static/cbin"
+static_make CORVINT_BIN="$to/static/cbin"
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q "static pre-check SKIP no-static-binary (neither a cached tree build nor CORVINT_BIN=$to/static/cbin lists --static" "$to/static/err" ||
+  fail "a CORVINT_BIN without --static fell back to PATH or was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
 static_make
 rc=$?
@@ -2935,7 +2967,24 @@ for range in ..979 1..2..3 960.. abc; do
   out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
   [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
 done
-for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
+# DCW-V0-2146 (V1-4291): a range of any digit width is admitted and matches the canonical (%03d)
+# spelling only; a bare run, through the script or make, prints the usage instead of bad-prefix ''.
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1000 1039 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-1030 spec.md:3' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-1040..ABC-V0-1079 at HEAD'* ]] ||
+  fail "four-digit range: $out $(cat "$tmp/ids.err")"
+printf 'ABC-V0-0101 is not canonical\n' > "$ids/pad.txt" && git -C "$ids" add pad.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm pad || fail "pad fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 101 101 HEAD 2> /dev/null)
+[[ $? == 1 && $out == 'used ABC-V0-101 b.txt:1' ]] || fail "zero-padded ID counted: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1 1000 HEAD 2> /dev/null)
+[[ $? == 1 && $out == *'used ABC-V0-101 '* && $out != *'1030'* ]] || fail "range across widths: $out"
+for argv0 in none empty; do
+  if [[ $argv0 == none ]]; then out=$(cd "$ids" && "$script/requirement-ids-free.sh" 2>&1); else out=$(cd "$ids" && "$script/requirement-ids-free.sh" '' 2>&1); fi
+  [[ $? == 2 && $out == *'REFUSE bad-arguments'*'usage: '*'make requirement-ids-free PREFIX='* && $out != *"bad-prefix ''"* ]] || fail "bare run ($argv0): $out"
+done
+out=$(make -s -C "$script/.." requirement-ids-free 2>&1)
+[[ $? == 2 && $out == *'usage: '* && $out != *"bad-prefix ''"* ]] || fail "bare make run: $out"
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 1234567890 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" ${argv[@]+"${argv[@]}"} 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"
@@ -3858,6 +3907,42 @@ for manifest_tmp in "$linked_git" "$common_git" "$np/git-link" "$np/common-link"
   m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
   [[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested an unusable manifest for TMPDIR=$manifest_tmp: $m"
 done
+# DCW-V0-2142 (V1-4442): dogfood-retire-traces applies a stranded-only migrate-traces plan with its
+# own dry-run digest, refuses a plan that also rekeys legacy traces, and reports nothing stranded.
+rt=$tmp/retire-traces
+mkdir -p "$rt" || fail "retire fixture"
+digest=$(printf '%064d' 7)
+cat > "$rt/corvint" << STUB
+#!/bin/sh
+printf '%s\n' "\$*" >> "$rt/calls"
+case "\$1 \$2" in
+  'migrate-traces --dry-run') cat "$rt/plan.json" ;;
+  'migrate-traces --apply') [ -e "$rt/apply-fails" ] && exit 1; echo '{"ok":true}' ;;
+  *) exit 9 ;;
+esac
+STUB
+chmod +x "$rt/corvint" || fail "retire stub"
+retire() { /bin/rm -f "$rt/calls"; out=$(CORVINT_BIN=$rt/corvint "$script/dogfood-retire-traces.sh" "$@" 2>&1); rc=$?; }
+printf '{"entries":[],"plan_digest":"%s","stranded_revisions":[]}\n' "$digest" > "$rt/plan.json"
+retire
+((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "nothing stranded: rc=$rc $out"
+printf '{"entries":[],"plan_digest":"%s","stranded_revisions":["%040d","%040d"]}\n' "$digest" 1 2 > "$rt/plan.json"
+retire
+((rc == 0)) && [[ $(grep -c '^dogfood-retire-traces: RETIRE stale trace ' <<< "$out") == 2 && $out == *"--plan-digest $digest (DCW-V0-2142"* &&
+  $(sed -n 2p "$rt/calls") == "migrate-traces --apply --plan-digest $digest" && $out == *'rerun the dogfood command you ran'* ]] || fail "stranded only: rc=$rc $out"
+touch "$rt/apply-fails"
+retire
+((rc == 2)) && [[ $out == *'REFUSE apply-failed'*'fix: rerun make dogfood-retire-traces'* && $out != *'RETIRE'* ]] || fail "failed apply: rc=$rc $out"
+/bin/rm -f "$rt/apply-fails"
+printf '{"entries":[{"x":1}],"plan_digest":"%s","stranded_revisions":["%040d"]}\n' "$digest" 1 > "$rt/plan.json"
+retire
+((rc == 2)) && [[ $out == *'REFUSE plan-rekeys-legacy-traces stranded=1 legacy=1'*"fix: inspect corvint migrate-traces --dry-run, then corvint migrate-traces --apply --plan-digest $digest"* &&
+  $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "legacy plan applied or not refused: rc=$rc $out"
+printf 'not json\n' > "$rt/plan.json"
+retire
+((rc == 2)) && [[ $out == *'REFUSE dry-run-unreadable'*'fix: '* ]] || fail "unreadable plan: rc=$rc $out"
+retire extra
+((rc == 2)) && [[ $out == *'REFUSE bad-arguments'*'usage: '* && ! -e $rt/calls ]] || fail "argument refusal: rc=$rc $out"
 ok
 fi
 

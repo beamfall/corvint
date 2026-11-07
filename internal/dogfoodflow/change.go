@@ -2808,7 +2808,13 @@ func (c *change) reportFailures() int {
 		c.say("dogfood-change: PASS complete base=%s target=%s report=%s\n", c.base, c.target, c.path(".corvint/dogfood-report.json"))
 		return 0
 	}
-	c.say("dogfood-change: FAIL not-complete\n")
+	pending := c.pendingSidecarCommit()
+	if pending {
+		c.say("dogfood-change: PENDING commit-sidecar base=%s target=%s: this pass prepared and cited .corvint/change.cem.json, and the recorder, which needs a clean tree, runs once it is committed (DCW-V0-2143)\n", c.base, c.target)
+		c.say("  fix: commit .corvint/change.cem.json, then rerun: git add .corvint/change.cem.json && git commit -m 'chore: bind change evidence' && make dogfood-change BASE=%s\n", c.base)
+	} else {
+		c.say("dogfood-change: FAIL not-complete\n")
+	}
 	for _, row := range c.rows {
 		if !c.rowFailing(row) {
 			continue
@@ -2854,7 +2860,68 @@ func (c *change) reportFailures() int {
 		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\"); the store belongs to this worktree, so run each lane in its own worktree (git worktree add) or clone rather than switching branches here (DCW-V0-044)\n")
 	}
 	c.say("  full report: %s\n", c.path(".corvint/dogfood-report.json"))
+	if pending {
+		return PendingExit
+	}
 	return 1
+}
+
+// PendingExit is the exit status of a standalone dogfood change pass whose
+// only failing rows are the ones its own uncommitted sidecar causes: the
+// expected first pass of DOGFOOD section 4, not a failure (DCW-V0-2143).
+const PendingExit = 3
+
+// pendingSidecarCommit reports a standalone pass whose report is incomplete
+// only because the sidecar it prepared and cited is not committed yet: every
+// failing row is one the bind commit clears (bindAdmits, DCW-V0-015,
+// DCW-V0-816), at least one is the recorder's record-index-failed, and the
+// worktree's only change against HEAD is that sidecar, untracked or modified.
+// finish-lane's nested passes keep their own handling (DCW-V0-2143).
+func (c *change) pendingSidecarCommit() bool {
+	if c.nested {
+		return false
+	}
+	recorder := false
+	for _, row := range c.rows {
+		if row == (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
+			recorder = true
+		}
+	}
+	tracked := c.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar)
+	// A link row whose intent map did not prepare because the replaced sidecar
+	// refused it follows from that refusal, as the OCM status rows do.
+	replaced, rows := false, []step{}
+	for _, row := range c.rows {
+		if tracked && strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "excluded-artifact-mismatch" {
+			replaced = true
+		}
+	}
+	for _, row := range c.rows {
+		if !(replaced && strings.HasPrefix(row.name, "ocm-link-") && row.reason == "ocm-map-not-prepared") {
+			rows = append(rows, row)
+		}
+	}
+	if !recorder || !bindAdmits(rows, c.rowFailing, tracked) || len(c.untrackedPaths()) > 0 {
+		return false
+	}
+	// Tracked changes against HEAD, staged or not, and untracked files in
+	// .corvint/ that are not ignored.
+	modified, status, bounded := c.boundedGit("diff", "--name-only", "-z", "--no-renames", "HEAD", "--")
+	if status != 0 || !bounded {
+		return false
+	}
+	// The recorder ignores core.excludesFile, so this read does too.
+	untracked, status, bounded := c.boundedGit("-c", "core.excludesFile=", "ls-files", "--others", "--exclude-standard", "-z", "--", ".corvint/")
+	if status != 0 || !bounded {
+		return false
+	}
+	changed := []string{}
+	for _, path := range append(strings.Split(modified, "\x00"), strings.Split(untracked, "\x00")...) {
+		if path != "" {
+			changed = append(changed, path)
+		}
+	}
+	return len(changed) == 1 && changed[0] == finishLaneSidecar
 }
 
 const AggregateReportProfile = "corvint-dogfood-change/1"

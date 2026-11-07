@@ -2135,9 +2135,24 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 func journalAbsentNotFound(rc *readCtx, id string) string {
 	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
 		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
+		sharedJournalHint(rc.repo) +
 		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
 		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id) +
 		stagedSnapshotHint(rc, id, time.Now())
+}
+
+// sharedJournalHint is the TCP-V0-2230 (V1-4440) addition to a journal-absent
+// miss: the journal lives in the common Git directory, which the primary
+// worktree and every linked worktree share, so no `cd` within this checkout's
+// own family can reach one; the journal is in another clone or on another
+// host, and a lane on this host reads the ticket through a snapshot or its
+// charter.
+func sharedJournalHint(repo *intent.Repository) string {
+	family := "This checkout is the primary worktree " + repo.PrimaryWorktree
+	if repo.FromLinkedWorktree {
+		family = "This checkout is a linked worktree of the primary worktree " + repo.PrimaryWorktree
+	}
+	return family + ", which shares that one journal location with all its linked worktrees, so none of them holds a journal either and `cd` among them cannot help (TCP-V0-2230); the journal is in another clone or on another host. "
 }
 
 // snapshotRouteHint is the CTS-V0-680 addition to a journal-absent miss: a

@@ -80,8 +80,9 @@ func TestDogfoodDCWLinksSurviveRebind(t *testing.T) {
 	}
 
 	if !t.Run("DCW-V0-014 input remediation", func(t *testing.T) {
-		stderr := change(1)
-		if !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || !strings.Contains(stderr, "fix:") {
+		// DCW-V0-2143: the uncommitted sidecar is a pending pass, not a failure.
+		stderr := change(3)
+		if !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || !strings.Contains(stderr, "fix:") || !strings.Contains(stderr, "dogfood-change: PENDING commit-sidecar ") {
 			t.Fatalf("missing uncommitted-sidecar refusal/remediation: %s", stderr)
 		}
 	}) {
@@ -116,7 +117,7 @@ func TestDogfoodDCWLinksSurviveRebind(t *testing.T) {
 	if !t.Run("DCW-V0-013 ordered rebind", func(t *testing.T) {
 		// DOGFOOD.md steps 3–7: regenerate/cite the changed CEM, commit it,
 		// then rerun with the SAME saved link plan on the clean new target.
-		change(1)
+		change(3)
 		bind()
 		change(0)
 		rebound := assertDCWLinks(t, root, base, requirements, testPath)

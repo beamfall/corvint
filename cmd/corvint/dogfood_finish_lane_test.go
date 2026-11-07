@@ -74,7 +74,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	if err := os.Remove(filepath.Join(manual, ".corvint/change.cem.json")); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 1 || !strings.HasSuffix(stderr, "  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change "+base+"\n  full report: "+manual+"/.corvint/dogfood-report.json\n") {
+	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 3 || !strings.HasSuffix(stderr, "  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change "+base+"\n  full report: "+manual+"/.corvint/dogfood-report.json\n") {
 		t.Fatalf("pass 1 exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, manual, "add", ".corvint/change.cem.json")
@@ -281,7 +281,7 @@ func TestDogfoodFinishLaneDCWV0061ContinuesFromBindCommit(t *testing.T) {
 	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
 	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
-	if code, _, stderr := run.exec(t, root, env, "dogfood", "change", base); code != 1 {
+	if code, _, stderr := run.exec(t, root, env, "dogfood", "change", base); code != 3 {
 		t.Fatalf("bind exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")

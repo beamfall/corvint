@@ -66,11 +66,17 @@ func TestCheckDCWV0045CleanProbeNeverRunsRepositoryFilters(t *testing.T) {
 	}
 	order := "  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n"
 	write("c.txt", "untracked\n")
-	if code, _, stderr := cleanChange(t, root, base); code != 2 || stderr != "dogfood-check: REFUSE dirty-worktree\n"+order {
+	// DCW-V0-2144 (V1-4444): the fix names the dirty path count and that
+	// clean means no change after the bind commit, which this worktree meets.
+	fix := func(at string) string {
+		return "  fix: commit or remove the 1 path(s) git status --porcelain lists, then rerun make dogfood-change BASE=" + at + " and make dogfood-check BASE=" + at +
+			"; a clean worktree is one with no change after the bind commit (ignored paths do not count), so this worktree qualifies once they are gone and no fresh checkout is needed (DCW-V0-2144)\n"
+	}
+	if code, _, stderr := cleanChange(t, root, base); code != 2 || stderr != "dogfood-check: REFUSE dirty-worktree\n"+order+fix(base) {
 		t.Fatalf("dirty exit=%d stderr=%q", code, stderr)
 	}
 	head := testGit(t, root, "rev-parse", "HEAD")
-	if code, _, stderr := cleanChange(t, root, head); code != 2 || stderr != "dogfood-check: REFUSE uncommitted-change-not-in-base-target\n"+order {
+	if code, _, stderr := cleanChange(t, root, head); code != 2 || stderr != "dogfood-check: REFUSE uncommitted-change-not-in-base-target\n"+order+fix(head) {
 		t.Fatalf("uncommitted exit=%d stderr=%q", code, stderr)
 	}
 	if err := os.Remove(filepath.Join(root, "c.txt")); err != nil {
