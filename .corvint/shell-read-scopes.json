@@ -90,13 +90,6 @@
       ],
       "reason": "Outside script/, it reads the Makefile gate recipe and runs make -pq gate and a make -j8 gate whose recipes it replaces with loggers; script/gate-receipt runs in a fixture repository (TSP-V0-830)."
     },
-    "script/lane-scripts_test.sh": {
-      "reads": [
-        "Makefile",
-        "docs/DOGFOOD.md"
-      ],
-      "reason": "Outside script/, it greps the Makefile heavy recipes and docs/DOGFOOD.md sections and runs make -n over the Makefile; every go, make and ssh it runs is a PATH stub in its temporary directory, and heavy.sh sources only its generated payload and the operator's HEAVY_REMOTE_ENV file (AFP-V0-2955, V1-4283)."
-    },
     "script/qualify-tasks-basic_test.sh": {
       "reads": [
         "cmd/corvint-tasks/",

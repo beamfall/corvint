@@ -278,6 +278,13 @@ func constructed(target string, resolve *resolver, values map[string][]string, k
 	if !strings.ContainsAny(target, "$`") {
 		return false, false
 	}
+	// A target whose file name is literal and carries no shell suffix
+	// (`"$sdk/go"`, a binary in a computed directory) names no script this
+	// plugin owns under any expansion, so no dropped value could be one: it
+	// stays outside the model without expanding (TSP-V0-960, V1-4283).
+	if base := path.Base(target); !strings.ContainsAny(base, "$`{}") && !hasAnySuffix(base, Suffixes) {
+		return false, false
+	}
 	for _, value := range expand(target, values, 0, &cut) {
 		if !strings.Contains(value, wildcard) {
 			if resolve.link(value, nil, known, edges) {

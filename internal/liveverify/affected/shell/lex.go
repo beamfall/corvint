@@ -250,9 +250,11 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			l.pos++
 			continue
 		}
-		// Inside [[ ]] parentheses, `|`, `&`, `<` and `>` belong to the
-		// conditional expression, e.g. a `=~` regex, not to the command list.
-		if len(words) > 0 && words[0] == "[[" && words[len(words)-1] != "]]" && strings.IndexByte("()|&<>", c) >= 0 {
+		// Inside [[ ]], `|`, `&`, `<` and `>` belong to the conditional
+		// expression (a `=~` regex, a `||` or `&&` between tests), not to the
+		// command list, whether the test opens the command or follows `if`,
+		// `while` or `!` in it (openTest).
+		if openTest(words) && strings.IndexByte("()|&<>", c) >= 0 {
 			begin()
 			l.pos++
 			continue
@@ -572,4 +574,18 @@ func (l *lexer) substitutions(text string, inFunction bool) {
 			sub.pos++
 		}
 	}
+}
+
+// openTest reports words that hold a `[[` with no `]]` after it: the lexer is
+// inside a conditional expression.
+func openTest(words []string) bool {
+	for index := len(words) - 1; index >= 0; index-- {
+		switch words[index] {
+		case "]]":
+			return false
+		case "[[":
+			return true
+		}
+	}
+	return false
 }
