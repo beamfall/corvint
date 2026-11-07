@@ -197,9 +197,9 @@ func TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass(t *testing.T) {
 
 // DCW-V0-904 (V1-3410): one quoted plain or anchored test name and the
 // whole-package -run '.' or '.*' are one typed argv word each, including after
-// a quoted HEAVY_WHOLE_REASON assignment; an unquoted anchored name or .* stays
-// refused under the generic hint, which names the quoted form, and other quoted
-// regex stays refused.
+// a quoted HEAVY_WHOLE_REASON assignment; an unquoted anchored name is admitted
+// as the same word (DCW-V0-7401), an unquoted .* stays refused under the generic
+// hint, which names the quoted form, and other quoted regex stays refused.
 func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 	for line, want := range map[string]string{
 		"go test -count=1 -run '^TestA$' ./a": `["go","test","-count=1","-run","^TestA$","./a"]`,
@@ -207,6 +207,9 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 		"go test -run=\"^TestA_b$\" ./a":      `["go","test","-run=^TestA_b$","./a"]`,
 		"HEAVY_WHOLE_REASON='corvint selected the package whole' /x/run.sh go test -count=1 -run '.' ./a": `["HEAVY_WHOLE_REASON=corvint selected the package whole","/x/run.sh","go","test","-count=1","-run",".","./a"]`,
 		"go test -run '.*' ./a": `["go","test","-run",".*","./a"]`,
+		// DCW-V0-7401 (V1-3977): an unquoted single caret name is the same
+		// literal argv word as its quoted form.
+		"go test -run ^TestA$ ./a": `["go","test","-run","^TestA$","./a"]`,
 	} {
 		got := verifyArguments([]byte(line + "\n"))
 		if len(got) != 2 || got[0] != "--verify-argv-json" || got[1] != want {
@@ -218,7 +221,6 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 		}
 	}
 	for line, quoted := range map[string]string{
-		"go test -run ^TestA$ ./a":    "",
 		"go test -run .* ./a":         "",
 		"go test -run '^Test.*$' ./a": "",
 		"go test -run '^Test.*' ./a":  "",

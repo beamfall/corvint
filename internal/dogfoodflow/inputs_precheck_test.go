@@ -287,7 +287,9 @@ func TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses(t *testing.T) {
 		options    ChangeOptions
 	}{
 		{"aggregate bound", "REFUSE too-many-obligations", ChangeOptions{IntentsFile: manifest, Verify: "go version"}},
-		{"anchored -run name", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run ^TestA$ ./pre\n")}},
+		// DCW-V0-7401: an unquoted single caret name is admitted, so an unquoted
+		// match-everything pattern stands in for the refused unquoted regex.
+		{"unquoted -run pattern", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run .* ./pre\n")}},
 		{"quoted -run class", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run '^Test[A]$' ./pre\n")}},
 		{"unquoted alternation", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run TestA|TestB ./pre\n")}},
 	}

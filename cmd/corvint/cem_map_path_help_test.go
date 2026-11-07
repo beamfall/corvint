@@ -17,7 +17,12 @@ import (
 func TestCEMV1317HelpDocumentsMapPaths(t *testing.T) {
 	wants := []string{
 		"Map paths:",
-		"status, verify and report read --map MAP repository-relative, or as an",
+		// CEM-V1-7400 (V1-3863): verify and verify-stable also take an
+		// in-repository map either way, so the shared rule now names status
+		// and report only.
+		"status and report read --map MAP repository-relative, or as an",
+		"verify also accepts an absolute in-repository",
+		"--repository (CEM-V1-7400)",
 		"path outside the repository and its Git directories",
 		"an absolute path inside them is refused",
 		"a symlinked map is refused",
