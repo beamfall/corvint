@@ -433,3 +433,70 @@ func TestSourcePath_AFP_V0_9010(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-9010: a mutator's error can observe a new source file even when its
+// imports are already present. Computed bytes prevent a literal-reader edge.
+func TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010(t *testing.T) {
+	for _, operation := range []string{
+		`os.Chmod(name, 0600)`,
+		`os.Chtimes(name, time.Time{}, time.Time{})`,
+		`os.Remove(name)`,
+		// Deliberately unknown API: future/unclassified members must fail closed.
+		`os.UnknownFilesystemOperation(name)`,
+	} {
+		t.Run(operation, func(t *testing.T) {
+			root := importGraphRepository(t)
+			const existing = "package lib\nimport \"testing\"\nfunc TestA(t *testing.T) {}\n"
+			const added = "package lib\nimport \"testing\"\nfunc TestB(t *testing.T) {}\n"
+			body := `package probe
+import ("os"; "os/exec"; "testing"; "time")
+func TestExists(t *testing.T) {
+ _, _ = exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./cmd/tool").Output()
+ name := string([]byte{46, 46, 47, 108, 105, 98, 47, 98, 95, 116, 101, 115, 116, 46, 103, 111})
+ _ = time.Time{}
+ if err := ` + operation + `; !os.IsNotExist(err) { t.Fatal(err) }
+}
+`
+			writeFiles(t, root, map[string]string{"lib/a_test.go": existing, "probe/probe_test.go": body})
+			graph, err := affected.Build(context.Background(), root, golang.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader := importGraphModule + "probe"
+			unit, ok := graph.Unit(reader)
+			if !ok || !unit.ImportGraphReadsFiles || !unit.ImportGraphReadsAll {
+				t.Fatalf("mutator is not a whole-module source reader: %+v", unit)
+			}
+			base := fstest.MapFS{
+				"go.mod":        {Data: []byte("module example.test/g\n")},
+				"lib/lib.go":    {Data: []byte("package lib\n")},
+				"lib/a_test.go": {Data: []byte(existing)},
+			}
+			head := fstest.MapFS{"go.mod": base["go.mod"], "lib/lib.go": base["lib/lib.go"], "lib/a_test.go": base["lib/a_test.go"], "lib/b_test.go": {Data: []byte(added)}}
+			dirty := []string{"lib/b_test.go"}
+			changes := golang.ImportSetRecords(base, head, graph, dirty)
+			if len(changes.Changed) != 0 || changes.Module != "" || changes.Source != dirty[0] {
+				t.Fatalf("addition must keep the folded import set: %+v", changes)
+			}
+			selected := func(changes *affected.ImportSetChanges, id string) affected.Witness {
+				for _, selection := range affected.Select(graph.WithImportSetChanges(changes), dirty).Selected {
+					if selection.UnitID == id {
+						return selection.Witness
+					}
+				}
+				return affected.Witness{}
+			}
+			if witness := selected(changes, reader); witness.Kind != affected.WitnessImportGraphReader || witness.DirtyPath != dirty[0] {
+				t.Fatalf("mutator missed the kept-import addition: %+v", witness)
+			}
+			if witness := selected(changes, importGraphModule+"guard"); witness.Kind != "" {
+				t.Fatalf("proven import-only control selected: %+v", witness)
+			}
+			// Removing source observation must lose probe: no literal fallback
+			// or unrelated edge may conceal a classifier regression.
+			if witness := selected(&affected.ImportSetChanges{Changed: changes.Changed}, reader); witness.Kind != "" {
+				t.Fatalf("mutator selected without source observation: %+v", witness)
+			}
+		})
+	}
+}
