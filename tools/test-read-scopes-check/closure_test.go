@@ -3,9 +3,17 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
 // AFP-V0-3150: a declaration that lists the import closure of a literal target
@@ -65,6 +73,56 @@ func TestClosureDeclarationCannotFallBelowItsClosure_AFP_V0_3150(t *testing.T) {
 		}
 		if strings.Contains(output, "internal/journal") {
 			t.Errorf("%s: output %q reports internal/journal, which no closure loads", name, output)
+		}
+	}
+}
+
+// AFP-V0-3151: in this repository's declaration, cmd/corvint-analyzer-rust
+// declares the closures of the two targets its tests list, not internal/, so
+// the planner selects it through DECLARED_READ_SCOPE for an edit inside the
+// cmd/corvint closure (no missed test) and not for one below
+// internal/tasks/journal/, which no read of its tests reaches (the review
+// round 1 example).
+func TestClosureReaderIsNotSelectedOutsideItsClosure_AFP_V0_3151(t *testing.T) {
+	root, err := filepath.Abs(up + up)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const reader = "cmd/corvint-analyzer-rust"
+	cases := []struct {
+		dirty string
+		want  bool
+	}{
+		{"internal/tasks/journal/anchor.go", false},
+		{"internal/cem/verify/guards.go", true},
+	}
+	for _, c := range cases {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(c.dirty))); err != nil {
+			t.Fatalf("%s: %v; pick another file of that directory", c.dirty, err)
+		}
+	}
+	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(graph.Frontier(), golang.FrontierReadScopesInvalid) {
+		t.Fatalf("%s is invalid", affected.ReadScopesPath)
+	}
+	// Each edit is a body or comment edit, which changes no import set, as the
+	// CLI finds for the guards.go comment edit (AFP-V0-2202); with the import
+	// sets unknown, the go list guard is selected one edge past the closure
+	// as an IMPORT_GRAPH_READER instead.
+	graph = graph.WithImportSetChanges(&affected.ImportSetChanges{})
+	for _, c := range cases {
+		plan := affected.Select(graph, []string{c.dirty})
+		got := false
+		for _, selection := range plan.Selected {
+			if len(selection.Tests) > 0 && path.Dir(selection.Tests[0]) == reader && selection.Witness.Kind == affected.WitnessDeclaredReadScope {
+				got = true
+			}
+		}
+		if got != c.want {
+			t.Errorf("an edit to %s selects %s through %s: %t, want %t", c.dirty, reader, affected.WitnessDeclaredReadScope, got, c.want)
 		}
 	}
 }

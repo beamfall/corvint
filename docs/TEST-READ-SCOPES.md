@@ -70,16 +70,29 @@ test-read-scopes-check` fails on it, with a `fix:` line, unless
    darwin-only or opt-in reads a Linux run skips.
 2. Replace the tree with the measured reads: each literal file, and each package directory of the
    import closure of a literal `go build` or `go list` target the static check models, as a
-   subtree entry.
+   subtree entry, however large the closure (`AFP-V0-3150`). Generate the closure from the
+   repository root, then drop each entry that lies below another declared subtree entry:
+
+   ```sh
+   go list -deps -f '{{if not .Standard}}{{.Dir}}{{end}}' ./cmd/corvint ./cmd/OTHER |
+     sed "s|^$PWD/||; s|$|/|" | grep -v '^/' | sort -u
+   ```
+
+   The check lists the same closures on every run and fails when one leaves the entries, naming
+   the directory. That happens when an entry is dropped or when a target gains an import, so a
+   closure declaration cannot drift below the closure unnoticed. A target counts as modelled when
+   it is a literal at an `exec.Command`, `exec.CommandContext` or `procgroup.Spec` site, or a
+   concatenation inside a `range` over literal names. Spell a fixed build through a helper in one
+   of those forms rather than keeping the tree.
 3. Run the static check and the package under the runtime twin above. A read you missed fails there
    with `permission denied`.
 
 Keep the tree, and record why, when a test walks, lists or globs it (a Landlock grant that lets a
 directory be listed covers its whole subtree), checks the existence of paths read from data
 (`os.Stat` is not confined and a trace does not see it), builds a target the static check cannot
-model (a variable, a helper argument, a `"./cmd/"+name` concatenation), reads an import closure of
-64 or more package directories such as `./cmd/corvint`'s, or runs scripts that compute repository
-paths. The reason begins with the tracked file that holds the read and then names it:
+model (a variable, a helper parameter, a concatenation outside a `range` over literal names), or
+runs scripts that compute repository paths. Closure size is no reason. The reason begins with the
+tracked file that holds the read and then names it:
 
 ```json
 "internal/diagnostic": {
