@@ -236,7 +236,8 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		_, join := pathJoinFuncs[importPath]
 		return join
 	})
-	scanned.scan = scanSource(body, aliases, dotImported, joins)
+	streams, _ := qualifiedImports(file.Imports, func(importPath string) bool { return outputSinkPackages[importPath] })
+	scanned.scan = scanSource(body, aliases, dotImported, joins, streams)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
 	var tokens []string
 	marked, blocked := map[string]bool{}, map[string]bool{}
@@ -247,8 +248,8 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 			scanned.tokens[offset] = tokens[start:]
 		}
 		// AFP-V0-2952: a token only line-broken literals without a
-		// directory-changing word hold is text, not a path (the planner's
-		// textLiterals).
+		// directory-changing word, each reaching only a standard stream,
+		// hold is text, not a path (the planner's textLiterals).
 		set := blocked
 		if scanned.scan.text[offset] {
 			set = marked
@@ -346,7 +347,7 @@ func readBounded(name string, expected fs.FileInfo) ([]byte, error) {
 
 type sourceScan struct {
 	literals       []string
-	text           []bool   // per literal: it holds a line break and no directory-changing word (AFP-V0-2952)
+	text           []bool   // per literal: it holds a line break and no directory-changing word and reaches only a standard stream (AFP-V0-2952)
 	joined         []string // root-anchored tokens of bounded joins of a located root (AFP-V0-2950)
 	calls          []string // root-locator functions the file calls
 	embeds         bool
@@ -396,9 +397,10 @@ func qualifiedImports(specs []*ast.ImportSpec, wanted func(string) bool) (aliase
 // declarations, its root-locating calls (`os.Getwd`, under
 // whatever local name the file's own imports gave them — a plain import, an
 // alias, or a dot import), and any //go:embed directive.
-func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool, joins map[string]string) sourceScan {
+func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool, joins, streams map[string]string) sourceScan {
 	var scan sourceScan
 	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
+	output := outputOnlyLiterals(body, streams)
 	scan.joined = joined
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
@@ -445,7 +447,7 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 		}
 		if value, err := strconv.Unquote(text); err == nil {
 			scan.literals = append(scan.literals, value)
-			scan.text = append(scan.text, strings.Contains(value, "\n") && !changesDirectory(text))
+			scan.text = append(scan.text, output[source.Offset(position)] && strings.Contains(value, "\n") && !changesDirectory(text))
 		}
 	}
 }
