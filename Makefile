@@ -374,6 +374,16 @@ SPEC_CAPACITY_MARGIN ?= 8
 spec-capacity-check: ## Check staged spec capacity; SPEC_CAPACITY_MARGIN=8, optional BASE=<rev>
 	@SPEC_REQUIREMENTS_BASE="$(if $(filter command line environment environment override,$(origin BASE)),$(BASE),)" SPEC_CAPACITY_MARGIN="$(SPEC_CAPACITY_MARGIN)" script/gen-spec-requirements.sh --capacity
 
+.PHONY: spec-batch-capacity-check
+spec-batch-capacity-check: ## Preflight combined lane obligations: BASE=origin/main LANES="REF..."
+	@test -n "$(LANES)" || { echo 'spec-batch-capacity-check: pass LANES="REF..." and optional BASE=origin/main' >&2; exit 2; }
+	@script/gen-spec-requirements.sh --batch-capacity "$(REPIN_BASE)" $(LANES)
+
+.PHONY: spec-status-check
+spec-status-check: ## Fail fast on staged digest/header status drift and doc target ordering
+	@script/check-doc-gate-targets.sh
+	@script/gen-spec-requirements.sh --status-check
+
 .PHONY: spec-readme-check
 spec-readme-check: ## Reject duplicate or missing unanchored spec README rows
 	@script/check-spec-readme.sh
@@ -1210,8 +1220,47 @@ go-version-pins-check:
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
-# first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := conflict-markers-check ci-least-privilege-check tracked-ignored-check line-citations-check spec-claims-check spec-requirements-check decision-numbers-check stray-backups-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check tasks-profiles-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check walk-skipdir-check selection-baseline-check flow-guide-check no-python-runtime-dependency-test fixed-tmp-paths-check capabilities-check
+# first in that order; the remaining one-target-per-line entries are unique and bytewise sorted
+# (LC_ALL=C), so failures print within seconds, before the Go-test doc gates.
+DOC_GATE_TARGETS := \
+  line-citations-check \
+  spec-requirements-check \
+  bash32-check \
+  binary-blobs-check \
+  capabilities-check \
+  ci-least-privilege-check \
+  conflict-markers-check \
+  decision-numbers-check \
+  declaration-compat-check \
+  documentation-paths-check \
+  error-code-ownership-check \
+  fixed-tmp-paths-check \
+  flow-guide-check \
+  go-version-pins-check \
+  host-package-versions-check \
+  host-package-versions-test \
+  import-direction-check \
+  legal-file-pins-check \
+  license-headers-check \
+  mkfifo-build-tags-check \
+  no-python-runtime-dependency-test \
+  requirement-definitions-check \
+  selection-baseline-check \
+  shell-foreign-callers-check \
+  shell-test-registration-check \
+  spec-claims-check \
+  stray-backups-check \
+  tasks-profiles-check \
+  test-commands-check \
+  test-exec-writes-check \
+  test-read-scopes-check \
+  traceability-tests-check \
+  traceability-tests-test \
+  tracked-ignored-check \
+  unbounded-readers-check \
+  use-case-receipts-check \
+  use-case-receipts-test \
+  walk-skipdir-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
 # script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 # DTL-V0-006: independent gates share the enclosing admission and a bounded job pool.
@@ -1226,7 +1275,7 @@ tracked-ignored-check:
 	@script/tracked-ignored-check.sh
 
 .PHONY: doc-gates
-doc-gates: ## Run the documentation gates
+doc-gates: spec-status-check ## Run the documentation gates
 	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going -j$(DOC_GATE_JOBS) $(addprefix doc-gate/,$(DOC_GATE_TARGETS))
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 

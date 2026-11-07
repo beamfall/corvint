@@ -1453,6 +1453,11 @@ section 4 step 2 applies to the per-lane rebind, where no such change follows.
 
 1. Bind, check and seal each lane against its own base, in parallel, each in its own worktree
    (`DCW-V0-044`). Do not merge the batch tip into a lane.
+   Before merging, run `make spec-batch-capacity-check BASE=origin/main
+   LANES='claude/lane-a claude/lane-b'` with every intended lane ref. This reports base counts and
+   distinct lane additions per spec and refuses a combined count above 256 before any merge
+   (SRG-V0-745). Move overflow to a companion spec; rerun with the revised refs. Deletions are
+   conservatively not subtracted, and this check does not predict textual conflicts.
 2. On the batch branch, at its base, run `make batch-assemble BRANCHES='claude/lane-a claude/lane-b'`
    in merge order. Each merge uses `dogfood batch-check`'s own attribute-free derivation, so the
    repository's merge drivers (`merge=union`, `merge=use-case-pins`) do not run: a clean merge is
