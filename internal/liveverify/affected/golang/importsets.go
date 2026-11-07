@@ -61,11 +61,11 @@ func importSetPath(relative string) bool {
 // pattern that matches nothing. A directory whose header differs, or
 // cannot be read or parsed on either side, changed; a changed directory that
 // holds no unit of the graph changes the module's import graph, as does a
-// dirty module file. A directory whose folded header (AFP-V0-9010) is kept
-// but whose header of every file's own line differs changed only its file
-// set: its unit goes to Files, which only an unproven reader observes.
+// dirty module file. Source is the least dirty .go path whatever its header
+// (AFP-V0-9010): a reader not proven to observe the import graph alone may
+// read the package documentation or source text that no header holds.
 func ImportSetRecords(base, head fs.FS, graph *affected.Graph, dirty []string) *affected.ImportSetChanges {
-	changes := &affected.ImportSetChanges{Changed: map[string]string{}}
+	changes := &affected.ImportSetChanges{Changed: map[string]string{}, Source: affected.SourcePath(dirty)}
 	byDirectory := map[string][]string{}
 	var directories []string
 	for _, relative := range dirty {
@@ -90,27 +90,14 @@ func ImportSetRecords(base, head fs.FS, graph *affected.Graph, dirty []string) *
 	}
 	slices.Sort(directories)
 	for _, directory := range directories {
-		before, beforeFiles, beforeErr := packageHeader(base, directory)
-		after, afterFiles, afterErr := packageHeader(head, directory)
-		filesOnly := false
+		before, beforeErr := packageHeader(base, directory)
+		after, afterErr := packageHeader(head, directory)
 		if beforeErr == nil && afterErr == nil && before == after {
-			if beforeFiles == afterFiles {
-				continue
-			}
-			filesOnly = true
+			continue
 		}
 		paths := byDirectory[directory]
 		slices.Sort(paths)
 		unit, found := directoryUnit(head, graph, directory, paths)
-		if filesOnly && found {
-			if changes.Files == nil {
-				changes.Files = map[string]string{}
-			}
-			if _, seen := changes.Files[unit]; !seen {
-				changes.Files[unit] = paths[0]
-			}
-			continue
-		}
 		if !found {
 			if changes.Module == "" {
 				changes.Module = paths[0]
@@ -174,9 +161,6 @@ func directoryUnit(head fs.FS, graph *affected.Graph, directory string, paths []
 // packageHeader is the import-set signature of one directory in fsys: one
 // line per .go file, sorted, of its name, build-constraint lines, package
 // clause and sorted import paths. An absent directory has the empty header.
-// It returns the folded header below and files, the header with every
-// file's own line, which a reader not proven to observe the import graph
-// alone compares (AFP-V0-9010).
 //
 // A test file adds an import edge to no other package unless its imports
 // leave its package's test import set (AFP-V0-9010). So when the directory's
@@ -186,18 +170,18 @@ func directoryUnit(head fs.FS, graph *affected.Graph, directory string, paths []
 // own: the header instead holds the sorted set of import paths of the N test
 // files, that of the N_test files, and the sorted `//go:embed` lines of both.
 // A test file that keeps those sets keeps the folded header, though an
-// unproven reader still sees it through files; one that adds an import path
+// unproven reader still sees it through Source; one that adds an import path
 // to its role's set, adds an embed line, declares another package clause or
 // carries a constraint still changes it.
-func packageHeader(fsys fs.FS, directory string) (string, string, error) {
+func packageHeader(fsys fs.FS, directory string) (string, error) {
 	entries, err := fs.ReadDir(fsys, directory)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return "", "", nil
+			return "", nil
 		}
-		return "", "", err
+		return "", err
 	}
-	var lines, files []string
+	var lines []string
 	var tests []headerFile
 	clauses := map[string]bool{}
 	for _, entry := range entries {
@@ -207,13 +191,12 @@ func packageHeader(fsys fs.FS, directory string) (string, string, error) {
 		relative := path.Join(directory, entry.Name())
 		body, err := fs.ReadFile(fsys, relative)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		file, err := readHeaderFile(entry.Name(), relative, body)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
-		files = append(files, file.line())
 		if strings.HasSuffix(entry.Name(), "_test.go") && file.unconstrained {
 			tests = append(tests, file)
 			continue
@@ -233,8 +216,7 @@ func packageHeader(fsys fs.FS, directory string) (string, string, error) {
 		}
 	}
 	slices.Sort(lines)
-	slices.Sort(files)
-	return strings.Join(lines, "\n"), strings.Join(files, "\n"), nil
+	return strings.Join(lines, "\n"), nil
 }
 
 // headerFile is the header of one .go file: its name, its build-constraint

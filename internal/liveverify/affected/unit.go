@@ -101,10 +101,11 @@ const MaxPathsPerUnit = 20_000
 // that lists packages it does not name, which reads the whole module's. A
 // plan selects the unit through these edges only when the change alters an
 // import set in that closure (IMPORT_GRAPH_READER, AFP-V0-2201).
-// ImportGraphReadsFiles marks a whole-module reader with a `go list` call
-// that is not proven to observe only the import graph, so it may observe
-// each package's file names too: a test file that keeps its package's test
-// import sets still changes what it reads (AFP-V0-9010).
+// ImportGraphReadsFiles marks a whole-module reader not proven to observe
+// only the import graph: a `go list` call that is not proven, or a file that
+// may observe package metadata or source text by another channel (file
+// reads, other commands, go/ parsers, build information). Any dirty .go path
+// may change what it reads, a package comment included (AFP-V0-9010).
 // PathImports name repository paths whose owning units the unit runs, as an
 // edge the plugin cannot name by unit identity (AZU-V0-001): a file selects its
 // owner, a directory the owners of the files directly in it, `dir/...` the
