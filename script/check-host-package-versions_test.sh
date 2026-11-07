@@ -281,4 +281,26 @@ if output=$(cd "$odd_repo" && script/check-host-package-versions.sh 2>&1); then 
 case $output in *'opencode: integrations/opencode/package.json last bumped'*) ;; *) fail "unusual path failure not named: $output" ;; esac
 odd_git rm -q "integrations/opencode/src/$odd_name" && odd_git commit -q -m delete-unusual-path
 if output=$(cd "$odd_repo" && script/check-host-package-versions.sh 2>&1); then fail "deleting the only shipped path erased its history"; fi
-printf 'check-host-package-versions_test: 24 cases passed (%s git spawns)\n'  "$many"
+# LVT-V0-005: a package whose first shipped file appears only in a merge resolution, while its
+# manifest keeps an unchanged version, still enters the inventory and fails the missing bump.
+merge_repo=$test_root/merge-history
+mkdir -p "$merge_repo/script" "$merge_repo/integrations/opencode"
+cp "$source_root/script/check-host-package-versions.sh" "$merge_repo/script/"
+git -C "$merge_repo" init -q -b main
+merge_git() { git -C "$merge_repo" -c user.name=Fixture -c user.email=fixture@example.test "$@"; }
+printf '{"version":"0.1.0"}\n' > "$merge_repo/integrations/opencode/package.json"
+printf 'base\n' > "$merge_repo/notes.txt"
+merge_git add -A && merge_git commit -q -m manifest
+merge_git checkout -q -b side
+printf 'side\n' > "$merge_repo/side.txt"
+merge_git add -A && merge_git commit -q -m side
+merge_git checkout -q main
+printf 'main\n' >> "$merge_repo/notes.txt"
+merge_git add -A && merge_git commit -q -m main
+merge_git merge -q --no-ff --no-commit side
+mkdir -p "$merge_repo/integrations/opencode/src"
+printf 'resolved\n' > "$merge_repo/integrations/opencode/src/index.ts"
+merge_git add -A && merge_git commit -q -m 'merge side, shipping a resolution-only file'
+if output=$(cd "$merge_repo" && script/check-host-package-versions.sh 2>&1); then fail "a shipped file introduced only by a merge resolution skipped the version check"; fi
+case $output in *'opencode: integrations/opencode/package.json last bumped'*) ;; *) fail "merge-only shipped change not named: $output" ;; esac
+printf 'check-host-package-versions_test: 25 cases passed (%s git spawns)\n'  "$many"
