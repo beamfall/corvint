@@ -12,6 +12,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestRepositoryShellReadScopes_TSP_V0_951 checks this repository's
@@ -20,6 +21,7 @@ import (
 // test's go build compiles lies in a declared read, so a new dependency of the
 // receipt tool fails here instead of going unselected.
 func TestRepositoryShellReadScopes_TSP_V0_951(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	const ratchet = "script/check-sql-native-ratchets_test.sh"
 	root := repositoryRoot(t)
 	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ShellReadScopesPath)))

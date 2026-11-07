@@ -28,6 +28,8 @@ AFP-V0-2610 here for the same reason. Lane selgo (2026-11-06; native tickets V1-
 V1-4933, build-log entry `2026-11-06-selgo`) adds AFP-V0-2740 to AFP-V0-2748 here for the same
 reason, including the rows that amend the CI selector (CIN-V0-860) and `corvint test` (STR-V0-064);
 its review fix rounds add AFP-V0-2746 to AFP-V0-2748.
+Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
+build-log entry `2026-11-06-ci-speed`.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -750,6 +752,38 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   (neither selector selects that package for `docs/build-log/2027-entry.md`, and it is a walker);
   the repository check passes with the unchanged baseline record. Rollback: classify a walker with
   any reader match as a reader again, dropping `coversRecord`, `globCoversRecord` and `globCovers`.
+### Live test tier (V1-4815)
+
+- **AFP-V0-2700:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
+  A Go test that reads the live repository at HEAD or builds release binaries MAY join the live
+  test tier by calling `testsupport.RequireLiveTier(t)` as its first statement. The helper SHALL
+  run the test by default, and SHALL skip it, naming AFP-V0-2700 and the job that runs it, only when
+  the environment holds exactly `CORVINT_SKIP_LIVE_TIER=1` and the test binary was built without the
+  `live` build tag (a tagged binary always runs the tier). Every run that does not set the variable
+  (local `go test`, `corvint test`, the consumers of `.github/cishards/test-commands.json`, `make
+  gate`, batch-precheck and nightly gates) therefore runs the tier, and a change that breaks a live
+  test fails there, before the merge queue (V1-4923). A live-tier test SHALL keep passing when run;
+  the tier changes where it runs, never what it asserts. A test that selection or a gate names as always selected, such as
+  `TestOwnershipAuditRatchet_AZU_V0_002` (AZU-V0-002), SHALL NOT join the tier.
+- **AFP-V0-2701:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
+  The tier SHALL be discovered from source, never listed by hand: `cishards.LiveTests` lists each
+  top-level `TestXxx` in a tracked root-module `_test.go` file (outside `testdata`, `vendor`,
+  hidden and `_` directories and nested modules) whose body calls `RequireLiveTier` through a
+  selector, grouped by package. `make live-test` runs `tools/live-test-run`, which runs each
+  package's tier with `go test -tags live -count=1 -timeout T -run '^(A|B)$'`, exits 1 on any
+  failure and 2 on an unreadable or empty tier. `live-test` is not a `GATE_STEPS` entry: `make gate`
+  and the nightly release gates (which run `make -k gate`) already run the tier through `go-test`.
+  `script/batch-precheck.sh` runs `make live-test` as an extra target before every batch push.
+- **AFP-V0-2702:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
+  PR shards SHALL exclude the tier: the Go test step of the `go-product-shard` job in
+  `.github/workflows/ci.yml` sets `CORVINT_SKIP_LIVE_TIER: "1"`, no other line of the workflow or of
+  `.github/cishards/test-commands.json` sets it, and no `go test` line passes a `-tags` value naming
+  `live`, so every live test skips in the shards and runs everywhere else. The
+  merge queue SHALL run the tier in a `go-live` job (`make live-test`) on `merge_group` events,
+  which the required `go-product` result requires to succeed there and to be skipped on other
+  events. The job runs without the race detector, which the PR shards used for these tests
+  before; a race in a live-tier test surfaces only where `-race` runs it. The workflow half takes effect only after the owner's ci-control-plane review of its own
+  PR; until then PR shards run the tier as before.
 
 ## Non-goals
 
@@ -816,6 +850,13 @@ below a leaf package makes the leaf's pattern an unbounded read again, so `unbou
 fails on the unrecorded unit until the record or the test changes (AFP-V0-2542). A package whose
 tests set `Dir` for an unrelated command loses the exemption for its leaf patterns too; that is
 conservative, and the read is recorded or the pattern rewritten as `"."`.
+A live-tier test that regresses passes every PR shard and fails in any run without
+`CORVINT_SKIP_LIVE_TIER=1`: the local selected run, batch-precheck's `make live-test`, the merge
+queue, the nightly gates or a local `make gate`. A test that calls `RequireLiveTier` through a local
+helper, or not in its own body, is not discovered by `make live-test`, but still runs in every
+untagged run without the variable; AFP-V0-2701 reads only the test's own body. A CI step other than
+the shard Go test step that copied the variable would silently skip the tier; AFP-V0-2702's
+single-occurrence check refuses that.
 
 ## Acceptance evidence and traceability
 
@@ -870,6 +911,10 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2748 | `Graph.RecordReaders`, `coversRecord`, `globCoversRecord`, `globCovers`, `globAlphabet` and `classBounds` in `internal/liveverify/affected/recordreaders.go` | `TestRecordWalkerNotMaskedByNarrowerReads_AFPV2748` in `internal/liveverify/affected/records_test.go` (fails with a narrower read masking the walker); `TestAFPV2748RecordRatchetRefusesAMaskedWalker` in `tools/unbounded-readers/records_test.go` (fails without the fix); `TestRecordWalkerWithGlobSkippedByBothSelectors_AFPV2748` in `internal/gateselect/records_afpv2748_test.go`; `make unbounded-readers-check` on the repository |
 | AFP-V0-2610 | `deletedGoSource` (was `deletedGoTest`) in `internal/liveverify/affected/deletedtests.go` and its call in `seed` (`select.go`); `goSourceRule` in `structure.go` | `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610` and the amended `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (fails before the change: `UNINDEXED_SOURCE_PATH provider/extra.go`); amended to the new rule: `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340` (no unindexed entry), the two AFP-V0-191 tests in `golang/unobserved_test.go` and the Go case of `TestSeamWidensRatherThanNarrowingOnUnknownInput` (a new unindexed file is written to disk), and the two abstention rows of `TestUseCaseHostileChangeConsequence` (a directory left with no package); the PR #114 replay and a one-file deletion replay in build-log entry `2026-11-06-selection-audit` |
 
+| AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |
+| AFP-V0-2701 | `LiveTests`, `rootModuleSource`, `liveTestsInFile` in `.github/cishards/live.go`; `tools/live-test-run/main.go`; the `live-test` target in `Makefile`; `live-test` in `EXTRA_TARGETS` of `script/batch-precheck.sh` | `TestLiveTestsInFileFindsMarkedTopLevelTests_AFPV02701`, `TestRootModuleSourceMatchesGoTestReach_AFPV02701` (including a module-root file) in `.github/cishards/live_test.go`; the `make -s live-test` assertion in `script/batch-precheck_test.sh`; `TestArgvRunsOnlyTheLiveTestsWithTheTag_AFPV02701`, `TestRunExecutesEachLivePackage_AFPV02701` in `tools/live-test-run/main_test.go` |
+| AFP-V0-2702 | `CORVINT_SKIP_LIVE_TIER` in the `go-product-shard` Go test step, the `go-live` job and the `go-product` needs in `.github/workflows/ci.yml` | `TestRepositoryLiveTierIsExcludedFromPRShards_AFPV02702` in `.github/cishards/live_test.go`; the workflow diff; an observed merge-queue run is pending the owner's ci-control-plane review |
+
 ## Rollback
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-551, removing
@@ -909,3 +954,8 @@ make `reachesRecord` return `resolvesRecord` and drop the `joins` pass of `resol
 readers of a record entry are dropped again. For AFP-V0-2747, return only the fixed probe from
 `recordProbes` and return walkers among the readers. For AFP-V0-2748, classify a walker with any
 reader match as a reader and drop `coversRecord`, `globCoversRecord` and `globCovers`.
+For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, the three
+`internal/testsupport/livetier*.go` files, `.github/cishards/live.go`, `tools/live-test-run`, the
+`live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
+line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
+the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.

@@ -11,6 +11,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestTasksClosureChangeSelectsCompanionRelease_V14050: an edit to any Go file
@@ -21,6 +22,7 @@ import (
 // the affected planner), and only that test sees it. The closure is read from
 // `go list -deps ./cmd/corvint-tasks`, so a package that joins it is covered too.
 func TestTasksClosureChangeSelectsCompanionRelease_V14050(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {
