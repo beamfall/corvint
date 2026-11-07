@@ -39,7 +39,8 @@ a test-only run one level past what it runs, as a test-only import already is.
    commands whose every use is in a `_test.go` file. It searches the sources first, and an unparsed
    source uses every candidate. A declared edge is never test-only. A runtime edge (AFP-V0-819)
    that the unit's code does not already run is test-only, because a test file holds it. In this
-   repository, 99 of the 163 exec edges are test-only, and 16 units run a command from code.
+   repository, the Go plugin marks 99 of its 163 exec edges test-only, and 16 units run a command
+   from code; the declared runtime edges add their test-only edges when the graph is built.
 2. **One traversal rule.** `traverseWhere` takes the code-run edges as a fourth class, after
    imports, advisory and route-dispatch edges, with a `BINARY_EXEC` witness. `testRunnersOf` adds a
    test-only runner one level past the walk. Rule (d) (AFP-V0-2990, AFP-V0-2991), the test-less
