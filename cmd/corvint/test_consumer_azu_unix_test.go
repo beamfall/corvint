@@ -35,8 +35,8 @@ func TestAZUV0007CLIExecutesDeclaredConsumers(t *testing.T) {
 	}
 	for name, body := range map[string]string{
 		"cmd/tool/main.go":           "package main\nimport \"example.test/m/a\"\nfunc main() { _ = a.A() }\n",
-		"web/e2e.mjs":                "printf '%s\\n' \"$PWD\" \"$@\" >> \"$SESSION_FAKE_LOG.e2e\"\n",
-		"web/nav.mjs":                "printf '%s\\n' \"$PWD\" \"$@\" >> \"$SESSION_FAKE_LOG.nav\"\n",
+		"web/e2e.mjs":                "printf '%s\\n' \"$(pwd -P)\" \"$@\" >> \"$SESSION_FAKE_LOG.e2e\"\n",
+		"web/nav.mjs":                "printf '%s\\n' \"$(pwd -P)\" \"$@\" >> \"$SESSION_FAKE_LOG.nav\"\n",
 		affected.BinaryConsumersPath: string(declaration),
 	} {
 		path := filepath.Join(root, name)
@@ -85,9 +85,16 @@ func TestAZUV0007CLIExecutesDeclaredConsumers(t *testing.T) {
 	if found != len(runs) {
 		t.Fatalf("executed %d declared consumers, want %d", found, len(runs))
 	}
+	// Each consumer prints its physical working directory (pwd -P), so compare
+	// it with the canonical root: on macOS t.TempDir lies under /var, a symbolic
+	// link to /private/var, and the inherited PWD never names the root.
+	physicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for suffix, file := range map[string]string{"e2e": "web/e2e.mjs", "nav": "web/nav.mjs"} {
 		data := mustRead(t, log+"."+suffix)
-		if want := root + "\n" + strings.Join(runs[file][2:], "\n") + "\n"; string(data) != want {
+		if want := physicalRoot + "\n" + strings.Join(runs[file][2:], "\n") + "\n"; string(data) != want {
 			t.Fatalf("consumer output %q, want %q", data, want)
 		}
 	}
