@@ -51,6 +51,7 @@ type goPackage struct {
 	unresolved     string   // why the package's reads are not bounded by its literals
 	locatesRoot    bool     // a non-test file is unresolved, so every dependent is too
 	movesDirectory bool     // a file moves the working directory (directoryMove)
+	command        bool     // a non-test file declares package main, so the package builds a binary
 	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
 }
 
@@ -64,6 +65,9 @@ type repositoryIndex struct {
 	importers      map[string][]string   // directory -> directories whose non-test files import it
 	namers         map[string][]string   // directory -> directories whose non-test files name it by a path token
 	testImporters  map[string][]string   // directory -> directories whose _test.go files alone import or name it
+	codeRunners    map[string][]string   // command directory -> directories whose non-test files may run its binary (AFP-V0-2992)
+	testRunners    map[string][]string   // command directory -> directories whose _test.go files alone may run its binary
+	execsErr       error                 // why the binary-execs declaration was not applied; rule (d) then widens to every package
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
@@ -73,7 +77,7 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 // indexRepositoryMemo is indexRepository that reuses, through memo, the scan
 // of each Go source whose stamp is unchanged; memo may be nil (AFP-V0-822).
 func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex, error) {
-	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}}
+	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}, codeRunners: map[string][]string{}, testRunners: map[string][]string{}}
 	var files []indexedFile
 	entries := 0
 	walkErr := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
@@ -147,6 +151,8 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 		}
 	}
 	index.link(imports)
+	index.linkRunners()
+	index.applyBinaryExecs(root)
 	index.applyGatedLocators(root, files, recalled)
 	memo.store(root, module, recalled, results)
 	return index, nil
@@ -163,6 +169,7 @@ type indexedFile struct {
 type scannedFile struct {
 	relative, directory string
 	test                bool
+	command             bool // a non-test file whose package clause names main
 	imports             []string
 	scan                sourceScan
 	tokens              [][]string // pathTokens of each scan.literals entry
@@ -226,6 +233,7 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		scanned.err = fmt.Errorf("%s: imports do not parse", relative)
 		return scanned
 	}
+	scanned.command = !scanned.test && file.Name != nil && file.Name.Name == "main"
 	for _, spec := range file.Imports {
 		value, _ := strconv.Unquote(spec.Path.Value)
 		scanned.imports = append(scanned.imports, value)
@@ -273,6 +281,7 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 		pkg.markUnresolved(relative+" calls "+call, test)
 	}
 	pkg.embeds = pkg.embeds || (scan.embeds && !test)
+	pkg.command = pkg.command || scanned.command
 	pkg.movesDirectory = pkg.movesDirectory || scan.movesDirectory
 	for _, values := range scanned.tokens {
 		for _, value := range values {
@@ -920,11 +929,16 @@ func (index *repositoryIndex) enclosing(dirtyPath string) []string {
 
 // unresolved maps each package whose reads no literal bounds to the reason:
 // its own root-locating file, or a dependency whose non-test code locates the
-// root and so reads from it when the package's tests call it. The dependency
-// is reached as the planner's Graph.unboundedReaders reaches it: over non-test
-// import edges, then one level of test importers; a path token naming the
-// locator's directory links no code to it, so namers are not followed
-// (V1-2727).
+// root and so reads from it when the package's tests call it, or a command
+// whose binary runs such code when the package runs it. The dependency is
+// reached as the planner's Graph.unboundedReaders reaches it: over non-test
+// import edges and the edges to packages whose non-test code may run a
+// reached command's binary, then one level of test importers and of packages
+// whose tests alone may run a reached command (runReach, AFP-V0-2992). A
+// path token naming a library's directory links no code to it, so namers
+// are not followed (V1-2727). When the binary-execs declaration cannot be
+// applied, every package is unresolved: the selector cannot tell which
+// package runs which command, so it widens rather than guess.
 func (index *repositoryIndex) unresolved() map[string]string {
 	reasons := map[string]string{}
 	var locators []string
@@ -936,9 +950,17 @@ func (index *repositoryIndex) unresolved() map[string]string {
 			locators = append(locators, directory)
 		}
 	}
+	if index.execsErr != nil {
+		for directory := range index.packages {
+			if reasons[directory] == "" {
+				reasons[directory] = binaryExecsPath + " is not applied (" + index.execsErr.Error() + "), so any package may run a root-locating command"
+			}
+		}
+		return reasons
+	}
 	sort.Strings(locators)
 	for _, locator := range locators {
-		for _, dependent := range index.reach(false, []string{locator}) {
+		for _, dependent := range index.runReach([]string{locator}) {
 			if reasons[dependent] == "" {
 				reasons[dependent] = "depends on " + importPath(index.module, locator) + ", whose " + index.packages[locator].unresolved
 			}
