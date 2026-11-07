@@ -14,6 +14,7 @@ package affected
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -84,6 +85,10 @@ const MaxPathsPerUnit = 20_000
 // Execs name the command units whose built binary the unit's code or tests
 // run (AFP-V0-037): no import edge reaches the unit from the command, so a
 // change to the command's build selects the unit through this edge instead.
+// TestOnlyExecs name the members of Execs that only the unit's own tests run:
+// the plugin found every use of the command in a test file. The unit's code
+// never runs such a command, so neither does an importer or a runner of the
+// unit; every other member may be run by the unit's code (AFP-V0-2991).
 // AdvisoryImports name units the unit reaches through a convention the
 // plugin resolved without an explicit load, such as a Ruby constant that
 // autoloading maps to a file (RUBY-AFFECTED-V0-009). A change there selects
@@ -123,6 +128,7 @@ type Unit struct {
 	Imports              []string `json:"imports"`
 	TestImports          []string `json:"testImports,omitempty"`
 	Execs                []string `json:"execs,omitempty"`
+	TestOnlyExecs        []string `json:"testOnlyExecs,omitempty"`
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathImports          []string `json:"pathImports,omitempty"`
@@ -289,6 +295,14 @@ func validUnit(unit Unit, namespace string) error {
 	}
 	if err := validIdentifierList(unit.Execs); err != nil {
 		return err
+	}
+	if err := validIdentifierList(unit.TestOnlyExecs); err != nil {
+		return err
+	}
+	for _, id := range unit.TestOnlyExecs {
+		if !slices.Contains(unit.Execs, id) {
+			return ErrInvalidUnit
+		}
 	}
 	if err := validIdentifierList(unit.ImportGraphReads); err != nil {
 		return err

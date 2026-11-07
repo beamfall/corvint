@@ -551,9 +551,10 @@ func importGraphWitnessResolves(graph *affected.Graph, selection affected.Select
 
 // viaEdges reports that every consecutive pair of a witness chain is a graph
 // edge the selector traverses (V1-1491): the later unit imports, or
-// advisorily imports, the earlier one; the final hop may also be a test-only
-// import or a built-binary exec, which the selector takes one edge past a
-// reached unit and never expands.
+// advisorily imports, the earlier one, or its code may run the earlier
+// command's built binary (an exec that is not test-only, AFP-V0-2993); the
+// final hop may also be a test-only import or any built-binary exec, which
+// the selector takes one edge past a reached unit and never expands.
 func viaEdges(graph *affected.Graph, via []string) bool {
 	for index := 1; index < len(via); index++ {
 		unit, found := graph.Unit(via[index])
@@ -561,6 +562,11 @@ func viaEdges(graph *affected.Graph, via []string) bool {
 			return false
 		}
 		edges := append(append([]string(nil), unit.Imports...), unit.AdvisoryImports...)
+		for _, command := range unit.Execs {
+			if !slices.Contains(unit.TestOnlyExecs, command) {
+				edges = append(edges, command)
+			}
+		}
 		if index == len(via)-1 {
 			edges = append(append(edges, unit.TestImports...), unit.Execs...)
 		}
