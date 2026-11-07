@@ -89,6 +89,27 @@ func validNonSourcePath(entry string) bool {
 	return true
 }
 
+// DeclaredNonSourceHolds returns whether root's non-source declaration holds
+// a path: the entry itself or, for a directory entry, a path below it. A
+// missing, unreadable or invalid declaration holds nothing, so a caller keeps
+// its own conservative treatment; the graph build refuses an invalid one. The
+// Go plugin uses it so declared output outranks a hidden-directory suffix
+// claim (AZU-V0-005, AZU-V0-9921).
+func DeclaredNonSourceHolds(root *Source) func(string) bool {
+	entries, err := readNonSourcePaths(root)
+	if err != nil || len(entries) == 0 {
+		return func(string) bool { return false }
+	}
+	return func(path string) bool {
+		for _, entry := range entries {
+			if path == entry.Path || (strings.HasSuffix(entry.Path, "/") && strings.HasPrefix(path, entry.Path)) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // nonSourceEntry returns the index of the declared entry that holds path, or
 // -1.
 func (graph *Graph) nonSourceEntry(path string) int {

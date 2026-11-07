@@ -474,8 +474,10 @@ func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time
 			// independently of the plan to detect unplanned helpers too.
 			for _, pkg := range r.Universe {
 				if strings.Contains(pkg, "/.github/") || strings.HasSuffix(pkg, "/.github") {
+					// An absent directory adds no pattern; the explicit
+					// listing below still refuses its planned packages.
 					children, err := os.ReadDir(filepath.Join(r.Root, ".github"))
-					if err != nil {
+					if err != nil && !errors.Is(err, os.ErrNotExist) {
 						return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
 					}
 					for _, child := range children {

@@ -146,6 +146,21 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 // directories (the "." marker, AZU-V0-005) through the bounded source walk.
 var includedDirectories = []string{"build", "dist", "target", "."}
 
+// hiddenSourcePath reports a path below a directory whose name starts with
+// `.` or `_`: source the hidden-directory marker newly admits (AZU-V0-005).
+func hiddenSourcePath(relative string) bool {
+	directory := path.Dir(relative)
+	if directory == "." {
+		return false
+	}
+	for _, component := range strings.Split(directory, "/") {
+		if strings.HasPrefix(component, ".") || strings.HasPrefix(component, "_") {
+			return true
+		}
+	}
+	return false
+}
+
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
@@ -160,6 +175,14 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	// CI helpers below .github (AZU-V0-9920) are reached by the hidden-source
 	// marker above, with the walk's own cache stamps and bounds (AZU-V0-005).
+	// A hidden or underscore path the repository declares non-source stays
+	// output, not a package (AZU-V0-9921): retained evidence is never built.
+	if slices.ContainsFunc(observed, hiddenSourcePath) {
+		declared := affected.DeclaredNonSourceHolds(root)
+		observed = slices.DeleteFunc(observed, func(relative string) bool {
+			return hiddenSourcePath(relative) && declared(relative)
+		})
+	}
 	files := make([]string, 0, len(observed))
 	manifests := make([]string, 0, len(observed))
 	for _, relative := range observed {

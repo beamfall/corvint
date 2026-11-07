@@ -59,19 +59,22 @@ func TestHiddenHelperUniverse_AZU_V0_9920(t *testing.T) {
 				}
 				return
 			}
-			want := "1 unplanned [example.test/m/.github/extra], 0 unlisted []"
+			want := "go list ./... differs from the planned Go universe: 1 unplanned [example.test/m/.github/extra], 0 unlisted []"
 			if mode == "unlisted" {
-				want = "0 unplanned [], 1 unlisted [example.test/m/.github/missing]"
+				// The planned package is also listed explicitly (AZU-V0-005),
+				// so go list itself refuses the absent package.
+				want = "go list ./... failed; the Go universe cannot be confirmed"
 			}
-			if err == nil || !strings.Contains(err.Error(), "go list ./... differs from the planned Go universe: "+want) {
+			if err == nil || !strings.Contains(err.Error(), want) {
 				t.Fatalf("discovery error %v; want %s", err, want)
 			}
 		})
 	}
 }
 
-// AZU-V0-9920 / STR-V0-069: an independent helper module and skipped
-// directories are absent from the graph and must not poison root discovery.
+// AZU-V0-9920 / STR-V0-069: an independent helper module and testdata are
+// absent from the graph and must not poison root discovery. Nested hidden and
+// build directories are indexed source (AZU-V0-005) and must be confirmed.
 func TestHiddenHelperModuleBoundary_AZU_V0_9920(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
@@ -104,7 +107,7 @@ func TestHiddenHelperModuleBoundary_AZU_V0_9920(t *testing.T) {
 			universe = append(universe, pkg)
 		}
 	}
-	if !slices.Equal(universe, []string{"example.test/m/.github/helper", "example.test/m/ordinary"}) {
+	if !slices.Equal(universe, []string{"example.test/m/.github/.hidden", "example.test/m/.github/build", "example.test/m/.github/helper", "example.test/m/ordinary"}) {
 		t.Fatalf("graph crossed a boundary: %v", universe)
 	}
 	runner := Runner{Root: root, Environ: append(os.Environ(), "GOWORK=off", "GOTOOLCHAIN=local"), Universe: universe}

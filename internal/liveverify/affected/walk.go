@@ -61,6 +61,20 @@ func SourceFilesIncluding(root string, accept func(name string) bool, includedDi
 	if root == "" || !filepath.IsAbs(root) {
 		return nil, false, fmt.Errorf("%w: root %q is not absolute", ErrInvalidLanguage, root)
 	}
+	all, bounded, err := sourceFilesIncluding(root, accept, includedDirectories)
+	if err != nil {
+		return nil, false, err
+	}
+	files, err := nameableFiles(all, func(relative string) bool { return accept(path.Base(relative)) })
+	if err != nil {
+		return nil, false, err
+	}
+	return files, bounded, nil
+}
+
+// sourceFilesIncluding is SourceFilesIncluding before nameableFiles: it may
+// hold a deferred path below a hidden directory that no unit can name.
+func sourceFilesIncluding(root string, accept func(name string) bool, includedDirectories []string) ([]string, bool, error) {
 	shared := heldWalk(root, includedDirectories)
 	if shared == nil {
 		return walkSourceFiles(root, accept, includedDirectories)
@@ -71,13 +85,41 @@ func SourceFilesIncluding(root string, accept func(name string) bool, includedDi
 	if shared.err != nil {
 		return nil, false, shared.err
 	}
-	files := make([]string, 0, len(shared.files))
-	for _, relative := range shared.files {
-		if accept(path.Base(relative)) {
-			files = append(files, relative)
+	return shared.files, shared.bounded, nil
+}
+
+// nameableFiles keeps the walked files accept claims. A claimed path no unit
+// can name refuses ErrWalkUnrepresentable. The walk defers such a path only
+// below a hidden directory, which the "." marker admits for Go packages
+// (AZU-V0-005): an unclaimed name there, such as retained metadata, cannot
+// narrow any unit set, so it no longer refuses every plugin (AZU-V0-9900).
+func nameableFiles(all []string, accept func(relative string) bool) ([]string, error) {
+	files := make([]string, 0, len(all))
+	for _, relative := range all {
+		if !accept(relative) {
+			continue
+		}
+		if !ValidRelativePath(relative) {
+			return nil, fmt.Errorf("%w: %q", ErrWalkUnrepresentable, relative)
+		}
+		files = append(files, relative)
+	}
+	return files, nil
+}
+
+// deferredUnrepresentable reports a path below a hidden directory, whose
+// unnameable entry the walk leaves to nameableFiles.
+func deferredUnrepresentable(relative string) bool {
+	directory := path.Dir(relative)
+	if directory == "." {
+		return false
+	}
+	for _, component := range strings.Split(directory, "/") {
+		if strings.HasPrefix(component, ".") {
+			return true
 		}
 	}
-	return files, shared.bounded, nil
+	return false
 }
 
 // walks shares one traversal per root and directory exceptions among the
@@ -194,7 +236,7 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 		if IgnoredMatch(ignored, slashed) {
 			return nil
 		}
-		if !ValidRelativePath(slashed) {
+		if !ValidRelativePath(slashed) && !deferredUnrepresentable(slashed) {
 			return fmt.Errorf("%w: %q", ErrWalkUnrepresentable, slashed)
 		}
 		files = append(files, slashed)

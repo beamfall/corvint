@@ -6,6 +6,7 @@ package gateselect
 // attributed from its literals is `unresolved` and selected on any dirty path.
 
 import (
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -69,6 +70,7 @@ type repositoryIndex struct {
 	importers      map[string][]string   // directory -> directories whose non-test files import it
 	namers         map[string][]string   // directory -> directories whose non-test files name it by a path token
 	testImporters  map[string][]string   // directory -> directories whose _test.go files alone import or name it
+	nonSource      []string              // declared non-source entries (.corvint/non-source-paths.json)
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
@@ -79,6 +81,7 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 // of each Go source whose stamp is unchanged; memo may be nil (AFP-V0-822).
 func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex, error) {
 	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}}
+	index.nonSource = declaredNonSource(root)
 	var files []indexedFile
 	entries := 0
 	walkErr := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
@@ -99,7 +102,7 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 		if entry.IsDir() {
 			return index.enterDirectory(root, relative)
 		}
-		if !strings.HasSuffix(relative, ".go") {
+		if !strings.HasSuffix(relative, ".go") || index.declaredOutput(relative) {
 			return nil
 		}
 		if !entry.Type().IsRegular() {
@@ -202,6 +205,62 @@ func scanFiles(root, module string, files []indexedFile, recalled *scanRecall) [
 	}
 	pending.Wait()
 	return results
+}
+
+// nonSourcePath is the declaration of tracked output (AZU-V0-002); it mirrors
+// affected.NonSourcePathsPath.
+const nonSourcePath = ".corvint/non-source-paths.json"
+
+// declaredNonSource returns the declared non-source entries, or nil for a
+// missing, oversized or malformed declaration: the index then keeps every
+// file, as the planner's affected.DeclaredNonSourceHolds does.
+func declaredNonSource(root string) []string {
+	name := filepath.Join(root, filepath.FromSlash(nonSourcePath))
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxReadScopeBytes {
+		return nil
+	}
+	body, err := os.ReadFile(name)
+	if err != nil || len(body) > maxReadScopeBytes {
+		return nil
+	}
+	var declared struct {
+		Profile string `json:"profile"`
+		Entries []struct {
+			Path   string `json:"path"`
+			Reason string `json:"reason"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(body, &declared, json.RejectUnknownMembers(true)); err != nil || declared.Profile != "corvint-non-source-paths/0" {
+		return nil
+	}
+	entries := make([]string, 0, len(declared.Entries))
+	for _, entry := range declared.Entries {
+		if entry.Path == "" || entry.Reason == "" {
+			return nil
+		}
+		entries = append(entries, entry.Path)
+	}
+	return entries
+}
+
+// declaredOutput reports a Go file below a directory whose name starts with
+// `.` or `_` that the repository declares non-source: retained output, not a
+// package, as in the planner's Go plugin (AZU-V0-005, AZU-V0-9921).
+func (index *repositoryIndex) declaredOutput(relative string) bool {
+	hidden := false
+	for _, component := range strings.Split(path.Dir(relative), "/") {
+		hidden = hidden || component != "." && (strings.HasPrefix(component, ".") || strings.HasPrefix(component, "_"))
+	}
+	if !hidden {
+		return false
+	}
+	for _, entry := range index.nonSource {
+		if relative == entry || (strings.HasSuffix(entry, "/") && strings.HasPrefix(relative, entry)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (index *repositoryIndex) enterDirectory(root, relative string) error {
