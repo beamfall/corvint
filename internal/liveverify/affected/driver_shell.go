@@ -136,6 +136,9 @@ func (s *driverShellScanner) script(script, cwd string) {
 					if input && (driverDynamic(word.text) || cwd == "" && !strings.HasPrefix(word.text, "/")) {
 						s.scan.uncertified = true
 					}
+					if input {
+						s.pathOperand(word.text, cwd)
+					}
 					redirect, input = false, false
 					continue
 				}
@@ -386,9 +389,20 @@ func driverComputedWord(text string) bool {
 func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	head := words[0].text
 	switch head {
-	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "export", "local", "readonly", "declare", "set", "unset", "shift", "return", "exit", "trap", "wait", "read":
+	case "trap":
+		// AFP-V0-3128: the body runs later as shell code, potentially
+		// with a different environment or directory.
+		s.scan.uncertified = true
+		s.embedded(words[1:], cwd)
+		return cwd
+	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "export", "local", "readonly", "declare", "set", "unset", "shift", "return", "exit", "wait", "read":
 		if (head == "[[" || head == "[" || head == "test") && !driverTestCertified(words, cwd) {
 			s.scan.uncertified = true
+		}
+		if head == "[[" || head == "[" || head == "test" {
+			for _, word := range words[1:] {
+				s.pathOperand(word.text, cwd)
+			}
 		}
 		s.embedded(words[1:], cwd)
 		return cwd
@@ -450,6 +464,12 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 			}
 			s.pathWord(arg, cwd)
 			break
+		}
+	}
+	if driverBoundedCommands[base] {
+		// Every literal operand can name a file, including LICENSE.
+		for _, word := range words[1:] {
+			s.pathOperand(word.text, cwd)
 		}
 	}
 	s.pathWord(head, cwd)
@@ -751,16 +771,23 @@ func (s *driverShellScanner) embedded(words []driverWord, cwd string) {
 // pathWord records a path-like word as a path import: the owner of the file,
 // or of the files directly in the directory, that it names.
 func (s *driverShellScanner) pathWord(word, cwd string) {
+	if !strings.Contains(word, "/") && !strings.Contains(word, ".") {
+		return
+	}
+	s.pathOperand(word, cwd)
+}
+
+// pathOperand records literal file operands without guessing from punctuation.
+func (s *driverShellScanner) pathOperand(word, cwd string) {
 	if driverDynamic(word) || strings.HasPrefix(word, "-") || strings.HasPrefix(word, "/") {
 		return
 	}
 	word = strings.TrimSuffix(word, "/")
-	if !strings.Contains(word, "/") && !strings.Contains(word, ".") {
-		return
-	}
 	for _, candidate := range driverVariants(cwd, word) {
 		if ValidRelativePath(candidate) {
 			s.scan.paths[candidate] = true
+			// PathImports reach owners; tokens also reach unowned files.
+			s.scan.tokens[candidate] = true
 		}
 	}
 }

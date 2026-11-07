@@ -229,6 +229,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   patterns are the target's edges. A change that any alternative can run or name SHALL still
   select the target and its callers. This evaluates exactly where AZU-V0-9702 and AZU-V0-9850
   allowed a retained site; AFP-V0-3122 decides whether the evaluated target stays a site.
+  Filesystem/path functions (`wildcard`, `realpath`, `abspath`) SHALL NOT pass arguments through
+  as results. Literal wildcard names proven to exist through the explicit repository source MAY
+  return those names. Patterns, absent names and other unmodeled results SHALL stay unknown;
+  an absent wildcard condition SHALL preserve the false branch and its dependencies.
 - **AFP-V0-3122:** **Claims only within a certified read set.** (experimental, owner lane selfloor
   charter 2026-11-07, V1-5000) An evaluated target is one whose own text, or its file's variables,
   resolved what the claimant before AFP-V0-3121 retained as ambiguous: a reassigned variable, or
@@ -305,7 +309,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   - every `$(shell ...)` and `!=` command that an AFP-V0-3125 text reaches, including one whose
     value no recipe uses;
   - the program a SHELL or `.SHELLFLAGS` assignment hands each recipe line, unless it is a plain
-    shell with a `-c` flag.
+    shell with a `-c` flag. Repository shell wrappers SHALL NOT be certified by basename;
+    only bare shell names and exact `/bin/<shell>` or `/usr/bin/<shell>` paths qualify here.
 
   The claimant SHALL scan each such command. One that is not certified (AFP-V0-3122) SHALL leave
   every evaluated target of the file uncertified, and one it cannot represent SHALL make every
@@ -324,6 +329,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
     uncertified;
   - no input redirection from an unknown file;
   - no operands that `xargs` reads from input.
+
+  Literal file operands SHALL be represented even without a slash or extension (for example,
+  `cat LICENSE`), including input redirections and test file operators. Their path tokens SHALL
+  select unowned file readers as well as path imports reaching owners. Deferred `trap` bodies
+  SHALL remain uncertified because their execution environment and reads are not bounded here.
 
   A test command with a file operator or `-nt`, `-ot` or `-ef` on an unknown operand SHALL NOT be
   certified. Certification is per command. A checksum command in `-c`/`--check` mode reads the
@@ -702,14 +712,14 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
 | AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120`, `TestFrontierSiteFileStatementKeepsClaim_AFP_V0_3120` |
-| AFP-V0-3121 | V1-5000 | `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3121 | V1-5000 | `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 | AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 | AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`, `TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125` |
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
-| AFP-V0-3127 | V1-5000 | `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
-| AFP-V0-3128 | V1-5000 | `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3127 | V1-5000 | `TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127`, `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
+| AFP-V0-3128 | V1-5000 | `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
