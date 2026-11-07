@@ -308,7 +308,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
   target a site. A `$(shell ...)` in a recursive value runs only where a recipe expands it, so it
   SHALL count only for that recipe's target. Example: `AUDIT := $(shell $(if
   $(CI),script/enumerate.sh,script/enumerate.sh))` SHALL keep every target claiming a new CEM even
-  when no recipe uses `AUDIT`.
+  when no recipe uses `AUDIT`. Amended in selfloor fix round 2 (2026-11-07, orchestrator decision
+  under the 2026-11-02 delegation): the repository's root `Makefile` SHALL run no uncertified
+  command while make reads it. Its `WINDOWS_VET_GOCACHE` is therefore recursive, so the `stat`
+  probe runs only where `windows-vet` expands it, and the same cache directory results
+  (`AFP-V0-054`, `ASD-V0-061`).
 - **AFP-V0-3128:** **Operand-bounded commands.** (experimental, owner lane selfloor review round 1
   2026-11-07, V1-5000) A command certified for reading only its operands SHALL also have:
   - every operand and option literal, with no value the environment or the shell supplies;
@@ -593,7 +597,8 @@ Lane selfloor witnesses its nine rows with fixtures:
 - Each review round 1 finding has its own regression:
   - `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`;
   - `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126`;
-  - `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`;
+  - `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, and for the root `Makefile`
+    `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127`;
   - `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, with the control
     `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`.
 
@@ -613,8 +618,22 @@ retained site where it is not. The 20-merge selmeasure replay at `538e823f4` is 
   of that file uncertified;
 - no unit was dropped, so no miss is possible against the base.
 
+Fix round 2 made that assignment recursive (amended AFP-V0-3127). The regression builds the root
+Makefile's driver graph: 115 of its 188 targets are computed sites, against all 188 with the
+assignment immediate, and `windows-vet` stays one. The replay applies the one-line change to both
+the merge base and the PR head of each of the 20 merges:
+- 686 root make targets drop their `FRONTIER_SITE` claim;
+- units fall from 6,876 to 6,190, and `FRONTIER_SITE` units from 1,573 to 864 (CEM witness:
+  1,487 to 820);
+- test files, dirty paths, unknown entries and scope are unchanged on every merge, and no unit is
+  added;
+- every dropped unit is a root make target the round 1 model certifies, so this is the same model
+  applied to the changed file, not a new rule.
+
 Rollback reverts the lane's code commit. That restores collapsing every unrepresentable or
-alternative make value into a computed site, with no wire or receipt change.
+alternative make value into a computed site, with no wire or receipt change. Reverting the fix
+round 2 Makefile line restores the immediate `WINDOWS_VET_GOCACHE`, which only widens selection
+again; drop its regression with it.
 
 The PR #99 repairs (AZU-V0-9850 through AZU-V0-9853) extend the same driver soundness boundary.
 Acceptance requires the table regressions below and the complete affected package. Unsupported
@@ -668,7 +687,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 | AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125` |
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
-| AFP-V0-3127 | V1-5000 | `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127` |
+| AFP-V0-3127 | V1-5000 | `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
 | AFP-V0-3128 | V1-5000 | `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
