@@ -1016,7 +1016,7 @@ serve() {
     for ((i = 0; i < ${#CMD[@]} && prefix; i++)); do
       case ${CMD[i]} in
         GOFLAGS=*) CMD[i]=GOFLAGS=$flags ;;
-        env | *=*) ;;
+        env | */env | *=*) ;;
         *) prefix=0 ;;
       esac
     done

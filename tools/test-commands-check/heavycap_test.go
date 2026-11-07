@@ -314,6 +314,7 @@ exec env -i PATH="$PATH" HOME="`+root+`" TMPDIR="`+root+`" LC_ALL=C bash -s
 		{"receiver-run", "export GOFLAGS=-run=TestOther\n", nil},
 		{"receiver-goenv", "export GOENV=" + goenv + "\nunset GOFLAGS\n", nil},
 		{"explicit-empty", "export GOENV=" + goenv + "\nunset GOFLAGS\n", []string{"env", "GOFLAGS="}},
+		{"absolute-env-explicit-empty", "export GOENV=" + goenv + "\nunset GOFLAGS\n", []string{"/usr/bin/env", "GOFLAGS="}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			write(goenv, "GOFLAGS=-skip=TestExisting\n")
