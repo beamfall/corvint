@@ -417,6 +417,7 @@ AZU-V0-8905	docs/specs/affected-zero-unknown-v0.md	**Absent driver identity pari
 AZU-V0-9900	docs/specs/affected-zero-unknown-v0.md	Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**	unrecorded	-
 AZU-V0-9901	docs/specs/affected-zero-unknown-v0.md	Committed ownership guidance and fixture closure.** A committed	unrecorded	-
 AZU-V0-9902	docs/specs/affected-zero-unknown-v0.md	One audit classifier.** The CLI and maintained ratchet SHALL use the same	unrecorded	-
+AZU-V0-9950	docs/specs/affected-zero-unknown-v0.md	Named non-source declaration faults.** (experimental under the standing lane	unrecorded	-
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
@@ -3720,6 +3721,10 @@ DWC-V0-7500	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted 
 DWC-V0-001	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines	standing	2026-11-02; V1-1467
 DWC-V0-002	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467)	standing	2026-11-02; V1-1467
 DWC-V0-003	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends	standing	2026-11-02; V1-4318
+DWC-V0-7600	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4788; amends	standing	2026-11-06; V1-4788
+DWC-V0-7601	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527	standing	2026-11-06; V1-4721; V1-0527
+DWC-V0-7602	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527	standing	2026-11-06; V1-4721; V1-0527
+DWC-V0-7603	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); amends	standing	2026-11-06
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-

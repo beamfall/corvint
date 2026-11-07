@@ -703,7 +703,8 @@ batch-PR default) imports each leaf's `.corvint/changes/<commit>.cem.json`. Work
 4. A conflict resolution inside a merge commit carries no CEM binding of its own: `dogfood-check`'s
    unbound-commit scan does not examine merge commits (reported 2026-10-05, batch #570: five sealed
    leaves, three conflict resolutions). Cite the resolved hunks in the whole-range plan, because the
-   range diff contains them, and list each conflicted path in the build log.
+   range diff contains them, and list each conflicted path in the build log. For a merge-forward,
+   "Rebinding after a conflicted merge-forward" below lists them and derives the `BASE`.
 
 Evidence classes. The leaves' original binds and seals are historical evidence for their own
 hunks, produced by their own checks at their own bases; they are not re-run or re-qualified by the
@@ -939,6 +940,31 @@ exists only in the binding commit, and the verifier reads a map only from a work
 the read-only check cannot write; a batch containing one fails `unbound-commits`. On the 2026-10-11 batch of 18 sealed lanes (354 paths, 873 hunks) a replay that
 merged only the seal tips passed; the batch as landed failed on 18 hand-resolved merges and 16
 direct orchestrator commits (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-dogfood-batch-check.md`).
+
+#### Rebinding after a conflicted merge-forward (V1-4721, V1-0527)
+
+A lane that merged the mainline forward and resolved a conflict by hand binds and seals the whole
+range from the merged mainline commit; this is the supported path (`DWC-V0-7601`, `DWC-V0-7602`),
+not a workaround:
+
+1. Redo or keep the merge (`git merge origin/main`), resolve each conflict, and commit the merge.
+2. List the conflicted paths: `script/dogfood-merge-base.sh --paths` prints each path whose
+   committed resolution differs from Git's own merge (`git show --remerge-diff`). Add one build-log
+   line naming each, as step 4 of "Integrating sealed branches" asks, and commit it.
+3. Bind, check and seal with `BASE=merge-forward`, for example `make dogfood-finish
+   BASE=merge-forward CITATIONS=... INTENTS=... VERIFY=... OUTCOME=passed`. Make derives the SHA
+   once from `script/dogfood-merge-base.sh`: the second parent of the newest merge on HEAD's
+   first-parent chain, so the later bind and seal commits do not move it. The plan cites each
+   resolved hunk, because the range diff from that commit contains it.
+4. `make dogfood-batch-check` over a batch that merges the lane then checks the lane against the
+   same base, and the merge sits inside that constituent's sealed range.
+
+The helper refuses, with exit 2 and a `fix:` line, when HEAD has no merge, the merge is not two
+parents, the named merge is not in HEAD, the mainline ref is missing, or the merged parent is not on
+`DOGFOOD_MAINLINE_REF` (default `origin/main`): a merged lane branch is not mainline, so bind from
+the lane's original base instead. A refusal leaves `BASE` empty, so the target's own `BASE` refusal
+follows. Not reproduced by `make dogfood-merge-base-test`: the end-to-end batch-check pass, which
+was observed by hand on 2026-11-06.
 
 #### Bind a landed range after the fact
 
