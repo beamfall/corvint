@@ -27,12 +27,10 @@ const (
 	recordReadersProfile = "corvint-record-readers/0"
 )
 
-// recordProbes names, per record directory, a probe entry that no literal
-// names by its file name, so only readers of the directory itself select it.
-var recordProbes = []struct{ directory, probe string }{
-	{affected.SealedChangesDirectory, affected.SealedChangesDirectory + strings.Repeat("f", 40) + ".cem.json"},
-	{affected.BuildLogDirectory, affected.BuildLogDirectory + "0000-00-00-record-readers-probe.md"},
-}
+// recordDirectories are the record directories the ratchet guards; each new
+// entry of one is matched against every literal and glob of a package by
+// Graph.RecordReaders (AFP-V0-2747), not one synthetic name.
+var recordDirectories = []string{affected.SealedChangesDirectory, affected.BuildLogDirectory}
 
 type recordReaders struct {
 	Profile     string                       `json:"profile"`
@@ -55,7 +53,7 @@ func readRecordReaders(root string) (map[string]map[string]string, error) {
 	bad := len(raw) > maxInput || json.Unmarshal(raw, &out, json.RejectUnknownMembers(true)) != nil ||
 		out.Profile != recordReadersProfile || out.Directories == nil
 	for directory, readers := range out.Directories {
-		bad = bad || !slices.ContainsFunc(recordProbes, func(p struct{ directory, probe string }) bool { return p.directory == directory }) || readers == nil
+		bad = bad || !slices.Contains(recordDirectories, directory) || readers == nil
 		for _, reason := range readers {
 			bad = bad || strings.TrimSpace(reason) == ""
 		}
@@ -70,35 +68,47 @@ func readRecordReaders(root string) (map[string]map[string]string, error) {
 // each one on stderr, when a Go test package without a declared read scope
 // reads a record directory and the record does not list it; a listed package
 // that no longer reads the directory is reported without failing, as the
-// AFP-V0-025 ratchet treats a stale entry.
+// AFP-V0-025 ratchet treats a stale entry. A walker of a record directory
+// fails whether or not the record lists it (AFP-V0-2747): no selector selects
+// it for a new entry, so a record entry would only hide a reader.
 func checkRecordReaders(graph *affected.Graph, recorded map[string]map[string]string, stderr io.Writer) bool {
 	ok := true
-	for _, record := range recordProbes {
-		readers := map[string]bool{}
-		for _, id := range graph.RecordReaders(record.probe) {
+	directories := func(ids []string) map[string]bool {
+		out := map[string]bool{}
+		for _, id := range ids {
 			if unit, found := graph.Unit(id); found && len(unit.Tests) > 0 {
-				readers[path.Dir(unit.Tests[0])] = true
+				out[path.Dir(unit.Tests[0])] = true
 			}
 		}
-		listed := recorded[record.directory]
+		return out
+	}
+	for _, directory := range recordDirectories {
+		found, walking := graph.RecordReaders(directory)
+		readers, walkers := directories(found), directories(walking)
+		if len(walkers) > 0 {
+			ok = false
+			fmt.Fprintf(stderr, "unbounded-readers: %v name %s's parent directory by a path literal, join no literal that reaches %s, and declare no read scope, so a walk or a name computed at run time could read every new entry while no selector selects them for one (AFP-V0-2747); a record entry cannot admit them. Declare each package's reads in %s (AFP-V0-023), with %s when its tests really read the directory, or mark a fixture literal with %s.\n",
+				slices.Sorted(maps.Keys(walkers)), directory, directory, affected.ReadScopesPath, directory, golang.FixturePathMarker)
+		}
+		listed := recorded[directory]
 		var unrecorded, stale []string
-		for _, directory := range slices.Sorted(maps.Keys(readers)) {
-			if _, present := listed[directory]; !present {
-				unrecorded = append(unrecorded, directory)
+		for _, pkg := range slices.Sorted(maps.Keys(readers)) {
+			if _, present := listed[pkg]; !present {
+				unrecorded = append(unrecorded, pkg)
 			}
 		}
-		for _, directory := range slices.Sorted(maps.Keys(listed)) {
-			if !readers[directory] {
-				stale = append(stale, directory)
+		for _, pkg := range slices.Sorted(maps.Keys(listed)) {
+			if !readers[pkg] {
+				stale = append(stale, pkg)
 			}
 		}
 		if len(stale) > 0 {
-			fmt.Fprintf(stderr, "unbounded-readers: %s lists %v under %s, which no longer read that directory; remove the entries to keep the gain.\n", recordReadersPath, stale, record.directory)
+			fmt.Fprintf(stderr, "unbounded-readers: %s lists %v under %s, which no longer read that directory; remove the entries to keep the gain.\n", recordReadersPath, stale, directory)
 		}
 		if len(unrecorded) > 0 {
 			ok = false
 			fmt.Fprintf(stderr, "unbounded-readers: %v name the record directory %s by a path literal or glob and declare no read scope, so every change that adds an entry there selects them (AFP-V0-2745). Declare each package's reads in %s (AFP-V0-023), with %s when its tests really read the directory and without it when the literal names a fixture repository's copy; mark a fixture literal with %s; or, only when neither is possible, add the package to %q of %s with the reason it reads the directory.\n",
-				unrecorded, record.directory, affected.ReadScopesPath, record.directory, golang.FixturePathMarker, record.directory, recordReadersPath)
+				unrecorded, directory, affected.ReadScopesPath, directory, golang.FixturePathMarker, directory, recordReadersPath)
 		}
 	}
 	return ok

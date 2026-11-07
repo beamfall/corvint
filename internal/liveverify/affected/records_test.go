@@ -3,7 +3,9 @@ package affected
 
 import (
 	"context"
+	"path"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -64,17 +66,89 @@ func TestRecordEntriesSelectOnlyTheirReaders_AFPV2743(t *testing.T) {
 			}
 		})
 	}
-	// The ratchet's view (AFP-V0-2745): the undeclared test packages that read
-	// a new entry of the directory by a literal, or name an ancestor of it a
-	// walk could descend from; the declared one is not listed.
-	for _, probe := range []string{".corvint/changes/" + "ffffffffffffffffffffffffffffffffffffffff.cem.json", "docs/build-log/0000-00-00-probe.md"} {
-		got := graph.RecordReaders(probe)
-		if want := []string{"go:ancestor", "go:lister", "go:locator"}; !slices.Equal(got, want) {
-			t.Errorf("RecordReaders(%s) = %v, want %v", probe, got, want)
+	// The ratchet's view (AFP-V0-2745, AFP-V0-2747): the undeclared test
+	// packages that read a new entry of the directory by a literal, and,
+	// apart, those that name an ancestor of it a walk could descend from; the
+	// declared one is not listed, nor the one naming a single entry.
+	for _, directory := range []string{SealedChangesDirectory, BuildLogDirectory} {
+		readers, walkers := graph.RecordReaders(directory)
+		if want := []string{"go:lister", "go:locator"}; !slices.Equal(readers, want) {
+			t.Errorf("RecordReaders(%s) readers = %v, want %v", directory, readers, want)
+		}
+		if want := []string{"go:ancestor"}; !slices.Equal(walkers, want) {
+			t.Errorf("RecordReaders(%s) walkers = %v, want %v", directory, walkers, want)
 		}
 	}
-	if got := graph.RecordReaders("docs/specs/x.md"); got != nil {
-		t.Errorf("RecordReaders of a path outside a record directory = %v, want nil", got)
+	if readers, walkers := graph.RecordReaders("docs/specs/"); readers != nil || walkers != nil {
+		t.Errorf("RecordReaders of a directory that is no record directory = %v, %v, want nil", readers, walkers)
+	}
+}
+
+// AFP-V0-2747 (V1-4933, review finding P2): the ratchet matches each literal
+// and glob against a record directory's whole entry namespace, not one
+// synthetic name, so a glob that admits some entries (`2026-*.md`,
+// `0*.cem.json`, an unanchored `docs/build-log/*.md`) and a literal
+// fragment completed at the entry position (`docs/build-log/2026-`) are
+// readers of new entries. A glob or literal that names one entry, and a glob
+// whose names never end in the entry suffix, are not. A unit whose ancestor
+// literal joins no literal that reaches the directory is a walker; one whose
+// literals join it is a reader (AFP-V0-2746). With recordProbes reduced to
+// its fixed probe, the constrained glob and fragment readers are lost.
+func TestRecordReadersMatchTheEntryNamespace_AFPV2747(t *testing.T) {
+	unit := func(id, dir string, tokens []string, globs ...string) Unit {
+		slices.Sort(tokens)
+		slices.Sort(globs)
+		return Unit{ID: "go:" + id, Sources: []string{dir + "/a.go"}, Tests: []string{dir + "/a_test.go"}, PathTokens: tokens, PathGlobs: globs}
+	}
+	graph, err := Build(context.Background(), "", fake{name: "go", units: []Unit{
+		unit("constrained", "constrained", nil, "/docs/build-log/2026-*.md", "/.corvint/changes/0*.cem.json"),
+		unit("unanchored", "unanchored", nil, "docs/build-log/*.md", ".corvint/changes/*"),
+		unit("fragment", "fragment", []string{"../docs/build-log/2026-", "../.corvint/changes/0"}),
+		unit("joined", "joined", []string{"../docs", "build-log", "../.corvint", "changes"}),
+		unit("exact", "exact", []string{"../docs/build-log/2026-11-06-selgo.md", "../.corvint/changes/0123.cem.json"}, "/docs/build-log/2026-11-06-selgo.md"),
+		unit("json", "json", nil, "/docs/build-log/*.json", "/.corvint/changes/*.md"),
+		unit("walker", "walker", []string{"../docs", "../.corvint", "README.md"}),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, directory := range []string{SealedChangesDirectory, BuildLogDirectory} {
+		readers, walkers := graph.RecordReaders(directory)
+		if want := []string{"go:constrained", "go:fragment", "go:joined", "go:unanchored"}; !slices.Equal(readers, want) {
+			t.Errorf("RecordReaders(%s) readers = %v, want %v", directory, readers, want)
+		}
+		if want := []string{"go:walker"}; !slices.Equal(walkers, want) {
+			t.Errorf("RecordReaders(%s) walkers = %v, want %v", directory, walkers, want)
+		}
+	}
+	for _, c := range []struct {
+		pattern, suffix string
+		want            bool
+	}{
+		{"2026-*.md", ".md", true},
+		{"*", ".md", true},
+		{"*.m?", ".md", true},
+		{"?.md", ".md", true},
+		{"2026-??-??-*", ".md", true},
+		{"[0-9a-f]*.cem.json", ".cem.json", true},
+		{"*[^x]", ".md", true},
+		{"[é]*", ".md", true},
+		{"*.json", ".md", false},
+		{"?", ".md", false},
+		{"[^.]md", ".md", false},
+		{"README.md", ".md", false},
+		{`\*.md`, ".md", false},
+		{"[", ".md", false},
+		{"*.md", ".cem.json", false},
+	} {
+		name, ok := globEntry(c.pattern, c.suffix)
+		if ok != c.want {
+			t.Errorf("globEntry(%q, %q) = %q, %v; want %v", c.pattern, c.suffix, name, ok, c.want)
+			continue
+		}
+		if matched, _ := path.Match(c.pattern, name); ok && (!matched || !strings.HasSuffix(name, c.suffix) || len(name) <= len(c.suffix) || strings.Contains(name, "/")) {
+			t.Errorf("globEntry(%q, %q) = %q: not an entry name the pattern matches", c.pattern, c.suffix, name)
+		}
 	}
 }
 

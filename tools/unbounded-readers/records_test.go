@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,5 +68,94 @@ func TestAFPV2745RecordDirectoryReadersRatchet(t *testing.T) {
 				t.Fatalf("a package with a declared read scope is listed:\n%s", stderr.String())
 			}
 		})
+	}
+}
+
+// AFP-V0-2747 (V1-4933, review finding P2): the ratchet matches a package's
+// globs and literal fragments against the record directory's entry
+// namespace, not one synthetic name. A glob whose file names are constrained
+// (`filepath.Glob("../docs/build-log/2026-*.md")`) and a literal fragment
+// completed by a variable (`"../docs/build-log/2026-" + name`) read every new
+// 2026 entry, so the ratchet fails until the record lists them. A package
+// that names only docs/build-log/'s parent and walks it reads new entries
+// that no selector selects it for, so it fails even when the record lists it.
+func TestAFPV2747RecordRatchetMatchesTheEntryNamespace(t *testing.T) {
+	const unbounded = `{"profile":"corvint-unbounded-reader-set/0","units":[],"reasons":{}}`
+	const head = `{"profile":"corvint-record-readers/0","directories":{"docs/build-log/":` //corvint:fixture-path
+	source := func(name, body string) string {
+		return "package " + name + "\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar _, _, _ = fs.ErrNotExist, os.ReadFile, filepath.Glob\n\n" + body
+	}
+	files := map[string]string{
+		"go.mod":                             "module example.test/m\n\ngo 1.27\n",
+		"globber/g.go":                       "package globber\n",
+		"globber/g_test.go":                  source("globber", "var entries, _ = filepath.Glob(\"../docs/build-log/2026-*.md\")\n"), //corvint:fixture-path
+		"fragment/f.go":                      "package fragment\n",
+		"fragment/f_test.go":                 source("fragment", "func read(name string) ([]byte, error) { return os.ReadFile(\"../docs/build-log/2026-\" + name) }\n"), //corvint:fixture-path
+		"exact/e.go":                         "package exact\n",
+		"exact/e_test.go":                    source("exact", "var one, _ = filepath.Glob(\"../docs/build-log/2026-11-06-selgo.md\")\n"), //corvint:fixture-path
+		"walker/w.go":                        "package walker\n",
+		"walker/w_test.go":                   source("walker", "var walk = filepath.WalkDir(\"../docs\", func(string, fs.DirEntry, error) error { return nil })\n"), //corvint:fixture-path
+		"docs/build-log/2026-11-06-selgo.md": "entry\n",                                                                                                             //corvint:fixture-path
+		recordPath:                           unbounded,
+	}
+	for name, c := range map[string]struct {
+		record string // "" leaves the record absent
+		code   int
+		want   []string
+		absent []string
+	}{
+		"absent record":                     {"", 1, []string{"[fragment globber] name the record directory docs/build-log/", "[walker] name docs/build-log/'s parent directory"}, []string{"exact"}},                                                                                            //corvint:fixture-path
+		"listed readers, walker listed too": {head + `{"fragment":"reads 2026 entries","globber":"globs 2026 entries","walker":"walks docs"}}}`, 1, []string{"[walker] name docs/build-log/'s parent directory", "lists [walker] under docs/build-log/"}, []string{"name the record directory"}}, //corvint:fixture-path
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			all := maps.Clone(files)
+			if c.record != "" {
+				all[recordReadersPath] = c.record
+			}
+			for file, body := range all {
+				path := filepath.Join(root, filepath.FromSlash(file))
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var stdout, stderr bytes.Buffer
+			code := run(root, &stdout, &stderr)
+			if code != c.code {
+				t.Fatalf("code %d, want %d; stderr:\n%s", code, c.code, stderr.String())
+			}
+			for _, want := range c.want {
+				if !strings.Contains(stderr.String(), want) {
+					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
+				}
+			}
+			for _, absent := range c.absent {
+				if strings.Contains(stderr.String(), absent) {
+					t.Errorf("stderr names %q:\n%s", absent, stderr.String())
+				}
+			}
+		})
+	}
+	// Without the walker the listed readers pass.
+	root := t.TempDir()
+	all := maps.Clone(files)
+	delete(all, "walker/w.go")
+	delete(all, "walker/w_test.go")
+	all[recordReadersPath] = head + `{"fragment":"reads 2026 entries","globber":"globs 2026 entries"}}}` //corvint:fixture-path
+	for file, body := range all {
+		path := filepath.Join(root, filepath.FromSlash(file))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 0 {
+		t.Fatalf("listed readers: code %d, want 0; stderr:\n%s", code, stderr.String())
 	}
 }
