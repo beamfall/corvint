@@ -392,10 +392,14 @@ printf '%s\n' "$target" >> "$TEST_MAKE_LOG"
 case $target in
   dogfood-finish)
     [[ -z ${TEST_EXTRA_COMMIT-} ]] || { printf 'x\n' > other.txt; git add other.txt; git -c user.name=t -c user.email=t@e.invalid commit -qm other; }
-    mkdir -p .corvint/changes
-    printf '{}\n' > .corvint/change.cem.json
-    git add .corvint/change.cem.json
-    git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: bind change evidence'
+    # A resumed finish reuses a bind commit already at HEAD; TEST_FAIL_AFTER_BIND fails right after it.
+    if [[ $(git log -1 --format=%s) != 'chore: bind change evidence' ]]; then
+      mkdir -p .corvint/changes
+      printf '{}\n' > .corvint/change.cem.json
+      git add .corvint/change.cem.json
+      git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: bind change evidence'
+    fi
+    [[ -z ${TEST_FAIL_AFTER_BIND-} ]] || exit 1
     git mv .corvint/change.cem.json ".corvint/changes/$(git rev-parse HEAD).cem.json"
     git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: seal change evidence' ;;
 esac
@@ -427,6 +431,26 @@ EOF
   [[ $status != 0 && $(git rev-parse HEAD) == "$start" && -z $(git status --porcelain) ]] || { cat "$root/output" >&2; exit 1; }
   rg -q "^dogfood-closeout: unwind: dropped 2 bind and seal commit\(s\) [0-9a-f]{40} [0-9a-f]{40}; HEAD is $start again " "$root/output" || { cat "$root/output" >&2; exit 1; }
   rg -qF 'DONE' "$root/output" && exit 1
+  # ASD-V0-3730 (review): step 5 fails after the bind commit; the printed CLOSEOUT_FROM=5 resume keeps
+  # the start head the first run recorded, so a refused sealed-head precheck unwinds the bind and the
+  # seal to that start, not only the seal.
+  status=0
+  (export TEST_FAIL_AFTER_BIND=1; make -s dogfood-closeout MAKE="$root/bin/fake-make" HEAVY_ADMIT= BASE="$start" DOGFOOD_CLOSEOUT_REGEN=) > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(git rev-list --count "$start..HEAD") == 1 ]] || { cat "$root/output" >&2; exit 1; }
+  resume=$(sed -n 's/^resume: //p' "$root/output")
+  [[ $resume == "make dogfood-closeout CLOSEOUT_FROM=5 BASE='$start' "* ]] || { cat "$root/output" >&2; exit 1; }
+  (eval "$resume -s MAKE=\"\$root/bin/fake-make\" HEAVY_ADMIT= DOGFOOD_CLOSEOUT_REGEN=") > "$root/output-resume" 2>&1 || { cat "$root/output-resume" >&2; exit 1; }
+  [[ $(git rev-list --count "$start..HEAD") == 2 ]] || { cat "$root/output-resume" >&2; exit 1; }
+  status=0
+  (export TEST_SEALED_RC=1; make -s dogfood-closeout-precheck MAKE="$root/bin/fake-make" HEAVY_ADMIT=) > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(git rev-parse HEAD) == "$start" && -z $(git status --porcelain) ]] || { cat "$root/output" >&2; git log --oneline >&2; exit 1; }
+  rg -q "^dogfood-closeout: unwind: dropped 2 bind and seal commit\(s\) [0-9a-f]{40} [0-9a-f]{40}; HEAD is $start again " "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -qF "dogfood-closeout: resume keeps the start head $start the first run recorded (ASD-V0-3730)" "$root/output-resume" || { cat "$root/output-resume" >&2; exit 1; }
+  # A fresh run (CLOSEOUT_FROM=1) records its own start even where an earlier marker exists.
+  printf '%s\n' "$sealed" > "$(git rev-parse --git-path dogfood-closeout-start)"
+  make -s dogfood-closeout MAKE="$root/bin/fake-make" HEAVY_ADMIT= BASE="$start" DOGFOOD_CLOSEOUT_REGEN= > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(cat "$(git rev-parse --git-path dogfood-closeout-start)") == "$start" ]] && ! rg -qF 'resume keeps' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  git reset -q --keep "$start"
   status=0
   (export TEST_SEALED_RC=1 TEST_EXTRA_COMMIT=1; closeout) > "$root/output" 2>&1 || status=$?
   [[ $status != 0 && $(git rev-list --count "$start..HEAD") == 3 ]] || { cat "$root/output" >&2; exit 1; }

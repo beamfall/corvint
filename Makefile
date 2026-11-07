@@ -1295,7 +1295,11 @@ doc-gates: ## Run the documentation gates
 # repin. DTL-V0-004: a SEAL=0 closeout keeps SEAL=0 in its resume command. The resume command is
 # printed by printf as one single-quoted word, so a value holding a double quote or a backtick prints
 # as given and never runs (ASD-V0-567).
+# ASD-V0-3730: only a fresh run (CLOSEOUT_FROM=1) records the start head: it empties the record first
+# and writes HEAD before step 5. A resumed run keeps a record it finds, so a CLOSEOUT_FROM=5 resume
+# after a bind commit still unwinds to the head before that bind; it writes one only where none exists.
 CLOSEOUT_FROM ?= 1
+closeout_start = "$$(git rev-parse --git-path dogfood-closeout-start)"
 # The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
 DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
 closeout_seal = $(if $(filter x0x,x$(SEAL)x),SEAL=0 ,$(if $(SEAL),SEAL=$(call dogfood_finish_quote,$(SEAL)) ))
@@ -1311,13 +1315,14 @@ closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: s
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
+	@[ 1 -lt $(CLOSEOUT_FROM) ] || : > $(closeout_start)
 	@$(call closeout_step,1,static-checks,$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))")
 	@$(call closeout_step,2,repin,$(closeout_inputs_present) && DOGFOOD_CLOSEOUT_REGEN=$(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
 	@$(call closeout_step,3,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
 	@[ 3 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
 	@$(call closeout_step,4,batch-precheck,BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)'))
 	@[ 4 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal\n'
-	@git rev-parse HEAD > "$$(git rev-parse --git-path dogfood-closeout-start)"
+	@[ 1 -lt $(CLOSEOUT_FROM) ] && [ -s $(closeout_start) ] && printf 'dogfood-closeout: resume keeps the start head %s the first run recorded (ASD-V0-3730)\n' "$$(cat $(closeout_start))" >&2 || git rev-parse HEAD > $(closeout_start)
 	@$(call closeout_step,5,dogfood-finish,$(MAKE) --no-print-directory dogfood-finish)
 	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
 
