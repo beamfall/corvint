@@ -1450,6 +1450,50 @@ changed_source_base() {
   printf '%s\n' "${base:0:12}"
 }
 
+# source_tests_unfiltered MODE COMMAND...: ASD-V0-2478. Source edits justify running every
+# test, never silently excluding one. Inspect Go's inherited defaults with the command's GOENV
+# and GOFLAGS assignments as well as argv. The manifest path may validate a direct -skip itself;
+# inherited filters conservatively require an explicit command instead of a whole-unit witness.
+source_tests_unfiltered() {
+  local mode=$1 seen=0 prev_go=0 count_next=0 arg flag go=go flags goenv=() words=()
+  shift
+  for arg in "$@"; do
+    if ((!seen)); then
+      case $arg in GOFLAGS=* | GOENV=* | GOROOT=*) goenv+=("$arg") ;; esac
+      [[ ${arg##*/} == go ]] && go=$arg
+      [[ $arg == test && $prev_go == 1 ]] && seen=1
+      [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0
+      continue
+    fi
+    if ((count_next)); then
+      [[ $arg =~ ^[1-9][0-9]*$ ]] || return 1
+      count_next=0
+      continue
+    fi
+    flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+    case $flag in
+      skip | skip=*) [[ $mode == manifest && $arg == -skip* ]] || return 1 ;;
+      run | run=* | list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | args | '') return 1 ;;
+      count) count_next=1 ;;
+      count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
+      n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
+    esac
+  done
+  flags=$(env ${goenv[@]+"${goenv[@]}"} GOTOOLCHAIN=local "$go" env GOFLAGS 2> /dev/null) || return 1
+  # GOFLAGS permits quoted words. Removing quotes is conservative: even a filter-looking word
+  # inside another flag's value cannot grant automatic whole-package authority.
+  flags=${flags//\"/}; flags=${flags//\'/}
+  flags=${flags//$'\n'/ }; flags=${flags//$'\r'/ }
+  read -ra words <<< "$flags"
+  for arg in ${words[@]+"${words[@]}"}; do
+    flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+    case $flag in
+      run | run=* | skip | skip=* | list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | count | c | c=* | n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
+      count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
+    esac
+  done
+}
+
 # run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
@@ -1629,6 +1673,7 @@ flags_terminated() {
 # or -C. Other flags are skipped as in small_package_bytes.
 manifest_admits() {
   local seen=0 skip=0 prev_go=0 arg dir mod head manifest pkgs=() skips=()
+  source_tests_unfiltered manifest "$@" || return 1
   mod=$(module_path) && [[ -n $mod ]] || { not_admitted "./go.mod names no module"; return 1; }
   head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || { not_admitted "git rev-parse HEAD failed"; return 1; }
   for arg in "$@"; do
@@ -1691,16 +1736,17 @@ selection_policy() {
       fi
       ;;
   esac
-  local small digest
-  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && small=$(small_package_bytes "$@"); then
+  local small digest unfiltered=
+  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && source_tests_unfiltered whole "$@"; then unfiltered=1; fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && small=$(small_package_bytes "$@"); then
     selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
     return 0
   fi
-  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(new_package_base "$@"); then
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(new_package_base "$@"); then
     selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
     return 0
   fi
-  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(changed_source_base "$@"); then
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(changed_source_base "$@"); then
     selection_log "$now whole reason=changed-source:$digest pwd=$PWD cmd=$*"
     return 0
   fi
