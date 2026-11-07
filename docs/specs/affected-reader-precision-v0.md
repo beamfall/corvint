@@ -86,6 +86,23 @@ plan, graph-cache or declaration wire formats, or the independent CI selector.
   true reader of the identical parent path without this declaration MUST stay
   selected. Adding a real checkout read requires removing this declaration.
 
+- **AFP-V0-9200:** (accepted by the owner, 2026-11-07; V1-5089 lane charter) Additional
+  repository test read scopes MUST be supported by inspection of test literals, fixtures,
+  repository walks, Git access, nested builds and subprocess reads, followed by a complete
+  package run through the protected AFP-V0-023 Landlock wrapper on Linux. A candidate is
+  retained only when that run passes and its scope excludes `.corvint/changes/`,
+  `docs/build-log/`, and unrelated `docs/specs/` and `script/` paths. A denied read that is
+  tolerated or converted to a skip is not qualification. Tests requiring repository-wide
+  enumeration or Git metadata remain undeclared; missing evidence never justifies a scope.
+  This declaration-only slice changes neither planner logic, test assertions, nor wire contracts.
+  Acceptance records package outcomes and exclusions, source/build identities, and before/after
+  Go package and test-file counts by witness kind for the V1-5000 three-path example and its
+  pinned 20-merge replay. Historical replay retains each historical declaration; applying new
+  scopes to historical tests without confined qualification is not acceptance evidence.
+  Evidence: whole-package confined runs and `tools/test-read-scopes-check`, recorded in
+  `docs/build-log/2026-11-07-rsdecl.md`. Rollback removes the added scope entries, restoring
+  conservative reader selection without changing tests or the confinement wrapper.
+
 ## Non-goals and failure modes
 
 Non-goals: automatic whole-program read analysis, narrower treatment of arbitrary
@@ -126,3 +143,4 @@ repair direction; it changes no selector behavior or wire contract.
 | AFP-V0-9003 | reader selection and retained uncertainty | `TestPrecisionReplay_AFPV09003`, `TestTestOnlyImporterPrecision_AFPV09003` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9004 | unchanged dirty-declaration frontier, conditional path measurement | `TestDirtyForeignCallerDeclaration_AFPV09004` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9005 | `testReadKinds`, `internal/liveverify/mutate/export_test.go` | `TestFixtureReadKinds_AFPV09005` in `internal/liveverify/affected/golang/readkinds_test.go` |
+| AFP-V0-9200 | `.corvint/test-read-scopes.json` | Whole-package Landlock qualification and declaration-checker results in `docs/build-log/2026-11-07-rsdecl.md`; existing tests and assertions unchanged. |
