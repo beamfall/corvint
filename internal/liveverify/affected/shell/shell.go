@@ -301,7 +301,12 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 				if index < len(parsed.commands) && strings.ContainsAny(script, "$`") {
 					// A command string held in a variable is scanned for each
 					// value the file gives it (AFP-V0-553).
-					commands = append(commands, commandStrings(script, values)...)
+					// A value bound that cut the list may have dropped a
+					// command string that runs a script, so the unit is then
+					// a dynamic source (AFP-V0-3147).
+					scanned, cut := commandStrings(script, values)
+					commands = append(commands, scanned...)
+					dynamic = dynamic || cut
 				}
 			}
 			for _, target := range invokedScripts(word, args) {
@@ -546,13 +551,14 @@ func commandString(args []string) (string, bool) {
 
 // commandStrings parses each value of a computed command string. A part the
 // file does not fix stays a computed name, so it never reads as a literal.
-func commandStrings(script string, values map[string][]string) []command {
+// It reports whether a value bound cut the list (AFP-V0-3147).
+func commandStrings(script string, values map[string][]string) ([]command, bool) {
 	var cut bool
 	var out []command
 	for _, value := range expand(script, values, 0, &cut) {
 		out = append(out, parse(strings.ReplaceAll(value, wildcard, "$_")).commands...)
 	}
-	return out
+	return out, cut
 }
 
 // invokedScripts lists an interpreter command's script operands: the first
