@@ -487,9 +487,12 @@ func (p *goPackage) grow(seed map[string]bool) map[string]bool {
 	return reached
 }
 
-// testsMentioning names, sorted, the base tests of the package that mention
-// one of reached. When reached feeds code that runs before the tests (an init
-// func, a test file's TestMain, or a var initializer that can have side
+// testsMentioning names, sorted, the base tests of the package that are
+// themselves reached or mention one of reached. A test reached by name (one
+// growImported matched by its direct call of the changed import) is kept by
+// that name, not because the parser lists a declaration's own name among its
+// refs (TCQ-V0-7420). When reached feeds code that runs before the tests (an
+// init func, a test file's TestMain, or a var initializer that can have side
 // effects), that code can register a reached name behind a foreign selector
 // such as `flag.Usage = Usage`, so every base test of the package stays a
 // candidate (TCQ-V0-7408). A missed guard is worse than an extra revert run.
@@ -505,7 +508,7 @@ func (p *goPackage) testsMentioning(reached map[string]bool) []string {
 	seen := map[string]bool{}
 	var names []string
 	for _, d := range p.decls {
-		if d.test && !seen[d.names[0]] && (initialized || d.mentions(reached, methods)) {
+		if d.test && !seen[d.names[0]] && (initialized || reached[d.names[0]] || d.mentions(reached, methods)) {
 			seen[d.names[0]] = true
 			names = append(names, d.names[0])
 		}
@@ -618,7 +621,9 @@ func baseHeaderLines(base []byte, name string) (int64, int64, bool) {
 // growImported first connects foreign exported names to declarations in an
 // importing package, then follows only that package's ordinary closure.
 // Keeping these edges separate prevents unrelated imports polluting the
-// changed package's closure while preserving TCQ-V0-761 importer guards.
+// changed package's closure while preserving TCQ-V0-761 importer guards. A
+// test that calls the changed import directly is seeded by its own name,
+// which testsMentioning keeps as a candidate (TCQ-V0-7420).
 func (p *goPackage) growImported(importPath string, exported map[string]bool) map[string]bool {
 	seed := map[string]bool{}
 	for name := range exported {
