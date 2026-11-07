@@ -227,6 +227,66 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 			t.Fatalf("uncertified command was not refused before execution: %s", out)
 		}
 	}
+	// ASD-V0-2478: a second positional group is the binary tail, even if it looks like
+	// another local package. Neither scanner may infer selection from flags beyond it.
+	for _, tail := range []string{"./p", "future-positional-form"} {
+		for _, patterns := range [][2]string{{"^TestOther$", "."}, {".", "^TestOther$"}} {
+			args := []string{"go", "test", "./p", "-run=" + patterns[0], tail, "-run=" + patterns[1]}
+			for _, check := range []struct {
+				call string
+				want int
+			}{
+				{"source_tests_unfiltered whole", 1},
+				{"run_selects_all", 0},
+			} {
+				program := string(body[start:end]) + "\n" + check.call + " \"$@\"\n"
+				cmd := exec.Command("bash", append([]string{"-c", program, "positional-guard"}, args...)...)
+				cmd.Dir, cmd.Env = work, env
+				guardOut, guardErr := cmd.CombinedOutput()
+				if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != check.want {
+					t.Fatalf("%s %v: want exit %d: %v %s", check.call, args, check.want, guardErr, guardOut)
+				}
+			}
+			out = run(2, args...)
+			if !strings.Contains(out, "REFUSED whole-reason-missing") || strings.Contains(out, "ok \t") {
+				t.Fatalf("positional tail gained automatic admission: %v: %s", args, out)
+			}
+		}
+	}
+	// Known operands remain values in both spellings and on either side of the package
+	// list. Whole-source admission must reach the existing failing test in every case.
+	for _, flag := range [][2]string{
+		{"-outputdir", t.TempDir()},
+		{"-pgo", "off"},
+		{"-modfile", filepath.Join(work, "go.mod")},
+		{"-coverprofile", filepath.Join(t.TempDir(), "cover.out")},
+	} {
+		for _, inline := range []bool{false, true} {
+			for _, afterPackage := range []bool{false, true} {
+				args := []string{"go", "test", "-count=1", "-v"}
+				if afterPackage {
+					args = append(args, "./p")
+				}
+				if inline {
+					args = append(args, flag[0]+"="+flag[1])
+				} else {
+					args = append(args, flag[0], flag[1])
+				}
+				if !afterPackage {
+					args = append(args, "./p")
+				}
+				out = run(1, args...)
+				if !strings.Contains(out, "source regression") || !strings.Contains(out, "=== RUN   TestExisting") {
+					t.Fatalf("value operand blocked whole-source execution: %v: %s", args, out)
+				}
+			}
+		}
+	}
+	// A contiguous list and flags following it are valid; operands do not reopen the list.
+	out = run(1, "go", "test", "./p", "./new", "-run", ".", "-count", "1")
+	if !strings.Contains(out, "source regression") {
+		t.Fatalf("valid package list lost whole-source admission: %s", out)
+	}
 	// A future debug flag has no certified arity, even with an ordinary operand before
 	// a whole-looking selection. Neither separate nor inline syntax may gain admission.
 	for _, flags := range [][]string{

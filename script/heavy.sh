@@ -1410,15 +1410,25 @@ selection_log() {
 # is at most HEAVY_SMALL_TEST_BYTES (ASD-V0-074, V1-3120). Flags are skipped, with the value of a
 # flag that takes one; any other package form (an import path, `...`, a file) fails.
 small_package_bytes() {
-  local limit=${HEAVY_SMALL_TEST_BYTES:-49152} seen=0 skip=0 prev_go=0 arg dir total=0 n=0 f size
+  local limit=${HEAVY_SMALL_TEST_BYTES:-49152} seen=0 skip=0 prev_go=0 package_state=0 flag arg dir total=0 n=0 f size
   [[ $limit =~ ^[0-9]+$ ]] && ((limit > 0)) || return 1
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
-      -run | --run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       *)
         dir=${arg#./}
         [[ $arg == ./* && $dir != *...* && $dir != *..* && ($dir == tools/* || $dir == conformance/*) && -d $dir ]] || return 1
@@ -1431,6 +1441,7 @@ small_package_bytes() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((n > 0 && total <= limit)) || return 1
   printf '%s\n' "$total"
 }
@@ -1442,15 +1453,25 @@ small_package_bytes() {
 # Other flags are skipped as in small_package_bytes; ./..., .., -C, an unresolvable base or a failed
 # git call is not admitted.
 new_package_base() {
-  local seen=0 skip=0 prev_go=0 arg dir base n=0 listed
+  local seen=0 skip=0 prev_go=0 package_state=0 flag arg dir base n=0 listed
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
-      -run | --run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       *)
         dir=${arg#./}
         dir=${dir%/}
@@ -1462,6 +1483,7 @@ new_package_base() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((n > 0)) || return 1
   printf '%s\n' "${base:0:12}"
 }
@@ -1470,15 +1492,25 @@ new_package_base() {
 # admits its package whole. Compare the merge base through the working tree (staged and unstaged)
 # and include untracked source. Every named package must qualify; never infer a glob or -C scope.
 changed_source_base() {
-  local seen=0 skip=0 prev_go=0 arg dir base n=0 path changed found
+  local seen=0 skip=0 prev_go=0 package_state=0 flag arg dir base n=0 path changed found
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
-      -run | --run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=* | -args | --) return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       *)
         dir=${arg#./}; dir=${dir%/}
         [[ ($arg == . || $arg == ./*) && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
@@ -1493,6 +1525,7 @@ changed_source_base() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((n > 0)) || return 1
   printf '%s\n' "${base:0:12}"
 }
@@ -1550,6 +1583,7 @@ go_test_known_flag() {
 # The manifest path may validate a direct -skip itself;
 # inherited filters conservatively require an explicit command instead of a whole-unit witness.
 source_tests_unfiltered() {
+  local package_state=0
   local mode=$1 seen=0 count_next=0 run_next=0 value_next=0 run_set=0 run_value= arg flag go=go flags quoted=
   local inherited_run_set=0 inherited_run= goenv=() words=()
   shift
@@ -1581,7 +1615,14 @@ source_tests_unfiltered() {
       continue
     fi
     if ((value_next)); then value_next=0; continue; fi
-    [[ $arg == -* ]] || continue
+    # Only the first contiguous package list is understood. After a following flag,
+    # any positional word and its tail belong to the test binary, not another package list.
+    if [[ $arg != -* ]]; then
+      ((package_state != 2)) || return 1
+      package_state=1
+      continue
+    fi
+    ((package_state != 1)) || package_state=2
     go_test_known_flag "$arg" || return 1
     flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
     case $flag in
@@ -1629,6 +1670,7 @@ source_tests_unfiltered() {
 # run_selects_all COMMAND...: whether the final effective -run matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
+  local package_state=0
   local arg flag value= next=0 skip=0 seen=0 prev_go=0 run_set=0 narrow_unproven=0
   for arg in "$@"; do
     if ((!seen)); then
@@ -1638,6 +1680,14 @@ run_selects_all() {
     fi
     if ((skip)); then skip=0; continue; fi
     if ((next)); then value=$arg run_set=1 next=0; continue; fi
+    # Only the first contiguous package list is understood. After a following flag,
+    # any positional word and its tail belong to the test binary, not another package list.
+    if [[ $arg != -* ]]; then
+      ((package_state != 2)) || return 0
+      package_state=1
+      continue
+    fi
+    ((package_state != 1)) || package_state=2
     # -args ends Go's flags; the existing alias/terminator guards check the binary tail.
     [[ $arg != -args ]] || break
     # Unknown syntax cannot certify a narrow selection: retain the whole-package claim.
@@ -1820,19 +1870,29 @@ flags_terminated() {
 # -skip PATTERN, lists that -skip slice for each; each argument must be ./REL (or .) with no ..., ..
 # or -C. Other flags are skipped as in small_package_bytes.
 manifest_admits() {
-  local seen=0 skip=0 prev_go=0 arg dir mod head manifest pkgs=() skips=()
+  local seen=0 skip=0 prev_go=0 package_state=0 flag arg dir mod head manifest pkgs=() skips=()
   source_tests_unfiltered manifest "$@" || return 1
   mod=$(module_path) && [[ -n $mod ]] || { not_admitted "./go.mod names no module"; return 1; }
   head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || { not_admitted "git rev-parse HEAD failed"; return 1; }
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then ((skip == 2)) && skips+=("$arg"); skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
       -skip) skip=2 ;;
       -skip=*) skips+=("${arg#-skip=}") ;;
-      -run | --run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) not_admitted "argument $arg is not a ./REL directory"; return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       .) pkgs+=("$mod") ;;
       *)
         dir=${arg#./}
@@ -1842,6 +1902,7 @@ manifest_admits() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((${#pkgs[@]})) || { not_admitted "no package argument"; return 1; }
   ((${#skips[@]} < 2)) || { not_admitted "more than one -skip"; return 1; }
   manifest=$(selection_manifest "$HEAVY_SELECTION")
