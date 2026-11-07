@@ -383,12 +383,6 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var kindReads unboundedReads
 	var kindLeafReads []string
 	moves := false
-	// printed holds the climbing tokens a command's printed text alone holds
-	// (AFP-V0-2952, AFP-V0-2959); captured is any evidence, in any file of the
-	// directory, that the process can read a standard stream back
-	// (AFP-V0-2960), which returns them to rule (d) once every file is seen.
-	var printed []printedText
-	captured := false
 	fileSet := token.NewFileSet()
 	// The disk walk drops a symlinked .go file, though the build compiles its
 	// target as one of this package's files: read the target under the link's
@@ -403,10 +397,8 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		body, err := root.Read(readPath)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
-			captured = true
 			continue
 		}
-		captured = captured || capturesStream(body)
 		// A variant is a file only some builds compile: a //go:build line or
 		// a GOOS/GOARCH file-name suffix (AFP-V0-580).
 		constrained = constrained || hasPlatformSuffix(relative) || hasBuildConstraint(body)
@@ -479,13 +471,6 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			switch {
 			case kinds != nil && len(kinds) == 0:
 			case reason == "":
-			case !isTest && scan.textOnly[name] && file.Name.Name == "main":
-				// Text a command prints, not a path it opens (AFP-V0-2952),
-				// while nothing in its directory can capture the stream
-				// (AFP-V0-2960). No other package can import a command, so
-				// its directory is every code that shares its process; a
-				// library's printed text keeps rule (d) (AFP-V0-2959).
-				printed = append(printed, printedText{reason: relative + " " + reason, leaf: leafPattern(directory, name, isTest, packages), reads: fileReads, leafReads: fileLeafReads})
 			case leafPattern(directory, name, isTest, packages):
 				*fileLeafReads = append(*fileLeafReads, relative+" "+reason)
 			default:
@@ -497,15 +482,6 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			continue
 		}
 		sources = append(sources, relative)
-	}
-	if captured {
-		for _, text := range printed {
-			if text.leaf {
-				*text.leafReads = append(*text.leafReads, text.reason)
-			} else {
-				text.reads.mark(text.reason, false)
-			}
-		}
 	}
 	// A leaf pattern reaches only the package directory while the package's
 	// commands run there: a package that moves the working directory keeps
@@ -562,17 +538,6 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	// rule (d) chain skips only the build-only edges of `go vet` and `go
 	// list` (AFP-V0-2951).
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
-}
-
-// printedText is a climbing token a command's file holds only in printed text
-// (AFP-V0-2952): the reason it would give, whether it is a leaf pattern, and
-// the reason lists the file marks, applied only when the directory can
-// capture a standard stream (AFP-V0-2960).
-type printedText struct {
-	reason    string
-	leaf      bool
-	reads     *unboundedReads
-	leafReads *[]string
 }
 
 // linkedSources maps each symlinked .go entry of directory whose target it can
@@ -688,10 +653,6 @@ type fileScan struct {
 	err            error
 	fixture        map[string]bool
 	movesDirectory bool
-	// textOnly holds each token that only literals containing a line break,
-	// none with a directory-changing word, each reaching only a standard
-	// stream, hold: text the file prints, not a path it opens (AFP-V0-2952).
-	textOnly map[string]bool
 }
 
 // FixturePathMarker is the per-literal fixture marker of ASD-V0-895: a test
@@ -721,8 +682,6 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		return join
 	})
 	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
-	streams, _ := qualifiedImports(imports, func(importPath string) bool { return outputSinkPackages[importPath] })
-	output := outputOnlyLiterals(body, streams)
 	var scan fileScan
 	// A bounded join's root-anchored token names what the join reads
 	// (AFP-V0-2950); it is no literal, so no fixture marker applies to it.
@@ -739,13 +698,11 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	// cannot rule out a marker when the body contains a carriage return.
 	fixtures := bytes.Contains(body, []byte(FixturePathMarker)) || bytes.IndexByte(body, '\r') >= 0
 	var move directoryMove
-	prose := textLiterals{}
 	for {
 		position, kind, text := lexer.Scan()
 		if kind == token.EOF {
 			scan.fixture = fixtureTokens(literals, markers)
 			scan.movesDirectory = move.moved
-			scan.textOnly = prose.tokens()
 			return scan
 		}
 		if kind == token.COMMENT {
@@ -771,7 +728,6 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		}
 		start := len(scan.tokens)
 		scan.tokens = appendLiteralTokens(scan.tokens, value, modulePath)
-		prose.observe(text, value, scan.tokens[start:], output[source.Offset(position)])
 		if fixtures {
 			literals = append(literals, scannedLiteral{tokens: scan.tokens[start:], start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
 		}
@@ -782,47 +738,6 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 type scannedLiteral struct {
 	tokens     []string
 	start, end int
-}
-
-// textLiterals collects, over one file's string literals, the tokens held
-// only by literals that contain a line break and no directory-changing word
-// and that reach only a standard output or error stream (AFP-V0-2952,
-// outputOnlyLiterals). Such a literal is text the file prints, never a path
-// it opens; a line break alone proves nothing, since formatted or buffered
-// text may be trimmed into a path. A token any other literal of the file also
-// holds stays a path.
-type textLiterals struct {
-	marked, blocked map[string]bool
-}
-
-// observe records one literal's tokens: quoted is the literal as written,
-// value its unquoted text, output whether outputOnlyLiterals proved it reaches
-// only a standard stream.
-func (t *textLiterals) observe(quoted, value string, tokens []string, output bool) {
-	if len(tokens) == 0 {
-		return
-	}
-	set := &t.blocked
-	if output && strings.Contains(value, "\n") && !changesDirectory(quoted) {
-		set = &t.marked
-	}
-	if *set == nil {
-		*set = map[string]bool{}
-	}
-	for _, value := range tokens {
-		(*set)[value] = true
-	}
-}
-
-// tokens returns the text-only tokens, nil when there are none.
-func (t *textLiterals) tokens() map[string]bool {
-	for value := range t.blocked {
-		delete(t.marked, value)
-	}
-	if len(t.marked) == 0 {
-		return nil
-	}
-	return t.marked
 }
 
 // fixtureTokens returns the tokens only literals starting or ending on a
