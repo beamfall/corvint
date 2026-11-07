@@ -3,6 +3,7 @@
 package store_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -34,21 +35,16 @@ func TestATRV0920_FailedRemovalWriteReloadsProgram(t *testing.T) {
 	}
 	refused := errors.New("injected WORKTREE_REMOVE publication failure")
 	var mu sync.Mutex
-	armed, failNext := true, false
-	// The write hook sees the composed phase before the transition, so the
-	// fault refuses that write's first artifact and nothing is published.
-	defer store.SetProgramWriteHookForTest(func() {
+	armed := true
+	// The fault refuses the first published artifact that records the
+	// WORKTREE_REMOVE phase, so that write publishes nothing. It reads the
+	// artifact, not the workflow's memory, because the workflow composes the
+	// next program apart from the recorded one (ATR-V0-7200).
+	defer store.SetStorePublishFaultForTest(f.s.repo.StateDir, func(a transaction.Artifact) error {
 		mu.Lock()
 		defer mu.Unlock()
-		if armed && w.ProgramPhaseForTest() == "WORKTREE_REMOVE" {
-			armed, failNext = false, true
-		}
-	})()
-	defer store.SetStorePublishFaultForTest(f.s.repo.StateDir, func(transaction.Artifact) error {
-		mu.Lock()
-		defer mu.Unlock()
-		if failNext {
-			failNext = false
+		if armed && bytes.Contains(a.Data, []byte(`"WORKTREE_REMOVE"`)) {
+			armed = false
 			return refused
 		}
 		return nil

@@ -237,6 +237,11 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   listed file that no longer names it. It is empty exactly when `foreignCallersComplete` holds. The
   repository declaration test SHALL use it, so it and the plugin share one caller rule (only
   caller-candidate files count; a `.txt` file does not) and a refusal names each offending file:line.
+  Limit (mbrescue merge, 2026-11-06): the repository test does not call it yet. Its stale rule (a
+  listed file must still name the script) disagrees with the `AZU-V0-004` declaration, which lists
+  files that construct a path in a script's directory as callers or mentions without naming it
+  (754 such findings on the merged tree); the test keeps origin/main's `AZU-V0-8901` loop and the
+  plugin's own acceptance. Reconciling the two rules stays open under V1-3913 and V1-3899.
 - **TSP-V0-861:** (experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,
   2026-10-11; V1-3348) A package TSP-V0-006 would keep whole only because its own test files
   changed with its source SHALL instead be sliced when both proofs hold: TSP-V0-006's over its

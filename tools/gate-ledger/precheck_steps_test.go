@@ -20,17 +20,20 @@ import (
 // be added here, so its input classification is decided, not inherited.
 var precheckLedgerNames = []string{
 	"ai-coauthor-trailers-check", "bash32-check", "batch-precheck", "binary-blobs-check",
-	"capabilities-check", "capability-catalog-check", "decision-numbers-check",
+	"capabilities-check", "capability-catalog-check", "capability-catalog-test",
+	"ci-least-privilege-check", "conflict-markers-check", "decision-numbers-check",
 	"declaration-compat-check", "documentation-paths-check", "error-code-ownership-check",
 	"fixed-tmp-paths-check", "flow-guide-check", "go-format-check", "go-version-pins-check",
 	"host-adapter-node-test", "host-package-versions-check", "host-package-versions-test",
 	"import-direction-check", "lane-scripts-test", "legal-file-pins-check", "license-headers-check",
-	"line-citations-check", "mkfifo-build-tags-check", "requirement-definitions-check",
-	"selection-baseline-check", "shell-foreign-callers-check", "shell-test-registration-check",
-	"spec-requirements-check", "stray-backups-check", "tasks-profiles-check", "test-commands-check",
-	"test-exec-writes-check", "test-read-scopes-check", "traceability-tests-check",
-	"traceability-tests-test", "unbounded-readers-check", "use-case-receipts-check",
-	"use-case-receipts-test",
+	"line-citations-check", "long-lines-check", "mkfifo-build-tags-check",
+	"no-python-runtime-dependency-test", "py-signal-lint", "qualify-tasks-basic-test",
+	"requirement-definitions-check", "selection-baseline-check", "shell-foreign-callers-check",
+	"shell-test-registration-check", "spec-requirements-check", "stray-backups-check",
+	"tasks-profiles-check", "test-commands-check", "test-exec-writes-check", "test-read-scopes-check",
+	"traceability-tests-check", "traceability-tests-test", "tracked-ignored-check",
+	"unbounded-readers-check", "use-case-receipts-check", "use-case-receipts-test",
+	"walk-skipdir-check",
 }
 
 // TestPrecheckLedgerNamesAreComplete_GLV0785 ties the table to its sources:

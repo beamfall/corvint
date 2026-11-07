@@ -2856,4 +2856,4 @@ receipt or wire shape changes.
 | ATR-V0-353 | `internal/tasks/dispatch/ledger.go` (`extractSummary`, `summaryText`), `internal/tasks/dispatch/finish_outcome.go` (`finishSummary`) | TestATRV0350_SignalStopWithCommitFinishedOutcome, TestATRV0353_SummaryNeverAStopFragment, TestCALV0058_SummaryReadsHostFinalText |
 | ATR-V0-354 | `docs/TASKS-SUPERVISION.md` (finished event schema) | TestATRV0350_SignalStopWithCommitFinishedOutcome |
 | ATR-V0-532 | `internal/tasks/store/workflow.go` (`watchTimingFor`, stage watcher heartbeat) | TestATRV0532_StageWatcherToleratesRetryableHeartbeatFailure |
-| ATR-V0-920 | `internal/tasks/store/workflow.go` (`persistFenced`) | `TestATRV0920_FailedRemovalWriteReloadsProgram` (`internal/tasks/store`) |
+| ATR-V0-920 | `internal/tasks/store/workflow.go` (`persistFenced` and `reloadProgram`, the `ATR-V0-7200` reload fence kept at the mbrescue merge) | `TestATRV0920_FailedRemovalWriteReloadsProgram` (`internal/tasks/store`) |
