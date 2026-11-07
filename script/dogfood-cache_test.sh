@@ -499,13 +499,15 @@ for seal in 0 1 no '0 1'; do
   rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=3 BASE='feedfacefeedfacefeedfacefeedfacefeedface' $word CITATIONS='' " "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
 done
 # ASD-V0-567 (review): the resume command is printed as one literal string. A CITATIONS path holding
-# a double quote and a backtick neither ends the printed string nor runs; it prints as given, and the
-# resume line read back as shell words gives the same path.
-odd="$root/q\"b\`touch $root/resume-ran\`\"c.tsv"
+# a double quote, a backtick and a single quote neither ends the printed string nor runs; the resume
+# line read back as shell words gives the same path.
+odd="$root/q\"b\`touch $root/resume-ran\`\"c'd.tsv"
 status=0
 make -s dogfood-closeout CLOSEOUT_FROM=3 LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$odd" > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -e $root/resume-ran ]] || { cat "$root/output" >&2; fail "$LINENO"; }
-rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=3 BASE='feedfacefeedfacefeedfacefeedfacefeedface' CITATIONS='$odd' INTENTS=''" "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
+sq="'" esc="'\\''"
+quoted=${odd//$sq/$esc}
+rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=3 BASE='feedfacefeedfacefeedfacefeedfacefeedface' CITATIONS='$quoted' INTENTS=''" "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
 resume=$(sed -n 's/^resume: //p' "$root/output")
 eval "words=($resume)"
 [[ ${words[4]} == "CITATIONS=$odd" && ! -e $root/resume-ran ]] || { cat "$root/output" >&2; fail "$LINENO"; }
