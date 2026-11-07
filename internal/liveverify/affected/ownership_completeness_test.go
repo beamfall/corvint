@@ -11,11 +11,13 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // AZU-V0-002, AZU-V0-8900: declarations add verification owners without
 // suppressing the existing reader rules or the unowned-path frontier cascade.
 func TestRepositoryOwnershipComplete_AZU_V0_8900(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	listing, err := exec.Command("git", "-C", root, "ls-files", "-z").Output()
 	if err != nil {

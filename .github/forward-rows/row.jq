@@ -34,10 +34,24 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 | [$in[] | select(.kind == "outcomes")] as $outA
 | [$in[] | select(.kind == "reuse")] as $reuseA
 | [$in[] | select(.kind == "narrowing")] as $narA
+# AFP-V0-2725 (V1-4934): a narrowed pull-request run sizes its matrix (AFP-V0-2724), so the
+# selection run's documents may name fewer shards than the full matrix $n. Their count $m is the
+# one shard count every readable selection document and narrowing record names, admitted when it
+# is $n or when a record with that count says NARROWED; otherwise $m is $n and the documents fail
+# the shard-count shape below, as before. A pull-request row's outcomes come from the same run,
+# so they take $m too; a queue row's outcomes are the full queue run's, $n.
+| ([$narA[], $selA[] | select(.unreadable | not) | .doc | select(type == "object") | .shards
+    | select(type == "number" and . >= 1 and . <= 64)] | unique) as $counts
+| (if $n == null or ($counts | length) != 1 then $n
+   elif $counts[0] == $n then $n
+   elif any($narA[] | select(.unreadable | not) | .doc | select(type == "object");
+            .profile == "corvint-pr-narrowing/0" and .mode == "NARROWED" and .shards == $counts[0]) then $counts[0]
+   else $n end) as $m
+| (if $kind == "pr" then $m else $n end) as $no
 | [$narA[] | select(.unreadable | not) | .doc
-   | select(type == "object" and .profile == "corvint-pr-narrowing/0" and .shards == $n
+   | select(type == "object" and .profile == "corvint-pr-narrowing/0" and .shards == $m
             and (.mode == "NARROWED" or .mode == "FULL")
-            and (.shard | type) == "number" and .shard >= 0 and .shard < $n
+            and (.shard | type) == "number" and .shard >= 0 and .shard < $m
             and (.runId | type) == "number" and (.executed | type) == "array" and (.skipped | type) == "array")] as $nar
 | ([$narA[] | select(.unreadable)] | length > 0 or ($narA | length) != ($nar | length)
    or any($nar[]; .mode == "NARROWED")) as $narrowedRun
@@ -45,15 +59,15 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 | ($reuseA | map(select(.unreadable | not) | .doc) | first // null) as $reuse
 | ($kind == "queue" and $reuse != null and $reuse.profile == "corvint-ci-reuse/0" and $reuse.mode == "REUSE") as $reused
 | [$selA[] | select(.unreadable | not) | .doc
-   | select(type == "object" and .profile == "corvint-pr-selection/0" and .shards == $n
-            and (.shard | type) == "number" and .shard >= 0 and .shard < $n
+   | select(type == "object" and .profile == "corvint-pr-selection/0" and .shards == $m
+            and (.shard | type) == "number" and .shard >= 0 and .shard < $m
             and (.toolSource | hex40) and (.toolDigest | digest) and (.head | hex40) and (.target | hex40)
             and (.runId | type) == "number" and (.exit | type) == "number" and (.scope | type) == "string"
             and (.manifestDigest | digest) and (.planDigest | digest) and (.partitionDigest | digest)
             and (.selected | type) == "array" and ((.incomplete // []) | type) == "array")] as $sel
 | [$outA[] | select(.unreadable | not) | .doc
-   | select(type == "object" and .profile == "corvint-ci-outcomes/0" and .shards == $n
-            and (.shard | type) == "number" and .shard >= 0 and .shard < $n
+   | select(type == "object" and .profile == "corvint-ci-outcomes/0" and .shards == $no
+            and (.shard | type) == "number" and .shard >= 0 and .shard < $no
             and (.event == "pull_request" or .event == "merge_group") and (.target | hex40)
             and (.runId | type) == "number" and (.status | type) == "number"
             and (.outcomes | type) == "object" and (.rerun | type) == "object"
@@ -63,12 +77,12 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 | ([$sel[] | (.incomplete // [])[] | select(type == "string")] | unique) as $gaps
 | ([$infra | split("\n")[] | select(test("^[0-9]+$")) | tonumber] | unique) as $infraShards
 | [$infraShards[] | "infrastructure: go-product-shard (\(.)) of run \($outcomesRunId) failed at Set up job"] as $infrastructure
-| (if $n == null then [] else [coverage($sel; $n; "selection documents"), coverage($out; $n; "outcomes documents")] end) as $coverage
+| (if $n == null then [] else [coverage($sel; $m; "selection documents"), coverage($out; $no; "outcomes documents")] end) as $coverage
 # The hosted failures explain the coverage gap only when the outcomes miss exactly their shards
 # and the selection is whole, or, for a row whose selection is the same run, misses them too.
-| ($n != null and ($infraShards | length) > 0 and all($infraShards[]; . < $n)
-   and covers($out; $n; $infraShards)
-   and (covers($sel; $n; []) or ($selectionRunId == $outcomesRunId and covers($sel; $n; $infraShards)))) as $explained
+| ($n != null and ($infraShards | length) > 0 and all($infraShards[]; . < $no)
+   and covers($out; $no; $infraShards)
+   and (covers($sel; $m; []) or ($selectionRunId == $outcomesRunId and covers($sel; $m; $infraShards)))) as $explained
 | [ ($collect | split("\n")[] | select(length > 0)),
     (if $n == null then "shard count \($shards) is not a number" else empty end),
     (if $kind != "queue" and $kind != "pr" then "row kind \($kind) is unknown" else empty end),
@@ -121,7 +135,7 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 # in place of the driver's selection; a failed package outside that selection, FLAKY ones aside,
 # is a miss of the selection. Any other run carries no sample.
 | [$nar[] | select((.sample | type) == "object" and (.sample.k | type) == "number" and (.sample.selected | type) == "array")] as $sampledRecs
-| (if $kind == "pr" and ($nar | length) == $n and ($sampledRecs | length) == $n then
+| (if $kind == "pr" and ($nar | length) == $m and ($sampledRecs | length) == $m then
      ([$sampledRecs[].sample.selected[] | select(type == "string")] | unique) as $T
      | {k: $sampledRecs[0].sample.k, selected: ($T | length), failingOutside: (($F - $flaky) - $T)}
    else null end) as $sample
@@ -198,6 +212,7 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
      outcomesRunId: ($outcomesRunId | num),
      outcomesSource: (if $kind == "pr" then "pull_request" elif $reused then "reuse" else "merge_group" end),
      shards: $n,
+     selectionShards: $m,
      selection: {
        toolSource: ([$sel[].toolSource] | unique | if length == 1 then .[0] else null end),
        manifestDigest: (if ($md | length) == 1 then $md[0] else null end),

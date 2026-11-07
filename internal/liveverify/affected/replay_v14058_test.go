@@ -7,6 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestCloseoutRecipeEditSelectsItsTests_V14058 (ASD-V0-946): an edit to the
@@ -15,6 +16,7 @@ import (
 // test runs that pin in CI's Go shards (796520b19 left main red when no CI job
 // ran the shell test).
 func TestCloseoutRecipeEditSelectsItsTests_V14058(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {

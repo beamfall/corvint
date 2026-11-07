@@ -6,6 +6,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestHeavyShEditKeepsShellReaders_V14170: the shell units
@@ -17,6 +18,7 @@ import (
 // heavy.sh edit and for an unrelated one (AFP-V0-553). Before AFP-V0-553
 // neither invocation was an edge, and an unrelated edit dropped both.
 func TestHeavyShEditKeepsShellReaders_V14170(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {

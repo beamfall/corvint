@@ -16,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func affprecFiles(t *testing.T, files map[string]string) string {
@@ -224,6 +225,7 @@ func TestHelpTextProvenance_AFPV09002(t *testing.T) {
 // against the live repository graph. Counts and residual frontiers are measured,
 // never erased. The fixture pairs each change kind with its true reader.
 func TestPrecisionReplay_AFPV09003(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	g := affprecGraph(t, repositoryRoot(t), languages.All()...)
 	sets := map[string][]string{
 		"heavy-only":       {"script/heavy.sh"},
