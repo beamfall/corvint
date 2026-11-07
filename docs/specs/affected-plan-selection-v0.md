@@ -1499,8 +1499,8 @@ one list, so a later class cannot reopen it.
   decision, a missing or unreadable record or selection, a sizing failure and a count outside
   1..FULL_SHARDS, and never fails the job. The job's outputs default to sixteen on a failed step or
   a skipped job, and `go-product-shard` takes
-  `shard: fromJSON(needs.shard-plan.outputs.matrix || '[0, …, 15]')`, so a `merge_group` entry and
-  a `main` push keep sixteen shards. `SHARDS` stays `strategy.job-total` in every shard step, so the
+  `shard: fromJSON(needs.shard-plan.outputs.matrix || '[0, …, 15]')`, so a `main` push keeps sixteen
+  shards (a `merge_group` entry is sized by AFP-V0-3260). `SHARDS` stays `strategy.job-total` in every shard step, so the
   complete-universe partition (AFP-V0-022), the balanced placement (AFP-V0-590), each record and
   each coverage marker name the sized count, and `go-product`'s AFP-V0-591 guard and
   `ci-narrowed-tree-record`'s `shards=` read `needs.shard-plan.outputs.count || '16'`. The shards
@@ -1545,6 +1545,26 @@ one list, so a later class cannot reopen it.
   workflows set. Because `./...` skips `.github` and the isolated modules do not copy this test,
   the `go-static` job runs it in the checkout beside the AFP-V0-2701 and AFP-V0-2702 tests, on
   every pull request, merge-queue entry and main push that runs go-static.
+
+- **AFP-V0-3260:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4353;
+  amends AFP-V0-2724) The `shard-plan` job SHALL also size the `go-product-shard` matrix of a
+  `merge_group` entry whose base is `refs/heads/main`, when `CORVINT_MQ_NARROWING` is on and the
+  verdict is MET. Its `pin-main` step resolves `origin/main` as the shards do, and its plan step takes
+  `shard-plan.sh` and `pin-lag.sh` (`git archive` of `.github/forward-rows`) from the same commit the
+  shards' queue gate takes `mq-narrow.sh` from: `QUEUE_BASE` when it is on `origin/main`, else its
+  merge base with `origin/main`, never the entry. A copy without `mq-narrow.sh` fails the step, which
+  keeps sixteen. With `QUEUE_BASE` set, `shard-plan.sh` runs `mq-narrow.sh` instead of `narrow.sh`,
+  with the queue variables a shard's gate gets and `MQ_DELTA` empty, so its selection is the whole
+  queue range: a superset of every shard's own selection, which a stacked entry's delta can only
+  narrow, so the sized count never undersizes a shard. It prices placement at the queue shards'
+  `SHARD_TEST_P` (1), by the same expression the gate and tests steps use. A queue entry that docs-plan
+  decides DOCS or REUSE starts no shard, as before. The full fixed-count paths stay sixteen: the
+  docs-plan `REUSE_SHARDS`, `ci-tested-tree-record` (which runs only when all sixteen shards record
+  FULL) and the forward-row collector's `SHARDS`. `row.jq` (amending AFP-V0-2725) gives a queue row's
+  outcomes the one count every readable outcomes document of the queue run names, when it is within
+  1..`SHARDS`, and still requires them to cover shards 0..count-1: a sized queue run whose shards all
+  fall back to FULL ran the complete universe over that count, so it is a complete row, not a false
+  INCOMPLETE that counts toward the narrowing kill switch. Any other count keeps `SHARDS`.
 
 - **AFP-V0-2360:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-0643, owner direction 2026-11-03) `internal/companionrelease` SHALL be declared in
@@ -2217,6 +2237,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-9009 | `inboundRuntimeSiteFile`, `ownedTest` and their calls in `inboundRuntimeSite` (`internal/liveverify/affected/inbound_runtime.go`) | `TestLinelessInboundRuntimeSite_AFP_V0_9009` (declared directory edge selects the caller and closes the entry; the undeclared fault injection keeps it unknown) `TestInboundRuntimeSiteFile_AFP_V0_9009` and `TestInboundRuntimeSiteAmbiguity_AFP_V0_9009` in `internal/liveverify/affected/inbound_runtime_test.go`; `TestDeclaredInboundRuntime_AZU_V0_8902`; the before/after repro in build-log entry `2026-11-07-selmin` |
 | AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven` and `goListFile.proven`, the `confinedCommand` check of `goListScanFile` and the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and the allowlist `observesSource`, `inertImports`, `classifiedImports`, `allowedDirectives`, `observingMethods`, `confinedCommand` and `ownTestdata` (`golang/sourcereaders.go`), and `commandDirectoryProven` (`golang/commanddirectories.go`); `ImportSetChanges.Source`, `Graph.SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (34 channels each make a proven reader unproven and selected by a body-only edit, among them an `os.Symlink` into testdata, an aliased `exec.Command` and `exec.CommandContext`, a function value of `exec.Command`, an `exec.ExitError` type, a package-level command, an `Args` index swap, a command passed to `json.Unmarshal`, and the unclassified `net/http/cgi` import, `reflect.ValueOf`, an unknown `//go:` directive, `t.Chdir` and a computed `t.Setenv`; an own-testdata read, an environment read and a confined command with literal `Env`, `Dir`, `Stderr`, `ProcessState` and `reflect.DeepEqual` stay proven and unselected); `TestReaderEnvironmentIdentity_AFP_V0_9010` (custom and shadowed receivers and an unknown environment producer retain folded-test-addition selection; standard, aliased and literal controls); `TestReaderBuiltinIdentity_AFP_V0_9010` (package/local append, argument append, shadowed conversion and unknown environment retain folded-test-addition selection; builtin control); `TestCallerFilenameProvenance_AFP_V0_9010` (line/block/column directives and unknown filename transform retain remapped-target import selection; physical filename control); `TestCommandDirectoryFallsBack_AFP_V0_9010` (computed byte directory and unknown origins retain import and body selection; derived root and fresh temporary directory controls); `TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010` (computed directory, Git stdout and unknown origins retain import/body reads without a false execution edge; unknown command methods and escapes retain that edge); `TestExistingTestdataSymlinkFallsBack_AFP_V0_9010` (existing directory, root and file symlinks retain body selection); `TestTestdataUnknownEntryFailsClosed_AFP_V0_9010` (regular-file control, unknown filesystem modes and lookup error); `TestFilesystemMutatorsObserveSource_AFP_V0_9010` (filesystem mutators and unknown members fail closed as calls and values); `TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010` (computed-path mutator errors and an unknown operation retain selection on a kept-import test addition, with import-only and dropped-Source controls); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
 | AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
+| AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 
 ## Rollback
 
@@ -2232,7 +2253,8 @@ AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh`
 checks in `row.jq` and the `shards` equality in `narrowedRecordOf`; the pins may stay at the
 workflow level. Either half reverts alone. For AFP-V0-2726, delete
 `.github/cishards/isolated_copies_test.go` and its alternative in the go-static `-run` pattern; the
-`size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-2370 to
+`size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-3260, drop the
+`merge_group` clause from the `shard-plan` job's `if:`: queue entries keep sixteen shards again. The `$qcounts` choice in `row.jq` may stay: an unsized queue run names sixteen. For AFP-V0-2370 to
 AFP-V0-2378, emptying `typedReachPackages` restores whole-package selection; the package and the
 tool can then be deleted. For AFP-V0-2360 to AFP-V0-2363, deleting a declaration and restoring its
 `.corvint/unbounded-readers.json` row returns the package to the floor; the fixtures stay correct. For AFP-V0-551, removing

@@ -1,6 +1,8 @@
-//go:build unix
+//go:build unix && !solaris
 
 // SPDX-License-Identifier: Apache-2.0
+
+// solaris is excluded: its syscall package has no Getpgid, which the group check needs.
 
 package main
 
