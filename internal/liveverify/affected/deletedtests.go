@@ -8,20 +8,24 @@ import (
 	"strings"
 )
 
-// deletedGoTest reports a dirty `_test.go` path that only the Go plugin
-// claims, that is absent from the checkout the graph was observed from, and
-// whose directory still holds a Go package the graph observes (AFP-V0-620).
-// The path is a test file deleted or moved away since the change's base. Go
-// compiles a `_test.go` file only into the test binary of the package in its
-// own directory, and a directory holds one package, so that package is the
-// file's base package; rule (a) (goSourceRule) already selects it. Such a
-// path is attributed and raises no UNINDEXED_SOURCE_PATH. A graph without a
-// disk root, a path present on disk (a new or build-excluded file the graph
-// cannot see into), a path under a directory the plugin does not observe, a
-// path another plugin also claims, or a directory with no observed package
-// keeps the entry, because the base package then cannot be named.
-func (graph *Graph) deletedGoTest(path string, packages map[string]string) bool {
-	if graph.root == "" || !strings.HasSuffix(path, "_test.go") || !fs.ValidPath(path) {
+// deletedGoSource reports a dirty `.go` path that only the Go plugin claims,
+// that is absent from the checkout the graph was observed from, and whose
+// directory still holds a Go package the graph observes: a file deleted or
+// moved away since the change's base. A directory holds one package, and a
+// file of it compiles into no other package whatever its build constraints,
+// so that package is the file's base package. Rule (a) (goSourceRule) already
+// selects it with a DIRECT_SOURCE_CHANGE witness, a traversal root, so its
+// importers are selected too, as for an edit to one of its files; a deleted
+// file is never additive (ADN-V0-004). A `_test.go` file only reaches its own
+// package's test binary (AFP-V0-620); any other Go file reaches the package's
+// importers through that traversal (AFP-V0-2610). Such a path is attributed
+// and raises no UNINDEXED_SOURCE_PATH. A graph without a disk root, a path
+// present on disk (a new or build-excluded file the graph cannot see into), a
+// path under a directory the plugin does not observe, a path another plugin
+// also claims, or a directory with no observed package keeps the entry,
+// because the base package then cannot be named.
+func (graph *Graph) deletedGoSource(path string, packages map[string]string) bool {
+	if graph.root == "" || !strings.HasSuffix(path, ".go") || !fs.ValidPath(path) {
 		return false
 	}
 	if claimed := graph.claimantsOf(path); len(claimed) != 1 || claimed[0] != "go" {

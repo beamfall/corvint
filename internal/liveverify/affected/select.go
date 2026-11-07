@@ -576,9 +576,10 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			if graph.deletedGoTest(path, packages) || graph.deletedGoPackage(path, packages) {
-				// Rule (a) selects its base package (AFP-V0-620), or the
-				// importers of its deleted package (AFP-V0-821). A path
+			if graph.deletedGoSource(path, packages) || graph.deletedGoPackage(path, packages) {
+				// Rule (a) selects its base package and that package's
+				// importers (AFP-V0-620, AFP-V0-2610), or the importers of
+				// its deleted package (AFP-V0-821). A path
 				// inside a runnable unobserved directory still names that
 				// directory's test root, as the read-data branch does.
 				if inModule {

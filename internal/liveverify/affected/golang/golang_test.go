@@ -131,8 +131,12 @@ func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 	if got := reasons["go:example.test/directorynames/other"]; got != affected.ExcludedNoDependencyPath {
 		t.Fatalf("unrelated exclusion reason=%q", got)
 	}
-	if plan.Scope != affected.ScopeUnknown {
-		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	// Rule (a) attributes the deleted file to its package, so it raises no
+	// UNINDEXED_SOURCE_PATH (AFP-V0-2610).
+	for _, unknown := range plan.Unknown {
+		if unknown.Reason == affected.UnknownUnindexedSourcePath {
+			t.Fatalf("deleted source still unindexed: scope=%s unknown=%v", plan.Scope, plan.Unknown)
+		}
 	}
 }
 
