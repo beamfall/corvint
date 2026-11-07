@@ -170,6 +170,12 @@
       ]
     },
     {
+      "paths": "cmd/corvint-web-flows/help.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "conformance/beta-rung-v0/README.md",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -951,6 +957,12 @@
     },
     {
       "paths": "internal/liveverify/affected/golang/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/liveverify/affected/golang/typedreach/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
