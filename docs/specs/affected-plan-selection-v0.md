@@ -552,13 +552,15 @@ measure. None of them drops a unit the change can reach.
 ### Root locators, text literals and runtime sources are not reads (V1-4283)
 
 Measured on 2026-11-06 at `4052b8540b5fff818a819db37b55371ea5428c2c`: a one-line edit of
-`docs/TICKET-PRIORITY.md` selected 117 `UNBOUNDED_READER` units under 30 causes, 92 of them through
-a `package main` unit's `os.Getwd` (`cmd/corvint`, `benchmarks/runner`, `cmd/corvint-tasks`,
-`tools/gate-ledger`, `tools/test-commands-run`), two prose literals (`tools/cem-stable-regen`,
-`internal/perfbudget`) and two shell scripts the plugin marked `shell:dynamic-source`
-(`script/heavy.sh`, `script/dogfood-finish.sh`). None of those units reads the edited file. The
+`docs/TICKET-PRIORITY.md` selected 117 `UNBOUNDED_READER` units under 30 causes: 53 through a
+`package main` unit's non-test root locator (`cmd/corvint`, `benchmarks/runner`,
+`cmd/corvint-tasks`, `tools/gate-ledger`, `tools/test-commands-run`, `tools/cem-stable-regen`), 2
+through a prose literal (`internal/perfbudget`), 39 through two shell scripts the plugin marked
+`shell:dynamic-source` (`script/heavy.sh`, `script/dogfood-finish.sh`) and 3 toolchain-running
+shell tests with no declared read scope. None of those units reads the edited file. The
 requirements below make AFP-V0-012 rule (d) and the shell plugin's source classification state
-what is read, and keep every unit whose reads are genuinely unbounded, with a witness that says why.
+what is read, and keep every unit whose reads are genuinely unbounded, with a witness that says why;
+the before and after plans are in `docs/build-log/2026-11-06-unbounded-readers.md`.
 
 - **AFP-V0-2950:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends AFP-V0-012 rule (d) and AZU-V0-9930) Locating the working directory is not a read. An
