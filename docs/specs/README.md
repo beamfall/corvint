@@ -292,7 +292,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Greptile Gate V0 | [`greptile-gate-v0.md`](greptile-gate-v0.md) GRG-V0-001 | accepted (owner instruction 2026-11-06: make Greptile a required check, "Yes, build it") | experimental | A trusted workflow posts the required `greptile-gate` status, `success` only when Greptile reviewed the exact PR head at 5/5 with no unresolved Greptile thread. |
 | Core and Bundled Apps V0 | [`core-bundled-apps-v0.md`](core-bundled-apps-v0.md) CMS-V0-001..011 | accepted (owner, 2026-11-06) | not-started | Corvint splits into a core plus bundled apps and plugins, each measured for LLM fit, test isolation, plugin cost, speed and memory. |
 | Corvint Self-Development Gates V0 | [`corvint-self-development-gates-v0.md`](corvint-self-development-gates-v0.md) ASC-V0-775..779 | proposed | experimental | Self-development gate requirements beyond the 256-obligation limit of `corvint-self-development-v0.md`, under their own prefix. |
-| Lane Check Tooling V0 | [`lane-check-tooling-v0.md`](lane-check-tooling-v0.md) ASD-V0-566..579 | accepted | experimental | Lane closeout resumes at its failed step and repins first; focused checks cover long lines, Python signal handlers, merge drivers and changed inputs. |
+| Lane Check Tooling V0 | [`lane-check-tooling-v0.md`](lane-check-tooling-v0.md) ASD-V0-566..3731 | accepted | experimental | Lane closeout resumes at its failed step and repins first; focused checks cover long lines, Python signal handlers, merge drivers and changed inputs. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have

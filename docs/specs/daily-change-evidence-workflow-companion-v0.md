@@ -102,7 +102,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   old wording.
 - `DWC-V0-746`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4072; refines
   `DWC-V0-745` and `DCW-V0-923`) Before the bind, `make dogfood-closeout` MUST record HEAD at
-  `$(git rev-parse --git-path dogfood-closeout-start)`; when `make dogfood-closeout-precheck`, the
+  `$(git rev-parse --git-path dogfood-closeout-start)`, a resumed run keeping the record a fresh run
+  wrote (`ASD-V0-3730`); when `make dogfood-closeout-precheck`, the
   sealed-head precheck, then refuses, `script/dogfood-closeout-unwind.sh` MUST drop the bind and seal
   commits with `git reset --keep START` when every commit in `START..HEAD` changes only
   `.corvint/change.cem.json` or `.corvint/changes/*.cem.json`, none is a merge commit and no tracked
@@ -390,7 +391,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
 | `DWC-V0-745` (experimental under the standing lane auto-accept; V1-3837) | `Makefile` `dogfood-closeout` phase lines; `script/batch-precheck.sh` base-present line; `script/dogfood-cache_test.sh`, `script/batch-precheck_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
-| `DWC-V0-746` (experimental under the standing lane auto-accept; V1-4072) | `script/dogfood-closeout-unwind.sh`; `Makefile` `dogfood-closeout` start record and `dogfood-closeout-precheck` unwind; `script/dogfood-cache_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
+| `DWC-V0-746` (experimental under the standing lane auto-accept; V1-4072) | `script/dogfood-closeout-unwind.sh`; `Makefile` `dogfood-closeout` start record (kept on resume, `ASD-V0-3730`) and `dogfood-closeout-precheck` unwind; `script/dogfood-cache_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
 | `DWC-V0-747` (experimental under the standing lane auto-accept; V1-3334) | `script/batch-precheck_test.sh` skip-drift `--list` assertion | implemented; shell test PASS |
 | `DWC-V0-748` (experimental under the standing lane auto-accept; V1-4091) | `internal/dogfoodflow/propose_entryspan.go` `entryEnd`; `propose.go` `anchoredProposal`; `propose_samechange.go` `refinedProposal`; `TestProposeCitationsDWCV0748CitesTheWholeRequirementEntry` | implemented; focused tests PASS |
 | `DWC-V0-749` (experimental under the standing lane auto-accept; V1-3955) | `TestProposeCitationsDWCV0749UndefinedRequirementStaysUnknown` | implemented; focused test PASS |
