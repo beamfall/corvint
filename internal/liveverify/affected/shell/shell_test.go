@@ -925,6 +925,45 @@ func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
 	}
 }
 
+// AFP-V0-2953 (V1-4283, review fix): a source of a file the environment
+// names stays a dynamic source. A file that never assigns the name proves
+// nothing about where the caller's value points: run with ENVFILE naming the
+// repository's lib.sh, the test below reads it, so an edit of lib.sh selects
+// it.
+func TestEnvironmentNamedSourceStaysDynamic_AFPV02953(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.test/m\n")
+	write(t, root, "lib.sh", "true\n")
+	write(t, root, "unrelated.txt", "x\n")
+	forms := map[string]string{
+		"plain.sh":      ". \"$ENVFILE\"\n",
+		"braced.sh":     "source \"${ENVFILE}\"\n",
+		"tilde.sh":      "[[ -n $ENVFILE ]] && { . \"${ENVFILE/#\\~/$HOME}\" || exit 97; }\n",
+		"suffix.sh":     ". \"${ENVFILE%.env}\"\n",
+		"with-fresh.sh": "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"$ENVFILE\"\n",
+	}
+	for name, text := range forms {
+		write(t, root, name, text)
+	}
+	write(t, root, "t/env_test.sh", ". \"$ENVFILE\"\n")
+	result := units(t, root)
+	for name := range forms {
+		if unit := unitOf(t, result, name); unit.UnboundedReads != UnboundedDynamicSource || !unit.LocatesRoot {
+			t.Errorf("%s: an environment-named source lost its dynamic-source protection: %+v", name, unit)
+		}
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New(), New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range []string{"lib.sh", "unrelated.txt"} {
+		plan := affected.Select(graph, []string{dirty})
+		if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "shell:t/env_test.sh" }) {
+			t.Errorf("%s: the test sourcing \"$ENVFILE\" was not selected", dirty)
+		}
+	}
+}
+
 // AFP-V0-2243 and AFP-V0-2204 round 7: a compound command that holds no
 // simple command (`case x in esac`) leaves no command for the scan, only the
 // `&` it ends with, so a list that backgrounds the assignment through it keeps
@@ -1094,5 +1133,38 @@ cat "$repo/internal/x/y.json"
 			}
 			t.Fatalf("internal/x/y.json token was dropped: tokens %v; script:\n%s", unit.PathTokens, text)
 		})
+	}
+}
+
+// AFP-V0-2954 (V1-4283): a directory variable assigned twice with the same
+// text resolves (the dogfood-finish.sh form); a differing value or any other
+// binding form keeps the target unresolved.
+func TestSameValuedReassignmentResolves_AFPV02954(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "script/lib/a.sh", "true\n")
+	write(t, root, "script/twice.sh", "if [[ ${ONLY-} == 1 ]]; then\n  repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\n  source \"$repo/script/lib/a.sh\" || exit 0\n  exit 0\nfi\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nsource \"$repo/script/lib/a.sh\" || exit 2\n")
+	write(t, root, "script/thrice.sh", "repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\n. \"$repo/script/lib/a.sh\"\n")
+	negatives := map[string]string{
+		"differs.sh":  "repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=/tmp\n. \"$repo/script/lib/a.sh\"\n",
+		"local.sh":    "f() {\n  local repo\n  repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\n  repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\n  . \"$repo/script/lib/a.sh\"\n}\n",
+		"read.sh":     "repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nread -r repo\n. \"$repo/script/lib/a.sh\"\n",
+		"for.sh":      "repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nfor repo in /tmp; do :; done\n. \"$repo/script/lib/a.sh\"\n",
+		"append.sh":   "repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo+=/x\n. \"$repo/script/lib/a.sh\"\n",
+		"default.sh":  "repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\n: \"${repo:=/tmp}\"\n. \"$repo/script/lib/a.sh\"\n",
+		"declared.sh": "export repo=$(cd \"$(dirname \"$0\")/..\" && pwd)\nrepo=$(cd \"$(dirname \"$0\")/..\" && pwd)\n. \"$repo/script/lib/a.sh\"\n",
+	}
+	for name, text := range negatives {
+		write(t, root, "script/"+name, text)
+	}
+	result := units(t, root)
+	for _, name := range []string{"script/twice.sh", "script/thrice.sh"} {
+		if unit := unitOf(t, result, name); unit.UnboundedReads != "" || !slices.Contains(unit.Imports, "shell:script/lib/a.sh") {
+			t.Errorf("%s: a same-valued reassigned directory variable did not resolve: %+v", name, unit)
+		}
+	}
+	for name := range negatives {
+		if unit := unitOf(t, result, "script/"+name); unit.UnboundedReads != UnboundedDynamicSource || len(unit.Imports) != 0 {
+			t.Errorf("%s: resolved through a differing or rebound variable: %+v", name, unit)
+		}
 	}
 }

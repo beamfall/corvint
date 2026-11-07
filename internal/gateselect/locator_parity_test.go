@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: Apache-2.0
+package gateselect
+
+import (
+	"context"
+	"reflect"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+)
+
+// plannerUnbounded lists the planner's rule (d) directories of the fixture.
+func plannerUnbounded(t *testing.T, root string) []string {
+	t.Helper()
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	planner := []string{}
+	for _, id := range graph.UnboundedReaders() {
+		if rest, ok := strings.CutPrefix(id, "go:"+fixtureModule+"/"); ok {
+			planner = append(planner, rest)
+		}
+	}
+	sort.Strings(planner)
+	return planner
+}
+
+// agree holds this index's rule (d) set, cold and warm, equal to want and to
+// the planner's.
+func agree(t *testing.T, root string, want []string) *repositoryIndex {
+	t.Helper()
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unresolved := sortedKeys(index.unresolved())
+	if !reflect.DeepEqual(unresolved, want) {
+		t.Errorf("gateselect rule (d) = %v, want %v", unresolved, want)
+	}
+	if planner := plannerUnbounded(t, root); !reflect.DeepEqual(unresolved, planner) {
+		t.Errorf("gateselect rule (d) = %v, planner rule (d) = %v", unresolved, planner)
+	}
+	var body []byte
+	for _, state := range []string{"cold", "warm"} {
+		memoized, err := indexRepositoryMemo(root, fixtureModule, memoryScanMemo("program", &body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := sortedKeys(memoized.unresolved()); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s memo rule (d) = %v, want %v", state, got, want)
+		}
+	}
+	return index
+}
+
+// TestBoundedJoinLocatorParity_AFPV02950 holds this index's rule (d) and the
+// planner's equal over os.Getwd results (V1-4283): a result joined with
+// literal plain components into a path only a read at or below it consumes
+// (`joiner`, an aliased `=` form `aliased`, a rebinding `rebound`, a
+// directory listing `lister`, a bound joined path `bound`) is no unbounded
+// read and contributes the joined path as a root-anchored token; a result
+// that escapes (`returner`, `copier`, `passer`), climbs (`climber`,
+// `parent`), is joined with a computed, second-position, `.` or glob argument
+// (`computed`, `second`, `dotted`, `globbed`) or lands in a package-level
+// variable (`global`) stays one, and so does a joined path that a consumer
+// could widen (`widened`, `joinreturn`, `opener`, `rejoined`, `handed`). A
+// warm scan memo keeps the same set and tokens.
+func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
+	src := func(name, body string) string {
+		return "package " + name + "\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\n" + body + "\n"
+	}
+	root := writeFixture(t, map[string]string{
+		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
+		"joiner/joiner.go":      src("joiner", "func F() []byte { root, err := os.Getwd(); if err != nil { return nil }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }"),
+		"joiner/joiner_test.go": "package joiner\n",
+		"aliased/aliased.go":    "package aliased\n\nimport (\n\tsystem \"os\"\n\tfp \"path/filepath\"\n)\n\nfunc F() bool { var cwd string; var err error; cwd, err = system.Getwd(); if err != nil { return false }; _, err = system.Stat(fp.Join(cwd, \"docs/guide.md\")); return err == nil }\n",
+		"aliased/a_test.go":     "package aliased\n",
+		"rebound/rebound.go":    src("rebound", "func F(given string) []byte { root := given; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return nil } }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }"),
+		"bound/bound.go":        src("bound", "func F() int { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); if docs == \"/\" { return 0 }; var guide = filepath.Join(cwd, \"docs\", \"guide.md\"); os.Stat(guide); entries, _ := os.ReadDir(docs); return len(entries) }"),
+		"bound/b_test.go":       "package bound\n",
+		"widened/widened.go":    src("widened", "func F() []byte { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); b, _ := os.ReadFile(filepath.Join(filepath.Dir(filepath.Dir(docs)), \"config.go\")); return b }"),
+		"widened/w_test.go":     "package widened\n",
+		"joinreturn/j.go":       src("joinreturn", "func F() string { cwd, _ := os.Getwd(); return filepath.Join(cwd, \"docs\") }"),
+		"joinreturn/j_test.go":  "package joinreturn\n",
+		"opener/opener.go":      src("opener", "func F() string { cwd, _ := os.Getwd(); f, _ := os.Open(filepath.Join(cwd, \"docs\")); return filepath.Dir(f.Name()) }"),
+		"opener/o_test.go":      "package opener\n",
+		"rejoined/rejoined.go":  src("rejoined", "func F() int { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); docs = filepath.Dir(docs); entries, _ := os.ReadDir(docs); return len(entries) }"),
+		"rejoined/r_test.go":    "package rejoined\n",
+		"handed/handed.go":      src("handed", "func G(string) {}\nfunc F() { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); G(docs) }"),
+		"handed/h_test.go":      "package handed\n",
+		"rebound/r_test.go":     "package rebound\n",
+		"lister/lister.go":      src("lister", "func F() int { root, err := os.Getwd(); if err != nil { return 0 }; entries, _ := os.ReadDir(filepath.Join(root, \"docs\")); return len(entries) }"),
+		"lister/l_test.go":      "package lister\n",
+		"returner/returner.go":  "package returner\n\nimport \"os\"\n\nfunc F() string { cwd, _ := os.Getwd(); return cwd }\n",
+		"returner/r_test.go":    "package returner\n",
+		"copier/copier.go":      src("copier", "func F() string { cwd, _ := os.Getwd(); other := cwd; return filepath.Join(other, \"docs\") }"),
+		"copier/c_test.go":      "package copier\n",
+		"passer/passer.go":      src("passer", "func G(s string) string { return s }\nfunc F() string { cwd, _ := os.Getwd(); return filepath.Join(G(cwd), \"docs\") }"),
+		"passer/p_test.go":      "package passer\n",
+		"climber/climber.go":    src("climber", "func F() string { cwd, _ := os.Getwd(); return filepath.Join(cwd, \"..\", \"docs\") }"),
+		"climber/c_test.go":     "package climber\n",
+		"parent/parent.go":      src("parent", "func F() string { cwd, _ := os.Getwd(); return filepath.Dir(cwd) }"),
+		"parent/p_test.go":      "package parent\n",
+		"computed/computed.go":  src("computed", "func F(name string) string { cwd, _ := os.Getwd(); return filepath.Join(cwd, name) }"),
+		"computed/c_test.go":    "package computed\n",
+		"second/second.go":      src("second", "func F() string { cwd, _ := os.Getwd(); return filepath.Join(\"prefix\", cwd, \"docs\") }"),
+		"second/s_test.go":      "package second\n",
+		"dotted/dotted.go":      src("dotted", "func F() string { cwd, _ := os.Getwd(); return filepath.Join(cwd, \".\") }"),
+		"dotted/d_test.go":      "package dotted\n",
+		"globbed/globbed.go":    src("globbed", "func F() string { cwd, _ := os.Getwd(); return filepath.Join(cwd, \"docs\", \"*.md\") }"),
+		"globbed/g_test.go":     "package globbed\n",
+		"global/global.go":      src("global", "var root string\n\nfunc F() string { var err error; root, err = os.Getwd(); if err != nil { return \"\" }; return filepath.Join(root, \"docs\") }"),
+		"global/g_test.go":      "package global\n",
+	})
+	// widened is the review's case (a bounded join climbed with
+	// filepath.Dir); joinreturn, opener, rejoined and handed hand the joined
+	// path to a consumer that could widen it.
+	want := []string{"climber", "computed", "copier", "dotted", "global", "globbed", "handed", "joinreturn", "opener", "parent", "passer", "rejoined", "returner", "second", "widened"}
+	index := agree(t, root, want)
+	for directory, token := range map[string]string{"joiner": "/docs/guide.md", "aliased": "/docs/guide.md", "rebound": "/docs/guide.md", "lister": "/docs", "bound": "/docs"} {
+		if holders := index.holders[token]; !containsString(holders, directory) {
+			t.Errorf("%s: the joined path %q is not a token of the package: holders %v", directory, token, holders)
+		}
+	}
+	// The anchored token places the joined path: the listing reads below
+	// docs and the file join reads its file. (This index's rule (c) is the
+	// broader fast-tier lexicon, AFP-V0-765, so a lone "docs" token may name
+	// a sibling here that the planner's AFP-V0-072 narrowing does not.)
+	for _, dirty := range []string{"docs/guide.md", "docs/other.md"} {
+		if readers := index.readers(dirty); !containsString(readers, "lister") {
+			t.Errorf("%s: lister is not a reader: %v", dirty, readers)
+		}
+	}
+	if readers := index.readers("docs/guide.md"); !containsString(readers, "joiner") {
+		t.Errorf("docs/guide.md: joiner is not a reader: %v", readers)
+	}
+}
+
+// TestPrintedClimbParity_AFPV02962 holds this index's rule (d) and the
+// planner's equal over climbing literals (V1-4283, review fix 3): the
+// commands whose line-broken printed text the withdrawn AFP-V0-2952
+// exemption spared (`printed`, `streamed`, `raw`) keep rule (d), as do a
+// library's printed text (`printedlib`), formatted, buffered and stored text
+// (`prose`, `template`, the review's formatted reader `formatted`,
+// `buffered`), a single-line path (`oneline`, `path`), a printed script with
+// `cd` (`script`), a token both forms hold (`both`) and a test file
+// (`tested`). A warm scan memo keeps the same set.
+func TestPrintedClimbParity_AFPV02962(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"go.mod":                 "module example.com/fixture\n\ngo 1.22\n",
+		"printed/printed.go":     "package main\n\nimport \"fmt\"\n\nfunc main() { F(\"x\") }\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
+		"printed/p_test.go":      "package main\n",
+		"printedlib/printed.go":  "package printedlib\n\nimport \"fmt\"\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
+		"printedlib/p_test.go":   "package printedlib\n",
+		"streamed/streamed.go":   "package main\n\nimport (\n\t\"fmt\"\n\tsystem \"os\"\n)\n\nfunc main() { fmt.Fprintln(system.Stderr, \"See ../manifest.json\\nfor the digest.\") }\n",
+		"streamed/s_test.go":     "package main\n",
+		"raw/raw.go":             "package main\n\nimport \"os\"\n\nfunc main() { os.Stdout.WriteString(`| See ../manifest.json for the digest. |\n\nMore text.\n`) }\n",
+		"raw/r_test.go":          "package main\n",
+		"prose/prose.go":         "package prose\n\nvar Doc = \"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\"\n",
+		"prose/p_test.go":        "package prose\n",
+		"template/template.go":   "package template\n\nimport \"fmt\"\n\nfunc Ruby(model string) []byte { return fmt.Appendf(nil, \"require_relative \\\"../models/%s\\\"\\n\\nclass X\\nend\\n\", model) }\n",
+		"template/t_test.go":     "package template\n",
+		"formatted/formatted.go": "package formatted\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"strings\"\n)\n\nfunc F(suffix string) []byte { b, _ := os.ReadFile(strings.TrimSpace(fmt.Sprintf(\"../config%s\\n\", suffix))); return b }\n",
+		"formatted/f_test.go":    "package formatted\n",
+		"buffered/buffered.go":   "package buffered\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n)\n\nfunc F(name string) string { var b strings.Builder; fmt.Fprintf(&b, \"See ../manifest.json for %s\\n\", name); return b.String() }\n",
+		"buffered/b_test.go":     "package buffered\n",
+		"oneline/oneline.go":     "package oneline\n\nimport \"fmt\"\n\nfunc F() { fmt.Println(\"../manifest.json\") }\n",
+		"oneline/o_test.go":      "package oneline\n",
+		"path/path.go":           "package path\n\nvar Manifest = \"../manifest.json\"\n",
+		"path/p_test.go":         "package path\n",
+		"script/script.go":       "package script\n\nimport \"fmt\"\n\nfunc F() { fmt.Print(\"set -e\\ncd ../fixture\\ncat ../manifest.json\\n\") }\n",
+		"script/s_test.go":       "package script\n",
+		"both/both.go":           "package both\n\nimport \"fmt\"\n\nfunc F() { fmt.Print(\"See ../manifest.json\\n\") }\n\nvar Path = \"../manifest.json\"\n",
+		"both/b_test.go":         "package both\n",
+		"tested/tested.go":       "package tested\n",
+		"tested/tested_test.go":  "package tested\n\nimport \"fmt\"\n\nfunc init() { fmt.Print(\"See ../../manifest.json\\n\") }\n",
+	})
+	agree(t, root, []string{"both", "buffered", "formatted", "oneline", "path", "printed", "printedlib", "prose", "raw", "script", "streamed", "template", "tested"})
+}
+
+// pipeReader is the review's case (V1-4283, review fix 2), as the planner's
+// test has it: code that redirects os.Stdout to an os.Pipe, prints a
+// climbing line-broken literal straight to the stream, reads the pipe back,
+// trims it and opens the result (../config.go with suffix ".go").
+const pipeReader = `
+import (
+	"fmt"
+	"io"
+	"os"
+	"strings"
+)
+
+func Read(suffix string) []byte {
+	r, w, _ := os.Pipe()
+	stdout := os.Stdout
+	os.Stdout = w
+	fmt.Printf("../config%s\n", suffix)
+	os.Stdout = stdout
+	w.Close()
+	printed, _ := io.ReadAll(r)
+	b, _ := os.ReadFile(strings.TrimSpace(string(printed)))
+	return b
+}
+`
+
+// TestCapturedStreamParity_AFPV02962 holds this index's rule (d) and the
+// planner's equal on the second review's fixture (V1-4283, review fixes 2
+// and 3): the pipe reader as a library (`piped`) and as a command
+// (`pipedmain`), commands whose tests capture the stream through os.Pipe
+// (`testcaptured`), an external test package (`xtestcaptured`), a re-run read
+// back (`reexec`) or a duplicated descriptor (`dupped`), and the same command
+// whose tests capture nothing (`quiet`) all keep rule (d). A warm scan memo
+// keeps the same set.
+func TestCapturedStreamParity_AFPV02962(t *testing.T) {
+	printed := "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Printf(\"../config%s\\n\", \".go\") }\n"
+	captureTest := "\nimport (\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tr, w, _ := os.Pipe()\n\tos.Stdout = w\n\tw.Close()\n\tprinted, _ := io.ReadAll(r)\n\tos.ReadFile(strings.TrimSpace(string(printed)))\n}\n"
+	root := writeFixture(t, map[string]string{
+		"go.mod":                       "module example.com/fixture\n\ngo 1.22\n",
+		"config.go":                    "package config\n",
+		"piped/p.go":                   "package piped\n" + pipeReader,
+		"piped/p_test.go":              "package piped\n",
+		"pipedmain/main.go":            "package main\n" + pipeReader + "\nfunc main() { Read(\".go\") }\n",
+		"pipedmain/main_test.go":       "package main\n",
+		"testcaptured/main.go":         printed,
+		"testcaptured/main_test.go":    "package main\n" + captureTest,
+		"xtestcaptured/main.go":        printed,
+		"xtestcaptured/main_x_test.go": "package main_test\n" + captureTest,
+		"reexec/main.go":               printed,
+		"reexec/main_test.go":          "package main\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tout, _ := exec.Command(os.Args[0]).Output()\n\tos.ReadFile(strings.TrimSpace(string(out)))\n}\n",
+		"dupped/main.go":               printed,
+		"dupped/main_test.go":          "package main\n\nimport (\n\t\"os\"\n\t\"syscall\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tf, _ := os.Create(\"out\")\n\tsyscall.Dup2(int(f.Fd()), 1)\n}\n",
+		"quiet/main.go":                printed,
+		"quiet/main_test.go":           "package main\n",
+	})
+	agree(t, root, []string{"dupped", "piped", "pipedmain", "quiet", "reexec", "testcaptured", "xtestcaptured"})
+}
+
+// importedCapture is the third review's helper (V1-4283, review fix 3), as
+// the planner's test has it: it redirects os.Stdout to a pipe, runs a
+// callback, trims what the callback printed and opens it. It has capture
+// evidence and no climbing literal.
+const importedCapture = `package capture
+
+import (
+	"io"
+	"os"
+	"strings"
+)
+
+// Read runs f with os.Stdout redirected and opens the path f printed.
+func Read(f func()) []byte {
+	r, w, _ := os.Pipe()
+	stdout := os.Stdout
+	os.Stdout = w
+	f()
+	os.Stdout = stdout
+	w.Close()
+	printed, _ := io.ReadAll(r)
+	b, _ := os.ReadFile(strings.TrimSpace(string(printed)))
+	return b
+}
+`
+
+// TestImportedCaptureParity_AFPV02962 holds this index's rule (d) and the
+// planner's equal on the review's exact example (V1-4283, review fix 3): the
+// command `tool` prints "../config%s\n" and its test calls
+// capture.Read(main), whose imported helper reads the text back and opens
+// ../config.go. The command keeps rule (d), cold and warm, and an edit of
+// config.go selects it.
+func TestImportedCaptureParity_AFPV02962(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"go.mod":                  "module example.com/fixture\n\ngo 1.22\n",
+		"config.go":               "package config\n",
+		"capture/capture.go":      importedCapture,
+		"capture/capture_test.go": "package capture\n",
+		"tool/main.go":            "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Printf(\"../config%s\\n\", \".go\") }\n",
+		"tool/main_test.go":       "package main\n\nimport (\n\t\"testing\"\n\n\t\"example.com/fixture/capture\"\n)\n\nfunc TestReads(t *testing.T) { capture.Read(main) }\n",
+	})
+	agree(t, root, []string{"tool"})
+	var plan Receipt
+	plan.Provider.Go.State = "RUNNABLE"
+	plan.Plan.Dirty = []string{"config.go"}
+	if got := verdict(plan, root); !strings.Contains(got+" ", " example.com/fixture/tool ") {
+		t.Errorf("an edit of config.go, which tool's captured text names, did not select tool: %q", got)
+	}
+}
+
+func containsString(values []string, value string) bool {
+	for _, item := range values {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
