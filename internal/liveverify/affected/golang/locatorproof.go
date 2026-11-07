@@ -25,10 +25,12 @@ import (
 // on either scanner's input. aliases maps the file's local qualifiers to the
 // import paths of rootLocatorFuncs; joins maps them to pathJoinFuncs. Parse
 // failures and unresolved or escaping bindings grant no exemptions.
-// components holds the body offsets of a bounded join's literal components:
-// each value reaches only that join, whose joined token already names what it
-// reads, so a component (`"docs"`) is no path literal of its own and does not
-// select a sibling of the joined path (`docs/other.md`).
+// components holds the body offsets of a bounded join's leading literal
+// components: each value reaches only that join, whose joined token already
+// names what it reads, so a leading component (`"docs"`) is no path literal of
+// its own and does not select a sibling of the joined path (`docs/other.md`).
+// The last component stays a literal: a directory symlink on the joined path
+// preserves it, so a change to the link's target still selects the reader.
 func comparisonOnlyLocators(body []byte, aliases, joins map[string]string) (safe map[int]bool, joined []string, components map[int]bool) {
 	if !bytes.Contains(body, []byte("Getwd")) {
 		return nil, nil, nil
@@ -130,7 +132,12 @@ func comparisonOnlyLocators(body []byte, aliases, joins map[string]string) (safe
 					// or any other consumer could widen it.
 					if joinedPath, ok := boundedJoin(expression, use, joins); ok && boundedJoinConsumed(file, expression, parents, aliases, packageLevel) {
 						paths = append(paths, joinedPath)
-						literals = append(literals, expression.Args[1:]...)
+						// The last component stays a literal of its own: a
+						// directory symlink on the joined path keeps its name, so
+						// it still selects the reader of the link's target.
+						if last := len(expression.Args) - 1; last > 1 {
+							literals = append(literals, expression.Args[1:last]...)
+						}
 					} else {
 						bounded = false
 					}
