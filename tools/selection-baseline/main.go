@@ -122,6 +122,8 @@ type manifest struct {
 	// Go universe, as "<unit>: <reason>" (STR-V0-069): a dependent nested
 	// module's synthetic unit (AFP-V0-582), which is no root package.
 	Excluded []string `json:"excluded"`
+	// Incomplete names why the run cannot be complete (STR-V0-004).
+	Incomplete []string `json:"incomplete"`
 	// nested holds the Excluded units that name a nested module directory of
 	// the replayed head (nestedModuleUnits); only those are not compared.
 	nested map[string]bool
@@ -174,6 +176,10 @@ type Result struct {
 	TestExtra   []string `json:"testExtra,omitempty"`
 	TestOmitted []string `json:"testOmitted,omitempty"`
 	TestMisses  []string `json:"testMisses,omitempty"`
+	// TestIncomplete is the manifest's incomplete list when `corvint test`
+	// gave the INCOMPLETE verdict (exit 3), such as a historic tree whose
+	// declaration names no language a bearing frontier adds (AFP-V0-2750).
+	TestIncomplete []string `json:"testIncomplete,omitempty"`
 }
 
 // Summary restates the results; narrow rates are only reported with misses.
@@ -469,7 +475,7 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 		return res, err
 	}
 	manifestPath := filepath.Join(tmp, c.ID+".manifest.json")
-	if _, err := run(ctx, clone, corvint, "test", "--base", c.Base, "--dry-run", "--manifest", manifestPath); err != nil {
+	if err := dryRunManifest(ctx, clone, corvint, c.Base, manifestPath); err != nil {
 		return res, err
 	}
 	var m manifest
@@ -586,6 +592,9 @@ func round(f float64) float64 { return float64(int64(f*1000+0.5)) / 1000 }
 // and the whole ones kept because their source and test files both changed.
 func fillManifest(res *Result, m manifest) {
 	res.TestScope = m.Scope
+	if len(m.Incomplete) != 0 {
+		res.TestIncomplete = append([]string{}, m.Incomplete...)
+	}
 	for _, u := range m.Units {
 		if u.Adapter != "go" {
 			continue
@@ -838,6 +847,22 @@ func moduleOf(name string) (string, error) {
 }
 
 // run runs one command in dir and returns its stdout; stderr joins the error.
+// dryRunManifest runs `CORVINT test --base BASE --dry-run --manifest M` in dir.
+// Exit 3 is the INCOMPLETE verdict, not a failed replay, once the manifest is
+// written: it names why the run cannot be complete (STR-V0-004), and the replay
+// records that. A historic head can lack a declaration the current binary
+// needs, such as the cfamily one a bearing frontier adds (AFP-V0-2750).
+func dryRunManifest(ctx context.Context, dir, corvint, base, manifestPath string) error {
+	_, err := run(ctx, dir, corvint, "test", "--base", base, "--dry-run", "--manifest", manifestPath)
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 3 {
+		if info, statErr := os.Stat(manifestPath); statErr == nil && info.Mode().IsRegular() {
+			return nil
+		}
+	}
+	return err
+}
+
 func run(ctx context.Context, dir, name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()

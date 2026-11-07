@@ -94,6 +94,7 @@ var controlNames = map[string]bool{"SHELL": true, ".SHELLFLAGS": true, "MAKEFLAG
 // name it. Only the words make prints are inspected, not what a script
 // those words name goes on to run.
 var languageRunners = map[string][]string{
+	"cfamily":    {"bazel", "cmake", "ctest", "meson", "ninja", "scons"},
 	"dotnet":     {"dotnet"},
 	"kotlin":     {"gradle", "gradlew", "kotlin", "kotlinc"},
 	"python":     {"nox", "pipenv", "poetry", "py.test", "pytest", "python", "python2", "python3", "tox", "uv"},
