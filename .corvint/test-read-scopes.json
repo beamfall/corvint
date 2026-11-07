@@ -938,7 +938,9 @@
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [
-      "benchmarks/selection-baseline/changes.json"
+      ".github/cishards/",
+      "benchmarks/selection-baseline/",
+      "go.mod"
     ],
     "tools/str-parity": [],
     "tools/test-commands-check": [

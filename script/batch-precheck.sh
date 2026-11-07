@@ -764,10 +764,10 @@ lane_own_skip() {
   done
 }
 
-# select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
-# diff read but no usable plan, only when no Go input and no declared input changed at all.
+# select_baseline retains selection for legacy recipes. Recipes with the shared
+# ASD-V0-944 preflight must reach it, including declaration-only edits and unknowns.
 select_baseline() {
-  local pkgs tok p expanded
+  local pkgs tok p expanded recipe
   grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
   # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
   if [[ $lane_closeout == 1 ]]; then
@@ -785,6 +785,10 @@ select_baseline() {
     printf 'batch-precheck: %s\n' "$sb_deferred"
     return 0
   fi
+  recipe=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null)
+  # The shared recipe bounds compilation and validates reader declarations.
+  # The old outer input list cannot prove either, even with a usable plan.
+  [[ $recipe != *SELECTION_BASELINE_INPUTS_BASE=* ]] || return 0
   # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
@@ -944,6 +948,9 @@ doc_gate_rows() {
         elif [[ $value == selection-baseline-check && -n ${sb_skip-} ]]; then
           printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
         else
+          # The target makes the shared ASD-V0-944 reader-bound decision too,
+          # even when this conservative outer plan cannot narrow a Go edit.
+          [[ $value != selection-baseline-check || -z $sel_sha ]] || envs+=("SELECTION_BASELINE_BASE=$sel_sha")
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
         fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;

@@ -955,11 +955,17 @@ ai-coauthor-trailers-check:
 # merged-branch commits whose CI failed) and fails when CI would narrow fewer merged changes than the
 # recorded floor or a narrowed selection misses a package that failed in CI. It needs full history.
 # SELECTION_BASELINE_OUT=FILE also writes the results JSON.
+# Explicit BASE (or SELECTION_BASELINE_BASE), else the immutable CI event base,
+# admits a skip only for a diff disjoint from compilation and reader inputs.
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@if [ "$${CORVINT_CI_CADENCE-}" = DEFER ]; then echo 'selection-baseline-check: NOT_RUN under CI cadence DEFER (CIN-V0-4753); the nightly release gates run it.'; exit 0; fi; \
 	d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/selection-baseline" ./tools/selection-baseline && \
+	decision=$$(GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local SELECTION_BASELINE_INPUTS_BASE='$(if $(SELECTION_BASELINE_BASE),$(SELECTION_BASELINE_BASE),$(if $(filter command line environment,$(origin BASE)),$(BASE)))' "$$d/selection-baseline") && \
+	case "$$decision" in 'skip '*) echo "selection-baseline-check skipped: $${decision#skip }"; exit 0 ;; \
+	*) echo "selection-baseline-check runs: $${decision#run }" ;; esac && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
 # shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
