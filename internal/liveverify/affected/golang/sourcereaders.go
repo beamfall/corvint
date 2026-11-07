@@ -65,8 +65,8 @@ var classifiedImports = map[string]map[string]int{
 		"LookupEnv": 1, "Mkdir": 1, "MkdirAll": 1, "MkdirTemp": 1, "ModeDir": 1, "ModePerm": 1,
 		"ModeSymlink": 1, "O_APPEND": 1, "O_CREATE": 1, "O_EXCL": 1, "O_RDONLY": 1, "O_RDWR": 1,
 		"O_TRUNC": 1, "O_WRONLY": 1, "PathError": 1, "PathListSeparator": 1, "PathSeparator": 1,
-		"Pipe": 1, "Remove": 1, "RemoveAll": 1, "Rename": 1, "SameFile": 1, "Signal": 1,
-		"Stderr": 1, "Stdin": 1, "Stdout": 1, "Symlink": 1, "SyscallError": 1, "TempDir": 1,
+		"Pipe": 1, "Remove": 1, "RemoveAll": 1, "SameFile": 1, "Signal": 1,
+		"Stderr": 1, "Stdin": 1, "Stdout": 1, "SyscallError": 1, "TempDir": 1,
 		"Truncate": 1, "UserCacheDir": 1, "UserConfigDir": 1, "UserHomeDir": 1, "WriteFile": 1,
 	},
 	"io/ioutil": {
