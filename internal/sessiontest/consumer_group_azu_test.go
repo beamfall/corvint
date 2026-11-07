@@ -3,6 +3,7 @@ package sessiontest
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -11,7 +12,8 @@ import (
 // invocation that carries both units; a different argv, another shard and a
 // unit the declaration names no command for each keep their own.
 func TestAZUV0007IdenticalDeclaredCommandsShareInvocation(t *testing.T) {
-	gate := []string{"bash", "script/web-flows-gate"}
+	gate := []string{"bash", "script/web-flows-gate"} //corvint:fixture-path
+	other := append(slices.Clone(gate), "other")
 	m := Manifest{RunnerProfile: ProfileLocal, Units: []Unit{
 		{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:declared-consumer:web/e2e.mjs"},
 		{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:declared-consumer:web/nav.mjs"},
@@ -25,11 +27,11 @@ func TestAZUV0007IdenticalDeclaredCommandsShareInvocation(t *testing.T) {
 		{Language: "declared-consumer:web/e2e.mjs", Argv: gate},
 		{Language: "declared-consumer:web/late.mjs", Argv: gate},
 		{Language: "declared-consumer:web/nav.mjs", Argv: gate},
-		{Language: "declared-consumer:web/other.mjs", Argv: []string{"bash", "script/web-flows-gate", "other"}},
+		{Language: "declared-consumer:web/other.mjs", Argv: other},
 	}
 	want := []Planned{
 		{Adapter: AdapterDeclared, Argv: gate, Env: []string{}, Units: m.Units[0:2]},
-		{Adapter: AdapterDeclared, Argv: []string{"bash", "script/web-flows-gate", "other"}, Env: []string{}, Units: m.Units[2:3]},
+		{Adapter: AdapterDeclared, Argv: other, Env: []string{}, Units: m.Units[2:3]},
 		{Adapter: AdapterDeclared, Argv: []string{}, Env: []string{}, Units: m.Units[3:4]},
 		{Adapter: AdapterDeclared, Argv: []string{}, Env: []string{}, Units: m.Units[4:5]},
 	}
