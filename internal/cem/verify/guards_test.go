@@ -286,3 +286,40 @@ func TestMethod(t *testing.T) { machine{}.Check() }
 		t.Fatalf("method closure lost: %v", got)
 	}
 }
+
+// TCQ-V0-7408: a changed declaration that package initialization registers
+// behind a foreign selector keeps every base test a candidate, since a test
+// reaching it through that selector names no package declaration.
+func TestTCQV07408InitializationKeepsCallbackTests(t *testing.T) {
+	data := []byte(`package p
+import "flag"
+import "testing"
+func Usage() {}
+func init() { flag.Usage = Usage }
+func other() {}
+func TestCallback(t *testing.T) { flag.Usage() }
+func TestOther(t *testing.T) { other() }
+`)
+	p := &goPackage{decls: parseDecls("p/p_test.go", data, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"Usage": true})); !reflect.DeepEqual(got, []string{"TestCallback", "TestOther"}) {
+		t.Fatalf("init-registered callback dropped its test: %v", got)
+	}
+	// Negative control: a change initialization never reaches stays narrow.
+	if got := p.testsMentioning(p.grow(map[string]bool{"other": true})); !reflect.DeepEqual(got, []string{"TestOther"}) {
+		t.Fatalf("unreached initialization widened candidates: %v", got)
+	}
+	registered := []byte(`package p
+import "testing"
+func handler() {}
+var _ = register(handler)
+var plain = 3
+func register(func()) int { return 0 }
+func TestRegistry(t *testing.T) { lookup() }
+func lookup() {}
+func TestPlain(t *testing.T) { _ = plain }
+`)
+	p = &goPackage{decls: parseDecls("p/p_test.go", registered, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"handler": true})); !reflect.DeepEqual(got, []string{"TestPlain", "TestRegistry"}) {
+		t.Fatalf("blank var registration dropped tests: %v", got)
+	}
+}
