@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -36,6 +38,34 @@ func TestDeadManHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(10 * time.Minute)
+}
+
+// kernelNames maps each process to its kernel name (ps ucomm: the kernel
+// comm on Linux, p_comm on Darwin). On Darwin it can differ from the argv[0]
+// that observeProcs reads there: exec through a symlink names the process
+// after the symlink's target (ATR-V0-700).
+func kernelNames() (map[int]string, error) {
+	ps := "/bin/ps"
+	if _, err := os.Stat(ps); err != nil {
+		ps = "/usr/bin/ps"
+	}
+	raw, err := exec.Command(ps, "-axo", "pid=,ucomm=").Output()
+	if err != nil {
+		return nil, err
+	}
+	out := map[int]string{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 2 {
+			continue
+		}
+		pid, err := strconv.Atoi(f[0])
+		if err != nil {
+			return nil, fmt.Errorf("unparsable process row %q", line)
+		}
+		out[pid] = strings.Join(f[1:], " ")
+	}
+	return out, nil
 }
 
 // ATR-V0-213 (V1-2189): a test binary killed by SIGKILL runs neither its
@@ -91,8 +121,51 @@ func TestATRV0213_FixtureWorkersDieWithTheirTestBinary(t *testing.T) {
 	if !groupOwned(worker) {
 		t.Fatalf("worker group %d is not running under its recorded leader before the kill", worker.pid)
 	}
-	if err := child.Process.Signal(syscall.SIGKILL); err != nil {
+	// ATR-V0-700 (V1-2815): the binary dies by a kill by name, as pkill does,
+	// which SIGKILLs every process of the child's tree that carries the test
+	// binary's name, by argv[0] (what observeProcs reads on Darwin) or by
+	// kernel name. The reaper must carry neither, or it dies too and the
+	// worker group is orphaned.
+	procs, err := observeProcs()
+	if err != nil {
 		t.Fatal(err)
+	}
+	kernel, err := kernelNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, kname := procs[child.Process.Pid].comm, kernel[child.Process.Pid]
+	var named []int
+	reaper := 0
+	for pid, p := range procs {
+		if pid != child.Process.Pid && p.ppid != child.Process.Pid {
+			continue
+		}
+		switch {
+		case p.comm == name || kernel[pid] == kname:
+			named = append(named, pid)
+		case p.comm == deadManName && kernel[pid] == deadManName:
+			reaper = pid
+		case pid != worker.pid:
+			t.Logf("child process %d is %q (kernel name %q)", pid, p.comm, kernel[pid])
+		}
+	}
+	if name == "" || kname == "" || len(named) != 1 {
+		t.Fatalf("processes named %q (kernel name %q) under the child: %v, want only the child", name, kname, named)
+	}
+	if reaper == 0 {
+		var under []string
+		for pid, p := range procs {
+			if p.ppid == child.Process.Pid {
+				under = append(under, fmt.Sprintf("%d %q (kernel name %q)", pid, p.comm, kernel[pid]))
+			}
+		}
+		t.Fatalf("no process under the child is named %q by both argv[0] and kernel name: %v", deadManName, under)
+	}
+	for _, pid := range named {
+		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			t.Fatal(err)
+		}
 	}
 	<-exited
 	// The bound is generous for a loaded host; the reaper acts at once on

@@ -553,7 +553,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		}
 		gateIDs[gd.GateID] = true
 		gd.Kind = g.Field("kind").Enum("COMMAND", "REVIEW", "DOCS", "MANUAL", "EXTERNAL")
-		gd.Argv = g.Field("argv").Strings(wire.MaxGateArgv, true, (*wire.Reader).Identifier)
+		gd.Argv = g.Field("argv").Strings(wire.MaxGateArgv, true, (*wire.Reader).GateArg)
 		if g.Err() == nil && len(gd.Argv) < 1 {
 			g.Field("argv").Fail(wire.CodeMalformed, "argv must have 1..16 literal entries")
 		}

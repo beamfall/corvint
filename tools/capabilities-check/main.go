@@ -51,6 +51,7 @@ func run(root string, stdout, stderr io.Writer) int {
 	findings := Check(catalog, readme, inv, filepath.Join(root, "docs"))
 	findings = append(findings, CheckTrees(root, inv.Binaries)...)
 	findings = append(findings, CheckEntryPoint(root)...)
+	findings = append(findings, CheckNodeCatalog(root)...)
 	for _, f := range findings {
 		fmt.Fprintln(stderr, "capabilities-check:", f)
 	}

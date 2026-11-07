@@ -92,7 +92,10 @@ const (
 	// directories and a bounded number of crashed temp files.
 	MaxArchiveScanEntries = MaxArchiveFiles + 4096
 
-	MaxGateArgv         = 16
+	MaxGateArgv = 16
+	// MaxGateArgBytes bounds one gate or attestation argv element. An element
+	// may be an absolute path, so it shares the PathText bound (TRM-V0-532).
+	MaxGateArgBytes     = MaxPathTextBytes
 	MaxRuntimeArgv      = 16
 	MaxActiveAttempts   = 64
 	MaxWorkersTotal     = 256

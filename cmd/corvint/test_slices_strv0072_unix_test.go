@@ -118,7 +118,7 @@ func bulkSlices(t *testing.T, root, base string) (affected.Plan, *affected.Graph
 	log := filepath.Join(t.TempDir(), "git.log")
 	script := sourceGitScript(t, "echo \"$*\" >> "+log+"\nexec /usr/bin/git \"$@\"\n")
 	ctx := liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script))
-	sliced := testGoSlices(ctx, receipt.Plan, graph, root, base)
+	sliced := testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{environ: os.Environ()})
 	processes := 0
 	if raw, err := os.ReadFile(log); err == nil {
 		processes = strings.Count(string(raw), "\n")

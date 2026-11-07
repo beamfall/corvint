@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // unbounded-readers is the AFP-V0-025 ratchet: it fails when a test unit selected on
-// every change (AFP-V0-012 rule (d)) is not in the repository's recorded set.
+// every change (AFP-V0-012 rule (d)) is not in the repository's recorded set. It
+// also ratchets the readers of the record directories every change adds an entry
+// to (AFP-V0-2745, records.go).
 package main
 
 import (
@@ -211,6 +213,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
 		return 2
 	}
+	records, err := readRecordReaders(root)
+	if err != nil {
+		fmt.Fprintln(stderr, "unbounded-readers:", err)
+		return 2
+	}
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
@@ -293,7 +300,8 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unbounded-readers: %s refused: %s; remove or fix the entry (TSP-V0-831), and record the test in units of %s if it cannot be bounded.\n",
 			affected.ShellReadScopesPath, reason, recordPath)
 	}
-	if !out.OK {
+	// AFP-V0-2745: the record directory readers are a second set on the same graph.
+	if !checkRecordReaders(graph, records, stderr) || !out.OK {
 		return 1
 	}
 	return 0

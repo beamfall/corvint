@@ -1,6 +1,9 @@
 package shell
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // command is one simple command: its raw words, quoting kept, with a
 // redirection operator kept as the redirect marker before its target.
@@ -204,6 +207,16 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 	endCommand := func() {
 		endWord()
 		if len(words) == 0 {
+			// An operator after a compound command's closing `}`, `)` or
+			// `esac` ends no simple command, but it still joins the
+			// compound to the next one (`{ :; } || tmp=...`), so it is the
+			// next command's lead. Only an operator that makes the next
+			// command conditional or a subshell replaces the lead, so the
+			// lead never loses a refusal it had.
+			switch trail {
+			case "&&", "||", "|", "&":
+				lead = trail
+			}
 			return
 		}
 		if words[0] == "function" {
@@ -250,9 +263,12 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			l.pos++
 			continue
 		}
-		// Inside [[ ]] parentheses, `|`, `&`, `<` and `>` belong to the
-		// conditional expression, e.g. a `=~` regex, not to the command list.
-		if len(words) > 0 && words[0] == "[[" && words[len(words)-1] != "]]" && strings.IndexByte("()|&<>", c) >= 0 {
+		// Inside [[ ]], `|`, `&`, `<` and `>` belong to the conditional
+		// expression (a `=~` regex, a `||` or `&&` between tests), not to the
+		// command list, whether the test opens the command or follows a
+		// control word such as `if`, `while` or `!` in it; a `[[` that is an
+		// argument opens no test (openTest, AFP-V0-3145).
+		if openTest(words) && strings.IndexByte("()|&<>", c) >= 0 {
 			begin()
 			l.pos++
 			continue
@@ -306,7 +322,10 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				op += op
 			}
 			endAt(op)
-			l.pos++
+			// Past the whole operator: a second `&` or `|` read again
+			// would end an empty command and turn the next command's
+			// `&&` or `||` lead into `&` or `|`.
+			l.pos += len(op)
 		case (c == '<' || c == '>') && l.peek(1) == '(':
 			begin()
 			l.pos += 2
@@ -572,4 +591,26 @@ func (l *lexer) substitutions(text string, inFunction bool) {
 			sub.pos++
 		}
 	}
+}
+
+// openTest reports words that open a conditional expression the lexer is
+// still inside: their first word that is not a testLeaders control word is
+// `[[`, in command position, and no `]]` follows it (AFP-V0-3145). A `[[`
+// that is an argument (`echo [[ marker`) opens nothing, so the `&&`, `||`,
+// `|` or `;` after it still ends the command.
+func openTest(words []string) bool {
+	at := 0
+	for at < len(words) && testLeaders[words[at]] {
+		at++
+	}
+	return at < len(words) && words[at] == "[[" && !slices.Contains(words[at+1:], "]]")
+}
+
+// testLeaders are the reserved words after which a command, and so a `[[`,
+// may start within the words the lexer has gathered for one command: a
+// separator (`;`, `&&`, `||`, `|`, a newline), a `{`, a `(`, a case arm's `)`
+// or a command substitution already starts a new word list (AFP-V0-3145).
+var testLeaders = map[string]bool{
+	"if": true, "while": true, "until": true, "!": true, "time": true,
+	"then": true, "do": true, "else": true, "elif": true,
 }

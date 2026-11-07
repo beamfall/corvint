@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,7 +36,7 @@ func corvintShapedRepository(t *testing.T) string {
 		{"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
 		{"add", "."}, {"commit", "-qm", "corvint-shaped fixture"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

@@ -170,10 +170,15 @@ func (graph *Graph) additiveRefusal(record GoAdditive, start, traversed, enclosi
 
 // reachedThrough names each applied record's package that the walk reaches by
 // an edge it follows from another reached unit, with the smallest such unit.
+// It checks every class the walk follows (traversalEdges), the code-run class
+// too: a package whose code runs a changed command's binary changes with it,
+// whatever declarations it adds, so its record falls back and its importers
+// are followed (AFP-V0-3140, AFP-V0-3142).
 func (graph *Graph) reachedThrough(reached map[string]Witness, allowed map[string]map[string]bool) map[string]string {
 	through := make(map[string]string)
+	classes := graph.traversalEdges()
 	for from := range reached {
-		for class, edges := range []map[string][]string{graph.dependents, graph.advisory, graph.routed} {
+		for class, edges := range classes {
 			for _, to := range edges[from] {
 				if _, narrowed := allowed[to]; !narrowed || to == from || !graph.follows(allowed, class, from, to) {
 					continue
@@ -193,7 +198,7 @@ func (graph *Graph) reachedThrough(reached map[string]Witness, allowed map[strin
 // whole (`go test`, a script), so an edge to one is always taken
 // (AZU-V0-001).
 func (graph *Graph) follows(allowed map[string]map[string]bool, class int, from, to string) bool {
-	if class != 0 || strings.HasPrefix(to, DriverNamespace+":") {
+	if class != classImport || strings.HasPrefix(to, DriverNamespace+":") {
 		return true
 	}
 	set, narrowed := allowed[from]

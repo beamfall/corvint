@@ -170,7 +170,7 @@ func Decode(data []byte) (Input, error) {
 	if probe.Profile != nil {
 		var profile string
 		if err := json.Unmarshal(probe.Profile, &profile); err != nil || (profile != goSessionProfile && profile != rubytestprovider.Profile) {
-			return Input{}, errors.New("provider document kind is unrecognized")
+			return Input{}, errors.New(unrecognizedProvider(data))
 		}
 		if profile == rubytestprovider.Profile {
 			var document rubytestprovider.Document
@@ -194,7 +194,7 @@ func Decode(data []byte) (Input, error) {
 		}
 		return Input{goSession: &document}, nil
 	}
-	return Input{}, errors.New("provider document kind is unrecognized")
+	return Input{}, errors.New(unrecognizedProvider(data))
 }
 
 func invalidSensitiveDocument() error {
@@ -351,4 +351,17 @@ func decodeClosed(data []byte, target any) error {
 		return errors.New("carries data after the document")
 	}
 	return nil
+}
+
+// Receipt guidance is deliberately static: untrusted input is classified but never echoed.
+func unrecognizedProvider(data []byte) string {
+	const accepted = "accepted --receipt kinds: corvint-js-test-provider document (receipt.kind unit or e2e, including qualified corvint-playwright-external profiles), completed corvint-go-live-session-event/0 from corvint-go-test-provider, or corvint-ruby-test-provider/0 from corvint-ruby-test-provider. Produce JavaScript receipts with corvint-js-test-provider unit or e2e; for Playwright use corvint-js-test-provider e2e --external-server --config FILE (the provider installs qualified-reporter.cjs and binds its observations)."
+	var report map[string]json.RawMessage
+	if json.Unmarshal(data, &report) == nil {
+		config, suites := bytes.TrimSpace(report["config"]), bytes.TrimSpace(report["suites"])
+		if len(config) > 0 && config[0] == '{' && len(suites) > 0 && suites[0] == '[' {
+			return "plain Playwright JSON report is not a provider receipt; rerun with the qualified reporter through the provider (there is no evidence-preserving conversion of an ordinary report); " + accepted
+		}
+	}
+	return "provider document kind is unrecognized; " + accepted
 }

@@ -142,9 +142,56 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
-// includedDirectories are the affected.SkippedDirectories names that can hold
-// first-party Go source, so the walk descends them.
-var includedDirectories = []string{"build", "dist", "target"}
+// includedDirectories admits first-party build directories and hidden source
+// directories (the "." marker, AZU-V0-005) through the bounded source walk.
+var includedDirectories = []string{"build", "dist", "target", "."}
+
+// hiddenSourcePath reports a path below a directory whose name starts with
+// `.` or `_`: source the hidden-directory marker newly admits (AZU-V0-005).
+func hiddenSourcePath(relative string) bool {
+	directory := path.Dir(relative)
+	if directory == "." {
+		return false
+	}
+	for _, component := range strings.Split(directory, "/") {
+		if strings.HasPrefix(component, ".") || strings.HasPrefix(component, "_") {
+			return true
+		}
+	}
+	return false
+}
+
+// HiddenSourcePaths is the Go source below a `.` or `_` directory that this
+// plugin indexes and `./...` skips (AZU-V0-005): the same bounded walk and
+// declared non-source filter as UnitsSource, outside testdata, sorted. A
+// session runner with no graph universe uses it to confirm that `go test
+// ./...` skips no Go source (AZU-V0-9923). A bounded walk is an error,
+// because it cannot show that the set is complete.
+func HiddenSourcePaths(root *affected.Source) ([]string, error) {
+	observed, bounded, err := root.FilesIncluding(affected.ByName(func(name string) bool {
+		return strings.HasSuffix(name, ".go")
+	}), includedDirectories...)
+	if err != nil {
+		return nil, err
+	}
+	if bounded {
+		return nil, errors.New(FrontierIncludedDirectoryWalkBounded)
+	}
+	hidden := []string{}
+	var declared func(string) bool
+	for _, relative := range observed {
+		if !hiddenSourcePath(relative) || ignoredByGo(path.Dir(relative)) {
+			continue
+		}
+		if declared == nil {
+			declared = affected.DeclaredNonSourceHolds(root)
+		}
+		if !declared(relative) {
+			hidden = append(hidden, relative)
+		}
+	}
+	return hidden, nil
+}
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
@@ -157,6 +204,16 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	if includedDirectoryBounded {
 		frontier[FrontierIncludedDirectoryWalkBounded] = true
+	}
+	// CI helpers below .github (AZU-V0-9920) are reached by the hidden-source
+	// marker above, with the walk's own cache stamps and bounds (AZU-V0-005).
+	// A hidden or underscore path the repository declares non-source stays
+	// output, not a package (AZU-V0-9921): retained evidence is never built.
+	if slices.ContainsFunc(observed, hiddenSourcePath) {
+		declared := affected.DeclaredNonSourceHolds(root)
+		observed = slices.DeleteFunc(observed, func(relative string) bool {
+			return hiddenSourcePath(relative) && declared(relative)
+		})
 	}
 	files := make([]string, 0, len(observed))
 	manifests := make([]string, 0, len(observed))
@@ -534,6 +591,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		unitFrontier = append(unitFrontier, FrontierSymlinkedSource)
 		frontierBears = ""
 	}
+	// A command's root locator reaches every unit that runs the command; a
+	// rule (d) chain skips only the build-only edges of `go vet` and `go
+	// list` (AFP-V0-2951).
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
@@ -615,18 +675,9 @@ func globSlice(globs map[string]bool) []string {
 	return sortedKeys(globs)
 }
 
-// ignoredByGo reports a repository-relative directory the go tool's package
-// patterns and the fast tier's index skip: one with a testdata or `_`-prefixed
-// component. A file there that does not lex is no build input, so it raises no
-// frontier.
-func ignoredByGo(directory string) bool {
-	for _, component := range strings.Split(directory, "/") {
-		if component == "testdata" || strings.HasPrefix(component, "_") {
-			return true
-		}
-	}
-	return false
-}
+// ignoredByGo reports fixture directories that cannot hold indexed packages.
+// Dot and underscore packages are explicitly addressed source (AZU-V0-005).
+func ignoredByGo(directory string) bool { return inTestdata(directory) }
 
 // importsEnd is the byte offset just past a file's import declarations, which
 // are the only declarations an imports-only parse keeps. An import path is an
@@ -674,8 +725,15 @@ func (scan fileScan) fixtureOnly(name string, isTest bool) bool {
 // (AFP-V0-012 rule (d)).
 func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileScan {
 	aliases, dotImported := rootLocatorImports(imports)
-	comparisonOnly := comparisonOnlyLocators(body, aliases)
+	joins, _ := qualifiedImports(imports, func(importPath string) bool {
+		_, join := pathJoinFuncs[importPath]
+		return join
+	})
+	comparisonOnly, joined, components := comparisonOnlyLocators(body, aliases, joins)
 	var scan fileScan
+	// A bounded join's root-anchored token names what the join reads
+	// (AFP-V0-2950); it is no literal, so no fixture marker applies to it.
+	scan.tokens = append(scan.tokens, joined...)
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
 	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
@@ -713,7 +771,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 			continue
 		}
 		value, err := strconv.Unquote(text)
-		if err != nil {
+		if err != nil || components[source.Offset(position)] {
 			continue
 		}
 		start := len(scan.tokens)
@@ -752,16 +810,46 @@ func fixtureTokens(literals []scannedLiteral, markers map[int]bool) map[string]b
 	return marked
 }
 
-// literalTokens is the AFP-V0-021 lexicon over one unquoted string literal.
+// literalTokens is the AFP-V0-021 lexicon over one unquoted string literal. A
+// rewrite only ever adds a token beside the written one (AFP-V0-506,
+// AFP-V0-2242): a literal with a backslash after a parent component (`..\x`)
+// also yields the tokens of its parentBackslash rewrite, so `foo..\notes`
+// holds the written `foo..` and `notes` and the climbing `foo../notes`.
 func literalTokens(value, modulePath string) []string {
 	return appendLiteralTokens(nil, value, modulePath)
 }
 
+// appendLiteralTokens appends literalTokens(value, modulePath) to tokens, so
+// a file's literals can share one backing array.
 func appendLiteralTokens(tokens []string, value, modulePath string) []string {
 	if strings.Contains(value, "%") {
 		value = printfVerb.ReplaceAllString(value, verbMark)
 	}
-	value = parentBackslash.Replace(value)
+	start := len(tokens)
+	tokens = spelledTokens(tokens, value, modulePath)
+	rewritten := parentBackslash.Replace(value)
+	if rewritten == value {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens)-start)
+	for _, name := range tokens[start:] {
+		seen[name] = true
+	}
+	for _, name := range spelledTokens(nil, rewritten, modulePath) {
+		if !seen[name] {
+			seen[name] = true
+			tokens = append(tokens, name)
+		}
+	}
+	return tokens
+}
+
+// spelledTokens appends every spelling literalTokens keeps for each
+// path-shaped run of value. A `/` directly after `<` closes a markup tag
+// (`</script>`), so the tag name is also a lone name token (AFP-V0-505); the
+// HTML-escaped `&lt;/script&gt;` closes one too (AFP-V0-840). The anchored
+// spelling stays beside it, as in gateselect's lexicon (AFP-V0-2242).
+func spelledTokens(tokens []string, value, modulePath string) []string {
 	for offset := 0; offset < len(value); {
 		if !pathCharacter(value[offset]) {
 			offset++
@@ -772,17 +860,21 @@ func appendLiteralTokens(tokens []string, value, modulePath string) []string {
 			offset++
 		}
 		end := offset
-		// A `/` directly after `<` closes a markup tag (`</script>`), so it
-		// anchors nothing: the tag name is a lone name token (AFP-V0-505).
-		// The HTML-escaped `&lt;/script&gt;` closes one too (AFP-V0-840).
-		if value[start] == '/' && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
-			start++
-			if start == end {
-				continue
-			}
+		tokens = appendSpellings(tokens, value, start, end, modulePath)
+		if value[start] == '/' && end > start+1 && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
+			tokens = appendSpellings(tokens, value, start+1, end, modulePath)
 		}
-		name := rootAnchored(value[start:end], modulePath)
-		tokens = append(tokens, wholeShortEnds(name, value, start, end))
+	}
+	return tokens
+}
+
+// appendSpellings appends the run value[start:end] as written and, for an
+// import path under modulePath, its "/"-anchored path too (AFP-V0-2242).
+func appendSpellings(tokens []string, value string, start, end int, modulePath string) []string {
+	name := value[start:end]
+	tokens = append(tokens, wholeShortEnds(name, value, start, end))
+	if anchored := rootAnchored(name, modulePath); anchored != name {
+		tokens = append(tokens, wholeShortEnds(anchored, value, start, end))
 	}
 	return tokens
 }
@@ -802,8 +894,9 @@ func closesEscapedTag(value string, index int) bool {
 }
 
 // parentBackslash rewrites a backslash after a parent component (`..\x`) to
-// the slash the lexicon reads, so the token is the whole climbing path and
-// not a bare `..` that rule (d) reads as the repository root (AFP-V0-506).
+// the slash a Windows-style path means, so the whole climbing path is a token
+// too; literalTokens keeps the written tokens beside it, a bare `..` among
+// them, because the literal may be split at the backslash (AFP-V0-506).
 var parentBackslash = strings.NewReplacer(`..\`, `../`)
 
 // verbMark stands in for a removed printf verb: like the literal's own ends, a

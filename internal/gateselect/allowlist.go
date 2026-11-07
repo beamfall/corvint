@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -12,28 +13,57 @@ import (
 // AllowedUnknown is the one allowlist of plan.unknown entries a narrowed run
 // may carry (AFP-V0-982): the deciding driver's unknownNarrowing (CIN-V0-860)
 // and the shadow `corvint test` (sessiontest, AFP-V0-028) both decide through
-// it. A LANGUAGE_FRONTIER names a category, not a unit, except a Go frontier
-// other than build-constraint variants and the nested-module frontier, which
-// may hide a Go reader; an UNOWNED_DIRTY_PATH is read only by the Go packages
-// rules (b) to (d) select; a NO_SELECTABLE_TEST unit gets no test from a FULL
-// run either. Every other entry forces FULL.
+// it. Of the LANGUAGE_FRONTIER entries it admits only the two Go frontiers that
+// hide no Go reader and a driver frontier, whose make targets and CI jobs no
+// adapter or declared command runs, narrowed or FULL. Every other frontier the
+// plan names bears on the change, so it is no category to ignore: a non-Go one
+// adds its language's declared suite through FrontierSuite, and a Go one may
+// hide a Go reader (AFP-V0-2750). An UNOWNED_DIRTY_PATH is read only by the Go
+// packages rules (b) to (d) select; a NO_SELECTABLE_TEST unit gets no test from
+// a FULL run either. Every other entry forces FULL.
 func AllowedUnknown(reason, detail string) bool {
 	switch reason {
 	case "LANGUAGE_FRONTIER":
-		return !strings.HasPrefix(detail, "go:") ||
-			detail == "go:build-constraint-variants" || detail == "go:nested-module-frontier"
+		return detail == "go:build-constraint-variants" || detail == "go:nested-module-frontier" ||
+			strings.HasPrefix(detail, driverFrontier)
 	case "UNOWNED_DIRTY_PATH", "NO_SELECTABLE_TEST":
 		return true
 	}
 	return false
 }
 
+// driverFrontier prefixes a frontier of the make and CI driver namespace
+// (AZU-V0-001), whose units no language suite runs.
+const driverFrontier = "driver:"
+
+// frontierLanguage is a plain plugin name, safe to echo in an audit line and to
+// look up in the declared full scope.
+var frontierLanguage = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
+
+// FrontierSuite returns the language of a LANGUAGE_FRONTIER whose detail is
+// "<language>:..." for a plain language name other than go and driver
+// (AFP-V0-2750). Such an entry bears on the change and may hide a reader of a
+// changed or deleted path that no Go selection covers, so both selectors keep
+// the run narrowed only by adding that language's declared suite: `corvint
+// test` runs it (or names it as a check on the ci profile, or records its
+// declared no-suite assertion), and the driver names it in a `suite` audit
+// line. Any other detail is not admitted here.
+func FrontierSuite(reason, detail string) (string, bool) {
+	language, _, ok := strings.Cut(detail, ":")
+	if reason != "LANGUAGE_FRONTIER" || !ok || language == "go" || language+":" == driverFrontier || !frontierLanguage.MatchString(language) {
+		return "", false
+	}
+	return language, true
+}
+
 // UnobservedModule returns the module directory of a well-formed AFP-V0-650
 // unobserved-module frontier, "go:unobserved-module:<directory>:<path>": a
 // clean, local, slash-separated directory that is the only split whose path
 // lies below it. The driver admits such an entry beside AllowedUnknown, and
-// `corvint test` does outside the ci profile, where the module's own suite
-// runs it (STR-V0-064); both read it here (AFP-V0-982).
+// `corvint test` does on every profile: outside the ci profile the module's
+// own suite runs it (STR-V0-064), and on the ci profile it names that suite as
+// a check CI runs outside the Go shards (AFP-V0-2742); both read it here
+// (AFP-V0-982).
 func UnobservedModule(reason, detail string) (string, bool) {
 	rest, ok := strings.CutPrefix(detail, "go:unobserved-module:")
 	if reason != "LANGUAGE_FRONTIER" || !ok {

@@ -29,7 +29,7 @@ func TestComparisonOnlyLocators_AZU_V0_9930(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, prefix := range []string{"", "// header\npackage p\nimport system \"os\"\n"} {
 				body := []byte(prefix + tc.body)
-				got := comparisonOnlyLocators(body, map[string]string{"system": "os"})
+				got, _ := comparisonOnlyLocators(body, map[string]string{"system": "os"}, nil)
 				if len(got) != tc.safe {
 					t.Fatalf("proof count = %d, want %d (prefix %q)", len(got), tc.safe, prefix)
 				}
@@ -48,10 +48,10 @@ func TestLocatorComparisonScanner_AZU_V0_9930(t *testing.T) {
 	aliases := map[string]string{"system": "os"}
 	guard := []byte("package p\nfunc f() { cwd, _ := system.Getwd(); if cwd != \"/product\" { return } }\n")
 	reader := []byte("package p\nfunc f() { cwd, _ := system.Getwd(); if cwd != \"/product\" { return }; consume(cwd) }\n")
-	if got := scanSource(guard, aliases, nil).calls; len(got) != 0 {
+	if got := scanSource(guard, aliases, nil, nil).calls; len(got) != 0 {
 		t.Fatalf("guard calls %v", got)
 	}
-	if got := scanSource(reader, aliases, nil).calls; len(got) != 1 {
+	if got := scanSource(reader, aliases, nil, nil).calls; len(got) != 1 {
 		t.Fatalf("reader calls %v", got)
 	}
 }

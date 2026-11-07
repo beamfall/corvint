@@ -1,0 +1,59 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-postmerge-host-launcher",
+  "helpJson": "corvint-postmerge-host-launcher help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-postmerge-host-launcher"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-postmerge-host-launcher",
+      "summary": "usage: corvint-postmerge-host-launcher --profile FILE --profile-sha256 SHA256 --request FILE --request-sha256 SHA256 --out DIR\n       corvint-postmerge-host-launcher --internal-envelope FILE\n       corvint-postmerge-host-launcher --internal-process-observer ARGS...\nThe internal forms are private paired-process protocols, not standalone host invocations.",
+      "usage": [
+        "corvint-postmerge-host-launcher --profile FILE --profile-sha256 SHA256 --request FILE --request-sha256 SHA256 --out DIR",
+        "corvint-postmerge-host-launcher --internal-envelope FILE",
+        "corvint-postmerge-host-launcher --internal-process-observer ARGS..."
+      ],
+      "flags": [
+        "--internal-envelope",
+        "--internal-process-observer",
+        "--out",
+        "--profile",
+        "--profile-sha256",
+        "--request",
+        "--request-sha256"
+      ],
+      "required": [
+        "--profile FILE",
+        "--profile-sha256 SHA256",
+        "--request FILE",
+        "--request-sha256 SHA256",
+        "--out DIR"
+      ],
+      "example": "corvint-postmerge-host-launcher --profile FILE --profile-sha256 SHA256 --request FILE --request-sha256 SHA256 --out DIR",
+      "help": "corvint-postmerge-host-launcher --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-postmerge-host-launcher help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-postmerge-host-launcher help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-postmerge-host-launcher help --json",
+      "help": "corvint-postmerge-host-launcher help --help"
+    }
+  ]
+}

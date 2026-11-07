@@ -215,15 +215,16 @@ func driverModulePath(body []byte) string {
 
 // driverUnitBuilder collects one unit's edges.
 type driverUnitBuilder struct {
-	id       string
-	imports  map[string]bool
-	paths    map[string]bool
-	tokens   map[string]bool
-	computed bool
+	id         string
+	imports    map[string]bool
+	paths      map[string]bool
+	buildPaths map[string]bool
+	tokens     map[string]bool
+	computed   bool
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
-	return &driverUnitBuilder{id: id, imports: map[string]bool{}, paths: map[string]bool{}, tokens: map[string]bool{}}
+	return &driverUnitBuilder{id: id, imports: map[string]bool{}, paths: map[string]bool{}, buildPaths: map[string]bool{}, tokens: map[string]bool{}}
 }
 
 func (b *driverUnitBuilder) importAll(ids []string) {
@@ -249,6 +250,9 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	for value := range scan.paths {
 		b.paths[value] = true
 	}
+	for value := range scan.buildPaths {
+		b.buildPaths[value] = true
+	}
 	for _, call := range scan.makes {
 		b.importAll(registry.resolveMake(call))
 	}
@@ -257,15 +261,19 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 func (b *driverUnitBuilder) unit() Unit {
 	delete(b.imports, b.id)
 	unit := Unit{
-		ID:          b.id,
-		Sources:     []string{},
-		Tests:       []string{},
-		Imports:     driverSorted(b.imports),
-		PathImports: driverSorted(b.paths),
-		PathTokens:  driverSorted(b.tokens),
+		ID:               b.id,
+		Sources:          []string{},
+		Tests:            []string{},
+		Imports:          driverSorted(b.imports),
+		PathImports:      driverSorted(b.paths),
+		BuildPathImports: driverSorted(b.buildPaths),
+		PathTokens:       driverSorted(b.tokens),
 	}
 	if len(unit.PathImports) == 0 {
 		unit.PathImports = nil
+	}
+	if len(unit.BuildPathImports) == 0 {
+		unit.BuildPathImports = nil
 	}
 	if len(unit.PathTokens) == 0 {
 		unit.PathTokens = nil
@@ -295,6 +303,17 @@ func (registry *driverRegistry) scanBoth(text, cwd string) *driverScan {
 	scan.scanShell(text, cwd, registry.module)
 	if cwd != "." {
 		scan.scanShell(text, ".", registry.module)
+	}
+	return scan
+}
+
+// scanBothOutput is scanBoth for a make `$(shell ...)` script, whose standard
+// output make substitutes into the makefile's text (AFP-V0-2956).
+func (registry *driverRegistry) scanBothOutput(text, cwd string) *driverScan {
+	scan := newDriverScan()
+	scan.scanShellOutput(text, cwd, registry.module)
+	if cwd != "." {
+		scan.scanShellOutput(text, ".", registry.module)
 	}
 	return scan
 }
@@ -373,7 +392,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		fileExpander.expand(line)
 	}
 	for _, script := range fileExpander.shells {
-		shared.merge(registry, registry.scanBoth(script, parsed.dir))
+		shared.merge(registry, registry.scanBothOutput(script, parsed.dir))
 	}
 	for _, recipe := range parsed.remainderRecipes {
 		line := fileExpander.expand(driverRecipeLine(recipe))
@@ -405,6 +424,9 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		builder.importAll(driverSorted(shared.imports))
 		for value := range shared.paths {
 			builder.paths[value] = true
+		}
+		for value := range shared.buildPaths {
+			builder.buildPaths[value] = true
 		}
 		for value := range shared.tokens {
 			builder.tokens[value] = true
@@ -439,7 +461,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			builder.merge(registry, registry.scanBoth(line, parsed.dir))
 		}
 		for _, script := range expander.shells {
-			builder.merge(registry, registry.scanBoth(script, parsed.dir))
+			builder.merge(registry, registry.scanBothOutput(script, parsed.dir))
 		}
 		builder.computed = builder.computed || expander.ambiguous
 		units = append(units, builder.unit())
@@ -631,21 +653,24 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	}
 }
 
-// stripPrefixes adds, for each path import under a directory the job checks
-// out into or runs from, the same path relative to the repository root:
-// the job's workspace may hold the repository at that directory.
+// stripPrefixes adds, for each path import or build path import under a
+// directory the job checks out into or runs from, the same path relative to
+// the repository root: the job's workspace may hold the repository at that
+// directory.
 func (registry *driverRegistry) stripPrefixes(builder *driverUnitBuilder, prefixes map[string]bool) {
 	for prefix := range prefixes {
 		clean := driverJoin(".", driverExpressions(prefix))
 		if clean == "" || clean == "." || driverDynamic(clean) {
 			continue
 		}
-		for value := range builder.paths {
-			switch {
-			case value == clean+"/...":
-				builder.paths["..."] = true
-			case strings.HasPrefix(value, clean+"/"):
-				builder.paths[strings.TrimPrefix(value, clean+"/")] = true
+		for _, paths := range []map[string]bool{builder.paths, builder.buildPaths} {
+			for value := range paths {
+				switch {
+				case value == clean+"/...":
+					paths["..."] = true
+				case strings.HasPrefix(value, clean+"/"):
+					paths[strings.TrimPrefix(value, clean+"/")] = true
+				}
 			}
 		}
 	}

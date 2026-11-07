@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -683,7 +682,7 @@ func TestOCMOutputLocationDependenceMatchesOracle(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(secondRoot), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	clone := exec.Command("git", "clone", "-q", first.root, secondRoot)
+	clone := fixtureGitCommand("clone", "-q", first.root, secondRoot)
 	if output, err := clone.CombinedOutput(); err != nil {
 		t.Fatalf("clone: %v\n%s", err, output)
 	}
@@ -1163,5 +1162,30 @@ func TestV11305StableReportOCM(t *testing.T) {
 	}
 	if strings.Contains(string(markdown), "ocm-not-supplied") {
 		t.Fatalf("markdown keeps the no-OCM line:\n%s", markdown)
+	}
+}
+
+// OIF-V0-672: --intent-requirements is required with, and only with, the
+// requirements-subset form, and the CLI passes the list sorted.
+func TestOIFV0672PrepareIntentRequirementsFlag(t *testing.T) {
+	base := []string{"--target", "HEAD", "--intent", "docs/specs/big.md"}
+	parsed, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(append([]string{}, base...),
+		"--intent-form", "requirements-subset", "--intent-requirements", "BIG-V0-300,BIG-V0-007"))
+	if err != nil || parsed.intentForm != lrfrepo.IntentFormRequirementsSubset ||
+		strings.Join(parsed.intentRequirements, ",") != "BIG-V0-007,BIG-V0-300" {
+		t.Fatalf("form=%q requirements=%v err=%v", parsed.intentForm, parsed.intentRequirements, err)
+	}
+	for _, arguments := range [][]string{
+		{"--intent-form", "requirements-subset"},
+		{"--intent-requirements", "BIG-V0-007"},
+		{"--intent-form", "adr-decisions", "--intent-requirements", "BIG-V0-007"},
+	} {
+		if _, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(append([]string{}, base...), arguments...)); err == nil {
+			t.Fatalf("accepted %v", arguments)
+		}
+	}
+	help := strings.Join(strings.Fields(ocmHelp), " ")
+	if !strings.Contains(help, "requirements-subset") || !strings.Contains(help, "--intent-requirements") {
+		t.Fatal("ocm help does not list the requirements-subset form")
 	}
 }

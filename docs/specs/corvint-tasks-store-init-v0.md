@@ -290,6 +290,11 @@ on a fixture queue remain non-goals.
   writer or to the state format. Rollback: revert the commit; reads beside a killed writer's orphan
   slots refuse `MALFORMED` again until the next writer, and no state format, code or envelope
   changes.
+- `CTS-V0-532`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-3558)
+  A worktree or store path refused `UNSUPPORTED_FILESYSTEM` because a component is a symbolic link
+  (macOS `/tmp` -> `/private/tmp`) MUST name, in the refusal detail, the symlink-free path to use
+  instead; that path itself is admitted. The refusal and its code are unchanged. Non-goals:
+  following the symlink. Rollback: revert; the detail names only the refused path.
 - `CTS-V0-800`: (accepted 2026-10-31 under the owner's standing lane auto-accept (2026-10-11),
   V1-2479) amends CTS-V0-021. An amendment MUST NOT rename the source item of a ticket the store
   holds as an import: when an existing ticket was imported from source item S of queue Q and the
@@ -686,3 +691,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-821 | `internal/tasks/cli/journal_absent_remote.go` (`remoteProjectionHint`) | TestCTSV0821_JournalAbsentMissNamesOriginSyncStep, TestCTSV0821_UnreadableTreeLeavesWarningUncertain |
 | CTS-V0-680 | `internal/tasks/cli/cli.go` (`snapshotRouteHint`, `journalAbsentNotFound`) | TestCTSV0680_JournalAbsentMissNamesSnapshotRoute |
 | CTS-V0-780 | `internal/tasks/wire/value.go` (`CheckSortedUnique`, `clip`) | TestCTSV0780UnsortedSetNamesTheOrderAndTheEntry |
+| CTS-V0-532 | `internal/tasks/intent/worktree.go` (symlink refusal detail) | TestCTSV0532_SymlinkRefusalNamesTheResolvedPath |

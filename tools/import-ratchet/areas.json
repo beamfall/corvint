@@ -14,6 +14,8 @@
         "internal/cem/gitauth",
         "internal/cem/gitrun",
         "internal/cem/witnesspaths",
+        "internal/cliconformance",
+        "internal/clierror",
         "internal/clitree",
         "internal/diagnostic",
         "internal/execfile",
@@ -96,7 +98,8 @@
         "internal/rubyautoload",
         "internal/rubydialect",
         "internal/rubyprofile",
-        "internal/swiftimpact"
+        "internal/swiftimpact",
+        "internal/webdialect"
       ]
     },
     {
@@ -184,6 +187,7 @@
         "internal/flowcoverage",
         "internal/gateselect",
         "internal/gotestrun",
+        "internal/jobinputs",
         "internal/jslinecov",
         "internal/jstestprovider",
         "internal/linecov",
@@ -202,6 +206,7 @@
         "internal/testevidence",
         "internal/testplan",
         "internal/testplatform",
+        "internal/testreuse",
         "internal/testrunner",
         "internal/testsource",
         "internal/testvalidity",
@@ -292,8 +297,10 @@
     {
       "name": "cli",
       "layer": 8,
-      "summary": "internal/command packages behind the CLI entrypoints",
+      "summary": "CLI process adapters and the internal/command packages behind the CLI entrypoints",
       "prefixes": [
+        "internal/cliapp",
+        "internal/cliprofile",
         "internal/command"
       ]
     },

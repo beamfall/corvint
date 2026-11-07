@@ -14,6 +14,7 @@ package affected
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -84,6 +85,10 @@ const MaxPathsPerUnit = 20_000
 // Execs name the command units whose built binary the unit's code or tests
 // run (AFP-V0-037): no import edge reaches the unit from the command, so a
 // change to the command's build selects the unit through this edge instead.
+// TestOnlyExecs name the members of Execs that only the unit's own tests run:
+// the plugin found every use of the command in a test file. The unit's code
+// never runs such a command, so neither does an importer or a runner of the
+// unit; every other member may be run by the unit's code (AFP-V0-2991).
 // AdvisoryImports name units the unit reaches through a convention the
 // plugin resolved without an explicit load, such as a Ruby constant that
 // autoloading maps to a file (RUBY-AFFECTED-V0-009). A change there selects
@@ -95,7 +100,8 @@ const MaxPathsPerUnit = 20_000
 // no unit owns adds no edge.
 // ExecConsumers name repository files the project declares as running the
 // command unit's built binary (AFP-V0-762). They add no edge: a plan that
-// reaches the command's build names each one no selection runs as an unknown.
+// reaches the command's build selects each runnable declaration or names an
+// unselected consumer as unknown. ExecConsumerRuns pins each optional root argv.
 // ImportGraphReads name the units whose import closure the unit's code or
 // tests list with `go list` (AFP-V0-2200); ImportGraphReadsAll marks a unit
 // that lists packages it does not name, which reads the whole module's. A
@@ -111,6 +117,12 @@ const MaxPathsPerUnit = 20_000
 // owner, a directory the owners of the files directly in it, `dir/...` the
 // owners of every file below it and `...` every owner. Build resolves them
 // into Imports before it reverses the edges.
+// BuildPathImports name, in the same form, repository paths whose owning
+// units the unit only reads with `go vet` or `go list`, never running their
+// code or a binary built from them (AFP-V0-2951). Build resolves them into
+// Imports too, so a change there selects the unit as before, but a rule (d)
+// chain does not continue along an edge only they name: such a unit runs no
+// root locator's code.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -122,9 +134,11 @@ type Unit struct {
 	Imports              []string `json:"imports"`
 	TestImports          []string `json:"testImports,omitempty"`
 	Execs                []string `json:"execs,omitempty"`
+	TestOnlyExecs        []string `json:"testOnlyExecs,omitempty"`
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathImports          []string `json:"pathImports,omitempty"`
+	BuildPathImports     []string `json:"buildPathImports,omitempty"`
 	PathTokens           []string `json:"pathTokens,omitempty"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
@@ -143,6 +157,9 @@ type Unit struct {
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitempty"`
 	// ImportGraphReadsFiles needs ImportGraphReadsAll.
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitempty"`
+
+	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
+	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
 }
 
 // FrontierBears values. The empty value names a unit's Frontier on every plan
@@ -278,6 +295,11 @@ func validUnit(unit Unit, namespace string) error {
 	if err := validPathList(unit.Callers); err != nil {
 		return err
 	}
+	for file, run := range unit.ExecConsumerRuns {
+		if !slices.Contains(unit.ExecConsumers, file) || !ValidConsumerRun(run) {
+			return ErrInvalidUnit
+		}
+	}
 	if err := validPathList(unit.ExecConsumers); err != nil {
 		return err
 	}
@@ -289,6 +311,14 @@ func validUnit(unit Unit, namespace string) error {
 	}
 	if err := validIdentifierList(unit.Execs); err != nil {
 		return err
+	}
+	if err := validIdentifierList(unit.TestOnlyExecs); err != nil {
+		return err
+	}
+	for _, id := range unit.TestOnlyExecs {
+		if !slices.Contains(unit.Execs, id) {
+			return ErrInvalidUnit
+		}
 	}
 	if err := validIdentifierList(unit.ImportGraphReads); err != nil {
 		return err
@@ -312,6 +342,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validPathImports(unit.PathImports); err != nil {
+		return err
+	}
+	if err := validPathImports(unit.BuildPathImports); err != nil {
 		return err
 	}
 	return validIdentifierList(unit.PathTokens)
