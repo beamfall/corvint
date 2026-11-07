@@ -11,7 +11,7 @@ frontier bearing, AFP-V0-560 terminal rule, AFP-V0-601/602 data readers),
 claim), `docs/specs/test-selection-precision-v0.md` (TSP-V0-005 shell foreign callers, TSP-V0-942
 frontier bearers), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 3 and 8. The parent
 spec is at its OCM obligation limit, so these requirements take a new prefix.
-Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AFP-V0-3124 here
+Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AFP-V0-3128 here
 under the parent's `AFP-V0` prefix for the same reason; see build-log entry
 `2026-11-07-selfloor`.
 
@@ -74,7 +74,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   carries a `driver:computed-invocation` frontier entry at that target or job; AZU-V0-003 closes it.
   A make computed name is evaluated into the edges of its alternatives. It keeps the entry only
   when its alternatives or the reads of what it runs cannot be bounded (AFP-V0-3120 to
-  AFP-V0-3123).
+  AFP-V0-3128).
   Selections carry kind `DRIVER_TARGET` and the argv `make <target>`, or `CI_JOB` and the workflow
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
@@ -218,9 +218,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   2026-11-07, V1-5000) The driver claimant SHALL expand each make recipe line, prerequisite list
   and include into every complete alternative value, walking at most 256 expansions per text. A
   variable takes one value per expansion from those its assignments can leave: every branch of a
-  conditional, no assignment where a chain has no bare `else`, a target-specific value beside the
-  one it replaces, and `?=` and `+=` applied in file order. An unassigned value stays one only the
-  environment supplies. An `if` condition, or an `or` or `and` argument, that only the environment
+  conditional, no assignment where a chain has no bare `else`, a target-specific value beside
+  every global value (AFP-V0-3126), and `?=` and `+=` applied in file order. An immediate value
+  is the one make captures where it reads the assignment (AFP-V0-3125). An unassigned value stays
+  one only the environment supplies. An `if` condition, or an `or` or `and` argument, that only the environment
   decides SHALL take both outcomes. `filter`, `filter-out`, `findstring`, `firstword`, `lastword`,
   `word`, `wordlist` and `join` SHALL be evaluated exactly over values with no environment-supplied
   part. A word selected from a wholly environment-supplied value is that value or nothing. Each
@@ -235,11 +236,17 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `wordlist` or `join`. Such a target SHALL drop its `driver:computed-invocation` entry only when
   every command its alternatives run is certified, because then the graph already bounds what it
   reads. A command is certified when it is one of:
-  - a command that reads nothing or only its operands, with no recursive option;
+  - a command that reads no file, or one that reads only literal operands in a known directory, in
+    a mode AFP-V0-3128 admits;
   - a go package command other than `go run`, `go generate` or `go tool`, with no `-exec`,
-    `-toolexec` or `-vettool`;
-  - a make invocation, whose targets are units of their own;
-  - a shell test script by the shell plugin's naming rule, which that plugin selects for itself.
+    `-toolexec` or `-vettool`, whose only unknown words are output or selection values;
+  - a make invocation of literal goals that overrides no variable, whose targets are units of
+    their own;
+  - a shell test script by the shell plugin's naming rule, run with literal arguments, which that
+    plugin selects for itself.
+
+  Every command make runs while it reads the file counts as run by every one of its targets
+  (AFP-V0-3127).
 
   An evaluated target that runs any other repository program, an interpreter, `git` or an
   unlisted command SHALL keep claiming every dirty path, since its read set can include every
@@ -258,7 +265,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   - `eval`, or an unsupported interpreter option;
   - a word function over a mix of literal and environment-supplied values;
   - alternatives past the walk bound;
-  - an evaluated target that runs an uncertified command (AFP-V0-3122);
+  - an evaluated target that runs an uncertified command (AFP-V0-3122), including one with an
+    unknown operand or in a mode that reads more than its operands (AFP-V0-3128);
+  - every target of a file whose make reading runs an uncertified command (AFP-V0-3127);
   - every other existing computed-invocation case, including every workflow and action site.
 
   A missed alternative is worse than over-selection.
@@ -268,6 +277,56 @@ participation, and inbound shell callers. The remaining classes are small and lo
   never its Go selections, scope or unknown entries, nor the selector's verdict on it. A parity
   test SHALL hold this over a fixture with bounded, unbounded and injected-fault sites, planned
   with and without the driver claimant.
+- **AFP-V0-3125:** **Values where make reads them.** (experimental, owner lane selfloor review
+  round 1 2026-11-07, V1-5000) Make expands some text as it reads the file: the value of an
+  immediate assignment (`:=`, `::=`, `:::=`, `define NAME :=`), the text `+=` appends to a simple
+  variable, a `!=` command, a conditional line, a bare statement, an include and a prerequisite
+  list. The claimant SHALL expand each such text against only the values the assignments before
+  it can leave. An immediate variable SHALL keep each captured expansion as its value, never the
+  text re-expanded against later assignments. Example: after `PKG = ci`, `RUN := go test
+  ./tools/$(PKG)` and `PKG = local`, a recipe running `$(RUN)` SHALL keep the `tools/ci` edge, and
+  `tools/local` SHALL NOT reach it. An immediate value whose expansion the claimant cannot
+  represent SHALL leave its variable unbounded, which retains every site that reads it. The
+  values are those of the default invocation. As before, command-line and environment overrides
+  of a variable the file sets stay outside the model.
+- **AFP-V0-3126:** **Target-specific values survive global assignments.** (experimental, owner
+  lane selfloor review round 1 2026-11-07, V1-5000) A target-specific assignment SHALL stay an
+  alternative whatever global assignment of the same variable follows it. Its `=`, `:=`, `?=` and
+  `+=` SHALL apply over the global values make leaves at the end of the file, and over every
+  earlier target-specific value. Example: with `check: PKG = ci` and then `PKG = local`, the
+  recipe `go test ./tools/$(PKG)` SHALL keep the `tools/ci` edge.
+- **AFP-V0-3127:** **Make-reading commands run for every target.** (experimental, owner lane
+  selfloor review round 1 2026-11-07, V1-5000) Make runs some commands while it reads the file,
+  before it builds any target:
+  - every `$(shell ...)` and `!=` command that an AFP-V0-3125 text reaches, including one whose
+    value no recipe uses;
+  - the program a SHELL or `.SHELLFLAGS` assignment hands each recipe line, unless it is a plain
+    shell with a `-c` flag.
+
+  The claimant SHALL scan each such command. One that is not certified (AFP-V0-3122) SHALL leave
+  every evaluated target of the file uncertified, and one it cannot represent SHALL make every
+  target a site. A `$(shell ...)` in a recursive value runs only where a recipe expands it, so it
+  SHALL count only for that recipe's target. Example: `AUDIT := $(shell $(if
+  $(CI),script/enumerate.sh,script/enumerate.sh))` SHALL keep every target claiming a new CEM even
+  when no recipe uses `AUDIT`.
+- **AFP-V0-3128:** **Operand-bounded commands.** (experimental, owner lane selfloor review round 1
+  2026-11-07, V1-5000) A command certified for reading only its operands SHALL also have:
+  - every operand and option literal, with no value the environment or the shell supplies;
+  - a known working directory, so a `cd` to an unknown directory leaves later relative operands
+    uncertified;
+  - no input redirection from an unknown file;
+  - no operands that `xargs` reads from input.
+
+  A test command with a file operator or `-nt`, `-ot` or `-ef` on an unknown operand SHALL NOT be
+  certified. Certification is per command. A checksum command in `-c`/`--check` mode reads the
+  files its manifest lists, so it SHALL NOT be certified. Neither SHALL `--files0-from`, a
+  recursive `grep`, `cp` or `diff`, a jq library path or module directive, or `awk` and `sed`,
+  whose programs can read any file or run one. A command that reads no file at all (`echo`,
+  `printf`, `basename`, `dirname`, `sleep`, `seq`, `expr`, `pwd`, `uname`, `id`, `mktemp`) MAY
+  take unknown operands. A go command MAY leave unknown only the value of an output or selection
+  flag (`-o`, `-run`, `-skip`, `-count`, `-timeout`, `-tags`, a profile output, and the like) or
+  the arguments after `-args`. Any other unknown word can split into more words, `-exec` among
+  them, so it SHALL NOT be certified.
 
 ### Lane qualification details
 
@@ -438,8 +497,16 @@ lanes and external full-suite/mutation observations at every historical revision
     certified;
   - `TestFrontierSiteShellTestParity_AFP_V0_3122` holds every certified script to the shell
     plugin's test units;
-  - a `$(shell ...)` that make runs while it reads the file feeds a recipe only through a
-    variable the recipe's own expansion reads, which certifies it there.
+  - AFP-V0-3128 certifies per command and mode, and refuses every unknown operand;
+  - AFP-V0-3127 counts every command make runs while it reads the file, including one whose
+    value no recipe uses, as run by every target. Review round 1 found the first lane head
+    discarding that uncertainty.
+- The claimant expands a value against assignments make has not read yet, or loses a
+  target-specific value, which would drop the edge make actually runs. Review round 1 found both
+  in the first lane head. Mitigations:
+  - AFP-V0-3125 expands each read-time text against strictly earlier events;
+  - AFP-V0-3126 keeps every target-specific value;
+  - regressions pin the review's exact orderings.
 
 ## Acceptance evidence
 
@@ -513,7 +580,7 @@ baseline replay, including PR 6 compared with the `8e2c13aa9` binary. No corpus,
 shape changes are part of this repair. Reverting its runner classification restores the spurious
 driver-language incompleteness while leaving affected selections unchanged.
 
-Lane selfloor witnesses its five rows with fixtures:
+Lane selfloor witnesses its nine rows with fixtures:
 - `TestFrontierSiteFaultInjection_AFP_V0_3120` failed on the base for the injected `$(or ...)`,
   `$(if ...)` and `$(join ...)` cases, and its control passed.
 - `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121` includes a recipe that names
@@ -523,18 +590,28 @@ Lane selfloor witnesses its five rows with fixtures:
   evaluated targets that run a repository script, `go run`, `git ls-files`, an interpreter or a
   recursive `grep`. `TestFrontierSiteShellTestParity_AFP_V0_3122` holds the shell-test rule.
 - `TestDriverFrontierBoundParity_AFP_V0_3124` in `internal/gateselect` holds the selector parity.
+- Each review round 1 finding has its own regression:
+  - `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`;
+  - `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126`;
+  - `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`;
+  - `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, with the control
+    `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`.
+
+  Every positive case failed on the first lane head's sources, and every control passed.
 
 `TestDriverAlternativeMakeValues_AZU_V0_9702` and `TestDriverMakeFunctionsComputed_AZU_V0_9850`
 now assert the exact edge and an unrelated path's exclusion where the value is definite, and the
 retained site where it is not. The 20-merge selmeasure replay at `538e823f4` is in
-`docs/build-log/2026-11-07-selfloor.md`:
-- `FRONTIER_SITE` units fell from 1,573 to 834, and selected units from 6,876 to 6,160;
-- test files are unchanged, because driver units carry none;
-- all 716 dropped units are make targets that only the frontier claim reached. Each runs only
-  shell test scripts or certified commands;
-- no unit was added, and no unknown entry or scope changed;
-- every check over repository files, such as `eol-policy-check` or `binary-blobs-check`, keeps
-  its claim.
+`docs/build-log/2026-11-07-selfloor.md`. With the review round 1 repairs:
+- every merge selects exactly the base's units: 6,876 in all, the same test files, and the same
+  unknown entries and scope;
+- `FRONTIER_SITE` units fell only from 1,573 to 1,550, because those units are now reached by
+  an edge first;
+- the first lane head's 716 dropped units all came back. The root Makefile's immediate
+  `WINDOWS_VET_GOCACHE` runs `$(shell stat -f -c %T ...)` while make reads the file, on a
+  directory the environment supplies, so AFP-V0-3127 and AFP-V0-3128 leave every evaluated target
+  of that file uncertified;
+- no unit was dropped, so no miss is possible against the base.
 
 Rollback reverts the lane's code commit. That restores collapsing every unrepresentable or
 alternative make value into a computed site, with no wire or receipt change.
@@ -589,6 +666,10 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
+| AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125` |
+| AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
+| AFP-V0-3127 | V1-5000 | `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127` |
+| AFP-V0-3128 | V1-5000 | `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
