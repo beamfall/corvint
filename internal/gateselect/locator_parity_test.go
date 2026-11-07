@@ -142,29 +142,42 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 
 // TestLineBrokenClimbParity_AFPV02952 holds this index's rule (d) and the
 // planner's equal over climbing literals (V1-4283): a non-test file's `..`
-// token held only by line-broken literals without a directory-changing word is
-// text (`prose`, `template`, `raw`); a single-line path (`path`), a script
-// with `cd` (`script`), a token both forms hold (`both`) and a test file
-// (`tested`) keep rule (d). A warm scan memo keeps the same set.
+// token held only by line-broken literals without a directory-changing word,
+// each reaching only a standard stream, is text (`printed`, `streamed`,
+// `raw`); a literal with no output-only evidence (`prose`, `template`, the
+// review's formatted reader `formatted`, `buffered`), a single-line path
+// (`oneline`, `path`), a printed script with `cd` (`script`), a token both
+// forms hold (`both`) and a test file (`tested`) keep rule (d). A warm scan
+// memo keeps the same set.
 func TestLineBrokenClimbParity_AFPV02952(t *testing.T) {
 	root := writeFixture(t, map[string]string{
-		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
-		"prose/prose.go":        "package prose\n\nvar Doc = \"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\"\n",
-		"prose/p_test.go":       "package prose\n",
-		"template/template.go":  "package template\n\nimport \"fmt\"\n\nfunc Ruby(model string) []byte { return fmt.Appendf(nil, \"require_relative \\\"../models/%s\\\"\\n\\nclass X\\nend\\n\", model) }\n",
-		"template/t_test.go":    "package template\n",
-		"raw/raw.go":            "package raw\n\nvar Doc = `| manifest.json | See ../manifest.json for the digest. |\n\nMore text.\n`\n",
-		"raw/r_test.go":         "package raw\n",
-		"path/path.go":          "package path\n\nvar Manifest = \"../manifest.json\"\n",
-		"path/p_test.go":        "package path\n",
-		"script/script.go":      "package script\n\nvar Script = \"set -e\\ncd ../fixture\\ncat ../manifest.json\\n\"\n",
-		"script/s_test.go":      "package script\n",
-		"both/both.go":          "package both\n\nvar Doc = \"See ../manifest.json\\n\"\nvar Path = \"../manifest.json\"\n",
-		"both/b_test.go":        "package both\n",
-		"tested/tested.go":      "package tested\n",
-		"tested/tested_test.go": "package tested\n\nvar Doc = \"See ../../manifest.json\\n\"\n",
+		"go.mod":                 "module example.com/fixture\n\ngo 1.22\n",
+		"printed/printed.go":     "package printed\n\nimport \"fmt\"\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
+		"printed/p_test.go":      "package printed\n",
+		"streamed/streamed.go":   "package streamed\n\nimport (\n\t\"fmt\"\n\tsystem \"os\"\n)\n\nfunc F() { fmt.Fprintln(system.Stderr, \"See ../manifest.json\\nfor the digest.\") }\n",
+		"streamed/s_test.go":     "package streamed\n",
+		"raw/raw.go":             "package raw\n\nimport \"os\"\n\nfunc F() { os.Stdout.WriteString(`| See ../manifest.json for the digest. |\n\nMore text.\n`) }\n",
+		"raw/r_test.go":          "package raw\n",
+		"prose/prose.go":         "package prose\n\nvar Doc = \"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\"\n",
+		"prose/p_test.go":        "package prose\n",
+		"template/template.go":   "package template\n\nimport \"fmt\"\n\nfunc Ruby(model string) []byte { return fmt.Appendf(nil, \"require_relative \\\"../models/%s\\\"\\n\\nclass X\\nend\\n\", model) }\n",
+		"template/t_test.go":     "package template\n",
+		"formatted/formatted.go": "package formatted\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"strings\"\n)\n\nfunc F(suffix string) []byte { b, _ := os.ReadFile(strings.TrimSpace(fmt.Sprintf(\"../config%s\\n\", suffix))); return b }\n",
+		"formatted/f_test.go":    "package formatted\n",
+		"buffered/buffered.go":   "package buffered\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n)\n\nfunc F(name string) string { var b strings.Builder; fmt.Fprintf(&b, \"See ../manifest.json for %s\\n\", name); return b.String() }\n",
+		"buffered/b_test.go":     "package buffered\n",
+		"oneline/oneline.go":     "package oneline\n\nimport \"fmt\"\n\nfunc F() { fmt.Println(\"../manifest.json\") }\n",
+		"oneline/o_test.go":      "package oneline\n",
+		"path/path.go":           "package path\n\nvar Manifest = \"../manifest.json\"\n",
+		"path/p_test.go":         "package path\n",
+		"script/script.go":       "package script\n\nimport \"fmt\"\n\nfunc F() { fmt.Print(\"set -e\\ncd ../fixture\\ncat ../manifest.json\\n\") }\n",
+		"script/s_test.go":       "package script\n",
+		"both/both.go":           "package both\n\nimport \"fmt\"\n\nfunc F() { fmt.Print(\"See ../manifest.json\\n\") }\n\nvar Path = \"../manifest.json\"\n",
+		"both/b_test.go":         "package both\n",
+		"tested/tested.go":       "package tested\n",
+		"tested/tested_test.go":  "package tested\n\nimport \"fmt\"\n\nfunc init() { fmt.Print(\"See ../../manifest.json\\n\") }\n",
 	})
-	agree(t, root, []string{"both", "path", "script", "tested"})
+	agree(t, root, []string{"both", "buffered", "formatted", "oneline", "path", "prose", "script", "template", "tested"})
 }
 
 func containsString(values []string, value string) bool {

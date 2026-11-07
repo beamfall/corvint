@@ -658,8 +658,8 @@ type fileScan struct {
 	fixture        map[string]bool
 	movesDirectory bool
 	// textOnly holds each token that only literals containing a line break,
-	// none with a directory-changing word, hold: program or document text
-	// the file writes, not a path it opens (AFP-V0-2952).
+	// none with a directory-changing word, each reaching only a standard
+	// stream, hold: text the file prints, not a path it opens (AFP-V0-2952).
 	textOnly map[string]bool
 }
 
@@ -690,6 +690,8 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		return join
 	})
 	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
+	streams, _ := qualifiedImports(imports, func(importPath string) bool { return outputSinkPackages[importPath] })
+	output := outputOnlyLiterals(body, streams)
 	var scan fileScan
 	// A bounded join's root-anchored token names what the join reads
 	// (AFP-V0-2950); it is no literal, so no fixture marker applies to it.
@@ -738,7 +740,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		}
 		start := len(scan.tokens)
 		scan.tokens = appendLiteralTokens(scan.tokens, value, modulePath)
-		prose.observe(text, value, scan.tokens[start:])
+		prose.observe(text, value, scan.tokens[start:], output[source.Offset(position)])
 		if fixtures {
 			literals = append(literals, scannedLiteral{tokens: scan.tokens[start:], start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
 		}
@@ -753,21 +755,24 @@ type scannedLiteral struct {
 
 // textLiterals collects, over one file's string literals, the tokens held
 // only by literals that contain a line break and no directory-changing word
-// (AFP-V0-2952). Such a literal is program or document text the file writes or
-// prints, never one path argument; a token any other literal of the file also
+// and that reach only a standard output or error stream (AFP-V0-2952,
+// outputOnlyLiterals). Such a literal is text the file prints, never a path
+// it opens; a line break alone proves nothing, since formatted or buffered
+// text may be trimmed into a path. A token any other literal of the file also
 // holds stays a path.
 type textLiterals struct {
 	marked, blocked map[string]bool
 }
 
 // observe records one literal's tokens: quoted is the literal as written,
-// value its unquoted text.
-func (t *textLiterals) observe(quoted, value string, tokens []string) {
+// value its unquoted text, output whether outputOnlyLiterals proved it reaches
+// only a standard stream.
+func (t *textLiterals) observe(quoted, value string, tokens []string, output bool) {
 	if len(tokens) == 0 {
 		return
 	}
 	set := &t.blocked
-	if strings.Contains(value, "\n") && !changesDirectory(quoted) {
+	if output && strings.Contains(value, "\n") && !changesDirectory(quoted) {
 		set = &t.marked
 	}
 	if *set == nil {
