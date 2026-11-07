@@ -121,7 +121,7 @@ On 2026-09-11 the owner requested work until Corvint is ready for a public GitHu
 explicitly selected “Include all three before release” for the dashboard, task manager and
 Wallaby.js support. The owner previously chose the Go release path after Rust showed no gain.
 The intended first cut is an alpha prerelease, not a stable, FULL or workflow-promotion claim.
-The default CLI remains the single native Go product. The console is a separate optional bundle
+The default CLI remains the native Go core plus the bundled apps its release manifest names (decision 0591). The console is a separate optional bundle
 under decision 0081. Task management means the delivered ticket store and board; autonomous
 agent dispatch is not implemented or represented as available. The owner clarified the test
 goal as an agent and VS Code extension being able to assess test validity, then explicitly
