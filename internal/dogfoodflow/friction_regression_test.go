@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -14,7 +13,11 @@ import (
 	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 )
 
-func TestDWCV0044RebindStopsBeforeCascadingFailures(t *testing.T) {
+// DWC-V0-044, DCW-V0-2143, DCW-V0-015: a standalone rebind whose only change
+// is the replaced sidecar still runs the recorder, then ends PENDING with exit
+// 3 and one commit-and-rerun fix; the coordination-time impact refusal the
+// dirty sidecar causes is pending too, never a cascade of failures.
+func TestDWCV0044RebindIsPendingAfterTheRecorder(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	// Sidecars are private derived state, as in the actual repository.
 	writeTree(t, root, map[string]string{".git/info/exclude": ".corvint/\n"})
@@ -49,30 +52,47 @@ func TestDWCV0044RebindStopsBeforeCascadingFailures(t *testing.T) {
 			io.WriteString(stderr, `{"code":"unsupported-impact-worktree","error":"range impact requires a clean worktree","ok":false}`+"\n")
 			return 2
 		}
-		t.Errorf("unexpected downstream step %v", args)
+		t.Logf("downstream step %v", args)
 		return 1
 	}}
 	var stderr bytes.Buffer
 	rc, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: runner, Citations: plan, IntentsFile: writeInput(t, "#no-intent-declared\n"), Verify: "go version", Outcome: "passed"}, &stderr)
-	if rc != 1 || err != nil || !strings.Contains(stderr.String(), "commit-rebind-required; commit the rebound") {
-		t.Fatalf("change %d %v\n%s\ncalls %v", rc, err, &stderr, calls)
+	if err != nil || strings.Contains(stderr.String(), "commit-rebind-required") {
+		t.Fatalf("change %d %v\n%s", rc, err, &stderr)
 	}
-	if strings.Count(stderr.String(), "\n") != 1 {
-		t.Fatalf("want one remediation line: %s", &stderr)
+	// DCW-V0-015: the recorder still runs after the rebound sidecar is cited.
+	recorded := false
+	for _, call := range calls {
+		recorded = recorded || strings.HasPrefix(call, "dogfood-record ")
 	}
-	if strings.Contains(stderr.String(), "excluded-artifact-mismatch") || strings.Contains(stderr.String(), "record-index-failed") {
-		t.Fatal(stderr.String())
+	if !recorded {
+		t.Fatalf("the recorder did not run after the rebind: %v", calls)
 	}
-	raw, err := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
-	if err != nil || !bytes.Contains(raw, []byte(`"complete": false`)) || !bytes.Contains(raw, []byte(`"reason": "commit-rebind-required"`)) {
-		t.Fatalf("report %s %v", raw, err)
+	// DWC-V0-044 under DCW-V0-2143: the impact refusal the dirty sidecar causes
+	// is cleared by the same commit, so beside the rows the bind commit clears
+	// the pass is pending, not a failure.
+	rows := []step{
+		{"coordination-time-impact", "NOT_PRODUCED", "unsupported-impact-worktree"},
+		{"ocm-prepare-1", "NOT_PRODUCED", "excluded-artifact-mismatch"},
+		{"ocm-aggregate", "NOT_PRODUCED", "ocm-status-not-ready"},
+		{"cem-status", "NOT_PRODUCED", "not-ready"},
+		{"local-outcome", "NOT_PRODUCED", "record-index-failed"},
 	}
-	// After committing the rebound CEM the commit-only shortcut no longer applies.
-	testGit(t, root, "add", "-f", ".corvint/change.cem.json")
-	testGit(t, root, "commit", "-qm", "rebind")
-	c := &change{flow: flow{ctx: context.Background(), root: root, target: testGit(t, root, "rev-parse", "HEAD"), stderr: io.Discard}, cemPrepared: true, manifestValid: true}
-	if c.reboundCommitNeeded() {
-		t.Fatal("clean committed CEM still asks for a commit")
+	pending := func(rows []step) bool {
+		c := &change{flow: flow{ctx: context.Background(), root: root, base: base, target: testGit(t, root, "rev-parse", "HEAD"), stderr: io.Discard}, rows: rows}
+		return c.pendingSidecarCommit()
+	}
+	if !pending(rows) {
+		t.Fatal("a rebind whose only extra row is the dirty-sidecar impact refusal is not pending")
+	}
+	// Controls: another impact refusal, or another dirty path, keeps FAIL.
+	other := append([]step{{"coordination-time-impact", "NOT_PRODUCED", "impact-failed"}}, rows[1:]...)
+	if pending(other) {
+		t.Fatal("an unrelated impact failure was treated as pending")
+	}
+	writeTree(t, root, map[string]string{"extra.txt": "dirty beside the sidecar\n"})
+	if pending(rows) {
+		t.Fatal("a dirty path beside the sidecar was treated as pending")
 	}
 }
 

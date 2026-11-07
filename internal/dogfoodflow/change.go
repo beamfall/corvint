@@ -237,9 +237,6 @@ func (c *change) run() int {
 	c.deferIntents()
 	c.citeStep()
 	c.guardingTestsStep()
-	if c.reboundCommitNeeded() {
-		return 1
-	}
 	_ = os.WriteFile(c.path(".corvint/change.ocm-status.json"), nil, 0o666)
 	switch {
 	case c.noIntent:
@@ -2900,6 +2897,11 @@ func (c *change) pendingSidecarCommit() bool {
 		}
 	}
 	for _, row := range c.rows {
+		// DWC-V0-044: range impact refuses the worktree the uncommitted
+		// sidecar dirties; the same commit clears it, so it is pending too.
+		if row == (step{"coordination-time-impact", "NOT_PRODUCED", "unsupported-impact-worktree"}) {
+			continue
+		}
 		if !(replaced && strings.HasPrefix(row.name, "ocm-link-") && row.reason == "ocm-map-not-prepared") {
 			rows = append(rows, row)
 		}
