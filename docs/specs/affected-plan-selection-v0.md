@@ -893,7 +893,16 @@ one list, so a later class cannot reopen it.
   reached while expanding a command string held in a variable (`sh -c "$cmd"`), whose dropped strings
   may run scripts. An unknown part that drops nothing the file gives (a name the file never sets, a
   positional or special parameter, a command substitution, an operator the model does not follow, an
-  empty `:+` alternative) is no cut and keeps TSP-V0-960's treatment.
+  empty `:+` alternative) is no cut and keeps TSP-V0-960's treatment. A name whose value refers to
+  itself (`corvint_bin="$PWD/$corvint_bin"`) reaches depth 4 through that cycle and is a cut too:
+  the unrolled values are dropped, and the plugin does not prove that each of them adds no edge or
+  name.
+- **AFP-V0-3148:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 7, 2026-11-07; refines TSP-V0-960) The per-name bound SHALL count distinct values: a
+  value the file gives a name more than once, verbatim (the same word list in several `for` loops),
+  expands to the same values each time and SHALL count once, so a name given 16 or fewer distinct
+  values stays expanded and bounded however often it repeats them. Seventeen distinct values remain
+  a cut (AFP-V0-3146).
 
 ### Live test tier (V1-4815)
 
@@ -1237,6 +1246,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-3144 | the shortcut and `ownedExtensionless` in `internal/liveverify/affected/shell/computed.go` | `TestComputedTargetKeepsOwnedExtensionlessScripts_AFPV03144` in `internal/liveverify/affected/shell/computed_extensionless_test.go` (a loop over `script` and a file-relative value link `script/check`, its edit selects the test that runs it and not another script's, a cut list naming `check` is a dynamic source; `go` and `check.py` stay bounded, and fail when the shortcut is deleted); the before/after plans in build log `2026-11-07-unbrd-fix6` |
 | AFP-V0-3146 | `named` and `truncated` in `internal/liveverify/affected/shell/computed.go`; the `computed` closure of `observe` (`internal/liveverify/affected/shell/shell.go`) | `TestPerVariableBoundKeepsTheCallerSelected_AFPV03146` in `internal/liveverify/affected/shell/computed_bounds_test.go` (the review's reproducer: a 17-word loop running `"$dir/check"` beside a `script/check` that sources `"$ENVFILE"` is `shell:dynamic-source`, and edits of `config/settings.env` and of `script/check` select the wrapper test; it fails at `aa16cbf1a`); the 16-value control in `TestEveryExpansionBoundIsACut_AFPV03147` |
 | AFP-V0-3147 | `truncated` at the depth bounds of `braced` and `named` in `computed.go`; `commandStrings` and its use in `observe` (`shell.go`) | `TestEveryExpansionBoundIsACut_AFPV03147` in `computed_bounds_test.go` (17 plain and braced assignments, a five-name chain, a five-deep default, a five-deep `:+` alternative and a 17-valued `sh -c "$cmd"` each make the test `shell:dynamic-source`, and each fails at `aa16cbf1a`; an environment-input directory stays bounded, and a 16-value loop links `script/check` with no unbounded witness); build log `2026-11-07-unbrd-fix7` |
+| AFP-V0-3148 | the distinct-value `add` of `variableValues` in `computed.go` | `TestRepeatedValuesCountOnce_AFPV03148` in `computed_bounds_test.go` (six loops over the same three words link `script/check` with no unbounded witness; it fails when `add` keeps duplicates); `script/gen-spec-requirements_test.sh`, whose `mode` repeats 6 distinct flags across 7 loops, stays bounded in build log `2026-11-07-unbrd-fix7` |
 | AFP-V0-3145 | `openTest` and `testLeaders` in `internal/liveverify/affected/shell/lex.go` | `TestConditionalOpensOnlyInCommandPosition_AFPV03145` in `internal/liveverify/affected/shell/conditional_position_test.go` (an argument `[[` before `&&`, `||` or `\|` keeps the next source; the test after every leader keeps its operators, and fails without the leaders); `TestCasePatternsAndConditionalsAreNotCommands_NSAV0008_NSAV0009` (unchanged) |
 
 | AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |
@@ -1299,6 +1309,8 @@ class from `reachedThrough`, and drop `codeRunners` from the CI selector's `reac
 package's code runs, and `corvint test` misses that package's importers.
 For AFP-V0-3144 and AFP-V0-3145, revert the review-fix-6 commit: the shortcut again skips every
 literal non-shell file name, and any `[[` in a command again opens a test; delete the two tests.
+For AFP-V0-3148, drop the `slices.Contains` test from `variableValues`' `add`; a repeated word list
+then counts toward the bound again, which is sound but makes such a file a dynamic source.
 For AFP-V0-3146 and AFP-V0-3147, revert the review-fix-7 commit: `named`, `braced` and
 `commandStrings` again return the unknown part at their per-name and depth bounds without the cut,
 so a value they drop is read as an environment input; delete `computed_bounds_test.go`.
