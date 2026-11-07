@@ -14,6 +14,11 @@ import (
 // objects) is atomic, so competing edits to one entry conflict (DWC-V0-7702).
 // Conflicts and malformed inputs return no output, leaving the driver's ours intact.
 func JSON(base, ours, theirs []byte) ([]byte, error) {
+	// Git supplies an empty %O for add/add; it is the absent object map,
+	// while empty or malformed current sides still refuse.
+	if len(base) == 0 {
+		base = []byte("{}")
+	}
 	var maps [3]map[string]any
 	for i, data := range [][]byte{base, ours, theirs} {
 		decoder := json.NewDecoder(bytes.NewReader(data))

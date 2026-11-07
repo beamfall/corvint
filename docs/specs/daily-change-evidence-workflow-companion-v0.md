@@ -186,7 +186,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   The JSON driver MUST union independent keys of object maps with three-way equality: identical
   sides coalesce; one unchanged side admits the other's update or deletion; competing changes to
   the same key conflict. The `scripts`, `packages`, and `tests` registry containers union entries,
-  each entry atomic, including its arrays and objects. It MUST reject duplicate keys, non-object
+  each entry atomic, including its arrays and objects. Git's empty add/add base is an empty map;
+  current sides still require object roots. It MUST reject duplicate keys, non-object
   roots, malformed JSON and trailing input. On conflict it exits nonzero and leaves ours untouched.
   Success emits sorted object keys, two-space indentation, unescaped HTML and a final LF, retaining
   numeric precision. Only the three named shell/test registries receive this attribute, never CEMs.

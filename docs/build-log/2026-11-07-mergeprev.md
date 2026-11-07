@@ -137,3 +137,27 @@ Numbered reproducible friction:
 
 Rollback: remove new attributes/local driver entries, development tool and driverMerge call.
 Legacy DWC-V0-001 replay remains; no remote history rewrite or published release is involved.
+
+## Pre-bind add/add correction
+
+Pre-bind review found that scratch replay normalized an absent JSON base but the local tool
+rejected Git's empty add/add `%O`. The shared JSON rule now treats only an empty base as `{}`;
+empty current sides still refuse. This is the existing DWC-V0-7702/7704 add/add case, clarified in
+the spec, with new unit, actual Git add/add, and batch add/add controls. No CEM was bound before
+this correction. All three touched whole packages were rerun: library PASS (0.016s), tool PASS
+(0.477s), dogfoodflow FAIL (34.814s), retaining the same external cleanup/regeneration failures.
+The add/add batch control passed; the three regeneration combinations remain blocked.
+Spec/citation checks and read-scope checks passed again. Historical replay used nonempty existing
+registries and unchanged append logic, so its earlier evidence remains applicable.
+
+| Additional evidence | SHA-256 |
+|---|---|
+| library-tests-add-add.log | `16f12428e3f71a520694d458f8cb1d2bf05822da144163ebccb79969f3b2f137` |
+| tool-tests-add-add.log | `17de9edcb9087b4c2d0cbd6d52b84ab556897b9a1ac50ea38f89d99773a1ae23` |
+| dogfoodflow-tests-add-add.log | `71bb219e585129c4b5500bd35dd125e1b4dc7ba4f9ac48865386adb5328db1e9` |
+
+8. Input precheck refused two proposed dependency spans crossing changed batch.go lines. Their
+   citations were narrowed to surviving original source before any bind; unrelated generated
+   sibling-name suggestions were also replaced with actual dependencies and governing contracts.
+9. The empty add/add base mismatch above was caught before binding; real Git fixtures now exercise
+   it in both the installed driver and batch derivation, alongside the retained refusal controls.
