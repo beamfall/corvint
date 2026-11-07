@@ -599,7 +599,10 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 			if packages == nil {
 				packages = graph.goPackageDirectories()
 			}
-			if graph.goReadData(path, packages) {
+			entry := graph.unownedUnknown(path, packages, fixtureClaims)
+			// AFP-V0-9013: reader confinement proves data attribution, not
+			// that an omitted compiled source has no missing dependency edges.
+			if entry.Reason == UnknownUnownedDirtyPath && graph.goReadData(path, packages) {
 				// Every unit that can read it is selected (AFP-V0-600,
 				// AFP-V0-601); it stays unowned for frontierUnknowns.
 				if inModule {
@@ -620,7 +623,6 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			entry := graph.unownedUnknown(path, packages, fixtureClaims)
 			if inModule && entry != module {
 				unknown = append(unknown, module)
 			}

@@ -191,12 +191,11 @@ func observeRow(ctx context.Context, o options, id identity) row {
 		r.Error = err.Error()
 		return r
 	}
-	universe, err := capture(ctx, o, "go", "list", "./...")
+	expected, err := goUniverse(ctx, o)
 	if err != nil {
 		r.Error = "package universe: " + err.Error()
 		return r
 	}
-	expected := strings.Fields(universe)
 	if len(expected) == 0 {
 		r.Error = "empty package universe"
 		return r
@@ -360,7 +359,7 @@ func validateRow(dir string, r row, p pair, id identity) error {
 	if err := readJSON(filepath.Join(dir, "selection.json"), &s); err != nil {
 		return err
 	}
-	if s.Base != p.Base || s.Target != p.Target || !equal(s.Identity, id) || len(id.Args) == 0 || !equal(e.Args, append(append([]string{}, id.Args...), "./...")) {
+	if s.Base != p.Base || s.Target != p.Target || !equal(s.Identity, id) || len(id.Args) == 0 || len(e.Args) <= len(id.Args) || !equal(e.Args[:len(id.Args)], id.Args) || !canonicalFullArgs(e.Args[len(id.Args):]) {
 		return errors.New("row source/profile mismatch")
 	}
 

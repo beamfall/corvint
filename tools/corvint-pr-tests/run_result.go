@@ -11,7 +11,7 @@ import (
 )
 
 // An exec exit alone cannot distinguish failed tests from missing evidence.
-func containerRunResult(o options, p containerProfile, dir string, exports map[string]string, runErr error) (int, error) {
+func containerRunResult(o options, p containerProfile, dir string, exports map[string]string, runErr error, treeHidden func() ([]string, error)) (int, error) {
 	code := 0
 	if runErr != nil {
 		var exit *exec.ExitError
@@ -36,8 +36,16 @@ func containerRunResult(o options, p containerProfile, dir string, exports map[s
 	if err := readJSON(filepath.Join(dir, "execution.json"), &e); err != nil {
 		return 2, err
 	}
+	// AFP-V0-9012: FULL runs ./... plus the target tree's hidden packages.
+	executed := s.Packages
+	if equal(s.Packages, []string{"./..."}) && len(e.Args) >= len(testArgs) {
+		executed = e.Args[len(testArgs):]
+		if err := fullReceiptArgs(executed, treeHidden); err != nil {
+			return 2, fmt.Errorf("incoherent run execution evidence: %w", err)
+		}
+	}
 	id := s.Identity
-	if s.Schema != schema || s.Base != o.base || s.Head != o.head || s.Target != o.target || s.ObservedTarget != o.target || !oid.MatchString(s.Tree) || s.ObservedTree != s.Tree || id.Source != o.source || !admittedGoVersions[id.GoVersion] || id.OS != "linux" || id.Arch != "amd64" || id.GoBinary == "" || id.Compiler == "" || id.Git == "" || len(id.Env) == 0 || !equal(id.Container, &p) || id.Driver != p.Tools["corvint-pr-tests"] || id.Planner != p.Tools["corvint"] || id.Selector != p.Tools["gate-affected-select"] || !equal(e.Selection, s) || e.Error != "" || e.Exit != code || !equal(e.Env, id.Env) || !equal(id.Args, testArgs) || !equal(e.Args, append(append([]string{}, testArgs...), s.Packages...)) || len(s.Packages) == 0 {
+	if s.Schema != schema || s.Base != o.base || s.Head != o.head || s.Target != o.target || s.ObservedTarget != o.target || !oid.MatchString(s.Tree) || s.ObservedTree != s.Tree || id.Source != o.source || !admittedGoVersions[id.GoVersion] || id.OS != "linux" || id.Arch != "amd64" || id.GoBinary == "" || id.Compiler == "" || id.Git == "" || len(id.Env) == 0 || !equal(id.Container, &p) || id.Driver != p.Tools["corvint-pr-tests"] || id.Planner != p.Tools["corvint"] || id.Selector != p.Tools["gate-affected-select"] || !equal(e.Selection, s) || e.Error != "" || e.Exit != code || !equal(e.Env, id.Env) || !equal(id.Args, testArgs) || !equal(e.Args, append(append([]string{}, testArgs...), executed...)) || len(s.Packages) == 0 {
 		return 2, errors.New("incoherent run execution evidence")
 	}
 	if s.Reason != "" && !equal(s.Packages, []string{"./..."}) {

@@ -137,12 +137,7 @@ func rerun(ctx context.Context, o options, id identity, idOK bool, s selection) 
 		r.Reason = reason
 		return r
 	}
-	listed, err := capture(ctx, o, "go", "list", "./...")
-	if err != nil {
-		r.Reason = "package universe unavailable"
-		return r
-	}
-	universe, err := cishards.Packages([]byte(listed))
+	universe, err := goUniverse(ctx, o)
 	if err != nil {
 		r.Reason = "package universe unavailable"
 		return r

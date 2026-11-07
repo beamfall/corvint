@@ -161,6 +161,28 @@ func hiddenSourcePath(relative string) bool {
 	return false
 }
 
+// packageSourceFiles is the single Go source walk that graph construction and
+// HiddenSourcePaths share. Only the strict core declaration parser may exclude
+// hidden output; an invalid declaration holds nothing.
+func packageSourceFiles(root *affected.Source) (files, manifests []string, bounded bool, err error) {
+	declared := affected.DeclaredNonSourceHolds(root)
+	observed, bounded, err := root.FilesIncluding(func(relative, name string) bool {
+		return (strings.HasSuffix(name, ".go") || name == "go.mod") &&
+			!(hiddenSourcePath(relative) && declared(relative))
+	}, includedDirectories...)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	for _, relative := range observed {
+		if path.Base(relative) == "go.mod" {
+			manifests = append(manifests, relative)
+		} else {
+			files = append(files, relative)
+		}
+	}
+	return files, manifests, bounded, nil
+}
+
 // HiddenSourcePaths is the Go source below a `.` or `_` directory that this
 // plugin indexes and `./...` skips (AZU-V0-005): the same bounded walk and
 // declared non-source filter as UnitsSource, outside testdata, sorted. A
@@ -168,9 +190,7 @@ func hiddenSourcePath(relative string) bool {
 // ./...` skips no Go source (AZU-V0-9923). A bounded walk is an error,
 // because it cannot show that the set is complete.
 func HiddenSourcePaths(root *affected.Source) ([]string, error) {
-	observed, bounded, err := root.FilesIncluding(affected.ByName(func(name string) bool {
-		return strings.HasSuffix(name, ".go")
-	}), includedDirectories...)
+	observed, _, bounded, err := packageSourceFiles(root)
 	if err != nil {
 		return nil, err
 	}
@@ -196,33 +216,12 @@ func HiddenSourcePaths(root *affected.Source) ([]string, error) {
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
-	observed, includedDirectoryBounded, err := root.FilesIncluding(func(_, name string) bool {
-		return strings.HasSuffix(name, ".go") || name == "go.mod"
-	}, includedDirectories...)
+	files, manifests, includedDirectoryBounded, err := packageSourceFiles(root)
 	if err != nil {
 		return affected.Result{}, err
 	}
 	if includedDirectoryBounded {
 		frontier[FrontierIncludedDirectoryWalkBounded] = true
-	}
-	// CI helpers below .github (AZU-V0-9920) are reached by the hidden-source
-	// marker above, with the walk's own cache stamps and bounds (AZU-V0-005).
-	// A hidden or underscore path the repository declares non-source stays
-	// output, not a package (AZU-V0-9921): retained evidence is never built.
-	if slices.ContainsFunc(observed, hiddenSourcePath) {
-		declared := affected.DeclaredNonSourceHolds(root)
-		observed = slices.DeleteFunc(observed, func(relative string) bool {
-			return hiddenSourcePath(relative) && declared(relative)
-		})
-	}
-	files := make([]string, 0, len(observed))
-	manifests := make([]string, 0, len(observed))
-	for _, relative := range observed {
-		if path.Base(relative) == "go.mod" {
-			manifests = append(manifests, relative)
-			continue
-		}
-		files = append(files, relative)
 	}
 	if len(files) == 0 && len(manifests) == 0 {
 		_, statErr := root.Stat("go.work")
@@ -325,15 +324,24 @@ func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories
 	if len(embedding) == 0 {
 		return nil
 	}
-	files, _, err := root.FilesIncluding(func(_, _ string) bool { return true }, includedDirectories...)
-	if err != nil {
-		return err
-	}
-	sort.Strings(files)
 	moduleRoots := make(map[string]bool, len(manifests))
 	for _, manifest := range manifests {
 		moduleRoots[path.Dir(manifest)] = true
 	}
+	// AZU-V0-005: only actual embed targets claim a walked filename. Hidden
+	// metadata outside every pattern need not be representable as evidence.
+	files, _, err := root.FilesIncluding(func(relative, _ string) bool {
+		for offset, patterns := range embedding {
+			if len(embedTargets(unitDirectories[offset], patterns, []string{relative}, moduleRoots)) != 0 {
+				return true
+			}
+		}
+		return false
+	}, includedDirectories...)
+	if err != nil {
+		return err
+	}
+	sort.Strings(files)
 	for offset, patterns := range embedding {
 		targets := embedTargets(unitDirectories[offset], patterns, files, moduleRoots)
 		if len(targets) == 0 || len(targets) > affected.MaxPathsPerUnit {
