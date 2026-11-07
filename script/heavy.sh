@@ -337,9 +337,9 @@ pin_go() {
   [[ $want =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0 # a language-only line pins no release
   { read -r have; read -r cache; read -r os; read -r arch; } < <(GOTOOLCHAIN=local go env GOVERSION GOMODCACHE GOOS GOARCH 2> /dev/null)
   [[ ${have-} == "go$want" ]] && return 0
-  for c in "${HOME:-/nonexistent}/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
-    if [[ -x $c/go && $(GOTOOLCHAIN=local "$c/go" env GOVERSION 2> /dev/null) == "go$want" ]]; then
-      export PATH="$c:$PATH"
+  for sdk in "${HOME:-/nonexistent}/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
+    if [[ -x $sdk/go && $(GOTOOLCHAIN=local "$sdk/go" env GOVERSION 2> /dev/null) == "go$want" ]]; then
+      export PATH="$sdk:$PATH"
       return 0
     fi
   done

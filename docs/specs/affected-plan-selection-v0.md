@@ -623,12 +623,17 @@ what is read, and keep every unit whose reads are genuinely unbounded, with a wi
   fresh-directory proof still requires exactly one assignment.
 - **AFP-V0-2955:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283)
   The repository SHALL declare in `.corvint/shell-read-scopes.json` (TSP-V0-950) the repository paths
-  `script/dogfood-cache_test.sh` (`Makefile`), `script/lane-scripts_test.sh` (`Makefile`,
-  `docs/DOGFOOD.md`) and `script/qualify-tasks-basic_test.sh` (`cmd/corvint-tasks/`, `go.mod`,
-  `go.sum`, `internal/`) read outside `script/`, each with the reason its toolchain run needs them,
-  and `.corvint/unbounded-readers.json` SHALL list no unit that AFP-V0-2951 to AFP-V0-2954 take
-  off the floor. `script/heavy.sh` SHALL keep its remote half provable under TSP-V0-004: the
-  payload directory variable is assigned once and no other function reuses its name.
+  `script/dogfood-cache_test.sh` (`Makefile`) and `script/qualify-tasks-basic_test.sh`
+  (`cmd/corvint-tasks/`, `go.mod`, `go.sum`, `internal/`) read outside `script/`, each with the
+  reason its toolchain run needs them, and `.corvint/unbounded-readers.json` SHALL list no unit
+  that AFP-V0-2951 to AFP-V0-2954 take off the floor. `script/lane-scripts_test.sh` stays recorded:
+  it sources a `sed`-filtered copy of `script/heavy.sh` it writes into its temporary directory,
+  a read of its own directory that no proof links (TSP-V0-004 admits no write between the
+  `mktemp` and the source), so TSP-V0-950 refuses a declaration over it. `script/heavy.sh` SHALL
+  keep its remote half provable under TSP-V0-004 (the payload directory variable is assigned once
+  and no other function or embedded program reuses its name) and its toolchain probe a literal
+  binary name (`"$sdk/go"`), so the shell plugin links or bounds every source and run target it
+  holds.
 
 ## Non-goals
 
