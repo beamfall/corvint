@@ -227,6 +227,20 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 			t.Fatalf("uncertified command was not refused before execution: %s", out)
 		}
 	}
+	// A future debug flag has no certified arity, even with an ordinary operand before
+	// a whole-looking selection. Neither separate nor inline syntax may gain admission.
+	for _, flags := range [][]string{
+		{"-debug-futureflag", "x", "-run=."},
+		{"-debug-futureflag=x", "-run=."},
+		{"-run=.", "-debug-futureflag", "x", "-run=TestOther"},
+	} {
+		args := append([]string{"go", "test"}, flags...)
+		args = append(args, "./p")
+		out = run(2, args...)
+		if !strings.Contains(out, "REFUSED whole-reason-missing") || strings.Contains(out, "ok \t") {
+			t.Fatalf("unknown debug flag gained automatic admission: %v: %s", args, out)
+		}
+	}
 	for _, flags := range []string{"-future-value-flag=output", "--future-value-flag=output", "-v=unknown"} {
 		out = run(2, "env", "GOFLAGS="+flags, "go", "test", "-run=.", "./p")
 		if !strings.Contains(out, "REFUSED whole-reason-missing") {
@@ -243,9 +257,11 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 	}
 	for _, flags := range [][]string{
 		{"-run=TestOther", "-tags", "-run=."},
+		{"-run=TestOther", "-tags=-run=."},
 		{"-run", "TestOther", "-tags", "--run=.*"},
 		{"-run=.", "-run=TestOther"},
 		{"--run", ".", "--run", "TestOther"},
+		{"-run=.", "-buildvcs=false", "-run=TestOther"},
 		{"-run=.", "-buildvcs", "-run=TestOther"}, // Boolean flags consume no operand.
 	} {
 		args := append([]string{"go", "test", "-count=1", "-v"}, flags...)
