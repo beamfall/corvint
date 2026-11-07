@@ -37,3 +37,26 @@ func TestTCPV07406ExplicitSymlink(t *testing.T) {
 		})
 	}
 }
+
+// TCP-V0-7406: line and symbol selectors on a tracked symlink are validated
+// against its pinned one-hop target, and the row keeps both identities.
+func TestTCPV07406SymlinkSelectorsUseTheTarget(t *testing.T) {
+	target := "# Target\n\n2\n3\n4\n5\n6\n7\n8\n9\n10\n"
+	index := symlinkGovernanceIndex(t, map[string]string{"AGENTS.md": "# Rules\n", "docs/target.md": target, "go.mod": "module example.test/links\n\ngo 1.27.0\n", "pkg/target.go": "package pkg\n\nfunc Helper() {}\n\nfunc Target() {}\n"}, map[string]string{"link.md": "docs/target.md", "pkg/link.go": "target.go"}, nil)
+	check := func(task, path string, line int) {
+		t.Helper()
+		packet := localPrompt(t, index, task, nil, 10, 8000)
+		rows := mapsFromAny(packet["task_evidence"])
+		link := map[string]string{"docs/target.md": "link.md", "pkg/target.go": "pkg/link.go"}[path]
+		if len(rows) != 1 || rows[0]["path"] != path || rows[0]["line"] != line || rows[0]["link_path"] != link || rows[0]["link_blob_hash"] != index.Sources[link].BlobHash || rows[0]["blob_hash"] != index.Sources[path].BlobHash {
+			t.Fatalf("%s: %v", task, packet)
+		}
+	}
+	check("Read link.md:10", "docs/target.md", 10)
+	check("Fix pkg/link.go#Target", "pkg/target.go", 5)
+	// Control: a line past the target's end is still not found.
+	packet := localPrompt(t, index, "Read link.md:12", nil, 10, 8000)
+	if rows := mapsFromAny(packet["task_evidence"]); len(rows) != 0 {
+		t.Fatalf("out-of-range target line admitted: %v", packet)
+	}
+}

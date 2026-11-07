@@ -279,6 +279,9 @@ func (b *gatedBatch) planScope(r *closeRow, rec *ticket.Record, g *gatedRow) {
 			"pass --seal "+r.local+"=<sealed lane commit> whose diff is the ticket's change, or close it explicitly with --manual")
 		return
 	}
+	// TCL-V0-7404: restore only the widened keys this candidate's diff needs,
+	// so a narrow retry after a large widen is not refused for history.
+	g.restored = neededRestored(g.restored, transaction.Declared(rec), paths)
 	if len(paths) <= wire.MaxTouchPaths && len(g.restored) == 0 {
 		return
 	}
@@ -310,6 +313,22 @@ func (b *gatedBatch) planScope(r *closeRow, rec *ticket.Record, g *gatedRow) {
 		r.unrunnable(wire.CodeLimitExceeded, "the "+n+" changed paths of "+g.candidate+" do not collapse to "+strconv.Itoa(wire.MaxTouchPaths)+" directory keys: "+strconv.Itoa(len(keys))+" top-level entries remain",
 			"pass --seal "+r.local+"=<sealed lane commit> so the diff is the lane's own, or close it explicitly with --manual")
 	}
+}
+
+// neededRestored keeps each restorable widen key that covers a changed path no
+// declared key covers (TCL-V0-7404); the others are history the candidate's
+// diff does not need, and carrying them could only exceed the path limit.
+func neededRestored(restored, declared, paths []string) []string {
+	var needed []string
+	for _, key := range restored {
+		for _, p := range paths {
+			if ticket.PathCovers(key, p) && !slices.ContainsFunc(declared, func(d string) bool { return ticket.PathCovers(d, p) }) {
+				needed = append(needed, key)
+				break
+			}
+		}
+	}
+	return needed
 }
 
 // collapseScope collapses paths to at most limit PATH keys (TCD-V0-1101):

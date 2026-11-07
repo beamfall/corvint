@@ -295,6 +295,7 @@ type goDecl struct {
 	selectorRefs map[string]bool // receiver fields/methods live outside the package namespace
 	method       bool
 	external     bool
+	initEffect   bool // runs at package initialization: an init func or a var initializer with a call or blank name
 	start, end   int64
 	test         bool // a func TestX(t *testing.T) declared in a _test.go file and at the base
 }
@@ -381,6 +382,7 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 		case *ast.FuncDecl:
 			d.names = []string{decl.Name.Name}
 			d.method = decl.Recv != nil
+			d.initEffect = decl.Recv == nil && decl.Name.Name == "init"
 			d.test = isTest && goTestDecl(decl)
 		case *ast.GenDecl:
 			if decl.Tok == token.IMPORT {
@@ -391,6 +393,7 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 				case *ast.TypeSpec:
 					d.names = append(d.names, spec.Name.Name)
 				case *ast.ValueSpec:
+					d.initEffect = d.initEffect || decl.Tok == token.VAR && initializerHasEffect(spec)
 					for _, name := range spec.Names {
 						// The blank identifier declares nothing a test can mention.
 						if name.Name != "_" {
@@ -482,13 +485,23 @@ func (p *goPackage) grow(seed map[string]bool) map[string]bool {
 }
 
 // testsMentioning names, sorted, the base tests of the package that mention
-// one of reached.
+// one of reached. When reached feeds package initialization (an init func or a
+// var initializer that can have side effects), the initialization can register
+// a reached name behind a foreign selector such as `flag.Usage = Usage`, so
+// every base test of the package stays a candidate (TCQ-V0-7408).
 func (p *goPackage) testsMentioning(reached map[string]bool) []string {
 	methods := p.methodNames()
+	initialized := false
+	for _, d := range p.decls {
+		if d.initEffect && !d.test && d.mentions(reached, methods) {
+			initialized = true
+			break
+		}
+	}
 	seen := map[string]bool{}
 	var names []string
 	for _, d := range p.decls {
-		if d.test && !seen[d.names[0]] && d.mentions(reached, methods) {
+		if d.test && !seen[d.names[0]] && (initialized || d.mentions(reached, methods)) {
 			seen[d.names[0]] = true
 			names = append(names, d.names[0])
 		}
@@ -619,6 +632,27 @@ func (p *goPackage) growImported(importPath string, exported map[string]bool) ma
 		}
 	}
 	return p.grow(seed)
+}
+
+// initializerHasEffect reports whether a package var spec can run code with
+// side effects at initialization: a blank name, kept only for its initializer,
+// or a value that calls a function.
+func initializerHasEffect(spec *ast.ValueSpec) bool {
+	for _, name := range spec.Names {
+		if name.Name == "_" && len(spec.Values) > 0 {
+			return true
+		}
+	}
+	effect := false
+	for _, value := range spec.Values {
+		ast.Inspect(value, func(node ast.Node) bool {
+			if _, ok := node.(*ast.CallExpr); ok {
+				effect = true
+			}
+			return !effect
+		})
+	}
+	return effect
 }
 
 // methodNames keeps receiver selectors conservative when a package method has

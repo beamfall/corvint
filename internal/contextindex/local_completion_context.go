@@ -594,7 +594,9 @@ func (compiler *localPromptCompiler) resolveLines(token string, start, end int) 
 	}
 	matches := []string{}
 	for _, candidate := range candidates {
-		text, loaded := sourceTextBounded(compiler.index.Sources[candidate])
+		// TCP-V0-7406: a tracked symlink's selector is checked against its
+		// pinned one-hop target; addEvidence keeps both identities.
+		text, loaded := sourceTextBounded(compiler.index.Sources[compiler.selectorSubject(candidate)])
 		if !loaded || end <= sourceLineCount(text) {
 			matches = append(matches, candidate)
 		}
@@ -624,7 +626,14 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 	if !compiler.ready() || compiler.overflowed {
 		return
 	}
-	if strings.Contains(name, ".") && !compiler.pathHasSymbol(candidates, name) {
+	// TCP-V0-7406: symbols of a tracked symlink are searched in its pinned
+	// one-hop target, then reported under the link so both identities stay.
+	subjects := map[string]string{}
+	for _, candidate := range candidates {
+		subjects[compiler.selectorSubject(candidate)] = candidate
+	}
+	searched := slices.Collect(maps.Keys(subjects))
+	if strings.Contains(name, ".") && !compiler.pathHasSymbol(searched, name) {
 		name = name[strings.LastIndex(name, ".")+1:]
 		compiler.qualified++
 	}
@@ -637,7 +646,8 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 			compiler.failBounds()
 			return
 		}
-		if symbol.Name == name && slices.Contains(candidates, symbol.Path) {
+		if candidate, ok := subjects[symbol.Path]; symbol.Name == name && ok {
+			symbol.Path = candidate
 			matches = append(matches, symbol)
 		}
 	}
@@ -658,6 +668,19 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 	for _, symbol := range matches {
 		compiler.addEvidence("task_evidence", symbol.Path, symbol.Line, "explicit-identifier", "syntax")
 	}
+}
+
+// selectorSubject is the pinned one-hop target of an admitted tracked symlink,
+// else the candidate itself; a refused link stays itself, so addEvidence
+// reports its typed refusal (TCP-V0-7406).
+func (compiler *localPromptCompiler) selectorSubject(candidate string) string {
+	if compiler.index.Sources[candidate].Mode != "120000" {
+		return candidate
+	}
+	if target, refusal := compiler.context.instructionLink(candidate); refusal == "" {
+		return target
+	}
+	return candidate
 }
 
 // A dirty candidate with no match in its bound blob may hold the anchor in the
