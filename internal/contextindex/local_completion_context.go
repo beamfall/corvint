@@ -812,6 +812,19 @@ func (compiler *localPromptCompiler) addEvidence(section, candidate string, line
 		compiler.failBounds()
 		return
 	}
+	link := ""
+	if section == "task_evidence" && compiler.index.Sources[candidate].Mode == "120000" {
+		link = candidate
+		target, refusal := compiler.context.instructionLink(candidate)
+		if refusal != "" {
+			selector := localSelector(section, candidate)
+			selector["reason"] = refusal
+			compiler.unavailable = append(compiler.unavailable, selector)
+			compiler.unread++
+			return
+		}
+		candidate = target
+	}
 	source := compiler.index.Sources[candidate]
 	if !compiler.context.readable(candidate) || !localObjectID(source.BlobHash) || source.Mode == "120000" {
 		compiler.unavailable = append(compiler.unavailable, localSelector(section, candidate))
@@ -821,17 +834,18 @@ func (compiler *localPromptCompiler) addEvidence(section, candidate string, line
 		return
 	}
 	for _, row := range compiler.rows {
-		if row.section == section && row.value["path"] == candidate && row.value["line"] == line {
+		if row.section == section && row.value["path"] == candidate && row.value["line"] == line && (link == "" || row.value["link_path"] == link) {
 			return
 		}
 	}
-	if section == "task_evidence" && slices.Contains(compiler.index.DirtyPaths, candidate) {
+	if section == "task_evidence" && (slices.Contains(compiler.index.DirtyPaths, candidate) || link != "" && slices.Contains(compiler.index.DirtyPaths, link)) {
 		compiler.dirty++
 	}
-	compiler.rows = append(compiler.rows, localPromptRow{section, map[string]any{
-		"path": candidate, "blob_hash": source.BlobHash, "line": line,
-		"relation": relation, "authority": authority,
-	}})
+	value := map[string]any{"path": candidate, "blob_hash": source.BlobHash, "line": line, "relation": relation, "authority": authority}
+	if link != "" {
+		value["link_path"], value["link_blob_hash"] = link, compiler.index.Sources[link].BlobHash
+	}
+	compiler.rows = append(compiler.rows, localPromptRow{section, value})
 }
 
 func (compiler *localPromptCompiler) resolution() map[string]any {

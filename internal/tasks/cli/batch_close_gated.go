@@ -49,6 +49,7 @@ type gatedBatch struct {
 	ciFiles       []string
 	role          string
 	issued        string
+	laneHeads     map[int64]string
 	seals         map[string]string
 	used          map[string]bool
 }
@@ -69,6 +70,7 @@ type gatedRow struct {
 	docSum                wire.Digest
 	attached              bool
 	scope                 *claimScope
+	restored              []string
 }
 
 // Claim scope sources of a gated row (TCD-V0-1101, TCD-V0-1102).
@@ -123,6 +125,10 @@ func batchPRURL(in *batchInput, repo, runURL string) (string, error) {
 // write: a merge this clone does not hold refuses the whole run.
 func newGatedBatch(env Env, in *batchInput, fl map[string]string, repo, runURL, role, issued string) (*gatedBatch, error) {
 	b := &gatedBatch{root: env.Cwd, runURL: runURL, mergedAt: in.batch.MergedAt, runs: in.runs, repo: repo, ci: map[string]*ciGate{}, role: role, issued: issued, seals: map[string]string{}, used: map[string]bool{}}
+	b.laneHeads = map[int64]string{}
+	for number, lane := range in.byNumber {
+		b.laneHeads[number] = lane.HeadRefOid
+	}
 	var err error
 	if v, ok := fl["seal"]; ok {
 		if b.seals, err = parseSeals(v); err != nil {
@@ -183,6 +189,12 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 		key = rec.TicketID.Raw
 		rev, ok = b.seals[key]
 	}
+	// TCL-V0-7404: an explicit override wins; otherwise bind the delivering
+	// lane's exported head, not the unrelated batch-wide diff.
+	if !ok && r.hit.lane != 0 && r.hit.lane != batch {
+		rev = b.laneHeads[r.hit.lane]
+		ok = rev != ""
+	}
 	if ok {
 		seal, err := store.ResolveCommit(b.root, rev)
 		if err != nil {
@@ -211,7 +223,11 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 		return
 	}
 	g.tree = tree
+	if restored := transaction.RestorableScope(rec, pin.Attempts); restored != nil {
+		g.restored = restored.Paths
+	}
 	b.planScope(r, rec, g)
+	r.requestID = r.gatedStepID(batch, "claim")
 	for _, id := range transaction.RequiredGates(policy, rec) {
 		if entry := policy.CIEvidenceGate(id); entry != nil {
 			// TCD-V0-770, TCD-V0-771: a ciEvidence gate is recorded from
@@ -263,11 +279,18 @@ func (b *gatedBatch) planScope(r *closeRow, rec *ticket.Record, g *gatedRow) {
 			"pass --seal "+r.local+"=<sealed lane commit> whose diff is the ticket's change, or close it explicitly with --manual")
 		return
 	}
-	if len(paths) <= wire.MaxTouchPaths {
+	if len(paths) <= wire.MaxTouchPaths && len(g.restored) == 0 {
 		return
 	}
 	n := strconv.Itoa(len(paths))
 	if declared := transaction.Declared(rec); len(declared) > 0 {
+		declared = append(append([]string(nil), declared...), g.restored...)
+		slices.Sort(declared)
+		declared = slices.Compact(declared)
+		if len(g.restored) > wire.MaxTouchPaths {
+			r.unrunnable(wire.CodeLimitExceeded, "restored claim scope exceeds the bounded path limit", "use a narrower lane seal")
+			return
+		}
 		g.scope.source, g.scope.keys = scopeDeclared, declared
 		var bad []string
 		for _, p := range paths {
@@ -390,7 +413,7 @@ func (r *closeRow) runGated(env Env, cmd []string, actor mutation.Binding, b *ga
 	// id names one step's request id; the row reports the last one sent
 	// before any release.
 	id := func(step string) string {
-		v := gatedRequestID(batch, r.hit.ticketID, r.local, g.prior, step)
+		v := r.gatedStepID(batch, step)
 		if step != "release" {
 			r.requestID = v
 		}
@@ -422,6 +445,8 @@ func (r *closeRow) runGated(env Env, cmd []string, actor mutation.Binding, b *ga
 		claim = append(claim, "--scope-from-diff", g.candidate)
 	case g.scope.source == scopeCollapsed:
 		claim = append(append(claim, "--scope"), g.scope.keys...)
+	case g.scope.source == scopeDeclared && len(g.restored) > 0:
+		claim = append(append(claim, "--scope"), g.restored...)
 	}
 	res := lease("claim", claim...)
 	if res.Outcome != wire.OutcomeOK {
@@ -612,4 +637,15 @@ func batchScopeValue(c *claimScope) wire.Value {
 		return wire.Null()
 	}
 	return wire.ObjectValue(wire.NewObject().Set("source", wire.String(c.source)).Set("changedPaths", count(c.changed)).Set("keys", wire.Strings(c.keys)))
+}
+
+// TCL-V0-7404: replay IDs bind the actual candidate and scope decision.
+func (r *closeRow) gatedStepID(batch int64, step string) string {
+	g := r.g
+	binding := r.hit.ticketID + "\x00" + g.base + "\x00" + g.candidate
+	if g.scope != nil {
+		binding += "\x00" + g.scope.source + "\x00" + strings.Join(g.scope.keys, "\x00")
+	}
+	sum := sha256.Sum256([]byte(binding))
+	return gatedRequestID(batch, hex.EncodeToString(sum[:]), r.local, g.prior, step+"-"+hex.EncodeToString(sum[:6]))
 }

@@ -14,6 +14,11 @@ for a in "$@"; do
   printf 'doc-gates-summary: DOC_GATE_JOBS must be a positive integer, got %q (from %s); refusing an unbounded or invalid job pool\n' "${a#-j}" "$a" >&2
   exit 2
 done
+# Help source changes need the generated command trees before the catalog gate.
+if git diff HEAD --name-only -- 'cmd/*help*.go' 'cmd/**/*help*.go' 'internal/*/cli/*help*.go' 2>/dev/null | grep -E '.' >/dev/null ||
+  git diff HEAD -- 'cmd/*.go' 'cmd/**/*.go' 'internal/*/cli/*.go' 2>/dev/null | grep -E '^[-+].*(Usage:|usage:|--help|helpText|help text)' >/dev/null; then
+  printf 'doc-gates: HINT help text changed; check stale capcatalog trees with make capability-catalog, then stage internal/capcatalog/ (CAP-V0-040)\n' >&2
+fi
 log=$(mktemp "${TMPDIR:-/tmp}/doc-gates-summary.XXXXXX") || exit 2
 trap '/bin/rm -f "$log"' EXIT
 {

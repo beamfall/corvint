@@ -56,6 +56,7 @@ it must read, each with the relation that admitted it, without naming the task's
   Tests: `TestTaskContextSelectedSlotScores`,
   `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. Measure all four frozen
   retrieval subsets; retain rank changes and failures. Rollback: remove the final ranking call.
+- `TCP-V0-7406`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3546) An explicitly named tracked symlink in local prompt task_evidence MUST reuse the pinned governance one-hop admission. An admitted row MUST identify the target path and blob hash with link_path and link_blob_hash; out-of-tree, dangling, chained and cyclic links MUST retain the same typed refusal in unavailable_selectors. A dirty link MUST keep resolution uncertain just as a dirty target does. No working-tree link is followed. Test: `TestTCPV07406ExplicitSymlink` in `internal/contextindex`.
 
 - `TCP-V0-001`: `context` MUST be read-only. It builds one index over the committed tree and
   writes no repository, trace, or ledger state on any path, including every error path; its wire

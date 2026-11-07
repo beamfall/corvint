@@ -355,6 +355,16 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "CREATE names no target or expected revision")
 		}
 	} else {
+		if operation == mutation.OpCompleteManual && (f.target == "" || f.expected == "") {
+			missing := []string{}
+			if f.target == "" {
+				missing = append(missing, "--target")
+			}
+			if f.expected == "" {
+				missing = append(missing, "--expected-revision")
+			}
+			return nil, wire.Errorf(wire.CodeMalformed, strings.Join(missing, ","), "complete-manual needs %s; example: %s", strings.Join(missing, " and "), completeManualExample)
+		}
 		if f.target == "" || (f.expected == "" && !mutation.IsNoteOperation(operation) && !mutation.IsReviewOperation(operation)) {
 			return nil, wire.Errorf(wire.CodeMalformed, "targetId", "%s needs --target and --expected-revision", operation)
 		}
@@ -424,6 +434,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	}
 	if operation == mutation.OpCompleteManual {
 		o.Set("completeManual", wire.String(completeManualHelp))
+		o.Set("example", wire.String(completeManualExample))
 	}
 	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
 	if operation == mutation.OpCreate {
@@ -445,7 +456,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("batch", wire.String(progressBatchHelp))
 	}
 	o.Set("usage", wire.String(usageText))
-	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, HOLD may add condition, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))
+	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, HOLD may add condition, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; use corvint-tasks ticket create --help --verbose for the payload contract"))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
@@ -725,7 +736,7 @@ func unboundedEffectsWarning(st *intent.Store, operation string, payload wire.Va
 	if !transaction.UnboundedEffects(e) {
 		return ""
 	}
-	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage QUALIFIED (coverage %s, %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects, or claim a committed change with --scope-from-diff REV (TCD-V0-174)",
+	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage %s ( %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects, or claim a committed change with --scope-from-diff REV (TCD-V0-174)",
 		WarningEffectsUnbounded, ticketID, e.Coverage, len(e.TouchPaths), len(e.Resources), st.Policy.SerialFallback)
 }
 
@@ -774,3 +785,5 @@ func unmetDependencyWarnings(inv *ticket.Inventory, target string) []string {
 	}
 	return out
 }
+
+const completeManualExample = `corvint-tasks ticket complete-manual --target V1-1234 --expected-revision 1 --request-id close-1234 --payload '{"evidence":[],"reason":"manually accepted"}'`

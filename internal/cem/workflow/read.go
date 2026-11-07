@@ -75,7 +75,7 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	// A CLI report reads an out-of-tree map as status and verify do; the MCP
 	// report preview stays repository-relative (CEM-V1-315, CEM-V1-640).
 	if filepath.IsAbs(options.MapPath) && (action == "status" || action == "verify" || action == "report") {
-		raw, options.MapPath, err = s.readExternalMap(options.MapPath)
+		raw, options.MapPath, err = s.readAbsoluteMap(options.MapPath, action == "verify")
 	} else {
 		raw, err = s.readMapBytes(options.MapPath)
 	}
@@ -139,6 +139,13 @@ func (s *Session) reportOutput(options ReadOptions) (*publish.Root, string, erro
 // final component must be a regular file: a symlink is refused, never followed.
 // It returns the bytes and the resolved absolute path they were read from.
 func (s *Session) readExternalMap(mapPath string) ([]byte, string, error) {
+	return s.readAbsoluteMap(mapPath, false)
+}
+
+// readAbsoluteMap also admits verify's in-worktree alias (CEM-V1-7400).
+// Both paths retain the checked parent's held handle: lexical rewriting
+// must not bypass Git-directory identities or a directory-swap refusal.
+func (s *Session) readAbsoluteMap(mapPath string, allowWorktree bool) ([]byte, string, error) {
 	cleaned := filepath.Clean(mapPath)
 	name := filepath.Base(cleaned)
 	root, err := publish.OpenRoot(filepath.Dir(cleaned))
@@ -147,9 +154,15 @@ func (s *Session) readExternalMap(mapPath string) ([]byte, string, error) {
 	}
 	// The verifier, not this check, judges a repository whose Git directories
 	// cannot be located; the worktree itself is always protected.
-	protected := []string{s.workRoot.Path()}
-	if s.openPublicationDirectories() == nil {
+	protected := []string{}
+	directoriesErr := s.openPublicationDirectories()
+	if directoriesErr == nil {
 		protected = append(protected, s.gitRoot.Path(), s.commonDir)
+	}
+	// With unavailable Git directories, keep the original conservative
+	// worktree refusal instead of guessing that an absolute map is safe.
+	if !allowWorktree || directoriesErr != nil {
+		protected = append(protected, s.workRoot.Path())
 	}
 	if withinAny(root.Path(), protected) {
 		return nil, "", invalidArguments("an absolute --map must lie outside the repository and its Git directory; name a map inside them repository-relative")

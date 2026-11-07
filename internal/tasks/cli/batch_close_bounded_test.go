@@ -101,7 +101,7 @@ func TestTCDV01101_GatedBatchCloseBoundsA712PathDiff(t *testing.T) {
 	if got := gbDispositions(gbRows(t, dry)); !sameRows(got, want) {
 		t.Fatalf("dry run %v: %s", got, dry.stdout)
 	}
-	wantKeys := "docs/b.md src/a/d00/ src/a/d01/ src/a/d02/ src/a/d03/ src/a/d04/ src/a/d05/ src/a/d06/ src/a/d07/ src/a/d08/"
+	wantKeys := "src/a/d00/ src/a/d01/ src/a/d02/ src/a/d03/ src/a/d04/ src/a/d05/ src/a/d06/ src/a/d07/ src/a/d08/"
 	scopeOf := func(r wire.Value) (string, string, string) {
 		sc := field(r, "claimScope")
 		var keys []string
@@ -111,15 +111,15 @@ func TestTCDV01101_GatedBatchCloseBoundsA712PathDiff(t *testing.T) {
 		return field(sc, "source").Str, field(sc, "changedPaths").Str, strings.Join(keys, " ")
 	}
 	rows := gbRows(t, dry)
-	if src, n, keys := scopeOf(rows[wide]); src != "COLLAPSED" || n != "712" || keys != wantKeys {
+	if src, n, keys := scopeOf(rows[wide]); src != "COLLAPSED" || n != "711" || keys != wantKeys {
 		t.Fatalf("collapsed claimScope %s %s %q: %s", src, n, keys, wire.Encode(rows[wide]))
 	}
-	if src, n, keys := scopeOf(rows[cover]); src != "DECLARED" || n != "712" || keys != "docs/ src/" {
+	if src, n, keys := scopeOf(rows[cover]); src != "DECLARED" || n != "711" || keys != "docs/ src/" {
 		t.Fatalf("declared claimScope %s %s %q", src, n, keys)
 	}
 	if r := rows[narrow]; field(r, "code").Str != wire.CodeOutOfScope || !strings.Contains(field(r, "recovery").Str, "--seal "+narrow+"=") ||
 		!strings.Contains(field(r, "recovery").Str, "--manual") || strings.Contains(field(r, "recovery").Str, "scope-from-diff") ||
-		!strings.Contains(field(r, "detail").Str, "711 of the 712") {
+		!strings.Contains(field(r, "detail").Str, "711 of the 711") {
 		t.Fatalf("narrow row: %s", wire.Encode(r))
 	}
 

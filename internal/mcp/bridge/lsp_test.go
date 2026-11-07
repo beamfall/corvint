@@ -18,7 +18,7 @@ func TestContextLSPProfileIsExplicit(t *testing.T) {
 	t.Run("MCPV0-029 explicit activation", func(t *testing.T) {
 		root := makeRepository(t)
 		t.Setenv("CORVINT_CONTEXT_LSP", "gopls")
-		legacy, e := NewTaskReview(root)
+		legacy, e := newTaskReview(root)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -27,7 +27,7 @@ func TestContextLSPProfileIsExplicit(t *testing.T) {
 				t.Fatalf("legacy accepted %s: %v", value, err)
 			}
 		}
-		registry, e := NewTaskReviewLSP(root)
+		registry, e := newTaskReviewLSP(root)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -95,7 +95,7 @@ func TestContextLSPPinAndDrift(t *testing.T) {
 				}
 				oldPath := os.Getenv("PATH")
 				t.Setenv("PATH", dir+string(os.PathListSeparator)+oldPath)
-				registry, e := NewTaskReviewLSP(root)
+				registry, e := newTaskReviewLSP(root)
 				if e != nil {
 					t.Fatal(e)
 				}
