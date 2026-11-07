@@ -530,9 +530,9 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
-| AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`, `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
-| AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `non_source_paths.go`; declaration preserves reader selection |
-| AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
+| AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED), `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
+| AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `non_source_paths.go`; declaration preserves reader selection |
+| AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
 | AZU-V0-9923 | PR #125 Greptile P1 (selbatch) | `TestNoPlanFullConfirmsHiddenGo_AZU_V0_9923` (real `go`, graph failed on an invalid declaration), `TestDeclaredGoSuiteSharesHiddenUniverse_AZU_V0_9923`, `TestAZUV09923CLINoPlanHiddenGoIsIncomplete`; `docs/build-log/2026-11-06-selbatch.md` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |

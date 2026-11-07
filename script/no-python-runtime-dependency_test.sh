@@ -412,7 +412,9 @@ for line in "integrations/x/hooks.json:3:  \"command\": [\"python3\", \"hook.py\
 done
 # ASD-V0-579: every pull request's make doc-gates runs this check and qualify-tasks-basic-test.
 for target in no-python-runtime-dependency-test qualify-tasks-basic-test; do
-  if ! awk -v t="$target" '/^DOC_GATE_TARGETS *:?=/ { for (i = 3; i <= NF; i++) if ($i == t) found = 1 } END { exit !found }' Makefile; then
+  # SRG-V0-982: the list is a continuation list with one target per line (batch-1107x).
+  if ! awk '/^DOC_GATE_TARGETS :=/ { on = 1; next } on { line = $0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' Makefile |
+    grep -qx "$target"; then
     echo "self-test: DOC_GATE_TARGETS does not list $target (ASD-V0-579)" >&2
     exit 1
   fi
