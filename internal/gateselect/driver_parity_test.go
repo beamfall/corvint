@@ -37,7 +37,7 @@ func TestDriverFrontierBoundParity_AFP_V0_3124(t *testing.T) {
 			"RUN = $(if $(CI),go test,go vet)\n" +
 			"check:\n\t$(RUN) ./core\n" +
 			"verify:\n\t$$TOOL --verify ./tool\n",
-		".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make check\n",
+		".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make check\n", //corvint:fixture-path
 	})
 	withDriver, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
 	if err != nil {

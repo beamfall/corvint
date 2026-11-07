@@ -246,7 +246,7 @@ func TestFrontierSiteShellTestParity_AFP_V0_3122(t *testing.T) {
 				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(full, []byte(body), 0o755); err != nil {
+				if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
