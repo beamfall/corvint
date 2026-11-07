@@ -241,7 +241,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
 });
 
 test('AHI-024 native-host harness cancellation kills descendants',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
+ // PWV-V0-8300: this cleanup check launches only Node children, so it needs no Pi.
  const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const pidFile=join(scratch,'pid-"\'`$()\u2028');const abort=new AbortController();
  const script=join(scratch,'child.js');
@@ -289,7 +289,8 @@ test('AHI-024 interrupting the host check reaps its separately detached native g
 });
 
 test('AHI-025 native TUI fixture interruption reaps its PTY process group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
- if(!(hostAvailable(t,process.env.PI_BIN??'pi')))return;
+ // PWV-V0-8300: it builds the Go TUI fixture and runs /bin/sh, never Pi.
+ if(!(hostAvailable(t,'go',['version'])))return;
  const scratch=createHostScratch();t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const witness=join(scratch,'group'),descendant=join(scratch,'descendant'),fake=join(scratch,'fake.sh');
  writeFileSync(fake,`trap '' TERM\nsleep 86400 &\necho $! > ${JSON.stringify(descendant+'.tmp')}\nmv ${JSON.stringify(descendant+'.tmp')} ${JSON.stringify(descendant)}\nwait\n`);
