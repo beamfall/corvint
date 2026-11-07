@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,8 +32,9 @@ func TestCINV07501PermissionsArePremerge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := regexp.MustCompile(`(?m)^DOC_GATE_TARGETS := (.*)$`).FindStringSubmatch(string(b))
-	if m == nil || !strings.Contains(" "+m[1]+" ", " ci-least-privilege-check ") {
+	// SRG-V0-982: the list is a continuation, one target per line.
+	m := regexp.MustCompile(`(?m)^DOC_GATE_TARGETS := ((?:.*\\\n)*.*)$`).FindStringSubmatch(string(b))
+	if m == nil || !slices.Contains(strings.Fields(strings.ReplaceAll(m[1], "\\", " ")), "ci-least-privilege-check") {
 		t.Fatal("permission check is absent from the shared PR gates")
 	}
 }

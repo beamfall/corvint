@@ -7,28 +7,28 @@
       "command": "HEAVY_LOCK_DIR=/home/russell/lanes/.heavy-locks TMPDIR=/home/russell/.cache/corvint-tmp script/heavy.sh go test -count=1 -race -run 'TestCTWV07100|TestCALV0106|TestTCXV0977' ./internal/tasks/store/",
       "exitCode": 0,
       "result": "PASS",
-      "log": "store.log.gz",
+      "log": "store.log",
       "rawSha256": "295d98bc9422da357de8f068e1ee231f571855540e0dc2999ae202453418b190"
     },
     {
       "command": "HEAVY_LOCK_DIR=/home/russell/lanes/.heavy-locks TMPDIR=/home/russell/.cache/corvint-tmp script/heavy.sh go test -count=1 -run 'TestTCLV0710|TestTEAV07100|TestATRV0190' ./internal/tasks/cli/",
       "exitCode": 0,
       "result": "PASS",
-      "log": "cli.log.gz",
+      "log": "cli.log",
       "rawSha256": "c4f417ef3ca5ff345cd4880817e5dc2b97f0f25bbb7008613ab3004a24b404d4"
     },
     {
       "command": "make spec-requirements BASE=6c33df33bc5670131482f5263b410cb980580657 (staged specs; heavy.sh overrides as above)",
       "exitCode": 0,
       "result": "PASS",
-      "log": "spec.log.gz",
+      "log": "spec.log",
       "rawSha256": "44426810346f25c7645915c34fcd88cb011b2a41898e8f3788bae5ba3aa80b9c"
     },
     {
       "command": "make traceability-tests-check line-citations-check",
       "exitCode": 0,
       "result": "PASS",
-      "log": "doc-checks.log.gz",
+      "log": "doc-checks.log",
       "rawSha256": "7d6bb5e3b394557bd55cfa8f2082e943eec85216abc2522e6fb937d490273049"
     }
   ],
