@@ -28,15 +28,21 @@ for my $path (@paths) {
  next unless $path =~ /\.md$/ && !$seen{$path}++;
  next unless -e $path; # A worktree deletion has no Claim to validate.
  open my $fh, '<:encoding(UTF-8)', $path or die "$path: $!\n";
- my ($digest,$line)=(0,0);
- while(<$fh>) {
+ # LVT-V0-010: read the digest as script/gen-spec-requirements.sh does: the first
+ # "## Agent digest" heading, horizontal whitespace allowed around it, runs to the
+ # first blank line; each trimmed "- KEY: VALUE" line sets KEY, the last one wins.
+ my ($state,$line,$claim,$claimline)=(0,0);
+ while(my $text=<$fh>) {
   $line++;
-  if(/^##\s+Agent digest\s*$/) {$digest=1;next}
-  if(/^##\s/) {$digest=0}
-  next unless $digest && /^- Claim:\s*(.*?)\s*$/;
-  my $length=length($1);
-  if($length>160) {printf STDERR "%s:%d: Agent digest Claim is %d characters; limit 160; shorten it before staging (SRG-V0-763, LVT-V0-010)\n",$path,$line,$length;$failed=1}
+  $text =~ s/\r?\n\z//;
+  if(!$state) {$state=1 if $text =~ /^[^\S\n]*## Agent digest[^\S\n]*$/; next}
+  $text =~ s/\A\s+|\s+\z//g;
+  last if $text eq '';
+  next unless $text =~ s/\A- //;
+  my ($key,$value)=split /: /,$text,2;
+  ($claim,$claimline)=($value,$line) if $key eq 'Claim' && defined $value;
  }
+ if(defined $claim && length($claim)>160) {printf STDERR "%s:%d: Agent digest Claim is %d characters; limit 160; shorten it before staging (SRG-V0-763, LVT-V0-010)\n",$path,$claimline,length($claim);$failed=1}
  close $fh or die "$path: $!\n";
 }
 exit($failed ? 1 : 0);

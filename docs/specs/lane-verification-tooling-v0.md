@@ -60,7 +60,8 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   `search-failed`, and `generator-failed`.
 - `LVT-V0-005`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
   Host package version history MUST batch immutable blob reads without changing first-parent
-  field-change verdicts. Unreadable batches MUST fall back to the previous per-commit algorithm;
+  field-change verdicts. Its path inventory MUST include each merge's diff against every parent,
+  so a shipped path a merge resolution introduces is seen. Unreadable batches MUST fall back to the previous per-commit algorithm;
   an unbumped shipped change MUST still fail. Fixture Git spawns MUST drop by at least 50%
   against the same fixture suite using the baseline implementation.
 - `LVT-V0-006`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
@@ -94,7 +95,8 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   Dogfood finish static precheck binary selection is owned by `DCW-V0-731` as main amended it
   (V1-4406, V1-4466): this clause adds no selection rule of its own. Prechange impact failure
   MUST retain the failing command's path diagnostic. A cheap worktree spec-Claim check MUST name
-  file and line and reject Claims longer than 160 characters before generation.
+  file and line and reject Claims longer than 160 characters before generation, reading the digest
+  heading and Claim bullets with the generator's leading-whitespace and blank-line rules.
 
 ## Non-goals and authority
 

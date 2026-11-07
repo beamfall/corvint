@@ -318,7 +318,9 @@ if [ -n "$histories" ]; then
     trap 'exit 143' TERM
     prepare_histories() {
         mkdir -p "$histories/shipped" || return 1
-        git log --format= --name-only -z -- integrations protocol/integrations > "$histories/shipped-paths" || return 1
+        # -m lists each merge's diff against every parent, so a path a merge resolution
+        # introduces enters the inventory as the per-package log would find it (LVT-V0-005).
+        git log -m --format= --name-only -z -- integrations protocol/integrations > "$histories/shipped-paths" || return 1
         collect_histories=1 packages | LC_ALL=C sort -u > "$histories/paths" || return 1
         count=0
         : > "$histories/request"
