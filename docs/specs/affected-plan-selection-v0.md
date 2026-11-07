@@ -25,9 +25,9 @@ Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
 Lane selaudit (2026-11-06; the selection audit, build-log entry `2026-11-06-selection-audit`) adds
 AFP-V0-2610 here for the same reason. Lane selgo (2026-11-06; native tickets V1-4931, V1-4932,
-V1-4933, build-log entry `2026-11-06-selgo`) adds AFP-V0-2740 to AFP-V0-2747 here for the same
+V1-4933, build-log entry `2026-11-06-selgo`) adds AFP-V0-2740 to AFP-V0-2748 here for the same
 reason, including the rows that amend the CI selector (CIN-V0-860) and `corvint test` (STR-V0-064);
-its review fix round adds AFP-V0-2746 and AFP-V0-2747.
+its review fix rounds add AFP-V0-2746 to AFP-V0-2748.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -714,12 +714,42 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   and declares no read scope. A walker SHALL fail the check even when the record lists it: no
   selector selects it for a new entry, so a record entry would only hide a reader. Its routes are a
   declared read scope (AFP-V0-023) or the fixture marker. A unit that locates the root and names an
-  ancestor is a reader, because the unbounded-reader rule selects it on every change. Acceptance:
+  ancestor is a reader, because the unbounded-reader rule selects it on every change. AFP-V0-2748
+  keeps a walker refused whatever narrower literal or glob it also reads by. Acceptance:
   `TestRecordReadersMatchTheEntryNamespace_AFPV2747` (fails when `recordProbes` returns only its
   fixed probe) and `TestAFPV2747RecordRatchetMatchesTheEntryNamespace` (fails with the fixed probe
   alone, and when walkers are returned among readers); the repository check passes with the
   unchanged baseline record. Rollback: return only the fixed probe from `recordProbes` and return
   walkers among the readers.
+- **AFP-V0-2748:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;
+  review fix round 2, finding P1; amends AFP-V0-2747) A package whose literal names a proper
+  ancestor of a record directory below the root (`../docs`) SHALL stay a walker, and fail the check
+  even when the record lists it, unless the reader rules select it for every name of the entry
+  namespace. That holds in three cases:
+  - a token resolves to the record directory itself, or to the root or a proper ancestor of it from
+    which the package's literals join the rest of the way (AFP-V0-2746);
+  - a glob matches the directory or one of its ancestors, or matches the directory with its leading
+    components and admits every name of the namespace with its last one (`*`, `*.md`, `*.json` for
+    `.cem.json`), as `globCovers` decides over `path.Match` syntax;
+  - the package locates the root at run time (AFP-V0-2747).
+  A reader match through a narrower literal or glob never masks the walker. Such a match is a
+  fragment (`docs/build-log/f`), an entry name, or a glob constrained in the name
+  (`../docs/*/2026-*.md`, `[0-9a-f]*.cem.json`), and it selects the package for some entries only.
+  A walk of `../docs` still reads `docs/build-log/2027-entry.md`, for which no selector selects the
+  package. `gate-affected-select` has no glob reader and no walker classification, so the ratchet
+  decides this once for both selectors, neither of which selects such a package for that entry.
+  `globCovers` searches every rune class its pattern tells apart; to that end it adds each class
+  bound and the runes beside it to `globEntry`'s alphabet, which `globEntry` then uses too.
+  Failure mode: a package that walks `docs` and globs only some of its entries can no longer be
+  recorded; it needs a declared read scope (AFP-V0-023) or the fixture marker. Falsifier: a package
+  the check admits that names an ancestor of a record directory and that no selector selects for
+  some new entry. Acceptance: `TestRecordWalkerNotMaskedByNarrowerReads_AFPV2748` (fails when a
+  narrower read masks the walker), `TestAFPV2748RecordRatchetRefusesAMaskedWalker` (real Go source
+  that walks `../docs` and calls `filepath.Glob("../docs/*/2026-*.md")`, listed in the record; it
+  passes the check without the fix) and `TestRecordWalkerWithGlobSkippedByBothSelectors_AFPV2748`
+  (neither selector selects that package for `docs/build-log/2027-entry.md`, and it is a walker);
+  the repository check passes with the unchanged baseline record. Rollback: classify a walker with
+  any reader match as a reader again, dropping `coversRecord`, `globCoversRecord` and `globCovers`.
 
 ## Non-goals
 
@@ -837,6 +867,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2745 | `Graph.RecordReaders`, `namesRecordAncestor` in `internal/liveverify/affected/recordreaders.go`; `tools/unbounded-readers/records.go` and its call in `run`; `.corvint/record-readers.json` and its `notPlanner` entry in `tools/declaration-compat-check` | `TestAFPV2745RecordDirectoryReadersRatchet` in `tools/unbounded-readers/records_test.go`; the `RecordReaders` cases of `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743`; `make unbounded-readers-check` on the repository |
 | AFP-V0-2746 | `reachesRecord`, `recordAncestor`, `joinsComponents` and the record branch of `resolves` in `internal/liveverify/affected/readers.go`; `recordAncestor`, `heldComponents` and the `joins` pass of `resolvingReaders` in `internal/gateselect/readers.go` | `TestRecordEntryReadersJoinSeparateLiterals_AFPV2746` in `internal/liveverify/affected/records_test.go` (fails with the join removed from `reachesRecord`); `TestRecordEntryJoinedReadersSelectedByBothSelectors_AFPV2746` in `internal/gateselect/records_afpv2746_test.go` (real Go source; fails with the join removed from either selector); the PR #106 replay in build-log entry `2026-11-07-selgo-fix1` |
 | AFP-V0-2747 | `Graph.RecordReaders`, `recordProbes`, `globEntry`, `globItems` and `suffixPrefix` in `internal/liveverify/affected/recordreaders.go`; `recordDirectories` and the walker refusal of `checkRecordReaders` in `tools/unbounded-readers/records.go` | `TestRecordReadersMatchTheEntryNamespace_AFPV2747` in `internal/liveverify/affected/records_test.go` (fails with `recordProbes` reduced to its fixed probe); `TestAFPV2747RecordRatchetMatchesTheEntryNamespace` in `tools/unbounded-readers/records_test.go` (fails with the fixed probe alone and with walkers admitted); `make unbounded-readers-check` on the repository |
+| AFP-V0-2748 | `Graph.RecordReaders`, `coversRecord`, `globCoversRecord`, `globCovers`, `globAlphabet` and `classBounds` in `internal/liveverify/affected/recordreaders.go` | `TestRecordWalkerNotMaskedByNarrowerReads_AFPV2748` in `internal/liveverify/affected/records_test.go` (fails with a narrower read masking the walker); `TestAFPV2748RecordRatchetRefusesAMaskedWalker` in `tools/unbounded-readers/records_test.go` (fails without the fix); `TestRecordWalkerWithGlobSkippedByBothSelectors_AFPV2748` in `internal/gateselect/records_afpv2748_test.go`; `make unbounded-readers-check` on the repository |
 | AFP-V0-2610 | `deletedGoSource` (was `deletedGoTest`) in `internal/liveverify/affected/deletedtests.go` and its call in `seed` (`select.go`); `goSourceRule` in `structure.go` | `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610` and the amended `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (fails before the change: `UNINDEXED_SOURCE_PATH provider/extra.go`); amended to the new rule: `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340` (no unindexed entry), the two AFP-V0-191 tests in `golang/unobserved_test.go` and the Go case of `TestSeamWidensRatherThanNarrowingOnUnknownInput` (a new unindexed file is written to disk), and the two abstention rows of `TestUseCaseHostileChangeConsequence` (a directory left with no package); the PR #114 replay and a one-file deletion replay in build-log entry `2026-11-06-selection-audit` |
 
 ## Rollback
@@ -876,4 +907,5 @@ branch of `resolves` and make `resolvedReaders` return `resolvedEvidence`. For A
 `tools/unbounded-readers/records.go`, its call and `.corvint/record-readers.json`. For AFP-V0-2746,
 make `reachesRecord` return `resolvesRecord` and drop the `joins` pass of `resolvingReaders`; joined
 readers of a record entry are dropped again. For AFP-V0-2747, return only the fixed probe from
-`recordProbes` and return walkers among the readers.
+`recordProbes` and return walkers among the readers. For AFP-V0-2748, classify a walker with any
+reader match as a reader and drop `coversRecord`, `globCoversRecord` and `globCovers`.
