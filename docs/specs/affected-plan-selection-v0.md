@@ -622,8 +622,8 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   and SHALL add to `checks` the module's own suite as a check still required and not run
   (`sessiontest.ModuleCheck`: `go -C <directory> test ./...` and the reason). The `ci` profile
   launches no `go-module:` unit, because its confined runner is not qualified for a nested module;
-  CI runs that module's suite in jobs of their own outside the Go shards (`go-static` runs its
-  tests and vet; `go-interop` its formatting and Windows build). A malformed detail and every other
+  CI runs each nested module's suite in a job of its own outside the Go shards (`go-static` runs
+  the tests and vet of `interop/cem01-go` and `tools/local-authority`, CIN-V0-008, AFP-V0-380). A malformed detail and every other
   unknown keep FULL; the local profile is unchanged. Failure mode: a CI workflow that stopped
   running the module's suite would leave the check unrun; the check line names it. Falsifier: a
   `ci` dry run over a plan whose only non-allowlisted entry is a well-formed module frontier that is

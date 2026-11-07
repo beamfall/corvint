@@ -123,10 +123,9 @@ func BinaryConsumerCheck(file string) string {
 }
 
 // ModuleCheck is the still-required check that names a nested module's own
-// suite on the ci profile (AFP-V0-2742): CI runs that module's tests in a job
-// of their own (go-static; formatting and the Windows build in go-interop),
-// never in a Go shard, so `corvint test --profile ci` neither runs it nor
-// widens to FULL for it.
+// suite on the ci profile (AFP-V0-2742): CI runs each nested module's tests
+// and vet in go-static (CIN-V0-008), never in a Go shard, so
+// `corvint test --profile ci` neither runs it nor widens to FULL for it.
 func ModuleCheck(directory string) string {
 	return "go -C " + directory + " test ./... (go:unobserved-module: a nested Go module the root does not build; CI runs its own suite in a job outside the Go shards, so corvint test --profile ci does not run it)"
 }
