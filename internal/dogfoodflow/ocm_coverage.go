@@ -485,3 +485,7 @@ func rowRangeNames(line, id string) bool {
 	}
 	return false
 }
+
+// DCW-V0-7402: OCM linkage and change traceability have distinct populations
+// and different witnesses; a test/table trace does not create an OCM link.
+const countUniverseNote = "dogfood-check: NOTE count-universes: OCM total/linked counts all obligations in the declared intents and explicit CEM links; change-requirements/change-traced counts cited or edited requirements and test/table traces. These counts need not agree."

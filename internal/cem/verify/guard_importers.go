@@ -99,10 +99,7 @@ func (index *importIndex) of(dir string) []string {
 	if index.module == "" {
 		return nil
 	}
-	imported := index.module
-	if dir != "." {
-		imported += "/" + dir
-	}
+	imported := index.packagePath(dir)
 	var dirs []string
 	for _, importer := range index.importers[imported] {
 		if importer != dir && len(dirs) < MaxGuardImporterDirectories {
@@ -122,4 +119,12 @@ func exportedNames(reached map[string]bool) map[string]bool {
 		}
 	}
 	return exported
+}
+
+// packagePath is the root module's exact import identity for one directory.
+func (index *importIndex) packagePath(dir string) string {
+	if dir == "." {
+		return index.module
+	}
+	return index.module + "/" + dir
 }

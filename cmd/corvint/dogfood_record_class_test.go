@@ -36,7 +36,7 @@ func TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals(t *testing.T) {
 		}
 	}
 	inputs := []string{"DOGFOOD_TASK=Record the fixture.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || strings.Contains(stderr, "citation-plan-uniform") || strings.Contains(stderr, "invalid-requirements-section") {
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 3 || strings.Contains(stderr, "citation-plan-uniform") || strings.Contains(stderr, "invalid-requirements-section") {
 		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")

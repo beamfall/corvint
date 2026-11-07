@@ -356,6 +356,22 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	return dogfoodflow.Check(ctx, options, stdout, stderr)
 }
 
+// staleBinaryRecovery is the rest of a self-binary-stale refusal's recovery
+// (DCW-V0-2140, V1-4406): pointing CORVINT_BIN at a current-tree build always
+// works; unsetting CORVINT_BIN is named only when it is set, and the static
+// pre-check, which may have run an installed corvint, also names
+// DOGFOOD_STATIC_PRECHECK=0.
+func staleBinaryRecovery(corvintBinSet, static bool) string {
+	recovery := "; or set CORVINT_BIN to a build of this tree (go build -o PATH ./cmd/corvint)"
+	if corvintBinSet {
+		recovery += ", or unset CORVINT_BIN to use the wrapper's current-tree build"
+	}
+	if static {
+		recovery += ", or skip this static pre-check with DOGFOOD_STATIC_PRECHECK=0 (the admitted inputs-check still runs every check with the tree's own build)"
+	}
+	return recovery
+}
+
 // dogfoodStaleBinary refuses a dogfood flow whose own binary, or a binary it
 // would run for the change steps or as a verifier, is stale for root, so no
 // change evidence is bound or checked by code that current source does not
@@ -365,10 +381,11 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 // operator's CORVINT_BIN can be.
 func dogfoodStaleBinary(ctx context.Context, root, self string, flags map[string]string) (string, []string) {
 	var notes []string
+	recovery := staleBinaryRecovery(os.Getenv("CORVINT_BIN") != "", flags["--static"] == "yes")
 	judge := func(label string, freshness binaryFreshness) string {
 		switch freshness.Code {
 		case selfBinaryStaleCode:
-			return selfBinaryStaleCode + " " + label + ": " + freshness.Detail + "; or unset CORVINT_BIN to use the current-tree build"
+			return selfBinaryStaleCode + " " + label + ": " + freshness.Detail + recovery
 		case selfBinaryUnverifiedCode:
 			notes = append(notes, selfBinaryUnverifiedCode+" "+label+": "+freshness.Detail)
 		}

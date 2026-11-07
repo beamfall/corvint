@@ -73,17 +73,3 @@ func spanBytes(blob []byte, span string) []byte {
 	end, _ := strconv.Atoi(to)
 	return blob[start:end]
 }
-
-// carriedForward proposes, for an owed hunk --refresh carried no row to, the
-// first cite row carried to another hunk of the same file, labelled carried
-// forward (DCW-V0-842); "" when that file carries no cite row.
-func (p *proposal) carriedForward(hunk proposedHunk, ordinal string) (string, string) {
-	carried, ok := p.carriedFiles[hunk.path]
-	if !ok {
-		return "", ""
-	}
-	fields := strings.Split(carried, "\t")
-	p.proposals[ordinal] = true
-	p.reasons[ordinal] = "carried forward: --refresh carried no row to this hunk, and this is the first citation it carried to another hunk of " + hunk.path + "; confirm the new hunk depends on or implements it (DCW-V0-842)"
-	return ordinal + "\t" + carried, fields[0] + ":" + fields[1]
-}

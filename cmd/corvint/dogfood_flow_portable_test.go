@@ -37,10 +37,13 @@ func dropGuardingNote(stderr string) string {
 		// DCW-V0-112 tier warnings and the DCW-V0-165 and DCW-V0-388 notes are asserted
 		// where they are the subject.
 		// The DCW-V0-342 closing PASS line is asserted in
-		// TestDogfoodDailyPathRunsFromBinaryInForeignRepository.
+		// TestDogfoodDailyPathRunsFromBinaryInForeignRepository. A fixture repository
+		// does not gitignore the SOL-V0-001 ledger, so its refusal note is asserted in
+		// TestChangeSOLV0001ReportsObserveRefusal instead.
 		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") && !strings.HasPrefix(line, "dogfood-check: WARN tier-below-anchored ") &&
 			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-unanchorable ") &&
-			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-same-path ") && !strings.HasPrefix(line, "dogfood-change: PASS complete ") {
+			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-same-path ") && !strings.HasPrefix(line, "dogfood-change: PASS complete ") &&
+			!strings.HasPrefix(line, "dogfood-change: NOTE self-observation rows not recorded: ") {
 			kept.WriteString(line)
 		}
 	}
@@ -208,14 +211,18 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	// every input supplied, and the real recorder, which runs last, refuses it.
 	code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 	report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
-	if code != 1 || !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || !strings.Contains(string(report), `"complete": false`) {
+	// DCW-V0-2143: that expected first pass is PENDING, exit 3, not FAIL.
+	if code != 3 || !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || !strings.Contains(string(report), `"complete": false`) ||
+		!strings.Contains(stderr, "dogfood-change: PENDING commit-sidecar base="+base) || strings.Contains(stderr, "FAIL not-complete") ||
+		!strings.Contains(stderr, "  fix: commit .corvint/change.cem.json, then rerun: git add .corvint/change.cem.json && git commit -m 'chore: bind change evidence' && make dogfood-change BASE="+base+"\n") {
 		t.Fatalf("untracked sidecar exit=%d stderr=%s report=%s", code, stderr, report)
 	}
 	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "?? .corvint/change.cem.json" {
 		t.Fatalf("first pass status %q", status)
 	}
 	// V1-0261: the check's fix lines name the subverb an adopter runs.
-	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 2 || !strings.HasSuffix(stderr, "\n  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n") {
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 2 || !strings.Contains(stderr, "\n  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n") ||
+		!strings.HasSuffix(stderr, "so this worktree qualifies once they are gone and no fresh checkout is needed (DCW-V0-2144)\n") {
 		t.Fatalf("dirty check exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
@@ -236,7 +243,8 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	detail := strings.TrimSpace(cemGit(t, root, "rev-parse", "--absolute-git-dir")) + "/corvint/dogfood-check.stdout"
 	summary := "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review change-requirements=1 change-traced=1 change-untraced=0 report=.corvint/dogfood-report.json detail=" + detail
-	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
+	// DCW-V0-7402: the declared intent adds the count-universe note.
+	if code != 0 || len(lines) != 3 || lines[0] != summary || lines[1] != countUniverseNote || lines[2] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	// DCW-V0-112 and DCW-V0-165: the plan's cited hunk sits below anchored,
@@ -258,7 +266,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 		t.Fatalf("nested root exit=%d stderr=%s", code, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)
-	if code != 0 || stdout != summary+"\ndogfood-check: PASS\ndogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n" {
+	if code != 0 || stdout != summary+"\n"+countUniverseNote+"\ndogfood-check: PASS\ndogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n" {
 		t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	cemGit(t, root, "cat-file", "-e", "HEAD:.corvint/changes/"+bind+".cem.json")
@@ -283,7 +291,7 @@ func TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals(t *testing.T) {
 		}
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || strings.Contains(stderr, "cem-cite") || strings.Contains(stderr, "cem-status") {
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 3 || !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || strings.Contains(stderr, "cem-cite") || strings.Contains(stderr, "cem-status") {
 		t.Fatalf("untracked sidecar exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
@@ -398,7 +406,7 @@ func TestDogfoodChangeRegeneratesAMapTheNextFixCommitOutdates(t *testing.T) {
 		}
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 {
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 3 {
 		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 	}
 	cemWrite(t, root, "fixture/fixture.go", "package fixture\nfunc Answer() int { return 1 + 1 }\n")
@@ -434,7 +442,8 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 		code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 		var cem struct{ Evidence []any }
 		data, _ := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json"))
-		if err := json.Unmarshal(data, &cem); err != nil || code != 1 {
+		// An incomplete pass: PENDING (3) when only the sidecar is open (DCW-V0-2143), else FAIL (1).
+		if err := json.Unmarshal(data, &cem); err != nil || code != 1 && code != 3 {
 			t.Fatalf("pass exit=%d stderr=%s %v", code, stderr, err)
 		}
 		return stderr, len(cem.Evidence)
@@ -471,7 +480,7 @@ func TestDogfoodChangeKeepsTheEncodingOfACommittedMapItCitesNothingInto(t *testi
 		}
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 {
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 3 {
 		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
@@ -707,7 +716,7 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 			if produced {
 				note, row = "", `{"name": "coordination-time-impact", "status": "PRODUCED", "reason": "none"}`
 			}
-			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "coordination-time-impact") != !produced {
+			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 3 || !strings.HasPrefix(dropGuardingNote(stderr), note) || strings.Contains(dropGuardingNote(stderr), "coordination-time-impact") != !produced {
 				t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 			}
 			cemGit(t, root, "add", ".corvint/change.cem.json")

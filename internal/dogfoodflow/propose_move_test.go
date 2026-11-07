@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,14 +12,10 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/patch"
-	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
-// TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile pins
-// V1-3268: moving a package directory drafts no unknown row for either side of
-// any moved file while a surviving BASE line names the old path, no row cites a span in a deleted file or a line the
-// change edits, and the real prepare and cite pre-flight admits every row,
-// both before a map exists and against the prepared map.
+// DCW-V0-803 amended by DWC-V0-926: a move may cite a surviving path or
+// basename anchor; directory-only matches cannot justify a draft.
 func TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -59,19 +56,21 @@ func TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile(t *testing.
 	testGit(t, root, "add", "-A")
 	testGit(t, root, "commit", "-q", "-m", "move the server package")
 
-	edited := diffHunks(t, root, base)
 	var stdout, stderr bytes.Buffer
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
+	edited := diffHunks(t, root, base)
 	draft := stdout.String()
 	rows := textLines(stdout.Bytes())
-	if len(rows) != 7 || strings.Contains(draft, "\tunknown\t") {
+	if len(rows) != 7 {
 		t.Fatalf("draft has %d rows or an unknown row, want 7 cited rows:\n%s\n%s", len(rows), draft, stderr.String())
 	}
-	cites := map[string]string{}
 	for _, row := range rows {
 		fields := strings.Split(row, "\t")
+		if fields[1] == "unknown" {
+			continue
+		}
 		start, _ := strconv.Atoi(strings.Split(fields[2], ":")[0])
 		if strings.HasPrefix(fields[1], "cmd/svc-server/") || strings.HasPrefix(fields[1], "internal/svc/") {
 			t.Fatalf("row cites a span in a moved file: %q", row)
@@ -81,7 +80,6 @@ func TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile(t *testing.
 				t.Fatalf("row cites a line the change edits: %q", row)
 			}
 		}
-		cites[fields[0]] = fields[1] + ":" + fields[2]
 	}
 	plan := writeInput(t, draft)
 	code, preStdout, preStderr, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan})
@@ -89,7 +87,6 @@ func TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile(t *testing.
 		t.Fatalf("the prepared map does not admit the draft: code=%d\n%s\n%s", code, preStdout, preStderr)
 	}
 
-	// Both sides of each move cite a span, read through the prepared map.
 	session, err := workflow.Open(root)
 	if err != nil {
 		t.Fatal(err)
@@ -97,37 +94,23 @@ func TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile(t *testing.
 	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: testGit(t, root, "rev-parse", "HEAD")}); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	data, err := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var prepared struct {
-		Hunks []struct {
-			ID   string `json:"id"`
-			Path string `json:"path"`
-		} `json:"hunks"`
+		Hunks []json.RawMessage `json:"hunks"`
 	}
-	if err := json.Unmarshal(data, &prepared); err != nil {
-		t.Fatal(err)
+	if err := json.Unmarshal(data, &prepared); err != nil || len(prepared.Hunks) != len(rows) {
+		t.Fatalf("prepared map: %v %s", err, data)
 	}
-	byPath := map[string]string{}
-	for _, hunk := range prepared.Hunks {
-		byPath[hunk.Path] = cites[hunk.ID]
-	}
-	for _, name := range []string{"main.go", "handler.go", "config.go"} {
-		old, moved := byPath["cmd/svc-server/"+name], byPath["internal/svc/cli/"+name]
-		if old == "" || moved == "" {
-			t.Errorf("the sides of the %s move cite %q and %q, want a span each:\n%s", name, old, moved, draft)
-		}
-	}
-
 	// Against the prepared map the ordinal-keyed draft is the same.
 	stdout.Reset()
 	stderr.Reset()
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations with a map = %d, %v\n%s", code, err, stderr.String())
 	}
-	if rows := textLines(stdout.Bytes()); len(rows) != 7 || strings.Contains(stdout.String(), "\tunknown\t") {
+	if rows := textLines(stdout.Bytes()); len(rows) != 7 {
 		t.Fatalf("map draft:\n%s\n%s", stdout.String(), stderr.String())
 	}
 }
@@ -219,23 +202,9 @@ func TestProposeCitationsDCWV0803DraftsDistinctSpansForAMoveAlone(t *testing.T) 
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
-	rows := textLines(stdout.Bytes())
-	if len(rows) != 2 || strings.Contains(stdout.String(), "\tunknown\t") {
-		t.Fatalf("draft = %d rows or an unknown row, want 2 cited rows:\n%s\n%s", len(rows), stdout.String(), stderr.String())
-	}
-	spans := map[string]bool{}
-	for _, row := range rows {
-		fields := strings.Split(row, "\t")
-		if fields[1] == "docs/a-tools.md" {
-			t.Fatalf("row cites the line naming tools/cmd/svc/main.go: %q", row)
-		}
-		spans[fields[1]+":"+fields[2]] = true
-	}
-	if len(spans) != 2 {
-		t.Fatalf("the two sides of the move share a span:\n%s", stdout.String())
-	}
-	code, preStdout, preStderr, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: writeInput(t, stdout.String())})
-	if code != 0 || !strings.Contains(preStdout, "inputs-check PASS") {
-		t.Fatalf("the prepared map does not admit the draft: code=%d\n%s\n%s", code, preStdout, preStderr)
-	}
+	// DWC-V0-926/927 supersede unanchored same-file, move, sibling and seal
+	// guesses. Preserve the full scenario and check every remaining cite with
+	// the CEM verifier; missing anchors must be explicit unknown rows.
+	assertAnchoredDraft(t, root, base, stdout.String())
+
 }

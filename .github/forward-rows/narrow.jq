@@ -2,7 +2,9 @@
 # AFP-V0-098: one shard's corvint-pr-narrowing/0 decision. A pull-request shard
 # narrows (mode NARROWED) only when every condition holds; otherwise it runs the
 # full shard (mode FULL) and the record names every reason:
-#   the base branch is main, the change touches no .github/ path, main has a
+#   the base branch is main, the change touches no trusted narrowing input under
+#   .github/ (AFP-V0-2720: github-guard.sh names them; --arg githubInputs lists
+#   the changed ones for the record), main has a
 #   merge-queue rule, the deciding driver's selection (corvint-pr-tests --mode
 #   plan) is complete and names this base, head and target, the shadow
 #   `corvint test --dry-run` of the same (base, head) over the whole universe is
@@ -58,8 +60,8 @@ def hexval: explode | map(if . >= 97 then . - 87 else . - 48 end) | reduce .[] a
 | (if ($Rraw | type) == "array" and all($Rraw[]; type == "string") then $Rraw | unique else null end) as $R
 | (if $D != null and $S != null then $S - $D - ($R // []) else [] end) as $omitted
 | [ (if $baseRef != "main" then "the base branch is \($baseRef), not main" else empty end),
-    (if $github == "1" then "the change touches .github/"
-     elif $github != "0" then "the change set is unreadable, so a .github/ change cannot be excluded" else empty end),
+    (if $github == "1" then "the change touches .github/ narrowing inputs (AFP-V0-2720)" + (($ARGS.named.githubInputs // "") | if length > 0 then ": " + . else "" end)
+     elif $github != "0" then "the change set is unreadable, so a .github/ change to the narrowing inputs cannot be excluded" else empty end),
     (if $mergeQueue == "0" then "main has no merge-queue rule"
      elif $mergeQueue != "1" then "the rules of main are unreadable" else empty end),
     (if ($base | hex40 | not) or ($head | hex40 | not) or ($target | hex40 | not) then "the base, head or target is not a full commit id" else empty end),
@@ -111,6 +113,7 @@ def hexval: explode | map(if . >= 97 then . - 87 else . - 48 end) | reduce .[] a
    shadowScope: ($s.scope? // null),
    omitted: $omitted[0:50],
    shardPackages: ($shardSet | length),
+   githubInputs: [(($ARGS.named.githubInputs // "") | split(", ")[] | select(length > 0))],
    selected: (if $mode == "NARROWED" then $sel else [] end),
    executed: $executed,
    skipped: (if $mode == "NARROWED" then $shardSet - $D - $R else [] end),

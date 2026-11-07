@@ -23,6 +23,9 @@ V1-4281) adds AFP-V0-2400 to AFP-V0-2406 here for the same reason; see build-log
 `2026-11-03-selbugs-selection-correctness`.
 Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
+Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
+build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
+to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -549,6 +552,164 @@ measure. None of them drops a unit the change can reach.
   removing or changing a plugin the change does not involve SHALL leave every other byte of the
   plan unchanged but the graph digest and the exclusion universe that names it.
 
+### Live test tier (V1-4815)
+
+- **AFP-V0-2700:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
+  A Go test that reads the live repository at HEAD or builds release binaries MAY join the live
+  test tier by calling `testsupport.RequireLiveTier(t)` as its first statement. The helper SHALL
+  run the test by default, and SHALL skip it, naming AFP-V0-2700 and the job that runs it, only when
+  the environment holds exactly `CORVINT_SKIP_LIVE_TIER=1` and the test binary was built without the
+  `live` build tag (a tagged binary always runs the tier). Every run that does not set the variable
+  (local `go test`, `corvint test`, the consumers of `.github/cishards/test-commands.json`, `make
+  gate`, batch-precheck and nightly gates) therefore runs the tier, and a change that breaks a live
+  test fails there, before the merge queue (V1-4923). A live-tier test SHALL keep passing when run;
+  the tier changes where it runs, never what it asserts. A test that selection or a gate names as always selected, such as
+  `TestOwnershipAuditRatchet_AZU_V0_002` (AZU-V0-002), SHALL NOT join the tier.
+- **AFP-V0-2701:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
+  The tier SHALL be discovered from source, never listed by hand: `cishards.LiveTests` lists each
+  top-level `TestXxx` in a tracked root-module `_test.go` file (outside `testdata`, `vendor`,
+  hidden and `_` directories and nested modules) whose body calls `RequireLiveTier` through a
+  selector, grouped by package. `make live-test` runs `tools/live-test-run`, which runs each
+  package's tier with `go test -tags live -count=1 -timeout T -run '^(A|B)$'`, exits 1 on any
+  failure and 2 on an unreadable or empty tier. `live-test` is not a `GATE_STEPS` entry: `make gate`
+  and the nightly release gates (which run `make -k gate`) already run the tier through `go-test`.
+  `script/batch-precheck.sh` runs `make live-test` as an extra target before every batch push.
+- **AFP-V0-2702:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
+  PR shards SHALL exclude the tier: the Go test step of the `go-product-shard` job in
+  `.github/workflows/ci.yml` sets `CORVINT_SKIP_LIVE_TIER: "1"`, no other line of the workflow or of
+  `.github/cishards/test-commands.json` sets it, and no `go test` line passes a `-tags` value naming
+  `live`, so every live test skips in the shards and runs everywhere else. The
+  merge queue SHALL run the tier in a `go-live` job (`make live-test`) on `merge_group` events,
+  which the required `go-product` result requires to succeed there and to be skipped on other
+  events. The job runs without the race detector, which the PR shards used for these tests
+  before; a race in a live-tier test surfaces only where `-race` runs it. The workflow half takes effect only after the owner's ci-control-plane review of its own
+  PR; until then PR shards run the tier as before.
+
+### Narrowing-input guard and sized shard matrix (V1-4930, V1-4934)
+
+- **AFP-V0-2720:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4930;
+  amends AFP-V0-098 and AFP-V0-933) `narrow.sh` SHALL force FULL for a `.github/` change only when
+  the range BASE..TESTED_MERGE changes a trusted narrowing input: a path the trusted narrowing reads
+  or executes. `github-guard.sh`, beside `narrow.sh` in the trusted checkout (the
+  `CORVINT_PR_TOOL_SOURCE` tools of a pull request, the queue base's `forward-rows` of a merge-queue
+  entry), names the inputs: `.github/forward-rows`, `.github/cishards`, `.github/testconfine`,
+  `.github/actions`, `.github/workflows/ci-forward-bar.yml`,
+  `.github/workflows/ci-control-plane.yml`, and the narrowing sections of
+  `.github/workflows/ci.yml` (AFP-V0-2721). It reads the range with
+  `git diff --name-only -z --no-renames` over those pathspecs (raw NUL-separated paths, so a
+  non-ASCII path is never display-quoted away, and both sides of a rename), prints `0`, or `1`
+  followed by the changed inputs one per line, or `unreadable` and its reason, and exits 0 in every
+  case. `narrow.sh` records `0` as no `.github/` reason; `1` as the FULL reason "the change touches
+  .github/ narrowing inputs (AFP-V0-2720): INPUTS", the first five inputs also in the record's
+  `githubInputs` list; and anything else (`unreadable`, a missing guard, a guard that exits
+  non-zero, a base that was not proven) as the unreadable FULL reason, as before. Every other
+  `.github/` path (another workflow, `ci-cadence`, `macos`, `flake-report`, `nightly-signal`,
+  `gate-reuse`, `qualifications`, a document) does not force FULL: such a change narrows when every
+  other AFP-V0-098 condition holds (a MET verdict, the driver a superset of the shadow). The tested
+  tree's copies of the guard, of its list and of ci.yml are never read for the decision: the list
+  lives in the trusted copy, and the compare reads Git objects of both revisions.
+- **AFP-V0-2721:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4930)
+  For `.github/workflows/ci.yml` the guard SHALL compare sections, not the file. When
+  `git diff --quiet` says the file changed, it reads both revisions with `git show` and compares,
+  for each of `docs-plan`, `narrowing-verdict`, `shard-plan`, `go-product-shard`,
+  `ci-tested-tree-record`, `ci-narrowed-tree-record` and `go-product`, the job's block (its
+  two-space key line to the next two-space key or top-level key), and, as the section `-`, the text
+  outside the members of `jobs:` (every top-level key: `on`, `concurrency`, `permissions`, `env`),
+  naming each differing section as `.github/workflows/ci.yml (NAME)`; another job's block may
+  change, be added or be deleted. It fails closed: a YAML anchor (`&name`) in either revision is a
+  change (`(a YAML anchor)`), since an anchor lets one block rewrite another; a `jobs:` key that is
+  not a plain block mapping compares the whole file; a job key not written as exactly two spaces,
+  the name and a colon leaves its lines in the preceding section, so a guarded block that moves or
+  vanishes differs from the base; a deleted or renamed ci.yml compares as empty; an unreadable base
+  file is `unreadable`.
+- **AFP-V0-2722:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4930)
+  Fault-injection evidence. Tests SHALL hold, through the real `narrow.sh`, `github-guard.sh` and
+  git over a repository, that a pull request that edits `narrow.sh`, one that edits the
+  `test-confine` wrapper and one that edits the selection line of the `go-product-shard` tests
+  step each record FULL naming that input as the one `.github/` reason, and that one that adds an
+  unrelated workflow, one that edits `ci-cadence` data and a document, and one that edits another
+  job of ci.yml each record NARROWED with an empty `githubInputs`. The merge-queue path
+  (`mq-narrow.sh`, then the same `narrow.sh`) applies the same guard over the queue range.
+- **AFP-V0-2723:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934)
+  `cishards.Size` (`SizeFrom`) SHALL return the fewest shards from `min` to `max` whose AFP-V0-590
+  balanced placement of the selection (`SelectFromParallel`, at the shards' `go test -p`) keeps
+  every shard's predicted wall time (the AFP-V0-2181 `Wall` over the parallelism) within a budget
+  in milliseconds, or within the longest unit of the `max`-shard placement when that unit alone
+  exceeds the budget (a whole package no slice file splits cannot be brought under the budget by
+  any count; a split package's slices are its units, so a count too small to split it is not
+  accepted at the whole package's cost); `max` when no count does; `min` for a selection that
+  names no package of the universe; and `max` for a cost table the placement would discard, so a
+  job is never traded on an unpriced guess. The helper takes `--size-budget-ms MS` with
+  `--select FILE` (`--min-shards N`, default `MinNarrowedShards` = 2; `--shards` as the maximum;
+  `--parallel`) and prints the count alone; a refusal is an error, never a count. The workflow
+  passes `DefaultWallBudgetMs`, 400 s, the AFP-V0-060 slice bound, so a sized shard is never
+  planned longer than the longest slice a full shard runs; the floor of two bounds the fallback
+  (half the suite at the shards' parallelism when every shard's own gate records FULL).
+- **AFP-V0-2724:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934;
+  amends AFP-V0-590 (4) and AFP-V0-591) The `shard-plan` job of `.github/workflows/ci.yml` SHALL
+  size the `go-product-shard` matrix of a pull request before any shard starts. It runs only for a
+  same-repository `pull_request` with `CORVINT_PR_NARROWING` on and a MET verdict, and it needs only
+  `narrowing-verdict`, never `docs-plan`, so its checkout, builds and narrowing run beside docs-plan
+  rather than after it. It reads no docs-plan output: on a DOCS or REUSE decision no consumer reads
+  its outputs (`go-product-shard` does not start, `go-product`'s AFP-V0-591 guard requires no
+  marker and `ci-narrowed-tree-record` does not run), so its count is unused there. It resolves and builds the trusted tools as a shard does (`pin-main`,
+  the pinned planner, selector, driver and shadow, `ci-shards` and `test-confine` from the tested
+  checkout) and, after `pin-lag.sh`, runs the trusted `shard-plan.sh` from the
+  `CORVINT_PR_TOOL_SOURCE` checkout. `shard-plan.sh` runs `narrow.sh` beside it once, as shard 0 of
+  `FULL_SHARDS` (16) with every input a shard's gate gets, and only on a NARROWED record sizes the
+  record's `selected` with `ci-shards --shards FULL_SHARDS --min-shards MIN_SHARDS (2)
+  --size-budget-ms WALL_BUDGET_MS (400000) --parallel SHARD_TEST_P (4)`; it writes the step
+  outputs `count` and `matrix` (the JSON list `[0, …, count-1]`), keeps `FULL_SHARDS` for a FULL
+  decision, a missing or unreadable record or selection, a sizing failure and a count outside
+  1..FULL_SHARDS, and never fails the job. The job's outputs default to sixteen on a failed step or
+  a skipped job, and `go-product-shard` takes
+  `shard: fromJSON(needs.shard-plan.outputs.matrix || '[0, …, 15]')`, so a `merge_group` entry and
+  a `main` push keep sixteen shards. `SHARDS` stays `strategy.job-total` in every shard step, so the
+  complete-universe partition (AFP-V0-022), the balanced placement (AFP-V0-590), each record and
+  each coverage marker name the sized count, and `go-product`'s AFP-V0-591 guard and
+  `ci-narrowed-tree-record`'s `shards=` read `needs.shard-plan.outputs.count || '16'`. The shards
+  decide for themselves: a shard whose own gate records FULL runs its complete-universe partition
+  over the sized matrix, so no package is lost and the superset rule is unchanged; the plan job's
+  own record is retained as `ci-shard-plan`, never as `ci-narrowing-*`. The narrowing pins
+  (`CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE`, `CORVINT_PR_SAMPLE_K`,
+  `CORVINT_PR_SAMPLE_SEED`) move to the workflow `env`, which both jobs read unchanged. Wall-clock
+  budget: a sized shard is planned within 400 s of predicted test wall time (or its longest unsplit
+  unit), the bound a full shard's slices run under, plus the shard's fixed setup (about 110 s
+  measured on run 42212454082). The plan job (about 80 s: the median of the same steps in the
+  sixteen shards of that run, 56 s to 89 s) starts when `narrowing-verdict` ends (17 s into that
+  run) and runs beside docs-plan (which ended at 72 s), so the first shard starts at the later of
+  docs-plan and narrowing-verdict plus the plan job: about 100 s into the run, at most about 110 s,
+  instead of 72 s unsized. A sized run with the same predicted longest shard therefore finishes
+  about 30 s later than the unsized run (650 s on that run), in exchange for its fewer jobs; a plan
+  job that waited for docs-plan would start the first shard at about 154 s.
+- **AFP-V0-2725:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934;
+  amends AFP-V0-099 and AFP-V0-734) Consumers SHALL accept the selection run's own shard count.
+  `row.jq` admits one count `$m`, named by every readable selection document and narrowing record
+  of the selection run, when it equals the full matrix `$n` or a record with that count says
+  NARROWED; the narrowing records and selection documents then validate against `$m` and must cover
+  shards 0..`$m`-1, a pull-request row's outcomes take `$m` and a queue row's outcomes the full queue
+  run's `$n`, and the row records `selectionShards`. Any other count fails the shard-count shape, as
+  before. `tools/ci-reuse-plan` admits a narrowed record (`corvint-ci-tested-tree/2`) of any count
+  from 1 to 64 when every `go-product-shard (i)` job of that count, `docs-plan`, `narrowing-verdict`
+  and `go-product` passed, and its REUSE decision names that count in `shards` with one record per
+  shard; a full record still needs the asked count. The docs-plan REUSE step accepts a decision
+  whose `records` length equals its `shards`, and whose `shards` equals `REUSE_SHARDS` unless the
+  scope is NARROWED.
+- **AFP-V0-2726:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934)
+  Every isolated helper build in `.github/workflows/*.yml` (a run step that sets a variable to a
+  `$RUNNER_TEMP/...` module directory, copies `.github/cishards/` or `.github/testconfine/` files
+  into it with `cp ... "$VAR/"` and `cp ... "$VAR/cmd/"`, and writes its `go.mod` with `printf`)
+  SHALL copy every file its packages and their `//go:embed` directives need. A Go test in
+  `.github/cishards` reads every workflow, attributes every `cp .github/cishards/` and
+  `cp .github/testconfine/` line to such a module (an unattributed one fails), replays each
+  distinct module from the checkout into a temporary directory, checks that every `//go:embed`
+  pattern of every copied Go file names a copied file, and runs `go vet ./...` there and
+  `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./...`, with the same `GOENV=off`,
+  `GOWORK=off`, `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off` and empty `GOFLAGS` the
+  workflows set. Because `./...` skips `.github` and the isolated modules do not copy this test,
+  the `go-static` job runs it in the checkout beside the AFP-V0-2701 and AFP-V0-2702 tests, on
+  every pull request, merge-queue entry and main push that runs go-static.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -608,6 +769,28 @@ below a leaf package makes the leaf's pattern an unbounded read again, so `unbou
 fails on the unrecorded unit until the record or the test changes (AFP-V0-2542). A package whose
 tests set `Dir` for an unrelated command loses the exemption for its leaf patterns too; that is
 conservative, and the read is recorded or the pattern rewritten as `"."`.
+A live-tier test that regresses passes every PR shard and fails in any run without
+`CORVINT_SKIP_LIVE_TIER=1`: the local selected run, batch-precheck's `make live-test`, the merge
+queue, the nightly gates or a local `make gate`. A test that calls `RequireLiveTier` through a local
+helper, or not in its own body, is not discovered by `make live-test`, but still runs in every
+untagged run without the variable; AFP-V0-2701 reads only the test's own body. A CI step other than
+the shard Go test step that copied the variable would silently skip the tier; AFP-V0-2702's
+single-occurrence check refuses that.
+A change to a trusted narrowing input that the guard admits by mistake would narrow a pull
+request against its own machinery; the list is a reviewed file of the trusted checkout, the
+AFP-V0-2722 fault injections hold it to the three inputs the charter named, and the merge queue,
+which runs `mq-narrow.sh` from main, retests the merged tree. A pull request whose shard-plan
+narrowed but whose shards record FULL (an input that differed between the two runs) runs the whole
+suite over the sized matrix: slower, never smaller. A sized run leaves fewer `ci-outcomes-*`
+artifacts than `ci-shard-cost-drift` expects, so that advisory report abstains, as it does for
+every selected run; `ci-tested-tree-record` runs only when all sixteen `full<index>` outputs say
+FULL, so a sized run never records a full tree. A selection run of another count that did not
+narrow leaves its queue row INCOMPLETE, as before AFP-V0-2725. A pull request with narrowing on and
+a MET verdict whose docs-plan decides DOCS or REUSE still runs the plan job (about 80 runner
+seconds), because the job cannot read docs-plan's mode without waiting for it; nothing reads its
+count. A file that an isolated helper build needs but does not copy fails that workflow's helper
+build; AFP-V0-2726 catches it before merge, on the pull request that adds the file or the
+dependency.
 
 ## Acceptance evidence and traceability
 
@@ -652,9 +835,28 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
 
+| AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |
+| AFP-V0-2701 | `LiveTests`, `rootModuleSource`, `liveTestsInFile` in `.github/cishards/live.go`; `tools/live-test-run/main.go`; the `live-test` target in `Makefile`; `live-test` in `EXTRA_TARGETS` of `script/batch-precheck.sh` | `TestLiveTestsInFileFindsMarkedTopLevelTests_AFPV02701`, `TestRootModuleSourceMatchesGoTestReach_AFPV02701` (including a module-root file) in `.github/cishards/live_test.go`; the `make -s live-test` assertion in `script/batch-precheck_test.sh`; `TestArgvRunsOnlyTheLiveTestsWithTheTag_AFPV02701`, `TestRunExecutesEachLivePackage_AFPV02701` in `tools/live-test-run/main_test.go` |
+| AFP-V0-2702 | `CORVINT_SKIP_LIVE_TIER` in the `go-product-shard` Go test step, the `go-live` job and the `go-product` needs in `.github/workflows/ci.yml` | `TestRepositoryLiveTierIsExcludedFromPRShards_AFPV02702` in `.github/cishards/live_test.go`; the workflow diff; an observed merge-queue run is pending the owner's ci-control-plane review |
+| AFP-V0-2720 | `.github/forward-rows/github-guard.sh` (the input list and the `-z` diff); the guard call, `githubInputs` and the reason in `.github/forward-rows/narrow.sh` and `narrow.jq` | `TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720` in `tools/ci-forward-row/github_guard_test.go`; the `PR-owned github edit stays full` and `an unreadable range stays full` cases of `TestAFPV0098SupersetGuardSidecar`; the `.github/` cases of `TestAFPV0731MergeQueueSelection`; replay of PR #120 (run 42294716102) and PR #111 (run 42233489680) in build-log entry `2026-11-06-selgh` |
+| AFP-V0-2721 | `section` and the `jobs` list in `.github/forward-rows/github-guard.sh` | `TestAFPV02721GuardComparesTheNarrowingJobsOfCIYML_AFPV02721` (every narrowing job, the top-level text, a moved key, a deleted file, an anchor; another job's edit, a new job and a deleted job narrow) |
+| AFP-V0-2722 | the real-git harness `guardRepo` in `tools/ci-forward-row/github_guard_test.go` | `TestAFPV02720NarrowShFaultInjection_AFPV02720` in `tools/ci-forward-row/narrowing_sized_test.go` (narrow.sh, the confine wrapper and the selection step each FULL; an unrelated workflow, ci-cadence data, another job and code-only each NARROWED) |
+| AFP-V0-2723 | `Size`, `SizeFrom`, `PredictedWallMs`, `MinNarrowedShards`, `DefaultWallBudgetMs` in `.github/cishards/size.go`; `--size-budget-ms` and `--min-shards` in `.github/cishards/cmd/main.go`; `size.go` in `profileNames` | `TestAFPV02723SizeIsTheFewestShardsWithinTheBudget_AFPV02723`, `TestAFPV02723UnitsAboveTheBudgetWidenTheBound_AFPV02723`, `TestAFPV02723SizeRefusesOrKeepsTheMaximumWhenItCannotPrice_AFPV02723` in `.github/cishards/size_test.go`; `TestAFPIsolatedBuildIgnoresModuleRedirection` (the isolated build carries `size.go`); the PR #106, #111 and #120 sizings in build-log entry `2026-11-06-selgh` |
+| AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
+| AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
+| AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
+
 ## Rollback
 
-Revert the lane's commits for the requirement and delete its row here. For AFP-V0-551, removing
+Revert the lane's commits for the requirement and delete its row here. For AFP-V0-2720 to
+AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete
+`github-guard.sh`: every `.github/` change is FULL again. For AFP-V0-2723 to AFP-V0-2725, delete
+`shard-plan.sh`, `size.go` and the `shard-plan` job, restore the literal sixteen-shard matrix and
+`SHARDS: "16"` in `go-product` and `ci-narrowed-tree-record`, and restore the `== $n` shard-count
+checks in `row.jq` and the `shards` equality in `narrowedRecordOf`; the pins may stay at the
+workflow level. Either half reverts alone. For AFP-V0-2726, delete
+`.github/cishards/isolated_copies_test.go` and its alternative in the go-static `-run` pattern; the
+`size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-551, removing
 `fixtureTokens` makes marked literals read paths again; the markers are inert comments. For
 AFP-V0-830, drop the integrations listing from `script/gen-documentation-paths.sh` and run
 `make documentation-paths`. For AFP-V0-2200 to AFP-V0-2202, delete
@@ -682,3 +884,8 @@ then name only the unbounded-readers record again. For AFP-V0-2542, delete both 
 and `directoryMove` functions, `packageDirectories`, `goDirectories`, the `leafReads` and
 `movesDirectory` fields and the memo's `movesDirectory` entry; such patterns are unbounded reads
 again.
+For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, the three
+`internal/testsupport/livetier*.go` files, `.github/cishards/live.go`, `tools/live-test-run`, the
+`live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
+line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
+the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.
