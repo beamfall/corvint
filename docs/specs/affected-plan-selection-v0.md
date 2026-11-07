@@ -644,13 +644,15 @@ of which keeps the broader selection where its proof does not hold
   assignment with different text (`DIR=$(dirname "$0")` then `DIR=/tmp`), a `local`, `read`, `for`
   or `+=` form, or a `${NAME=...}` default keeps the target unresolved, as before. TSP-V0-004's
   fresh-directory proof still requires exactly one assignment.
-- **AFP-V0-2955:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283)
-  The repository SHALL declare in `.corvint/shell-read-scopes.json` (TSP-V0-950) the repository paths
-  `script/dogfood-cache_test.sh` (`Makefile`) and `script/qualify-tasks-basic_test.sh`
-  (`cmd/corvint-tasks/`, `go.mod`, `go.sum`, `internal/`) read outside `script/`, each with the
-  reason its toolchain run needs them, and `.corvint/unbounded-readers.json` SHALL list exactly
-  the units the corrected AFP-V0-2950 to AFP-V0-2954 leave on the floor, each with its reason.
-  `script/lane-scripts_test.sh` stays recorded:
+- **AFP-V0-2955:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 2026-11-07) The repository SHALL declare in `.corvint/shell-read-scopes.json`
+  (TSP-V0-950) the repository paths `script/qualify-tasks-basic_test.sh` (`cmd/corvint-tasks/`,
+  `go.mod`, `go.sum`, `internal/`) reads outside `script/`, with the reason its toolchain run needs
+  them, and `.corvint/unbounded-readers.json` SHALL list exactly the units the corrected
+  AFP-V0-2950 to AFP-V0-2954 leave on the floor, each with its reason.
+  `script/dogfood-cache_test.sh` declares no scope: it names the dogfood wrappers, whose chain
+  reaches `script/heavy.sh`'s environment-named source (AFP-V0-2953), and TSP-V0-950 refuses a
+  declaration over a test that reaches a dynamic source. `script/lane-scripts_test.sh` stays recorded:
   it sources a `sed`-filtered copy of `script/heavy.sh` it writes into its temporary directory,
   a read of its own directory that no proof links (TSP-V0-004 admits no write between the
   `mktemp` and the source), so TSP-V0-950 refuses a declaration over it. `script/heavy.sh` SHALL
@@ -766,7 +768,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2952 | `outputOnlyLiterals`, `outputArguments` and `standardStream` in `internal/liveverify/affected/golang/outputproof.go` and the identical `internal/gateselect/outputproof.go`; `textLiterals` and the `textOnly` skip of `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `text` in `sourceScan`, `scanSource`, `scanFile`, `record` and the `TextOnly` memo field in `internal/gateselect/readers.go` and `scanmemo.go` | `TestLineBrokenClimbIsText_AFPV02952` in `internal/liveverify/affected/golang/text_literal_test.go` (printed, stderr and `WriteString` text exempt; a package-level variable, `fmt.Appendf`, the review's `strings.TrimSpace(fmt.Sprintf("../config%s\n", suffix))` reader, a `strings.Builder`, a single-line print, a printed `cd` script, a token both forms hold and a test file keep rule (d); the formatted reader is selected by the file it reads); `TestLineBrokenClimbParity_AFPV02952` in `internal/gateselect/locator_parity_test.go` |
 | AFP-V0-2953 | the source branch of `observe` (`internal/liveverify/affected/shell/shell.go`), which marks every source no literal or fresh directory resolves dynamic | `TestEnvironmentNamedSourceStaysDynamic_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (five environment-named forms stay dynamic, and a test containing only `. "$ENVFILE"` is selected by an edit of the repository's `lib.sh`); the `envfile.sh` near miss of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/unbounded_readers_v14283_repo_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` |
 | AFP-V0-2954 | `conflicting` in `resolver`, its assignment in `newResolver` and the count check of `base` (`internal/liveverify/affected/shell/shell.go`) | `TestSameValuedReassignmentResolves_AFPV02954` in `internal/liveverify/affected/shell/shell_test.go` (the dogfood-finish.sh form links; controls: differing values, `local`, `read`, `for`, `+=`); `TestReassignedVariableIsNotADirectoryForm_NSAV0008` (unchanged) |
-| AFP-V0-2955 | `.corvint/shell-read-scopes.json`, `.corvint/unbounded-readers.json`, `unwrap_shell` in `script/heavy.sh` | `TestRepositoryScriptsAreBoundedSources_V14283` (heavy.sh dynamic only through its environment-named source, dogfood-finish.sh linked, the two declared tests read-scoped); `make unbounded-readers-check`; `make test-read-scopes-check`; `make selection-baseline-check`; the plans in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
+| AFP-V0-2955 | `.corvint/shell-read-scopes.json`, `.corvint/unbounded-readers.json`, `unwrap_shell` in `script/heavy.sh` | `TestRepositoryScriptsAreBoundedSources_V14283` (heavy.sh dynamic only through its environment-named source, dogfood-finish.sh linked, qualify-tasks-basic_test.sh read-scoped, dogfood-cache_test.sh on the floor); `make unbounded-readers-check`; `make test-read-scopes-check`; `make selection-baseline-check`; the plans in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
 
 ## Rollback
 
