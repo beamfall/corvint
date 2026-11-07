@@ -1024,6 +1024,10 @@ func TestAFPV0098SupersetGuardFilter(t *testing.T) {
 	}
 }
 
+// guardGit is the fake git of a range that changes no trusted narrowing input (AFP-V0-2720):
+// github-guard.sh's two diffs answer "nothing changed"; every other call prints a code path.
+const guardGit = "#!/bin/sh\ncase \"$*\" in 'diff --name-only -z --no-renames '*) exit 0 ;; 'diff --quiet --no-renames '*) exit 0 ;; *) echo internal/x.go ;; esac\n"
+
 // TestAFPV0098SupersetGuardSidecar runs narrow.sh with fake tools: a NARROWED decision writes
 // the `executed` sidecar equal to its record, and a sidecar that cannot be written drops the
 // record and reports FULL, so the tests step runs the whole shard.
@@ -1044,7 +1048,7 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 		writeDoc(t, filepath.Join(fake, "shadow.json"), doc{"scope": "NARROWED", "incomplete": []string{},
 			"invocations": []any{doc{"units": []any{doc{"adapter": "go", "unit": "go:" + a}, doc{"adapter": "go", "unit": "go:" + b}}}}})
 		tools := map[string]string{
-			"git":       "#!/bin/sh\necho internal/x.go\n",
+			"git":       guardGit,
 			"gh":        "#!/bin/sh\necho true\n",
 			"go":        "#!/bin/sh\nprintf '%s\\n' " + a + " " + b + " " + c + " " + d + "\n",
 			"driver":    "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\ncat \"$FAKE/selection.json\" > \"$o/selection.json\"\n",
@@ -1109,9 +1113,9 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 		effective := strings.Repeat("a", 40)
 		mode, out := narrow(t, false, map[string]string{
 			"driver": "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\njq --arg base " + effective + " '.Base=$base' \"$FAKE/selection.json\" > \"$o/selection.json\"\n",
-			// AFP-V0-933: only the proven parent's range is free of .github/ changes; any other
-			// base would see main's own .github/ edit (exit status 1).
-			"git":    "#!/bin/sh\n[ \"$*\" = 'diff --quiet --no-renames " + effective + " " + target + " -- .github/' ] || exit 1\n",
+			// AFP-V0-933, AFP-V0-2720: only the proven parent's range is free of changes to the
+			// narrowing inputs; any other base would see main's own .github/ edit.
+			"git":    "#!/bin/sh\ncase \"$*\" in 'diff --name-only -z --no-renames " + effective + " " + target + " -- '*) exit 0 ;; 'diff --quiet --no-renames " + effective + " " + target + " -- '*) exit 0 ;; *) exit 1 ;; esac\n",
 			"shadow": "#!/bin/sh\ncase \"$*\" in *'--base " + effective + " '*) cat \"$FAKE/shadow.json\" ;; *) exit 1 ;; esac\n",
 		})
 		v := readDoc(t, filepath.Join(out, "narrowing.json"))
@@ -1119,11 +1123,21 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 			t.Fatalf("range: %s %v", mode, v)
 		}
 	})
+	// AFP-V0-2720: a change to a trusted narrowing input is FULL and the record names the input.
 	t.Run("PR-owned github edit stays full", func(t *testing.T) {
-		mode, out := narrow(t, false, map[string]string{"git": "#!/bin/sh\nexit 1\n"})
+		mode, out := narrow(t, false, map[string]string{"git": "#!/bin/sh\ncase \"$*\" in 'diff --name-only -z'*) printf '.github/forward-rows/narrow.sh\\0' ;; 'diff --quiet'*) exit 0 ;; *) exit 1 ;; esac\n"})
 		v := readDoc(t, filepath.Join(out, "narrowing.json"))
-		if mode != "FULL" || !strings.Contains(fmt.Sprint(v["reasons"]), "the change touches .github/") {
+		if mode != "FULL" || !strings.Contains(fmt.Sprint(v["reasons"]), "the change touches .github/ narrowing inputs (AFP-V0-2720): .github/forward-rows/narrow.sh") ||
+			fmt.Sprint(v["githubInputs"]) != fmt.Sprint([]string{".github/forward-rows/narrow.sh"}) {
 			t.Fatalf("github: %s %v", mode, v)
+		}
+	})
+	// A guard that cannot read the range (git fails) is unreadable, so FULL, never a quiet 0.
+	t.Run("an unreadable range stays full", func(t *testing.T) {
+		mode, out := narrow(t, false, map[string]string{"git": "#!/bin/sh\nexit 128\n"})
+		v := readDoc(t, filepath.Join(out, "narrowing.json"))
+		if mode != "FULL" || !strings.Contains(fmt.Sprint(v["reasons"]), "the change set is unreadable") || fmt.Sprint(v["githubInputs"]) != "[]" {
+			t.Fatalf("unreadable: %s %v", mode, v)
 		}
 	})
 	// AFP-V0-800: each driver topology refusal survives in the FULL record.
@@ -1166,6 +1180,7 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 		return "#!/bin/sh\ncase \"$*\" in\n" +
 			"'rev-list --parents -n 1 " + target + "') " + parents + " ;;\n" +
 			"'merge-base --is-ancestor '*) [ \"$3\" = " + base + " ] && [ \"$4\" = " + ancestor + " ] ;;\n" +
+			"'diff --name-only -z --no-renames '*) [ \"$5\" = " + ancestor + " ] ;;\n" +
 			"'diff --quiet --no-renames '*) [ \"$4\" = " + ancestor + " ] ;;\n" +
 			"*) exit 1 ;;\nesac\n"
 	}
@@ -1256,7 +1271,7 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 	if n := one(bar, `(?m)^          name: afp-shadow-bar-epoch-([0-9]+)$`); n != epoch {
 		t.Fatalf("ci-forward-bar.yml uploads epoch %s, ci.yml rows are epoch %s", n, epoch)
 	}
-	verdictJob := one(ci, `(?ms)^  narrowing-verdict:\n(.*?)\n  go-product-shard:`)
+	verdictJob := one(ci, `(?ms)^  narrowing-verdict:\n(.*?)\n  shard-plan:`)
 	if e := one(verdictJob, `(?m)^          FORWARD_EPOCH: "([0-9]+)"$`); e != epoch {
 		t.Fatalf("narrowing-verdict accepts epoch %s, ci.yml rows are epoch %s", e, epoch)
 	}
@@ -1354,8 +1369,9 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	if len(m) != 1 || !strings.Contains(m[0][1], "AFP-V0-591") {
 		t.Fatalf("%d go-product checks with the coverage guard in ci.yml, want 1", len(m))
 	}
-	if !strings.Contains(m[0][0], "          SHARDS: \"16\"\n") || !strings.Contains(m[0][0], "          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}\n") {
-		t.Fatal("the go-product check does not read the shard count and the docs-plan mode")
+	// AFP-V0-2724: the count is the shard-plan job's sized matrix, sixteen when it did not size.
+	if !strings.Contains(m[0][0], "          SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}\n") || !strings.Contains(m[0][0], "          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}\n") {
+		t.Fatal("the go-product check does not read the sized shard count and the docs-plan mode")
 	}
 	if !strings.Contains(string(workflow), "      - name: Fetch the shard coverage markers (AFP-V0-591)\n"+
 		"        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success'\n") {

@@ -191,14 +191,15 @@ func TestAFPV0731MergeQueueSelection(t *testing.T) {
 			map[string]string{"selector": "#!/bin/sh\necho 'run '\n"}, "run names no package"},
 		{"a glob in the verdict is not expanded", nil,
 			map[string]string{"selector": "#!/bin/sh\necho 'run example.org/m/*'\n"}, "invalid executable package argument"},
+		// AFP-V0-2720: a trusted narrowing input changed in the range (github-guard.sh names it).
 		{"a range touching .github/ is FULL", nil,
-			map[string]string{"git": "#!/bin/sh\ncase \"$1\" in diff) exit 1 ;; *) exec REALGIT \"$@\" ;; esac\n"},
-			"the change touches .github/"},
-		// AFP-V0-933 (V1-3109): git prints a non-ASCII .github/ path quoted, so a --name-only grep
-		// for ^.github/ saw no change; only the exit status of git diff --quiet decides.
-		{"a range touching a quoted non-ASCII .github/ path is FULL", nil,
-			map[string]string{"git": "#!/bin/sh\ncase \"$1 $2\" in \"diff --quiet\") exit 1 ;; diff*) echo '\".github/\\303\\251.yml\"' ;; *) exec REALGIT \"$@\" ;; esac\n"},
-			"the change touches .github/"},
+			map[string]string{"git": "#!/bin/sh\ncase \"$1 $2\" in \"diff --name-only\") printf '.github/cishards/partition.go\\0' ;; \"diff --quiet\") exit 0 ;; *) exec REALGIT \"$@\" ;; esac\n"},
+			"the change touches .github/ narrowing inputs (AFP-V0-2720): .github/cishards/partition.go"},
+		// AFP-V0-933 (V1-3109), AFP-V0-2720: the guard reads paths NUL-separated (-z), so a non-ASCII
+		// input is never display-quoted away; it is named raw and forces FULL.
+		{"a range touching a non-ASCII .github/ input is FULL", nil,
+			map[string]string{"git": "#!/bin/sh\ncase \"$1 $2\" in \"diff --name-only\") printf '.github/forward-rows/\\303\\251.jq\\0' ;; \"diff --quiet\") exit 0 ;; *) exec REALGIT \"$@\" ;; esac\n"},
+			"the change touches .github/ narrowing inputs (AFP-V0-2720): .github/forward-rows/\u00e9.jq"},
 		{"an unreadable .github/ diff is FULL", nil,
 			map[string]string{"git": "#!/bin/sh\ncase \"$1\" in diff) exit 128 ;; *) exec REALGIT \"$@\" ;; esac\n"},
 			"change set is unreadable"},

@@ -34,7 +34,9 @@ func TestAFPV0170RecordJobRunsNoRepositoryCode(t *testing.T) {
 func TestAFPV0734NarrowedRecordJob(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the record script runs under sh against a real Git repository")
 	b := jobBlock(t, readWorkflow(t, "ci.yml"), NarrowedRecordJob)
-	wantLine(t, NarrowedRecordJob, b, "    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]")
+	// AFP-V0-2725: the record names the shard-plan job's sized count.
+	wantLine(t, NarrowedRecordJob, b, "    needs: [docs-plan, narrowing-verdict, shard-plan, go-product-shard, go-product]")
+	wantLine(t, NarrowedRecordJob, b, "      SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}")
 	for _, want := range []string{"github.event_name == 'pull_request'", "needs.go-product.result == 'success'",
 		"needs.go-product-shard.result == 'success'", "needs.narrowing-verdict.outputs.verdict == 'MET'",
 		"!(needs.go-product-shard.outputs.full0 == 'FULL' &&", "needs.docs-plan.outputs.mode != 'REUSE'"} {
@@ -138,9 +140,10 @@ func runsNoRepositoryCode(t *testing.T, name, b string) {
 func TestAFPV0170RecordNeedsEveryShardFullUnderAMetVerdict(t *testing.T) {
 	w := readWorkflow(t, "ci.yml")
 	shard := jobBlock(t, w, "go-product-shard")
-	m := regexp.MustCompile(`(?m)^        shard: \[([0-9, ]+)\]$`).FindStringSubmatch(shard)
+	// AFP-V0-2724: the matrix is the shard-plan job's sized list, this full list by default.
+	m := regexp.MustCompile(`(?m)^        shard: \$\{\{ fromJSON\(needs\.shard-plan\.outputs\.matrix \|\| '\[([0-9, ]+)\]'\) \}\}$`).FindStringSubmatch(shard)
 	if m == nil {
-		t.Fatal("go-product-shard has no shard matrix")
+		t.Fatal("go-product-shard has no shard matrix defaulting to the full list")
 	}
 	n := len(strings.Split(m[1], ","))
 	outs := regexp.MustCompile(`(?m)^      (full[0-9]+): (.*)$`).FindAllStringSubmatch(shard, -1)
