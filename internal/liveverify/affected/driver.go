@@ -385,14 +385,15 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// every target, makes every target of the file a computed site; an
 	// ambiguous value a recipe references makes that recipe's target one. A
 	// bare reference line that can expand to any text, which make reads as
-	// more make file, keeps every target a site as well.
+	// more make file, keeps every target a site as well. Make expands such a
+	// line where it reads it (AFP-V0-3125).
 	ambiguous, uncertified := false, false
-	for _, statement := range parsed.statements {
-		fileExpander.ambiguous = false
-		for _, variant := range fileExpander.expandAll(statement) {
+	for index, statement := range parsed.statements {
+		expander := parsed.expanderAt(parsed.statementAt[index])
+		for _, variant := range expander.expandAll(statement) {
 			ambiguous = ambiguous || strings.TrimSpace(variant) != ""
 		}
-		ambiguous = ambiguous || fileExpander.ambiguous
+		ambiguous = ambiguous || expander.ambiguous
 	}
 	for _, recipe := range parsed.remainderRecipes {
 		fileExpander.ambiguous = false
@@ -407,8 +408,19 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	for _, script := range fileExpander.shells {
 		shared.merge(registry, registry.scanBoth(script, parsed.dir))
 	}
-	for _, include := range parsed.includes {
-		for _, expanded := range fileExpander.expandAll(include) {
+	// AFP-V0-3127: make runs every `$(shell ...)` and `!=` command it reaches
+	// while reading the file before it builds any target, so a command whose
+	// reads the graph does not bound leaves every target uncertified.
+	parse := parsed.parseTime()
+	for _, script := range parse.shells {
+		scan := registry.scanBoth(script, parsed.dir)
+		uncertified = uncertified || scan.uncertified
+		shared.merge(registry, scan)
+	}
+	uncertified = uncertified || !parsed.recipeShellCertified()
+	for index, include := range parsed.includes {
+		expander := parsed.expanderAt(parsed.includeAt[index])
+		for _, expanded := range expander.expandAll(include) {
 			shared.addTokens(expanded)
 			for _, word := range strings.Fields(expanded) {
 				if driverDynamic(word) || strings.ContainsAny(word, "*?[") {
@@ -423,11 +435,12 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			}
 		}
 	}
-	shared.computed = shared.computed || ambiguous || fileExpander.shellAmbiguous
-	// A `$(shell ...)` make runs while reading the file reaches a recipe only
-	// through a variable the recipe's own expansion reads, which certifies
-	// it there; a remainder recipe can run for any target.
-	shared.evaluated, shared.uncertified = fileExpander.evaluated, uncertified
+	shared.computed = shared.computed || ambiguous || fileExpander.shellAmbiguous || parse.shellAmbiguous
+	// A `$(shell ...)` in a recursive value runs only where a recipe expands
+	// it, which certifies it for that recipe's target; one make runs while
+	// reading the file, and a remainder recipe, can run for any target.
+	shared.evaluated = fileExpander.evaluated || parse.evaluated
+	shared.uncertified = uncertified
 	all := registry.fileUnits[parsed.path]
 	units := make([]Unit, 0, len(parsed.order))
 	for _, target := range parsed.order {
@@ -450,9 +463,31 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		expander := parsed.expander(auto)
 		// Each complete expansion of the prerequisites is one alternative
 		// for the automatic variables; their words together are the edges.
+		// Make expands each prerequisite line where it reads it
+		// (AFP-V0-3125), so the alternatives are every combination of each
+		// line's expansions.
 		var prerequisites []string
 		expander.autoChoices = map[string][]string{}
-		for _, variant := range expander.expandAll(strings.Join(rule.prereqs, " ")) {
+		combinations := []string{""}
+		for index, line := range rule.prereqs {
+			lineExpander := parsed.expander(auto)
+			lineExpander.limit = rule.prereqAt[index]
+			variants := lineExpander.expandAll(line)
+			builder.computed = builder.computed || lineExpander.ambiguous
+			builder.evaluated = builder.evaluated || lineExpander.evaluated
+			next := make([]string, 0, len(combinations)*len(variants))
+			for _, combination := range combinations {
+				for _, variant := range variants {
+					next = append(next, combination+" "+variant)
+				}
+			}
+			if len(next) > driverMaxVariants {
+				builder.computed = true
+				next = next[:driverMaxVariants]
+			}
+			combinations = next
+		}
+		for _, variant := range combinations {
 			words := slices.DeleteFunc(strings.Fields(variant), func(word string) bool { return word == "|" })
 			for _, word := range words {
 				if !slices.Contains(prerequisites, word) {

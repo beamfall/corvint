@@ -76,7 +76,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 		s.scan.tokens[token] = true
 	}
 	var words []driverWord
-	var redirect bool
+	var redirect, input bool
 	flush := func() {
 		if len(words) != 0 {
 			cwd = s.command(words, cwd)
@@ -120,6 +120,9 @@ func (s *driverShellScanner) script(script, cwd string) {
 				}
 			case char == '>' || char == '<':
 				redirect = true
+				// `<` and `<>` open a file for reading; `<&` duplicates a
+				// descriptor and `<<<` passes a string.
+				input = char == '<' && !strings.HasPrefix(line[position:], "<<") && !strings.HasPrefix(line[position:], "<&")
 				position++
 				for position < len(line) && (line[position] == '>' || line[position] == '&' || line[position] == '|') {
 					position++
@@ -128,7 +131,12 @@ func (s *driverShellScanner) script(script, cwd string) {
 				word, next := s.word(line, position, cwd)
 				position = next
 				if redirect {
-					redirect = false
+					// AFP-V0-3128: a file read through a redirection whose
+					// name is unknown is outside every bounded read set.
+					if input && (driverDynamic(word.text) || cwd == "" && !strings.HasPrefix(word.text, "/")) {
+						s.scan.uncertified = true
+					}
+					redirect, input = false, false
 					continue
 				}
 				if !word.quoted && (word.text == "{" || word.text == "}") {
@@ -144,7 +152,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 			continue
 		}
 		flush()
-		redirect = false
+		redirect, input = false, false
 		for len(s.heredocs) != 0 && index+1 < len(lines) {
 			terminator := s.heredocs[0]
 			s.heredocs = s.heredocs[1:]
@@ -316,6 +324,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				words = words[1:]
 			}
 		case head == "nice" || head == "timeout" || head == "xargs" || head == "ionice" || head == "taskset":
+			if head == "xargs" {
+				// The command's operands come from its input (AFP-V0-3128).
+				s.scan.uncertified = true
+			}
 			words = words[1:]
 			for len(words) != 0 && strings.HasPrefix(words[0].text, "-") {
 				if !strings.Contains(words[0].text, "=") && len(words[0].text) == 2 && strings.IndexByte("nksIcpLPdEaR", words[0].text[1]) >= 0 {
@@ -375,6 +387,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	head := words[0].text
 	switch head {
 	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "export", "local", "readonly", "declare", "set", "unset", "shift", "return", "exit", "trap", "wait", "read":
+		if (head == "[[" || head == "[" || head == "test") && !driverTestCertified(words, cwd) {
+			s.scan.uncertified = true
+		}
 		s.embedded(words[1:], cwd)
 		return cwd
 	case "cd", "pushd":
@@ -403,7 +418,7 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	if driverComputedWord(head) {
 		s.scan.computed = true
 	}
-	if !driverCertified(words) {
+	if !driverCertified(words, cwd) {
 		s.scan.uncertified = true
 	}
 	base := path.Base(head)
@@ -442,25 +457,36 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	return cwd
 }
 
-// driverBoundedCommands read nothing or only the operands they are given,
-// which the unit's own path edges and tokens already name (AFP-V0-3122).
-var driverBoundedCommands = map[string]bool{
-	"cat": true, "head": true, "tail": true, "wc": true, "sort": true, "uniq": true, "cut": true,
-	"tr": true, "sed": true, "awk": true, "grep": true, "egrep": true, "fgrep": true, "cmp": true,
-	"diff": true, "comm": true, "paste": true, "sha256sum": true, "sha1sum": true, "shasum": true,
-	"md5sum": true, "cksum": true, "basename": true, "dirname": true, "realpath": true,
-	"readlink": true, "date": true, "sleep": true, "mkdir": true, "rm": true, "rmdir": true,
-	"cp": true, "mv": true, "ln": true, "touch": true, "chmod": true, "tee": true, "mktemp": true,
-	"printf": true, "echo": true, "test": true, "[": true, "true": true, "false": true, "jq": true,
-	"seq": true, "expr": true, "pwd": true, "uname": true, "id": true, "stat": true,
+// driverPureCommands read no file, whatever their operands (AFP-V0-3128).
+var driverPureCommands = map[string]bool{
+	"echo": true, "printf": true, "true": true, "false": true, "basename": true, "dirname": true,
+	"sleep": true, "seq": true, "expr": true, "pwd": true, "uname": true, "id": true, "mktemp": true,
 }
 
-// driverRecursiveLetters are the short options that make a bounded command
-// read or change a whole tree; a long option naming recursion or an archive
-// copy does the same.
-var driverRecursiveLetters = map[string]string{
-	"grep": "rRd", "egrep": "rRd", "fgrep": "rRd", "cp": "rRa", "diff": "r", "chmod": "R",
+// driverBoundedCommands read only the operands they are given, which the
+// unit's own path edges and tokens already name, once driverCommandModes
+// rules out each mode that reads more (AFP-V0-3122, AFP-V0-3128). awk, sed
+// and the like are absent: their programs can read any file or run one.
+var driverBoundedCommands = map[string]bool{
+	"cat": true, "head": true, "tail": true, "wc": true, "sort": true, "uniq": true, "cut": true,
+	"tr": true, "grep": true, "egrep": true, "fgrep": true, "cmp": true, "diff": true, "comm": true,
+	"paste": true, "sha256sum": true, "sha1sum": true, "shasum": true, "md5sum": true, "cksum": true,
+	"realpath": true, "readlink": true, "date": true, "mkdir": true, "rm": true, "rmdir": true,
+	"cp": true, "mv": true, "ln": true, "touch": true, "chmod": true, "tee": true, "jq": true,
+	"stat": true,
 }
+
+// driverCommandModes are, per bounded command, the short option letters
+// that make it read more than its operands: a recursive walk, the files a
+// checksum manifest lists, a jq library directory. driverCommandLongModes
+// are the long options that do the same, matched as a substring of the
+// option name; "files0-from" reads a list of file names for sort and wc.
+var driverCommandModes = map[string]string{
+	"grep": "rRd", "egrep": "rRd", "fgrep": "rRd", "cp": "rRa", "diff": "r", "chmod": "R",
+	"sha256sum": "c", "sha1sum": "c", "shasum": "c", "md5sum": "c", "cksum": "c", "jq": "L",
+}
+
+var driverCommandLongModes = []string{"recurs", "archive", "directories", "files0-from", "check", "library-path"}
 
 // driverGoCertified are the go subcommands whose reads the Go plugin models:
 // the named packages' files and, for a test, the tests' own reads, which
@@ -468,24 +494,40 @@ var driverRecursiveLetters = map[string]string{
 // recipe's directory, whose reads no package model bounds.
 var driverGoCertified = map[string]bool{"test": true, "vet": true, "build": true, "list": true, "install": true, "env": true, "version": true}
 
-// driverCertified reports a simple command whose reads the graph already
-// bounds (AFP-V0-3122): a bounded command without a recursive option, a go
-// package command without a program it hands the build, a make invocation,
-// whose targets are units of their own, or a shell test script, which its
-// plugin selects for itself. Any other repository program, interpreter, git
-// or unlisted command may read any path, such as every tracked file.
-func driverCertified(words []driverWord) bool {
+// driverGoValueFlags are the go flags whose value names no input: an output
+// path, a test selection or a count. Only such a value may be unknown in a
+// certified go command (AFP-V0-3128).
+var driverGoValueFlags = map[string]bool{
+	"o": true, "run": true, "skip": true, "count": true, "timeout": true, "parallel": true, "p": true,
+	"bench": true, "benchtime": true, "cpu": true, "shuffle": true, "coverprofile": true, "outputdir": true,
+	"cpuprofile": true, "memprofile": true, "blockprofile": true, "mutexprofile": true, "trace": true,
+	"covermode": true, "fuzztime": true, "tags": true,
+}
+
+// driverCertified reports a simple command, run in cwd ("" when unknown),
+// whose reads the graph already bounds (AFP-V0-3122, AFP-V0-3128): a command
+// that reads no file; a bounded command in a known directory with only
+// literal operands and no mode in driverCommandModes; a go package command
+// that hands the build no program and leaves only an output or selection
+// value unknown; a make invocation of literal goals that overrides no
+// variable, whose targets are units of their own; or a shell test script run
+// with literal arguments, which its plugin selects for itself. Any other
+// repository program, interpreter, git or unlisted command may read any
+// path, such as every tracked file.
+func driverCertified(words []driverWord, cwd string) bool {
 	head := words[0].text
 	if driverDynamic(head) || words[0].quoted && head == "" {
 		return false
 	}
 	base := path.Base(head)
 	if strings.Contains(head, "/") && !strings.HasPrefix(head, "/") {
-		return driverShellTest(head)
+		return cwd != "" && driverShellTest(head) && driverLiteral(words[1:])
 	}
 	switch {
-	case base == "make" || base == "gmake":
+	case driverPureCommands[base]:
 		return true
+	case base == "make" || base == "gmake":
+		return driverLiteral(words[1:]) && !slices.ContainsFunc(words[1:], func(word driverWord) bool { return driverAssignment(word.text) })
 	case base == "go":
 		return driverGoCommandCertified(words[1:])
 	case driverShells[base]:
@@ -496,16 +538,24 @@ func driverCertified(words []driverWord) bool {
 				return true
 			}
 			if !strings.HasPrefix(arg, "-") {
-				return driverShellTest(arg)
+				return cwd != "" && driverShellTest(arg) && driverLiteral(words[index+1:])
 			}
 		}
 		return false
 	case driverBoundedCommands[base]:
-		letters := driverRecursiveLetters[base]
+		if cwd == "" || !driverLiteral(words[1:]) {
+			return false
+		}
+		letters := driverCommandModes[base]
 		for _, word := range words[1:] {
 			arg := word.text
+			if base == "jq" && (strings.Contains(arg, "import") || strings.Contains(arg, "include")) {
+				// A jq module directive reads a file from its search path.
+				return false
+			}
 			if long, ok := strings.CutPrefix(arg, "--"); ok {
-				if strings.Contains(long, "recurs") || strings.HasPrefix(long, "archive") || strings.HasPrefix(long, "directories") {
+				name, _, _ := strings.Cut(long, "=")
+				if slices.ContainsFunc(driverCommandLongModes, func(mode string) bool { return strings.Contains(name, mode) }) {
 					return false
 				}
 				continue
@@ -519,28 +569,81 @@ func driverCertified(words []driverWord) bool {
 	return false
 }
 
+// driverLiteral reports words of which none holds a value only the
+// environment or the shell supplies at run time.
+func driverLiteral(words []driverWord) bool {
+	return !slices.ContainsFunc(words, func(word driverWord) bool { return driverDynamic(word.text) })
+}
+
+// driverTestFileOperators are the test operators whose operand is a path.
+var driverTestFileOperators = map[string]bool{
+	"-a": true, "-b": true, "-c": true, "-d": true, "-e": true, "-f": true, "-g": true, "-h": true,
+	"-k": true, "-p": true, "-r": true, "-s": true, "-u": true, "-w": true, "-x": true, "-G": true,
+	"-L": true, "-N": true, "-O": true, "-S": true,
+}
+
+// driverTestCertified reports a test command that inspects only literal
+// paths in a known directory (AFP-V0-3128): a file operator, or -nt, -ot or
+// -ef, with an unknown operand inspects a path no edge names.
+func driverTestCertified(words []driverWord, cwd string) bool {
+	for index := 1; index < len(words); index++ {
+		word := words[index].text
+		var operands []string
+		switch {
+		case driverTestFileOperators[word] && index+1 < len(words):
+			operands = []string{words[index+1].text}
+		case (word == "-nt" || word == "-ot" || word == "-ef") && index+1 < len(words):
+			operands = []string{words[index-1].text, words[index+1].text}
+		}
+		for _, operand := range operands {
+			if driverDynamic(operand) || cwd == "" && !strings.HasPrefix(operand, "/") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // driverGoCommandCertified reports a go invocation whose subcommand is in
-// driverGoCertified and that names no program for the build to run.
+// driverGoCertified, that names no program for the build to run, and whose
+// only unknown words are values of driverGoValueFlags or arguments after
+// -args, which the test binary receives.
 func driverGoCommandCertified(words []driverWord) bool {
 	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
 		if words[0].text == "-C" {
-			if len(words) < 2 {
+			if len(words) < 2 || driverDynamic(words[1].text) {
 				return false
 			}
 			words = words[1:]
+		} else if driverDynamic(words[0].text) {
+			return false
 		}
 		words = words[1:]
 	}
 	if len(words) == 0 || !driverGoCertified[words[0].text] {
 		return false
 	}
+	valueOf := ""
 	for _, word := range words[1:] {
-		if word.text == "-args" || word.text == "--" {
+		if word.text == "-args" || word.text == "--args" || word.text == "--" {
 			break
 		}
 		flag, _, _ := strings.Cut(strings.TrimLeft(word.text, "-"), "=")
-		if strings.HasPrefix(word.text, "-") && (flag == "exec" || flag == "toolexec" || flag == "vettool") {
+		isFlag := strings.HasPrefix(word.text, "-")
+		if isFlag && (flag == "exec" || flag == "toolexec" || flag == "vettool") {
 			return false
+		}
+		if driverDynamic(word.text) {
+			switch {
+			case valueOf != "" && driverGoValueFlags[valueOf]:
+			case isFlag && strings.Contains(word.text, "=") && driverGoValueFlags[flag] && !driverDynamic(flag):
+			default:
+				return false
+			}
+		}
+		valueOf = ""
+		if isFlag && !strings.Contains(word.text, "=") && !driverGoBoolFlags[word.text] {
+			valueOf = flag
 		}
 	}
 	return true

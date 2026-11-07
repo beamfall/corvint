@@ -336,11 +336,12 @@ func TestDriverFlowSteps_AZU_V0_9703(t *testing.T) {
 // Since AFP-V0-3121 these functions are evaluated exactly over definite
 // values, so the edge is the complete word GNU make produces and no computed
 // site remains. A word selected from a wholly environment-supplied value is
-// that value or nothing: `go test ./<value>_test` imports every owner and
-// `go test ./_test` is literal, so check is no site but every owned change
-// still reaches it. Over a mix of literal and environment-supplied values, or
-// an environment-supplied index or search string, the function still retains
-// the computed invocation, which selects check on any dirty path.
+// that value or nothing: `go test ./<value>_test` imports every owner, but
+// the value can split into more words, a `-exec` among them, so the go
+// command is not certified and check stays a site (AFP-V0-3128). Over a mix
+// of literal and environment-supplied values, or an environment-supplied
+// index or search string, the function still retains the computed
+// invocation. Either way check is selected on any dirty path.
 func TestDriverMakeFunctionsComputed_AZU_V0_9850(t *testing.T) {
 	for _, tc := range []struct {
 		expression        string
@@ -351,7 +352,7 @@ func TestDriverMakeFunctionsComputed_AZU_V0_9850(t *testing.T) {
 		{"$(filter pkg,other pkg)_test", false, false}, {"$(filter-out other,other pkg)_test", false, false},
 		{"$(if yes,pkg,other)_test", false, false}, {"$(or pkg,other)_test", false, false}, {"$(and other,pkg)_test", false, false},
 		{"$(findstring absent,pkg)pkg_test", false, false}, {"$(filter %kg,other pkg)_test", false, false},
-		{"$(firstword $(PKGS))_test", false, true}, {"$(filter pkg,$(PKGS))_test", false, true},
+		{"$(firstword $(PKGS))_test", true, true}, {"$(filter pkg,$(PKGS))_test", true, true},
 		{"$(join pkg,$(SUFFIX))", true, true}, {"$(firstword $(PKGS) pkg)_test", true, true},
 		{"$(word $(N),other pkg)_test", true, true}, {"$(findstring pkg,$(PKGS))_test", true, true},
 	} {
