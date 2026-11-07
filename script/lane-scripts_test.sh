@@ -1643,7 +1643,9 @@ grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go t
 # The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
 cp "$pol/bin/go" "$pol/go.keep"
 cp "$pol/sel.log" "$pol/sel.keep"
-printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "$STUB_GO_ARGS"\nexit "${STUB_GO_RC:-0}"\n' > "$pol/bin/go"
+# heavy.sh reads `go env GOFLAGS` when GOFLAGS is unset (outside an enclosing heavy.sh run); that
+# query is not the selected test run, so the stub does not record it.
+printf '#!/bin/sh\n[ "$1" = env ] && exit 0\nprintf "%%s\\n" "$*" >> "$STUB_GO_ARGS"\nexit "${STUB_GO_RC:-0}"\n' > "$pol/bin/go"
 : > "$pol/go.args"
 STUB_GO_ARGS=$pol/go.args HEAVY_WHOLE_REASON= pv go test -count=1 -run TestA ./x ./y > /dev/null 2> "$pol/err" ||
   fail "heavy.sh refused a selected go test of two packages: $(cat "$pol/err")"
@@ -3507,7 +3509,9 @@ if selected tools 55; then
 # exit 2, naming the volume, before the command runs; a reason given as an `env` NAME=VALUE word is
 # honoured, and `go test -c` (compile only) needs no reason.
 hid=$tmp/identity
-mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n: > "%s/ran"\nexit 0\n' "$hid" > "$hid/bin/go" && chmod +x "$hid/bin/go" &&
+# The stub ignores heavy.sh's own `go env GOFLAGS` query (made when GOFLAGS is unset), which is
+# not the command whose run these cases forbid.
+mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n[ "$1" = env ] && exit 0\n: > "%s/ran"\nexit 0\n' "$hid" > "$hid/bin/go" && chmod +x "$hid/bin/go" &&
   printf 'module example.com/m\n\ngo 1.27\n' > "$hid/repo/go.mod" && git -C "$hid/repo" init -q && git -C "$hid/repo" add -A &&
   git -C "$hid/repo" -c user.name=t -c user.email=t@t commit -qm i || fail "identity fixture setup failed"
 hv_id() { /bin/rm -f "$hid/ran"; (cd "$hid/repo" && env PATH="$hid/bin:$PATH" HEAVY_SELECTION_LOG="$hid/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
