@@ -43,7 +43,10 @@ func TestDTLV0004RetryKeepsStopBeforeSeal(t *testing.T) {
 	t.Run("DTL-V0-004", func(t *testing.T) {
 		root, base := preflightRepository(t, nil)
 		plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
-		unsorted := writeInput(t, "docs/b.md\ndocs/a.md\n")
+		// The non-canonical ./x line keeps the ASD-V0-840 refusal before any
+		// step: DWC-V0-7600 sorts an untracked manifest whose only fault is
+		// order, and the run would go on to prepare instead.
+		unsorted := writeInput(t, "docs/b.md\ndocs/a.md\n./x\n")
 		verify := writeInput(t, "go version\n")
 		vars := " CITATIONS=" + plan + " INTENTS=" + unsorted + " VERIFY=" + verify + " OUTCOME=passed\n"
 		flags := " --citations " + plan + " --intents " + unsorted + " --verify " + verify + " --outcome passed\n"
@@ -64,7 +67,7 @@ func TestDTLV0004RetryKeepsStopBeforeSeal(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				code, stdout, stderr, calls := entryRun(t, FinishLaneOptions{Preflight: tc.preflight, Entry: tc.entry, StopBeforeSeal: tc.stop, Change: ChangeOptions{
 					Root: root, Base: base, Citations: plan, IntentsFile: unsorted, VerifyFile: verify, Outcome: "passed"}})
-				if code != 2 || calls != 0 || stdout != "" || !strings.Contains(stderr, tc.want) {
+				if code != 2 || calls != 0 || stdout != "" || !strings.Contains(stderr, "REFUSE intent-manifest-unsorted\n") || !strings.Contains(stderr, tc.want) {
 					t.Fatalf("code=%d steps=%d stdout=%q stderr=\n%s\nwant %q", code, calls, stdout, stderr, tc.want)
 				}
 				if tc.mustNotSay != "" && strings.Contains(stderr, tc.mustNotSay) {
