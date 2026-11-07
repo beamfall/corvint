@@ -213,13 +213,18 @@ func driverModulePath(body []byte) string {
 	return ""
 }
 
-// driverUnitBuilder collects one unit's edges.
+// driverUnitBuilder collects one unit's edges. evaluated marks a make target
+// whose expansion resolved what was once retained as ambiguous, and
+// uncertified a command whose reads the graph does not bound: together they
+// keep the target a computed site (AFP-V0-3122).
 type driverUnitBuilder struct {
-	id       string
-	imports  map[string]bool
-	paths    map[string]bool
-	tokens   map[string]bool
-	computed bool
+	id          string
+	imports     map[string]bool
+	paths       map[string]bool
+	tokens      map[string]bool
+	computed    bool
+	evaluated   bool
+	uncertified bool
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
@@ -242,6 +247,9 @@ func (b *driverUnitBuilder) addTokens(text string) {
 func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	if scan.computed {
 		b.computed = true
+	}
+	if scan.uncertified {
+		b.uncertified = true
 	}
 	for token := range scan.tokens {
 		b.tokens[token] = true
@@ -270,7 +278,7 @@ func (b *driverUnitBuilder) unit() Unit {
 	if len(unit.PathTokens) == 0 {
 		unit.PathTokens = nil
 	}
-	if b.computed {
+	if b.computed || b.evaluated && b.uncertified {
 		unit.Frontier = []string{FrontierDriverComputedInvocation}
 	}
 	return unit
@@ -366,42 +374,67 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	fileExpander := parsed.expander(map[string]string{})
 	for _, name := range driverSortedKeys(parsed.vars) {
 		for _, value := range parsed.vars[name] {
-			fileExpander.expand(value)
+			fileExpander.expandAll(value)
 		}
 	}
 	for _, line := range parsed.remainder {
-		fileExpander.expand(line)
+		fileExpander.expandAll(line)
+	}
+	// AFP-V0-3120: a variable value make never runs is no invocation. Only
+	// an ambiguous `$(shell ...)` command or remainder recipe, which run for
+	// every target, makes every target of the file a computed site; an
+	// ambiguous value a recipe references makes that recipe's target one. A
+	// bare reference line that can expand to any text, which make reads as
+	// more make file, keeps every target a site as well.
+	ambiguous, uncertified := false, false
+	for _, statement := range parsed.statements {
+		fileExpander.ambiguous = false
+		for _, variant := range fileExpander.expandAll(statement) {
+			ambiguous = ambiguous || strings.TrimSpace(variant) != ""
+		}
+		ambiguous = ambiguous || fileExpander.ambiguous
+	}
+	for _, recipe := range parsed.remainderRecipes {
+		fileExpander.ambiguous = false
+		for _, line := range fileExpander.expandAll(driverRecipeLine(recipe)) {
+			shared.addTokens(line)
+			scan := registry.scanBoth(line, parsed.dir)
+			uncertified = uncertified || scan.uncertified
+			shared.merge(registry, scan)
+		}
+		ambiguous = ambiguous || fileExpander.ambiguous
 	}
 	for _, script := range fileExpander.shells {
 		shared.merge(registry, registry.scanBoth(script, parsed.dir))
 	}
-	for _, recipe := range parsed.remainderRecipes {
-		line := fileExpander.expand(driverRecipeLine(recipe))
-		shared.addTokens(line)
-		shared.merge(registry, registry.scanBoth(line, parsed.dir))
-	}
 	for _, include := range parsed.includes {
-		expanded := fileExpander.expand(include)
-		shared.addTokens(expanded)
-		for _, word := range strings.Fields(expanded) {
-			if driverDynamic(word) || strings.ContainsAny(word, "*?[") {
-				shared.importAll(registry.allMake)
-				continue
-			}
-			for _, candidate := range driverVariants(parsed.dir, word) {
-				if _, present := registry.makes[candidate]; present {
-					shared.importAll(registry.fileUnits[candidate])
+		for _, expanded := range fileExpander.expandAll(include) {
+			shared.addTokens(expanded)
+			for _, word := range strings.Fields(expanded) {
+				if driverDynamic(word) || strings.ContainsAny(word, "*?[") {
+					shared.importAll(registry.allMake)
+					continue
+				}
+				for _, candidate := range driverVariants(parsed.dir, word) {
+					if _, present := registry.makes[candidate]; present {
+						shared.importAll(registry.fileUnits[candidate])
+					}
 				}
 			}
 		}
 	}
-	shared.computed = shared.computed || fileExpander.ambiguous
+	shared.computed = shared.computed || ambiguous || fileExpander.shellAmbiguous
+	// A `$(shell ...)` make runs while reading the file reaches a recipe only
+	// through a variable the recipe's own expansion reads, which certifies
+	// it there; a remainder recipe can run for any target.
+	shared.evaluated, shared.uncertified = fileExpander.evaluated, uncertified
 	all := registry.fileUnits[parsed.path]
 	units := make([]Unit, 0, len(parsed.order))
 	for _, target := range parsed.order {
 		rule := parsed.rules[target]
 		builder := newDriverUnitBuilder(driverMakeUnitID(parsed.path, target))
 		builder.computed = shared.computed
+		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		builder.importAll(driverSorted(shared.imports))
 		for value := range shared.paths {
 			builder.paths[value] = true
@@ -415,14 +448,30 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			auto = map[string]string{}
 		}
 		expander := parsed.expander(auto)
-		prerequisites := strings.Fields(expander.expand(strings.Join(rule.prereqs, " ")))
-		prerequisites = slices.DeleteFunc(prerequisites, func(word string) bool { return word == "|" })
-		if !rule.pattern {
-			if len(prerequisites) > 0 {
-				auto["<"] = prerequisites[0]
+		// Each complete expansion of the prerequisites is one alternative
+		// for the automatic variables; their words together are the edges.
+		var prerequisites []string
+		expander.autoChoices = map[string][]string{}
+		for _, variant := range expander.expandAll(strings.Join(rule.prereqs, " ")) {
+			words := slices.DeleteFunc(strings.Fields(variant), func(word string) bool { return word == "|" })
+			for _, word := range words {
+				if !slices.Contains(prerequisites, word) {
+					prerequisites = append(prerequisites, word)
+				}
 			}
-			joined := strings.Join(prerequisites, " ")
-			auto["^"], auto["+"], auto["?"] = joined, joined, joined
+			if rule.pattern {
+				continue
+			}
+			first := driverComputed
+			if len(words) > 0 {
+				first = words[0]
+			}
+			joined := strings.Join(words, " ")
+			for name, value := range map[string]string{"<": first, "^": joined, "+": joined, "?": joined} {
+				if !slices.Contains(expander.autoChoices[name], value) {
+					expander.autoChoices[name] = append(expander.autoChoices[name], value)
+				}
+			}
 		}
 		builder.addTokens(strings.Join(prerequisites, " "))
 		for _, word := range prerequisites {
@@ -433,15 +482,20 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 				builder.imports[driverMakeUnitID(parsed.path, pattern)] = true
 			}
 		}
+		// AFP-V0-3121: every complete expansion of a recipe line is scanned,
+		// so a computed name whose alternatives are all literal resolves
+		// into their edges and leaves no computed site.
 		for _, recipe := range rule.recipe {
-			line := expander.expand(driverRecipeLine(recipe))
-			builder.addTokens(line)
-			builder.merge(registry, registry.scanBoth(line, parsed.dir))
+			for _, line := range expander.expandAll(driverRecipeLine(recipe)) {
+				builder.addTokens(line)
+				builder.merge(registry, registry.scanBoth(line, parsed.dir))
+			}
 		}
 		for _, script := range expander.shells {
 			builder.merge(registry, registry.scanBoth(script, parsed.dir))
 		}
 		builder.computed = builder.computed || expander.ambiguous
+		builder.evaluated = builder.evaluated || expander.evaluated
 		units = append(units, builder.unit())
 	}
 	return units

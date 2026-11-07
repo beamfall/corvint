@@ -2,6 +2,7 @@ package affected
 
 import (
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -16,12 +17,14 @@ const (
 
 // driverScan is what the shell scanner found in recipe or step text: the
 // literal path tokens, the paths whose owners the text runs (PathImports),
-// the make invocations, and whether a command word is computed.
+// the make invocations, whether a command word is computed, and whether a
+// command's reads are outside what the graph models (uncertified).
 type driverScan struct {
-	computed bool
-	tokens   map[string]bool
-	paths    map[string]bool
-	makes    []driverMakeCall
+	computed    bool
+	uncertified bool
+	tokens      map[string]bool
+	paths       map[string]bool
+	makes       []driverMakeCall
 }
 
 // driverMakeCall is one `make` invocation. Dir is the repository-relative
@@ -289,6 +292,9 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 		switch {
 		case !words[0].quoted && driverAssignment(head):
 			words = words[1:]
+		case !words[0].quoted && head == "command" && len(words) > 1 && (words[1].text == "-v" || words[1].text == "-V"):
+			// A lookup: it names a command and runs none.
+			return cwd
 		case !words[0].quoted && driverPrefixKeywords[head]:
 			words = words[1:]
 		case head == "env":
@@ -382,8 +388,10 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		return driverJoin(cwd, target)
 	case "eval":
 		s.scan.computed = true
+		s.scan.uncertified = true
 		return cwd
 	case ".", "source":
+		s.scan.uncertified = true
 		if len(words) > 1 {
 			if driverComputedWord(words[1].text) {
 				s.scan.computed = true
@@ -394,6 +402,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	}
 	if driverComputedWord(head) {
 		s.scan.computed = true
+	}
+	if !driverCertified(words) {
+		s.scan.uncertified = true
 	}
 	base := path.Base(head)
 	if driverInterpreters[base] {
@@ -429,6 +440,129 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	s.pathWord(head, cwd)
 	s.embedded(words, cwd)
 	return cwd
+}
+
+// driverBoundedCommands read nothing or only the operands they are given,
+// which the unit's own path edges and tokens already name (AFP-V0-3122).
+var driverBoundedCommands = map[string]bool{
+	"cat": true, "head": true, "tail": true, "wc": true, "sort": true, "uniq": true, "cut": true,
+	"tr": true, "sed": true, "awk": true, "grep": true, "egrep": true, "fgrep": true, "cmp": true,
+	"diff": true, "comm": true, "paste": true, "sha256sum": true, "sha1sum": true, "shasum": true,
+	"md5sum": true, "cksum": true, "basename": true, "dirname": true, "realpath": true,
+	"readlink": true, "date": true, "sleep": true, "mkdir": true, "rm": true, "rmdir": true,
+	"cp": true, "mv": true, "ln": true, "touch": true, "chmod": true, "tee": true, "mktemp": true,
+	"printf": true, "echo": true, "test": true, "[": true, "true": true, "false": true, "jq": true,
+	"seq": true, "expr": true, "pwd": true, "uname": true, "id": true, "stat": true,
+}
+
+// driverRecursiveLetters are the short options that make a bounded command
+// read or change a whole tree; a long option naming recursion or an archive
+// copy does the same.
+var driverRecursiveLetters = map[string]string{
+	"grep": "rRd", "egrep": "rRd", "fgrep": "rRd", "cp": "rRa", "diff": "r", "chmod": "R",
+}
+
+// driverGoCertified are the go subcommands whose reads the Go plugin models:
+// the named packages' files and, for a test, the tests' own reads, which
+// select their package (AFP-V0-3122). `go run` runs a program from the
+// recipe's directory, whose reads no package model bounds.
+var driverGoCertified = map[string]bool{"test": true, "vet": true, "build": true, "list": true, "install": true, "env": true, "version": true}
+
+// driverCertified reports a simple command whose reads the graph already
+// bounds (AFP-V0-3122): a bounded command without a recursive option, a go
+// package command without a program it hands the build, a make invocation,
+// whose targets are units of their own, or a shell test script, which its
+// plugin selects for itself. Any other repository program, interpreter, git
+// or unlisted command may read any path, such as every tracked file.
+func driverCertified(words []driverWord) bool {
+	head := words[0].text
+	if driverDynamic(head) || words[0].quoted && head == "" {
+		return false
+	}
+	base := path.Base(head)
+	if strings.Contains(head, "/") && !strings.HasPrefix(head, "/") {
+		return driverShellTest(head)
+	}
+	switch {
+	case base == "make" || base == "gmake":
+		return true
+	case base == "go":
+		return driverGoCommandCertified(words[1:])
+	case driverShells[base]:
+		for index := 1; index < len(words); index++ {
+			arg := words[index].text
+			if strings.HasPrefix(arg, "-") && strings.HasSuffix(arg, "c") && !strings.HasPrefix(arg, "--") {
+				// The command string is scanned as its own commands.
+				return true
+			}
+			if !strings.HasPrefix(arg, "-") {
+				return driverShellTest(arg)
+			}
+		}
+		return false
+	case driverBoundedCommands[base]:
+		letters := driverRecursiveLetters[base]
+		for _, word := range words[1:] {
+			arg := word.text
+			if long, ok := strings.CutPrefix(arg, "--"); ok {
+				if strings.Contains(long, "recurs") || strings.HasPrefix(long, "archive") || strings.HasPrefix(long, "directories") {
+					return false
+				}
+				continue
+			}
+			if letters != "" && strings.HasPrefix(arg, "-") && strings.ContainsAny(arg[1:], letters) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// driverGoCommandCertified reports a go invocation whose subcommand is in
+// driverGoCertified and that names no program for the build to run.
+func driverGoCommandCertified(words []driverWord) bool {
+	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
+		if words[0].text == "-C" {
+			if len(words) < 2 {
+				return false
+			}
+			words = words[1:]
+		}
+		words = words[1:]
+	}
+	if len(words) == 0 || !driverGoCertified[words[0].text] {
+		return false
+	}
+	for _, word := range words[1:] {
+		if word.text == "-args" || word.text == "--" {
+			break
+		}
+		flag, _, _ := strings.Cut(strings.TrimLeft(word.text, "-"), "=")
+		if strings.HasPrefix(word.text, "-") && (flag == "exec" || flag == "toolexec" || flag == "vettool") {
+			return false
+		}
+	}
+	return true
+}
+
+// driverShellTest reports a repository shell test script by the shell
+// plugin's own naming rule (a `_test`, `-test`, `test_` or `test-` stem, or
+// `.bats`) and suffix: the plugin selects that test for itself, so a target
+// that runs it reads no more than the test does.
+func driverShellTest(word string) bool {
+	if driverDynamic(word) || strings.HasPrefix(word, "/") {
+		return false
+	}
+	name := path.Base(word)
+	if !slices.ContainsFunc(ShellSuffixes, func(suffix string) bool { return strings.HasSuffix(name, suffix) }) {
+		return false
+	}
+	if strings.HasSuffix(name, ".bats") {
+		return true
+	}
+	stem := strings.TrimSuffix(name, path.Ext(name))
+	return strings.HasSuffix(stem, "_test") || strings.HasSuffix(stem, "-test") || strings.HasPrefix(stem, "test_") || strings.HasPrefix(stem, "test-")
 }
 
 // embedded finds a go or make invocation anywhere in a command, such as one
