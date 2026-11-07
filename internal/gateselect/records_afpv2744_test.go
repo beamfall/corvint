@@ -18,15 +18,15 @@ import (
 // ancestor holders (beamfall/corvint#106: 13 such readers), and the sealed
 // CEM selected the climbing holders (5).
 func TestRecordEntryReadersResolveToTheDirectory_AFPV2744(t *testing.T) {
-	const sealed = ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
-	const entry = "docs/build-log/2026-11-06-selgo.md"
+	const sealed = ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json" //corvint:fixture-path
+	const entry = "docs/build-log/2026-11-06-selgo.md"                                  //corvint:fixture-path
 	root := writeFixture(t, map[string]string{
-		"lister/lister_test.go":       "package lister\n\nvar a, b = \"../.corvint/changes\", \"../docs/build-log/\"\n",
+		"lister/lister_test.go":       "package lister\n\nvar a, b = \"../.corvint/changes\", \"../docs/build-log/\"\n", //corvint:fixture-path
 		"named/named_test.go":         "package named\n\nvar a, b = \"../" + sealed + "\", \"../" + entry + "\"\n",
-		"temp/temp_test.go":           "package temp\n\nvar a, b = \".corvint/changes/\", \"docs/build-log/\"\n",
+		"temp/temp_test.go":           "package temp\n\nvar a, b = \".corvint/changes/\", \"docs/build-log/\"\n", //corvint:fixture-path
 		"lone/lone_test.go":           "package lone\n\nvar up, a, b = \"..\", \".corvint\", \"docs\"\n",
 		"climbs/climbs_test.go":       "package climbs\n\nvar a, b = \"../.corvint\", \"../docs\"\n",
-		"unrelated/unrelated_test.go": "package unrelated\n\nvar a = \"../docs/specs/\"\n",
+		"unrelated/unrelated_test.go": "package unrelated\n\nvar a = \"../docs/specs/\"\n", //corvint:fixture-path
 	})
 	for _, dirty := range []string{sealed, entry} {
 		t.Run(dirty, func(t *testing.T) {

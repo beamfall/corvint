@@ -27,14 +27,14 @@ func TestCIProfileNamesTheNestedModuleSuite_AFPV2742(t *testing.T) {
 		checks  []string
 	}{
 		{name: "module frontier narrows and names the suite", unknown: []Unknown{
-			module("go:unobserved-module:interop/cem01-go:interop/cem01-go/a_test.go"),
-			module("go:unobserved-module:interop/cem01-go:interop/cem01-go/b.go"),
-		}, scope: ScopeNarrowed, units: []string{"0 go:example.test/m/a whole"}, checks: []string{ModuleCheck("interop/cem01-go")}},
+			module("go:unobserved-module:nested/mod:nested/mod/a_test.go"),
+			module("go:unobserved-module:nested/mod:nested/mod/b.go"),
+		}, scope: ScopeNarrowed, units: []string{"0 go:example.test/m/a whole"}, checks: []string{ModuleCheck("nested/mod")}},
 		{name: "malformed detail stays FULL", unknown: []Unknown{module("go:unobserved-module:../x:../x/y.go")}, scope: ScopeFull, units: full},
 		{name: "another unknown stays FULL", unknown: []Unknown{
-			module("go:unobserved-module:interop/cem01-go:interop/cem01-go/b.go"),
+			module("go:unobserved-module:nested/mod:nested/mod/b.go"),
 			{Reason: "UNINDEXED_SOURCE_PATH", Detail: "x/y.go"},
-		}, scope: ScopeFull, units: full, checks: []string{ModuleCheck("interop/cem01-go")}},
+		}, scope: ScopeFull, units: full, checks: []string{ModuleCheck("nested/mod")}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -25,12 +25,12 @@ func TestAFPV2745RecordDirectoryReadersRatchet(t *testing.T) {
 		code   int
 		want   string
 	}{
-		"absent record":      {"", 1, "[lister] name the record directory docs/build-log/"},
-		"listed reader":      {head + `{"docs/build-log/":{"lister":"reads every entry"}}}`, 0, ""},
-		"stale entry":        {head + `{"docs/build-log/":{"gone":"was a reader","lister":"reads every entry"},".corvint/changes/":{}}}`, 0, "lists [gone] under docs/build-log/"},
-		"other directory":    {head + `{".corvint/changes/":{"lister":"reads every entry"}}}`, 1, "[lister] name the record directory docs/build-log/"},
-		"blank reason":       {head + `{"docs/build-log/":{"lister":" "}}}`, 2, "want exactly"},
-		"unprobed directory": {head + `{"docs/":{"lister":"reads"}}}`, 2, "want exactly"},
+		"absent record":      {"", 1, "[lister] name the record directory docs/build-log/"},                                                                                        //corvint:fixture-path
+		"listed reader":      {head + `{"docs/build-log/":{"lister":"reads every entry"}}}`, 0, ""},                                                                                //corvint:fixture-path
+		"stale entry":        {head + `{"docs/build-log/":{"gone":"was a reader","lister":"reads every entry"},".corvint/changes/":{}}}`, 0, "lists [gone] under docs/build-log/"}, //corvint:fixture-path
+		"other directory":    {head + `{".corvint/changes/":{"lister":"reads every entry"}}}`, 1, "[lister] name the record directory docs/build-log/"},                            //corvint:fixture-path
+		"blank reason":       {head + `{"docs/build-log/":{"lister":" "}}}`, 2, "want exactly"},                                                                                    //corvint:fixture-path
+		"unprobed directory": {head + `{"docs/":{"lister":"reads"}}}`, 2, "want exactly"},                                                                                          //corvint:fixture-path
 		"unknown member":     {head + `{},"extra":1}`, 2, "want exactly"},
 		"wrong profile":      {`{"profile":"corvint-record-readers/1","directories":{}}`, 2, "want exactly"},
 	} {
@@ -39,12 +39,12 @@ func TestAFPV2745RecordDirectoryReadersRatchet(t *testing.T) {
 			files := map[string]string{
 				"go.mod":                         "module example.test/m\n\ngo 1.27\n",
 				"lister/l.go":                    "package lister\n",
-				"lister/l_test.go":               "package lister\n\nvar entries = \"../docs/build-log/\"\n",
+				"lister/l_test.go":               "package lister\n\nvar entries = \"../docs/build-log/\"\n", //corvint:fixture-path
 				"scoped/s.go":                    "package scoped\n",
-				"scoped/s_test.go":               "package scoped\n\nvar entries = \"../docs/build-log/\"\n",
-				"docs/build-log/README.md":       "log\n",
+				"scoped/s_test.go":               "package scoped\n\nvar entries = \"../docs/build-log/\"\n", //corvint:fixture-path
+				"docs/build-log/README.md":       "log\n",                                                    //corvint:fixture-path
 				recordPath:                       unbounded,
-				".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"scoped":["docs/build-log/"]}}`,
+				".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"scoped":["docs/build-log/"]}}`, //corvint:fixture-path
 			}
 			if c.record != "" {
 				files[recordReadersPath] = c.record
