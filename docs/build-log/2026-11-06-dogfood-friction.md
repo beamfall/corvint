@@ -29,6 +29,28 @@ round trips from the dogfood bind and seal path. Requirements: `DWC-V0-7600` to 
   not repin on its own: a repin rewrites tracked documents, whose hunks the bound change must
   contain and cite.
 
+## Review fixes
+
+One independent review (Codex) returned four findings; each is fixed in a new commit with a
+regression that fails on the reviewed head.
+
+- `DWC-V0-7600`: tracked-ness came from any `git ls-files` failure, so a corrupt index read as
+  untracked and a tracked manifest could be rewritten. `intentsUntracked` now treats a manifest
+  outside the worktree as untracked, asks Git for one inside it with a `:(literal)` pathspec, and
+  accepts only exit 0 (tracked) or 1 (untracked). Any other outcome keeps the file and the refusal
+  and prints an `intents not canonicalized` line naming the error. The worktree test resolves
+  symlinks and compares directories by identity, so a `/var` to `/private/var` alias or a
+  case-folded path still matches.
+- `DWC-V0-7601`: POSIX sh has no pipefail, so a failed `git show --remerge-diff` piped into `sort`
+  exited 0 with no paths. The helper captures Git's status first and refuses `remerge-diff-failed`.
+  `script/dogfood-merge-base_test.sh` runs make, so it is declared in `.corvint/shell-read-scopes.json`
+  with its one read, `Makefile`.
+- `DWC-V0-7603`: Make expands `$` in a command-line variable, so the printed rerun now doubles each
+  `$` before the `%q` quoting. The test reruns the printed command in a child `bash -c`, not `eval`:
+  bash 3.2 runs the ERR trap inside an `eval` even in an `||` list, while the output redirection is
+  still open, and the trap's `cat` of the output then appended to itself until it was killed at
+  166 GB.
+
 ## Checks
 
 - `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run
@@ -38,6 +60,11 @@ round trips from the dogfood bind and seal path. Requirements: `DWC-V0-7600` to 
   'TestNonSourcePaths|TestOwnershipAuditListsUnclaimedPaths_AZU_V0_002' ./internal/liveverify/affected/`: ok.
 - `script/dogfood-merge-base_test.sh`: PASS. `script/dogfood-cache_test.sh`: rc 0.
   `script/check-bash32.sh`: ok.
+- Review fixes: the `TestDWCV07600` run above, `script/dogfood-merge-base_test.sh`,
+  `script/dogfood-cache_test.sh` and `TestRepositoryShellReadScopes` pass, and
+  `go run ./tools/unbounded-readers` is ok. Against the reviewed sources, the new
+  `TestDWCV07600` case fails, `dogfood-merge-base_test.sh` fails at the injected `git show` case,
+  and `dogfood-cache_test.sh` fails at the `$$` rerun check.
 
 ## Limits
 

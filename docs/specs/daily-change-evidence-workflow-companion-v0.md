@@ -94,15 +94,20 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   file in place, atomically and with its file mode kept, to its `LC_ALL=C sort -u` form, print one
   `intents canonicalized` line naming the file and the line counts before and after, check the
   rewritten manifest again, and go on, before the input snapshot, so the run binds the sorted bytes.
-  It MUST NOT rewrite a manifest the repository tracks (that would dirty the change) or one with
-  any non-canonical line, and either keeps the `ASD-V0-840` `intent-manifest-unsorted` refusal with
-  its `LC_ALL=C sort -u -o` fix line; every other grammar fault keeps its refusal. Design: the
+  It MUST NOT rewrite a manifest the repository tracks (that would dirty the change), one inside
+  the worktree whose tracked state Git cannot report (`git ls-files --error-unmatch` exits other
+  than 0 or 1, as with an unreadable index; the run prints an `intents not canonicalized` line naming
+  the error), or one with any non-canonical line, and each keeps the `ASD-V0-840`
+  `intent-manifest-unsorted` refusal with its `LC_ALL=C sort -u -o` fix line; a manifest outside the
+  worktree is untracked. Every other grammar fault keeps its refusal. Design: the
   refusal named a purely mechanical fix and cost each lane a round trip (V1-4788, 2026-11-06).
   Non-goals: canonicalizing a manifest the `dogfood change` pass reads directly, or any other
   input. Failure modes: a write or rename failure leaves the file unchanged and keeps the refusal.
   Evidence: `TestDWCV07600FinishLaneCanonicalizesIntentManifest` (pre-flight and finish rewrite a
   three-line unsorted, duplicated scratch manifest to two sorted lines with the mode kept and reach
-  their steps; a tracked manifest is refused unchanged); `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`
+  their steps; a tracked manifest, and an untracked one in the worktree while the index is
+  unreadable, are refused unchanged; with the index restored that one is rewritten);
+  `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`
   and `TestDCWV0731StaticPreCheck` keep the refusal for a manifest no sort repairs. Rollback: drop
   `canonicalizeIntents` and its call in `requireIntentsInput`.
 
@@ -115,13 +120,15 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   (`merge-not-in-head`), a merge without exactly two parents (`merge-not-two-parent`), a missing
   mainline ref (`mainline-ref-missing`) and a merged parent that is not an ancestor of
   `DOGFOOD_MAINLINE_REF` (default `origin/main`; `merged-parent-not-mainline`), since a merged lane
-  branch is not mainline. `make <dogfood target> BASE=merge-forward` MUST pass the derived SHA as
+  branch is not mainline, and with `--paths` a failed `git show --remerge-diff`
+  (`remerge-diff-failed`, nothing printed), which never reads as a merge without resolved paths. `make <dogfood target> BASE=merge-forward` MUST pass the derived SHA as
   the target's BASE, derived once per make run; a refusal leaves BASE empty, so the target's own
   BASE refusal follows the helper's. Non-goals: resolving conflicts, choosing citations, or
   checking that the merge was a mainline merge-forward beyond the ancestry test. Evidence:
   `script/dogfood-merge-base_test.sh` (`make dogfood-merge-base-test`): a hand-resolved conflicted
   merge-forward yields the mainline SHA and `shared.txt`, a later bind commit keeps it, `make
-  BASE=merge-forward` passes it, and each refusal fires. Rollback: delete the script, its test
+  BASE=merge-forward` passes it, each refusal fires, and a `git` shim whose `show` exits 128 makes
+  `--paths` refuse `remerge-diff-failed` with empty output. Rollback: delete the script, its test
   target and the `DOGFOOD_MERGE_FORWARD_BASE` Makefile lines; BASE is again typed by hand.
 
 - `DWC-V0-7602`: (experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527)
@@ -138,9 +145,12 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   `DWC-V0-7500`) The `line-citations-invalid` refusal of `script/dogfood-finish.sh` MUST print one
   `fix:` line that names `script/check-line-citations.sh --repin`, the commit, and the exact make
   rerun with the BASE, SEAL=0 and every CITATIONS, INTENTS, VERIFY and OUTCOME input the run took,
-  shell-quoted. The finish MUST NOT repin or commit on its own: a repin rewrites tracked documents,
+  each value with its `$` doubled for Make (which expands `$` in a command-line variable) and then
+  shell-quoted, so the copied rerun hands the script the same bytes. The finish MUST NOT repin or commit on its own: a repin rewrites tracked documents,
   whose new hunks the bound change has to contain and cite. Evidence: `script/dogfood-cache_test.sh`
-  `DWC-V0-7500` group (the fix line carries the exact rerun). Rollback: restore the previous fix
+  `DWC-V0-7500` group (the fix line carries the exact rerun) and `DWC-V0-7603` case (a CITATIONS
+  path with a literal `$` prints `$$`, and the printed rerun, run again, reads the same file and
+  prints the same fix line). Rollback: restore the previous fix
   line.
 
 ## Failure modes
@@ -155,8 +165,10 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | Check report staging crosses a mount boundary | Sibling staging preserves exact bytes and atomic publication |
 | Any other publication failure | Prior report stays unchanged; failure and temporary cleanup remain visible |
 | Intents manifest only unsorted or duplicated, untracked | Rewritten to `LC_ALL=C sort -u` with an `intents canonicalized` line; the run goes on (`DWC-V0-7600`) |
-| Intents manifest tracked, non-canonical, or the rewrite fails | `intent-manifest-unsorted` or its grammar refusal; the file is unchanged |
+| Intents manifest tracked, its tracked state unreadable, non-canonical, or the rewrite fails | `intent-manifest-unsorted` or its grammar refusal; the file is unchanged |
 | `BASE=merge-forward` with no merge, an octopus, a foreign merge or a non-mainline merged parent | `dogfood-merge-base: REFUSE <code>` with a `fix:` line, exit 2; BASE stays empty (`DWC-V0-7601`) |
+| `dogfood-merge-base.sh --paths` when `git show --remerge-diff` fails | `REFUSE remerge-diff-failed`, exit 2, no path printed (`DWC-V0-7601`) |
+| A line-citations refusal whose input path holds a literal `$` | The printed rerun carries `$$`, which Make reads back as the same path (`DWC-V0-7603`) |
 
 ## Acceptance evidence
 
@@ -165,7 +177,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
-| `DWC-V0-7600` (experimental under the standing lane auto-accept (2026-11-06); V1-4788) | `internal/dogfoodflow/finishlane.go` `canonicalizeIntents`, `canonicalIntentManifest`; `TestDWCV07600FinishLaneCanonicalizesIntentManifest`, `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`, `TestDCWV0731StaticPreCheck` | implemented; focused tests PASS |
+| `DWC-V0-7600` (experimental under the standing lane auto-accept (2026-11-06); V1-4788) | `internal/dogfoodflow/finishlane.go` `canonicalizeIntents`, `intentsUntracked`, `worktreeEntry`, `canonicalIntentManifest`; `TestDWCV07600FinishLaneCanonicalizesIntentManifest`, `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`, `TestDCWV0731StaticPreCheck` | implemented; focused tests PASS |
 | `DWC-V0-7601` (experimental under the standing lane auto-accept (2026-11-06); V1-4721) | `script/dogfood-merge-base.sh`, `Makefile` `DOGFOOD_MERGE_FORWARD_BASE`; `script/dogfood-merge-base_test.sh` | implemented; shell test PASS |
 | `DWC-V0-7602` (experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527) | `docs/DOGFOOD.md` "Rebinding after a conflicted merge-forward" | documented; batch-check pass observed by hand, not re-run here |
 | `DWC-V0-7603` (experimental under the standing lane auto-accept (2026-11-06)) | `script/dogfood-finish.sh` line-citations refusal; `script/dogfood-cache_test.sh` | implemented; shell test PASS |
