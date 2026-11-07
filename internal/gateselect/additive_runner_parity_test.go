@@ -104,7 +104,7 @@ func TestNarrowedRunnerFollowsTheChangedCommand_AFPV03143(t *testing.T) {
 		},
 		{
 			name: "declared binary exec", harness: "harness", command: "quiet",
-			source: "package harness\n\n// Run runs quiet, as .corvint/test-binary-execs.json declares; no literal names it.\nfunc Run() error { return nil }\n",
+			source: "package harness\n\n// Run runs quiet, as the binary-execs declaration says; no literal names it.\nfunc Run() error { return nil }\n",
 			extra: map[string]string{
 				".corvint/test-binary-execs.json": "{\"profile\":\"corvint-test-binary-execs/0\",\"packages\":{\"harness\":[\"quiet\"]}}\n", //corvint:fixture-path
 			},
@@ -137,7 +137,7 @@ func TestNarrowedRunnerFollowsTheChangedCommand_AFPV03143(t *testing.T) {
 // structural selection, so following code runners narrows nothing less than
 // the change requires.
 func TestNarrowedRunnerKeepsItsNarrowing_AFPV03143(t *testing.T) {
-	source := "package harness\n\n// Run runs quiet, as .corvint/test-binary-execs.json declares.\nfunc Run() error { return nil }\n"
+	source := "package harness\n\n// Run runs quiet, as the binary-execs declaration says.\nfunc Run() error { return nil }\n"
 	declaration := map[string]string{
 		".corvint/test-binary-execs.json": "{\"profile\":\"corvint-test-binary-execs/0\",\"packages\":{\"harness\":[\"quiet\"]}}\n", //corvint:fixture-path
 	}
@@ -161,7 +161,7 @@ func TestNarrowedRunnerKeepsItsNarrowing_AFPV03143(t *testing.T) {
 // structural verdict, so attributeNarrowed starts from the command's code
 // runners too. The run is declared, so no namer edge stands in for it.
 func TestNarrowedCommandKeepsItsRunners_AFPV03143(t *testing.T) {
-	source := "package harness\n\n// Run runs quiet, as .corvint/test-binary-execs.json declares.\nfunc Run() error { return nil }\n"
+	source := "package harness\n\n// Run runs quiet, as the binary-execs declaration says.\nfunc Run() error { return nil }\n"
 	declaration := map[string]string{
 		".corvint/test-binary-execs.json": "{\"profile\":\"corvint-test-binary-execs/0\",\"packages\":{\"harness\":[\"quiet\"]}}\n", //corvint:fixture-path
 	}
