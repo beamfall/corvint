@@ -232,7 +232,7 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 	for _, operator := range []string{":-", ":=", "-", "="} {
 		if strings.HasPrefix(rest, operator) {
 			if depth >= maxValueDepth {
-				return []string{wildcard}
+				return truncated(cut)
 			}
 			alternatives := append(named(name, values, depth, cut), expand(unquote(rest[len(operator):]), values, depth+1, cut)...)
 			if len(alternatives) > maxValueCount {
@@ -244,8 +244,11 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 	for _, operator := range []string{":+", "+"} {
 		if strings.HasPrefix(rest, operator) {
 			fields := fieldsTop(rest[len(operator):])
-			if depth >= maxValueDepth || len(fields) == 0 {
+			if len(fields) == 0 {
 				return []string{wildcard}
+			}
+			if depth >= maxValueDepth {
+				return truncated(cut)
 			}
 			return append([]string{""}, expand(unquote(fields[0]), values, depth+1, cut)...)
 		}
@@ -254,11 +257,17 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 }
 
 // named expands one variable: its in-file values, or wildcard for a name the
-// file never sets, sets more often than the bound, or that recurses too deep.
+// file never sets. A name it sets more often than maxNameValues, or one that
+// recurses past maxValueDepth, is a truncated expansion: the values the file
+// does give are dropped, so it sets *cut as the count bound does
+// (AFP-V0-3146, AFP-V0-3147).
 func named(name string, values map[string][]string, depth int, cut *bool) []string {
 	given := values[name]
-	if len(given) == 0 || len(given) > maxNameValues || depth >= maxValueDepth {
+	if len(given) == 0 {
 		return []string{wildcard}
+	}
+	if len(given) > maxNameValues || depth >= maxValueDepth {
+		return truncated(cut)
 	}
 	var out []string
 	for _, value := range given {
@@ -268,6 +277,17 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 		out, *cut = out[:maxValueCount], true
 	}
 	return out
+}
+
+// truncated is the wildcard a value bound stands in for values the file
+// gives: it records the cut, so the caller keeps the unbounded-reader
+// protection instead of reading the wildcard as an environment input that
+// names no owned script (AFP-V0-3147). A wildcard for a part no text fixes
+// (an unset name, `$1`, a command substitution, an operator the model does
+// not follow) is no cut: nothing the file gives was dropped.
+func truncated(cut *bool) []string {
+	*cut = true
+	return []string{wildcard}
 }
 
 // constructed links each fully literal value of a computed target and
