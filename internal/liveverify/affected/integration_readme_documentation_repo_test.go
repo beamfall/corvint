@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestIntegrationReadmesAreDocumentation_AFP_V0_830: a host README edit is
@@ -12,6 +13,7 @@ import (
 // frontier of a plugin that neither owns, reads nor reaches it, while the
 // units that read it by literal stay selected (V1-3509).
 func TestIntegrationReadmesAreDocumentation_AFP_V0_830(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, module := repositoryNarrowingGraph(t)
 	for _, test := range []struct {
 		dirty   string

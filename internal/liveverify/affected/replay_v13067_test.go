@@ -11,6 +11,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // pr1961Source is the non-.github part of PR #1961's path set
@@ -48,6 +49,7 @@ func gateRun(t *testing.T, lines []string) []string {
 // tokens do not resolve to the sealed CEM, so AFP-V0-152 narrows it out of rule
 // (c). The CI omission came from a shadow pin that predates AFP-V0-152.
 func TestDriverSelectionCoversTheShadow_V13067(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {

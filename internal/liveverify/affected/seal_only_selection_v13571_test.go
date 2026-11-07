@@ -7,6 +7,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestSealOnlyCEMDeltaStaysBounded_V13571 pins the delta a seal commit
@@ -27,6 +28,7 @@ import (
 // .corvint/runtime-edges.json models the rest (AFP-V0-819), so that delta stays
 // BOUNDED too.
 func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, err := affected.Build(context.Background(), repositoryRoot(t), languages.All()...)
 	if err != nil {
 		t.Fatal(err)

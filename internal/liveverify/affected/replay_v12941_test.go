@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // batch1028cUnowned is every UNOWNED_DIRTY_PATH of batch 1028c
@@ -95,6 +96,7 @@ func frontierFloor(t *testing.T, graph *affected.Graph) map[string]bool {
 // floor every Go source edit carries. The undeclared remainder of batch 1028a
 // stays UNOWNED_DIRTY_PATH, path by path.
 func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, err := affected.Build(context.Background(), repositoryRoot(t), languages.All()...)
 	if err != nil {
 		t.Fatal(err)

@@ -778,13 +778,14 @@ select_baseline() {
 }
 
 # drift_step NAME REGEX PACKAGE...: one go test step; a package that runs no test fails it, since
-# its prefix would otherwise pass silently.
+# its prefix would otherwise pass silently. CORVINT_LIVE_TIER=1 runs a live-tier drift test, such
+# as the companion-release double build, instead of skipping it (AFP-V0-2700).
 drift_step() {
   local name=$1 re=$2 heavyq=
   shift 2
   # BATCH_PRECHECK_HEAVY is one executable path, quoted as one word: no expansion, no splitting.
   [[ -z $heavy ]] || heavyq=$(printf '%q' "$heavy")
-  printf '%s\tout=$(%s env GOCACHE=%q GOTOOLCHAIN=local go test -count=1 -run %q %s 2>&1); rc=$?; printf "%%s\\n" "$out"; [ "$rc" = 0 ] || exit "$rc"; case $out in *"no tests to run"*|*"no test files"*) exit 1 ;; esac\n' \
+  printf '%s\tout=$(%s env GOCACHE=%q GOTOOLCHAIN=local CORVINT_LIVE_TIER=1 go test -count=1 -run %q %s 2>&1); rc=$?; printf "%%s\\n" "$out"; [ "$rc" = 0 ] || exit "$rc"; case $out in *"no tests to run"*|*"no test files"*) exit 1 ;; esac\n' \
     "$name" "$heavyq" "$gocache" "^($re)" "$*"
 }
 

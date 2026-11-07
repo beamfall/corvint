@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // --- target validation ---
@@ -1363,6 +1364,7 @@ func TestDoubleBuildWorkersFitFreeScratch_V1_3221(t *testing.T) {
 // once it passes, and the test skips, naming both figures, when one
 // component's measured need does not fit.
 func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	t.Run("PUB-V0-013 corvint-binary-double-build", func(t *testing.T) {
 		if runtime.Version() != requiredGoVersion {
 			t.Skipf("pinned toolchain %s required, running %s", requiredGoVersion, runtime.Version())

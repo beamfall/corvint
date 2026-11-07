@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/doccompiler"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func docsRepository(t *testing.T) string {
@@ -349,6 +350,7 @@ func TestDocsCLIHostileTrackedPathsAndOriginalRoutes(t *testing.T) {
 }
 
 func TestDocsHelpPrerequisitesAndWorkingExample(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	t.Parallel()
 	for _, required := range []string{"exactly one literal ## Agent digest", "64 lines", "UTF-8", "LF", "tracked", "committed", "not .", "exported", "docs/specs/source-documentation-draft-v0.md"} {
 		if !strings.Contains(docsHelp, required) {
