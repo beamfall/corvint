@@ -27,7 +27,7 @@ fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here f
 ## Agent digest
 - Claim: `corvint affected` narrows fixture, temp-root, `go list`, root-locator and text-literal reads, marks deletions, and honours declared test owners.
 - Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`; `boundedJoinConsumed` in `internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`, `outputOnlyLiterals` in `internal/liveverify/affected/golang/outputproof.go` and `internal/gateselect/outputproof.go`, `driverGoBuildOnlyCommands` in `internal/liveverify/affected/driver_shell.go`.
+- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`; `boundedJoinConsumed` in `internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`, `outputOnlyLiterals` and `capturesStream` in `internal/liveverify/affected/golang/outputproof.go` and `internal/gateselect/outputproof.go`, `driverGoBuildOnlyCommands`, `driverXargs` and `scanShellOutput` in `internal/liveverify/affected/driver_shell.go`.
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
@@ -565,7 +565,11 @@ review of 2026-11-07 found four of the first versions too broad (a joined path a
 `filepath.Dir` widens, a stop at every command, a line break taken as proof of text, an
 environment-named source taken as external); the requirements below are the corrected rules, each
 of which keeps the broader selection where its proof does not hold
-(`docs/build-log/2026-11-07-unbounded-readers-review-fix.md`).
+(`docs/build-log/2026-11-07-unbounded-readers-review-fix.md`). The second review of 2026-11-07
+found two more gaps: a `go list` whose output a later command runs (`go list ./lib | xargs -I PKG
+go test PKG`) was a build-only edge, and a standard stream the program itself redirects to a pipe
+made printed text a path it opens. AFP-V0-2956 to AFP-V0-2960 close them by keeping the
+uncertainty (`docs/build-log/2026-11-07-unbounded-readers-review-fix-2.md`).
 
 - **AFP-V0-2950:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends AFP-V0-012 rule (d) and AZU-V0-9930; review fix 2026-11-07) Locating the working directory
@@ -595,7 +599,8 @@ of which keeps the broader selection where its proof does not hold
   amends AFP-V0-012 rule (d); review fix 2026-11-07) A rule (d) chain from a root locator SHALL NOT
   follow a build-only edge, and SHALL follow every other edge. A build-only edge runs from a driver
   unit (a make target, CI job or action) to a unit whose owned paths the driver names only as the
-  package patterns of `go vet` or `go list` (the unit's `buildPathImports`) and by no other path
+  package patterns of `go vet` or `go list` whose standard output feeds no other command and whose
+  arguments no feeder supplies (AFP-V0-2956, AFP-V0-2957; the unit's `buildPathImports`) and by no other path
   import, declared import or declared caller (TSP-V0-005): those commands read the packages without
   running any of their code or leaving a binary a later step could run, so the driver reads nothing
   a root locator in them would. `go build`, `go install`, `go run`, `go test`, `go generate` and
@@ -609,8 +614,9 @@ of which keeps the broader selection where its proof does not hold
   which the review rejected. The CI selector is unchanged: its rule (d) closure follows Go import
   edges only (AFP-V0-464).
 - **AFP-V0-2952:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
-  amends AFP-V0-012 rule (d); review fix 2026-11-07) A `..`-climbing token that a non-test file
-  holds only inside string literals that contain a line break, none of which carries a
+  amends AFP-V0-012 rule (d); review fix 2026-11-07; narrowed by AFP-V0-2959 and AFP-V0-2960) A
+  `..`-climbing token that a non-test `package main` file holds, in a directory whose files give no
+  evidence of capturing a standard stream, only inside string literals that contain a line break, none of which carries a
   directory-changing word (`cd`, `pushd`, `-C`, `--chdir`; `changesDirectory`), and each of which
   reaches only the process's standard output or error stream, is text the file prints, not a path
   it opens: it SHALL NOT make the package an unbounded reader. A literal reaches only a standard
@@ -660,6 +666,52 @@ of which keeps the broader selection where its proof does not hold
   and no other function or embedded program reuses its name) and its toolchain probe a literal
   binary name (`"$sdk/go"`), so the shell plugin links or bounds every source and run target it
   holds but the environment-named source AFP-V0-2953 keeps dynamic.
+- **AFP-V0-2956:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 2, 2026-11-07; amends AFP-V0-2951) A `go vet` or `go list` whose standard output feeds
+  another command SHALL record its package patterns as path imports (execution edges), not build
+  path imports: its output feeds a command when a pipe (`|` or `|&`, not `||`) follows it, or a
+  command substitution (`$(...)`, backticks), a process substitution (`<(...)`, `>(...)`) or a make
+  `$(shell ...)` encloses it, at any nesting (a `sh -c` script inside such a context inherits it).
+  The consumer may run what the command lists: `go list ./lib | xargs -I PKG go test PKG` runs
+  lib's tests, so a root locator in lib reaches the driver. A `go list` whose output goes to a file
+  or nowhere keeps its build-only edge; a command that later reads that file is fed (AFP-V0-2957)
+  or holds an expansion, which already imports every owner. The shell scanner SHALL NOT take the
+  word after `<(` or `>(` as a redirect target.
+- **AFP-V0-2957:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 2, 2026-11-07) A command that `xargs`, `parallel`, or `find`'s `-exec`, `-execdir`,
+  `-ok` or `-okdir` runs takes arguments the scanner cannot read. A go package command it runs
+  SHALL import every owner (the pattern `...`, as an expanded pattern does; a build-only edge for
+  `go vet` and `go list` unless AFP-V0-2956 applies); a make call it runs SHALL be computed (every
+  target of its make file); and an interpreter it runs, a command word holding the replacement
+  string that `-I`, `-J`, `-i` or `--replace` names, or a `{}` command word after `find -exec` (any
+  `{` word after `parallel`) SHALL mark the site a computed invocation. An xargs option missing its
+  value keeps the site computed (AZU-V0-001).
+- **AFP-V0-2958:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 2, 2026-11-07) A shell or interpreter in the driver scanner's interpreter list that
+  reads its program from standard input SHALL mark the site a computed invocation: one with no
+  script operand and no inline program, a shell given `-s` (alone or in an option cluster) or `-`,
+  as in `... | sh`, `bash -s` and a heredoc-fed `bash <<EOF`, whose body the scanner skips. A shell's
+  `-o NAME` and `+o NAME` take their value; `+x`-style options are options, not the script.
+- **AFP-V0-2959:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 2, 2026-11-07; narrows AFP-V0-2952) The printed-text exemption of AFP-V0-2952 SHALL
+  apply only to a literal in a `package main` file. No other package can import a command, so the
+  command's directory, its own and external test files included, is all the code that shares its
+  process. A library's printed text keeps rule (d): an importer's code, in the same process, may
+  redirect the stream and read the text back, and no per-package scan sees that code.
+- **AFP-V0-2960:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 2, 2026-11-07; narrows AFP-V0-2952) The printed-text exemption SHALL also require that
+  no Go file of the directory, test files and an external test package included, gives evidence of
+  capturing a standard stream (`capturesStream`): an identifier `Pipe`, `Pipe2`, `Dup`, `Dup2`,
+  `Dup3`, `SetStdHandle`, `NewFile`, `Output`, `CombinedOutput`, `StdoutPipe` or `StderrPipe` under any
+  qualifier; an assignment to, the address of, or a composite-literal key named `Stdout` or
+  `Stderr` (`os.Stdout = w`, `&os.Stdout`, `cmd.Stdout = &buffer`, `exec.Cmd{Stdout: w}`); a
+  `//go:linkname` directive; or a file that is unreadable or does not parse. Any such evidence
+  returns each exempt token of the directory to rule (d), with the reason it would have given. The
+  review's case, code that sets `os.Stdout` to an `os.Pipe` writer, prints `"../config%s\n"`,
+  reads the pipe back, trims it and opens the result, keeps rule (d) and is selected by an edit of
+  `config.go`, whether it is a library or a command. The planner's Go plugin and the CI selector
+  SHALL apply the same rule and agree on every fixture case, and the selector's scan memo SHALL
+  carry each file's `main` and `captures` flags so a warm scan agrees with a cold one.
 
 ## Non-goals
 
@@ -769,6 +821,11 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2953 | the source branch of `observe` (`internal/liveverify/affected/shell/shell.go`), which marks every source no literal or fresh directory resolves dynamic | `TestEnvironmentNamedSourceStaysDynamic_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (five environment-named forms stay dynamic, and a test containing only `. "$ENVFILE"` is selected by an edit of the repository's `lib.sh`); the `envfile.sh` near miss of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/unbounded_readers_v14283_repo_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` |
 | AFP-V0-2954 | `conflicting` in `resolver`, its assignment in `newResolver` and the count check of `base` (`internal/liveverify/affected/shell/shell.go`) | `TestSameValuedReassignmentResolves_AFPV02954` in `internal/liveverify/affected/shell/shell_test.go` (the dogfood-finish.sh form links; controls: differing values, `local`, `read`, `for`, `+=`); `TestReassignedVariableIsNotADirectoryForm_NSAV0008` (unchanged) |
 | AFP-V0-2955 | `.corvint/shell-read-scopes.json`, `.corvint/unbounded-readers.json`, `unwrap_shell` in `script/heavy.sh` | `TestRepositoryScriptsAreBoundedSources_V14283` (heavy.sh dynamic only through its environment-named source, dogfood-finish.sh linked, qualify-tasks-basic_test.sh read-scoped, dogfood-cache_test.sh on the floor); `make unbounded-readers-check`; `make test-read-scopes-check`; `make selection-baseline-check`; the plans in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
+| AFP-V0-2956 | `feeds`, `flush` and the substitution stack of `script`, the `$(...)` and backtick branches of `word`, `scanShellOutput` and the `buildOnly` condition of `goInvocation` in `internal/liveverify/affected/driver_shell.go`; `scanBothOutput` in `internal/liveverify/affected/driver.go` | `TestDriverListingOutputKeepsExecution_AFPV02956` in `internal/liveverify/affected/driver_shell_test.go` (the review's `go list ./lib \| xargs -I PKG go test PKG`, `\|&`, `cd`, `$(...)`, quoted `$(...)`, backticks, a while-read loop, a process substitution, piped `go vet`, a piped `sh -c` all give lib an execution edge; output to a file, `\|\|` and `&&` keep the build-only edge); `TestListingOutputReachesItsRunner_AFPV02956` in `internal/liveverify/affected/golang/locator_selection_test.go` (a real Makefile: the review's target, a backtick target and a while-read target are selected through lib's root locator on an unrelated change; a `go list > pkgs.txt` target is not) |
+| AFP-V0-2957 | `driverXargs`, the `xargs` branch of `command`, the replacement check and the `s.fed` condition of `simple`, `embedded`, the `fed` parameter of `goInvocation` and `makeInvocation` in `internal/liveverify/affected/driver_shell.go` | `TestDriverListingOutputKeepsExecution_AFPV02956` (xargs, `xargs -a`, `parallel` and `find -execdir` go runs import every owner; a fed `go vet` keeps the build-only class; a fed make call is computed); `TestDriverStdinProgramIsComputed_AFPV02958` (an interpreter xargs runs, an xargs replacement command word, `find -exec {}`, `parallel {}`); `TestDriverTruncatedWrapperOptions_AZU_V0_001` (`xargs -I` stays computed) |
+| AFP-V0-2958 | `operand` and the `-s`, `-`, `-o`/`+o` and `+` branches of the interpreter loop in `simple` (`internal/liveverify/affected/driver_shell.go`) | `TestDriverStdinProgramIsComputed_AFPV02958` (`\| sh`, a heredoc-fed `bash`, `bash -s`; a named script, an inline `-c` program and `bash -eu script` stay uncomputed) |
+| AFP-V0-2959 | the `file.Name.Name == "main"` condition of the text skip in `observeDirectory` (`internal/liveverify/affected/golang/golang.go`); `main` in `scannedFile`, `scanFile`, `record` and the `Main` memo field (`internal/gateselect/readers.go`, `scanmemo.go`) | `TestLineBrokenClimbIsText_AFPV02952` (`printedlib`, a library printing the same text, keeps rule (d); the commands `printed`, `streamed`, `raw` stay exempt); `TestLineBrokenClimbParity_AFPV02952` |
+| AFP-V0-2960 | `capturesStream`, `streamCaptureNames` and `streamCaptureHints` in `internal/liveverify/affected/golang/outputproof.go` and the identical `internal/gateselect/outputproof.go`; `printedText` and `captured` in `observeDirectory` (`golang.go`); `printed`, `captures`, `printedText` and the post-record pass of `indexRepositoryMemo` and the `Captures` memo field (`internal/gateselect/readers.go`, `scanmemo.go`) | `TestCapturedStreamKeepsClimb_AFPV02960` in `internal/liveverify/affected/golang/text_literal_test.go` (the review's pipe reader as a library and as a command, and commands whose tests capture through `os.Pipe`, an external test package, a re-run's `Output` or `syscall.Dup2`, keep rule (d); the pipe readers and a test-captured command are selected by an edit of `config.go`; the same command whose tests capture nothing stays exempt); `TestCapturedStreamParity_AFPV02960` in `internal/gateselect/locator_parity_test.go` (both analyzers agree; cold and warm memo agree) |
 
 ## Rollback
 
