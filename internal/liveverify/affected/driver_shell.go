@@ -363,6 +363,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			// through a shell wrapper. Do not discard that read boundary
 			// with the command-local environment (AFP-V0-3128).
 			if goflags != "" {
+				s.scan.computed = true
 				s.scan.uncertified = true
 			}
 			return s.simple(words, cwd)
@@ -370,6 +371,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	}
 	if goflags != "" {
 		// A standalone assignment can affect later commands in this shell.
+		s.scan.computed = true
 		s.scan.uncertified = true
 	}
 	return cwd
@@ -412,6 +414,8 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	case "export", "local", "readonly", "declare", "set", "unset", "read":
 		// Environment mutations persist beyond this simple command. No
 		// forms of these builtins have a modeled environment transition.
+		// Retain the site even when the recipe has no make expansion.
+		s.scan.computed = true
 		s.scan.uncertified = true
 		s.embedded(words[1:], cwd)
 		return cwd

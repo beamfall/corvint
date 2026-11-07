@@ -244,6 +244,15 @@ func (b *driverUnitBuilder) addTokens(text string) {
 	}
 }
 
+// readPaths retains filesystem dependencies even when expansion drops the value.
+func (b *driverUnitBuilder) readPaths(paths []string) {
+	for _, value := range paths {
+		b.paths[value] = true
+		b.tokens[value] = true
+		b.tokens["/"+value+"/"] = true
+	}
+}
+
 // merge folds a shell scan into the unit, its make calls resolved.
 func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	if scan.computed {
@@ -423,7 +432,11 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		uncertified = uncertified || scan.uncertified
 		shared.merge(registry, scan)
 	}
-	uncertified = uncertified || !parsed.recipeShellCertified()
+	exportsCertified := parsed.exportsCertified()
+	shared.computed = shared.computed || !exportsCertified
+	uncertified = uncertified || !exportsCertified || !parsed.recipeShellCertified()
+	shared.readPaths(fileExpander.readPaths)
+	shared.readPaths(parse.readPaths)
 	for index, include := range parsed.includes {
 		expander := parsed.expanderAt(parsed.includeAt[index])
 		for _, expanded := range expander.expandAll(include) {
@@ -535,6 +548,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		for _, script := range expander.shells {
 			builder.merge(registry, registry.scanBoth(script, parsed.dir))
 		}
+		builder.readPaths(expander.readPaths)
 		builder.computed = builder.computed || expander.ambiguous
 		builder.evaluated = builder.evaluated || expander.evaluated
 		units = append(units, builder.unit())
