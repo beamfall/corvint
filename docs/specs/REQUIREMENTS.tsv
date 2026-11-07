@@ -2106,6 +2106,7 @@ CRK-V0-009	docs/specs/context-ranking-v0.md	(amended under the owner's standing 
 CRK-V0-010	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-011	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-012	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
+CRK-V0-7900	docs/specs/context-ranking-v0.md	(owner-requested lane repair, 2026-11-04; V1-3710) Amending	unrecorded	-
 CMS-V0-001	docs/specs/core-bundled-apps-v0.md	Each bundled app MUST build and test from its own module, importing only:	unrecorded	-
 CMS-V0-002	docs/specs/core-bundled-apps-v0.md	A release MUST have one version and one checksummed manifest, and every entry MU	unrecorded	-
 CMS-V0-003	docs/specs/core-bundled-apps-v0.md	No Core verb in `core-compatibility-freeze-v1` may forward to a bundled app. A t	unrecorded	-
