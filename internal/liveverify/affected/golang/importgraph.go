@@ -44,7 +44,10 @@ var bareDot = regexp.MustCompile(`\.([^A-Za-z_]|$)`)
 // whether some call is not proven (unproven), so it may observe each
 // package's file names as well (AFP-V0-9010).
 type goListFile struct {
-	listed   map[token.Pos]bool
+	listed map[token.Pos]bool
+	// proven holds the byte offsets of the os/exec selectors of the
+	// proven calls, the only os/exec references observesSource allows.
+	proven   map[int]bool
 	targets  map[string]bool
 	all      bool
 	unproven bool
@@ -71,8 +74,9 @@ func goListCandidate(body []byte) bool {
 // only initialized by a composite literal, extended by append and passed as
 // the call's variadic argument.
 func goListScanFile(relative string, body []byte, directory string, owner module) (goListFile, error) {
-	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}}
-	file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.SkipObjectResolution)
+	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}, proven: map[int]bool{}}
+	files := token.NewFileSet()
+	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution)
 	if err != nil {
 		return result, err
 	}
@@ -159,18 +163,24 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 		}
 		result.reader = true
 		targets, all, proven := goListArguments(elements[1:], constants, directory, owner)
-		if bodies := enclosingBodies(functions, call); proven && len(bodies) != 0 {
+		// A call outside any function (a package-level command) is
+		// reachable from every file, so it is never proven.
+		bodies := enclosingBodies(functions, call)
+		if proven = proven && len(bodies) != 0; proven {
 			outer := bodies[len(bodies)-1]
 			tests := map[string]bool{}
 			for _, body := range bodies {
 				maps.Copy(tests, testingParameters(signatures[body], names))
 			}
-			proven = isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
+			confined, directory := confinedCommand(outer, call, exec)
+			proven = confined && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
+			all = all || directory
 		}
 		if !proven {
 			result.all, result.unproven = true, true
 			return true
 		}
+		result.proven[files.Position(selector.Pos()).Offset] = true
 		result.all = result.all || all
 		for target := range targets {
 			result.targets[target] = true
@@ -874,7 +884,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 				break
 			}
 			body, read := bodies[relative]
-			unproven = !read || observesSource(relative, body)
+			unproven = !read || observesSource(relative, body, scans[index][relative].proven)
 		}
 		all = all || unproven
 		units[index].ImportGraphReadsAll = all

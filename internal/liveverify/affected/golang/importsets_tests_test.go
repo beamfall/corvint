@@ -330,6 +330,24 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 		{"command path swapped", "package probe\n\nimport \"os/exec\"\n\nfunc list() error {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\tc.Path = \"/usr/bin/git\"\n\treturn c.Run()\n}\n", true},
 		{"assembly function", "package probe\n\nfunc read(name string) []byte\n", true},
 		{"zip reader", "package probe\n\nimport \"archive/zip\"\n\nvar _, _ = zip.OpenReader(\"../lib.zip\")\n", true},
+		// The classifier is a closed allowlist (AFP-V0-9010): any os/exec
+		// reference other than a proven direct call is observing.
+		{"aliased Command", "package probe\n\nimport \"os/exec\"\n\nfunc list() ([]byte, error) {\n\trun := exec.Command\n\treturn run(\"go\", \"list\", \"-f\", \"{{.Doc}}\", \"./lib\").Output()\n}\n", true},
+		{"aliased CommandContext", "package probe\n\nimport (\n\t\"context\"\n\t\"os/exec\"\n)\n\nfunc list() ([]byte, error) {\n\trun := exec.CommandContext\n\treturn run(context.Background(), \"go\", \"list\", \"-f\", \"{{.Doc}}\", \"./lib\").Output()\n}\n", true},
+		{"function value passed", "package probe\n\nimport \"os/exec\"\n\nfunc keep(function any) any { return function }\n\nvar _ = keep(exec.Command)\n", true},
+		{"exec type named", "package probe\n\nimport \"os/exec\"\n\nvar _ *exec.ExitError\n", true},
+		{"package-level command", "package probe\n\nimport \"os/exec\"\n\nvar listed = exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\nfunc init() { listed.Args[4] = \"{{.Doc}}\" }\n", true},
+		{"argument swapped by index", "package probe\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestSwap(t *testing.T) {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\tc.Args[4] = \"{{.Doc}}\"\n\t_ = c.Run()\n}\n", true},
+		{"command decoded", "package probe\n\nimport (\n\t\"encoding/json\"\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestDecode(t *testing.T) {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\t_ = json.Unmarshal([]byte(`{}`), c)\n\t_ = c.Run()\n}\n", true},
+		// Unclassified constructs fail closed.
+		{"unclassified standard import", "package probe\n\nimport \"net/http/cgi\"\n\nvar _ = cgi.Handler{Path: \"/usr/bin/git\"}\n", true},
+		{"reflection", "package probe\n\nimport \"reflect\"\n\nvar _ = reflect.ValueOf(nil)\n", true},
+		{"unknown directive", "package probe\n\n//go:wasmimport env read\nfunc read() {}\n", true},
+		{"working directory moved", "package probe\n\nimport \"testing\"\n\nfunc TestMove(t *testing.T) { t.Chdir(\"..\") }\n", true},
+		{"computed environment", "package probe\n\nimport \"testing\"\n\nfunc TestEnv(t *testing.T) { t.Setenv(\"GO\"+\"FLAGS\", \"-json=true\") }\n", true},
+		{"configured command", "package probe\n\nimport (\n\t\"bytes\"\n\t\"os\"\n\t\"os/exec\"\n\t\"reflect\"\n\t\"testing\"\n)\n\n" +
+			"func TestConfigured(t *testing.T) {\n\tvar stderr bytes.Buffer\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n" +
+			"\tc.Env = append(os.Environ(), \"GOTOOLCHAIN=local\")\n\tc.Stderr = &stderr\n\tout, err := c.Output()\n\tif err != nil || reflect.DeepEqual(out, nil) {\n\t\tt.Fatal(err, c.ProcessState.ExitCode())\n\t}\n}\n", false},
 		{"own testdata", "package probe\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar _, _ = os.ReadFile(filepath.Join(\"testdata\", \"fixture.txt\"))\nvar _, _ = os.ReadDir(\"testdata\")\n", false},
 		{"environment", "package probe\n\nimport \"os\"\n\nvar _ = os.Getenv(\"HOME\")\n", false},
 	}
@@ -362,6 +380,31 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 				t.Fatalf("a body-only edit of lib selected probe by %+v, want selected=%v (changes %+v)", witness, test.unproven, *changes)
 			}
 		})
+	}
+}
+
+// AFP-V0-9010: a proven command whose Dir is assigned lists packages from a
+// directory the scan cannot resolve, so its reader reads the whole module,
+// but its fields stay proven; without the Dir line it reads cmd/tool alone.
+func TestCommandDirectoryReadsModule_AFP_V0_9010(t *testing.T) {
+	for _, test := range []struct {
+		directory string
+		all       bool
+	}{{"\tc.Dir = \"..\"\n", true}, {"", false}} {
+		root := importGraphRepository(t)
+		writeFiles(t, root, map[string]string{
+			"probe/probe.go": "package probe\n",
+			"probe/probe_test.go": "package probe\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+				"func TestList(t *testing.T) {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n" + test.directory + "\t_, _ = c.Output()\n}\n",
+		})
+		graph, err := affected.Build(context.Background(), root, golang.New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		unit, _ := graph.Unit(importGraphModule + "probe")
+		if unit.ImportGraphReadsAll != test.all || unit.ImportGraphReadsFiles || test.all == (len(unit.ImportGraphReads) != 0) {
+			t.Errorf("Dir %q: all=%v files=%v reads=%v, want all=%v and proven", test.directory, unit.ImportGraphReadsAll, unit.ImportGraphReadsFiles, unit.ImportGraphReads, test.all)
+		}
 	}
 }
 
