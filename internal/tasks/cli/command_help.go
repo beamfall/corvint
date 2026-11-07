@@ -43,7 +43,7 @@ func commandHelp(args []string) *wire.Result {
 }
 
 // terseKeys are the help keys an agent needs to form a valid call.
-var terseKeys = []string{"usage", "implemented", "flags", "required", "example", "operation", "payloadKeys", "payloadKeyTypes", "optionalPayloadKeys"}
+var terseKeys = []string{"usage", "implemented", "flags", "required", "example", "operation", "payloadKeys", "payloadKeyTypes", "optionalPayloadKeys", "evidenceRetention"}
 
 func terseHelp(cmd []string, full *wire.Result) *wire.Result {
 	o := full.Items[0].Obj
@@ -57,6 +57,9 @@ func terseHelp(cmd []string, full *wire.Result) *wire.Result {
 	}
 	if name == "complete" {
 		o.Set("commit", wire.String("--commit accepts a revision such as HEAD or a unique short OID; it resolves to a full commit OID retained as completionCommit in the manifest referenced by the receipt. Ambiguous or missing revisions refuse MALFORMED (detail COMMIT_AMBIGUOUS) or MISSING_EVIDENCE (detail COMMIT_NOT_FOUND)."))
+	}
+	if name == "receipt audit" {
+		keep = append(keep, "worktree")
 	}
 	if name == "release" {
 		// TCD-V0-178 (V1-3200): --reason is call-forming, so its closed codes stay terse.
@@ -262,6 +265,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("note", wire.String("Pure read, no lock and no writes: the transitive unsatisfied dependency closure of one ticket (a gate ticket is a ticket) as taskman-critical-path/0, longest chain first, bounded to 256 nodes and 32 chains with truncated and totals. Blocker codes are an open set; facts this reader cannot observe are NOT_OBSERVED, and estimate is always NOT_OBSERVED in v0."))
 	}
 	if name == "receipt audit" {
+		o.Set("worktree", wire.String("--worktree DIR audits DIR/.taskman against this command repository's owning journal, preserving its primary identity and writes nothing. A different or pruned projection reports divergence; use queue snapshot --worktree DIR then ticket blockers on that snapshot for dependency closure independently of journal agreement. It cannot be combined with --through. Example: corvint-tasks receipt audit --worktree ../candidate"))
 		o.Set("note", wire.String("--through SEQ walks receipts 1..SEQ only, with the complete walk's per-receipt checks, and adds throughSeq; headSeq then names SEQ, later receipts are not validated and projectionAgreement is NOT_OBSERVED (TCL-V0-820). Without it, always the complete audit from receipt 1 (or from the retained anchor of a retired prefix, JRT-V0-005), never resumed from a checkpoint; its item reports anchorSeq (the anchor S it started from, or 0) and retiredThrough (S-1, or 0), and completions {verified, manual}: how many COMPLETED tickets closed through a gated complete and how many through complete-manual (TCD-V0-190); it never reads, creates, replaces or removes the derived checkpoints <state directory>.checkpoint.json (reads) and <state directory>.writer-checkpoint (writers), where the state directory is <git common dir>/taskman. Removing <state directory>.writer-checkpoint forces the next write through the complete audit, which refuses a tampered prefix that a checkpointed writer does not re-read; removing <state directory>.checkpoint.json costs the next read one complete audit. Neither removal changes any journal, intent or archive bytes. --witness-receipts (TOL-V0-138) also checks every WITNESSED obligation whose evidence is a Playwright report digest against the witness receipt store <state directory>/witness-receipts/: a digest with no stored file (RECEIPT_MISSING), a stored file whose bytes no longer hash to it (RECEIPT_MISMATCH), an unreadable one (RECEIPT_UNREADABLE) or a ledger that cannot be folded (LEDGER_UNREADABLE) is a finding marked reviewable=false, and any finding refuses the audit MISSING_EVIDENCE."))
 	}
 	if name == "receipt put" {
@@ -347,7 +351,7 @@ var commandUsage = map[string]string{
 	"critical-path":            "corvint-tasks critical-path <ticketId|local>",
 	"gate list":                "corvint-tasks gate list",
 	"gate show":                "corvint-tasks gate show <gateId>",
-	"receipt audit":            "corvint-tasks receipt audit [--witness-receipts | --through SEQ]",
+	"receipt audit":            "corvint-tasks receipt audit [--worktree DIR] [--witness-receipts | --through SEQ]",
 	"receipt put":              "corvint-tasks receipt put FILE",
 	"receipt get":              "corvint-tasks receipt get SHA256",
 	"receipt path":             "corvint-tasks receipt path SHA256",

@@ -132,6 +132,9 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if err == nil {
 		raw := payload
 		payload, err = mutation.CanonicalPayload(operation, payload)
+		if err != nil && (operation == mutation.OpCompleteManual || operation == mutation.OpAttachEvidence) && strings.Contains(err.Error(), "/payload/evidence") {
+			err = wire.Annotatef(err, "", "%v; %s", err, evidenceRetentionRemedy)
+		}
 		if err != nil && operation == mutation.OpCreate {
 			err = diagnoseCreatePayload(env, raw, err)
 		}
@@ -379,6 +382,10 @@ func buildEnvelope(operation, queueID string, actor mutation.Binding, f mutateFl
 // mutationHelp names one verb's flags and its closed payload keys, sorted as
 // the canonical payload spells them, so a caller can compose a valid payload
 // without the spec (V1-0329).
+const evidenceRetentionRemedy = "Retain exact file bytes with corvint-tasks receipt put FILE, then pass the returned sha256 in the evidence array; corvint-tasks receipt path SHA256 verifies the local retained artifact."
+
+const evidenceRetentionHelp = "Evidence digests hash the exact file bytes (SHA-256), without canonicalization or a trailing newline added. Retain an artifact with corvint-tasks receipt put FILE; use the returned sha256. It is stored locally under <git common dir>/taskman/witness-receipts/SHA256; corvint-tasks receipt path SHA256 verifies and locates it. Keep a durable copy for later readers: this private store is not committed or exported, and receipt prune tracks obligation witnesses, not manual or attached evidence. A digest alone does not verify the claim."
+
 func mutationHelp(cmd []string, operation string) *wire.Result {
 	o := wire.NewObject()
 	o.Set("operation", wire.String(operation))
@@ -405,6 +412,9 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	}
 	if operation == mutation.OpCreate || operation == mutation.OpRefine {
 		o.Set("milestoneRule", wire.String("When policy sets milestones.required true, CREATE without a milestone and REFINE that sets milestone to null refuse VALIDATION_FAILED MILESTONE_REQUIRED (CAL-V0-195); existing records are never rewritten. Absent or false keeps milestone optional."))
+	}
+	if operation == mutation.OpCompleteManual || operation == mutation.OpAttachEvidence {
+		o.Set("evidenceRetention", wire.String(evidenceRetentionHelp))
 	}
 	if operation == mutation.OpAttachEvidence {
 		o.Set("attachEvidence", wire.String("Records 1..16 sha256 digests (sorted unique; the CLI sorts them) and a nonblank reason of at most 512 bytes on an OPEN native ticket (TEA-V0-001). Revision advances by one; acceptanceRevision, status, gates, attempts and every other record field are unchanged, so attached evidence never satisfies a gate or acceptance criterion. A digest already attached at the current acceptanceRevision refuses DUPLICATE_ID; at most 32 entries per ticket. OWNER by default; OPERATOR only through an explicit policy row. Retry with the same --request-id and --issued-at to replay."))
