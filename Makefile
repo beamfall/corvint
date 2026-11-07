@@ -1280,7 +1280,9 @@ doc-gates: ## Run the documentation gates
 # receipt checks need current pins, and batch-precheck read them; the pre-flight then checks the
 # refreshed plan. When the repin is enabled, the missing-input refusal runs alone first
 # (DOGFOOD_STATIC_PRECHECK=0 stops the wrapper after it), so a closeout missing an input commits no
-# repin. DTL-V0-004: a SEAL=0 closeout keeps SEAL=0 in its resume command.
+# repin. DTL-V0-004: a SEAL=0 closeout keeps SEAL=0 in its resume command. The resume command is
+# printed by printf as one single-quoted word, so a value holding a double quote or a backtick prints
+# as given and never runs (ASD-V0-567).
 CLOSEOUT_FROM ?= 1
 # The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
 DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
@@ -1292,7 +1294,7 @@ closeout_inputs_present = [ -z $(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_RE
 closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: step $(1)/5 $(2) skipped (CLOSEOUT_FROM=$(CLOSEOUT_FROM))" >&2; else \
 	t0=$$(date +%s); rc=0; $(3) || rc=$$?; secs=$$(( $$(date +%s) - t0 )); \
 	if [ $$rc -ne 0 ]; then echo "dogfood-closeout: FAILED step $(1)/5 $(2) rc=$$rc after $${secs}s" >&2; \
-	echo "resume: $(call closeout_resume,$(1))" >&2; exit $$rc; fi; \
+	printf 'resume: %s\n' $(call dogfood_finish_quote,$(call closeout_resume,$(1))) >&2; exit $$rc; fi; \
 	echo "dogfood-closeout: step $(1)/5 $(2) ok after $${secs}s" >&2; fi
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout

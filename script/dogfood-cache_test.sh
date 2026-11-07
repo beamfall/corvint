@@ -498,6 +498,17 @@ for seal in 0 1 no '0 1'; do
   case $seal in 0) word=SEAL=0 ;; *) word="SEAL='$seal'" ;; esac
   rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=3 BASE='feedfacefeedfacefeedfacefeedfacefeedface' $word CITATIONS='' " "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
 done
+# ASD-V0-567 (review): the resume command is printed as one literal string. A CITATIONS path holding
+# a double quote and a backtick neither ends the printed string nor runs; it prints as given, and the
+# resume line read back as shell words gives the same path.
+odd="$root/q\"b\`touch $root/resume-ran\`\"c.tsv"
+status=0
+make -s dogfood-closeout CLOSEOUT_FROM=3 LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$odd" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -e $root/resume-ran ]] || { cat "$root/output" >&2; fail "$LINENO"; }
+rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=3 BASE='feedfacefeedfacefeedfacefeedfacefeedface' CITATIONS='$odd' INTENTS=''" "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
+resume=$(sed -n 's/^resume: //p' "$root/output")
+eval "words=($resume)"
+[[ ${words[4]} == "CITATIONS=$odd" && ! -e $root/resume-ran ]] || { cat "$root/output" >&2; fail "$LINENO"; }
 status=0
 make -s dogfood-closeout CLOSEOUT_FROM=6 LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
 [[ $status == 0 && $(rg -c '^dogfood-closeout: step [1-5]/5 [a-z-]+ skipped \(CLOSEOUT_FROM=6\)$' "$root/output") == 5 && $(wc -l < "$root/output") -eq 6 ]] || { cat "$root/output" >&2; fail "$LINENO"; }
