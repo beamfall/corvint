@@ -51,10 +51,8 @@ type proposal struct {
 	// siblingDirs caches each parent's BASE directories (DCW-V0-841).
 	siblingDirs map[string][]string
 	// priorBase is the BASE the --refresh plan was drafted at when it is not
-	// BASE, the map's baseRevision; carriedFiles holds the first cite row
-	// carried to each file (DCW-V0-842).
-	priorBase    string
-	carriedFiles map[string]string
+	// BASE, the map's baseRevision (DCW-V0-842).
+	priorBase string
 	// cemBase is the --from-cem CEM's baseRevision (DCW-V0-843).
 	cemBase string
 	blobs   map[string][]byte
@@ -488,29 +486,26 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		}
 		if p.carried != nil {
 			// Drafted afresh: no row was carried, or a carried all-unknown row
-			// on a sealed CEM is redrafted (DCW-V0-966). A carried-forward
-			// candidate still needs review, so it counts as redrafted too.
+			// on a sealed CEM is redrafted (DCW-V0-966).
 			p.redrafted = append(p.redrafted, hunk)
 		}
-		row, cite, fellBack := "", "", ""
 		ordinal := fmt.Sprint(hunk.ordinal)
 		if p.keyByID {
 			ordinal = hunk.id
 		}
-		if row, cite = p.carriedForward(hunk, ordinal); row == "" {
-			drafted[ordinal] = hunk
-			row, cite, fellBack = p.propose(hunk, edited, used)
-			// A drafted cite the author removed for this edit is never drafted
-			// again; the hunk keeps the unknown fallback (CKC-V0-007).
-			if cite != "" && p.tombstoned(hunk.id, row) {
-				key, _, _ := strings.Cut(row, "\t")
-				delete(p.proposals, key)
-				delete(p.reasons, key)
-				fields := strings.Split(row, "\t")
-				row = p.unknownProposal(hunk, key, "the drafted row cites "+fields[1]+" "+fields[2]+" ("+fields[3]+"), which the author removed for this edit (CKC-V0-007); cite the BASE contract the hunk depends on or implements, or keep it unknown")
-				cite, fellBack = "", ""
-				p.claimStats.suppressed++
-			}
+		drafted[ordinal] = hunk
+		// DWC-V0-045: new hunks use their own content, including on refresh.
+		row, cite, fellBack := p.propose(hunk, edited, used)
+		// A drafted cite the author removed for this edit is never drafted
+		// again; the hunk keeps the unknown fallback (CKC-V0-007).
+		if cite != "" && p.tombstoned(hunk.id, row) {
+			key, _, _ := strings.Cut(row, "\t")
+			delete(p.proposals, key)
+			delete(p.reasons, key)
+			fields := strings.Split(row, "\t")
+			row = p.unknownProposal(hunk, key, "the drafted row cites "+fields[1]+" "+fields[2]+" ("+fields[3]+"), which the author removed for this edit (CKC-V0-007); cite the BASE contract the hunk depends on or implements, or keep it unknown")
+			cite, fellBack = "", ""
+			p.claimStats.suppressed++
 		}
 		if fellBack != "" {
 			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))

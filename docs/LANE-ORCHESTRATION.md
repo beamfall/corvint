@@ -1208,7 +1208,21 @@ One lane runs this flow, in order; each step names the command and the section t
    `dogfood-check` refuses a dirty one naming the path count (DCW-V0-2144). The first
    `make dogfood-change` with every input ends `PENDING commit-sidecar` and exits 0: commit
    `.corvint/change.cem.json`, then rerun (DCW-V0-2143).
-6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
+6. Report using `script/lane-handback.sh template [PREVIOUS] > handback.md`, then fill it and
+   run `script/lane-handback.sh lint handback.md [PREVIOUS]` (`DWC-V0-047`). Required fields:
+   base, fix head, bind head, sealed head, delivered tickets, superseded tickets and GitHub issues
+   closed. Heads are full SHAs; a delegated or unfinished bind/seal is `NOT_PRODUCED` plus its
+   reason. Delivered and superseded lists are space-separated ticket IDs (or `none`). Review
+   rounds start from the previous handback and retain the cumulative ticket lists; lint refuses
+   dropped tickets and missing fields. Include per-ticket requirement IDs, tests/results and the
+   numbered Friction list with repros (section 11).
+
+   An orchestrator may attach its external review directly with `DOGFOOD_REVIEW=/path/report.txt`
+   (`DWC-V0-046`). The report contains `dogfood-review: reviewed-head=FULL_SHA verdict=PASS`
+   naming the exact pre-seal HEAD. A different head or nonpassing verdict refuses before check;
+   no report keeps `review-before-seal NOT_OBSERVED`. The seal output and commit message retain
+   the reviewed head, report path, SHA-256 and verdict. This records supplied evidence without
+   authenticating reviewer independence. See the input table in `docs/DOGFOOD.md`.
 
 Common refusals and their recovery:
 

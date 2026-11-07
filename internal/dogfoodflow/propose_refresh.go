@@ -154,7 +154,6 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 		return
 	}
 	p.carried = map[string][]string{}
-	p.carriedFiles = map[string]string{}
 	current := map[string]proposedHunk{}
 	for _, hunk := range owed {
 		current[hunk.id] = hunk
@@ -279,9 +278,6 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d: %s", row.line, note))
 			}
 			used[fields[0]+":"+fields[1]] = true
-			if hunk := current[target]; p.carriedFiles[hunk.path] == "" {
-				p.carriedFiles[hunk.path] = row.rest
-			}
 		}
 		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
 	}

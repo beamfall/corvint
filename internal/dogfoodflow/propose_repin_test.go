@@ -30,9 +30,8 @@ func hunkPaths(rows []string, stderr string) map[string]string {
 // commit B2 that shifts the cited lines and the edited files, and refreshes
 // against B2. Every row is re-keyed with its content unchanged, so no NOTE is
 // marked stale and none is dropped; the cite row is re-pinned to the moved
-// line; the new hunk of the file that carries a citation is proposed that
-// citation, carried forward, while the new hunk of a file with no carried
-// citation is drafted afresh; and the refreshed plan passes the precheck.
+// line; both new hunks are drafted from their own content (DWC-V0-045),
+// and the refreshed plan passes the precheck.
 func TestProposeCitationsDCWV0842RefreshAcrossAMainlineMerge(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -118,27 +117,21 @@ func TestProposeCitationsDCWV0842RefreshAcrossAMainlineMerge(t *testing.T) {
 	}
 	refreshed := textLines(stdout.Bytes())
 	now := hunkPaths(refreshed, stderr.String())
-	forward, fresh := 0, 0
+	fresh := 0
 	for _, row := range refreshed {
 		id, rest, _ := strings.Cut(row, "\t")
-		switch {
-		case strings.Contains(rest, "the lane note for "):
-		case rest == "docs/spec.md\t8:8\tspecification" && proposalRow(stderr.String(), row):
-			if now[id] != "a.go" || !strings.Contains(stderr.String(), "carried forward: --refresh carried no row to this hunk") {
-				t.Errorf("carried-forward row %q is not the new a.go hunk:\n%s", row, stderr.String())
-			}
-			forward++
-		case rest == "docs/spec.md\t8:8\tspecification":
-		default:
-			if now[id] != "b.go" {
-				t.Errorf("unexpected row %q for %s", row, now[id])
-			}
-			fresh++
+		if strings.Contains(rest, "the lane note for ") || rest == "docs/spec.md\t8:8\tspecification" && !proposalRow(stderr.String(), row) {
+			continue
 		}
+		if now[id] != "a.go" && now[id] != "b.go" {
+			t.Errorf("unexpected fresh row %q for %s", row, now[id])
+		}
+		fresh++
 	}
-	if forward != 1 || fresh != 1 || len(refreshed) != 5 {
-		t.Errorf("refreshed plan: %d carried forward, %d fresh, %d rows; want 1, 1, 5:\n%s\n%s", forward, fresh, len(refreshed), stdout.String(), stderr.String())
+	if fresh != 2 || len(refreshed) != 5 || strings.Contains(stderr.String(), "carried forward:") {
+		t.Errorf("want two independently drafted rows among five:\n%s\n%s", stdout.String(), stderr.String())
 	}
+
 	next := filepath.Join(filepath.Dir(planPath), "plan.new")
 	if err := os.WriteFile(next, stdout.Bytes(), 0o666); err != nil {
 		t.Fatal(err)
