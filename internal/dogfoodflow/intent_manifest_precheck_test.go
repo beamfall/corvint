@@ -216,3 +216,125 @@ func TestDWCV07600FinishLaneCanonicalizesIntentManifest(t *testing.T) {
 		t.Errorf("untracked manifest in the worktree: manifest %q:\n%s", got, stderr)
 	}
 }
+
+// TestDWCV07600FinishLaneKeepsATrackedManifestUnderAnotherCase (PR #124
+// review): Git matches a pathspec case-exactly, so on a case-folding
+// filesystem a tracked intents.txt opened as INTENTS.txt read as untracked
+// and was rewritten. Tracked state now follows file identity. Where the
+// filesystem folds case, INTENTS.txt is the tracked file and keeps its
+// refusal unchanged. Where it does not, a hard link spelled INTENTS.txt is
+// still the tracked file and is refused the same way, while a distinct
+// INTENTS.txt, or a DOCS file beside the tracked docs/ directory, is untracked
+// and is rewritten. A non-ASCII name, whose case Git cannot fold, is kept.
+func TestDWCV07600FinishLaneKeepsATrackedManifestUnderAnotherCase(t *testing.T) {
+	const unsorted = "docs/b.md\ndocs/a.md\n"
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	for name, data := range map[string]string{"a.txt": "a\n", "docs/a.md": "# A\n\n## Requirements\n\n- `INT-V0-001`: a.\n", "docs/b.md": "# B\n\n## Requirements\n\n- `INT-V0-002`: b.\n", "intents.txt": unsorted} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	scratch := t.TempDir()
+	plan := filepath.Join(scratch, "cites.tsv")
+	verify := filepath.Join(scratch, "verify.txt")
+	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go version\n"} {
+		if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := func(t *testing.T, intents string) (int, int, string) {
+		t.Helper()
+		calls := 0
+		steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+			calls++
+			return 1
+		}}
+		var stderr bytes.Buffer
+		code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: true, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, io.Discard, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return code, calls, stderr.String()
+	}
+	tracked := filepath.Join(root, "intents.txt")
+	alias := filepath.Join(root, "INTENTS.txt")
+	refused := func(t *testing.T) {
+		t.Helper()
+		code, calls, stderr := run(t, alias)
+		kept, _ := os.ReadFile(tracked)
+		read, _ := os.ReadFile(alias)
+		if string(kept) != unsorted || string(read) != unsorted || code != 2 || calls != 0 ||
+			!strings.Contains(stderr, "REFUSE intent-manifest-unsorted") || strings.Contains(stderr, "intents canonicalized") {
+			t.Errorf("tracked manifest as %s: code=%d calls=%d tracked=%q alias=%q:\n%s", alias, code, calls, kept, read, stderr)
+		}
+		if status := testGit(t, root, "status", "--porcelain", "--", "intents.txt"); status != "" {
+			t.Errorf("the run dirtied the tracked manifest: %s", status)
+		}
+	}
+	rewritten := func(t *testing.T, path string) {
+		t.Helper()
+		_, _, stderr := run(t, path)
+		read, _ := os.ReadFile(path)
+		kept, _ := os.ReadFile(tracked)
+		if string(read) != "docs/a.md\ndocs/b.md\n" || string(kept) != unsorted || strings.Contains(stderr, "REFUSE intent-manifest-unsorted") ||
+			!strings.Contains(stderr, "intents canonicalized: LC_ALL=C sort -u rewrote --intents "+path+" from 2 to 2 lines") {
+			t.Errorf("untracked manifest %s: manifest=%q tracked=%q:\n%s", path, read, kept, stderr)
+		}
+	}
+	trackedInfo, err := os.Lstat(tracked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliasInfo, err := os.Lstat(alias)
+	folds := err == nil && os.SameFile(trackedInfo, aliasInfo)
+	t.Run("case-folding", func(t *testing.T) {
+		if !folds {
+			t.Skipf("the test filesystem under %s is case-sensitive: INTENTS.txt is not intents.txt", root)
+		}
+		refused(t)
+	})
+	t.Run("case-sensitive", func(t *testing.T) {
+		if folds {
+			t.Skipf("the test filesystem under %s folds case: INTENTS.txt is intents.txt", root)
+		}
+		if err := os.Link(tracked, alias); err != nil {
+			t.Fatal(err)
+		}
+		refused(t)
+		if err := os.Remove(alias); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(alias, []byte(unsorted), 0o666); err != nil {
+			t.Fatal(err)
+		}
+		rewritten(t, alias)
+		docs := filepath.Join(root, "DOCS")
+		if err := os.WriteFile(docs, []byte(unsorted), 0o666); err != nil {
+			t.Fatal(err)
+		}
+		rewritten(t, docs)
+	})
+	// Git folds only ASCII case, so a non-ASCII name inside the worktree
+	// might alias a tracked path Git does not list: it is kept, and the
+	// refusal stands, on either kind of filesystem.
+	accented := filepath.Join(root, "\u00cdntents.txt")
+	if err := os.WriteFile(accented, []byte(unsorted), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	code, calls, stderr := run(t, accented)
+	if read, _ := os.ReadFile(accented); string(read) != unsorted || code != 2 || calls != 0 || !strings.Contains(stderr, "REFUSE intent-manifest-unsorted") ||
+		!strings.Contains(stderr, "intents not canonicalized: whether the repository tracks --intents "+accented+" is unknown (git matches case aliases of ASCII letters only, and the path is not ASCII)") {
+		t.Errorf("non-ASCII manifest: code=%d calls=%d manifest=%q:\n%s", code, calls, read, stderr)
+	}
+}

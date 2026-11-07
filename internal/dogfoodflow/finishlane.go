@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -463,27 +465,75 @@ func (l *finishLane) canonicalizeIntents(source string) bool {
 
 // intentsUntracked reports whether the repository certainly does not track
 // the directory entry the rewrite of source replaces: the entry lies outside
-// the worktree, or `git ls-files --error-unmatch` exits 1, its no-match
-// status, for it. Any other outcome, such as a corrupt or unreadable index,
-// leaves membership unknown; it prints why and keeps the file, so a tracked
-// manifest is never rewritten (DWC-V0-7600).
+// the worktree, or no tracked path is that entry. Git matches its pathspec
+// case-exactly even where the filesystem folds case, so the tracked paths that
+// equal the entry's path ignoring case are listed and each is compared with
+// the entry by identity (os.SameFile): INTENTS.txt opened on a case-folding
+// filesystem is the tracked intents.txt, while on a case-sensitive one a
+// distinct INTENTS.txt beside it is untracked. Any other outcome, such as a
+// corrupt or unreadable index or an unmatched non-ASCII path, leaves
+// membership unknown; it prints why and keeps the file, so a tracked manifest
+// is never rewritten (DWC-V0-7600).
 func (l *finishLane) intentsUntracked(source string) bool {
 	relative, inside, err := worktreeEntry(l.root, source)
 	if err == nil && !inside {
 		return true
 	}
 	if err == nil {
-		switch _, status := l.git(true, "ls-files", "--error-unmatch", "--", ":(literal)"+relative); status {
-		case 0:
-			return false
-		case 1:
-			return true
-		default:
-			err = fmt.Errorf("git ls-files --error-unmatch exited %d", status)
+		var tracked bool
+		if tracked, err = l.trackedAlias(source, relative); err == nil {
+			return !tracked
 		}
 	}
 	l.say("%s: intents not canonicalized: whether the repository tracks --intents %s is unknown (%v); a tracked manifest is never rewritten (DWC-V0-7600)\n", l.prefix, source, err)
 	return false
+}
+
+// trackedAlias reports whether a tracked path is the worktree entry relative
+// that names source: the path itself, or a case alias of it that is the same
+// file (DWC-V0-7600). An error leaves the answer unknown.
+func (l *finishLane) trackedAlias(source, relative string) (bool, error) {
+	listed, status, bounded := l.boundedGit("ls-files", "-z", "--error-unmatch", "--", ":(literal,icase)"+relative)
+	// Exit 1 is Git's no-match status: nothing is listed.
+	switch {
+	case !bounded:
+		return false, errors.New(gitOutputOverBound)
+	case status != 0 && status != 1:
+		return false, fmt.Errorf("git ls-files --error-unmatch exited %d", status)
+	}
+	var entry os.FileInfo
+	depth := strings.Count(relative, "/")
+	for _, path := range nonEmpty(strings.Split(listed, "\x00")) {
+		if path == relative {
+			return true, nil
+		}
+		// A pathspec also matches the files below a directory of that name,
+		// which are never this entry.
+		if strings.Count(path, "/") != depth {
+			continue
+		}
+		alias, err := os.Lstat(filepath.Join(l.root, filepath.FromSlash(path)))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err == nil && entry == nil {
+			entry, err = os.Lstat(source)
+		}
+		if err != nil {
+			return false, err
+		}
+		if os.SameFile(alias, entry) {
+			return true, nil
+		}
+	}
+	// Git folds the case of ASCII letters only, so a tracked alias that
+	// differs in a non-ASCII letter is not listed and cannot be ruled out.
+	for _, b := range []byte(relative) {
+		if b >= utf8.RuneSelf {
+			return false, errors.New("git matches case aliases of ASCII letters only, and the path is not ASCII")
+		}
+	}
+	return false, nil
 }
 
 // worktreeEntry is the slash path, below root, of the directory entry that
