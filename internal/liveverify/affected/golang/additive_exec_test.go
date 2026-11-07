@@ -64,7 +64,7 @@ func additiveExecPlan(t *testing.T, base, head map[string]string, dirty ...strin
 // .corvint/test-binary-execs.json is a code run too.
 func TestAdditiveNarrowingFollowsCodeRuns_AFPV03140(t *testing.T) {
 	declared := map[string]string{
-		"harness/h.go":                    "package harness\n\n// Run runs quiet, as .corvint/test-binary-execs.json declares; no literal names it.\nfunc Run() error { return nil }\n",
+		"harness/h.go":                    "package harness\n\n// Run runs quiet, as the binary-execs declaration says; no literal names it.\nfunc Run() error { return nil }\n",
 		".corvint/test-binary-execs.json": "{\n  \"profile\": \"corvint-test-binary-execs/0\",\n  \"packages\": {\n    \"harness\": [\"quiet\"]\n  }\n}\n", //corvint:fixture-path
 		"consumer/c.go":                   "package consumer\n\nimport \"example.test/m/harness\"\n\n// Use runs quiet through harness.\nfunc Use() error { return harness.Run() }\n",
 	}
