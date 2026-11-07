@@ -254,6 +254,7 @@
       "docs/RELEASE-NOTES-alpha.md",
       "docs/RELEASE-NOTES.md",
       "extensions/vscode/src/executable.ts",
+      "script/go-archive-gate",
       "script/release-checklist"
     ],
     "conformance/release-artifact-v0/archive-verifier": [],
