@@ -69,8 +69,9 @@ charter's explicit capacity exception; it does not expand either parent beyond 2
   retaining path/line diagnostics,
   exemptions and build-constraint decisions. A failed read MUST fail closed. Git spawn count MUST
   stay constant as candidates grow; unstaged fixes MUST NOT change staged verdicts.
-  Fixed-temp-path, Mkfifo, error-code ownership and ordinary line-citation checks MUST use at
-  most three Git spawns. Line-citation historical content reads MUST share its existing batch.
+  Fixed-temp-path, Mkfifo and ordinary line-citation checks MUST use at most three Git spawns,
+  and error-code ownership at most four (one more for its ECO-V0-7500 unstaged-path listing).
+  Line-citation historical content reads MUST share its existing batch.
 - `LVT-V0-007`: (experimental under the standing lane auto-accept, 2026-11-03; V1-4252)
   Directory-local error-code discovery MUST read its existing staged scratch tree without one
   Git process per declaring directory and preserve emitted sites and ownership failures.

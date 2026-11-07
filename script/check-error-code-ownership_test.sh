@@ -192,5 +192,6 @@ git -C "$test_root" add internal/more*
 : > "$fakebin/count"
 counted || fail "the expanded fixture failed"
 many=$(wc -l < "$fakebin/count" | tr -d ' ')
-[ "$few" = "$many" ] && [ "$many" -le 3 ] || fail "Git spawns grew: $few to $many"
+# LVT-V0-006: constant spawns; main's ECO-V0-7500 unstaged-path listing adds one to the three.
+[ "$few" = "$many" ] && [ "$many" -le 4 ] || fail "Git spawns grew or exceed four: $few to $many"
 printf 'check-error-code-ownership_test: 8 cases passed (%s git spawns)\n' "$many"
