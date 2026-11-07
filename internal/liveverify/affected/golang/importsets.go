@@ -1,10 +1,13 @@
 package golang
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -156,6 +159,17 @@ func directoryUnit(head fs.FS, graph *affected.Graph, directory string, paths []
 // packageHeader is the import-set signature of one directory in fsys: one
 // line per .go file, sorted, of its name, build-constraint lines, package
 // clause and sorted import paths. An absent directory has the empty header.
+//
+// A test file adds an import edge to no other package unless its imports
+// leave its package's test import set (AFP-V0-9010). So when the directory's
+// non-test files share one package clause N, and every unconstrained test
+// file (no build-constraint line, no GOOS or GOARCH in its name, no import of
+// "C") declares N or N_test, those test files contribute no line of their
+// own: the header instead holds the sorted set of import paths of the N test
+// files, that of the N_test files, and the sorted `//go:embed` lines of both.
+// A test file that keeps those sets keeps the header; one that adds an
+// import path to its role's set, adds an embed line, declares another
+// package clause or carries a constraint still changes it.
 func packageHeader(fsys fs.FS, directory string) (string, error) {
 	entries, err := fs.ReadDir(fsys, directory)
 	if err != nil {
@@ -165,6 +179,8 @@ func packageHeader(fsys fs.FS, directory string) (string, error) {
 		return "", err
 	}
 	var lines []string
+	var tests []headerFile
+	clauses := map[string]bool{}
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			continue
@@ -174,39 +190,129 @@ func packageHeader(fsys fs.FS, directory string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.ImportsOnly|parser.ParseComments)
+		file, err := readHeaderFile(entry.Name(), relative, body)
 		if err != nil {
 			return "", err
 		}
-		var constraints []string
-		for _, group := range file.Comments {
-			if group.Pos() >= file.Package {
-				break
-			}
-			for _, comment := range group.List {
-				if strings.HasPrefix(comment.Text, "//go:build") || strings.HasPrefix(comment.Text, "// +build") {
-					constraints = append(constraints, comment.Text)
-				}
+		if strings.HasSuffix(entry.Name(), "_test.go") && file.unconstrained {
+			tests = append(tests, file)
+			continue
+		}
+		if !strings.HasSuffix(entry.Name(), "_test.go") {
+			clauses[file.clause] = true
+		}
+		lines = append(lines, file.line())
+	}
+	if len(tests) != 0 {
+		if summary, ok := testSummary(clauses, tests); ok {
+			lines = append(lines, summary)
+		} else {
+			for _, file := range tests {
+				lines = append(lines, file.line())
 			}
 		}
-		// ImportsOnly stops before the declarations, so the embed lines
-		// are read from the bytes.
-		for _, line := range strings.Split(string(body), "\n") {
-			if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "//go:embed") {
-				constraints = append(constraints, trimmed)
-			}
-		}
-		imports := make([]string, 0, len(file.Imports))
-		for _, spec := range file.Imports {
-			value, err := strconv.Unquote(spec.Path.Value)
-			if err != nil {
-				return "", err
-			}
-			imports = append(imports, value)
-		}
-		slices.Sort(imports)
-		lines = append(lines, entry.Name()+"\x00"+strings.Join(constraints, "\x01")+"\x00"+file.Name.Name+"\x00"+strings.Join(imports, "\x01"))
 	}
 	slices.Sort(lines)
 	return strings.Join(lines, "\n"), nil
+}
+
+// headerFile is the header of one .go file: its name, its build-constraint
+// lines, its `//go:embed` lines, its package clause and its sorted import
+// paths. Unconstrained reports a file the go tool builds on every platform:
+// no build-constraint line, no GOOS or GOARCH in its name and no import of
+// "C".
+type headerFile struct {
+	name          string
+	constraints   []string
+	embeds        []string
+	clause        string
+	imports       []string
+	unconstrained bool
+}
+
+// line is the file's own header line.
+func (file headerFile) line() string {
+	return file.name + "\x00" + strings.Join(append(slices.Clone(file.constraints), file.embeds...), "\x01") + "\x00" + file.clause + "\x00" + strings.Join(file.imports, "\x01")
+}
+
+// readHeaderFile parses the header of one .go file named name.
+func readHeaderFile(name, relative string, body []byte) (headerFile, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.ImportsOnly|parser.ParseComments)
+	if err != nil {
+		return headerFile{}, err
+	}
+	header := headerFile{name: name, clause: file.Name.Name}
+	for _, group := range file.Comments {
+		if group.Pos() >= file.Package {
+			break
+		}
+		for _, comment := range group.List {
+			if strings.HasPrefix(comment.Text, "//go:build") || strings.HasPrefix(comment.Text, "// +build") {
+				header.constraints = append(header.constraints, comment.Text)
+			}
+		}
+	}
+	// ImportsOnly stops before the declarations, so the embed lines are
+	// read from the bytes.
+	for _, line := range strings.Split(string(body), "\n") {
+		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "//go:embed") {
+			header.embeds = append(header.embeds, trimmed)
+		}
+	}
+	header.imports = make([]string, 0, len(file.Imports))
+	for _, spec := range file.Imports {
+		value, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			return headerFile{}, err
+		}
+		header.imports = append(header.imports, value)
+	}
+	slices.Sort(header.imports)
+	header.unconstrained = len(header.constraints) == 0 && !slices.Contains(header.imports, "C") && platformFree(name, body)
+	return header, nil
+}
+
+// platformFree reports a file name that names no GOOS or GOARCH: the go
+// tool's own name rule, asked for a platform no name can name.
+func platformFree(name string, body []byte) bool {
+	context := build.Context{GOOS: "corvint-none", GOARCH: "corvint-none", Compiler: "gc"}
+	context.OpenFile = func(string) (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	match, err := context.MatchFile(".", name)
+	return err == nil && match
+}
+
+// testSummary folds the unconstrained test files of a directory whose
+// non-test files declare exactly the clauses into one header line, when
+// there is one clause N that does not itself end in _test and every such
+// test file declares N or N_test (AFP-V0-9010).
+func testSummary(clauses map[string]bool, tests []headerFile) (string, bool) {
+	if len(clauses) != 1 {
+		return "", false
+	}
+	var name string
+	for clause := range clauses {
+		name = clause
+	}
+	if strings.HasSuffix(name, "_test") || name == "documentation" {
+		return "", false
+	}
+	internal, external := map[string]bool{}, map[string]bool{}
+	var embeds []string
+	for _, file := range tests {
+		var role map[string]bool
+		switch file.clause {
+		case name:
+			role = internal
+		case name + "_test":
+			role = external
+		default:
+			return "", false
+		}
+		for _, value := range file.imports {
+			role[value] = true
+		}
+		embeds = append(embeds, file.embeds...)
+	}
+	slices.Sort(embeds)
+	return "\x00tests\x00" + strings.Join(sortedKeys(internal), "\x01") + "\x00" + strings.Join(sortedKeys(external), "\x01") + "\x00" + strings.Join(embeds, "\x01"), true
 }

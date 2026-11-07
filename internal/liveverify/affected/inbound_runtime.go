@@ -15,7 +15,7 @@ func (graph *Graph) inboundRuntimeSite(entry string) string {
 	if !strings.HasPrefix(entry, prefix) {
 		return ""
 	}
-	file, _, _ := strings.Cut(strings.TrimPrefix(entry, prefix), ":")
+	file := inboundRuntimeSiteFile(strings.TrimPrefix(entry, prefix))
 	owner := graph.owner[file]
 	if owner == "" || !slices.Contains(graph.units[owner].Tests, file) {
 		return ""
@@ -28,6 +28,26 @@ func (graph *Graph) inboundRuntimeSite(entry string) string {
 		}
 	}
 	return ""
+}
+
+// inboundRuntimeSiteFile returns the file of one located site the
+// TypeScript plugin names, `path`, `path:line`, `path `+"`token`"+` or
+// `path:line `+"`token`"+`: it drops the trailing backquoted token, then a
+// trailing all-digit line. A site with neither keeps its whole text, so a
+// line-less site still reaches its declared runtime edge, and a truncated
+// `+N` entry names no file (AFP-V0-9009).
+func inboundRuntimeSiteFile(site string) string {
+	if strings.HasSuffix(site, "`") {
+		cut := strings.LastIndex(site[:len(site)-1], " `")
+		if cut < 0 {
+			return ""
+		}
+		site = site[:cut]
+	}
+	if colon := strings.LastIndexByte(site, ':'); colon >= 0 && colon+1 < len(site) && strings.Trim(site[colon+1:], "0123456789") == "" {
+		site = site[:colon]
+	}
+	return site
 }
 
 // Select the declared caller conservatively on every nonempty change. A
