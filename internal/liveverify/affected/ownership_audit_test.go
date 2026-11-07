@@ -91,3 +91,26 @@ func TestNonSourcePathsRefusesInvalidDeclarations_AZU_V0_002(t *testing.T) {
 		})
 	}
 }
+
+// TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950 (V1-4919): an unsorted or
+// duplicated .corvint/non-source-paths.json entry is refused with the entry,
+// the entry it must follow and the fix; an invalid path names the rule.
+func TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950(t *testing.T) {
+	for name, tc := range map[string]struct{ declaration, want string }{
+		"unordered": {`{"profile":"corvint-non-source-paths/0","entries":[{"path":"a/","reason":"r"},{"path":"z/","reason":"r"},{"path":"m/","reason":"r"}]}`,
+			`entry 3 path "m/" does not sort after entry 2 path "z/"; entries must be in strictly ascending byte order by path: move it before "z/", or reorder them all with jq '.entries |= sort_by(.path)'`},
+		"duplicate": {`{"profile":"corvint-non-source-paths/0","entries":[{"path":"a/","reason":"r"},{"path":"a/","reason":"r"}]}`,
+			`entry 2 path "a/" duplicates entry 1; merge the two entries into one`},
+		"invalid": {`{"profile":"corvint-non-source-paths/0","entries":[{"path":"Makefile","reason":"r"}]}`,
+			`entry 1 path "Makefile" is not a declarable non-source path`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			writeOwnershipFixture(t, root, map[string]string{"go.mod": "module example.test/m\n", affected.NonSourcePathsPath: tc.declaration})
+			_, err := affected.Build(context.Background(), root, golang.New())
+			if err == nil || !strings.Contains(err.Error(), affected.NonSourcePathsPath+": "+tc.want) {
+				t.Fatalf("Build error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}

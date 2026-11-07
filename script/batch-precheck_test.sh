@@ -178,7 +178,7 @@ grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-
 fi
 if group 1d; then
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
-grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(BASE)"' || fail "closeout lost its static checks or lane BASE"
+grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"' || fail "closeout lost its static checks or lane BASE"
 static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
