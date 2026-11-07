@@ -496,7 +496,7 @@ func TestLPCVV0095ExistingGitignoreStillClean(t *testing.T) {
 	requireHost(t)
 	root := repository(t)
 	write(t, filepath.Join(root, ".corvint", ".gitignore"), "cache/\n", 0o644)
-	git(t, root, "add", ".corvint/.gitignore")
+	git(t, root, "add", ".corvint/.gitignore") //corvint:fixture-path
 	git(t, root, "commit", "-q", "-m", "tracked corvint ignore")
 	run(t, Config{Dir: root, RSpec: []string{fakeRSpec(t, cannedReport, 1)}})
 	if _, err := testevidence.Retain(root, Producer, []byte("{}\n")); err != nil {
