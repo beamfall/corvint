@@ -519,7 +519,7 @@ above stands with that substitution.
   `--checkpoint` combined with `--base` or `--mutate`, in either order,
   reaches the checkpoint parser, because neither is a wrapper flag, and is refused there; with
   `--cem` written first, the CEM parser's unrecognized-flag branch refuses `--checkpoint`
-  (`cmd/corvint/prove.go:462-463@8081236a`) with the same code. Before this branch, `prove --checkpoint FILE` rewrote to
+  (`cmd/corvint/prove.go:463-464@8081236a`) with the same code. Before this branch, `prove --checkpoint FILE` rewrote to
   `impact` and was refused by `parseImpactArguments` (`cmd/corvint/main.go:517-518@6955320f`); it now
   reaches the checkpoint branch, which is the accepted invocation. The parsers are distinct —
   `--budget-bytes` is accepted by the query parser and rejected by the checkpoint parser — so the
@@ -696,7 +696,7 @@ above stands with that substitution.
   `invalid-arguments`, the single code `argumentError` gives every such refusal
   (`cmd/corvint/main.go:86-87@9e55e110`), whichever parser produces it: the query allowlist when `--task` is
   the first wrapper flag (`cmd/corvint/main.go:257-258@66cf57ce`), the CEM parser when `--cem` is
-  (`cmd/corvint/prove.go:462-463@8081236a`), and `parseProveCheckpointArguments` otherwise
+  (`cmd/corvint/prove.go:463-464@8081236a`), and `parseProveCheckpointArguments` otherwise
   (`cmd/corvint/prove_checkpoint.go:68-69@191ad3c1`);
   `--checkpoint` introduces no parser vocabulary of its
   own, and this case is enumerated so the closed list is not read as excluding ordinary parse
@@ -738,10 +738,10 @@ above stands with that substitution.
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
   that unwraps to a code-less context error (`cmd/corvint/main.go:1653-1667@40f3e6b1`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
-  checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:705@01d34b22`), the sibling of
-  `compileCEMProof` (`cmd/corvint/prove.go:922@e469a50d`) that `compileProof` dispatches to on the
-  checkpoint mode (`cmd/corvint/prove.go:613@6d433de3`, `cmd/corvint/prove.go:622-624@acc310b7`) — between its
-  index build and its return to `runProve` (`cmd/corvint/prove.go:718-728@5563dd2e`, `cmd/corvint/prove.go:558-566@73e66e84`). It MUST NOT be placed in
+  checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:706@01d34b22`), the sibling of
+  `compileCEMProof` (`cmd/corvint/prove.go:925@e469a50d`) that `compileProof` dispatches to on the
+  checkpoint mode (`cmd/corvint/prove.go:614@6d433de3`, `cmd/corvint/prove.go:623-625@acc310b7`) — between its
+  index build and its return to `runProve` (`cmd/corvint/prove.go:719-729@5563dd2e`, `cmd/corvint/prove.go:559-567@73e66e84`). It MUST NOT be placed in
   `emitError` (`cmd/corvint/main.go:1665-1667@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
@@ -795,7 +795,7 @@ above stands with that substitution.
   (`internal/contextindex/index.go:321@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1132@a1c6494d`, `cmd/corvint/index_snapshot.go:110@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1112-1114@d473eb95`, `cmd/corvint/main.go:1453-1468@501b9e1b`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/prove.go:1115-1117@d473eb95`, `cmd/corvint/main.go:1453-1468@501b9e1b`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
   (`cmd/corvint/index_snapshot.go:97-99@5f8b0e86`, `cmd/corvint/index_snapshot.go:62-64@01cf3343`) at `cmd/corvint/main.go:1489-1490@c39315fe` and
   `cmd/corvint/harness_context.go:73-74@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:445-447@cb623283`, called at
   `cmd/corvint/main.go:1482@33d39726`; `BuildEval`, `internal/contextindex/index.go:347-348@b1c33c59`, called at `cmd/corvint/harness_context.go:71@4dbd8b14`) on a miss — so plain
