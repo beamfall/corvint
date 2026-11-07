@@ -1207,11 +1207,11 @@ shell-foreign-callers-check:
 tasks-profiles-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/tasks-profiles-check >/dev/null
 
-# shell-test-register registers TEST=script/NAME_test.sh in its rule, GATE_STEPS and shell-test in one
+# shell-test-register registers TEST=script/<name>_test.sh in its rule, GATE_STEPS and shell-test in one
 # command (ASD-V0-569, V1-3319; docs/SHELL-TEST-REGISTRATION.md).
 .PHONY: shell-test-register
 shell-test-register:
-	@test -n "$(TEST)" || { echo "TEST is required: make shell-test-register TEST=script/NAME_test.sh" >&2; exit 2; }
+	@test -n "$(TEST)" || { echo "TEST is required: make shell-test-register TEST=script/<name>_test.sh" >&2; exit 2; }
 	@script/register-shell-test.sh "$(TEST)"
 
 # shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
