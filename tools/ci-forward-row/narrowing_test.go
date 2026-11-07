@@ -1271,7 +1271,7 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 	if n := one(bar, `(?m)^          name: afp-shadow-bar-epoch-([0-9]+)$`); n != epoch {
 		t.Fatalf("ci-forward-bar.yml uploads epoch %s, ci.yml rows are epoch %s", n, epoch)
 	}
-	verdictJob := one(ci, `(?ms)^  narrowing-verdict:\n(.*?)\n  go-product-shard:`)
+	verdictJob := one(ci, `(?ms)^  narrowing-verdict:\n(.*?)\n  shard-plan:`)
 	if e := one(verdictJob, `(?m)^          FORWARD_EPOCH: "([0-9]+)"$`); e != epoch {
 		t.Fatalf("narrowing-verdict accepts epoch %s, ci.yml rows are epoch %s", e, epoch)
 	}
@@ -1369,8 +1369,9 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	if len(m) != 1 || !strings.Contains(m[0][1], "AFP-V0-591") {
 		t.Fatalf("%d go-product checks with the coverage guard in ci.yml, want 1", len(m))
 	}
-	if !strings.Contains(m[0][0], "          SHARDS: \"16\"\n") || !strings.Contains(m[0][0], "          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}\n") {
-		t.Fatal("the go-product check does not read the shard count and the docs-plan mode")
+	// AFP-V0-2724: the count is the shard-plan job's sized matrix, sixteen when it did not size.
+	if !strings.Contains(m[0][0], "          SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}\n") || !strings.Contains(m[0][0], "          DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}\n") {
+		t.Fatal("the go-product check does not read the sized shard count and the docs-plan mode")
 	}
 	if !strings.Contains(string(workflow), "      - name: Fetch the shard coverage markers (AFP-V0-591)\n"+
 		"        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success'\n") {

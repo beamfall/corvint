@@ -41,13 +41,15 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 		}
 		return m[0][1]
 	}
-	matrix := strings.Split(one("matrix", ci, `(?m)^        shard: \[([0-9, ]+)\]$`), ", ")
+	// AFP-V0-2724: the matrix is the shard-plan job's sized list, defaulting to the full list the
+	// other counts must equal; a sized run carries its own count into every consumer.
+	matrix := strings.Split(one("matrix", ci, `(?m)^        shard: \$\{\{ fromJSON\(needs\.shard-plan\.outputs\.matrix \|\| '\[([0-9, ]+)\]'\) \}\}$`), ", ")
 	for i, s := range matrix {
 		if s != strconv.Itoa(i) {
 			t.Fatalf("matrix = %v, want 0..N-1", matrix)
 		}
 	}
-	// AFP-V0-2180: owner decision 2026-11-02 fixes the active matrix at sixteen.
+	// AFP-V0-2180: owner decision 2026-11-02 fixes the full matrix at sixteen.
 	if len(matrix) != 16 {
 		t.Fatalf("matrix has %d shards, want 16", len(matrix))
 	}
@@ -66,11 +68,15 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 	}
 	want := strconv.Itoa(len(matrix))
 	for name, got := range map[string]string{
-		"REUSE_SHARDS":            one("REUSE_SHARDS", ci, `(?m)^          REUSE_SHARDS: "([0-9]+)"$`),
-		"ci-shard-cost-drift":     one("SHARDS", jobBlock(t, ci, "ci-shard-cost-drift"), `(?m)^      SHARDS: "([0-9]+)"$`),
-		"ci-narrowed-tree-record": one("SHARDS", jobBlock(t, ci, "ci-narrowed-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
+		"REUSE_SHARDS":        one("REUSE_SHARDS", ci, `(?m)^          REUSE_SHARDS: "([0-9]+)"$`),
+		"ci-shard-cost-drift": one("SHARDS", jobBlock(t, ci, "ci-shard-cost-drift"), `(?m)^      SHARDS: "([0-9]+)"$`),
+		// AFP-V0-2724: the narrowed record and the coverage guard read the sized count, whose
+		// default is the full matrix.
+		"ci-narrowed-tree-record": one("SHARDS", jobBlock(t, ci, "ci-narrowed-tree-record"), `(?m)^      SHARDS: \$\{\{ needs\.shard-plan\.outputs\.count \|\| '([0-9]+)' \}\}$`),
 		"ci-tested-tree-record":   one("SHARDS", jobBlock(t, ci, "ci-tested-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
-		"go-product coverage":     one("SHARDS", jobBlock(t, ci, "go-product"), `(?m)^          SHARDS: "([0-9]+)"$`),
+		"go-product coverage":     one("SHARDS", jobBlock(t, ci, "go-product"), `(?m)^          SHARDS: \$\{\{ needs\.shard-plan\.outputs\.count \|\| '([0-9]+)' \}\}$`),
+		"shard-plan count":        one("count", jobBlock(t, ci, "shard-plan"), `(?m)^      count: \$\{\{ steps\.plan\.outputs\.count \|\| '([0-9]+)' \}\}$`),
+		"shard-plan FULL_SHARDS":  one("FULL_SHARDS", jobBlock(t, ci, "shard-plan"), `(?m)^          FULL_SHARDS: "([0-9]+)"$`),
 		"qualification default":   one("qualification", qualification, `(?m)^      shards:\n(?:        .*\n)*?        default: "([0-9]+)"$`),
 		"qualification CI remark": one("qualification", qualification, `CI uses ([0-9]+);`),
 		"ci-test-slices default":  one("ci-test-slices", slices, `fs\.Int\("shards", ([0-9]+),`),
@@ -400,7 +406,7 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		wantLine(t, job, b, jobCond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live]")
+	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]")
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then test "$LIVE_RESULT" = success; else test "$LIVE_RESULT" = skipped; fi`)
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
@@ -1215,7 +1221,7 @@ func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
 	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
-	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live]")
+	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]")
 	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
 	script := runScript(t, job)
 	for _, event := range []string{"pull_request", "merge_group", "push"} {

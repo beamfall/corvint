@@ -192,29 +192,35 @@ func recorded(r run, tree, head string, shards int, jobs func(int64) ([]job, boo
 }
 
 // recordedNarrowed returns the id of pull-request run r's one latest ci-narrowed-tree-record job
-// when its log holds exactly one AFP-V0-734 line naming tree, base, head and shards. Anything
-// else, and any run but a pull-request run, is 0.
-func recordedNarrowed(r run, tree, base, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, string) {
+// when its log holds exactly one AFP-V0-734 line naming tree, base and head. Anything else, and
+// any run but a pull-request run, is 0.
+// It also returns the record's shard count, the sized matrix of that run (AFP-V0-2725).
+func recordedNarrowed(r run, tree, base, head string, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, int, string) {
 	if !oidPattern.MatchString(base) {
-		return 0, "narrowed record requires a valid queue base"
+		return 0, 0, "narrowed record requires a valid queue base"
 	}
-	id, found, reason := narrowedRecordOf(r, head, shards, jobs, logs)
+	id, found, reason := narrowedRecordOf(r, head, jobs, logs)
 	if found == nil {
-		return 0, reason
+		return 0, 0, reason
 	}
 	if found[1] != tree {
-		return 0, "narrowed record tree mismatch"
+		return 0, 0, "narrowed record tree mismatch"
 	}
 	if found[3] != base {
-		return 0, "narrowed record base mismatch"
+		return 0, 0, "narrowed record base mismatch"
 	}
-	return id, ""
+	n, _ := strconv.Atoi(found[5])
+	return id, n, ""
 }
 
 // narrowedRecordOf returns pull-request run r's one latest ci-narrowed-tree-record job and the
-// submatches of its one AFP-V0-734 line when that line names head and shards, whatever its tree
-// and base; anything else, and any run but a pull-request run, is 0 and nil.
-func narrowedRecordOf(r run, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string, string) {
+// submatches of its one AFP-V0-734 line when that line names head, whatever its tree and base;
+// anything else, and any run but a pull-request run, is 0 and nil. AFP-V0-2725 (V1-4934): the
+// line's shard count is the sized matrix of that run (AFP-V0-2724), any count from 1 to maxShards
+// that recordJobLine found every shard job of; it need not equal the full matrix, because the
+// coverage of a narrowed run is proven by go-product's AFP-V0-591 guard over that run's own count,
+// not by a partition over the reusing run's.
+func narrowedRecordOf(r run, head string, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string, string) {
 	if r.Event != "pull_request" {
 		return 0, nil, "narrowed record requires a pull-request run"
 	}
@@ -224,9 +230,6 @@ func narrowedRecordOf(r run, head string, shards int, jobs func(int64) ([]job, b
 	}
 	if found[4] != head {
 		return 0, nil, "narrowed record head mismatch"
-	}
-	if found[5] != strconv.Itoa(shards) {
-		return 0, nil, "narrowed record shard count mismatch"
 	}
 	return id, found, ""
 }
@@ -338,7 +341,7 @@ func decideWith(repository, event, tree, head, target, base string, shards int, 
 			continue
 		}
 		if candidate == nil && event == "merge_group" && oidPattern.MatchString(base) {
-			if id, found, _ := narrowedRecordOf(r, head, shards, jobs, logs); found != nil {
+			if id, found, _ := narrowedRecordOf(r, head, jobs, logs); found != nil {
 				candidate = &delta{RunID: r.ID, RecordJobID: id, Tree: found[1], Target: found[2], Base: found[3], Head: found[4]}
 			}
 		}
@@ -346,23 +349,26 @@ func decideWith(repository, event, tree, head, target, base string, shards int, 
 			full = fullRecordDelta(r, tree, head, shards, jobs, logs, commits)
 		}
 		scope := "FULL"
+		recordShards := shards
 		jobID, reason := recorded(r, tree, head, shards, jobs, logs)
 		if jobID == 0 && event == "merge_group" {
 			scope = "NARROWED"
 			var narrowedReason string
-			jobID, narrowedReason = recordedNarrowed(r, tree, base, head, shards, jobs, logs)
+			jobID, recordShards, narrowedReason = recordedNarrowed(r, tree, base, head, jobs, logs)
 			reason += "; " + narrowedReason
 		}
 		if jobID == 0 {
 			d.Reason = reason
 			continue
 		}
-		records := make([]string, 0, shards)
-		for shard := 0; shard < shards; shard++ {
-			records = append(records, RecordName(tree, shard, shards))
+		// AFP-V0-2725: the decision names the recorded run's own shard count, the full matrix for a
+		// full record and the sized matrix for a narrowed one, and one record per shard of it.
+		records := make([]string, 0, recordShards)
+		for shard := 0; shard < recordShards; shard++ {
+			records = append(records, RecordName(tree, shard, recordShards))
 		}
 		id := r.ID
-		d.Mode, d.Scope, d.RunID, d.RecordJobID, d.Records = "REUSE", scope, &id, &jobID, records
+		d.Mode, d.Scope, d.RunID, d.RecordJobID, d.Records, d.Shards = "REUSE", scope, &id, &jobID, records, recordShards
 		if scope == "NARROWED" {
 			d.Base = base
 			d.Reason = "the narrowed-record job of a pull-request run named this exact tree and this entry's base after its shards passed one proven narrowed selection of the same range"
