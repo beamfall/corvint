@@ -746,6 +746,19 @@ func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 	readers := map[string]bool{}
 	anchors := index.rootAnchors(dirtyPath)
 	climbs := index.climbingAnchors()
+	record, isRecord := recordDirectory(dirtyPath)
+	within := resolvesWithin
+	if isRecord {
+		// A record entry's reader resolves at or below its record
+		// directory, never to an ancestor of it (AFP-V0-2744).
+		within = func(directory, value, dirtyPath string) bool {
+			return resolvesRecord(directory, value, dirtyPath, record)
+		}
+	}
+	// joins holds, per package whose token resolves to the root or a proper
+	// ancestor of a record entry's directory, the components of the
+	// directory below each such ancestor (AFP-V0-2746).
+	joins := map[string][][]string{}
 	for value, directories := range index.holders {
 		if !namesPath(value, dirtyPath) {
 			continue
@@ -756,13 +769,105 @@ func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 		// (AFP-V0-931).
 		named := namesResolvedPath(value, dirtyPath)
 		for _, directory := range directories {
-			if resolvesWithin(directory, value, dirtyPath) ||
-				(anchors[directory] && resolvesWithin("", value, dirtyPath) && (named || climbs[directory])) {
+			fromRoot := anchors[directory] && (named || climbs[directory])
+			if within(directory, value, dirtyPath) || (fromRoot && within("", value, dirtyPath)) {
 				readers[directory] = true
+				continue
+			}
+			if !isRecord {
+				continue
+			}
+			if below, ok := recordAncestor(directory, value, dirtyPath, record); ok {
+				joins[directory] = append(joins[directory], below)
+			}
+			if below, ok := recordAncestor("", value, dirtyPath, record); ok && fromRoot {
+				joins[directory] = append(joins[directory], below)
+			}
+		}
+	}
+	for directory, components := range index.heldComponents(joins) {
+		for _, below := range joins[directory] {
+			if !slices.ContainsFunc(below, func(component string) bool { return !components[component] }) {
+				readers[directory] = true
+				break
 			}
 		}
 	}
 	return sortedKeys(readers)
+}
+
+// recordAncestor is the planner's recordAncestor (AFP-V0-2746): when value,
+// resolved against directory as resolvesWithin does, is the repository root or
+// a proper ancestor of record, it returns the components of record below it,
+// which the package's other literals must join to reach a record entry.
+func recordAncestor(directory, value, dirtyPath, record string) ([]string, bool) {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return nil, false
+	}
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	prefix := resolved + "/"
+	if prefix == "./" || prefix == "/" {
+		prefix = ""
+	}
+	if prefix == record || !strings.HasPrefix(record, prefix) {
+		return nil, false
+	}
+	return strings.Split(strings.TrimSuffix(record[len(prefix):], "/"), "/"), true
+}
+
+// heldComponents returns, for each package of joins, which of the components
+// its joins name are a whole component of one of its tokens: the planner's
+// joinsComponents over the package's holders, read in one pass over the
+// index (AFP-V0-2746).
+func (index *repositoryIndex) heldComponents(joins map[string][][]string) map[string]map[string]bool {
+	if len(joins) == 0 {
+		return nil
+	}
+	wanted := map[string]bool{}
+	held := make(map[string]map[string]bool, len(joins))
+	for directory, lists := range joins {
+		held[directory] = map[string]bool{}
+		for _, below := range lists {
+			for _, component := range below {
+				wanted[component] = true
+			}
+		}
+	}
+	for value, directories := range index.holders {
+		for component := range strings.SplitSeq(value, "/") {
+			if !wanted[component] {
+				continue
+			}
+			for _, directory := range directories {
+				if components, ok := held[directory]; ok {
+					components[component] = true
+				}
+			}
+		}
+	}
+	return held
+}
+
+// resolvesRecord is resolvesWithin for the record entry dirtyPath of the
+// record directory record (AFP-V0-2744, the planner's AFP-V0-2743): the token
+// must also resolve at or below record, so one that resolves to the
+// repository root or to a proper ancestor of record (`.corvint`, `docs`) does
+// not name the entry.
+func resolvesRecord(directory, value, dirtyPath, record string) bool {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return false
+	}
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	if resolved == "." || resolved == "" {
+		return false
+	}
+	return !strings.HasPrefix(record, resolved+"/") || resolved+"/" == record
 }
 
 // holderReaders are the packages holding a literal that, resolved against

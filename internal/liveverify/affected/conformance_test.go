@@ -271,9 +271,24 @@ func TestSeamWidensRatherThanNarrowingOnUnknownInput(t *testing.T) {
 	root := fixtureRoot(t)
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
-			graph, err := affected.Build(context.Background(), root, testCase.language)
+			caseRoot := root
+			if testCase.language.Name() == "go" {
+				// An absent Go path beside an observed package is a deletion
+				// that rule (a) attributes (AFP-V0-2610); a new file is on
+				// disk, so the Go case writes it to a copy after the build.
+				caseRoot = t.TempDir()
+				if err := os.CopyFS(caseRoot, os.DirFS(root)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			graph, err := affected.Build(context.Background(), caseRoot, testCase.language)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if caseRoot != root {
+				if err := os.WriteFile(filepath.Join(caseRoot, filepath.FromSlash(testCase.ownedUnindexed)), []byte("package core\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
 			}
 			baseline := affected.Select(graph, []string{testCase.dirty})
 			if testCase.permanentFrontier == "" && baseline.Scope != affected.ScopeBounded {

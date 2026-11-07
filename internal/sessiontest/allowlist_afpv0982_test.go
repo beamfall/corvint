@@ -18,7 +18,7 @@ import (
 // alone fails here. The one named exception is a well-formed unobserved-module
 // frontier, which both sides read through gateselect.UnobservedModule: the
 // driver admits it, and the shadow runs the module's own suite outside the ci
-// profile. The table holds every reason the planner emits and every Go frontier
+// profile and names it as a check on the ci profile (AFP-V0-2742). The table holds every reason the planner emits and every Go frontier
 // detail it reports, beside non-Go frontiers. The other named exception is a
 // well-formed UNSELECTED_BINARY_CONSUMER, which both sides read through
 // gateselect.BinaryConsumer (V1-4361): the driver admits it, and Build names it

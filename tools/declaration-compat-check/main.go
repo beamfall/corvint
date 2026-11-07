@@ -49,6 +49,7 @@ var closed = map[string][]string{
 var notPlanner = map[string]string{
 	".corvint/dogfood-report.json":    "the dogfood run report",
 	".corvint/evidence-reach.json":    "read by `corvint runs` (internal/evidencereach), not by the planner",
+	".corvint/record-readers.json":    "the AFP-V0-2745 ratchet record read by tools/unbounded-readers, not by the planner",
 	".corvint/work-queue-policy.json": "the Tasks work-queue policy",
 }
 

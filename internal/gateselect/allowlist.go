@@ -32,8 +32,10 @@ func AllowedUnknown(reason, detail string) bool {
 // unobserved-module frontier, "go:unobserved-module:<directory>:<path>": a
 // clean, local, slash-separated directory that is the only split whose path
 // lies below it. The driver admits such an entry beside AllowedUnknown, and
-// `corvint test` does outside the ci profile, where the module's own suite
-// runs it (STR-V0-064); both read it here (AFP-V0-982).
+// `corvint test` does on every profile: outside the ci profile the module's
+// own suite runs it (STR-V0-064), and on the ci profile it names that suite as
+// a check CI runs outside the Go shards (AFP-V0-2742); both read it here
+// (AFP-V0-982).
 func UnobservedModule(reason, detail string) (string, bool) {
 	rest, ok := strings.CutPrefix(detail, "go:unobserved-module:")
 	if reason != "LANGUAGE_FRONTIER" || !ok {

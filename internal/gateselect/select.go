@@ -119,6 +119,32 @@ func resolvedEvidence(p string) bool {
 	return sealed && strings.HasSuffix(name, ".cem.json") && len(name) > len(".cem.json") && !strings.Contains(name, "/")
 }
 
+// buildLog holds the build log, one Markdown entry per recorded decision or
+// result (decision 0423), which nearly every change adds.
+const buildLog = "docs/build-log/"
+
+// recordDirectory returns the record directory of a record entry, a sealed
+// CEM directly under sealedChanges or a Markdown entry directly under
+// buildLog, the planner's recordDirectory (AFP-V0-2743, AFP-V0-2744): its
+// rule (c) readers are resolvingReaders, and a token that resolves only to an
+// ancestor of the record directory reads nothing of it.
+func recordDirectory(p string) (string, bool) {
+	if name, ok := strings.CutPrefix(p, sealedChanges); ok && !strings.Contains(name, "/") && len(name) > len(".cem.json") && strings.HasSuffix(name, ".cem.json") {
+		return sealedChanges, true
+	}
+	if name, ok := strings.CutPrefix(p, buildLog); ok && !strings.Contains(name, "/") && len(name) > len(".md") && strings.HasSuffix(name, ".md") {
+		return buildLog, true
+	}
+	return "", false
+}
+
+// resolvedReaders reports whether rule (c) for p is resolvingReaders: the CEM
+// sidecar and a sealed CEM (AFP-V0-152), and a build-log entry (AFP-V0-2744).
+func resolvedReaders(p string) bool {
+	_, record := recordDirectory(p)
+	return record || resolvedEvidence(p)
+}
+
 var plainImportPath = regexp.MustCompile(`^[A-Za-z0-9._~/-]+$`)
 
 // MaxPlanBytes bounds a plan, and a path list, read from a file or stream.
@@ -482,7 +508,7 @@ type attribution struct {
 // it, given as readers (index.readers(dirty), or pathReaders for many paths).
 // Rule (d), the unresolved packages, is index.unresolved().
 func (index *repositoryIndex) attribute(dirty string, readers []string) []attribution {
-	if resolvedEvidence(dirty) {
+	if resolvedReaders(dirty) {
 		readers = index.resolvingReaders(dirty)
 	}
 	return append(index.attributeStructure(dirty), attribution{"reader", readers})
@@ -653,7 +679,7 @@ func additiveNarrowing(plan Receipt, module string) map[string]map[string]bool {
 // unreferenced ones, whose test importers are dropped likewise; rule (c) is
 // unchanged.
 func (index *repositoryIndex) attributeNarrowed(dirty string, readers []string, unreferenced map[string]bool) []attribution {
-	if resolvedEvidence(dirty) {
+	if resolvedReaders(dirty) {
 		readers = index.resolvingReaders(dirty)
 	}
 	directory := parentDirectory(dirty)
@@ -747,7 +773,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 		for _, rule := range index.attributeStructure(p) {
 			bind(rule.directories, rule.kind, p)
 		}
-		if resolvedEvidence(p) {
+		if resolvedReaders(p) {
 			bind(boundedReaders(index.resolvingReaders(p), scopes, nil, p), "reader", p)
 		}
 	}
@@ -767,7 +793,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 	matcher := newPathMatcher(paths)
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
-			if !resolvedEvidence(paths[i]) {
+			if !resolvedReaders(paths[i]) {
 				bind(boundedReaders(directories, scopes, nil, paths[i]), "reader", paths[i])
 			}
 		}
