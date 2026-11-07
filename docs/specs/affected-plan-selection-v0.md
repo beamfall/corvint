@@ -23,6 +23,8 @@ V1-4281) adds AFP-V0-2400 to AFP-V0-2406 here for the same reason; see build-log
 `2026-11-03-selbugs-selection-correctness`.
 Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
+Lane selaudit (2026-11-06; the selection audit, build-log entry `2026-11-06-selection-audit`) adds
+AFP-V0-2610 here for the same reason.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -549,6 +551,33 @@ measure. None of them drops a unit the change can reach.
   removing or changing a plugin the change does not involve SHALL leave every other byte of the
   plan unchanged but the graph digest and the exclusion universe that names it.
 
+### Deleted Go sources of a surviving package (selection audit 2026-11-06)
+
+- **AFP-V0-2610:** (experimental under the owner's standing lane auto-accept (2026-11-06); lane
+  selaudit, the 2026-11-06 selection audit; amends AFP-V0-620) A deleted or renamed-away non-test
+  `.go` path SHALL drop its `UNINDEXED_SOURCE_PATH` entry under exactly AFP-V0-620's conditions:
+  only the Go plugin claims it, it is absent from the disk checkout the graph was observed from, no
+  directory the Go plugin reports as unobserved encloses it, and its directory still holds a Go
+  package the graph observes. Rule (a) of AFP-V0-004 (`goSourceRule`) already attributes such a
+  path to that package with a `DIRECT_SOURCE_CHANGE` witness, which is a traversal root, so every
+  importer and test importer of the package is selected as for an edit to one of its files; the
+  ADN-V0 additive narrowing never applies to it, because a deleted file is a `DELETED_FILE`
+  additive fallback (ADN-V0-004). A file of the directory compiles into no package other than the
+  directory's own, whatever its build constraints, so what other packages compile against changes
+  only through that package. Readers of the path are attributed before this rule, as for any
+  unowned path (AFP-V0-600, AFP-V0-601). This removes the local/CI divergence in which
+  gate-affected-select narrowed the same plan (CIN-V0-860 (4)) while `corvint test` fell back to
+  FULL, so the AFP-V0-098 superset guard forced the whole CI suite on every pull request that
+  deleted or moved a Go source out of a surviving package (beamfall/corvint#114). Every exclusion
+  AFP-V0-620 keeps still applies: a path present on disk, a graph with no disk root, and a deleted
+  path whose directory holds no observed package keep the entry (a wholly deleted directory is
+  AFP-V0-821's). Failure mode: as AFP-V0-620's, a graph observed from another checkout reads
+  absence from the wrong tree. Falsifier: a deleted non-test Go path whose removal changes a test
+  outcome in a package the plan excludes. Acceptance:
+  `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` and
+  `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610`. Rollback: restore the
+  `_test.go` suffix check in `deletedGoSource`; the path raises `UNINDEXED_SOURCE_PATH` again.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -651,6 +680,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2404 | `.corvint/runtime-readers.json` | the per-path plan summaries in the build-log entry |
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
+| AFP-V0-2610 | `deletedGoSource` (was `deletedGoTest`) in `internal/liveverify/affected/deletedtests.go` and its call in `seed` (`select.go`); `goSourceRule` in `structure.go` | `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610` and the amended `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (fails before the change: `UNINDEXED_SOURCE_PATH provider/extra.go`); amended to the new rule: `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340` (no unindexed entry), the two AFP-V0-191 tests in `golang/unobserved_test.go` and the Go case of `TestSeamWidensRatherThanNarrowingOnUnknownInput` (a new unindexed file is written to disk), and the two abstention rows of `TestUseCaseHostileChangeConsequence` (a directory left with no package); the PR #114 replay and a one-file deletion replay in build-log entry `2026-11-06-selection-audit` |
 
 ## Rollback
 
