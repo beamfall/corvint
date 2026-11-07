@@ -742,7 +742,10 @@ measure. None of them drops a unit the change can reach.
 - **AFP-V0-2376:** (experimental; V1-2744) The changed declarations SHALL be read per changed
   non-test Go file by comparing base and head top-level declarations by key (function name,
   `Type.Method`, each declared name; a constant group as a whole) on printed text, either side
-  absent counting as changed (`typedreach.DiffFile`). The declarations' package SHALL be the
+  absent counting as changed (`typedreach.DiffFile`). A name Go lets repeat SHALL keep one key
+  per occurrence: each `init` function, and each blank (`_`) declaration by its ordinal among the
+  file's blank declarations, so no blank initializer hides an edit of another and each keeps its
+  own initialization status. The declarations' package SHALL be the
   module path joined with the file's directory (`typedreach.ImportPath`): a file beside `go.mod`
   belongs to the module path itself, never `module/.`, in `corvint test` and the measurement tool
   alike, so a root-package change is resolved and base-checked like any other. Compiled source positions are observable:
@@ -757,8 +760,10 @@ measure. None of them drops a unit the change can reach.
   unreadable, deleted or incompatible base closure, a changed file absent at head, a changed
   file whose build constraint lines differ between base and head, or (without an executor
   configuration) any constrained base file keeps the package whole with
-  `BASE_SOURCE_UNPROVED`; the base closure is selected under the same configuration as head. If any changed function or method present at base, or a method of a
-  changed type, can write any shared state, start a process or call a process-wide setter, the
+  `BASE_SOURCE_UNPROVED`; the base closure is selected under the same configuration as head. If any changed function or method present at base, a method of a
+  changed type, or the code a changed package variable present at base holds (a function literal,
+  function value or method value its initializer stores, which a test reading the variable runs)
+  can write any shared state, start a process or call a process-wide setter, the
   package SHALL stay whole with `BASE_MAY_WRITE_SHARED_STATE`, naming the declaration. This
   conservative check includes calls and held values: state the edit stopped writing still counts.
   The measurement tool SHALL apply this same base check. A changed name absent at head (removed)
@@ -907,7 +912,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2373 | `Analyze`, `reach`, `provenTool`, `externalTools`, `processStarters` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction`, `TestAFPV02373RoundThreeRegressions` (constants, `os/exec` uses, ioutil and `os.Root`) |
 | AFP-V0-2374 | `sharedVar`, `streamOutput`, `streamInput`, `assignedElsewhere`, `opaqueArguments`, `opaqueParameter`, `stateWriters`, `stateReaders`, `processState`, `exemptStateMethods`, `readOnlyReceivers`, `queryOnly`, `rootVar` | `TestAFPV02373KeepsOnlyTheTestsReachingAChangedFunction` (`TestRead`); `TestAFPV02374ReviewRegressions`, `TestAFPV02374ReReviewRegressions`, `TestAFPV02373RoundThreeRegressions` (process-start writes, `os.Stdout` and `fmt`), `TestAFPV02374RoundFourRegressions` (interface-held references, discarded-temp privacy, `os.File` handles, `net/http` defaults, fixed-port listeners), `TestAFPV02374AllowListRegressions`, `TestAFPV02374LoggerReceiverSettersKeepOrderedReaders`, `TestAFPV02374SignalCleanupCannotEraseWrites`, `TestAFPV02374StoredMethodValuesCarryImplicitReads`, `TestAFPV02374SignalStopWritesSignalState`, `TestAFPV02374StreamOutputWritesFiles`, `TestAFPV02374IndirectStdCallsKeepOpaqueArguments`, `TestAFPV02374RangeAssignmentEndsPrivacy` (value, key, parenthesized value, key and assignment), `TestAFPV02374ScanReadsFiles` |
 | AFP-V0-2375 | the slice and whole forms in `testTypedSlices` | `corvint test --dry-run` replays (build log) |
-| AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `ImportPath`, `fileDecls` in `typedreach/diff.go`; `resolve` in `analyze.go`; its use in `testTypedSlices` and `tools/typed-reach-measure` | `TestAFPV02376DiffFileNamesChangedDeclarations`, `TestAFPV02376MovedPositionsKeepDependentReaders`, `TestAFPV02376ImportPathOfRootPackageFiles`, `TestAFPV02376DryRunReadsRootPackageChanges`, `TestAFPV02376BaseConstraintChangeRefuses` |
+| AFP-V0-2376 | `DiffFile`, `FileChange.Declarations`, `ImportPath`, `fileDecls` in `typedreach/diff.go`; `resolve`, `BaseEffects` in `analyze.go`; its use in `testTypedSlices` and `tools/typed-reach-measure` | `TestAFPV02376DiffFileNamesChangedDeclarations`, `TestAFPV02376MovedPositionsKeepDependentReaders`, `TestAFPV02376ImportPathOfRootPackageFiles`, `TestAFPV02376DryRunReadsRootPackageChanges`, `TestAFPV02376BaseConstraintChangeRefuses`, `TestAFPV02376BaseEffectsPreserveRemovedWrites`, `TestAFPV02376BaseEffectsSeeHeldCallbacks`, `TestAFPV02376BlankInitializersKeepOwnKeys` |
 | AFP-V0-2377 | `typedReachChangedPaths`, `typedReachUnitRefusal`; `Graph.NamesPath`, `Graph.GlobRead` in `internal/liveverify/affected/readers.go` | `corvint test --dry-run` replays (build log); `TestAFPV02370DryRunNarrowsAnAllowListedDependent` (embedded and run-time data files) |
 | AFP-V0-2378 | `tools/typed-reach-measure/main.go` | fault-injection oracle runs in build-log entry `2026-11-03-floor-typed-reach` |
 
