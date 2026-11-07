@@ -159,6 +159,7 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 	sort.Strings(makeFiles)
 	for _, file := range makeFiles {
 		parsed := parseDriverMake(file, bodies[file])
+		parsed.source = source
 		registry.makes[file] = parsed
 		registry.makeOrder = append(registry.makeOrder, file)
 		if parsed.unparsable {

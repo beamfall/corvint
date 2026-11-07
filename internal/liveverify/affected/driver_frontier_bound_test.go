@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
@@ -561,5 +562,103 @@ func TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128(t *testing.T) {
 				t.Fatalf("got %s; want run-all FRONTIER_SITE", witness)
 			}
 		})
+	}
+}
+
+// AFP-V0-3121: a filesystem function's argument is not its result. In
+// particular, an absent wildcard selects the false branch in GNU make.
+func TestFrontierSiteFilesystemCondition_AFP_V0_3121(t *testing.T) {
+	for _, function := range []string{"wildcard", "realpath"} {
+		for _, immutable := range []bool{false, true} {
+			name := function + "/disk"
+			if immutable {
+				name = function + "/immutable"
+			}
+			t.Run(name, func(t *testing.T) {
+				files := boundFiles("check:; go test ./$(if $(" + function + " missing),left,right)_pkg\nall: check\n")
+				files["left_pkg/main.go"] = "package left\n"
+				files["right_pkg/main.go"] = "package right\n"
+				var graph *affected.Graph
+				if immutable {
+					files["go.mod"] = "module example.test/m\n\ngo 1.27.0\n"
+					fsys := fstest.MapFS{}
+					for name, body := range files {
+						fsys[name] = &fstest.MapFile{Data: []byte(body)}
+					}
+					var err error
+					graph, err = affected.BuildFS(fsys, golang.New(), affected.Driver{})
+					if err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					graph = driverGraph(t, files, nil)
+				}
+				selected := driverSelections(affected.Select(graph, []string{"right_pkg/main.go"}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			})
+		}
+	}
+}
+
+// AFP-V0-3128: dropping a claim requires an edge for every literal file
+// operand, even when its spelling has neither a slash nor an extension.
+func TestFrontierSiteExtensionlessOperand_AFP_V0_3128(t *testing.T) {
+	for _, recipe := range []string{
+		"$(if yes,cat,cat) LICENSE",
+		"$(if yes,cat,cat) 'LICENSE COPY'",
+		"$(if yes,test,test) -f LICENSE",
+		"$(if yes,wc,wc) -l < LICENSE",
+		"cd data && $(if yes,cat,cat) LICENSE",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			files := boundFiles("check:; " + recipe + "\nall: check\n")
+			operand := "LICENSE"
+			if strings.Contains(recipe, "COPY") {
+				operand = "LICENSE COPY"
+			}
+			if strings.HasPrefix(recipe, "cd ") {
+				operand = "data/" + operand
+			}
+			files[operand] = "license text\n"
+			graph := driverGraph(t, files, nil)
+			if computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("literal file operand should be represented by an edge")
+			}
+			selected := driverSelections(affected.Select(graph, []string{operand}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			selected = driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit})
+		})
+	}
+}
+
+// AFP-V0-3128: a deferred trap can read a path supplied at runtime, after
+// recipe scanning. It must retain the frontier claim.
+func TestFrontierSiteDynamicTrap_AFP_V0_3128(t *testing.T) {
+	graph := driverGraph(t, boundFiles("check:; $(if yes,trap,trap) 'cat \"$$INPUT\"' EXIT\nall: check\n"), nil)
+	if !computedSite(t, graph, "driver:make:Makefile#check") {
+		t.Fatal("dynamic trap body lost its frontier claim")
+	}
+	selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+	wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+	if witness := selected["driver:make:Makefile#check"].Witness; witness.Kind != affected.WitnessFrontierSite {
+		t.Errorf("check witness %+v; want FRONTIER_SITE", witness)
+	}
+}
+
+// AFP-V0-3127: a repository executable named bash is not a certified plain
+// shell. Its policy reads are outside the recipe's explicit operands.
+func TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127(t *testing.T) {
+	files := boundFiles("SHELL = tools/bash\ncheck:; $(if yes,echo,echo) ok\nall: check\n")
+	files["tools/bash"] = "#!/bin/sh\ncat policy.json\nexec /bin/bash \"$@\"\n"
+	files["policy.json"] = "{}\n"
+	graph := driverGraph(t, files, nil)
+	if !computedSite(t, graph, "driver:make:Makefile#check") {
+		t.Fatal("repository shell wrapper lost its frontier claim")
+	}
+	selected := driverSelections(affected.Select(graph, []string{"policy.json"}))
+	wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+	if witness := selected["driver:make:Makefile#check"].Witness; witness.Kind != affected.WitnessFrontierSite {
+		t.Errorf("check witness %+v; want FRONTIER_SITE", witness)
 	}
 }

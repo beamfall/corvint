@@ -13,6 +13,7 @@ import (
 // line (variables, includes, conditionals, special targets, rules whose
 // targets are computed), so a change there selects every target of the file.
 type driverMakeFile struct {
+	source           *Source
 	path             string
 	dir              string
 	vars             map[string][]string
@@ -692,6 +693,12 @@ func (parsed *driverMakeFile) recipeShellCertified() bool {
 		if len(fields) != 1 || driverDynamic(variant) || !driverShells[path.Base(fields[0])] {
 			return false
 		}
+		shell := fields[0]
+		// AFP-V0-3127: a repository wrapper can share a shell basename
+		// while reading files outside the recipe's bounded read set.
+		if strings.Contains(shell, "/") && shell != "/bin/"+path.Base(shell) && shell != "/usr/bin/"+path.Base(shell) {
+			return false
+		}
 	}
 	if _, set := parsed.vars[".SHELLFLAGS"]; set {
 		for _, variant := range expander.expandAll("$(.SHELLFLAGS)") {
@@ -1057,7 +1064,7 @@ func driverMakeClose(text string, open int) int {
 	return -1
 }
 
-var driverMakePassThrough = map[string]bool{"wildcard": true, "abspath": true, "realpath": true, "strip": true}
+var driverMakePassThrough = map[string]bool{"strip": true}
 
 func (e *driverExpander) reference(inner string) string {
 	name, args, spaced := strings.Cut(inner, " ")
@@ -1166,6 +1173,31 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		e.evaluated = true
 	}
 	switch name {
+	case "wildcard":
+		// Literal names that exist in the explicit repository source are
+		// their own wildcard result. Patterns, absent names and unknown
+		// directories stay unknown (AFP-V0-3121), never a truthy argument.
+		value := e.expand(args)
+		if !definite(value) || e.file.source == nil {
+			return retain()
+		}
+		for _, word := range strings.Fields(value) {
+			if strings.ContainsAny(word, "*?[\\~") {
+				return retain()
+			}
+			relative := driverJoin(e.file.dir, word)
+			if relative == "" {
+				return retain()
+			}
+			if _, err := e.file.source.Stat(relative); err != nil {
+				return retain()
+			}
+		}
+		return strings.Join(strings.Fields(value), " "), true
+	case "realpath", "abspath":
+		// Filesystem results and absolute paths are not their arguments.
+		// Keep an unknown value so conditions consider both outcomes.
+		return retain()
 	case "if":
 		parts := split(3)
 		truth := e.condition(parts[0])
