@@ -46,7 +46,10 @@ needs, and each keeps a negative control that still refuses or runs everything.
   Automatic source-change admission MUST run the whole package without test exclusions, including
   filters inherited through GOFLAGS or GOENV. An explicit -skip needs a HEAD-bound manifest
   selecting that exact exclusion; a whole-unit manifest alone MUST NOT authorize exclusions.
-  Inherited filters conservatively require an explicit command for manifest validation.
+  Provably nonrestrictive -run patterns MUST retain automatic and whole-unit manifest admission;
+  the final repeated -run value is effective. Restrictive inherited filters conservatively require
+  an explicit command for manifest validation. Validation MUST preserve all environment assignments
+  affecting Go defaults, and MUST refuse unsupported env options rather than discard them.
   A pre-commit caller using heavy.sh MUST retain an existing test broken by a non-test edit.
 
 ## Non-goals
@@ -71,7 +74,7 @@ more tests. No test-only edit is enough to prove whole-package necessity.
 | ASD-V0-2402 | `SELECT_ALLOWED` and its use in `select_plan` of `script/batch-precheck.sh` | `script/batch-precheck_test.sh` ASD-V0-2402 cases: CI-admitted unknowns narrow a doc-only diff, the same unknowns with real golden drift select and fail it, `UNINDEXED_SOURCE_PATH` and a malformed consumer run everything |
 | ASD-V0-2403 | the `darwin_local` call in the offload branch of `script/heavy.sh` (the split's functions removed) | group `offload 9`: on a Darwin host a package whose darwin-only files are all test files stays wholly local, runs the unchanged command once and passes its failure through; `./mac` (darwin source), `-run` and a mix stay local; an other test file constrained `//go:build !linux`, `// +build !linux` or by a `_linux` name, or an assembly file, a blank, named, dot, cgo or plain import in the darwin test file, a second package argument whose `//go:build !linux` test fails, a common test gated by `runtime.GOOS` with `Skip`, an aliased `runtime` import's `GOARCH`, `os.Getenv("GOOS")`, `testenv`, `SkipNow` or `Skipf`, a package helper naming `runtime.GOOS`, and a common test that runs `uname -s` and fails on Darwin each keep the command local with its Darwin-only failure seen; the before and after runs are in build-log entry `2026-11-04-selbugs-review-round-e` |
 | ASD-V0-2477 | local admission in `script/heavy.sh` | `TestASDV02477LocalRuntimeShare` in tools/test-commands-check: default, caller and argv fault controls, admit-only |
-| ASD-V0-2478 | `changed_source_base`, `source_tests_unfiltered` and `manifest_admits` in `script/heavy.sh` | `TestASDV02478SourceEditRunsExistingTests` in tools/test-commands-check: existing failing test, staged and committed source, unchanged/test-only/glob/mixed refusals, direct and inherited exclusion refusals, exact manifest exclusion retains the broken test |
+| ASD-V0-2478 | `changed_source_base`, `source_tests_unfiltered` and `manifest_admits` in `script/heavy.sh` | `TestASDV02478SourceEditRunsExistingTests` in tools/test-commands-check: existing failing test, staged and committed source, unchanged/test-only/glob/mixed refusals, direct and inherited exclusion refusals including env unsetting, nonrestrictive run patterns through automatic and manifest admission, exact manifest exclusion retains the broken test |
 
 ## External integration boundary
 

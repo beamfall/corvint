@@ -146,6 +146,35 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 		t.Fatal(err)
 	}
 	run(2, "env", "GOENV="+goenv, "go", "test", "./p")
+	// Unsetting an exported value exposes GOENV defaults in the actual child. The guard
+	// must not authorize a run using the still-exported value instead.
+	env = heavycapEnv(env, "GOFLAGS", "-p=1")
+	child := exec.Command("env", "-u", "GOFLAGS", "GOENV="+goenv, realGo, "env", "GOFLAGS")
+	child.Dir, child.Env = work, env
+	resolved, err := child.CombinedOutput()
+	if err != nil || strings.TrimSpace(string(resolved)) != "-skip=TestExisting" {
+		t.Fatalf("unset fixture GOFLAGS=%q: %v", resolved, err)
+	}
+	run(2, "env", "-u", "GOFLAGS", "GOENV="+goenv, "go", "test", "./p")
+	run(2, "env", "--unset=GOFLAGS", "GOENV="+goenv, "go", "test", "./p")
+	env = originalEnv
+	// These patterns run the existing failure in all three automatic admission routes.
+	for _, pkg := range []string{"p", "tools/small", "new"} {
+		for _, pattern := range []string{".", ".*", "^.+", ""} {
+			out = run(1, "go", "test", "-count=1", "-run", pattern, "./"+pkg)
+			if !strings.Contains(out, "source regression") {
+				t.Fatalf("all-matching run did not reach existing failure: %s", out)
+			}
+		}
+		run(1, "go", "test", "--run", ".", "./"+pkg)
+	}
+	out = run(1, "env", "GOFLAGS=-run=.", "go", "test", "-count=1", "./p")
+	if !strings.Contains(out, "source regression") {
+		t.Fatalf("inherited all-matching run did not reach existing failure: %s", out)
+	}
+	// The final repeated -run is effective; a restrictive inherited pattern stays refused.
+	run(1, "go", "test", "-run=TestOther", "-run=.", "./p")
+	run(2, "env", "GOFLAGS=-run=TestOther", "go", "test", "-run=.", "./p")
 
 	// A HEAD-bound manifest must select the exact exclusion; a whole-unit witness is not
 	// authority for -skip. A supported exclusion still reaches the broken TestExisting.
@@ -158,8 +187,27 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 	head := strings.TrimSpace(string(headBytes))
 	write("selection.json", `{"profile":"corvint-test-manifest/0","source":{"head":"`+head+`"},"units":[{"unit":"go:example.invalid/fixture/p","slice":"whole"},{"unit":"go:example.invalid/fixture/p","slice":"1/2","flag":"-skip","pattern":"TestOther"}]}`)
 	env = heavycapEnv(env, "HEAVY_SELECTION", filepath.Join(work, "selection.json"))
+	// With source admission disabled, the unchanged package must use the whole-unit manifest.
+	dogtoolsGit(t, work, "update-ref", "refs/remotes/origin/main", "HEAD")
+	dogtoolsGit(t, work, "checkout", "--", "p/a.go")
+	for _, args := range [][]string{
+		{"go", "test", "-count=1", "-v", "-run", ".", "./p"},
+		{"go", "test", "-count=1", "-v", "--run=.*", "./p"},
+		{"go", "test", "-count=1", "-v", "--run", ".", "./p"},
+		{"env", "GOFLAGS=-run=.", "go", "test", "-count=1", "-v", "./p"},
+	} {
+		out = run(0, args...)
+		if !strings.Contains(out, "=== RUN   TestExisting") || !strings.Contains(out, "=== RUN   TestOther") {
+			t.Fatalf("whole manifest run omitted a test: %s", out)
+		}
+	}
+	write("p/a.go", "package p\nfunc Value() int { return 2 }\n")
 	run(2, "go", "test", "-skip=TestExisting", "./p")
 	run(2, "env", "GOFLAGS=-skip=TestExisting", "go", "test", "./p")
+	run(2, "go", "test", "-run=.", "-skip=TestExisting", "./p")
+	env = heavycapEnv(env, "GOFLAGS", "-p=1")
+	run(2, "env", "-u", "GOFLAGS", "GOENV="+goenv, "go", "test", "-run=.", "./p")
+	env = heavycapEnv(env, "GOFLAGS", "")
 	out = run(1, "go", "test", "-count=1", "-skip=TestOther", "./p")
 	if !strings.Contains(out, "source regression") {
 		t.Fatalf("manifest exclusion hid the existing failure: %s", out)

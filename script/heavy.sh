@@ -1369,7 +1369,7 @@ small_package_bytes() {
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
     case $arg in
-      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -run | --run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
       -*) ;;
       *)
@@ -1401,7 +1401,7 @@ new_package_base() {
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
     case $arg in
-      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -run | --run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
       -*) ;;
       *)
@@ -1429,7 +1429,7 @@ changed_source_base() {
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
     case $arg in
-      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -run | --run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=* | -args | --) return 1 ;;
       -*) ;;
       *)
@@ -1450,19 +1450,42 @@ changed_source_base() {
   printf '%s\n' "${base:0:12}"
 }
 
+# whole_run_pattern PATTERN: ASD-V0-2478. A bounded proof that every top-level test/example
+# matches; selective subtest patterns and other regexes cannot supply whole-package authority.
+whole_run_pattern() {
+  case ${1#^} in '' | . | '.*' | '.+') return 0 ;; esac
+  return 1
+}
+
 # source_tests_unfiltered MODE COMMAND...: ASD-V0-2478. Source edits justify running every
-# test, never silently excluding one. Inspect Go's inherited defaults with the command's GOENV
-# and GOFLAGS assignments as well as argv. The manifest path may validate a direct -skip itself;
+# test, never silently excluding one. Preserve all environment assignments when inspecting Go's
+# defaults; refuse unsupported env options instead of discarding their effect on the child.
+# The manifest path may validate a direct -skip itself;
 # inherited filters conservatively require an explicit command instead of a whole-unit witness.
 source_tests_unfiltered() {
-  local mode=$1 seen=0 prev_go=0 count_next=0 arg flag go=go flags goenv=() words=()
+  local mode=$1 seen=0 count_next=0 run_next=0 run_set=0 run_value= arg flag go=go flags quoted=
+  local inherited_run_set=0 inherited_run= goenv=() words=()
   shift
   for arg in "$@"; do
     if ((!seen)); then
-      case $arg in GOFLAGS=* | GOENV=* | GOROOT=*) goenv+=("$arg") ;; esac
-      [[ ${arg##*/} == go ]] && go=$arg
-      [[ $arg == test && $prev_go == 1 ]] && seen=1
-      [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0
+      if [[ $arg =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        goenv+=("$arg")
+      elif [[ ${arg##*/} == env ]]; then
+        :
+      elif [[ ${arg##*/} == go ]]; then
+        go=$arg seen=1
+      else
+        return 1
+      fi
+      continue
+    fi
+    if ((seen == 1)); then
+      [[ $arg == test ]] || return 1
+      seen=2
+      continue
+    fi
+    if ((run_next)); then
+      run_value=$arg run_set=1 run_next=0
       continue
     fi
     if ((count_next)); then
@@ -1473,25 +1496,37 @@ source_tests_unfiltered() {
     flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
     case $flag in
       skip | skip=*) [[ $mode == manifest && $arg == -skip* ]] || return 1 ;;
-      run | run=* | list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | args | '') return 1 ;;
+      run | run=*)
+        case $arg in -test.* | --test.*) return 1 ;; esac
+        if [[ $flag == run ]]; then run_next=1; else run_value=${flag#run=} run_set=1; fi
+        ;;
+      list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | args | '') return 1 ;;
       count) count_next=1 ;;
       count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
       n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
     esac
   done
+  ((seen == 2 && !run_next && !count_next)) || return 1
+  (( !run_set )) || whole_run_pattern "$run_value" || return 1
   flags=$(env ${goenv[@]+"${goenv[@]}"} GOTOOLCHAIN=local "$go" env GOFLAGS 2> /dev/null) || return 1
   # GOFLAGS permits quoted words. Removing quotes is conservative: even a filter-looking word
   # inside another flag's value cannot grant automatic whole-package authority.
+  [[ $flags != *\"* && $flags != *\'* ]] || quoted=1
   flags=${flags//\"/}; flags=${flags//\'/}
   flags=${flags//$'\n'/ }; flags=${flags//$'\r'/ }
   read -ra words <<< "$flags"
   for arg in ${words[@]+"${words[@]}"}; do
     flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
     case $flag in
-      run | run=* | skip | skip=* | list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | count | c | c=* | n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
+      run=*)
+        [[ -z $quoted && $arg != *test.run=* ]] || return 1
+        inherited_run=${flag#run=} inherited_run_set=1
+        ;;
+      run | skip | skip=* | list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | count | c | c=* | n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
       count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
     esac
   done
+  (( !inherited_run_set )) || whole_run_pattern "$inherited_run"
 }
 
 # run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
@@ -1682,7 +1717,7 @@ manifest_admits() {
     case $arg in
       -skip) skip=2 ;;
       -skip=*) skips+=("${arg#-skip=}") ;;
-      -run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -run | --run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) not_admitted "argument $arg is not a ./REL directory"; return 1 ;;
       -*) ;;
       .) pkgs+=("$mod") ;;
