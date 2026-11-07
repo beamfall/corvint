@@ -376,15 +376,15 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	return r, nil
 }
 
-// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the CPU count, at
-// most 8 and at most n (DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the
-// doc-gates job bound (ASD-V0-925).
+// replayJobs follows the admitted runtime share (DTL-V0-017), with an explicit replay override.
+// GOMAXPROCS wins over HEAVY_P as it does for a caller overriding heavy.sh's runtime cap.
 func replayJobs(n int) int {
-	jobs := max(1, runtime.NumCPU())
-	if v, err := strconv.Atoi(os.Getenv("SELECTION_BASELINE_JOBS")); err == nil && v > 0 {
-		jobs = v
-	} else {
-		jobs = min(jobs, 8)
+	jobs := max(1, runtime.GOMAXPROCS(0))
+	for _, key := range []string{"SELECTION_BASELINE_JOBS", "GOMAXPROCS", "HEAVY_P"} {
+		if v, err := strconv.Atoi(os.Getenv(key)); err == nil && v > 0 {
+			jobs = v
+			break
+		}
 	}
 	return max(1, min(jobs, n))
 }

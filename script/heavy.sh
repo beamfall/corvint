@@ -22,6 +22,8 @@
 #   HEAVY_SLOTS     concurrent heavy commands admitted host-wide; default max(1, CPUs/4)
 #   HEAVY_P         Go build/test parallelism (-p) exported through GOFLAGS unless GOFLAGS already
 #                   sets -p; default max(1, CPUs/HEAVY_SLOTS). An explicit -p argument still wins.
+#                   Local commands also inherit GOMAXPROCS=HEAVY_P unless the caller set it
+#                   (ASD-V0-2477); an argv GOMAXPROCS assignment still wins.
 #                   With no GOFLAGS in the environment, -p is appended to `go env GOFLAGS` (a GOENV
 #                   or $GOROOT/go.env value), which the exported GOFLAGS would otherwise replace.
 #   HEAVY_LOCK_DIR  directory holding the slot lock files; default /tmp/corvint-heavy-<uid>.
@@ -1417,6 +1419,37 @@ new_package_base() {
   printf '%s\n' "${base:0:12}"
 }
 
+# changed_source_base COMMAND...: ASD-V0-2478. Without a line-level selection, a source edit
+# admits its package whole. Compare the merge base through the working tree (staged and unstaged)
+# and include untracked source. Every named package must qualify; never infer a glob or -C scope.
+changed_source_base() {
+  local seen=0 skip=0 prev_go=0 arg dir base n=0 path changed found
+  base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    case $arg in
+      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -C | -C=* | -args | --) return 1 ;;
+      -*) ;;
+      *)
+        dir=${arg#./}; dir=${dir%/}
+        [[ ($arg == . || $arg == ./*) && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
+        changed=$(git -C "$dir" diff --relative --name-only --no-renames "$base" -- . 2> /dev/null) || return 1
+        changed+=$'\n'$(git -C "$dir" ls-files --others --exclude-standard -- . 2> /dev/null) || return 1
+        found=0
+        while IFS= read -r path; do
+          [[ $path != */* && $path == *.go && $path != *_test.go ]] && found=1
+        done <<< "$changed"
+        ((found)) || return 1
+        n=$((n + 1))
+        ;;
+    esac
+  done
+  ((n > 0)) || return 1
+  printf '%s\n' "${base:0:12}"
+}
+
 # run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
@@ -1665,6 +1698,10 @@ selection_policy() {
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(new_package_base "$@"); then
     selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
+    return 0
+  fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(changed_source_base "$@"); then
+    selection_log "$now whole reason=changed-source:$digest pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
@@ -2407,6 +2444,8 @@ main() {
   [[ ${HEAVY_HELD-} == "$slot_dir"/slot* ]] || load_wait "$cpus"
   pin_go
   bound_parallelism "$par"
+  # ASD-V0-2477: -p bounds package builds, not the runtime inside each test binary.
+  [[ ${GOMAXPROCS+x} ]] || export GOMAXPROCS=$par
   [[ -n $heavy_admit_only ]] || { foreign_notice "$@"; local_identity "$@"; }
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
   # uses the cache the Makefile uses (CORVINT_GOCACHE, default ${TMPDIR:-/tmp}/corvint-go-build-cache
