@@ -63,6 +63,11 @@ type proposal struct {
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
 	matches map[string][]spanLine
+	// fileFamilies and changeFamilies cache the hunkFamiliesScope
+	// fallbacks, the dominant families of each file's edits and of the whole
+	// change's, which depend only on derived (V1-2360).
+	fileFamilies   map[string]map[string]bool
+	changeFamilies map[string]bool
 	// basenames also searches each hunk path's basename of at least 6
 	// bytes, which CEM-V1-081 counts as a path anchor. The check sets it to
 	// decide that no anchor is available (DCW-V0-165); drafts do not, since
@@ -235,6 +240,11 @@ func (p *proposal) run() int {
 // drafted row's hunk edits, so a reviewer need not rebuild the mapping from
 // git diff; the rows themselves keep the four-field plan grammar (DCW-V0-382).
 func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
+	if len(rows) > 0 {
+		// DWC-V0-3730: stdout stays the four-field plan, which admits no
+		// header row, so the column names are printed here.
+		p.say("  %s\n", planColumnsNote)
+	}
 	if len(p.proposals) > 0 {
 		p.say("  proposals=%d rows are drafted proposals, each marked drafted proposal below with why it was chosen; review each before binding (DCW-V0-962, DCW-V0-967)\n", len(p.proposals))
 	}
@@ -258,6 +268,9 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 		_, _ = fmt.Fprintln(p.stdout, row)
 	}
 }
+
+// planColumnsNote names the plan's columns on stderr (DWC-V0-3730).
+const planColumnsNote = "columns: HUNK<TAB>CITED_PATH<TAB>START:END<TAB>RELATION; CITED_PATH is the BASE file cited as evidence, which may be any file, not the path the hunk edits (each hunk N edits line names that); the plan file takes no header row (DWC-V0-3730)"
 
 // canonicalPatch reads and parses the canonical BASE..HEAD patch the map is
 // derived from, or reports it unreadable within its bound.
@@ -492,6 +505,13 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		}
 		if cite != "" {
 			used[cite] = true
+			// A widened entry span also uses its definition line, so the
+			// DCW-V0-382 dedupe still moves a later row off it (DWC-V0-748).
+			if rest, end, ok := cutLast(cite, ":"); ok {
+				if name, start, ok := cutLast(rest, ":"); ok && start != end {
+					used[name+":"+start+":"+start] = true
+				}
+			}
 			uniform = uniform && (lastCite == "" || lastCite == cite)
 			lastCite = cite
 			cited++
@@ -773,7 +793,18 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 			}
 		}
 		relation := proposalRelation(candidate.path)
-		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
+		end := candidate.line
+		// A requirement's definition is cited over its whole entry; a span
+		// another row already cites is skipped as before (DWC-V0-748,
+		// DCW-V0-382).
+		if index < definitions && !p.basenames {
+			end = p.entryEnd(candidate.path, candidate.line, edited)
+			cite = fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, end)
+			if used[cite] {
+				continue
+			}
+		}
+		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, end, relation)
 		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
 			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
 		}
@@ -839,23 +870,36 @@ func (p *proposal) hunkFamiliesScope(hunk *patch.Hunk) (map[string]bool, bool) {
 		return context, false
 	}
 	// The fallbacks count every ID of the other edits together, so the
-	// family they name most often wins (DCW-V0-404).
-	var file, all []byte
+	// family they name most often wins (DCW-V0-404). They are computed once
+	// per change, not once per hunk (V1-2360).
+	if p.fileFamilies == nil {
+		p.familyFallbacks()
+	}
+	if families := p.fileFamilies[hunk.DisplayPath]; len(families) > 0 {
+		return families, false
+	}
+	return p.changeFamilies, len(p.changeFamilies) > 0
+}
+
+// familyFallbacks fills fileFamilies and changeFamilies from the derived
+// hunks' edits: one scan of the change instead of one per hunk, which made a
+// 593-hunk draft quadratic (V1-2360).
+func (p *proposal) familyFallbacks() {
+	files := map[string][]byte{}
+	var all []byte
 	for key, other := range p.derived {
 		if key != other.ID {
 			continue
 		}
 		edits, _ := hunkText(other)
 		all = append(all, edits...)
-		if other.DisplayPath == hunk.DisplayPath {
-			file = append(file, edits...)
-		}
+		files[other.DisplayPath] = append(files[other.DisplayPath], edits...)
 	}
-	if families := dominantFamilies(file); len(families) > 0 {
-		return families, false
+	p.fileFamilies = make(map[string]map[string]bool, len(files))
+	for name, edits := range files {
+		p.fileFamilies[name] = dominantFamilies(edits)
 	}
-	families := dominantFamilies(all)
-	return families, len(families) > 0
+	p.changeFamilies = dominantFamilies(all)
 }
 
 // relevantRequirementLine reports whether a BASE line naming a hunk's path
@@ -900,6 +944,7 @@ var allCarried = func(p *proposal, owed []proposedHunk) bool {
 // the read completed.
 func (p *proposal) parseAnchors() (bool, map[string]bool) {
 	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
+	p.fileFamilies, p.changeFamilies = nil, nil
 	p.modifiedOwners = map[string][]string{}
 	complete := false
 	patched := map[string]bool{}
@@ -911,6 +956,8 @@ func (p *proposal) parseAnchors() (bool, map[string]bool) {
 			complete, p.patchHunks = true, []*patch.Hunk{}
 		} else if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
+			// One batched read serves every BASE blob the hunks below look up (V1-4095).
+			p.prefetchBlobs(p.base, patchHunkPaths(parsed.Hunks))
 			p.patchHunks = parsed.Hunks
 			for _, hunk := range parsed.Hunks {
 				p.checkpoint()
@@ -1036,6 +1083,10 @@ func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map
 			}
 		}
 	}
+	// The candidates' BASE and HEAD blobs are read in batches, not two git
+	// processes each (V1-4095).
+	p.prefetchBlobs(p.base, matchedPaths(p.matches))
+	p.prefetchBlobs(p.target, matchedPaths(p.matches))
 	// Specifications first, then other documents; git grep's path order
 	// within each (DCW-V0-381). A draft has already dropped every path the
 	// change touches (DCW-V0-393).

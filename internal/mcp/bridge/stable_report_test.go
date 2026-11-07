@@ -244,7 +244,7 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 	// reaches admission differently from `cem verify-stable --repository
 	// <same string>`.
 	for _, refused := range []string{alias + "/../" + filepath.Base(root), root + "/", "./" + filepath.Base(root), filepath.Base(root), "./alias"} {
-		if registry, newErr := NewTaskReview(refused); newErr == nil || newErr.Code != "invalid-root" {
+		if registry, newErr := NewTaskReview(refused); bridgeCode(newErr) != "invalid-root" {
 			t.Fatalf("--root %q = %v %v, want invalid-root", refused, registry, newErr)
 		}
 	}

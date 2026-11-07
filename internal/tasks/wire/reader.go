@@ -267,6 +267,17 @@ func (r *Reader) Identifier() string {
 	return id
 }
 
+// GateArg requires a gate or attestation argv element (ParseGateArg).
+func (r *Reader) GateArg() string {
+	s := r.String()
+	if r.st.err != nil {
+		return ""
+	}
+	a, err := ParseGateArg(r.where, s)
+	r.adopt(err)
+	return a
+}
+
 // PathText requires a PathText (an absolute filesystem path, §2).
 func (r *Reader) PathText() string {
 	s := r.String()

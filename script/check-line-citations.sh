@@ -1093,9 +1093,9 @@ close_index();
 if (@failures) {
     print STDERR "line citations: " . scalar(@failures) . " citation(s) do not resolve:\n";
     print STDERR "  $_\n" for @failures;
-    # DCW-V0-353 (V1-2836): the one command that clears every moved-unchanged failure.
+    # DCW-V0-353 (V1-2836): the one command that clears every moved-unchanged failure; ASD-V0-578 (V1-4128) names make repin first.
     my $movable = grep { /--repin rewrites it/ } @failures;
-    print STDERR "line citations: fix: $movable citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check\n"
+    print STDERR "line citations: fix: $movable citation(s) moved unchanged; run make repin, the one command for every mechanical repin, or script/check-line-citations.sh --repin alone (both stage the documents they rewrite), then rerun make line-citations-check\n"
         if $movable;
     # DCG-V0-743 (V1-3678): name the copy that was checked, since it can differ from the worktree.
     print STDERR "line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it\n";
