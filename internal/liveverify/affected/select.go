@@ -1390,6 +1390,31 @@ func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[st
 	return graph.traverseWhere(seeds, allowed, nil)
 }
 
+// The edge classes a dependency walk follows, in the order traverseWhere
+// takes them at each depth. traversalEdges is the one list of them: every
+// walk that follows code takes its classes from it, and so does additive
+// narrowing's check that a narrowed package is reached through another
+// changed unit (reachedThrough), so a class one of them follows cannot be
+// missing from the other (AFP-V0-3142).
+const (
+	classImport = iota
+	classAdvisory
+	classRouteDispatch
+	classCodeRun
+)
+
+// traversalEdges returns the reverse edge maps of the walk's classes, indexed
+// by class: a unit's importers, advisory importers, route-dispatch importers,
+// and the units whose code may run its built binary (codeRunners).
+func (graph *Graph) traversalEdges() []map[string][]string {
+	return []map[string][]string{
+		classImport:        graph.dependents,
+		classAdvisory:      graph.advisory,
+		classRouteDispatch: graph.routed,
+		classCodeRun:       graph.codeRunners,
+	}
+}
+
 // traverseWhere is traverse with follow deciding, for each edge from a
 // reached unit to one of its dependents, whether the walk takes it; nil
 // follows every edge.
@@ -1402,7 +1427,7 @@ func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[st
 // AFP-V0-2993). A unit whose tests alone run the binary is no dependent: the
 // caller adds it one edge past the walk (execUsersOf, testRunnersOf).
 func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]map[string]bool, follow func(id, dependent string) bool) map[string]Witness {
-	classes := []map[string][]string{graph.dependents, graph.advisory, graph.routed, graph.codeRunners}
+	classes := graph.traversalEdges()
 	reached := make(map[string]Witness, len(seeds))
 	frontier := make([]string, 0, len(seeds))
 	for id := range seeds {
@@ -1428,11 +1453,11 @@ func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]m
 					parent := reached[id]
 					kind := WitnessDependency
 					switch {
-					case class == 3:
+					case class == classCodeRun:
 						kind = WitnessBinaryExec
-					case class == 2 || parent.Kind == WitnessRouteDispatch:
+					case class == classRouteDispatch || parent.Kind == WitnessRouteDispatch:
 						kind = WitnessRouteDispatch
-					case class == 1 || parent.Kind == WitnessAdvisoryConstant:
+					case class == classAdvisory || parent.Kind == WitnessAdvisoryConstant:
 						kind = WitnessAdvisoryConstant
 					}
 					reached[dependent] = Witness{
