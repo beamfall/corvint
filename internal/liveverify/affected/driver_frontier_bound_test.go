@@ -3,6 +3,7 @@
 package affected_test
 
 import (
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
@@ -773,6 +774,128 @@ func TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128(t *testing.T) {
 			if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness != affected.WitnessFrontierSite {
 				t.Fatalf("got %s; want FRONTIER_SITE", witness)
 			}
+		})
+	}
+}
+
+// AFP-V0-3128: certification admits literal operands only, at every position.
+func TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128(t *testing.T) {
+	for _, operand := range []string{"LICENSE*", "LICENSE?new", "LICENSE[.]new", "LICENSE[[:future:]]", "< LICENSE*", "-- LICENSE*", "-- LICENSE?new", "--unrecognized LICENSE", "data/LICENSE*", "data/**", "data/*[.]new", "-- -dir/*"} {
+		t.Run(operand, func(t *testing.T) {
+			files := boundFiles("check:; $(if $(CI),grep,grep) -q approved " + operand + "\nall: check\n")
+			files["LICENSE.new"] = "approved\n"
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unmodeled operand certified check")
+			}
+			for _, dirty := range []string{"LICENSE.new", sealedCEM} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			}
+		})
+	}
+}
+
+// AFP-V0-3128: export effects outlive a simple command and make assignments.
+func TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128(t *testing.T) {
+	for _, tc := range []struct{ name, prefix, recipe string }{
+		{"shell-export", "", "export GOFLAGS=-toolexec=script/audit.sh; "},
+		{"shell-assignment-then-export", "", "GOFLAGS=-toolexec=script/audit.sh; export GOFLAGS; "},
+		{"shell-unknown-export", "", "export FUTURE_TOOL_SETTING=script/audit.sh; "},
+		{"shell-export-option", "", "export --unrecognized GOFLAGS; "},
+		{"shell-declare", "", "declare -x GOFLAGS=-toolexec=script/audit.sh; "},
+		{"make-export", "export GOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-export-name", "GOFLAGS=-toolexec=script/audit.sh\nexport GOFLAGS\n", ""},
+		{"make-export-all", "GOFLAGS=-toolexec=script/audit.sh\nexport\n", ""},
+		{"make-export-all-special", "GOFLAGS=-toolexec=script/audit.sh\n.EXPORT_ALL_VARIABLES:\n", ""},
+		{"make-target-export", "check: export GOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-target-override-export", "check: override export GOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-tab-export", "export\tGOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-override-export", "override export GOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-unknown-export", "export FUTURE_TOOL_SETTING=script/audit.sh\n", ""},
+		{"make-export-effectful-value", "export CORVINT_REQUIRE_NODE=$(file <AUDIT_INPUT)\n", ""},
+		{"make-computed-export", "SETTING=GOFLAGS\nexport $(SETTING)=-toolexec=script/audit.sh\n", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := boundFiles(tc.prefix + "check:; " + tc.recipe + "$(if $(CI),go,go) test ./tools/local\nall: check\n")
+			files["AUDIT_INPUT"] = "approved\n"
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unmodeled export effects certified check")
+			}
+			for _, dirty := range []string{"AUDIT_INPUT", sealedCEM} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness != affected.WitnessFrontierSite {
+					t.Fatalf("got %s; want FRONTIER_SITE", witness)
+				}
+			}
+		})
+	}
+}
+
+// AFP-V0-3121/3122: enumerating outcomes does not model condition reads.
+func TestFrontierSiteConditionEffectsKeepClaim_AFP_V0_3121(t *testing.T) {
+	for _, condition := range []string{
+		"$(file <MODE)",
+		"$(future-function MODE)",
+		"$(call file,<MODE)",
+		"$($(FUNCTION) MODE)",
+		strings.Repeat("$(strip ", 12) + "$(file <MODE)" + strings.Repeat(")", 12),
+		"$(info $(file <MODE))",
+		"$(origin $(file <MODE))",
+		"$(abspath $(file <MODE))",
+		"$(if $(file <MODE),yes,no)",
+	} {
+		for _, immediate := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/immediate=%v", condition, immediate), func(t *testing.T) {
+				prefix := ""
+				if immediate {
+					prefix = "MODE_VALUE := " + condition + "\n"
+					condition = "$(MODE_VALUE)"
+				}
+				files := boundFiles(prefix + "check:; $(if " + condition + ",go test ./tools/ci,go test ./tools/local)\nall: check\n")
+				files["MODE"] = "ci\n"
+				graph := driverGraph(t, files, nil)
+				if !computedSite(t, graph, "driver:make:Makefile#check") {
+					t.Fatal("unmodeled condition effects certified check")
+				}
+				for _, dirty := range []string{"MODE", sealedCEM} {
+					selected := driverSelections(affected.Select(graph, []string{dirty}))
+					wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				}
+			})
+		}
+	}
+}
+
+// AFP-V0-3128: the admitted directory glob represents its whole read set,
+// including newly added extensionless files and a changed working directory.
+func TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128(t *testing.T) {
+	for _, recipe := range []string{
+		"$(if $(CI),cat,cat) data/*",
+		"cd work && $(if $(CI),cat,cat) data/*",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			files := boundFiles("check:; " + recipe + "\nall: check\n")
+			prefix := "data/"
+			if strings.HasPrefix(recipe, "cd ") {
+				prefix = "work/data/"
+			}
+			files[prefix+"OLD"] = "approved\n"
+			graph := driverGraph(t, files, nil)
+			if computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("explicit directory edge should bound the admitted glob")
+			}
+			for _, dirty := range []string{prefix + "OLD", prefix + "NEW"} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness == affected.WitnessFrontierSite {
+					t.Fatal("directory read must have an edge witness")
+				}
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit})
 		})
 	}
 }

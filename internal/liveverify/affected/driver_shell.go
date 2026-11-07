@@ -368,6 +368,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			return s.simple(words, cwd)
 		}
 	}
+	if goflags != "" {
+		// A standalone assignment can affect later commands in this shell.
+		s.scan.uncertified = true
+	}
 	return cwd
 }
 
@@ -405,13 +409,19 @@ func driverComputedWord(text string) bool {
 func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	head := words[0].text
 	switch head {
+	case "export", "local", "readonly", "declare", "set", "unset", "read":
+		// Environment mutations persist beyond this simple command. No
+		// forms of these builtins have a modeled environment transition.
+		s.scan.uncertified = true
+		s.embedded(words[1:], cwd)
+		return cwd
 	case "trap":
 		// AFP-V0-3128: the body runs later as shell code, potentially
 		// with a different environment or directory.
 		s.scan.uncertified = true
 		s.embedded(words[1:], cwd)
 		return cwd
-	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "export", "local", "readonly", "declare", "set", "unset", "shift", "return", "exit", "wait", "read":
+	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "shift", "return", "exit", "wait":
 		if (head == "[[" || head == "[" || head == "test") && !driverTestCertified(words, cwd) {
 			s.scan.uncertified = true
 		}
@@ -543,6 +553,13 @@ var driverCommandOptionAllowlist = map[string]driverCommandOptions{
 }
 
 func driverCommandOptionsCertified(base string, words []driverWord) bool {
+	// Check every word, including operands after --. The sole modeled glob
+	// form has an explicit containing-directory read edge in pathOperand.
+	if slices.ContainsFunc(words, func(word driverWord) bool {
+		return strings.ContainsAny(word.text, "*?[") && driverGlobDirectory(word.text) == ""
+	}) {
+		return false
+	}
 	if base == "egrep" || base == "fgrep" {
 		base = "grep"
 	}
@@ -552,9 +569,6 @@ func driverCommandOptionsCertified(base string, words []driverWord) bool {
 		arg := words[index].text
 		if arg == "--" {
 			return true
-		}
-		if arg != "" && strings.ContainsAny(arg[:1], "*?[") || strings.HasPrefix(arg, "-") && strings.ContainsAny(arg, "*?[") {
-			return false
 		}
 		if arg == "-" || !strings.HasPrefix(arg, "-") {
 			continue
@@ -842,8 +856,46 @@ func (s *driverShellScanner) pathWord(word, cwd string) {
 	s.pathOperand(word, cwd)
 }
 
-// pathOperand records literal file operands without guessing from punctuation.
+// driverGlobDirectory recognizes only literal-dir/*literal-suffix. Its entire
+// read set is covered by a directory edge; every other glob remains unproven.
+func driverGlobDirectory(word string) string {
+	slash := strings.LastIndexByte(word, '/')
+	if slash <= 0 || slash+1 >= len(word) || word[slash+1] != '*' {
+		return ""
+	}
+	for index, char := range word {
+		if index == slash+1 {
+			continue
+		}
+		if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("/._-+", char)) {
+			return ""
+		}
+	}
+	directory := path.Clean(word[:slash])
+	if directory == "." || strings.HasPrefix(directory, "-") || !ValidRelativePath(directory) {
+		return ""
+	}
+	return directory
+}
+
+// pathOperand records literal file operands and the sole bounded glob form.
 func (s *driverShellScanner) pathOperand(word, cwd string) {
+	if strings.ContainsAny(word, "*?[") {
+		if directory := driverGlobDirectory(word); directory != "" && cwd != "" {
+			s.pathOperand(directory, cwd)
+			for _, candidate := range driverVariants(cwd, directory) {
+				if ValidRelativePath(candidate) {
+					// A lone unanchored token matches filenames only. Mark
+					// the directory explicitly so extensionless dirs cover
+					// existing and newly added descendants alike.
+					s.scan.tokens["/"+candidate+"/"] = true
+				}
+			}
+		} else {
+			s.scan.uncertified = true
+		}
+		return
+	}
 	if driverDynamic(word) || strings.HasPrefix(word, "-") || strings.HasPrefix(word, "/") {
 		return
 	}

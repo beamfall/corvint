@@ -235,6 +235,12 @@ participation, and inbound shell callers. The remaining classes are small and lo
   an absent wildcard condition SHALL preserve the false branch and its dependencies.
   `strip` SHALL trim and collapse expanded ASCII whitespace to single spaces before testing
   a condition or constructing a package path; an unmodeled result SHALL retain uncertainty.
+  Amended by the owner self-review repair charter (2026-11-07): condition alternatives SHALL
+  preserve uncertainty about evaluation effects independently of value uncertainty. Only function
+  forms with modeled evaluation effects MAY discharge that uncertainty; unsupported or future
+  functions, including `file`, SHALL retain the frontier even when their return value is discarded.
+  Eager arguments of diagnostic and metadata functions SHALL preserve nested effects. This applies
+  to recipe expansions and immediate or other parse-time evaluation; no file read is executed.
 - **AFP-V0-3122:** **Claims only within a certified read set.** (experimental, owner lane selfloor
   charter 2026-11-07, V1-5000) An evaluated target is one whose own text, or its file's variables,
   resolved what the claimant before AFP-V0-3121 retained as ambiguous: a reassigned variable, or
@@ -357,6 +363,19 @@ participation, and inbound shell callers. The remaining classes are small and lo
   SHALL retain claims. Explicit command-local `GOFLAGS` SHALL remain part of certification,
   including through `env` and shell wrappers. Nonempty or unresolved values SHALL remain
   uncertified until their effects are modeled.
+  Amended by the owner self-review repair charter (2026-11-07): file operands SHALL be literal
+  throughout the word, including after `--`; glob characters at any position SHALL retain claims
+  until complete read sets are represented. The sole admitted glob form is a literal relative
+  directory followed by `/*` and a literal suffix, with an explicit directory read edge covering
+  every match, including newly added files. The directory SHALL NOT be the root or an option;
+  directory and suffix characters are ASCII letters, digits, slash, dot, underscore, hyphen and
+  plus only, with no additional glob or expansion syntax. Persistent shell environment mutations
+  and make exports SHALL retain claims unless their effects belong to an explicit modeled allowlist.
+  Shell export/declaration mutations have no admitted forms. Make exports admit only the project
+  controls `CORVINT_REQUIRE_NODE`, `HELP_BASE`, `LANE`, and `DOGFOOD_FINISH_ENTRY`, which the
+  certified built-in commands do not interpret, and only when their value expansion has no
+  unmodeled effects or shell execution. Other names, including `GOFLAGS`, computed names,
+  export-all and unsupported forms SHALL remain uncertified.
 
 ### Lane qualification details
 
@@ -720,14 +739,14 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
 | AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120`, `TestFrontierSiteFileStatementKeepsClaim_AFP_V0_3120` |
-| AFP-V0-3121 | V1-5000 | `TestFrontierSiteStripCondition_AFP_V0_3121`, `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3121 | V1-5000 | `TestFrontierSiteConditionEffectsKeepClaim_AFP_V0_3121`, `TestFrontierSiteStripCondition_AFP_V0_3121`, `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 | AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 | AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`, `TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125` |
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
 | AFP-V0-3127 | V1-5000 | `TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127`, `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
-| AFP-V0-3128 | V1-5000 | `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3128 | V1-5000 | `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
