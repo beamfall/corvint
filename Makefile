@@ -696,6 +696,7 @@ bash32-check:
 bash32-test:
 	@script/check-bash32_test.sh
 
+
 # ASD-V0-582 (V1-3364): no binary blob outside a declared fixture path, and every tools/ main's
 # root build output ignored. A doc gate, so CI and batch-precheck both run it.
 .PHONY: binary-blobs-check
@@ -952,12 +953,15 @@ ai-coauthor-trailers-check:
 # over the fixed change set benchmarks/selection-baseline/changes.json (merged lane changes and the
 # merged-branch commits whose CI failed) and fails when CI would narrow fewer merged changes than the
 # recorded floor or a narrowed selection misses a package that failed in CI. It needs full history.
-# SELECTION_BASELINE_OUT=FILE also writes the results JSON.
+# SELECTION_BASELINE_OUT=FILE also writes the results JSON. Without it the binaries build with
+# -trimpath -buildvcs=false, so identical Go inputs give identical bytes in any worktree and each
+# change's recorded result is reused across runs (ASC-V0-778); with it they keep the commit stamp
+# that the results' planner field names.
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@if [ "$${CORVINT_CI_CADENCE-}" = DEFER ]; then echo 'selection-baseline-check: NOT_RUN under CI cadence DEFER (CIN-V0-4753); the nightly release gates run it.'; exit 0; fi; \
 	d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build $(if $(SELECTION_BASELINE_OUT),,-trimpath -buildvcs=false) -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
 # shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
@@ -1127,12 +1131,16 @@ dogfood-finish:
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
-# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first,
-# unadmitted line also runs the static input pre-check (DCW-V0-731); its second admits on heavy.sh's
-# light pool (ASD-V0-732). SEAL reaches it only so a dogfood-closeout SEAL=0 retry keeps SEAL=0
-# (DTL-V0-004); the pre-flight itself never seals.
+# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. In a
+# repository that carries script/repin-use-case-receipts.sh and its ledger it first refuses a stale
+# use-case receipt, naming it, which the seal and CI would otherwise refuse later (DWC-V0-3725,
+# V1-4163). Its next, unadmitted line runs the static input pre-check (DCW-V0-731); the last admits
+# on heavy.sh's light pool (ASD-V0-732). SEAL reaches it only so a dogfood-closeout SEAL=0 retry
+# keeps SEAL=0 (DTL-V0-004); the pre-flight itself never seals.
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
+	@[ ! -x script/repin-use-case-receipts.sh ] || [ ! -f conformance/use-cases-v0/ledger.json ] || receipts=$$(script/repin-use-case-receipts.sh --check 2>&1) || { printf '%s\n' "$$receipts" >&2; \
+		printf 'dogfood-inputs-check: stale use-case receipt: run script/repin-use-case-receipts.sh, commit the repin, then rerun (DWC-V0-3725)\n' >&2; exit 1; }
 	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
@@ -1215,22 +1223,33 @@ doc-gates: ## Run the documentation gates
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
 # ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
+# DWC-V0-745 (V1-3837): a phase line after each stage says the closeout continues, so a precheck
+# ending on a base-present "no receipt" line, then minutes of bind, check and seal, does not read as
+# a stop. DWC-V0-746 (V1-4072): the head before the bind is recorded, so that when the separate
+# dogfood-closeout-precheck (DCW-V0-923) refuses, script/dogfood-closeout-unwind.sh can drop the
+# bind and seal commits again.
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)"
 	@$(MAKE) --no-print-directory dogfood-inputs-check
+	@printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
 	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@printf 'dogfood-closeout: phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal\n'
+	@git rev-parse HEAD > "$$(git rev-parse --git-path dogfood-closeout-start)"
 	@$(MAKE) --no-print-directory dogfood-finish
 	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
 
 # DCW-V0-923 (V1-3850): the sealed-head batch-precheck, run after dogfood-closeout as its own command.
 # A rerun after a timeout reuses the gate ledger's per-step results (ASD-V0-042), and a receipt that
-# already names the clean HEAD runs nothing (ASD-V0-943).
+# already names the clean HEAD runs nothing (ASD-V0-943). DWC-V0-746 (V1-4072): a refusal unwinds the
+# bind and seal commits to the head dogfood-closeout recorded; DWC-V0-758: the last line says whether
+# the sealed head has a precheck receipt.
 .PHONY: dogfood-closeout-precheck
 dogfood-closeout-precheck: export LANE = 1
 dogfood-closeout-precheck:
-	@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)') || { script/dogfood-closeout-unwind.sh "$$(cat "$$(git rev-parse --git-path dogfood-closeout-start)" 2> /dev/null)"; exit 1; }
+	@printf 'dogfood-closeout: DONE sealed head %s %s\n' "$$(git rev-parse HEAD)" "$$(script/batch-precheck.sh --verify-receipt HEAD > /dev/null 2>&1 && echo 'has a precheck receipt' || echo 'has no precheck receipt: its precheck passed only with base-present failures, named in its WARN lines')"
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:

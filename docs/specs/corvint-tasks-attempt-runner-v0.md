@@ -2477,6 +2477,25 @@ Rollback (ATR-V0-350..354): revert the commit. The new detail keys disappear, th
 the four class labels, a context-stop note is again written after the `finished` event, and the
 `launch-head.json` file beside each worker's logs is no longer written or read.
 
+### V1-1493 stage watcher tolerates a retryable heartbeat failure
+
+A program stage's watcher renews the 60-minute lease on a timer. Before this change one renewal
+refused `LOCK_TIMEOUT` (the store lock was busy on a loaded host) cancelled the running stage at
+once, so a stage failed for a lock wait that a second tick would have cleared.
+
+- `ATR-V0-532`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-1493) The stage watcher MUST treat a
+  heartbeat refusal that wrote nothing and may succeed on retry (`LOCK_TIMEOUT`) as transient: it
+  retries on the next tick and cancels the stage only when no renewal has succeeded for the
+  tolerance (the watcher's existing 30 s read tolerance, far inside the lease it extends). A refusal
+  that is not retryable, or one that forbids retry, still cancels the stage at once. Non-goals: changing the lease length, the tick or any
+  other refusal's handling. Failure modes: a host that stays locked past the tolerance still cancels
+  the stage, as before. Rollback: revert; the first refused renewal cancels the stage again.
+
+Acceptance (ATR-V0-532): `TestATRV0532_StageWatcherToleratesRetryableHeartbeatFailure`
+(`internal/tasks/store`) injects a `LOCK_TIMEOUT` renewal then a success (the stage builds), a
+`LOCK_TIMEOUT` on every renewal past a short tolerance (the stage stops), and a `MALFORMED` renewal
+(the stage stops after one attempt). Its fake host waits for the renewal, not for wall time.
+
 ## Outcome document
 
 Profile `taskman-attempt-run-outcome/0`, at most 4096 bytes, compact canonical JSON with one trailing
@@ -2814,3 +2833,4 @@ receipt or wire shape changes.
 | ATR-V0-352 | `internal/tasks/dispatch/finish_outcome.go` (`progressLabel`), `internal/tasks/dispatch/loop.go` (`finish`) | TestATRV0350_SignalStopWithCommitFinishedOutcome, TestATRV0352_ProgressLabelFromFacts |
 | ATR-V0-353 | `internal/tasks/dispatch/ledger.go` (`extractSummary`, `summaryText`), `internal/tasks/dispatch/finish_outcome.go` (`finishSummary`) | TestATRV0350_SignalStopWithCommitFinishedOutcome, TestATRV0353_SummaryNeverAStopFragment, TestCALV0058_SummaryReadsHostFinalText |
 | ATR-V0-354 | `docs/TASKS-SUPERVISION.md` (finished event schema) | TestATRV0350_SignalStopWithCommitFinishedOutcome |
+| ATR-V0-532 | `internal/tasks/store/workflow.go` (`watchTimingFor`, stage watcher heartbeat) | TestATRV0532_StageWatcherToleratesRetryableHeartbeatFailure |

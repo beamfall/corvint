@@ -53,14 +53,32 @@ func (c *change) choreRole() string {
 // It returns the hunk count and the span as
 // PATH:START:END; a plan that keeps any hunk unknown or leaves one unnamed, or
 // cites two spans, is not uniform. The caller exempts a chore change.
+// DWC-V0-3720: a record hunk (RecordPath, such as a build-log entry) is
+// neither counted nor compared, since its row cites what the work it records
+// cites; only two or more other hunks citing one span are uniform.
 func uniformCitation(plan []byte, hunks []map[string]string) (int, string, bool) {
-	if len(hunks) < 2 {
+	record := map[string]bool{}
+	counted := 0
+	for index, hunk := range hunks {
+		if RecordPath(hunk["path"]) {
+			record[strconv.Itoa(index+1)] = true
+			if hunk["id"] != "" {
+				record[hunk["id"]] = true
+			}
+		} else {
+			counted++
+		}
+	}
+	if counted < 2 {
 		return 0, "", false
 	}
 	cited := map[string]bool{}
 	span := ""
 	for _, line := range textLines(plan) {
 		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) == 4 && record[fields[0]] {
+			continue
+		}
 		if len(fields) != 4 || unknownRow(fields) {
 			return 0, "", false
 		}
@@ -75,11 +93,11 @@ func uniformCitation(plan []byte, hunks []map[string]string) (int, string, bool)
 		cited[fields[0]] = true
 	}
 	for index, hunk := range hunks {
-		if !cited[strconv.Itoa(index+1)] && !cited[hunk["id"]] {
+		if !record[strconv.Itoa(index+1)] && !cited[strconv.Itoa(index+1)] && !cited[hunk["id"]] {
 			return 0, "", false
 		}
 	}
-	return len(hunks), span, true
+	return counted, span, true
 }
 
 // canonicalSpan names PATH:START:END with START and END as the decimal

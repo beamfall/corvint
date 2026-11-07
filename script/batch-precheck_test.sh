@@ -171,6 +171,11 @@ for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
   grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
 done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
+# DWC-V0-747 (V1-3334): the pre-bind run of dogfood-closeout still runs the sync-check, so a lane
+# whose CI and precheck lists disagree learns it before the bind rather than after the seal.
+(cd "$script/.." && BATCH_PRECHECK_SKIP_DRIFT=1 "$pre" --list) > "$tmp/skip" 2>&1 || fail "skip-drift --list: $(cat "$tmp/skip")"
+grep -qx 'sync-check' "$tmp/skip" && grep -qx 'batch-drift (skipped before the bind)' "$tmp/skip" ||
+  fail "skip-drift --list has no sync-check or drift-skip row: $(cat "$tmp/skip")"
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
@@ -491,11 +496,26 @@ cat > "$bin/make" <<EOF
 echo "make \$* GOPROXY=\${GOPROXY-unset}" >> $tmp/calls
 mkdir -p $tmp/running && : > $tmp/running/\$2
 case "\$2" in
-  test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; } ;;
+  test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; }
+    if [ -n "\${STUB_RETRY_MUTATE:-}" ]; then
+      [ -f $tmp/retry-marker ] || { : > $tmp/retry-marker; rm -f $tmp/running/\$2; echo first attempt fails; exit 1; }
+      echo retried >> $repo/mutated.txt
+    fi ;;
   spec-requirements-check) [ -n "\${STUB_RESTAGE:-}" ] && { printf restaged >> derived.txt; git add derived.txt; } ;;
   slow-*) sleep 3 ;;
+  go-archive-gate) [ -n "\${STUB_MUTATE:-}" ] && echo moved >> $repo/mutated.txt ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
-      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi ;;
+      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi
+    # GL-V0-786: after every parallel step, count the passes in the ledger and in the run's stage;
+    # STUB_HOLD then waits (at most 60 s) for the test to interrupt the run.
+    if [ -n "\${STUB_LEDGER_PROBE:-}" ]; then
+      ls "\$STUB_LEDGER_PROBE" 2> /dev/null | grep -c '\.json\$' > $tmp/probe-ledger
+      ls "\$GATE_LEDGER_SHARED_DIGEST.stage" 2> /dev/null | grep -c '\.json\$' > $tmp/probe-stage
+    fi
+    if [ -n "\${STUB_HOLD:-}" ]; then
+      : > $tmp/hold-ready; i=0
+      while [ ! -f $tmp/hold-release ] && [ \$i -lt 600 ]; do sleep 0.1; i=\$((i + 1)); done
+    fi ;;
 esac
 rm -f $tmp/running/\$2
 exit 0
@@ -676,15 +696,20 @@ git -C "$repo" commit -q --allow-empty -m moved
 grep -q "refused: the precheck receipt names $head, not " "$tmp/out" || fail "mismatch: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt no-such-rev) > /dev/null 2>&1
 [[ $? == 2 ]] || fail "unknown REV did not exit 2"
+# names_head: the receipt exists and names the fixture's current HEAD.
+names_head() { [[ -f $receipt && $(awk '$1 == "head" { print $2 }' "$receipt") == "$(git -C "$repo" rev-parse HEAD)" ]]; }
 printf 'dirty\n' >> "$repo/pkg/a_test.go"
 run || fail "dirty run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: no receipt' "$tmp/out" || fail "dirty run: $(cat "$tmp/out")"
-[[ -f $receipt ]] && fail "a dirty run wrote a receipt"
+names_head && fail "a dirty run wrote a receipt"
+# ASC-V0-775 (V1-4239): the receipt for the ancestor HEAD moved from stays.
+grep -q "^batch-precheck: kept the passing receipt for ancestor $(git -C "$repo" rev-parse --short "$head")" "$tmp/out" || fail "the ancestor receipt was not kept: $(cat "$tmp/out")"
+[[ $(awk '$1 == "head" { print $2 }' "$receipt") == "$head" ]] || fail "the kept receipt does not name $head: $(cat "$receipt")"
 git -C "$repo" checkout -q -- pkg/a_test.go
 printf 'package pkg\n' > "$repo/pkg/untracked.go"
 run || fail "untracked run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: no receipt' "$tmp/out" || fail "untracked run: $(cat "$tmp/out")"
-[[ -f $receipt ]] && fail "a run with an untracked file wrote a receipt"
+names_head && fail "a run with an untracked file wrote a receipt"
 /bin/rm -f "$repo/pkg/untracked.go"
 # An ignored file a go test can read (a _test.go with init, a fixture in a package directory, a
 # dot or underscore fixture there or under testdata) means the checked tree is not HEAD, so no
@@ -698,7 +723,7 @@ for f in pkg/local_test.go pkg/fixture.local pkg/testdata/_cases/input.json pkg/
   run || fail "ignored $f run failed: $(cat "$tmp/out")"
   grep -q '^batch-precheck: no receipt' "$tmp/out" || fail "ignored $f: $(cat "$tmp/out")"
   grep -q "^  $f\$" "$tmp/out" || fail "ignored $f not named: $(cat "$tmp/out")"
-  [[ -f $receipt ]] && fail "a run with ignored $f wrote a receipt"
+  names_head && fail "a run with ignored $f wrote a receipt"
   /bin/rm -f "$repo/$f"
 done
 /bin/rm -rf "$repo/pkg/testdata/_cases"
@@ -767,6 +792,16 @@ grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" |
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
 # Only the repin row and the print-only rows run; every other listed step reuses.
 [[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
+# ASC-V0-776 (V1-4242): every non-make record carries its step name as a label; a record written
+# before labels (the label stripped) still reuses, since the label is never part of the key.
+for rec in "$tmp"/ledger/*.json; do
+  jq -e 'if (.step | startswith("batch-precheck+")) then (.label | type) == "string" and .label != "" else true end' "$rec" > /dev/null ||
+    fail "a batch-precheck record has no label: $(cat "$rec")"
+done
+jq -r 'select(.step | startswith("batch-precheck+")) | .label' "$tmp"/ledger/*.json | grep -qx 'sync-check' || fail "no sync-check label: $(jq -c . "$tmp"/ledger/*.json)"
+for rec in "$tmp"/ledger/*.json; do jq -c 'del(.label)' "$rec" > "$rec.new" && /bin/mv -f "$rec.new" "$rec" || fail "strip label"; done
+lrun || fail "unlabelled-ledger run failed: $(cat "$tmp/out")"
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a pass recorded without a label did not reuse: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $((nsteps - nprint)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
@@ -796,6 +831,64 @@ printf 'other\n' > "$repo/notes.txt"
 STUB_FAIL=1 lrun && fail "a failing ledger run passed"
 STUB_FAIL=1 lrun && fail "a failure was reused"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "failure rerun: $(cat "$tmp/out")"
+# GL-V0-786: an always-run step (go-archive-gate, scope never) that edits the tree while the other
+# steps reuse passes keyed on the run's shared digest fails the run, names why, writes no receipt for
+# HEAD and leaves no record written under the moved tree.
+write_ci "test-commands-check go-archive-gate"
+git -C "$repo" add .github/workflows/ci.yml && git -C "$repo" commit -qm 'mutating step' || fail "mutating-step fixture commit"
+lrun || fail "mutating-step first run failed: $(cat "$tmp/out")"
+STUB_MUTATE=1 lrun && fail "a run whose tree moved during the steps passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "the cached step did not reuse its pass: $(cat "$tmp/out")"
+grep -q '^batch-precheck: ledger DIGEST changed during the run' "$tmp/out" && grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" ||
+  fail "a moved tree was not reported as a failure: $(cat "$tmp/out")"
+names_head && fail "a run whose tree moved wrote a receipt"
+/bin/rm -f "$repo/mutated.txt"
+# A step that fails, edits the tree on its retry and then passes (FLAKY) fails the run too: the
+# digest is checked again after every retry attempt. A fresh CORVINT_ salt makes every step run.
+/bin/rm -f "$tmp/retry-marker"
+STUB_RETRY_MUTATE=1 CORVINT_STUB_ROUND=retry lrun && fail "a run whose retry moved the tree passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FLAKY make test-commands-check' "$tmp/out" || fail "the retry did not pass as FLAKY: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" || fail "a retry that moved the tree was not a failure: $(cat "$tmp/out")"
+names_head && fail "a run whose retry moved the tree wrote a receipt"
+/bin/rm -f "$repo/mutated.txt" "$tmp/retry-marker"
+# GL-V0-786 (review of V1-4194): a pass recorded on the shared digest is staged in the run's private
+# directory, so a concurrent consumer of the ledger sees no unverified pass while the run is still
+# going (here the serial step, after every parallel step passed); verify_shared promotes the staged
+# passes once the tree verifies unchanged, and a rerun reuses them.
+srun() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-stage BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run; }
+/bin/rm -f "$tmp/probe-ledger" "$tmp/probe-stage"
+STUB_LEDGER_PROBE=$tmp/ledger-stage srun || fail "staged-pass run failed: $(cat "$tmp/out")"
+[[ $(cat "$tmp/probe-ledger" 2> /dev/null) == 0 ]] || fail "a concurrent consumer saw $(cat "$tmp/probe-ledger" 2> /dev/null) unverified passes in the ledger"
+(($(cat "$tmp/probe-stage" 2> /dev/null || echo 0) > 0)) || fail "no pass was staged before verify_shared: $(cat "$tmp/out")"
+grep -q '^batch-precheck: ledger DIGEST unchanged tree [0-9a-f]*; promoted [1-9][0-9]* staged records$' "$tmp/out" || fail "verify_shared promoted nothing: $(cat "$tmp/out")"
+srun || fail "promoted-pass rerun failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "a promoted pass did not reuse: $(cat "$tmp/out")"
+# An interrupted run (TERM while its serial step runs, after the parallel steps staged their
+# passes) exits 143 and leaves no pass in the ledger: cleanup removed the stage with the run's
+# directory, so the next run reuses nothing. The 60 s polls only bound a deadlock.
+/bin/rm -rf "$tmp/ledger-int" "$tmp/hold-ready" "$tmp/hold-release" "$tmp/probe-ledger" "$tmp/probe-stage"
+(unset GOPROXY; export PATH=$bin:$PATH BATCH_PRECHECK_HEAVY='' BATCH_PRECHECK_ROOT=$repo BATCH_PRECHECK_REGEN=$tmp/regen-stub \
+  BATCH_PRECHECK_DRIFT="./pkg TestDriftOne
+./internal/g TestGoldenWriter" CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-int BATCH_PRECHECK_LEDGER=$tmp/gate-ledger \
+  STUB_LEDGER_PROBE=$tmp/ledger-int STUB_HOLD=1; exec "$pre" > "$tmp/out" 2>&1 < /dev/null) & held=$!
+for ((i = 0; i < 600; i++)); do [[ -f $tmp/hold-ready ]] && break; sleep 0.1; done
+if [[ -f $tmp/hold-ready ]]; then
+  kill -TERM "$held"
+  : > "$tmp/hold-release"
+  wait "$held" && rc=0 || rc=$?
+  [[ $rc == 143 ]] || fail "the interrupted run exited $rc, want 143: $(cat "$tmp/out")"
+  (($(cat "$tmp/probe-stage" 2> /dev/null || echo 0) > 0)) || fail "no pass was staged before the interruption: $(cat "$tmp/out")"
+  compgen -G "$tmp/ledger-int/*.json" > /dev/null && fail "an interrupted run left passes in the ledger: $(/bin/ls "$tmp/ledger-int")"
+  CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-int BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run || fail "run after the interruption failed: $(cat "$tmp/out")"
+  grep -q 'REUSE' "$tmp/out" && fail "a pass of the interrupted run was reused: $(cat "$tmp/out")"
+else
+  kill -KILL "$held" 2> /dev/null
+  : > "$tmp/hold-release"
+  wait "$held" 2> /dev/null
+  fail "the held serial step never started within 60 s: $(cat "$tmp/out")"
+fi
+/bin/rm -f "$tmp/hold-ready" "$tmp/hold-release"
+git -C "$repo" reset -q --hard HEAD~1
 /bin/rm -f "$repo/notes.txt" "$receipt"
 
 # ASD-V0-922 (V1-3342): the full batch-regen run regenerates the documentation-paths declaration
@@ -937,7 +1030,8 @@ crun --base "$basesha" || fail "base-present only failed the run: $(cat "$tmp/ou
 grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "second warn: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARNING 2 base-present' "$tmp/out" || fail "two warnings: $(cat "$tmp/out")"
 # On this clean checkout a base-present WARN still writes no receipt: not every step passed.
-grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
+# DWC-V0-745 (V1-3837): the line says the run continues, since it exits 0.
+grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present; exit 0, continuing$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
 [[ -f $crepo/.git/batch-precheck-receipt ]] && fail "a run with base-present failures wrote a receipt"
 # A new finding that differs from a base one only by digits is introduced, not a timing.
 printf 'cmd/v2schema.go\n' >> "$crepo/fail-test-read-scopes-check"
@@ -1300,6 +1394,66 @@ STUB_PLAN_RC=3 srun --base "$sbase" || fail "many-path fallback run failed: $(ca
 grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @go entry: $(cat "$tmp/out")"
 /bin/rm -rf "$srepo/notes"
 git -C "$srepo" checkout -q -- docs/specs/freeze.md
+# DWC-V0-751 (V1-3854): two lanes that each pass alone collide once merged, as in PR #41: lane A
+# adds a dispatch name and updates its generated tree, lane B adds another generated tree from the
+# old dispatch. The merge is clean, and the precheck of the merged batch, selected by the union diff
+# since the shared base, runs the drift test and fails before any push.
+(
+  home=$(git -C "$srepo" symbolic-ref -q --short HEAD) || exit 1
+  commit() { git -C "$srepo" add -A && git -C "$srepo" -c user.name=t -c user.email=t@e.invalid commit -qm "$1"; }
+  mkdir -p "$srepo/tree/testdata"
+  printf 'package tree\n\nconst dispatch = "a"\n' > "$srepo/tree/dispatch.go"
+  cat > "$srepo/tree/tree_test.go" <<'EOF2'
+package tree
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestTreeMatchesDispatch(t *testing.T) {
+	trees, _ := filepath.Glob("testdata/*.txt")
+	for _, tree := range trees {
+		b, err := os.ReadFile(tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.TrimSpace(string(b)); got != dispatch {
+			t.Errorf("command tree drift: %s has %q, dispatch is %q", tree, got, dispatch)
+		}
+	}
+}
+EOF2
+  printf 'a\n' > "$srepo/tree/testdata/commands.txt"
+  commit 'tree base' || exit 1
+  tbase=$(git -C "$srepo" rev-parse HEAD)
+  git -C "$srepo" switch -q -c lane-a || exit 1
+  printf 'package tree\n\nconst dispatch = "a x"\n' > "$srepo/tree/dispatch.go"
+  printf 'a x\n' > "$srepo/tree/testdata/commands.txt"
+  commit 'lane a: dispatch x' || exit 1
+  git -C "$srepo" switch -q -c lane-b "$tbase" || exit 1
+  printf 'a\n' > "$srepo/tree/testdata/help.txt"
+  commit 'lane b: regenerate help tree' || exit 1
+  pbase=$tbase plan "$frontier" tree
+  # Plain variable assignments are visible to srun, which runs in this subshell.
+  sdrift='./tree TestTreeMatchesDispatch @go'
+  for lane in lane-a lane-b; do
+    git -C "$srepo" switch -q "$lane" || exit 1
+    srun --base "$tbase" || { printf 'lane %s alone failed: %s\n' "$lane" "$(cat "$tmp/out")" >&2; exit 1; }
+  done
+  git -C "$srepo" switch -q -c batch lane-a || exit 1
+  git -C "$srepo" -c user.name=t -c user.email=t@e.invalid merge -q --no-edit lane-b || exit 1
+  status=0
+  srun --base "$tbase" || status=$?
+  [[ $status != 0 ]] || { printf 'the merged collision passed: %s\n' "$(cat "$tmp/out")" >&2; exit 1; }
+  grep -q "^batch-precheck: batch-drift runs 1 of 1 drift tests for the diff since $tbase " "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  row_is FAIL 'batch-drift (1 packages)'
+  grep -qF 'command tree drift: testdata/help.txt has "a", dispatch is "a x"' "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  git -C "$srepo" switch -q "$home" || exit 1
+) || fail "DWC-V0-751 two-lane drift collision"
 
 fi
 if group 8; then
@@ -1763,8 +1917,9 @@ if group 15; then
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\')' ||
-  fail "dogfood-closeout-precheck does not select since the receipt (DCW-V0-923)"
+# DWC-V0-746 (V1-4072): the sealed-head run is followed by the unwind on a refusal.
+grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qF $'\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\') || { script/dogfood-closeout-unwind.sh ' ||
+  fail "dogfood-closeout-precheck does not select since the receipt or unwind a refusal (DCW-V0-923, DWC-V0-746)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
 git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"
@@ -1831,6 +1986,31 @@ git -C "$rrepo" checkout -q -- notes/a.txt
 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "no-receipt run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: since-receipt not used: no well-formed passing receipt' "$tmp/out" || fail "a missing receipt was used: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs .* for the diff since $rbase" "$tmp/out" || fail "no-receipt run did not keep its base: $(cat "$tmp/out")"
+# ASC-V0-775 (V1-4239): a reseal. The pre-bind run of a new lane commit on the sealed head keeps that
+# head's receipt, so the next sealed head's run selects against it, not against the base; a receipt
+# naming no ancestor of HEAD is removed.
+rreceipt=$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+rrun --base "$rbase" || fail "sealed head rerun failed: $(cat "$tmp/out")"
+[[ $(awk '$1 == "head" { print $2 }' "$rreceipt") == "$sealed" ]] || fail "no receipt for the sealed head: $(cat "$tmp/out")"
+printf 'fix\n' >> "$rrepo/notes/a.txt" && git -C "$rrepo" commit -qam 'fix after review'
+pbase=$rbase plan "$frontier"
+BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "reseal pre-bind run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: kept the passing receipt for ancestor $(git -C "$rrepo" rev-parse --short "$sealed")" "$tmp/out" || fail "the pre-bind run removed the sealed head's receipt: $(cat "$tmp/out")"
+[[ $(awk '$1 == "head" { print $2 }' "$rreceipt") == "$sealed" ]] || fail "the kept receipt changed: $(cat "$rreceipt")"
+git -C "$rrepo" rev-parse HEAD > /dev/null && printf '{}\n' > "$rrepo/.corvint/changes/$(git -C "$rrepo" rev-parse HEAD).cem.json"
+git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal change evidence'
+resealed=$(git -C "$rrepo" rev-parse HEAD)
+pbase=$sealed plan "$frontier"
+: > "$tmp/scalls"
+BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "resealed head run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: since-receipt base $sealed: " "$tmp/out" || fail "the resealed head did not select since the old sealed head: $(cat "$tmp/out")"
+grep -qx "planner affected --base $sealed" "$tmp/scalls" || fail "planner not asked since the old sealed head: $(cat "$tmp/scalls")"
+grep -q "^batch-precheck: receipt for $resealed written" "$tmp/out" || fail "the resealed head got no receipt: $(cat "$tmp/out")"
+git -C "$rrepo" checkout -q --detach "$rbase"
+pbase=$rbase plan "$frontier" golden
+BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "non-descendant run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: kept the passing receipt' "$tmp/out" && fail "a receipt naming no ancestor of HEAD was kept: $(cat "$tmp/out")"
+[[ -f $rreceipt ]] && fail "a receipt naming no ancestor of HEAD survived: $(cat "$rreceipt")"
 
 fi
 if group 16; then

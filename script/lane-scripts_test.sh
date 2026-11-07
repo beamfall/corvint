@@ -1837,8 +1837,8 @@ adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HE
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-inputs-check dogfood-finish 2> /dev/null) > "$tmp/admit.out"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
 [[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -Eq '^(BATCH_PRECHECK_LANE_CLOSEOUT=0 )?WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
-  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] && grep -Eq '^([^ ]*/)?make --no-print-directory --keep-going ' "$tmp/admit.out" &&
-  grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
+  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] &&
+  grep -Eq '^echo script/doc-gates\.sh .* conformance/use-cases-v0$' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
 ok
 fi
@@ -3140,6 +3140,13 @@ grep -q 'make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=int
 ok
 fi
 if selected tools 49; then
+
+# DWC-V0-3725 (V1-4163): dogfood-inputs-check runs the use-case receipt check before the pre-flight,
+# so a stale receipt is named there rather than first at the seal. The check's own refusal of a
+# stale receipt is pinned by script/repin-use-case-receipts_test.sh.
+[[ $mk == *'script/repin-use-case-receipts.sh --check'*'stale use-case receipt'*'script/dogfood-finish.sh'* ]] ||
+  fail "Makefile dogfood-inputs-check does not refuse a stale use-case receipt before the pre-flight"
+ok
 
 # ASD-V0-955 (V1-1629): a dogfood-change run in a linked worktree lands in the repository-wide
 # ledger, which git worktree remove keeps, and dogfood-change-runs reports it per lane. CORVINT_BIN

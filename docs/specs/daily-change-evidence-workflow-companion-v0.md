@@ -5,18 +5,20 @@ Date: 2026-11-02
 Requirement prefix: `DWC-V0`
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: repository-owner request (V1-1467, V1-4318); `AGENTS.md` invariants 1, 2 and 8; `docs/specs/daily-change-evidence-workflow-v0.md` `DCW-V0-039`, `DCW-V0-401`.
+Authoritative inputs: repository-owner request (V1-1467, V1-4318; V1-2360, V1-3334, V1-3837, V1-3850, V1-3854, V1-3955, V1-4072, V1-4091, V1-4197, V1-4238); `AGENTS.md` invariants 1, 2 and 8; `docs/specs/daily-change-evidence-workflow-v0.md` `DCW-V0-039`, `DCW-V0-401`.
 
 ## Agent digest
 - Claim: Daily-workflow requirements beyond the 256-obligation limit of `daily-change-evidence-workflow-v0.md`, under their own prefix.
 - Status: proposed/experimental
-- Exists: `internal/dogfoodflow/regenerated_specs.go`, `reused_worktree.go`, `script/merge-regenerate-specs.sh` and their focused tests.
+- Exists: `internal/dogfoodflow/regenerated_specs.go`, `reused_worktree.go`, `script/merge-regenerate-specs.sh` and their focused tests; the `DWC-V0-745` to `DWC-V0-759` closeout and draft work in `Makefile`, `script/dogfood-finish.sh`, `script/dogfood-closeout-unwind.sh`, `internal/dogfoodflow/propose_grep.go`, `propose_entryspan.go`, `verify_syntax.go`, `tools/verify-syntax-check` and `tools/test-read-scopes-check`.
 - Blocked on: Nothing; companion of the daily change-evidence workflow, whose Requirements section is at the 256-obligation limit.
 - Read next: Requirements; Acceptance evidence and rollback.
 
 ## User and measurable job
 
 This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requirements section is at the `ocm prepare` limit; new daily-workflow requirements go here. Two lanes that each add requirement rows conflict in the generated `REQUIREMENTS.tsv` even when their specs merge cleanly (PR #952, #927). The batch owner needs one merge command and a batch-check that binds the regenerated merge instead of reporting `merge-resolution-unbound`.
+
+`DWC-V0-745` to `DWC-V0-759` shorten a lane closeout and its citation draft: phase lines and a receipt-aware DONE line, an unwind of a refused seal, an early VERIFY check, a reused static pass, a draft anchor search that no longer waits on one large `git grep`, and a parallel read-scope check. They were written as `DCW-V0-745` to `DCW-V0-759` in lane dsl-w32 and took this prefix when the work was merged, because the parent spec was full; the numbers are unchanged. `DWC-V0-750`, `DWC-V0-760` and `DWC-V0-761` are unused: the work they named was delivered on the mainline first (`ASC-V0-779`, `ASD-V0-982`).
 
 ## Requirements
 
@@ -86,6 +88,181 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` (a plan with a legacy rekey still
   refuses); all three fail on the BASE `reused_worktree.go`. Rollback: restore the
   `len(stranded) == 0` pre-flight condition and the separate fix lines in `reused_worktree.go`.
+- `DWC-V0-745`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3837; refines
+  `DCW-V0-900` and `DCW-V0-923`) `make dogfood-closeout` MUST print one line after each phase that
+  passed, naming the phase and the next one (`dogfood-closeout: phase inputs-check PASS; continuing
+  to the precheck` and `phase precheck PASS (no receipt before the bind is expected); continuing to
+  bind, check and seal`), before the `DCW-V0-923` line that names `make dogfood-closeout-precheck`
+  as the next command; that command ends with the `DWC-V0-758` DONE line. The `batch-precheck` line
+  for a run whose only failures are present at BASE MUST say `exit 0, continuing`, so a lane reading
+  the pre-bind run's `no receipt` line does not take it for the closeout's verdict. Non-goals:
+  changing any phase, its order or exit status. Evidence: `script/dogfood-cache_test.sh` (fake-make
+  closeout and precheck: the lines in order, the base-present line directly before the precheck
+  phase line) and `script/batch-precheck_test.sh`. Rollback: drop the `printf` lines and restore the
+  old wording.
+- `DWC-V0-746`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4072; refines
+  `DWC-V0-745` and `DCW-V0-923`) Before the bind, `make dogfood-closeout` MUST record HEAD at
+  `$(git rev-parse --git-path dogfood-closeout-start)`; when `make dogfood-closeout-precheck`, the
+  sealed-head precheck, then refuses, `script/dogfood-closeout-unwind.sh` MUST drop the bind and seal
+  commits with `git reset --keep START` when every commit in `START..HEAD` changes only
+  `.corvint/change.cem.json` or `.corvint/changes/*.cem.json`, none is a merge commit and no tracked
+  file is modified, printing the dropped commits and that the sealed head stays reachable, and the
+  precheck still exits 1. Otherwise it MUST change nothing and print `unwind: NOT_RUN REASON` with
+  the hand command. A lane repairing the refusal then starts from its own head, so its refreshed
+  citation plan holds no sealed-CEM hunk. A check or seal failure inside `finish-lane` keeps its own
+  recovery (`DCW-V0-806`). HEAD MUST still be the inspected head right before the reset, else nothing
+  is reset (`NOT_RUN HEAD moved to SHA while the bind and seal commits were inspected`), so a commit
+  made during the inspection is never dropped. Non-goals: unwinding any commit that touches another
+  path; deleting refs. Failure modes: no recorded start, a start that is not an ancestor, a merge
+  commit in the range (`git diff-tree` lists no paths for it) or a dirty tree leave HEAD as it is.
+  Evidence: `script/dogfood-cache_test.sh` (`TEST_SEALED_RC=1` unwinds to the start with a clean
+  tree; `TEST_EXTRA_COMMIT=1` prints `NOT_RUN` naming the foreign path) and its unwind-race case.
+  Rollback: drop the start record and the `||` unwind.
+- `DWC-V0-747`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3334; refines
+  `DCW-V0-900`) The pre-bind `BATCH_PRECHECK_SKIP_DRIFT=1` run MUST keep the `sync-check` step
+  and list `batch-drift (skipped before the bind)` in its place of the drift tests, so a CI and
+  precheck list mismatch is reported before the bind. Non-goals: running the drift tests twice.
+  Evidence: `script/batch-precheck_test.sh` (the checkout's `BATCH_PRECHECK_SKIP_DRIFT=1 --list`
+  holds both rows). Rollback: drop the assertion.
+- `DWC-V0-748`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4091; refines
+  `DCW-V0-967` and `DCW-V0-382`) When `corvint dogfood propose-citations` drafts a requirement's
+  stable BASE definition line as a hunk's anchor or as the `DCW-V0-967` refined proposal, the row
+  MUST cover the requirement's entry: the definition line and the indented continuation lines after
+  it, ending before the first blank, unindented or edited line, and shortened until its text is under
+  the citation byte bound and occurs exactly once at BASE and after the change. An anchor whose
+  widened span another row already cites is skipped, as its definition line was (the `DCW-V0-382`
+  dedupe); `DCW-V0-967` proposals may share their span. Measured on lane plg-m17's mcp-server commit
+  `3c672e467` (WSL): before, 12 rows cited `mcp-server-2026-07-28-v0.md` `984:984` for the
+  `MCPV0-115` entry. Non-goals: widening path-naming anchors or other documents' lines. Evidence:
+  `TestProposeCitationsDWCV0748CitesTheWholeRequirementEntry` (a 4-line entry cited `5:8`, an entry
+  whose later line the change edits never reaches it, the plan passes the pre-flight) and
+  `TestProposeCitationsDCWV0966BoundsTheUnknownRate` (`5:6`). Rollback: drop `entryEnd` and its two
+  calls.
+- `DWC-V0-749`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3955; refines
+  `DCW-V0-440` and `DCW-V0-967`) A code hunk naming a requirement ID that neither BASE nor the
+  change's own spec hunks define MUST stay `unknown`, while a hunk naming a requirement the change
+  adds is drafted as the `DCW-V0-967` proposal of the BASE requirement its entry refines. The
+  ticket's wish to cite the same-change requirement itself is not met by design: evidence is pinned
+  to BASE content (invariant 1) and `DCW-V0-440` keeps that bullet uncitable. Evidence:
+  `TestProposeCitationsDWCV0749UndefinedRequirementStaysUnknown`. Rollback: drop the test.
+- `DWC-V0-751`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3854) The
+  precheck of a merged batch MUST catch a generated-artifact collision between two lanes that each
+  pass alone, such as one lane adding a dispatch name and another regenerating a command tree from
+  the old dispatch: `batch-drift`, selected by the union diff since the shared base, runs the drift
+  test on the merged tree and fails as introduced before any push. The command-tree, catalog and
+  help-snapshot tests (`TestCAPV0047` among them) run through `capability-catalog-check` and the
+  `DRIFT_TESTS` list. Evidence: the `DWC-V0-751` case of `script/batch-precheck_test.sh`. Rollback:
+  drop the test case.
+- `DWC-V0-752`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2360; refines
+  `DCW-V0-161`) `corvint dogfood propose-citations` MUST compute a hunk's file-wide and change-wide
+  requirement-family fallbacks once per change, not once per hunk. Its BASE and HEAD blob reads go
+  through the `CKC-V0-015` batch reader. Non-goals: changing any drafted row or note. Evidence:
+  `TestProposeCitationsDWCV0752FamilyFallbacksMatchThePerHunkScan`, the `internal/dogfoodflow` draft
+  tests, unchanged, and the draft timings in
+  `docs/build-log/2026-11-01-dsl-w32.md`, which were measured with an earlier batch reader of the
+  same shape. Rollback: drop `familyFallbacks`.
+- `DWC-V0-753`: (experimental under the standing lane auto-accept, 2026-11-01; repository-owner
+  request 2026-11-01, repro from lane rdp-w33; refines `DCW-V0-380` and `DCW-V0-092`)
+  `script/dogfood-finish.sh`, and so `make dogfood-inputs-check`, `make dogfood-finish` and `make
+  dogfood-closeout`, MUST check a given VERIFY file before any Git read, static check or build with
+  `go run ./tools/verify-syntax-check`, which calls `dogfoodflow.CheckVerifySyntax`, finish-lane's
+  own `requireVerifyInput`, so the early and late checks share one validator and print the same
+  lines. It takes the wrapper's inputs and `--entry`, so its rerun hints name the make target the
+  later pre-flight names (`DCW-V0-730`). It matters when the `DCW-V0-731` static pre-check said
+  `SKIP` (no cached tree build or static-capable installed `corvint`); otherwise that pre-check
+  refused the file first. A refusal prints those lines and `nothing was built, prepared or bound` and exits 2; a tool
+  that does not build or run leaves the late check to refuse. A relative VERIFY is made absolute
+  against the caller's directory before the wrapper enters the repository. Measured on WSL: the repro
+  line `go test -run '^TestA|^TestB' ./pkg` was refused after 17.7 s wall, and is now refused after
+  0.17 s with identical lines. Non-goals: changing what is admitted or any refusal text. Evidence:
+  `TestDWCV0753VerifySyntaxCheckMatchesThePreflight` (four refused forms print exactly the
+  pre-flight's lines within 1 s and without Git, and name `make dogfood-finish` under that
+  `--entry`; a valid file is silent) and
+  `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: drop the early block from
+  `script/dogfood-finish.sh`.
+- `DWC-V0-754`: (experimental under the standing lane auto-accept, 2026-11-01; repository-owner
+  request 2026-11-01; refines `DCW-V0-161` and `DCW-V0-818`) The anchor search that
+  `propose-citations` and its `--refresh` carry draft from MUST, for 32 or more patterns, list the
+  matching BASE files with `git grep -z -l` and the same patterns and pathspecs, read each through
+  the `CKC-V0-015` batch reader, and find the matches in process as `git grep -o` does: on each line
+  the leftmost match of any pattern, the longest at that start, then the next from its end. The
+  records MUST be byte-identical to the one `git grep -z -n -o` they replace, under the same output
+  bound; a listing or blob read it cannot complete runs that one grep instead. The in-process match
+  writes each match once no later match can start at or before it, keeping only the matches still
+  open within the longest pattern's reach, checks the bound as it writes, and checks the flow's
+  deadline every 64 KiB, so a long line with matches at every byte stays bounded and interruptible.
+  The check's search for below-anchored hunks stays the `DCW-V0-984` two-pass read. Measured on WSL
+  at lane gcr-w20's bind commit, the search over all 628 hunks (496 patterns) took 152.6 s for its
+  grep and now takes 3.2 s, with identical rows and candidate lines. Non-goals: changing which lines
+  are candidates. Evidence: `TestProposeCitationsDWCV0754LongLineStaysBoundedAndInterruptible`,
+  `TestProposeCitationsDWCV0754AnchorSearchMatchesGitGrep` (overlapping, nested and repeated
+  patterns, several matches on a line, CRLF, a last line without LF, a binary file, a symbolic link,
+  an excluded path and no match print what Git prints) and `docs/build-log/2026-11-01-dsl-w32.md`.
+  Rollback: set `anchorGrepFastPath` false.
+- `DWC-V0-755`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
+  `DCW-V0-942`) `script/dogfood-finish.sh` MUST time its own phases (inputs, verify syntax, the
+  static checks, spec indexes, analyzer schema, setup, the tree and base verifier builds naming
+  `reuse` or `build`, and the nested inputs-check) and print them as one `PREFIX: TIMING wrapper
+  seconds=S phase=S...` line before it hands over to the binary, so the wrapper's seconds and the
+  binary's `TIMING` sections together cover a finish. Bash before 5 prints no wrapper line. Measured
+  on WSL: the wrapper line and the binary's `TIMING total` cover 26.4 of 26.6 s of `make
+  dogfood-finish`, where 15-20 s had been unattributed. Evidence: the `DWC-V0-755` case of
+  `script/dogfood-cache_test.sh` and the build-log runs. Rollback: drop
+  `wrapper_phase` and `wrapper_timing`.
+- `DWC-V0-756`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
+  `DCW-V0-026`) When the step runner is safe for concurrent calls (`Runner.Concurrent`, which `Exec`
+  sets), a full `dogfood change` pass (`dogfood change` itself and finish-lane's rebind) MUST start
+  the coordination-time `impact` command while the coordination-time `query` runs, then record the
+  query row before the impact row as before. Both only read the committed range and each writes its
+  own files, so the rows, their order and the evidence files are those of the sequential run; a
+  runner without the mark, or an argv record that cannot be written, runs them one after the other.
+  Evidence: `TestChangeDWCV0756ImpactBesideQueryMatchesTheSequentialRun` (also under `-race`).
+  Rollback: drop `startImpact`.
+- `DWC-V0-757`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
+  `DCW-V0-815` and `DCW-V0-090`) After the requirement-definitions, test-read-scopes, spec-index and
+  analyzer-schema checks of `script/dogfood-finish.sh` pass on a worktree that is clean except for
+  the untracked bind sidecar `.corvint/change.cem.json` (which none of them reads), the wrapper MUST
+  record a key of HEAD's tree, BASE and the Go toolchain (`go env GOVERSION GOOS GOARCH GOFLAGS
+  CGO_ENABLED`) in the git directory's `corvint/dogfood-static-pass`, and a later run whose worktree
+  gives the same key MUST skip those checks, printing `static checks REUSE: they passed for this
+  clean tree TREE at BASE BASE (DWC-V0-757)`. A `git status` that fails gives no key, never a clean
+  one. A dirty worktree, an unreadable key or any other key runs them. Measured on WSL: `make
+  dogfood-finish` 40.2 s to 24.2 s, and two runs at the same base sealed byte-identical CEMs.
+  Evidence: the `DWC-V0-757` case of `script/dogfood-cache_test.sh` (a second run skips the checks
+  with the sidecar present; an untracked file runs them) and `docs/build-log/2026-11-01-dsl-w32.md`.
+  Rollback: drop the key, the stamp and the `static_reuse` guards.
+- `DWC-V0-758`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends
+  `DWC-V0-745`) The last line of `make dogfood-closeout-precheck` MUST say whether the sealed head
+  has a precheck receipt (`script/batch-precheck.sh --verify-receipt HEAD`): `DONE sealed head SHA
+  has a precheck receipt`, or `DONE sealed head SHA has no precheck receipt: its precheck passed
+  only with base-present failures, named in its WARN lines`, since such a precheck exits 0 without
+  one. Evidence: `script/dogfood-cache_test.sh` (a stub receipt check answering 1 prints the second
+  form). Rollback: restore a fixed DONE line.
+- `DWC-V0-759`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4238; refines
+  `AFP-V0-023` and `DCW-V0-815`) `tools/test-read-scopes-check`, which `make
+  test-read-scopes-check`, doc-gates and the `dogfood-inputs-check` static checks run, MUST check its
+  read-scoped packages on a pool of `GOMAXPROCS` workers and each package's test files on goroutines
+  of their own, and merge every package's findings, used literals and first error in unit and file
+  order, so its output is byte-identical to the sequential check's. The `ASD-V0-982` parse and go
+  list memos MUST be safe for those goroutines: each entry is computed once and every caller reads
+  that one result. Non-goals: changing any finding, message or exit status, or the affected graph it
+  reads. Evidence: `TestDWCV0759ParallelCheckMatchesTheSequentialCheck` (a fixture with a named
+  path, a go list and a go build dependency, a nested sandbox and a stale literal, and this
+  repository: the parallel and the sequential check print the same bytes and exit code) and the
+  package's tests under `-race`. Rollback: set `checkWorkers` to 1 and `parallelFiles` false.
+- `DWC-V0-3720`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4131; refines `DCW-V0-048`) A record hunk (a `RecordPath` such as a `docs/build-log/` entry) is neither counted nor compared by the uniform-plan check: its row cites what the work it records cites, so one test hunk plus its build-log entry citing the same span is not `citation-plan-uniform`, while two or more other hunks citing one span still are. Evidence: `TestDWCV03720RecordHunkSharesItsTestSpan`, `TestDWCV03720UniformCitationSkipsRecordHunks`. Rollback: count record hunks again.
+- `DWC-V0-3721`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4106; refines `DCW-V0-046`) A passing inputs-check prints `inputs-check NOTE unknown-rows=N reasons=REASON:N,...` for the plan's `unknown` rows. The NOTE changes no exit status: an honest unknown is admitted by design and dogfood-check's policy allowance bounds it. Evidence: `TestDWCV03721InputsCheckNamesThePlansUnknownRows`. Rollback: drop the NOTE.
+- `DWC-V0-3722`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4105; refines `DCW-V0-804`) A verify-file refusal names the first refused line and quotes that line's command, not the first refused command in sorted order, and an unquoted `-run` word holding `^` or `$` is refused with the quoted form that admits it. Evidence: `TestDWCV03722InputsCheckNamesTheRefusedLineItQuotes`, `TestDWCV03722InputsCheckHintsQuotingForAnUnquotedCaret`. Rollback: restore the sorted-order detail and the generic hint.
+- `DWC-V0-3723`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2372; decision on `DCW-V0-171`) Decided: without a configured mainline anchor the merged-seal signal stays a NOTE, never a refusal, since a refusal would need the implicit mainline anchor this workflow forbids; the configured anchor already gives the refusal with its named remedy. Behaviour is unchanged. Evidence: the existing `DCW-V0-171` tests and the decision text in `docs/DOGFOOD.md`. Rollback: none needed (no behaviour change).
+- `DWC-V0-3724`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4115; refines `DCW-V0-400`) A passing inputs-check records the plan's digest and the `HEAD` it passed at in `$(git rev-parse --git-dir)/corvint/inputs-check-plan-head`; when the same plan bytes later refuse `citation-plan-map-mismatch` at a newer `HEAD`, the fix line names both `HEAD`s and the `propose-citations BASE --refresh PLAN` command. Evidence: `TestDWCV03724MapMismatchNamesThePlansPassingHead`. Rollback: stop writing the record and drop the named heads.
+- `DWC-V0-3725`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4163) In a repository that carries `script/repin-use-case-receipts.sh` and its ledger, `make dogfood-inputs-check` first runs `script/repin-use-case-receipts.sh --check` and refuses a stale use-case receipt, naming it, before the pre-flight. Evidence: `script/lane-scripts_test.sh` (structural recipe check) and `script/dogfood-cache_test.sh` (a repository without the ledger is unaffected). Rollback: remove the recipe's first line.
+- `DWC-V0-3726`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4169; refines `DCW-V0-804`) Over the 200-changed-path bound at which the nonlearning aggregate receipt cannot hold typed argv, inputs-check refuses `aggregate-verify-argv` for a verify line recorded as typed argv (a quoted word or quoted assignment), naming the line, before any bind. Evidence: `TestDWCV03726InputsCheckRefusesTypedVerifyOverTheTraceBound`. Rollback: drop the pre-flight refusal, leaving the later trace failure.
+- `DWC-V0-3727`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4108) A passing inputs-check prints `inputs-check NOTE verify-run-subset package=PKG` for each Go package whose non-test source the change edits while every verify line that runs it narrows it with `-run`. The NOTE comes from the changed paths, not a second affected run, and changes no exit status. Evidence: `TestDWCV03727InputsCheckNotesARunSubsetOfAnEditedPackage`, `TestDWCV03727VerifyPackageRuns`. Rollback: drop the NOTE.
+- `DWC-V0-3728`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3683; records `DCW-V0-042`) Reproduced 2026-11-01: an unmodified, verifiable added seal under `.corvint/changes/` is admitted with `NOTE sealed-cem-merged`, and only an unrecognized, modified, unverified or retired seal, or one over the count, refuses `sealed-cem-in-change`; `docs/DOGFOOD.md` records this in place of the unreproduced sentence. Evidence: `TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs`. Rollback: restore the earlier sentence.
+- `DWC-V0-3729`: (experimental under the standing lane auto-accept, 2026-11-01; V1-0683) When `local-outcome` fails `record-index-failed` and its stderr names Git status repository metadata changing during observation, the fix line names concurrent Git activity or an index refresh, says it is not an uncommitted change and nothing was recorded, and says to rerun `corvint dogfood change BASE` once Git is quiet; the refusal stays fail-closed. Evidence: `TestDWCV03729RecordIndexFailedNamesMetadataDrift`. Rollback: drop the drift branch of the hint.
+- `DWC-V0-3730`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3261) A non-empty `propose-citations` draft prints, on stderr, the plan columns `HUNK<TAB>CITED_PATH<TAB>START:END<TAB>RELATION`, that `CITED_PATH` is the BASE file cited as evidence rather than the path the hunk edits, and that the plan takes no header row; the plan grammar is unchanged, since it refuses header and comment rows. Evidence: `TestDWCV03730ProposeCitationsNamesThePlanColumns`. Rollback: drop the line.
+- `DWC-V0-3731`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2275; refines `DCW-V0-370`, `DCW-V0-961`) A passing inputs-check prints `inputs-check NOTE intent-over-bound-omitted path=PATH` for each `docs/specs/*.md` the change adds or modifies that derives more obligations than one OCM map admits (256) and that neither `DOGFOOD_INTENTS_FILE` nor a `deferred` plan row names, telling the agent to record the omission as `deferred` and cite the BASE requirement rows it depends on. The NOTE changes no exit status and the 256 bound is unchanged. Non-goal: an intent naming a requirement-ID subset of an over-bound spec, which needs a new OCM intent form (left to an OCM-owned change). Evidence: `TestDWCV03731InputsCheckNamesAnOmittedOverBoundSpec`. Rollback: drop the NOTE.
+- `DWC-V0-3732`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4095; refines `DCW-V0-381`) `propose-citations` reads the BASE blobs of the patch's hunk paths and the BASE and HEAD blobs of every anchor candidate path in batches (one `ls-tree` per 256 names and one `cat-file --batch` per output bound) instead of two Git processes per blob, caching exactly what the one-blob read would, leaving a blob over the output bound to that read. On this lane's 45-hunk change the draft fell from 522 to 20 Git processes and from about 1690 ms to about 710 ms with byte-identical output. Evidence: `TestProposePrefetchBlobsMatchesBlob` and the retained before/after timing in `docs/build-log/2026-11-01-dif-u27.md`. Rollback: remove the two prefetch calls.
 
 ## Failure modes
 
@@ -98,6 +275,11 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | Tracked changes or missing REV | Script exits 2 |
 | Check report staging crosses a mount boundary | Sibling staging preserves exact bytes and atomic publication |
 | Any other publication failure | Prior report stays unchanged; failure and temporary cleanup remain visible |
+| A refused sealed-head precheck whose range holds a foreign path, a merge commit or a dirty tree (`DWC-V0-746`) | `unwind: NOT_RUN REASON` with the hand command; HEAD unchanged; exit 1 |
+| HEAD moves while the unwind inspects the range (`DWC-V0-746`) | `NOT_RUN HEAD moved`; nothing is reset |
+| A VERIFY file the pre-flight refuses (`DWC-V0-753`) | the pre-flight lines and `nothing was built, prepared or bound`; exit 2 before any Git read |
+| The draft anchor listing or a blob read fails (`DWC-V0-754`) | the one `git grep -z -n -o` runs instead |
+| A dirty worktree or an unreadable static key (`DWC-V0-757`) | the static checks run |
 
 ## Acceptance evidence
 
@@ -106,6 +288,33 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
+| `DWC-V0-745` (experimental under the standing lane auto-accept; V1-3837) | `Makefile` `dogfood-closeout` phase lines; `script/batch-precheck.sh` base-present line; `script/dogfood-cache_test.sh`, `script/batch-precheck_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
+| `DWC-V0-746` (experimental under the standing lane auto-accept; V1-4072) | `script/dogfood-closeout-unwind.sh`; `Makefile` `dogfood-closeout` start record and `dogfood-closeout-precheck` unwind; `script/dogfood-cache_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
+| `DWC-V0-747` (experimental under the standing lane auto-accept; V1-3334) | `script/batch-precheck_test.sh` skip-drift `--list` assertion | implemented; shell test PASS |
+| `DWC-V0-748` (experimental under the standing lane auto-accept; V1-4091) | `internal/dogfoodflow/propose_entryspan.go` `entryEnd`; `propose.go` `anchoredProposal`; `propose_samechange.go` `refinedProposal`; `TestProposeCitationsDWCV0748CitesTheWholeRequirementEntry` | implemented; focused tests PASS |
+| `DWC-V0-749` (experimental under the standing lane auto-accept; V1-3955) | `TestProposeCitationsDWCV0749UndefinedRequirementStaysUnknown` | implemented; focused test PASS |
+| `DWC-V0-751` (experimental under the standing lane auto-accept; V1-3854) | `script/batch-precheck_test.sh` (`DWC-V0-751` case) | implemented; shell test PASS |
+| `DWC-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose.go` `familyFallbacks`; `TestProposeCitationsDWCV0752FamilyFallbacksMatchThePerHunkScan` and the `internal/dogfoodflow` draft tests | implemented; focused tests PASS |
+| `DWC-V0-753` (experimental under the standing lane auto-accept; repository-owner request) | `script/dogfood-finish.sh` early VERIFY block; `tools/verify-syntax-check`; `internal/dogfoodflow/verify_syntax.go` `CheckVerifySyntax`; `TestDWCV0753VerifySyntaxCheckMatchesThePreflight` | implemented; focused test PASS; measured in the build log |
+| `DWC-V0-754` (experimental under the standing lane auto-accept; repository-owner request) | `internal/dogfoodflow/propose_grep.go` `onlyMatching`, `fixedMatcher`; `check_anchor_grep.go` `anchorGrep`; `TestProposeCitationsDWCV0754AnchorSearchMatchesGitGrep`, `TestProposeCitationsDWCV0754LongLineStaysBoundedAndInterruptible` | implemented; focused tests PASS; measured in the build log |
+| `DWC-V0-755` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `wrapper_phase`, `wrapper_timing`; the `DWC-V0-755` case of `script/dogfood-cache_test.sh` | implemented; measured in the build log |
+| `DWC-V0-756` (experimental under the standing lane auto-accept; V1-4197) | `internal/dogfoodflow/change.go` `startImpact`; `flow.go` `Runner.Concurrent`; `TestChangeDWCV0756ImpactBesideQueryMatchesTheSequentialRun` | implemented; focused test PASS (also -race) |
+| `DWC-V0-757` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `static_input_key`, `dogfood-static-pass`; `script/dogfood-cache_test.sh` (`DWC-V0-757` case) | implemented; shell test PASS; measured in the build log |
+| `DWC-V0-758` (experimental under the standing lane auto-accept; V1-3850) | `Makefile` `dogfood-closeout-precheck` DONE line; `script/dogfood-cache_test.sh` | implemented; shell test PASS |
+| `DWC-V0-759` (experimental under the standing lane auto-accept; V1-4238) | `tools/test-read-scopes-check/main.go` `check`, `checkUnit`, `checkFile`, `checkWorkers`, `parallelFiles` and the `sync.Once` memo entries; `TestDWCV0759ParallelCheckMatchesTheSequentialCheck` | implemented; focused tests PASS (package also under -race) |
+| `DWC-V0-3720` (experimental under the standing lane auto-accept; V1-4131) | `TestDWCV03720RecordHunkSharesItsTestSpan`, `TestDWCV03720UniformCitationSkipsRecordHunks` | implemented; focused tests PASS |
+| `DWC-V0-3721` (experimental under the standing lane auto-accept; V1-4106) | `TestDWCV03721InputsCheckNamesThePlansUnknownRows` | implemented; focused tests PASS |
+| `DWC-V0-3722` (experimental under the standing lane auto-accept; V1-4105) | `TestDWCV03722InputsCheckNamesTheRefusedLineItQuotes`, `TestDWCV03722InputsCheckHintsQuotingForAnUnquotedCaret` | implemented; focused tests PASS |
+| `DWC-V0-3723` (experimental under the standing lane auto-accept; V1-2372) | the existing `DCW-V0-171` tests and the decision text in `docs/DOGFOOD.md` | decision recorded; behaviour unchanged |
+| `DWC-V0-3724` (experimental under the standing lane auto-accept; V1-4115) | `TestDWCV03724MapMismatchNamesThePlansPassingHead` | implemented; focused tests PASS |
+| `DWC-V0-3725` (experimental under the standing lane auto-accept; V1-4163) | `script/lane-scripts_test.sh` (structural recipe check) and `script/dogfood-cache_test.sh` (a repository without the ledger is unaffected) | implemented; focused tests PASS |
+| `DWC-V0-3726` (experimental under the standing lane auto-accept; V1-4169) | `TestDWCV03726InputsCheckRefusesTypedVerifyOverTheTraceBound` | implemented; focused tests PASS |
+| `DWC-V0-3727` (experimental under the standing lane auto-accept; V1-4108) | `TestDWCV03727InputsCheckNotesARunSubsetOfAnEditedPackage`, `TestDWCV03727VerifyPackageRuns` | implemented; focused tests PASS |
+| `DWC-V0-3728` (experimental under the standing lane auto-accept; V1-3683) | `TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs` | implemented; focused tests PASS |
+| `DWC-V0-3729` (experimental under the standing lane auto-accept; V1-0683) | `TestDWCV03729RecordIndexFailedNamesMetadataDrift` | implemented; focused tests PASS |
+| `DWC-V0-3730` (experimental under the standing lane auto-accept; V1-3261) | `TestDWCV03730ProposeCitationsNamesThePlanColumns` | implemented; focused tests PASS |
+| `DWC-V0-3731` (experimental under the standing lane auto-accept; V1-2275) | `TestDWCV03731InputsCheckNamesAnOmittedOverBoundSpec` | implemented; focused tests PASS |
+| `DWC-V0-3732` (experimental under the standing lane auto-accept; V1-4095) | `TestProposePrefetchBlobsMatchesBlob` and the retained before/after timing in `docs/build-log/2026-11-01-dif-u27.md` | implemented; focused tests PASS |
 
 ## Non-goals and limits
 
@@ -113,7 +322,7 @@ No resolution of conflicts in any other file, no rewrite of pushed branches, and
 
 ## Rollback
 
-For `DWC-V0-001` and `DWC-V0-002`, remove `regeneratedSpecs` and its call in `deriveMerge`, and delete `script/merge-regenerate-specs.sh`; such merges are unbound again and need the rebase recovery. For `DWC-V0-003`, see its own rollback.
+For `DWC-V0-001` and `DWC-V0-002`, remove `regeneratedSpecs` and its call in `deriveMerge`, and delete `script/merge-regenerate-specs.sh`; such merges are unbound again and need the rebase recovery. For `DWC-V0-003`, see its own rollback. Each of `DWC-V0-745` to `DWC-V0-759` names its own rollback; none changes a stored format.
 
 ## Lane maintenance evidence (2026-11-04)
 

@@ -739,8 +739,10 @@
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
+      "Makefile",
       "internal/gateselect/",
       "internal/taskprojection/taskprojection.go",
+      "script/batch-precheck.sh",
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],

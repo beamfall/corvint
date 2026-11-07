@@ -348,11 +348,124 @@ done
 # BATCH_PRECHECK_SKIP_DRIFT=1 (ASD-V0-837, ICL-V0-020), shown as skip-drift:.
 # The lane-closeout step runs the batch precheck script directly under BATCH_PRECHECK_LANE_CLOSEOUT=1
 # (ASD-V0-1991), shown as lane-closeout:skip-drift:batch-precheck. Spec capacity and README rows
-# are checked first (V1-4331, V1-4332).
-recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+# are checked first (V1-4331, V1-4332). The phase lines and the start-head record (DWC-V0-745,
+# DWC-V0-746) are not steps, nor are the sealed-head unwind and the DONE line (DWC-V0-758).
+recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t@(printf|git) / { next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(BASE)" dogfood-inputs-check lane-closeout:skip-drift:batch-precheck dogfood-finish next:dogfood-closeout-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; fail "$LINENO"; }
-recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == *'BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1'*'script/batch-precheck.sh'* ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; fail "$LINENO"; }
+recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t@printf / { next } on && /^\t/ { sub(/ \|\| \{.*$/, ""); sub(/^\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:since-receipt:batch-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+[[ $recipe == 'lane-closeout:since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; fail "$LINENO"; }
+# DWC-V0-745 (V1-3837), DWC-V0-746 (V1-4072), DWC-V0-758: with a fake make and a stub precheck, the
+# closeout prints a phase line after each stage naming that it continues, also after a
+# base-present-only precheck; the separate sealed-head precheck ends with a DONE line naming whether
+# the sealed head has a receipt, and when it refuses, the bind and seal commits are unwound to the
+# start head the closeout recorded; a commit outside the bind and seal paths is never unwound.
+(
+  cr="$root/closeout"
+  mkdir -p "$cr/script"
+  /bin/cp -f "$source_root/Makefile" "$cr/"
+  /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$cr/script/"
+  cat > "$cr/script/batch-precheck.sh" <<'EOF'
+#!/usr/bin/env bash
+# The receipt check answers TEST_RECEIPT_RC; the sealed-head run TEST_SEALED_RC; the pre-bind run
+# passes with a base-present failure only.
+[[ ${1-} == --verify-receipt ]] && exit "${TEST_RECEIPT_RC:-0}"
+printf 'batch-precheck since=%s skip=%s\n' "${BATCH_PRECHECK_SINCE_RECEIPT-}" "${BATCH_PRECHECK_SKIP_DRIFT-}" >> "$TEST_MAKE_LOG"
+if [[ ${BATCH_PRECHECK_SINCE_RECEIPT-} == 1 ]]; then exit "${TEST_SEALED_RC:-0}"; fi
+printf 'batch-precheck: no receipt: 1 step(s) failed, though only base-present; exit 0, continuing\n'
+EOF
+  cat > "$root/bin/fake-make" <<'EOF'
+#!/usr/bin/env bash
+set -eu
+target=${!#}
+printf '%s\n' "$target" >> "$TEST_MAKE_LOG"
+case $target in
+  dogfood-finish)
+    [[ -z ${TEST_EXTRA_COMMIT-} ]] || { printf 'x\n' > other.txt; git add other.txt; git -c user.name=t -c user.email=t@e.invalid commit -qm other; }
+    mkdir -p .corvint/changes
+    printf '{}\n' > .corvint/change.cem.json
+    git add .corvint/change.cem.json
+    git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: bind change evidence'
+    git mv .corvint/change.cem.json ".corvint/changes/$(git rev-parse HEAD).cem.json"
+    git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: seal change evidence' ;;
+esac
+EOF
+  chmod +x "$root/bin/fake-make" "$cr/script/batch-precheck.sh" "$cr/script/dogfood-closeout-unwind.sh"
+  cd "$cr"
+  git init -q && git add . && git -c user.name=t -c user.email=t@e.invalid commit -qm start
+  start=$(git rev-parse HEAD)
+  export TEST_MAKE_LOG="$root/make.log"
+  : > "$TEST_MAKE_LOG"
+  closeout() { make -s dogfood-closeout MAKE="$root/bin/fake-make" HEAVY_ADMIT= && make -s dogfood-closeout-precheck MAKE="$root/bin/fake-make" HEAVY_ADMIT=; }
+  closeout > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  for line in 'phase inputs-check PASS; continuing to the precheck' 'phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal' \
+    'sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)' "DONE sealed head $(git rev-parse HEAD) has a precheck receipt"; do
+    rg -qF "dogfood-closeout: $line" "$root/output" || { cat "$root/output" >&2; exit 1; }
+  done
+  # The base-present-only line precedes the phase line that says the closeout continues.
+  awk '/only base-present; exit 0, continuing$/ { w = NR } /phase precheck PASS/ { p = NR } END { exit !(w && p == w + 1) }' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  # DWC-V0-758: a sealed head whose precheck passed only with base-present failures has no receipt,
+  # and the DONE line says so.
+  (TEST_RECEIPT_RC=1 make -s dogfood-closeout-precheck HEAVY_ADMIT= > "$root/output-noreceipt" 2>&1) || { cat "$root/output-noreceipt" >&2; exit 1; }
+  rg -q '^dogfood-closeout: DONE sealed head [0-9a-f]{40} has no precheck receipt: its precheck passed only with base-present failures, named in its WARN lines$' "$root/output-noreceipt" || { cat "$root/output-noreceipt" >&2; exit 1; }
+  [[ $(git rev-list --count "$start..HEAD") == 2 ]] || exit 1
+  sealed=$(git rev-parse HEAD)
+  git reset -q --keep "$start"
+  status=0
+  (export TEST_SEALED_RC=1; closeout) > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(git rev-parse HEAD) == "$start" && -z $(git status --porcelain) ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q "^dogfood-closeout: unwind: dropped 2 bind and seal commit\(s\) [0-9a-f]{40} [0-9a-f]{40}; HEAD is $start again " "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -qF 'DONE' "$root/output" && exit 1
+  status=0
+  (export TEST_SEALED_RC=1 TEST_EXTRA_COMMIT=1; closeout) > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(git rev-list --count "$start..HEAD") == 3 ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q "^dogfood-closeout: unwind: NOT_RUN commit [0-9a-f]{40} changes other.txt, which is not a bind or seal path; HEAD stays [0-9a-f]{40} \(to unwind by hand: git reset --keep $start\)$" "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $sealed != "$start" ]] || exit 1
+) || { printf 'DWC-V0-745/746/758 closeout phase lines, DONE line and unwind: FAIL\n' >&2; exit 1; }
+# Review (DWC-V0-746): a commit made while the unwind inspects the range is never dropped: the unwind
+# refuses when HEAD moved after its inspection, naming the new head.
+(
+  ur="$root/unwind-race"
+  mkdir -p "$ur/script" "$root/racebin"
+  /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$ur/script/"
+  cd "$ur"
+  git init -q && printf 'a\n' > a.txt && git add a.txt && git -c user.name=t -c user.email=t@e.invalid commit -qm start
+  start=$(git rev-parse HEAD)
+  mkdir -p .corvint && printf '{}\n' > .corvint/change.cem.json && git add .corvint/change.cem.json
+  git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: bind change evidence'
+  real_git=$(type -P git)
+  printf '#!/usr/bin/env bash\nif [[ ${1-} == diff-tree && ! -e %q ]]; then : > %q; printf "b\\n" > b.txt; %q add b.txt; %q -c user.name=t -c user.email=t@e.invalid commit -qm racing; fi\nexec %q "$@"\n' \
+    "$root/raced" "$root/raced" "$real_git" "$real_git" "$real_git" > "$root/racebin/git"
+  chmod +x "$root/racebin/git"
+  PATH="$root/racebin:$PATH" script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  rg -q 'unwind: NOT_RUN HEAD moved to [0-9a-f]{40} while the bind and seal commits were inspected' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git log -1 --format=%s) == racing ]] || { git log --oneline >&2; exit 1; }
+) || { printf 'DWC-V0-746 unwind refuses a moved HEAD: FAIL\n' >&2; exit 1; }
+# Review (DWC-V0-746): the unwind reads paths NUL-delimited, so a sealed CEM whose name Git would
+# display quoted (a space, a non-ASCII byte) is still a seal path and is dropped; an empty commit and
+# a merge commit in the range are never dropped.
+(
+  zr="$root/unwind-paths"
+  mkdir -p "$zr/script"
+  /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$zr/script/"
+  cd "$zr"
+  commit() { git -c user.name=t -c user.email=t@e.invalid commit -q "$@"; }
+  git init -q && printf 'a\n' > a.txt && git add a.txt && commit -m start
+  start=$(git rev-parse HEAD)
+  mkdir -p .corvint/changes && printf '{}\n' > ".corvint/changes/s \303\251.cem.json"
+  git add .corvint/changes && commit -m 'chore: seal change evidence'
+  script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  [[ $(git rev-parse HEAD) == "$start" ]] || { cat "$root/output" >&2; exit 1; }
+  commit --allow-empty -m 'not a bind'
+  script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  rg -q 'unwind: NOT_RUN commit [0-9a-f]{40} changes no path, so it is not a bind or seal commit' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git rev-list --count "$start..HEAD") == 1 ]] || exit 1
+  git reset -q --keep "$start"
+  git checkout -q -b side && mkdir -p .corvint && printf '{}\n' > .corvint/change.cem.json && git add .corvint/change.cem.json && commit -m bind
+  git checkout -q - && commit --allow-empty -m other && git -c user.name=t -c user.email=t@e.invalid merge -q --no-ff --no-edit side
+  script/dogfood-closeout-unwind.sh "$start" > "$root/output" 2>&1 || exit 1
+  rg -q 'unwind: NOT_RUN the range holds a merge commit' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git rev-list --count --merges "$start..HEAD") == 1 ]] || exit 1
+) || { printf 'DWC-V0-746 unwind path and commit-shape refusals: FAIL\n' >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.
@@ -377,6 +490,14 @@ head=$(git rev-parse HEAD)
 : > "$TEST_FLOW_LOG"
 PATH="$stamp_bin:$PATH" TEST_STAMP_REV=$head TEST_STAMP_MODIFIED=false CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; fail "$LINENO"; }
 rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || fail "$LINENO"
+# DWC-V0-755: the wrapper names its own phases in one TIMING line before the hand-over; a Bash
+# without EPOCHREALTIME prints none.
+if [[ -n ${EPOCHREALTIME-} ]] && bash -c '[[ -n ${EPOCHREALTIME-} ]]'; then
+  [[ $(rg -c ': TIMING wrapper ' "$root/output") == 1 ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q ': TIMING wrapper seconds=[0-9]+\.[0-9]{2} inputs=[0-9]+\.[0-9]{2} verify-syntax=[0-9]+\.[0-9]{2} .*setup=[0-9]+\.[0-9]{2}' "$root/output" || { cat "$root/output" >&2; exit 1; }
+else
+  ! rg -q 'TIMING wrapper' "$root/output" || { cat "$root/output" >&2; exit 1; }
+fi
 for stamp in "$base:false" "$head:true"; do
   status=0
   PATH="$stamp_bin:$PATH" TEST_STAMP_REV=${stamp%:*} TEST_STAMP_MODIFIED=${stamp#*:} CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
@@ -402,6 +523,36 @@ rmdir internal/dogfoodflow internal
 : > "$TEST_FLOW_LOG"
 CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; fail "$LINENO"; }
 rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || fail "$LINENO"
+# ASD-V0-3720 (V1-3257): the tooling set holds internal/dogfoodflow's Go import closure, so a change
+# only in a dependency it imports (internal/trace) refuses the override; an unimported package does not.
+# The fake go above refuses go list, so these runs pass go list alone to the host's real go.
+real_go=$(PATH=${PATH#"$root/bin:"} command -v go) || { echo 'dogfood-cache_test.sh: no go on PATH for ASD-V0-3720' >&2; exit 1; }
+mkdir -p "$root/closure-bin"
+printf '#!/bin/sh\n[ "$1" = list ] && exec %q "$@"\nexec %q "$@"\n' "$real_go" "$root/bin/go" > "$root/closure-bin/go"
+chmod +x "$root/closure-bin/go"
+closure_path="$root/closure-bin:$PATH"
+mkdir -p internal/dogfoodflow internal/trace internal/other
+printf 'module example.test/tooling\n\ngo 1.21\n' > go.mod
+printf 'package dogfoodflow\n\nimport _ "example.test/tooling/internal/trace"\n' > internal/dogfoodflow/flow.go
+printf 'package trace\n' > internal/trace/trace.go
+printf 'package other\n' > internal/other/other.go
+git add go.mod internal
+git -c user.name=test -c user.email=test@example.invalid commit -qm closure
+closure_base=$(git rev-parse HEAD)
+printf 'package other\n\nconst X = 1\n' > internal/other/other.go
+git add internal/other/other.go
+: > "$TEST_FLOW_LOG"
+PATH=$closure_path CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$closure_base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || fail "$LINENO"
+printf 'package trace\n\nconst X = 1\n' > internal/trace/trace.go
+git add internal/trace/trace.go
+status=0
+PATH=$closure_path CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$closure_base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 ]] || { cat "$root/output" >&2; exit 1; }
+rg -qF "REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=$TEST_FAKE_CORVINT changed=internal/trace/trace.go (1 paths)" "$root/output" || { cat "$root/output" >&2; exit 1; }
+git reset -q --soft HEAD^
+git rm -q -r --cached go.mod internal
+/bin/rm -rf go.mod internal
 # DCW-V0-151 (V1-1442): an interrupt during either finish build names the step and the empty
 # NOT_PRODUCED block, exits 128 plus the signal and never reaches finish-lane. set -m gives the
 # wrapper its own process group, so the signal never reaches this test.
@@ -469,6 +620,52 @@ done
   git rm -q --cached scope_test.go && /bin/rm -f scope_test.go script/check-requirement-definitions.sh
   rmdir tools/test-read-scopes-check tools
 ) || { printf 'DCW-V0-815 inputs-check static doc checks: FAIL\n' >&2; fail "$LINENO"; }
+# DWC-V0-757 (V1-4197): static checks that passed on a clean worktree are skipped, saying so, by the
+# next run with the same tree, BASE and Go toolchain; a dirty worktree runs them again.
+(
+  cd "$root/repo" || exit 1
+  inputs=(BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed)
+  export TEST_STATIC_LOG="$root/static.log" TEST_FAKE_GO="$root/bin/go"
+  : > "$TEST_STATIC_LOG"
+  printf '#!/bin/sh\necho ran >> "$TEST_STATIC_LOG"\nexit 0\n' > script/check-requirement-definitions.sh
+  chmod +x script/check-requirement-definitions.sh
+  git add -A && git -c user.name=test -c user.email=test@example.invalid commit -qm static || exit 1
+  mkdir -p "$root/envbin"
+  cat > "$root/envbin/go" <<'EOF'
+#!/usr/bin/env bash
+if [[ ${1-} == env && ${2-} == GOVERSION ]]; then printf 'go1.27.3\nlinux\namd64\n\n0\n'; exit 0; fi
+if [[ ${1-} == run && ${2-} == ./tools/verify-syntax-check ]]; then printf '%s\n' "${!#}" >> "$TEST_VERIFY_LOG"; exit 0; fi
+exec "$TEST_FAKE_GO" "$@"
+EOF
+  chmod +x "$root/envbin/go"
+  # The untracked bind sidecar a dogfood change leaves is not an input of the checks.
+  mkdir -p .corvint && printf '{}\n' > .corvint/change.cem.json
+  for run in first second; do
+    PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  done
+  [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 1 ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q '^dogfood-inputs-check: static checks REUSE: they passed for this clean tree [0-9a-f]+ at BASE [0-9a-f]{12} \(DWC-V0-757\)$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  printf 'x\n' > untracked-input
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 2 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  /bin/rm -f untracked-input
+  # Review: a git status that fails with no output gives no key, so an existing stamp is not reused.
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  mkdir -p "$root/gitbin"
+  printf '#!/usr/bin/env bash\nfor a in "$@"; do [[ $a == status ]] && exit 128; done\nexec %q "$@"\n' "$(type -P git)" > "$root/gitbin/git"
+  chmod +x "$root/gitbin/git"
+  PATH="$root/gitbin:$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 3 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  # Review: a relative VERIFY given from another directory reaches the early check as the caller's
+  # file, not as a path under the repository.
+  export TEST_VERIFY_LOG="$root/verify.log"
+  mkdir -p tools/verify-syntax-check "$root/caller/rel" && : > tools/verify-syntax-check/main.go && : > "$TEST_VERIFY_LOG"
+  printf 'go version\n' > "$root/caller/rel/verify.txt"
+  (cd "$root/caller" && PATH="$root/envbin:$PATH" DOGFOOD_FINISH_PREFLIGHT=1 bash "$root/repo/script/dogfood-finish.sh" "$base" "$root/closeout-cites.tsv" "$root/closeout-cites.tsv" rel/verify.txt passed) > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(cat "$TEST_VERIFY_LOG") == "$root/caller/rel/verify.txt" ]] || { cat "$TEST_VERIFY_LOG" "$root/output" >&2; exit 1; }
+  /bin/rm -rf tools/verify-syntax-check .corvint/change.cem.json
+) || { printf 'DWC-V0-757 static check reuse: FAIL\n' >&2; exit 1; }
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'
 
 # CSD-V0-7512: assertions retain the first real error instead of a bare Error 1.

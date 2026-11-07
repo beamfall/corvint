@@ -318,3 +318,28 @@ func testOmittedJSON(t *testing.T, r Result) string {
 	}
 	return string(doc["testOmitted"])
 }
+
+// TestReplayJobsScaleToTheHost_ASCV0777 pins the worker default: a third of the CPUs, at least
+// one, at most 8 and at most the change count, with a positive SELECTION_BASELINE_JOBS winning.
+func TestReplayJobsScaleToTheHost_ASCV0777(t *testing.T) {
+	for _, tc := range []struct {
+		n, cpus  int
+		override string
+		want     int
+	}{
+		{26, 1, "", 1},
+		{26, 4, "", 4},
+		{26, 12, "", 4},
+		{26, 32, "", 8},
+		{26, 64, "", 8},
+		{3, 32, "", 3},
+		{26, 32, "2", 2},
+		{26, 4, "16", 16},
+		{26, 32, "0", 8},
+		{26, 32, "x", 8},
+	} {
+		if got := defaultReplayJobs(tc.n, tc.cpus, tc.override); got != tc.want {
+			t.Errorf("defaultReplayJobs(%d, %d, %q) = %d, want %d", tc.n, tc.cpus, tc.override, got, tc.want)
+		}
+	}
+}

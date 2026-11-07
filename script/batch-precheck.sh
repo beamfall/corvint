@@ -1447,7 +1447,20 @@ since_receipt() {
 since_base=
 ((static_only)) || [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-((static_only)) || /bin/rm -f "$receipt" "$receipt.lane"
+# ASC-V0-775 (V1-4239): a well-formed passing receipt that names a strict ancestor of HEAD stays,
+# with its `.lane` mark. It states only that that commit passed every step, which no run at a later
+# commit changes, and the sealed-head precheck of a reseal selects against it (ASD-V0-943). Any
+# other receipt, one naming HEAD included, is removed before the steps run (ASD-V0-035), and a
+# passing full run replaces it. A --static run leaves the receipt alone.
+if ((!static_only)); then
+  kept=$(awk '$1 == "head" { print $2 }' "$receipt" 2> /dev/null) || kept=
+  if [[ -n $kept && $kept != "$(git rev-parse HEAD)" ]] && verify_receipt "$kept" > /dev/null 2>&1 &&
+    git merge-base --is-ancestor "$kept" HEAD 2> /dev/null; then
+    printf 'batch-precheck: kept the passing receipt for ancestor %s, so a later sealed-head run can select against it (ASC-V0-775)\n' "$(git rev-parse --short "$kept")"
+  else
+    /bin/rm -f "$receipt" "$receipt.lane"
+  fi
+fi
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
@@ -1599,9 +1612,12 @@ run_one() {
       'gofmt '*) lname=go-format-check ;;
       *) lname=batch-precheck ;;
     esac
-    salt=$({ printf '%s\n%s\n' "$name" "$cmd"; env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; } | git hash-object --stdin) || salt=
+    # GL-V0-786 (V1-4194): the salt batch-precheck hashed for every step at once, else this one.
+    salt=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/salts" 2> /dev/null)
+    [[ -n $salt ]] || salt=$(salt_input "$name" "$cmd" | git hash-object --stdin) || salt=
     if [[ -n $salt ]]; then
-      "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
+      # ASC-V0-776 (V1-4242): the step name rides beside the record as its label, never in its key.
+      GATE_LEDGER_LABEL=$name "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
       rc=$?
       [[ $rc == 0 ]] && grep -q '^gate-ledger: HIT ' "$log" && reused=reuse
     else
@@ -1652,6 +1668,38 @@ else
 fi
 steps > "$dir/steps"
 n=$(wc -l < "$dir/steps" | tr -d ' ')
+# salt_input NAME CMD prints what a ledger step's salt hashes: its name, its command and every GO*,
+# CGO_* and CORVINT_* variable (ASD-V0-042).
+salt_input() {
+  { printf '%s\n%s\n' "$1" "$2"; env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; }
+}
+export -f salt_input
+# GL-V0-786 (V1-4194): with reuse on, the steps share one worktree digest (GATE_LEDGER_SHARED_DIGEST,
+# outside the salted prefixes) and one `git hash-object` call for every salt, instead of a
+# private-index digest of 8 git calls and a hash-object per step. The first salt is checked against
+# the per-step form; a mismatch or a failed batch leaves each step to hash its own.
+# BATCH_PRECHECK_SHARED_DIGEST=off keeps the per-step digest and salt (same keys, more git calls).
+# A step on the shared digest re-digests just before it runs and after it passes, and records nothing
+# unless its key from both digests is its shared-tree key; its pass is staged in
+# $dir/ledger-digest.json.stage, which no lookup reads, until verify_shared below finds the tree
+# unchanged and promotes it. cleanup removes $dir on EXIT, HUP, INT and TERM, so an interrupted run
+# discards every unverified pass, and a run killed outright leaves them unread.
+if [[ -n $ledger && ${BATCH_PRECHECK_SHARED_DIGEST:-} != off ]]; then
+  if "$ledger" digest "$dir/ledger-digest.json" > "$dir/ledger-digest.log" 2>&1 < /dev/null; then
+    export GATE_LEDGER_SHARED_DIGEST=$dir/ledger-digest.json
+  else
+    printf 'batch-precheck: shared ledger digest unavailable (%s); each step digests the worktree\n' "$(tail -n 1 "$dir/ledger-digest.log")"
+  fi
+  for ((i = 1; i <= n; i++)); do
+    line=$(sed -n "${i}p" "$dir/steps")
+    salt_input "${line%%$'\t'*}" "${line#*$'\t'}" > "$dir/salt.$i"
+    printf '%s\n' "$dir/salt.$i"
+  done > "$dir/salt-paths"
+  if ! git hash-object --no-filters --stdin-paths < "$dir/salt-paths" > "$dir/salts" 2> /dev/null ||
+    [[ $(wc -l < "$dir/salts" | tr -d ' ') != "$n" || $(sed -n 1p "$dir/salts") != $(git hash-object --stdin < "$dir/salt.1") ]]; then
+    : > "$dir/salts"
+  fi
+fi
 # ASD-V0-047 (V1-3142): a SERIAL_TARGETS step runs alone after the parallel ones, so its timing
 # bounds never compete with this run's own go test steps; its rerun (ASD-V0-046) is alone too.
 parallel=() serial=()
@@ -1661,6 +1709,20 @@ for ((i = 1; i <= n; i++)); do
 done
 ((${#parallel[@]})) && printf '%s\n' "${parallel[@]}" | xargs -P "$jobs" -n 1 bash -c 'run_one "$1"' _
 for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
+# GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest, and
+# the run fails: a step may have reused, or recorded, a pass for content it did not read. A verify
+# that cannot run fails the same way, and promotes nothing.
+# verify_shared checks the tree against the shared digest again; it runs after the steps and after
+# every retry attempt below, since a retried step can edit an input and then pass. An unchanged tree
+# promotes the passes staged so far into the ledger; a moved one discards them and removes those an
+# earlier verify of this run promoted.
+ledger_moved=0
+verify_shared() {
+  [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]] || return 0
+  "$ledger" digest --verify "$GATE_LEDGER_SHARED_DIGEST" > "$dir/ledger-verify.log" 2>&1 < /dev/null || ledger_moved=1
+  sed 's/^gate-ledger: /batch-precheck: ledger /' "$dir/ledger-verify.log"
+}
+verify_shared
 
 # failing_tests LOG prints the go test and subtest names (`--- FAIL: NAME`) and node/TAP `not ok`
 # names a step log reports, comma-separated, at most 20, or nothing.
@@ -1694,6 +1756,8 @@ for ((i = 1; i <= n; i++)); do
   bash -c "${line#*$'\t'}" > "$dir/$i.log" 2>&1 < /dev/null
   rerc=$?
   resecs=$((SECONDS - t0))
+  # GL-V0-786: a retry that edited the tree fails the run below, whatever the retry returned.
+  verify_shared
   if [[ $rerc == 0 ]]; then
     flaky=$((flaky + 1))
     flakes+=("$name")
@@ -1786,6 +1850,10 @@ printf 'batch-precheck: %d passed, %d failed%s in %ss wall, %ss summed\n' "$pass
 if ((warn)); then
   printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]-}")"
 fi
+if ((ledger_moved)); then
+  printf 'batch-precheck: FAIL the worktree changed during the run, so no step result above holds for one tree; the passes staged under the shared digest were discarded and any already promoted removed; rerun on a tree nothing edits (GL-V0-786)\n'
+  exit 1
+fi
 if ((fail)); then
   if ((repin_rc)); then
     printf 'batch-precheck: FAIL repin (mechanical) output:\n'
@@ -1807,7 +1875,8 @@ if ((fail)); then
   exit 1
 fi
 if ((warn)); then
-  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
+  # DWC-V0-745 (V1-3837): the run still exits 0, so the line says a caller continues.
+  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present; exit 0, continuing\n' "$warn"
 elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
   printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps the bind can reach\n'
   # ICL-V0-021: the passed pre-bind entries, bound to this head, for the precheck of the sealed head.

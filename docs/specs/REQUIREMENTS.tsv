@@ -2160,6 +2160,12 @@ CRB-V0-017	docs/specs/corvint-rebrand-v0.md	Current companion writers MUST emit 
 CRB-V0-018	docs/specs/corvint-rebrand-v0.md	Runtime settings are read from exactly `CORVINT_CPUPROFILE`,	unrecorded	-
 CRB-V0-019	docs/specs/corvint-rebrand-v0.md	(writer selection superseded by `CRB-V0-020` on 2026-10-18; `/2` stays a closed	unrecorded	-
 CRB-V0-020	docs/specs/corvint-rebrand-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1809; GitHub	standing	2026-10-11; V1-1809
+ASC-V0-775	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4239, V1-3475;	standing	2026-11-01; V1-4239; V1-3475
+ASC-V0-776	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4242; refines	standing	2026-11-01; V1-4242
+ASC-V0-777	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166; amends `	standing	2026-11-01; V1-4166
+ASC-V0-778	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166, V1-3580)	standing	2026-11-01; V1-4166; V1-3580
+ASC-V0-779	docs/specs/corvint-self-development-gates-v0.md	(superseded 2026-11-06 at the mbrescue merge; was experimental under the standin	standing	2026-11-06; 2026-11-01; V1-3615
+ASD-V0-3720	docs/specs/corvint-self-development-gates-v0.md	(moved here from `corvint-self-development-v0.md` at the mbrescue merge, 2026-11	standing	2026-11-06; 2026-11-01; V1-3257
 ASD-V0-2400	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3968 heavy.sh	standing	2026-11-03; V1-3968
 ASD-V0-2401	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4358 heavy.sh	standing	2026-11-03; V1-4358
 ASD-V0-2402	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3804 a first b	standing	2026-11-03; V1-3804
@@ -2873,6 +2879,7 @@ ATR-V0-351	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-352	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2694) The	standing	2026-10-11; V1-2694
 ATR-V0-353	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2694) The	standing	2026-10-11; V1-2694
 ATR-V0-354	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2694) The	standing	2026-10-11; V1-2694
+ATR-V0-532	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-1493) The	standing	2026-10-11; V1-1493
 TBS-V1-451	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-452	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-453	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
@@ -2883,6 +2890,7 @@ TBS-V1-457	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under th
 TBS-V1-458	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-459	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-460	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
+TBS-V1-532	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3462)	standing	2026-10-11; V1-3462
 TCL-V0-7205	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3903) A valid	standing	2026-10-11; V1-3903
 TCL-V0-7206	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3942) complete	standing	2026-10-11; V1-3942
 TCL-V0-7207	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3963) ticket s	standing	2026-10-11; V1-3963
@@ -3585,6 +3593,8 @@ TRM-V0-801	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(propose
 TRM-V0-802	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) The `PAUSED` refusal of a named claim, and the widen remedy	unrecorded	-
 TRM-V0-803	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-0232) A release attestation (`taskman-release-attestation/0`) MAY	unrecorded	-
 TRM-V0-804	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-0232) Readiness (`release show`) and `release promote` MUST NOT	unrecorded	-
+TRM-V0-532	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-4164) One	standing	2026-10-11; V1-4164
+TRM-V0-533	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-3560) A l	standing	2026-10-11; V1-3560
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -3620,6 +3630,7 @@ CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-024	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-	standing	2026-10-11; V1-2400
 CTS-V0-025	docs/specs/corvint-tasks-store-init-v0.md	(proposed 2026-10-24, V1-2523, not accepted) On every GOOS but darwin and linux	unrecorded	-
 CTS-V0-026	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-10-24 under the owner's standing lane auto-accept (2026-10-11),	standing	2026-10-24; 2026-10-11
+CTS-V0-532	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-3558)	standing	2026-10-11; V1-3558
 CTS-V0-800	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-10-31 under the owner's standing lane auto-accept (2026-10-11),	standing	2026-10-31; 2026-10-11
 CTS-V0-870	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3278)	standing	2026-10-11; V1-3278
 CTS-V0-871	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3263)	standing	2026-10-11; V1-3263
@@ -3731,6 +3742,33 @@ DWC-V0-7500	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted 
 DWC-V0-001	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines	standing	2026-11-02; V1-1467
 DWC-V0-002	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-1467)	standing	2026-11-02; V1-1467
 DWC-V0-003	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends	standing	2026-11-02; V1-4318
+DWC-V0-745	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3837; refines	standing	2026-11-01; V1-3837
+DWC-V0-746	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4072; refines	standing	2026-11-01; V1-4072
+DWC-V0-747	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3334; refines	standing	2026-11-01; V1-3334
+DWC-V0-748	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4091; refines	standing	2026-11-01; V1-4091
+DWC-V0-749	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3955; refines	standing	2026-11-01; V1-3955
+DWC-V0-751	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3854) The	standing	2026-11-01; V1-3854
+DWC-V0-752	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2360; refines	standing	2026-11-01; V1-2360
+DWC-V0-753	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; repository-owner	standing	2026-11-01
+DWC-V0-754	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; repository-owner	standing	2026-11-01
+DWC-V0-755	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines	standing	2026-11-01; V1-4197
+DWC-V0-756	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines	standing	2026-11-01; V1-4197
+DWC-V0-757	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines	standing	2026-11-01; V1-4197
+DWC-V0-758	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends	standing	2026-11-01; V1-3850
+DWC-V0-759	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4238; refines	standing	2026-11-01; V1-4238
+DWC-V0-3720	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4131; refines	standing	2026-11-01; V1-4131
+DWC-V0-3721	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4106; refines	standing	2026-11-01; V1-4106
+DWC-V0-3722	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4105; refines	standing	2026-11-01; V1-4105
+DWC-V0-3723	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2372; decision	standing	2026-11-01; V1-2372
+DWC-V0-3724	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4115; refines	standing	2026-11-01; V1-4115
+DWC-V0-3725	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4163) In a rep	standing	2026-11-01; V1-4163
+DWC-V0-3726	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4169; refines	standing	2026-11-01; V1-4169
+DWC-V0-3727	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4108) A passin	standing	2026-11-01; V1-4108
+DWC-V0-3728	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3683; records	standing	2026-11-01; V1-3683
+DWC-V0-3729	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-0683) When `lo	standing	2026-11-01; V1-0683
+DWC-V0-3730	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3261) A non-em	standing	2026-11-01; V1-3261
+DWC-V0-3731	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2275; refines	standing	2026-11-01; V1-2275
+DWC-V0-3732	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4095; refines	standing	2026-11-01; V1-4095
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -4930,6 +4968,12 @@ GL-V0-912	docs/specs/gate-ledger-v0.md	(experimental under the standing lane aut
 GL-V0-913	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune	standing	2026-11-01; V1-4241
 GL-V0-914	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-9	standing	2026-11-01; V1-4241
 GL-V0-787	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run	standing	2026-11-01; V1-4188
+GL-V0-775	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4160; refines	standing	2026-11-01; V1-4160
+GL-V0-776	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4160) The	standing	2026-11-01; V1-4160
+GL-V0-785	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4160) Every	standing	2026-11-01; V1-4160
+GL-V0-786	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4194)	standing	2026-11-01; V1-4194
+GL-V0-3720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4193; refines	standing	2026-11-01; V1-4193
+GL-V0-788	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4193)	standing	2026-11-01; V1-4193
 GL-V0-9500	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2211)	standing	2026-10-11; V1-2211
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
