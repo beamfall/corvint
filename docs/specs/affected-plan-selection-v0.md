@@ -725,7 +725,7 @@ measure. None of them drops a unit the change can reach.
   declared caller and closes, as a site with a line already did. A site ending in a backquote
   with no space-backquote, a truncated `+N` entry, or one whose file no unit owns as a test still
   names no declared caller and stays unknown. Measured on this tree with `corvint affected
-  --worktree --path extensions/vscode/src/extension.ts`: the three live-1.61.1 Playwright specs
+  --path extensions/vscode/src/extension.ts`: the three live-1.61.1 Playwright specs
   (`internal/doccorpus/.../behavior-events/live-1.61.1/tests/items.spec.cjs` and the two
   `internal/jstestprovider/.../route-stubs/live-1.61.1*/tests/*.spec.cjs`) become selections
   (264 to 267 selected units), and their three `e2e-runtime-dependency` unknowns close (67 to 64).
