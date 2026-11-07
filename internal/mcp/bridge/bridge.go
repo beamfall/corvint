@@ -321,7 +321,7 @@ type Registry struct {
 }
 
 // New binds the default V0 registry: exactly query, impact, and status.
-func New(root string) (*Registry, *Error) {
+func New(root string) (*Registry, error) {
 	if !validRoot(root) {
 		return nil, failure("invalid-root")
 	}
@@ -346,7 +346,7 @@ func New(root string) (*Registry, *Error) {
 func newTaskReview(root string) (*Registry, *Error) {
 	registry, err := New(root)
 	if err != nil {
-		return nil, err
+		return nil, err.(*Error)
 	}
 	registry.taskReview = true
 	return registry, nil

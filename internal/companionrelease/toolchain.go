@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -99,10 +101,13 @@ func closedGoEnv(home, targetGOOSArch string) []string {
 }
 
 // goTmpDir is the GOTMPDIR an environment names, or "" when it names none.
-func goTmpDir(env []string) string {
+func goTmpDir(env []string) string { return envValue(env, "GOTMPDIR") }
+
+// envValue is the last value an environment gives name, or "" when it gives none.
+func envValue(env []string, name string) string {
 	for i := len(env) - 1; i >= 0; i-- {
-		if dir, ok := strings.CutPrefix(env[i], "GOTMPDIR="); ok {
-			return dir
+		if value, ok := strings.CutPrefix(env[i], name+"="); ok {
+			return value
 		}
 	}
 	return ""
@@ -110,10 +115,46 @@ func goTmpDir(env []string) string {
 
 // ensureGoTmp creates the GOTMPDIR an environment names, if any, since Go
 // refuses a GOTMPDIR that does not exist (PUB-V0-965). An environment
-// without one is left alone.
+// without one is left alone. For a closedGoEnv environment it also turns
+// the go command's telemetry off under the build's own home (PUB-V0-700).
 func ensureGoTmp(env []string) error {
 	if dir := goTmpDir(env); dir != "" {
-		return os.MkdirAll(dir, 0o700)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+		return quietGoTelemetry(env, dir)
+	}
+	return nil
+}
+
+// quietGoTelemetry writes telemetry mode "off" into the go command's config
+// directory under a closedGoEnv home (PUB-V0-700, V1-3823). With the default
+// mode the go command starts a detached child that writes counters there
+// after the command exits, so removing the home races it ("directory not
+// empty"); GOTELEMETRY in the environment does not change that mode. Only
+// the closedGoEnv layout (GOTMPDIR is HOME/gotmp) is touched, never a
+// caller's real home, and an existing mode file is kept.
+func quietGoTelemetry(env []string, goTmp string) error {
+	home := envValue(env, "HOME")
+	if home == "" || goTmp != home+"/gotmp" || runtime.GOOS == "windows" {
+		return nil
+	}
+	config := filepath.Join(home, ".config")
+	if runtime.GOOS == "darwin" {
+		config = filepath.Join(home, "Library", "Application Support")
+	} else if xdg := envValue(env, "XDG_CONFIG_HOME"); xdg != "" {
+		config = xdg
+	}
+	dir := filepath.Join(config, "go", "telemetry")
+	mode := filepath.Join(dir, "mode")
+	if _, err := os.Stat(mode); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("turn go telemetry off: %w", err)
+	}
+	if err := os.WriteFile(mode, []byte("off"), 0o600); err != nil {
+		return fmt.Errorf("turn go telemetry off: %w", err)
 	}
 	return nil
 }

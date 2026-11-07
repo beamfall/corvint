@@ -9,8 +9,9 @@ import (
 	"strings"
 )
 
-// anchorGrep runs the prepareAnchors read of BASE. A draft keeps its one
-// `git grep -o`. The check's unanchorable search (DCW-V0-165) reads the same
+// anchorGrep runs the prepareAnchors read of BASE. A draft reads the
+// byte-identical `git grep -o` records through onlyMatching (DWC-V0-754).
+// The check's unanchorable search (DCW-V0-165) reads the same
 // matches in two passes instead (DCW-V0-984): `git grep -l` lists the BASE
 // files that hold a pattern, one `git cat-file --batch` reads those blobs, and
 // each occurrence of a pattern prints one record in the form `git grep -z -n -o`
@@ -24,7 +25,7 @@ import (
 // failed read reports bounded false, as an oversized `-o` read did.
 func (p *proposal) anchorGrep(arguments, patterns []string) (string, int, bool) {
 	if !p.basenames {
-		return p.boundedGit(arguments...)
+		return p.onlyMatching(arguments, patterns)
 	}
 	listing := []string{}
 	for _, argument := range arguments {

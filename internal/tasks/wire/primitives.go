@@ -184,6 +184,13 @@ func ParseIdentifier(where, s string) (string, error) {
 	return parseText(where, s, 1, MaxIdentifierBytes, false, "Identifier")
 }
 
+// ParseGateArg validates one gate or attestation argv element: 1..4096
+// UTF-8 bytes under the Identifier character rules, so a long absolute path
+// such as a t.TempDir worktree is admitted (TRM-V0-532).
+func ParseGateArg(where, s string) (string, error) {
+	return parseText(where, s, 1, MaxGateArgBytes, false, "gate argv element")
+}
+
 // ParseLabel validates a label: 1..64 bytes under the identifier rules.
 func ParseLabel(where, s string) (string, error) {
 	return parseText(where, s, 1, MaxLabelBytes, false, "label")

@@ -130,6 +130,7 @@ case " $* " in
   printf '%s\n' "$input" > "`+scripts+`/implement-prompt"
   if [ -f "`+scripts+`/escape" ]; then perl -e 'use POSIX; POSIX::setsid(); sleep 5' & fi
   if [ -f "`+scripts+`/slow" ]; then sleep 3; fi
+  if [ -f "`+scripts+`/await-beat" ]; then while [ ! -f "`+scripts+`/beat" ]; do sleep 0.1; done; fi
   printf 'changed\n' > hello.txt
 `+docsEdit+`  echo '{"type":"thread.started","thread_id":"implement-session"}'
   echo '{"type":"turn.started"}'

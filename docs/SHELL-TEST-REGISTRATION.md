@@ -3,6 +3,12 @@
 A `script/*_test.sh` test is registered in three places that different checks keep in step. This
 note is the one place that lists them; the checks point here when one is missing.
 
+`make shell-test-register TEST=script/<name>_test.sh` does items 1 and 2 in one command: it adds the
+`<name>-test` rule when no recipe runs the file and inserts the target at its sorted place in both
+lists, changing nothing on a second run. Item 3 stays a reviewed edit; the command prints it as the
+next step. `make dogfood-inputs-check` prints `hint: unregistered-shell-test FILE` for a shell test
+added since BASE that is not yet registered (`ASD-V0-569`, V1-3319).
+
 1. **A `Makefile` target and a `GATE_STEPS` entry.** Add `<name>-test:` with a recipe that runs
    `@script/<name>_test.sh`, and add `<name>-test` as its own line, ending in ` \`, at its sorted place
    in the `GATE_STEPS = \` list (after the fixed first five steps; `STR-V0-920`).

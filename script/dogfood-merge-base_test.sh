@@ -116,15 +116,18 @@ for target in dogfood-check dogfood-closeout-precheck; do
   ((status != 0)) && [[ ! -e $root/ran ]] && grep -q '^dogfood-merge-base: REFUSE no-merge-forward$' "$root/err" &&
     grep -q 'BASE=merge-forward refused' "$root/err" || fail "$LINENO"
 done
-# An omitted or explicit BASE keeps its meaning.
+# An omitted or explicit BASE keeps its meaning. After each passing dogfood-closeout-precheck, its
+# DONE line asks batch-precheck.sh whether the sealed head has a receipt (DWC-V0-758).
 probe -f "$root/probe.mk" dogfood-check > /dev/null
 probe -f "$root/probe.mk" dogfood-closeout-precheck > /dev/null
 probe -f "$root/probe.mk" dogfood-check BASE="$main" > /dev/null
 probe -f "$root/probe.mk" dogfood-closeout-precheck BASE="$main" > /dev/null
 [[ $(cat "$root/ran") == "dogfood-check.sh --bound-base base=
 batch-precheck.sh  base=
+batch-precheck.sh --verify-receipt HEAD base=
 dogfood-check.sh $main base=
-batch-precheck.sh --base $main base=" ]] || fail "$LINENO"
+batch-precheck.sh --base $main base=
+batch-precheck.sh --verify-receipt HEAD base=" ]] || fail "$LINENO"
 # dogfood-closeout hands its spec checks the derived SHA, not the word merge-forward. Its sub-make
 # reads the makefile of the working directory, so the probe is a GNUmakefile there.
 git checkout -q --detach "$merge"

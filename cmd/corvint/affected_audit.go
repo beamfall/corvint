@@ -251,6 +251,13 @@ func affectedAuditExitCode(report affectedAuditReport) int {
 	return 0
 }
 
+// affectedTempUnavailable names the temporary directory affected could not
+// write and how to choose another (AFP-V0-920, V1-3912).
+func affectedTempUnavailable(err error) error {
+	return &gokernel.Error{Code: "temp-unavailable", Message: fmt.Sprintf(
+		"cannot create a scratch directory under %s (%v); set TMPDIR to a writable directory with free space", os.TempDir(), err)}
+}
+
 func affectedAuditError(format string, arguments ...any) error {
 	return &gokernel.Error{Code: "unsupported-affected-audit", Message: fmt.Sprintf(format, arguments...)}
 }
@@ -456,7 +463,7 @@ func auditAffectedChange(ctx context.Context, gitExecutable, root, directory str
 	}
 	temporary, err := os.MkdirTemp("", "corvint-affected-audit-")
 	if err != nil {
-		return affectedAuditChange{}, affectedAuditError("cannot create a scratch clone: %v", err)
+		return affectedAuditChange{}, affectedTempUnavailable(err)
 	}
 	defer os.RemoveAll(temporary)
 	clone, head, err := materializeAffectedAuditChange(ctx, gitExecutable, root, temporary, change, patch)
