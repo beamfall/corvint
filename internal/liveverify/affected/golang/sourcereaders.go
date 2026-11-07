@@ -55,7 +55,8 @@ var testdataReaders = map[string]bool{"ReadFile": true, "Open": true, "ReadDir":
 // shadowed import of a file-reading package; a reference to a file reader
 // other than a call that reads a literal path below the package's own
 // testdata directory; a `//go:embed` or `//go:linkname` line; a ParseFiles
-// or ParseGlob method; an os/exec call that is not a `go list` call; and, in
+// or ParseGlob method; a function declared without a body (implemented in
+// assembly); an os/exec call that is not a `go list` call; and, in
 // a file that imports os/exec, an assignment to a Path or Args field, which
 // can turn a proven call into another command.
 func observesSource(relative string, body []byte) bool {
@@ -112,6 +113,13 @@ func observesSource(relative string, body []byte) bool {
 		}
 		return true
 	})
+	for _, declaration := range file.Decls {
+		// A function without a body is implemented in assembly, which
+		// may make any system call.
+		if function, ok := declaration.(*ast.FuncDecl); ok && function.Body == nil {
+			return true
+		}
+	}
 	allowed := map[*ast.SelectorExpr]bool{}
 	observes := false
 	ast.Inspect(file, func(node ast.Node) bool {
