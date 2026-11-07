@@ -741,7 +741,7 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string, fed bo
 	words = words[1:]
 	offset++
 	into := s.scan.paths
-	buildOnly := driverGoBuildOnlyCommands[command] && s.feeds == 0
+	buildOnly := driverGoBuildOnlyCommands[command] && s.feeds == 0 && (command != "list" || driverListPathOutput(words))
 	if buildOnly {
 		into = s.scan.buildPaths
 	}
@@ -1019,4 +1019,40 @@ func driverPathTokens(text string) []string {
 	}
 	emit(len(text))
 	return tokens
+}
+
+// driverListPathOutput certifies the closed set of listing formats this
+// scanner understands as path data. Arbitrary templates can print programs
+// consumed later from a file without any pipe or expansion (AFP-V0-2956).
+func driverListPathOutput(words []driverWord) bool {
+	for index := 0; index < len(words); index++ {
+		arg := words[index].text
+		if arg == "-args" || arg == "--" {
+			break
+		}
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
+		flag, value, inline := strings.Cut(strings.TrimPrefix(arg, "-"), "=")
+		flag = strings.TrimPrefix(flag, "-")
+		switch flag {
+		case "f", "C", "tags", "mod", "modfile", "overlay", "compiler", "gcflags", "asmflags", "ldflags", "pkgdir":
+			if !inline {
+				index++
+				if index == len(words) {
+					return false
+				}
+				value = words[index].text
+			}
+			if flag == "f" && value != "{{.Dir}}" && value != "{{.ImportPath}}" {
+				return false
+			}
+		case "e", "deps", "test", "find", "race", "msan", "asan", "trimpath", "modcacherw", "buildvcs":
+			// These known switches do not replace the path output format.
+		default:
+			// New options and output encodings are not certified implicitly.
+			return false
+		}
+	}
+	return true
 }
