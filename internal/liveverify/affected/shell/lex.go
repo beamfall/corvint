@@ -1,6 +1,9 @@
 package shell
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // command is one simple command: its raw words, quoting kept, with a
 // redirection operator kept as the redirect marker before its target.
@@ -252,8 +255,9 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		}
 		// Inside [[ ]], `|`, `&`, `<` and `>` belong to the conditional
 		// expression (a `=~` regex, a `||` or `&&` between tests), not to the
-		// command list, whether the test opens the command or follows `if`,
-		// `while` or `!` in it (openTest).
+		// command list, whether the test opens the command or follows a
+		// control word such as `if`, `while` or `!` in it; a `[[` that is an
+		// argument opens no test (openTest, AFP-V0-3145).
 		if openTest(words) && strings.IndexByte("()|&<>", c) >= 0 {
 			begin()
 			l.pos++
@@ -576,16 +580,24 @@ func (l *lexer) substitutions(text string, inFunction bool) {
 	}
 }
 
-// openTest reports words that hold a `[[` with no `]]` after it: the lexer is
-// inside a conditional expression.
+// openTest reports words that open a conditional expression the lexer is
+// still inside: their first word that is not a testLeaders control word is
+// `[[`, in command position, and no `]]` follows it (AFP-V0-3145). A `[[`
+// that is an argument (`echo [[ marker`) opens nothing, so the `&&`, `||`,
+// `|` or `;` after it still ends the command.
 func openTest(words []string) bool {
-	for index := len(words) - 1; index >= 0; index-- {
-		switch words[index] {
-		case "]]":
-			return false
-		case "[[":
-			return true
-		}
+	at := 0
+	for at < len(words) && testLeaders[words[at]] {
+		at++
 	}
-	return false
+	return at < len(words) && words[at] == "[[" && !slices.Contains(words[at+1:], "]]")
+}
+
+// testLeaders are the reserved words after which a command, and so a `[[`,
+// may start within the words the lexer has gathered for one command: a
+// separator (`;`, `&&`, `||`, `|`, a newline), a `{`, a `(`, a case arm's `)`
+// or a command substitution already starts a new word list (AFP-V0-3145).
+var testLeaders = map[string]bool{
+	"if": true, "while": true, "until": true, "!": true, "time": true,
+	"then": true, "do": true, "else": true, "elif": true,
 }
