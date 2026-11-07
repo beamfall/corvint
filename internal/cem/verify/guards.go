@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -295,7 +296,7 @@ type goDecl struct {
 	selectorRefs map[string]bool // receiver fields/methods live outside the package namespace
 	method       bool
 	external     bool
-	initEffect   bool // runs at package initialization: an init func or a var initializer with a call or blank name
+	initEffect   bool // runs before the tests: an init func, a test file's TestMain, or a var initializer with a call or blank name
 	start, end   int64
 	test         bool // a func TestX(t *testing.T) declared in a _test.go file and at the base
 }
@@ -382,7 +383,9 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 		case *ast.FuncDecl:
 			d.names = []string{decl.Name.Name}
 			d.method = decl.Recv != nil
-			d.initEffect = decl.Recv == nil && decl.Name.Name == "init"
+			// TestMain runs before every test of the binary, so whatever it
+			// registers behind a foreign selector reaches them all.
+			d.initEffect = decl.Recv == nil && (decl.Name.Name == "init" || isTest && decl.Name.Name == "TestMain")
 			d.test = isTest && goTestDecl(decl)
 		case *ast.GenDecl:
 			if decl.Tok == token.IMPORT {
@@ -485,15 +488,16 @@ func (p *goPackage) grow(seed map[string]bool) map[string]bool {
 }
 
 // testsMentioning names, sorted, the base tests of the package that mention
-// one of reached. When reached feeds package initialization (an init func or a
-// var initializer that can have side effects), the initialization can register
-// a reached name behind a foreign selector such as `flag.Usage = Usage`, so
-// every base test of the package stays a candidate (TCQ-V0-7408).
+// one of reached. When reached feeds code that runs before the tests (an init
+// func, a test file's TestMain, or a var initializer that can have side
+// effects), that code can register a reached name behind a foreign selector
+// such as `flag.Usage = Usage`, so every base test of the package stays a
+// candidate (TCQ-V0-7408). A missed guard is worse than an extra revert run.
 func (p *goPackage) testsMentioning(reached map[string]bool) []string {
 	methods := p.methodNames()
 	initialized := false
 	for _, d := range p.decls {
-		if d.initEffect && !d.test && d.mentions(reached, methods) {
+		if d.initEffect && !d.test && (d.mentions(reached, methods) || slices.ContainsFunc(d.names, func(name string) bool { return reached[name] })) {
 			initialized = true
 			break
 		}
