@@ -238,7 +238,7 @@ func walkedDirectory(directory string) bool {
 		return true
 	}
 	for _, name := range strings.Split(directory, "/") {
-		if strings.HasPrefix(name, ".") || (affected.SkippedDirectories[name] && !slices.Contains(includedDirectories, name)) {
+		if name == ".git" || name == ".hg" || name == ".svn" || affected.SkippedDirectories[name] && !strings.HasPrefix(name, ".") && !slices.Contains(includedDirectories, name) {
 			return false
 		}
 	}

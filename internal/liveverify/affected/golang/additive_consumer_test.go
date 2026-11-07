@@ -97,12 +97,15 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 
 	lines := gateselect.SelectStructural(receipt, module, root)
 	selected := consumerRun(t, lines)
-	for _, want := range []string{"core", "ref", "alias", "reader", "enum"} {
+	// named's lone "INDEX.json" is a plan reader of docs/specs/INDEX.json
+	// since AFP-V0-2203 round 8 dropped Go placement: its root may be
+	// supplied at run time.
+	for _, want := range []string{"core", "ref", "alias", "reader", "enum", "named"} {
 		if !has(selected, want) {
 			t.Errorf("%s is not selected: %q", want, strings.Join(lines, "\n"))
 		}
 	}
-	for _, unwanted := range []string{"unref", "leaf", "named"} {
+	for _, unwanted := range []string{"unref", "leaf"} {
 		if has(selected, unwanted) {
 			t.Errorf("%s is selected: %q", unwanted, strings.Join(lines, "\n"))
 		}

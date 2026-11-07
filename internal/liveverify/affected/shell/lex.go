@@ -204,6 +204,16 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 	endCommand := func() {
 		endWord()
 		if len(words) == 0 {
+			// An operator after a compound command's closing `}`, `)` or
+			// `esac` ends no simple command, but it still joins the
+			// compound to the next one (`{ :; } || tmp=...`), so it is the
+			// next command's lead. Only an operator that makes the next
+			// command conditional or a subshell replaces the lead, so the
+			// lead never loses a refusal it had.
+			switch trail {
+			case "&&", "||", "|", "&":
+				lead = trail
+			}
 			return
 		}
 		if words[0] == "function" {
@@ -306,7 +316,10 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				op += op
 			}
 			endAt(op)
-			l.pos++
+			// Past the whole operator: a second `&` or `|` read again
+			// would end an empty command and turn the next command's
+			// `&&` or `||` lead into `&` or `|`.
+			l.pos += len(op)
 		case (c == '<' || c == '>') && l.peek(1) == '(':
 			begin()
 			l.pos += 2

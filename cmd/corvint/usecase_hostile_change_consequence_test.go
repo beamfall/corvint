@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -142,14 +143,16 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 				t.Fatalf("dirty core must select core and its importer: %s", mustJSON(t, plan))
 			}
 		}},
+		// AZU-V0-006: a proven coverage gap is named without selection uncertainty.
 		{"hostile", "dirty-worktree", "dirty package without tests is named", func(t *testing.T) {
 			root := consequenceRepository(t)
 			cemWrite(t, root, "util/util.go", "package util\n\nfunc Util() int { return 4 }\n")
 			cemGit(t, root, "add", ".")
 			cemGit(t, root, "commit", "-qm", "util")
 			appendFile(t, filepath.Join(root, "util", "util.go"), "\n// dirty\n")
-			if plan := consequencePlan(t, root)["plan"].(map[string]any); plan["scope"] != "UNKNOWN" || !strings.Contains(string(mustJSON(t, plan["unknown"])), "util") {
-				t.Fatalf("a dirty package without tests must be named as unknown scope: %s", mustJSON(t, plan))
+			want := []any{map[string]any{"reason": "NO_SELECTABLE_TEST", "detail": "go:example.com/g/util"}}
+			if plan := consequencePlan(t, root)["plan"].(map[string]any); plan["scope"] != "BOUNDED" || !reflect.DeepEqual(plan["uncovered"], want) || len(plan["unknown"].([]any)) != 0 || len(plan["selected"].([]any)) != 0 {
+				t.Fatalf("an isolated dirty package without tests must be an exact bounded coverage gap: %s", mustJSON(t, plan))
 			}
 		}},
 		// abstention: UNKNOWN scope or a named advice gap instead of a bounded claim.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -443,7 +444,13 @@ func TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020(t *testing.T) {
 			}
 			owner, _ := graph.OwnerOf(testCase.solo)
 			changed := affected.Select(graph, []string{testCase.solo})
-			if named := noSelectableTest(changed); changed.Scope != affected.ScopeUnknown || len(named) != 1 || named[0] != owner {
+			// AZU-V0-006: exact uncovered evidence replaces the former unknown
+			// only when no inbound frontier leaves callers unresolved.
+			if testCase.permanentFrontier == "" {
+				if !reflect.DeepEqual(changed.Uncovered, []affected.Unknown{{Reason: affected.UnknownNoSelectableTest, Detail: owner}}) || len(noSelectableTest(changed)) != 0 || changed.Scope != affected.ScopeBounded {
+					t.Fatalf("changed untested unit %s scope=%s unknown=%v uncovered=%v", owner, changed.Scope, changed.Unknown, changed.Uncovered)
+				}
+			} else if named := noSelectableTest(changed); changed.Scope != affected.ScopeUnknown || len(named) != 1 || named[0] != owner {
 				t.Fatalf("changed untested unit %s scope=%s unknown=%v", owner, changed.Scope, changed.Unknown)
 			}
 			unchanged := affected.Select(graph, []string{testCase.dirty})

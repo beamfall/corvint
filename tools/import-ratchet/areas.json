@@ -96,7 +96,8 @@
         "internal/rubyautoload",
         "internal/rubydialect",
         "internal/rubyprofile",
-        "internal/swiftimpact"
+        "internal/swiftimpact",
+        "internal/webdialect"
       ]
     },
     {
