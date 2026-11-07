@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -21,24 +22,27 @@ import (
 )
 
 type ocmCLIOptions struct {
-	action        string
-	obligation    string
-	testPath      string
-	hunks         []string
-	claims        []string
-	reason        string
-	intent        string
-	intentForm    string
-	replace       bool
-	accumulate    bool
-	mapPath       string
-	cemPath       string
-	expectedBase  string
-	expectedGiven bool
-	target        string
-	targetGiven   bool
-	maxUnknown    *int
-	output        string
+	action     string
+	obligation string
+	testPath   string
+	hunks      []string
+	claims     []string
+	reason     string
+	intent     string
+	intentForm string
+	// intentRequirements is the --intent-requirements comma list, sorted;
+	// only the requirements-subset form takes it (OIF-V0-672).
+	intentRequirements []string
+	replace            bool
+	accumulate         bool
+	mapPath            string
+	cemPath            string
+	expectedBase       string
+	expectedGiven      bool
+	target             string
+	targetGiven        bool
+	maxUnknown         *int
+	output             string
 }
 
 // emitOCMInputOrError renders the oracle's code-less envelope for a CLI-level
@@ -378,6 +382,7 @@ func emitOCMError(stderr io.Writer, err error) {
 // carry defaults, so only --target and --intent are required.
 func parseOCMPrepareFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptions, error) {
 	result.mapPath = lrfrepo.DefaultOCMMapPath
+	requirementsList := ""
 	present := map[string]bool{}
 	var unrecognized []string
 	for index := 0; index < len(arguments); {
@@ -391,6 +396,7 @@ func parseOCMPrepareFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptio
 			"--target": &result.target, "--expected-base": &result.expectedBase,
 			"--intent": &result.intent, "--cem": &result.cemPath, "--map": &result.mapPath,
 			"--max-unknown": new(string), "--intent-form": &result.intentForm,
+			"--intent-requirements": &requirementsList,
 		}[name]
 		if target == nil {
 			unrecognized = append(unrecognized, arguments[index])
@@ -433,6 +439,13 @@ func parseOCMPrepareFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptio
 		return result, argumentError("argument --intent-form: invalid choice: " + result.intentForm)
 	}
 	result.intentForm = form
+	if present["--intent-requirements"] != (form == lrfrepo.IntentFormRequirementsSubset) {
+		return result, argumentError("argument --intent-requirements: required with, and only with, --intent-form " + lrfrepo.IntentFormRequirementsSubset)
+	}
+	if present["--intent-requirements"] {
+		result.intentRequirements = strings.Split(requirementsList, ",")
+		sort.Strings(result.intentRequirements)
+	}
 	result.expectedGiven = present["--expected-base"]
 	return result, nil
 }
@@ -443,6 +456,7 @@ var ocmIntentForms = map[string]string{
 	"": "", "requirements": "", lrfrepo.IntentFormADR: lrfrepo.IntentFormADR,
 	lrfrepo.IntentFormRoadmap: lrfrepo.IntentFormRoadmap, lrfrepo.IntentFormOpenSpecSpec: lrfrepo.IntentFormOpenSpecSpec,
 	lrfrepo.IntentFormOpenSpecDelta: lrfrepo.IntentFormOpenSpecDelta, lrfrepo.IntentFormSpecKit: lrfrepo.IntentFormSpecKit,
+	lrfrepo.IntentFormRequirementsSubset: lrfrepo.IntentFormRequirementsSubset,
 }
 
 func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdout, stderr io.Writer) int {
@@ -450,6 +464,7 @@ func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdo
 		MapPath: options.mapPath, CEMPath: options.cemPath, IntentPath: options.intent,
 		Target: options.target, ExpectedBase: options.expectedBase,
 		Replace: options.replace, MaxUnknown: options.maxUnknown, IntentForm: options.intentForm,
+		IntentRequirements: options.intentRequirements,
 	})
 	if err != nil {
 		emitOCMInputOrError(stderr, err)

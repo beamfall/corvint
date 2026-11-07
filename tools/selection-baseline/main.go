@@ -28,6 +28,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -321,7 +322,12 @@ func fullOID(s string) bool {
 
 func replay(ctx context.Context, root string, set changeSet, changesFile, corvint, selector string) (results, error) {
 	r := results{Profile: resultsProfile, Changes: filepath.ToSlash(changesFile), Floor: set.Floor}
-	costs, err := readCosts(filepath.Join(root, ".github", "cishards", "package-costs.json"))
+	// The cost table is read once: the same bytes are parsed and hashed into the cache key.
+	costsData, err := os.ReadFile(filepath.Join(root, ".github", "cishards", "package-costs.json"))
+	if err != nil {
+		return r, err
+	}
+	costs, err := parseCosts(costsData)
 	if err != nil {
 		return r, err
 	}
@@ -334,35 +340,65 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	if err != nil {
 		return r, err
 	}
-	tmp, err := os.MkdirTemp("", "selection-baseline-")
-	if err != nil {
-		return r, err
-	}
-	defer os.RemoveAll(tmp)
-	// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
-	// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
-	jobs := replayJobs(len(set.Changes))
-	clones := make(chan string, jobs)
-	for i := range jobs {
-		clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
-		if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
-			return r, err
-		}
-		clones <- clone
-	}
 	measured := make([]Result, len(set.Changes))
 	errs := make([]error, len(set.Changes))
-	var wg sync.WaitGroup
+	// ASC-V0-778: a change whose record matches its exact inputs is read, not replayed.
+	cache, off := openCache(ctx, root, corvint, selector, costsData)
+	keys := make([]string, len(set.Changes))
+	var pending []int
 	for i, c := range set.Changes {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			clone := <-clones
-			defer func() { clones <- clone }()
-			measured[i], errs[i] = measure(ctx, clone, tmp, module, corvint, selector, c, costs)
-		}()
+		if cache != nil {
+			keys[i] = cache.key(c)
+			if res, ok := cache.load(keys[i]); ok {
+				measured[i] = res
+				continue
+			}
+		}
+		pending = append(pending, i)
 	}
-	wg.Wait()
+	if cache == nil {
+		fmt.Fprintf(os.Stderr, "selection-baseline: result cache off (%s); every change replays\n", off)
+	} else if reused := len(set.Changes) - len(pending); reused > 0 {
+		fmt.Fprintf(os.Stderr, "selection-baseline: REUSE %d of %d change results recorded for byte-identical planner, selector, tool, change, costs, go, git and environment, key %s, in %s (SELECTION_BASELINE_CACHE=off replays every change)\n", reused, len(set.Changes), hex.EncodeToString(cache.stamp), cache.dir)
+	}
+	if len(pending) > 0 {
+		tmp, err := os.MkdirTemp("", "selection-baseline-")
+		if err != nil {
+			return r, err
+		}
+		defer os.RemoveAll(tmp)
+		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
+		// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
+		jobs := replayJobs(len(pending))
+		clones := make(chan string, jobs)
+		for i := range jobs {
+			clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
+			if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
+				return r, err
+			}
+			clones <- clone
+		}
+		var wg sync.WaitGroup
+		for _, i := range pending {
+			c := set.Changes[i]
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				clone := <-clones
+				defer func() { clones <- clone }()
+				measured[i], errs[i] = measure(ctx, clone, tmp, module, corvint, selector, c, costs)
+				if errs[i] == nil && cache != nil {
+					if err := cache.store(keys[i], measured[i]); err != nil {
+						fmt.Fprintf(os.Stderr, "selection-baseline: result cache record for %s not written: %v\n", c.ID, err)
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		if cache != nil {
+			cache.prune()
+		}
+	}
 	for i, res := range measured {
 		if errs[i] != nil {
 			return r, fmt.Errorf("%s: %w", set.Changes[i].ID, errs[i])
@@ -376,15 +412,18 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	return r, nil
 }
 
-// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the CPU count, at
-// most 8 and at most n (DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the
-// doc-gates job bound (ASD-V0-925).
+// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the larger of the CPU
+// count at most 4 and a third of the CPUs at most 8, and at most n (at most eight, DTL-V0-006). A
+// 4-CPU hosted runner needs all 4: one worker there overruns the doc-gates job bound (ASD-V0-925);
+// a 12-CPU host keeps 4 and the 32-CPU lane host gets 8 (ASC-V0-777).
 func replayJobs(n int) int {
-	jobs := max(1, runtime.NumCPU())
-	if v, err := strconv.Atoi(os.Getenv("SELECTION_BASELINE_JOBS")); err == nil && v > 0 {
+	return defaultReplayJobs(n, runtime.NumCPU(), os.Getenv("SELECTION_BASELINE_JOBS"))
+}
+
+func defaultReplayJobs(n, cpus int, override string) int {
+	jobs := max(1, min(cpus, 4), min(cpus/3, 8))
+	if v, err := strconv.Atoi(override); err == nil && v > 0 {
 		jobs = v
-	} else {
-		jobs = min(jobs, 8)
 	}
 	return max(1, min(jobs, n))
 }
@@ -759,16 +798,12 @@ func verdictLines(s Summary, f floor) []string {
 	return lines
 }
 
-func readCosts(name string) (map[string]float64, error) {
+func parseCosts(data []byte) (map[string]float64, error) {
 	var doc struct {
 		Milliseconds map[string]float64 `json:"milliseconds"`
 	}
-	data, err := os.ReadFile(name)
-	if err != nil {
-		return nil, err
-	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, fmt.Errorf("package-costs.json: %w", err)
 	}
 	return doc.Milliseconds, nil
 }
