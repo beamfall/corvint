@@ -231,7 +231,7 @@ var (
 // or another such definition by an os/exec call. Any other use, such as an
 // argument, a stored or returned value, an address, a Path or Args field or
 // an assignment of name, is not confined.
-func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string, directoryOK func(ast.Expr) bool) bool {
+func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string, imports map[string]string, directoryOK func(ast.Expr) bool) bool {
 	parents := map[ast.Node]ast.Node{}
 	var stack []ast.Node
 	ast.Inspect(outer, func(node ast.Node) bool {
@@ -310,7 +310,7 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string, directoryO
 		case target && commandSetFields[field] && assignment.Tok == token.ASSIGN && len(assignment.Lhs) == len(assignment.Rhs):
 			value := assignment.Rhs[slices.Index(assignment.Lhs, ast.Expr(selector))]
 			if field == "Env" {
-				confined = literalEnvironment(value)
+				confined = literalEnvironment(value, imports)
 			} else if field == "Dir" {
 				confined = directoryOK(value)
 			}
