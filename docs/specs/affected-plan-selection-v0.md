@@ -24,7 +24,9 @@ V1-4281) adds AFP-V0-2400 to AFP-V0-2406 here for the same reason; see build-log
 Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
 Lane selaudit (2026-11-06; the selection audit, build-log entry `2026-11-06-selection-audit`) adds
-AFP-V0-2610 here for the same reason.
+AFP-V0-2610 here for the same reason. Lane selgo (2026-11-06; native tickets V1-4931, V1-4932,
+V1-4933, build-log entry `2026-11-06-selgo`) adds AFP-V0-2740 to AFP-V0-2745 here for the same
+reason, including the rows that amend the CI selector (CIN-V0-860) and `corvint test` (STR-V0-064).
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -578,6 +580,100 @@ measure. None of them drops a unit the change can reach.
   `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610`. Rollback: restore the
   `_test.go` suffix check in `deletedGoSource`; the path raises `UNINDEXED_SOURCE_PATH` again.
 
+### Deleted fixtures, nested modules on the ci profile, and record entries (lane selgo, 2026-11-06)
+
+Intent (owner goal, 2026-11-06: every local and CI run executes only the minimum tests the change
+can affect, every time, and never fewer). The 2026-11-06 selection audit found three causes of
+whole-suite or over-wide runs that these rows remove: beamfall/corvint#114 (a moved TypeScript
+fixture below `cmd/corvint/testdata` forced FULL), #105 (the `corvint test` shadow refused a nested
+module that the CI selector admits, so the AFP-V0-098 superset guard forced FULL), and the readers
+that a sealed CEM and a build-log entry select on every pull request (#106).
+
+- **AFP-V0-2740:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;
+  amends AFP-V0-2440) A dirty path that a non-Go plugin claims as source SHALL raise no
+  `UNINDEXED_SOURCE_PATH` when it is absent from the disk checkout the graph was observed from, lies
+  below a `testdata` directory a Go unit hosts (AFP-V0-446), and no claimant lists a path of its
+  fixture subtree (the first directory below that `testdata` on the path, or the `testdata`
+  directory itself for a file directly in it) or reports the path inside a directory it does not
+  observe (AFP-V0-191). That is AFP-V0-2440's fixture-only claim for a deleted or moved-away file:
+  Go builds and runs nothing below `testdata`, the hosting package's tests read the file as bytes,
+  and no unit of the claimant survives in that fixture to have held it. The path stays unowned:
+  rule (b) selects the hosting package, rule (c) selects every unit, in any language, whose import
+  or path literal names it (AFP-V0-021), and `frontierUnknowns` treats it as any other unowned path
+  (AFP-V0-511). A path present on disk, a graph with no disk root, a sparse checkout, a Go claim, a
+  path no plugin claims, a `testdata` directory no Go unit hosts, and a fixture subtree the claimant
+  still lists keep the entry. Failure mode: a plugin unit in a sibling fixture that loaded the file
+  by a name no literal states is not selected. Falsifier: a deleted fixture file whose removal
+  changes a test outcome in a unit the plan excludes. Acceptance:
+  `TestDeletedFixtureIsFixtureData_AFPV2740`. Rollback: drop `deletedFixture` from `seed`.
+- **AFP-V0-2741:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;
+  CI selector, CIN-V0-860) `gate-affected-select` and `corvint test` SHALL give the same decision
+  for a deleted fixture of AFP-V0-2740 because both read the one plan: the plan carries no unknown
+  for it, `corvint test` narrows, and the CI selector's rules (b) and (c) select the hosting
+  package and every Go package whose literal names the path, a superset of the plan's Go selection
+  as for every dirty path. The CI selector admits no new unknown for it: a plan that still carries
+  the entry (an AFP-V0-2740 exclusion) is FULL in both. Acceptance: the beamfall/corvint#114
+  replay in build-log entry `2026-11-06-selgo` (both selectors narrow; `cmd/corvint` and
+  `internal/command/flows` are selected by both). Rollback: as AFP-V0-2740.
+- **AFP-V0-2742:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4932;
+  amends STR-V0-064 for the `ci` profile; related V1-0872, V1-4363) On the `ci` runner profile a
+  well-formed AFP-V0-650 `go:unobserved-module:<directory>:<path>` entry SHALL keep the run at the
+  scope the rest of the plan earns, as the deciding driver does for the same entry (CIN-V0-860),
+  and SHALL add to `checks` the module's own suite as a check still required and not run
+  (`sessiontest.ModuleCheck`: `go -C <directory> test ./...` and the reason). The `ci` profile
+  launches no `go-module:` unit, because its confined runner is not qualified for a nested module;
+  CI runs that module's suite in jobs of their own outside the Go shards (`go-static` runs its
+  tests and vet; `go-interop` its formatting and Windows build). A malformed detail and every other
+  unknown keep FULL; the local profile is unchanged. Failure mode: a CI workflow that stopped
+  running the module's suite would leave the check unrun; the check line names it. Falsifier: a
+  `ci` dry run over a plan whose only non-allowlisted entry is a well-formed module frontier that is
+  FULL, or that names no module check. Acceptance: `TestCIProfileNamesTheNestedModuleSuite_AFPV2742`
+  and the amended `TestSTRV0064NestedModuleUnit`; the beamfall/corvint#105 replay. Rollback:
+  restore the `RunnerProfile != ProfileCI` condition on the module branch of `Build`.
+- **AFP-V0-2743:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;
+  amends AFP-V0-152 and AFP-V0-072; V1-1820) A record entry is a sealed CEM directly under
+  `.corvint/changes/` or a Markdown file directly under `docs/build-log/`; nearly every change adds
+  one of each. For a record entry a Go unit's path token SHALL select it as a literal reader only
+  when the token, resolved against the unit's directory, or against the repository root when the
+  unit holds a parent-only or `/`-anchored token or locates the root at run time (it is in the
+  unbounded-reader closure), names the entry itself, the record directory, or a fragment completed
+  at the entry's position. A token that resolves to the repository root or to a proper ancestor of
+  the record directory (`.corvint`, `docs`) does not select: it reaches the entry only through a
+  name computed or walked at run time, which the unbounded-reader rule and declared read scopes
+  cover, and AFP-V0-2745 ratchets every package that names such an ancestor. A `/`-anchored token
+  is resolved from the root. Build-log entries are thereby narrowed as sealed CEMs already were, so
+  a fixture-root token (`docs/build-log/` in a package that never climbs to the root) no longer
+  selects its package. Declared read scopes, globs, embeds, unbounded readers and every other path
+  keep their rules. Failure mode: a test that joins the record directory's last component from a
+  separate literal onto an ancestor literal is not selected by this rule; AFP-V0-2745 flags the
+  ancestor literal. Falsifier: a test outside the plan whose outcome a new record entry changes.
+  Acceptance: `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743`.
+  Rollback: drop the record branch of `resolves`.
+- **AFP-V0-2744:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;
+  CI selector rule (c), CIN-V0-860, AFP-V0-012) `gate-affected-select` SHALL apply AFP-V0-2743 to
+  its own rule (c): a record entry's readers are `resolvingReaders`, whose resolution must lie at
+  or below the record directory (`resolvesRecord`), in selection and in the `-bounds` output the
+  gate ledger keys on (GL-V0-009). Because the CI selector always starts from the plan's Go
+  selection, its run stays a superset of `corvint test`'s. Acceptance:
+  `TestRecordEntryReadersResolveToTheDirectory_AFPV2744` and the amended
+  `TestSelectPackagesNarrowsSealedChangeEvidenceReaders`; the beamfall/corvint#106 replay. Rollback:
+  make `resolvedReaders` return `resolvedEvidence` and drop `resolvesRecord`.
+- **AFP-V0-2745:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933)
+  `make unbounded-readers-check` (`tools/unbounded-readers`) SHALL also fail, exit 1, when a Go test
+  package without a declared read scope reads a record directory, by a path literal or glob that
+  selects it for a probe entry no literal names (`Graph.RecordReaders`) or by a token that resolves
+  to an ancestor of the directory other than the root, and the closed record
+  `.corvint/record-readers.json` (`{"profile":"corvint-record-readers/0","directories":
+  {DIRECTORY:{PACKAGE:REASON}}}`, DIRECTORY `.corvint/changes/` or `docs/build-log/`, every reason
+  non-blank) does not list it. The message names the package and the routes: declare its reads in
+  `.corvint/test-read-scopes.json` (with the directory when its tests really read it), mark a
+  fixture literal with `//corvint:fixture-path`, or record it with its reason. A listed package that
+  no longer reads the directory is reported on stderr without failing, as AFP-V0-025 treats a stale
+  entry; a malformed record exits 2; an absent record is the empty set. The record is a ratchet,
+  not a selection input. Acceptance: `TestAFPV2745RecordDirectoryReadersRatchet`; the repository
+  check passes with the baseline record. Rollback: delete `records.go`, its call in `run` and the
+  record.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -606,6 +702,12 @@ import-path or climbing pattern, and the nested-module reader path (`nested.go`)
 every `/...` token. Its directory-move check reads only the package's own tokens: a helper in
 another package that changes the directory, or a directory built by `filepath.Join` or string
 concatenation into a command argument other than `Dir`, `-C` or a `cd` word, is not seen.
+AFP-V0-2743 to AFP-V0-2745 do not narrow the unbounded readers a build-log entry selects:
+`internal/doccorpus/selfcorpus` inventories the checkout's documentation, so `docs/build-log/` gets
+no AFP-V0-772 exclusion. They do not narrow the CI selector's own rule (d) closure, which every
+change selects (V1-2162), nor the declared `internal/` read scopes a `_test.go` edit selects. The
+baseline record lists the current literal readers; giving them declared read scopes is follow-up
+work. AFP-V0-2742 does not run a nested module on the `ci` profile.
 
 ## Failure modes
 
@@ -680,6 +782,12 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2404 | `.corvint/runtime-readers.json` | the per-path plan summaries in the build-log entry |
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
+| AFP-V0-2740 | `deletedFixture`, `fixtureSubtree` in `internal/liveverify/affected/deletedfixtures.go` and the call in `seed` (`select.go`) | `TestDeletedFixtureIsFixtureData_AFPV2740` in `internal/liveverify/affected/deletedfixtures_test.go` (no unknown, hosting package and literal reader selected; seven kept cases; fails with the call removed); the PR #114 replay in build-log entry `2026-11-06-selgo` |
+| AFP-V0-2741 | the shared plan; rules (b) and (c) of `internal/gateselect` unchanged | the PR #114 replay in build-log entry `2026-11-06-selgo` (driver and shadow narrow, shadow a subset of the driver) |
+| AFP-V0-2742 | the module branch of `Build` and `ModuleCheck` in `internal/sessiontest/plan.go`; the `UnobservedModule` comment in `internal/gateselect/allowlist.go` | `TestCIProfileNamesTheNestedModuleSuite_AFPV2742` in `internal/sessiontest/module_ci_afpv2742_test.go` (fails with the profile condition restored); the amended ci case of `TestSTRV0064NestedModuleUnit`; `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`; the PR #105 replay |
+| AFP-V0-2743 | `recordDirectory`, `resolvesRecord`, `BuildLogDirectory` and the record branch of `resolves` in `internal/liveverify/affected/readers.go` | `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743` in `internal/liveverify/affected/records_test.go` (both fault injections fail it); the PR #106 replay |
+| AFP-V0-2744 | `recordDirectory`, `resolvedReaders` in `internal/gateselect/select.go`; `resolvesRecord` and the record branch of `resolvingReaders` in `internal/gateselect/readers.go` | `TestRecordEntryReadersResolveToTheDirectory_AFPV2744` in `internal/gateselect/records_afpv2744_test.go` (both fault injections fail it); the amended `TestSelectPackagesNarrowsSealedChangeEvidenceReaders`; the PR #106 replay |
+| AFP-V0-2745 | `Graph.RecordReaders`, `namesRecordAncestor` in `internal/liveverify/affected/readers.go`; `tools/unbounded-readers/records.go` and its call in `run`; `.corvint/record-readers.json` | `TestAFPV2745RecordDirectoryReadersRatchet` in `tools/unbounded-readers/records_test.go`; the `RecordReaders` cases of `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743`; `make unbounded-readers-check` on the repository |
 | AFP-V0-2610 | `deletedGoSource` (was `deletedGoTest`) in `internal/liveverify/affected/deletedtests.go` and its call in `seed` (`select.go`); `goSourceRule` in `structure.go` | `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610` and the amended `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (fails before the change: `UNINDEXED_SOURCE_PATH provider/extra.go`); amended to the new rule: `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340` (no unindexed entry), the two AFP-V0-191 tests in `golang/unobserved_test.go` and the Go case of `TestSeamWidensRatherThanNarrowingOnUnknownInput` (a new unindexed file is written to disk), and the two abstention rows of `TestUseCaseHostileChangeConsequence` (a directory left with no package); the PR #114 replay and a one-file deletion replay in build-log entry `2026-11-06-selection-audit` |
 
 ## Rollback
@@ -712,3 +820,8 @@ then name only the unbounded-readers record again. For AFP-V0-2542, delete both 
 and `directoryMove` functions, `packageDirectories`, `goDirectories`, the `leafReads` and
 `movesDirectory` fields and the memo's `movesDirectory` entry; such patterns are unbounded reads
 again.
+For AFP-V0-2740 and AFP-V0-2741, drop `deletedFixture` from `seed`; such paths are
+`UNINDEXED_SOURCE_PATH` again and both selectors fall back to FULL. For AFP-V0-2742, restore the
+profile condition on the module branch of `Build`. For AFP-V0-2743 and AFP-V0-2744, drop the record
+branch of `resolves` and make `resolvedReaders` return `resolvedEvidence`. For AFP-V0-2745, delete
+`tools/unbounded-readers/records.go`, its call and `.corvint/record-readers.json`.

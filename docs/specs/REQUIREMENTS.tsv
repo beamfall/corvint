@@ -127,6 +127,12 @@ AFP-V0-2404	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2405	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2406	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2610	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); lane	standing	2026-11-06
+AFP-V0-2740	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;	standing	2026-11-06; V1-4931
+AFP-V0-2741	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;	standing	2026-11-06; V1-4931
+AFP-V0-2742	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4932;	standing	2026-11-06; V1-4932
+AFP-V0-2743	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
+AFP-V0-2744	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
+AFP-V0-2745	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933)	standing	2026-11-06; V1-4933
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-

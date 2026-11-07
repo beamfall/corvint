@@ -467,8 +467,10 @@ two requirements make its version name its content and make each receipt carry i
   selection is read as `NOTHING` for the root, not the AFP-V0-012 empty-selection fallback, so the
   run is `NARROWED` to the module units. A detail that is malformed, names `.` or a non-local or
   unclean directory, carries any other reason, or is the AFP-V0-191 `unobserved-directory` form
-  stays outside the allowlist and the run is `FULL`; the `ci` profile keeps every such entry
-  outside the allowlist, because its confined runner is not qualified for a nested module.
+  stays outside the allowlist and the run is `FULL`. The `ci` profile launches no module unit,
+  because its confined runner is not qualified for a nested module; since AFP-V0-2742
+  (`affected-plan-selection-v0.md`, V1-4932) it keeps the scope the rest of the plan earns and names
+  the module's own suite in `checks` instead, as the deciding driver admits the entry.
 - `STR-V0-750`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4008;
   extended to the `ci` profile by V1-4361 with the AFP-V0-028 amendment) On every runner profile,
   each well-formed AFP-V0-762 `UNSELECTED_BINARY_CONSUMER`
