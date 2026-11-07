@@ -32,7 +32,8 @@ all 8 shards again (V1-3158); a DOCS or REUSE decision still started 8 shard job
 test (V1-2902); no CI check refused an AI co-author trailer (V1-3227); and no CI job ran the tests
 of the nested module `tools/local-authority` (V1-3329).
 
-Unchanged and binding: a `.github/` change forces FULL; UNKNOWN or any unreadable input forces
+Unchanged and binding: a change to a trusted narrowing input under `.github/` forces FULL
+(AFP-V0-2720, since 2026-11-06; before it any `.github/` path did); UNKNOWN or any unreadable input forces
 FULL; the AFP-V0-029 bar (8 complete rows, at least 1 failing, 0 `MISS`; lowered from 20 and 5
 by the orchestrator under owner delegation, owner chat 2026-10-31) and the AFP-V0-030
 kill switch keep their thresholds; no row is seeded or synthetic.

@@ -19,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/python"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // IncrementalBudget is the per-edit selection budget. It bounds the step that
@@ -52,6 +53,7 @@ func buildRepositoryGraph(t testing.TB) (*affected.Graph, time.Duration) {
 // incremental target. It measures the real repository, not a fixture, because
 // the budget only means something at the size the product runs at.
 func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, cold := buildRepositoryGraph(t)
 	t.Logf("cold graph build: %s units=%d languages=%v", cold.Round(time.Millisecond), len(graph.UnitIDs()), graph.Languages())
 
@@ -353,6 +355,7 @@ func BenchmarkRepresentativeEditsSerialParity(b *testing.B) {
 // observe what Git says changed right now, and turn it into a plan. It runs
 // against this repository's actual worktree, whatever state it is in.
 func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git is unavailable")
@@ -673,6 +676,7 @@ func goPackageDirectory(graph *affected.Graph, id string) (string, bool) {
 // for the selection layer: admitting an unsaved buffer changes the plan and
 // nothing on disk.
 func TestOverlaySelectionNeverTouchesTheWorktree(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git is unavailable")

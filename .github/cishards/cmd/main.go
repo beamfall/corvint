@@ -3,7 +3,10 @@
 // With --select it places only the listed packages of the universe across the
 // shards by the same measured costs (AFP-V0-590). Both place by each shard's
 // predicted wall time at its `go test -p` value (AFP-V0-2181): --parallel, by
-// default the SHARD_TEST_P the CI tests step runs with, else 1.
+// default the SHARD_TEST_P the CI tests step runs with, else 1. With --select
+// and --size-budget-ms it prints instead the fewest shards, from --min-shards to
+// --shards, whose placement keeps every shard's predicted wall time within the
+// budget (AFP-V0-2723).
 package main
 
 import (
@@ -26,6 +29,8 @@ func main() {
 	slices := flag.Bool("slices", false, "print the shard's test slices (AFP-V0-041), one invocation per line: FLAG PATTERN PACKAGE")
 	selection := flag.String("select", "", "file of selected packages, one per line; place only those of the universe across the shards (AFP-V0-590)")
 	parallel := flag.String("parallel", os.Getenv("SHARD_TEST_P"), "the shard's go test -p value the placement balances wall time for (AFP-V0-2181; default $SHARD_TEST_P, else 1)")
+	sizeBudget := flag.Int64("size-budget-ms", 0, "with --select: print the fewest shards, from --min-shards to --shards, whose placement keeps every shard's predicted wall time within this many milliseconds (AFP-V0-2723)")
+	minShards := flag.Int("min-shards", cishards.MinNarrowedShards, "with --size-budget-ms: the fewest shards to size to")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected arguments")
@@ -58,9 +63,18 @@ func main() {
 	var plan []cishards.Shard
 	if err == nil && *selection != "" {
 		var selected []string
-		if selected, err = selectedPackages(*selection); err == nil {
+		if selected, err = selectedPackages(*selection); err == nil && *sizeBudget != 0 {
+			// AFP-V0-2723: the count alone; any refusal is an error, never a count.
+			var n int
+			if n, err = cishards.Size(packages, selected, *minShards, *total, p, *sizeBudget); err == nil {
+				fmt.Println(n)
+				return
+			}
+		} else if err == nil {
 			plan, err = cishards.SelectParallel(packages, selected, *total, p)
 		}
+	} else if err == nil && *sizeBudget != 0 {
+		err = fmt.Errorf("--size-budget-ms needs --select")
 	} else if err == nil {
 		plan, err = cishards.PlanParallel(packages, *total, p)
 	}

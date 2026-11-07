@@ -561,6 +561,17 @@ line-citations-check: ## Check the line citations against the index
 line-citations-test:
 	@script/check-line-citations_test.sh
 
+# live-test runs the live test tier (AFP-V0-2700, AFP-V0-2701): the tests that call
+# testsupport.RequireLiveTier because they read the live repository or build release binaries. Every
+# untagged run (go-test, local go test, corvint test) runs them too; only the CI go-product-shard
+# test step skips them with CORVINT_SKIP_LIVE_TIER=1 (AFP-V0-2702). This target discovers them and
+# runs each package's set with -tags live, for the merge-queue go-live job and batch-precheck, so it
+# is not a GATE_STEPS entry (go-test already runs them there). `go run ./tools/live-test-run --list`
+# prints the tier.
+.PHONY: live-test
+live-test:
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/live-test-run -timeout $(GO_TEST_TIMEOUT)
+
 # ci-least-privilege-check fails when any tracked .github/workflows/*.yml workflow-level permissions
 # stop being exactly `contents: read` (or a job-level block grants more) without a matching row in
 # script/ci-least-privilege-exceptions.tsv, an actions/checkout step stops disabling persisted

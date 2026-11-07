@@ -192,6 +192,9 @@ jobs:
       GOWORK: "off"
       GOFLAGS: ""
       MACOS_SHARD: ${{ matrix.shard }}
+      # MCJ-V0-019: hosted macOS VMs are not the reference host; the PR shards run
+      # packages in parallel, which put linecov's plan p95 at 194 ms against 100 ms.
+      LINECOV_PLAN_P95_BUDGET: "500ms"
       CGO_ENABLED: "1"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
