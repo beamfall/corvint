@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"maps"
 	"path"
 	"regexp"
@@ -76,10 +77,10 @@ func goListCandidate(body []byte) bool {
 // The arguments are the call's own, or a local []string variable that is
 // only initialized by a composite literal, extended by append and passed as
 // the call's variadic argument.
-func goListScanFile(relative string, body []byte, directory string, owner module) (goListFile, error) {
+func goListScanFile(relative string, body []byte, directory string, owner module, builtinsProven bool) (goListFile, error) {
 	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}, proven: map[int]bool{}}
 	files := token.NewFileSet()
-	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution)
+	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
 		return result, err
 	}
@@ -170,7 +171,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 		// A call outside any function (a package-level command) is
 		// reachable from every file, so it is never proven.
 		bodies := enclosingBodies(functions, call)
-		if proven = proven && len(bodies) != 0; proven {
+		if proven = proven && builtinsProven && len(bodies) != 0; proven {
 			outer := bodies[len(bodies)-1]
 			tests := map[string]bool{}
 			for _, body := range bodies {
@@ -829,6 +830,30 @@ func mentionsList(body ast.Node) bool {
 	return found
 }
 
+// unshadowedPredeclared is the package-wide prerequisite for every proof
+// relying on builtin calls or conversions (AFP-V0-2200, AFP-V0-9010), including
+// append in argument and environment slices. Only predeclared names with no
+// declaration or import shadow anywhere in the unit are certified. Scope is
+// deliberately over-approximated, including fields and separate test packages.
+// Unreadable or unparseable files and dot imports cannot certify identity.
+func unshadowedPredeclared(body []byte) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), "", body, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	for _, name := range declaredNames(file) {
+		if types.Universe.Lookup(name) != nil {
+			return false
+		}
+	}
+	for name := range importNames(file.Imports) {
+		if name == "." || types.Universe.Lookup(name) != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // goListUnits sets each unit's import-graph edges (AFP-V0-2200) from its
 // files' `go list` calls, and returns, by unit index and file, the scans
 // whose listed literals literalExecs then does not count as command uses. A
@@ -845,14 +870,18 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 		owner := owners[directories[index]]
 		reads := map[string]bool{}
 		all, unproven, reader, environment := false, false, false, false
+		builtinsProven := true
 		files := append(append([]string(nil), units[index].Sources...), units[index].Tests...)
 		bodies := make(map[string][]byte, len(files))
 		for _, relative := range files {
 			if body, err := root.Read(relative); err == nil {
 				bodies[relative] = body
+				builtinsProven = builtinsProven && unshadowedPredeclared(body)
 				// A package that names the go command's environment can
 				// set GOFLAGS (or a GOENV file holding it) for every call.
 				environment = environment || bytes.Contains(body, []byte("GOFLAGS")) || bytes.Contains(body, []byte("GOENV"))
+			} else {
+				builtinsProven = false
 			}
 		}
 		for _, relative := range files {
@@ -860,7 +889,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			if !read || !goListCandidate(body) {
 				continue
 			}
-			scan, err := goListScanFile(relative, body, directories[index], owner)
+			scan, err := goListScanFile(relative, body, directories[index], owner, builtinsProven)
 			if err != nil {
 				continue
 			}

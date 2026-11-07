@@ -59,6 +59,16 @@ func commandDirectoryProven(value ast.Expr, outer ast.Node, file *ast.File, name
 			}
 		}
 	}
+	// The physical filename is a certified Caller origin only in a file
+	// without position remapping. Both directive forms can replace it;
+	// reject them regardless of placement or payload.
+	for _, group := range file.Comments {
+		for _, comment := range group.List {
+			if strings.HasPrefix(comment.Text, "//line ") || strings.HasPrefix(comment.Text, "/*line ") {
+				return false
+			}
+		}
+	}
 	body, ok := outer.(*ast.BlockStmt)
 	if !ok {
 		return false
