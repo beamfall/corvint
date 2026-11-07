@@ -69,8 +69,8 @@ func TestCheckDCWV0045CleanProbeNeverRunsRepositoryFilters(t *testing.T) {
 	// DCW-V0-2144 (V1-4444): the fix names the dirty path count and that
 	// clean means no change after the bind commit, which this worktree meets.
 	fix := func(at string) string {
-		return "  fix: commit or remove the 1 path(s) git status --porcelain lists, then rerun make dogfood-change BASE=" + at + " and make dogfood-check BASE=" + at +
-			"; a clean worktree is one with no change after the bind commit (ignored paths do not count), so this worktree qualifies once they are gone and no fresh checkout is needed (DCW-V0-2144)\n"
+		return "  fix: commit or remove the 1 path(s) git -c core.excludesFile= status --porcelain --untracked-files=all lists, then rerun make dogfood-change BASE=" + at + " and make dogfood-check BASE=" + at +
+			"; a clean worktree is one with no change after the bind commit (paths the repository's .gitignore or .git/info/exclude ignore do not count; a global core.excludesFile does not apply), so this worktree qualifies once they are gone and no fresh checkout is needed (DCW-V0-2144)\n"
 	}
 	if code, _, stderr := cleanChange(t, root, base); code != 2 || stderr != "dogfood-check: REFUSE dirty-worktree\n"+order+fix(base) {
 		t.Fatalf("dirty exit=%d stderr=%q", code, stderr)
@@ -84,5 +84,23 @@ func TestCheckDCWV0045CleanProbeNeverRunsRepositoryFilters(t *testing.T) {
 	}
 	if code, stdout, _ := cleanChange(t, root, head); code != 0 || stdout != "dogfood-check: PASS no-change-clean-worktree\n" {
 		t.Fatalf("no change exit=%d stdout=%q", code, stdout)
+	}
+	// DCW-V0-2144 review fix: a path hidden only by core.excludesFile is still
+	// dirty to the hardened probe, and the named command lists it although an
+	// ordinary git status prints nothing.
+	excludes := filepath.Join(t.TempDir(), "excludes")
+	if err := os.WriteFile(excludes, []byte("scratch.tmp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "config", "core.excludesFile", excludes)
+	write("scratch.tmp", "scratch\n")
+	if plain := testGit(t, root, "status", "--porcelain"); plain != "" {
+		t.Fatalf("fixture: ordinary status should hide scratch.tmp: %q", plain)
+	}
+	if named := testGit(t, root, "-c", "core.excludesFile=", "status", "--porcelain", "--untracked-files=all"); !strings.Contains(named, "scratch.tmp") {
+		t.Fatalf("the named command does not list the dirty path: %q", named)
+	}
+	if code, _, stderr := cleanChange(t, root, head); code != 2 || stderr != "dogfood-check: REFUSE uncommitted-change-not-in-base-target\n"+order+fix(head) {
+		t.Fatalf("excluded-file exit=%d stderr=%q", code, stderr)
 	}
 }

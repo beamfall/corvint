@@ -3943,6 +3943,19 @@ retire
 ((rc == 2)) && [[ $out == *'REFUSE dry-run-unreadable'*'fix: '* ]] || fail "unreadable plan: rc=$rc $out"
 retire extra
 ((rc == 2)) && [[ $out == *'REFUSE bad-arguments'*'usage: '* && ! -e $rt/calls ]] || fail "argument refusal: rc=$rc $out"
+# Review fix: a relative CORVINT_BIN, or a PATH-only name found through a relative PATH entry,
+# names the caller's file even though both invocations run from the repository root.
+printf '{"entries":[],"plan_digest":"%s","stranded_revisions":[]}\n' "$digest" > "$rt/plan.json"
+mkdir -p "$rt/rel" && cp "$rt/corvint" "$rt/rel/corvint-rel" || fail "relative retire fixture"
+/bin/rm -f "$rt/calls"
+out=$(cd "$rt" && CORVINT_BIN=./corvint "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
+((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "relative CORVINT_BIN: rc=$rc $out"
+/bin/rm -f "$rt/calls"
+out=$(cd "$rt" && PATH="rel:$PATH" CORVINT_BIN=corvint-rel "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
+((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "PATH-only CORVINT_BIN on a relative PATH entry: rc=$rc $out"
+/bin/rm -f "$rt/calls"
+out=$(cd "$rt" && CORVINT_BIN=no-such-corvint-bin "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
+((rc == 2)) && [[ $out == *'REFUSE corvint-bin-not-found'*'fix: '* && ! -e $rt/calls ]] || fail "unresolvable CORVINT_BIN: rc=$rc $out"
 ok
 fi
 

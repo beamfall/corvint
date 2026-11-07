@@ -1203,8 +1203,9 @@ One lane runs this flow, in order; each step names the command and the section t
    `dogfood-seal: REFUSE review-not-current` stops a seal over a head the review did not read
    before its check runs (ASD-V0-1024).
    The post-bind rerun of `make dogfood-change` and `make dogfood-check` runs from a clean worktree:
-   one with no change after the bind commit (`git status --porcelain` lists nothing; ignored paths
-   do not count). The lane's own worktree qualifies as it stands; no fresh checkout is needed, and
+   one with no change after the bind commit (`git -c core.excludesFile= status --porcelain
+   --untracked-files=all` lists nothing; repository-ignored paths do not count, a global
+   `core.excludesFile` does not apply). The lane's own worktree qualifies as it stands; no fresh checkout is needed, and
    `dogfood-check` refuses a dirty one naming the path count (DCW-V0-2144). The first
    `make dogfood-change` with every input ends `PENDING commit-sidecar` and exits 0: commit
    `.corvint/change.cem.json`, then rerun (DCW-V0-2143).
