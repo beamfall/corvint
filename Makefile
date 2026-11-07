@@ -114,6 +114,7 @@ GATE_STEPS = \
   license-headers-test \
   line-citations-check \
   line-citations-test \
+  live-test \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
@@ -535,6 +536,15 @@ line-citations-check: ## Check the line citations against the index
 .PHONY: line-citations-test
 line-citations-test:
 	@script/check-line-citations_test.sh
+
+# live-test runs the live test tier (AFP-V0-2700, AFP-V0-2701): the tests that call
+# testsupport.RequireLiveTier because they read the live repository or build release binaries. They
+# skip in go-test and in PR shards; this target discovers them and runs each package's set with
+# -tags live, so the gate, nightly release gates and the merge queue still run them. `go run
+# ./tools/live-test-run --list` prints the tier.
+.PHONY: live-test
+live-test:
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/live-test-run -timeout $(GO_TEST_TIMEOUT)
 
 # ci-least-privilege-check fails when any tracked .github/workflows/*.yml workflow-level permissions
 # stop being exactly `contents: read` (or a job-level block grants more) without a matching row in
@@ -1149,10 +1159,12 @@ import-direction-check:
 
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
-# internal/liveverify/affected package (DCW-V0-812).
+# internal/liveverify/affected package (DCW-V0-812). The test is in the live tier, so
+# CORVINT_LIVE_TIER=1 runs it here without a tagged rebuild (AFP-V0-2700); as a leading word after
+# heavy.sh it travels with an offloaded command (ASD-V0-830).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
-	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+	$(HEAVY_LIGHT_ENV) script/heavy.sh CORVINT_LIVE_TIER=1 $(GO_TEST_COMMAND) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
 # tasks-profiles-check fails, naming the profile and file, when a taskman-NAME/N literal in the
 # non-test sources under internal/tasks is not in exactly one of cli.LiveFormats, outputOnlyProfiles and

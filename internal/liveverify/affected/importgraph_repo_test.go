@@ -7,6 +7,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestRepositoryImportGraphReaders_V14409_V14362 pins the repository's own
@@ -19,6 +20,7 @@ import (
 // longer a command edge that every body edit in that closure follows
 // (V1-4362).
 func TestRepositoryImportGraphReaders_V14409_V14362(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {
