@@ -320,7 +320,7 @@ func unrolled(name, value string, values map[string][]string, depth int) (map[st
 
 // unrollSeed admits non-self values, plain identities, standalone defaults
 // with literal operands, and plain references behind a proven unknown prefix
-// with a literal suffix. Everything else fails closed; a braced expression's
+// with no suffix. Everything else fails closed; a braced expression's
 // enclosing span alone never proves it is an identity.
 func unrollSeed(name, value string, values map[string][]string, depth int) (string, bool) {
 	at, end := selfReference(name, value)
@@ -344,7 +344,7 @@ func unrollSeed(name, value string, values map[string][]string, depth int) (stri
 		}
 		return "", false
 	}
-	if !plain || at == 0 || !topLevel(value[:at]) || strings.ContainsAny(value[end:], "$`") {
+	if !plain || at == 0 || end != len(value) || !topLevel(value[:at]) {
 		return "", false
 	}
 	var cut bool

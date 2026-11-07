@@ -164,6 +164,8 @@ func TestComposedSelfReferencesKeepSelection_AFPV03149(t *testing.T) {
 		name, body string
 		dynamic    bool
 	}{
+		{name: "unknown prefix with appended extensionless target", body: "x=script\nx=\"$PWD/$x/check\"\n\"$x\"\n", dynamic: true},
+		{name: "unknown prefix with unsupported suffix expansion", body: "x=script\nx=\"$PWD/$x/${CHECK:-check}\"\n\"$x\"\n", dynamic: true},
 		{name: "default then alternative", body: "unset x\nx=${x:-script}\nx=${x:+$x/check}\n\"$x\"\n", dynamic: true},
 		{name: "default then identity", body: "unset x\nx=${x:-script}\nx=$x\n\"$x/check\"\n"},
 		{name: "two defaults", body: "unset x\nx=${x:-script}\nx=${x:=elsewhere}\n\"$x/check\"\n"},
