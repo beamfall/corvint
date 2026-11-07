@@ -141,10 +141,11 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 }
 
 // TestLineBrokenClimbParity_AFPV02952 holds this index's rule (d) and the
-// planner's equal over climbing literals (V1-4283): a non-test file's `..`
-// token held only by line-broken literals without a directory-changing word,
-// each reaching only a standard stream, is text (`printed`, `streamed`,
-// `raw`); a literal with no output-only evidence (`prose`, `template`, the
+// planner's equal over climbing literals (V1-4283): a `package main` file's
+// `..` token held only by line-broken literals without a directory-changing
+// word, each reaching only a standard stream, is text (`printed`,
+// `streamed`, `raw`); a library's printed text (`printedlib`, AFP-V0-2959),
+// a literal with no output-only evidence (`prose`, `template`, the
 // review's formatted reader `formatted`, `buffered`), a single-line path
 // (`oneline`, `path`), a printed script with `cd` (`script`), a token both
 // forms hold (`both`) and a test file (`tested`) keep rule (d). A warm scan
@@ -152,12 +153,14 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 func TestLineBrokenClimbParity_AFPV02952(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"go.mod":                 "module example.com/fixture\n\ngo 1.22\n",
-		"printed/printed.go":     "package printed\n\nimport \"fmt\"\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
-		"printed/p_test.go":      "package printed\n",
-		"streamed/streamed.go":   "package streamed\n\nimport (\n\t\"fmt\"\n\tsystem \"os\"\n)\n\nfunc F() { fmt.Fprintln(system.Stderr, \"See ../manifest.json\\nfor the digest.\") }\n",
-		"streamed/s_test.go":     "package streamed\n",
-		"raw/raw.go":             "package raw\n\nimport \"os\"\n\nfunc F() { os.Stdout.WriteString(`| See ../manifest.json for the digest. |\n\nMore text.\n`) }\n",
-		"raw/r_test.go":          "package raw\n",
+		"printed/printed.go":     "package main\n\nimport \"fmt\"\n\nfunc main() { F(\"x\") }\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
+		"printed/p_test.go":      "package main\n",
+		"printedlib/printed.go":  "package printedlib\n\nimport \"fmt\"\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
+		"printedlib/p_test.go":   "package printedlib\n",
+		"streamed/streamed.go":   "package main\n\nimport (\n\t\"fmt\"\n\tsystem \"os\"\n)\n\nfunc main() { fmt.Fprintln(system.Stderr, \"See ../manifest.json\\nfor the digest.\") }\n",
+		"streamed/s_test.go":     "package main\n",
+		"raw/raw.go":             "package main\n\nimport \"os\"\n\nfunc main() { os.Stdout.WriteString(`| See ../manifest.json for the digest. |\n\nMore text.\n`) }\n",
+		"raw/r_test.go":          "package main\n",
 		"prose/prose.go":         "package prose\n\nvar Doc = \"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\"\n",
 		"prose/p_test.go":        "package prose\n",
 		"template/template.go":   "package template\n\nimport \"fmt\"\n\nfunc Ruby(model string) []byte { return fmt.Appendf(nil, \"require_relative \\\"../models/%s\\\"\\n\\nclass X\\nend\\n\", model) }\n",
@@ -177,7 +180,64 @@ func TestLineBrokenClimbParity_AFPV02952(t *testing.T) {
 		"tested/tested.go":       "package tested\n",
 		"tested/tested_test.go":  "package tested\n\nimport \"fmt\"\n\nfunc init() { fmt.Print(\"See ../../manifest.json\\n\") }\n",
 	})
-	agree(t, root, []string{"both", "buffered", "formatted", "oneline", "path", "prose", "script", "template", "tested"})
+	agree(t, root, []string{"both", "buffered", "formatted", "oneline", "path", "printedlib", "prose", "script", "template", "tested"})
+}
+
+// pipeReader is the review's case (V1-4283, review fix 2), as the planner's
+// test has it: code that redirects os.Stdout to an os.Pipe, prints a
+// climbing line-broken literal straight to the stream, reads the pipe back,
+// trims it and opens the result (../config.go with suffix ".go").
+const pipeReader = `
+import (
+	"fmt"
+	"io"
+	"os"
+	"strings"
+)
+
+func Read(suffix string) []byte {
+	r, w, _ := os.Pipe()
+	stdout := os.Stdout
+	os.Stdout = w
+	fmt.Printf("../config%s\n", suffix)
+	os.Stdout = stdout
+	w.Close()
+	printed, _ := io.ReadAll(r)
+	b, _ := os.ReadFile(strings.TrimSpace(string(printed)))
+	return b
+}
+`
+
+// TestCapturedStreamParity_AFPV02960 holds this index's rule (d) and the
+// planner's equal when a package can capture its standard stream (V1-4283,
+// review fix 2): the review's pipe reader as a library (`piped`) and as a
+// command (`pipedmain`), and commands whose tests capture the stream through
+// os.Pipe (`testcaptured`), an external test package (`xtestcaptured`), a
+// re-run read back (`reexec`) or a duplicated descriptor (`dupped`) keep
+// rule (d); the same command whose tests capture nothing (`quiet`) stays
+// exempt. A warm scan memo keeps the same set.
+func TestCapturedStreamParity_AFPV02960(t *testing.T) {
+	printed := "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Printf(\"../config%s\\n\", \".go\") }\n"
+	captureTest := "\nimport (\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tr, w, _ := os.Pipe()\n\tos.Stdout = w\n\tw.Close()\n\tprinted, _ := io.ReadAll(r)\n\tos.ReadFile(strings.TrimSpace(string(printed)))\n}\n"
+	root := writeFixture(t, map[string]string{
+		"go.mod":                       "module example.com/fixture\n\ngo 1.22\n",
+		"config.go":                    "package config\n",
+		"piped/p.go":                   "package piped\n" + pipeReader,
+		"piped/p_test.go":              "package piped\n",
+		"pipedmain/main.go":            "package main\n" + pipeReader + "\nfunc main() { Read(\".go\") }\n",
+		"pipedmain/main_test.go":       "package main\n",
+		"testcaptured/main.go":         printed,
+		"testcaptured/main_test.go":    "package main\n" + captureTest,
+		"xtestcaptured/main.go":        printed,
+		"xtestcaptured/main_x_test.go": "package main_test\n" + captureTest,
+		"reexec/main.go":               printed,
+		"reexec/main_test.go":          "package main\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tout, _ := exec.Command(os.Args[0]).Output()\n\tos.ReadFile(strings.TrimSpace(string(out)))\n}\n",
+		"dupped/main.go":               printed,
+		"dupped/main_test.go":          "package main\n\nimport (\n\t\"os\"\n\t\"syscall\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tf, _ := os.Create(\"out\")\n\tsyscall.Dup2(int(f.Fd()), 1)\n}\n",
+		"quiet/main.go":                printed,
+		"quiet/main_test.go":           "package main\n",
+	})
+	agree(t, root, []string{"dupped", "piped", "pipedmain", "reexec", "testcaptured", "xtestcaptured"})
 }
 
 func containsString(values []string, value string) bool {
