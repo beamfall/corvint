@@ -232,6 +232,7 @@
       "integrations/compatibility.json",
       "integrations/opencode/package.json"
     ],
+    "conformance/human-documentation-compiler-v0": [],
     "conformance/mcp-2026-07-28": [
       "cmd/corvint-mcp/",
       "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -471,6 +472,7 @@
       "internal/",
       "script/diagnostic-coverage.count"
     ],
+    "internal/disagree": [],
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "docs/DOCUMENTATION-CORPUS.md",
@@ -490,6 +492,7 @@
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "script/lane-handback.sh"
     ],
+    "internal/evalrepo": [],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
       "examples/evidence-provider/",
@@ -551,6 +554,7 @@
     "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
+    "internal/liveverify/affected/languages": [],
     "internal/liveverify/affected/python": [],
     "internal/liveverify/affected/ruby": [],
     "internal/liveverify/affected/rust": [],
@@ -613,12 +617,14 @@
     ],
     "internal/modelgateway": [],
     "internal/nativelinecov": [],
+    "internal/necessity": [],
     "internal/observations": [
       ".corvint/.gitignore",
       ".gitignore",
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],
+    "internal/outcomecal": [],
     "internal/perfbudget": [
       ".github/cishards/",
       "cmd/",
@@ -651,6 +657,7 @@
     "internal/releasecandidate": [],
     "internal/requestpath": [],
     "internal/revieworder": [],
+    "internal/rubydialect": [],
     "internal/rubyprofile": [
       "conformance/ruby-profile-v0/"
     ],
@@ -665,6 +672,7 @@
     "internal/sharedpath": [],
     "internal/skhproof": [],
     "internal/skillexport": [],
+    "internal/slotlearn": [],
     "internal/specindex": [
       ".corvint/test-read-scopes.json",
       "docs/specs/",
@@ -685,6 +693,8 @@
     "internal/tasks/journal": [],
     "internal/tasks/safeopen": [],
     "internal/tasks/scale": [],
+    "internal/tasks/scopes": [],
+    "internal/tasks/similar": [],
     "internal/tasks/store": [
       "go.mod"
     ],
@@ -755,14 +765,19 @@
       "conformance/test-validity-v0/route-stubs.json",
       "internal/changee2e/testdata/recorded/"
     ],
+    "internal/touchsurprise": [],
     "internal/trace": [],
+    "internal/tracemigraterepo": [],
+    "internal/tracerecordrepo": [],
     "internal/unplannedread": [],
     "internal/upgradechanges": [],
     "internal/witness": [
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
     ],
+    "internal/workqueue": [],
     "internal/worksource": [],
+    "internal/worktreeimpact": [],
     "protocol/integrations": [],
     "script/spec-coverage-audit": [],
     "tools/beamfall-shadow": [
@@ -828,6 +843,7 @@
     "tools/cw-trial": [
       "benchmarks/results/"
     ],
+    "tools/declaration-compat-check": [],
     "tools/dogfood-guard-hunks": [],
     "tools/dogfood-inherit-citations": [
       "script/check-line-citations.sh",
@@ -860,6 +876,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
+    "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [
@@ -929,6 +946,7 @@
       "internal/mcp/cli/",
       "script/install-local-bin.sh"
     ],
-    "tools/linecov": []
+    "tools/linecov": [],
+    "tools/unbounded-readers": []
   }
 }
