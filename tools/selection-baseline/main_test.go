@@ -2,9 +2,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -341,5 +344,51 @@ func TestReplayJobsScaleToTheHost_ASCV0777(t *testing.T) {
 		if got := defaultReplayJobs(tc.n, tc.cpus, tc.override); got != tc.want {
 			t.Errorf("defaultReplayJobs(%d, %d, %q) = %d, want %d", tc.n, tc.cpus, tc.override, got, tc.want)
 		}
+	}
+}
+
+// AFP-V0-2750: a replayed historic head can lack a declaration the current
+// binary needs (cfamily), so `corvint test --dry-run` gives the INCOMPLETE
+// verdict, exit 3, with its manifest written. The replay reads that manifest
+// and records why; exit 3 with no manifest, or any other failing exit, is
+// still a failed replay.
+func TestSelectionBaselineReadsAnIncompleteDryRun_AFPV2750(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake corvint is a POSIX shell script")
+	}
+	for _, tc := range []struct {
+		name   string
+		script string
+		ok     bool
+	}{
+		{"INCOMPLETE with a manifest", `printf '{"scope":"NARROWED","incomplete":["cfamily: none declared"]}' > "$6"; exit 3`, true},
+		{"INCOMPLETE with no manifest", `exit 3`, false},
+		{"FAIL with a manifest", `printf '{}' > "$6"; exit 1`, false},
+		{"PASS", `printf '{}' > "$6"`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			corvint := filepath.Join(dir, "corvint")
+			if err := os.WriteFile(corvint, []byte("#!/bin/sh\n"+tc.script+"\n"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			manifestPath := filepath.Join(dir, "m.json")
+			err := dryRunManifest(context.Background(), dir, corvint, "base", manifestPath)
+			if (err == nil) != tc.ok {
+				t.Fatalf("err %v, want ok=%v", err, tc.ok)
+			}
+			if tc.name == "INCOMPLETE with a manifest" {
+				var m manifest
+				data, _ := os.ReadFile(manifestPath)
+				if err := json.Unmarshal(data, &m); err != nil {
+					t.Fatal(err)
+				}
+				var res Result
+				fillManifest(&res, m)
+				if !reflect.DeepEqual(res.TestIncomplete, []string{"cfamily: none declared"}) {
+					t.Fatalf("testIncomplete %q", res.TestIncomplete)
+				}
+			}
+		})
 	}
 }
