@@ -921,8 +921,18 @@ func (g *graph) visitExpr(n *node, pkg *Package, x ast.Node) {
 		}
 		g.markPlainReads(pkg, x)
 		g.call(n, pkg, x)
-	case *ast.IndexExpr, *ast.RangeStmt:
+	case *ast.IndexExpr:
 		g.markPlainReads(pkg, x)
+	case *ast.RangeStmt:
+		g.markPlainReads(pkg, x)
+		// for k, v = range ... assigns its targets on every iteration.
+		if x.Tok == token.ASSIGN {
+			for _, target := range []ast.Expr{x.Key, x.Value} {
+				if target != nil {
+					g.write(n, pkg, target)
+				}
+			}
+		}
 	case *ast.AssignStmt:
 		for _, lhs := range x.Lhs {
 			g.write(n, pkg, lhs)
