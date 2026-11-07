@@ -319,9 +319,10 @@ func unrolled(name, value string, values map[string][]string, depth int) (map[st
 }
 
 // unrollSeed admits non-self values, plain identities, standalone defaults
-// with literal operands, and plain references behind a proven unknown prefix
-// with no suffix. Everything else fails closed; a braced expression's
-// enclosing span alone never proves it is an identity.
+// with literal operands, and plain references normalized by exactly $PWD/ or
+// ${PWD}/, with no suffix and no in-file directory component in that prefix.
+// Everything else fails closed; a braced expression's enclosing span alone
+// never proves it is an identity.
 func unrollSeed(name, value string, values map[string][]string, depth int) (string, bool) {
 	at, end := selfReference(name, value)
 	if at < 0 {
@@ -347,9 +348,17 @@ func unrollSeed(name, value string, values map[string][]string, depth int) (stri
 	if !plain || at == 0 || end != len(value) || !topLevel(value[:at]) {
 		return "", false
 	}
+	// Only working-directory normalization preserves the seed's relative path.
+	// An arbitrary unknown prefix can add directories ("$PWD/script/$x")
+	// or transform it opaquely. constructed cannot resolve the resulting
+	// wildcard-prefixed extensionless target, so those forms retain the cut.
+	prefix := value[:at]
+	if prefix != "$PWD/" && prefix != "${PWD}/" {
+		return "", false
+	}
 	var cut bool
-	prefixes := expand(value[:at], values, depth+1, &cut)
-	if cut || slices.ContainsFunc(prefixes, func(prefix string) bool { return !strings.Contains(prefix, wildcard) }) {
+	prefixes := expand(prefix, values, depth+1, &cut)
+	if cut || len(prefixes) != 1 || prefixes[0] != wildcard+"/" {
 		return "", false
 	}
 	return wildcard, true

@@ -110,8 +110,8 @@ func TestRepeatedValuesCountOnce_AFPV03148(t *testing.T) {
 }
 
 // AFP-V0-3149: a value that refers to its own name is unrolled once, with no
-// cut, when no unrolled value can be literal: an unknown part precedes the
-// reference (`b="$PWD/$b"`), or the value is the reference alone
+// cut, for working-directory normalization (`b="$PWD/$b"`), or when the
+// value is the reference alone
 // (`dir=${dir:-script}`). Each deeper unrolling then names nothing the single
 // unrolling and the wildcard for the earlier value do not, so the depth
 // bound drops nothing. A literal wrapper (`x="../$x"`), whose unrollings may
@@ -164,6 +164,10 @@ func TestComposedSelfReferencesKeepSelection_AFPV03149(t *testing.T) {
 		name, body string
 		dynamic    bool
 	}{
+		{name: "prefix directory with extensionless target", body: "x=check\nx=\"$PWD/script/$x\"\n\"$x\"\n", dynamic: true},
+		{name: "unknown command-result prefix", body: "x=check\nx=\"$(printf '%s' \"$PWD/script\")/$x\"\n\"$x\"\n", dynamic: true},
+		{name: "working-directory value adds a directory", body: "PWD=\"$ROOT/script\"\nx=check\nx=\"$PWD/$x\"\n\"$x\"\n", dynamic: true},
+		{name: "braced working-directory normalization", body: "x=script/check\nx=\"${PWD}/${x}\"\n\"$x\"\n"},
 		{name: "unknown prefix with appended extensionless target", body: "x=script\nx=\"$PWD/$x/check\"\n\"$x\"\n", dynamic: true},
 		{name: "unknown prefix with unsupported suffix expansion", body: "x=script\nx=\"$PWD/$x/${CHECK:-check}\"\n\"$x\"\n", dynamic: true},
 		{name: "default then alternative", body: "unset x\nx=${x:-script}\nx=${x:+$x/check}\n\"$x\"\n", dynamic: true},
