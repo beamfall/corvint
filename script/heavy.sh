@@ -2068,7 +2068,7 @@ cache_trim() {
 # shell would expand or treat as an operator (ASD-V0-939).
 IFS= read -r -d '' unwrap_perl << 'PERL' || :
 my ($s, $cur, $have, $q) = (shift, "", 0, "");
-my @w;
+my @words;
 for (my $i = 0; $i < length $s; $i++) {
     my $c = substr $s, $i, 1;
     if ($q eq "'") { if ($c eq "'") { $q = "" } else { $cur .= $c } next }
@@ -2080,13 +2080,13 @@ for (my $i = 0; $i < length $s; $i++) {
         ($cur, $have) = ($cur . substr($s, $i, 1), 1);
         next;
     }
-    if ($c eq " " || $c eq "\t") { push @w, $cur if $have; ($cur, $have) = ("", 0); next }
+    if ($c eq " " || $c eq "\t") { push @words, $cur if $have; ($cur, $have) = ("", 0); next }
     exit 3 if $c =~ /[|&;<>()\$`*?\[\]{}~#!\n]/; # bash32: allow
     ($cur, $have) = ($cur . $c, 1);
 }
 exit 3 if length $q;
-push @w, $cur if $have;
-print map { "$_\0" } @w;
+push @words, $cur if $have;
+print map { "$_\0" } @words;
 PERL
 
 # unwrap_shell COMMAND...: the argv to run into heavy_argv. `sh -c STRING` or `bash -c STRING` with

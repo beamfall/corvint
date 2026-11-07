@@ -583,14 +583,15 @@ what is read, and keep every unit whose reads are genuinely unbounded, with a wi
 - **AFP-V0-2951:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends AFP-V0-012 rule (d)) A Go unit whose non-test files declare `package main` SHALL keep its
   own `unboundedReads` reason and its own selection on every dirty path when a non-test file locates
-  the root, but SHALL NOT be `locatesRoot`: no Go package imports a command, so the only units rule
-  (d) reached from it were the make targets, CI jobs and scripts that build or run the binary, and
-  what such a run reads is decided by the runner's own recipe (its working directory, arguments and
-  literals, rule (c)) and by the command's code, which the runner's import or build edge already
-  follows. Failure mode, retained: a runner that runs a repository-walking command over the live
-  checkout is selected only when its recipe or the command's code changes; the repository's such
-  runners (`make selection-baseline-check`, `make perf-budget`) replay fixed commits or generated
-  fixtures. The CI selector is unchanged: its rule (d) closure already follows import edges only
+  the root, but SHALL NOT be `locatesRoot`, and a rule (d) chain from any root locator SHALL reach
+  such a unit (the unit carries `command` in the graph) without continuing past it: no Go package
+  imports a command, so the only units rule (d) reached through it were the make targets, CI jobs
+  and scripts that build or run the binary, and what such a run reads is decided by the runner's
+  own recipe (its working directory, arguments and literals, rule (c)) and by the command's code,
+  which the runner's import or build edge already follows. Failure mode, retained: a runner that
+  runs a repository-walking command over the live checkout is selected only when its recipe or the
+  command's code changes; the repository's such runners (`make selection-baseline-check`,
+  `make perf-budget`) replay fixed commits or generated fixtures. The CI selector is unchanged: its rule (d) closure already follows import edges only
   (AFP-V0-464), which a command has none of.
 - **AFP-V0-2952:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends AFP-V0-012 rule (d)) A `..`-climbing token that a non-test file holds only inside string
@@ -732,7 +733,7 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
 | AFP-V0-2950 | `comparisonOnlyLocators`, `boundedJoinArgument` and `pathImports` in `internal/liveverify/affected/golang/locatorproof.go` and the identical `internal/gateselect/locatorproof.go`; their calls in `pathTokens` (`golang.go`) and `scanFile` (`gateselect/readers.go`) | `TestBoundedJoinLocatorIsNoRead_AFPV02950` in `internal/liveverify/affected/golang/locator_selection_test.go` (a literal join is selected only by the file it names; a returned, re-assigned, `Dir`-climbed, computed-join, `..`-join and `=`-rebound control stay rule (d)); `TestBoundedJoinLocatorParity_AFPV02950` in `internal/gateselect/locator_parity_test.go` (both analyzers agree; cold and warm memo agree); before/after counts in build log `2026-11-06-unbounded-readers` |
-| AFP-V0-2951 | the `command` guard on `LocatesRoot` in `observeDirectory` (`internal/liveverify/affected/golang/golang.go`) | `TestCommandLocatorReachesNoRunner_AFPV02951` in `internal/liveverify/affected/golang/locator_selection_test.go` (a command keeps its own reason and selection; its runner is not selected; a library locator's importer still is); the measured runner counts in build log `2026-11-06-unbounded-readers` |
+| AFP-V0-2951 | the `command` guard on `LocatesRoot` and `Unit.Command` in `observeDirectory` (`internal/liveverify/affected/golang/golang.go`); `traverseWhere` in `select.go` and its call in `unboundedReaders` (`graph.go`) | `TestCommandLocatorReachesNoRunner_AFPV02951` in `internal/liveverify/affected/golang/locator_selection_test.go` (a command keeps its own reason and selection; its runner is not selected; a library locator's importer still is); the measured runner counts in build log `2026-11-06-unbounded-readers` |
 | AFP-V0-2952 | `textOnly` in `fileScan`, `textTokens` and the `textOnly` skip of `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `textOnly` in `sourceScan`, `scanSource`, `record` and the `TextOnly` memo field in `internal/gateselect/readers.go` and `scanmemo.go` | `TestLineBrokenClimbIsText_AFPV02952` in `internal/liveverify/affected/golang/unbounded_test.go` (document and program text exempt; a single-line path, a `cd` script, a test file and a token both forms hold keep rule (d)); `TestLineBrokenClimbParity_AFPV02952` in `internal/gateselect/locator_parity_test.go` |
 | AFP-V0-2953 | `environmentSource` in `internal/liveverify/affected/shell/fresh.go` and its call in `observe` (`shell.go`) | `TestEnvironmentInputSourceIsBounded_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (the heavy.sh form; controls: an assigned name, a `read` name, a `${NAME:-default}`, a sibling repository source, a trailing path, a positional parameter); the flipped `envfile.sh` case of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/shell_readscopes_repo_test.go` |
 | AFP-V0-2954 | `conflicting` in `resolver`, its assignment in `newResolver` and the count check of `base` (`internal/liveverify/affected/shell/shell.go`) | `TestSameValuedReassignmentResolves_AFPV02954` in `internal/liveverify/affected/shell/shell_test.go` (the dogfood-finish.sh form links; controls: differing values, `local`, `read`, `for`, `+=`); `TestReassignedVariableIsNotADirectoryForm_NSAV0008` (unchanged) |

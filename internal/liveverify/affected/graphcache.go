@@ -195,6 +195,7 @@ type cachedUnit struct {
 	EmbedFiles           []string `json:"embedFiles"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
+	Command              bool     `json:"command"`
 	ReadScoped           bool     `json:"readScoped"`
 	ReadScope            []string `json:"readScope"`
 	Frontier             []string `json:"frontier"`

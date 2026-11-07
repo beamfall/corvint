@@ -208,6 +208,7 @@ type digestUnit struct {
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
+	Command              bool     `json:"command,omitzero"`
 	ReadScoped           bool     `json:"readScoped,omitzero"`
 	ReadScope            []string `json:"readScope,omitempty"`
 	Frontier             []string `json:"frontier"`
@@ -667,7 +668,10 @@ func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string]
 			locators[id] = Witness{Via: []string{id}}
 		}
 	}
-	reached := graph.traverse(locators, nil)
+	// A chain stops at a command (AFP-V0-2951): the units that build or run
+	// it read what their own recipes say, not what the command's code
+	// locates, and nothing compiles a command into another unit.
+	reached := graph.traverseWhere(locators, nil, func(id string) bool { return !graph.units[id].Command })
 	walked := make(map[string]bool, len(reached))
 	for id := range reached {
 		walked[id] = true
@@ -845,6 +849,7 @@ func projectUnit(unit Unit) digestUnit {
 		EmbedFiles:           unit.EmbedFiles,
 		UnboundedReads:       unit.UnboundedReads,
 		LocatesRoot:          unit.LocatesRoot,
+		Command:              unit.Command,
 		ReadScoped:           unit.ReadScoped,
 		ReadScope:            unit.ReadScope,
 		Frontier:             unit.Frontier,
