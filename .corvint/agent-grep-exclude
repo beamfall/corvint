@@ -6,6 +6,7 @@
 **/results/**
 **/testdata/**
 .agent-evidence/**
+.corvint/change.cem.json
 .corvint/changes/**
 .taskman/**
 artifacts/**
