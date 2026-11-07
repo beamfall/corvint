@@ -17,7 +17,7 @@
 #                                                   vet of the packages changed since REV; the first
 #                                                   failure prints `FAIL static GATE` and `fix:`. A full
 #                                                   run starts with it and its later rows REUSE it
-#   script/batch-precheck.sh --static-check         check spec capacity and README rows only
+#   script/batch-precheck.sh --static-check         check spec capacity, digest status and README rows only
 #   script/batch-precheck.sh --sync-check           only verify the step list still mirrors CI
 #   script/batch-precheck.sh --list                 print the steps without running them
 #   script/batch-precheck.sh --list-print-only      print the listed steps that only print a reason
@@ -794,12 +794,24 @@ drift_step() {
 # (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930), the first also by `script/doc-gates-summary.sh `
 # (ASD-V0-782) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
-# step (V1-3232: as one step its targets ran one after another). ASD-V0-911 (V1-3789): a doc-gates
+# step (V1-3232: as one step its targets ran one after another). Its prerequisites print first, one
+# make step each (SRG-V0-982). ASD-V0-911 (V1-3789): a doc-gates
 # recipe that exists but matches neither form prints one `drift` line, so the caller names this
 # function instead of silently running the gates serially.
 doc_gate_expansion() {
-  awk '/^DOC_GATE_TARGETS :=/ { sub(/^DOC_GATE_TARGETS :=[[:space:]]*/, ""); targets = $0; next }
-    /^doc-gates:[[:space:]]*(##.*)?$/ { on = 1; next }
+  awk '/^DOC_GATE_TARGETS :=/ { sub(/^DOC_GATE_TARGETS :=[[:space:]]*/, ""); targets = $0; sub(/[[:space:]]*\\$/, "", targets); continuation = ($0 ~ /\\$/); next }
+    continuation {
+      line = $0; continuation = (line ~ /\\$/); sub(/[[:space:]]*\\$/, "", line)
+      sub(/^[[:space:]]+/, "", line); targets = targets " " line; next
+    }
+    /^doc-gates:([[:space:]]|$)/ {
+      # SRG-V0-982: prerequisites, ordinary then order-only, run as their own steps first so the
+      # expansion never drops one make doc-gates would run.
+      on = 1; line = $0; sub(/^doc-gates:/, "", line); sub(/##.*$/, "", line); gsub(/\|/, " ", line)
+      np = split(line, pre, /[[:space:]]+/)
+      for (i = 1; i <= np; i++) if (pre[i] != "") prereq[++nprereq] = pre[i]
+      next
+    }
     on && /^\t/ { recipe[++n] = $0; next }
     on { on = 0 }
     END {
@@ -812,9 +824,12 @@ doc_gate_expansion() {
         recipe[1] = "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)"
       if (n == 0) exit
       if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") { print "drift"; exit }
+      sub(/^[[:space:]]+/, "", targets)
       m = split(targets, t, /[[:space:]]+/)
       for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) { print "drift"; exit }
-      for (i = 1; i <= m; i++) if (t[i] != "") printf "make\t%s\n", t[i]
+      for (i = 1; i <= nprereq; i++) if (prereq[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) { print "drift"; exit }
+      for (i = 1; i <= nprereq; i++) if (!(prereq[i] in seen)) { seen[prereq[i]] = 1; printf "make\t%s\n", prereq[i] }
+      for (i = 1; i <= m; i++) if (t[i] != "" && !(t[i] in seen)) { seen[t[i]] = 1; printf "make\t%s\n", t[i] }
       print "gorun\t./conformance/use-cases-v0"
     }' Makefile 2> /dev/null
 }
@@ -1122,6 +1137,8 @@ static_checks() {
   [[ -e docs/specs/README.md || -e docs/specs/INDEX.json ]] || return 0
   local rc=0
   "$self_dir/check-spec-readme.sh" || rc=1
+  "$self_dir/check-doc-gate-targets.sh" || rc=1
+  script/gen-spec-requirements.sh --status-check || rc=1
   SPEC_REQUIREMENTS_BASE="$base" SPEC_CAPACITY_MARGIN="${SPEC_CAPACITY_MARGIN:-8}" \
     script/gen-spec-requirements.sh --capacity || rc=1
   if ((rc != 0)); then

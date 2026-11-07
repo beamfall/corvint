@@ -518,7 +518,8 @@ set -m
   "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
     DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>/dev/null || first_status=$?
-  test "$first_status" = 1
+  # DCW-V0-2143: the first pass leaves only its uncommitted sidecar open, so it is PENDING (3).
+  test "$first_status" = 3
   test ! -e "$default_evidence/orphan-step.stderr"
   built_corvint=$(git rev-parse --absolute-git-dir)/corvint/corvint
   test -x "$built_corvint"
@@ -618,7 +619,11 @@ phase_jobs="$phase_jobs $!"
     CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || sidecar_status=$?
-  test "$sidecar_status" = 1
+  # DCW-V0-2143: that expected first pass is PENDING, exit 3, naming the commit and rerun.
+  test "$sidecar_status" = 3
+  rg -q '^dogfood-change: PENDING commit-sidecar base=' <<< "$sidecar_output"
+  rg -Fq '  fix: commit .corvint/change.cem.json, then rerun: ' <<< "$sidecar_output"
+  ! rg -q 'FAIL not-complete' <<< "$sidecar_output"
   rg -Fxq '  local-outcome: record-index-failed' <<< "$sidecar_output"
   jq -e . .corvint/dogfood-report.json >/dev/null
   rg -q '"complete": false' .corvint/dogfood-report.json
@@ -1188,6 +1193,8 @@ assert_no_citation_stage() {
   done
 }
 
+# DCW-V0-2143: a case whose plan cites cleanly leaves only the uncommitted sidecar open, so it
+# expects the PENDING exit 3; a refused plan keeps FAIL, exit 1.
 run_citation_case() {
   local name=$1 plan=$2 expected=$3 count=$4 pid stage
   citation_case="$citation_artifacts/$name"
@@ -1274,7 +1281,7 @@ cp "$citation_repo/.corvint/direct.cem.json" "$citation_artifacts/direct-expecte
 # An untracked map would dirty the tree the recorder refuses (DCW-V0-015).
 rm -f "$citation_repo/.corvint/direct.cem.json"
 
-run_citation_case one "$citation_artifacts/one.tsv" 1 1
+run_citation_case one "$citation_artifacts/one.tsv" 3 1
 assert_cited_uncommitted
 rg -q '^\.corvint/change.cem.json\t\.corvint/change.cem.json\t' "$citation_case/cites.tsv"
 # DCW-V0-032 (proposed): an empty plan on a map that still owes an unknown hunk is refused,
@@ -1317,15 +1324,15 @@ done
 ) &
 phase_jobs="$phase_jobs $!"
 
-run_citation_case corrected "$citation_artifacts/multi.tsv" 1 2
+run_citation_case corrected "$citation_artifacts/multi.tsv" 3 2
 assert_cited_uncommitted
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
 awk -F '\t' 'NR == 1 { if ($1 != ".corvint/change.cem.json" || $2 == $1) exit 1; stage=$2 }
   NR == 2 { if ($1 != stage || $2 != ".corvint/change.cem.json") exit 1 }' "$citation_case/cites.tsv"
-run_citation_case reapplied "$citation_artifacts/multi.tsv" 1 2
+run_citation_case reapplied "$citation_artifacts/multi.tsv" 3 2
 assert_cited_uncommitted
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
-run_citation_case duplicate "$citation_artifacts/duplicate.tsv" 1 3
+run_citation_case duplicate "$citation_artifacts/duplicate.tsv" 3 3
 assert_cited_uncommitted
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
 awk -F '\t' 'NR == 1 { stage=$2 } NR == 2 { if ($1 != stage || $2 != stage) exit 1 }
@@ -1333,7 +1340,7 @@ awk -F '\t' 'NR == 1 { stage=$2 } NR == 2 { if ($1 != stage || $2 != stage) exit
 
 cp "$citation_artifacts/multi.tsv" "$citation_artifacts/mutable.tsv"
 citation_mutate_plan="$citation_artifacts/mutable.tsv"
-run_citation_case frozen-plan "$citation_mutate_plan" 1 2
+run_citation_case frozen-plan "$citation_mutate_plan" 3 2
 assert_cited_uncommitted
 citation_mutate_plan=
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
@@ -1342,7 +1349,7 @@ test "$(cat "$citation_artifacts/mutable.tsv")" = malformed
 (
 use_citation_clone citation-bound-repo
 awk 'BEGIN { for (i=0; i<256; i++) print "1\tdocs/specs/intent-a.md\t1:1\tspecification" }' > "$citation_artifacts/256.tsv"
-run_citation_case at-row-bound "$citation_artifacts/256.tsv" 1 256
+run_citation_case at-row-bound "$citation_artifacts/256.tsv" 3 256
 assert_cited_uncommitted
 cmp "$citation_artifacts/one/final.json" "$citation_case/final.json"
 cat "$citation_artifacts/256.tsv" "$citation_artifacts/one.tsv" > "$citation_artifacts/257.tsv"
@@ -1353,7 +1360,7 @@ awk 'BEGIN { prefix="1\t"; suffix="\t1:1\tspecification\n";
   n=16384-length(prefix)-length(suffix); path=""; while (length(path) < n) path=path "x";
   for (i=0; i<256; i++) printf "%s%s%s",prefix,path,suffix }' > "$citation_artifacts/4mib.tsv"
 test "$(wc -c < "$citation_artifacts/4mib.tsv" | tr -d '[:space:]')" = 4194304
-run_citation_case at-byte-bound "$citation_artifacts/4mib.tsv" 1 256
+run_citation_case at-byte-bound "$citation_artifacts/4mib.tsv" 3 256
 assert_cited_uncommitted
 cmp "$citation_artifacts/one/final.json" "$citation_case/final.json"
 { printf 'x'; cat "$citation_artifacts/4mib.tsv"; } > "$citation_artifacts/over-4mib.tsv"
@@ -1385,7 +1392,7 @@ printf '%s\n' docs/specs/intent-a.md docs/specs/new-intent.md > "$citation_artif
 export DOGFOOD_TEST_EXPECTED_INTENTS="$citation_artifacts/bootstrap-intents.txt"
 citation_intents=$DOGFOOD_TEST_EXPECTED_INTENTS
 citation_hunks="${nine_hunks}unknown:docs/specs/new-intent.md"
-run_citation_case bootstrap-omitted "$citation_artifacts/nine.tsv" 1 9
+run_citation_case bootstrap-omitted "$citation_artifacts/nine.tsv" 3 9
 assert_cited_uncommitted
 # Only that hunk: leaving out any other unknown hunk is still refused.
 citation_hunks="unknown:docs/specs/new-intent.md ${nine_hunks% }"
@@ -1400,7 +1407,7 @@ rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
 # More unknown hunks than one plan can name: a split plan still cites its rows.
 citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.sh ", i }')
 citation_hunks=${citation_hunks% }
-run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 1 9
+run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 3 9
 assert_cited_uncommitted
 # V1-0239: the same plan after a later commit swapped hunks 1 and 2 keeps its row count,
 # but rows 1 and 2 would now cite each other's hunk.
@@ -1422,7 +1429,7 @@ printf '%s\n' docs/specs/intent-a.md 'docs/specs/new"intent.md' > "$citation_art
 export DOGFOOD_TEST_EXPECTED_INTENTS="$citation_artifacts/escaped-intents.txt"
 citation_intents=$DOGFOOD_TEST_EXPECTED_INTENTS
 citation_hunks="${nine_hunks}unknown:docs/specs/new\\\"intent.md"
-run_citation_case bootstrap-escaped "$citation_artifacts/nine.tsv" 1 9
+run_citation_case bootstrap-escaped "$citation_artifacts/nine.tsv" 3 9
 assert_cited_uncommitted
 ) &
 phase_jobs="$phase_jobs $!"

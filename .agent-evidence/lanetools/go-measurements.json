@@ -1,0 +1,137 @@
+[
+  {
+    "package": "internal/cem/verify",
+    "gomaxprocs": 4,
+    "pattern": null,
+    "seconds": 8.626,
+    "rc": 0,
+    "load": "1.17 2.39 5.01 37/1032 4",
+    "command": [
+      "bash",
+      "script/heavy.sh",
+      "env",
+      "GOTOOLCHAIN=local",
+      "GOMAXPROCS=4",
+      "go",
+      "test",
+      "-count=1",
+      "-timeout",
+      "30m",
+      "./internal/cem/verify/"
+    ],
+    "log": "/tmp/lanetools-resume/go-measure-0.log"
+  },
+  {
+    "package": "internal/cem/verify",
+    "gomaxprocs": null,
+    "pattern": null,
+    "seconds": 8.04,
+    "rc": 0,
+    "load": "1.77 2.48 5.01 9/1105 2526",
+    "command": [
+      "bash",
+      "script/heavy.sh",
+      "env",
+      "GOTOOLCHAIN=local",
+      "go",
+      "test",
+      "-count=1",
+      "-timeout",
+      "30m",
+      "./internal/cem/verify/"
+    ],
+    "log": "/tmp/lanetools-resume/go-measure-1.log"
+  },
+  {
+    "package": "internal/cem/verify",
+    "gomaxprocs": null,
+    "pattern": null,
+    "seconds": 6.536,
+    "rc": 0,
+    "load": "3.56 2.86 5.11 14/1067 5077",
+    "command": [
+      "bash",
+      "script/heavy.sh",
+      "env",
+      "GOTOOLCHAIN=local",
+      "go",
+      "test",
+      "-count=1",
+      "-timeout",
+      "30m",
+      "./internal/cem/verify/"
+    ],
+    "log": "/tmp/lanetools-resume/go-measure-2.log"
+  },
+  {
+    "package": "internal/cem/verify",
+    "gomaxprocs": 4,
+    "pattern": null,
+    "seconds": 6.07,
+    "rc": 0,
+    "load": "5.52 3.27 5.23 2/969 7634",
+    "command": [
+      "bash",
+      "script/heavy.sh",
+      "env",
+      "GOTOOLCHAIN=local",
+      "GOMAXPROCS=4",
+      "go",
+      "test",
+      "-count=1",
+      "-timeout",
+      "30m",
+      "./internal/cem/verify/"
+    ],
+    "log": "/tmp/lanetools-resume/go-measure-3.log"
+  },
+  {
+    "package": "internal/liveverify/affected",
+    "gomaxprocs": 4,
+    "pattern": "^TestIncrementalSelectionMeetsTheLiveBudget$",
+    "seconds": 36.553,
+    "rc": 0,
+    "load": "5.39 3.29 5.23 2/965 10116",
+    "command": [
+      "bash",
+      "script/heavy.sh",
+      "env",
+      "GOTOOLCHAIN=local",
+      "GOMAXPROCS=4",
+      "go",
+      "test",
+      "-count=1",
+      "-timeout",
+      "30m",
+      "-v",
+      "-run",
+      "^TestIncrementalSelectionMeetsTheLiveBudget$",
+      "./internal/liveverify/affected/"
+    ],
+    "log": "/tmp/lanetools-resume/go-measure-4.log"
+  },
+  {
+    "package": "internal/liveverify/affected",
+    "gomaxprocs": null,
+    "pattern": "^TestIncrementalSelectionMeetsTheLiveBudget$",
+    "seconds": 36.471,
+    "rc": 0,
+    "load": "3.58 3.06 5.08 2/950 10400",
+    "command": [
+      "bash",
+      "script/heavy.sh",
+      "env",
+      "GOTOOLCHAIN=local",
+      "go",
+      "test",
+      "-count=1",
+      "-timeout",
+      "30m",
+      "-v",
+      "-run",
+      "^TestIncrementalSelectionMeetsTheLiveBudget$",
+      "./internal/liveverify/affected/"
+    ],
+    "log": "/tmp/lanetools-resume/go-measure-5.log"
+  }
+]

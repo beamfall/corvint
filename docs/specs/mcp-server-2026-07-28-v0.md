@@ -104,6 +104,8 @@ receipt, cache, and denial policy; the local source-content-free policy does not
 
 ## Requirements
 
+- `MCPV0-7407`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3916) The public NewTaskReview and NewTaskReviewLSP constructors MUST return an ordinary error interface containing plain nil on success, and a concrete transport Error only on failure. Transport adapters MUST explicitly normalize successful nil errors. Test: `TestMCPV07407ConstructorNil` in `internal/mcp/bridge`; go vet of that package.
+
 - `MCPV0-035`: (accepted, decision 0512) Cancellation of an active
   `corvint.flows.impact` MUST stop its impact graph walk under AFU-V1-059 and return the
   existing `cancelled` failure without a ready receipt. A regression MUST cancel after the

@@ -132,7 +132,11 @@ func (p *proposal) refreshLabel() string {
 	if p.options.FromCEM != "" {
 		source = " from-cem=" + strconv.Quote(p.options.FromCEM)
 	}
-	return fmt.Sprintf("%s carried=%d rekeyed=%d dropped=%d deferred=%d", source, carried, rekeyed, dropped, len(p.refreshDeferred))
+	restored := ""
+	if p.anchorsRestored > 0 {
+		restored = fmt.Sprintf(" anchors-restored=%d", p.anchorsRestored)
+	}
+	return fmt.Sprintf("%s carried=%d rekeyed=%d dropped=%d deferred=%d%s", source, carried, rekeyed, dropped, len(p.refreshDeferred), restored)
 }
 
 // carry maps each --refresh row onto a current owed hunk (DCW-V0-442): a row
@@ -150,7 +154,6 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 		return
 	}
 	p.carried = map[string][]string{}
-	p.carriedFiles = map[string]string{}
 	current := map[string]proposedHunk{}
 	for _, hunk := range owed {
 		current[hunk.id] = hunk
@@ -275,9 +278,6 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d: %s", row.line, note))
 			}
 			used[fields[0]+":"+fields[1]] = true
-			if hunk := current[target]; p.carriedFiles[hunk.path] == "" {
-				p.carriedFiles[hunk.path] = row.rest
-			}
 		}
 		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
 	}

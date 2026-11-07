@@ -66,7 +66,7 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 			testGit(t, root, "commit", "-q", "--allow-empty", "-m", "empty")
 		}
 		code, stderr, report := run(ChangeOptions{})
-		if code != 0 || prepared() {
+		if code != 2 || prepared() || !strings.Contains(stderr, "REFUSE prechange-receipts-missing") {
 			t.Fatalf("%s: code=%d prepared=%t stderr:\n%s", label, code, prepared(), stderr)
 		}
 		for _, want := range []string{

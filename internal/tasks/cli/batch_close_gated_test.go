@@ -90,7 +90,7 @@ func TestTCDV0185_GatedBatchCloseRunsRequiredGates(t *testing.T) {
 	root, base, laneA, merge := gbRepo(t)
 	scopedID, _ := effectsTicket(t, root, "scoped", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)
 	wholeID, _ := effectsTicket(t, root, "whole", "P1", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":["elsewhere/"]}`)
-	narrowID, _ := effectsTicket(t, root, "narrow", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["docs/"]}`)
+	narrowID, _ := effectsTicket(t, root, "narrow", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["docs/missing.md"]}`)
 	gated := func(title, gate string) string {
 		t.Helper()
 		payload := strings.NewReplacer(`"title":"Console ticket"`, `"title":"`+title+`"`, `"requiredGates":[]`, `"requiredGates":["`+gate+`"]`,
@@ -109,7 +109,7 @@ func TestTCDV0185_GatedBatchCloseRunsRequiredGates(t *testing.T) {
 	prURL, runURL := "https://github.com/beamfall/corvint/pull/50", "https://github.com/beamfall/corvint/actions/runs/7"
 	prs := tdsExport(t, "prs.json", `[
 {"number":40,"state":"MERGED","title":"lane a","body":"`+tdsJSON("Refs "+scoped+"\nRefs "+whole)+`","headRefOid":"`+laneA+`","labels":[]},
-{"number":41,"state":"MERGED","title":"lane b","body":"`+tdsJSON("Refs "+narrow+"\nRefs "+unrun+"\nRefs "+broken)+`","headRefOid":"`+base+`","labels":[]},
+{"number":41,"state":"MERGED","title":"lane b","body":"`+tdsJSON("Refs "+narrow+"\nRefs "+unrun+"\nRefs "+broken)+`","headRefOid":"`+revParse(t, root, "lane-b")+`","labels":[]},
 {"number":50,"state":"MERGED","title":"Batch z: #40 #41","body":"- #40\n- #41","headRefOid":"`+laneA+`","mergeCommit":{"oid":"`+merge+`"},"mergedAt":"2026-10-28T05:00:00Z","url":"`+prURL+`","labels":[]}]`)
 	runs := tdsExport(t, "runs.json", `[{"databaseId":7,"headSha":"`+merge+`","conclusion":"success","url":"`+runURL+`"}]`)
 	closeArgs := []string{"ticket", "batch-close", "--pr", "50", "--prs", prs, "--runs", runs, "--seal", scoped + "=" + laneA}
@@ -143,10 +143,10 @@ func TestTCDV0185_GatedBatchCloseRunsRequiredGates(t *testing.T) {
 	if got := gbDispositions(rows); x.code != 1 || !sameRows(got, want) || !hasCode(x.res, wire.CodeOutOfScope) || !hasCode(x.res, wire.CodeGateFailed) {
 		t.Fatalf("gated close %v: exit %d %s", got, x.code, x.stdout)
 	}
-	if r := rows[scoped]; field(r, "candidateCommit").Str != laneA || field(r, "baseCommit").Str != base || field(r, "sealCommit").Str != laneA || field(r, "completionKind").Str != "VERIFIED" || field(r, "requestId").Str != "batch-close-50-"+scoped+"-a0-complete" {
+	if r := rows[scoped]; field(r, "candidateCommit").Str != laneA || field(r, "baseCommit").Str != base || field(r, "sealCommit").Str != laneA || field(r, "completionKind").Str != "VERIFIED" || !strings.HasPrefix(field(r, "requestId").Str, "batch-close-50-"+scoped+"-a0-complete-") {
 		t.Fatalf("sealed row: %s", wire.Encode(r))
 	}
-	if r := rows[whole]; field(r, "candidateCommit").Str != merge || field(r, "baseCommit").Str != base || field(r, "sealCommit").Kind != wire.KindNull {
+	if r := rows[whole]; field(r, "candidateCommit").Str != laneA || field(r, "baseCommit").Str != base || field(r, "sealCommit").Str != laneA {
 		t.Fatalf("merge row: %s", wire.Encode(r))
 	}
 	if r := rows[narrow]; field(r, "step").Str != "claim" || !strings.Contains(field(r, "recovery").Str, "--seal "+narrow+"=") {

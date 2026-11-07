@@ -50,6 +50,8 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
+	rootOriginalCwd   string
+	rootSelected      bool
 	batchWriteContext context.Context
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
@@ -524,7 +526,19 @@ func globalRoot(env *Env) *wire.Result {
 	if dir == "" || strings.HasPrefix(dir, "--") {
 		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
 	}
-	dir = commandPath(env.Cwd, dir)
+	// TCL-V0-926: conflicting roots refuse before any store access.
+	cwd := env.Cwd
+	if env.rootSelected {
+		cwd = env.rootOriginalCwd
+	}
+	dir = commandPath(cwd, dir)
+	if env.rootSelected && dir != env.Cwd {
+		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "conflicting --root directories: pass one --root DIR relative to the original working directory"))
+	}
+	if !env.rootSelected {
+		env.rootOriginalCwd = env.Cwd
+	}
+	env.rootSelected = true
 	env.Cwd, env.Args = dir, rest
 	return nil
 }
@@ -656,7 +670,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks version",
 		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
 	}))
-	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
+	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
@@ -749,6 +763,12 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	if err != nil {
 		return nil, err
 	}
+	return withResolvedStore(env, repo, body)
+}
+
+// withResolvedStore applies the same snapshot protocol to a selected read-only
+// projection while keeping its journal and primary identity unchanged.
+func withResolvedStore(env Env, repo *intent.Repository, body func(*readCtx) error) (*readCtx, error) {
 	rc := &readCtx{repo: repo}
 	idx := closedIndexFor(env, repo)
 	// probed is the tree the latest probe hashed. Reader.Read runs probe,
@@ -2129,9 +2149,24 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 func journalAbsentNotFound(rc *readCtx, id string) string {
 	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
 		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
+		sharedJournalHint(rc.repo) +
 		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
 		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id) + snapshotRouteHint(id) +
 		stagedSnapshotHint(rc, id, time.Now())
+}
+
+// sharedJournalHint is the TCP-V0-2230 (V1-4440) addition to a journal-absent
+// miss: the journal lives in the common Git directory, which the primary
+// worktree and every linked worktree share, so no `cd` within this checkout's
+// own family can reach one; the journal is in another clone or on another
+// host, and a lane on this host reads the ticket through a snapshot or its
+// charter.
+func sharedJournalHint(repo *intent.Repository) string {
+	family := "This checkout is the primary worktree " + repo.PrimaryWorktree
+	if repo.FromLinkedWorktree {
+		family = "This checkout is a linked worktree of the primary worktree " + repo.PrimaryWorktree
+	}
+	return family + ", which shares that one journal location with all its linked worktrees, so none of them holds a journal either and `cd` among them cannot help (TCP-V0-2230); the journal is in another clone or on another host. "
 }
 
 // snapshotRouteHint is the CTS-V0-680 addition to a journal-absent miss: a

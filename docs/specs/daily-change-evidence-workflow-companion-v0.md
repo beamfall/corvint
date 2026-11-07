@@ -5,12 +5,12 @@ Date: 2026-11-02
 Requirement prefix: `DWC-V0`
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: repository-owner request (V1-1467, V1-4318); `AGENTS.md` invariants 1, 2 and 8; `docs/specs/daily-change-evidence-workflow-v0.md` `DCW-V0-039`, `DCW-V0-401`.
+Authoritative inputs: repository-owner request (V1-1467, V1-4318, V1-4545, V1-4546, V1-4548, V1-4541, V1-4573); `AGENTS.md` invariants 1, 2 and 8; `docs/specs/daily-change-evidence-workflow-v0.md` `DCW-V0-039`, `DCW-V0-401`.
 
 ## Agent digest
 - Claim: Daily-workflow requirements beyond the 256-obligation limit of `daily-change-evidence-workflow-v0.md`, under their own prefix.
 - Status: proposed/experimental
-- Exists: `internal/dogfoodflow/regenerated_specs.go`, `reused_worktree.go`, `finishlane.go` intents canonicalization, `script/merge-regenerate-specs.sh`, `script/dogfood-merge-base.sh` and their focused tests.
+- Exists: `internal/dogfoodflow/regenerated_specs.go`, `reused_worktree.go`, `rebind.go`, `seal_review.go`, `finishlane.go` intents canonicalization, `script/merge-regenerate-specs.sh`, `script/lane-handback.sh`, `script/dogfood-merge-base.sh` and their focused tests.
 - Blocked on: Nothing; companion of the daily change-evidence workflow, whose Requirements section is at the 256-obligation limit.
 - Read next: Requirements; Acceptance evidence and rollback.
 
@@ -21,6 +21,39 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 ## Requirements
 
 - `DWC-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3291) The shell inputs-check/finish path MUST check line citations before a build or bind, refuse moved citations with `line-citations-invalid`, and name `script/check-line-citations.sh --repin` plus review/commit before rebinding. The sealed-head closeout precheck MUST disable mechanical regeneration, so a repin cannot create an unbound post-seal change.
+- `DWC-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amended 2026-11-04 fix round 1; amends `DCW-V0-440`; refines `DCW-V0-161`, `DCW-V0-962`, `DCW-V0-805`, `DCW-V0-841`, `DCW-V0-803`, `DCW-V0-385`, `DCW-V0-548`, `DCW-V0-966` and `DCW-V0-967`)
+  Cross-file drafts MUST have exact path, basename of at least 6 bytes, or requirement-definition
+  evidence admitted by `CEM-V1-081`, except the deterministic seal-contract (`DCW-V0-385`)
+  and repin-rule (`DCW-V0-548`) rows, which explain the operations that produce their hunks.
+  Preserve marked same-file nearest stable substantive line proposals (`DCW-V0-962`), without
+  claiming an anchored tier, including references to same-change IDs in an existing file;
+  the new definition itself is not BASE evidence. Decision rows remain eligible when the span names the exact file
+  or defines an ID the hunk names. Cross-file sibling, intent and governing-spec guesses alone
+  MUST NOT justify a row. Otherwise draft reasoned `unknown`. Reviewed refresh rows retain
+  their semantics. Evidence: `TestProposeCitationsDWCV0926OnlyAnchoredDrafts`, `TestProposeCitationsDWCV0926SameChangeReferenceKeepsOwnContext`,
+  `TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair`, `TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule`.
+  Rollback: remove the cross-file drafted-row filter.
+- `DWC-V0-927`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amended 2026-11-04 fix round 1; amends `DCW-V0-439` and `DCW-V0-962`) A newly drafted
+  span MUST NOT consist only of a bare Markdown heading. Track fenced code so its content
+  is not a heading. A setext underline requires a preceding paragraph, not a list item or YAML
+  key. Every line of a multiline setext heading's paragraph is a heading line. Try substantive
+  evidence instead or keep `unknown`. The rejection applies to drafting only: `dogfood check`'s
+  anchorability search keeps the verifier's `CEM-V1-081` admission, headings included. Evidence:
+  `TestProposeCitationsDWCV0927NoHeadings`, `TestProposeCitationsDWCV0927MarkdownContexts`,
+  `TestDWCV0927CheckKeepsHeadingAnchorability`.
+  Rollback: restore heading candidates.
+- `DWC-V0-928`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amended 2026-11-04 fix round 1; refines `DCW-V0-967` and amends `DCW-V0-805`) For a
+  spec amendment, prefer the BASE definition of the entry containing the edited line, including
+  a continuation edit that does not retype its ID. Cite only a definition the stability verifier
+  admits and no other row already used (`DCW-V0-382`). When added bytes omit the ID, label it
+  a same-file proposal with an anchored-by-id review note and explicitly state that `CEM-V1-081`
+  cannot anchor it. A rewritten, removed or repeated definition MUST remain a governing-ID
+  review note, never a false cite of its removed bytes; another stable proposal may serve.
+  Evidence: `TestProposeCitationsDWCV0928BaseGoverningDefinition`,
+  `TestProposeCitationsDWCV0928DistinctGoverningSpans`. Rollback: remove the preference.
 
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
@@ -86,6 +119,38 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` (a plan with a legacy rekey still
   refuses); all three fail on the BASE `reused_worktree.go`. Rollback: restore the
   `len(stranded) == 0` pre-flight condition and the separate fix lines in `reused_worktree.go`.
+
+- `DWC-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4545)
+  After successfully preparing and citing a replacement for a committed CEM, a standalone
+  `dogfood change` whose only tracked worktree change is that CEM MUST still run the recorder
+  (`DCW-V0-015`), retain an incomplete report, and end with `DCW-V0-2143`'s
+  `PENDING commit-sidecar` line, exit 3 and its one commit-and-rerun fix. A coordination-time
+  impact unsupported-impact-worktree row caused by the dirty CEM is one that commit clears: it
+  MUST remain visible in the incomplete report and MUST NOT turn the pass into a failure.
+  Other failures retain their own diagnostics. (Amended in the mbfix integration, 2026-11-06:
+  the earlier stop before the recorder contradicted `DCW-V0-015`.)
+- `DWC-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4546;
+  amends DCW-V0-842) Refresh MUST preserve matched rows and repin their evidence as before,
+  but draft each unmatched hunk from its own content through the ordinary proposal rules.
+  It MUST NOT copy another hunk's citation merely because both edit the same file.
+- `DWC-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4548)
+  `DOGFOOD_REVIEW=FILE` MAY attach an external UTF-8 report with exactly one header
+  `dogfood-review: reviewed-head=FULL_SHA verdict=PASS`. Only a line starting `dogfood-review:`
+  declares a header or selects this format; a prose mention elsewhere is ordinary text. The regular report is at most 1 MiB
+  and MUST name the exact pre-seal HEAD; a missing, malformed, nonpassing or differently headed
+  supplied report MUST refuse before check or mutation. A successful seal MUST record OBSERVED,
+  the report path, SHA-256, verdict and reviewed head in its output and commit message, retaining
+  the rename-only tree change. With no report, review-before-seal remains NOT_OBSERVED. The
+  existing pinned reviewer-output format keeps its metadata-only descendant admission. The
+  report is caller-supplied evidence, not authentication of reviewer independence or correctness.
+- `DWC-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4541)
+  `script/lane-handback.sh template [PREVIOUS]` MUST produce required base, fix head, bind head,
+  sealed head, delivered tickets, superseded tickets and GitHub issues closed fields. Template
+  review rounds MUST carry cumulative delivered/superseded ticket lists from PREVIOUS.
+  `lint FILE [PREVIOUS]` MUST refuse missing fields, a missing sealed head or empty delivered
+  ticket list, and tickets lost from PREVIOUS (a delivered ticket may become superseded).
+  Heads are full Git SHAs; an unproduced bind or seal MUST explicitly say NOT_PRODUCED and why,
+  so a lane delegated to stop after check never invents a seal. No ticket or issue writes occur.
 
 - `DWC-V0-7600`: (experimental under the standing lane auto-accept (2026-11-06); V1-4788; amends
   `ASD-V0-840` and `DCW-V0-882`) When the `--intents` manifest that `dogfood finish-lane` or `dogfood
@@ -191,9 +256,16 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 | Requirement | Evidence | State |
 |---|---|---|
+| `DWC-V0-926` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0926OnlyAnchoredDrafts` | implemented; focused regression |
+| `DWC-V0-927` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0927NoHeadings` | implemented; focused regression |
+| `DWC-V0-928` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0928BaseGoverningDefinition` | implemented; focused regression |
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
+| `DWC-V0-044` | `TestDWCV0044RebindIsPendingAfterTheRecorder`; `script/dogfood-change_test.sh` DCW-V0-2143 first-pass case | implemented; focused regression PASS |
+| `DWC-V0-045` | `TestDWCV0045RefreshDraftsNewHunkFromItsOwnContent`, `TestProposeCitationsDCWV0842RefreshAcrossAMainlineMerge` | implemented; focused regressions PASS |
+| `DWC-V0-046` | `TestDWCV0046ExternalReviewSeal`, `make review-head-check-test` | implemented; native and wrapper regressions PASS |
+| `DWC-V0-047` | `TestDWCV0047HandbackCumulativeTickets` | implemented; template/lint regression PASS |
 | `DWC-V0-7600` (experimental under the standing lane auto-accept (2026-11-06); V1-4788) | `internal/dogfoodflow/finishlane.go` `canonicalizeIntents`, `intentsUntracked`, `trackedAlias`, `worktreeEntry`, `canonicalIntentManifest`; `TestDWCV07600FinishLaneCanonicalizesIntentManifest`, `TestDWCV07600FinishLaneKeepsATrackedManifestUnderAnotherCase`, `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`, `TestDCWV0731StaticPreCheck` | implemented; focused tests PASS |
 | `DWC-V0-7601` (experimental under the standing lane auto-accept (2026-11-06); V1-4721) | `script/dogfood-merge-base.sh`, `Makefile` `DOGFOOD_MERGE_FORWARD_BASE` and its refusal, `dogfood-closeout`; `script/dogfood-merge-base_test.sh` | implemented; shell test PASS |
 | `DWC-V0-7602` (experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527) | `docs/DOGFOOD.md` "Rebinding after a conflicted merge-forward" | documented; batch-check pass observed by hand, not re-run here |

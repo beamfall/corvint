@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+# Reproduce retained Git-start counts; argv[1] is a fresh output directory.
+import subprocess as s,pathlib as p,os,json,time,hashlib,sys
+root=p.Path.cwd();out=p.Path(sys.argv[1]).resolve();out.mkdir(parents=True,exist_ok=True);clone=out/'measure-repo';s.run(['git','clone','-q','--shared','--no-checkout',str(root),str(clone)],check=True);base='6f12f4704235dc8f9bea19fc12995bfb68c746c3'
+files=['script/check-host-package-versions.sh','script/check-fixed-tmp-paths.sh','script/check-mkfifo-build-tags.sh','script/check-error-code-ownership.sh','script/check-line-citations.sh']
+updated={f:(root/f).read_bytes() for f in files}; refs=['f13f52b1607222033b089144a744fedae0d35239','9fdc2f02efc11ce9ed582d8529b63fe0478fcad2','6f12f4704235dc8f9bea19fc12995bfb68c746c3'];rows=[]
+def measure(label,cmd):
+ trace=out/(label+'.trace2.jsonl');trace.write_text('');env=dict(os.environ,GIT_TRACE2_EVENT=str(trace));load=p.Path('/proc/loadavg').read_text().strip();start=time.monotonic();run=s.run(cmd,cwd=clone,env=env,stdout=s.PIPE,stderr=s.STDOUT);elapsed=time.monotonic()-start
+ (out/(label+'.log')).write_bytes(run.stdout);count=sum(json.loads(x).get('event')=='start' for x in trace.read_text().splitlines())
+ return dict(seconds=round(elapsed,3),gitSpawns=count,rc=run.returncode,load=load,outputSha256=hashlib.sha256(run.stdout).hexdigest())
+for ref in refs:
+ s.run(['git','-C',str(clone),'checkout','--force','-q',ref],check=True)
+ baseline={f:(clone/f).read_bytes() for f in files}
+ for kind,version in [('before',baseline),('after',updated)]:
+  for f,b in version.items():(clone/"script"/("lanetools-measured-"+p.Path(f).name)).write_bytes(b)
+  for f in files:
+   row=dict(ref=ref,kind=kind,script=f,sourceSha256=hashlib.sha256(version[f]).hexdigest(),**measure(ref[:9]+'-'+kind+'-'+p.Path(f).stem,['bash','script/lanetools-measured-'+p.Path(f).name]));rows.append(row);print(json.dumps(row),flush=True)
+(out/'measurements-final.json').write_text(json.dumps(rows,indent=2)+'\n')
+# The same original fixture suite and history for both versions, without the new performance controls.
+s.run(['git','-C',str(clone),'checkout','--force','-q',base],check=True)
+test='script/check-host-package-versions_test.sh';(clone/test).write_bytes(s.check_output(['git','show',base+':'+test]));fr=[]
+for kind,blob in [('before',s.check_output(['git','show',base+':'+files[0]])),('after',updated[files[0]])]:
+ (clone/files[0]).write_bytes(blob);row=dict(kind=kind,**measure('fixtures-final-'+kind,['bash',test]));fr.append(row);print(json.dumps(row),flush=True)
+(out/'fixtures-final.json').write_text(json.dumps(fr,indent=2)+'\n')

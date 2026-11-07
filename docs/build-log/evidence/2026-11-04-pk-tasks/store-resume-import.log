@@ -1,0 +1,117 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=9960716f7597fa2f1e38966cc39192007a9526e5 dirty=18
+heavy.sh: slot 6/8 after 0s
+=== RUN   TestLGLV0012_WidenAndReapResumeFromSealedBase
+=== PAUSE TestLGLV0012_WidenAndReapResumeFromSealedBase
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate
+=== RUN   TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate
+=== PAUSE TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate
+=== RUN   TestCALV0018_ImportPublicationFailureRestarts
+=== RUN   TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication
+=== RUN   TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication/RECEIPT
+=== RUN   TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication/POST
+=== RUN   TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication/HEAD
+--- PASS: TestCALV0018_ImportPublicationFailureRestarts (3.16s)
+    --- PASS: TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication (3.16s)
+        --- PASS: TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication/RECEIPT (1.17s)
+        --- PASS: TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication/POST (0.86s)
+        --- PASS: TestCALV0018_ImportPublicationFailureRestarts/CAL-V0-018_failed_publication/HEAD (1.13s)
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift
+=== PAUSE TestCALV0018_ImportCancellationAndProjectionDrift
+=== RUN   TestCALV0018_LaterBatchesCheckTheirHeadAndPosts
+=== PAUSE TestCALV0018_LaterBatchesCheckTheirHeadAndPosts
+=== CONT  TestLGLV0012_WidenAndReapResumeFromSealedBase
+=== CONT  TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate
+=== RUN   TestLGLV0012_WidenAndReapResumeFromSealedBase/widen
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate
+=== RUN   TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/widen
+=== CONT  TestCALV0018_ImportCancellationAndProjectionDrift
+=== PAUSE TestLGLV0012_WidenAndReapResumeFromSealedBase/widen
+=== RUN   TestLGLV0012_WidenAndReapResumeFromSealedBase/reap
+=== PAUSE TestLGLV0012_WidenAndReapResumeFromSealedBase/reap
+=== RUN   TestLGLV0012_WidenAndReapResumeFromSealedBase/reap-all
+=== CONT  TestCALV0018_LaterBatchesCheckTheirHeadAndPosts
+=== PAUSE TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/widen
+=== RUN   TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/reap
+=== PAUSE TestLGLV0012_WidenAndReapResumeFromSealedBase/reap-all
+=== PAUSE TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/reap
+=== CONT  TestLGLV0012_WidenAndReapResumeFromSealedBase/widen
+=== CONT  TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/reap
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/initial
+=== CONT  TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/widen
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/segment
+=== CONT  TestLGLV0012_WidenAndReapResumeFromSealedBase/reap-all
+=== CONT  TestLGLV0012_WidenAndReapResumeFromSealedBase/reap
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/segment
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/manifest
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/manifest
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/tail-receipt
+=== RUN   TestCALV0018_LaterBatchesCheckTheirHeadAndPosts/post
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/tail-receipt
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/segment
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/segment
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/manifest
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/manifest
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/segment
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/segment
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/manifest
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/manifest
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/tail-receipt
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/tail-receipt
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/segment
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/segment
+=== RUN   TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/manifest
+=== PAUSE TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/manifest
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/segment
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/segment
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/segment
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/manifest
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/tail-receipt
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/manifest
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/tail-receipt
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/segment
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/manifest
+=== CONT  TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/manifest
+=== RUN   TestCALV0018_LaterBatchesCheckTheirHeadAndPosts/head
+--- PASS: TestCALV0018_LaterBatchesCheckTheirHeadAndPosts (1.82s)
+    --- PASS: TestCALV0018_LaterBatchesCheckTheirHeadAndPosts/post (0.81s)
+    --- PASS: TestCALV0018_LaterBatchesCheckTheirHeadAndPosts/head (1.01s)
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/delete
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/replace
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/already-post
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/type
+=== RUN   TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/cancel
+--- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate (0.00s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/segment (15.21s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/manifest (17.40s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/segment (17.48s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/manifest (17.88s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.lease.observe/segment (17.88s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.lease.observe/manifest (17.89s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/manifest (17.98s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/tail-receipt (18.23s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/reap/fast.resume.precheck/tail-receipt (18.26s)
+    --- PASS: TestLGLV0012_ResumedWidenAndReapRevalidateBaseUnderGate/widen/fast.resume.precheck/segment (18.30s)
+--- PASS: TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate (0.00s)
+    --- PASS: TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/widen (18.34s)
+    --- PASS: TestLGLV0012_ResumedReplayRevalidatesBaseUnderGate/reap (18.71s)
+--- PASS: TestCALV0018_ImportCancellationAndProjectionDrift (20.83s)
+    --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations (20.83s)
+        --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/initial (2.16s)
+        --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/delete (3.81s)
+        --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/replace (2.21s)
+        --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/already-post (3.34s)
+        --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/type (6.35s)
+        --- PASS: TestCALV0018_ImportCancellationAndProjectionDrift/CAL-V0-018_bound_import_observations/cancel (2.95s)
+--- PASS: TestLGLV0012_WidenAndReapResumeFromSealedBase (0.00s)
+    --- PASS: TestLGLV0012_WidenAndReapResumeFromSealedBase/widen (18.46s)
+    --- PASS: TestLGLV0012_WidenAndReapResumeFromSealedBase/reap (18.47s)
+    --- PASS: TestLGLV0012_WidenAndReapResumeFromSealedBase/reap-all (21.02s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/store	24.222s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=25.2s rc=0
