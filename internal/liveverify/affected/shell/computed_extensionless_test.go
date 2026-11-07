@@ -71,7 +71,7 @@ func TestComputedTargetKeepsOwnedExtensionlessScripts_AFPV03144(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			write(t, root, "script/check", check)
-			// A non-test caller, like script/heavy.sh's toolchain probe: a test
+			// A non-test caller, like the repository's toolchain probe: a test
 			// that runs go is a toolchain reader whatever its targets name.
 			write(t, root, "use/probe.sh", loops(tc.target))
 			use := unitOf(t, units(t, root), "use/probe.sh")
