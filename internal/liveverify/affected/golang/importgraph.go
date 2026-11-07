@@ -178,12 +178,12 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 				maps.Copy(tests, testingParameters(signatures[body], names))
 			}
 			rootTargets, rootAll, _ := goListArguments(elements[1:], constants, owner.dir, owner)
-			proven = confinedCommand(outer, call, exec, func(value ast.Expr) bool {
+			proven = confinedCommand(outer, call, exec, names, func(value ast.Expr) bool {
 				directoryProven = commandDirectoryProven(value, outer, file, names, tests, relative, owner.dir, all == rootAll && maps.Equal(targets, rootTargets)) && directoryProven
 				// A directory of unknown origin widens the read scope. It
 				// cannot turn this confined listing into a binary invocation.
 				return true
-			}) && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
+			}) && isolatedList(outer, exec, call, names) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
 			result.all, result.unproven = true, true
@@ -218,7 +218,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 // (literalEnvironment), which cannot carry GOFLAGS=-json; and every other os/exec
 // call in body passes only string literals after its context, so no listed
 // name becomes another command's argument.
-func isolatedList(body ast.Node, exec string, list *ast.CallExpr) bool {
+func isolatedList(body ast.Node, exec string, list *ast.CallExpr, imports map[string]string) bool {
 	isolated := true
 	ast.Inspect(body, func(node ast.Node) bool {
 		if !isolated {
@@ -231,7 +231,7 @@ func isolatedList(body ast.Node, exec string, list *ast.CallExpr) bool {
 				if !ok || selector.Sel.Name != "Env" && selector.Sel.Name != "Args" {
 					continue
 				}
-				if selector.Sel.Name == "Args" || len(node.Rhs) != len(node.Lhs) || !literalEnvironment(node.Rhs[index]) {
+				if selector.Sel.Name == "Args" || len(node.Rhs) != len(node.Lhs) || !literalEnvironment(node.Rhs[index], imports) {
 					isolated = false
 				}
 			}
@@ -474,8 +474,10 @@ func testingParameters(signature *ast.FuncType, imports map[string]string) map[s
 
 // literalEnvironment reports an environment `append(os.Environ(), ...)` or
 // `[]string{...}` whose added entries are string literals, none setting
-// GOFLAGS or GOENV, which change what `go list` prints.
-func literalEnvironment(expression ast.Expr) bool {
+// GOFLAGS or GOENV, which change what `go list` prints. The Environ receiver
+// must resolve through imports to the unshadowed standard os import; any
+// other receiver or expression is outside this closed proof.
+func literalEnvironment(expression ast.Expr, imports map[string]string) bool {
 	var entries []ast.Expr
 	switch node := expression.(type) {
 	case *ast.CallExpr:
@@ -491,7 +493,7 @@ func literalEnvironment(expression ast.Expr) bool {
 		if !ok || selector.Sel.Name != "Environ" {
 			return false
 		}
-		if qualifier, ok := selector.X.(*ast.Ident); !ok || qualifier.Name != "os" {
+		if qualifier, ok := selector.X.(*ast.Ident); !ok || imports[qualifier.Name] != "os" {
 			return false
 		}
 		entries = node.Args[1:]
