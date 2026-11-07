@@ -353,14 +353,15 @@ done
 # which selects since the last passing receipt (DCW-V0-944, V1-3550). The precheck runs the batch
 # precheck script directly with BATCH_PRECHECK_SKIP_DRIFT=1 (ASD-V0-837, ICL-V0-020) under
 # BATCH_PRECHECK_LANE_CLOSEOUT=1 (ASD-V0-1991), shown as lane-closeout:skip-drift:batch-precheck.
-# Spec capacity and README rows are checked first (V1-4331, V1-4332).
+# Spec capacity and README rows are checked first (V1-4331, V1-4332), against the derived SHA when
+# BASE=merge-forward (DWC-V0-7601).
 # ASD-V0-567, ASD-V0-568 (V1-4114, V1-3477, V1-4101): each step runs through closeout_step, and the
 # mechanical repin runs after the static checks and before the pre-flight and the batch-precheck.
 # The phase lines, the start-head record (DWC-V0-745, DWC-V0-746) and the conditions that print a
 # phase line only when its step ran are not steps, nor are the sealed-head unwind and the DONE line
 # (DWC-V0-758).
 recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t@(printf|git|\[) / { next } on && /^\t/ { sub(/^\t@\$\(call closeout_step,[0-9],[a-z-]*,/, ""); sub(/^BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:skip-drift:batch-precheck"); sub(/^\t@echo .*make dogfood-closeout-precheck.*/, "next:dogfood-closeout-precheck"); sub(/\$\(MAKE\) --no-print-directory /, ""); sub(/^\$\(closeout_inputs_present\) && /, "inputs-present "); sub(/DOGFOOD_CLOSEOUT_REGEN=\$\(call dogfood_finish_quote,\$\(DOGFOOD_CLOSEOUT_REGEN\)\) /, "REGEN "); sub(/ \$\(call dogfood_finish_quote.*/, ""); sub(/\)$/, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' '|')
-[[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(BASE)"|inputs-present REGEN script/dogfood-closeout-repin.sh|dogfood-inputs-check|lane-closeout:skip-drift:batch-precheck|dogfood-finish|next:dogfood-closeout-precheck|' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; fail "$LINENO"; }
+[[ $recipe == 'spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"|inputs-present REGEN script/dogfood-closeout-repin.sh|dogfood-inputs-check|lane-closeout:skip-drift:batch-precheck|dogfood-finish|next:dogfood-closeout-precheck|' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; fail "$LINENO"; }
 recipe=$(awk '/^dogfood-closeout-precheck:$/ { on = 1; next } on && /^\t@printf / { next } on && /^\t/ { sub(/ \|\| \{.*$/, ""); sub(/^\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(HEAVY_ADMIT\) [^ ]*\/batch-precheck[.]sh .*/, "lane-closeout:since-receipt:batch-precheck"); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == 'lane-closeout:since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout-precheck recipe: $recipe" >&2; fail "$LINENO"; }
 # DWC-V0-745 (V1-3837), DWC-V0-746 (V1-4072), DWC-V0-758: with a fake make and a stub precheck, the
@@ -812,4 +813,20 @@ chmod +x script/check-line-citations.sh
 : > "$TEST_BUILD_LOG"
 status=0
 make -s dogfood-inputs-check BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
-[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" || fail "$LINENO"
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" &&
+  grep -qF "git commit -m 'Repin moved line citations' && make dogfood-inputs-check BASE=$base CITATIONS=$root/closeout-cites.tsv INTENTS=$root/closeout-cites.tsv VERIFY=$root/closeout-cites.tsv OUTCOME=passed before binding" "$root/output" || fail "$LINENO"
+# DWC-V0-7603: a literal $ in an input path survives the printed rerun. The fix line doubles it for
+# Make before the shell quoting, so the copied rerun reads the same file and prints the same line.
+dollar_cites=$root/'cites$foo.tsv'
+/bin/cp -f "$root/closeout-cites.tsv" "$dollar_cites"
+status=0
+make -s dogfood-inputs-check BASE="$base" CITATIONS="${dollar_cites//\$/\$\$}" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
+fix=$(grep '^fix: run script/check-line-citations.sh --repin' "$root/output") || fail "$LINENO"
+rerun=${fix#*"&& "}
+rerun=${rerun%" before binding"}
+[[ $status == 2 && $rerun == "make dogfood-inputs-check BASE=$base CITATIONS=$root/cites\\\$\\\$foo.tsv INTENTS="* ]] || fail "$LINENO"
+status=0
+# A child bash, not eval: bash 3.2 runs the ERR trap inside an eval even in an || list, with the
+# output redirection still open, so the trap's cat of the output would append to itself forever.
+bash -c "$rerun" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -qxF "$fix" "$root/output" && ! grep -q unreadable "$root/output" || fail "$LINENO"
