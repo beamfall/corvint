@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // DTL-V0-017: overrides and invalid values cannot accidentally widen a slot's worker share.
@@ -90,11 +92,11 @@ case "$1" in
  *) exit 9 ;;
 esac
 `
-	if err := os.WriteFile(corvint, []byte(body), 0700); err != nil {
+	if err := execfile.WriteFile(corvint, []byte(body), 0700); err != nil {
 		t.Fatal(err)
 	}
 	selector := filepath.Join(bin, "selector")
-	if err := os.WriteFile(selector, []byte("#!/bin/sh\nprintf 'run m/%s\\n' \"$(cat pkg)\"\n"), 0700); err != nil {
+	if err := execfile.WriteFile(selector, []byte("#!/bin/sh\nprintf 'run m/%s\\n' \"$(cat pkg)\"\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	var wantJSON, wantLog []byte
