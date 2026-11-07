@@ -22,10 +22,13 @@ import (
 // of the dirty path (AFP-V0-021), selected as for any unowned path, and the
 // enclosing Go package is selected by rule (b). The path raises no
 // UNINDEXED_SOURCE_PATH. It still stays unowned, so frontierUnknowns treats it
-// as any other unowned path (AFP-V0-511). A path present on disk, a graph with
-// no disk root or a sparse checkout (absence may only mean outside the cone),
-// a Go claim, a path no plugin claims (already UNOWNED_DIRTY_PATH), a fixture
-// no Go unit hosts, and a subtree a claimant still lists keep the entry.
+// as any other unowned path (AFP-V0-511): participants lists it among the
+// unowned paths although claimantsOf names the claimant, so a path-open entry
+// of another plugin, such as a test reading files by a computed name, still
+// bears. A path present on disk, a graph with no disk root or a sparse
+// checkout (absence may only mean outside the cone), a Go claim, a path no
+// plugin claims (already UNOWNED_DIRTY_PATH), a fixture no Go unit hosts, and
+// a subtree a claimant still lists keep the entry.
 func (graph *Graph) deletedFixture(path string, packages map[string]string) bool {
 	if graph.root == "" || graph.sparse || !fs.ValidPath(path) {
 		return false

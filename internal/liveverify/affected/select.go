@@ -934,6 +934,8 @@ func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
 // soundness argument needs an unowned path to make every reached plugin take
 // part. AZU-V0-9901 permits terminal status for tracked fixture membership
 // changes with selected Go hosts, while preserving each unowned-path proof.
+// A deleted fixture (deletedFixture, AFP-V0-2740) is listed among the unowned
+// paths although claimantsOf names its claimant, which still takes part.
 func (graph *Graph) participants(reached map[string]Witness, carried, followed map[string]bool, dirty []string, nonSource []NonSource) (involved, unowned []string, terminal map[string][]string) {
 	if len(dirty) == 0 {
 		return nil, nil, nil
@@ -962,6 +964,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		}
 	}
 	paths := make(map[string]bool)
+	var packages map[string]string
 	for _, path := range dirty {
 		if taskState[path] {
 			continue
@@ -969,6 +972,17 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		claimed := graph.claimantsOf(path)
 		if len(claimed) == 0 {
 			paths[path] = true
+		} else if fixtureDirectory(path) != "" {
+			// A deleted fixture (AFP-V0-2740) raises no UNINDEXED_SOURCE_PATH
+			// although a plugin's Owns claims it, so it stays unowned here:
+			// every other plugin's unowned-path checks still see it. The
+			// claimant takes part as the owner of a dirty path.
+			if packages == nil {
+				packages = graph.goPackageDirectories()
+			}
+			if graph.deletedFixture(path, packages) {
+				paths[path] = true
+			}
 		}
 		for _, name := range claimed {
 			names[name] = true
@@ -1130,7 +1144,9 @@ func terminalWitness(witness Witness) bool {
 // claimantsOf lists the plugins that own path: the namespace of the unit that
 // declares it, and every plugin whose Owns claims it. A file a Go package
 // embeds or other attributed read data (goReadData, AFP-V0-600, AFP-V0-601)
-// is claimed by none: it stays an unowned path for every frontier rule.
+// is claimed by none: it stays an unowned path for every frontier rule. A
+// deleted fixture (AFP-V0-2740) keeps its claimant here; participants lists it
+// as unowned as well.
 func (graph *Graph) claimantsOf(path string) []string {
 	claimed := make([]string, 0, 1)
 	if id, owned := graph.owner[path]; owned {

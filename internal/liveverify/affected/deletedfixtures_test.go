@@ -5,6 +5,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -91,5 +93,93 @@ func TestDeletedFixtureIsFixtureData_AFPV2740(t *testing.T) {
 				t.Fatalf("selected %v: go:other neither hosts nor names the path", selected)
 			}
 		})
+	}
+}
+
+// AFP-V0-2740 (review fix round 3): the deleted fixture stays unowned for
+// every frontier rule although its claimant's Owns still claims it. A Python
+// fixture deleted from below a Go-hosted `testdata` directory, with a Python
+// unit left in a sibling fixture, raises no UNINDEXED_SOURCE_PATH. A third
+// plugin, Ruby-shaped, owns no dirty path and reaches no changed unit; its spec
+// reads fixture files through a computed name, which it reports as a path-open
+// implicit-test-dependency entry. That entry still bears through the unowned
+// path (AFP-V0-511), with the hint naming the deleted file, so the plan stays
+// UNKNOWN and the computed reader's suite is not skipped. Its source-bound and
+// fixture-closed entries do not bear, as for any unowned fixture path, and the
+// claimant still takes part with its own entry. With participants reading
+// claimantsOf alone, Python claims the path, the path leaves the unowned-path
+// checks and the Ruby entry is lost: a clean plan that skips the reader.
+func TestDeletedFixtureStaysUnownedForOtherPlugins_AFPV2740(t *testing.T) {
+	const (
+		deleted   = "pkg/testdata/flows/app/input.py"
+		ambiguous = "rb:ambiguous-framework:spec/reader_spec.rb"
+		implicit  = "rb:implicit-test-dependency:spec/reader_spec.rb"
+		relative  = "rb:relative-load:spec/reader_spec.rb:2 `require_relative(name)`"
+		claimant  = "py:dynamic-import:pkg/testdata/kept/suite/test_a.py:1 `importlib.import_module(name)`"
+	)
+	goUnits := fake{name: "go", units: []Unit{
+		{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}},
+		{ID: "go:other", Sources: []string{"other/other.go"}, Tests: []string{"other/other_test.go"}},
+	}}
+	python := fake{name: "py", frontier: []string{claimant}, units: []Unit{
+		{ID: "py:kept", Tests: []string{"pkg/testdata/kept/suite/test_a.py"}},
+	}}
+	ruby := reaching{
+		fake: fake{name: "rb", frontier: []string{ambiguous, implicit, relative}, units: []Unit{
+			{ID: "rb:spec", Sources: []string{"lib/app.rb"}, Tests: []string{"spec/reader_spec.rb"}},
+		}},
+		sourceBound:   []string{"rb:relative-load"},
+		fixtureClosed: []string{"rb:ambiguous-framework"},
+	}
+	graph, err := Build(context.Background(), t.TempDir(), goUnits, python, ruby)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := Select(graph, []string{deleted})
+	for _, unknown := range plan.Unknown {
+		if unknown.Detail == deleted {
+			t.Fatalf("unknowns %+v: the deleted fixture raises no entry of its own", plan.Unknown)
+		}
+	}
+	frontier := map[string]Unknown{}
+	for _, unknown := range plan.Unknown {
+		if unknown.Reason == UnknownLanguageFrontier {
+			frontier[unknown.Detail] = unknown
+		}
+	}
+	entry, kept := frontier[implicit]
+	if !kept {
+		t.Fatalf("frontier %v: the computed reader's %s must bear through the unowned deleted fixture", languageFrontier(plan), implicit)
+	}
+	if !strings.Contains(entry.Hint, strconv.Quote(deleted)) {
+		t.Fatalf("hint %q, want the deleted fixture %q named", entry.Hint, deleted)
+	}
+	if _, raised := frontier[relative]; raised {
+		t.Fatalf("frontier %v: a source-bound entry cannot bind the fixture", languageFrontier(plan))
+	}
+	if _, raised := frontier[ambiguous]; raised {
+		t.Fatalf("frontier %v: a fixture-closed entry outside the fixture cannot bind it", languageFrontier(plan))
+	}
+	if _, raised := frontier[claimant]; !raised {
+		t.Fatalf("frontier %v: the claimant still takes part with its own entry", languageFrontier(plan))
+	}
+	bore := false
+	for _, bearer := range plan.FrontierBearers {
+		if bearer.Detail == implicit && bearer.Via == FrontierBearerUnownedPath && bearer.Language == "rb" && bearer.DirtyPath == deleted {
+			bore = true
+		}
+	}
+	if !bore {
+		t.Fatalf("bearers %+v, want %s borne by the unowned path %s", plan.FrontierBearers, implicit, deleted)
+	}
+	if plan.Scope != ScopeUnknown {
+		t.Fatalf("scope %s, want %s while the computed reader's entry bears", plan.Scope, ScopeUnknown)
+	}
+	selected := map[string]bool{}
+	for _, selection := range plan.Selected {
+		selected[selection.UnitID] = true
+	}
+	if !selected["go:pkg"] || selected["go:other"] {
+		t.Fatalf("selected %v, want the hosting package go:pkg and not go:other", selected)
 	}
 }
