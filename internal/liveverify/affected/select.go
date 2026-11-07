@@ -1381,6 +1381,13 @@ func (graph *Graph) untested(id string) bool {
 // change whose import edges lead only to the importers its set holds
 // (ADN-V0-003); nil follows every edge.
 func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[string]bool) map[string]Witness {
+	return graph.traverseWhere(seeds, allowed, nil)
+}
+
+// traverseWhere is traverse with expand deciding, for each reached unit,
+// whether the walk continues past it to its dependents; nil expands every
+// unit. A unit expand refuses is still reached.
+func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]map[string]bool, expand func(string) bool) map[string]Witness {
 	reached := make(map[string]Witness, len(seeds))
 	frontier := make([]string, 0, len(seeds))
 	for id := range seeds {
@@ -1399,6 +1406,9 @@ func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[st
 		// advisory edge is ADVISORY_CONSTANT_REFERENCE (RUBY-AFFECTED-V0-049).
 		for class, edges := range []map[string][]string{graph.dependents, graph.advisory, graph.routed} {
 			for _, id := range frontier {
+				if expand != nil && !expand(id) {
+					continue
+				}
 				for _, dependent := range edges[id] {
 					if _, seen := reached[dependent]; seen || (allowed != nil && !graph.follows(allowed, class, id, dependent)) {
 						continue

@@ -541,7 +541,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	// recipe and the command's code, which the runner's edge already follows
 	// (AFP-V0-2951). The unit keeps its own reason and selection.
 	locatesRoot := reads.locatesRoot && !command
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: locatesRoot, Command: command, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
 // linkedSources maps each symlinked .go entry of directory whose target it can

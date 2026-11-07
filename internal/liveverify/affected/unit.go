@@ -68,6 +68,9 @@ const MaxPathsPerUnit = 20_000
 // root-locating call or a literal that climbs out of its package; AFP-V0-012
 // rule (d)); LocatesRoot reports that a non-test file is the cause, so every
 // unit that compiles this one is unbounded too.
+// Command reports a unit nothing compiles into another unit (a Go `package
+// main`): a rule (d) chain reaches it but does not continue to the units that
+// build or run it, whose reads are their own recipes' (AFP-V0-2951).
 // ReadScoped reports a unit whose tests' reads the repository declares
 // (AFP-V0-023): ReadScope then holds the sorted, unique repository paths they
 // read outside the unit's directory, a trailing "/" naming a subtree, and the
@@ -128,6 +131,7 @@ type Unit struct {
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads,omitempty"`
 	LocatesRoot          bool     `json:"locatesRoot,omitempty"`
+	Command              bool     `json:"command,omitempty"`
 	ReadScoped           bool     `json:"readScoped,omitempty"`
 	ReadScope            []string `json:"readScope,omitempty"`
 	Frontier             []string `json:"frontier,omitempty"`
