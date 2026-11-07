@@ -502,9 +502,11 @@ The `dogfood-change` and `dogfood-bind-range` shell tests assert on their own ev
 the run.
 
 A standalone rebind over an already committed CEM may need another CEM commit. When preparing
-and citing succeed and only the CEM is dirty, change stops before the downstream status cascade
-with `commit-rebind-required`: commit the rebound `.corvint/change.cem.json` and rerun the same
-change command and base (`DWC-V0-044`). Its report remains incomplete until that rerun succeeds.
+and citing succeed and only the CEM is dirty, change still runs the recorder (`DCW-V0-015`) and
+ends `PENDING commit-sidecar` with exit 3, counting the coordination-time impact refusal the dirty
+CEM causes among the rows that commit clears: commit the rebound `.corvint/change.cem.json` and
+rerun the same change command and base (`DWC-V0-044`, `DCW-V0-2143`). Its report remains
+incomplete until that rerun succeeds.
 `propose-citations --refresh` preserves matched rows, but drafts unmatched hunks from their own
 content; another hunk's citation is never a same-file placeholder (`DWC-V0-045`, amends
 `DCW-V0-842`). Review every new proposal.

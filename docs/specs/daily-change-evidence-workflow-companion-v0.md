@@ -122,12 +122,13 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 - `DWC-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4545)
   After successfully preparing and citing a replacement for a committed CEM, a standalone
-  `dogfood change` whose only tracked worktree change is that CEM MUST stop before OCM/status
-  and outcome recording, retain an incomplete report, and print one actionable line to commit
-  the rebound CEM and rerun with the same base. A coordination-time impact
-  unsupported-impact-worktree row caused by the dirty CEM keeps that same recovery and MUST
-  remain visible in the incomplete report; it MUST NOT expand the downstream cascade.
-  Other failures retain their own diagnostics.
+  `dogfood change` whose only tracked worktree change is that CEM MUST still run the recorder
+  (`DCW-V0-015`), retain an incomplete report, and end with `DCW-V0-2143`'s
+  `PENDING commit-sidecar` line, exit 3 and its one commit-and-rerun fix. A coordination-time
+  impact unsupported-impact-worktree row caused by the dirty CEM is one that commit clears: it
+  MUST remain visible in the incomplete report and MUST NOT turn the pass into a failure.
+  Other failures retain their own diagnostics. (Amended in the mbfix integration, 2026-11-06:
+  the earlier stop before the recorder contradicted `DCW-V0-015`.)
 - `DWC-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4546;
   amends DCW-V0-842) Refresh MUST preserve matched rows and repin their evidence as before,
   but draft each unmatched hunk from its own content through the ordinary proposal rules.
@@ -171,7 +172,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
-| `DWC-V0-044` | `TestDWCV0044RebindStopsBeforeCascadingFailures` | implemented; focused regression PASS |
+| `DWC-V0-044` | `TestDWCV0044RebindIsPendingAfterTheRecorder`; `script/dogfood-change_test.sh` DCW-V0-2143 first-pass case | implemented; focused regression PASS |
 | `DWC-V0-045` | `TestDWCV0045RefreshDraftsNewHunkFromItsOwnContent`, `TestProposeCitationsDCWV0842RefreshAcrossAMainlineMerge` | implemented; focused regressions PASS |
 | `DWC-V0-046` | `TestDWCV0046ExternalReviewSeal`, `make review-head-check-test` | implemented; native and wrapper regressions PASS |
 | `DWC-V0-047` | `TestDWCV0047HandbackCumulativeTickets` | implemented; template/lint regression PASS |
