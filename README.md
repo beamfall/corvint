@@ -53,9 +53,10 @@ cannot.
   can take that ticket.
 - **Agent integration.** Stdio MCP servers expose the same receipts to any MCP host, and adapters
   for Codex, Claude Code, Gemini CLI, OpenCode and Pi feed one bounded lifecycle event to Corvint.
-- **One local binary.** `corvint` is a single native Go binary with no account, network call,
-  hosted service, database, embeddings or permanent daemon. `go.mod` declares no module
-  requirements. Read commands report `mutates: false`; the only exceptions are two bounded private
+- **One local release.** `corvint` is a single native Go binary today; decision 0591 accepts a
+  native Go core plus manifest-named bundled apps as the direction, not yet shipped. Either way it
+  has no account, network call, hosted service, database,
+  embeddings or permanent daemon. The root `go.mod` declares no external module requirements. Read commands report `mutates: false`; the only exceptions are two bounded private
   ledgers under `.corvint/`, one of them only while an operator marker exists
   ([AGENTS.md](AGENTS.md) invariant 4).
 

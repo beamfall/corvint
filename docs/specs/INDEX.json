@@ -1690,7 +1690,7 @@
     "reqPrefix": "GPK-V0",
     "intent": "accepted",
     "delivery": "experimental",
-    "claim": "Corvint is migrating hot paths to one native-Go binary; GPK-V0-043 and GPK-V0-044 are experimental, while promotion and cutover remain gated.",
+    "claim": "Corvint is migrating hot paths to native Go; GPK-V0-043 and GPK-V0-044 are experimental, while promotion and cutover remain gated.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
       "docs/specs/release-artifact-integrity-v0.md",
@@ -4559,6 +4559,18 @@
     "intent": "accepted (owner instruction 2026-11-06: make Greptile a required check, \"Yes, build it\")",
     "delivery": "experimental",
     "claim": "A trusted workflow posts the required `greptile-gate` status, `success` only when Greptile reviewed the exact PR head at 5/5 with no unresolved Greptile thread.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/core-bundled-apps-v0.md",
+    "title": "Core and Bundled Apps V0",
+    "reqPrefix": "CMS-V0",
+    "intent": "accepted (owner, 2026-11-06)",
+    "delivery": "not-started",
+    "claim": "Corvint splits into a core plus bundled apps and plugins, each measured for LLM fit, test isolation, plugin cost, speed and memory.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
