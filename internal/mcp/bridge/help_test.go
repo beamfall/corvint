@@ -23,7 +23,7 @@ func TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for name, constructor := range map[string]func(string) (*Registry, *Error){"default": New, "task-review": NewTaskReview, "task-review-lsp": NewTaskReviewLSP, "flows": NewFlows} {
+	for name, constructor := range map[string]func(string) (*Registry, error){"default": New, "task-review": NewTaskReview, "task-review-lsp": NewTaskReviewLSP, "flows": NewFlows} {
 		registry, err := constructor(root)
 		if err != nil {
 			t.Fatal(err)

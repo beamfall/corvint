@@ -78,7 +78,7 @@ a contract.
 The current OCM reader requires exactly one `## Requirements` section and line prefixes
 `- ` followed by a backticked ID and `: `, or `- **` followed by an ID and `:** ` or `.** `.
 The ID itself matches `^[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}$` (three or more digits since `OCM-V0-952`)
-(`internal/lrfrepo/ocm.go:35@8869dfac`, `internal/lrfrepo/ocm.go:494-496@31a3a489`, `internal/lrfrepo/requirement_layout.go:55-77@996e9b71`).
+(`internal/lrfrepo/ocm.go:35@8869dfac`, `internal/lrfrepo/ocm.go:506-508@31a3a489`, `internal/lrfrepo/requirement_layout.go:55-77@996e9b71`).
 An adapter must map native identifiers and definition lines into that complete grammar.
 
 ## The three constraints any integration must respect

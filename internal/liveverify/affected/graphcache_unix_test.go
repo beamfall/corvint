@@ -137,3 +137,34 @@ func TestAFPV0392FIFOEntryCannotBlock(t *testing.T) {
 		t.Fatal("opening a FIFO in place of the entry blocked the call")
 	}
 }
+
+// V1-3874: under a group-writable umask such as 0002 (the WSL default) the
+// cache creates each missing directory 0700, so its own privacy check admits
+// the directory and the graph is stored and then served. Umask is process
+// wide, so this test is not parallel.
+func TestGraphCacheCreatesPrivateDirectoriesUnderUmask0002(t *testing.T) {
+	pinnable(t)
+	root := graphCacheFixture(t)
+	parent := t.TempDir()
+	if err := os.Chmod(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(parent, "a", "b", "cache")
+	previous := syscall.Umask(0o002)
+	defer syscall.Umask(previous)
+	_, stored := buildCached(t, root, dir, graphCacheIdentity)
+	if !stored.Stored || stored.NotStored != "" {
+		t.Fatalf("under umask 0002 the cache must store: %+v", stored)
+	}
+	for _, created := range []string{filepath.Join(parent, "a"), filepath.Join(parent, "a", "b"), dir} {
+		info, err := os.Stat(created)
+		if err != nil || info.Mode().Perm() != 0o700 {
+			t.Fatalf("%s mode=%v err=%v, want 0700 regardless of umask", created, info.Mode().Perm(), err)
+		}
+	}
+	graph, served := buildCached(t, root, dir, graphCacheIdentity)
+	if !served.Hit {
+		t.Fatalf("under umask 0002 the stored graph must be served: %+v", served)
+	}
+	assertSameGraph(t, root, graph)
+}

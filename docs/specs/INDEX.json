@@ -4587,5 +4587,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/lane-check-tooling-v0.md",
+    "title": "Lane Check Tooling V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Lane closeout resumes at its failed step and repins first; focused checks cover long lines, Python signal handlers, merge drivers and changed inputs.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

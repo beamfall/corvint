@@ -224,3 +224,6 @@ func SetGateBeatIntervalForTest(d time.Duration) func() {
 
 // ProgramForTest exposes the current workflow record for failure recovery tests.
 func (w *Workflow) ProgramForTest() snapshot.Program { return w.program }
+
+// ProgramPhaseForTest is the workflow's in-memory program phase.
+func (w *Workflow) ProgramPhaseForTest() string { return w.program.Phase }

@@ -266,6 +266,9 @@ type PrepareOptions struct {
 	// IntentForm is the declared OIF-V0 intent form; "" is the default
 	// `## Requirements` form (experimental).
 	IntentForm string
+	// IntentRequirements lists the requirement IDs the requirements-subset
+	// form keeps, in ascending order; nil for every other form (OIF-V0-672).
+	IntentRequirements []string
 }
 
 // DefaultOCMMapPath is the oracle's default OCM map location.
@@ -363,7 +366,7 @@ func beginOCM(ctx context.Context, repository *gitauth.Repository, root string, 
 		return wire.Value{}, intentDerivation{}, "", err
 	}
 	reader := &ocmBlobReader{ctx: ctx, repository: repository, cache: map[string][]byte{}}
-	derived, _, err := deriveIntentAt(ctx, repository, reader, target, options.IntentPath, options.IntentForm)
+	derived, _, err := deriveIntentAt(ctx, repository, reader, target, options.IntentPath, options.IntentForm, options.IntentRequirements)
 	if err != nil {
 		return wire.Value{}, intentDerivation{}, "", err
 	}
@@ -432,6 +435,13 @@ func intentScopeValue(intent ocmIntent) wire.Value {
 	}
 	if intent.form != "" {
 		pairs = append(pairs, [2]any{"form", stringValue(intent.form)})
+	}
+	if subset := intentSubset(intent); subset != nil {
+		listed := make([]wire.Value, 0, len(subset))
+		for _, identity := range subset {
+			listed = append(listed, stringValue(identity))
+		}
+		pairs = append(pairs, [2]any{"requirements", wire.Value{Kind: wire.KindArray, Arr: listed}})
 	}
 	return objectValue(pairs...)
 }
@@ -555,6 +565,13 @@ func decodeIntentScope(document wire.Value) (map[string]any, error) {
 	}
 	if form, declared := scope.Obj.Get("form"); declared {
 		decoded["form"] = form.Str
+	}
+	if listed, declared := scope.Obj.Get("requirements"); declared {
+		subset := make([]any, 0, len(listed.Arr))
+		for _, item := range listed.Arr {
+			subset = append(subset, item.Str)
+		}
+		decoded["requirements"] = subset
 	}
 	return decoded, nil
 }

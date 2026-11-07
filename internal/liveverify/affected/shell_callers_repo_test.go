@@ -19,14 +19,16 @@ import (
 
 // TestRepositoryShellForeignCallersComplete_TSP_V0_005 verifies this
 // repository's .corvint/shell-foreign-callers.json against the tracked tree,
-// so the declaration is checked rather than trusted. It uses the shell
-// plugin's own candidate rule (shell.CallerCandidate) over every tracked file,
-// .github included, so the two cannot disagree (V1-4178): each candidate that
-// names a declared script's file name must be listed as a caller or a mention.
-// The plugin, run over the tracked files only so an untracked scratch file
-// cannot break the test, must then accept the declaration (which also proves
-// that every listed file names the script, literally or by a name a shell
-// file builds) and drop the foreign-invocation frontier from the script.
+// so the declaration is checked rather than trusted. The plugin's own rule
+// decides completeness (shell.ForeignCallerFindings; TSP-V0-920, V1-3899):
+// every caller-candidate file, .github included (V1-4178), that names a
+// declared script's file name or builds a name it may be must be listed as a
+// caller or a mention, and every listed file must still name it. Each
+// disagreement is named by file and line, so a comment naming a script is
+// reported where it is (V1-3913). Both checks read the tracked files only, so
+// an untracked scratch file cannot break the test. The plugin must then
+// accept the declaration and drop the foreign-invocation frontier from the
+// script.
 func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 	root := repositoryRoot(t)
 	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ShellForeignCallersPath)))
@@ -103,7 +105,15 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 			directories[directory] = true
 		}
 	}
-	result, err := shell.New().UnitsSource(affected.FSSource(trackedFS{os.DirFS(root), tracked, directories}))
+	source := affected.FSSource(trackedFS{os.DirFS(root), tracked, directories})
+	findings, err := shell.ForeignCallerFindings(source)
+	if err != nil {
+		t.Fatalf("%s: %v", affected.ShellForeignCallersPath, err)
+	}
+	for _, finding := range findings {
+		t.Error(finding)
+	}
+	result, err := shell.New().UnitsSource(source)
 	if err != nil {
 		t.Fatal(err)
 	}

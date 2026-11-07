@@ -151,6 +151,22 @@ lives once in the store policy.
   Rollback removes the key from the policy (or reverts the reader) and every PATH key is exclusive
   again; no store migration is needed because reservations record resources, not the rule.
 
+### Development-mode selection notice (V1-3535)
+
+`plan preview` labels every selected entry `SELECTED DEVELOPMENT_MODE`, and on an unverified
+`corvint-tasks` build an agent read it as a build-qualification block (Beamfall probe, tasks build 34).
+
+- `NTP-V0-670`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3535) When the `corvint-tasks plan preview` plan selects at least one entry with reason
+  `DEVELOPMENT_MODE`, the result MUST carry exactly one warning, in both the full and the
+  `--selected-only` projection, that names the rule (the reason is the selection's disposition, not
+  a build or qualification check; `claim --next` admits a selected entry on any build, verified or
+  not, and an unverified build only means its output is not qualification evidence), how to proceed
+  (run `claim --next` and keep the build's version in the evidence), and the rule that does gate
+  claims (until `cutover --execution` is recorded every entry is `BLOCKED CUTOVER_MISSING`). A plan
+  that selects nothing carries no such warning. The plan item bytes and the reason vocabulary are
+  unchanged. Non-goals: no build or version check in the planner or `claim --next`. Rollback removes
+  the warning.
+
 ## Fixture input and receipt
 
 All JSON is bounded, duplicate-key rejecting, closed at every interpreted record, and canonical
@@ -246,4 +262,5 @@ in scope only once a supported product path calls `Preview`.
 | NTP-V0-024 | internal/tasks/cli/plan_batches.go resolveCandidate | TestNTPV0024_UnresolvableCandidateIsReportedUngrouped, TestNTPV0024_MissingNestedTreeIsUngrouped, TestNTPV0024_FatalDiffFailureRefuses, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
 | NTP-V0-025 | internal/tasks/cli plan dispatch, ReadVerbs, command help, batchView | TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb, TestNTPV0025_RepositoryMergeDriverDoesNotRun, TestCALV0047_AllCommandHelpIsReadOnly |
 | NTP-V0-246 | internal/taskman maxTickets (capture, decodePlan); cmd/corvint/taskman_fixture.go help | TestNTPV0246TicketBound, TestNTPV0246PlanFixtureHelpStatesBound |
+| NTP-V0-670 | internal/tasks/cli/plan.go planPreview, developmentModeWarning | TestNTPV0670_PlanPreviewNamesTheDevelopmentModeRule |
 | NTP-V0-026 | internal/tasks/ticket/collision.go CollideShared; internal/tasks/intent/adopter_policy.go readReservations; internal/tasks/transaction/lease_claim.go collision, expiredBlocking; internal/tasks/transaction/plan.go choose | TestNTPV0026_SharedPathsDoNotCollide, TestNTPV0026_PolicyReservationsSharedPaths, TestNTPV0026_SharedSpecIndexDoesNotCollide, TestNTPV0026_SharedCEMPathsAdmitIsolatedLanes, TestNTPV0026_PlanSelectsAcrossSharedPaths |

@@ -226,7 +226,7 @@ else
     "./internal/tasks/safeopen TestCALV0070_ @prebind"
     "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
     "./tools/ci-forward-row Test .github/"
-    "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
+    "./internal/companionrelease/currentproof TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi

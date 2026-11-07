@@ -320,7 +320,7 @@ func TestMCPV0026ToolProfileSelectorIsClosed(t *testing.T) {
 		}
 	}
 	handler := &toolHandler{}
-	var err *bridge.Error
+	var err error
 	if handler.registry, err = bridge.New(root); err != nil {
 		t.Fatal(err)
 	}
@@ -444,6 +444,27 @@ func TestMCPV0028ReasonClassToolError(t *testing.T) {
 	}
 }
 
+// updateToolsListGoldens is set by `make mcp-tools-list-goldens` (ASD-V0-575, V1-4139), which
+// rewrites each tools/list golden from the server instead of comparing it.
+const updateToolsListGoldens = "CORVINT_UPDATE_TOOLS_LIST_GOLDENS"
+
+// checkToolsListGolden compares a tools/list response with testdata/NAME byte for byte, or
+// rewrites NAME when updateToolsListGoldens is 1.
+func checkToolsListGolden(t *testing.T, name string, got []byte) {
+	t.Helper()
+	path := filepath.Join("testdata", name)
+	if os.Getenv(updateToolsListGoldens) == "1" {
+		if err := os.WriteFile(path, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("%s mismatch (%v); after a deliberate tools/list change run make mcp-tools-list-goldens and review the diff:\n%s", name, err, got)
+	}
+}
+
 // AFU-V1-034: the closed --tool-profile selector admits flows beside
 // task-review, still at most once; without the selector, and under
 // task-review, tools/list is byte-identical to the pre-flows server.
@@ -486,10 +507,20 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 		if exit := run(context.Background(), arguments, strings.NewReader(list), &stdout, &stderr); exit != 0 {
 			t.Fatalf("%q exit=%d stderr=%q", arguments, exit, stderr.String())
 		}
-		want, err := os.ReadFile(filepath.Join("testdata", golden))
-		if err != nil || !bytes.Equal(stdout.Bytes(), want) {
-			t.Fatalf("%s mismatch (%v):\n%s", golden, err, stdout.Bytes())
-		}
+		checkToolsListGolden(t, golden, stdout.Bytes())
+	}
+	// ASD-V0-575: every tools/list golden in testdata is one these tests regenerate and compare.
+	onDisk, err := filepath.Glob(filepath.Join("testdata", "tools-list-*.golden.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	covered := slices.Sorted(maps.Keys(goldens))
+	covered = slices.Sorted(slices.Values(append(covered, "tools-list-groups.golden.jsonl")))
+	for i := range onDisk {
+		onDisk[i] = filepath.Base(onDisk[i])
+	}
+	if !slices.Equal(onDisk, covered) {
+		t.Fatalf("tools/list goldens on disk %q, regenerated and compared %q", onDisk, covered)
 	}
 	var stdout, stderr bytes.Buffer
 	if exit := run(context.Background(), []string{"--tool-profile", "flows", "--root", root}, strings.NewReader(list), &stdout, &stderr); exit != 0 {
@@ -515,9 +546,9 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("flows tools=%v want %v", names, want)
 	}
-	for _, newRegistry := range []func(string) (*bridge.Registry, *bridge.Error){bridge.New, bridge.NewTaskReview} {
+	for _, newRegistry := range []func(string) (*bridge.Registry, error){bridge.New, bridge.NewTaskReview} {
 		handler := &toolHandler{}
-		var err *bridge.Error
+		var err error
 		if handler.registry, err = newRegistry(root); err != nil {
 			t.Fatal(err)
 		}

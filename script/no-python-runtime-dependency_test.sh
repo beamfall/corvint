@@ -378,5 +378,12 @@ for line in "integrations/x/hooks.json:3:  \"command\": [\"python3\", \"hook.py\
     exit 1
   fi
 done
+# ASD-V0-579: every pull request's make doc-gates runs this check and qualify-tasks-basic-test.
+for target in no-python-runtime-dependency-test qualify-tasks-basic-test; do
+  if ! awk -v t="$target" '/^DOC_GATE_TARGETS *:?=/ { for (i = 3; i <= NF; i++) if ($i == t) found = 1 } END { exit !found }' Makefile; then
+    echo "self-test: DOC_GATE_TARGETS does not list $target (ASD-V0-579)" >&2
+    exit 1
+  fi
+done
 
 printf 'no-python-runtime-dependency: build/test/hook/packaging paths name no Python interpreter\n'

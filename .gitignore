@@ -88,6 +88,8 @@ node_modules/
 /qualify-opencode
 /requirement-id-collisions
 /retrieval-bench
+/run-measure
+/py-signal-lint
 /selection-baseline
 /shell-test-select
 /str-parity

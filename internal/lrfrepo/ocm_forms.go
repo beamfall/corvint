@@ -2,6 +2,7 @@ package lrfrepo
 
 import (
 	"bytes"
+	"math"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -20,7 +21,12 @@ const (
 	IntentFormADR = "adr-decisions"
 	// IntentFormRoadmap reads each roadmap ticket that carries an Acceptance line.
 	IntentFormRoadmap = "roadmap-acceptance"
-	maxTicketIDBytes  = 64
+	// IntentFormRequirementsSubset reads the OCM-V0-001 Requirements section and
+	// keeps only the requirement IDs the map lists in intentScope.requirements,
+	// so a change can cite part of a spec over the obligation bound (OIF-V0-670
+	// to OIF-V0-673, V1-2275).
+	IntentFormRequirementsSubset = "requirements-subset"
+	maxTicketIDBytes             = 64
 )
 
 var (
@@ -69,15 +75,19 @@ var intentFormParsers = map[string]func(path, oid string, data []byte) (intentDe
 	IntentFormOpenSpecSpec:  openSpecSpecDerivation,
 	IntentFormOpenSpecDelta: openSpecDeltaDerivation,
 	IntentFormSpecKit:       specKitSpecDerivation,
+	// The subset form derives only through deriveRecordedIntent, which carries
+	// the listed IDs; this entry makes the name known and refuses a bare call.
+	IntentFormRequirementsSubset: unlistedSubsetDerivation,
 }
 
 var intentFormIDs = map[string]*regexp.Regexp{
-	"":                      requirementID,
-	IntentFormADR:           adrDecisionID,
-	IntentFormRoadmap:       roadmapTicketID,
-	IntentFormOpenSpecSpec:  openSpecObligationID,
-	IntentFormOpenSpecDelta: openSpecObligationID,
-	IntentFormSpecKit:       specKitRequirementID,
+	"":                           requirementID,
+	IntentFormADR:                adrDecisionID,
+	IntentFormRoadmap:            roadmapTicketID,
+	IntentFormOpenSpecSpec:       openSpecObligationID,
+	IntentFormOpenSpecDelta:      openSpecObligationID,
+	IntentFormSpecKit:            specKitRequirementID,
+	IntentFormRequirementsSubset: requirementID,
 }
 
 func deriveIntent(form, path, oid string, data []byte) (intentDerivation, error) {
@@ -91,6 +101,112 @@ func deriveIntent(form, path, oid string, data []byte) (intentDerivation, error)
 	derived, err := parse(path, oid, data)
 	derived.intent.form = form
 	return derived, err
+}
+
+// deriveRecordedIntent derives an intent with its recorded form and, for the
+// requirements-subset form only, its listed requirement IDs (OIF-V0-671).
+func deriveRecordedIntent(form string, subset []string, path, oid string, data []byte) (intentDerivation, error) {
+	if form != IntentFormRequirementsSubset {
+		if len(subset) != 0 {
+			return intentDerivation{}, fail("invalid-intent-scope", "only the requirements-subset form lists requirement IDs")
+		}
+		return deriveIntent(form, path, oid, data)
+	}
+	if !utf8.Valid(data) {
+		return intentDerivation{}, fail("invalid-intent", "intent scope must be UTF-8 Markdown")
+	}
+	return requirementsSubsetDerivation(path, oid, data, subset)
+}
+
+func unlistedSubsetDerivation(string, string, []byte) (intentDerivation, error) {
+	return intentDerivation{}, fail("missing-requirements", "requirements-subset lists no requirement IDs")
+}
+
+// validRequirementSubset applies OIF-V0-670: 1 to 256 requirement IDs in
+// strictly ascending byte order, so each subset has one encoding.
+func validRequirementSubset(subset []string) error {
+	if len(subset) == 0 {
+		return fail("missing-requirements", "requirements-subset lists no requirement IDs")
+	}
+	if len(subset) > maxObligations {
+		return fail("too-many-obligations", "requirements-subset lists more requirement IDs than the obligation limit")
+	}
+	for index, identity := range subset {
+		if !requirementID.MatchString(identity) {
+			return fail("invalid-intent-scope", "requirements-subset lists an invalid requirement ID")
+		}
+		if index > 0 && subset[index-1] >= identity {
+			return fail("invalid-intent-scope", "requirements-subset IDs must be unique and in ascending order")
+		}
+	}
+	return nil
+}
+
+// requirementsSubsetDerivation reads the whole Requirements section without the
+// obligation bound, then keeps the listed IDs in document order. The span is
+// the whole section, so its digest still binds every requirement line.
+func requirementsSubsetDerivation(path, oid string, data []byte, subset []string) (intentDerivation, error) {
+	if err := validRequirementSubset(subset); err != nil {
+		return intentDerivation{}, err
+	}
+	intent, all, scope, err := scanRequirements(path, oid, data, math.MaxInt)
+	if err != nil {
+		return intentDerivation{}, err
+	}
+	listed := make(map[string]bool, len(subset))
+	for _, identity := range subset {
+		listed[identity] = true
+	}
+	requirements := make([]string, 0, len(subset))
+	for _, identity := range all {
+		if listed[identity] {
+			requirements = append(requirements, identity)
+		}
+	}
+	if len(requirements) != len(subset) {
+		return intentDerivation{}, fail("unknown-subset-requirement", "requirements-subset lists an ID that is not in the Requirements section")
+	}
+	intent.form = IntentFormRequirementsSubset
+	intent.subset = strings.Join(subset, ",")
+	return intentDerivation{intent: intent, requirements: requirements, scope: scope}, nil
+}
+
+// intentSubset returns the recorded requirements-subset IDs; nil for any
+// other form.
+func intentSubset(intent ocmIntent) []string {
+	if intent.subset == "" {
+		return nil
+	}
+	return strings.Split(intent.subset, ",")
+}
+
+// parseIntentSubset reads the intentScope.requirements wire member, present
+// exactly when the form is requirements-subset (OIF-V0-671).
+func parseIntentSubset(object *wire.Object, form string) (string, error) {
+	value, declared := object.Get("requirements")
+	if declared != (form == IntentFormRequirementsSubset) {
+		return "", fail("invalid-intent-scope", "intentScope requirements is present exactly for the requirements-subset form")
+	}
+	if !declared {
+		return "", nil
+	}
+	if value.Kind != wire.KindArray || len(value.Arr) > maxObligations {
+		if value.Kind == wire.KindArray {
+			return "", fail("too-many-obligations", "requirements-subset lists more requirement IDs than the obligation limit")
+		}
+		return "", fail("invalid-intent-scope", "intentScope requirements must be an array")
+	}
+	subset := make([]string, 0, len(value.Arr))
+	for _, item := range value.Arr {
+		if item.Kind != wire.KindString {
+			return "", fail("invalid-intent-scope", "intentScope requirements must be strings")
+		}
+		subset = append(subset, item.Str)
+	}
+	if err := validRequirementSubset(subset); err != nil {
+		return "", err
+	}
+	return strings.Join(subset, ","), nil
 }
 
 func validObligationID(form, identity string) bool {
