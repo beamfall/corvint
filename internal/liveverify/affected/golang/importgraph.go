@@ -811,7 +811,8 @@ func mentionsList(body ast.Node) bool {
 // files' `go list` calls, and returns, by unit index and file, the scans
 // whose listed literals literalExecs then does not count as command uses. A
 // target directory that holds no observed package makes the unit a reader of
-// the whole module.
+// the whole module. A reader that is not proven (a call, or observesSource
+// for any of its files, AFP-V0-9010) reads the whole module and its source.
 func goListUnits(root *affected.Source, units []affected.Unit, directories []string, owners map[string]module) []map[string]goListFile {
 	byDirectory := make(map[string]string, len(units))
 	for index, directory := range directories {
@@ -866,6 +867,16 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 		if !reader {
 			continue
 		}
+		// A reader whose files may observe metadata or source text by
+		// another channel, or that cannot all be read, is unproven too.
+		for _, relative := range files {
+			if unproven {
+				break
+			}
+			body, read := bodies[relative]
+			unproven = !read || observesSource(relative, body)
+		}
+		all = all || unproven
 		units[index].ImportGraphReadsAll = all
 		units[index].ImportGraphReadsFiles = unproven
 		if !all {

@@ -20,9 +20,9 @@ import (
 // path to its role's set, carries a build constraint or a GOOS/GOARCH name,
 // declares another package clause, adds an embed line or imports "C" still
 // changes the set (the fault injections), as does a test file of a directory
-// with no non-test file. A kept-set test file that is added, removed or
-// renamed still changes its package's file set, which a reader not proven to
-// observe the import graph alone (here wide, `go list -json`) is selected by.
+// with no non-test file. Every dirty .go path is still the comparison's
+// Source, which a reader not proven to observe the import graph alone (here
+// wide, `go list -json`) is selected by.
 func TestTestFileImportEdges_AFP_V0_9010(t *testing.T) {
 	root := importGraphRepository(t)
 	const (
@@ -61,30 +61,28 @@ func TestTestFileImportEdges_AFP_V0_9010(t *testing.T) {
 		head    fstest.MapFS
 		dirty   string
 		changed bool
-		files   bool
 	}{
-		{"new test file, imports in set", head(map[string]string{"lib/more_test.go": "package lib\n\nimport \"testing\"\n\nfunc TestMore(t *testing.T) {}\n"}), "lib/more_test.go", false, true},
-		{"new external test file, imports in set", head(map[string]string{"lib/more_external_test.go": "package lib_test\n\nimport (\n\t\"testing\"\n\n\t\"example.test/g/lib\"\n)\n\nfunc TestMore(t *testing.T) { _ = lib.Help() }\n"}), "lib/more_external_test.go", false, true},
-		{"edited test body", head(map[string]string{"lib/lib_test.go": inPackage + "\nfunc TestOther(t *testing.T) {}\n"}), "lib/lib_test.go", false, false},
-		{"test import dropped that another test file keeps", head(map[string]string{"lib/more_test.go": "package lib\n\nimport \"testing\"\n"}), "lib/more_test.go", false, true},
-		{"removed test file whose imports remain", head(map[string]string{"lib/more_test.go": inPackage}, "lib/lib_test.go"), "lib/lib_test.go", false, true},
+		{"new test file, imports in set", head(map[string]string{"lib/more_test.go": "package lib\n\nimport \"testing\"\n\nfunc TestMore(t *testing.T) {}\n"}), "lib/more_test.go", false},
+		{"new external test file, imports in set", head(map[string]string{"lib/more_external_test.go": "package lib_test\n\nimport (\n\t\"testing\"\n\n\t\"example.test/g/lib\"\n)\n\nfunc TestMore(t *testing.T) { _ = lib.Help() }\n"}), "lib/more_external_test.go", false},
+		{"edited test body", head(map[string]string{"lib/lib_test.go": inPackage + "\nfunc TestOther(t *testing.T) {}\n"}), "lib/lib_test.go", false},
+		{"test import dropped that another test file keeps", head(map[string]string{"lib/more_test.go": "package lib\n\nimport \"testing\"\n"}), "lib/more_test.go", false},
+		{"removed test file whose imports remain", head(map[string]string{"lib/more_test.go": inPackage}, "lib/lib_test.go"), "lib/lib_test.go", false},
 		// Fault injections: each of these must still change lib's import set.
-		{"test file adds an import", head(map[string]string{"lib/more_test.go": "package lib\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n"}), "lib/more_test.go", true, false},
-		{"import moves to the external role", head(map[string]string{"lib/more_external_test.go": "package lib_test\n\nimport \"strings\"\n"}), "lib/more_external_test.go", true, false},
-		{"test import set shrinks", head(nil, "lib/lib_test.go"), "lib/lib_test.go", true, false},
-		{"constrained test file", head(map[string]string{"lib/more_test.go": "//go:build linux\n\npackage lib\n\nimport \"testing\"\n"}), "lib/more_test.go", true, false},
-		{"GOOS in the name", head(map[string]string{"lib/more_linux_test.go": "package lib\n\nimport \"testing\"\n"}), "lib/more_linux_test.go", true, false},
-		{"foreign package clause", head(map[string]string{"lib/more_test.go": "package other\n\nimport \"testing\"\n"}), "lib/more_test.go", true, false},
-		{"embed line", head(map[string]string{"lib/more_test.go": "package lib\n\nimport (\n\t_ \"embed\"\n\t\"testing\"\n)\n\n//go:embed lib.go\nvar source string\n"}), "lib/more_test.go", true, false},
-		{"cgo test file", head(map[string]string{"lib/more_test.go": "package lib\n\nimport \"C\"\n"}), "lib/more_test.go", true, false},
+		{"test file adds an import", head(map[string]string{"lib/more_test.go": "package lib\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n"}), "lib/more_test.go", true},
+		{"import moves to the external role", head(map[string]string{"lib/more_external_test.go": "package lib_test\n\nimport \"strings\"\n"}), "lib/more_external_test.go", true},
+		{"test import set shrinks", head(nil, "lib/lib_test.go"), "lib/lib_test.go", true},
+		{"constrained test file", head(map[string]string{"lib/more_test.go": "//go:build linux\n\npackage lib\n\nimport \"testing\"\n"}), "lib/more_test.go", true},
+		{"GOOS in the name", head(map[string]string{"lib/more_linux_test.go": "package lib\n\nimport \"testing\"\n"}), "lib/more_linux_test.go", true},
+		{"foreign package clause", head(map[string]string{"lib/more_test.go": "package other\n\nimport \"testing\"\n"}), "lib/more_test.go", true},
+		{"embed line", head(map[string]string{"lib/more_test.go": "package lib\n\nimport (\n\t_ \"embed\"\n\t\"testing\"\n)\n\n//go:embed lib.go\nvar source string\n"}), "lib/more_test.go", true},
+		{"cgo test file", head(map[string]string{"lib/more_test.go": "package lib\n\nimport \"C\"\n"}), "lib/more_test.go", true},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			got := golang.ImportSetRecords(base, test.head, graph, []string{test.dirty})
 			_, changed := got.Changed[lib]
-			_, files := got.Files[lib]
-			if changed != test.changed || files != test.files || got.Module != "" {
-				t.Fatalf("changes = %+v, want lib changed=%v files=%v", *got, test.changed, test.files)
+			if changed != test.changed || got.Source != test.dirty || got.Module != "" {
+				t.Fatalf("changes = %+v, want lib changed=%v source=%s", *got, test.changed, test.dirty)
 			}
 		})
 	}
@@ -108,7 +106,7 @@ func TestTestFileImportEdges_AFP_V0_9010(t *testing.T) {
 	}
 	dirty := []string{"lib/more_test.go"}
 	kept := golang.ImportSetRecords(base, os.DirFS(root), edited, dirty)
-	if !reflect.DeepEqual(*kept, affected.ImportSetChanges{Changed: map[string]string{}, Files: map[string]string{lib: "lib/more_test.go"}}) {
+	if !reflect.DeepEqual(*kept, affected.ImportSetChanges{Changed: map[string]string{}, Source: "lib/more_test.go"}) {
 		t.Fatalf("kept changes = %+v", *kept)
 	}
 	readers := func(changes *affected.ImportSetChanges) map[string]bool {
@@ -126,16 +124,16 @@ func TestTestFileImportEdges_AFP_V0_9010(t *testing.T) {
 	}
 	for id := range hit {
 		if unit, _ := edited.Unit(id); !unit.ImportGraphReadsFiles {
-			t.Errorf("proven reader %s selected by a file-set change alone", id)
+			t.Errorf("proven reader %s selected by a kept import set", id)
 		}
 	}
-	// A body edit of an existing test file keeps the file set too, so it
-	// selects no reader at all.
+	// A body edit of an existing test file selects no proven reader, and
+	// still the unproven wide (AFP-V0-9010).
 	body := []string{"lib/lib_test.go"}
 	bodyOnly := golang.ImportSetRecords(base, head(map[string]string{"lib/lib_test.go": inPackage + "\nfunc TestOther(t *testing.T) {}\n"}), edited, body)
 	for _, selection := range affected.Select(edited.WithImportSetChanges(bodyOnly), body).Selected {
-		if selection.Witness.Kind == affected.WitnessImportGraphReader {
-			t.Errorf("a test body edit selects import-graph reader %s (changes %+v)", selection.UnitID, *bodyOnly)
+		if unit, _ := edited.Unit(selection.UnitID); selection.Witness.Kind == affected.WitnessImportGraphReader && !unit.ImportGraphReadsFiles {
+			t.Errorf("a test body edit selects proven import-graph reader %s (changes %+v)", selection.UnitID, *bodyOnly)
 		}
 	}
 	writeFiles(t, root, map[string]string{"lib/more_test.go": "package lib\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestMore(t *testing.T) { _ = os.Args }\n"})
@@ -149,10 +147,10 @@ func TestTestFileImportEdges_AFP_V0_9010(t *testing.T) {
 // readers proven to observe the import graph alone. lib/a_test.go imports
 // testing; names lists lib's TestGoFiles, an unproven call that observes
 // file names. A new lib/b_test.go importing only testing keeps lib's import
-// set, so the proven reader guard stays out, but it changes lib's file set,
-// so names is selected. The fault injections: the same comparison without
-// its file-set changes (the reviewed code) loses names, and a test file that
-// adds an import selects both readers.
+// set, so the proven reader guard stays out, but names is selected through
+// the comparison's Source. The fault injections: the same comparison without
+// its Source loses names, and a test file that adds an import selects both
+// readers.
 func TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010(t *testing.T) {
 	root := importGraphRepository(t)
 	const (
@@ -212,21 +210,20 @@ func TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			changes := golang.ImportSetRecords(base, test.head, graph, test.dirty)
-			if len(changes.Changed) != 0 || changes.Module != "" || changes.Files[lib] != test.witness {
-				t.Fatalf("changes = %+v, want only lib's file set changed by %s", *changes, test.witness)
+			if len(changes.Changed) != 0 || changes.Module != "" || changes.Source != test.witness {
+				t.Fatalf("changes = %+v, want only the source %s", *changes, test.witness)
 			}
 			hit := selected(changes, test.dirty)
 			witness, found := hit[reader]
-			if !found || witness.DirtyPath != test.witness || !reflect.DeepEqual(witness.Chain(), []string{lib, reader}) {
-				t.Fatalf("names not selected through lib's file set: %+v (hit %v)", witness, hit)
+			if chain := witness.Chain(); !found || witness.DirtyPath != test.witness || len(chain) == 0 || chain[len(chain)-1] != reader {
+				t.Fatalf("names not selected through the source: %+v (hit %v)", witness, hit)
 			}
 			if _, found := hit[guard]; found {
-				t.Errorf("proven reader guard selected by a file-set change alone")
+				t.Errorf("proven reader guard selected by a kept import set")
 			}
-			// Fault injection: without the file-set changes, as the
-			// reviewed code compared them, names is lost.
+			// Fault injection: without the Source, names is lost.
 			if _, found := selected(&affected.ImportSetChanges{Changed: changes.Changed, Module: changes.Module}, test.dirty)[reader]; found {
-				t.Fatal("names selected without the file-set change: the regression proves nothing")
+				t.Fatal("names selected without the source: the regression proves nothing")
 			}
 		})
 	}
@@ -240,5 +237,125 @@ func TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010(t *testing.T) {
 	}
 	if hit := selected(changes, dirty); len(hit) == 0 || hit[reader].Kind == "" || hit[guard].Kind == "" {
 		t.Fatalf("an added test import selects %v, want names and guard", hit)
+	}
+}
+
+// AFP-V0-9010 (the selmin fix-round-2 review's P1): docs builds its target
+// path at run time and checks `go list -f '{{.Doc}}'`, an unproven call, so
+// the target names no edge and docs imports nothing of the module. An edit
+// of lib's package comment alone keeps every header, yet changes what docs
+// reads: docs is selected through the Source, with the chain [lib, docs],
+// while the proven reader guard stays out. Fault injection: the same
+// comparison without its Source loses docs.
+func TestPackageDocReaderSelected_AFP_V0_9010(t *testing.T) {
+	root := importGraphRepository(t)
+	const docs = "package docs\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\n" +
+		"func TestDoc(t *testing.T) {\n\ttarget := strings.Join([]string{\"example.test\", \"g\", \"lib\"}, \"/\")\n" +
+		"\tout, err := exec.Command(\"go\", \"list\", \"-f\", \"{{.Doc}}\", target).Output()\n" +
+		"\tif err != nil || strings.TrimSpace(string(out)) != \"Package lib helps.\" {\n\t\tt.Fatalf(\"%s %v\", out, err)\n\t}\n}\n"
+	const before = "// Package lib helps.\npackage lib\n\nfunc Help() string { return \"help\" }\n"
+	writeFiles(t, root, map[string]string{"lib/lib.go": before, "docs/docs.go": "package docs\n", "docs/docs_test.go": docs})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib, guard, reader := importGraphModule+"lib", importGraphModule+"guard", importGraphModule+"docs"
+	if unit, _ := graph.Unit(reader); !unit.ImportGraphReadsAll || !unit.ImportGraphReadsFiles || len(unit.Imports) != 0 {
+		t.Fatalf("docs: all=%v files=%v imports=%v, want an unproven whole-module reader importing nothing", unit.ImportGraphReadsAll, unit.ImportGraphReadsFiles, unit.Imports)
+	}
+	base := fstest.MapFS{"go.mod": {Data: []byte("module example.test/g\n")}, "lib/lib.go": {Data: []byte(before)}}
+	head := fstest.MapFS{"go.mod": base["go.mod"], "lib/lib.go": {Data: []byte("// Package lib helps less.\npackage lib\n\nfunc Help() string { return \"help\" }\n")}}
+	dirty := []string{"lib/lib.go"}
+	changes := golang.ImportSetRecords(base, head, graph, dirty)
+	if len(changes.Changed) != 0 || changes.Module != "" || changes.Source != "lib/lib.go" {
+		t.Fatalf("changes = %+v, want no import-set change and the source lib/lib.go", *changes)
+	}
+	hit := map[string]affected.Witness{}
+	for _, selection := range affected.Select(graph.WithImportSetChanges(changes), dirty).Selected {
+		if selection.Witness.Kind == affected.WitnessImportGraphReader {
+			hit[selection.UnitID] = selection.Witness
+		}
+	}
+	if witness, found := hit[reader]; !found || witness.DirtyPath != "lib/lib.go" || !reflect.DeepEqual(witness.Chain(), []string{lib, reader}) {
+		t.Fatalf("docs not selected by a package comment edit: %+v (hit %v)", witness, hit)
+	}
+	if _, found := hit[guard]; found {
+		t.Error("proven reader guard selected by a package comment edit")
+	}
+	// Fault injection: without the Source, docs is lost.
+	for _, selection := range affected.Select(graph.WithImportSetChanges(&affected.ImportSetChanges{Changed: changes.Changed}), dirty).Selected {
+		if selection.UnitID == reader {
+			t.Fatal("docs selected without the source: the regression proves nothing")
+		}
+	}
+}
+
+// AFP-V0-9010 (the orchestrator's rule): a reader is narrowed by headers only
+// while every file of its package is proven to observe nothing but its
+// proven `go list` output. Each case adds one file to a package whose only
+// call is the proven `go list -deps -f '{{.ImportPath}}' ./cmd/tool`; a
+// channel the classifier cannot rule out (another command, a go/ parser,
+// build information, embedded or read files, a module helper whose code is
+// not inspected) makes it an unproven whole-module reader, which a body-only
+// edit of lib then selects. The controls (a literal own-testdata read, an
+// environment read) stay proven, and the body edit does not select them.
+// Every unproven case but the unparsed file is selected only as an
+// import-graph reader: no other edge reaches probe.
+func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
+	const list = "package probe\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+		"func TestList(t *testing.T) {\n\t_, _ = exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\").Output()\n}\n"
+	cases := []struct {
+		name     string
+		extra    string
+		unproven bool
+	}{
+		{"go build", "package probe\n\nimport \"os/exec\"\n\nfunc build() error { return exec.Command(\"go\", \"build\", \"./cmd/other\").Run() }\n", true},
+		{"computed command", "package probe\n\nimport \"os/exec\"\n\nfunc run(name string) error { return exec.Command(name, \"list\").Run() }\n", true},
+		{"git reads the tree", "package probe\n\nimport \"os/exec\"\n\nfunc show() error { return exec.Command(\"git\", \"show\", \"HEAD:lib/lib.go\").Run() }\n", true},
+		{"go/parser", "package probe\n\nimport \"go/parser\"\n\nvar _ = parser.ParseComments\n", true},
+		{"go/build", "package probe\n\nimport \"go/build\"\n\nvar _ = build.Default\n", true},
+		{"build info", "package probe\n\nimport \"runtime/debug\"\n\nvar _, _ = debug.ReadBuildInfo()\n", true},
+		{"embed", "package probe\n\nimport _ \"embed\"\n\n//go:embed probe.go\nvar source string\n", true},
+		{"read outside testdata", "package probe\n\nimport \"os\"\n\nvar _, _ = os.ReadFile(\"../lib/lib.go\")\n", true},
+		{"climbing testdata", "package probe\n\nimport \"os\"\n\nvar _, _ = os.ReadFile(\"testdata/../../lib/lib.go\")\n", true},
+		{"computed read", "package probe\n\nimport \"os\"\n\nfunc read(name string) ([]byte, error) { return os.ReadFile(name) }\n", true},
+		{"read as a value", "package probe\n\nimport \"os\"\n\nvar reader = os.ReadFile\n", true},
+		{"walk", "package probe\n\nimport \"path/filepath\"\n\nvar _ = filepath.WalkDir(\"..\", nil)\n", true},
+		{"dot import", "package probe\n\nimport . \"os\"\n\nvar _, _ = ReadFile(\"x\")\n", true},
+		{"module helper", "package probe\n\nimport \"example.test/g/base\"\n\nvar _ = base.Name()\n", true},
+		{"template files", "package probe\n\nimport \"text/template\"\n\nvar _, _ = template.New(\"x\").ParseGlob(\"../lib/*.go\")\n", true},
+		{"does not parse", "package probe\n\nfunc {\n", true},
+		{"own testdata", "package probe\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar _, _ = os.ReadFile(filepath.Join(\"testdata\", \"fixture.txt\"))\nvar _, _ = os.ReadDir(\"testdata\")\n", false},
+		{"environment", "package probe\n\nimport \"os\"\n\nvar _ = os.Getenv(\"HOME\")\n", false},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			root := importGraphRepository(t)
+			writeFiles(t, root, map[string]string{"probe/probe.go": "package probe\n", "probe/probe_test.go": list, "probe/extra_test.go": test.extra})
+			graph, err := affected.Build(context.Background(), root, golang.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader := importGraphModule + "probe"
+			unit, _ := graph.Unit(reader)
+			if unit.ImportGraphReadsFiles != test.unproven || unit.ImportGraphReadsAll != test.unproven || !test.unproven && len(unit.ImportGraphReads) == 0 {
+				t.Fatalf("probe: all=%v files=%v reads=%v, want unproven=%v", unit.ImportGraphReadsAll, unit.ImportGraphReadsFiles, unit.ImportGraphReads, test.unproven)
+			}
+			base := fstest.MapFS{"go.mod": {Data: []byte("module example.test/g\n")}, "lib/lib.go": {Data: []byte("package lib\n\nfunc Help() string { return \"help\" }\n")}}
+			head := fstest.MapFS{"go.mod": base["go.mod"], "lib/lib.go": {Data: []byte("package lib\n\nfunc Help() string { return \"more help\" }\n")}}
+			dirty := []string{"lib/lib.go"}
+			changes := golang.ImportSetRecords(base, head, graph, dirty)
+			var witness affected.Witness
+			for _, selection := range affected.Select(graph.WithImportSetChanges(changes), dirty).Selected {
+				if selection.UnitID == reader {
+					witness = selection.Witness
+				}
+			}
+			// An unparsed file also makes the plugin's other edges
+			// conservative, so any witness runs probe.
+			if selected := witness.Kind != ""; selected != test.unproven {
+				t.Fatalf("a body-only edit of lib selected probe by %+v, want selected=%v (changes %+v)", witness, test.unproven, *changes)
+			}
+		})
 	}
 }
