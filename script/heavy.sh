@@ -365,17 +365,41 @@ slot_limits() {
   fi
 }
 
+# command_goflags COMMAND...: resolve defaults using the child's leading environment assignments.
+# Unsupported env options cannot establish automatic whole-package authority (ASD-V0-2478).
+command_goflags() {
+  local arg assignments=()
+  for arg in "$@"; do
+    if [[ $arg =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      assignments+=("$arg")
+    elif [[ ${arg##*/} == env ]]; then
+      :
+    elif [[ ${arg##*/} == go ]]; then
+      env ${assignments[@]+"${assignments[@]}"} GOTOOLCHAIN=local "$arg" env GOFLAGS 2> /dev/null
+      return $?
+    else
+      return 1
+    fi
+  done
+  return 1
+}
+
 # ASD-V0-2475 (V1-4513): an exported GOFLAGS replaces the GOFLAGS that `go env` reads from the GOENV
 # file or $GOROOT/go.env, so with none in the environment the bound starts from that value. A value
 # that already sets -p is left to go, unexported.
 bound_parallelism() {
-  local flags=${GOFLAGS-}
-  if [[ -z $flags ]] && command -v go > /dev/null; then
+  local limit=$1 flags=${GOFLAGS-}
+  shift
+  if flags=$(command_goflags "$@"); then
+    :
+  elif [[ -z ${GOFLAGS-} ]] && command -v go > /dev/null; then
     flags=$(GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null) || flags=
+  else
+    flags=${GOFLAGS-}
   fi
   case " $flags " in
     *" -p="* | *" -p "*) ;;
-    *) export GOFLAGS="${flags:+$flags }-p=$1" ;;
+    *) export GOFLAGS="${flags:+$flags }-p=$limit" ;;
   esac
 }
 
@@ -678,7 +702,7 @@ offload_unavailable() { printf 'heavy.sh: offload unavailable from this checkout
 # build on HEAVY_REMOTE_HOST at this checkout's exact tree. Returns the command's status, or 97 when
 # the remote cannot run it.
 offload() {
-  local top rel head base ref origin t size t0 t1 tree back wip=
+  local top rel head base ref origin t size t0 t1 tree back wip= flags
   t0=$(heavy_now)
   heavy_noretry=1 # cleared once the payload is ready: only a remote failure is retried
   # ASD-V0-056 (V1-3202): a checkout that cannot offload says why, once, before the local run.
@@ -734,6 +758,11 @@ offload() {
     printf 'BUSY=%q\nGMP=%q\nMINFREE=%q\nCALLER_GMP=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}" "$heavy_min_free" "${GOMAXPROCS-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
+    # Bind Go tests to the sender's effective defaults. A command-local assignment in CMD
+    # keeps the envelope's existing fields; serve consumes it before bounding parallelism.
+    if [[ " $* " == *" go test "* ]] && flags=$(command_goflags "$@"); then
+      printf '%q ' "GOFLAGS=$flags"
+    fi
     printf '%q ' "$@"
     printf ')\n'
   } > "$t/meta.env"
@@ -885,7 +914,7 @@ worktree_slot() {
 # the remote cannot run it (the caller then runs locally).
 # shellcheck disable=SC1090,SC2153 # meta.env (written by offload) defines BASE, HEAD, ORIGIN, CMD...
 serve() {
-  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg drop_re
+  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg drop_re flags i prefix
   t0=$(heavy_now)
   infra() {
     printf 'heavy.sh: remote %s: %s\n' "$(command -p hostname)" "$*" >&2
@@ -974,7 +1003,25 @@ serve() {
     fg=$(free_gb "$a")
     [[ $fg =~ ^[0-9]+$ ]] && ((${MINFREE:-0} > 0 && fg < MINFREE)) && infra "low-disk $a free=${fg}G floor=${MINFREE}G"
   done
-  bound_parallelism "$par"
+  # Offload's leading assignment binds the admitted defaults, even when empty. Consume it
+  # before host setup can export receiver-only filters, preserving the original command argv.
+  if [[ ${CMD[0]-} == GOFLAGS=* ]]; then
+    flags=${CMD[0]#GOFLAGS=}
+    # An empty GOFLAGS still permits Go's GOENV defaults. A nonempty neutral bound prevents
+    # that fallback, including when the original argv explicitly assigned an empty GOFLAGS.
+    flags=${flags:--p=$par}
+    export GOFLAGS=$flags
+    CMD=("${CMD[@]:1}")
+    prefix=1
+    for ((i = 0; i < ${#CMD[@]} && prefix; i++)); do
+      case ${CMD[i]} in
+        GOFLAGS=*) CMD[i]=GOFLAGS=$flags ;;
+        env | *=*) ;;
+        *) prefix=0 ;;
+      esac
+    done
+  fi
+  bound_parallelism "$par" ${CMD[@]+"${CMD[@]}"}
   # V1-1628: -p bounds how many packages build or test at once, not the threads inside one test
   # binary, so a whole-package run on every slot would still contend for all the CPUs.
   # ASD-V0-835: only the argv and this metadata cross ssh, so the caller's exported GOMAXPROCS is
@@ -1774,18 +1821,22 @@ selection_policy() {
   local small digest unfiltered=
   if [[ -z ${HEAVY_WHOLE_REASON-} ]] && source_tests_unfiltered whole "$@"; then unfiltered=1; fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && small=$(small_package_bytes "$@"); then
+    heavy_selection_mode=whole
     selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(new_package_base "$@"); then
+    heavy_selection_mode=whole
     selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(changed_source_base "$@"); then
+    heavy_selection_mode=whole
     selection_log "$now whole reason=changed-source:$digest pwd=$PWD cmd=$*"
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
+    heavy_selection_mode=manifest
     selection_log "$now whole reason=corvint-selection:$digest pwd=$PWD cmd=$*"
     return 0
   fi
@@ -2437,7 +2488,7 @@ main() {
   else
     unset HEAVY_CLASS
   fi
-  local remote_hosts=() h
+  local remote_hosts=() h heavy_selection_mode=
   if [[ -n $heavy_admit_only ]]; then
     # A make dry run (-n) still executes $(MAKE) recipe lines; it takes no slot.
     [[ ${MAKEFLAGS-} =~ ^-?[A-Za-z]*n[A-Za-z]*([[:space:]]|$) ]] && exec "$@"
@@ -2524,7 +2575,15 @@ main() {
   heavy_load_wait=0
   [[ ${HEAVY_HELD-} == "$slot_dir"/slot* ]] || load_wait "$cpus"
   pin_go
-  bound_parallelism "$par"
+  bound_parallelism "$par" "$@"
+  # Local toolchain/default setup must not weaken the automatic or manifest admission.
+  if [[ -n $heavy_selection_mode ]] && ! source_tests_unfiltered "$heavy_selection_mode" "$@"; then
+    selection_policy "$@"
+    rerun_lines whole-reason-missing -- ${asked[@]+"${asked[@]}"}
+    printf 'heavy.sh: REFUSED whole-reason-missing (exit 2)\n'
+    heavy_cause=refused
+    return 2
+  fi
   # ASD-V0-2477: -p bounds package builds, not the runtime inside each test binary.
   [[ ${GOMAXPROCS+x} ]] || export GOMAXPROCS=$par
   [[ -n $heavy_admit_only ]] || { foreign_notice "$@"; local_identity "$@"; }

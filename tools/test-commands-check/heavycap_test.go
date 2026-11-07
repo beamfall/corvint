@@ -146,6 +146,21 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 		t.Fatal(err)
 	}
 	run(2, "env", "GOENV="+goenv, "go", "test", "./p")
+	// Local parallelism must resolve the child's GOENV=off, not export exclusions from
+	// the wrapper's own GOENV after the clean child environment has been admitted.
+	env = heavycapEnv(originalEnv, "GOENV", goenv)
+	var withoutFlags []string
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "GOFLAGS=") {
+			withoutFlags = append(withoutFlags, kv)
+		}
+	}
+	env = withoutFlags
+	out = run(1, "env", "GOENV=off", "go", "test", "-count=1", "./p")
+	if !strings.Contains(out, "source regression") {
+		t.Fatalf("local setup excluded the existing failure: %s", out)
+	}
+	env = originalEnv
 	// Unsetting an exported value exposes GOENV defaults in the actual child. The guard
 	// must not authorize a run using the still-exported value instead.
 	env = heavycapEnv(env, "GOFLAGS", "-p=1")
@@ -242,4 +257,76 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 
 	run(2, "go", "test", "./...")
 	run(2, "go", "test", "./p", "./missing")
+}
+
+// ASD-V0-2478: offloaded source admission must retain the broken existing test when
+// only the receiver's environment or GOENV supplies an exclusion.
+func TestASDV02478OffloadKeepsValidatedFlags(t *testing.T) {
+	realGo, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, scripts, work, env := dogtoolsShardFixture(t, "#!/bin/sh\nexec \""+realGo+"\" \"$@\"\n")
+	write := func(path, body string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(work, "go.mod"), "module example.invalid/fixture\n\ngo 1.24.0\n")
+	write(filepath.Join(work, "p/a.go"), "package p\nfunc Value() int { return 1 }\n")
+	write(filepath.Join(work, "p/a_test.go"), "package p\nimport \"testing\"\nfunc TestExisting(t *testing.T) { if Value()!=1 { t.Fatal(\"source regression\") } }\nfunc TestOther(t *testing.T) {}\n")
+	dogtoolsGit(t, work, "init", "-q")
+	dogtoolsGit(t, work, "add", ".")
+	dogtoolsGit(t, work, "commit", "-qm", "base")
+	dogtoolsGit(t, work, "update-ref", "refs/remotes/origin/main", "HEAD")
+	clone := filepath.Join(root, "receiver")
+	dogtoolsGit(t, root, "clone", "-q", "--no-hardlinks", work, clone)
+	dogtoolsGit(t, work, "remote", "add", "origin", work)
+	write(filepath.Join(work, "p/a.go"), "package p\nfunc Value() int { return 2 }\n")
+	// Pin the edited blob in the fixture index before heavy.sh copies it for tree identity;
+	// same-size edits made within the index timestamp can otherwise reuse its stat cache.
+	dogtoolsGit(t, work, "add", "p/a.go")
+	envfile := filepath.Join(root, "receiver.env")
+	goenv := filepath.Join(root, "receiver-goenv")
+	ssh := filepath.Join(root, "bin", "ssh")
+	// Like sshd, the fixture drops sender variables. The real serve path reads the payload,
+	// sources receiver.env, reconstructs the edited tree and executes real Go tests.
+	if err := execfile.WriteFile(ssh, []byte(`#!/usr/bin/env bash
+while [[ $1 == -o ]]; do shift 2; done
+shift
+exec env -i PATH="$PATH" HOME="`+root+`" TMPDIR="`+root+`" LC_ALL=C bash -s
+`), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range map[string]string{
+		"HEAVY_REMOTE_HOST": "fixture", "HEAVY_REMOTE_SSH": ssh,
+		"HEAVY_REMOTE_CLONE": clone, "HEAVY_REMOTE_ROOT": filepath.Join(root, "remote"),
+		"HEAVY_REMOTE_ENV": envfile, "HEAVY_REMOTE_SLOTS": "1", "HEAVY_REMOTE_RETRY": "0",
+	} {
+		env = heavycapEnv(env, key, value)
+	}
+	for _, tc := range []struct {
+		name, setup string
+		args        []string
+	}{
+		{"receiver-skip", "export GOFLAGS=-skip=TestExisting\n", nil},
+		{"receiver-run", "export GOFLAGS=-run=TestOther\n", nil},
+		{"receiver-goenv", "export GOENV=" + goenv + "\nunset GOFLAGS\n", nil},
+		{"explicit-empty", "export GOENV=" + goenv + "\nunset GOFLAGS\n", []string{"env", "GOFLAGS="}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			write(goenv, "GOFLAGS=-skip=TestExisting\n")
+			write(envfile, tc.setup)
+			args := append([]string{filepath.Join(scripts, "heavy.sh")}, tc.args...)
+			args = append(args, "go", "test", "-count=1", "./p")
+			cmd := exec.Command("bash", args...)
+			cmd.Dir, cmd.Env = work, env
+			out, err := cmd.CombinedOutput()
+			if err == nil || cmd.ProcessState.ExitCode() != 1 || !strings.Contains(string(out), "source regression") ||
+				!strings.Contains(string(out), "heavy.sh: running on ") || strings.Contains(string(out), "running locally") {
+				t.Fatalf("receiver filters hid the admitted failure: %v %s", err, out)
+			}
+		})
+	}
 }
