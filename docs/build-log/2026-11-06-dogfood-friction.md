@@ -74,6 +74,30 @@ each with a regression that fails on the reviewed head `676df6bf`.
   derived SHA. The shell test stubs the scripts the targets run, and it declares the two stubbed
   names as mentions in `.corvint/shell-foreign-callers.json`.
 
+## CI fixes
+
+CI shard `go-product-shard (10)` failed at `676df6bf` on `TestDTLV0004RetryKeepsStopBeforeSeal`,
+while `main` (`4052b854`) passed. The product behaved as `DWC-V0-7600` specifies. The fixtures were
+stale.
+
+- `DTL-V0-004`: the test's refusal trigger was an untracked, unsorted manifest
+  (`docs/b.md`, `docs/a.md`), which the `ASD-V0-840` pre-check refused before any step.
+  `DWC-V0-7600` sorts that manifest and goes on, so each case reached prepare instead. There the
+  fixture's uncommitted intents refused `intent-invalid` on stdout, with no rerun line. The fixture
+  now adds the non-canonical line `./x`, which no sort repairs and which keeps the refusal. This is
+  the change the first review round made to `TestDCWV0730` and `TestDCWV0731`. The expected rerun
+  lines are unchanged. `TestDTLV0004FinishStopsAfterCheck` in `cmd/corvint` had the same stale
+  trigger. It still passed, because the sorted manifest went on to refuse the missing `--verify`,
+  and that refusal prints the same rerun line. Both tests now also require
+  `REFUSE intent-manifest-unsorted`, so a later refusal can no longer stand in for the intended one.
+- `DWC-V0-7601`: the second review round changed the `dogfood-closeout` recipe to pass
+  `BASE="$(or $(DOGFOOD_BASE),$(BASE))"` to the spec checks. `script/dogfood-cache_test.sh` and
+  `script/batch-precheck_test.sh` (group `1d`) pinned the old `BASE="$(BASE)"` text and failed.
+  Both now pin the new recipe.
+- The lane's focused runs missed both. Its `-run` alternation matched test names
+  (`Intents`, `IntentManifest`), but these fixtures use an intents manifest without saying so in
+  their names. The second round reran only `script/dogfood-merge-base_test.sh` after the recipe edit.
+
 ## Checks
 
 - `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run
@@ -94,6 +118,12 @@ each with a regression that fails on the reviewed head `676df6bf`.
   Against `676df6bf`, `TestDWCV07600FinishLaneKeepsATrackedManifestUnderAnotherCase` fails on both
   filesystems, and `dogfood-merge-base_test.sh` fails at the refused-lookup case. With only the
   parse-time refusal restored, it fails at the closeout spec-check case.
+- CI fixes: the whole `internal/dogfoodflow` package, under Corvint's selection manifest, passes,
+  as does `TestDTLV0004FinishStopsAfterCheck`. All five `script/dogfood*_test.sh` pass, and so do
+  `script/batch-precheck_test.sh`, `check-bash32_test.sh`, `gate-receipt_test.sh` and
+  `no-python-runtime-dependency_test.sh`. With the new assertion but the old manifest, the
+  `cmd/corvint` test fails on the `outcome-input-not-provided` refusal. With the old pin,
+  `batch-precheck_test.sh` group `1d` fails at line 181.
 
 ## Limits
 
