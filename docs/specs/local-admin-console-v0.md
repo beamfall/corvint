@@ -66,8 +66,8 @@ the Agent digest states the current experimental S1/S2/S3 scope.
   acceptance of a capability contract, a separate UI shape brief, a scoped `AGENTS.md` and
   `docs/PRODUCT.md` amendment, and a frozen browser and operating-system matrix. This document is
   the UI shape brief for condition 2 and proposes conditions 3 and 4; condition 1 is the owner's.
-- `AGENTS.md` invariant 7 fixes the default local product at one native-Go binary with no UI, no
-  hosted service and no permanent daemon, and requires a capability outside that boundary to carry
+- `AGENTS.md` invariant 7 fixes the default local product at one release of native-Go executables
+  named by its manifest (decision 0591), with no UI, no hosted service and no permanent daemon, and requires a capability outside that boundary to carry
   its own accepted profile. No such profile exists for a console.
 
 ## Requirements
@@ -75,8 +75,8 @@ the Agent digest states the current experimental S1/S2/S3 scope.
 ### Boundary and deployment
 
 - `LAC-V0-001`: The console MUST ship as its own opt-in executable and MUST NOT be linked into
-  `corvint`, so that the invariant-7 local product remains one binary for an operator who never
-  starts the console.
+  `corvint`, and MUST NOT be named in the default release manifest (decision 0591), so that the
+  invariant-7 local product is unchanged for an operator who never starts the console.
 - `LAC-V0-002`: The console MUST bind a loopback address only, MUST require no account or
   credential, and MUST open no outbound network connection for any rendering path.
 - `LAC-V0-003`: The console MUST run only for the lifetime of an explicit foreground invocation and

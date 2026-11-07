@@ -229,7 +229,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 
 - Moving packages into per-language directory trees, or renaming them.
 - Loading plugins at run time (Go `plugin`, shared objects, a plugin daemon or network discovery):
-  registration stays compiled in, keeping the single native-Go binary (invariant 7).
+  registration stays compiled in; any out-of-process plugin follows `core-bundled-apps-v0.md` (invariant 7, decision 0591).
 - Changing the `analyzercap` protocol, any wire format, selection, or runner argv.
 - Moving the web lexer and the Ruby constant-reference rule out of `internal/contextindex`, or the
   runner readings out of `internal/testsource` (LGP-V0-027); their remaining literals carry
