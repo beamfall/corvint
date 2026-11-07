@@ -165,8 +165,9 @@ need_gocache() {
 }
 
 # Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the node
-# half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062).
-EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test)
+# half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062), and the live test tier,
+# which PR shards skip, so a broken live test fails before the merge queue (AFP-V0-2702, V1-4923).
+EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test live-test)
 # What capability-catalog-check reads beyond Go source: the root guides (README.md, llms.txt,
 # AGENTS.md) and top-level docs (CAPABILITIES.md, E2E-ADOPTION.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
@@ -778,14 +779,13 @@ select_baseline() {
 }
 
 # drift_step NAME REGEX PACKAGE...: one go test step; a package that runs no test fails it, since
-# its prefix would otherwise pass silently. CORVINT_LIVE_TIER=1 runs a live-tier drift test, such
-# as the companion-release double build, instead of skipping it (AFP-V0-2700).
+# its prefix would otherwise pass silently.
 drift_step() {
   local name=$1 re=$2 heavyq=
   shift 2
   # BATCH_PRECHECK_HEAVY is one executable path, quoted as one word: no expansion, no splitting.
   [[ -z $heavy ]] || heavyq=$(printf '%q' "$heavy")
-  printf '%s\tout=$(%s env GOCACHE=%q GOTOOLCHAIN=local CORVINT_LIVE_TIER=1 go test -count=1 -run %q %s 2>&1); rc=$?; printf "%%s\\n" "$out"; [ "$rc" = 0 ] || exit "$rc"; case $out in *"no tests to run"*|*"no test files"*) exit 1 ;; esac\n' \
+  printf '%s\tout=$(%s env GOCACHE=%q GOTOOLCHAIN=local go test -count=1 -run %q %s 2>&1); rc=$?; printf "%%s\\n" "$out"; [ "$rc" = 0 ] || exit "$rc"; case $out in *"no tests to run"*|*"no test files"*) exit 1 ;; esac\n' \
     "$name" "$heavyq" "$gocache" "^($re)" "$*"
 }
 
