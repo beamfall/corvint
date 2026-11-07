@@ -26,10 +26,10 @@ var precheckLedgerNames = []string{
 	"fixed-tmp-paths-check", "flow-guide-check", "go-format-check", "go-version-pins-check",
 	"host-adapter-node-test", "host-package-versions-check", "host-package-versions-test",
 	"import-direction-check", "lane-scripts-test", "legal-file-pins-check", "license-headers-check",
-	"line-citations-check", "long-lines-check", "mkfifo-build-tags-check",
+	"line-citations-check", "live-test", "long-lines-check", "mkfifo-build-tags-check",
 	"no-python-runtime-dependency-test", "py-signal-lint", "qualify-tasks-basic-test",
 	"requirement-definitions-check", "selection-baseline-check", "shell-foreign-callers-check",
-	"shell-test-registration-check", "spec-requirements-check", "stray-backups-check",
+	"shell-test-registration-check", "spec-claims-check", "spec-requirements-check", "stray-backups-check",
 	"tasks-profiles-check", "test-commands-check", "test-exec-writes-check", "test-read-scopes-check",
 	"traceability-tests-check", "traceability-tests-test", "tracked-ignored-check",
 	"unbounded-readers-check", "use-case-receipts-check", "use-case-receipts-test",
@@ -46,7 +46,7 @@ func TestPrecheckLedgerNamesAreComplete_GLV0785(t *testing.T) {
 		listed[name] = true
 	}
 	sources := map[string]*regexp.Regexp{
-		filepath.Join("..", "..", "Makefile"):                    regexp.MustCompile(`(?m)^DOC_GATE_TARGETS := (.*)$`),
+		filepath.Join("..", "..", "Makefile"):                    regexp.MustCompile(`(?m)^DOC_GATE_TARGETS :=((?:.*\\\n)*.*)$`),
 		filepath.Join("..", "..", "script", "batch-precheck.sh"): regexp.MustCompile(`(?m)^EXTRA_TARGETS=\(([^)]*)\)`),
 	}
 	for file, re := range sources {
@@ -58,7 +58,7 @@ func TestPrecheckLedgerNamesAreComplete_GLV0785(t *testing.T) {
 		if m == nil {
 			t.Fatalf("%s: no target list", file)
 		}
-		for _, target := range strings.Fields(string(m[1])) {
+		for _, target := range strings.Fields(strings.ReplaceAll(string(m[1]), "\\", " ")) {
 			if !listed[target] {
 				t.Errorf("%s names %s, which precheckLedgerNames does not classify", file, target)
 			}
