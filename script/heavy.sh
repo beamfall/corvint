@@ -1504,19 +1504,26 @@ whole_run_pattern() {
   return 1
 }
 
-# go_test_value_flag FLAG: flags whose separate next word is an operand, even when it looks
-# like -run. FLAG has no leading dashes or test. prefix and no inline value (ASD-V0-2478).
-go_test_value_flag() {
+# go_test_flag_arity NAME: the closed automatic-admission table (ASD-V0-2478).
+# Boolean flags consume no separate operand; value flags consume exactly one unless inline.
+# Unknown names return no arity and cannot certify a selection. No prefix/pattern fallback.
+go_test_flag_arity() {
   case $1 in
-    run | skip | count | list | fuzz | exec | timeout | parallel | cpu | bench | benchtime | shuffle | vet | fuzztime | fuzzminimizetime | outputdir | blockprofile | blockprofilerate | coverprofile | cpuprofile | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | trace | C | p | tags | ldflags | gcflags | asmflags | gccgoflags | mod | modfile | o | coverpkg | covermode | overlay | pkgdir | toolexec | buildmode | compiler | installsuffix | pgo | debug-actiongraph | debug-runtime-trace | debug-trace) return 0 ;;
+    run | skip | count | list | fuzz | exec | timeout | parallel | cpu | bench | benchtime | shuffle | vet | fuzztime | fuzzminimizetime | outputdir | blockprofile | blockprofilerate | coverprofile | cpuprofile | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | trace | C | p | tags | ldflags | gcflags | asmflags | gccgoflags | mod | modfile | o | coverpkg | covermode | overlay | pkgdir | toolexec | buildmode | compiler | installsuffix | pgo | debug-actiongraph | debug-runtime-trace | debug-trace) printf '%s\n' value ;;
+    a | asan | artifacts | benchmem | buildvcs | c | cover | failfast | fullpath | json | linkshared | modcacherw | msan | n | race | short | trimpath | v | work | x) printf '%s\n' boolean ;;
+    *) return 1 ;;
   esac
-  return 1
+}
+
+# FLAG has no leading dashes or test. prefix. Inline values consume no following word.
+go_test_value_flag() {
+  [[ $(go_test_flag_arity "$1") == value ]]
 }
 
 # go_test_known_flag ARG: closed syntax/arity allowlist for automatic admission (ASD-V0-2478).
 # New Go flags and custom test flags must acquire an explicit proof before they are admitted.
 go_test_known_flag() {
-  local flag=${1#-} name value
+  local flag=${1#-} name value arity
   [[ $1 == -* ]] || return 1
   flag=${flag#-}
   if [[ $flag == test.* ]]; then
@@ -1529,11 +1536,8 @@ go_test_known_flag() {
     flag=${flag#test.}
   fi
   name=${flag%%=*}
-  go_test_value_flag "$name" && return 0
-  case $name in
-    a | asan | artifacts | benchmem | buildvcs | c | cover | failfast | fullpath | json | linkshared | modcacherw | msan | n | race | short | trimpath | v | work | x) ;;
-    *) return 1 ;;
-  esac
+  arity=$(go_test_flag_arity "$name") || return 1
+  [[ $arity != value ]] || return 0
   [[ $flag == *=* ]] || return 0
   value=${flag#*=}
   case $value in 0 | 1 | true | false | TRUE | FALSE | True | False | t | f | T | F) return 0 ;; esac
