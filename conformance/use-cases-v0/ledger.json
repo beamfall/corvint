@@ -217,11 +217,11 @@
         },
         "hostile-tests": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json",
-          "sha256": "2963d575a221dc47871571665006ee2eeb25806d3c71bec1050f3d7001c98a67"
+          "sha256": "75d2f076cf67ef86d334558a24deddedbcb955c7a88e2721d77dd487c5ec902e"
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
-          "sha256": "f18b62e0b4f773e30f2dffc9e9b84155160c928f1c63b9cf1c76a3a5c3f5cf4a"
+          "sha256": "d9c835e23f50eba3183fb09e1963845ff628cdab4bd5a849fef1a89c15a4b626"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-CHANGE-CONSEQUENCE.json",

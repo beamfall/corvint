@@ -7,7 +7,7 @@
     ]
   },
   "evidenceClass": "hostile-tests",
-  "repositoryRevision": "2f00687fd0661d2149e20f776363660e89c42a40",
+  "repositoryRevision": "29e68ebe2955f837115213a8a2bc9cf97b99f1a8",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
