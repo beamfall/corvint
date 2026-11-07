@@ -6,6 +6,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -15,10 +17,19 @@ import (
 	"github.com/Beamfall/corvint/internal/lspstdio"
 )
 
-func main() { os.Exit(run(os.Args[1:])) }
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-lsp", Protocol: true, Out: os.Stdout, Err: os.Stderr}
+	processStdout, processStderr = streams.Stdout(), streams.Stderr()
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-lsp", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run(os.Args[1:])))
+}
 func run(args []string) int {
 	if len(args) == 2 && args[0] == lspstdio.ContextWorkerMode {
-		return lspstdio.ServeContextWorker(args[1], os.Stdin, os.Stdout)
+		return lspstdio.ServeContextWorker(args[1], os.Stdin, processStdout)
 	}
 	flags := flag.NewFlagSet("corvint-lsp", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -43,15 +54,15 @@ func run(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			// LWB-V0-010: --help lists every flag with its argument form.
-			fmt.Fprintln(os.Stdout, usage)
-			flags.SetOutput(os.Stdout)
+			fmt.Fprintln(processStdout, usage)
+			flags.SetOutput(processStdout)
 			flags.PrintDefaults()
 			return 0
 		}
 		if errors.Is(parseErr, lspstdio.ErrUnsupportedSuffix) {
-			fmt.Fprintln(os.Stderr, "corvint-lsp: refused: "+lspstdio.ErrUnsupportedSuffix.Error())
+			fmt.Fprintln(processStderr, "corvint-lsp: refused: "+lspstdio.ErrUnsupportedSuffix.Error())
 		} else {
-			fmt.Fprintln(os.Stderr, usage)
+			fmt.Fprintln(processStderr, usage)
 		}
 		return 2
 	}
@@ -63,15 +74,15 @@ func run(args []string) int {
 	}
 	served := *executable != "" || len(backends) > 0
 	if !*experimental || flags.NArg() != 0 || served != (*root != "") || (*guard && !served) {
-		fmt.Fprintln(os.Stderr, usage)
+		fmt.Fprintln(processStderr, usage)
 		return 2
 	}
 	// LWB-V0-006/007: refuse a configuration by its fixed reason before serving.
 	if err := lspstdio.CheckBackends(*executable, backends); err != nil {
 		if errors.Is(err, lspstdio.ErrUnsupportedSuffix) || errors.Is(err, lspstdio.ErrServerBinaryMissing) {
-			fmt.Fprintln(os.Stderr, "corvint-lsp: refused: "+err.Error())
+			fmt.Fprintln(processStderr, "corvint-lsp: refused: "+err.Error())
 		} else {
-			fmt.Fprintln(os.Stderr, usage)
+			fmt.Fprintln(processStderr, usage)
 		}
 		return 2
 	}
@@ -83,13 +94,13 @@ func run(args []string) int {
 	// os.Stdin alone does not reliably interrupt a blocked inherited-pipe read.
 	in, err := pollable(os.Stdin)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "corvint-lsp: input unavailable")
+		fmt.Fprintln(processStderr, "corvint-lsp: input unavailable")
 		return 1
 	}
 	out, err := pollable(os.Stdout)
 	if err != nil {
 		in.Close()
-		fmt.Fprintln(os.Stderr, "corvint-lsp: output unavailable")
+		fmt.Fprintln(processStderr, "corvint-lsp: output unavailable")
 		return 1
 	}
 	if served {
@@ -101,8 +112,11 @@ func run(args []string) int {
 		if errors.Is(err, context.Canceled) {
 			return 1
 		}
-		fmt.Fprintln(os.Stderr, "corvint-lsp: session ended with error")
+		fmt.Fprintln(processStderr, "corvint-lsp: session ended with error")
 		return 1
 	}
 	return 0
 }
+
+var processStdout io.Writer = os.Stdout
+var processStderr io.Writer = os.Stderr

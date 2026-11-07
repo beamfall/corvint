@@ -23,7 +23,13 @@ var contractCompanions = []string{
 
 // treeCompanions answer the help forms from their command tree (CAP-V0-972) and
 // take only the --version forms from the companion contract.
-var treeCompanions = map[string]bool{"corvint-dashboard-snapshot": true, "corvint-update": true}
+var treeCompanions = func() map[string]bool {
+	out := map[string]bool{}
+	for _, name := range contractCompanions {
+		out[name] = true
+	}
+	return out
+}()
 
 func buildContractCompanions(t *testing.T) string {
 	t.Helper()
@@ -63,7 +69,7 @@ func runContractCompanion(t *testing.T, binary, dir string, arguments ...string)
 }
 
 // CAP-V0-700: every companion answers --help, -h and help with its usage,
-// help --json with corvint-companion-help/0, --version with one
+// help --json with corvint-command-tree/0 (CAP-V0-7700), --version with one
 // `BINARY VERSION` line and --version --json with corvint-companion-version/0,
 // each exit 0 on stdout, from a directory that is not a repository.
 func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {

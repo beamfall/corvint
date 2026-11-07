@@ -1,0 +1,56 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-corpus-parity",
+  "helpJson": "corvint-corpus-parity help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-corpus-parity"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-corpus-parity",
+      "summary": "usage: corvint-corpus-parity [--mode parity] --index FILE --sha256 SHA256 --request FILE\n       corvint-corpus-parity --mode query --index FILE --sha256 SHA256 --request FILE\n       corvint-corpus-parity --mode build --root DIR --artifact FILE\nBuild refuses index, sha256 and request. Query/parity refuse root and artifact.\n--artifact: producer /2 corpus\n--index: embedded indexed artifact\n--mode: build, query, or parity (experimental)\n--request: query or question recording JSON\n--root: source-revalidating producer only\n--sha256: required operator-pinned index digest",
+      "usage": [
+        "corvint-corpus-parity [--mode parity] --index FILE --sha256 SHA256 --request FILE",
+        "corvint-corpus-parity --mode query --index FILE --sha256 SHA256 --request FILE",
+        "corvint-corpus-parity --mode build --root DIR --artifact FILE"
+      ],
+      "flags": [
+        "--artifact",
+        "--index",
+        "--mode",
+        "--request",
+        "--root",
+        "--sha256"
+      ],
+      "required": [
+        "--index FILE",
+        "--sha256 SHA256",
+        "--request FILE"
+      ],
+      "example": "corvint-corpus-parity --index FILE --sha256 SHA256 --request FILE",
+      "help": "corvint-corpus-parity --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-corpus-parity help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-corpus-parity help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-corpus-parity help --json",
+      "help": "corvint-corpus-parity help --help"
+    }
+  ]
+}

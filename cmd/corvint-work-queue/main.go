@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,12 +20,19 @@ type workItem = worklistadapter.Item
 type producerScratch struct{ parent, root, commit string }
 
 func main() {
-	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
-		os.Exit(code)
+	streams := &clierror.Streams{Binary: "corvint-work-queue", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-work-queue", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	if code, handled := serveHelp(os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
 	}
 	if err := runProducer(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		fmt.Fprintln(streams.Stderr(), err)
+		os.Exit(streams.Status(2))
 	}
 }
 

@@ -6,6 +6,8 @@ package main
 
 import (
 	"context"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -23,9 +25,16 @@ type receipt = tr.ReceiptDocument
 var admittedInvocation = cli.AdmittedInvocation
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-test-runner", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-test-runner", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	os.Exit(command(ctx, os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(streams.Status(command(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 
 func command(ctx context.Context, args []string, out, errout io.Writer) int {

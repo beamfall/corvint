@@ -1,0 +1,59 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-console",
+  "helpJson": "corvint-console help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-console"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-console",
+      "summary": "usage: corvint-console [-addr HOST:PORT] [-repo DIR] [-specs DIR] [-tasks FILE] [-snapshot FILE]\n                       [-stable-artifact-root DIR] [-timeout D]\nServe the loopback-only Corvint Console for one repository (-repo, default the working directory);\na non-loopback -addr is refused and any positional argument is refused before anything starts.\nExample: corvint-console -repo /absolute/repo -addr 127.0.0.1:7777\n--addr: loopback address to bind; a non-loopback address is refused\n--atm: legacy alias for -tasks\n--repo: repository to administer\n--snapshot: the corvint-dashboard-snapshot executable the evidence pane invokes\n--specs: repository holding docs/specs and the tree the code pane reads (default: -repo)\n--stable-artifact-root: artifact root for the chain pane's verified cem/1.0 mode; a stable chain is then drawn only on a stable verifier ACCEPT against the request's base\n--tasks: the Corvint Tasks executable to invoke\n--timeout: per-invocation timeout for corvint-tasks, git and the snapshot compiler; the snapshot is the slowest source and may need longer on a loaded host",
+      "usage": [
+        "corvint-console [-addr HOST:PORT] [-repo DIR] [-specs DIR] [-tasks FILE] [-snapshot FILE] [-stable-artifact-root DIR] [-timeout D] [--addr VALUE] [--atm VALUE] [--repo VALUE] [--snapshot VALUE] [--specs VALUE] [--stable-artifact-root VALUE] [--tasks VALUE] [--timeout VALUE]"
+      ],
+      "flags": [
+        "--addr",
+        "--atm",
+        "--repo",
+        "--snapshot",
+        "--specs",
+        "--stable-artifact-root",
+        "--tasks",
+        "--timeout",
+        "-addr",
+        "-repo",
+        "-snapshot",
+        "-specs",
+        "-stable-artifact-root",
+        "-tasks",
+        "-timeout"
+      ],
+      "required": [],
+      "example": "corvint-console",
+      "help": "corvint-console --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-console help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-console help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-console help --json",
+      "help": "corvint-console help --help"
+    }
+  ]
+}

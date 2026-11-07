@@ -1,0 +1,53 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-lsp",
+  "helpJson": "corvint-lsp help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-lsp"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-lsp",
+      "summary": "usage: corvint-lsp --experimental [--root ABSOLUTE_ROOT [--gopls ABSOLUTE_BINARY] [--tsserver ABSOLUTE_BINARY] [--ruby-lsp ABSOLUTE_BINARY] [--server SUFFIXES=ABSOLUTE_ARGV]... [--workspace-drift-guard]]\n--experimental: required opt-in: this is an experimental stdio language server\n--gopls: absolute gopls binary that serves .go documents (wrapped server observations)\n--root: absolute workspace root; required with any language server\n--ruby-lsp: absolute ruby-lsp binary for .rb .rake\n--tsserver: absolute typescript-language-server binary, run as BINARY --stdio, for .ts .tsx .mts .cts .js .jsx .mjs .cjs\n--workspace-drift-guard: refuse wrapped results once the workspace drifts from the bound revision; requires a language server",
+      "usage": [
+        "corvint-lsp --experimental [--root ABSOLUTE_ROOT [--gopls ABSOLUTE_BINARY] [--tsserver ABSOLUTE_BINARY] [--ruby-lsp ABSOLUTE_BINARY] [--server SUFFIXES=ABSOLUTE_ARGV]... [--workspace-drift-guard]]"
+      ],
+      "flags": [
+        "--experimental",
+        "--gopls",
+        "--root",
+        "--ruby-lsp",
+        "--server",
+        "--tsserver",
+        "--workspace-drift-guard"
+      ],
+      "required": [
+        "--experimental"
+      ],
+      "example": "corvint-lsp --experimental",
+      "help": "corvint-lsp --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-lsp help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-lsp help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-lsp help --json",
+      "help": "corvint-lsp help --help"
+    }
+  ]
+}

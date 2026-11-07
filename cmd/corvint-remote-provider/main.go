@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -12,9 +14,16 @@ import (
 )
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-remote-provider", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-remote-provider", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(streams.Status(run(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {

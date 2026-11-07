@@ -80,6 +80,7 @@ var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE
 
 var tasksExportPrefixes = []string{
 	"cmd/corvint-tasks/", "internal/tasks/",
+	"internal/cliapp/", "internal/clierror/", "internal/companioncli/", "internal/capcatalog/", "internal/versionline/", "internal/cliconformance/",
 	"internal/cem/cemcode/", "internal/cem/gitrun/", "internal/clitree/",
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
 	"internal/langplugin/decl/", "internal/langplugin/dialect/", "internal/projectprofile/", "internal/pythongrammar/",

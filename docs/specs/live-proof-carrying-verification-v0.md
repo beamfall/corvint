@@ -123,6 +123,18 @@ repository policy may consume a complete receipt, but Corvint does not invent or
 
 ## Requirements
 
+- `LPCV-V0-7705`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3938)
+  An unrecognized `test-validity --receipt` kind MUST list accepted JavaScript provider
+  documents, completed `corvint-go-live-session-event/0` events and
+  `corvint-ruby-test-provider/0` documents, naming their producer commands. A recognizable
+  plain Playwright JSON report (`config` object and `suites` array) MUST be identified as such
+  and routed to `corvint-js-test-provider e2e --external-server --config FILE` and its
+  `qualified-reporter.cjs`. It MUST NOT invent a conversion or admit plain reports as receipts:
+  reporter observations require a new bound run. Input contents MUST NOT be echoed. Test:
+  `TestLPCVV07705PlainPlaywrightReceiptGuidance`. Rollback restores only refusal prose;
+  receipt-kind admission, canonicality and evidence authority remain unchanged.
+
+
 ### Snapshot identity and event ordering
 
 - `LPCV-V0-001`: Every edit event MUST produce or reference one WSI before selection begins.
@@ -2415,3 +2427,5 @@ through this projection, including the Corvint formatter's inclusion frames (`LP
 Rollback: revert the V1-2045 and V1-2046 change. `location` and `static` disappear from projected
 documents, `--static` is refused as an unknown option, and every other member is unchanged; no
 retained document or receipt format changes.
+
+| LPCV-V0-7705 | `internal/testvaliditydoc.unrecognizedProvider` | `TestLPCVV07705PlainPlaywrightReceiptGuidance` |

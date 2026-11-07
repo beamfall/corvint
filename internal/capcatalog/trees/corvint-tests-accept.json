@@ -1,0 +1,110 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-tests-accept",
+  "helpJson": "corvint-cli --binary corvint-tests-accept help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-tests-accept",
+    "internal/testacceptance/cli"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [
+    {
+      "word": "worker",
+      "reason": "accept worker the accept group re-enters this executable as (CTF-V0-006)"
+    },
+    {
+      "word": "-help",
+      "reason": "single-dash help spelling the runner group accepts"
+    },
+    {
+      "word": "--gradle-user-home",
+      "reason": "argument of the pinned Gradle invocation the runner group compares, not a corvint-test option"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-tests-accept",
+      "summary": "Folded corvint-tests-accept: plan and accept new tests (CTF-V0)",
+      "usage": [
+        "corvint-tests-accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL [--temp-root DIR]",
+        "corvint-tests-accept plan --plan FILE"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--environment",
+        "--new",
+        "--plan",
+        "--repeat",
+        "--temp-root"
+      ],
+      "required": [],
+      "example": "corvint-tests-accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL",
+      "help": "corvint-cli --binary corvint-tests-accept --help"
+    },
+    {
+      "path": [
+        "accept"
+      ],
+      "command": "corvint-tests-accept accept",
+      "summary": "Run an approved acceptance request against the new test files",
+      "usage": [
+        "corvint-tests-accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL [--temp-root DIR]"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--environment",
+        "--new",
+        "--plan",
+        "--repeat",
+        "--temp-root"
+      ],
+      "required": [
+        "--plan FILE",
+        "--approve-plan DIGEST",
+        "--new PATH...",
+        "--repeat N",
+        "--environment LABEL"
+      ],
+      "example": "corvint-tests-accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL",
+      "help": "corvint-cli --binary corvint-tests-accept accept --help"
+    },
+    {
+      "path": [
+        "plan"
+      ],
+      "command": "corvint-tests-accept plan",
+      "summary": "Validate an acceptance request and print its digest",
+      "usage": [
+        "corvint-tests-accept plan --plan FILE"
+      ],
+      "flags": [
+        "--plan"
+      ],
+      "required": [
+        "--plan FILE"
+      ],
+      "example": "corvint-tests-accept plan --plan FILE",
+      "help": "corvint-cli --binary corvint-tests-accept plan --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-tests-accept help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-tests-accept help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-tests-accept help --json",
+      "help": "corvint-cli --binary corvint-tests-accept help --help"
+    }
+  ]
+}

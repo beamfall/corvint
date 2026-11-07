@@ -430,7 +430,9 @@ description of the change before the first run and preserve it on every retry.
 The proposed experimental [query abstention contract](specs/dogfood-query-abstention-v0.md)
 permits structural closure for only exit 2, empty stdout and the exact single-line stderr
 `{"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}`
-followed by one LF. The row remains `NOT_PRODUCED` with reason
+followed by one LF. Independent base/current/override replay must each match that exact
+representation; raw receipt bytes and hashes are preserved, and no other metadata or encoding
+is accepted. The row remains `NOT_PRODUCED` with reason
 `authority-start-trace-state-abstention`. Its optional `queryAbstentionEvidenceSha256` binds a
 private `coordination-time-query-abstention.json` artifact under `<git-dir>/corvint/`, with the
 original NUL argv/task digest, base/target, exit and raw output digests. `dogfood check` validates

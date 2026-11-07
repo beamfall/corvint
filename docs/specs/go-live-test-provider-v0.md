@@ -14,7 +14,7 @@ revision 12 (round 11 Claude + Codex applied)
 - Claim: An experimental Go provider exposes bounded discovery, planning, preview, run, and observation receipts without qualification authority.
 - Status: accepted (decision 0052)/experimental
 - Exists: `internal/liveverify` and retained source package `cmd/corvint-go-test-provider`, built standalone as `corvint-go-test-provider`, as experimental implementation surfaces.
-- Blocked on: LPCV operation coverage, containment, network denial, independent provider qualification broader than the AT-14 fixtures below, the real frozen 30-minute `Execute` deadline (GLTP-V0-039 clause (b)), and broader Linux/external/full qualification and shadow/frontier/exclusion gates (NOT_RUN; see section 13). AT-14's GLTP-V0-038..043 qualification fixtures and the disclosed production changes — the parent `errorCode` preserved as a typed sentinel across seven edit sites (`cmd/corvint-go-test-provider/main.go:425-426`, `:430`, `:437`, `:440`, `:443`, `internal/liveverify/provider/provider.go:352`, and `:369-370`) and the receipt-composer STALE/TIMEOUT/INFRASTRUCTURE/CANCELLATION precedence with timeout-only `cancelled`-bit suppression (`internal/liveverify/provider/receipt.go:773-792`) — are delivered; the conformance suite and provider tests pass on the unsandboxed Darwin host, and a sandboxed `ps` denial is INCONCLUSIVE, never a silent pass. GLTP-V0-042's pre-launch refusal half and GLTP-V0-043's shadow-mode antecedent remain unevidenced and outside promotion, having no P0 host.
+- Blocked on: LPCV operation coverage, containment, network denial, independent provider qualification broader than the AT-14 fixtures below, the real frozen 30-minute `Execute` deadline (GLTP-V0-039 clause (b)), and broader Linux/external/full qualification and shadow/frontier/exclusion gates (NOT_RUN; see section 13). AT-14's GLTP-V0-038..043 qualification fixtures and the disclosed production changes — the parent `errorCode` preserved as a typed sentinel across seven edit sites (`cmd/corvint-go-test-provider/main.go:434-435@c22045c4`, `cmd/corvint-go-test-provider/main.go:439@453b709c`, `cmd/corvint-go-test-provider/main.go:446@42549a50`, `cmd/corvint-go-test-provider/main.go:449@6b5d66f5`, `cmd/corvint-go-test-provider/main.go:452@5db42e95`, `internal/liveverify/provider/provider.go:352`, and `:369-370`) and the receipt-composer STALE/TIMEOUT/INFRASTRUCTURE/CANCELLATION precedence with timeout-only `cancelled`-bit suppression (`internal/liveverify/provider/receipt.go:773-792`) — are delivered; the conformance suite and provider tests pass on the unsandboxed Darwin host, and a sandboxed `ps` denial is INCONCLUSIVE, never a silent pass. GLTP-V0-042's pre-launch refusal half and GLTP-V0-043's shadow-mode antecedent remain unevidenced and outside promotion, having no P0 host.
 - Read next: Decision and boundary; Frozen V0 operation; Requirements.
 
 ## 1. Decision and boundary
@@ -750,16 +750,16 @@ current-evidence meaning.
 **Proposed pre-launch `detail` token table (AT-14, GLTP-V0-035).** `detail` above is an open lexical
 field, not an enum, and this table closes nothing: it is proposed evidence enumerating the values
 `prelaunchDiagnostic` can emit before child launch today
-(`cmd/corvint-go-test-provider/main.go:208-220`). A later value is added to this table; the open field
+(`cmd/corvint-go-test-provider/main.go:217-229@7b5ff365`). A later value is added to this table; the open field
 above does not reject it.
 
 | `detail` | `code` | `phase` | Emitted at |
 |---|---|---|---|
-| `UNSUPPORTED_PLATFORM` | `UNSUPPORTED_PLATFORM` | `EXECUTION` | `cmd/corvint-go-test-provider/main.go:210-211` |
-| `DISCOVERY_OUTPUT_LIMIT` | `LIMIT_EXCEEDED` | `LIMIT` | `cmd/corvint-go-test-provider/main.go:212-213` |
-| `PARENT_AUTHORITY_UNAVAILABLE` | `IDENTITY_MISMATCH` | `IDENTITY` | `cmd/corvint-go-test-provider/main.go:214-215` |
-| `PARENT_AUTHORITY_DRIFT` | `IDENTITY_MISMATCH` | `IDENTITY` | `cmd/corvint-go-test-provider/main.go:216-217` |
-| `PROVIDER_PRELAUNCH_REJECTED` | `IDENTITY_MISMATCH` | `IDENTITY` | `cmd/corvint-go-test-provider/main.go:218-219` |
+| `UNSUPPORTED_PLATFORM` | `UNSUPPORTED_PLATFORM` | `EXECUTION` | `cmd/corvint-go-test-provider/main.go:219-220@3a68b039` |
+| `DISCOVERY_OUTPUT_LIMIT` | `LIMIT_EXCEEDED` | `LIMIT` | `cmd/corvint-go-test-provider/main.go:221-222@4a5143ad` |
+| `PARENT_AUTHORITY_UNAVAILABLE` | `IDENTITY_MISMATCH` | `IDENTITY` | `cmd/corvint-go-test-provider/main.go:223-224@9bfab540` |
+| `PARENT_AUTHORITY_DRIFT` | `IDENTITY_MISMATCH` | `IDENTITY` | `cmd/corvint-go-test-provider/main.go:225-226@c441c742` |
+| `PROVIDER_PRELAUNCH_REJECTED` | `IDENTITY_MISMATCH` | `IDENTITY` | `cmd/corvint-go-test-provider/main.go:227-228@a84c3a43` |
 
 ### 11. AT-14 qualification requirements
 
@@ -781,24 +781,24 @@ GLTP-V0-039 clause (b) (a real 30-minute `Execute` timeout), broader Linux/exter
 qualification, and shadow/frontier/exclusion gates remain BLOCKED or NOT_RUN; see section 13. On
 the REVALIDATE and DISCOVER path the parent's `errorCode` must survive as a typed sentinel across
 seven edit sites: the parent transport-failure wrap at
-`cmd/corvint-go-test-provider/main.go:425-426`, the parent-response unmarshal failure at
-`cmd/corvint-go-test-provider/main.go:430`, the non-canonical-response return at
-`cmd/corvint-go-test-provider/main.go:437`, the rejection wrap itself at
-`cmd/corvint-go-test-provider/main.go:440`, the invalid-operation-shape return at
-`cmd/corvint-go-test-provider/main.go:443`, the DISCOVER wrap at
+`cmd/corvint-go-test-provider/main.go:434-435@c22045c4`, the parent-response unmarshal failure at
+`cmd/corvint-go-test-provider/main.go:439@453b709c`, the non-canonical-response return at
+`cmd/corvint-go-test-provider/main.go:446@42549a50`, the rejection wrap itself at
+`cmd/corvint-go-test-provider/main.go:449@6b5d66f5`, the invalid-operation-shape return at
+`cmd/corvint-go-test-provider/main.go:452@5db42e95`, the DISCOVER wrap at
 `internal/liveverify/provider/provider.go:352`, and
 `internal/liveverify/provider/provider.go:369-370`, which today discards the lease error entirely
 and returns `fmt.Errorf("%w: pre-launch revalidation", ErrAuthorityDrift)`, and must instead
 propagate that error with `%w`. The ACQUIRE rejection wrap at
-`cmd/corvint-go-test-provider/main.go:287` is deliberately not an edit site: every `Acquire` failure
+`cmd/corvint-go-test-provider/main.go:296@bb0f5233` is deliberately not an edit site: every `Acquire` failure
 is re-wrapped as `ErrAuthorityUnavailable` at `internal/liveverify/provider/provider.go:315-316`,
 so preserving a sentinel there would be a no-op. Because those seven sites discard the parent's
 `errorCode` today, every `Revalidate` failure reaches the provider layer as `ErrAuthorityDrift` and
 every `Discover` failure as `ErrAuthorityUnavailable`, and the `PARENT_AUTHORITY_DRIFT` token
 discriminates nothing. No edit site may leave two named sentinels in one error chain. Every other
-return on that requesting path — `cmd/corvint-go-test-provider/main.go:411`, `:417`, and `:420` —
+return on that requesting path — `cmd/corvint-go-test-provider/main.go:420@30e505ce`, `cmd/corvint-go-test-provider/main.go:426@58d27b47`, and `cmd/corvint-go-test-provider/main.go:429@3a6cfc7e` —
 attaches no named sentinel and is a stated default of `PROVIDER_PRELAUNCH_REJECTED`
-(`cmd/corvint-go-test-provider/main.go:219`). GLTP-V0-039 below discloses the only other production
+(`cmd/corvint-go-test-provider/main.go:228@5b03fb79`). GLTP-V0-039 below discloses the only other production
 change this section requires, to the receipt composer's `failureClass` precedence.
 
 - **GLTP-V0-038.** A recorded plan ceiling that is absent from the frozen `limitsEnforced` array of
@@ -918,17 +918,17 @@ disclosed fast timeout seam exists or a 30-minute fixture is accepted elsewhere.
 - **GLTP-V0-040.** The identity boundary is qualified by three deterministic cases, one axis at a
 time, and there is no binary-layer forgery seam to qualify. The `AuthorityBinding` the provider
 binary hands to `Execute` is the parent's own ACQUIRE response
-(`cmd/corvint-go-test-provider/main.go:286-289`); the attachment bundle carries no source, dependency,
+(`cmd/corvint-go-test-provider/main.go:295-298@7a0071a8`); the attachment bundle carries no source, dependency,
 toolchain, capability, or plan identity, which is what its own comment means by containing no
-semantic identity (`cmd/corvint-go-test-provider/main.go:44-46`). It does carry two executable-integrity
-digests, `verifierExecutableRawSha256` (`cmd/corvint-go-test-provider/main.go:50`) and
-`gitExecutableRawSha256` (`cmd/corvint-go-test-provider/main.go:52`). The attachment exchange itself is
+semantic identity (`cmd/corvint-go-test-provider/main.go:46-48@50d08b86`). It does carry two executable-integrity
+digests, `verifierExecutableRawSha256` (`cmd/corvint-go-test-provider/main.go:52@14086713`) and
+`gitExecutableRawSha256` (`cmd/corvint-go-test-provider/main.go:54@157faef4`). The attachment exchange itself is
 bound by challenge, parent capability digest, and response canonicality
-(`cmd/corvint-go-test-provider/main.go:408-437`). "Execute against A while every commitment carries
+(`cmd/corvint-go-test-provider/main.go:417-446@8249eb06`). "Execute against A while every commitment carries
 B" is therefore unconstructible at that layer given the bundle-named parent verifier as trust root
-(`cmd/corvint-go-test-provider/main.go:49`), which the binary validates only as a clean absolute path
-(`cmd/corvint-go-test-provider/main.go:257`) whose file digest matches the bundle's own
-`verifierExecutableRawSha256` (`cmd/corvint-go-test-provider/main.go:263`) — integrity against
+(`cmd/corvint-go-test-provider/main.go:51@19235bf8`), which the binary validates only as a clean absolute path
+(`cmd/corvint-go-test-provider/main.go:266@a716858b`) whose file digest matches the bundle's own
+`verifierExecutableRawSha256` (`cmd/corvint-go-test-provider/main.go:272@145b8d54`) — integrity against
 post-bundle substitution of the named file, not authenticity of the name. Under that root the
 dependency and toolchain axes have no forged input. The source axis is constructible one layer down. A library-layer `AuthorityLease` whose
 `Binding()` returns B's `SourceIdentity` while its `ObserveReceiptIdentities` re-reads A is refused
@@ -936,12 +936,12 @@ by the pre-launch receipt observation, which compares `SourceIdentity` alone
 (`internal/liveverify/provider/provider.go:385-387`, the comparison at line 386). That case MUST be
 refused before launch, and its obligation splits across two layers, because the forged source
 binding is constructible only at the library layer while the error document is written only by the
-binary (`cmd/corvint-go-test-provider/main.go:203-204`, mapped by `prelaunchDiagnostic` at
-`cmd/corvint-go-test-provider/main.go:208-220`). At the library layer the call MUST fail with typed
+binary (`cmd/corvint-go-test-provider/main.go:212-213@b86f4a61`, mapped by `prelaunchDiagnostic` at
+`cmd/corvint-go-test-provider/main.go:217-229@7b5ff365`). At the library layer the call MUST fail with typed
 `ErrAuthorityUnavailable`, launch no child, and compose no receipt. At the binary layer a separate
 unit case MUST assert `prelaunchDiagnostic`'s mapping directly — `ErrAuthorityUnavailable` to
 `code:"IDENTITY_MISMATCH"`, `phase:"IDENTITY"`, and `detail:"PARENT_AUTHORITY_UNAVAILABLE"`
-(`cmd/corvint-go-test-provider/main.go:211-215`) — so that deleting that mapping fails the fixture. For the dependency and
+(`cmd/corvint-go-test-provider/main.go:220-224@316cbc14`) — so that deleting that mapping fails the fixture. For the dependency and
 toolchain axes the only reachable variant is post-ACQUIRE mutation of a fixture-owned module cache
 and a fixture-owned copy of the pinned toolchain executable, both created under `t.TempDir()` and
 never the machine's own `go` binary or shared module cache, and that is drift, not forgery: both
@@ -949,18 +949,18 @@ digests feed the lease body
 (`internal/liveverify/parentverify/snapshot.go:136-142`), so the next `Revalidate` recomputes a
 different lease ID and returns `ErrDrift` (`internal/liveverify/parentverify/types.go:114-116`).
 `AUTHORITY_DRIFT` is what the parent puts in the `errorCode` field of its attachment sub-protocol
-response for that error (`cmd/corvint-go-test-provider/main.go:491`, via `productionErrorCode` at
-`cmd/corvint-go-test-provider/main.go:617-628`); it is a field of that sub-protocol, explicitly not a
+response for that error (`cmd/corvint-go-test-provider/main.go:500@bf311b97`, via `productionErrorCode` at
+`cmd/corvint-go-test-provider/main.go:626-637@152a4c31`); it is a field of that sub-protocol, explicitly not a
 GLTP-V0-035 `code`, whose enum above is closed and admits no such member. That `errorCode` was
 previously discarded: the requesting side wrapped the rejection into an untyped error with no `%w`,
 and the provider layer wrapped every `Revalidate` failure as `ErrAuthorityDrift` regardless of
-cause, so a parent transport failure (`cmd/corvint-go-test-provider/main.go:425-426`), a
-non-canonical parent response (`cmd/corvint-go-test-provider/main.go:432-437`), and a genuine drift
+cause, so a parent transport failure (`cmd/corvint-go-test-provider/main.go:434-435@c22045c4`), a
+non-canonical parent response (`cmd/corvint-go-test-provider/main.go:441-446@38729fce`), and a genuine drift
 rejection all arrived as drift and `detail:"PARENT_AUTHORITY_DRIFT"` discriminated nothing. The one
 production change disclosed for this section, scoped to the REVALIDATE and DISCOVER path, is
 delivered: the requesting side's rejection wrap now preserves the parent's `errorCode` as a typed
-sentinel via `authoritySentinel` (`cmd/corvint-go-test-provider/main.go:610-616`, called with `%w` at
-`:440`), and the provider layer's DISCOVER and REVALIDATE wraps propagate it through
+sentinel via `authoritySentinel` (`cmd/corvint-go-test-provider/main.go:619-625@387ed308`, called with `%w` at
+`cmd/corvint-go-test-provider/main.go:449@6b5d66f5`), and the provider layer's DISCOVER and REVALIDATE wraps propagate it through
 `leaseSentinel` (`internal/liveverify/provider/provider.go:262-267`, called at `:352` and `:370`)
 in place of the unconditional wrap, so the transport-failure and non-canonical-response paths
 (neither `errors.Is`-tagged as drift) now fall through to `ErrAuthorityUnavailable` instead of
@@ -972,22 +972,22 @@ in place of the unconditional wrap, so the transport-failure and non-canonical-r
 real production parent.
 ACQUIRE-time failures are outside this table and MUST keep arriving as `ErrAuthorityUnavailable`,
 because `internal/liveverify/provider/provider.go:315-316` re-wraps every `Acquire` failure into
-that sentinel whatever the binary returned; `cmd/corvint-go-test-provider/main.go:287` is therefore
+that sentinel whatever the binary returned; `cmd/corvint-go-test-provider/main.go:296@bb0f5233` is therefore
 not an edit site. The per-site obligation is exactly:
 
 | Edit site | Obligation |
 |---|---|
-| `cmd/corvint-go-test-provider/main.go:425-426` (parent transport failure) | attach `ErrAuthorityUnavailable` |
-| `cmd/corvint-go-test-provider/main.go:430` (parent response unmarshal failure) | attach `ErrAuthorityUnavailable` |
-| `cmd/corvint-go-test-provider/main.go:437` (non-canonical or unattached response) | attach `ErrAuthorityUnavailable` |
-| `cmd/corvint-go-test-provider/main.go:440` (parent rejection carrying `errorCode`) | map the parent's `errorCode` to a sentinel |
-| `cmd/corvint-go-test-provider/main.go:443` (invalid operation shape) | attach `ErrAuthorityUnavailable` |
-| `internal/liveverify/provider/provider.go:352` (DISCOVER wrap) | when `err != nil` wraps a recognised sentinel, propagate it with `%w` instead of the unconditional `ErrAuthorityUnavailable` wrap, so `ErrAuthorityDrift` survives; when `err != nil` wraps no recognised sentinel — including the untyped `errors.New` values `cmd/corvint-go-test-provider/main.go:297` and `:300-302` return for a transport failure or an invalid base64/oversized discovery payload — keep the `ErrAuthorityUnavailable` wrap so no naked error reaches the caller; when `err == nil` — the overflow-only branch at `internal/liveverify/provider/provider.go:351` — keep `ErrAuthorityUnavailable`, there being nothing to propagate |
+| `cmd/corvint-go-test-provider/main.go:434-435@c22045c4` (parent transport failure) | attach `ErrAuthorityUnavailable` |
+| `cmd/corvint-go-test-provider/main.go:439@453b709c` (parent response unmarshal failure) | attach `ErrAuthorityUnavailable` |
+| `cmd/corvint-go-test-provider/main.go:446@42549a50` (non-canonical or unattached response) | attach `ErrAuthorityUnavailable` |
+| `cmd/corvint-go-test-provider/main.go:449@6b5d66f5` (parent rejection carrying `errorCode`) | map the parent's `errorCode` to a sentinel |
+| `cmd/corvint-go-test-provider/main.go:452@5db42e95` (invalid operation shape) | attach `ErrAuthorityUnavailable` |
+| `internal/liveverify/provider/provider.go:352` (DISCOVER wrap) | when `err != nil` wraps a recognised sentinel, propagate it with `%w` instead of the unconditional `ErrAuthorityUnavailable` wrap, so `ErrAuthorityDrift` survives; when `err != nil` wraps no recognised sentinel — including the untyped `errors.New` values `cmd/corvint-go-test-provider/main.go:306@4db0837d` and `cmd/corvint-go-test-provider/main.go:309-311@807214c8` return for a transport failure or an invalid base64/oversized discovery payload — keep the `ErrAuthorityUnavailable` wrap so no naked error reaches the caller; when `err == nil` — the overflow-only branch at `internal/liveverify/provider/provider.go:351` — keep `ErrAuthorityUnavailable`, there being nothing to propagate |
 | `internal/liveverify/provider/provider.go:369-370` (REVALIDATE wrap) | propagate with `%w`; map any unrecognised lease error to `ErrAuthorityUnavailable` |
 
 That is seven disclosed edit sites, and no site may leave two named sentinels in one chain:
 `prelaunchDiagnostic` tests `ErrAuthorityUnavailable` before `ErrAuthorityDrift`
-(`cmd/corvint-go-test-provider/main.go:211-217`), so a chain carrying both would always report
+(`cmd/corvint-go-test-provider/main.go:220-226@7dc1b522`), so a chain carrying both would always report
 `PARENT_AUTHORITY_UNAVAILABLE` and the drift token would stay unreachable. The `errorCode` mapping
 the third of them applies is fixed here,
 and `productionErrorCode` emits exactly four values: `AUTHORITY_DRIFT` MUST surface as
@@ -998,7 +998,7 @@ a lost distinction: what this run reports is an identity-boundary refusal, and t
 limit is not the child's `LIMIT` phase, so neither may be reported as a `LIMIT_EXCEEDED`/`LIMIT`
 diagnostic for this run. `TestProductionParentDriftAndTransportAreDistinct`
 (`cmd/corvint-go-test-provider/qualification_test.go`) directly faults only
-`cmd/corvint-go-test-provider/main.go:425-426` (transport), `:440` (rejection wrap, the
+`cmd/corvint-go-test-provider/main.go:434-435@c22045c4` (transport), `cmd/corvint-go-test-provider/main.go:449@6b5d66f5` (rejection wrap, the
 `AUTHORITY_DRIFT` mapping), and `internal/liveverify/provider/provider.go:352` and `:369-370`;
 `main.go:430` (unmarshal), `:437` (non-canonical response), and `:443` (invalid operation shape),
 and the `AUTHORITY_UNAVAILABLE`/`LIMIT_EXCEEDED`/`INVALID_REQUEST` mappings onto
@@ -1007,7 +1007,7 @@ no-two-sentinels prose above; a per-site fault fixture with a positive and a neg
 assertion for each of those five sites and three mappings remains future evidence, not delivered by
 this row. With that change in place each of those two cases MUST likewise be
 refused before launch, with `code:"IDENTITY_MISMATCH"`, `phase:"IDENTITY"`, and
-`detail:"PARENT_AUTHORITY_DRIFT"` (`cmd/corvint-go-test-provider/main.go:216-217`), and with no child
+`detail:"PARENT_AUTHORITY_DRIFT"` (`cmd/corvint-go-test-provider/main.go:225-226@c441c742`), and with no child
 launched and no receipt composed. Because `parentverify.Discover` revalidates before it lists
 (`internal/liveverify/parentverify/discovery.go:40`), a post-ACQUIRE mutation raises `ErrDrift`
 inside the DISCOVER call, which `internal/liveverify/provider/provider.go:351-352` re-wraps as
@@ -1018,16 +1018,16 @@ exits. That is the only constructible mechanism: the verifier executable is the 
 (`cmd/corvint-go-test-provider/main_test.go:67-79`), so each exchange is a fresh process and `Execute`
 offers no fixture seam between ACQUIRE and DISCOVER. That hook has no environment channel: the
 re-exec'd parent is handed exactly one variable
-(`cmd/corvint-go-test-provider/main.go:423`) and `runProductionAuthority` returns 2 unless its whole
-environment is that single name (`cmd/corvint-go-test-provider/main.go:449`), so a test-only variable
+(`cmd/corvint-go-test-provider/main.go:432@f975351e`) and `runProductionAuthority` returns 2 unless its whole
+environment is that single name (`cmd/corvint-go-test-provider/main.go:458@238257ab`), so a test-only variable
 is refused. `request.Operation` alone cannot gate the hook: `main_test.go:67-79` is the one shared
 re-exec branch every attachment call carrying a `Bundle` takes, so keying on `Operation ==
 "ACQUIRE"` would mutate the module cache and toolchain copy for every other test's
 production-parent ACQUIRE in the package, not only the drift fixture's. The hook therefore keys on
 a fixture-owned sentinel path segment the drift fixture alone writes into `request.Bundle` —
-`moduleCacheDirectory` (`cmd/corvint-go-test-provider/main.go:58`) or `goExecutable`
-(`cmd/corvint-go-test-provider/main.go:53`), attached to every request at
-`cmd/corvint-go-test-provider/main.go:395-397` — mutating only when that segment is present, so an
+`moduleCacheDirectory` (`cmd/corvint-go-test-provider/main.go:60@d04aeb18`) or `goExecutable`
+(`cmd/corvint-go-test-provider/main.go:55@efdbbad1`), attached to every request at
+`cmd/corvint-go-test-provider/main.go:404-406@e4c93e01` — mutating only when that segment is present, so an
 unrelated test's ACQUIRE (with ordinary `t.TempDir()` paths carrying no such segment) never
 matches.
 `cmd/corvint-go-test-provider/main_test.go:78` calls `runQualificationAuthority`
@@ -1050,7 +1050,7 @@ value, the error composed at `internal/liveverify/provider/provider.go:352` — 
 `errors.Is(err, ErrAuthorityDrift)` true AND `errors.Is(err, ErrAuthorityUnavailable)` false, so an
 implementation that keeps the unconditional `ErrAuthorityUnavailable` wrap and merely joins the
 inner error fails rather than passing on the switch order at
-`cmd/corvint-go-test-provider/main.go:211-215`. The drift token is falsifiable only alongside a
+`cmd/corvint-go-test-provider/main.go:220-224@316cbc14`. The drift token is falsifiable only alongside a
 negative case, so the fixture MUST also assert that a parent transport failure on the same DISCOVER
 exchange — pinned there, because at ACQUIRE
 `internal/liveverify/provider/provider.go:315-316` re-wraps every failure regardless of all seven
@@ -1071,7 +1071,7 @@ fixture-owned temporary GOROOT, not a bare copied binary:
 `internal/liveverify/provider/provider.go:579-580` requires `goExecutable` equal
 `filepath.Join(goRoot, "bin", executableName(GOOS))`, so the fixture
 lays out `<tmp>/bin/<name>` under `t.TempDir()` before ACQUIRE. Because
-`cmd/corvint-go-test-provider/main.go:533-538` routes RELEASE through the same
+`cmd/corvint-go-test-provider/main.go:542-547@b0b68bf0` routes RELEASE through the same
 `parentverify.Revalidate` call as REVALIDATE, a mutation left in place after the DISCOVER exchange
 would make RELEASE re-observe the same drift and fail, breaking the clean-release precondition
 above; the fixture MUST therefore restore the mutated module cache or toolchain executable to its
@@ -1085,17 +1085,17 @@ the same GLTP-V0-035
 `phase` and are separated only by `detail`, which is an open lexical field rather than an enum; the
 proposed pre-launch token table under GLTP-V0-035 lists every value `prelaunchDiagnostic` emits,
 including the third live value `PROVIDER_PRELAUNCH_REJECTED`
-(`cmd/corvint-go-test-provider/main.go:219`) that no case here claims. The parent's canonical binding does compare all three identities against a binding rebuilt
+(`cmd/corvint-go-test-provider/main.go:228@5b03fb79`) that no case here claims. The parent's canonical binding does compare all three identities against a binding rebuilt
 from a fresh observation (`internal/liveverify/parentverify/canonical.go:22-24`, the toolchain
-comparison at line 24; line 25 is the return), reached per call at `cmd/corvint-go-test-provider/main.go:556`
-(`cmd/corvint-go-test-provider/main.go:552` is the preceding `Revalidate`), but nothing can supply it a binding that differs from the
+comparison at line 24; line 25 is the return), reached per call at `cmd/corvint-go-test-provider/main.go:565@04c90eae`
+(`cmd/corvint-go-test-provider/main.go:561@34931621` is the preceding `Revalidate`), but nothing can supply it a binding that differs from the
 parent's own ACQUIRE response, so that comparison has no reachable forged input and is exercised
 only by the drift cases. The discovery-commitment check is self-consistency only: it compares the
 commitments against the same binding (`internal/liveverify/provider/provider.go:644`), so it
 discriminates no axis. Every `detail` assertion in this clause is made against
-`prelaunchDiagnostic`'s third return value (`cmd/corvint-go-test-provider/main.go:208-220`) or against
+`prelaunchDiagnostic`'s third return value (`cmd/corvint-go-test-provider/main.go:217-229@7b5ff365`) or against
 the recomputed `detailSha256`, never against a wire key: `writeDiagnostic` emits only `code`,
-`detailSha256`, `phase`, `profile`, and `runId` (`cmd/corvint-go-test-provider/main.go:684-688`), and
+`detailSha256`, `phase`, `profile`, and `runId` (`cmd/corvint-go-test-provider/main.go:693-697@73450ce9`), and
 GLTP-V0-035 keeps the typed diagnostic body local and off the wire. No run receipt is emitted for any of the
 three refusals; the typed error document is the retained record, never a silent pass or an untyped
 rejection.
@@ -1134,7 +1134,7 @@ the generated module committed: the parent observes the source over `git`
 (`internal/liveverify/parentverify/snapshot.go:61`, which calls `observeRepository` at
 `internal/liveverify/parentverify/repository.go:29-64`, the executable-digest check and the
 `rev-parse --show-object-format HEAD HEAD^{tree}` identity) and the attachment bundle names a git
-executable (`cmd/corvint-go-test-provider/main.go:51`), so ACQUIRE fails on a plain directory. Its
+executable (`cmd/corvint-go-test-provider/main.go:53@20e233b7`), so ACQUIRE fails on a plain directory. Its
 test source embeds the
 observer-owned rendezvous directory path as a source literal; the helper writes the identities into
 that directory and then blocks on a file the observer creates, on the pre-`Execute` goroutine above,
@@ -1268,7 +1268,7 @@ time and on any in-group identity still unresolved when either bound expires.
 change that. Its one MUST is forward-only: no GLTP run schedules a non-empty `excluded` set, and a
 run whose scope carried one MUST be refused before launch with `code:"IDENTITY_MISMATCH"`,
 `phase:"IDENTITY"`, and `detail:"PROVIDER_PRELAUNCH_REJECTED"`
-(`cmd/corvint-go-test-provider/main.go:219`, the default arm of `prelaunchDiagnostic` and the third
+(`cmd/corvint-go-test-provider/main.go:228@5b03fb79`, the default arm of `prelaunchDiagnostic` and the third
 live token the GLTP-V0-035 table above lists), launching no child and composing no receipt. That
 antecedent is unconstructible in P0, so this clause carries no P0 fixture of its own, exactly as
 GLTP-V0-043 carries none: `excluded` is the fixed `[]any{}` literal inside the plan map
@@ -1592,9 +1592,9 @@ asserts action `none` with `UNSUPPORTED/no-execution-input` rather than a ghost 
 | GLTP-V0-030..035 conformance, rollback, errors | not-started | sealed shadow reports and kill-switch drill |
 | GLTP-V0-038 unenforced-target invariants | delivered 2026-09-04 | `internal/liveverify/parentverify/verifier_test.go`'s `TestCanonicalBindingIsDeterministicAndAuthorityBound` (lines 123-145) calls `BindCanonical` and asserts the returned plan's `limitsEnforced` literal is exactly the seven frozen members in GLTP-V0-006 order and omits the `CPU`, `MEMORY`, `OPEN_FILES`, and `PROCESSES` tokens (the GLTP-V0-018 limit vocabulary, `conformance/go-live-test-v0/event.go:571`; `CPU_TIME` and `MEMORY_BYTES` are not tokens in this format); `internal/liveverify/provider/qualification_test.go`'s `TestFrozenReceiptResourceAndScopeClaims` composes a clean run and asserts `status:"PASSED"` alongside that receipt's `execution.resources` object carrying `null` for all four, so the clause's does-not-withhold-`PASSED` half is exercised rather than assumed. Both are freeze/change-detector fixtures on the literal, not falsifiers: the enforced set has no injection seam, so neither forward constraint — the advertised-but-unenforceable axis nor its enforced-but-unadvertised mirror — has a reachable discriminator until a profile makes the set variable. |
 | GLTP-V0-039 Execute-level timeout receipt proof | clause (a) delivered 2026-09-04; clause (b) BLOCKED | Clause (a) typed `TIMEOUT`/`INCOMPLETE` receipt is delivered: `internal/liveverify/provider/qualification_test.go`'s `TestDeadlineReceiptComposition` runs eight synthetic-runner cases at the receipt-composition layer, each over a runner result whose `Runner.TimedOut` the fixture sets directly, including the adversarial complete-stream/exit-zero/all-`PASSED` case proving `complete` at `internal/liveverify/provider/receipt.go:756` is forced false unconditionally by `TimedOut`, and the STALE/TIMEOUT/INFRASTRUCTURE/CANCELLATION coexistence cases run against both the composer and GLTP-V0-030's independent verifier. `conformance/go-live-test-v0/qualification_test.go`'s `TestProducerDeadlineCompositionRoundtrip` re-runs that producer in a separate process (never importing it or its bytes directly) and independently re-verifies each emitted transcript with `VerifyTranscript`; `TestProducerCancellationProviderFailureRoundtrip` separately composes `validReceiptInput` with cancellation and provider failure true, preserves `cancelled:true` plus `failureClass:"INFRASTRUCTURE"`, and verifies it independently. `conformance/go-live-test-v0/event_test.go`'s `cancelled-unknown-still-rejected` case pins the narrow exception, while `stale-cannot-be-cancelled-and-timed-out` pins the `cancelled`+`timedOut` mutual-exclusion rule. The composer precedence change this clause discloses is delivered at `internal/liveverify/provider/receipt.go:773-792` (ranks STALE, then TIMEOUT, then INFRASTRUCTURE, then CANCELLATION, and forces the wire `cancelled` field `false` whenever `TimedOut` is true). Clause (b) — zero surviving descendants in the run's own process group under the real elapsed run deadline — remains BLOCKED: the child deadline is `config.Timeout` (`internal/liveverify/provider/provider.go:435`), armed and handled at `internal/liveverify/gorunner/runner.go:186`, `:198-202`, after the frozen 30-minute `gorunner.MaxRunTime` (`internal/liveverify/provider/provider.go:597-598`, `internal/liveverify/gorunner/runner.go:34`), and the plan's `runMilliseconds` is a frozen literal (`internal/liveverify/parentverify/canonical.go:74`); no fast fixture seam exists and a real 30-minute fixture is not accepted here on time-budget grounds — `internal/liveverify/provider/qualification_test.go` records this in a comment: "GLTP-V0-039(b) remains BLOCKED by the frozen 30 minutes." |
-| GLTP-V0-040 identity refusal: forged source, dependency/toolchain drift | delivered 2026-09-04 | Three deterministic cases plus the disclosed production change, all delivered. Source axis, library layer: `internal/liveverify/provider/qualification_test.go`'s `TestForgedSourceBindingRefusesBeforeLaunch` asserts typed `ErrAuthorityUnavailable` from the pre-launch receipt observation, no child launched, no receipt composed. Source axis (binary-layer mapping) and the dependency/toolchain axes, against the real production parent: `cmd/corvint-go-test-provider/qualification_test.go`'s `TestProductionParentDriftAndTransportAreDistinct` and `TestUnavailableSourceDiagnosticMapping`, which mutate a fixture-owned module cache and toolchain copy under `t.TempDir()` after ACQUIRE, keyed on a fixture-owned bundle-path sentinel segment (`driftFixtureSegment`, `"at14-production-drift"`) so only that fixture's bundle selects fault injection while every semantic response still originates from `runProductionAuthority`. The disclosed production change — preserving the parent's `errorCode` as a typed sentinel across the seven edit sites (`cmd/corvint-go-test-provider/main.go:425-426`, `:430`, `:437`, the rejection wrap at `:440` via `authoritySentinel` at `:610-616`, and `:443`, plus `internal/liveverify/provider/provider.go:352` and `:369-370` via `leaseSentinel` at `:262-267`, `cmd/corvint-go-test-provider/main.go:287` deliberately excluded) — is delivered and exercised at the library layer by `internal/liveverify/provider/qualification_test.go`'s `TestDiscoveryAuthoritySentinelsRemainDistinct` and `TestPrelaunchRevalidationErrorPreservesUnavailable`. There is no binary-layer forged-binding case, because the binding is the parent's own ACQUIRE response and no forged input can reach it. |
+| GLTP-V0-040 identity refusal: forged source, dependency/toolchain drift | delivered 2026-09-04 | Three deterministic cases plus the disclosed production change, all delivered. Source axis, library layer: `internal/liveverify/provider/qualification_test.go`'s `TestForgedSourceBindingRefusesBeforeLaunch` asserts typed `ErrAuthorityUnavailable` from the pre-launch receipt observation, no child launched, no receipt composed. Source axis (binary-layer mapping) and the dependency/toolchain axes, against the real production parent: `cmd/corvint-go-test-provider/qualification_test.go`'s `TestProductionParentDriftAndTransportAreDistinct` and `TestUnavailableSourceDiagnosticMapping`, which mutate a fixture-owned module cache and toolchain copy under `t.TempDir()` after ACQUIRE, keyed on a fixture-owned bundle-path sentinel segment (`driftFixtureSegment`, `"at14-production-drift"`) so only that fixture's bundle selects fault injection while every semantic response still originates from `runProductionAuthority`. The disclosed production change — preserving the parent's `errorCode` as a typed sentinel across the seven edit sites (`cmd/corvint-go-test-provider/main.go:434-435@c22045c4`, `cmd/corvint-go-test-provider/main.go:439@453b709c`, `cmd/corvint-go-test-provider/main.go:446@42549a50`, the rejection wrap at `cmd/corvint-go-test-provider/main.go:449@6b5d66f5` via `authoritySentinel` at `cmd/corvint-go-test-provider/main.go:619-625@387ed308`, and `cmd/corvint-go-test-provider/main.go:452@5db42e95`, plus `internal/liveverify/provider/provider.go:352` and `:369-370` via `leaseSentinel` at `:262-267`, `cmd/corvint-go-test-provider/main.go:296@bb0f5233` deliberately excluded) — is delivered and exercised at the library layer by `internal/liveverify/provider/qualification_test.go`'s `TestDiscoveryAuthoritySentinelsRemainDistinct` and `TestPrelaunchRevalidationErrorPreservesUnavailable`. There is no binary-layer forged-binding case, because the binding is the parent's own ACQUIRE response and no forged input can reach it. |
 | GLTP-V0-041 zero-descendant proof | delivered 2026-09-04 (Darwin host); real-deadline termination NOT_RUN | `cmd/corvint-go-test-provider/qualification_lifecycle_test.go`'s `TestExecuteNormalCompletionHasNoRecordedSurvivors` and `TestExecuteInterruptedHasNoRecordedSurvivors` (both via `verifyExecuteRecordedCleanup`) probe the run's own process group for a normal-exit and a cancelled `Execute` respectively, each with a fixture-owned long-lived control process launched outside the run and observed live at its recorded `(pid, start time)` as the probe-sensitivity control, asserted alongside the `ephemeralDeletion:"COMPLETE"` the composer emits. Both cases passed on the unsandboxed Darwin host; per the AT-14 handoff, a sandboxed `ps`/PS_LSTART denial makes the probe `t.Skipf("INCONCLUSIVE: ...")`, never a silent pass. Termination on the real elapsed 30-minute run deadline is still not exercised — both delivered cases terminate by normal exit or context cancellation, not by `gorunner.MaxRunTime` elapsing — so that antecedent remains NOT_RUN, consistent with GLTP-V0-039(b). |
-| GLTP-V0-042 no non-empty `excluded` scheduled | P0 fixture delivered 2026-09-04; pre-launch refusal half BLOCKED (no host) | The pre-launch refusal half still has no P0 fixture and no P0 antecedent, exactly as GLTP-V0-043 has none: `excluded` is the fixed `[]any{}` literal at `internal/liveverify/parentverify/canonical.go:80`, `provider.Config` exposes no exclusion field for a fixture to set, and `detail` is produced only by `prelaunchDiagnostic` in package `main` (`cmd/corvint-go-test-provider/main.go:208-220`), which a `provider` package test cannot observe; that gate-outcome-record obligation belongs to the LPCV policy layer and is left for a future requirement id in `live-proof-carrying-verification-v0.md`. The delivered P0 fixture is `internal/liveverify/parentverify/verifier_test.go`'s `TestCanonicalBindingIsDeterministicAndAuthorityBound` (lines 123-145), which calls the exported `provider.ComposeReceipt` — via the `composeScopeQualificationReceipt` helper in `internal/liveverify/parentverify/scope_qualification_test.go` — for the receipt-side `"excluded":[]` literal (already fixed by GLTP-V0-012 at `internal/liveverify/provider/receipt.go:704`) and `BindCanonical` for the plan-side literal at `internal/liveverify/parentverify/canonical.go:80`, and asserts the two agree, avoiding the `provider`/`parentverify` import cycle a same-package comparison would require. |
+| GLTP-V0-042 no non-empty `excluded` scheduled | P0 fixture delivered 2026-09-04; pre-launch refusal half BLOCKED (no host) | The pre-launch refusal half still has no P0 fixture and no P0 antecedent, exactly as GLTP-V0-043 has none: `excluded` is the fixed `[]any{}` literal at `internal/liveverify/parentverify/canonical.go:80`, `provider.Config` exposes no exclusion field for a fixture to set, and `detail` is produced only by `prelaunchDiagnostic` in package `main` (`cmd/corvint-go-test-provider/main.go:217-229@7b5ff365`), which a `provider` package test cannot observe; that gate-outcome-record obligation belongs to the LPCV policy layer and is left for a future requirement id in `live-proof-carrying-verification-v0.md`. The delivered P0 fixture is `internal/liveverify/parentverify/verifier_test.go`'s `TestCanonicalBindingIsDeterministicAndAuthorityBound` (lines 123-145), which calls the exported `provider.ComposeReceipt` — via the `composeScopeQualificationReceipt` helper in `internal/liveverify/parentverify/scope_qualification_test.go` — for the receipt-side `"excluded":[]` literal (already fixed by GLTP-V0-012 at `internal/liveverify/provider/receipt.go:704`) and `BindCanonical` for the plan-side literal at `internal/liveverify/parentverify/canonical.go:80`, and asserts the two agree, avoiding the `provider`/`parentverify` import cycle a same-package comparison would require. |
 | GLTP-V0-043 unsupported observations retained | P0 fixture delivered 2026-09-04; shadow-mode antecedent BLOCKED (no host) | No shadow or non-blocking run mode exists in `internal/liveverify`, so the clause's antecedent has no host and this row stays blocked on one. The delivered P0 fixture is a change-detector, not a falsifier: `internal/liveverify/provider/qualification_test.go`'s `TestFrozenReceiptResourceAndScopeClaims` asserts the composed receipt's `scope.unknownReasons` is exactly the fourteen-member `allUnknownReasons` literal at `internal/liveverify/provider/receipt.go:675-680` in that order; `internal/liveverify/parentverify/verifier_test.go`'s `TestCanonicalBindingIsDeterministicAndAuthorityBound` (lines 123-145) cross-checks the plan side against the receipt side via `composeScopeQualificationReceipt` and the plan-side `unknownReasons` literal (`internal/liveverify/parentverify/canonical.go:12-18`), so the two cannot drift apart unnoticed. |
 | GLTP-V0-044 product-command containment interlock | no-caller gate delivered 2026-09-05; new-profile refusal BLOCKED (no accepted containment profile) | `internal/liveverify/provider/interlock/interlock_test.go`'s `TestCorvintGoDependencyClosureExcludesUncontainedLiveTestExecution` runs `GOTOOLCHAIN=local go list -deps -f {{.ImportPath}} ./cmd/corvint` from the module root and rejects exact dependency edges to `internal/liveverify/provider` and `internal/liveverify/gorunner`; decision 0062 preserves the existing nested `execution.containment` statement and every frozen `go-live-run/0` byte until a new profile is accepted. |
 | GLTP-V0-045 bounded polling, debounce, and current-input identity | delivered 2026-09-12 (preview tier) | `TestRunningFailedPassed` and `TestDebounceDuringActiveRunRace` exercise bounded polling and settled edit batches; `TestResolveWatchedFilesWalksDotNamedRoot` pins the default watched set, including a repository root whose base name starts with a dot; `TestEditBeforeBaselineSnapshotIsDetected` pins that an edit before the change baseline is sampled is still detected. The exact sorted path/content/toolchain identity preimage has no direct discriminator and remains `NOT_TESTED`. V1-3018 bounded watched reads (2026-10-28): `TestDigestBoundsWatchedReads`, `TestResolveWatchedFilesExcludesNonRegular`. |

@@ -1,0 +1,48 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-analyzer-html-css",
+  "helpJson": "corvint-cli --binary corvint-analyzer-html-css help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-analyzer-html-css"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-analyzer-html-css",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-analyzer-html-css < REQUEST.json",
+        "corvint-analyzer-html-css --version"
+      ],
+      "flags": [
+        "--version"
+      ],
+      "required": [
+        "stdin: protocol request JSON"
+      ],
+      "example": "corvint-analyzer-html-css < REQUEST.json",
+      "help": "corvint-cli --binary corvint-analyzer-html-css --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-analyzer-html-css help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-analyzer-html-css help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-analyzer-html-css help --json",
+      "help": "corvint-cli --binary corvint-analyzer-html-css help --help"
+    }
+  ]
+}

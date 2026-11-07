@@ -5,6 +5,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"io"
@@ -13,10 +15,23 @@ import (
 	"syscall"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-corpus-parity [--mode parity] --index FILE --sha256 SHA256 --request FILE
+       corvint-corpus-parity --mode query --index FILE --sha256 SHA256 --request FILE
+       corvint-corpus-parity --mode build --root DIR --artifact FILE
+Build refuses index, sha256 and request. Query/parity refuse root and artifact.`
+
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-corpus-parity", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-corpus-parity", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(streams.Status(run(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 func run(ctx context.Context, args []string, out, errout io.Writer) int {
 	f := flag.NewFlagSet("corvint-corpus-parity", flag.ContinueOnError)

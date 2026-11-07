@@ -1,0 +1,45 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-analyzer-kotlin-android",
+  "helpJson": "corvint-cli --binary corvint-analyzer-kotlin-android help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-analyzer-kotlin-android"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-analyzer-kotlin-android",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-analyzer-kotlin-android < REQUEST.json"
+      ],
+      "flags": [],
+      "required": [
+        "stdin: protocol request JSON"
+      ],
+      "example": "corvint-analyzer-kotlin-android < REQUEST.json",
+      "help": "corvint-cli --binary corvint-analyzer-kotlin-android --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-analyzer-kotlin-android help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-analyzer-kotlin-android help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-analyzer-kotlin-android help --json",
+      "help": "corvint-cli --binary corvint-analyzer-kotlin-android help --help"
+    }
+  ]
+}

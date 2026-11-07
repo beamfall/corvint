@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -24,11 +26,18 @@ without --allow-network.
 Example: corvint-update check --component core --allow-network`
 
 func main() {
-	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
-		os.Exit(code)
+	streams := &clierror.Streams{Binary: "corvint-update", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-update", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
 	}
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
-		os.Exit(code)
+
+	if code, handled := serveHelp(os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
+		os.Exit(streams.Status(code))
 	}
 	// CAP-V0-701: an unknown action is refused before any state is read. serveHelp
 	// already refused an unknown operation word with the shared envelope
@@ -36,15 +45,15 @@ func main() {
 	// (ACX-V0-664).
 	if len(os.Args) < 2 || (os.Args[1] != "check" && os.Args[1] != "apply" && os.Args[1] != "rollback") {
 		if len(os.Args) >= 2 {
-			fmt.Fprintf(os.Stderr, "UNKNOWN_COMMAND: unknown command %q\n", os.Args[1])
+			fmt.Fprintf(streams.Stderr(), "UNKNOWN_COMMAND: unknown command %q\n", os.Args[1])
 		}
-		fmt.Fprintln(os.Stderr, usage)
-		os.Exit(2)
+		fmt.Fprintln(streams.Stderr(), usage)
+		os.Exit(streams.Status(2))
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(streams.Stderr(), err)
+		os.Exit(streams.Status(1))
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
 	var c update.Config
@@ -68,16 +77,16 @@ func main() {
 	fs.DurationVar(&c.StartTimeout, "start-timeout", 0, "apply: wait for the started service to report running (default 30s, at most 2m)")
 	fs.Parse(os.Args[2:])
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "unexpected positional arguments")
-		os.Exit(2)
+		fmt.Fprintln(streams.Stderr(), "unexpected positional arguments")
+		os.Exit(streams.Status(2))
 	}
 	c.WorkDir, _ = os.Getwd()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	r, err := update.Run(ctx, os.Args[1], c)
-	json.NewEncoder(os.Stdout).Encode(r)
+	json.NewEncoder(streams.Stdout()).Encode(r)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(streams.Stderr(), err)
+		os.Exit(streams.Status(1))
 	}
 }
