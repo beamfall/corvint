@@ -1,0 +1,8 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 2514fee0ca701b2e4dfd30a6ec3aa115d7d1247c tree=52f5556b9756f1ebcdc45a4bc7b311df1255cc13 dirty=10
+heavy.sh: slot 2/8 after 0s
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	2.130s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=11.6s rc=0

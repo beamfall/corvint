@@ -13,7 +13,7 @@ case ${1-} in
     delivered='NOT_PRODUCED list all delivered ticket IDs'
     superseded=none
     if [[ $# == 2 ]]; then
-      [[ -r $2 ]] || refuse "unreadable previous handback: $2"
+      [[ -r $2 ]] || refuse "unreadable previous handback: $2; fix: pass the readable earlier handback file, or run template without it"
       delivered=$(field 'Delivered tickets' "$2")
       superseded=$(field 'Superseded tickets' "$2")
     fi
@@ -35,25 +35,25 @@ TEMPLATE
     ;;
   lint)
     [[ $# == 2 || $# == 3 ]] || refuse 'usage: lint FILE [PREVIOUS]'
-    [[ -f $2 && -r $2 ]] || refuse "unreadable handback: $2"
+    [[ -f $2 && -r $2 ]] || refuse "unreadable handback: $2; fix: pass the path of the filled handback file"
     for name in 'Base' 'Fix head' 'Bind head' 'Sealed head' 'Delivered tickets' 'Superseded tickets' 'GitHub issues closed'; do
       value=$(field "$name" "$2")
-      [[ -n $value && $value != *$'\n'* ]] || refuse "missing or duplicate $name"
+      [[ -n $value && $value != *$'\n'* ]] || refuse "missing or duplicate $name; fix: keep exactly one '$name: ' line, as script/lane-handback.sh template prints it"
       case $name in
-        Base|'Fix head') [[ $value =~ ^[0-9a-f]{40}$ ]] || refuse "invalid $name" ;;
-        'Bind head'|'Sealed head') [[ $value =~ ^[0-9a-f]{40}$ || $value == 'NOT_PRODUCED '?* ]] || refuse "invalid $name: full SHA or NOT_PRODUCED plus reason required" ;;
+        Base|'Fix head') [[ $value =~ ^[0-9a-f]{40}$ ]] || refuse "invalid $name; fix: use the full 40-hex commit SHA" ;;
+        'Bind head'|'Sealed head') [[ $value =~ ^[0-9a-f]{40}$ || $value == 'NOT_PRODUCED '?* ]] || refuse "invalid $name; fix: use the full 40-hex commit SHA, or NOT_PRODUCED followed by its reason" ;;
         'Delivered tickets'|'Superseded tickets')
-          [[ $value == none || $value =~ ^[A-Z0-9]+(-[A-Z0-9]+)*(\ [A-Z0-9]+(-[A-Z0-9]+)*)*$ ]] || refuse "invalid $name: space-separated ticket IDs or none required" ;;
+          [[ $value == none || $value =~ ^[A-Z0-9]+(-[A-Z0-9]+)*(\ [A-Z0-9]+(-[A-Z0-9]+)*)*$ ]] || refuse "invalid $name; fix: use space-separated ticket IDs, or none" ;;
       esac
     done
     if [[ $# == 3 ]]; then
-      [[ -f $3 && -r $3 ]] || refuse "unreadable previous handback: $3"
+      [[ -f $3 && -r $3 ]] || refuse "unreadable previous handback: $3; fix: pass the readable earlier handback file, or lint without it"
       current=" $(field 'Delivered tickets' "$2") $(field 'Superseded tickets' "$2") "
       for name in 'Delivered tickets' 'Superseded tickets'; do
         prior=$(field "$name" "$3")
-        [[ -n $prior ]] || refuse "previous handback missing $name"
+        [[ -n $prior ]] || refuse "previous handback missing $name; fix: pass a previous handback that has a '$name: ' line"
         for ticket in $prior; do
-          [[ $ticket == none || $current == *" $ticket "* ]] || refuse "cumulative ticket lost: $ticket"
+          [[ $ticket == none || $current == *" $ticket "* ]] || refuse "cumulative ticket lost: $ticket; fix: keep $ticket in Delivered tickets or move it to Superseded tickets"
         done
       done
     fi

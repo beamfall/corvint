@@ -246,7 +246,9 @@ for line in "x:1:sh -c '{ python3 -c \"print(1)\"; }'" "x:1:sh -c '[\"\$(python3
     exit 1
   fi
 done
-if ! grep -E '^DOC_GATE_TARGETS :=.* no-python-runtime-dependency-test( |$)' Makefile >/dev/null; then
+# SRG-V0-982: DOC_GATE_TARGETS is a continuation list with one target per line.
+if ! awk '/^DOC_GATE_TARGETS :=/ { on = 1; next } on { line = $0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' Makefile |
+  grep -qx no-python-runtime-dependency-test; then
   echo "self-test: doc-gates (DOC_GATE_TARGETS) does not run no-python-runtime-dependency-test" >&2
   exit 1
 fi

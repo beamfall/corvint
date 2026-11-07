@@ -1,0 +1,139 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=5e92a70f02972b462f3efe185ddffee2e70cc75d dirty=1
+heavy.sh: slot 2/8 after 0s
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.69s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.47s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.80s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.38s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+    compacted_post_state_test.go:58: step 3 read differs after compaction:
+        before {"attemptId":"attempt:acme:main:e38ee98b25e36d93481a66f85ab238ff","baseCommit":"25c3369a2c090aa9fedace7f3646553732a436f0","branch":"AT-0002","budget":{"cacheCreationTokens":{"state":"NOT_OBSERVED","value":null},"cacheReadTokens":{"state":"NOT_OBSERVED","value":null},"inputTokens":{"state":"NOT_OBSERVED","value":null},"outputTokens":{"state":"NOT_OBSERVED","value":null},"turns":{"state":"NOT_OBSERVED","value":null},"wallClockMinutes":{"state":"NOT_OBSERVED","value":null}},"candidateTreeOid":null,"capabilityProfileSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","cause":null,"configSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","gateResults":[],"generation":"1","heartbeatTTLSeconds":"600","holderStatus":"FRESH_HOLDER","lane":null,"lastFailedGate":null,"lastHeartbeatAt":"2026-11-04T19:40:19Z","lease":{"expiresAt":"2026-11-04T19:44:19Z","grantedSeq":"3","holder":"holder"},"manifestSha256":null,"mode":"DEVELOPMENT","noExec":null,"observedAt":"2026-11-04T19:40:19Z","pendingEffects":[],"phase":"RUNNING","phaseSinceSeq":"3","planSha256":null,"policySha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","priorGenerations":[],"profile":"taskman-attempt/0","quiescence":"UNPROVED","repairRound":"0","retryAccounting":{"disposition":"NONE","failedOrUnknown":false,"profile":"taskman-retry-accounting/0"},"retryCount":"0","retryReasons":{"EXPIRED":"0","FAILED":"0","RELEASED":"0","UNKNOWN":"0"},"reviews":[],"runtimeId":"external-agent","scope":{"derivationSha256":null,"resources":[{"class":"PATH","key":"src/a"}],"source":"REQUESTED"},"scopeCheck":"UNKNOWN","spawnNoExecCount":"0","supervisor":null,"ticketId":"ticket:acme:main:AT-0002","ticketRecordSha256":"537b240324a2b0556c2b4c9c58eb5d3b98da1169e137c162f5f75286b7e67cd4","ticketRevision":"1","worktreePath":null}
+        
+        after  {"attemptId":"attempt:acme:main:e38ee98b25e36d93481a66f85ab238ff","baseCommit":"25c3369a2c090aa9fedace7f3646553732a436f0","branch":"AT-0002","budget":{"cacheCreationTokens":{"state":"NOT_OBSERVED","value":null},"cacheReadTokens":{"state":"NOT_OBSERVED","value":null},"inputTokens":{"state":"NOT_OBSERVED","value":null},"outputTokens":{"state":"NOT_OBSERVED","value":null},"turns":{"state":"NOT_OBSERVED","value":null},"wallClockMinutes":{"state":"NOT_OBSERVED","value":null}},"candidateTreeOid":null,"capabilityProfileSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","cause":null,"configSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","gateResults":[],"generation":"1","heartbeatTTLSeconds":"600","holderStatus":"FRESH_HOLDER","lane":null,"lastFailedGate":null,"lastHeartbeatAt":"2026-11-04T19:40:19Z","lease":{"expiresAt":"2026-11-04T19:44:19Z","grantedSeq":"3","holder":"holder"},"manifestSha256":null,"mode":"DEVELOPMENT","noExec":null,"observedAt":"2026-11-04T19:40:20Z","pendingEffects":[],"phase":"RUNNING","phaseSinceSeq":"3","planSha256":null,"policySha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","priorGenerations":[],"profile":"taskman-attempt/0","quiescence":"UNPROVED","repairRound":"0","retryAccounting":{"disposition":"NONE","failedOrUnknown":false,"profile":"taskman-retry-accounting/0"},"retryCount":"0","retryReasons":{"EXPIRED":"0","FAILED":"0","RELEASED":"0","UNKNOWN":"0"},"reviews":[],"runtimeId":"external-agent","scope":{"derivationSha256":null,"resources":[{"class":"PATH","key":"src/a"}],"source":"REQUESTED"},"scopeCheck":"UNKNOWN","spawnNoExecCount":"0","supervisor":null,"ticketId":"ticket:acme:main:AT-0002","ticketRecordSha256":"537b240324a2b0556c2b4c9c58eb5d3b98da1169e137c162f5f75286b7e67cd4","ticketRevision":"1","worktreePath":null}
+--- FAIL: TestCALV0302_CompactedStepsKeepTheirPostState (0.66s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.59s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.87s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.53s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.66s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.52s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.66s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.63s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.77s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.67s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.76s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.64s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.65s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.10s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.80s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.63s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.77s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.60s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+    compacted_post_state_test.go:58: step 3 read differs after compaction:
+        before {"attemptId":"attempt:acme:main:f42a7dec20f2efc87243069d8b715113","baseCommit":"8ca811777063bd0cc08922486596f61091ce3fef","branch":"AT-0002","budget":{"cacheCreationTokens":{"state":"NOT_OBSERVED","value":null},"cacheReadTokens":{"state":"NOT_OBSERVED","value":null},"inputTokens":{"state":"NOT_OBSERVED","value":null},"outputTokens":{"state":"NOT_OBSERVED","value":null},"turns":{"state":"NOT_OBSERVED","value":null},"wallClockMinutes":{"state":"NOT_OBSERVED","value":null}},"candidateTreeOid":null,"capabilityProfileSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","cause":null,"configSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","gateResults":[],"generation":"1","heartbeatTTLSeconds":"600","holderStatus":"FRESH_HOLDER","lane":null,"lastFailedGate":null,"lastHeartbeatAt":"2026-11-04T19:40:41Z","lease":{"expiresAt":"2026-11-04T19:44:41Z","grantedSeq":"3","holder":"holder"},"manifestSha256":null,"mode":"DEVELOPMENT","noExec":null,"observedAt":"2026-11-04T19:40:41Z","pendingEffects":[],"phase":"RUNNING","phaseSinceSeq":"3","planSha256":null,"policySha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","priorGenerations":[],"profile":"taskman-attempt/0","quiescence":"UNPROVED","repairRound":"0","retryAccounting":{"disposition":"NONE","failedOrUnknown":false,"profile":"taskman-retry-accounting/0"},"retryCount":"0","retryReasons":{"EXPIRED":"0","FAILED":"0","RELEASED":"0","UNKNOWN":"0"},"reviews":[],"runtimeId":"external-agent","scope":{"derivationSha256":null,"resources":[{"class":"PATH","key":"src/a"}],"source":"REQUESTED"},"scopeCheck":"UNKNOWN","spawnNoExecCount":"0","supervisor":null,"ticketId":"ticket:acme:main:AT-0002","ticketRecordSha256":"81f223f2edb021c299974a2ab43d51949a43d82550e314bdd1866e02103ba492","ticketRevision":"1","worktreePath":null}
+        
+        after  {"attemptId":"attempt:acme:main:f42a7dec20f2efc87243069d8b715113","baseCommit":"8ca811777063bd0cc08922486596f61091ce3fef","branch":"AT-0002","budget":{"cacheCreationTokens":{"state":"NOT_OBSERVED","value":null},"cacheReadTokens":{"state":"NOT_OBSERVED","value":null},"inputTokens":{"state":"NOT_OBSERVED","value":null},"outputTokens":{"state":"NOT_OBSERVED","value":null},"turns":{"state":"NOT_OBSERVED","value":null},"wallClockMinutes":{"state":"NOT_OBSERVED","value":null}},"candidateTreeOid":null,"capabilityProfileSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","cause":null,"configSha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","gateResults":[],"generation":"1","heartbeatTTLSeconds":"600","holderStatus":"FRESH_HOLDER","lane":null,"lastFailedGate":null,"lastHeartbeatAt":"2026-11-04T19:40:41Z","lease":{"expiresAt":"2026-11-04T19:44:41Z","grantedSeq":"3","holder":"holder"},"manifestSha256":null,"mode":"DEVELOPMENT","noExec":null,"observedAt":"2026-11-04T19:40:42Z","pendingEffects":[],"phase":"RUNNING","phaseSinceSeq":"3","planSha256":null,"policySha256":"e833488ed1bf14cfbef93a434e26e9937411096f27248757f41a86bca3d4d0b9","priorGenerations":[],"profile":"taskman-attempt/0","quiescence":"UNPROVED","repairRound":"0","retryAccounting":{"disposition":"NONE","failedOrUnknown":false,"profile":"taskman-retry-accounting/0"},"retryCount":"0","retryReasons":{"EXPIRED":"0","FAILED":"0","RELEASED":"0","UNKNOWN":"0"},"reviews":[],"runtimeId":"external-agent","scope":{"derivationSha256":null,"resources":[{"class":"PATH","key":"src/a"}],"source":"REQUESTED"},"scopeCheck":"UNKNOWN","spawnNoExecCount":"0","supervisor":null,"ticketId":"ticket:acme:main:AT-0002","ticketRecordSha256":"81f223f2edb021c299974a2ab43d51949a43d82550e314bdd1866e02103ba492","ticketRevision":"1","worktreePath":null}
+--- FAIL: TestCALV0302_CompactedStepsKeepTheirPostState (0.98s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.75s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.68s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.54s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.77s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.38s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.84s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.71s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.87s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.78s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.99s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.31s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.82s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.69s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.87s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.66s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.73s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.69s)
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/tasks/cli	49.246s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=59.3s rc=1
+heavy.sh: exit rc=1 cause=command cmd=env
