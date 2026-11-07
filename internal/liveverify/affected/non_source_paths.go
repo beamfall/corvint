@@ -65,9 +65,18 @@ func readNonSourcePaths(root *Source) ([]NonSourcePath, error) {
 		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d entries", NonSourcePathsPath, NonSourcePathsProfile, maxRuntimeReadersEntries)
 	}
 	previous := ""
-	for _, entry := range declared.Entries {
-		if !ValidReadScopeEntry(entry.Path) || entry.Path <= previous || !validRuntimeReaderPath(entry.Path) || !validNonSourcePath(entry.Path) {
-			return nil, fmt.Errorf("%s: path %q", NonSourcePathsPath, entry.Path)
+	for index, entry := range declared.Entries {
+		if !ValidReadScopeEntry(entry.Path) || !validRuntimeReaderPath(entry.Path) || !validNonSourcePath(entry.Path) {
+			return nil, fmt.Errorf("%s: entry %d path %q is not a declarable non-source path: it must be a canonical repository-relative file, or a directory ending in /, that is not and does not cover .corvint/, a Corvint declaration, anything under .github/ or a make file", NonSourcePathsPath, index+1, entry.Path)
+		}
+		// AZU-V0-9950 (V1-4919): an ordering fault names the entry, the one it
+		// must follow and the fix, so a lane that appended out of order
+		// moves the entry instead of reading the parser.
+		if index > 0 && entry.Path == previous {
+			return nil, fmt.Errorf("%s: entry %d path %q duplicates entry %d; merge the two entries into one (entries are strictly ascending by path, with no duplicates)", NonSourcePathsPath, index+1, entry.Path, index)
+		}
+		if index > 0 && entry.Path < previous {
+			return nil, fmt.Errorf("%s: entry %d path %q does not sort after entry %d path %q; entries must be in strictly ascending byte order by path: move it before %q, or reorder them all with jq '.entries |= sort_by(.path)'", NonSourcePathsPath, index+1, entry.Path, index, previous, previous)
 		}
 		if entry.Reason == "" || len(entry.Reason) > maxRuntimeReaderReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
 			return nil, fmt.Errorf("%s: reason of %q", NonSourcePathsPath, entry.Path)

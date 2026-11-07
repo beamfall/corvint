@@ -481,4 +481,5 @@ chmod +x script/check-line-citations.sh
 : > "$TEST_BUILD_LOG"
 status=0
 make -s dogfood-inputs-check BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
-[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" || fail "$LINENO"
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" &&
+  grep -qF "git commit -m 'Repin moved line citations' && make dogfood-inputs-check BASE=$base CITATIONS=$root/closeout-cites.tsv INTENTS=$root/closeout-cites.tsv VERIFY=$root/closeout-cites.tsv OUTCOME=passed before binding" "$root/output" || fail "$LINENO"

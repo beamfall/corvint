@@ -177,7 +177,13 @@ git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 if [[ -x $repo/script/check-line-citations.sh ]] &&
   ! static_out=$(cd "$repo" && script/check-line-citations.sh 2>&1); then
   printf '%s: REFUSE line-citations-invalid\n%s\n' "$prefix" "$static_out" >&2
-  printf 'fix: run script/check-line-citations.sh --repin, review and commit the repin, then rerun make %s before binding\n' "$entry" >&2
+  # DWC-V0-7603 (V1-4721 friction): the fix names the exact repin, commit and rerun, with the inputs
+  # this run took, so a moved-unchanged citation costs one copied command line.
+  rerun="make $entry BASE=$base_arg$seal_word"
+  for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify" "OUTCOME=$outcome"; do
+    [[ -z ${pair#*=} ]] || rerun+=" ${pair%%=*}=$(printf '%q' "${pair#*=}")"
+  done
+  printf 'fix: run script/check-line-citations.sh --repin (it rewrites and stages each citation whose cited lines moved unchanged; repair any other failure above by hand), read each repinned sentence, then git commit -m '"'"'Repin moved line citations'"'"' && %s before binding\n' "$rerun" >&2
   exit 2
 fi
 # DCW-V0-815 (V1-3594): the cheap static doc checks that batch-precheck would otherwise fail minutes

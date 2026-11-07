@@ -11,9 +11,10 @@ import (
 )
 
 // TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst (V1-3290; ASD-V0-840, V1-3922): inputs-check
-// and finish-lane refuse an unsorted, duplicated or non-canonical --intents
-// manifest before running any step, naming the line and, for an ordering
-// fault, the code intent-manifest-unsorted and the sort -u command that fixes it; a sorted manifest passes on.
+// and finish-lane refuse a non-canonical --intents manifest before running any
+// step, naming the line and, for an ordering fault no sort can repair, the code
+// intent-manifest-unsorted and the sort -u command; a sorted manifest passes
+// on. A manifest that only needs sorting is canonicalized (DWC-V0-7600).
 func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -52,7 +53,7 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 		preflight      bool
 		want           []string
 	}{
-		{"unsorted pre-flight", "docs/specs/b.md\ndocs/specs/a.md\n", true, []string{
+		{"unsorted pre-flight", "docs/specs/b.md\ndocs/specs/a.md\n./x\n", true, []string{
 			"dogfood-inputs-check: REFUSE intent-manifest-unsorted\n",
 			"  input: --intents " + intents + "\n",
 			`  line 2 "docs/specs/a.md" does not sort after line 1 "docs/specs/b.md"`,
@@ -60,10 +61,9 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 			"  fix: LC_ALL=C sort -u -o " + intents + " " + intents + ", then rerun corvint dogfood inputs-check --base " + base +
 				" --citations " + plan + " --intents " + intents + " --verify " + verify + " --outcome passed\n",
 		}},
-		{"duplicate finish-lane", "docs/a.md\ndocs/a.md\n", false, []string{"dogfood-finish-lane: REFUSE intent-manifest-unsorted\n", "LC_ALL=C sort -u -o "}},
-		// ASD-V0-840 (V1-3922): the two committed intents of the passing
-		// manifest below, swapped, are refused as unsorted, not as missing.
-		{"swapped complete pre-flight", "docs/b.md\ndocs/a.md\n", true, []string{"dogfood-inputs-check: REFUSE intent-manifest-unsorted\n", `  line 2 "docs/a.md" does not sort after line 1 "docs/b.md"`}},
+		// DWC-V0-7600 (V1-4788): an ordering fault with a line no sort can
+		// repair is still refused as unsorted, with the sort fix.
+		{"duplicate finish-lane", "docs/a.md\ndocs/a.md\n./x\n", false, []string{"dogfood-finish-lane: REFUSE intent-manifest-unsorted\n", "LC_ALL=C sort -u -o "}},
 		{"non-canonical", "./docs/a.md\n", true, []string{`  line 1 "./docs/a.md" is not a canonical repository-relative path`, "  fix: " + intentScopeHint}},
 	}
 	for _, tc := range cases {
@@ -109,5 +109,81 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 	}
 	if calls == 0 || strings.Contains(stderr.String(), "REFUSE missing-intent-scope") {
 		t.Errorf("sorted manifest refused or ran no step (calls=%d):\n%s", calls, stderr.String())
+	}
+}
+
+// TestDWCV07600FinishLaneCanonicalizesIntentManifest (V1-4788): an untracked
+// --intents manifest whose only fault is order or duplicates is rewritten in
+// place to its LC_ALL=C sort -u form and the run goes on to its steps, for both
+// the pre-flight and the finish; a manifest the repository tracks is not
+// rewritten, so its ordering refusal stands.
+func TestDWCV07600FinishLaneCanonicalizesIntentManifest(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	for name, data := range map[string]string{"a.txt": "a\n", "docs/a.md": "# A\n\n## Requirements\n\n- `INT-V0-001`: a.\n", "docs/b.md": "# B\n\n## Requirements\n\n- `INT-V0-002`: b.\n", "intents.txt": "docs/b.md\ndocs/a.md\n"} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	scratch := t.TempDir()
+	plan := filepath.Join(scratch, "cites.tsv")
+	verify := filepath.Join(scratch, "verify.txt")
+	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go version\n"} {
+		if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := func(intents string, preflight bool) (int, int, string) {
+		t.Helper()
+		calls := 0
+		steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+			calls++
+			return 1
+		}}
+		var stderr bytes.Buffer
+		code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: preflight, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, io.Discard, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return code, calls, stderr.String()
+	}
+	for _, preflight := range []bool{true, false} {
+		// Each run starts from the committed tree, without the report the
+		// previous run left.
+		testGit(t, root, "clean", "-fdxq")
+		intents := filepath.Join(scratch, "intents")
+		if err := os.WriteFile(intents, []byte("docs/b.md\ndocs/a.md\ndocs/b.md\n"), 0o640); err != nil {
+			t.Fatal(err)
+		}
+		_, calls, stderr := run(intents, preflight)
+		got, err := os.ReadFile(intents)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != "docs/a.md\ndocs/b.md\n" || calls == 0 || strings.Contains(stderr, "REFUSE intent-manifest-unsorted") ||
+			!strings.Contains(stderr, "intents canonicalized: LC_ALL=C sort -u rewrote --intents "+intents+" from 3 to 2 lines") {
+			t.Errorf("preflight=%v: manifest %q, step calls %d:\n%s", preflight, got, calls, stderr)
+		}
+		if info, err := os.Stat(intents); err != nil {
+			t.Error(err)
+		} else if info.Mode().Perm() != 0o640 {
+			t.Errorf("preflight=%v: the rewrite changed the file mode to %v", preflight, info.Mode())
+		}
+	}
+	tracked := filepath.Join(root, "intents.txt")
+	code, calls, stderr := run(tracked, true)
+	if got, _ := os.ReadFile(tracked); string(got) != "docs/b.md\ndocs/a.md\n" || code != 2 || calls != 0 ||
+		!strings.Contains(stderr, "REFUSE intent-manifest-unsorted") || !strings.Contains(stderr, "LC_ALL=C sort -u -o ") {
+		t.Errorf("tracked manifest: code=%d calls=%d manifest=%q:\n%s", code, calls, got, stderr)
 	}
 }
