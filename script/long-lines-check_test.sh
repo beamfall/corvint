@@ -38,4 +38,30 @@ out=$("$grep" -l needle) || fail "agent-grep: rc=$?"
 [[ $out == $'src/main.txt\nsrc/under.txt' ]] || fail "agent-grep files: $out"
 out=$("$grep" -l needle -- src/main.txt) || fail "agent-grep pathspec: rc=$?"
 [[ $out == src/main.txt ]] || fail "agent-grep pathspec files: $out"
+
+# 5. (review) A scan that does not finish refuses with exit 2 and never prints ok: a tracked file the
+# scan cannot read (mode 000, which root still reads, so that case needs another user; and a tracked
+# file deleted from the worktree, for every user), and an allow list that cannot be read.
+unreadable() { # unreadable PATH LABEL: the check must exit 2 naming the unfinished scan, without ok
+  out=$("$check" 2>&1)
+  [[ $? == 2 ]] || fail "$2: not exit 2: $out"
+  grep -qF 'long-lines-check: REFUSED the scan did not finish' <<< "$out" && grep -qF -- "$1" <<< "$out" || fail "$2: refusal output: $out"
+  grep -q 'long-lines-check: ok' <<< "$out" && fail "$2: printed ok: $out"
+  return 0
+}
+printf 'short\n' > src/hidden.txt && git add src/hidden.txt || exit 2
+if (($(id -u) != 0)); then
+  chmod 000 src/hidden.txt && unreadable src/hidden.txt 'unreadable tracked file'
+  chmod 644 src/hidden.txt
+fi
+/bin/rm -f src/hidden.txt && unreadable src/hidden.txt 'tracked file missing from the worktree'
+git rm -q --cached src/hidden.txt || exit 2
+"$check" > /dev/null 2>&1 || fail "the check still fails once the unreadable file is gone"
+if (($(id -u) != 0)); then
+  chmod 000 .corvint/long-line-allow
+  out=$("$check" 2>&1)
+  rc=$?
+  chmod 644 .corvint/long-line-allow
+  [[ $rc == 2 ]] && grep -qF 'long-lines-check: REFUSED cannot read .corvint/long-line-allow' <<< "$out" || fail "unreadable allow list: rc=$rc $out"
+fi
 printf 'long-lines-check_test: ok\n'
