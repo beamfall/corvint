@@ -465,6 +465,10 @@ func TestAFPV02374SetupWritersOfKeptReadsAreKept(t *testing.T) {
 			map[string]string{"TestASetup": "example.com/review/p.enabled"}},
 		{"setup helper", "func enable() { enabled = true }\nfunc TestASetup(t *testing.T) { enable() }\n",
 			map[string]string{"TestASetup": "example.com/review/p.enabled"}},
+		{"range value setup", "func TestASetup(t *testing.T) { for _, enabled = range []bool{true} {} }\n",
+			map[string]string{"TestASetup": "example.com/review/p.enabled"}},
+		{"range key setup", "func TestASetup(t *testing.T) { for enabled = range map[bool]int{true: 0} {} }\n",
+			map[string]string{"TestASetup": "example.com/review/p.enabled"}},
 		{"transitive setup", "func TestA0Mode(t *testing.T) { mode = 1 }\nfunc TestASetup(t *testing.T) { enabled = mode == 1 }\n",
 			map[string]string{"TestA0Mode": "example.com/review/p.mode", "TestASetup": "example.com/review/p.enabled"}},
 	} {
