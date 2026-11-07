@@ -3013,7 +3013,7 @@
         "corvint-tasks ticket set-effects --template",
         "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-gates --template",
-        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],... | --format json|text]",
+        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--root DIR] [--json] [--summary | --fields KEY[.SUB],... | --format json|text]",
         "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]",
         "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R (--request-id Q | --dry-run) [--issued-at TS] [--role OWNER|OPERATOR]"
       ],
@@ -4527,7 +4527,7 @@
       "command": "corvint-tasks ticket show",
       "summary": "",
       "usage": [
-        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],... | --format json|text]"
+        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--root DIR] [--json] [--summary | --fields KEY[.SUB],... | --format json|text]"
       ],
       "flags": [
         "--fields",

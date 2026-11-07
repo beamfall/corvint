@@ -2222,14 +2222,16 @@ batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and
 re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 
-propose-citations is read-only. It prints, on stdout, a draft citation plan with
-one row per hunk of .corvint/change.cem.json still owed a row: a BASE line of a
-file the change leaves untouched that names the hunk's path, or an unknown row; it
-never cites a file the change adds or modifies (DCW-V0-393), and an unknown row for
-a hunk of a modified file names its nearest stable line as a review hint only
-(DCW-V0-439). JSON, .agent-evidence/ and one-line files are never drafted, and a
-hunk naming a requirement the same change adds stays unknown with that ID, since
-same-change intent is not BASE evidence (DCW-V0-440). With no usable map
+propose-citations is read-only. It prints, on stdout, one draft citation row per
+owed hunk: a stable BASE span naming the hunk path, its basename of at least 6
+bytes, or defining an ID the hunk adds or names (DWC-V0-926). Same-file nearest
+stable lines remain marked proposals; seal and repin rows cite their contracts.
+Bare Markdown headings and unsupported cross-file guesses are never drafted (DWC-V0-927).
+For spec amendments, prefer the stable governing BASE definition, including a
+continuation without its ID. Unanchored same-file proposals are marked; rewritten
+definitions remain governing-ID review notes (DWC-V0-928). JSON, .agent-evidence/ and one-line files are never drafted.
+Same-change intent is not BASE evidence (DCW-V0-440); a refined BASE requirement
+can be proposed only when its span also anchors this hunk. With no usable map
 (missing, unreadable or for another BASE) it drafts one row per hunk of the
 canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
 (DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write

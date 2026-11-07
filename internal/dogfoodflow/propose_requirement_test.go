@@ -10,9 +10,9 @@ import (
 // TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown pins V1-3151:
 // a change that adds a requirement, code naming it and a new test named after
 // it drafts no whole-file line-1 row and no row on a JSON or .agent-evidence/
-// record that merely lists the code path; the code and test hunks get unknown
-// rows naming the requirement this change adds, since same-change intent is
-// not BASE evidence. Fails on BASE, which cited docs/worklist.json 1:1 for the
+// record that merely lists the code path. DWC-V0-926 preserves a marked
+// proposal for surviving context in existing code; the new definition and new
+// test remain unknown since same-change intent is not BASE evidence. Fails on BASE, which cited docs/worklist.json 1:1 for the
 // code hunk and drafted the new test file's row without the requirement.
 func TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown(t *testing.T) {
 	root := t.TempDir()
@@ -65,7 +65,11 @@ func TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown(t *testing.T)
 			t.Errorf("row cites a whole-file or data record: %q", row)
 		}
 		switch name := edits[fields[0]]; name {
-		case "internal/x/gadget.go", "internal/x/gadget_test.go":
+		case "internal/x/gadget.go":
+			if fields[1] != name || !proposalRow(stderr.String(), row) {
+				t.Errorf("existing-file context is not a marked proposal: %q", row)
+			}
+		case "internal/x/gadget_test.go":
 			if !reasonedUnknownRow(fields) || !strings.Contains(fields[3], "requirement XYZ-V0-002, which this change itself adds in docs/specs/x-v0.md") ||
 				!strings.Contains(fields[3], "(DCW-V0-440)") {
 				t.Errorf("row for %s = %q; want an unknown row naming the same-change requirement XYZ-V0-002", name, row)
