@@ -47,7 +47,7 @@ func queryCLIRepository(t *testing.T) string {
 		{"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -72,7 +72,7 @@ func queryCLIRepository(t *testing.T) string {
 		}
 	}
 	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "initial authority fixture"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -100,7 +100,7 @@ func queryCLIRepository(t *testing.T) string {
 			t.Fatal(err)
 		}
 		for _, arguments := range [][]string{{"add", "docs/history.md"}, {"commit", "-q", "-F", messagePath}} {
-			command := exec.Command("git", arguments...)
+			command := fixtureGitCommand(arguments...)
 			command.Dir = root
 			if output, err := command.CombinedOutput(); err != nil {
 				t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -357,11 +357,11 @@ func TestAuthorityStartParityManifestReplay(t *testing.T) {
 		for _, item := range manifest.Cases {
 			t.Run(item.Repository, func(t *testing.T) {
 				root := filepath.Join(t.TempDir(), "fixture")
-				clone := exec.Command("git", "clone", "-q", "--no-hardlinks", roots[item.Repository], root)
+				clone := fixtureGitCommand("clone", "-q", "--no-hardlinks", roots[item.Repository], root)
 				if output, err := clone.CombinedOutput(); err != nil {
 					t.Fatalf("clone: %v\n%s", err, output)
 				}
-				checkout := exec.Command("git", "-C", root, "checkout", "-q", "--detach", item.Commit)
+				checkout := fixtureGitCommand("-C", root, "checkout", "-q", "--detach", item.Commit)
 				if output, err := checkout.CombinedOutput(); err != nil {
 					t.Fatalf("checkout: %v\n%s", err, output)
 				}
@@ -390,7 +390,7 @@ func TestAuthorityStartParityManifestReplay(t *testing.T) {
 
 func gitOutput(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	command := fixtureGitCommand(append([]string{"-C", root}, arguments...)...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -400,7 +400,7 @@ func gitOutput(t *testing.T, root string, arguments ...string) string {
 
 func statusSHA256(t *testing.T, root string) string {
 	t.Helper()
-	command := exec.Command("git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	command := fixtureGitCommand("-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	output, err := command.Output()
 	if err != nil {
 		t.Fatal(err)

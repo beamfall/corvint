@@ -56,7 +56,7 @@ func coreFreezeCommit(t *testing.T, root string, files map[string]string) string
 func coreFreezeNonUTF8(t *testing.T, root string) string {
 	t.Helper()
 	blob := strings.TrimSpace(affectedGit(t, root, "hash-object", "-w", "pkg/main.go"))
-	command := exec.Command("git", "-C", root, "update-index", "--index-info")
+	command := fixtureGitCommand("-C", root, "update-index", "--index-info")
 	command.Stdin = strings.NewReader("100644 blob " + blob + "\tlatin/caf\xe9.go\n")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("update-index: %v\n%s", err, output)
@@ -257,7 +257,11 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			}
 			checkCoreWant(t, document, want)
 			if previous != "" {
-				t.Run("N-1", func(t *testing.T) { replayCoreModeN1(t, previous, test.invoke, test.exit, document, want, register) })
+				// Keep N-1 exceptions independent of the enclosing test's name.
+				caseKey := "TestCoreVerbsEmitTheFrozenProfiles/" + strings.ReplaceAll(test.name, " ", "_")
+				t.Run("N-1", func(t *testing.T) {
+					replayCoreModeN1(t, caseKey, previous, test.invoke, test.exit, document, want, register)
+				})
 			}
 		})
 	}
@@ -304,13 +308,13 @@ var coreN1WithoutFull = map[string]bool{
 // and keep the identifiers; every member it emits must still be emitted here with the same JSON type;
 // and every value it writes at a registered path must be in this register, so no registered value
 // was removed or renamed.
-func replayCoreModeN1(t *testing.T, binary string, invoke func(*testing.T) []string, exit int, current, want map[string]any, register *coreEnumerationObserver) {
-	if reason, skipped := coreN1Skips[strings.TrimSuffix(t.Name(), "/N-1")]; skipped {
+func replayCoreModeN1(t *testing.T, caseKey, binary string, invoke func(*testing.T) []string, exit int, current, want map[string]any, register *coreEnumerationObserver) {
+	if reason, skipped := coreN1Skips[caseKey]; skipped {
 		t.Skip(reason)
 	}
 	var stdout, stderr bytes.Buffer
 	arguments := invoke(t)
-	if coreN1WithoutFull[strings.TrimSuffix(t.Name(), "/N-1")] {
+	if coreN1WithoutFull[caseKey] {
 		arguments = slices.DeleteFunc(arguments, func(argument string) bool { return argument == "--full" })
 	}
 	command := exec.Command(binary, arguments...)
@@ -668,8 +672,8 @@ func checkPromisorObjectRefusals(t *testing.T) {
 		}
 	}
 	lazyRead := func(environment ...string) {
-		command := exec.Command("git", "-C", full, "cat-file", "-p", baseBlob[0])
-		command.Env = append(os.Environ(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
+		command := fixtureGitCommand("-C", full, "cat-file", "-p", baseBlob[0])
+		command.Env = append(fixtureGitEnvironment(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
 		_ = command.Run()
 	}
 	if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {

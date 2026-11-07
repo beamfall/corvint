@@ -1,0 +1,62 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-web-flows",
+  "helpJson": "corvint-web-flows help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-web-flows"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-web-flows",
+      "summary": "usage: corvint-web-flows --experimental --trusted-local --manifest FILE --assets DIR [--root DIR] [--observe]\n                         [--flows DIR] [--navigation FILE] [--execution FILE] [--fixtures FILE] [--max-effect EFFECT]\nRun the experimental web-flows profile over a committed intent manifest; --observe opts into starting the\nowned local server and browser.\nExample: corvint-web-flows --experimental --trusted-local --manifest flows.json --assets ~/.local/share/corvint/web-flows\n--assets: installed tools/web-flows directory\n--execution: committed experimental execution input\n--experimental: enable the proposed experimental profile\n--fixtures: private fixture ID to value JSON\n--flows: committed navigation flows directory\n--manifest: tracked relative intent JSON path\n--max-effect: independent maximum effect grant\n--navigation: native evidence-free navigation packet\n--observe: explicitly start owned local server and browser\n--root: Git application root\n--timeout: execution deadline, at most five minutes\n--trusted-local: server and runtime are trusted local code",
+      "usage": [
+        "corvint-web-flows --experimental --trusted-local --manifest FILE --assets DIR [--root DIR] [--observe] [--flows DIR] [--navigation FILE] [--execution FILE] [--fixtures FILE] [--max-effect EFFECT] [--timeout VALUE] [--version]"
+      ],
+      "flags": [
+        "--assets",
+        "--execution",
+        "--experimental",
+        "--fixtures",
+        "--flows",
+        "--manifest",
+        "--max-effect",
+        "--navigation",
+        "--observe",
+        "--root",
+        "--timeout",
+        "--trusted-local",
+        "--version"
+      ],
+      "required": [
+        "--experimental",
+        "--trusted-local",
+        "--manifest FILE",
+        "--assets DIR"
+      ],
+      "example": "corvint-web-flows --experimental --trusted-local --manifest FILE --assets DIR",
+      "help": "corvint-web-flows --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-web-flows help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-web-flows help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-web-flows help --json",
+      "help": "corvint-web-flows help --help"
+    }
+  ]
+}

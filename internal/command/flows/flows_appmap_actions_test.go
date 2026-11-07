@@ -3,7 +3,6 @@ package flows
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -36,8 +35,8 @@ func railsCLIRepo(t *testing.T, create bool) (string, string) {
 		}
 	}
 	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "fixture"}} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir, cmd.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+		cmd := fixtureGitCommand(args...)
+		cmd.Dir, cmd.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 		if b, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, b)
 		}
@@ -55,7 +54,7 @@ func railsCLIRepo(t *testing.T, create bool) (string, string) {
 
 func assertCleanRepo(t *testing.T, root string) {
 	t.Helper()
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	if status, err := cmd.Output(); err != nil || len(status) != 0 {
 		t.Fatalf("mutated repo: %s %v", status, err)

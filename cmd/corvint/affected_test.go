@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -93,7 +92,7 @@ func affectedFixtureRepository(t *testing.T) string {
 
 func affectedGit(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", arguments...)
+	command := fixtureGitCommand(arguments...)
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err != nil {

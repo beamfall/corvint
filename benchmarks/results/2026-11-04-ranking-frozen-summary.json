@@ -1,0 +1,293 @@
+{
+  "profile": "ranking-lane-frozen-evaluation/1",
+  "base": "39c03198086681fb24f509fbd00b34696d3268c4",
+  "command": "retrieval-bench --data-root /home/russell/bench/arb-v2-8c73d331/data --samples benchmark/v2_SUBSET/SUBSET.jsonl --corpus corpus/v2_SUBSET --corvint BINARY --arms context --limit 20",
+  "gate": "CRK-V0-008: no recall@20 loss on any subset; additive remains opt-in; diagnostic recall@5/10 and MRR losses retained",
+  "subsets": {
+    "code2test": {
+      "base": {
+        "n": 106,
+        "metrics": {
+          "recall@5": 0.327044,
+          "recall@10": 0.435849,
+          "recall@20": 0.521069,
+          "mrr@k": 0.222308
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "d4b28f4e96024ae8bcfdb300053c30365979ea94cccce63376a38e0481e7a2f7",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4)"
+        },
+        "samplesSha256": "712b2699d3f963c2f940688ae5248304263c4ecda1b3831b2801c95712a50b85",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 1,
+        "reportSha256": "fd827738b8175f996be8e994c99647fc98dc2ab03267e2e8d2f67ad85192ee5b"
+      },
+      "default": {
+        "n": 106,
+        "metrics": {
+          "recall@5": 0.327044,
+          "recall@10": 0.435849,
+          "recall@20": 0.521069,
+          "mrr@k": 0.222308
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "712b2699d3f963c2f940688ae5248304263c4ecda1b3831b2801c95712a50b85",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 4,
+        "reportSha256": "9c89e5476607e0e66396cef826c72024530db792ea5a9021335c97ca37b18955"
+      },
+      "additive": {
+        "n": 106,
+        "metrics": {
+          "recall@5": 0.267296,
+          "recall@10": 0.413836,
+          "recall@20": 0.521069,
+          "mrr@k": 0.148629
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "712b2699d3f963c2f940688ae5248304263c4ecda1b3831b2801c95712a50b85",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [
+          "CORVINT_CONTEXT_ADDITIVE=on"
+        ],
+        "jobs": 4,
+        "reportSha256": "eb0050180816d31cf1f450aeaa720b5575043324000249109df4bc22857c6d81"
+      },
+      "defaultRankChanges": 0,
+      "additiveMembershipChanges": 0,
+      "additiveRecall20Losses": 0
+    },
+    "comment2context": {
+      "base": {
+        "n": 80,
+        "metrics": {
+          "recall@5": 0.264583,
+          "recall@10": 0.370833,
+          "recall@20": 0.504167,
+          "mrr@k": 0.251594
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "d4b28f4e96024ae8bcfdb300053c30365979ea94cccce63376a38e0481e7a2f7",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4)"
+        },
+        "samplesSha256": "543267024f7f06127c50664a3a1b8825d3c213e4b12dbbfabf9a3346902ad796",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 1,
+        "reportSha256": "2b7a45fbf9f904fcdc4cfa6ae764d13ccbec7936cc672a87503f7b077f5762de"
+      },
+      "default": {
+        "n": 80,
+        "metrics": {
+          "recall@5": 0.264583,
+          "recall@10": 0.370833,
+          "recall@20": 0.504167,
+          "mrr@k": 0.251594
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "543267024f7f06127c50664a3a1b8825d3c213e4b12dbbfabf9a3346902ad796",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 4,
+        "reportSha256": "e7183dd0dbebfda20e280eb1d64aed455fb033e3dc18065881bf91fc50d02ee3"
+      },
+      "additive": {
+        "n": 80,
+        "metrics": {
+          "recall@5": 0.264583,
+          "recall@10": 0.366667,
+          "recall@20": 0.504167,
+          "mrr@k": 0.272958
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "543267024f7f06127c50664a3a1b8825d3c213e4b12dbbfabf9a3346902ad796",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [
+          "CORVINT_CONTEXT_ADDITIVE=on"
+        ],
+        "jobs": 4,
+        "reportSha256": "e815fc9ec21cca230abc848c1e686a87b7af3eae28729a9e59b1055fc7f16e72"
+      },
+      "defaultRankChanges": 0,
+      "additiveMembershipChanges": 0,
+      "additiveRecall20Losses": 0
+    },
+    "edit2ripple": {
+      "base": {
+        "n": 58,
+        "metrics": {
+          "recall@5": 0.41092,
+          "recall@10": 0.563218,
+          "recall@20": 0.656609,
+          "mrr@k": 0.421141
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "d4b28f4e96024ae8bcfdb300053c30365979ea94cccce63376a38e0481e7a2f7",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4)"
+        },
+        "samplesSha256": "31d97ffe815dda8730149880c0159239a986eceb306e5a5df816dfc420717cef",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 1,
+        "reportSha256": "3e65983369bfc48e9f0d41f8e6712d1477a63ba17fa9bbcf9505d4d8d93e4147"
+      },
+      "default": {
+        "n": 58,
+        "metrics": {
+          "recall@5": 0.41092,
+          "recall@10": 0.563218,
+          "recall@20": 0.656609,
+          "mrr@k": 0.421141
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "31d97ffe815dda8730149880c0159239a986eceb306e5a5df816dfc420717cef",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 4,
+        "reportSha256": "1d39a44cd1e0c817343c883c74ce6589d39dc57487cfff087e628a89f2626d1a"
+      },
+      "additive": {
+        "n": 58,
+        "metrics": {
+          "recall@5": 0.510057,
+          "recall@10": 0.573276,
+          "recall@20": 0.656609,
+          "mrr@k": 0.420001
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "31d97ffe815dda8730149880c0159239a986eceb306e5a5df816dfc420717cef",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [
+          "CORVINT_CONTEXT_ADDITIVE=on"
+        ],
+        "jobs": 4,
+        "reportSha256": "1608861e0c5a573dcb22eab533d8380d45a75afe7abb237b6b0b388e0383b413"
+      },
+      "defaultRankChanges": 0,
+      "additiveMembershipChanges": 0,
+      "additiveRecall20Losses": 0
+    },
+    "trace2code": {
+      "base": {
+        "n": 101,
+        "metrics": {
+          "recall@5": 0.445545,
+          "recall@10": 0.516502,
+          "recall@20": 0.764026,
+          "mrr@k": 0.345737
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "d4b28f4e96024ae8bcfdb300053c30365979ea94cccce63376a38e0481e7a2f7",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4)"
+        },
+        "samplesSha256": "9d0ff50155fa4f65c1bbb632abc4f1f11393c50fa7b0a9249e06128b368b6266",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 4,
+        "reportSha256": "a5b10f88e063a7a2f6082c124fd9f2342b5750f20a764dc7ea82616473fdc64a"
+      },
+      "default": {
+        "n": 101,
+        "metrics": {
+          "recall@5": 0.445545,
+          "recall@10": 0.516502,
+          "recall@20": 0.764026,
+          "mrr@k": 0.345737
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "9d0ff50155fa4f65c1bbb632abc4f1f11393c50fa7b0a9249e06128b368b6266",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [],
+        "jobs": 4,
+        "reportSha256": "f7400983e6359be151ba1cca052dc9ae958300fb2ca1aa6fffc5e453ff150931"
+      },
+      "additive": {
+        "n": 101,
+        "metrics": {
+          "recall@5": 0.430693,
+          "recall@10": 0.531353,
+          "recall@20": 0.764026,
+          "mrr@k": 0.289725
+        },
+        "errors": 0,
+        "binary": {
+          "commit": "39c03198086681fb24f509fbd00b34696d3268c4",
+          "sha256": "80f84533228e552298cba2e32871e5feb90533800f4adc199218b95e348eeab4",
+          "version": "Corvint 1.0.0-rc.3.dev (commit 39c03198086681fb24f509fbd00b34696d3268c4, modified)"
+        },
+        "samplesSha256": "9d0ff50155fa4f65c1bbb632abc4f1f11393c50fa7b0a9249e06128b368b6266",
+        "benchSha256": "4bb1bd1da53651bf053c6a3fa731fc2d218f33b50618af93c86784f9a8d2fe4b",
+        "foldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+        "environment": [
+          "CORVINT_CONTEXT_ADDITIVE=on"
+        ],
+        "jobs": 4,
+        "reportSha256": "8f24d9b2c47e9d565947f90c0007b2794e97b93b98305c501d90874f399e7915"
+      },
+      "defaultRankChanges": 0,
+      "additiveMembershipChanges": 0,
+      "additiveRecall20Losses": 0
+    }
+  },
+  "changedGoSources": {
+    "internal/contextindex/context_order.go": "a777fcfb4727aac1c59a55164fc99ec6737d7fc4c3fc9ea74e0df2fa662596bc",
+    "internal/contextindex/taskcontext.go": "8e1aeb7492bb82b56ce15d6dd3b44d9c4f21cf7e4190c9634a4bf7a234c17e25"
+  },
+  "sourceBinding": "The measured head binary was built from the uncommitted implementation, stamped base + modified. Its changed Go-source hashes above match the committed implementation; no claim of a clean-head build is made."
+}

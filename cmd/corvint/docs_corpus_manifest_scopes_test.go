@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,9 +31,9 @@ func manifestScopesRepository(t *testing.T, files int, dirs ...string) (string, 
 			fmt.Fprintf(&stream, "M 100644 inline %s/d%03d/f%05d.md\ndata %d\n%s\n", dir, i/100, i, len(body), body)
 		}
 	}
-	command := exec.Command("git", "fast-import", "--quiet")
+	command := fixtureGitCommand("fast-import", "--quiet")
 	command.Dir, command.Stdin = root, &stream
-	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
+	command.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 	if out, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("fast-import: %v %s", err, out)
 	}

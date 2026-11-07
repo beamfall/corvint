@@ -2,7 +2,6 @@ package flows
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,8 +22,8 @@ func railsTestsRepoCLI(t *testing.T) (app, tests, mapFile, workspaceFile string)
 			}
 		}
 		for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "fixture"}} {
-			cmd := exec.Command("git", args...)
-			cmd.Dir, cmd.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+			cmd := fixtureGitCommand(args...)
+			cmd.Dir, cmd.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 			if b, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("git %v: %v %s", args, err, b)
 			}

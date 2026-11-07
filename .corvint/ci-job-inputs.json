@@ -1,0 +1,35 @@
+{
+  "profile": "corvint-ci-job-inputs/0",
+  "jobs": [
+    {
+      "workflow": ".github/workflows/ci.yml",
+      "job": "go-interop",
+      "paths": ["interop/cem01-go/"]
+    },
+    {
+      "workflow": ".github/workflows/ci.yml",
+      "job": "artifact-integrity",
+      "paths": [
+        "LICENSE",
+        "LICENSE-APACHE-2.0",
+        "LICENSING.md",
+        "Makefile",
+        "PROVENANCE.md",
+        "conformance/release-artifact-v0/",
+        "docs/releases/",
+        "script/go-archive-gate",
+        "vendor/"
+      ],
+      "goPackages": {
+        "packages": ["./cmd/corvint", "./conformance/release-artifact-v0/..."],
+        "platforms": ["darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64", "windows/amd64"]
+      },
+      "exportedTree": true
+    },
+    {
+      "workflow": ".github/workflows/intake-containment.yml",
+      "job": "containment",
+      "goTests": ["./cmd/corvint-intake", "./internal/intake"]
+    }
+  ]
+}

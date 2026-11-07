@@ -27,6 +27,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
 	"io"
 	"os"
 	"os/signal"
@@ -217,6 +218,10 @@ func printSubcommandUsage(w io.Writer, show func()) {
 }
 
 func main() {
+	if code, handled := cliapp.Answer("corvint-js-test-provider", os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+
 	if code, handled := companionHelp().Serve(os.Args[1:], os.Stdout, os.Stderr); handled {
 		os.Exit(code)
 	}

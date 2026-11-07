@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 
@@ -10,7 +12,14 @@ import (
 )
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	streams := &clierror.Streams{Binary: "corvint-go-toolchain-receipt", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-go-toolchain-receipt", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	os.Exit(streams.Status(run(os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 
 func run(arguments []string, output, errors io.Writer) int {

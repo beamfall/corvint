@@ -1,0 +1,49 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-remote-provider",
+  "helpJson": "corvint-remote-provider help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-remote-provider"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-remote-provider",
+      "summary": "usage: corvint-remote-provider --allow-network --config FILE",
+      "usage": [
+        "corvint-remote-provider --allow-network --config FILE"
+      ],
+      "flags": [
+        "--allow-network",
+        "--config"
+      ],
+      "required": [
+        "--allow-network",
+        "--config FILE"
+      ],
+      "example": "corvint-remote-provider --allow-network --config FILE",
+      "help": "corvint-remote-provider --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-remote-provider help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-remote-provider help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-remote-provider help --json",
+      "help": "corvint-remote-provider help --help"
+    }
+  ]
+}

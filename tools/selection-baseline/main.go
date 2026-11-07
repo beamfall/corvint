@@ -208,6 +208,17 @@ type results struct {
 }
 
 func main() {
+	// Internal Make preflight: no replay binaries are needed to decide the diff.
+	// An empty value uses the CI event base; missing/unknown evidence runs fully.
+	if base, ok := os.LookupEnv("SELECTION_BASELINE_INPUTS_BASE"); ok {
+		run, reason := inputDecision(context.Background(), ".", base)
+		if run {
+			fmt.Println("run " + reason)
+		} else {
+			fmt.Println("skip " + reason)
+		}
+		return
+	}
 	root := flag.String("root", ".", "repository whose history holds every change")
 	changesFile := flag.String("changes", "benchmarks/selection-baseline/changes.json", "fixed change set")
 	corvint := flag.String("corvint", "", "corvint binary under measure")
@@ -413,11 +424,16 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 }
 
 // replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the larger of the CPU
-// count at most 4 and a third of the CPUs at most 8, and at most n (at most eight, DTL-V0-006). A
-// 4-CPU hosted runner needs all 4: one worker there overruns the doc-gates job bound (ASD-V0-925);
-// a 12-CPU host keeps 4 and the 32-CPU lane host gets 8 (ASC-V0-777).
+// count at most 4 and a third of the CPUs at most 8, memory bounded, and at most n (at most eight,
+// DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the doc-gates job bound
+// (ASD-V0-925); a 12-CPU host keeps 4 and the 32-CPU lane host gets 8 (ASC-V0-777).
 func replayJobs(n int) int {
-	return defaultReplayJobs(n, runtime.NumCPU(), os.Getenv("SELECTION_BASELINE_JOBS"))
+	override := os.Getenv("SELECTION_BASELINE_JOBS")
+	jobs := defaultReplayJobs(n, runtime.NumCPU(), override)
+	if v, err := strconv.Atoi(override); err != nil || v <= 0 {
+		jobs = max(1, min(jobs, memoryJobs()))
+	}
+	return jobs
 }
 
 func defaultReplayJobs(n, cpus int, override string) int {
