@@ -50,6 +50,14 @@ merge=$(git rev-parse HEAD)
 [[ $("$script") == "$main" ]] || fail "$LINENO"
 [[ $("$script" --paths) == shared.txt ]] || fail "$LINENO"
 [[ $("$script" "$merge") == "$main" ]] || fail "$LINENO"
+# A failing git show --remerge-diff is refused, not printed as a merge with no conflicted path.
+mkdir "$root/shim"
+printf '#!/bin/sh\n[ "$1" != show ] || { echo "fatal: injected show failure" >&2; exit 128; }\nexec '"'%s'"' "$@"\n' "$(command -v git)" > "$root/shim/git"
+chmod +x "$root/shim/git"
+status=0
+PATH="$root/shim:$PATH" "$script" --paths > "$root/out" 2> "$root/err" || status=$?
+((status == 2)) && [[ ! -s $root/out ]] && grep -q '^dogfood-merge-base: REFUSE remerge-diff-failed$' "$root/err" &&
+  grep -q 'exited 128' "$root/err" || fail "$LINENO"
 # A later bind or seal commit (one parent) does not move the BASE.
 printf 'bind\n' > bind.txt
 git add bind.txt

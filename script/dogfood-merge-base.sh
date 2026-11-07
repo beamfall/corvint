@@ -12,6 +12,7 @@
 # It refuses, exit 2, when there is no merge, the merge does not have exactly two parents, the
 # merge is not in HEAD, or the merged parent is not on the mainline (DOGFOOD_MAINLINE_REF, default
 # origin/main): a merged lane branch is not mainline, so its commits still need a binding of their own.
+# With --paths it also refuses when `git show --remerge-diff` itself fails.
 set -eu
 export LC_ALL=C
 
@@ -51,7 +52,11 @@ git merge-base --is-ancestor "$base" "$mainline" ||
   refuse merged-parent-not-mainline "$merge merged $base, which is not on $mainline; a merged lane branch is not mainline, so bind from the lane's original BASE (docs/DOGFOOD.md \"Check a merge batch of sealed changes\")"
 
 if [ "$paths" = 1 ]; then
-  git show --remerge-diff --format= --name-only "$merge" | sort -u
+  # POSIX sh has no pipefail, so Git's status is taken before the sort: a failed remerge-diff is
+  # refused, never printed as a merge without conflicted paths.
+  listed=$(git show --remerge-diff --format= --name-only "$merge") ||
+    refuse remerge-diff-failed "git show --remerge-diff $merge exited $?; it needs Git 2.36 or later and every object of the merge, so repair the error above and rerun"
+  [ -z "$listed" ] || printf '%s\n' "$listed" | sort -u
 else
   printf '%s\n' "$base"
 fi
