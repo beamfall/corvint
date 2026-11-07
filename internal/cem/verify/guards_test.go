@@ -247,6 +247,8 @@ func TestTCQV07408ImportedSelectorsDoNotCarryClosure(t *testing.T) {
 
 // TCQ-V0-7408: importer closure must not conflate two packages' exported
 // selectors just because their identifiers have the same spelling.
+// TCQ-V0-7420: a test that calls the changed import directly, not through a
+// helper, stays a candidate; a direct call of the other import does not.
 func TestTCQV07408ImporterNamespace(t *testing.T) {
 	source := []byte(`package q
 import changed "example.test/m/p"
@@ -255,12 +257,39 @@ import "testing"
 func actual() int { return changed.Double(1) }
 func foreign() int { return other.Double(1) }
 func TestActual(t *testing.T) { actual() }
+func TestDirect(t *testing.T) { changed.Double(1) }
 func TestForeign(t *testing.T) { foreign() }
+func TestForeignDirect(t *testing.T) { other.Double(1) }
 `)
 	p := &goPackage{decls: parseDecls("q/q_test.go", source, true)}
 	got := p.testsMentioning(p.growImported("example.test/m/p", map[string]bool{"Double": true}))
-	if !reflect.DeepEqual(got, []string{"TestActual"}) {
-		t.Fatalf("candidates=%v, want only the changed import", got)
+	if !reflect.DeepEqual(got, []string{"TestActual", "TestDirect"}) {
+		t.Fatalf("candidates=%v, want the helper and direct callers of the changed import only", got)
+	}
+}
+
+// TCQ-V0-7420: a base test whose own name is reached stays a candidate by that
+// name alone, not through a parser detail that happens to list a declaration's
+// own name among its references. The declarations below are built by hand with
+// no self-reference: TestSeeded is reached only by name, TestCaller only by
+// what it mentions, and TestUnreached by neither. The parsed own-package path
+// (closure) keeps a direct caller of the changed declaration too.
+func TestTCQV07420ReachedTestNamesStayCandidates(t *testing.T) {
+	p := &goPackage{decls: []goDecl{
+		{file: "q/q_test.go", names: []string{"TestSeeded"}, refs: map[string]bool{"t": true}, test: true},
+		{file: "q/q_test.go", names: []string{"TestCaller"}, refs: map[string]bool{"helper": true}, test: true},
+		{file: "q/q_test.go", names: []string{"TestUnreached"}, refs: map[string]bool{"unrelated": true}, test: true},
+	}}
+	if got := p.testsMentioning(map[string]bool{"TestSeeded": true, "helper": true}); !reflect.DeepEqual(got, []string{"TestCaller", "TestSeeded"}) {
+		t.Fatalf("reached test name dropped: %v", got)
+	}
+	code := []byte("package p\nfunc Double(n int) int { return 2 * n }\nfunc other() {}\n")
+	tests := []byte("package p\nimport \"testing\"\nfunc TestDirect(t *testing.T) { Double(1) }\nfunc TestOther(t *testing.T) { other() }\n")
+	pkg := &goPackage{}
+	pkg.decls = append(pkg.decls, parseDecls("p/p.go", code, false)...)
+	pkg.decls = append(pkg.decls, parseDecls("p/p_test.go", tests, true)...)
+	if got := pkg.candidates("p/p.go", map[int64]bool{2: true}); !reflect.DeepEqual(got, []string{"TestDirect"}) {
+		t.Fatalf("own-package direct caller: %v", got)
 	}
 }
 
