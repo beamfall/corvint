@@ -679,6 +679,31 @@ EOF
   chmod +x "$root/gitbin/git"
   PATH="$root/gitbin:$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
   [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == 3 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  # Review (DWC-V0-757): inputs git status cannot see give no key, as tools/gate-ledger refuses them
+  # (GL-V0-005): an ignored .go file the read-scopes checker's go run would compile, and a tracked
+  # entry flagged assume-unchanged or skip-worktree. An ignored .go file under testdata, which go
+  # ./... never compiles, keeps the key.
+  static_runs() { [[ $(wc -l < "$TEST_STATIC_LOG" | tr -d ' ') == "$1" ]]; }
+  mkdir -p tools/test-read-scopes-check/testdata
+  printf 'ignored.go\n' >> "$(git rev-parse --git-path info/exclude)"
+  printf 'package main\n' > tools/test-read-scopes-check/testdata/ignored.go
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  static_runs 3 && rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  printf 'package main\n' > tools/test-read-scopes-check/ignored.go
+  [[ -z $(git status --porcelain -- . ':(exclude).corvint/change.cem.json') ]] || exit 1
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  static_runs 4&& ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  /bin/rm -rf tools/test-read-scopes-check
+  runs=4
+  for flag in assume-unchanged skip-worktree; do
+    git update-index "--$flag" script/check-requirement-definitions.sh
+    PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+    runs=$((runs + 1))
+    static_runs "$runs" && ! rg -q 'static checks REUSE' "$root/output" || { printf '%s\n' "$flag" >&2; cat "$root/output" >&2; exit 1; }
+    git update-index "--no-$flag" script/check-requirement-definitions.sh
+  done
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  static_runs "$runs" && rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
   # Review: a relative VERIFY given from another directory reaches the early check as the caller's
   # file, not as a path under the repository.
   export TEST_VERIFY_LOG="$root/verify.log"
