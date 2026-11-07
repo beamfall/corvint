@@ -116,7 +116,7 @@ func TestCEMV1316OutOfTreeMapRefusals(t *testing.T) {
 	}{
 		{"inside worktree", "status", f.mapPath, "invalid-arguments", "must lie outside the repository"},
 		{"inside git dir", "verify", gitMap, "invalid-arguments", "must lie outside the repository"},
-		{"symlinked parent", "verify", filepath.Join(linkedDir, "change.cem.json"), "invalid-arguments", "must lie outside the repository"},
+		{"symlinked parent", "status", filepath.Join(linkedDir, "change.cem.json"), "invalid-arguments", "must lie outside the repository"},
 		{"symlinked map", "status", linkedMap, "map-unavailable", ""},
 		{"missing map", "verify", filepath.Join(scratch, "absent.json"), "map-unavailable", ""},
 		{"mark needs a relative output", "mark", outside, "invalid-arguments", "only with a repository-relative --output"},

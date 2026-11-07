@@ -1,0 +1,35 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=a4bc2823c7771c04b21c817666e98e2c70936a5c dirty=36
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestTCXV0977_PreEffectTamperRefused
+--- PASS: TestTCXV0977_PreEffectTamperRefused (2.91s)
+=== RUN   TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering
+--- PASS: TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering (0.85s)
+=== RUN   TestCTWV07100_BatchPublicationFailureCleansStages
+=== RUN   TestCTWV07100_BatchPublicationFailureCleansStages/0
+=== RUN   TestCTWV07100_BatchPublicationFailureCleansStages/1
+=== RUN   TestCTWV07100_BatchPublicationFailureCleansStages/2
+=== RUN   TestCTWV07100_BatchPublicationFailureCleansStages/3
+--- PASS: TestCTWV07100_BatchPublicationFailureCleansStages (2.95s)
+    --- PASS: TestCTWV07100_BatchPublicationFailureCleansStages/0 (0.88s)
+    --- PASS: TestCTWV07100_BatchPublicationFailureCleansStages/1 (0.81s)
+    --- PASS: TestCTWV07100_BatchPublicationFailureCleansStages/2 (0.72s)
+    --- PASS: TestCTWV07100_BatchPublicationFailureCleansStages/3 (0.54s)
+=== RUN   TestCALV0106_ClaimCommitsBetweenChunks
+=== PAUSE TestCALV0106_ClaimCommitsBetweenChunks
+=== RUN   TestCALV0106_UnadmittedOrMalformedBatchWritesNothing
+=== PAUSE TestCALV0106_UnadmittedOrMalformedBatchWritesNothing
+=== RUN   TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes
+=== PAUSE TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes
+=== CONT  TestCALV0106_ClaimCommitsBetweenChunks
+=== CONT  TestCALV0106_UnadmittedOrMalformedBatchWritesNothing
+=== CONT  TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes
+--- PASS: TestCALV0106_UnadmittedOrMalformedBatchWritesNothing (0.42s)
+--- PASS: TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes (1.71s)
+--- PASS: TestCALV0106_ClaimCommitsBetweenChunks (4.80s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/store	12.793s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=53.1s rc=0

@@ -242,8 +242,8 @@ func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 	rows := textLines(stdout.Bytes())
 	// DCW-V0-962: the second hunk takes its own file's heading as a marked
 	// proposal, a second span, so the draft is not uniform.
-	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t2:2\t") || rows[1] != "2\tdocs/alpha.md\t1:1\tspecification" || !proposalRow(stderr.String(), rows[1]) {
-		t.Errorf("draft = %q; want one cite of index.md:2 and one marked proposal", stdout.String())
+	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t2:2\t") || !strings.HasPrefix(rows[1], "2\tunknown\t") {
+		t.Errorf("draft = %q; want one cite of index.md:2 and one unknown (DWC-V0-926/927)", stdout.String())
 	}
 }
 

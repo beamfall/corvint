@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "before",
+    "seconds": 2.874,
+    "gitSpawns": 894,
+    "rc": 0,
+    "load": "3.14 3.16 4.03 4/973 15997",
+    "outputSha256": "5bea36c5d33e79edc3412bf416b9095228cea221a25317e6767742e6cefad456"
+  },
+  {
+    "kind": "after",
+    "seconds": 5.442,
+    "gitSpawns": 429,
+    "rc": 0,
+    "load": "3.14 3.16 4.03 3/969 18149",
+    "outputSha256": "5bea36c5d33e79edc3412bf416b9095228cea221a25317e6767742e6cefad456"
+  }
+]
