@@ -4486,7 +4486,7 @@
     "reqPrefix": "ASD-V0",
     "intent": "per requirement, each experimental under the standing lane auto-accept (2026-11-03)",
     "delivery": "experimental",
-    "claim": "heavy.sh admits new packages, suggests an accepted manifest path and keeps every darwin-only command local; batch-precheck uses the CI allowlist.",
+    "claim": "Lane admission bounds runtime concurrency and admits source edits conservatively while preserving narrow test-only selections.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
