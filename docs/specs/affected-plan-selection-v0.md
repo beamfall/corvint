@@ -876,6 +876,24 @@ one list, so a later class cannot reopen it.
   the operator after it SHALL still end the command, so the next command is scanned, an
   environment-named source there keeps `shell:dynamic-source` (AFP-V0-2953) and a literal source
   keeps its edge.
+- **AFP-V0-3146:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 7, 2026-11-07; amends TSP-V0-960 in `docs/specs/test-selection-precision-v0.md`) A
+  name that a file gives more than 16 values (TSP-V0-960's per-name bound) SHALL be a cut, as the
+  64-value bound is: the expansion stands the unknown part in for every value the file gives, so the
+  unit SHALL set `UnboundedReads` to `shell:dynamic-source` (a non-test unit also `LocatesRoot`)
+  rather than read the unknown part as an environment input. A test that runs `"$dir/check"` from
+  `for dir in a b c d e f g h i j k l m n o p script` beside an owned extensionless `script/check`
+  (AFP-V0-3144) SHALL then be selected by an edit of `script/check` and by an edit any dynamic
+  source `script/check` holds may read, such as a configuration file it sources through
+  `. "$ENVFILE"`. A name given 16 values or fewer is expanded and links its values as before.
+- **AFP-V0-3147:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 7, 2026-11-07; amends TSP-V0-960) Every other bound of that expansion that drops values
+  the file gives SHALL be a cut in the same way: depth 4 reached through a variable chain, a nested
+  `-`, `:-`, `=` or `:=` default, or a `+` or `:+` alternative, and the per-name or 64-value bound
+  reached while expanding a command string held in a variable (`sh -c "$cmd"`), whose dropped strings
+  may run scripts. An unknown part that drops nothing the file gives (a name the file never sets, a
+  positional or special parameter, a command substitution, an operator the model does not follow, an
+  empty `:+` alternative) is no cut and keeps TSP-V0-960's treatment.
 
 ### Live test tier (V1-4815)
 
@@ -1074,7 +1092,10 @@ its runners, just as AFP-V0-021 does not select such a reader's importers. The r
 that only an enclosed path reaches stay one edge past it (AFP-V0-037), as its importers stay
 unwalked.
 AFP-V0-3144 does not link a computed target whose file name is a glob (`"$dir"/chec?`): as under
-TSP-V0-960, such a value is neither an edge nor a constructed name. AFP-V0-3145 does not recognise `[[` after `time -p` or
+TSP-V0-960, such a value is neither an edge nor a constructed name. AFP-V0-3146 and AFP-V0-3147 do
+not model an environment input: a value whose unknown part is a name the file never sets
+(`"$TOOLS/check"`) stays outside the model as TSP-V0-960 and failure mode (12) there state, because no
+bound dropped a value the file gives. AFP-V0-3145 does not recognise `[[` after `time -p` or
 `coproc`; the lexer splits such an expression at its operators and scans the pieces as commands. No
 repository script uses either form.
 
@@ -1142,6 +1163,12 @@ had AFP-V0-3145's `[[` been taken as a test anywhere in a command, an argument `
 next command, and an environment-named source there would lose its `shell:dynamic-source`. Each
 has a fault-injection test. AFP-V0-3144 scans the shell units' paths once for each target it would
 skip, which is linear in the shell file count and bounded by the targets a file holds.
+Had AFP-V0-3146 and AFP-V0-3147 left a per-name or depth bound silent, its unknown part would read as
+an environment input: a value naming an owned extensionless script would be dropped with no edge and
+no `shell:dynamic-source`, and an edit of that script, or of anything a dynamic source it holds may
+read, would miss the caller's tests. A file that legitimately gives a name more than 16 values now
+selects its tests on every change; its precision cost is visible as an `UNBOUNDED_READER` witness
+and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 ## Acceptance evidence and traceability
 
@@ -1208,6 +1235,8 @@ skip, which is linear in the shell file count and bounded by the targets a file 
 | AFP-V0-3142 | `traversalEdges` and the class constants in `internal/liveverify/affected/select.go`; their use in `traverseWhere`, `reachedThrough` and `follows` | `TestReachedThroughCoversEveryTraversalClass_AFPV03142` in `internal/liveverify/affected/additive_classes_test.go` (one injected edge per listed class demotes the record; it fails for the code-run class when `reachedThrough` drops it) |
 | AFP-V0-3143 | the `codeRunners` edges of `reach` (`internal/gateselect/readers.go`) and the code-runner start of `attributeNarrowed` (`internal/gateselect/select.go`) | `TestNarrowedRunnerFollowsTheChangedCommand_AFPV03143`, `TestNarrowedRunnerKeepsItsNarrowing_AFPV03143` and `TestNarrowedCommandKeepsItsRunners_AFPV03143` in `internal/gateselect/additive_runner_parity_test.go` (the structural verdict holds the planner's narrowed selection; the declared case and the narrowed command each fail without their mechanism); `TestReachMatchesThePlannerGraph_V12727` and `TestSelectStructuralHonorsAdditiveNarrowing_ADNV0006` (unchanged) |
 | AFP-V0-3144 | the shortcut and `ownedExtensionless` in `internal/liveverify/affected/shell/computed.go` | `TestComputedTargetKeepsOwnedExtensionlessScripts_AFPV03144` in `internal/liveverify/affected/shell/computed_extensionless_test.go` (a loop over `script` and a file-relative value link `script/check`, its edit selects the test that runs it and not another script's, a cut list naming `check` is a dynamic source; `go` and `check.py` stay bounded, and fail when the shortcut is deleted); the before/after plans in build log `2026-11-07-unbrd-fix6` |
+| AFP-V0-3146 | `named` and `truncated` in `internal/liveverify/affected/shell/computed.go`; the `computed` closure of `observe` (`internal/liveverify/affected/shell/shell.go`) | `TestPerVariableBoundKeepsTheCallerSelected_AFPV03146` in `internal/liveverify/affected/shell/computed_bounds_test.go` (the review's reproducer: a 17-word loop running `"$dir/check"` beside a `script/check` that sources `"$ENVFILE"` is `shell:dynamic-source`, and edits of `config/settings.env` and of `script/check` select the wrapper test; it fails at `aa16cbf1a`); the 16-value control in `TestEveryExpansionBoundIsACut_AFPV03147` |
+| AFP-V0-3147 | `truncated` at the depth bounds of `braced` and `named` in `computed.go`; `commandStrings` and its use in `observe` (`shell.go`) | `TestEveryExpansionBoundIsACut_AFPV03147` in `computed_bounds_test.go` (17 plain and braced assignments, a five-name chain, a five-deep default, a five-deep `:+` alternative and a 17-valued `sh -c "$cmd"` each make the test `shell:dynamic-source`, and each fails at `aa16cbf1a`; an environment-input directory stays bounded, and a 16-value loop links `script/check` with no unbounded witness); build log `2026-11-07-unbrd-fix7` |
 | AFP-V0-3145 | `openTest` and `testLeaders` in `internal/liveverify/affected/shell/lex.go` | `TestConditionalOpensOnlyInCommandPosition_AFPV03145` in `internal/liveverify/affected/shell/conditional_position_test.go` (an argument `[[` before `&&`, `||` or `\|` keeps the next source; the test after every leader keeps its operators, and fails without the leaders); `TestCasePatternsAndConditionalsAreNotCommands_NSAV0008_NSAV0009` (unchanged) |
 
 | AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |
@@ -1270,6 +1299,9 @@ class from `reachedThrough`, and drop `codeRunners` from the CI selector's `reac
 package's code runs, and `corvint test` misses that package's importers.
 For AFP-V0-3144 and AFP-V0-3145, revert the review-fix-6 commit: the shortcut again skips every
 literal non-shell file name, and any `[[` in a command again opens a test; delete the two tests.
+For AFP-V0-3146 and AFP-V0-3147, revert the review-fix-7 commit: `named`, `braced` and
+`commandStrings` again return the unknown part at their per-name and depth bounds without the cut,
+so a value they drop is read as an environment input; delete `computed_bounds_test.go`.
 For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, the three
 `internal/testsupport/livetier*.go` files, `.github/cishards/live.go`, `tools/live-test-run`, the
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
