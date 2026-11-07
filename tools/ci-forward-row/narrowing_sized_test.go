@@ -113,6 +113,66 @@ func TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724(t *testing.T) {
 	})
 }
 
+// TestAFPV02724ShardPlanOverlapsDocsPlan: the shard-plan job needs only narrowing-verdict and reads
+// no docs-plan output, so its checkout, builds and narrowing run beside docs-plan instead of after
+// it. That is safe only while every job that reads its outputs skips or ignores them on a DOCS or
+// REUSE decision: go-product-shard does not start, ci-narrowed-tree-record does not run, and
+// go-product reads SHARDS only in the coverage branch that DOCS and REUSE never reach.
+func TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724(t *testing.T) {
+	plan := workflowJob(t, "shard-plan")
+	needs := ""
+	if m := regexp.MustCompile(`(?m)^    needs: (.*)$`).FindStringSubmatch(plan); m != nil {
+		needs = m[1]
+	}
+	if needs != "[narrowing-verdict]" {
+		t.Fatalf("shard-plan needs %q, want [narrowing-verdict] alone so it runs beside docs-plan", needs)
+	}
+	if strings.Contains(plan, "needs.docs-plan") {
+		t.Fatal("shard-plan reads a docs-plan output, which it cannot without waiting for docs-plan")
+	}
+	data, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, jobs, ok := strings.Cut(string(data), "\njobs:\n")
+	if !ok {
+		t.Fatal("ci.yml has no jobs: section")
+	}
+	var readers []string
+	for _, m := range regexp.MustCompile(`(?m)^  ([a-zA-Z][a-zA-Z0-9_-]*):\n`).FindAllStringSubmatch(jobs, -1) {
+		if m[1] != "shard-plan" && strings.Contains(workflowJob(t, m[1]), "needs.shard-plan.outputs") {
+			readers = append(readers, m[1])
+		}
+	}
+	if got := strings.Join(readers, " "); got != "go-product-shard ci-narrowed-tree-record go-product" {
+		t.Fatalf("the jobs that read shard-plan's outputs are %q; a new reader must ignore them on DOCS and REUSE, and this test must say how", got)
+	}
+	ifLine := func(job string) string {
+		m := regexp.MustCompile(`(?m)^    if: (.*)$`).FindStringSubmatch(workflowJob(t, job))
+		if m == nil {
+			t.Fatalf("%s has no job-level if:", job)
+		}
+		return m[1]
+	}
+	if s := ifLine("go-product-shard"); !strings.Contains(s, "!(needs.docs-plan.result == 'success' && (needs.docs-plan.outputs.mode == 'DOCS' || needs.docs-plan.outputs.mode == 'REUSE'))") {
+		t.Fatalf("go-product-shard must not start on a passed DOCS or REUSE decision: %s", s)
+	}
+	if s := ifLine("ci-narrowed-tree-record"); !strings.Contains(s, "needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'") {
+		t.Fatalf("ci-narrowed-tree-record must not run on a DOCS or REUSE decision: %s", s)
+	}
+	product := workflowJob(t, "go-product")
+	branch := strings.Index(product, "if [ \"$DOCS_MODE\" = DOCS ] || [ \"$DOCS_MODE\" = REUSE ]; then\n              echo \"AFP-V0-591: no shard ran a tests step")
+	uses := regexp.MustCompile(`\$\{?SHARDS\}?\b`).FindAllStringIndex(product, -1)
+	if branch < 0 || len(uses) == 0 {
+		t.Fatalf("go-product's DOCS/REUSE coverage branch (%d) or its SHARDS use (%d) is missing", branch, len(uses))
+	}
+	for _, u := range uses {
+		if u[0] < branch {
+			t.Fatalf("go-product reads SHARDS before its DOCS/REUSE coverage branch: %q", product[u[0]:u[1]+40])
+		}
+	}
+}
+
 // TestAFPV02725RowsAcceptTheSelectionRunsShardCount: a queue row whose pull-request selection
 // run sized its matrix to four shards is a complete row (its four narrowing records and four
 // selection documents cover 0..3 and its outcomes come from the eight-shard queue run), a
