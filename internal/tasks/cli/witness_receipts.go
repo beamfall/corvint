@@ -36,7 +36,7 @@ func receiptPut(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	raw, err := readPutFile(args[0])
+	raw, err := readPutFile(commandPath(env.Cwd, args[0]))
 	if err != nil {
 		return failure(cmd, nil, err)
 	}

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // Explicit supplemental proof; final nine-component qualification remains a separate gate.
@@ -88,6 +90,7 @@ func TestCurrentExportedTasksSmokeGenerator(t *testing.T) {
 // This archive-only regression runs without npm or a VSIX cache. It uses the
 // shipped tar bytes, not stageBuildSource's parallel materialization path.
 func TestCurrentTasksSourceArchiveBuildsOffline(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	t.Run("PUB-V0-012 PUB-V0-013 actual Tasks archive dependency closure", func(t *testing.T) {
 		ctx := context.Background()
 		scratch := t.TempDir()

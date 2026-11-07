@@ -47,8 +47,11 @@ func TestAdapterHelper(t *testing.T) {
 		if child.Start() != nil {
 			os.Exit(12)
 		}
-		if os.WriteFile(args[index+2], []byte(strconv.Itoa(child.Process.Pid)), 0600) != nil {
+		if os.WriteFile(args[index+2]+".tmp", []byte(strconv.Itoa(child.Process.Pid)), 0600) != nil {
 			os.Exit(13)
+		}
+		if os.Rename(args[index+2]+".tmp", args[index+2]) != nil {
+			os.Exit(14)
 		}
 		time.Sleep(30 * time.Second)
 		os.Exit(0)

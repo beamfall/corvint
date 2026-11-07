@@ -1764,12 +1764,14 @@ Verification options:
                        you trust. status and report refuse it.
 
 Map paths:
-  status, verify and report read --map MAP repository-relative, or as an
+  status and report read --map MAP repository-relative, or as an
   absolute path outside the repository and its Git directories (for example an
   assembled or exported bundle's map); an absolute path inside them is refused,
   so name it repository-relative. The map binds the repository by object IDs;
   the read is bounded, a symlinked map is refused, and only report writes (its
-  review file, never over the map). verify-stable reads its --map at any path;
+  review file, never over the map). verify also accepts an absolute in-repository
+  map. verify-stable accepts either form, resolving a relative --map against
+  --repository (CEM-V1-7400);
   prove --cem and --verify-cem-attestation --cem read MAP the same way, naming
   an out-of-tree map external:<sha256 of its bytes> in both statements, never
   its host path (CEM-V1-641). cite, mark, cover and discriminate read an
@@ -2183,6 +2185,12 @@ verifiers run as this executable unless an option names another one; this binary
 never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
 DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings.
+For seal, DOGFOOD_REVIEW=FILE attaches an external report (at most 1 MiB) with
+one header: dogfood-review: reviewed-head=FULL_SHA verdict=PASS. It must name
+exact pre-seal HEAD; a malformed, nonpassing or different-head report refuses.
+The seal records its path, digest, verdict and head; absent review stays
+NOT_OBSERVED. Example: DOGFOOD_REVIEW=/tmp/review.txt corvint dogfood seal BASE.
+Existing pinned reviewer output also works with metadata-only descendants.
 DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST[,...] lets the plan replace the earlier
 citations of each named, already cited hunk, and only those; the digest is the one
 the citation-plan-recites-cited-hunk fix line prints, so a stale one cites
@@ -2220,14 +2228,16 @@ batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and
 re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 
-propose-citations is read-only. It prints, on stdout, a draft citation plan with
-one row per hunk of .corvint/change.cem.json still owed a row: a BASE line of a
-file the change leaves untouched that names the hunk's path, or an unknown row; it
-never cites a file the change adds or modifies (DCW-V0-393), and an unknown row for
-a hunk of a modified file names its nearest stable line as a review hint only
-(DCW-V0-439). JSON, .agent-evidence/ and one-line files are never drafted, and a
-hunk naming a requirement the same change adds stays unknown with that ID, since
-same-change intent is not BASE evidence (DCW-V0-440). With no usable map
+propose-citations is read-only. It prints, on stdout, one draft citation row per
+owed hunk: a stable BASE span naming the hunk path, its basename of at least 6
+bytes, or defining an ID the hunk adds or names (DWC-V0-926). Same-file nearest
+stable lines remain marked proposals; seal and repin rows cite their contracts.
+Bare Markdown headings and unsupported cross-file guesses are never drafted (DWC-V0-927).
+For spec amendments, prefer the stable governing BASE definition, including a
+continuation without its ID. Unanchored same-file proposals are marked; rewritten
+definitions remain governing-ID review notes (DWC-V0-928). JSON, .agent-evidence/ and one-line files are never drafted.
+Same-change intent is not BASE evidence (DCW-V0-440); a refined BASE requirement
+can be proposed only when its span also anchors this hunk. With no usable map
 (missing, unreadable or for another BASE) it drafts one row per hunk of the
 canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
 (DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write

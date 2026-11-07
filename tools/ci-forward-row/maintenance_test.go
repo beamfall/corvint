@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,8 +32,9 @@ func TestCINV07501PermissionsArePremerge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := regexp.MustCompile(`(?m)^DOC_GATE_TARGETS := (.*)$`).FindStringSubmatch(string(b))
-	if m == nil || !strings.Contains(" "+m[1]+" ", " ci-least-privilege-check ") {
+	// SRG-V0-982: the list is a continuation, one target per line.
+	m := regexp.MustCompile(`(?m)^DOC_GATE_TARGETS := ((?:.*\\\n)*.*)$`).FindStringSubmatch(string(b))
+	if m == nil || !slices.Contains(strings.Fields(strings.ReplaceAll(m[1], "\\", " ")), "ci-least-privilege-check") {
 		t.Fatal("permission check is absent from the shared PR gates")
 	}
 }
@@ -152,9 +154,22 @@ func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 		{"success", "true", "success", true}, {"success", "true", "failure", false}, {"success", "true", "skipped", false}, {"success", "false", "skipped", true}, {"failure", "false", "skipped", false},
 	} {
 		cmd := exec.Command("sh", "-ec", guard[1])
-		cmd.Env = append(os.Environ(), "HOST_RESULT="+tc.host, "WEB_PLAN_RESULT=success", "WEB_REQUIRED="+tc.required, "WEB_RESULT="+tc.result)
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME=pull_request", "LIVE_RESULT=skipped", "HOST_RESULT="+tc.host, "WEB_PLAN_RESULT=success", "WEB_REQUIRED="+tc.required, "WEB_RESULT="+tc.result)
 		if err := cmd.Run(); (err == nil) != tc.pass {
 			t.Fatalf("required result %+v: %v", tc, err)
+		}
+	}
+	// AFP-V0-2702: go-live runs only in the merge queue; there it must pass, elsewhere it must skip.
+	for _, tc := range []struct {
+		event, live string
+		pass        bool
+	}{
+		{"merge_group", "success", true}, {"merge_group", "failure", false}, {"merge_group", "skipped", false}, {"pull_request", "success", false},
+	} {
+		cmd := exec.Command("sh", "-ec", guard[1])
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+tc.event, "LIVE_RESULT="+tc.live, "HOST_RESULT=success", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped")
+		if err := cmd.Run(); (err == nil) != tc.pass {
+			t.Fatalf("go-live result %+v: %v", tc, err)
 		}
 	}
 

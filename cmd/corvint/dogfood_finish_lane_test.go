@@ -74,7 +74,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	if err := os.Remove(filepath.Join(manual, ".corvint/change.cem.json")); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 1 || !strings.HasSuffix(stderr, "  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change "+base+"\n  full report: "+manual+"/.corvint/dogfood-report.json\n") {
+	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 3 || !strings.HasSuffix(stderr, "  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change "+base+"\n  full report: "+manual+"/.corvint/dogfood-report.json\n") {
 		t.Fatalf("pass 1 exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, manual, "add", ".corvint/change.cem.json")
@@ -87,7 +87,8 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	}
 
 	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
-	if code != 0 || dropGuardingNote(dropFinishLaneTiming(stderr)) != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
+	// DWC-V0-046: a seal with no DOGFOOD_REVIEW names its unobserved review.
+	if code != 0 || dropGuardingNote(dropFinishLaneTiming(stderr)) != absentAgentReceipts+"dogfood-seal: NOTE review-before-seal NOT_OBSERVED (set DOGFOOD_REVIEW to a saved head-bound report)\n"+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
 		t.Fatalf("finish-lane exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	// ASD-V0-907 and DCW-V0-908: a sealed run names its dogfood-change count
@@ -115,6 +116,8 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 		"  bind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"  rebind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review change-requirements=1 change-traced=1 change-untraced=0 report=.corvint/dogfood-report.json detail=" + detail + "\n" +
+		// DCW-V0-7402: a declared intent adds the count-universe note.
+		countUniverseNote + "\n" +
 		"dogfood-check: PASS\n" +
 		"dogfood-seal: PASS sealed=.corvint/changes/" + bind + ".cem.json\n"
 	if stdout != want {
@@ -281,7 +284,7 @@ func TestDogfoodFinishLaneDCWV0061ContinuesFromBindCommit(t *testing.T) {
 	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
 	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
-	if code, _, stderr := run.exec(t, root, env, "dogfood", "change", base); code != 1 {
+	if code, _, stderr := run.exec(t, root, env, "dogfood", "change", base); code != 3 {
 		t.Fatalf("bind exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
@@ -449,3 +452,7 @@ func TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare(t *testing.T) {
 		}
 	}
 }
+
+// countUniverseNote is the DCW-V0-7402 line dogfood check prints after the
+// SUMMARY of a change with declared intents (internal/dogfoodflow).
+const countUniverseNote = "dogfood-check: NOTE count-universes: OCM total/linked counts all obligations in the declared intents and explicit CEM links; change-requirements/change-traced counts cited or edited requirements and test/table traces. These counts need not agree."

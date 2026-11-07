@@ -72,7 +72,7 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/order.go .github/cishards/slices.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/order.go .github/cishards/slices.go .github/cishards/size.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
           (cd "$d" && GOENV=off go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd)

@@ -388,7 +388,8 @@
     "internal/dogfoodflow": [
       ".gitignore",
       "docs/DOGFOOD.md",
-      "protocol/cem-1.0/stable/repository-envelope-packet/"
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "script/lane-handback.sh"
     ],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
@@ -508,6 +509,8 @@
     "internal/modelgateway": [],
     "internal/nativelinecov": [],
     "internal/observations": [
+      ".corvint/.gitignore",
+      ".gitignore",
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],

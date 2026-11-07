@@ -245,7 +245,7 @@ func TestDCPV1281AdditionalRepositoryWarmCallsAtScale(t *testing.T) {
 	}
 	slices.Sort(freshness)
 	slices.Sort(total)
-	median, p95 := freshness[len(freshness)/2], total[len(total)*95/100]
+	median, p95 := freshness[len(freshness)/2], warmP95(total)
 	t.Logf("DCP-V1-281 first call %+v; warm freshness_ms sorted %v; warm total_ms sorted %v; p95 %d ms; warm verify_ms in call order %v", first, freshness, total, p95, verify)
 	if median >= 100 || p95 >= int64(time.Second/time.Millisecond) {
 		t.Fatalf("warm freshness median %d ms (bound 100), total p95 %d ms (bound 1000)", median, p95)
@@ -294,9 +294,29 @@ func TestDCRV1846GitFallbackWarmCallsWithinBudget(t *testing.T) {
 	}
 	slices.Sort(freshness)
 	slices.Sort(total)
-	median, p95 := freshness[len(freshness)/2], total[len(total)*95/100]
+	median, p95 := freshness[len(freshness)/2], warmP95(total)
 	t.Logf("DCR-V1-846 first call %+v; warm freshness_ms sorted %v; warm total_ms sorted %v; p95 %d ms; warm verify_ms in call order %v", first, freshness, total, p95, verify)
 	if median >= 100 || p95 >= int64(time.Second/time.Millisecond) {
 		t.Fatalf("Git fallback warm freshness median %d ms (bound 100), total p95 %d ms (bound 1000)", median, p95)
+	}
+}
+
+// warmP95 uses the nearest-rank percentile: at n=20, the 19th sample,
+// so a single isolated scheduler stall is not the entire tail budget.
+func warmP95(sorted []int64) int64 { return sorted[(95*len(sorted)+99)/100-1] }
+
+// DCR-V1-7100: one outlier is tolerated, two are a tail regression.
+func TestDCRV17100_WarmP95KeepsRegressionPower(t *testing.T) {
+	samples := make([]int64, 20)
+	for i := range samples {
+		samples[i] = 100
+	}
+	samples[19] = 1300
+	if got := warmP95(samples); got != 100 {
+		t.Fatalf("one outlier: %d", got)
+	}
+	samples[18] = 1200
+	if got := warmP95(samples); got != 1200 {
+		t.Fatalf("persistent tail hidden: %d", got)
 	}
 }

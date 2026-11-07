@@ -26,7 +26,7 @@ func TestContextToolReturnsBoundPacketWithoutWrites(t *testing.T) {
 		t.Skip("native context is qualified only on Darwin and Linux")
 	}
 	root := makeRepository(t)
-	registry, err := NewTaskReview(root)
+	registry, err := newTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestCEMReportToolPreviewsCLIReportWithoutPublishing(t *testing.T) {
 // wrote nothing, then publishes it through the CLI workflow and compares both.
 func assertPreviewMatchesPublishedReport(t *testing.T, root, base, target string, withArtifacts bool) {
 	t.Helper()
-	registry, err := NewTaskReview(root)
+	registry, err := newTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestCEMReportToolRefusesMapsOutsideTheRoot(t *testing.T) {
 		writeFile(t, filepath.Join(root, "retired-"+spec+".cem.json"), `{"spec":"cem/`+spec+`","baseRevision":"`+base+
 			`","patchSha256":"`+strings.Repeat("0", 64)+`","excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`)
 	}
-	registry, newErr := NewTaskReview(root)
+	registry, newErr := newTaskReview(root)
 	if newErr != nil {
 		t.Fatal(newErr)
 	}
@@ -168,7 +168,7 @@ func TestCEMReportToolRefusesMapsOutsideTheRoot(t *testing.T) {
 // TestNewToolsAbstainOverTheBridgeBudget: both tools inherit the MCPV0-010
 // budget; an oversized receipt is withheld, never truncated.
 func TestNewToolsAbstainOverTheBridgeBudget(t *testing.T) {
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestNewToolsAbstainOverTheBridgeBudget(t *testing.T) {
 // TestCEMReportToolAbstainsWhenTheCheckoutMoves: the binding brackets the
 // CEM read; a probe that disagrees across it abstains instead of binding.
 func TestCEMReportToolAbstainsWhenTheCheckoutMoves(t *testing.T) {
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}

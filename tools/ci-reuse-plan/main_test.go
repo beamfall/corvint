@@ -324,19 +324,38 @@ func TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange(t *testing.T) {
 		event, base string
 		e           evidence
 	}{
-		"a main push":                     {"push", testBase, narrowedEvidence(7, NarrowedRecordJob, good)},
-		"no entry base":                   {"merge_group", "", narrowedEvidence(7, NarrowedRecordJob, good)},
-		"another base":                    {"merge_group", other, narrowedEvidence(7, NarrowedRecordJob, good)},
-		"another tree":                    {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(other, prMerge, testBase, testHead, 4))},
-		"another head":                    {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, other, 4))},
-		"another shard count":             {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, testHead, 8))},
-		"two record lines":                {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, good+good)},
-		"the line in the full job's log":  {"merge_group", testBase, narrowedEvidence(7, RecordJob, good)},
-		"a full line in the narrowed job": {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, recordLog(testTree, prMerge, testHead, 4))},
+		"a main push":   {"push", testBase, narrowedEvidence(7, NarrowedRecordJob, good)},
+		"no entry base": {"merge_group", "", narrowedEvidence(7, NarrowedRecordJob, good)},
+		"another base":  {"merge_group", other, narrowedEvidence(7, NarrowedRecordJob, good)},
+		"another tree":  {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(other, prMerge, testBase, testHead, 4))},
+		"another head":  {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, other, 4))},
+		// AFP-V0-2725: a narrowed record may name any count, but only one whose every shard job passed.
+		"a shard count without its shard jobs": {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, testHead, 8))},
+		"two record lines":                     {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, good+good)},
+		"the line in the full job's log":       {"merge_group", testBase, narrowedEvidence(7, RecordJob, good)},
+		"a full line in the narrowed job":      {"merge_group", testBase, narrowedEvidence(7, NarrowedRecordJob, recordLog(testTree, prMerge, testHead, 4))},
 	} {
 		if d := decideBase(tc.event, tc.base, tc.e); d.Mode != "FULL" {
 			t.Errorf("%s: decision = %+v, want FULL", name, d)
 		}
+	}
+	// AFP-V0-2725 (V1-4934): a narrowed run that sized its matrix (AFP-V0-2724) names its own
+	// count, three here, which need not equal the full matrix the entry asks for; the decision
+	// names that count and one record per shard of it, and its three shard jobs must have passed.
+	sized := narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, testHead, 3))
+	sized.jobs[7] = sized.jobs[7][:0:0]
+	sized.jobs[7] = append(sized.jobs[7], shardJobs(7, testHead, 3)...)
+	for i, required := range []string{"docs-plan", "narrowing-verdict", "go-product"} {
+		sized.jobs[7] = append(sized.jobs[7], job{ID: 750 + int64(i), RunID: 7, Name: required, HeadSHA: testHead, Status: "completed", Conclusion: "success"})
+	}
+	sized.jobs[7] = append(sized.jobs[7], job{ID: 70, RunID: 7, Name: NarrowedRecordJob, HeadSHA: testHead, Status: "completed", Conclusion: "success"})
+	if d := decideBase("merge_group", testBase, sized); d.Mode != "REUSE" || d.Scope != "NARROWED" || d.Shards != 3 || len(d.Records) != 3 || d.Records[2] != RecordName(testTree, 2, 3) {
+		t.Fatalf("sized decision = %+v, want REUSE of 3 shards", d)
+	}
+	missing := narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, testHead, 3))
+	missing.jobs[7] = append(missing.jobs[7][:2], missing.jobs[7][4:]...)
+	if d := decideBase("merge_group", testBase, missing); d.Mode != "FULL" || !strings.Contains(d.Reason, "go-product-shard (2): missing job") {
+		t.Fatalf("a sized record without its third shard job: %+v, want FULL", d)
 	}
 	// A run whose full record job also passed is reused as FULL.
 	both := prEvidence(evidence{}, 7, testTree, 4)

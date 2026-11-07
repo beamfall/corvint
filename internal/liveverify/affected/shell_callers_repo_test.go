@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestRepositoryShellForeignCallersComplete_TSP_V0_005 verifies this
@@ -28,6 +29,7 @@ import (
 // that every listed file names the script, literally or by a name a shell
 // file builds) and drop the foreign-invocation frontier from the script.
 func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ShellForeignCallersPath)))
 	if err != nil {

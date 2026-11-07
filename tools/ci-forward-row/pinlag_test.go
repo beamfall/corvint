@@ -125,7 +125,8 @@ func TestCINV0010PinLagRefusesNarrowing(t *testing.T) {
 	ci := string(b)
 	pins := map[string]string{}
 	for _, name := range []string{"CORVINT_PR_TOOL_SOURCE", "CORVINT_TEST_SHADOW_SOURCE"} {
-		m := regexp.MustCompile(`(?m)^      `+name+`: "([0-9a-f]{40})"$`).FindAllStringSubmatch(ci, -1)
+		// AFP-V0-2724: the pins are workflow-level, set once each.
+		m := regexp.MustCompile(`(?m)^  `+name+`: "([0-9a-f]{40})"$`).FindAllStringSubmatch(ci, -1)
 		if len(m) != 1 {
 			t.Fatalf("%d pins of %s, want 1", len(m), name)
 		}
@@ -178,18 +179,24 @@ func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
 		t.Fatal(err)
 	}
 	ci := string(b)
-	m := regexp.MustCompile(`(?ms)^        id: pin-main\n.*?^        run: \|\n(.*?)^      - name: Capture trusted tool source outside tested checkout\n`).FindStringSubmatch(ci)
-	if m == nil {
-		t.Fatal("ci.yml lacks the pin-main step before the tool capture")
+	// AFP-V0-2724: two pin-main steps resolve the same way, the shard-plan job's (pull requests
+	// only, first in the file) and every go-product-shard's (pull requests and merge-queue entries).
+	m := regexp.MustCompile(`(?ms)^        id: pin-main\n.*?^        run: \|\n(.*?)^      - name: Capture trusted tool source outside tested checkout\n`).FindAllStringSubmatch(ci, -1)
+	if len(m) != 2 {
+		t.Fatalf("%d pin-main steps before a tool capture in ci.yml, want 2 (shard-plan, go-product-shard)", len(m))
 	}
-	body := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[1], "")
+	planBody := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[0][1], "")
+	body := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[1][1], "")
+	if !strings.Contains(body, "merge_group") || strings.Contains(planBody, "merge_group") {
+		t.Fatal("the shard pin-main handles merge-queue entries and the shard-plan pin-main pull requests only")
+	}
 	tool, shadow := "${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}", "${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}"
 	for _, want := range []struct {
 		text string
 		n    int
-	}{{"          ref: " + tool + "\n", 1}, {"          ref: " + shadow + "\n", 1}, {"          TOOL_SOURCE: " + tool + "\n", 1},
-		{"          CORVINT_PR_TOOL_SOURCE: " + tool + "\n", 3}, {"          CORVINT_TEST_SHADOW_SOURCE: " + shadow + "\n", 4},
-		{"env.CORVINT_PR_TOOL_SOURCE }}\n", 5}, {"env.CORVINT_TEST_SHADOW_SOURCE }}\n", 5}} {
+	}{{"          ref: " + tool + "\n", 2}, {"          ref: " + shadow + "\n", 2}, {"          TOOL_SOURCE: " + tool + "\n", 2},
+		{"          CORVINT_PR_TOOL_SOURCE: " + tool + "\n", 5}, {"          CORVINT_TEST_SHADOW_SOURCE: " + shadow + "\n", 6},
+		{"env.CORVINT_PR_TOOL_SOURCE }}\n", 9}, {"env.CORVINT_TEST_SHADOW_SOURCE }}\n", 8}} {
 		if got := strings.Count(ci, want.text); got != want.n {
 			t.Fatalf("%d bindings of %q, want %d", got, want.text, want.n)
 		}
@@ -226,7 +233,26 @@ func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
 	run := func(event, merge, base, floor string) string {
 		t.Helper()
 		out := filepath.Join(t.TempDir(), "out")
-		cmd := exec.Command("bash", "-e", "-c", body)
+		script := body
+		if event == "pull_request" {
+			// The shard-plan body resolves a pull request the same way; both are checked.
+			planOut := filepath.Join(t.TempDir(), "plan-out")
+			planCmd := exec.Command("bash", "-e", "-c", planBody)
+			planCmd.Dir = repo
+			planCmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+planOut, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge,
+				"CORVINT_PR_TOOL_SOURCE="+floor, "CORVINT_TEST_SHADOW_SOURCE="+floor)
+			if log, err := planCmd.CombinedOutput(); err != nil {
+				t.Fatalf("shard-plan pin-main: %v\n%s", err, log)
+			}
+			planGot, _ := os.ReadFile(planOut)
+			defer func(planGot string) {
+				got, _ := os.ReadFile(out)
+				if string(got) != planGot {
+					t.Fatalf("shard-plan pin-main resolved %q, the shard pin-main %q", planGot, got)
+				}
+			}(string(planGot))
+		}
+		cmd := exec.Command("bash", "-e", "-c", script)
 		cmd.Dir = repo
 		cmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+out, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge, "QUEUE_BASE="+base,
 			"CORVINT_PR_TOOL_SOURCE="+floor, "CORVINT_TEST_SHADOW_SOURCE="+floor)
