@@ -971,3 +971,103 @@ func TestFrontierSiteFilesystemConditionEffects_AFP_V0_3121(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-3121/3122: imported targets do not model included evaluation effects.
+func TestFrontierSiteIncludeEffects_AFP_V0_3121(t *testing.T) {
+	for _, contents := range []string{
+		"RUN = sh script/lsfiles.sh\n",
+		"RUN := $(future-include-function MODE)\n",
+	} {
+		t.Run(contents, func(t *testing.T) {
+			files := boundFiles("RUN = $(if $(CI),go test ./tools/ci,go test ./tools/local)\ninclude config.mk\ncheck:; $(RUN)\nall: check\n")
+			files["config.mk"] = contents // No targets to import.
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("included effects were certified without an evaluator")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if selected["driver:make:Makefile#check"].Witness.Kind != affected.WitnessFrontierSite {
+				t.Fatal("included effects lost FRONTIER_SITE")
+			}
+		})
+	}
+}
+
+// AFP-V0-3128: command-local environment can run hooks outside the operands.
+func TestFrontierSiteCommandEnvironmentEffects_AFP_V0_3128(t *testing.T) {
+	for _, prefix := range []string{
+		"BASH_ENV=./hook.sh ",
+		"env BASH_ENV=./hook.sh ",
+		"FUTURE_TOOL_SETTING=./hook.sh ",
+		"env FUTURE_TOOL_SETTING=./hook.sh ",
+	} {
+		t.Run(prefix, func(t *testing.T) {
+			files := boundFiles("check:; " + prefix + "$(if $(CI),bash,bash) -c 'go test ./tools/local'\nall: check\n")
+			files["hook.sh"] = "#!/bin/sh\ncat HIDDEN_INPUT\n"
+			files["HIDDEN_INPUT"] = "hook input\n"
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unmodeled command-local environment was certified")
+			}
+			for _, dirty := range []string{"HIDDEN_INPUT", sealedCEM} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				if selected["driver:make:Makefile#check"].Witness.Kind != affected.WitnessFrontierSite {
+					t.Fatal("command-local environment lost FRONTIER_SITE")
+				}
+			}
+		})
+	}
+}
+
+// AFP-V0-3121: GNU make removes through the last slash without cleaning paths.
+func TestFrontierSiteNotdirCondition_AFP_V0_3121(t *testing.T) {
+	for _, tc := range []struct {
+		condition string
+		truth     bool
+	}{
+		{"$(notdir cache/)", false},
+		{"$(notdir cache//)", false},
+		{"$(notdir cache/../)", false},
+		{"$(notdir /)", false},
+		// Two empty results retain their separator, which is nonempty.
+		{"$(notdir cache/ other/)", true},
+		{"$(future-path-function cache/)", false},
+	} {
+		t.Run(tc.condition, func(t *testing.T) {
+			first, second := "go test ./tools/local", "sh script/lsfiles.sh"
+			if tc.truth {
+				first, second = second, first
+			}
+			graph := driverGraph(t, boundFiles("check:; $(if "+tc.condition+","+first+","+second+")\nall: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("condition hid the enumerating branch")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+		})
+	}
+}
+
+// AFP-V0-3121: an unvisited foreach body cannot certify discarded effects.
+func TestFrontierSiteForeachLimitEffects_AFP_V0_3121(t *testing.T) {
+	for _, tc := range []struct{ name, list, body string }{
+		{"over-limit-shell", strings.Repeat("item ", 257), "$(shell script/lsfiles.sh)"},
+		{"unknown-list", "$(UNKNOWN_ITEMS)", "$(shell script/lsfiles.sh)"},
+		{"unknown-body", "item", "$(future-body-function MODE)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			condition := "$(foreach item," + tc.list + "," + tc.body + ")"
+			graph := driverGraph(t, boundFiles("check:; $(if "+condition+",go test ./tools/ci,go test ./tools/local)\nall: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("discarded condition certified unknown loop effects")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if selected["driver:make:Makefile#check"].Witness.Kind != affected.WitnessFrontierSite {
+				t.Fatal("unknown loop effects lost FRONTIER_SITE")
+			}
+		})
+	}
+}

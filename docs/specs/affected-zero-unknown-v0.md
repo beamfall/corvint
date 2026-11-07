@@ -247,6 +247,13 @@ participation, and inbound shell callers. The remaining classes are small and lo
   and plus, and SHALL retain explicit read edges even when its value is discarded or captured
   immediately. Patterns, missing paths, `realpath`, `abspath` and unknown function forms SHALL
   retain effect uncertainty independently of branch enumeration.
+  Amended by the owner self-review repair charter (2026-11-07): included target imports
+  SHALL NOT certify included assignments or other evaluation effects. Until ordered include
+  evaluation is modeled, every include form SHALL retain the including file's target frontiers,
+  including target-free files. `notdir` SHALL remove through the last literal slash without
+  path normalization, so trailing slashes yield empty words. Only `foreach` bodies whose list
+  and variable are resolved and whose at most 256 items are fully visited MAY certify effects;
+  exceeding the bound SHALL retain effect uncertainty even inside a discarded condition.
 - **AFP-V0-3122:** **Claims only within a certified read set.** (experimental, owner lane selfloor
   charter 2026-11-07, V1-5000) An evaluated target is one whose own text, or its file's variables,
   resolved what the claimant before AFP-V0-3121 retained as ambiguous: a reassigned variable, or
@@ -385,6 +392,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
   certified built-in commands do not interpret, and only when their value expansion has no
   unmodeled effects or shell execution. Other names, including `GOFLAGS`, computed names,
   export-all and unsupported forms SHALL remain uncertified.
+  Command-local and standalone assignments, including through `env`, SHALL use a closed effects
+  allowlist: `GOCACHE` (cache location) and empty `GOFLAGS`. Every other name or form, including
+  shell startup-hook settings and future unknown names, SHALL retain the frontier independently
+  of make expansion. Assignment effects SHALL survive shell wrapping and later assignments.
 
 ### Lane qualification details
 
@@ -748,14 +759,14 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
 | AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120`, `TestFrontierSiteFileStatementKeepsClaim_AFP_V0_3120` |
-| AFP-V0-3121 | V1-5000 | `TestFrontierSiteFilesystemConditionEffects_AFP_V0_3121`, `TestFrontierSiteConditionEffectsKeepClaim_AFP_V0_3121`, `TestFrontierSiteStripCondition_AFP_V0_3121`, `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3121 | V1-5000 | `TestFrontierSiteIncludeEffects_AFP_V0_3121`, `TestFrontierSiteNotdirCondition_AFP_V0_3121`, `TestFrontierSiteForeachLimitEffects_AFP_V0_3121`, `TestFrontierSiteFilesystemConditionEffects_AFP_V0_3121`, `TestFrontierSiteConditionEffectsKeepClaim_AFP_V0_3121`, `TestFrontierSiteStripCondition_AFP_V0_3121`, `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 | AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 | AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`, `TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125` |
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
 | AFP-V0-3127 | V1-5000 | `TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127`, `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
-| AFP-V0-3128 | V1-5000 | `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteLiteralExportEffects_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3128 | V1-5000 | `TestFrontierSiteCommandEnvironmentEffects_AFP_V0_3128`, `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteLiteralExportEffects_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |

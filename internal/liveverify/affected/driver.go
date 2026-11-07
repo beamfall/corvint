@@ -438,6 +438,12 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	shared.readPaths(fileExpander.readPaths)
 	shared.readPaths(parse.readPaths)
 	for index, include := range parsed.includes {
+		// AFP-V0-3121/3122: importing targets does not evaluate included
+		// assignments or other statements in this file's environment. No
+		// include form is certified until those ordered effects are modeled,
+		// including files with no targets and optional/computed includes.
+		shared.computed = true
+		uncertified = true
 		expander := parsed.expanderAt(parsed.includeAt[index])
 		for _, expanded := range expander.expandAll(include) {
 			shared.addTokens(expanded)

@@ -1463,7 +1463,9 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "dir":
 		return mapWords(args, func(word string) string { return path.Dir(word) + "/" }), true
 	case "notdir":
-		return mapWords(args, path.Base), true
+		// GNU make removes everything through the last slash, without
+		// cleaning the path. A trailing slash therefore yields an empty word.
+		return mapWords(args, func(word string) string { return word[strings.LastIndexByte(word, '/')+1:] }), true
 	case "basename":
 		return mapWords(args, func(word string) string { return strings.TrimSuffix(word, path.Ext(word)) }), true
 	case "suffix":
@@ -1503,6 +1505,9 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		}
 		items := strings.Fields(list)
 		if len(items) > 256 {
+			// The unvisited body may run commands even if a caller discards
+			// its value. Only fully visited bounded loops certify effects.
+			e.unmodeledEffects = true
 			return driverComputed, true
 		}
 		saved, hadSaved := e.locals[variable]
