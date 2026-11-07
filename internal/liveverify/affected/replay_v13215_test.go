@@ -7,6 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestCEMCodeRegistryChangeSelectsObservations_V13215: a change to the cemcode
@@ -14,6 +15,7 @@ import (
 // read from that registry by a Go import, so a lane adding a code runs the
 // observations tests locally instead of finding the drift in CI (V1-3215).
 func TestCEMCodeRegistryChangeSelectsObservations_V13215(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {

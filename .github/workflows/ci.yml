@@ -22,6 +22,36 @@ concurrency:
 permissions:
   contents: read
 
+# AFP-V0-2724 (V1-4934): the narrowing pins are workflow-wide, because the shard-plan job builds
+# the same trusted tools before the shards do; every `env.` read in the shard steps, the pin-main
+# resolution and the pin-lag check are unchanged.
+# Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
+# Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
+# V1-2707 (owner ci-control-plane OK 2026-10-25): the reviewed origin/main commit the
+# deciding driver (--mode plan), gate-affected-select and trusted narrow.sh are built from.
+# It narrows nothing alone: AFP-V0-098 also needs a MET verdict and CORVINT_PR_NARROWING=on.
+# CIN-V0-010 (V1-3748): repinned with the shadow to 8daec98ce, a reviewed main commit that
+# carries V1-3354 and V1-3480. The narrowing gate fails, so every shard runs FULL, while
+# either pin lags main's selection code (pin-lag.sh). CIN-V0-011 (V1-4354): both are now
+# floors; the pin-main step builds the tools from the commit of main the gate compares
+# against whenever that commit descends from the pin, so no selection change needs a repin.
+env:
+  CORVINT_PR_TOOL_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
+  # AFP-V0-047: the reviewed origin/main commit the shadow `corvint test` planner is built
+  # from. It only plans (--dry-run) and never decides, executes or narrows, so it is pinned
+  # apart from CORVINT_PR_TOOL_SOURCE: that pin builds the deciding driver, which only plans
+  # for the AFP-V0-098 narrowing gate (--mode plan) and never executes tests. Empty stops
+  # the shadow. AFP-V0-603 (V1-3067, owner ci-control-plane OK 2026-10-28): never older than
+  # CORVINT_PR_TOOL_SOURCE, or the shadow runs older selection rules than the driver and the
+  # AFP-V0-098 superset rule records FULL on every batch.
+  CORVINT_TEST_SHADOW_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
+  # AFP-V0-984 (V1-3751): narrow.sh runs 1 in CORVINT_PR_SAMPLE_K pull-request runs that would
+  # narrow in full, chosen by the head commit and this seed, so the forward bar can estimate the
+  # narrowing miss rate. Empty K turns sampling off. Read only by narrow.sh of the
+  # CORVINT_PR_TOOL_SOURCE checkout, so it takes effect with a pin that carries it.
+  CORVINT_PR_SAMPLE_K: "10"
+  CORVINT_PR_SAMPLE_SEED: "3751"
+
 jobs:
   cadence-plan:
     # CIN-V0-4752, CIN-V0-4753 (V1-4750): routine-change cadence. Only the classifier of the trusted
@@ -323,7 +353,8 @@ jobs:
         # a merge-queue entry whose tree a successful pull-request run of its second parent
         # already tested in full does the same, only when its first parent is on main, with the
         # tool built from that first parent. Every failure here keeps FULL. REUSE_SHARDS must
-        # equal the go-product-shard matrix, or no record line matches and CI runs FULL.
+        # equal the full go-product-shard matrix, or no full record line matches and CI runs FULL;
+        # a narrowed record (AFP-V0-734) names its own sized matrix (AFP-V0-2725).
         # AFP-V0-170 (V1-2271): the tested tree is read only from the log of the reused run's
         # ci-tested-tree-record job, which runs no repository code; artifacts are never read.
         id: reuse
@@ -430,8 +461,11 @@ jobs:
             > "$d/decision.json.partial"
           mv "$d/decision.json.partial" "$d/decision.json"
           cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
+          # AFP-V0-2725: the decision names the reused run's own shard count, REUSE_SHARDS for a full
+          # record and the sized matrix for a narrowed one, with one record per shard of it.
           if [ -z "$stacked" ] && jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
-            '.profile == "corvint-ci-reuse/0" and .mode == "REUSE" and .tree == $tree and .head == $head and (.runId | type == "number") and (.recordJobId | type == "number") and (.records | length == $shards)' \
+            '.profile == "corvint-ci-reuse/0" and .mode == "REUSE" and .tree == $tree and .head == $head and (.runId | type == "number") and (.recordJobId | type == "number")
+             and (.shards | type) == "number" and .shards >= 1 and .shards <= 64 and (.records | length) == .shards and (.scope == "NARROWED" or .shards == $shards)' \
             "$d/decision.json" > /dev/null; then
             echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
           elif [ "$GITHUB_EVENT_NAME" = merge_group ] &&
@@ -523,8 +557,181 @@ jobs:
           KILL_PAGES: "60"
         run: sh trusted/.github/forward-rows/accept.sh
 
+  shard-plan:
+    # AFP-V0-2724 (V1-4934): size the go-product-shard matrix of a pull request from the trusted
+    # narrowing decision, before any shard starts. A narrowed run used to start all sixteen shards,
+    # ten to thirteen of them running one package behind about two minutes of fixed setup each. This
+    # job builds the same pinned tools the shards build, runs the trusted shard-plan.sh from the
+    # CORVINT_PR_TOOL_SOURCE checkout (narrow.sh once as shard 0 of 16, then ci-shards
+    # --size-budget-ms over the recorded selection, AFP-V0-2723) and prints `count` and `matrix`.
+    # It decides nothing about which packages run: every shard still runs its own AFP-V0-098 gate
+    # and, on FULL, its complete-universe partition over the sized matrix (AFP-V0-022), and
+    # go-product's AFP-V0-591 guard checks the sized count. It runs only for a same-repository pull
+    # request with narrowing on and a MET verdict; any other event, a skip and any failure keep the
+    # full sixteen-shard matrix, so a merge-queue entry and a main push are unchanged. It needs no
+    # docs-plan output, so it runs beside docs-plan, not after it: on a DOCS or REUSE decision no
+    # reader uses its outputs (go-product-shard does not start, go-product requires no coverage
+    # marker and ci-narrowed-tree-record does not run), so its count is unused there.
+    needs: [narrowing-verdict]
+    if: github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && needs.narrowing-verdict.outputs.verdict == 'MET'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    outputs:
+      # Both default to the full matrix: an empty step output, a failed step or a skipped job
+      # leaves the consumers (go-product-shard, go-product, ci-narrowed-tree-record) at sixteen.
+      count: ${{ steps.plan.outputs.count || '16' }}
+      matrix: ${{ steps.plan.outputs.matrix || '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]' }}
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Resolve the trusted tool commit from main (CIN-V0-011)
+        # The go-product-shard resolution for a pull request: the tested merge's first parent when
+        # it is on main and descends from the pin, else the pin itself.
+        id: pin-main
+        continue-on-error: true
+        if: env.CORVINT_PR_TOOL_SOURCE != ''
+        working-directory: source
+        env:
+          TESTED_MERGE: ${{ github.sha }}
+        run: |
+          main=$(git rev-parse --verify -q "$TESTED_MERGE^1") || main=
+          [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
+          for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
+            set -- $pair
+            use=${2:-}
+            if [ -n "$main" ] && [ -n "$use" ] && git merge-base --is-ancestor "$use" "$main" 2> /dev/null; then use=$main; fi
+            echo "CIN-V0-011: $1 builds from ${use:-nothing} (floor ${2:-none}, main ${main:-unknown})"
+            echo "$1=$use" >> "$GITHUB_OUTPUT"
+          done
+      - name: Capture trusted tool source outside tested checkout
+        continue-on-error: true
+        if: env.CORVINT_PR_TOOL_SOURCE != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-tools
+          ref: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+          persist-credentials: false
+      - name: Build pinned planner, selector, and driver
+        continue-on-error: true
+        if: env.CORVINT_PR_TOOL_SOURCE != ''
+        working-directory: trusted-tools
+        env:
+          CORVINT_PR_TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$CORVINT_PR_TOOL_SOURCE"
+          mkdir -p "$RUNNER_TEMP/corvint-pr-bin"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/corvint" ./cmd/corvint
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
+      - name: Capture the pinned shadow planner source outside tested checkout
+        continue-on-error: true
+        if: env.CORVINT_TEST_SHADOW_SOURCE != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-shadow
+          ref: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
+          persist-credentials: false
+      - name: Build the pinned shadow planner
+        continue-on-error: true
+        if: env.CORVINT_TEST_SHADOW_SOURCE != ''
+        working-directory: trusted-shadow
+        env:
+          CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$CORVINT_TEST_SHADOW_SOURCE"
+          mkdir -p "$RUNNER_TEMP/corvint-shadow-bin"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-shadow-bin/corvint" ./cmd/corvint
+      - name: Build protected partition helper independently of PR module directives
+        # The go-product-shard build, so the sizing prices the placement the shards recompute.
+        working-directory: source
+        run: |
+          d="$RUNNER_TEMP/ci-shards-source"
+          mkdir -p "$d/cmd"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/size.go .github/cishards/size_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/cmd/main.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
+          cd "$d"
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
+      - name: Build protected test read-scope wrapper independently of PR module directives
+        # The shadow plan's --confine argument; the plan runs nothing under it (--dry-run).
+        working-directory: source
+        run: |
+          d="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$d/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          cd "$d"
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
+      - name: Size the shard matrix from the trusted narrowing decision (AFP-V0-2724)
+        # The pull-request branch of the shards' narrowing gate, run once: pin-lag.sh from main,
+        # then the trusted shard-plan.sh with the inputs every shard's gate gets. A missing script
+        # (a pin that predates it) fails this step and keeps sixteen.
+        id: plan
+        continue-on-error: true
+        if: env.CORVINT_PR_TOOL_SOURCE != '' && env.CORVINT_TEST_SHADOW_SOURCE != ''
+        timeout-minutes: 10
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_MERGE: ${{ github.sha }}
+          TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+          CORVINT_PR_TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
+          CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
+          VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
+          # AFP-V0-2181: the pull-request shards' go test -p, so the sizing prices their placement.
+          SHARD_TEST_P: "4"
+          # AFP-V0-2723: the full matrix, the floor and the predicted wall budget of a sized shard.
+          FULL_SHARDS: "16"
+          MIN_SHARDS: "2"
+          WALL_BUDGET_MS: "400000"
+        run: |
+          main=$(git rev-parse --verify "$TESTED_MERGE^1")
+          mkdir -p "$RUNNER_TEMP/pin-lag"
+          git archive "$main" .github/forward-rows/pin-lag.sh | tar -x -C "$RUNNER_TEMP/pin-lag"
+          sh "$RUNNER_TEMP/pin-lag/.github/forward-rows/pin-lag.sh" "$main" "$CORVINT_PR_TOOL_SOURCE" "$CORVINT_TEST_SHADOW_SOURCE"
+          test -f "$GITHUB_WORKSPACE/trusted-tools/.github/forward-rows/shard-plan.sh"
+          PR_BIN="$RUNNER_TEMP/corvint-pr-bin" SHADOW="$RUNNER_TEMP/corvint-shadow-bin/corvint" \
+            CI_SHARDS="$RUNNER_TEMP/ci-shards" CONFINE="$RUNNER_TEMP/test-confine" \
+            sh "$GITHUB_WORKSPACE/trusted-tools/.github/forward-rows/shard-plan.sh"
+      - name: Retain the shard plan's narrowing record (AFP-V0-2724)
+        # Evidence only; the shards retain their own records (AFP-V0-099) and the collectors read
+        # ci-narrowing-*, never this name.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-shard-plan
+          path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
+          if-no-files-found: ignore
+          retention-days: 90
+
   go-product-shard:
-    needs: [docs-plan, narrowing-verdict]
+    needs: [docs-plan, narrowing-verdict, shard-plan]
     # AFP-V0-027: a pull request labelled ci:batched is a constituent of a batch pull request
     # that runs this suite on the combined tree, so its own race shards never start. go-product
     # below passes with a notice (V1-2265); the label never lands a PR untested, because every
@@ -540,6 +747,10 @@ jobs:
     # package unrun, so go-product fails any run where a BALANCED shard sits beside a shard that
     # did not cover its part of the same placement (AFP-V0-591). go-product remains the
     # required check.
+    # AFP-V0-2724 (V1-4934): the matrix is the shard-plan job's `matrix`, sixteen shards unless that
+    # job sized a narrowed pull request down (never below two); a skipped or failed shard-plan
+    # leaves sixteen. SHARDS is strategy.job-total everywhere below, so every partition, placement,
+    # record and marker names the sized count, and go-product checks it (AFP-V0-591).
     # AFP-V0-420: only while the owner's repository variable CORVINT_SELF_HOSTED is on, a
     # merge-queue entry or a pull request from a branch of this repository runs its shards on the
     # owner's self-hosted runner (labels corvint-box); a push, a fork pull request and every other
@@ -554,7 +765,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: ${{ fromJSON(needs.shard-plan.outputs.matrix || '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]') }}
     # LPCV-V0-959: actions read lets the line-level shadow download the linecov-index artifact.
     permissions:
       contents: read
@@ -581,32 +792,7 @@ jobs:
       full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
       full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
       full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-    # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
-    # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
-    # V1-2707 (owner ci-control-plane OK 2026-10-25): the reviewed origin/main commit the
-    # deciding driver (--mode plan), gate-affected-select and trusted narrow.sh are built from.
-    # It narrows nothing alone: AFP-V0-098 also needs a MET verdict and CORVINT_PR_NARROWING=on.
-    # CIN-V0-010 (V1-3748): repinned with the shadow to 8daec98ce, a reviewed main commit that
-    # carries V1-3354 and V1-3480. The narrowing gate fails, so every shard runs FULL, while
-    # either pin lags main's selection code (pin-lag.sh). CIN-V0-011 (V1-4354): both are now
-    # floors; the pin-main step builds the tools from the commit of main the gate compares
-    # against whenever that commit descends from the pin, so no selection change needs a repin.
     env:
-      CORVINT_PR_TOOL_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
-      # AFP-V0-047: the reviewed origin/main commit the shadow `corvint test` planner is built
-      # from. It only plans (--dry-run) and never decides, executes or narrows, so it is pinned
-      # apart from CORVINT_PR_TOOL_SOURCE: that pin builds the deciding driver, which only plans
-      # for the AFP-V0-098 narrowing gate (--mode plan) and never executes tests. Empty stops
-      # the shadow. AFP-V0-603 (V1-3067, owner ci-control-plane OK 2026-10-28): never older than
-      # CORVINT_PR_TOOL_SOURCE, or the shadow runs older selection rules than the driver and the
-      # AFP-V0-098 superset rule records FULL on every batch.
-      CORVINT_TEST_SHADOW_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
-      # AFP-V0-984 (V1-3751): narrow.sh runs 1 in CORVINT_PR_SAMPLE_K pull-request runs that would
-      # narrow in full, chosen by the head commit and this seed, so the forward bar can estimate the
-      # narrowing miss rate. Empty K turns sampling off. Read only by narrow.sh of the
-      # CORVINT_PR_TOOL_SOURCE checkout, so it takes effect with a pin that carries it.
-      CORVINT_PR_SAMPLE_K: "10"
-      CORVINT_PR_SAMPLE_SEED: "3751"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
       # the 1.0 mint, so no earlier row counts toward the AFP-V0-029 bar. The first shadow
@@ -878,7 +1064,7 @@ jobs:
           # the isolated module; tested go.mod/replace directives cannot redirect its import.
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/size.go .github/cishards/size_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
           cd "$d"
@@ -995,8 +1181,9 @@ jobs:
         # Runs the pinned tools' narrow.sh only after the trusted verdict said MET. It narrows
         # this shard only when the deciding driver's selection (--mode plan) is a superset of the
         # whole-universe shadow `corvint test --dry-run` selection of the same (base, head), the
-        # change touches no .github/ path and main keeps its merge queue; otherwise it records
-        # FULL and why. The tests step below runs the same argv, env and confine wrapper either
+        # range changes no trusted narrowing input under .github/ (AFP-V0-2720: github-guard.sh
+        # from the same trusted checkout names them) and main keeps its merge queue; otherwise it
+        # records FULL and why. The tests step below runs the same argv, env and confine wrapper either
         # way (AFP-V0-028); a narrowed shard names no tested tree, so its merge-queue entry runs
         # full (AFP-V0-099) unless it reuses the narrowed run of the same range (AFP-V0-734).
         # AFP-V0-731 (V1-3064): a merge-queue entry on main runs mq-narrow.sh from its queue base
@@ -1096,6 +1283,10 @@ jobs:
           # merge queue's deciding full suite and AFP-V0-428 seed producer among them, keeps
           # -p 1, the ci profile's argv (STR-V0-012).
           SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
+          # AFP-V0-2702 (V1-4923): the one place the live test tier skips. The confine wrapper passes
+          # it to the test binaries; the merge-queue go-live job, local runs, corvint test, make gate
+          # and batch-precheck do not set it, so they run the tier.
+          CORVINT_SKIP_LIVE_TIER: "1"
         run: |
           test "$(go env GOVERSION)" = "go1.27.3"
           # AFP-V0-097/098: the only route to a narrowed shard is the gate above. A skipped, refused
@@ -1599,7 +1790,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
-      # Must equal the go-product-shard matrix length and REUSE_SHARDS.
+      # Must equal the full go-product-shard matrix length and REUSE_SHARDS: this job runs only
+      # when every one of the sixteen full<index> outputs says FULL, so never for a sized matrix.
       SHARDS: "16"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -1634,13 +1826,16 @@ jobs:
     # ci.yml changes what it prints. A merge-queue entry reuses that run only when its own tree
     # and first parent equal the record's (tools/ci-reuse-plan), so the selection covered the
     # same range; a main push never reuses it. Any mismatch prints no record; it never fails CI.
-    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]
+    # AFP-V0-2725 (V1-4934): `shards` is the run's sized matrix (shard-plan's `count`, sixteen when
+    # it did not size), the count go-product's AFP-V0-591 guard proved; tools/ci-reuse-plan admits
+    # a narrowed record of any count, since the proof is that guard, not a partition.
+    needs: [docs-plan, narrowing-verdict, shard-plan, go-product-shard, go-product]
     if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.go-product.result == 'success' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
-      # Must equal the go-product-shard matrix length and REUSE_SHARDS.
-      SHARDS: "16"
+      # The sized matrix of this run (AFP-V0-2724), sixteen when shard-plan did not size it.
+      SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -1734,6 +1929,54 @@ jobs:
           node-version: "24.11.1"
       - name: Declared TypeScript family
         run: make host-adapter-test
+
+  go-live:
+    # AFP-V0-2702 (V1-4815): the live test tier skips in the go-product-shard test step
+    # (CORVINT_SKIP_LIVE_TIER); each merge-queue entry runs it here with make live-test
+    # (AFP-V0-2701), without the race detector. Nightly release gates run it through make gate.
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Provision the host tools the product's fixed PATH resolves, as the shards do
+        # The same fixed-PATH Go, pinned ripgrep release (V1-1095) and fixture Git identity as
+        # go-product-shard, because these tests ran there before the tier split.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          test "$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)" = /usr/local/bin/rg
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Live test tier
+        run: make live-test
 
   local-authority-deps:
     # CIN-V0-7503: the only networked module preparation; the compiler job stays offline.
@@ -1832,7 +2075,7 @@ jobs:
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           d="$RUNNER_TEMP/ci-shards-source"
           mkdir -p "$d/cmd"
-          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
+          cp .github/cishards/partition.go .github/cishards/partition_test.go .github/cishards/order.go .github/cishards/order_test.go .github/cishards/slices.go .github/cishards/slices_test.go .github/cishards/size.go .github/cishards/size_test.go .github/cishards/walltime_test.go .github/cishards/package-costs.json .github/cishards/test-split-allow.json .github/cishards/test-slices.json "$d/"
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
           t="$RUNNER_TEMP/test-confine-source"
@@ -1848,6 +2091,13 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
+      - name: Live-tier discovery and helper copy self-tests in the checkout (AFP-V0-2701, AFP-V0-2702, AFP-V0-2726)
+        # ./... skips .github, and the isolated helper module above omits live.go and
+        # isolated_copies_test.go: these tests read the checkout's Git index and workflow files, so
+        # they run here, in the repository itself. AFP-V0-2726 replays every isolated helper build
+        # of every workflow and fails when one omits a file its packages or embeds need.
+        working-directory: source
+        run: go test -count=1 -timeout 30m -run '_AFPV0270[12]$|_AFPV02726$' ./.github/cishards/
       - name: Restore checksum-bound local-authority modules (CIN-V0-7503)
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -1948,7 +2198,7 @@ jobs:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1964,6 +2214,7 @@ jobs:
       - name: Every go-product shard and the static job succeeded
         env:
           HOST_RESULT: ${{ needs.host-adapters.result }}
+          LIVE_RESULT: ${{ needs.go-live.result }}
           WEB_PLAN_RESULT: ${{ needs.web-flows-plan.result }}
           WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
           WEB_RESULT: ${{ needs.web-flows.result }}
@@ -1975,8 +2226,9 @@ jobs:
           DOCS_RESULT: ${{ needs.docs-plan.result }}
           DOCS_MODE: ${{ needs.docs-plan.outputs.mode }}
           BATCHED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
-          # AFP-V0-591: must equal the go-product-shard matrix length.
-          SHARDS: "16"
+          # AFP-V0-591: must equal the go-product-shard matrix length: the shard-plan job's sized
+          # count (AFP-V0-2724), sixteen when it did not size.
+          SHARDS: ${{ needs.shard-plan.outputs.count || '16' }}
         run: |
           # CIN-V0-2320: check before any DOCS, REUSE or batched early return. The shell job
           # intentionally skips pushes; every PR and merge-group run must actually pass it.
@@ -1986,6 +2238,8 @@ jobs:
             test "$SHELL_RESULT" = success
           fi
           test "$HOST_RESULT" = success
+          # AFP-V0-2702: the live tier runs on merge-queue entries only.
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then test "$LIVE_RESULT" = success; else test "$LIVE_RESULT" = skipped; fi
           test "$WEB_PLAN_RESULT" = success
           if [ "$WEB_REQUIRED" = true ]; then test "$WEB_RESULT" = success; else test "$WEB_RESULT" = skipped; fi
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
@@ -2070,7 +2324,8 @@ jobs:
     continue-on-error: true
     timeout-minutes: 20
     env:
-      # Must equal the go-product-shard matrix, or every run abstains.
+      # Must equal the full go-product-shard matrix, or every run abstains; a sized narrowed run
+      # (AFP-V0-2724) has fewer outcome artifacts and abstains as a selected run, as before.
       SHARDS: "16"
       GOTOOLCHAIN: local
       GOPROXY: "off"

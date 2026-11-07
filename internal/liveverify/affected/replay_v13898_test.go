@@ -6,6 +6,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestSealCommitPlanIsBounded_V13898 replays a seal commit's dirty set
@@ -19,6 +20,7 @@ import (
 // reader of the CEM path (AFP-V0-818), which a dirty set of declared data
 // alone no longer names (AFP-V0-987).
 func TestSealCommitPlanIsBounded_V13898(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, err := affected.Build(context.Background(), repositoryRoot(t), languages.All()...)
 	if err != nil {
 		t.Fatal(err)

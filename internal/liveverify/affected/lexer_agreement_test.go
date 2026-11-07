@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // lexTokens lexes body with mode and returns each token's kind and text,
@@ -37,6 +39,7 @@ func lexTokens(body []byte, mode scanner.Mode, skip bool) []string {
 // difference, a comment breaking a root-locating `os.Getwd` match there but
 // not here, reaches no file today.
 func TestTwoGoLexersAgreeBeyondComments_AFPV0765(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	listing, err := exec.Command("git", "-C", root, "ls-files", "-z", "--", "*.go").Output()
 	if err != nil {

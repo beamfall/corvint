@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 var narrowingGraph struct {
@@ -53,6 +54,7 @@ func selectedUnits(graph *affected.Graph, module string, dirty ...string) map[st
 // REQUIREMENTS.tsv edit, while a unit that reads every spec, or the
 // requirements index, stays selected (V1-3763, V1-3587, V1-3788).
 func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, module := repositoryNarrowingGraph(t)
 	narrowed := []string{
 		"internal/perfbudget", "conformance/cli-parity-v0",
@@ -141,6 +143,7 @@ func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
 
 // V1-4043: Core import additions select the repository-wide import-direction guard.
 func TestNewCoreImportSelectsTasksBoundary(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	graph, module := repositoryNarrowingGraph(t)
 	units := selectedUnits(graph, module, "internal/mcp/newbridge/bridge.go")
 	if _, ok := units["internal/tasks"]; !ok {
