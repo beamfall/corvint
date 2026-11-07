@@ -834,6 +834,16 @@ func stringLiteral(expression ast.Expr) (string, bool) {
 // (DWC-V0-759).
 var listedDependencies sync.Map
 
+// goListSlots bounds the go list processes that every package's file
+// goroutines start, across all packages at once, at checkWorkers: check makes
+// it before any goroutine starts (DWC-V0-759, review 2026-11-07). A nil value,
+// outside check, runs the command unbounded.
+var goListSlots chan struct{}
+
+// runGoList runs one go list command and returns its standard output; a test
+// replaces it to observe how many commands run at once.
+var runGoList = func(command *exec.Cmd) ([]byte, error) { return command.Output() }
+
 // listing is one go list command's output or error.
 type listing struct {
 	once sync.Once
@@ -883,7 +893,11 @@ func dependencyDirectories(root, directory string, targets []string, test bool) 
 		command.Dir = root
 		var stderr bytes.Buffer
 		command.Stderr = &stderr
-		if listed.out, listed.err = command.Output(); listed.err != nil {
+		if slots := goListSlots; slots != nil {
+			slots <- struct{}{}
+			defer func() { <-slots }()
+		}
+		if listed.out, listed.err = runGoList(command); listed.err != nil {
 			listed.err = fmt.Errorf("go list -deps %s: %w: %s", strings.Join(resolved, " "), listed.err, strings.TrimSpace(stderr.String()))
 		}
 	})
@@ -965,6 +979,7 @@ func check(root string) ([]finding, []string, error) {
 	// The memos hold the reads of one run only, so a later run sees edited files.
 	parsedFiles.Clear()
 	listedDependencies.Clear()
+	goListSlots = make(chan struct{}, max(checkWorkers, 1))
 	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
 	if err != nil {
 		return nil, nil, err
@@ -1105,7 +1120,8 @@ func droppedDeclarations(root string) []string {
 	return dropped
 }
 
-// checkWorkers bounds how many packages check runs at once, and parallelFiles
+// checkWorkers bounds how many packages check runs at once and, through
+// goListSlots, how many go list processes their files run at once; parallelFiles
 // runs a package's files on goroutines of their own (DWC-V0-759); a test sets
 // them to 1 and false for the sequential order.
 var (

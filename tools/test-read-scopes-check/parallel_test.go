@@ -3,8 +3,10 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -84,4 +86,52 @@ func TestDWCV0759ParallelCheckMatchesTheSequentialCheck(t *testing.T) {
 		t.Fatalf("repository: the parallel check differs:\nparallel:\n%s\nsequential:\n%s", parallel, sequential)
 	}
 	t.Logf("repository: parallel check %.2fs, identical to the sequential check", elapsed.Seconds())
+}
+
+// TestDWCV0759GoListCommandsShareOneBound (review, 2026-11-07): the go list
+// processes of every package's file goroutines share one bound of
+// checkWorkers. Twelve test files of one package, each listing a distinct
+// target so the memo runs every command, never run more than two commands at
+// once under checkWorkers=2, though the files run on goroutines of their own.
+func TestDWCV0759GoListCommandsShareOneBound(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	const files, bound = 12, 2
+	repository := map[string]string{
+		"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+		"internal/lister/l.go":           "package lister\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"internal/lister":["go.mod"]}}`,
+	}
+	for index := range files {
+		target := fmt.Sprintf("internal/p%02d", index)
+		repository[target+"/p.go"] = fmt.Sprintf("package p%02d\n", index)
+		repository[fmt.Sprintf("internal/lister/l%02d_test.go", index)] = "package lister\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+			fmt.Sprintf("func TestLists%02d(t *testing.T) {\n\tgoTool, _ := exec.LookPath(\"go\")\n", index) +
+			"\t_, _ = exec.Command(goTool, \"list\", \"-deps\", \"./" + target + "\").Output()\n}\n"
+	}
+	root := writeRepository(t, repository)
+	var running, peak, ran atomic.Int32
+	previousRun, previousWorkers, previousFiles := runGoList, checkWorkers, parallelFiles
+	runGoList = func(*exec.Cmd) ([]byte, error) {
+		now := running.Add(1)
+		for seen := peak.Load(); now > seen && !peak.CompareAndSwap(seen, now); seen = peak.Load() {
+		}
+		time.Sleep(20 * time.Millisecond)
+		running.Add(-1)
+		ran.Add(1)
+		return nil, nil
+	}
+	checkWorkers, parallelFiles = bound, true
+	defer func() { runGoList, checkWorkers, parallelFiles = previousRun, previousWorkers, previousFiles }()
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 0 {
+		t.Fatalf("check: code=%d\n%s%s", code, stdout.String(), stderr.String())
+	}
+	if ran.Load() != files {
+		t.Fatalf("ran %d go list commands, want one per test file (%d)", ran.Load(), files)
+	}
+	if got := peak.Load(); got > bound || got < 2 {
+		t.Fatalf("at most %d go list commands ran at once, want between 2 and the bound %d", got, bound)
+	}
 }
