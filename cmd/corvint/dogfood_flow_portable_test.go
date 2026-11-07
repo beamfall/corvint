@@ -240,7 +240,8 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	detail := strings.TrimSpace(cemGit(t, root, "rev-parse", "--absolute-git-dir")) + "/corvint/dogfood-check.stdout"
 	summary := "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review change-requirements=1 change-traced=1 change-untraced=0 report=.corvint/dogfood-report.json detail=" + detail
-	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
+	// DCW-V0-7402: the declared intent adds the count-universe note.
+	if code != 0 || len(lines) != 3 || lines[0] != summary || lines[1] != countUniverseNote || lines[2] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	// DCW-V0-112 and DCW-V0-165: the plan's cited hunk sits below anchored,
@@ -262,7 +263,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 		t.Fatalf("nested root exit=%d stderr=%s", code, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)
-	if code != 0 || stdout != summary+"\ndogfood-check: PASS\ndogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n" {
+	if code != 0 || stdout != summary+"\n"+countUniverseNote+"\ndogfood-check: PASS\ndogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n" {
 		t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	cemGit(t, root, "cat-file", "-e", "HEAD:.corvint/changes/"+bind+".cem.json")
