@@ -850,6 +850,33 @@ one list, so a later class cannot reopen it.
   `NARROWED` as the planner emitted it before AFP-V0-3140, `SelectStructural` SHALL select every
   package the planner selects. `Select` keeps the whole attribution and takes the same walk, which
   can only add packages.
+### Shell run targets and conditionals keep their commands (V1-4283)
+
+- **AFP-V0-3144:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 6, 2026-11-07; amends TSP-V0-960 in `docs/specs/test-selection-precision-v0.md`) The
+  shell plugin MAY leave a computed run target or interpreter operand (TSP-V0-960) unexpanded when
+  its file name is literal (no `$`, backquote or brace), carries no owned shell suffix, and is the
+  file name of no shell unit's file (an owned extensionless file with no shell shebang has no unit,
+  and an edit of it is `UNINDEXED_SOURCE_PATH`, AFP-V0-2205). No value of such a target can link an
+  edge or build a script name, so a 64-value bound that cuts its values drops nothing, and the unit
+  SHALL NOT become `shell:dynamic-source` for it; `script/heavy.sh`'s toolchain probe `"$sdk/go"` is
+  one (AFP-V0-2955). A target whose file name an owned extensionless script has (AFP-V0-2205), such
+  as `"$dir/check"` beside `script/check`, SHALL be expanded as TSP-V0-960 requires: each fully
+  literal value that names the script is an import edge, so `for dir in script; do "$dir/check";
+  done` imports `shell:script/check` and an edit of `script/check` selects the tests that reach the
+  caller, and a value bound that cuts its values makes the unit `shell:dynamic-source`.
+- **AFP-V0-3145:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  review fix 6, 2026-11-07; amends NSA-V0-008 in `docs/specs/native-shell-affected-test-v0.md`) The
+  shell lexer SHALL take `[[` as opening a conditional expression, whose `&&`, `||`, `|`, `<`, `>`
+  and parentheses belong to the expression and not to the command list, only in command position:
+  the first word of a command, or a word that only the reserved words `if`, `while`, `until`, `!`,
+  `time`, `then`, `do`, `else` and `elif` precede in it. A `;`, `&&`, `||`, `|`, newline, `{`, `(`,
+  case arm or command substitution starts a new command. The expression ends at the first `]]`
+  after the `[[`. A `[[` in any other position is an argument (`echo [[ marker && . "$ENVFILE"`):
+  the operator after it SHALL still end the command, so the next command is scanned, an
+  environment-named source there keeps `shell:dynamic-source` (AFP-V0-2953) and a literal source
+  keeps its edge.
+
 ### Live test tier (V1-4815)
 
 - **AFP-V0-2700:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4815)
@@ -1046,6 +1073,10 @@ path-literal, glob, declared-scope, existence or import-graph reader that has it
 its runners, just as AFP-V0-021 does not select such a reader's importers. The runners of a command
 that only an enclosed path reaches stay one edge past it (AFP-V0-037), as its importers stay
 unwalked.
+AFP-V0-3144 does not link a computed target whose file name is a glob (`"$dir"/chec?`): as under
+TSP-V0-960, such a value is neither an edge nor a constructed name. AFP-V0-3145 does not recognise `[[` after `time -p` or
+`coproc`; the lexer splits such an expression at its operators and scans the pieces as commands. No
+repository script uses either form.
 
 ## Failure modes
 
@@ -1105,6 +1136,12 @@ seconds), because the job cannot read docs-plan's mode without waiting for it; n
 count. A file that an isolated helper build needs but does not copy fails that workflow's helper
 build; AFP-V0-2726 catches it before merge, on the pull request that adds the file or the
 dependency.
+Had AFP-V0-3144's shortcut been kept for every literal non-shell file name, an edit of an
+extensionless script that a caller runs through a computed directory would miss the caller's tests;
+had AFP-V0-3145's `[[` been taken as a test anywhere in a command, an argument `[[` would hide the
+next command, and an environment-named source there would lose its `shell:dynamic-source`. Each
+has a fault-injection test. AFP-V0-3144 scans the shell units' paths once for each target it would
+skip, which is linear in the shell file count and bounded by the targets a file holds.
 
 ## Acceptance evidence and traceability
 
@@ -1170,6 +1207,8 @@ dependency.
 | AFP-V0-3141 | `reachedThrough` follows only the walk's classes; `execUsersOf` adds a test-only runner past the walk | `TestAdditiveNarrowingKeepsUnrunRecords_AFPV03141` (an additive change alone and a test-only run keep `NARROWED` and leave `consumer` out) |
 | AFP-V0-3142 | `traversalEdges` and the class constants in `internal/liveverify/affected/select.go`; their use in `traverseWhere`, `reachedThrough` and `follows` | `TestReachedThroughCoversEveryTraversalClass_AFPV03142` in `internal/liveverify/affected/additive_classes_test.go` (one injected edge per listed class demotes the record; it fails for the code-run class when `reachedThrough` drops it) |
 | AFP-V0-3143 | the `codeRunners` edges of `reach` (`internal/gateselect/readers.go`) and the code-runner start of `attributeNarrowed` (`internal/gateselect/select.go`) | `TestNarrowedRunnerFollowsTheChangedCommand_AFPV03143`, `TestNarrowedRunnerKeepsItsNarrowing_AFPV03143` and `TestNarrowedCommandKeepsItsRunners_AFPV03143` in `internal/gateselect/additive_runner_parity_test.go` (the structural verdict holds the planner's narrowed selection; the declared case and the narrowed command each fail without their mechanism); `TestReachMatchesThePlannerGraph_V12727` and `TestSelectStructuralHonorsAdditiveNarrowing_ADNV0006` (unchanged) |
+| AFP-V0-3144 | the shortcut and `ownedExtensionless` in `internal/liveverify/affected/shell/computed.go` | `TestComputedTargetKeepsOwnedExtensionlessScripts_AFPV03144` in `internal/liveverify/affected/shell/computed_extensionless_test.go` (a loop over `script` and a file-relative value link `script/check`, its edit selects the test that runs it and not another script's, a cut list naming `check` is a dynamic source; `go` and `check.py` stay bounded, and fail when the shortcut is deleted); the before/after plans in build log `2026-11-07-unbrd-fix6` |
+| AFP-V0-3145 | `openTest` and `testLeaders` in `internal/liveverify/affected/shell/lex.go` | `TestConditionalOpensOnlyInCommandPosition_AFPV03145` in `internal/liveverify/affected/shell/conditional_position_test.go` (an argument `[[` before `&&`, `||` or `\|` keeps the next source; the test after every leader keeps its operators, and fails without the leaders); `TestCasePatternsAndConditionalsAreNotCommands_NSAV0008_NSAV0009` (unchanged) |
 
 | AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |
 | AFP-V0-2701 | `LiveTests`, `rootModuleSource`, `liveTestsInFile` in `.github/cishards/live.go`; `tools/live-test-run/main.go`; the `live-test` target in `Makefile`; `live-test` in `EXTRA_TARGETS` of `script/batch-precheck.sh` | `TestLiveTestsInFileFindsMarkedTopLevelTests_AFPV02701`, `TestRootModuleSourceMatchesGoTestReach_AFPV02701` (including a module-root file) in `.github/cishards/live_test.go`; the `make -s live-test` assertion in `script/batch-precheck_test.sh`; `TestArgvRunsOnlyTheLiveTestsWithTheTag_AFPV02701`, `TestRunExecutesEachLivePackage_AFPV02701` in `tools/live-test-run/main_test.go` |
@@ -1229,6 +1268,8 @@ For AFP-V0-3140 to AFP-V0-3143, inline the class list back into `traverseWhere`,
 class from `reachedThrough`, and drop `codeRunners` from the CI selector's `reach` and from
 `attributeNarrowed`'s start. Additive narrowing then misses a changed command that a narrowed
 package's code runs, and `corvint test` misses that package's importers.
+For AFP-V0-3144 and AFP-V0-3145, revert the review-fix-6 commit: the shortcut again skips every
+literal non-shell file name, and any `[[` in a command again opens a test; delete the two tests.
 For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, the three
 `internal/testsupport/livetier*.go` files, `.github/cishards/live.go`, `tools/live-test-run`, the
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
