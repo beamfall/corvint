@@ -1698,7 +1698,7 @@ print_plan() {
     last=$((${#reuse_args[@]} - 1))
     if ((last >= 0)) && [[ ${reuse_args[$last]} == READY ]]; then
       unset 'reuse_args[last]'
-      fresh=$("${CORVINT_BIN:-corvint}" test reuse decide --argv "-count=1 -timeout 30m" "${reuse_args[@]}" 2> /dev/null) || fresh=""
+      fresh=$("${CORVINT_BIN:-corvint}" test reuse decide --argv "-count=1 -timeout 30m" ${reuse_args[@]+"${reuse_args[@]}"} 2> /dev/null) || fresh=""
     fi
   fi
   perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod" "${HEAVY_REUSE-}" "$fresh"
