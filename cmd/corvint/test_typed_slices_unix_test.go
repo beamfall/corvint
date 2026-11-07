@@ -164,7 +164,7 @@ func (f *typedSliceFixture) plan(t *testing.T, edits map[string]string) map[stri
 			t.Fatal(err)
 		}
 	}
-	code, stdout, stderr := runCLI(t, "--root", f.root, "test", "--base", f.base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
+	code, stdout, stderr := runCLI(t, "--root", f.root, "test", "--base", f.base, "--dry-run", "--format", "json", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
 	if code != 0 {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
