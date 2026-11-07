@@ -526,14 +526,6 @@
     "internal/plansnapshot": [],
     "internal/playwrightminimize": [],
     "internal/postmergeconnector": [],
-    "internal/postmergehost": [
-      ".github/cishards/",
-      "cmd/corvint/",
-      "go.mod",
-      "go.sum",
-      "internal/",
-      "protocol/postmerge-host/"
-    ],
     "internal/postmergemetrics": [],
     "internal/postmergeproof": [
       "conformance/postmerge-runtime-v2/native-graph-binding.schema.json",
