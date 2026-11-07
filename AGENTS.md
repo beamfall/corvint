@@ -34,15 +34,23 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
    trace or `.corvint/` state and never an input to ranking, evidence, authority or learning.
 5. Learning is explicit, local, bounded, secret-screened, and evaluation-gated.
 6. Corvint integrates with existing specs and agents; it does not require a new spec language.
-7. The default local product remains one native-Go binary with no account, network dependency,
-   mutable/external database service, hosted service, embeddings, permanent daemon, UI, or broad
-   language rewrite. An immutable embedded index encoding is derived state, not a database, and still
-   needs the benchmark/format gate. Anything outside that boundary needs its own accepted profile on
-   the same transport-neutral immutable index contract and cannot silently broaden the local path:
-   see `docs/specs/deployment-neutral-index-platform-v0.md`,
+7. The default local product is one release of native-Go executables: the `corvint` core plus the
+   bundled apps and plugins its release manifest names; adding an executable to that manifest needs
+   its own accepted spec and decision. Every one of them is local only: no account, network
+   dependency, mutable/external database service, hosted service, embeddings, permanent daemon, UI,
+   or broad language rewrite. A bundled app or plugin may be its own Go module and executable but
+   cannot widen that boundary. It reaches the core or another app only through a published,
+   versioned envelope or `corvint-plugin/1`, never another app's internal packages; it writes no
+   core evidence, index or trace state and holds no authority the core lacks. The core's frozen
+   command surface works with no bundled app installed and never forwards to one. An immutable
+   embedded index encoding is derived state, not a database, and still needs the benchmark/format
+   gate. Anything outside that boundary needs its own accepted profile on the same
+   transport-neutral immutable index contract and cannot silently broaden the local path: see
+   `docs/specs/deployment-neutral-index-platform-v0.md`,
    `docs/specs/go-production-kernel-migration-v0.md` (hot-path language moves need exact parity and
-   staged rollback), and decision 0081 / `docs/specs/local-admin-console-v0.md` (optional,
-   operator-started, loopback-only console with no authority).
+   staged rollback), decision 0081 / `docs/specs/local-admin-console-v0.md` (optional,
+   operator-started, loopback-only console with no authority; never in the default manifest), and
+   decision 0591 / `docs/specs/core-bundled-apps-v0.md` (core, bundled-app and plugin boundaries).
 8. Substantive capabilities are spec-driven. Record the human-owned intent, numbered requirements,
    non-goals, failure modes, acceptance evidence, and rollback before calling implementation done.
    Generated or inferred documentation can propose intent but cannot accept or govern it.
