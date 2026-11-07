@@ -1004,6 +1004,12 @@
       ]
     },
     {
+      "paths": "internal/nativelinecov/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "internal/obscorpus/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -1365,6 +1371,12 @@
     },
     {
       "paths": "tools/ci-nightly-signal/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "tools/ci-test-slices/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]

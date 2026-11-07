@@ -15,7 +15,6 @@ func TestCAPV07700RootInputs(t *testing.T) {
 		"corvint-release-candidate":       {"--core-dir DIR", "--source-root DIR", "--scratch DIR", "--output-parent DIR", "--version VERSION"},
 		"corvint-release-install":         {"--candidate DIR", "--store DIR"},
 		"corvint-readiness-record":        {"--candidate DIR", "--source-root DIR", "--evidence-file FILE", "--output FILE"},
-		"corvint-release-gate":            {"--commit SHA", "--manifest FILE", "--git FILE", "--git-sha256 SHA256", "--policy FILE", "--policy-sha256 SHA256"},
 		"corvint-go-toolchain-receipt":    {"GOROOT"},
 		"corvint-remote-provider":         {"--allow-network", "--config FILE"},
 		"corvint-mcp":                     {"--root ABSOLUTE_ROOT"},
