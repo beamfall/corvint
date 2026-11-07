@@ -121,7 +121,7 @@ On 2026-09-11 the owner requested work until Corvint is ready for a public GitHu
 explicitly selected “Include all three before release” for the dashboard, task manager and
 Wallaby.js support. The owner previously chose the Go release path after Rust showed no gain.
 The intended first cut is an alpha prerelease, not a stable, FULL or workflow-promotion claim.
-The default CLI remains the native Go core plus the bundled apps its release manifest names (decision 0591). The console is a separate optional bundle
+The default CLI remains the single native Go binary until the bundled-app release manifest ships; decision 0591 then makes it the native Go core plus the bundled apps that manifest names. The console is a separate optional bundle
 under decision 0081. Task management means the delivered ticket store and board; autonomous
 agent dispatch is not implemented or represented as available. The owner clarified the test
 goal as an agent and VS Code extension being able to assess test validity, then explicitly
@@ -140,8 +140,10 @@ The proposed delivery sequence and acceptance criteria are in
   and `corvint-tasks` binaries plus the separately installable workflow binaries `corvint-mcp`,
   `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`, and
   `corvint-go-test-provider`, pinned to exact clean Corvint and task-manager commits and trees. The
-  default Corvint install remains the independent one-binary archive; no companion becomes a
-  default runtime.
+  default Corvint install remains the independent one-binary archive, and no companion becomes a
+  default runtime, until the `CMS-V0-002` release manifest ships. From that release, the bundled
+  apps it names (decision 0591; first docs, flows and Tasks) install by default and leave this
+  optional bundle; `corvint-console` never does.
 - `PUB-V0-003`: Companion build output MUST be outside the source checkouts, include exact
   toolchain/component identities, applicable license and provenance files, archive and binary
   SHA-256 checksums and corresponding source. Two independent builds and archive assemblies
