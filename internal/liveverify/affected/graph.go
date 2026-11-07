@@ -33,6 +33,13 @@ type Graph struct {
 	routed     map[string][]string
 	testUsers  map[string][]string
 	execUsers  map[string][]string
+	// codeRunners maps a command to the units whose code may run its
+	// binary (Execs less TestOnlyExecs), and testRunners to the units whose
+	// tests alone run it: a rule (d) closure follows the first like an
+	// import edge and adds the second one level past it, like a test user
+	// (AFP-V0-2991).
+	codeRunners map[string][]string
+	testRunners map[string][]string
 	// buildOnly maps a unit to the dependents whose only edge to it is a
 	// build path import (`go vet`, `go list`; AFP-V0-2951): a rule (d) chain
 	// does not take that edge.
@@ -49,10 +56,15 @@ type Graph struct {
 	// edges reach: on any dirty path the plan follows these units'
 	// dependents (AFP-V0-581).
 	locatorReach map[string]bool
-	claimants    map[string]Language
-	languages    []string
-	frontier     []string
-	frontierBy   map[string][]string
+	// runnerOnly holds the unbounded readers whose only reason is that their
+	// tests alone run a reached command's binary (testRunnersOf): their own
+	// code reads nothing unbounded, so, like a BINARY_EXEC runner, such a
+	// unit is a terminal selection (AFP-V0-2991, AFP-V0-560).
+	runnerOnly map[string]bool
+	claimants  map[string]Language
+	languages  []string
+	frontier   []string
+	frontierBy map[string][]string
 	// sourceBound and fixtureClosed hold each plugin's FrontierReach
 	// declaration by reason (AFP-V0-511); a plugin absent from both is
 	// path-open throughout. They classify plugin code, not the observed
@@ -186,9 +198,10 @@ type digestBody struct {
 
 // digestUnit projects one Unit; every member is always present except the
 // declared read scope, which appears only for a declared unit, and the
-// command edges, which appear only for a unit that runs a command, and the
-// advisory and route-dispatch edges, which appear only for a unit that has
-// one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), the literal globs
+// command edges and their test-only subset (AFP-V0-2991), which appear only
+// for a unit that runs a command, and the advisory and route-dispatch edges,
+// which appear only for a unit that has one (RUBY-AFFECTED-V0-009,
+// RUBY-AFFECTED-V0-049), the literal globs
 // (AFP-V0-401), the exact embed targets (AFP-V0-600), the file-name
 // placement certificate (AFP-V0-400), the declared binary consumers
 // (AFP-V0-762) and the
@@ -201,6 +214,7 @@ type digestUnit struct {
 	Imports              []string `json:"imports"`
 	TestImports          []string `json:"testImports"`
 	Execs                []string `json:"execs,omitempty"`
+	TestOnlyExecs        []string `json:"testOnlyExecs,omitempty"`
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathImports          []string `json:"pathImports,omitempty"`
@@ -633,9 +647,13 @@ func (graph *Graph) finish() {
 	graph.routed = graph.reverse(func(unit Unit) []string { return unit.RouteDispatchImports })
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
 	graph.execUsers = graph.reverse(func(unit Unit) []string { return unit.Execs })
+	graph.codeRunners = graph.reverse(func(unit Unit) []string {
+		return slices.DeleteFunc(slices.Clone(unit.Execs), func(id string) bool { return slices.Contains(unit.TestOnlyExecs, id) })
+	})
+	graph.testRunners = graph.reverse(func(unit Unit) []string { return unit.TestOnlyExecs })
 	called := graph.callerEdges()
 	graph.testReach = graph.unitsReachingTests(called)
-	graph.unbounded, graph.causes, graph.chains, graph.locatorReach = graph.unboundedReaders()
+	graph.unbounded, graph.causes, graph.chains, graph.locatorReach, graph.runnerOnly = graph.unboundedReaders()
 }
 
 // callerEdges adds the TSP-V0-005 edges of every unit's declared Callers to
@@ -672,14 +690,17 @@ func (graph *Graph) callerEdges() map[string][]string {
 // unboundedReaders lists, in id order, every unit whose reads no literal
 // bounds (AFP-V0-012 rule (d)): its own UnboundedReads, or a dependency whose
 // non-test code locates the root and so reads from it when this unit's code
-// or tests call it. A unit whose reads are declared is left out, whatever the
-// cause (AFP-V0-023): its declared scope bounds the whole test process. It
-// also maps each listed unit to the unit whose own reason makes it one: the
-// unit itself when it has one, else the root locator its chain starts at, and
-// to that chain: the cause first and the unit last, each unit importing (or
-// its tests importing) the one before it. It also returns the units the
-// locators' dependency traversal walks (AFP-V0-581).
-func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string][]string, map[string]bool) {
+// or tests call it, or a command whose binary runs such code when this unit's
+// code or tests run the binary (AFP-V0-2991). A unit whose reads are declared
+// is left out, whatever the cause (AFP-V0-023): its declared scope bounds the
+// whole test process. It also maps each listed unit to the unit whose own
+// reason makes it one: the unit itself when it has one, else the root locator
+// its chain starts at, and to that chain: the cause first and the unit last,
+// each unit importing (or its tests importing), or running the binary of, the
+// one before it. It also returns the units the locators' traversal walks
+// (AFP-V0-581), and the listed units only a test-only run reaches
+// (runnerOnly).
+func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string][]string, map[string]bool, map[string]bool) {
 	locators := make(map[string]Witness)
 	own := make([]string, 0)
 	for _, id := range graph.order {
@@ -694,15 +715,30 @@ func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string]
 	// A chain does not follow a build-only edge (AFP-V0-2951): a unit that
 	// only vets or lists another runs none of its code, so it reads nothing
 	// the other's root locator would. Every other edge, a command's runner
-	// included, is followed.
+	// included, is followed: a driver's path import, and a Go unit whose code
+	// may run a reached command's binary (AFP-V0-2991), which is followed on
+	// like an importer. A unit whose tests alone run the binary is added one
+	// level past it, like a unit whose tests alone import it.
 	reached := graph.traverseWhere(locators, nil, func(id, dependent string) bool { return !graph.buildOnly[id][dependent] })
 	walked := make(map[string]bool, len(reached))
 	for id := range reached {
 		walked[id] = true
 	}
 	graph.testUsersOf(reached, nil)
+	users := make(map[string]bool, len(reached))
+	for id := range reached {
+		users[id] = true
+	}
+	graph.testRunnersOf(reached, walked)
+	runnerOnly := make(map[string]bool)
+	for id := range reached {
+		if !users[id] {
+			runnerOnly[id] = true
+		}
+	}
 	for _, id := range own {
 		reached[id] = Witness{}
+		delete(runnerOnly, id)
 	}
 	ids := make([]string, 0, len(reached))
 	causes := make(map[string]string, len(reached))
@@ -720,7 +756,7 @@ func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string]
 		}
 	}
 	sort.Strings(ids)
-	return ids, causes, chains, walked
+	return ids, causes, chains, walked, runnerOnly
 }
 
 // reverse maps every unit to the sorted units whose edges name it.
@@ -862,6 +898,7 @@ func projectUnit(unit Unit) digestUnit {
 		Imports:              unit.Imports,
 		TestImports:          unit.TestImports,
 		Execs:                unit.Execs,
+		TestOnlyExecs:        unit.TestOnlyExecs,
 		AdvisoryImports:      unit.AdvisoryImports,
 		RouteDispatchImports: unit.RouteDispatchImports,
 		PathImports:          unit.PathImports,

@@ -941,7 +941,13 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		name, _, _ := strings.Cut(id, ":")
 		// An unbounded reader keeps its plugin whatever its witness: the
 		// AFP-V0-560 argument covers only readers whose reads are bounded.
-		if _, unbounded := graph.causes[id]; !unbounded && !carried[id] && !followed[id] && terminalWitness(witness) {
+		// One whose tests alone run a root-locating command reads nothing
+		// unbounded with its own code: it is terminal as a BINARY_EXEC
+		// runner is (AFP-V0-2991).
+		_, unbounded := graph.causes[id]
+		runner := graph.runnerOnly[id]
+		terminalSelection := terminalWitness(witness) || runner && witness.Kind == WitnessUnboundedReader
+		if (!unbounded || runner) && !carried[id] && !followed[id] && terminalSelection {
 			terminal[name] = append(terminal[name], id)
 			continue
 		}
@@ -1387,7 +1393,16 @@ func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[st
 // traverseWhere is traverse with follow deciding, for each edge from a
 // reached unit to one of its dependents, whether the walk takes it; nil
 // follows every edge.
+//
+// After the three import classes at each depth the walk takes a fourth: the
+// edge from a reached command to each unit whose code may run its built
+// binary (codeRunners), with a BINARY_EXEC witness. Such a unit runs the
+// command's code as an importer runs an import's, so its own importers and
+// runners run it too, and the walk continues from it (AFP-V0-2991,
+// AFP-V0-2993). A unit whose tests alone run the binary is no dependent: the
+// caller adds it one edge past the walk (execUsersOf, testRunnersOf).
 func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]map[string]bool, follow func(id, dependent string) bool) map[string]Witness {
+	classes := []map[string][]string{graph.dependents, graph.advisory, graph.routed, graph.codeRunners}
 	reached := make(map[string]Witness, len(seeds))
 	frontier := make([]string, 0, len(seeds))
 	for id := range seeds {
@@ -1404,7 +1419,7 @@ func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]m
 		// several ways keeps the most specific witness. A chain with a
 		// route-dispatch edge is ROUTE_DISPATCH_BOOT, else one with an
 		// advisory edge is ADVISORY_CONSTANT_REFERENCE (RUBY-AFFECTED-V0-049).
-		for class, edges := range []map[string][]string{graph.dependents, graph.advisory, graph.routed} {
+		for class, edges := range classes {
 			for _, id := range frontier {
 				for _, dependent := range edges[id] {
 					if _, seen := reached[dependent]; seen || (allowed != nil && !graph.follows(allowed, class, id, dependent)) || (follow != nil && !follow(id, dependent)) {
@@ -1413,6 +1428,8 @@ func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]m
 					parent := reached[id]
 					kind := WitnessDependency
 					switch {
+					case class == 3:
+						kind = WitnessBinaryExec
 					case class == 2 || parent.Kind == WitnessRouteDispatch:
 						kind = WitnessRouteDispatch
 					case class == 1 || parent.Kind == WitnessAdvisoryConstant:
@@ -1459,6 +1476,41 @@ func (graph *Graph) testUsersOf(reached map[string]Witness, allowed map[string]m
 			}
 			reached[user] = Witness{
 				Kind:      WitnessDependency,
+				DirtyPath: parent.DirtyPath,
+				link:      parent.extended(user),
+			}
+		}
+	}
+}
+
+// testRunnersOf adds, one edge past each unit in from, every unit whose tests
+// alone run that unit's built binary (testRunners), with a BINARY_EXEC
+// witness, and never expands it: its code and its importers run nothing of
+// the command (AFP-V0-2991). Units are visited by witness length, then id,
+// so each runner takes the shortest chain; a unit already reached keeps its
+// witness.
+func (graph *Graph) testRunnersOf(reached map[string]Witness, from map[string]bool) {
+	ids := make([]string, 0, len(from))
+	for id := range from {
+		if _, hit := reached[id]; hit && len(graph.testRunners[id]) != 0 {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		left, right := reached[ids[i]].ViaLength(), reached[ids[j]].ViaLength()
+		if left != right {
+			return left < right
+		}
+		return ids[i] < ids[j]
+	})
+	for _, id := range ids {
+		parent := reached[id]
+		for _, user := range graph.testRunners[id] {
+			if _, seen := reached[user]; seen {
+				continue
+			}
+			reached[user] = Witness{
+				Kind:      WitnessBinaryExec,
 				DirtyPath: parent.DirtyPath,
 				link:      parent.extended(user),
 			}

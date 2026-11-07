@@ -232,7 +232,7 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 	}
 	for name, paths := range sets {
 		p := affected.Select(g, paths)
-		languageUnits, makeTargets, ciJobs := 0, 0, 0
+		languageUnits, floorUnits, makeTargets, ciJobs := 0, 0, 0, 0
 		for _, s := range p.Selected {
 			switch s.Kind {
 			case affected.SelectionKindDriverTarget:
@@ -241,8 +241,16 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 				ciJobs++
 			default:
 				languageUnits++
+				if s.Witness.Kind == affected.WitnessUnboundedReader {
+					floorUnits++
+				}
 			}
-			if s.UnitID == "go:github.com/Beamfall/corvint/internal/tasks" && name == "declaration-spec" {
+			// The boundary test reads none of these paths (AFP-V0-9001). Its
+			// tests run the corvint binary, whose code locates the root, so
+			// rule (d) or a run of a reached command may still select it
+			// (AFP-V0-2991, AFP-V0-2992); a reader witness may not.
+			if s.UnitID == "go:github.com/Beamfall/corvint/internal/tasks" && name == "declaration-spec" &&
+				s.Witness.Kind != affected.WitnessUnboundedReader && s.Witness.Kind != affected.WitnessBinaryExec {
 				t.Errorf("%s selects the boundary test via %s", name, s.Witness.Kind)
 			}
 		}
@@ -250,9 +258,13 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 		if name == "heavy-only" {
 			// The historical 86-unit report predates the driver claimant.
 			// Keep its language-unit bound on the full integrated graph;
-			// AZU-V0-001's required drivers are additional selections.
-			if languageUnits >= 86 {
-				t.Errorf("heavy-only selected %d language units, want below reported 86", languageUnits)
+			// AZU-V0-001's required drivers are additional selections. The
+			// bound counts the units beyond the rule (d) floor, which every
+			// change selects and the AFP-V0-025 ratchet
+			// (.corvint/unbounded-readers.json) holds unit by unit: AFP-V0-2991
+			// raised that floor when rule (d) began to follow execution edges.
+			if beyond := languageUnits - floorUnits; beyond >= 86 {
+				t.Errorf("heavy-only selected %d language units beyond the %d-unit rule (d) floor, want below reported 86", beyond, floorUnits)
 			}
 			selected := affprecIDs(p)
 			reached := g.ReachedUnitIDs(paths)

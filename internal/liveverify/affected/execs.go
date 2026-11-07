@@ -36,8 +36,13 @@ func (graph *Graph) builtCommands(reached, enclosing map[string]Witness) map[str
 
 // execUsersOf selects each unit not already reached that runs the built
 // binary of a command in built, one edge past it with a BINARY_EXEC witness
-// (AFP-V0-037). Like a reader the runner is not traversed. Commands are
-// visited by witness length, then id, so each runner takes the shortest chain.
+// (AFP-V0-037). The runner is not traversed from here: a unit whose code may
+// run a command the dependency traversal reaches is already reached and
+// walked on by it (AFP-V0-2993), so what this adds is a unit whose tests
+// alone run the binary, whose importers compile none of those tests, and a
+// runner of a command only an enclosed path reaches, whose own importers the
+// plan does not walk either. Commands are visited by witness length, then id,
+// so each runner takes the shortest chain.
 func (graph *Graph) execUsersOf(reached, built map[string]Witness) {
 	commands := make([]string, 0, len(built))
 	for command := range built {
