@@ -265,10 +265,11 @@ func TestImportSetRecordsCompareHeaders_AFPV02202(t *testing.T) {
 		{"testdata", head(map[string]string{"lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), []string{"lib/testdata/fixture.go"}, affected.ImportSetChanges{Changed: map[string]string{}, Source: "lib/testdata/fixture.go"}},
 		// go list fails on an embed pattern that matches nothing: a new
 		// embed line and a removed embedded file change the import set,
-		// an edited embedded file does not.
+		// an edited embedded file does not, though its build reads it
+		// (Source, AFP-V0-9010).
 		{"embed line", head(map[string]string{"assets/assets.go": "package assets\n\nimport _ \"embed\"\n\n//go:embed data.txt more.txt\nvar Data string\n"}), []string{"assets/assets.go"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/assets.go"}, Source: "assets/assets.go"}},
-		{"embedded file removed", without(head(nil), "assets/data.txt"), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/data.txt"}}},
-		{"embedded file edited", head(map[string]string{"assets/data.txt": "other\n"}), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{}}},
+		{"embedded file removed", without(head(nil), "assets/data.txt"), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/data.txt"}, Source: "assets/data.txt"}},
+		{"embedded file edited", head(map[string]string{"assets/data.txt": "other\n"}), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{}, Source: "assets/data.txt"}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

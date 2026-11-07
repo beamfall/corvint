@@ -14,12 +14,12 @@ import (
 // sourceObservingImports are standard packages whose import alone lets a
 // file observe package metadata or source text beyond the import graph: the
 // go/ parsers and importers, build information, embedded files, process and
-// system calls, and executable readers (AFP-V0-9010).
+// system calls, cgo, and executable readers (AFP-V0-9010).
 var sourceObservingImports = map[string]bool{
 	"go/build": true, "go/doc": true, "go/importer": true, "go/parser": true, "go/scanner": true,
 	"go/packages": true, "runtime/debug": true, "debug/buildinfo": true, "debug/dwarf": true,
 	"debug/elf": true, "debug/gosym": true, "debug/macho": true, "debug/pe": true,
-	"debug/plan9obj": true, "embed": true, "plugin": true, "syscall": true,
+	"debug/plan9obj": true, "embed": true, "plugin": true, "syscall": true, "C": true,
 }
 
 // fileReaders are, by standard package, the members that read a file or a
@@ -28,8 +28,9 @@ var sourceObservingImports = map[string]bool{
 var fileReaders = map[string]map[string]bool{
 	"os": {
 		"ReadFile": true, "Open": true, "OpenFile": true, "ReadDir": true, "DirFS": true, "OpenRoot": true,
-		"OpenInRoot": true, "Stat": true, "Lstat": true, "Readlink": true, "StartProcess": true,
+		"OpenInRoot": true, "Stat": true, "Lstat": true, "Readlink": true, "StartProcess": true, "NewFile": true,
 	},
+	"archive/zip":   {"OpenReader": true},
 	"io/ioutil":     {"ReadFile": true, "ReadDir": true},
 	"path/filepath": {"Walk": true, "WalkDir": true, "Glob": true, "EvalSymlinks": true},
 	"net/http": {
@@ -53,8 +54,10 @@ var testdataReaders = map[string]bool{"ReadFile": true, "Open": true, "ReadDir":
 // library, whose code may read files; a source-observing import; a dot or
 // shadowed import of a file-reading package; a reference to a file reader
 // other than a call that reads a literal path below the package's own
-// testdata directory; a `//go:embed` line; a ParseFiles or ParseGlob method;
-// and an os/exec call that is not a `go list` call.
+// testdata directory; a `//go:embed` or `//go:linkname` line; a ParseFiles
+// or ParseGlob method; an os/exec call that is not a `go list` call; and, in
+// a file that imports os/exec, an assignment to a Path or Args field, which
+// can turn a proven call into another command.
 func observesSource(relative string, body []byte) bool {
 	file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
@@ -62,7 +65,7 @@ func observesSource(relative string, body []byte) bool {
 	}
 	for _, group := range file.Comments {
 		for _, comment := range group.List {
-			if strings.HasPrefix(comment.Text, "//go:embed") {
+			if strings.HasPrefix(comment.Text, "//go:embed") || strings.HasPrefix(comment.Text, "//go:linkname") {
 				return true
 			}
 		}
@@ -116,6 +119,12 @@ func observesSource(relative string, body []byte) bool {
 			return false
 		}
 		switch node := node.(type) {
+		case *ast.AssignStmt:
+			for _, target := range node.Lhs {
+				if selector, ok := target.(*ast.SelectorExpr); ok && exec != "" && (selector.Sel.Name == "Path" || selector.Sel.Name == "Args") {
+					observes = true
+				}
+			}
 		case *ast.CallExpr:
 			selector, ok := node.Fun.(*ast.SelectorExpr)
 			if !ok {

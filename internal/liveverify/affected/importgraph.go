@@ -21,8 +21,9 @@ const WitnessImportGraphReader = "IMPORT_GRAPH_READER"
 // changed) to the first dirty path that changed it. Module is the first dirty
 // path that may change any package's import graph: a go.mod, go.sum, go.work
 // or go.work.sum, a vendor/modules.txt, or a changed directory that no
-// longer holds an observed package. Source is the first dirty .go path,
-// whatever its header: a reader not proven to observe the import graph alone
+// longer holds an observed package. Source is the least dirty path a reader
+// of package metadata or source text may observe (SourcePath), whatever its
+// header: a reader not proven to observe the import graph alone
 // (Unit.ImportGraphReadsFiles) may read any package's metadata or source
 // text, its documentation included, so it is selected through any of them
 // (AFP-V0-9010). A nil value is unknown: the selector then counts every dirty
@@ -85,13 +86,32 @@ func GoIgnoredPath(relative string) bool {
 	return false
 }
 
-// SourcePath is ImportSetChanges.Source for dirty: its least .go path,
-// testdata and other paths the go tool ignores included, since a reader that
-// parses source may read them (AFP-V0-9010); "" when it holds none.
-func SourcePath(dirty []string) string {
+// goToolSources are the file name suffixes, besides .go, that the go
+// command lists as package files (CFiles, SFiles, SysoFiles and the rest).
+var goToolSources = []string{".c", ".cc", ".cpp", ".cxx", ".m", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".for", ".f90", ".s", ".S", ".sx", ".swig", ".swigcxx", ".syso"}
+
+// SourcePath is ImportSetChanges.Source for dirty: its least path that a
+// reader of package metadata or source text may observe (AFP-V0-9010). That
+// is a .go file, testdata and other paths the go tool ignores included since
+// a reader that parses source may read them; a file the go command lists by
+// another suffix; or any file below an embedding Go unit's directory, whose
+// content its build (Stale, Export) depends on. It is "" when dirty holds
+// none.
+func (graph *Graph) SourcePath(dirty []string) string {
+	var embedding []string
+	for _, id := range graph.order {
+		unit := graph.units[id]
+		if files := append(slices.Clone(unit.Sources), unit.Tests...); unit.Embeds && strings.HasPrefix(id, "go:") && len(files) != 0 {
+			embedding = append(embedding, relativeDirectory(files[0]))
+		}
+	}
 	first := ""
 	for _, relative := range dirty {
-		if strings.HasSuffix(relative, ".go") && (first == "" || relative < first) {
+		source := strings.HasSuffix(relative, ".go") || slices.ContainsFunc(goToolSources, func(suffix string) bool { return strings.HasSuffix(relative, suffix) })
+		for _, directory := range embedding {
+			source = source || directory == "." || strings.HasPrefix(relative, directory+"/")
+		}
+		if source && (first == "" || relative < first) {
 			first = relative
 		}
 	}
@@ -104,7 +124,7 @@ func SourcePath(dirty []string) string {
 // and a module file or an unowned .go file the go tool may build changes the
 // module's.
 func (graph *Graph) unknownImportSets(normalized []string) *ImportSetChanges {
-	changes := &ImportSetChanges{Changed: map[string]string{}, Source: SourcePath(normalized)}
+	changes := &ImportSetChanges{Changed: map[string]string{}, Source: graph.SourcePath(normalized)}
 	for _, dirty := range normalized {
 		switch {
 		case ModuleFile(dirty):
