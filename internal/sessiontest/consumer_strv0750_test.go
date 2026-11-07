@@ -47,6 +47,9 @@ func TestBinaryConsumerIsANamedCheck_STRV0750(t *testing.T) {
 			in.RunnerProfile = tc.profile
 			in.Checks = []string{"make go-vet"}
 			in.Unknown = tc.unknown
+			// The shell frontier adds the shell suite (AFP-V0-2750), which
+			// this fixture declares has none, so it adds no unit or check.
+			declare(&in, LanguageCommand{Language: "shell", None: "no shell suite"})
 			m, err := Build(in)
 			if err != nil {
 				t.Fatal(err)

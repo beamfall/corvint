@@ -9,8 +9,9 @@ import (
 // STR-V0-064: an AFP-V0-650 unobserved-module frontier is admitted on the
 // local profile only by a nested-module unit that runs the module's own
 // go test ./... from its directory; the root selection is unchanged, the ci
-// profile and every malformed or non-runnable detail stay FULL, and a FULL
-// run still carries the module unit.
+// profile names the module's suite as a check instead (AFP-V0-2742), every
+// malformed or non-runnable detail stays FULL, and a FULL run still carries
+// the module unit.
 func TestSTRV0064NestedModuleUnit(t *testing.T) {
 	module := func(detail string) Unknown { return Unknown{Reason: "LANGUAGE_FRONTIER", Detail: detail} }
 	full := []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole"}
@@ -41,10 +42,10 @@ func TestSTRV0064NestedModuleUnit(t *testing.T) {
 		{name: "FULL still runs the module", edit: func(in *Input) {
 			in.Unknown = []Unknown{module("go:unobserved-module:sub/mod:sub/mod/x.go"), {Reason: "UNINDEXED_SOURCE_PATH", Detail: "x/y.go"}}
 		}, scope: ScopeFull, reason: "plan.unknown entry outside the AFP-V0-028 allowlist: UNINDEXED_SOURCE_PATH x/y.go", units: append(append([]string{}, full...), "0 go-module:sub/mod whole")},
-		{name: "ci profile keeps FULL", edit: func(in *Input) {
+		{name: "ci profile narrows without the module unit (AFP-V0-2742)", edit: func(in *Input) {
 			in.RunnerProfile = ProfileCI
 			in.Unknown = []Unknown{module("go:unobserved-module:sub/mod:sub/mod/x.go")}
-		}, scope: ScopeFull, reason: "plan.unknown entry outside the AFP-V0-028 allowlist: LANGUAGE_FRONTIER go:unobserved-module:sub/mod:sub/mod/x.go", units: full},
+		}, scope: ScopeNarrowed, units: []string{"0 go:example.test/m/a whole"}},
 		{name: "a non-runnable module keeps FULL", edit: func(in *Input) {
 			in.Unknown = []Unknown{module("go:unobserved-directory:sub/mod:sub/mod/x.go")}
 		}, scope: ScopeFull, reason: "plan.unknown entry outside the AFP-V0-028 allowlist: LANGUAGE_FRONTIER go:unobserved-directory:sub/mod:sub/mod/x.go", units: full},

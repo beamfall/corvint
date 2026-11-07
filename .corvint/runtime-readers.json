@@ -42,6 +42,10 @@
       "reason": "long-line allow list (ASD-V0-573), read through its declared path by script/long-lines-check.sh; never executed or imported."
     },
     {
+      "path": ".corvint/record-readers.json",
+      "reason": "record-directory reader ratchet record (AFP-V0-2745); read through path literals by tools/unbounded-readers and tools/declaration-compat-check and by the root-locating repository tests the unbounded-reader rule selects; never a selection input or loaded by a computed name or a build or CI driver"
+    },
+    {
       "path": ".corvint/runtime-edges.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
