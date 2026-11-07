@@ -83,6 +83,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 - `TCL-V0-7404`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4288; V1-4289) Gated batch-close MUST derive a lane ticket candidate from its delivering PR headRefOid unless an explicit seal overrides it. Its precheck MUST admit only scope paths a retry claim can restore from the last matching ended generation, exclude already declared paths from the restored request without imposing the request limit on the full declaration, pass the restored keys to the claim, and bind each step request ID to candidate, base, scope source and scope keys. Missing or non-ancestral lane heads remain explicit refusals. Tests: `TestTCLV07404MultiLaneHeads`, `TestTCLV07404RestoredScopeAndRequestBinding`, `TestTCLV07404BatchRestoresSubmittedWiden` in `internal/tasks/cli`.
 - `TCL-V0-7405`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3536; V1-3539; V1-3598) Help MUST provide usable inline guidance without referring to unshipped documentation files. Complete-manual help MUST mark target and expected revision required and include an invocation; omitting either MUST name the missing flag and print that invocation. EFFECTS_UNBOUNDED MUST report the actual effective coverage state. Tests: `TestTCLV07405ManualHelpAndMissingFlags`, `TestTCLV07405UnboundedActualCoverage` in `internal/tasks/cli`.
+- `TCL-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4626; amended 2026-11-04 fix round 1)
+  `ticket show ID --root DIR` and `ticket show --root=DIR ID` MUST resolve the read from DIR,
+  relative to the caller's directory, just as the leading global `--root` form does. The flag
+  MUST work with JSON, field selection, summary and text output. An empty or missing directory
+  MUST refuse `MALFORMED` before reading a store. Repeated roots resolve against the original
+  caller directory; conflicting roots MUST refuse `MALFORMED` with an actionable message.
+  This changes no records or write authority.
+  Evidence: `TestTCLV0926TicketShowRootAfterVerb`, `TestTCLV0926TicketShowConflictingRoots`. Rollback: remove the show-local root parsing.
 
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
   `corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]...
@@ -555,6 +563,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   CAL-V0-131 test still covers it (TCL-V0-815).
 
 ## Acceptance evidence
+
+- `TCL-V0-926` — `internal/tasks/cli/ticket_show_text.go`; `TestTCLV0926TicketShowRootAfterVerb`.
 
 - `internal/tasks/similar/similar_test.go`: `TestTCLV0002_RankIsDeterministicWithEvidence`,
   `TestTCLV0008_RecurrenceLines`, `TestTCLV0006_DigestRoundTrip`;

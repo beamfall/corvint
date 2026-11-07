@@ -114,21 +114,24 @@ pins this agreement (group V1-3258).
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
-   each citing a stable base line (one no hunk edits and the change does not repeat) that names
-   that hunk's path or defines a requirement ID it adds, an untouched file's line first, or leaving
-   it `unknown`; it never anchors a hunk on its own file or on the change's own text
-   (`DCW-V0-150`, `DCW-V0-393`, `DCW-V0-966`). A hunk naming a requirement this change adds cites
-   the BASE requirement the new entry refines, as a marked proposal (`DCW-V0-967`). It is not a plan until you have checked that every cited line is the evidence
+   each citing a stable BASE line that names the hunk path, its basename of at least 6 bytes,
+   or defines a requirement ID the hunk adds or names (`CEM-V1-081`, `DWC-V0-926`). Bare
+   Markdown headings and unsupported cross-file guesses are never drafted (`DWC-V0-927`). For a spec
+   amendment naming its governing requirement, the stable BASE definition line is preferred,
+   including continuation edits without an ID. Those remain marked same-file proposals when
+   CEM-V1-081 cannot anchor them; rewritten or repeated definitions stay governing-ID review notes (`DWC-V0-928`). It is not a plan until you have checked that every cited line is the evidence
    the hunk relies on. Run before any map exists, or with an unreadable or other-base map
    (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
    reordering hunks, and the bind's plan precheck still judges every row (`DCW-V0-350`).
-   A hunk whose only nearby evidence is its own modified file gets a cite row on that file's
-   nearest stable heading or declaration, marked `drafted proposal:` on stderr: confirm or
-   replace each before binding (`DCW-V0-962`). An `unknown` row's note names the path and BASE
-   range its hunk edits (`DCW-V0-963`). It cites no one-line, JSON or `.agent-evidence/`
-   record, and keeps `unknown` a hunk that names a requirement ID this same change adds, naming
-   the ID, since same-change intent is not BASE evidence (`DCW-V0-440`). Write the build-log entry
+   A hunk without admissible evidence stays `unknown`; a same-file proposal must meet the stability and
+   heading rules, and remains marked `drafted proposal:` for review on stderr.
+   An `unknown` row's note names the path and BASE
+   range its hunk edits (`DCW-V0-963`). Seal-contract and repin-rule rows retain their deterministic operational evidence.
+   It cites no one-line, JSON or `.agent-evidence/`
+   record. A new requirement definition is not BASE evidence, and a new file without other
+   evidence stays `unknown`; references to a same-change ID in an existing file may use a
+   marked proposal of surviving BASE context (`DCW-V0-440`). Write the build-log entry
    and commit it before drafting (`docs/CHANGE-FLOW.md`): a new file edited after the draft gets a
    new hunk ID, and the bind refuses the stale row as `citation-plan-map-mismatch`, naming the
    row, the stale ID and the current one (`DCW-V0-441`). Recover with

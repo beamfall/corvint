@@ -79,12 +79,6 @@ func TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal(t *testing.T)
 			t.Errorf("row %d is not marked as a proposal:\n%s", index+1, stderr.String())
 		}
 	}
-	if rows[0] != "1\tdocs/specs/x-v0.md\t3:3\tspecification" {
-		t.Errorf("spec row does not draft its enclosing heading: %q", rows[0])
-	}
-	if !strings.Contains(stderr.String(), "  proposals=3 rows are drafted proposals") {
-		t.Errorf("draft header does not count the proposals:\n%s", stderr.String())
-	}
 	// DCW-V0-845 (V1-3302): the header names the line basis and the BASE sha.
 	if basis := "  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE " + base + ", not at HEAD or in the working tree (DCW-V0-845)\n"; !strings.Contains(stderr.String(), basis) {
 		t.Errorf("draft header does not name the line basis:\n%s", stderr.String())

@@ -21,6 +21,36 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 ## Requirements
 
 - `DWC-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3291) The shell inputs-check/finish path MUST check line citations before a build or bind, refuse moved citations with `line-citations-invalid`, and name `script/check-line-citations.sh --repin` plus review/commit before rebinding. The sealed-head closeout precheck MUST disable mechanical regeneration, so a repin cannot create an unbound post-seal change.
+- `DWC-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amended 2026-11-04 fix round 1; amends `DCW-V0-440`; refines `DCW-V0-161`, `DCW-V0-962`, `DCW-V0-805`, `DCW-V0-841`, `DCW-V0-803`, `DCW-V0-385`, `DCW-V0-548`, `DCW-V0-966` and `DCW-V0-967`)
+  Cross-file drafts MUST have exact path, basename of at least 6 bytes, or requirement-definition
+  evidence admitted by `CEM-V1-081`, except the deterministic seal-contract (`DCW-V0-385`)
+  and repin-rule (`DCW-V0-548`) rows, which explain the operations that produce their hunks.
+  Preserve marked same-file nearest stable substantive line proposals (`DCW-V0-962`), without
+  claiming an anchored tier, including references to same-change IDs in an existing file;
+  the new definition itself is not BASE evidence. Decision rows remain eligible when the span names the exact file
+  or defines an ID the hunk names. Cross-file sibling, intent and governing-spec guesses alone
+  MUST NOT justify a row. Otherwise draft reasoned `unknown`. Reviewed refresh rows retain
+  their semantics. Evidence: `TestProposeCitationsDWCV0926OnlyAnchoredDrafts`, `TestProposeCitationsDWCV0926SameChangeReferenceKeepsOwnContext`,
+  `TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair`, `TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule`.
+  Rollback: remove the cross-file drafted-row filter.
+- `DWC-V0-927`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amended 2026-11-04 fix round 1; amends `DCW-V0-439` and `DCW-V0-962`) A newly drafted
+  span MUST NOT consist only of a bare Markdown heading. Track fenced code so its content
+  is not a heading. A setext underline requires a preceding paragraph, not a list item or YAML
+  key. Try substantive evidence instead or keep `unknown`. Evidence:
+  `TestProposeCitationsDWCV0927NoHeadings`, `TestProposeCitationsDWCV0927MarkdownContexts`.
+  Rollback: restore heading candidates.
+- `DWC-V0-928`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
+  amended 2026-11-04 fix round 1; refines `DCW-V0-967` and amends `DCW-V0-805`) For a
+  spec amendment, prefer the BASE definition of the entry containing the edited line, including
+  a continuation edit that does not retype its ID. Cite only a definition the stability verifier
+  admits and no other row already used (`DCW-V0-382`). When added bytes omit the ID, label it
+  a same-file proposal with an anchored-by-id review note and explicitly state that `CEM-V1-081`
+  cannot anchor it. A rewritten, removed or repeated definition MUST remain a governing-ID
+  review note, never a false cite of its removed bytes; another stable proposal may serve.
+  Evidence: `TestProposeCitationsDWCV0928BaseGoverningDefinition`,
+  `TestProposeCitationsDWCV0928DistinctGoverningSpans`. Rollback: remove the preference.
 
 - `DWC-V0-001`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467; refines
   `DCW-V0-039` and `DCW-V0-401`) `dogfood batch-check` MUST accept, as derivation
@@ -103,6 +133,9 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 | Requirement | Evidence | State |
 |---|---|---|
+| `DWC-V0-926` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0926OnlyAnchoredDrafts` | implemented; focused regression |
+| `DWC-V0-927` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0927NoHeadings` | implemented; focused regression |
+| `DWC-V0-928` | `internal/dogfoodflow/propose_anchors.go`; `TestProposeCitationsDWCV0928BaseGoverningDefinition` | implemented; focused regression |
 | `DWC-V0-001` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDWCV0001RegeneratedRequirementsMerge`, `TestBatchCheckDWCV0001OtherConflictStaysUnbound`, `TestBatchCheckDWCV0001RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDWCV0001RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DWC-V0-002` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DWC-V0-003` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDWCV0003PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
