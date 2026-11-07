@@ -378,6 +378,15 @@ lanes and external full-suite/mutation observations at every historical revision
 - `AZU-V0-9920`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05; amended under the owner's standing auto-accept (2026-11-05), fullplan Verifier repair 1) The Go and Python plugins SHALL index helper sources and tests below `.github/` through the bounded, cache-stamped source reader, on disk and immutable inputs. Existing module boundaries, skipped subdirectories and source failures remain effective. A helper edit SHALL select its tested unit and modelled or declared consumers; the dynamic load of `.github/macos/darwin_select.py` by `select_test.py` is declared through `.corvint/runtime-edges.json`. The maintained test-command declaration SHALL name the existing CI Python suite, `python3 -B .github/macos/select_test.py`; the replay SHALL use that declaration and check the local invocation and required CI check (STR-V0-004). The Go runner SHALL confirm these indexed helpers through its real inventory probe as well as ordinary packages, retaining refusal for extra or missing units (STR-V0-069). Its independently enumerated helper directories SHALL retain the graph's skipped-directory, testdata and nested-module boundaries. Test read declarations SHALL bound helper tests when confinement qualifies their actual reads (AFP-V0-023); discovery alone SHALL NOT add an unreasoned unbounded-reader exemption. This is the `.github/` slice of AZU-V0-005; for Go, AZU-V0-005's general hidden-directory walk supplies this discovery (selbatch merge, 2026-11-06), while the Python plugin keeps its bounded `.github` reader.
 - `AZU-V0-9921`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) A path covered by `.corvint/non-source-paths.json` that no indexed unit owns SHALL be classified as `DECLARED_NON_SOURCE` even when a language claims its suffix. This applies to retained `.agent-evidence/` scripts and source-shaped dumps under AZU-V0-002. The declaration itself adds no test units; existing embed, literal, declared, enclosing-directory and unbounded readers remain selected, and frontier diagnostics remain effective. Indexed source, driver inputs, task projections and undeclared source SHALL retain their existing treatment. In particular, an undeclared unindexed source still forces FULL under AFP-V0-028; its allowlist is unchanged.
 - `AZU-V0-9922`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) Reduced replay fixtures for merges `39c031980`, `8e2c13aa9` and `cdeed7ee6` SHALL select the named helper tests, classify retained evidence without adding units or unindexed uncertainty, and retain FULL for new unknown source. Acceptance retains before/after unit counts with the replay input scope, complete touched-package tests, and declaration-reader safety checks. No wire shape, output golden or workflow change is required.
+- **AZU-V0-9950: Named non-source declaration faults.** (experimental under the standing lane
+  auto-accept, 2026-11-06; V1-4919) When `.corvint/non-source-paths.json` has an entry out of
+  strictly ascending byte order, a duplicate path, or an undeclarable path, the refusal SHALL name
+  the entry's index and path and say which rule it breaks: for order, the earlier entry it fails
+  to follow and the fix (move it, or reorder all entries with `jq '.entries |= sort_by(.path)'`);
+  for a duplicate, the entry it repeats; for an undeclarable path, the declarable forms. The
+  accepted grammar and its fail-closed result are unchanged. Evidence:
+  `TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950`. Rollback: restore the single `path %q`
+  error.
 
 ## Non-goals
 
@@ -526,6 +535,7 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
+| AZU-V0-9950 | V1-4919; standing lane auto-accept, 2026-11-06 | `TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950` (out-of-order, duplicate and undeclarable entries) |
 
 The comparison proof's failure mode is an escaped path mistaken for a pure guard. The binding
 and scanner regressions retain real reads, aliases, closures, shadowing and parse failures.

@@ -12,7 +12,7 @@
   `GPK-V0-055`/`GPK-V0-056` and requiring learned-path floor isolation under `GPK-V0-039`/`GPK-V0-044`
 
 ## Agent digest
-- Claim: Corvint is migrating hot paths to one native-Go binary; GPK-V0-043 and GPK-V0-044 are experimental, while promotion and cutover remain gated.
+- Claim: Corvint is migrating hot paths to native Go; GPK-V0-043 and GPK-V0-044 are experimental, while promotion and cutover remain gated.
 - Status: accepted/experimental; GPK-V0-043 implementation evidence landed 2026-08-31, GPK-V0-044 implementation evidence landed 2026-09-01, and GPK-V0-055/056 are implemented in the 2026-09-05 repair lane, all without promotion; GPK-V0-071 (narrowed) and GPK-V0-072 accepted 2026-10-21 under the owner's delegation and standing auto-accept (V1-0288, V1-0313)
 - Exists: the native Go binary, all six OCM workflow actions, and independently gated migration slices; full cutover remains unqualified.
 - Blocked on: remaining parity, benchmark, platform, dogfood, and promotion gates.
