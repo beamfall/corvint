@@ -782,8 +782,10 @@ other prepare failure, including a transient `git-timeout`, is reported as `cem-
 `NOT_PRODUCED` with its reason and leaves the committed map untouched for the operator to rerun.
 `dogfood-check` then checks that committed change from a clean
 worktree. Running it before commit is a workflow refusal, not evidence that there was no change.
-A clean worktree here means one with no change after the bind commit: `git status --porcelain`
-lists nothing (ignored paths, such as the private `.corvint/` outputs, do not count). The lane's
+A clean worktree here means one with no change after the bind commit:
+`git -c core.excludesFile= status --porcelain --untracked-files=all` lists nothing. Paths the
+repository's `.gitignore` or `.git/info/exclude` ignore, such as the private `.corvint/` outputs, do
+not count; a global `core.excludesFile` does not apply, as in the check's own probe. The lane's
 own worktree qualifies as it stands; no fresh checkout or second worktree is needed. A tree that
 is not clean is refused `dirty-worktree` (or `uncommitted-change-not-in-base-target`) with a `fix:`
 line naming the dirty path count (`DCW-V0-2144`).

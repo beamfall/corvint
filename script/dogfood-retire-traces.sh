@@ -15,6 +15,16 @@ export LC_ALL=C
 me=dogfood-retire-traces
 (($# == 0)) || { printf '%s: REFUSE bad-arguments\nusage: script/dogfood-retire-traces.sh (or make dogfood-retire-traces); it takes no arguments\n' "$me" >&2; exit 2; }
 corvint_bin=${CORVINT_BIN-}
+# Both invocations run from the repository root, so resolve a PATH-only name and make a relative
+# path absolute against the caller's directory first, as dogfood-finish.sh does (DCW-V0-2142).
+if [[ -n $corvint_bin ]]; then
+  [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
+    printf '%s: REFUSE corvint-bin-not-found: CORVINT_BIN=%s is not an executable on PATH; nothing was moved\n' "$me" "$CORVINT_BIN" >&2
+    printf 'fix: set CORVINT_BIN to a path of a current build of this tree, or unset it to build one, then rerun make %s\n' "$me" >&2
+    exit 2
+  }
+  [[ $corvint_bin == /* ]] || corvint_bin=$PWD/$corvint_bin
+fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 if [[ -z $corvint_bin ]]; then
