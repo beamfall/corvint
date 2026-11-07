@@ -115,7 +115,8 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   `hash` or `enable`, names TAPE or TAR_OPTIONS other than as an expansion, or runs a `source`,
   `.`, `load` or `eval` before the fresh source; and when the file names PATH other than as an
   expansion, `mktemp`, `tar`, `base64` and `hostname` SHALL each run as `command -p NAME`. Every
-  other non-literal source SHALL stay `shell:dynamic-source`.
+  other non-literal source SHALL stay `shell:dynamic-source`, except the environment-named source
+  of AFP-V0-2953 (`docs/specs/affected-plan-selection-v0.md`, V1-4283).
 - **TSP-V0-005:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; the
   orchestrator's option (c) decision, 2026-10-30) The project MAY declare, in
   `.corvint/shell-foreign-callers.json` (profile `corvint-shell-foreign-callers/0`), for a non-test

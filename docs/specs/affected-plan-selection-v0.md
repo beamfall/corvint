@@ -25,9 +25,9 @@ Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
 
 ## Agent digest
-- Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
+- Claim: `corvint affected` narrows fixture, temp-root, `go list`, root-locator and text-literal reads, marks deletions, and honours declared test owners.
 - Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`.
+- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`; `boundedJoinArgument` in `internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`, `textTokens` in `golang.go`, `environmentSource` in `internal/liveverify/affected/shell/fresh.go`.
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
@@ -549,6 +549,86 @@ measure. None of them drops a unit the change can reach.
   removing or changing a plugin the change does not involve SHALL leave every other byte of the
   plan unchanged but the graph digest and the exclusion universe that names it.
 
+### Root locators, text literals and runtime sources are not reads (V1-4283)
+
+Measured on 2026-11-06 at `4052b8540b5fff818a819db37b55371ea5428c2c`: a one-line edit of
+`docs/TICKET-PRIORITY.md` selected 117 `UNBOUNDED_READER` units under 30 causes, 92 of them through
+a `package main` unit's `os.Getwd` (`cmd/corvint`, `benchmarks/runner`, `cmd/corvint-tasks`,
+`tools/gate-ledger`, `tools/test-commands-run`), two prose literals (`tools/cem-stable-regen`,
+`internal/perfbudget`) and two shell scripts the plugin marked `shell:dynamic-source`
+(`script/heavy.sh`, `script/dogfood-finish.sh`). None of those units reads the edited file. The
+requirements below make AFP-V0-012 rule (d) and the shell plugin's source classification state
+what is read, and keep every unit whose reads are genuinely unbounded, with a witness that says why.
+
+- **AFP-V0-2950:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  amends AFP-V0-012 rule (d) and AZU-V0-9930) Locating the working directory is not a read. An
+  `os.Getwd` call (under the local name the file's import gives `os`) whose two results are bound by
+  one `:=` or `=` statement to a local variable and a local variable or blank SHALL NOT make its
+  package an unbounded reader when every other use of the path variable is (a) an operand of `==` or `!=`
+  against a string literal, or (b) the first argument of a `filepath.Join` or `path.Join` call (under
+  the local name the file's import gives `path/filepath` or `path`) whose every other argument is a
+  string literal whose first path component is a plain name, not empty, `.` or `..`. Each such
+  literal is already a rule (c) path token of the package, so a change to a file it names (or
+  below a directory it names) selects the package as `PATH_LITERAL_READER`; a change elsewhere does
+  not. Any other use (a return, an assignment to another variable, a struct field, an argument to any
+  other function, `filepath.Dir`, a `Join` with a computed, empty, `.` or `..` argument) keeps the
+  package a root locator exactly as before, as does a `--show-toplevel` literal: the subprocess that
+  answers it reads the repository's Git metadata, and its output flows through text the lexical pass
+  cannot follow. The planner's Go plugin (`comparisonOnlyLocators` in
+  `internal/liveverify/affected/golang/locatorproof.go`) and the CI selector
+  (`internal/gateselect/locatorproof.go`) SHALL apply the same proof and agree on every fixture case.
+  Non-goal: a joined path the program later climbs out of with `filepath.Dir` or `..`; the proof
+  bounds the join, not what the program does with its result, and the residual is a deliberate
+  rule (c) over-approximation the record `.corvint/unbounded-readers.json` does not need.
+- **AFP-V0-2951:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  amends AFP-V0-012 rule (d)) A Go unit whose non-test files declare `package main` SHALL keep its
+  own `unboundedReads` reason and its own selection on every dirty path when a non-test file locates
+  the root, but SHALL NOT be `locatesRoot`: no Go package imports a command, so the only units rule
+  (d) reached from it were the make targets, CI jobs and scripts that build or run the binary, and
+  what such a run reads is decided by the runner's own recipe (its working directory, arguments and
+  literals, rule (c)) and by the command's code, which the runner's import or build edge already
+  follows. Failure mode, retained: a runner that runs a repository-walking command over the live
+  checkout is selected only when its recipe or the command's code changes; the repository's such
+  runners (`make selection-baseline-check`, `make perf-budget`) replay fixed commits or generated
+  fixtures. The CI selector is unchanged: its rule (d) closure already follows import edges only
+  (AFP-V0-464), which a command has none of.
+- **AFP-V0-2952:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  amends AFP-V0-012 rule (d)) A `..`-climbing token that a non-test file holds only inside string
+  literals that contain a line break, none of which carries a directory-changing word (`cd`,
+  `pushd`, `-C`, `--chdir`; `changesDirectory`), is program or document text the file writes or
+  prints, not a path it opens: it SHALL NOT make the package an unbounded reader. The token stays a
+  rule (c) path token. The same token in a single-line literal of the file, a literal with a
+  directory-changing word, or any literal of a test file keeps rule (d) as before. The planner's Go
+  plugin and the CI selector SHALL apply the same rule and agree on every fixture case, and the
+  selector's scan memo SHALL carry the exemption per file so a warm scan agrees with a cold one.
+- **AFP-V0-2953:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  amends TSP-V0-004's closing sentence and NSA-V0-009) The shell plugin SHALL treat a `source` or `.`
+  whose only operand is `$NAME`, `${NAME}`, or `${NAME` followed by `/`, `#` or `%` and a pattern
+  to the closing brace, as a read of a file the environment names, not a dynamic source, only when
+  NAME is an identifier the file's text never assigns, declares, reads into or iterates (it occurs
+  only as `$NAME` or `${NAME...}` expansions other than `${NAME=...}` and `${NAME:=...}`;
+  `onlyRead`) and every other `source`, `.` and `load` command of the file is a TSP-V0-004
+  fresh-directory source. Such a value reaches the file from its caller's environment or from the
+  runtime file a fresh-directory source read; when a caller names a repository path for it, that
+  caller's own literal is the rule (c) reader. A file that sources a repository file, a helper, or
+  a computed path, or that gives NAME any value, keeps `shell:dynamic-source`.
+- **AFP-V0-2954:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
+  amends NSA-V0-008) A variable that leads a `source`, `.`, `load` or run target SHALL resolve as a
+  directory form when it is assigned more than once only if every assignment is a plain
+  `NAME=VALUE` word with byte-identical VALUE text and the file never otherwise declares, reads into,
+  appends to or iterates the name: whichever assignment ran, the value is the same. A second
+  assignment with different text (`DIR=$(dirname "$0")` then `DIR=/tmp`), a `local`, `read`, `for`
+  or `+=` form, or a `${NAME=...}` default keeps the target unresolved, as before. TSP-V0-004's
+  fresh-directory proof still requires exactly one assignment.
+- **AFP-V0-2955:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283)
+  The repository SHALL declare in `.corvint/shell-read-scopes.json` (TSP-V0-950) the repository paths
+  `script/dogfood-cache_test.sh` (`Makefile`), `script/lane-scripts_test.sh` (`Makefile`,
+  `docs/DOGFOOD.md`) and `script/qualify-tasks-basic_test.sh` (`cmd/corvint-tasks/`, `go.mod`,
+  `go.sum`, `internal/`) read outside `script/`, each with the reason its toolchain run needs them,
+  and `.corvint/unbounded-readers.json` SHALL list no unit that AFP-V0-2951 to AFP-V0-2954 take
+  off the floor. `script/heavy.sh` SHALL keep its remote half provable under TSP-V0-004: the
+  payload directory variable is assigned once and no other function reuses its name.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -651,6 +731,12 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2404 | `.corvint/runtime-readers.json` | the per-path plan summaries in the build-log entry |
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
+| AFP-V0-2950 | `comparisonOnlyLocators`, `boundedJoinArgument` and `pathImports` in `internal/liveverify/affected/golang/locatorproof.go` and the identical `internal/gateselect/locatorproof.go`; their calls in `pathTokens` (`golang.go`) and `scanFile` (`gateselect/readers.go`) | `TestBoundedJoinLocatorIsNoRead_AFPV02950` in `internal/liveverify/affected/golang/locator_selection_test.go` (a literal join is selected only by the file it names; a returned, re-assigned, `Dir`-climbed, computed-join, `..`-join and `=`-rebound control stay rule (d)); `TestBoundedJoinLocatorParity_AFPV02950` in `internal/gateselect/locator_parity_test.go` (both analyzers agree; cold and warm memo agree); before/after counts in build log `2026-11-06-unbounded-readers` |
+| AFP-V0-2951 | the `command` guard on `LocatesRoot` in `observeDirectory` (`internal/liveverify/affected/golang/golang.go`) | `TestCommandLocatorReachesNoRunner_AFPV02951` in `internal/liveverify/affected/golang/locator_selection_test.go` (a command keeps its own reason and selection; its runner is not selected; a library locator's importer still is); the measured runner counts in build log `2026-11-06-unbounded-readers` |
+| AFP-V0-2952 | `textOnly` in `fileScan`, `textTokens` and the `textOnly` skip of `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `textOnly` in `sourceScan`, `scanSource`, `record` and the `TextOnly` memo field in `internal/gateselect/readers.go` and `scanmemo.go` | `TestLineBrokenClimbIsText_AFPV02952` in `internal/liveverify/affected/golang/unbounded_test.go` (document and program text exempt; a single-line path, a `cd` script, a test file and a token both forms hold keep rule (d)); `TestLineBrokenClimbParity_AFPV02952` in `internal/gateselect/locator_parity_test.go` |
+| AFP-V0-2953 | `environmentSource` in `internal/liveverify/affected/shell/fresh.go` and its call in `observe` (`shell.go`) | `TestEnvironmentInputSourceIsBounded_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (the heavy.sh form; controls: an assigned name, a `read` name, a `${NAME:-default}`, a sibling repository source, a trailing path, a positional parameter); the flipped `envfile.sh` case of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/shell_readscopes_repo_test.go` |
+| AFP-V0-2954 | `conflicting` in `resolver`, its assignment in `newResolver` and the count check of `base` (`internal/liveverify/affected/shell/shell.go`) | `TestSameValuedReassignmentResolves_AFPV02954` in `internal/liveverify/affected/shell/shell_test.go` (the dogfood-finish.sh form links; controls: differing values, `local`, `read`, `for`, `+=`); `TestReassignedVariableIsNotADirectoryForm_NSAV0008` (unchanged) |
+| AFP-V0-2955 | `.corvint/shell-read-scopes.json`, `.corvint/unbounded-readers.json`, `unwrap_shell` in `script/heavy.sh` | `TestRepositoryScriptsAreBoundedSources_V14283` (heavy.sh, dogfood-finish.sh and the three declared tests); `make unbounded-readers-check`; `make test-read-scopes-check`; `make selection-baseline-check`; the before/after plans in build log `2026-11-06-unbounded-readers` |
 
 ## Rollback
 
