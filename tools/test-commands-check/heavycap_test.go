@@ -377,4 +377,20 @@ exec env -i PATH="$PATH" HOME="`+root+`" TMPDIR="`+root+`" LC_ALL=C bash -s
 			}
 		})
 	}
+	// Prefix admission is a closed allowlist: env by basename and NAME=VALUE
+	// assignments before go. Unknown env syntax must refuse before transport,
+	// rather than discard words while certifying the child's defaults.
+	t.Run("unknown-env-form-refused", func(t *testing.T) {
+		write(goenv, "GOFLAGS=-skip=TestExisting\n")
+		write(envfile, "export GOENV="+goenv+"\nunset GOFLAGS\n")
+		cmd := exec.Command("bash", filepath.Join(scripts, "heavy.sh"),
+			"/usr/bin/env", "--heavycap-unknown", "GOFLAGS=", "go", "test", "-count=1", "./p")
+		cmd.Dir, cmd.Env = work, env
+		out, err := cmd.CombinedOutput()
+		if err == nil || cmd.ProcessState.ExitCode() != 2 ||
+			!strings.Contains(string(out), "heavy.sh: REFUSED whole-reason-missing (exit 2)") ||
+			strings.Contains(string(out), "heavy.sh: running on ") || strings.Contains(string(out), "running locally") {
+			t.Fatalf("unknown prefix received execution authority: %v %s", err, out)
+		}
+	})
 }
