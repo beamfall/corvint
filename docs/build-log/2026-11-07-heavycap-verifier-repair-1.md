@@ -27,3 +27,9 @@ pre-change capture, Tasks write, publication or seal is part of this repair.
 The first repair check rejected an expanded declaration reason at 1,139 bytes against the
 existing 1,024-byte limit. Shortening the added explanation preserves the limit and both
 classifications; no check or assertion was changed. The failed run is retained with the repair logs.
+
+Final binding preflight then refused a repository-read classification for the replay fixture's
+temporary `.github/cishards/package-costs.json`. ASD-V0-895's `//corvint:fixture-path` annotation
+now identifies that fixture-only write; it adds no read scope or exemption for a real repository
+read. Preflight explicitly reported that nothing had been prepared or bound. The affected package
+and the read-scope checker are rerun before binding.
