@@ -471,6 +471,8 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			switch {
 			case kinds != nil && len(kinds) == 0:
 			case reason == "":
+			case !isTest && scan.textOnly[name]:
+				// Text the file writes, not a path it opens (AFP-V0-2952).
 			case leafPattern(directory, name, isTest, packages):
 				*fileLeafReads = append(*fileLeafReads, relative+" "+reason)
 			default:
@@ -534,7 +536,12 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		unitFrontier = append(unitFrontier, FrontierSymlinkedSource)
 		frontierBears = ""
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+	// A command's root locator reaches no importer: nothing compiles a main
+	// package, and what a runner's build or run of it reads is the runner's own
+	// recipe and the command's code, which the runner's edge already follows
+	// (AFP-V0-2951). The unit keeps its own reason and selection.
+	locatesRoot := reads.locatesRoot && !command
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
 // linkedSources maps each symlinked .go entry of directory whose target it can
@@ -650,6 +657,10 @@ type fileScan struct {
 	err            error
 	fixture        map[string]bool
 	movesDirectory bool
+	// textOnly holds each token that only literals containing a line break,
+	// none with a directory-changing word, hold: program or document text
+	// the file writes, not a path it opens (AFP-V0-2952).
+	textOnly map[string]bool
 }
 
 // FixturePathMarker is the per-literal fixture marker of ASD-V0-895: a test
@@ -674,8 +685,15 @@ func (scan fileScan) fixtureOnly(name string, isTest bool) bool {
 // (AFP-V0-012 rule (d)).
 func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileScan {
 	aliases, dotImported := rootLocatorImports(imports)
-	comparisonOnly := comparisonOnlyLocators(body, aliases)
+	joins, _ := qualifiedImports(imports, func(importPath string) bool {
+		_, join := pathJoinFuncs[importPath]
+		return join
+	})
+	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
 	var scan fileScan
+	// A bounded join's root-anchored token names what the join reads
+	// (AFP-V0-2950); it is no literal, so no fixture marker applies to it.
+	scan.tokens = append(scan.tokens, joined...)
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
 	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
@@ -688,11 +706,13 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	// cannot rule out a marker when the body contains a carriage return.
 	fixtures := bytes.Contains(body, []byte(FixturePathMarker)) || bytes.IndexByte(body, '\r') >= 0
 	var move directoryMove
+	prose := textLiterals{}
 	for {
 		position, kind, text := lexer.Scan()
 		if kind == token.EOF {
 			scan.fixture = fixtureTokens(literals, markers)
 			scan.movesDirectory = move.moved
+			scan.textOnly = prose.tokens()
 			return scan
 		}
 		if kind == token.COMMENT {
@@ -718,6 +738,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		}
 		start := len(scan.tokens)
 		scan.tokens = appendLiteralTokens(scan.tokens, value, modulePath)
+		prose.observe(text, value, scan.tokens[start:])
 		if fixtures {
 			literals = append(literals, scannedLiteral{tokens: scan.tokens[start:], start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
 		}
@@ -728,6 +749,44 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 type scannedLiteral struct {
 	tokens     []string
 	start, end int
+}
+
+// textLiterals collects, over one file's string literals, the tokens held
+// only by literals that contain a line break and no directory-changing word
+// (AFP-V0-2952). Such a literal is program or document text the file writes or
+// prints, never one path argument; a token any other literal of the file also
+// holds stays a path.
+type textLiterals struct {
+	marked, blocked map[string]bool
+}
+
+// observe records one literal's tokens: quoted is the literal as written,
+// value its unquoted text.
+func (t *textLiterals) observe(quoted, value string, tokens []string) {
+	if len(tokens) == 0 {
+		return
+	}
+	set := &t.blocked
+	if strings.Contains(value, "\n") && !changesDirectory(quoted) {
+		set = &t.marked
+	}
+	if *set == nil {
+		*set = map[string]bool{}
+	}
+	for _, value := range tokens {
+		(*set)[value] = true
+	}
+}
+
+// tokens returns the text-only tokens, nil when there are none.
+func (t *textLiterals) tokens() map[string]bool {
+	for value := range t.blocked {
+		delete(t.marked, value)
+	}
+	if len(t.marked) == 0 {
+		return nil
+	}
+	return t.marked
 }
 
 // fixtureTokens returns the tokens only literals starting or ending on a

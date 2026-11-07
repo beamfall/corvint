@@ -45,6 +45,12 @@
       ],
       "reason": "Outside script/, it runs go build ./cmd/corvint and ./tools/dogfood-guard-hunks, whose only non-standard packages are under internal/; the wrapper runs on a copy in a temporary repository (V1-3616)."
     },
+    "script/dogfood-cache_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it copies the Makefile into a temporary repository, runs make there with stub tools and parses two Makefile recipes with awk; the dogfood wrappers it names are its own directory's scripts (AFP-V0-2955, V1-4283)."
+    },
     "script/dogfood-change_test.sh": {
       "reads": [
         ".github/cishards/",
@@ -83,6 +89,22 @@
         "Makefile"
       ],
       "reason": "Outside script/, it reads the Makefile gate recipe and runs make -pq gate and a make -j8 gate whose recipes it replaces with loggers; script/gate-receipt runs in a fixture repository (TSP-V0-830)."
+    },
+    "script/lane-scripts_test.sh": {
+      "reads": [
+        "Makefile",
+        "docs/DOGFOOD.md"
+      ],
+      "reason": "Outside script/, it greps the Makefile heavy recipes and docs/DOGFOOD.md sections and runs make -n over the Makefile; every go, make and ssh it runs is a PATH stub in its temporary directory, and heavy.sh sources only its generated payload and the operator's HEAVY_REMOTE_ENV file (AFP-V0-2955, V1-4283)."
+    },
+    "script/qualify-tasks-basic_test.sh": {
+      "reads": [
+        "cmd/corvint-tasks/",
+        "go.mod",
+        "go.sum",
+        "internal/"
+      ],
+      "reason": "Outside script/, it runs go build ./cmd/corvint-tasks from the checkout, whose only non-standard packages are under internal/, and reads internal/tasks/transaction/qualification.go; the qualification runs in a temporary directory (AFP-V0-2955, V1-4283)."
     },
     "script/repin_test.sh": {
       "reads": [

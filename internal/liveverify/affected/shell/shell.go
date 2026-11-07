@@ -252,6 +252,7 @@ func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
 func observe(relative, text string, known map[string]bool) (affected.Unit, computedNames, bool) {
 	parsed := parse(text)
 	resolve := newResolver(relative, parsed.commands)
+	resolve.text = text
 	values := variableValues(parsed.commands)
 	var names computedNames
 	builds := false
@@ -265,6 +266,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic := false, false
+	// environment holds each source command no literal or fresh directory
+	// resolved; it is a dynamic source unless AFP-V0-2953 admits every one
+	// of them as an environment-named source (environmentSources).
+	var environment []int
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	// computed links a run target or expands it as a computed name
 	// (TSP-V0-960). An expansion the value bound cut short may drop a script
@@ -284,7 +289,7 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		switch {
 		case word == "source" || word == ".":
 			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) {
-				dynamic = true
+				environment = append(environment, index)
 			}
 		case word == "load" && loads:
 			if len(args) == 0 || !resolve.link(unquote(args[0]), []string{"", ".bash"}, known, edges) {
@@ -309,6 +314,9 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
 		}
+	}
+	if len(environment) != 0 && !environmentSources(resolve, parsed, text, environment, commands) {
+		dynamic = true
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
@@ -678,6 +686,12 @@ type resolver struct {
 	directory string
 	values    map[string]string
 	counts    map[string]int
+	// conflicting marks a name whose assignments do not all carry the same
+	// text as a plain `NAME=VALUE` word, or that a declaration, array or
+	// `+=` form also binds (AFP-V0-2954).
+	conflicting map[string]bool
+	// text is the file's text, for the whole-word checks of AFP-V0-2954.
+	text string
 	// plainAt holds, for each name, the index of a command that is that
 	// name's assignment alone (TSP-V0-004).
 	plainAt   map[string]int
@@ -692,7 +706,7 @@ func newResolver(relative string, commands []command) *resolver {
 	if directory == "." {
 		directory = ""
 	}
-	r := &resolver{directory: directory, values: map[string]string{}, counts: map[string]int{}, plainAt: map[string]int{}, resolving: map[string]bool{}}
+	r := &resolver{directory: directory, values: map[string]string{}, counts: map[string]int{}, conflicting: map[string]bool{}, plainAt: map[string]int{}, resolving: map[string]bool{}}
 	for at, cmd := range commands {
 		words := plainWords(cmd.words)
 		declaring := false
@@ -711,6 +725,7 @@ func newResolver(relative string, commands []command) *resolver {
 					// A bare declared name (`local dir`) is an assignment
 					// of its own, so a later value is not the only one.
 					r.counts[value]++
+					r.conflicting[value] = true
 					continue
 				}
 				break
@@ -719,8 +734,13 @@ func newResolver(relative string, commands []command) *resolver {
 			r.counts[name]++
 			if match[2] != "" || match[3] != "" {
 				r.counts[name]++
+				r.conflicting[name] = true
 			}
-			r.values[name] = unquote(raw[len(match[0]):])
+			assigned := unquote(raw[len(match[0]):])
+			if previous, repeated := r.values[name]; repeated && previous != assigned || declaring {
+				r.conflicting[name] = true
+			}
+			r.values[name] = assigned
 			if index == 0 && len(words) == 1 {
 				r.plainAt[name] = at
 			}
@@ -836,7 +856,10 @@ func (r *resolver) base(target string, depth int) (string, string, bool) {
 		return "", "", false
 	}
 	name := match[1] + match[2]
-	if r.counts[name] != 1 || r.resolving[name] {
+	// A name assigned more than once resolves only when every assignment is a
+	// plain word with the same text and nothing else binds it, so whichever
+	// ran, the value is the same (AFP-V0-2954).
+	if r.counts[name] != 1 && (r.counts[name] == 0 || r.conflicting[name] || !onlyAssigned(r, name)) || r.resolving[name] {
 		return "", "", false
 	}
 	r.resolving[name] = true

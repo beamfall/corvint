@@ -2093,14 +2093,14 @@ PERL
 # a go test or go vet inside becomes STRING's words when STRING is a simple command (leading
 # NAME=VALUE words through env) and is refused otherwise; any other command is kept (ASD-V0-939).
 unwrap_shell() {
-  local w words=()
+  local word words=()
   heavy_argv=("$@")
   case ${1##*/} in sh | bash) ;; *) return 0 ;; esac
   [[ ${2-} == -c && $# -ge 3 && " $3 " =~ [[:space:]]go[[:space:]]+(test|vet)[[:space:]] ]] || return 0
   if (($# > 3)) || ! perl -e "$unwrap_perl" "$3" > /dev/null; then
     refuse "wrapped-compound $1 -c '$3': heavy.sh cannot tell where its go command runs; run it directly, for example script/heavy.sh env K=V go test -run X ./pkg"
   fi
-  while IFS= read -r -d '' w; do words+=("$w"); done < <(perl -e "$unwrap_perl" "$3")
+  while IFS= read -r -d '' word; do words+=("$word"); done < <(perl -e "$unwrap_perl" "$3")
   [[ ${words[0]-} =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && words=(env ${words[@]+"${words[@]}"})
   printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]-}" >&2
   heavy_argv=(${words[@]+"${words[@]}"})

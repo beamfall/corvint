@@ -166,6 +166,7 @@ type scannedFile struct {
 	imports             []string
 	scan                sourceScan
 	tokens              [][]string // pathTokens of each scan.literals entry
+	textOnly            []string   // tokens only line-broken literals hold, sorted (AFP-V0-2952)
 	stamp               string     // the memo stamp, "" when it has none
 	recalled            bool       // taken from the memo, not read
 	err                 error
@@ -231,15 +232,41 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		scanned.imports = append(scanned.imports, value)
 	}
 	aliases, dotImported := rootLocatorImports(file.Imports)
-	scanned.scan = scanSource(body, aliases, dotImported)
+	joins, _ := qualifiedImports(file.Imports, func(importPath string) bool {
+		_, join := pathJoinFuncs[importPath]
+		return join
+	})
+	scanned.scan = scanSource(body, aliases, dotImported, joins)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
 	var tokens []string
+	marked, blocked := map[string]bool{}, map[string]bool{}
 	for offset, literal := range scanned.scan.literals {
 		start := len(tokens)
 		tokens = appendPathTokens(tokens, literal, module)
 		if len(tokens) != start {
 			scanned.tokens[offset] = tokens[start:]
 		}
+		// AFP-V0-2952: a token only line-broken literals without a
+		// directory-changing word hold is text, not a path (the planner's
+		// textLiterals).
+		set := blocked
+		if scanned.scan.text[offset] {
+			set = marked
+		}
+		for _, value := range tokens[start:] {
+			set[value] = true
+		}
+	}
+	for value := range marked {
+		if !blocked[value] {
+			scanned.textOnly = append(scanned.textOnly, value)
+		}
+	}
+	sort.Strings(scanned.textOnly)
+	if len(scanned.scan.joined) != 0 {
+		// A bounded join's root-anchored token names what the join reads
+		// (AFP-V0-2950): one more token entry past the literals.
+		scanned.tokens = append(scanned.tokens, scanned.scan.joined)
 	}
 	return scanned
 }
@@ -274,6 +301,8 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			reason := escapesPackage(directory, value, test)
 			switch {
 			case reason == "":
+			case !test && slices.Contains(scanned.textOnly, value):
+				// Text the file writes, not a path it opens (AFP-V0-2952).
 			case leafPattern(directory, value, test, index.goDirectories):
 				pkg.leafReads = append(pkg.leafReads, relative+" "+reason)
 			default:
@@ -317,6 +346,8 @@ func readBounded(name string, expected fs.FileInfo) ([]byte, error) {
 
 type sourceScan struct {
 	literals       []string
+	text           []bool   // per literal: it holds a line break and no directory-changing word (AFP-V0-2952)
+	joined         []string // root-anchored tokens of bounded joins of a located root (AFP-V0-2950)
 	calls          []string // root-locator functions the file calls
 	embeds         bool
 	movesDirectory bool // the file moves the working directory (directoryMove)
@@ -329,19 +360,27 @@ type sourceScan struct {
 // import path pulled in with `import . "path"`, whose exported names appear
 // unqualified. A blank (`_`) import brings no identifier into scope.
 func rootLocatorImports(specs []*ast.ImportSpec) (aliases map[string]string, dotImported map[string]bool) {
+	return qualifiedImports(specs, func(importPath string) bool {
+		_, ok := rootLocatorFuncs[importPath]
+		return ok
+	})
+}
+
+// qualifiedImports maps each local qualifier of an import that wanted accepts
+// (its default name, the last import path element, or its alias) to the
+// import path, and marks the ones pulled in with a dot import; it mirrors the
+// planner's qualifiedImports.
+func qualifiedImports(specs []*ast.ImportSpec, wanted func(string) bool) (aliases map[string]string, dotImported map[string]bool) {
 	aliases = map[string]string{}
 	dotImported = map[string]bool{}
 	for _, spec := range specs {
 		value, err := strconv.Unquote(spec.Path.Value)
-		if err != nil {
-			continue
-		}
-		if _, ok := rootLocatorFuncs[value]; !ok {
+		if err != nil || !wanted(value) {
 			continue
 		}
 		switch {
 		case spec.Name == nil:
-			aliases[value] = value
+			aliases[path.Base(value)] = value
 		case spec.Name.Name == ".":
 			dotImported[value] = true
 		case spec.Name.Name == "_":
@@ -357,9 +396,10 @@ func rootLocatorImports(specs []*ast.ImportSpec) (aliases map[string]string, dot
 // declarations, its root-locating calls (`os.Getwd`, under
 // whatever local name the file's own imports gave them — a plain import, an
 // alias, or a dot import), and any //go:embed directive.
-func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool) sourceScan {
+func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool, joins map[string]string) sourceScan {
 	var scan sourceScan
-	comparisonOnly := comparisonOnlyLocators(body, aliases)
+	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
+	scan.joined = joined
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
 	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
@@ -405,6 +445,7 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 		}
 		if value, err := strconv.Unquote(text); err == nil {
 			scan.literals = append(scan.literals, value)
+			scan.text = append(scan.text, strings.Contains(value, "\n") && !changesDirectory(text))
 		}
 	}
 }
