@@ -10,7 +10,7 @@ Authoritative inputs:
 - `AGENTS.md` invariant 7 as amended by 0591;
 - decision 0081;
 - `core-compatibility-freeze-v1.md` (Core verb list);
-- restructure tickets labelled `restructure-2026-11` (V1-4800..4829).
+- restructure tickets labelled `restructure-2026-11` (V1-4800..4829, V1-4898..4909).
 
 ## Agent digest
 - Claim: Corvint splits into a core plus bundled apps and plugins, each measured for LLM fit, test isolation, plugin cost, speed and memory.
@@ -33,7 +33,7 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
 - `cmd/corvint` imports `internal/doccorpus` 34 times, `internal/appflows` 9 times, and
   `internal/taskman` 3 times.
 - `internal/command/breakage` imports `appflows`.
-- `mcp/tasksbridge`, `mcp/tasksread`, `mcp/docsbridge` and `mcp/bridge` (via `flowcoverage`) link
+- `internal/mcp/tasksbridge`, `internal/mcp/tasksread`, `internal/mcp/docsbridge` and `internal/mcp/bridge` (via `flowcoverage`) link
   the apps into the adapters.
 
 ## Units and edges to cut
@@ -42,9 +42,9 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
 | --- | --- | --- |
 | Core `corvint` | index, query/context, impact, `affected`/test selection, review, CEM/dogfood evidence, `corvint-test`, `corvint-test-runner`, `corvint-tests-accept`, `corvint-intake`, `corvint-remote-provider` | n/a (root module) |
 | Kernel (leaf packages) | git runner, `gitprobe`, `gitstatus`, language ID, `execfile`, `procgroup`, `secretscreen`, `analyzerenvelope`, `langplugin`, `protocol/**` | upward imports (V1-4809) |
-| Tasks `corvint-tasks` | `internal/tasks/**`, `taskman`, `taskprojection`, `taskbarrier`, `localcompletion`, `scopelease`, `workqueue`, `worksource`, `corvint-work-queue` | `tasks`→`contextindex` (V1-4810); `cmd/corvint`→`taskman`; `mcp/tasksbridge`, `mcp/tasksread` |
-| Docs `corvint-docs` | doccorpus, doccompiler, docmaintain, doccitations, corpus index/serve/republish, `corvint-corpus-*`, `corvint-docs-mcp` | `cmd/corvint`→`doccorpus`/`doccompiler`/`docmaintain`; `mcp/docsbridge` |
-| Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs, behaviorfalsify, `corvint-playwright-minimize`, `corvint-behavior-falsify` | `cmd/corvint`→`appflows`; `command/breakage`→`appflows`; `mcp/bridge`→`flowcoverage` |
+| Tasks `corvint-tasks` | `internal/tasks/**`, `taskman`, `taskprojection`, `taskbarrier`, `localcompletion`, `scopelease`, `workqueue`, `worksource`, `corvint-work-queue` | `tasks`→`contextindex` (V1-4810); `cmd/corvint`→`taskman`; `internal/mcp/tasksbridge`, `internal/mcp/tasksread` |
+| Docs `corvint-docs` | doccorpus, doccompiler, docmaintain, doccitations, corpus index/serve/republish, `corvint-corpus-*`, `corvint-docs-mcp` | `cmd/corvint`→`doccorpus`/`doccompiler`/`docmaintain`; `internal/mcp/docsbridge` |
+| Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs, behaviorfalsify, `corvint-playwright-minimize`, `corvint-behavior-falsify` | `cmd/corvint`→`appflows`; `command/breakage`→`appflows`; `internal/mcp/bridge`→`flowcoverage` |
 | Adapters | `corvint-mcp`, `corvint-lsp`, `corvint-gateway`, test-validity MCP | bridges call apps through envelopes |
 | Plugins | analyzers; test providers only if measured (V1-4824) | registries (V1-4818); `corvint-plugin/1` (V1-4819) |
 | Release/update (in manifest) | `corvint-update`, `corvint-release-install` | none |
