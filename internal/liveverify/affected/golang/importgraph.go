@@ -38,7 +38,8 @@ var templateField = regexp.MustCompile(`\.([A-Za-z_][A-Za-z0-9_]*)`)
 var bareDot = regexp.MustCompile(`\.([^A-Za-z_]|$)`)
 
 // goListFile is what one file's `go list` calls show (AFP-V0-2200): the
-// string literals that are only arguments of a proven call, the repository
+// string literals that are only arguments of a confined listing (even when
+// its directory provenance is unknown), the repository
 // directories those calls list, whether some call lists packages it does not
 // name by a literal or observes more than the import graph (all), and
 // whether some call is not proven (unproven), so it may observe each
@@ -70,6 +71,8 @@ func goListCandidate(body []byte) bool {
 // targets; a pattern that is not a literal, or that matches more than one
 // directory, lists the whole module (all). A call that is not proven makes
 // the file a reader of the whole module, and its literals stay ordinary uses.
+// Unknown directory provenance alone still records the literals as listed:
+// it widens the read scope but cannot make this command run a listed binary.
 // The arguments are the call's own, or a local []string variable that is
 // only initialized by a composite literal, extended by append and passed as
 // the call's variadic argument.
@@ -163,6 +166,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 		}
 		result.reader = true
 		targets, all, proven := goListArguments(elements[1:], constants, directory, owner)
+		directoryProven := true
 		// A call outside any function (a package-level command) is
 		// reachable from every file, so it is never proven.
 		bodies := enclosingBodies(functions, call)
@@ -174,17 +178,24 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 			}
 			rootTargets, rootAll, _ := goListArguments(elements[1:], constants, owner.dir, owner)
 			proven = confinedCommand(outer, call, exec, func(value ast.Expr) bool {
-				return commandDirectoryProven(value, outer, file, names, tests, relative, owner.dir, all == rootAll && maps.Equal(targets, rootTargets))
+				directoryProven = commandDirectoryProven(value, outer, file, names, tests, relative, owner.dir, all == rootAll && maps.Equal(targets, rootTargets)) && directoryProven
+				// A directory of unknown origin widens the read scope. It
+				// cannot turn this confined listing into a binary invocation.
+				return true
 			}) && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
 			result.all, result.unproven = true, true
 			return true
 		}
-		result.proven[files.Position(selector.Pos()).Offset] = true
-		result.all = result.all || all
-		for target := range targets {
-			result.targets[target] = true
+		if directoryProven {
+			result.proven[files.Position(selector.Pos()).Offset] = true
+			result.all = result.all || all
+			for target := range targets {
+				result.targets[target] = true
+			}
+		} else {
+			result.all, result.unproven = true, true
 		}
 		for _, element := range elements {
 			ast.Inspect(element, func(node ast.Node) bool {

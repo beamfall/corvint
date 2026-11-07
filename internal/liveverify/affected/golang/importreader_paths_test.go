@@ -59,6 +59,48 @@ root := filepath.Clean(filepath.Join(filepath.Dir(filename), ".."))
 	}
 }
 
+// AFP-V0-9010 / AFP-V0-2200: unknown directory provenance widens a
+// confined listing's reads; it does not make the listed target executable.
+// Unknown command uses still retain the binary edge as well as source reads.
+func TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010(t *testing.T) {
+	for _, test := range []struct {
+		name, setup, use string
+		binary           bool
+	}{
+		{"computed directory", "", "c.Dir = string([]byte{46,46,47,108,105,98})", false},
+		{"unknown environment origin", "", `c.Dir = os.Getenv("LIST_DIRECTORY")`, false},
+		{"git root stdout", `root, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+if err != nil { t.Fatal(err) }`, `c.Dir = strings.TrimSpace(string(root))`, false},
+		{"unknown transform", "", `c.Dir = unknownDirectory()`, false},
+		{"unknown then known directory", "", `c.Dir = unknownDirectory(); c.Dir = "."`, false},
+		{"unknown command method", "", `c.Dir = unknownDirectory(); c.FutureMethod()`, true},
+		{"command escape", "", `c.Dir = unknownDirectory(); unknownCommand(c)`, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := importGraphRepository(t)
+			body := "package probe\nimport (\"os\"; \"os/exec\"; \"strings\"; \"testing\")\n" +
+				"func TestList(t *testing.T) {\n" + test.setup + "\n" +
+				`c := exec.Command("go", "list", "-f", "{{.Imports}}", "./cmd/tool")` + "\n" + test.use + "\n_, _ = c.Output()\n}\n"
+			writeFiles(t, root, map[string]string{"probe/probe.go": "package probe\n", "probe/probe_test.go": body})
+			graph, err := affected.Build(context.Background(), root, golang.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			unit, ok := graph.Unit(importGraphModule + "probe")
+			if !ok || !unit.ImportGraphReadsFiles || !unit.ImportGraphReadsAll {
+				t.Fatalf("unknown directory lost source/import reads: %+v", unit)
+			}
+			if got := len(unit.Execs) != 0; got != test.binary {
+				t.Fatalf("binary=%v, want %v; execs=%v", got, test.binary, unit.Execs)
+			}
+			if !test.binary {
+				assertReaderSelectedForLibEdit(t, graph, false)
+				assertReaderSelectedForLibEdit(t, graph, true)
+			}
+		})
+	}
+}
+
 // AFP-V0-9010: an existing link in testdata redirects a lexical own-testdata
 // path. Both the reported intermediate alias and a linked testdata root must
 // retain source-content selection. A regular fixture is the proven control.
