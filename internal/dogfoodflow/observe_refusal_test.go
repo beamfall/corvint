@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,9 +11,9 @@ import (
 	"testing"
 )
 
-// TestChangeSOLV0001ReportsObserveRefusal pins that a refused dogfood-observe
-// write is named once on stderr and stops further rows, instead of every row
-// being discarded silently.
+// TestChangeSOLV0001ReportsObserveRefusal pins that refused dogfood-observe
+// writes are counted and the first is named once on stderr, while every other
+// row is still attempted, instead of refusals being discarded silently.
 func TestChangeSOLV0001ReportsObserveRefusal(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -26,7 +27,7 @@ func TestChangeSOLV0001ReportsObserveRefusal(t *testing.T) {
 		t.Fatal(err)
 	}
 	testGit(t, root, "commit", "-q", "-am", "change")
-	observeCalls := 0
+	observeCalls, refusedCalls := 0, 0
 	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, stderr io.Writer) int {
 		switch {
 		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
@@ -39,6 +40,10 @@ func TestChangeSOLV0001ReportsObserveRefusal(t *testing.T) {
 			return 0
 		case len(args) > 0 && args[0] == "dogfood-observe":
 			observeCalls++
+			if observeCalls%2 == 0 {
+				return 0
+			}
+			refusedCalls++
 			_, _ = io.WriteString(stderr, `{"code":"internal-error","error":"self-observation ledger is not safely gitignored"}`+"\n")
 			return 2
 		}
@@ -48,12 +53,12 @@ func TestChangeSOLV0001ReportsObserveRefusal(t *testing.T) {
 	if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps}, &stderr); err != nil {
 		t.Fatal(err)
 	}
-	if observeCalls != 1 {
-		t.Fatalf("dogfood-observe calls = %d, want 1 (stop after the first refusal)", observeCalls)
+	if observeCalls < 2 {
+		t.Fatalf("dogfood-observe calls = %d, want every row attempted after a refusal", observeCalls)
 	}
-	want := "NOTE self-observation rows not recorded: dogfood-observe exited 2: " +
-		`{"code":"internal-error","error":"self-observation ledger is not safely gitignored"}`
-	if got := stderr.String(); strings.Count(got, want) != 1 {
+	want := fmt.Sprintf("NOTE self-observation rows not recorded: %d of %d; first step ", refusedCalls, observeCalls)
+	refusal := `dogfood-observe exited 2: {"code":"internal-error","error":"self-observation ledger is not safely gitignored"}`
+	if got := stderr.String(); strings.Count(got, want) != 1 || strings.Count(got, refusal) != 1 {
 		t.Fatalf("stderr does not name the refusal once:\n%s", got)
 	}
 }

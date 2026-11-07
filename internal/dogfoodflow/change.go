@@ -2270,16 +2270,22 @@ func (c *change) renderReport() {
 	fmt.Fprintf(&report, "  ,\"packetCoverage\": [%s, %s]\n", c.packetCoverage("coordination-time-query"), c.packetCoverage("coordination-time-impact"))
 	report.WriteString("  ,\"dogfoodCheck\": null\n}\n")
 	_ = os.WriteFile(c.path(".corvint/dogfood-report.json"), report.Bytes(), 0o666)
+	// A refusal may be row-specific (an unadmitted reason) or hit every row (an
+	// unignored ledger), so try every row and name the first refusal once
+	// instead of dropping rows silently.
+	refused, first := 0, ""
 	for _, row := range c.rows {
 		var refusal bytes.Buffer
 		if status := c.options.Steps.Run(c.ctx, c.root, []string{"dogfood-observe", "--step", row.name, "--status", row.status, "--reason", row.reason}, io.Discard, &refusal); status != 0 {
-			// The ledger refuses every row alike (for example an unignored ledger),
-			// so name the first refusal and stop instead of dropping rows silently.
-			fmt.Fprintf(c.stderr, "%s: NOTE self-observation rows not recorded: dogfood-observe exited %d: %s\n", c.prefix, status, strings.TrimSpace(refusal.String()))
-			c.checkpoint()
-			return
+			if refused == 0 {
+				first = fmt.Sprintf("step %s: dogfood-observe exited %d: %s", row.name, status, strings.TrimSpace(refusal.String()))
+			}
+			refused++
 		}
 		c.checkpoint()
+	}
+	if refused > 0 {
+		fmt.Fprintf(c.stderr, "%s: NOTE self-observation rows not recorded: %d of %d; first %s\n", c.prefix, refused, len(c.rows), first)
 	}
 }
 
