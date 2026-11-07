@@ -52,7 +52,7 @@ func TestAggregateFindsNoLinkedRequirements(t *testing.T) {
 		linked   []int
 		findings string
 	}{
-		{name: "OCM-V0-016 zero of N linked", linked: []int{0, 0}, findings: `"findings":[{"code":"no-requirements-linked","message":"0 of 3 declared requirements are linked to the change"}],`},
+		{name: "OCM-V0-016 zero of N linked", linked: []int{0, 0}, findings: `"findings":[{"code":"no-requirements-linked","message":"0 of 3 declared requirements are linked to the change (full declared-intent OCM universe; change test/table traces are a separate measure)"}],`},
 		{name: "OCM-V0-016 some of N linked", linked: []int{1, 0}},
 		{name: "OCM-V0-016 N of N linked", linked: []int{2, 1}},
 	}

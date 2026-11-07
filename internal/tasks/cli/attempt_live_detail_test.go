@@ -69,3 +69,16 @@ func TestATRV0192_CollisionNamesHoldingAttempt(t *testing.T) {
 		}
 	}
 }
+
+// ATR-V0-190: a genuinely live holder is distinguished from the expired
+// lease above, and its refusal never recommends reaping an unexpired lease.
+func TestATRV0190_CompleteManualRefusalDistinguishesLiveLease(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	root, claims := leaseCLIStore(t, 1, now.Add(-11*time.Minute))
+	c := claims[0]
+	x := handoffCLI(t, root, "ticket", "complete-manual", "--request-id", "live-manual", "--target", c.Ticket, "--expected-revision", "1", "--payload", `{"evidence":[],"reason":"manual"}`)
+	text := strings.Join(x.res.Warnings, " ")
+	if !hasCode(x.res, wire.CodeAttemptLive) || !strings.Contains(text, c.AttemptID) || !strings.Contains(text, "holderStatus FRESH_HOLDER") || strings.Contains(text, "corvint-tasks reap") {
+		t.Fatalf("live refusal: %s", x.stdout)
+	}
+}

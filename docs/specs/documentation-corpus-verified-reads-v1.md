@@ -122,6 +122,14 @@ encoder reuse or stamp record encoding independently; no artifact or snapshot mi
 | DCR-V1-7800 | `artifact_scan.go`, `artifact_decode.go` | `TestDCRV1551ParallelElementsMatchScan`, `TestDCRV1551ParallelElementsCorrupt`, `TestDCRV1552ParallelScanMatchesSequential`, `TestDCRV1559BlockScanMatchesScan`; `docs/build-log/2026-11-04-docperf.md` |
 | DCR-V1-7801 | `artifact_decode.go` | `TestDCRV17801WorkerCanonicalComparison`, `TestDCRV17801BatchMatchesClosedArtifact`, `TestDCRV1552ParallelScanMatchesSequential`; `BenchmarkDocperfCanonicalClaim`; `docs/build-log/2026-11-04-docperf.md` |
 | DCR-V1-7802 | `internal/mcp/corpusbridge/stamp.go`, `stamp_stat_linux_amd64.go` | `TestDCRV17802StampChunkAllocation`, `TestDCRV17802RelativeStatMatchesLstat`, `TestDCRV1847ChunkedStatMatchesSerialDigest`, `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale`; `TestDocperfStampQualification`, `BenchmarkDCRV1847CheckoutStamp`; `docs/build-log/2026-11-04-docperf.md` |
+- `DCR-V1-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4264)
+  The DCP-V1-317 warm-call qualification MUST use nearest-rank p95 (rank ceil(0.95*n),
+  one-based), not the zero-based floor(0.95*n) index. At 20 samples one isolated scheduling
+  outlier is tolerated and two samples at or over 1 s still fail; the 100 ms freshness median,
+  1 s total p95 budget, fixture and freshness assertions stay unchanged. The Git fallback uses
+  the same statistic. Acceptance: `TestDCRV17100_WarmP95KeepsRegressionPower`,
+  `TestDCPV1281AdditionalRepositoryWarmCallsAtScale` (`internal/mcp/corpusbridge`).
+
 
 ### Verified fast corpus reads (GitHub #1598)
 

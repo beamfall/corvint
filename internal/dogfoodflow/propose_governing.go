@@ -67,10 +67,10 @@ func (p *proposal) governingProposal(hunk proposedHunk, ordinal string, edited m
 		}
 		for index, text := range p.baseLines(name) {
 			cite := fmt.Sprintf("%s:%d:%d", name, index+1, index+1)
-			if used[cite] || !p.stable(name, index+1, edited) {
+			if used[cite] || !p.stable(name, index+1, edited) || !p.draftSpanAllowed(hunk, name, fmt.Sprintf("%d:%d", index+1, index+1)) {
 				continue
 			}
-			if named == nil && bytes.Contains(text, []byte(id)) {
+			if named == nil {
 				named = &candidate{name, index + 1, 0}
 			}
 			shared := map[string]bool{}
@@ -145,7 +145,7 @@ func (p *proposal) amendedRequirement(name string, hunk *patch.Hunk) (string, in
 		if match := requirementDefinition.FindSubmatch(text); match != nil {
 			return string(match[1]) + string(match[2]), line
 		}
-		if len(bytes.TrimSpace(text)) == 0 || bytes.HasPrefix(text, []byte("#")) || bytes.HasPrefix(text, []byte("- ")) || bytes.HasPrefix(text, []byte("|")) {
+		if !bytes.HasPrefix(text, []byte("  ")) || len(bytes.TrimSpace(text)) == 0 || bytes.HasPrefix(text, []byte("#")) || bytes.HasPrefix(text, []byte("- ")) || bytes.HasPrefix(text, []byte("|")) {
 			return "", 0
 		}
 	}

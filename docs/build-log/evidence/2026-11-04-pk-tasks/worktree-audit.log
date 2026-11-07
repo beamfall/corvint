@@ -1,0 +1,13 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: queued for host load 47 > HEAVY_MAX_LOAD=40 (at most 120s)
+heavy.sh: waited 71s for host load 39 (HEAVY_MAX_LOAD=40)
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=862d0a90b33e4d3ec2dfde8bcaadc013c3867841 dirty=26
+heavy.sh: slot 4/8 after 0s
+=== RUN   TestTCLV07102_AuditExplicitWorktreeProjection
+--- PASS: TestTCLV07102_AuditExplicitWorktreeProjection (1.02s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	1.063s
+heavy.sh: done queue=71.0s (load=71s slot=0.0s) run=16.6s rc=0

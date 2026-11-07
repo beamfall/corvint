@@ -35,6 +35,17 @@ derived event, lock or recovery path exists.
 
 ## Requirements
 
+- `TEA-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3460)
+  Both `ticket attach-evidence` and `ticket complete-manual` help, including terse help, MUST
+  explain that retained artifact digests hash exact file bytes, name `receipt put FILE` and
+  `receipt path SHA256`, and identify the private `taskman/witness-receipts/SHA256` location.
+  Malformed evidence payloads MUST name that retention route without writing anything. Retention
+  is local, not a verification or export: manual and attached digests are not obligation-witness
+  roots for pruning, so the help MUST advise retaining a durable copy. Existing digest, count,
+  authorization and completion rules are unchanged. Acceptance:
+  `TestTEAV07100_EvidenceRetentionGuidance` (`internal/tasks/cli`).
+
+
 - `TEA-V0-001`: `corvint-tasks ticket attach-evidence --target T --expected-revision N --payload P`
   MUST apply operation `ATTACH_EVIDENCE` with the closed payload `{evidence, reason}` (1..16
   sorted unique lowercase sha256 digests and nonblank prose of 1..512 bytes) to an OPEN NATIVE

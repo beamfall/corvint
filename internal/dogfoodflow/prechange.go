@@ -134,6 +134,11 @@ func (p *prechange) run() int {
 		slot.Argv = append([]string{p.options.Steps.Path, "--root", p.root}, args...)
 		status, digest, stderr := p.record(path, args)
 		if status != 0 {
+			// LVT-V0-010: keep the original path and diagnostic. The summary
+			// reason alone cannot explain which declared impact path failed.
+			if len(stderr) > 0 {
+				p.say("%s\n", strings.TrimRight(string(stderr), "\n"))
+			}
 			_ = removeFile(path)
 			slot.Status, slot.Reason = "NOT_PRODUCED", failureReason(stderr, status)
 			binding.Slots = append(binding.Slots, slot)

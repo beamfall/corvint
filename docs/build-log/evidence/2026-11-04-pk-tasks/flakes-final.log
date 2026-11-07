@@ -1,0 +1,129 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=9960716f7597fa2f1e38966cc39192007a9526e5 dirty=18
+heavy.sh: slot 5/8 after 0s
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.23s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (5.03s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (2.85s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.50s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.42s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.36s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.33s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.56s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (2.08s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.82s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.20s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.67s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.25s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.45s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.79s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.47s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.58s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.03s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.13s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.07s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.44s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.52s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.12s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.14s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.91s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.13s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.23s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.91s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.82s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.83s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.41s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.35s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (0.93s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.34s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.06s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (3.51s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.47s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (2.59s)
+=== RUN   TestCALV0302_CompactedStepsKeepTheirPostState
+--- PASS: TestCALV0302_CompactedStepsKeepTheirPostState (1.01s)
+=== RUN   TestERGV0017_ReviewPacketAcrossRounds
+=== PAUSE TestERGV0017_ReviewPacketAcrossRounds
+=== CONT  TestERGV0017_ReviewPacketAcrossRounds
+--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.90s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	86.779s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=99.6s rc=0
