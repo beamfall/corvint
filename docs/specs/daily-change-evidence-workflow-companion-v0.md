@@ -96,9 +96,10 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   rewritten manifest again, and go on, before the input snapshot, so the run binds the sorted bytes.
   It MUST NOT rewrite a manifest the repository tracks (that would dirty the change), one inside
   the worktree whose tracked state Git cannot report (`git ls-files --error-unmatch` exits other
-  than 0 or 1, as with an unreadable index, or a same-depth case alias cannot be stat'ed for a reason
-  other than absence; the run prints an `intents not canonicalized` line naming the error), or one
-  with any non-canonical line, and each keeps the `ASD-V0-840`
+  than 0 or 1, as with an unreadable index; a same-depth case alias cannot be stat'ed for a reason
+  other than absence; or the path is not ASCII and no tracked path matches it, since Git folds only
+  ASCII case; the run prints an `intents not canonicalized` line naming the error), or one with any
+  non-canonical line, and each keeps the `ASD-V0-840`
   `intent-manifest-unsorted` refusal with its `LC_ALL=C sort -u -o` fix line; a manifest outside the
   worktree is untracked. Tracked follows file identity, not spelling, because Git matches a pathspec
   case-exactly even where the filesystem folds case: the manifest is tracked when a tracked path is
@@ -116,7 +117,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   tracked `intents.txt` passed as `INTENTS.txt` is refused and stays clean; on a case-sensitive one a
   hard link spelled `INTENTS.txt` is refused the same way, while a distinct `INTENTS.txt` and a
   `DOCS` file beside the tracked `docs/` are rewritten; each branch skips on the other kind of
-  filesystem, and both fail on the reviewed head);
+  filesystem, and both fail on the reviewed head; a non-ASCII `Íntents.txt` is kept on either);
   `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`
   and `TestDCWV0731StaticPreCheck` keep the refusal for a manifest no sort repairs. Rollback: drop
   `canonicalizeIntents` and its call in `requireIntentsInput`.
