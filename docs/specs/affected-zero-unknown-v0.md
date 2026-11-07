@@ -279,7 +279,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   with and without the driver claimant.
 - **AFP-V0-3125:** **Values where make reads them.** (experimental, owner lane selfloor review
   round 1 2026-11-07, V1-5000) Make expands some text as it reads the file: the value of an
-  immediate assignment (`:=`, `::=`, `:::=`, `define NAME :=`), the text `+=` appends to a simple
+  supported immediate assignment (`:=`, `::=`, `define NAME :=`), the text `+=` appends to a simple
   variable, a `!=` command, a conditional line, a bare statement, an include and a prerequisite
   list. The claimant SHALL expand each such text against only the values the assignments before
   it can leave. An immediate variable SHALL keep each captured expansion as its value, never the
@@ -288,7 +288,11 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `tools/local` SHALL NOT reach it. An immediate value whose expansion the claimant cannot
   represent SHALL leave its variable unbounded, which retains every site that reads it. The
   values are those of the default invocation. As before, command-line and environment overrides
-  of a variable the file sets stay outside the model.
+  of a variable the file sets stay outside the model. Amended by the 2026-11-07 orchestrator
+  review decision under the 2026-11-02 delegation: assignment flavors SHALL be an exact
+  allowlist. Only `=`, `:=`, `::=`, `?=`, `+=` and `!=` are modeled, including `define` and
+  target-specific forms. An unsupported flavor, including immediate-recursive `:::=`, SHALL
+  retain every target as a conservative site, never be treated as a simple assignment.
 - **AFP-V0-3126:** **Target-specific values survive global assignments.** (experimental, owner
   lane selfloor review round 1 2026-11-07, V1-5000) A target-specific assignment SHALL stay an
   alternative whatever global assignment of the same variable follows it. Its `=`, `:=`, `?=` and
@@ -327,10 +331,14 @@ participation, and inbound shell callers. The remaining classes are small and lo
   recursive `grep`, `cp` or `diff`, a jq library path or module directive, or `awk` and `sed`,
   whose programs can read any file or run one. A command that reads no file at all (`echo`,
   `printf`, `basename`, `dirname`, `sleep`, `seq`, `expr`, `pwd`, `uname`, `id`, `mktemp`) MAY
-  take unknown operands. A go command MAY leave unknown only the value of an output or selection
-  flag (`-o`, `-run`, `-skip`, `-count`, `-timeout`, `-tags`, a profile output, and the like) or
-  the arguments after `-args`. Any other unknown word can split into more words, `-exec` among
-  them, so it SHALL NOT be certified.
+  take unknown operands. Amended by the 2026-11-07 orchestrator review decision under the
+  2026-11-02 delegation: command options SHALL be certified by exact allowlisted spelling and
+  arity only. Abbreviated or unknown long options and unknown short options SHALL NOT be
+  certified. A go command SHALL have only recognized flags and exactly bounded literal values;
+  a value from an unbounded variable SHALL NOT be certified, including an output or selection
+  flag's value, whether separate, attached with `=`, or quoted. An unquoted unknown value can
+  split into executable flags such as `-toolexec`. Unknown constructs SHALL retain conservative
+  frontier claims and run-all behavior; no wire shape, error or output contract changes.
 
 ### Lane qualification details
 
@@ -604,6 +612,19 @@ Lane selfloor witnesses its nine rows with fixtures:
 
   Every positive case failed on the first lane head's sources, and every control passed.
 
+The next independent review found immediate-recursive assignment, unbounded Go flag-value
+injection and checksum-option abbreviation gaps. The orchestrator's 2026-11-07 allowlist decision
+is exercised by `TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125`,
+`TestFrontierSiteGoFlagAllowlist_AFP_V0_3128` and
+`TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`. These retain the target and its dependents
+for an unrelated sealed CEM, including unrecognized constructs. The previous Go-output control
+keeps its assertions with a literal cache value; its original unbounded value is now a negative
+case under the amended contract. Run results and digests live in
+`docs/build-log/2026-11-07-selfloor-review-allowlists.md`. Earlier replay numbers below describe
+the earlier implementation; this repair makes no new precision or replay claim. Rollback must
+retain conservative frontier claims for these forms; restoring permissive certification restores
+the three reviewed missing-edge risks.
+
 `TestDriverAlternativeMakeValues_AZU_V0_9702` and `TestDriverMakeFunctionsComputed_AZU_V0_9850`
 now assert the exact edge and an unrelated path's exclusion where the value is definite, and the
 retained site where it is not. The 20-merge selmeasure replay at `538e823f4` is in
@@ -685,10 +706,10 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
-| AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125` |
+| AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`, `TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125` |
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
 | AFP-V0-3127 | V1-5000 | `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
-| AFP-V0-3128 | V1-5000 | `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3128 | V1-5000 | `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |

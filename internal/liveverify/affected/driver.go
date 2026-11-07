@@ -388,6 +388,11 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// more make file, keeps every target a site as well. Make expands such a
 	// line where it reads it (AFP-V0-3125).
 	ambiguous, uncertified := false, false
+	for _, event := range parsed.events {
+		if event.kind == driverEventAssign && !driverMakeSupportedAssignment(event) {
+			ambiguous = true
+		}
+	}
 	for index, statement := range parsed.statements {
 		expander := parsed.expanderAt(parsed.statementAt[index])
 		for _, variant := range expander.expandAll(statement) {

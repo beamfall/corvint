@@ -409,8 +409,8 @@ func TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128(t *testing.T) {
 }
 
 // TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128 is the control: the
-// same commands in modes that read only their literal operands, an unknown
-// value only where it names an output, leave the evaluated target no site.
+// same commands in modes that read only their literal operands, with a
+// bounded Go output value, leave the evaluated target no site.
 func TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128(t *testing.T) {
 	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n"
 	for _, tc := range []struct{ name, makefile string }{
@@ -418,7 +418,7 @@ func TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128(t *testing.T) {
 		{"literal-redirection", evaluated + "check:\n\twc -l < known.txt\n"},
 		{"literal-test", evaluated + "check:\n\ttest -f known.txt && test -n \"$(CACHE)\"\n"},
 		{"jq-literal", evaluated + "check:\n\tjq -r .name known.json\n"},
-		{"go-output", evaluated + "check:\n\tgo build -o $(CACHE)/bin ./tools/local\n"},
+		{"go-output", evaluated + "CACHE = /tmp\ncheck:\n\tgo build -o $(CACHE)/bin ./tools/local\n"},
 		{"make-literal", evaluated + "check:\n\t$(MAKE) other\nother:\n\tgo test ./tools/local\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -473,5 +473,93 @@ func TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127(t *testing.T)
 	}
 	if dropped := revertedTargets - len(asIs); dropped < targets/4 {
 		t.Errorf("a recursive WINDOWS_VET_GOCACHE drops only %d of %d root computed sites; want at least a quarter", dropped, targets)
+	}
+}
+
+// TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125 refuses
+// immediate-recursive and unknown flavors rather than treating them as simple.
+// In the first case GNU make appends recursively and runs tools/local.
+func TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125(t *testing.T) {
+	for _, assignment := range []string{
+		"RUN :::= go test\nRUN += ./tools/$(PKG)",
+		"define RUN :::=\ngo test\nendef\nRUN += ./tools/$(PKG)",
+		"check: RUN :::= go test\ncheck: RUN += ./tools/$(PKG)",
+		"RUN ::::= go test ./tools/$(PKG)",
+		"UNUSED :::= ignored\nRUN = go test ./tools/local",
+		"$(NAME) :::= ignored\nRUN = go test ./tools/local",
+	} {
+		t.Run(assignment, func(t *testing.T) {
+			makefile := "PKG = ci\n" + assignment + "\nPKG = local\ncheck:\n\t$(RUN)\nall: check\n"
+			graph := driverGraph(t, boundFiles(makefile), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unsupported assignment flavor certified check")
+			}
+			for _, dirty := range []string{"tools/local/main.go", sealedCEM} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			}
+		})
+	}
+}
+
+// TestFrontierSiteGoFlagAllowlist_AFP_V0_3128 checks both the reported
+// executable-flag injection and other unrecognized or unbounded flag forms.
+func TestFrontierSiteGoFlagAllowlist_AFP_V0_3128(t *testing.T) {
+	for _, recipe := range []string{
+		"go build -o $(OUTPUT) ./tools/local",
+		"go build -o=$(OUTPUT) ./tools/local",
+		"go build -o \"$(OUTPUT)\" ./tools/local",
+		"go build -o $(CACHE)/bin ./tools/local",
+		"go test -run $(OUTPUT) ./tools/local",
+		"go build -unrecognized=literal ./tools/local",
+		"go build -unrecognized literal ./tools/local",
+		"go build -toolexec=script/audit.sh ./tools/local",
+		"go test -race=$(OUTPUT) ./tools/local",
+		"go build -o",
+		"go build -o * ./tools/local",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles("OUTPUT = $(or $(OUT),/tmp/bin)\nCACHE = $(or $(XDG_CACHE_HOME),/tmp)\ncheck:\n\t"+recipe+"\nall: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unknown Go flag or value certified check")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+		})
+	}
+}
+
+// TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128 refuses every
+// checksum-check abbreviation and unknown option; literal options retain
+// certification only when their exact spelling and arity are recognized.
+func TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128(t *testing.T) {
+	for _, command := range []string{
+		"sha256sum --chec checksums.txt",
+		"sha256sum --c checksums.txt",
+		"sha256sum --check=checksums.txt",
+		"sha1sum --che checksums.txt",
+		"md5sum --che checksums.txt",
+		"shasum --chec checksums.txt",
+		"cksum --chec checksums.txt",
+		"sha256sum --unrecognized checksums.txt",
+		"cat --unrecognized known.txt",
+		"cat -Z known.txt",
+		"head -n",
+		"head -n * known.txt",
+		"sha256sum *",
+		"wc --files0-f=list.txt",
+		"grep --rec known.txt tools",
+	} {
+		t.Run(command, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles("CACHE = $(or $(XDG_CACHE_HOME),/tmp)\ncheck:\n\t"+command+"\nall: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unknown command option certified check")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness != affected.WitnessFrontierSite {
+				t.Fatalf("got %s; want run-all FRONTIER_SITE", witness)
+			}
+		})
 	}
 }

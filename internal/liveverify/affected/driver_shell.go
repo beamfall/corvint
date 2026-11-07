@@ -464,8 +464,8 @@ var driverPureCommands = map[string]bool{
 }
 
 // driverBoundedCommands read only the operands they are given, which the
-// unit's own path edges and tokens already name, once driverCommandModes
-// rules out each mode that reads more (AFP-V0-3122, AFP-V0-3128). awk, sed
+// unit's own path edges and tokens already name, once the option allowlist
+// admits an exact option (AFP-V0-3122, AFP-V0-3128). awk, sed
 // and the like are absent: their programs can read any file or run one.
 var driverBoundedCommands = map[string]bool{
 	"cat": true, "head": true, "tail": true, "wc": true, "sort": true, "uniq": true, "cut": true,
@@ -476,17 +476,89 @@ var driverBoundedCommands = map[string]bool{
 	"stat": true,
 }
 
-// driverCommandModes are, per bounded command, the short option letters
-// that make it read more than its operands: a recursive walk, the files a
-// checksum manifest lists, a jq library directory. driverCommandLongModes
-// are the long options that do the same, matched as a substring of the
-// option name; "files0-from" reads a list of file names for sort and wc.
-var driverCommandModes = map[string]string{
-	"grep": "rRd", "egrep": "rRd", "fgrep": "rRd", "cp": "rRa", "diff": "r", "chmod": "R",
-	"sha256sum": "c", "sha1sum": "c", "shasum": "c", "md5sum": "c", "cksum": "c", "jq": "L",
+// driverCommandOptions admits exact options whose modes read only literal
+// operands (AFP-V0-3128). Missing commands admit no options. In particular,
+// long option abbreviations and checksum checking modes are never inferred.
+type driverCommandOptions struct {
+	flags, values string
 }
 
-var driverCommandLongModes = []string{"recurs", "archive", "directories", "files0-from", "check", "library-path"}
+var driverCommandOptionAllowlist = map[string]driverCommandOptions{
+	"cat":       {flags: "-A -b -e -E -n -s -t -T -u -v --show-all --number --squeeze-blank"},
+	"head":      {flags: "-q -v --quiet --verbose", values: "-c -n --bytes --lines"},
+	"tail":      {flags: "-q -v --quiet --verbose", values: "-c -n --bytes --lines"},
+	"wc":        {flags: "-c -m -l -L -w --bytes --chars --lines --max-line-length --words"},
+	"sort":      {flags: "-b -d -f -g -h -i -M -n -r -s -u -V -z --numeric-sort --reverse --unique", values: "-k -o -S -t -T --key --output --buffer-size --field-separator --temporary-directory"},
+	"uniq":      {flags: "-c -d -D -i -u -z --count --repeated --unique", values: "-f -s -w --skip-fields --skip-chars --check-chars"},
+	"cut":       {flags: "-n -s -z --complement --only-delimited", values: "-b -c -d -f --bytes --characters --delimiter --fields --output-delimiter"},
+	"tr":        {flags: "-c -C -d -s -t --complement --delete --squeeze-repeats --truncate-set1"},
+	"grep":      {flags: "-E -F -G -P -i -v -w -x -z -c -l -L -n -H -h -o -q -s -a -I --count --files-with-matches --files-without-match --line-number --quiet", values: "-m -e -f -A -B -C --regexp --file --after-context --before-context --context --max-count"},
+	"cmp":       {flags: "-b -l -s --print-bytes --verbose --silent --quiet", values: "-i -n --ignore-initial --bytes"},
+	"diff":      {flags: "-q -s -u -c -b -w -B -i -a --brief --unified --context --ignore-space-change --ignore-all-space"},
+	"comm":      {flags: "-1 -2 -3 -z --check-order --nocheck-order --zero-terminated", values: "--output-delimiter"},
+	"paste":     {flags: "-s -z --serial --zero-terminated", values: "-d --delimiters"},
+	"sha256sum": {flags: "-b -t -z --binary --text --zero"},
+	"sha1sum":   {flags: "-b -t -z --binary --text --zero"},
+	"md5sum":    {flags: "-b -t -z --binary --text --zero"},
+	"shasum":    {flags: "-b -t -U --binary --text --UNIVERSAL", values: "-a --algorithm"},
+	"cksum":     {flags: "-b -t -z --binary --text --zero", values: "-a --algorithm"},
+	"stat":      {flags: "-f -L --file-system --dereference", values: "-c --format --printf"},
+	"jq":        {flags: "-r -R -s -c -n -e -S -a -j -M -C --raw-output --raw-input --slurp --compact-output --null-input --exit-status --sort-keys --ascii-output --join-output --monochrome-output --color-output"},
+}
+
+func driverCommandOptionsCertified(base string, words []driverWord) bool {
+	if base == "egrep" || base == "fgrep" {
+		base = "grep"
+	}
+	options := driverCommandOptionAllowlist[base]
+	has := func(list, option string) bool { return slices.Contains(strings.Fields(list), option) }
+	for index := 0; index < len(words); index++ {
+		arg := words[index].text
+		if arg == "--" {
+			return true
+		}
+		if arg != "" && strings.ContainsAny(arg[:1], "*?[") || strings.HasPrefix(arg, "-") && strings.ContainsAny(arg, "*?[") {
+			return false
+		}
+		if arg == "-" || !strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if strings.HasPrefix(arg, "--") {
+			name, _, attached := strings.Cut(arg, "=")
+			if has(options.flags, name) && !attached {
+				continue
+			}
+			if !has(options.values, name) {
+				return false
+			}
+			if !attached {
+				index++
+				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) {
+					return false
+				}
+			}
+			continue
+		}
+		for offset := 1; offset < len(arg); offset++ {
+			option := "-" + arg[offset:offset+1]
+			if has(options.values, option) {
+				// Joined values hide paths from the operand scanner.
+				if offset+1 != len(arg) {
+					return false
+				}
+				index++
+				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) {
+					return false
+				}
+				break
+			}
+			if !has(options.flags, option) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 // driverGoCertified are the go subcommands whose reads the Go plugin models:
 // the named packages' files and, for a test, the tests' own reads, which
@@ -495,8 +567,8 @@ var driverCommandLongModes = []string{"recurs", "archive", "directories", "files
 var driverGoCertified = map[string]bool{"test": true, "vet": true, "build": true, "list": true, "install": true, "env": true, "version": true}
 
 // driverGoValueFlags are the go flags whose value names no input: an output
-// path, a test selection or a count. Only such a value may be unknown in a
-// certified go command (AFP-V0-3128).
+// path, a test selection or a count. Every value must be bounded and literal
+// before certification (AFP-V0-3128).
 var driverGoValueFlags = map[string]bool{
 	"o": true, "run": true, "skip": true, "count": true, "timeout": true, "parallel": true, "p": true,
 	"bench": true, "benchtime": true, "cpu": true, "shuffle": true, "coverprofile": true, "outputdir": true,
@@ -507,9 +579,8 @@ var driverGoValueFlags = map[string]bool{
 // driverCertified reports a simple command, run in cwd ("" when unknown),
 // whose reads the graph already bounds (AFP-V0-3122, AFP-V0-3128): a command
 // that reads no file; a bounded command in a known directory with only
-// literal operands and no mode in driverCommandModes; a go package command
-// that hands the build no program and leaves only an output or selection
-// value unknown; a make invocation of literal goals that overrides no
+// literal operands and recognized options; a go package command
+// with recognized flags and literal values that hands the build no program; a make invocation of literal goals that overrides no
 // variable, whose targets are units of their own; or a shell test script run
 // with literal arguments, which its plugin selects for itself. Any other
 // repository program, interpreter, git or unlisted command may read any
@@ -546,25 +617,12 @@ func driverCertified(words []driverWord, cwd string) bool {
 		if cwd == "" || !driverLiteral(words[1:]) {
 			return false
 		}
-		letters := driverCommandModes[base]
 		for _, word := range words[1:] {
-			arg := word.text
-			if base == "jq" && (strings.Contains(arg, "import") || strings.Contains(arg, "include")) {
-				// A jq module directive reads a file from its search path.
-				return false
-			}
-			if long, ok := strings.CutPrefix(arg, "--"); ok {
-				name, _, _ := strings.Cut(long, "=")
-				if slices.ContainsFunc(driverCommandLongModes, func(mode string) bool { return strings.Contains(name, mode) }) {
-					return false
-				}
-				continue
-			}
-			if letters != "" && strings.HasPrefix(arg, "-") && strings.ContainsAny(arg[1:], letters) {
+			if base == "jq" && (strings.Contains(word.text, "import") || strings.Contains(word.text, "include")) {
 				return false
 			}
 		}
-		return true
+		return driverCommandOptionsCertified(base, words[1:])
 	}
 	return false
 }
@@ -604,46 +662,50 @@ func driverTestCertified(words []driverWord, cwd string) bool {
 	return true
 }
 
-// driverGoCommandCertified reports a go invocation whose subcommand is in
-// driverGoCertified, that names no program for the build to run, and whose
-// only unknown words are values of driverGoValueFlags or arguments after
-// -args, which the test binary receives.
+// driverGoCommandCertified admits only recognized flags with literal values.
+// An unbounded value can split into executable flags, including -toolexec,
+// even when the flag that precedes it only names an output (AFP-V0-3128).
 func driverGoCommandCertified(words []driverWord) bool {
+	if !driverLiteral(words) || slices.ContainsFunc(words, func(word driverWord) bool {
+		return strings.ContainsAny(word.text, "*?[")
+	}) {
+		return false
+	}
 	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
 		if words[0].text == "-C" {
-			if len(words) < 2 || driverDynamic(words[1].text) {
+			if len(words) < 2 || strings.HasPrefix(words[1].text, "-") {
 				return false
 			}
 			words = words[1:]
-		} else if driverDynamic(words[0].text) {
-			return false
 		}
 		words = words[1:]
 	}
 	if len(words) == 0 || !driverGoCertified[words[0].text] {
 		return false
 	}
-	valueOf := ""
-	for _, word := range words[1:] {
-		if word.text == "-args" || word.text == "--args" || word.text == "--" {
-			break
+	for index := 1; index < len(words); index++ {
+		arg := words[index].text
+		if arg == "-args" && words[0].text == "test" {
+			return true // All remaining test arguments were checked literal above.
 		}
-		flag, _, _ := strings.Cut(strings.TrimLeft(word.text, "-"), "=")
-		isFlag := strings.HasPrefix(word.text, "-")
-		if isFlag && (flag == "exec" || flag == "toolexec" || flag == "vettool") {
-			return false
+		if !strings.HasPrefix(arg, "-") {
+			continue
 		}
-		if driverDynamic(word.text) {
-			switch {
-			case valueOf != "" && driverGoValueFlags[valueOf]:
-			case isFlag && strings.Contains(word.text, "=") && driverGoValueFlags[flag] && !driverDynamic(flag):
-			default:
+		flag, value, attached := strings.Cut(arg, "=")
+		if driverGoBoolFlags[flag] {
+			if attached && value != "true" && value != "false" && !(flag == "-buildvcs" && value == "auto") {
 				return false
 			}
+			continue
 		}
-		valueOf = ""
-		if isFlag && !strings.Contains(word.text, "=") && !driverGoBoolFlags[word.text] {
-			valueOf = flag
+		if !driverGoValueFlags[strings.TrimPrefix(flag, "-")] || strings.HasPrefix(flag, "--") {
+			return false
+		}
+		if !attached {
+			index++
+			if index >= len(words) || strings.HasPrefix(words[index].text, "-") {
+				return false
+			}
 		}
 	}
 	return true
