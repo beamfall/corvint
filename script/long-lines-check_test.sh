@@ -64,4 +64,20 @@ if (($(id -u) != 0)); then
   chmod 644 .corvint/long-line-allow
   [[ $rc == 2 ]] && grep -qF 'long-lines-check: REFUSED cannot read .corvint/long-line-allow' <<< "$out" || fail "unreadable allow list: rc=$rc $out"
 fi
+# 6. (V1-4534) The repository's own exclude list accepts long lines in the bound, unsealed CEM at
+# .corvint/change.cem.json and in a sealed one under .corvint/changes/, so a fix round on a bound
+# head passes; another long-line file still fails.
+/bin/cp -f "$here/../.corvint/agent-grep-exclude" .corvint/agent-grep-exclude || exit 2
+/bin/rm -f .corvint/long-line-allow
+git rm -q -r --cached data src > /dev/null 2>&1
+/bin/rm -rf data src
+mkdir -p .corvint/changes
+printf '%s\n' "$long" > .corvint/change.cem.json
+printf '%s\n' "$long" > .corvint/changes/0123456789abcdef.cem.json
+git add -A || exit 2
+out=$("$check" 2>&1) || fail "bound or sealed CEM long line: $out"
+printf '%s\n' "$long" > .corvint/other.json && git add .corvint/other.json
+out=$("$check" 2>&1)
+[[ $? == 1 ]] && grep -qF 'long-lines-check: .corvint/other.json has a line over 4096 bytes' <<< "$out" || fail "unlisted .corvint long line: $out"
+grep -q 'cem.json' <<< "$out" && fail "a CEM was reported: $out"
 printf 'long-lines-check_test: ok\n'

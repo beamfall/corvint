@@ -179,16 +179,16 @@ func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
 		t.Fatal(err)
 	}
 	ci := string(b)
-	// AFP-V0-2724: two pin-main steps resolve the same way, the shard-plan job's (pull requests
-	// only, first in the file) and every go-product-shard's (pull requests and merge-queue entries).
+	// AFP-V0-2724: two pin-main steps resolve the same way, the shard-plan job's (first in the file)
+	// and every go-product-shard's. AFP-V0-3260: both handle pull requests and merge-queue entries.
 	m := regexp.MustCompile(`(?ms)^        id: pin-main\n.*?^        run: \|\n(.*?)^      - name: Capture trusted tool source outside tested checkout\n`).FindAllStringSubmatch(ci, -1)
 	if len(m) != 2 {
 		t.Fatalf("%d pin-main steps before a tool capture in ci.yml, want 2 (shard-plan, go-product-shard)", len(m))
 	}
 	planBody := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[0][1], "")
 	body := regexp.MustCompile(`(?m)^          `).ReplaceAllString(m[1][1], "")
-	if !strings.Contains(body, "merge_group") || strings.Contains(planBody, "merge_group") {
-		t.Fatal("the shard pin-main handles merge-queue entries and the shard-plan pin-main pull requests only")
+	if !strings.Contains(body, "merge_group") || planBody != body {
+		t.Fatalf("the shard-plan pin-main body differs from the shard pin-main body:\n%s\n---\n%s", planBody, body)
 	}
 	tool, shadow := "${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}", "${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}"
 	for _, want := range []struct {
@@ -234,12 +234,12 @@ func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
 		t.Helper()
 		out := filepath.Join(t.TempDir(), "out")
 		script := body
-		if event == "pull_request" {
-			// The shard-plan body resolves a pull request the same way; both are checked.
+		{
+			// The shard-plan body resolves every event the same way; both are checked.
 			planOut := filepath.Join(t.TempDir(), "plan-out")
 			planCmd := exec.Command("bash", "-e", "-c", planBody)
 			planCmd.Dir = repo
-			planCmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+planOut, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge,
+			planCmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+planOut, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge, "QUEUE_BASE="+base,
 				"CORVINT_PR_TOOL_SOURCE="+floor, "CORVINT_TEST_SHADOW_SOURCE="+floor)
 			if log, err := planCmd.CombinedOutput(); err != nil {
 				t.Fatalf("shard-plan pin-main: %v\n%s", err, log)
