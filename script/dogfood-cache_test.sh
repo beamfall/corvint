@@ -483,3 +483,18 @@ status=0
 make -s dogfood-inputs-check BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -q 'REFUSE line-citations-invalid' "$root/output" && grep -q 'script/check-line-citations.sh --repin' "$root/output" &&
   grep -qF "git commit -m 'Repin moved line citations' && make dogfood-inputs-check BASE=$base CITATIONS=$root/closeout-cites.tsv INTENTS=$root/closeout-cites.tsv VERIFY=$root/closeout-cites.tsv OUTCOME=passed before binding" "$root/output" || fail "$LINENO"
+# DWC-V0-7603: a literal $ in an input path survives the printed rerun. The fix line doubles it for
+# Make before the shell quoting, so the copied rerun reads the same file and prints the same line.
+dollar_cites=$root/'cites$foo.tsv'
+/bin/cp -f "$root/closeout-cites.tsv" "$dollar_cites"
+status=0
+make -s dogfood-inputs-check BASE="$base" CITATIONS="${dollar_cites//\$/\$\$}" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
+fix=$(grep '^fix: run script/check-line-citations.sh --repin' "$root/output") || fail "$LINENO"
+rerun=${fix#*"&& "}
+rerun=${rerun%" before binding"}
+[[ $status == 2 && $rerun == "make dogfood-inputs-check BASE=$base CITATIONS=$root/cites\\\$\\\$foo.tsv INTENTS="* ]] || fail "$LINENO"
+status=0
+# A child bash, not eval: bash 3.2 runs the ERR trap inside an eval even in an || list, with the
+# output redirection still open, so the trap's cat of the output would append to itself forever.
+bash -c "$rerun" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && grep -qxF "$fix" "$root/output" && ! grep -q unreadable "$root/output" || fail "$LINENO"

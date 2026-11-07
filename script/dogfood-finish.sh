@@ -179,9 +179,12 @@ if [[ -x $repo/script/check-line-citations.sh ]] &&
   printf '%s: REFUSE line-citations-invalid\n%s\n' "$prefix" "$static_out" >&2
   # DWC-V0-7603 (V1-4721 friction): the fix names the exact repin, commit and rerun, with the inputs
   # this run took, so a moved-unchanged citation costs one copied command line.
-  rerun="make $entry BASE=$base_arg$seal_word"
-  for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify" "OUTCOME=$outcome"; do
-    [[ -z ${pair#*=} ]] || rerun+=" ${pair%%=*}=$(printf '%q' "${pair#*=}")"
+  # Make expands $ in a command-line variable value, so each value doubles its $ before the shell
+  # quoting and the copied rerun hands this script the exact bytes this run took.
+  rerun="make $entry"
+  for pair in "BASE=$base_arg" "${seal_word# }" "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify" "OUTCOME=$outcome"; do
+    value=${pair#*=}
+    [[ -z $value ]] || rerun+=" ${pair%%=*}=$(printf '%q' "${value//\$/\$\$}")"
   done
   printf 'fix: run script/check-line-citations.sh --repin (it rewrites and stages each citation whose cited lines moved unchanged; repair any other failure above by hand), read each repinned sentence, then git commit -m '"'"'Repin moved line citations'"'"' && %s before binding\n' "$rerun" >&2
   exit 2
