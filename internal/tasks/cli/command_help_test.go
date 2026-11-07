@@ -50,7 +50,9 @@ func TestCALV0047_AllCommandHelpIsReadOnly(t *testing.T) {
 					// and points at the verbose form when it left anything out.
 					if !verbose && name != "help" {
 						for _, key := range r.Items[0].Obj.Keys {
-							if !strings.Contains(" usage implemented flags required example operation payloadKeys payloadKeyTypes optionalPayloadKeys note verboseHelp ", " "+key+" ") && (name != "release" || key != "reasonCodes") {
+							// TEA-V0-7100 keeps evidenceRetention and TCL-V0-7102 the
+							// receipt audit worktree note in terse help: each forms the call.
+							if !strings.Contains(" usage implemented flags required example operation payloadKeys payloadKeyTypes optionalPayloadKeys note verboseHelp evidenceRetention ", " "+key+" ") && (name != "release" || key != "reasonCodes") && (name != "receipt audit" || key != "worktree") {
 								t.Fatalf("terse help carries %q: %v", key, args)
 							}
 						}

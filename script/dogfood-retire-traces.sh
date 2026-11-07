@@ -16,7 +16,7 @@ me=dogfood-retire-traces
 (($# == 0)) || { printf '%s: REFUSE bad-arguments\nusage: script/dogfood-retire-traces.sh (or make dogfood-retire-traces); it takes no arguments\n' "$me" >&2; exit 2; }
 corvint_bin=${CORVINT_BIN-}
 # Both invocations run from the repository root, so resolve a PATH-only name and make a relative
-# path absolute against the caller's directory first, as dogfood-finish.sh does (DCW-V0-2142).
+# path absolute against the caller's directory first, as the finish wrapper does (DCW-V0-2142).
 if [[ -n $corvint_bin ]]; then
   [[ $corvint_bin == */* ]] || corvint_bin=$(type -P -- "$corvint_bin") || {
     printf '%s: REFUSE corvint-bin-not-found: CORVINT_BIN=%s is not an executable on PATH; nothing was moved\n' "$me" "$CORVINT_BIN" >&2
@@ -50,7 +50,7 @@ plan=$(cd "$repo" && "$corvint_bin" migrate-traces --dry-run) || {
 fields=$(perl -MJSON::PP -e '
   my $p = eval { JSON::PP->new->decode(join "", <STDIN>) } or exit 2;
   ref $p->{stranded_revisions} eq "ARRAY" && ref $p->{entries} eq "ARRAY" && ($p->{plan_digest} // "") =~ /^[0-9a-f]{64}$/ or exit 2;
-  print join("\n", $p->{plan_digest}, scalar @{$p->{entries}}, @{$p->{stranded_revisions}}), "\n";' <<< "$plan") || {
+  print "$_\n" for $p->{plan_digest}, scalar @{$p->{entries}}, @{$p->{stranded_revisions}};' <<< "$plan") || {
   printf '%s: REFUSE dry-run-unreadable: %s migrate-traces --dry-run printed no plan_digest, entries and stranded_revisions; nothing was moved\n' "$me" "$corvint_bin" >&2
   printf 'fix: run corvint migrate-traces --dry-run with a current build of this tree (set CORVINT_BIN to one), then rerun make %s\n' "$me" >&2
   exit 2
