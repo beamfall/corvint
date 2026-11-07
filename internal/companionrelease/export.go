@@ -75,7 +75,9 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 // internal/langplugin/decl because internal/contextindex reads its language
 // dialects from it (LGP-V0-015); internal/langplugin/dialect and
 // internal/rubydialect because internal/contextindex runs the dialect hooks
-// the Ruby plugin registers there (LGP-V0-023, LGP-V0-025).
+// the Ruby plugin registers there (LGP-V0-023, LGP-V0-025), and
+// internal/webdialect because it registers the TypeScript plugin's impact
+// profile (LGP-V0-027, AFP-V0-2247).
 var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
 
 var tasksExportPrefixes = []string{
@@ -84,7 +86,7 @@ var tasksExportPrefixes = []string{
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
 	"internal/langplugin/decl/", "internal/langplugin/dialect/", "internal/projectprofile/", "internal/pythongrammar/",
 	"internal/pythonsyntax/", "internal/rubyautoload/", "internal/rubydialect/", "internal/runtimeenv/", "internal/secretscreen/", "internal/taskprojection/",
-	"internal/untrackedallowance/",
+	"internal/untrackedallowance/", "internal/webdialect/",
 }
 
 // tasksExport filters export to the corvint-tasks subset. It keeps the same

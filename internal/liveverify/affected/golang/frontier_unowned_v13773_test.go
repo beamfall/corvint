@@ -50,7 +50,7 @@ func TestUnownedFrontierCannotHideAGoReader_V13773(t *testing.T) {
 		"comp/comp.go":                   "package comp\n",
 		"comp/comp_test.go":              "package comp\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestNamed(t *testing.T) {\n\troot, _ := os.Getwd()\n\tfor _, name := range []string{os.Getenv(\"NAME\")} {\n\t\t_, _ = os.ReadFile(filepath.Join(root, name))\n\t}\n}\n",
 		"scoped/scoped.go":               "package scoped\n",
-		"scoped/scoped_test.go":          "package scoped\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestScoped(t *testing.T) {\n\tfor _, name := range []string{os.Getenv(\"NAME\")} {\n\t\t_, _ = os.ReadFile(filepath.Join(\"" + parent + "\", \"docs\", name))\n\t}\n}\n",
+		"scoped/scoped_test.go":          "package scoped\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestScoped(t *testing.T) {\n\tfor _, name := range []string{os.Getenv(\"NAME\")} {\n\t\t_, _ = os.ReadFile(filepath.Join(\"" + parent + "\", os.Getenv(\"DIR\"), name))\n\t}\n}\n",
 		"plain/plain.go":                 "package plain\n",
 		"plain/plain_test.go":            "package plain\n\nimport \"testing\"\n\nfunc TestPlain(t *testing.T) {}\n",
 		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"scoped":["docs/"]}}`,
