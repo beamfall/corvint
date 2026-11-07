@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func heavycapEnv(env []string, key, value string) []string {
@@ -22,7 +24,7 @@ func heavycapEnv(env []string, key, value string) []string {
 func TestASDV02477LocalRuntimeShare(t *testing.T) {
 	root, scripts, work, env := dogtoolsShardFixture(t, "#!/bin/sh\n[ \"$1\" = env ] && exit 0\nprintf 'inherited=%s\\n' \"$GOMAXPROCS\"\n")
 	// Remove the enclosing test runner's cap to exercise the local default.
-	if err := os.WriteFile(filepath.Join(root, "bin", "getconf"), []byte("#!/bin/sh\necho 8\n"), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(root, "bin", "getconf"), []byte("#!/bin/sh\necho 8\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	env = heavycapEnv(env, "HEAVY_SLOTS", "2")
