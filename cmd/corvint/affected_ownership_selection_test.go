@@ -122,7 +122,7 @@ func TestOwnershipMembershipSelection_AZU_V0_9900(t *testing.T) {
 					t.Fatal(err)
 				}
 				graph = affectedOwnershipInputs(context.Background(), affectedPlanInputs{gitExecutable: "git", repository: root, tree: root, base: base, revision: strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))}, graph, p.Dirty)
-				slices := testGoSlices(context.Background(), p, graph, root, base)
+				slices := testGoSlices(context.Background(), p, graph, root, base, typedReachExecutor{environ: os.Environ()})
 				if got := slices["example.test/m/internal/liveverify/affected"]; got.Pattern != "^("+affected.OwnershipAuditTest+")$" || !strings.Contains(got.Reason, "AZU-V0-9900") {
 					t.Fatalf("dry-run slice %+v", got)
 				}

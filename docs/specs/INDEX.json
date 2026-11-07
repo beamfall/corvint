@@ -4370,7 +4370,7 @@
     "reqPrefix": "AFP-V0",
     "intent": "per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)",
     "delivery": "experimental",
-    "claim": "`corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.",
+    "claim": "`corvint affected` narrows more reads, marks deletions and honours declared test owners; `corvint test` narrows dependency selections by a typed call graph.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

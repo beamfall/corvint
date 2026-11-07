@@ -128,6 +128,19 @@ AFP-V0-2403	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2404	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2405	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2406	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2360	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2361	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2362	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2363	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2370	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-2371	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The graph SHALL load every module package of the test	unrecorded	-
+AFP-V0-2372	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The always-run code is every module package's	unrecorded	-
+AFP-V0-2373	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A test function (`Test`, `Benchmark`, `Fuzz`, `Example`	unrecorded	-
+AFP-V0-2374	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A dropped test whose closure reads a package variable	unrecorded	-
+AFP-V0-2375	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A narrowed package SHALL run `-run ^(KEPT...)$` with	unrecorded	-
+AFP-V0-2376	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The changed declarations SHALL be read per changed	unrecorded	-
+AFP-V0-2377	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A package SHALL be refused narrowing, with the reason	unrecorded	-
+AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-

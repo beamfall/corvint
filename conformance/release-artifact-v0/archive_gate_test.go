@@ -101,10 +101,9 @@ func testRawCommitExportBuildCarriesExactVCSIdentity(t *testing.T) {
 
 func TestArchiveDestinationRequiresTrustedAbsentExternalChild(t *testing.T) {
 	t.Parallel()
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The boundary check only asks Git for the repository's private directory, so the shared
+	// disposable repository stands in for a checkout without reading the enclosing one.
+	root := sharedArchiveTestRepository(t)
 	parent := t.TempDir()
 	if err := os.Chmod(parent, 0o700); err != nil {
 		t.Fatal(err)
@@ -312,17 +311,14 @@ func TestRetainArchiveOutputPublishesCompleteDirectory(t *testing.T) {
 }
 
 func TestBuildArchivesCancellationRemovesScratchStageAndOutput(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := manifestArchiveTestRepository(t)
 	parent := t.TempDir()
 	if err := os.Chmod(parent, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = buildArchives(ctx, ArchiveOptions{Root: root, ManifestPath: "conformance/release-artifact-v0/manifest.json", Output: filepath.Join(parent, "retained"), Revision: "HEAD"})
+	_, err := buildArchives(ctx, ArchiveOptions{Root: root, ManifestPath: "conformance/release-artifact-v0/manifest.json", Output: filepath.Join(parent, "retained"), Revision: "HEAD"})
 	if err == nil {
 		t.Fatal("canceled archive build succeeded")
 	}
@@ -614,8 +610,30 @@ func TestFinalGitRecheckRejectsDirtyStagedUntrackedAndHeadMovement(t *testing.T)
 func initArchiveTestRepository(t *testing.T) string {
 	t.Helper()
 	fixture := sharedArchiveTestRepository(t)
+	parent := t.TempDir()
+	root := filepath.Join(parent, "repository")
+	runGitTest(t, parent, "clone", "-q", "--shared", fixture, root)
+	return root
+}
+
+// manifestArchiveTestRepository commits the package's own manifest.json at its checkout path in a
+// disposable repository, so a test can run the archive entry point on the committed manifest
+// without running Git against the enclosing checkout.
+func manifestArchiveTestRepository(t *testing.T) string {
+	t.Helper()
+	manifest, err := os.ReadFile("manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	root := filepath.Join(t.TempDir(), "repository")
-	runGitTest(t, ".", "clone", "-q", "--shared", fixture, root)
+	directory := filepath.Join(root, "conformance", "release-artifact-v0")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(directory, "manifest.json"), string(manifest))
+	runGitTest(t, root, "init", "-q")
+	runGitTest(t, root, "add", "conformance/release-artifact-v0/manifest.json")
+	runGitTest(t, root, "-c", "user.name=Corvint Test", "-c", "user.email=corvint@example.invalid", "commit", "-qm", "manifest")
 	return root
 }
 
@@ -646,6 +664,7 @@ func sharedArchiveTestRepository(t *testing.T) string {
 		}
 		for _, arguments := range commands {
 			command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
+			command.Dir = archiveRepositoryFixture.directory
 			command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
 			archiveRepositoryFixture.output, archiveRepositoryFixture.err = command.CombinedOutput()
 			if archiveRepositoryFixture.err != nil {

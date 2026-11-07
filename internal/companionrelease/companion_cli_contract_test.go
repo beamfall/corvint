@@ -35,7 +35,9 @@ func buildContractCompanions(t *testing.T) string {
 	t.Helper()
 	bin := t.TempDir()
 	root := filepath.Join("..", "..")
-	arguments := []string{"build", "-trimpath", "-o", bin + string(filepath.Separator)}
+	// -buildvcs=false: the build reads the declared source only, never the
+	// checkout's .git (AFP-V0-023); the version line then names commit unknown.
+	arguments := []string{"build", "-trimpath", "-buildvcs=false", "-o", bin + string(filepath.Separator)}
 	for _, name := range contractCompanions {
 		arguments = append(arguments, "./cmd/"+name)
 	}

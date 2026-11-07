@@ -166,7 +166,7 @@ func TestDeclaredOwnerUnitRunsWhole_AFPV02485(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			slice := testGoSlices(context.Background(), receipt.Plan, graph, root, base)["example.com/owned/x/c/smoke"]
+			slice := testGoSlices(context.Background(), receipt.Plan, graph, root, base, typedReachExecutor{environ: os.Environ()})["example.com/owned/x/c/smoke"]
 			if slice.Reason != test.reason {
 				t.Fatalf("smoke slice %+v, want reason %q", slice, test.reason)
 			}
@@ -197,7 +197,7 @@ func TestMustRunUnitRunsWhole_AFPV02485(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			slice := testGoSlices(context.Background(), receipt.Plan, graph, root, base)["example.com/owned/x/c/smoke"]
+			slice := testGoSlices(context.Background(), receipt.Plan, graph, root, base, typedReachExecutor{environ: os.Environ()})["example.com/owned/x/c/smoke"]
 			if slice.Reason != test.reason {
 				t.Fatalf("smoke slice %+v, want reason %q", slice, test.reason)
 			}

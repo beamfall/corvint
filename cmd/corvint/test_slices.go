@@ -46,7 +46,7 @@ import (
 // moved, added or edited there runs; which assertion changed is not modelled.
 // The base reads of every changed test file of every package are two Git
 // processes in all (STR-V0-072).
-func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph, root, base string) map[string]sessiontest.GoSlice {
+func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph, root, base string, executor typedReachExecutor) map[string]sessiontest.GoSlice {
 	sliced := make(map[string]sessiontest.GoSlice, len(plan.Selected))
 	var candidates []testSliceCandidate
 	var sources []testSourceCandidate
@@ -111,6 +111,7 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 	for _, candidate := range eligible {
 		sliced[candidate.pkg] = testSourceSlice(root, candidate, blobs)
 	}
+	testTypedSlices(ctx, plan, graph, root, base, executor, sliced)
 	return sliced
 }
 
