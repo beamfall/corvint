@@ -298,10 +298,17 @@ var driverInterpreters = map[string]bool{
 // command handles one simple command and returns the working directory the
 // next command of the same script runs in.
 func (s *driverShellScanner) command(words []driverWord, cwd string) string {
+	var goflags string
+	assignment := func(word string) {
+		if name, value, found := strings.Cut(word, "="); found && name == "GOFLAGS" {
+			goflags = value
+		}
+	}
 	for len(words) != 0 {
 		head := words[0].text
 		switch {
 		case !words[0].quoted && driverAssignment(head):
+			assignment(head)
 			words = words[1:]
 		case !words[0].quoted && head == "command" && len(words) > 1 && (words[1].text == "-v" || words[1].text == "-V"):
 			// A lookup: it names a command and runs none.
@@ -312,6 +319,9 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			words = words[1:]
 			for len(words) != 0 && (strings.HasPrefix(words[0].text, "-") || driverAssignment(words[0].text)) {
 				option := words[0].text
+				if driverAssignment(option) {
+					assignment(option)
+				}
 				// AZU-V0-9851: env changes only the wrapped command's cwd.
 				// Until that scoped directory is modelled, keep the site computed.
 				if strings.HasPrefix(option, "-C") || option == "--chdir" || strings.HasPrefix(option, "--chdir=") {
@@ -349,6 +359,12 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				words = words[1:]
 			}
 		default:
+			// Explicit GOFLAGS can inject executable flags into Go, even
+			// through a shell wrapper. Do not discard that read boundary
+			// with the command-local environment (AFP-V0-3128).
+			if goflags != "" {
+				s.scan.uncertified = true
+			}
 			return s.simple(words, cwd)
 		}
 	}
@@ -551,6 +567,12 @@ func driverCommandOptionsCertified(base string, words []driverWord) bool {
 			if !has(options.values, name) {
 				return false
 			}
+			// Attached values can name extensionless input files, but the
+			// operand scanner skips the option word. Retain the frontier
+			// claim until those inputs have explicit edges (AFP-V0-3128).
+			if attached {
+				return false
+			}
 			if !attached {
 				index++
 				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) {
@@ -618,7 +640,7 @@ func driverCertified(words []driverWord, cwd string) bool {
 	case driverPureCommands[base]:
 		return true
 	case base == "make" || base == "gmake":
-		return driverLiteral(words[1:]) && !slices.ContainsFunc(words[1:], func(word driverWord) bool { return driverAssignment(word.text) })
+		return driverMakeCommandCertified(words[1:])
 	case base == "go":
 		return driverGoCommandCertified(words[1:])
 	case driverShells[base]:
@@ -645,6 +667,49 @@ func driverCertified(words []driverWord, cwd string) bool {
 		return driverCommandOptionsCertified(base, words[1:])
 	}
 	return false
+}
+
+// driverMakeCommandCertified admits only options whose effects the make
+// invocation scanner models. Evaluation, loading, search paths and unknown
+// options may add arbitrary reads and must retain the site (AFP-V0-3128).
+func driverMakeCommandCertified(words []driverWord) bool {
+	if !driverLiteral(words) || slices.ContainsFunc(words, func(word driverWord) bool {
+		return driverAssignment(word.text) || strings.ContainsAny(word.text, "*?[")
+	}) {
+		return false
+	}
+	flags := strings.Fields("-s --silent --quiet -n --just-print --dry-run --recon -k --keep-going -S --no-keep-going --stop -r --no-builtin-rules -R --no-builtin-variables -B --always-make -i --ignore-errors -w --print-directory --no-print-directory")
+	for index := 0; index < len(words); index++ {
+		arg := words[index].text
+		switch {
+		case !strings.HasPrefix(arg, "-") || slices.Contains(flags, arg):
+		case arg == "-C" || arg == "--directory":
+			index++
+			if index >= len(words) || words[index].text == "" || strings.HasPrefix(words[index].text, "-") {
+				return false
+			}
+		case strings.HasPrefix(arg, "--directory="):
+			if strings.TrimPrefix(arg, "--directory=") == "" {
+				return false
+			}
+		case strings.HasPrefix(arg, "-C") && !strings.HasPrefix(arg, "--"):
+		case arg == "-j" || arg == "--jobs":
+			if index+1 < len(words) && driverNumeric(words[index+1].text) {
+				index++
+			}
+		case strings.HasPrefix(arg, "--jobs="):
+			if !driverNumeric(strings.TrimPrefix(arg, "--jobs=")) {
+				return false
+			}
+		case strings.HasPrefix(arg, "-j"):
+			if !driverNumeric(arg[2:]) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // driverLiteral reports words of which none holds a value only the
