@@ -71,6 +71,8 @@ type AggregateCheckCapture struct {
 }
 
 type check struct {
+	sealReviewTarget                           string
+	sealReviewEvidence                         string
 	sealed                                     bool
 	sealedTarget                               string
 	cemPath                                    string
@@ -122,6 +124,9 @@ func Seal(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (
 	defer run.releaseOperation()
 	defer func() { _, _, _ = run.writeTimings() }()
 	return boundary(ctx, func() int {
+		run.requireRoot()
+		run.requireTrustedAncestry()
+		run.sealReviewEvidence = run.sealReview()
 		// The check's own exits, including its no-change PASS, return here as the
 		// former `dogfood-check.sh || exit` did.
 		code, err := boundary(ctx, run.run, func() {})
@@ -147,6 +152,9 @@ func newCheck(ctx context.Context, prefix string, options CheckOptions, stdout, 
 func (c *check) seal() int {
 	c.clock.to("seal")
 	bind := c.gitValue("rev-parse", "HEAD^{commit}")
+	if c.sealReviewTarget != "" && bind != c.sealReviewTarget {
+		c.refuseSealReview(os.Getenv("DOGFOOD_REVIEW"))
+	}
 	if !c.gitSucceeds("cat-file", "-e", bind+":.corvint/change.cem.json") {
 		c.refuse("nothing-to-seal")
 	}
@@ -164,7 +172,11 @@ func (c *check) seal() int {
 	if c.gitPassthrough("mv", ".corvint/change.cem.json", sealed) != 0 {
 		c.exit(2)
 	}
-	if c.gitPassthrough("commit", "-q", "-m", "chore: seal change evidence") != 0 {
+	args := []string{"commit", "-q", "-m", "chore: seal change evidence"}
+	if c.sealReviewEvidence != "" {
+		args = append(args, "-m", c.sealReviewEvidence)
+	}
+	if c.gitPassthrough(args...) != 0 {
 		c.exit(2)
 	}
 	if c.baseIndependence() != "" {
@@ -354,6 +366,10 @@ func (c *check) requireCleanChange() {
 		}
 		c.say("dogfood-check: REFUSE %s\n", refusal)
 		c.say("  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n")
+		// DCW-V0-2144 (V1-4444): clean means no change after the bind commit;
+		// the lane's own worktree qualifies once it is. The named command is the
+		// probe's own view: core.excludesFile is cleared (internal/gokernel).
+		c.say("  fix: commit or remove the %d path(s) git -c core.excludesFile= status --porcelain --untracked-files=all lists, then rerun make dogfood-change BASE=%s and make dogfood-check BASE=%s; a clean worktree is one with no change after the bind commit (paths the repository's .gitignore or .git/info/exclude ignore do not count; a global core.excludesFile does not apply), so this worktree qualifies once they are gone and no fresh checkout is needed (DCW-V0-2144)\n", repository.DirtyPathCount, c.base, c.base)
 		c.exit(2)
 	}
 	if diffStatus == 0 {
@@ -911,7 +927,7 @@ func (c *check) verifyBinding(report []byte) int {
 	return 0
 }
 
-// checkSummary is the one PASS line that stands in for the CEM and OCM status
+// checkSummary is the PASS summary and its count-universe explanation for the CEM and OCM status
 // JSON (DCW-V0-033): their states and counts, the report, and the detail file
 // that holds the full JSON. A field the JSON does not carry prints NOT_OBSERVED.
 // unknownShare is unknown over material (non-mechanical) hunks, the measure of
@@ -960,7 +976,11 @@ func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, coverage
 		fields = append(fields, independence)
 	}
 	fields = append(fields, "report=.corvint/dogfood-report.json", "detail="+detail)
-	return "dogfood-check: SUMMARY " + strings.Join(fields, " ")
+	summary := "dogfood-check: SUMMARY " + strings.Join(fields, " ")
+	if !noIntent {
+		summary += "\n" + countUniverseNote
+	}
+	return summary
 }
 
 // summaryString admits one state token of letters, digits, '-' and '_';

@@ -128,7 +128,7 @@ of its own.
 
 ## Required capability-spec shape
 
-Every substantive capability spec contains:
+Use the [authoring template](#authoring-template) for the Claim limit (`SRG-V0-763`) and staging order (`SRG-V0-954`). Every substantive capability spec contains:
 
 1. owner, date, intent status, delivery status, and authoritative inputs, and an `## Agent digest`
    whose `- Claim:` is one sentence of at most 160 characters ending in `.`, `?` or `!`, which
@@ -149,6 +149,38 @@ Every substantive capability spec contains:
 
 Requirements describe observable contracts, not preferred internal structure, unless the structure
 is itself a safety or interoperability property.
+
+### Authoring template
+
+Before running `make spec-requirements`, fill in the owning spec's header and digest:
+
+```markdown
+Owner: Russell Lewis
+Date: YYYY-MM-DD
+Intent status: proposed
+Delivery status: experimental
+
+## Agent digest
+- Claim: One sentence of at most 160 characters, including the final punctuation.
+- Status: proposed / experimental
+- Exists: Exact implementation and evidence.
+- Blocked on: Unobserved acceptance evidence.
+- Read next: Requirements; Acceptance; Rollback.
+
+## Requirements
+
+- `PREFIX-V0-NNN`: (accepted under the owner's standing auto-accept (2026-10-11); V1-NNNN) Observable behavior.
+```
+
+Keep the Claim and the README row consistent: edit the spec's Claim, then stage the spec with
+`git add -- docs/specs/NAME.md` and regenerate with `make spec-requirements`. The generator
+projects the Claim into README and INDEX; editing only that README cell cannot change it.
+The required shape above supplies acceptance, non-goals, trust boundary, traceability and rollback sections. A template confers no acceptance.
+
+For dogfood inputs, sort the owning-spec manifest with `LC_ALL=C sort -u -o intents.txt intents.txt`.
+A lane with no declared intent uses a single `#no-intent-declared` line, not an empty manifest.
+
+The Claim bound is `SRG-V0-763`; the index-only staging refusal is `SRG-V0-954`.
 
 ## Change loop
 
@@ -185,6 +217,17 @@ PREFIX=... RANGE=...` checked free on `origin/main` and on every unmerged local 
 or worktree define differently (`ASD-V0-950`); an orchestrator runs the same check in the batch
 checkout before it integrates each lane. A collision found at merge is refused by the generator
 (`SRG-V0-547`) and costs a renumber of spec rows, tests and build logs.
+
+Before integrating a batch, run `make spec-batch-capacity-check BASE=origin/main
+LANES="claude/lane-a claude/lane-b"` with every intended lane ref (SRG-V0-745). The read-only
+preflight reports each spec's base obligations plus the union of lane additions and refuses a
+combined count above 256, naming the contributing lanes. It conservatively retains base IDs,
+including deleted ones; merge conflicts, duplicate definitions and final merged-tree capacity
+still need their existing checks.
+
+`make spec-status-check` checks staged digest/header agreement and sorted doc-gate targets before
+`doc-gates` starts its workload. A trailing Intent parenthetical must appear in the digest; an
+omission reports the actual fields and exact replacement line (SRG-V0-970).
 
 Before lane closeout, stage the spec edits and run `make spec-capacity-check BASE=<rev>`
 (`SRG-V0-744/745`, `ASD-V0-2010`). It warns for every spec within 8 obligations of 256;

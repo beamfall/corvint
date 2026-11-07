@@ -169,7 +169,9 @@ absent '(reused:' "$tmp/out"
 /bin/rm -f "$repo/ok.sh"
 
 # 10. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
-grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in DOC_GATE_TARGETS"
+# SRG-V0-982: DOC_GATE_TARGETS is a continuation list with one target per line.
+awk '/^DOC_GATE_TARGETS :=/ { on = 1; next } on { line = $0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' "$root/Makefile" |
+  grep -qx bash32-check || fail "bash32-check is not in DOC_GATE_TARGETS"
 # GATE_STEPS lists one step per line (STR-V0-920), so read the whole assignment.
 awk '/^GATE_STEPS = /,/end of GATE_STEPS/' "$root/Makefile" | grep -qE '(^|[[:space:]])bash32-check([[:space:]]|$)' || fail "bash32-check is not in GATE_STEPS"
 

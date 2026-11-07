@@ -95,6 +95,8 @@ type Witness struct {
 	// pattern that matches DirtyPath (AFP-V0-401), and on a
 	// DECLARED_TEST_OWNER witness: the owner pattern (AFP-V0-2482).
 	Glob string `json:"glob,omitempty"`
+	// ReadScope names the project declaration and matching entry (TSP-V0-1062).
+	ReadScope *ReadScopeCause `json:"readScope,omitempty"`
 	// link holds the chain by reference while the selector runs, in place of
 	// Via (V1-2979, AFP-V0-641); see via.go.
 	link *viaLink
@@ -107,6 +109,12 @@ func (witness Witness) MarshalJSON() ([]byte, error) {
 		wire
 		AnyDirtyPath bool `json:"anyDirtyPath,omitzero"`
 	}{wire: wire(witness), AnyDirtyPath: witness.Kind == WitnessUnboundedReader})
+}
+
+// ReadScopeCause explains a declared reader, including implicit own-subtree reads.
+type ReadScopeCause struct {
+	Declaration string `json:"declaration"`
+	Entry       string `json:"entry"`
 }
 
 // UnboundedCause names why an UNBOUNDED_READER unit can read any dirty path:
