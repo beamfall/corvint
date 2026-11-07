@@ -1402,6 +1402,14 @@ reader yet), never a plain `os.OpenFile(path, O_WRONLY, 0)`, which blocks foreve
 
 ## 16. Parallel batch assembly (ASD-V0-785..786, NEW-D1)
 
+For a lane's local merge-forward, install `make merge-drivers` and follow the
+[merge and regenerate recipe](DOGFOOD.md#rebinding-after-a-conflicted-merge-forward-v1-4721-v1-0527).
+The append-union and JSON registry rules avoid independent additions conflicting, while generated
+spec projections keep ours until `make spec-requirements` runs before the merge commit
+(`DWC-V0-7700`..`DWC-V0-7704`). Existing code edits and same-entry registry changes still conflict.
+Batch-check recognizes exact parent-derived driver output without consulting local Git config.
+The assembly procedure below continues to use its own attribute-free strategies.
+
 The per-lane rebind merges the batch tip into each lane and rebinds and reseals it there before the
 lane merges, so each lane waits for the one before it: batch-1102a took 94 minutes for 13 lanes.
 This procedure seals each lane once, at its own base, and adds one sealed change after assembly. It

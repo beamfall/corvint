@@ -505,6 +505,7 @@
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
     ],
+    "internal/mergedrivers": [],
     "internal/modelgateway": [],
     "internal/nativelinecov": [],
     "internal/observations": [
@@ -746,6 +747,11 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
+    "tools/merge-drivers": [
+      ".gitattributes",
+      "Makefile",
+      "script/gen-spec-requirements.sh"
+    ],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [
