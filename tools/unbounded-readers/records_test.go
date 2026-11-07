@@ -159,3 +159,66 @@ func TestAFPV2747RecordRatchetMatchesTheEntryNamespace(t *testing.T) {
 		t.Fatalf("listed readers: code %d, want 0; stderr:\n%s", code, stderr.String())
 	}
 }
+
+// AFP-V0-2748 (V1-4933, review fix round 2, finding P1): a package that walks
+// docs/build-log/'s parent and also globs some of its entries
+// (`filepath.Glob("../docs/*/2026-*.md")`) is a reader only of the entries
+// its glob admits, while its walk reads every new entry: a
+// `docs/build-log/2027-entry.md` selects it under no rule. Listing it in the
+// record must not pass the check, and the check names the listed entry stale.
+// A package that walks the parent and globs every entry
+// (`../docs/build-log/*.md`) is selected for each new entry and passes once
+// listed. Before AFP-V0-2748 the constrained glob masked the walker, and the
+// listed package passed.
+func TestAFPV2748RecordRatchetRefusesAMaskedWalker(t *testing.T) {
+	const unbounded = `{"profile":"corvint-unbounded-reader-set/0","units":[],"reasons":{}}`
+	const head = `{"profile":"corvint-record-readers/0","directories":{"docs/build-log/":`                           //corvint:fixture-path
+	const walk = "var walk = filepath.WalkDir(\"../docs\", func(string, fs.DirEntry, error) error { return nil })\n" //corvint:fixture-path
+	source := func(glob string) string {
+		return "package globwalker\n\nimport (\n\t\"io/fs\"\n\t\"path/filepath\"\n)\n\n" + walk + "\nvar entries, _ = filepath.Glob(\"" + glob + "\")\n"
+	}
+	for name, c := range map[string]struct {
+		glob   string
+		code   int
+		want   []string
+		absent []string
+	}{
+		"constrained glob": {"../docs/*/2026-*.md", 1, []string{"[globwalker] name docs/build-log/'s parent directory", "lists [globwalker] under docs/build-log/"}, nil}, //corvint:fixture-path
+		"covering glob":    {"../docs/build-log/*.md", 0, nil, []string{"globwalker"}},                                                                                    //corvint:fixture-path
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			for file, body := range map[string]string{
+				"go.mod":                             "module example.test/m\n\ngo 1.27\n",
+				"globwalker/g.go":                    "package globwalker\n",
+				"globwalker/g_test.go":               source(c.glob),
+				"docs/build-log/2026-11-06-selgo.md": "entry\n", //corvint:fixture-path
+				recordPath:                           unbounded,
+				recordReadersPath:                    head + `{"globwalker":"globs and walks the build log"}}}`,
+			} {
+				path := filepath.Join(root, filepath.FromSlash(file))
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var stdout, stderr bytes.Buffer
+			code := run(root, &stdout, &stderr)
+			if code != c.code {
+				t.Fatalf("code %d, want %d; stderr:\n%s", code, c.code, stderr.String())
+			}
+			for _, want := range c.want {
+				if !strings.Contains(stderr.String(), want) {
+					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
+				}
+			}
+			for _, absent := range c.absent {
+				if strings.Contains(stderr.String(), absent) {
+					t.Errorf("stderr names %q:\n%s", absent, stderr.String())
+				}
+			}
+		})
+	}
+}
