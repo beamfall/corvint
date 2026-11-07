@@ -839,11 +839,8 @@ func hiddenDirectory(directory string) bool {
 	if directory == "" {
 		return false
 	}
-	for index, part := range strings.Split(directory, "/") {
-		if index == 0 && part == ".github" { // AZU-V0-9920 indexes root CI helpers.
-			continue
-		}
-		if part == "testdata" || strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
+	for _, part := range strings.Split(directory, "/") {
+		if part == "testdata" || part == ".git" || part == ".hg" || part == ".svn" {
 			return true
 		}
 	}

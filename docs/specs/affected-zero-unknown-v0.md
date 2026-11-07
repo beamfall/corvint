@@ -119,16 +119,63 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - **AZU-V0-005:** **Dot-directory Go packages.** The Go plugin SHALL index tracked Go packages of the
   main module that lie below a directory whose name starts with `.` or `_`, which `./...` skips (for
   example `.github/testconfine` and `.github/testconfine/cmd`). Such a file is then owned source,
-  not `UNINDEXED_SOURCE_PATH`.
+  not `UNINDEXED_SOURCE_PATH`. Hidden-directory observation SHALL use the same bounded,
+  metadata-excluding source walk for disk and immutable sources; `testdata` remains fixture data.
+  Indexing a previously unowned file SHALL retain testless literal/glob readers and their callers.
+  Session runner discovery SHALL explicitly list these hidden packages alongside `./...` and
+  validate the complete planned Go universe before executing Go units.
 - **AZU-V0-006:** **Uncovered, not unknown.** A changed unit with no test (`NO_SELECTABLE_TEST`) SHALL
   first select its declared or modelled callers (AZU-V0-001, AZU-V0-004). When no selectable test
   anywhere can observe it, the plan SHALL record it in a new `uncovered` list, not in `unknown`.
   This is a coverage gap, not a selection gap: no test exists whose outcome the change can alter. A
-  unit with any undeclared `INBOUND` entry stays unknown.
+  unit with any undeclared `INBOUND` entry stays unknown. The optional `plan.uncovered` member
+  is omitted when empty; otherwise it is a unit-ID-ordered list of `{reason, detail}` with
+  `reason="NO_SELECTABLE_TEST"` and the unit ID as `detail`. Both full and compact plan profiles
+  preserve it; the by-path profile preserves it on each path entry, and text emits an
+  `uncovered REASON UNIT_ID` line. Declared callers with no owning unit remain unknown. Literal, scoped, glob and
+  unbounded reader tests count as observers and remain selected. Before proving a coverage
+  gap, testless literal/glob readers of an untested owner SHALL select their caller closures,
+  including readers of owned, nonhidden source paths. Readers and their caller closures SHALL
+  retain uncertainty from unresolved declared callers before a coverage gap can be proved.
+  This inspection SHALL cover every changed path owned by the unit, independently of the
+  representative seed or reader witness. Reader frontier inspection SHALL preserve existing
+  own-files bearing rules over the complete dirty set (TSP-V0-001), including short
+  concatenated readers (V1-1818).
+  Embedding foreign-language
+  source bytes does not establish execution coverage (AFP-V0-811); that uncertainty stays unknown.
+  A Ruby view with no reachable route-dispatched test retains its existing
+  `NO_SELECTABLE_TEST` abstention (RUBY-AFFECTED-V0-761): missing runtime dispatch is not a
+  coverage proof. Playwright SHALL inspect both unknown and uncovered units through its
+  existing out-of-suite reconciliation (TJAA-V0-106/107/121); a shared-graph coverage gap
+  alone cannot exclude a dirty runtime input or bypass its unreached-path declaration.
+  The frozen `application-flow-impact/1` projection retains uncovered coverage gaps in its
+  legacy `graph.unknown` list and `UNKNOWN` scope; its wire and goldens do not change.
+  The existing advice coverage warnings also retain `NO_SELECTABLE_TEST: UNIT_ID` for
+  uncovered units: compile-only advice does not claim behavioural test coverage.
 - **AZU-V0-007:** **Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
-  MAY carry `run`, the argv that runs it from the repository root. When the change reaches the
+  MAY carry `run`, the argv that runs it from the repository root. Legacy `FILE:[COMMAND_DIR...]`
+  entries remain valid; the extended form is `FILE:{"commands":[COMMAND_DIR...],"run":[ARG...]}`.
+  `commands` has the existing directory-list grammar; `run` is optional but, when present,
+  SHALL contain 1 to 256 UTF-8 arguments, a nonempty executable, no NUL/CR/LF, and at most
+  65,536 bytes in total. Unknown members, null/empty argv and invalid entries fail closed through
+  the existing declaration frontier. The graph pins `execConsumerRuns` by file alongside
+  `execConsumers`; its optional map is included in digest and cache projections. When the change reaches the
   consumed binary's build, an entry with `run` SHALL be selected with kind `DECLARED_CONSUMER` and
-  that argv, instead of `UNSELECTED_BINARY_CONSUMER`. An entry without `run` keeps today's unknown.
+  that argv, instead of `UNSELECTED_BINARY_CONSUMER`. Such a selection carries
+  `unitId="declared-consumer:"+FILE`, `tests=[FILE]`, `kind="DECLARED_CONSUMER"`, `run=ARGV`,
+  and a `DECLARED_CONSUMER` witness extending the command's build witness. The compact plan
+  keeps `kind` and `run` and replaces `tests` with `testCount`; by-path additions preserve
+  both optional members, and text selections carry the shell-quoted `run` command. Both optional selection members
+  are omitted for ordinary units. Several rebuilt commands select a consumer once. Test-only
+  or reader-only command reach does not trigger it. An entry without `run` keeps today's unknown.
+  Session planning SHALL retain each selected consumer's exact argv using the existing declared
+  command adapter and digest, without adding manifest or receipt fields. The local profile runs
+  each consumer from the repository root; profiles that cannot execute it retain its command as
+  an explicit required check. CI SHALL also retain the legacy consumer check shape recognized by
+  its browser-job selector until that selector supports runnable consumer commands.
+  Mixed dependency and command-test changes SHALL extend the binary's
+  build witness, including its original dirty path and complete dependency chain, independently
+  of the command's final test-selection witness.
 - **AZU-V0-008:** **Package-level runner fallback.** A frontier reason that hides only which tests run
   inside a known package or project SHALL select that package's whole test command. Examples are
   `typescript:test-runner-unknown`, `typescript:runtime-flags-unresolved`,
@@ -313,7 +360,7 @@ lanes and external full-suite/mutation observations at every historical revision
   additions and stale entries against its pre-existing shrinking baseline. A passing ratchet
   does not assert an empty inventory. The baseline SHALL NOT claim paths, change selection,
   suppress unknowns or change the CLI's inventory or exit contract.
-- `AZU-V0-9920`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05; amended under the owner's standing auto-accept (2026-11-05), fullplan Verifier repair 1) The Go and Python plugins SHALL index helper sources and tests below `.github/` through the bounded, cache-stamped source reader, on disk and immutable inputs. Existing module boundaries, skipped subdirectories and source failures remain effective. A helper edit SHALL select its tested unit and modelled or declared consumers; the dynamic load of `.github/macos/darwin_select.py` by `select_test.py` is declared through `.corvint/runtime-edges.json`. The maintained test-command declaration SHALL name the existing CI Python suite, `python3 -B .github/macos/select_test.py`; the replay SHALL use that declaration and check the local invocation and required CI check (STR-V0-004). The Go runner SHALL confirm these indexed helpers through its real inventory probe as well as ordinary packages, retaining refusal for extra or missing units (STR-V0-069). Its independently enumerated helper directories SHALL retain the graph's skipped-directory, testdata and nested-module boundaries. Test read declarations SHALL bound helper tests when confinement qualifies their actual reads (AFP-V0-023); discovery alone SHALL NOT add an unreasoned unbounded-reader exemption. This is the `.github/` slice of AZU-V0-005, not general hidden-directory discovery.
+- `AZU-V0-9920`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05; amended under the owner's standing auto-accept (2026-11-05), fullplan Verifier repair 1) The Go and Python plugins SHALL index helper sources and tests below `.github/` through the bounded, cache-stamped source reader, on disk and immutable inputs. Existing module boundaries, skipped subdirectories and source failures remain effective. A helper edit SHALL select its tested unit and modelled or declared consumers; the dynamic load of `.github/macos/darwin_select.py` by `select_test.py` is declared through `.corvint/runtime-edges.json`. The maintained test-command declaration SHALL name the existing CI Python suite, `python3 -B .github/macos/select_test.py`; the replay SHALL use that declaration and check the local invocation and required CI check (STR-V0-004). The Go runner SHALL confirm these indexed helpers through its real inventory probe as well as ordinary packages, retaining refusal for extra or missing units (STR-V0-069). Its independently enumerated helper directories SHALL retain the graph's skipped-directory, testdata and nested-module boundaries. Test read declarations SHALL bound helper tests when confinement qualifies their actual reads (AFP-V0-023); discovery alone SHALL NOT add an unreasoned unbounded-reader exemption. This is the `.github/` slice of AZU-V0-005; for Go, AZU-V0-005's general hidden-directory walk supplies this discovery (selbatch merge, 2026-11-06), while the Python plugin keeps its bounded `.github` reader.
 - `AZU-V0-9921`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) A path covered by `.corvint/non-source-paths.json` that no indexed unit owns SHALL be classified as `DECLARED_NON_SOURCE` even when a language claims its suffix. This applies to retained `.agent-evidence/` scripts and source-shaped dumps under AZU-V0-002. The declaration itself adds no test units; existing embed, literal, declared, enclosing-directory and unbounded readers remain selected, and frontier diagnostics remain effective. Indexed source, driver inputs, task projections and undeclared source SHALL retain their existing treatment. In particular, an undeclared unindexed source still forces FULL under AFP-V0-028; its allowlist is unchanged.
 - `AZU-V0-9922`: (accepted under the owner's standing auto-accept (2026-10-11); fullplan charter 2026-11-05) Reduced replay fixtures for merges `39c031980`, `8e2c13aa9` and `cdeed7ee6` SHALL select the named helper tests, classify retained evidence without adding units or unindexed uncertainty, and retain FULL for new unknown source. Acceptance retains before/after unit counts with the replay input scope, complete touched-package tests, and declaration-reader safety checks. No wire shape, output golden or workflow change is required.
 
@@ -445,9 +492,9 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
 | AZU-V0-003 | V1-4686 | not yet |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty, grouped or not, and a suffix on one branch of a conditional or boolean expression proves nothing), `TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901` (an undeclared `name + (".sh")` caller retains UNKNOWN), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |
-| AZU-V0-005 | V1-4688 | not yet |
-| AZU-V0-006 | V1-4689 | not yet |
-| AZU-V0-007 | V1-4690 | not yet |
+| AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
+| AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006ReaderCallerUncertainty`; `TestAZUV0006MultipleChangedPathsReaderUncertainty`; `TestAZUV0006MultipleChangedFilesDeclaredReader`; `TestAZUV0006ReaderOwnFilesFrontierInBatch`; `TestShortFragmentsKeepConcatenatedReaders_V1_1818`; `TestAZUV0006DeclaredReaderUnownedCaller`; `TestAZUV0006OwnedTestlessReaderCallers`; `TestAZUV0006OwnedSourceReaderCaller`; `TestAffectedUntestedGoPackageIsUnknownScope`; `TestUseCaseHostileChangeConsequence`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [self-review repair](../build-log/2026-11-05-azu-small-self-review-reader-callers.md) |
+| AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; `TestAZUV0007CIRunnableBrowserConsumerRequired`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge consumer replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
 | AZU-V0-008 | V1-4691 | not yet |
 | AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv), `TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903` (actual +/- records and canonical zero inter-hunk context; unchanged-line mutants remain NOT_PRODUCED on both sides), `TestSafetyHonorsSelectionTestFilter_AZU_V0_009` (an ownership-only `-run` selection does not catch other tests of its package; subtest, `-skip`, `-list`, repeated or invalid filters remain NOT_PRODUCED); historical full-suite/mutation qualification remains NOT_PRODUCED |
 | AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
@@ -458,6 +505,9 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
+| AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`, `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
+| AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `non_source_paths.go`; declaration preserves reader selection |
+| AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
@@ -467,6 +517,3 @@ and scanner regressions retain real reads, aliases, closures, shadowing and pars
 Acceptance requires whole-package tests of both scanner packages and the existing read-scope
 check. Rollback removes the six added scope entries and the comparison proof/call sites, restoring
 the conservative rule (d) floor. Independent review and host-wide qualification remain separate.
-| AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`, `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
-| AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `non_source_paths.go`; declaration preserves reader selection |
-| AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921`; `docs/build-log/2026-11-05-fullplan-selection-precision.md` |

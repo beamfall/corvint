@@ -119,12 +119,13 @@ type UnboundedCause struct {
 
 // Selection is one unit whose tests the plan requires.
 type Selection struct {
+	Kind    string   `json:"kind,omitempty"`
+	Run     []string `json:"run,omitempty"`
 	UnitID  string   `json:"unitId"`
 	Tests   []string `json:"tests"`
 	Witness Witness  `json:"witness"`
 	// Kind is SelectionKindDriverTarget or SelectionKindCIJob for a driver
 	// unit (AZU-V0-001), empty for a unit whose Tests the runner runs.
-	Kind string `json:"kind,omitempty"`
 	// Argv runs a selected make target from the repository root.
 	Argv []string `json:"argv,omitempty"`
 	// Workflow and Job name a selected workflow job, left to CI.
@@ -166,6 +167,8 @@ type Plan struct {
 	Selected []Selection `json:"selected"`
 	Excluded []Exclusion `json:"excluded"`
 	Unknown  []Unknown   `json:"unknown"`
+	// Uncovered states proven coverage gaps without widening selection (AZU-V0-006).
+	Uncovered []Unknown `json:"uncovered,omitempty"`
 	// NonSource names the dirty paths classified as task state (AFP-V0-088),
 	// declared documentation (AFP-V0-160) or declared runtime-readers data
 	// (AFP-V0-602), not source: the TASK_STORE_PROJECTION group first, then
@@ -268,8 +271,9 @@ const FrontierExclusionReason = "no dirty path is this plugin's or unowned, and 
 //
 // A unit is traversed whether or not it declares tests; it is selected only if
 // it declares at least one, because a unit with no tests contributes no check.
-// A changed unit that no selectable test checks is named as unknown scope
-// instead of being omitted (AFP-V0-020); untestedRules holds each plugin's rule.
+// A changed unit that no selectable test checks is named in Uncovered after
+// caller inspection (AZU-V0-006), or Unknown when inbound callers are unresolved;
+// untestedRules holds each plugin's initial rule (AFP-V0-020).
 // Every dirty path also selects the units whose path literals name it
 // (AFP-V0-021); an unowned path stays unknown all the same, except a Tasks
 // store projection path no unit names, which is classified as task state in
@@ -335,10 +339,16 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
 	graph.selectOwnershipAudit(&plan, reached, normalized)
+	coverageReaders := make(map[string]map[string]Witness)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
-			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			gap, uncertain := graph.coverageGap(id, seeds[id], reached, normalized, coverageReaders)
+			if uncertain {
+				plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			} else if gap {
+				plan.Uncovered = append(plan.Uncovered, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			}
 		}
 		if strings.HasPrefix(id, DriverNamespace+":") {
 			// A reached make target or workflow job is selected whatever
@@ -385,6 +395,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			selection.Argv = []string{"go", "test", "-run", "^(" + OwnershipAuditTest + ")$", strings.TrimPrefix(selection.UnitID, "go:")}
 		}
 	}
+	plan.Selected = graph.selectDeclaredConsumers(rebuilt, plan.Selected)
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.ownershipHints(plan.Unknown)
@@ -402,8 +413,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 // the delta unit denominator cannot drift from the selected plan. followed
 // holds the units whose dependents the plan walks: every unit a reverse
 // dependency traversal expands, from the dirty paths' owners, from a
-// test-less reader of an unowned path (AFP-V0-495), and on any dirty path from
-// a root locator (AFP-V0-012 rule (d)). A test user, exec user, path reader,
+// test-less reader of an unowned or untested path (AFP-V0-495, AZU-V0-006),
+// and on any dirty path from a root locator (AFP-V0-012 rule (d)). A test user, exec user, path reader,
 // own-reason unbounded reader or scoped reader is selected without its
 // dependents (AFP-V0-581). carried holds the units testlessReaderUsers
 // traversed (AFP-V0-560).
@@ -416,11 +427,11 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 //
 // additive holds the ADN-V0-001 records with their final states.
 //
-// rebuilt holds the units whose build the change reaches: those the
+// rebuilt holds the witnesses whose build the change reaches: those the
 // dependency traversal walks to and those an enclosed path reaches, before a
 // later step replaces a unit's witness with its own test change
 // (AFP-V0-762).
-func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]bool) {
+func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]Witness) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
@@ -442,14 +453,12 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
-	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
-	for id := range reached {
+	rebuilt = make(map[string]Witness, len(reached)+len(enclosing))
+	for id, witness := range reached {
 		followed[id] = true
-		rebuilt[id] = true
+		rebuilt[id] = witness
 	}
-	for id := range enclosing {
-		rebuilt[id] = true
-	}
+	mergeWitnesses(rebuilt, enclosing)
 	unbounded := graph.unboundedDirty(normalized)
 	if len(unbounded) != 0 {
 		for id := range graph.locatorReach {

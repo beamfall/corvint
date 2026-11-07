@@ -390,6 +390,8 @@ func TestAFPV02181Run41568676566Replay(t *testing.T) {
 // (source 32e93e84d7b2bfc4deeff935b6ffa9c2c84239fe): "path ms" per package,
 // "path ms,ms,..." for a split package's slices, the catch-all last. It stays
 // frozen when those tables are refreshed again.
+// These package names are in-memory replay data, not repository file reads.
+// The fixture markers preserve the frozen table and its assertions unchanged.
 const run41568676566 = "" + //corvint:fixture-path
 	"benchmarks 8923; benchmarks/dogfood-measure 27156; benchmarks/dogfood-workers 1095; " + //corvint:fixture-path
 	"benchmarks/runner 1146; benchmarks/selfuse-batch 78818; " + //corvint:fixture-path

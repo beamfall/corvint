@@ -237,11 +237,8 @@ func walkedDirectory(directory string) bool {
 	if directory == "." {
 		return true
 	}
-	for index, name := range strings.Split(directory, "/") {
-		if index == 0 && name == ".github" { // AZU-V0-9920 indexes root CI helpers.
-			continue
-		}
-		if strings.HasPrefix(name, ".") || (affected.SkippedDirectories[name] && !slices.Contains(includedDirectories, name)) {
+	for _, name := range strings.Split(directory, "/") {
+		if name == ".git" || name == ".hg" || name == ".svn" || affected.SkippedDirectories[name] && !strings.HasPrefix(name, ".") && !slices.Contains(includedDirectories, name) {
 			return false
 		}
 	}

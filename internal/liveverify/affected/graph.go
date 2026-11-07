@@ -216,6 +216,9 @@ type digestUnit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
+
+	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
+	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -851,6 +854,7 @@ func projectUnit(unit Unit) digestUnit {
 		FrontierBears:        unit.FrontierBears,
 		Callers:              unit.Callers,
 		ExecConsumers:        unit.ExecConsumers,
+		ExecConsumerRuns:     unit.ExecConsumerRuns,
 		ImportGraphReads:     unit.ImportGraphReads,
 		ImportGraphReadsAll:  unit.ImportGraphReadsAll,
 	}

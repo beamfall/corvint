@@ -44,7 +44,7 @@ func TestAFPV0990ByPathSeparatesSharedUnboundedReaders(t *testing.T) {
 	}
 	for index, want := range []affectedByPathUnit{{UnitID: "go:a", TestCount: 1, Witness: affectedCompactWitness{Kind: affected.WitnessPathLiteralReader}}, {UnitID: "go:b", TestCount: 2, Witness: affectedCompactWitness{Kind: affected.WitnessPathLiteralReader}}} {
 		entry := result.Paths[index]
-		if entry.Path != paths[index] || entry.Shared != 1 || len(entry.Additions) != 1 || (entry.Additions[0].UnitID != want.UnitID || entry.Additions[0].TestCount != want.TestCount || entry.Additions[0].Witness.Kind != want.Witness.Kind) {
+		if entry.Path != paths[index] || entry.Shared != 1 || len(entry.Additions) != 1 || (entry.Additions[0].Kind != want.Kind || !reflect.DeepEqual(entry.Additions[0].Run, want.Run) || entry.Additions[0].UnitID != want.UnitID || entry.Additions[0].TestCount != want.TestCount || entry.Additions[0].Witness.Kind != want.Witness.Kind) {
 			t.Errorf("path %d = %+v, want shared 1 and addition %+v", index, entry, want)
 		}
 	}

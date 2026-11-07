@@ -15,6 +15,8 @@ const affectedByPathProfile = "affected-by-path/1"
 
 // affectedByPathUnit is one selected unit of a --by-path document.
 type affectedByPathUnit struct {
+	Kind      string                 `json:"kind,omitempty"`
+	Run       []string               `json:"run,omitempty"`
 	UnitID    string                 `json:"unitId"`
 	TestCount int                    `json:"testCount"`
 	Witness   affectedCompactWitness `json:"witness"`
@@ -29,6 +31,7 @@ type affectedByPathEntry struct {
 	Shared    int                  `json:"sharedSelected"`
 	Additions []affectedByPathUnit `json:"additions"`
 	Unknown   []affected.Unknown   `json:"unknown"`
+	Uncovered []affected.Unknown   `json:"uncovered,omitempty"`
 }
 
 // affectedByPathReceipt separates the units every path selects through an
@@ -116,13 +119,13 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 	}
 	for index, path := range paths {
 		plan := plans[index]
-		entry := affectedByPathEntry{Path: path, Scope: plan.Scope, Additions: []affectedByPathUnit{}, Unknown: plan.Unknown}
+		entry := affectedByPathEntry{Path: path, Scope: plan.Scope, Additions: []affectedByPathUnit{}, Unknown: plan.Unknown, Uncovered: plan.Uncovered}
 		for _, selection := range plan.Selected {
 			if shared[selection.UnitID] {
 				entry.Shared++
 				continue
 			}
-			entry.Additions = append(entry.Additions, affectedByPathUnit{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compactWitness(selection.Witness)})
+			entry.Additions = append(entry.Additions, affectedByPathUnit{Kind: selection.Kind, Run: selection.Run, UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compactWitness(selection.Witness)})
 		}
 		result.Paths = append(result.Paths, entry)
 	}
@@ -143,7 +146,14 @@ func renderAffectedByPathText(result affectedByPathReceipt) string {
 	for _, entry := range result.Paths {
 		fmt.Fprintf(&out, "path %s scope=%s shared=%d/%d additions=%d\n", textWord(entry.Path), entry.Scope, entry.Shared, len(result.Shared), len(entry.Additions))
 		for _, unit := range entry.Additions {
-			fmt.Fprintf(&out, "  added %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness.Kind)
+			command := ""
+			if len(unit.Run) != 0 {
+				command = " run " + textWord(shellQuoteJoin(unit.Run))
+			}
+			fmt.Fprintf(&out, "  added %s tests=%d %s%s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness.Kind, command)
+		}
+		for _, gap := range entry.Uncovered {
+			fmt.Fprintf(&out, "  uncovered %s %s\n", textWord(gap.Reason), textWord(gap.Detail))
 		}
 		for _, unknown := range entry.Unknown {
 			fmt.Fprintf(&out, "  unknown %s %s\n", unknown.Reason, textWord(unknown.Detail))

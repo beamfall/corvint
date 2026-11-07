@@ -55,7 +55,8 @@ func SourceFiles(root string, accept func(name string) bool) ([]string, error) {
 }
 
 // SourceFilesIncluding is SourceFiles with explicit language-owned exceptions
-// to SkippedDirectories. Each exception applies at every depth.
+// to SkippedDirectories. Each exception applies at every depth. The special
+// name "." admits hidden source directories except the skipped metadata names.
 func SourceFilesIncluding(root string, accept func(name string) bool, includedDirectories ...string) ([]string, bool, error) {
 	if root == "" || !filepath.IsAbs(root) {
 		return nil, false, fmt.Errorf("%w: root %q is not absolute", ErrInvalidLanguage, root)
@@ -225,13 +226,13 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 			}
 			name := entry.Name()
 			if entry.IsDir() {
-				if strings.HasPrefix(name, ".") || ignoredDirectory(current) {
+				if strings.HasPrefix(name, ".") && !includedSourceDirectory(name, included) || ignoredDirectory(current) {
 					return fs.SkipDir
 				}
-				if SkippedDirectories[name] && !included[name] {
+				if SkippedDirectories[name] && !includedSourceDirectory(name, included) {
 					return fs.SkipDir
 				}
-				if SkippedDirectories[name] && included[name] {
+				if (SkippedDirectories[name] || strings.HasPrefix(name, ".")) && includedSourceDirectory(name, included) {
 					childBounded, childErr := walkIncluded(current)
 					subtreeBounded = subtreeBounded || childBounded
 					if childErr != nil {
@@ -265,13 +266,13 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 				visit(current)
 				return nil
 			}
-			if strings.HasPrefix(name, ".") || ignoredDirectory(current) {
+			if strings.HasPrefix(name, ".") && !includedSourceDirectory(name, included) || ignoredDirectory(current) {
 				return fs.SkipDir
 			}
-			if SkippedDirectories[name] && !included[name] {
+			if SkippedDirectories[name] && !includedSourceDirectory(name, included) {
 				return fs.SkipDir
 			}
-			if SkippedDirectories[name] && included[name] {
+			if (SkippedDirectories[name] || strings.HasPrefix(name, ".")) && includedSourceDirectory(name, included) {
 				subtreeBounded, subtreeErr := walkIncluded(current)
 				bounded = bounded || subtreeBounded
 				if subtreeErr != nil {
@@ -299,4 +300,13 @@ func ReadSource(root, relative string) ([]byte, error) {
 		return nil, fmt.Errorf("%w: path %q", ErrInvalidUnit, relative)
 	}
 	return readSourceFile(filepath.Join(root, filepath.FromSlash(relative)), relative)
+}
+
+// includedSourceDirectory keeps hidden-source opt-in separate from metadata:
+// the Go plugin can observe .github packages without descending .git or caches.
+func includedSourceDirectory(name string, included map[string]bool) bool {
+	if name == ".git" || name == ".hg" || name == ".svn" {
+		return false
+	}
+	return included[name] || included["."] && strings.HasPrefix(name, ".")
 }

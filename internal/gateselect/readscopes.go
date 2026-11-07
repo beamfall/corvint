@@ -469,13 +469,11 @@ func baseFixtureModule(listed map[string]bool, directory string) bool {
 }
 
 // walkedDirectory reports whether the observer's walk descends into
-// directory: no component is hidden or skipped.
+// directory: VCS metadata and skipped directories stay excluded; dot and
+// underscore directories are explicitly addressable Go packages (AZU-V0-005).
 func walkedDirectory(directory string) bool {
-	for index, name := range strings.Split(directory, "/") {
-		if index == 0 && name == ".github" { // AZU-V0-9920 indexes root CI helpers.
-			continue
-		}
-		if strings.HasPrefix(name, ".") || skippedDirectories[name] {
+	for _, name := range strings.Split(directory, "/") {
+		if name == ".git" || name == ".hg" || name == ".svn" || skippedDirectories[name] {
 			return false
 		}
 	}

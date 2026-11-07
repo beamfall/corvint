@@ -175,8 +175,8 @@ type cachedLanguage struct {
 	Runnable   []string     `json:"runnable"`
 }
 
-// cachedUnit is Unit with every member always written, and a nil list written
-// as null, so a restored unit is the observed one exactly, nil lists included.
+// cachedUnit is Unit with nil lists written as null, so a restored unit is
+// the observed one exactly. The optional consumer-run map is omitted when absent.
 type cachedUnit struct {
 	ID                   string   `json:"id"`
 	Sources              []string `json:"sources"`
@@ -203,6 +203,9 @@ type cachedUnit struct {
 	ExecConsumers        []string `json:"execConsumers"`
 	ImportGraphReads     []string `json:"importGraphReads"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll"`
+
+	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
+	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
 }
 
 type cachedStamp struct {
@@ -504,8 +507,9 @@ func completeStamps(entry cacheEntry) string {
 
 // verifyObservation restats every directory the build listed and every path
 // it read, by a bounded pool: each stamp must be exactly the recorded one. The
-// first failing stamp in entry order is the reason, so the outcome does not
-// depend on scheduling.
+// first failing stamp in entry order is the reason, except that a hidden
+// directory newly observed for AZU-V0-005 leaves priority to its changed
+// descendants. Existing declaration diagnostics stay specific and deterministic.
 func verifyObservation(ctx context.Context, root string, entry cacheEntry) string {
 	reasons := make([]string, len(entry.Stamps))
 	var pending sync.WaitGroup
@@ -525,10 +529,19 @@ func verifyObservation(ctx context.Context, root string, entry cacheEntry) strin
 		})
 	}
 	pending.Wait()
-	for _, reason := range reasons {
-		if reason != "" {
-			return reason
+	for index, reason := range reasons {
+		if reason == "" {
+			continue
 		}
+		recorded := entry.Stamps[index]
+		if recorded.Stamp.Mode&uint32(fs.ModeDir) != 0 && strings.HasPrefix(path.Base(recorded.Path), ".") {
+			for child := index + 1; child < len(reasons) && strings.HasPrefix(entry.Stamps[child].Path, recorded.Path+"/"); child++ {
+				if reasons[child] != "" {
+					return reasons[child]
+				}
+			}
+		}
+		return reason
 	}
 	return ""
 }

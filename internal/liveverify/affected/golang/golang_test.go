@@ -307,7 +307,8 @@ func TestPathTokenBoundNamesThePackage(t *testing.T) {
 // under a directory the go tool ignores.
 func TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories(t *testing.T) {
 	unlexable := "package p\n\nvar s = \"unterminated\n"
-	cases := map[string]bool{"_scratch/p.go": false, "fixtures/testdata/p.go": false, "p/p.go": true}
+	// AZU-V0-005: underscore packages are observed source, including parse failures.
+	cases := map[string]bool{"_scratch/p.go": true, "fixtures/testdata/p.go": false, "p/p.go": true}
 	for file, raised := range cases {
 		root := t.TempDir()
 		writeFiles(t, root, map[string]string{"go.mod": "module example.test/m\n", file: unlexable})
@@ -887,7 +888,8 @@ func TestShortFragmentsKeepConcatenatedReaders_V1_1818(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, []string{"docs/alpha.go"})
-	want := "UNKNOWN [{NO_SELECTABLE_TEST go:example.test/m/docs}] [root_test.go]"
+	// AZU-V0-006: the literal reader already selects the observing test.
+	want := "BOUNDED [] [root_test.go]"
 	if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != want {
 		t.Errorf("docs/alpha.go: %s, want %s", got, want)
 	}

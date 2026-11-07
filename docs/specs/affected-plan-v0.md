@@ -507,6 +507,12 @@ and container qualification; full fallback remains available.
   exercise it. The shared plan still reports `NO_SELECTABLE_TEST`; other Playwright unknowns and
   discovery fallback remain unchanged. Rollback restores the silent skip in the shared plan;
   reverting only this amendment restores the undecided Playwright contract, not runtime behavior.
+  Amendment (experimental, AZU-V0-006; V1-4689): the shared plan first selects declared or
+  modelled callers and path readers. A unit with no selectable observer is recorded in optional
+  `plan.uncovered` as `{reason:"NO_SELECTABLE_TEST", detail:UNIT_ID}`, sorted by unit ID and
+  omitted when empty, rather than widening `unknown`. Undeclared inbound frontier entries or
+  declared caller files with no modelled owner retain the unknown. This supersedes the Go
+  own-test-only rule above; selections and other unknowns stay intact.
 - `AFP-V0-021`: (accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) whether or not a
   plugin owns it and including a changed source file, MUST also select every unit not otherwise
   reached whose own files carry a path token naming it, with witness kind `PATH_LITERAL_READER`
@@ -1922,8 +1928,9 @@ and container qualification; full fallback remains available.
 - **AFP-V0-035:** (proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
   `--base` and `--snapshot` forms MUST write `profile="affected-plan/1"`: the AFP-V0-003 document
   with every member except `plan` unchanged and `plan` projected as follows. `graphDigest`,
-  `dirty`, `scope` and `unknown` are unchanged; each `selected` entry keeps `unitId` and `witness`
-  (whose `via` chain AFP-V0-640 states by reference) and replaces `tests` with `testCount`, the
+  `dirty`, `scope` and `unknown` are unchanged; optional `uncovered` is preserved (AZU-V0-006); each `selected` entry keeps `unitId` and `witness`
+  (whose `via` chain AFP-V0-640 states by reference), preserves optional `kind` and `run` for
+  AZU-V0-007 declared consumers, and replaces `tests` with `testCount`, the
   length of that list; `excluded` becomes one object
   `{count, digest, groups}`, where `count` is the number of exclusions, `digest` is
   `affected-excluded:sha256:` plus the lowercase hex SHA-256 of the exact `plan.excluded` bytes
@@ -3760,8 +3767,9 @@ traceability rows there.
   and shell-quoted like the AFP-V0-009 command, with source `affected-plan`: it compiles and vets
   each changed untested package and its in-module untested dependents and runs no test. A unit
   reached only as an `UNBOUNDED_READER` is not listed. An `EMPTY_SELECTION` covered by this entry
-  or by an AFP-V0-469 entry adds no `NO_ADVISORY_GO_COMMAND` line; `NO_SELECTABLE_TEST` and
-  `UNOWNED_DIRTY_PATH` stay in `plan.unknown`, because compiling is not running behaviour. Past the
+  or by an AFP-V0-469 entry adds no `NO_ADVISORY_GO_COMMAND` line. `UNOWNED_DIRTY_PATH` stays
+  in `plan.unknown`; `NO_SELECTABLE_TEST` follows AZU-V0-006's experimental coverage-gap
+  classification and remains an advice coverage warning, because compiling is not running behaviour. Past the
   AFP-V0-009 command bound the entry is replaced by
   `NO_ADVISORY_GO_COMPILE_COMMAND: <n> untested Go packages exceed the <bound>-pattern bound`.
   The plan and `provider.go` wire are unchanged.
@@ -5786,7 +5794,14 @@ explained.
 - **AFP-V0-762:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1017)
   Amending AFP-V0-037: a repository MAY declare `.corvint/test-binary-consumers.json`, the closed
   object `{"profile":"corvint-test-binary-consumers/0","consumers":{FILE:[COMMAND_DIR...]}}`,
-  naming a repository file that no Go package holds (such as a Node script) and the commands whose
+  extended experimentally by AZU-V0-007 (V1-4690) to also admit each entry as
+  `FILE:{"commands":[COMMAND_DIR...],"run":[ARG...]}`. A valid optional `run` selects
+  `declared-consumer:FILE` with `kind="DECLARED_CONSUMER"` and that root argv when the
+  consumed command is rebuilt; the full plan carries `tests=[FILE]` and a
+  `DECLARED_CONSUMER` witness, and the compact plan preserves `kind`/`run`. Entries without
+  `run` retain the following unknown behavior. The argv bounds, invalid-entry behavior and
+  immutable `execConsumerRuns` projection are specified in AZU-V0-007. The legacy entry names
+  a repository file that no Go package holds (such as a Node script) and the commands whose
   built binary it runs: 1 to 4096 keys under the AFP-V0-037 `packages` entry grammar, each entry an
   observed command. It is a file of its own, never a member of `.corvint/test-binary-execs.json`,
   whose closed grammar a planner pinned to an older commit (the CI driver, AFP-V0-098) still reads:
