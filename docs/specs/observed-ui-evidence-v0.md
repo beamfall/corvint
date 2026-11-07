@@ -28,7 +28,7 @@ HTTP 5xx (#1825).
 
 Every record is learned overlay evidence (authority `learned`); none outranks project authority
 (invariant 3). Missing evidence reads UNKNOWN, never "no impact" (invariant 2). All verbs are
-read-only, offline and in one binary (invariants 4 and 7).
+read-only, offline and in the default local release (invariants 4 and 7).
 
 ## 2. Non-goals
 

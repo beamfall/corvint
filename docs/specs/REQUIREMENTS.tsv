@@ -2058,6 +2058,17 @@ CRK-V0-009	docs/specs/context-ranking-v0.md	(amended under the owner's standing 
 CRK-V0-010	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-011	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
 CRK-V0-012	docs/specs/context-ranking-v0.md	(amended under the owner's standing auto-accept (2026-10-11); TCP-V0-2220; TCP-V	standing	2026-10-11; V0-2220; V0-2221; V0-2222; V1-0114; V1-0116; V1-0219
+CMS-V0-001	docs/specs/core-bundled-apps-v0.md	Each bundled app MUST build and test from its own module, importing only:	unrecorded	-
+CMS-V0-002	docs/specs/core-bundled-apps-v0.md	A release MUST have one version and one checksummed manifest, and every entry MU	unrecorded	-
+CMS-V0-003	docs/specs/core-bundled-apps-v0.md	No Core verb in `core-compatibility-freeze-v1` may forward to a bundled app. A t	unrecorded	-
+CMS-V0-004	docs/specs/core-bundled-apps-v0.md	Each extraction MUST be one PR or stack. It MUST keep CLI names, flags and wire	unrecorded	-
+CMS-V0-005	docs/specs/core-bundled-apps-v0.md	`corvint affected` MUST treat an edit to a kernel or protocol package as affecti	unrecorded	-
+CMS-V0-006	docs/specs/core-bundled-apps-v0.md	Install size and cold-start time of the default set MUST be recorded at each	unrecorded	-
+CMS-V0-007	docs/specs/core-bundled-apps-v0.md	Bundled-app modules MUST:	unrecorded	-
+CMS-V0-008	docs/specs/core-bundled-apps-v0.md	Each unit MUST have an `AGENTS.md` route naming its purpose, entry points, envel	unrecorded	-
+CMS-V0-009	docs/specs/core-bundled-apps-v0.md	Each unit's tests MUST run alone with no cross-unit fixture paths. Shared fixtur	unrecorded	-
+CMS-V0-010	docs/specs/core-bundled-apps-v0.md	A plugin boundary MUST be accepted only when its per-run overhead, with batched	unrecorded	-
+CMS-V0-011	docs/specs/core-bundled-apps-v0.md	Cold start, peak RSS and binary size for `corvint affected`, `context` and	unrecorded	-
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-

@@ -96,8 +96,8 @@ format. Local files, cloud object storage with bounded range reads, pinned revie
 documentation are deployment profiles over that data plane, not separate engines. The governing
 contract is [`specs/deployment-neutral-index-platform-v0.md`](specs/deployment-neutral-index-platform-v0.md).
 
-This is accepted product direction, not delivery evidence. The local profile remains one binary
-with no account, network, mutable/external database service, hosted service, Python runtime, or
+This is accepted product direction, not delivery evidence. The local profile remains one release of native-Go
+executables (the `corvint` core plus the bundled apps its manifest names; decision 0591) with no account, network, mutable/external database service, hosted service, Python runtime, or
 permanent daemon. An optional, separately-built, loopback-only, read-through local console may be
 started explicitly by the operator (decision 0081); it is not part of the default local product,
 installs no service, holds no database, opens no outbound connection, and carries no authority. A benchmark-selected immutable embedded encoding is permitted derived state, not
