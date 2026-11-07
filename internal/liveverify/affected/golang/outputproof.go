@@ -98,3 +98,81 @@ func standardStream(expression ast.Expr, qualifiers map[string]string) bool {
 	qualifier, ok := selector.X.(*ast.Ident)
 	return ok && qualifier.Obj == nil && qualifiers[qualifier.Name] == "os"
 }
+
+// streamCaptureNames are the identifiers whose presence in any Go file of a
+// directory is evidence that the process can capture a standard stream and
+// read it back (AFP-V0-2960): a pipe (`os.Pipe`, `io.Pipe`, `net.Pipe`,
+// `syscall.Pipe`, `unix.Pipe2`), a duplicated descriptor or replaced handle
+// (`Dup`, `Dup2`, `Dup3`, `SetStdHandle`), a file over a raw descriptor
+// (`os.NewFile`), and a child process's captured output (`Output`,
+// `CombinedOutput`, `StdoutPipe`, `StderrPipe`), which lets a test re-run
+// its own program and read what it printed.
+var streamCaptureNames = map[string]bool{
+	"Pipe": true, "Pipe2": true, "Dup": true, "Dup2": true, "Dup3": true, "SetStdHandle": true,
+	"NewFile": true, "Output": true, "CombinedOutput": true, "StdoutPipe": true, "StderrPipe": true,
+}
+
+// streamCaptureHints are substrings at least one of which every capture
+// evidence holds, so a file with none of them needs no parse.
+var streamCaptureHints = [][]byte{
+	[]byte("Pipe"), []byte("Dup"), []byte("SetStdHandle"), []byte("NewFile"), []byte("Output"),
+	[]byte("Stdout"), []byte("Stderr"), []byte("go:linkname"),
+}
+
+// capturesStream reports whether one whole Go file, test files included,
+// gives any evidence that the process can capture a standard stream
+// (AFP-V0-2960): an identifier in streamCaptureNames under any qualifier; an
+// assignment to, the address of, or a composite-literal key named `Stdout`
+// or `Stderr` (`os.Stdout = w`, `&os.Stdout`, `cmd.Stdout = &buffer`,
+// `exec.Cmd{Stdout: w}`); or a `//go:linkname` directive, which can bind a
+// local name to the stream variable. A file that does not parse is evidence
+// too. The test is lexical and broad on purpose: a printed literal is text
+// only while nothing can read the stream back, so any doubt keeps rule (d).
+func capturesStream(body []byte) bool {
+	hinted := false
+	for _, hint := range streamCaptureHints {
+		if bytes.Contains(body, hint) {
+			hinted = true
+			break
+		}
+	}
+	if !hinted {
+		return false
+	}
+	if bytes.Contains(body, []byte("go:linkname")) {
+		return true
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), "", body, parser.SkipObjectResolution)
+	if err != nil {
+		return true
+	}
+	stream := func(expression ast.Expr) bool {
+		switch typed := expression.(type) {
+		case *ast.SelectorExpr:
+			return typed.Sel.Name == "Stdout" || typed.Sel.Name == "Stderr"
+		case *ast.Ident:
+			return typed.Name == "Stdout" || typed.Name == "Stderr"
+		}
+		return false
+	}
+	captured := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		if captured {
+			return false
+		}
+		switch typed := node.(type) {
+		case *ast.Ident:
+			captured = streamCaptureNames[typed.Name]
+		case *ast.AssignStmt:
+			for _, target := range typed.Lhs {
+				captured = captured || stream(ast.Unparen(target))
+			}
+		case *ast.UnaryExpr:
+			captured = typed.Op == token.AND && stream(ast.Unparen(typed.X))
+		case *ast.KeyValueExpr:
+			captured = stream(typed.Key)
+		}
+		return !captured
+	})
+	return captured
+}

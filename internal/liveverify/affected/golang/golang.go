@@ -383,6 +383,12 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var kindReads unboundedReads
 	var kindLeafReads []string
 	moves := false
+	// printed holds the climbing tokens a command's printed text alone holds
+	// (AFP-V0-2952, AFP-V0-2959); captured is any evidence, in any file of the
+	// directory, that the process can read a standard stream back
+	// (AFP-V0-2960), which returns them to rule (d) once every file is seen.
+	var printed []printedText
+	captured := false
 	fileSet := token.NewFileSet()
 	// The disk walk drops a symlinked .go file, though the build compiles its
 	// target as one of this package's files: read the target under the link's
@@ -397,8 +403,10 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		body, err := root.Read(readPath)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
+			captured = true
 			continue
 		}
+		captured = captured || capturesStream(body)
 		// A variant is a file only some builds compile: a //go:build line or
 		// a GOOS/GOARCH file-name suffix (AFP-V0-580).
 		constrained = constrained || hasPlatformSuffix(relative) || hasBuildConstraint(body)
@@ -471,8 +479,13 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			switch {
 			case kinds != nil && len(kinds) == 0:
 			case reason == "":
-			case !isTest && scan.textOnly[name]:
-				// Text the file writes, not a path it opens (AFP-V0-2952).
+			case !isTest && scan.textOnly[name] && file.Name.Name == "main":
+				// Text a command prints, not a path it opens (AFP-V0-2952),
+				// while nothing in its directory can capture the stream
+				// (AFP-V0-2960). No other package can import a command, so
+				// its directory is every code that shares its process; a
+				// library's printed text keeps rule (d) (AFP-V0-2959).
+				printed = append(printed, printedText{reason: relative + " " + reason, leaf: leafPattern(directory, name, isTest, packages), reads: fileReads, leafReads: fileLeafReads})
 			case leafPattern(directory, name, isTest, packages):
 				*fileLeafReads = append(*fileLeafReads, relative+" "+reason)
 			default:
@@ -484,6 +497,15 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			continue
 		}
 		sources = append(sources, relative)
+	}
+	if captured {
+		for _, text := range printed {
+			if text.leaf {
+				*text.leafReads = append(*text.leafReads, text.reason)
+			} else {
+				text.reads.mark(text.reason, false)
+			}
+		}
 	}
 	// A leaf pattern reaches only the package directory while the package's
 	// commands run there: a package that moves the working directory keeps
@@ -540,6 +562,17 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	// rule (d) chain skips only the build-only edges of `go vet` and `go
 	// list` (AFP-V0-2951).
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+}
+
+// printedText is a climbing token a command's file holds only in printed text
+// (AFP-V0-2952): the reason it would give, whether it is a leaf pattern, and
+// the reason lists the file marks, applied only when the directory can
+// capture a standard stream (AFP-V0-2960).
+type printedText struct {
+	reason    string
+	leaf      bool
+	reads     *unboundedReads
+	leafReads *[]string
 }
 
 // linkedSources maps each symlinked .go entry of directory whose target it can

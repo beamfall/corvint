@@ -52,6 +52,20 @@ type goPackage struct {
 	locatesRoot    bool     // a non-test file is unresolved, so every dependent is too
 	movesDirectory bool     // a file moves the working directory (directoryMove)
 	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
+	// printed holds the climbing tokens a command's printed text alone holds
+	// (AFP-V0-2952, AFP-V0-2959); captures is any evidence, in any file of
+	// the directory, that the process can read a standard stream back
+	// (AFP-V0-2960), which returns them to rule (d).
+	printed  []printedText
+	captures bool
+}
+
+// printedText is a climbing token's rule (d) reason and whether it is a leaf
+// pattern, held back while its command's directory captures no stream (the
+// planner's printedText).
+type printedText struct {
+	reason string
+	leaf   bool
 }
 
 type repositoryIndex struct {
@@ -135,6 +149,20 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	if walkErr != nil {
 		return nil, walkErr
 	}
+	// A command's printed text is text only while nothing in its directory
+	// can capture the stream (AFP-V0-2960).
+	for _, pkg := range index.packages {
+		if !pkg.captures {
+			continue
+		}
+		for _, text := range pkg.printed {
+			if text.leaf {
+				pkg.leafReads = append(pkg.leafReads, text.reason)
+			} else {
+				pkg.markUnresolved(text.reason, false)
+			}
+		}
+	}
 	// A leaf pattern reaches only the package directory while the package's
 	// commands run there: a package that moves the working directory keeps
 	// rule (d) for it (AFP-V0-2542).
@@ -167,6 +195,8 @@ type scannedFile struct {
 	scan                sourceScan
 	tokens              [][]string // pathTokens of each scan.literals entry
 	textOnly            []string   // tokens only line-broken literals hold, sorted (AFP-V0-2952)
+	main                bool       // the file declares package main (AFP-V0-2959)
+	captures            bool       // capturesStream: the file can capture a standard stream (AFP-V0-2960)
 	stamp               string     // the memo stamp, "" when it has none
 	recalled            bool       // taken from the memo, not read
 	err                 error
@@ -227,6 +257,8 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		scanned.err = fmt.Errorf("%s: imports do not parse", relative)
 		return scanned
 	}
+	scanned.main = file.Name.Name == "main"
+	scanned.captures = capturesStream(body)
 	for _, spec := range file.Imports {
 		value, _ := strconv.Unquote(spec.Path.Value)
 		scanned.imports = append(scanned.imports, value)
@@ -293,6 +325,7 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 	}
 	pkg.embeds = pkg.embeds || (scan.embeds && !test)
 	pkg.movesDirectory = pkg.movesDirectory || scan.movesDirectory
+	pkg.captures = pkg.captures || scanned.captures
 	for _, values := range scanned.tokens {
 		for _, value := range values {
 			index.holders[value] = appendOnce(index.holders[value], directory)
@@ -302,8 +335,12 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			reason := escapesPackage(directory, value, test)
 			switch {
 			case reason == "":
-			case !test && slices.Contains(scanned.textOnly, value):
-				// Text the file writes, not a path it opens (AFP-V0-2952).
+			case !test && scanned.main && slices.Contains(scanned.textOnly, value):
+				// Text a command prints, not a path it opens (AFP-V0-2952),
+				// while nothing in its directory can capture the stream
+				// (AFP-V0-2960); a library's printed text keeps rule (d)
+				// (AFP-V0-2959).
+				pkg.printed = append(pkg.printed, printedText{reason: relative + " " + reason, leaf: leafPattern(directory, value, test, index.goDirectories)})
 			case leafPattern(directory, value, test, index.goDirectories):
 				pkg.leafReads = append(pkg.leafReads, relative+" "+reason)
 			default:

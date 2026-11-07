@@ -47,6 +47,8 @@ type scanMemoEntry struct {
 	MovesDirectory bool       `json:"movesDirectory,omitempty"`
 	Tokens         [][]string `json:"tokens,omitempty"`
 	TextOnly       []string   `json:"textOnly,omitempty"` // AFP-V0-2952
+	Main           bool       `json:"main,omitempty"`     // AFP-V0-2959
+	Captures       bool       `json:"captures,omitempty"` // AFP-V0-2960
 }
 
 // gatedMemoEntry is one literal check of carriesLiteral: whether the file,
@@ -95,7 +97,7 @@ func (recall *scanRecall) scan(root, module string, source indexedFile) scannedF
 	}
 	if entry, ok := recall.files[source.relative]; ok && entry.Stamp == stamp {
 		scanned := scannedFile{relative: source.relative, directory: parentDirectory(source.relative), test: strings.HasSuffix(source.relative, "_test.go"),
-			imports: entry.Imports, tokens: entry.Tokens, textOnly: entry.TextOnly, stamp: stamp, recalled: true}
+			imports: entry.Imports, tokens: entry.Tokens, textOnly: entry.TextOnly, main: entry.Main, captures: entry.Captures, stamp: stamp, recalled: true}
 		scanned.scan.calls, scanned.scan.embeds, scanned.scan.movesDirectory = entry.Calls, entry.Embeds, entry.MovesDirectory
 		if entry.Untokenized {
 			scanned.scan.err = errRecalledUntokenized
@@ -144,7 +146,7 @@ func (memo *ScanMemo) store(root, module string, recall *scanRecall, results []s
 		}
 		fresh = fresh || !scanned.recalled
 		files[scanned.relative] = scanMemoEntry{Stamp: scanned.stamp, Imports: scanned.imports, Calls: scanned.scan.calls,
-			Untokenized: scanned.scan.err != nil, Embeds: scanned.scan.embeds, MovesDirectory: scanned.scan.movesDirectory, Tokens: scanned.tokens, TextOnly: scanned.textOnly}
+			Untokenized: scanned.scan.err != nil, Embeds: scanned.scan.embeds, MovesDirectory: scanned.scan.movesDirectory, Tokens: scanned.tokens, TextOnly: scanned.textOnly, Main: scanned.main, Captures: scanned.captures}
 	}
 	if !fresh && maps.EqualFunc(files, recall.files, func(a, b scanMemoEntry) bool { return a.Stamp == b.Stamp }) &&
 		maps.Equal(recall.checked, recall.gated) {
