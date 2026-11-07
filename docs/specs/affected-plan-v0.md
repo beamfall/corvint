@@ -767,8 +767,8 @@ and container qualification; full fallback remains available.
   test processes read nothing under the repository root except its own directory subtree and the
   declared entries. An entry naming a whole top-level directory selects the package for every edit
   under that tree, so it needs a recorded reason (AFP-V0-3010), and this repository keeps one only
-  for a read no literal bounds, narrowing the rest to the measured reads (AFP-V0-3011; both in
-  `affected-plan-selection-v0.md`, V1-4993). The planner (`readScoped`/`readScope` unit members, part of the AFP-V0-005
+  for a read no literal bounds, narrowing the rest to the measured reads, a literal target's import
+  closure included (AFP-V0-3011, AFP-V0-3150; all in `affected-plan-selection-v0.md`, V1-4993). The planner (`readScoped`/`readScope` unit members, part of the AFP-V0-005
   projection) and the AFP-V0-012 selector MUST then leave that package out of rule (d), whatever
   makes it unbounded, and select it, with witness `DECLARED_READ_SCOPE` or the selector line
   `declared <pkg> <- <path>`, when a dirty path is in its subtree, equals or lies under an entry,
