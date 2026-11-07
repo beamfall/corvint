@@ -25,9 +25,12 @@ func TestDCWV07403DogfoodAdmissionReadOnly(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		source, other int
-		want          bool
+		want, dirty   bool
 	}{
-		{"at-limit", 200, 0, false}, {"over-limit", 201, 0, true}, {"non-source", 0, 201, false},
+		{"at-limit", 200, 0, false, false}, {"over-limit", 201, 0, true, false}, {"non-source", 0, 201, false, false},
+		// A finish-lane restart over an unfinished sidecar is counted from the
+		// committed tree, not refused for the dirty worktree a recording needs.
+		{"dirty-over-limit", 201, 0, true, true}, {"dirty-at-limit-raw-over", 200, 1, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := newAdapterFixture(t)
@@ -41,6 +44,9 @@ func TestDCWV07403DogfoodAdmissionReadOnly(t *testing.T) {
 			gitAdapterFixture(t, root, "add", ".")
 			gitAdapterFixture(t, root, "commit", "-qm", "admission boundary")
 			target := gitAdapterFixture(t, root, "rev-parse", "HEAD")
+			if tc.dirty {
+				writeAdapterFixture(t, root, ".corvint/change.cem.json", "{\"unfinished\":")
+			}
 			before := gitAdapterFixture(t, root, "status", "--porcelain")
 			got, err := DogfoodNeedsAggregate(context.Background(), root, base, target)
 			if err != nil || got != tc.want {
