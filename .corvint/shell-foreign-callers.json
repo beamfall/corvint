@@ -121,7 +121,7 @@
         "tools/test-commands-check/main_test.go"
       ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["cmd/corvint/work_production_fixture_test.go", "internal/appmap/fixture_seed_test.go", "internal/extevidence/selection_test.go", "internal/liveverify/affected/shell/callers_constructed_test.go", "internal/releasecandidate/version_test.go", "script/check-ci-least-privilege.sh", "script/check-line-citations.sh", "script/gen-spec-requirements.sh", "script/merge-use-case-pins.sh", "script/spec-acceptance-audit.sh", "tools/cem-citation-baseline/main.go", "tools/flow-guide-check/main.go", "tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": ["cmd/corvint/work_production_fixture_test.go", "internal/appmap/fixture_seed_test.go", "internal/dogfoodflow/propose_anchors_test.go", "internal/extevidence/selection_test.go", "internal/liveverify/affected/shell/callers_constructed_test.go", "internal/releasecandidate/version_test.go", "script/check-ci-least-privilege.sh", "script/check-line-citations.sh", "script/gen-spec-requirements.sh", "script/merge-use-case-pins.sh", "script/spec-acceptance-audit.sh", "tools/cem-citation-baseline/main.go", "tools/flow-guide-check/main.go", "tools/test-read-scopes-check/temp_root_test.go"]
     },
     "script/check-cem-base-retained.sh": {
       "callers": [
@@ -210,7 +210,6 @@
         "internal/liveverify/affected/shell/shell_test.go",
         "script/codex-review_test.sh",
         "script/dogfood-cache_test.sh",
-        "script/dogfood-seal.sh",
         "script/heavy.sh",
         "script/lane-scripts_test.sh",
         "script/no-python-runtime-dependency_test.sh",
@@ -398,7 +397,7 @@
         "tools/dogfood-inherit-citations/classes_test.go",
         "tools/test-commands-check/main_test.go"
       ],
-      "mentions": ["cmd/corvint/work_production_fixture_test.go", "internal/appmap/fixture_seed_test.go", "internal/console/chain.go", "internal/console/chain_stable_test.go", "internal/console/chain_test.go", "internal/extevidence/selection_test.go", "internal/liveverify/affected/replay_v12941_test.go", "internal/liveverify/affected/shell/callers_constructed_test.go", "internal/releasecandidate/version_test.go", "script/check-ci-least-privilege.sh", "script/check-line-citations.sh", "script/gen-spec-requirements.sh", "script/merge-use-case-pins.sh", "script/pre-push-dogfood-seal.sh", "script/pre-push-dogfood-seal_test.sh", "script/spec-acceptance-audit.sh", "tools/cem-citation-baseline/main.go", "tools/flow-guide-check/main.go", "tools/test-read-scopes-check/temp_root_test.go"],
+      "mentions": ["cmd/corvint/work_production_fixture_test.go", "internal/appmap/fixture_seed_test.go", "internal/console/chain.go", "internal/console/chain_stable_test.go", "internal/console/chain_test.go", "internal/extevidence/selection_test.go", "internal/liveverify/affected/replay_v12941_test.go", "internal/liveverify/affected/shell/callers_constructed_test.go", "internal/releasecandidate/version_test.go", "script/batch-precheck_test.sh", "script/check-ci-least-privilege.sh", "script/check-line-citations.sh", "script/gen-spec-requirements.sh", "script/merge-use-case-pins.sh", "script/pre-push-dogfood-seal.sh", "script/pre-push-dogfood-seal_test.sh", "script/spec-acceptance-audit.sh", "tools/cem-citation-baseline/main.go", "tools/flow-guide-check/main.go", "tools/test-read-scopes-check/temp_root_test.go"],
       "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571). review-head-check_test.sh copies and runs it, with a stub dogfood-check.sh it writes (V1-3959). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script."
     },
     "script/go-test-shard.sh": {

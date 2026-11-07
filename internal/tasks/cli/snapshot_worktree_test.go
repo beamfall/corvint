@@ -130,7 +130,7 @@ func TestTCLV07102_AuditExplicitWorktreeProjection(t *testing.T) {
 	}
 	before := fixture.TreeSnapshot(t, r.CommonDir)
 	help := atm(t, r.Root, nil, "receipt", "audit", "--help")
-	if !strings.Contains(string(help.stdout), "owning journal") || !strings.Contains(string(help.stdout), "receipt audit --worktree ../candidate") {
+	if !strings.Contains(string(help.stdout), "owning journal") || !strings.Contains(string(help.stdout), "receipt audit --worktree lane-worktree") {
 		t.Fatalf("worktree help: %s", help.stdout)
 	}
 	good := atm(t, r.Root, nil, "receipt", "audit", "--worktree", wt)
