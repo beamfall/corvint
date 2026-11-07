@@ -1411,7 +1411,8 @@ and container qualification; full fallback remains available.
   `corvint test --dry-run` shadow selection of AFP-V0-047 for the same base and tested merge
   commit, so a miss computed against the shadow S of the epoch's rows can never fail open. The
   gate SHALL also force FULL, recording each reason in the `corvint-pr-narrowing/0` record, when
-  the base branch is not `main`, the change touches `.github/` or its change set is unreadable,
+  the base branch is not `main`, the change touches `.github/` (amended by `AFP-V0-2720`: a trusted
+  narrowing input under `.github/`, named by `github-guard.sh`) or its change set is unreadable,
   `main` has no `merge_queue` rule or its rules are unreadable, the driver refused, fell back or
   selected the whole universe, its plan names another base, head or target, the shadow exited
   other than 0 or 3, wrote no plan, has a scope other than `NARROWED`, `FULL` or `NOTHING`, or is
@@ -4473,7 +4474,9 @@ selected package unrun. The full fallback is unchanged.
     recomputed, or the record has no valid `selected`, the shard runs whole as a `PARTITION`
     shard. A record without `placement` (an earlier `narrow.jq`) keeps the `AFP-V0-098`
     intersection.
-  - (4) The matrix uses sixteen shards (`AFP-V0-2180`); a shard with no placed package runs no Go test and ends
+  - (4) The matrix uses sixteen shards (`AFP-V0-2180`; amended by `AFP-V0-2724` (V1-4934): a narrowed
+    pull request's matrix is sized down to the fewest shards within the wall budget, never below
+    two, by the `shard-plan` job); a shard with no placed package runs no Go test and ends
     in seconds, as an `AFP-V0-028` empty intersection does.
   Non-goals of balanced narrowing: changing the full, `merge_group` or `main` push partition
   independently of `AFP-V0-2180`; changing the sixteen-shard matrix size or measuring costs
@@ -4490,7 +4493,8 @@ selected package unrun. The full fallback is unchanged.
   only when it ran its recomputed part) and, for `BALANCED`, the selection. The required
   go-product check SHALL, on a `pull_request` whose shards succeeded, fetch the markers and fail
   closed, with an error ending "Re-run all jobs.", unless the markers name exactly shards 0 to
-  N-1 once each (N the matrix length, the go-product `SHARDS`), all are `corvint-pr-coverage/0`
+  N-1 once each (N the matrix length, the go-product `SHARDS`; since `AFP-V0-2724` the
+  shard-plan job's sized count, sixteen when it did not size), all are `corvint-pr-coverage/0`
   of this run id with N shards and an attempt no later than the current one, and either all are
   `PARTITION` (every shard ran its partition or the intersection with it, `AFP-V0-028`) or all are
   `BALANCED` with the same selection. No marker, a missing, repeated or extra shard, an unknown
@@ -5583,7 +5587,8 @@ stacked behind an unmerged entry fell back to FULL because GitHub names the entr
 because every plan of this repository is UNKNOWN through language frontiers alone (V1-3160).
 
 - **AFP-V0-933:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3109;
-  amends AFP-V0-098) `narrow.sh` SHALL decide whether the range touches `.github/` by the exit
+  amends AFP-V0-098; amended by `AFP-V0-2720` (V1-4930): the range is read by `github-guard.sh`
+  with `git diff --name-only -z` over the trusted narrowing inputs only) `narrow.sh` SHALL decide whether the range touches `.github/` by the exit
   status of `git diff --quiet --no-renames BASE TESTED_MERGE -- .github/`: 0 no change, 1 a change
   (FULL, "the change touches .github/"), any other status unreadable (FULL), because git quotes a
   non-ASCII path in `--name-only` output, so a `^\.github/` grep saw no change.

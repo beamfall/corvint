@@ -13,7 +13,8 @@
 # $RUNNER_TEMP/corvint-narrowing/narrowing.json, the executed package list
 # beside it, and the step output `mode` (NARROWED or FULL). A NARROWED shard
 # runs its part of the AFP-V0-590 balanced placement of the selection. Every
-# failure here is FULL; this script never fails the shard.
+# failure here is FULL; this script never fails the shard. AFP-V0-2724: the
+# shard-plan job runs this script too, through shard-plan.sh beside it.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 out="$RUNNER_TEMP/corvint-narrowing"
@@ -62,16 +63,19 @@ if [ -z "${SELECTION:-}" ]; then
     fi
   fi
 fi
-# --no-renames includes both sides of a rename out of .github/. The exit status, not --name-only
-# text, decides (AFP-V0-933, V1-3109): git quotes a non-ASCII path, so ".github/\303\251.yml" would
-# not match ^\.github/. 0 is no change, 1 a change, anything else unreadable.
+# AFP-V0-2720 (V1-4930; amends AFP-V0-933): only a change to a trusted narrowing input under
+# .github/ forces FULL. github-guard.sh beside this script, from the same trusted checkout, names
+# the inputs and reads the range with git alone: 0 no input changed, 1 an input changed (the
+# inputs follow, first five recorded), anything else unreadable. A missing guard is unreadable.
 github=unreadable
-if [ -n "$effective_base" ]; then
-  rc=0
-  git diff --quiet --no-renames "$effective_base" "$TESTED_MERGE" -- .github/ > /dev/null 2>&1 || rc=$?
-  case $rc in
+github_inputs=""
+if [ -n "$effective_base" ] && guard=$(sh "$here/github-guard.sh" "$effective_base" "$TESTED_MERGE" 2> /dev/null); then
+  case $(printf '%s\n' "$guard" | sed -n 1p) in
   0) github=0 ;;
-  1) github=1 ;;
+  1)
+    github=1
+    github_inputs=$(printf '%s\n' "$guard" | sed -n '2,6p' | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+    ;;
   esac
 fi
 shadow_exit=0
@@ -117,7 +121,7 @@ if ! jq -n -c --slurpfile driver "$out/driver/selection.json" --slurpfile shadow
   --rawfile selected "$out/selected" --rawfile balancedPackages "$out/balanced-packages" \
   --rawfile balancedSlices "$out/balanced-slices" --arg balanced "$balanced" \
   --rawfile universe "$out/universe" --arg selectedOk "$selected_ok" \
-  --arg github "$github" --arg mergeQueue "$queue" --arg baseRef "$BASE_REF" --arg base "$effective_base" --arg eventBase "$event_base" \
+  --arg github "$github" --arg githubInputs "$github_inputs" --arg mergeQueue "$queue" --arg baseRef "$BASE_REF" --arg base "$effective_base" --arg eventBase "$event_base" \
   --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" --arg pr "$PR_NUMBER" --arg runId "$GITHUB_RUN_ID" \
   --arg runAttempt "$GITHUB_RUN_ATTEMPT" --arg shard "$SHARD" --arg shards "$SHARDS" \
   --arg toolSource "$TOOL_SOURCE" --arg verdictRun "$VERDICT_RUN" \

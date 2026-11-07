@@ -239,9 +239,10 @@ func wantIncomplete(t *testing.T, row doc, fragment string) {
 	t.Fatalf("incomplete = %q, want a reason containing %q", row["incomplete"], fragment)
 }
 
+// AFP-V0-2725: selectionShards is the selection run's own (sized) shard count.
 var rowKeys = []string{"class", "counts", "epoch", "failed", "flaky", "head", "incomplete", "infrastructure", "kind", "missed",
 	"outcomesRunId", "outcomesSource", "pr", "profile", "reruns", "runId", "selectedFailedInQueue", "selection",
-	"selectionRunId", "sha", "shadowCost", "shards", "truncated"}
+	"selectionRunId", "selectionShards", "sha", "shadowCost", "shards", "truncated"}
 
 func TestAFPV0029ForwardRowsAndShadowBar(t *testing.T) {
 	t.Run("CLEAN on the real queue run, with the shell gap as a selection limit", func(t *testing.T) {
@@ -1267,7 +1268,8 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 		}
 		return m[0][1]
 	}
-	one(ci, `(?m)^      CORVINT_TEST_SHADOW_SOURCE: "([0-9a-f]{40})"$`)
+	// AFP-V0-2724: the shadow pin is set once, at the workflow level.
+	one(ci, `(?m)^  CORVINT_TEST_SHADOW_SOURCE: "([0-9a-f]{40})"$`)
 	if e, f := one(ci, `(?m)^      CORVINT_PR_FORWARD_EPOCH: "([0-9]+)"$`), one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`); e != f {
 		t.Fatalf("FORWARD_EPOCH %s names rows of another epoch than CORVINT_PR_FORWARD_EPOCH %s", f, e)
 	}
