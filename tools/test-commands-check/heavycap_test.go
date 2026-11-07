@@ -203,6 +203,44 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 		t.Fatal("missing selection functions")
 	}
 	guard := string(body[start:end]) + "\nsource_tests_unfiltered whole \"$@\"\n"
+	// Debug output filenames can look like selections. Unknown flags (including future
+	// value-taking forms) cannot prove either whole-source or narrow automatic admission.
+	for _, flag := range []string{"-debug-actiongraph", "-debug-runtime-trace", "-debug-trace", "-future-value-flag", "--future-value-flag=output", "---v", "-v=unknown", "-test.tags"} {
+		args := []string{"go", "test", "-run=TestOther", flag, "-run=.", "./p"}
+		for _, check := range []struct {
+			call string
+			want int
+		}{
+			{"source_tests_unfiltered whole", 1},
+			{"run_selects_all", 0}, // Unknown syntax retains the wider claim.
+		} {
+			program := string(body[start:end]) + "\n" + check.call + " \"$@\"\n"
+			cmd := exec.Command("bash", append([]string{"-c", program, "flag-guard"}, args...)...)
+			cmd.Dir, cmd.Env = work, env
+			guardOut, guardErr := cmd.CombinedOutput()
+			if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != check.want {
+				t.Fatalf("%s %v: want exit %d: %v %s", check.call, args, check.want, guardErr, guardOut)
+			}
+		}
+		out = run(2, args...)
+		if !strings.Contains(out, "REFUSED whole-reason-missing") || strings.Contains(out, "ok \t") {
+			t.Fatalf("uncertified command was not refused before execution: %s", out)
+		}
+	}
+	for _, flags := range []string{"-future-value-flag=output", "--future-value-flag=output", "-v=unknown"} {
+		out = run(2, "env", "GOFLAGS="+flags, "go", "test", "-run=.", "./p")
+		if !strings.Contains(out, "REFUSED whole-reason-missing") {
+			t.Fatalf("unknown inherited flag was not refused: %s", out)
+		}
+	}
+	// Known debug operands are consumed even when they look like a narrow -run.
+	// With no actual selection the automatic source run must reach the broken old test.
+	for _, flag := range []string{"-debug-actiongraph", "-debug-runtime-trace", "-debug-trace"} {
+		out = run(1, "go", "test", "-count=1", "-v", flag, "-run=TestOther", "./p")
+		if !strings.Contains(out, "source regression") || !strings.Contains(out, "=== RUN   TestExisting") {
+			t.Fatalf("debug operand hid the existing failure: %s", out)
+		}
+	}
 	for _, flags := range [][]string{
 		{"-run=TestOther", "-tags", "-run=."},
 		{"-run", "TestOther", "-tags", "--run=.*"},

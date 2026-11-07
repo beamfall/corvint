@@ -50,6 +50,11 @@ needs, and each keeps a negative control that still refuses or runs everything.
   the final repeated -run value is effective. Restrictive inherited filters conservatively require
   an explicit command for manifest validation. Validation MUST preserve all environment assignments
   affecting Go defaults, and MUST refuse unsupported env options rather than discard them.
+  Automatic admission MUST use a closed allowlist of understood flag syntax and arity for both
+  command arguments and GOFLAGS; unknown forms MUST NOT prove whole or narrow selection.
+  The value-taking debug-actiongraph, debug-runtime-trace and debug-trace flags MUST consume their
+  operands, including flag-looking filenames. Their unstable instrumentation remains outside the
+  narrow-admission allowlist; an apparent narrow run using them requires an explicit whole reason.
   Parallelism setup MUST resolve the child's Go defaults and validate the final effective filters.
   Offloaded execution MUST retain the sender's validated GOFLAGS despite receiver-only defaults.
   A pre-commit caller using heavy.sh MUST retain an existing test broken by a non-test edit.
