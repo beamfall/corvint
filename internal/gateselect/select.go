@@ -649,9 +649,10 @@ func additiveNarrowing(plan Receipt, module string) map[string]map[string]bool {
 
 // attributeNarrowed is attribute for a non-test source of a package the plan
 // narrowed as an additive change (ADN-V0-006): the package itself, and the
-// dependents reached through its importers and namers other than the
-// unreferenced ones, whose test importers are dropped likewise; rule (c) is
-// unchanged.
+// dependents reached through its importers, namers and code runners other
+// than the unreferenced importers, whose test importers are dropped likewise;
+// rule (c) is unchanged. A narrowed record prunes import edges only, as the
+// planner's follows does (AFP-V0-3143).
 func (index *repositoryIndex) attributeNarrowed(dirty string, readers []string, unreferenced map[string]bool) []attribution {
 	if resolvedEvidence(dirty) {
 		readers = index.resolvingReaders(dirty)
@@ -664,6 +665,7 @@ func (index *repositoryIndex) attributeNarrowed(dirty string, readers []string, 
 		}
 	}
 	start = append(start, index.namers[directory]...)
+	start = append(start, index.codeRunners[directory]...)
 	reached := map[string]bool{}
 	for _, reachedDirectory := range append(append([]string(nil), start...), index.reach(true, start)...) {
 		reached[reachedDirectory] = true
