@@ -595,8 +595,15 @@ func (compiler *localPromptCompiler) resolveLines(token string, start, end int) 
 	matches := []string{}
 	for _, candidate := range candidates {
 		// TCP-V0-7406: a tracked symlink's selector is checked against its
-		// pinned one-hop target; addEvidence keeps both identities.
-		text, loaded := sourceTextBounded(compiler.index.Sources[compiler.selectorSubject(candidate)])
+		// pinned one-hop target; addEvidence keeps both identities. A refused
+		// link is kept, unchecked, so addEvidence records its typed refusal
+		// instead of the range being judged against the link blob.
+		subject, refusal := compiler.selectorSubject(candidate)
+		if refusal != "" {
+			matches = append(matches, candidate)
+			continue
+		}
+		text, loaded := sourceTextBounded(compiler.index.Sources[subject])
 		if !loaded || end <= sourceLineCount(text) {
 			matches = append(matches, candidate)
 		}
@@ -627,10 +634,19 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 		return
 	}
 	// TCP-V0-7406: symbols of a tracked symlink are searched in its pinned
-	// one-hop target, then reported under the link so both identities stay.
-	subjects := map[string]string{}
+	// one-hop target, then reported under every candidate sharing that target
+	// so each alias keeps its own identity and two aliases stay ambiguous. A
+	// refused link cannot be searched: it is kept as a match so addEvidence
+	// records its typed refusal, never a not-found.
+	subjects := map[string][]string{}
+	refused := []string{}
 	for _, candidate := range candidates {
-		subjects[compiler.selectorSubject(candidate)] = candidate
+		subject, refusal := compiler.selectorSubject(candidate)
+		if refusal != "" {
+			refused = append(refused, candidate)
+			continue
+		}
+		subjects[subject] = append(subjects[subject], candidate)
 	}
 	searched := slices.Collect(maps.Keys(subjects))
 	if strings.Contains(name, ".") && !compiler.pathHasSymbol(searched, name) {
@@ -646,9 +662,15 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 			compiler.failBounds()
 			return
 		}
-		if candidate, ok := subjects[symbol.Path]; symbol.Name == name && ok {
-			symbol.Path = candidate
-			matches = append(matches, symbol)
+		if aliases, ok := subjects[symbol.Path]; symbol.Name == name && ok {
+			for _, alias := range aliases {
+				if len(matches) >= localPromptMaxCandidates {
+					compiler.failBounds()
+					return
+				}
+				symbol.Path = alias
+				matches = append(matches, symbol)
+			}
 		}
 	}
 	sort.Slice(matches, func(i, j int) bool {
@@ -657,30 +679,32 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 		}
 		return matches[i].Line < matches[j].Line
 	})
-	matched := []string{}
+	matched := slices.Clone(refused)
 	for _, symbol := range matches {
 		matched = append(matched, symbol.Path)
 	}
-	if compiler.crowded(len(matches)) {
+	if compiler.crowded(len(matched)) {
 		return
 	}
-	compiler.countAnchor(len(matches) + compiler.staleCandidates(candidates, matched))
+	compiler.countAnchor(len(matched) + compiler.staleCandidates(candidates, matched))
+	for _, candidate := range refused {
+		compiler.addEvidence("task_evidence", candidate, 1, "explicit-identifier", "syntax")
+	}
 	for _, symbol := range matches {
 		compiler.addEvidence("task_evidence", symbol.Path, symbol.Line, "explicit-identifier", "syntax")
 	}
 }
 
 // selectorSubject is the pinned one-hop target of an admitted tracked symlink,
-// else the candidate itself; a refused link stays itself, so addEvidence
-// reports its typed refusal (TCP-V0-7406).
-func (compiler *localPromptCompiler) selectorSubject(candidate string) string {
+// else the candidate itself. A refused link has no subject: its typed refusal
+// is returned so the caller keeps the candidate for addEvidence to record in
+// unavailable_selectors, rather than matching the selector against the link
+// blob (TCP-V0-7406).
+func (compiler *localPromptCompiler) selectorSubject(candidate string) (subject, refusal string) {
 	if compiler.index.Sources[candidate].Mode != "120000" {
-		return candidate
+		return candidate, ""
 	}
-	if target, refusal := compiler.context.instructionLink(candidate); refusal == "" {
-		return target
-	}
-	return candidate
+	return compiler.context.instructionLink(candidate)
 }
 
 // A dirty candidate with no match in its bound blob may hold the anchor in the
@@ -857,7 +881,9 @@ func (compiler *localPromptCompiler) addEvidence(section, candidate string, line
 		return
 	}
 	for _, row := range compiler.rows {
-		if row.section == section && row.value["path"] == candidate && row.value["line"] == line && (link == "" || row.value["link_path"] == link) {
+		// A row through a link and a row naming its target directly are two
+		// identities, whichever comes first (TCP-V0-7406).
+		if rowLink, _ := row.value["link_path"].(string); row.section == section && row.value["path"] == candidate && row.value["line"] == line && rowLink == link {
 			return
 		}
 	}
