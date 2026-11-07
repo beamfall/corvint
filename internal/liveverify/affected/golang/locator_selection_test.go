@@ -287,6 +287,49 @@ func TestBufferedListingProgramSelection_AFPV02956(t *testing.T) {
 	}
 }
 
+// AFP-V0-2956: a generated program need not execute the listed package.
+// Unknown output options must retain every owner too, without interpreting
+// their output or relying on an eventual consumer to be visibly computed.
+func TestBufferedListingOtherPackageSelection_AFPV02956(t *testing.T) {
+	for _, tc := range []struct {
+		name, options string
+		selected      bool
+	}{
+		{"reported-template", `-f 'go test ./{{printf "%s%s" "rea" "der"}}'`, true},
+		{"unknown-option", `-future-format program`, true},
+		{"default-paths", "", false},
+		{"directory-paths", `-f '{{.Dir}}'`, false},
+		{"import-paths", `-f '{{.ImportPath}}'`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{
+				"go.mod":               "module example.test/m\n",
+				"lib/lib.go":           "package lib\n",
+				"lib/x_test.go":        "package lib\n",
+				"reader/r.go":          "package reader\nimport (\"os\"; \"path/filepath\")\nfunc Read() { os.ReadFile(filepath.Join(os.Getenv(\"DATA_ROOT\"), \"settings.env\")) }\n",
+				"reader/r_test.go":     "package reader\n",
+				"runtime/settings.env": "MODE=fast\n",
+				"Makefile":             "check:\n\tgo list " + tc.options + " ./lib > /tmp/check\n\tsh /tmp/check\n",
+			})
+			graph, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := map[string]bool{}
+			for _, selected := range affected.Select(graph, []string{"runtime/settings.env"}).Selected {
+				found[selected.UnitID] = true
+			}
+			if !found["go:example.test/m/reader"] {
+				t.Error("runtime configuration change omitted its unbounded reader")
+			}
+			if got := found["driver:make:Makefile#check"]; got != tc.selected {
+				t.Errorf("runtime configuration change selected driver = %v, want %v", got, tc.selected)
+			}
+		})
+	}
+}
+
 // TestBoundedJoinThroughDirectorySymlinkSelectsReader_AFPV02950: a bounded
 // join through a directory symlink reads the link target, so the join keeps
 // its last component as a literal and a change to the target still selects

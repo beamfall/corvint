@@ -194,11 +194,18 @@ func TestDriverListOutputAllowlist_AFPV02956(t *testing.T) {
 		`go list -f='{{printf "%s %s" "go test" .ImportPath}}' ./lib > /tmp/check; sh /tmp/check`,
 		`go list -future-format program ./lib > /tmp/check; sh /tmp/check`,
 		`go list -json ./lib > /tmp/check; sh /tmp/check`,
+		`go list -f 'go test ./{{printf "%s%s" "rea" "der"}}' ./lib > /tmp/check; sh /tmp/check`,
 	} {
 		scan := newDriverScan()
 		scan.scanShell(command, ".", "example.test/m")
 		if !scan.paths["lib"] || scan.buildPaths["lib"] {
 			t.Errorf("%q: uncertified output lost execution edge: %+v", command, scan)
+		}
+		if !scan.paths["..."] {
+			t.Errorf("%q: uncertified output must retain every possible execution owner: %+v", command, scan)
+		}
+		if !scan.computed {
+			t.Errorf("%q: uncertified output lost invocation uncertainty: %+v", command, scan)
 		}
 	}
 	for _, command := range []string{
