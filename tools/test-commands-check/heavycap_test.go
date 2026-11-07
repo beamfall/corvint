@@ -107,6 +107,64 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 	if !strings.Contains(out, "source regression") {
 		t.Fatalf("existing failure not reached: %s", out)
 	}
+	// A source edit cannot justify excluding the old test it breaks, including aliases and
+	// inherited flags. Refusal must precede execution, rather than report a successful whole run.
+	for _, args := range [][]string{
+		{"go", "test", "-skip=TestExisting", "./p"},
+		{"go", "test", "-skip", "TestExisting", "./p"},
+		{"go", "test", "--skip=TestExisting", "./p"},
+		{"go", "test", "-test.skip=TestExisting", "./p"},
+		{"go", "test", "--test.skip=TestExisting", "./p"},
+		{"go", "test", "-count", "0", "./p"},
+		{"go", "test", "-count=0", "./p"},
+		{"env", "GOFLAGS=-skip=TestExisting", "go", "test", "./p"},
+		{"env", "GOFLAGS=-p=1\n-skip=TestExisting", "go", "test", "./p"},
+		{"env", "GOFLAGS=-test.skip=TestExisting", "go", "test", "./p"},
+		{"env", "GOFLAGS=-run=TestOther", "go", "test", "./p"},
+		{"env", "GOFLAGS=-count=0", "go", "test", "./p"},
+	} {
+		out = run(2, args...)
+		if !strings.Contains(out, "REFUSED whole-reason-missing") || strings.Contains(out, "ok \t") {
+			t.Fatalf("filtered source run was not refused before execution: %s", out)
+		}
+	}
+	// Neither the small-package nor the new-package shortcut may bypass exclusion validation.
+	for _, pkg := range []string{"tools/small", "new"} {
+		if err := os.MkdirAll(filepath.Join(work, pkg), 0700); err != nil {
+			t.Fatal(err)
+		}
+		write(pkg+"/a.go", "package p\nfunc Value() int { return 2 }\n")
+		write(pkg+"/a_test.go", "package p\nimport \"testing\"\nfunc TestExisting(t *testing.T) { if Value()!=1 { t.Fatal(\"source regression\") } }\n")
+		run(2, "go", "test", "-skip=TestExisting", "./"+pkg)
+	}
+	originalEnv := env
+	env = heavycapEnv(env, "GOFLAGS", "-skip=TestExisting")
+	run(2, "go", "test", "./p")
+	env = originalEnv
+	goenv := filepath.Join(t.TempDir(), "goenv")
+	if err := os.WriteFile(goenv, []byte("GOFLAGS=-skip=TestExisting\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run(2, "env", "GOENV="+goenv, "go", "test", "./p")
+
+	// A HEAD-bound manifest must select the exact exclusion; a whole-unit witness is not
+	// authority for -skip. A supported exclusion still reaches the broken TestExisting.
+	gitHead := exec.Command("git", "rev-parse", "HEAD")
+	gitHead.Dir = work
+	headBytes, err := gitHead.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := strings.TrimSpace(string(headBytes))
+	write("selection.json", `{"profile":"corvint-test-manifest/0","source":{"head":"`+head+`"},"units":[{"unit":"go:example.invalid/fixture/p","slice":"whole"},{"unit":"go:example.invalid/fixture/p","slice":"1/2","flag":"-skip","pattern":"TestOther"}]}`)
+	env = heavycapEnv(env, "HEAVY_SELECTION", filepath.Join(work, "selection.json"))
+	run(2, "go", "test", "-skip=TestExisting", "./p")
+	run(2, "env", "GOFLAGS=-skip=TestExisting", "go", "test", "./p")
+	out = run(1, "go", "test", "-count=1", "-skip=TestOther", "./p")
+	if !strings.Contains(out, "source regression") {
+		t.Fatalf("manifest exclusion hid the existing failure: %s", out)
+	}
+	env = originalEnv
 	dogtoolsGit(t, work, "add", ".") // staged source changes qualify too
 	out = run(1, "go", "test", "-count=1", "./p")
 	if !strings.Contains(out, "source regression") {
