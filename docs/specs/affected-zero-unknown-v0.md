@@ -11,6 +11,9 @@ frontier bearing, AFP-V0-560 terminal rule, AFP-V0-601/602 data readers),
 claim), `docs/specs/test-selection-precision-v0.md` (TSP-V0-005 shell foreign callers, TSP-V0-942
 frontier bearers), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 3 and 8. The parent
 spec is at its OCM obligation limit, so these requirements take a new prefix.
+Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AFP-V0-3124 here
+under the parent's `AFP-V0` prefix for the same reason; see build-log entry
+`2026-11-07-selfloor`.
 
 ## Agent digest
 - Claim: every `corvint affected` plan closes unknowns with sound selections or stated proofs, including bounded readers, never by dropping reached units.
@@ -69,6 +72,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   outside every recipe or job (a variable, an `include`, `on:`, top-level `env:` or `defaults:`)
   SHALL select every target or job of that file. A recipe or step that invokes a computed name
   carries a `driver:computed-invocation` frontier entry at that target or job; AZU-V0-003 closes it.
+  A make computed name whose alternatives are all literal is evaluated into their edges instead,
+  and only a site whose alternatives cannot be bounded keeps the entry (AFP-V0-3120 to AFP-V0-3123).
   Selections carry kind `DRIVER_TARGET` and the argv `make <target>`, or `CI_JOB` and the workflow
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
@@ -197,6 +202,54 @@ participation, and inbound shell callers. The remaining classes are small and lo
   measured before and after against their first parents, with immutable input identities and
   explicit declaration overlays recorded; no wire, golden, ownership or frontier policy change
   is part of this slice.
+
+- **AFP-V0-3120:** **File-scope make ambiguity.** (experimental, owner lane selfloor charter
+  2026-11-07, V1-5000) An ambiguous expansion in a make variable value, assignment, conditional
+  or include that a target's own prerequisites, recipe or `$(shell ...)` do not reach SHALL NOT
+  make that target a `driver:computed-invocation` site. Only an ambiguous `$(shell ...)` command,
+  which make runs while it reads the file, or an ambiguous recipe of a special or computed-target
+  rule SHALL mark every target of the file. An ambiguous expansion the target's own text reaches
+  SHALL mark that target. Fault injection: one unreferenced `$(or ...)`, `$(if ...)` or
+  `$(join ...)` line SHALL NOT turn a literal recipe into a site that claims a new sealed CEM.
+- **AFP-V0-3121:** **Evaluated make alternatives.** (experimental, owner lane selfloor charter
+  2026-11-07, V1-5000) The driver claimant SHALL expand each make recipe line, prerequisite list
+  and include into every complete alternative value, walking at most 256 expansions per text. A
+  variable takes one value per expansion from those its assignments can leave: every branch of a
+  conditional, no assignment where a chain has no bare `else`, a target-specific value beside the
+  one it replaces, and `?=` and `+=` applied in file order. An unassigned value stays one only the
+  environment supplies. An `if` condition, or an `or` or `and` argument, that only the environment
+  decides SHALL take both outcomes. `filter`, `filter-out`, `findstring`, `firstword`, `lastword`,
+  `word`, `wordlist` and `join` SHALL be evaluated exactly over values with no environment-supplied
+  part. A word selected from a wholly environment-supplied value is that value or nothing. Each
+  alternative SHALL be scanned as its own shell text, so a computed name whose alternatives are
+  all literal resolves into each alternative's edges and is no frontier site. A change that any
+  alternative can run or name SHALL still select the target and its callers. This evaluates
+  exactly where AZU-V0-9702 and AZU-V0-9850 allowed a retained site.
+- **AFP-V0-3122:** **Claims only within the bound.** (experimental, owner lane selfloor charter
+  2026-11-07, V1-5000) A target whose alternatives are all bounded SHALL be selected for a dirty
+  path only through their edges, with a dependency, path-literal or other reader witness. A dirty
+  path that no alternative can run or name SHALL NOT select it or its dependents by
+  `FRONTIER_SITE`. A new `.corvint/changes/<sha>.cem.json` or `docs/build-log/` entry is such a
+  path unless an alternative names it.
+- **AFP-V0-3123:** **Unbounded sites keep claiming.** (experimental, owner lane selfloor charter
+  2026-11-07, V1-5000) A target or job whose alternatives cannot be bounded SHALL keep its
+  `driver:computed-invocation` entry. As AZU-V0-001 and AZU-V0-003 require, it SHALL be selected
+  with `FRONTIER_SITE` on every dirty path, together with its dependents. Such sites include:
+  - a command word from the shell environment, or from a make variable only the environment can
+    supply;
+  - a `$(shell ...)` result used as a command;
+  - `eval`, or an unsupported interpreter option;
+  - a word function over a mix of literal and environment-supplied values;
+  - alternatives past the walk bound;
+  - every other existing computed-invocation case, including every workflow and action site.
+
+  A missed alternative is worse than over-selection.
+- **AFP-V0-3124:** **Selector parity.** (experimental, owner lane selfloor charter 2026-11-07,
+  V1-5000) `internal/gateselect` attributes Go packages only and holds no driver unit or
+  frontier-site claim. AFP-V0-3120 to AFP-V0-3123 SHALL change only a plan's driver selections:
+  never its Go selections, scope or unknown entries, nor the selector's verdict on it. A parity
+  test SHALL hold this over a fixture with bounded, unbounded and injected-fault sites, planned
+  with and without the driver claimant.
 
 ### Lane qualification details
 
@@ -331,6 +384,10 @@ lanes and external full-suite/mutation observations at every historical revision
   reader precision slice AZU-V0-9930/9931 narrows rule (d) here; it does not change frontier
   classification or claim that all unknowns are closed.
 - No embeddings, network or learned ranking, and no change to the authority order.
+- AFP-V0-3120 to AFP-V0-3123 evaluate make expansions only. Shell variables, loops and globs in a
+  recipe or step, interpreter options such as `node --test` or `python3 -B`, and binaries that a
+  workflow builds or downloads at run time keep their computed sites. As before, make
+  command-line and environment overrides of an assigned variable stay outside the model.
 
 ## Failure modes
 
@@ -344,6 +401,13 @@ lanes and external full-suite/mutation observations at every historical revision
   closed.
 - A driver hunk is misattributed to the wrong target. Mitigation: an unparsable make file or
   workflow selects every target or job of that file.
+- The AFP-V0-3121 walk misses or mis-evaluates an alternative, which would drop an edge.
+  Mitigations:
+  - only the listed functions are evaluated, each exactly and over definite values;
+  - any function over a value it cannot represent still retains the site;
+  - a condition the walk cannot represent takes both branches;
+  - the walk is bounded, and text past the bound retains the site;
+  - the fixtures pin selection for every evaluated form.
 
 ## Acceptance evidence
 
@@ -417,6 +481,27 @@ baseline replay, including PR 6 compared with the `8e2c13aa9` binary. No corpus,
 shape changes are part of this repair. Reverting its runner classification restores the spurious
 driver-language incompleteness while leaving affected selections unchanged.
 
+Lane selfloor witnesses its five rows with fixtures:
+- `TestFrontierSiteFaultInjection_AFP_V0_3120` failed on the base for the injected `$(or ...)`,
+  `$(if ...)` and `$(join ...)` cases, and its control passed.
+- `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121` includes a recipe that names
+  `.corvint/changes`, which stays selected.
+- `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122` and
+  `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` cover the dropped and kept claims.
+- `TestDriverFrontierBoundParity_AFP_V0_3124` in `internal/gateselect` holds the selector parity.
+
+`TestDriverAlternativeMakeValues_AZU_V0_9702` and `TestDriverMakeFunctionsComputed_AZU_V0_9850`
+now assert the exact edge and an unrelated path's exclusion where the value is definite, and the
+retained site where it is not. The 20-merge selmeasure replay at `538e823f4` is in
+`docs/build-log/2026-11-07-selfloor.md`:
+- `FRONTIER_SITE` units fell from 1,573 to 81, and selected units from 6,876 to 5,405;
+- test files are unchanged, because driver units carry none;
+- every dropped unit is a driver unit that only the frontier claim reached;
+- no unit was added, and no unknown entry or scope changed.
+
+Rollback reverts the lane's code commit. That restores collapsing every unrepresentable or
+alternative make value into a computed site, with no wire or receipt change.
+
 The PR #99 repairs (AZU-V0-9850 through AZU-V0-9853) extend the same driver soundness boundary.
 Acceptance requires the table regressions below and the complete affected package. Unsupported
 make functions, env directory changes and unresolved local actions deliberately widen selection
@@ -462,6 +547,11 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
+| AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120` |
+| AFP-V0-3121 | V1-5000 | `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
+| AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
+| AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
