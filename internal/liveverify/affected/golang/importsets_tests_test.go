@@ -339,6 +339,7 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 		{"package-level command", "package probe\n\nimport \"os/exec\"\n\nvar listed = exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\nfunc init() { listed.Args[4] = \"{{.Doc}}\" }\n", true},
 		{"argument swapped by index", "package probe\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestSwap(t *testing.T) {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\tc.Args[4] = \"{{.Doc}}\"\n\t_ = c.Run()\n}\n", true},
 		{"command decoded", "package probe\n\nimport (\n\t\"encoding/json\"\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestDecode(t *testing.T) {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\t_ = json.Unmarshal([]byte(`{}`), c)\n\t_ = c.Run()\n}\n", true},
+		{"symlink into testdata", "package probe\n\nimport \"os\"\n\nfunc init() {\n\t_ = os.Symlink(\"../../lib\", \"testdata/lib\")\n\t_, _ = os.ReadFile(\"testdata/lib/lib.go\")\n}\n", true},
 		// Unclassified constructs fail closed.
 		{"unclassified standard import", "package probe\n\nimport \"net/http/cgi\"\n\nvar _ = cgi.Handler{Path: \"/usr/bin/git\"}\n", true},
 		{"reflection", "package probe\n\nimport \"reflect\"\n\nvar _ = reflect.ValueOf(nil)\n", true},
