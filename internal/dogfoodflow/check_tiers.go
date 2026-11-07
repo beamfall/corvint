@@ -18,7 +18,10 @@ const maxTierWarnings = 50
 
 // tierBelowAnchoredFix names the CEM-V1-081 anchor rules a hunk below
 // `anchored` misses and how an author meets one of them.
-const tierBelowAnchoredFix = "rule=CEM-V1-081 fix=\"cite a span that defines a requirement ID the hunk adds (- `ID`:) or that contains the hunk path or its basename of at least 6 bytes\""
+// A requirement row alone rarely anchors a code hunk, which adds no ID, so the
+// fix names the two-row route: keep the drafted anchoring row beside the
+// requirement row (DCW-V0-2141, V1-4441).
+const tierBelowAnchoredFix = "rule=CEM-V1-081 fix=\"cite a span that defines a requirement ID the hunk adds (- `ID`:) or that contains the hunk path or its basename of at least 6 bytes; a hunk takes several rows, so keep the anchoring row corvint dogfood propose-citations BASE drafts beside the requirement row it implements, and corvint dogfood propose-citations BASE --refresh PLAN restores a dropped one\""
 
 // tierBelowAnchoredUnavailable names why the hunks a NOTE line counts carry no
 // tier warning, and how a new file that implements a requirement reaches the

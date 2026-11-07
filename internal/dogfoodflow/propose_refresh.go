@@ -132,7 +132,11 @@ func (p *proposal) refreshLabel() string {
 	if p.options.FromCEM != "" {
 		source = " from-cem=" + strconv.Quote(p.options.FromCEM)
 	}
-	return fmt.Sprintf("%s carried=%d rekeyed=%d dropped=%d deferred=%d", source, carried, rekeyed, dropped, len(p.refreshDeferred))
+	restored := ""
+	if p.anchorsRestored > 0 {
+		restored = fmt.Sprintf(" anchors-restored=%d", p.anchorsRestored)
+	}
+	return fmt.Sprintf("%s carried=%d rekeyed=%d dropped=%d deferred=%d%s", source, carried, rekeyed, dropped, len(p.refreshDeferred), restored)
 }
 
 // carry maps each --refresh row onto a current owed hunk (DCW-V0-442): a row

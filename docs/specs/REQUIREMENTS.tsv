@@ -4632,6 +4632,13 @@ DCW-V0-7402	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the 
 DCW-V0-7403	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4169) Inputs-c	standing	2026-10-11; V1-4169
 DCW-V0-7409	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner’s standing auto-accept; lane qualification blocker) Do	standing	-
 DCW-V0-2130	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1724) For an a	standing	2026-10-11; V1-1724
+DCW-V0-2140	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4406) The stat	standing	2026-10-11; V1-4406
+DCW-V0-2141	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4441) DOGFOOD	standing	2026-10-11; V1-4441
+DCW-V0-2142	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4442) `make do	standing	2026-10-11; V1-4442
+DCW-V0-2143	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4443) A standa	standing	2026-10-11; V1-4443
+DCW-V0-2144	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4444) DOGFOOD	standing	2026-10-11; V1-4444
+DCW-V0-2145	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4401) In gener	standing	2026-10-11; V1-4401
+DCW-V0-2146	docs/specs/dogfood-lane-friction-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4291) `script/	standing	2026-10-11; V1-4291
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-

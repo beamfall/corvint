@@ -354,6 +354,9 @@ func (c *check) requireCleanChange() {
 		}
 		c.say("dogfood-check: REFUSE %s\n", refusal)
 		c.say("  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n")
+		// DCW-V0-2144 (V1-4444): clean means no change after the bind commit;
+		// the lane's own worktree qualifies once it is.
+		c.say("  fix: commit or remove the %d path(s) git status --porcelain lists, then rerun make dogfood-change BASE=%s and make dogfood-check BASE=%s; a clean worktree is one with no change after the bind commit (ignored paths do not count), so this worktree qualifies once they are gone and no fresh checkout is needed (DCW-V0-2144)\n", repository.DirtyPathCount, c.base, c.base)
 		c.exit(2)
 	}
 	if diffStatus == 0 {

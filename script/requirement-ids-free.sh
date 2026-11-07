@@ -26,8 +26,9 @@ if [[ ${1:-} == --help ]]; then
     'Example: make requirement-ids-free PREFIX=AFP-V0 RANGE=2600..2619 OWNER=lane-a'
   exit 0
 fi
-if (($# < 1 || $# > 4)); then
-  printf 'requirement-ids-free: REFUSE bad-arguments\n%s\n' "$usage" >&2
+# DCW-V0-2146 (V1-4291): a bare run, including an empty PREFIX, prints the usage and the make form.
+if (($# < 1 || $# > 4)) || [[ -z $1 ]]; then
+  printf 'requirement-ids-free: REFUSE bad-arguments\n%s\nor through make: make requirement-ids-free PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979\n' "$usage" >&2
   exit 2
 fi
 # Review fix: git grep with a tree searches only the caller's directory, so run from the top level.
