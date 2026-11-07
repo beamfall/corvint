@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -20,11 +21,17 @@ const WitnessImportGraphReader = "IMPORT_GRAPH_READER"
 // changed) to the first dirty path that changed it. Module is the first dirty
 // path that may change any package's import graph: a go.mod, go.sum, go.work
 // or go.work.sum, a vendor/modules.txt, or a changed directory that no
-// longer holds an observed package. A nil value is unknown: the selector then
-// counts every dirty Go file of a Go unit as changing its package's import
-// set and every unowned one as changing the module's.
+// longer holds an observed package. Files maps each unit whose file set
+// changed although its import set did not: a test file added, removed or
+// renamed, or edited in its imports, that keeps its package's test import
+// sets (AFP-V0-9010). Only a reader that is not proven to observe the import
+// graph alone (Unit.ImportGraphReadsFiles) is selected through Files. A nil
+// value is unknown: the selector then counts every dirty Go file of a Go unit
+// as changing its package's import set and every unowned one as changing the
+// module's.
 type ImportSetChanges struct {
 	Changed map[string]string
+	Files   map[string]string
 	Module  string
 }
 
@@ -34,9 +41,9 @@ type ImportSetChanges struct {
 func (graph *Graph) WithImportSetChanges(changes *ImportSetChanges) *Graph {
 	copied := *graph
 	if changes != nil {
-		cloned := &ImportSetChanges{Changed: make(map[string]string, len(changes.Changed)), Module: changes.Module}
-		for id, dirty := range changes.Changed {
-			cloned.Changed[id] = dirty
+		cloned := &ImportSetChanges{Changed: maps.Clone(changes.Changed), Files: maps.Clone(changes.Files), Module: changes.Module}
+		if cloned.Changed == nil {
+			cloned.Changed = map[string]string{}
 		}
 		changes = cloned
 	}
@@ -129,9 +136,11 @@ func (graph *Graph) unknownImportSets(normalized []string) *ImportSetChanges {
 // graph listing the change can alter (AFP-V0-2201): a reader of the whole
 // module when any import set changed, and a reader of named units when one
 // of them depends, through import edges, on a unit whose import set changed,
-// or on any unit when the module's import graph changed. The witness chain
-// runs from the changed unit through its importers to the listed unit, then
-// the reader. A body-only edit changes no import set and selects no reader
+// or on any unit when the module's import graph changed. A reader whose
+// listing is not proven (Unit.ImportGraphReadsFiles) is also selected when
+// only a package's file set changed (AFP-V0-9010). The witness chain runs
+// from the changed unit through its importers to the listed unit, then the
+// reader. A body-only edit changes no import set and selects no reader
 // through this edge.
 func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized []string) {
 	var readers []string
@@ -147,15 +156,17 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 	if changes == nil {
 		changes = graph.unknownImportSets(normalized)
 	}
-	if len(changes.Changed) == 0 && changes.Module == "" {
+	if len(changes.Changed) == 0 && len(changes.Files) == 0 && changes.Module == "" {
 		return
 	}
 	closure := graph.importClosure(changes.Changed)
-	var first string
+	var first, firstFile string
 	for _, id := range graph.order {
-		if _, changed := changes.Changed[id]; changed {
+		if _, changed := changes.Changed[id]; changed && first == "" {
 			first = id
-			break
+		}
+		if _, files := changes.Files[id]; files && firstFile == "" {
+			firstFile = id
 		}
 	}
 	for _, id := range readers {
@@ -168,6 +179,11 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 		switch {
 		case changes.Module != "":
 			witness, found = Witness{Kind: WitnessImportGraphReader, DirtyPath: changes.Module, Via: []string{id}}, true
+		case unit.ImportGraphReadsFiles && first == "":
+			if firstFile != "" {
+				parent := Witness{Kind: WitnessImportGraphReader, DirtyPath: changes.Files[firstFile], Via: []string{firstFile}}
+				witness, found = Witness{Kind: WitnessImportGraphReader, DirtyPath: parent.DirtyPath, link: parent.extended(id)}, true
+			}
 		case unit.ImportGraphReadsAll:
 			if first != "" {
 				parent := closure[first]

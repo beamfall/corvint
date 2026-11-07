@@ -39,13 +39,16 @@ var bareDot = regexp.MustCompile(`\.([^A-Za-z_]|$)`)
 
 // goListFile is what one file's `go list` calls show (AFP-V0-2200): the
 // string literals that are only arguments of a proven call, the repository
-// directories those calls list, and whether some call lists packages it does
-// not name by a literal or observes more than the import graph (all).
+// directories those calls list, whether some call lists packages it does not
+// name by a literal or observes more than the import graph (all), and
+// whether some call is not proven (unproven), so it may observe each
+// package's file names as well (AFP-V0-9010).
 type goListFile struct {
-	listed  map[token.Pos]bool
-	targets map[string]bool
-	all     bool
-	reader  bool
+	listed   map[token.Pos]bool
+	targets  map[string]bool
+	all      bool
+	unproven bool
+	reader   bool
 }
 
 // goListCandidate reports a file whose bytes can hold a `go list` call, so
@@ -146,7 +149,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 				// Not provably a `go list` call; a function that holds a
 				// "list" literal still makes the file a whole-module reader.
 				if len(bodies) != 0 && mentionsList(bodies[len(bodies)-1]) {
-					result.reader, result.all = true, true
+					result.reader, result.all, result.unproven = true, true, true
 				}
 				return true
 			}
@@ -165,7 +168,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 			proven = isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
-			result.all = true
+			result.all, result.unproven = true, true
 			return true
 		}
 		result.all = result.all || all
@@ -818,7 +821,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 	for index := range units {
 		owner := owners[directories[index]]
 		reads := map[string]bool{}
-		all, reader, environment := false, false, false
+		all, unproven, reader, environment := false, false, false, false
 		files := append(append([]string(nil), units[index].Sources...), units[index].Tests...)
 		bodies := make(map[string][]byte, len(files))
 		for _, relative := range files {
@@ -842,7 +845,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 				continue
 			}
 			if environment {
-				scan = goListFile{reader: true, all: true}
+				scan = goListFile{reader: true, all: true, unproven: true}
 			}
 			if scans[index] == nil {
 				scans[index] = map[string]goListFile{}
@@ -850,6 +853,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			scans[index][relative] = scan
 			reader = true
 			all = all || scan.all
+			unproven = unproven || scan.unproven
 			for target := range scan.targets {
 				id, observed := byDirectory[target]
 				if !observed {
@@ -863,6 +867,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			continue
 		}
 		units[index].ImportGraphReadsAll = all
+		units[index].ImportGraphReadsFiles = unproven
 		if !all {
 			units[index].ImportGraphReads = sortedKeys(reads)
 		}

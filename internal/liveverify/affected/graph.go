@@ -216,6 +216,8 @@ type digestUnit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
+	// ImportGraphReadsFiles is part of the digest when set (AFP-V0-9010).
+	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitzero"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -853,6 +855,8 @@ func projectUnit(unit Unit) digestUnit {
 		ExecConsumers:        unit.ExecConsumers,
 		ImportGraphReads:     unit.ImportGraphReads,
 		ImportGraphReadsAll:  unit.ImportGraphReadsAll,
+		// AFP-V0-9010.
+		ImportGraphReadsFiles: unit.ImportGraphReadsFiles,
 	}
 }
 

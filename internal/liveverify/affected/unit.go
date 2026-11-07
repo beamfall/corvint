@@ -101,6 +101,10 @@ const MaxPathsPerUnit = 20_000
 // that lists packages it does not name, which reads the whole module's. A
 // plan selects the unit through these edges only when the change alters an
 // import set in that closure (IMPORT_GRAPH_READER, AFP-V0-2201).
+// ImportGraphReadsFiles marks a whole-module reader with a `go list` call
+// that is not proven to observe only the import graph, so it may observe
+// each package's file names too: a test file that keeps its package's test
+// import sets still changes what it reads (AFP-V0-9010).
 // PathImports name repository paths whose owning units the unit runs, as an
 // edge the plugin cannot name by unit identity (AZU-V0-001): a file selects its
 // owner, a directory the owners of the files directly in it, `dir/...` the
@@ -136,6 +140,8 @@ type Unit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitempty"`
+	// ImportGraphReadsFiles needs ImportGraphReadsAll.
+	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitempty"`
 }
 
 // FrontierBears values. The empty value names a unit's Frontier on every plan
@@ -286,7 +292,7 @@ func validUnit(unit Unit, namespace string) error {
 	if err := validIdentifierList(unit.ImportGraphReads); err != nil {
 		return err
 	}
-	if unit.ImportGraphReadsAll && len(unit.ImportGraphReads) != 0 {
+	if unit.ImportGraphReadsAll && len(unit.ImportGraphReads) != 0 || unit.ImportGraphReadsFiles && !unit.ImportGraphReadsAll {
 		return ErrInvalidUnit
 	}
 	if err := validIdentifierList(unit.AdvisoryImports); err != nil {

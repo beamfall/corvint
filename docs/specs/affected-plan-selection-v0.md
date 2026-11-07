@@ -744,14 +744,22 @@ measure. None of them drops a unit the change can reach.
   `//go:build` or `// +build` line, imports no `"C"`, and its name names no GOOS or GOARCH
   (`go/build.Context.MatchFile` accepts it for a platform no name names). A new, edited or
   removed test file that leaves both role sets and the embed lines as they were changes no import
-  set and selects no import-graph reader outside its package. A test file that adds an import
-  path to its role's set, moves one between roles, shrinks a set, adds an embed line, declares
-  another package clause, carries a constraint or a platform name, or imports `"C"` still
-  changes it. So does any test file of a directory without exactly one non-test clause, which
-  keeps its own header line. Unproven readers (AFP-V0-2200) are still modelled as listing the
-  import graph: package identity, constraints, embeds and per-role import edges. A reader whose
-  output depends on test file *names* (`TestGoFiles`, `-json`) is outside that model, as a
-  reader of `Stale` or `Export` already is for a body edit.
+  set and selects no *proven* import-graph reader outside its package. A test file that adds an
+  import path to its role's set, moves one between roles, shrinks a set, adds an embed line,
+  declares another package clause, carries a constraint or a platform name, or imports `"C"`
+  still changes it. So does any test file of a directory without exactly one non-test clause,
+  which keeps its own header line. The fold narrows only readers proven (AFP-V0-2200) to observe
+  the import graph alone. A unit with any `go list` call that is not proven, including a `-json`
+  call, a template naming `TestGoFiles` or another field outside the AFP-V0-2200 list, and a
+  unit that names `GOFLAGS` or `GOENV`, SHALL be marked `Unit.ImportGraphReadsFiles` (set only
+  with `ImportGraphReadsAll`, part of the graph digest and the graph cache entry when set). The
+  comparison SHALL also compare each directory's unfolded header, one line per `.go` file; a
+  directory whose folded header is kept but whose unfolded header differs (a kept-set test file
+  added, removed or renamed, or edited in its imports) records its unit in
+  `ImportSetChanges.Files`, and every `ImportGraphReadsFiles` reader is selected through it with
+  the witness chain changed unit, reader. A body edit of an existing test file changes neither
+  header and selects no reader. A files-only change in a directory that holds no graph unit
+  changes the module's import graph, as before.
 
 - **AFP-V0-9011:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-5030) Library planning from a known base SHALL compare import sets as `corvint affected
@@ -904,14 +912,15 @@ dependency.
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
 | AFP-V0-9009 | `inboundRuntimeSiteFile`, `ownedTest` and their calls in `inboundRuntimeSite` (`internal/liveverify/affected/inbound_runtime.go`) | `TestLinelessInboundRuntimeSite_AFP_V0_9009` (declared directory edge selects the caller and closes the entry; the undeclared fault injection keeps it unknown) `TestInboundRuntimeSiteFile_AFP_V0_9009` and `TestInboundRuntimeSiteAmbiguity_AFP_V0_9009` in `internal/liveverify/affected/inbound_runtime_test.go`; `TestDeclaredInboundRuntime_AZU_V0_8902`; the before/after repro in build-log entry `2026-11-07-selmin` |
-| AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` in `internal/liveverify/affected/golang/importsets.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change nothing and select no reader; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestImportSetRecordsCompareHeaders_AFPV02202` |
+| AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and the `Files` branch of `ImportSetRecords` in `internal/liveverify/affected/golang/importsets.go`; `goListFile.unproven` and `ImportGraphReadsFiles` in `goListUnits` (`golang/importgraph.go`); `ImportSetChanges.Files` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`; `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file still selects the unproven `-json` reader wide; a test body edit selects none; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Files` loses it; an added import selects both); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
 | AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
 
 ## Rollback
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
-line, so every test-file header change counts again. For AFP-V0-9011, call `affected.Select`
+line, so every test-file header change counts again; `ImportSetChanges.Files` and
+`Unit.ImportGraphReadsFiles` then stay empty and may be deleted with it. For AFP-V0-9011, call `affected.Select`
 directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-2720 to
 AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete
 `github-guard.sh`: every `.github/` change is FULL again. For AFP-V0-2723 to AFP-V0-2725, delete
