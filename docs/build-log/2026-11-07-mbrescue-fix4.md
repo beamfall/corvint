@@ -21,11 +21,13 @@ unwind (`DWC-V0-746`) dropped only the seal and left the bind commit on the bran
   precheck (`TEST_SEALED_RC=1`), and expects HEAD back at the original start. Before the fix,
   `make dogfood-cache-test` failed with `unwind: dropped 1 bind and seal commit(s) …; HEAD is
   <bind commit> again`.
-- Fix: only a fresh run (`CLOSEOUT_FROM=1`) records the start. It empties the record before step 1
-  and writes HEAD there before step 5, after its own repin commit. A resumed run keeps a non-empty
-  record and says so (`resume keeps the start head SHA the first run recorded (ASD-V0-3730)`). It
-  writes HEAD only where the record is missing or empty, which is the case when the fresh run
-  stopped before step 5.
+- Fix: only a fresh run (`CLOSEOUT_FROM=1`) records the start. It empties the record after step 1
+  and writes HEAD there before step 5, after its own repin commit. The emptying line sits after
+  step 1, not before it, because `script/batch-precheck_test.sh` case 1d (`ASD-V0-2010`) requires
+  the cheap static checks to stay the recipe's first line. The first placement failed that case.
+  A resumed run keeps a non-empty record and says so (`resume keeps the start head SHA the first
+  run recorded (ASD-V0-3730)`). It writes HEAD only where the record is missing or empty, which is
+  the case when the fresh run stopped before step 5.
 - Emptying the record, rather than deleting it, keeps the recipe free of file removal. The record
   line already treats an empty record as missing, and the unwind reads an empty start as
   `NOT_RUN no recorded start head`.
