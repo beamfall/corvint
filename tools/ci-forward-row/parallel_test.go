@@ -195,10 +195,11 @@ func TestAFPV0540PullRequestParallelismBinding(t *testing.T) {
 	const env = "          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}\n"
 	// AFP-V0-2181: the narrowing gate step sets the same value as the tests step, so ci-shards
 	// places the pinned narrowed set by the -p the shard then runs it at.
-	// AFP-V0-2724: the shard-plan job sizes a pull request's placement at the same -p, as a
-	// literal "4", since it runs for pull requests only; no other step sets the variable.
-	if strings.Count(ci, env) != 2 || strings.Count(ci, "SHARD_TEST_P:") != 3 || strings.Count(ci, "          SHARD_TEST_P: \"4\"\n") != 1 {
-		t.Fatalf("ci.yml must set SHARD_TEST_P in the narrowing gate and tests steps, both as %q, and in the shard-plan step as \"4\"", env)
+	// AFP-V0-2724, AFP-V0-3260: the shard-plan job sizes the placement at the same -p, by the
+	// same expression, since it runs for pull requests and merge-queue entries; no other step sets
+	// the variable.
+	if strings.Count(ci, env) != 3 || strings.Count(ci, "SHARD_TEST_P:") != 3 {
+		t.Fatalf("ci.yml must set SHARD_TEST_P in the narrowing gate, tests and shard-plan steps, each as %q", env)
 	}
 	if n := len(regexp.MustCompile(`go test -exec "\$RUNNER_TEMP/test-confine" -json -p "\$SHARD_TEST_P" -count=1 -race -timeout 50m `).FindAllString(ci, -1)); n != 3 {
 		t.Fatalf("ci.yml has %d go test invocations with -p \"$SHARD_TEST_P\", want the whole, slice and rerun ones", n)

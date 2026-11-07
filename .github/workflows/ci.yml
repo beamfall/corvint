@@ -567,13 +567,15 @@ jobs:
     # It decides nothing about which packages run: every shard still runs its own AFP-V0-098 gate
     # and, on FULL, its complete-universe partition over the sized matrix (AFP-V0-022), and
     # go-product's AFP-V0-591 guard checks the sized count. It runs only for a same-repository pull
-    # request with narrowing on and a MET verdict; any other event, a skip and any failure keep the
-    # full sixteen-shard matrix, so a merge-queue entry and a main push are unchanged. It needs no
+    # request with narrowing on and a MET verdict, or (AFP-V0-3260, V1-4353) a merge-queue entry on
+    # main with CORVINT_MQ_NARROWING on and a MET verdict, where it runs the queue-range gate
+    # (mq-narrow.sh) from the commit of main the shards take it from; any other event, a skip and
+    # any failure keep the full sixteen-shard matrix, so a main push is unchanged. It needs no
     # docs-plan output, so it runs beside docs-plan, not after it: on a DOCS or REUSE decision no
     # reader uses its outputs (go-product-shard does not start, go-product requires no coverage
     # marker and ci-narrowed-tree-record does not run), so its count is unused there.
     needs: [narrowing-verdict]
-    if: github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && needs.narrowing-verdict.outputs.verdict == 'MET'
+    if: needs.narrowing-verdict.outputs.verdict == 'MET' && ((github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main'))
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     permissions:
@@ -601,17 +603,25 @@ jobs:
           cache: false
           go-version: "1.27.3"
       - name: Resolve the trusted tool commit from main (CIN-V0-011)
-        # The go-product-shard resolution for a pull request: the tested merge's first parent when
-        # it is on main and descends from the pin, else the pin itself.
+        # The go-product-shard resolution, the same body: for a pull request the tested merge's
+        # first parent when it is on main and descends from the pin, for a merge-queue entry its
+        # queue base or the newest commit of main that base descends from, else the pin itself.
         id: pin-main
         continue-on-error: true
         if: env.CORVINT_PR_TOOL_SOURCE != ''
         working-directory: source
         env:
           TESTED_MERGE: ${{ github.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
         run: |
-          main=$(git rev-parse --verify -q "$TESTED_MERGE^1") || main=
-          [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            main=$QUEUE_BASE
+            git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null ||
+              main=$(git merge-base "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null) || main=
+          else
+            main=$(git rev-parse --verify -q "$TESTED_MERGE^1") || main=
+            [ -n "$main" ] && git merge-base --is-ancestor "$main" refs/remotes/origin/main 2> /dev/null || main=
+          fi
           for pair in "tool $CORVINT_PR_TOOL_SOURCE" "shadow $CORVINT_TEST_SHADOW_SOURCE"; do
             set -- $pair
             use=${2:-}
@@ -682,9 +692,11 @@ jobs:
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
       - name: Size the shard matrix from the trusted narrowing decision (AFP-V0-2724)
-        # The pull-request branch of the shards' narrowing gate, run once: pin-lag.sh from main,
-        # then the trusted shard-plan.sh with the inputs every shard's gate gets. A missing script
-        # (a pin that predates it) fails this step and keeps sixteen.
+        # The shards' narrowing gate, run once: pin-lag.sh from main, then the trusted shard-plan.sh
+        # with the inputs every shard's gate gets. A missing script (a pin that predates it) fails
+        # this step and keeps sixteen. AFP-V0-3260: a merge-queue entry takes pin-lag.sh and
+        # shard-plan.sh from the commit of main its shards take mq-narrow.sh from (AFP-V0-731,
+        # AFP-V0-934); a copy there that predates the queue gate also keeps sixteen.
         id: plan
         continue-on-error: true
         if: env.CORVINT_PR_TOOL_SOURCE != '' && env.CORVINT_TEST_SHADOW_SOURCE != ''
@@ -702,13 +714,32 @@ jobs:
           CORVINT_PR_TOOL_SOURCE: ${{ steps.pin-main.outputs.tool || env.CORVINT_PR_TOOL_SOURCE }}
           CORVINT_TEST_SHADOW_SOURCE: ${{ steps.pin-main.outputs.shadow || env.CORVINT_TEST_SHADOW_SOURCE }}
           VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
-          # AFP-V0-2181: the pull-request shards' go test -p, so the sizing prices their placement.
-          SHARD_TEST_P: "4"
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          QUEUE_BASE_REF: ${{ github.event.merge_group.base_ref }}
+          QUEUE_HEAD: ${{ github.event.merge_group.head_sha }}
+          QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          # AFP-V0-2181: the shards' go test -p, so the sizing prices their placement.
+          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}
           # AFP-V0-2723: the full matrix, the floor and the predicted wall budget of a sized shard.
           FULL_SHARDS: "16"
           MIN_SHARDS: "2"
           WALL_BUDGET_MS: "400000"
         run: |
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            scripts=$QUEUE_BASE
+            if ! git merge-base --is-ancestor "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null; then
+              scripts=$(git merge-base "$QUEUE_BASE" refs/remotes/origin/main)
+            fi
+            trusted="$RUNNER_TEMP/mq-trusted"
+            mkdir -p "$trusted"
+            git archive "$scripts" .github/forward-rows | tar -x -C "$trusted"
+            grep -q 'mq-narrow.sh' "$trusted/.github/forward-rows/shard-plan.sh"
+            sh "$trusted/.github/forward-rows/pin-lag.sh" "$scripts" "$CORVINT_PR_TOOL_SOURCE" "$CORVINT_TEST_SHADOW_SOURCE"
+            PR_BIN="$RUNNER_TEMP/corvint-pr-bin" SHADOW="$RUNNER_TEMP/corvint-shadow-bin/corvint" \
+              CI_SHARDS="$RUNNER_TEMP/ci-shards" CONFINE="$RUNNER_TEMP/test-confine" \
+              sh "$trusted/.github/forward-rows/shard-plan.sh"
+            exit 0
+          fi
           main=$(git rev-parse --verify "$TESTED_MERGE^1")
           mkdir -p "$RUNNER_TEMP/pin-lag"
           git archive "$main" .github/forward-rows/pin-lag.sh | tar -x -C "$RUNNER_TEMP/pin-lag"

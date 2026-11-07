@@ -40,6 +40,9 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 # is $n or when a record with that count says NARROWED; otherwise $m is $n and the documents fail
 # the shard-count shape below, as before. A pull-request row's outcomes come from the same run,
 # so they take $m too; a queue row's outcomes are the full queue run's, $n.
+# AFP-V0-3260 (V1-4353): a merge-queue run sizes its matrix too, and its shards that fall back to
+# FULL run the complete universe over that count, so a queue row's outcomes take the one count $q
+# every readable outcomes document names, when it is within 1..$n; they must still cover 0..$q-1.
 | ([$narA[], $selA[] | select(.unreadable | not) | .doc | select(type == "object") | .shards
     | select(type == "number" and . >= 1 and . <= 64)] | unique) as $counts
 | (if $n == null or ($counts | length) != 1 then $n
@@ -47,7 +50,9 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
    elif any($narA[] | select(.unreadable | not) | .doc | select(type == "object");
             .profile == "corvint-pr-narrowing/0" and .mode == "NARROWED" and .shards == $counts[0]) then $counts[0]
    else $n end) as $m
-| (if $kind == "pr" then $m else $n end) as $no
+| ([$outA[] | select(.unreadable | not) | .doc | select(type == "object") | .shards
+    | select(type == "number" and . >= 1 and $n != null and . <= $n)] | unique) as $qcounts
+| (if $kind == "pr" then $m elif ($qcounts | length) == 1 then $qcounts[0] else $n end) as $no
 | [$narA[] | select(.unreadable | not) | .doc
    | select(type == "object" and .profile == "corvint-pr-narrowing/0" and .shards == $m
             and (.mode == "NARROWED" or .mode == "FULL")
