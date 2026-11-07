@@ -254,7 +254,7 @@ carries an outcome (`internal/gokernel/harness.go:398-401`). Every receipt binds
 
 1. **Read a committed CEM/OCM pair from a declared repository path.** The convention exists
    (`.corvint/change.cem.json`, `.corvint/change.ocm.json` — `cmd/corvint/ocm.go:253@3282f85d`,
-   `cmd/corvint/help.go:1827@e432ec24`, workflow at `README.md:155-159@8cb20b99`). Cost: this supplies two of four inputs.
+   `cmd/corvint/help.go:1829@e432ec24`, workflow at `README.md:155-159@8cb20b99`). Cost: this supplies two of four inputs.
    Taking base and target *from the artifact* is what `CF-V0-001` calls inferred revision authority and
    fails `unsupported-frontier-context` (`change-frontier-v0.md:82-87`), so this option is incomplete
    on its own and must be paired with option 2 for the revisions.
@@ -325,7 +325,7 @@ Two sub-questions are already closed: a separate local process is not a root (`H
    service; a verifier that checks bytes handed to it makes no network call, so the clause is arguably
    satisfied unamended. CI already appears in Corvint's vocabulary as an independent reference, though in
    a different role — an oracle to shadow against, not an authority
-   (`docs/specs/live-proof-carrying-verification-v0.md:1058-1064@d51660e9`, `:1100@50bde519`). Build cost is real and large: an
+   (`docs/specs/live-proof-carrying-verification-v0.md:1059-1065@d51660e9`, `:1101@50bde519`). Build cost is real and large: an
    attestation wire and canonical encoding (explicitly deferred at
    `harness-authority-relation-v0.md:212-213`), key distribution, rotation, and revocation.
 4. **Tier it:** closure exists where a repository already has an accepted root; local-only deployments

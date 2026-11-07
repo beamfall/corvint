@@ -87,7 +87,8 @@ func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 	_, calls, out := rerun(true)
 	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") ||
 		!strings.Contains(out, "dogfood-inputs-check: NOTE stranded trace "+bound+": the worktree-local trace store names a commit HEAD does not reach") ||
-		!strings.Contains(out, "dogfood finish-lane quarantines it byte-preserved with migrate-traces --apply --plan-digest ") {
+		!strings.Contains(out, "dogfood finish-lane and dogfood change quarantine it byte-preserved with migrate-traces --apply --plan-digest ") ||
+		!strings.Contains(out, "fix: to retire it now, as after a reset dropped an unpushed bind or seal commit, run make dogfood-retire-traces, then rerun (DCW-V0-2142)") {
 		t.Fatalf("step calls=%d stderr=%q, want a note and the pre-flight steps run", calls, out)
 	}
 	if _, err := os.Lstat(filepath.Join(traces, bound+".jsonl")); err != nil {

@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: LVT-V0-009 scratch is removed on normal exit and signals
+ok 1 - LVT-V0-009 scratch is removed on normal exit and signals
+  ---
+  duration_ms: 621.484074
+  type: 'test'
+  ...
+# Subtest: LVT-V0-009 sweep recovers killed scratch and preserves ambiguous or live owners
+not ok 2 - LVT-V0-009 sweep recovers killed scratch and preserves ambiguous or live owners
+  ---
+  duration_ms: 195.26904
+  type: 'test'
+  location: '/home/russell/lanes/lanetools/integrations/pi/host-scratch.test.mjs:31:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+      [
+    +   '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-ADvlBW',
+    +   '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-bp3Jaf',
+        '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-t1XSPr'
+      ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-t1XSPr'
+  actual:
+    0: '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-ADvlBW'
+    1: '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-bp3Jaf'
+    2: '/tmp/pi-sweep-test-KlsX07/corvint-pi-host-t1XSPr'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/russell/lanes/lanetools/integrations/pi/host-scratch.test.mjs:54:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1038.276191

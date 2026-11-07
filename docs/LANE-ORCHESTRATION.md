@@ -750,6 +750,14 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   inspection keeps everything; argv, open files and working directories are checked again
   before removal. A process starting after that final check remains a race, so run the sweep
   while lanes are idle. This is an operator action, never an automatic precheck cleanup.
+- Native Pi host tests own `corvint-pi-host-*` scratch with a private owner marker
+  (`LVT-V0-009`). Exit and INT/TERM/HUP remove it. The next host-test startup recovers only
+  marked, private, same-user directories older than 24 hours with a demonstrably absent owner.
+  On Linux, the recorded PID namespace must match; missing or mismatched identities survive.
+  An explicit bounded recovery is `node --input-type=module -e 'import {sweepHostScratch} from
+  "./integrations/pi/host-scratch.mjs"; console.log(sweepHostScratch())'` from the checkout.
+  Live or ambiguous owners, symlinks and unmarked legacy directories stay for operator inspection;
+  SIGKILL recovery never guesses ownership from a directory prefix alone.
 - Focus the shell suite with `LANE_SCRIPTS_GROUPS='admission portability sweep' bash
   script/lane-scripts_test.sh` (`ASD-V0-2192`). Available names are `core` (1–7), `offload`
   (8–19), `workflow` (20–26), `policy` (27–28), `admission` (29–33), `guard` (34–35), `install`
@@ -1129,6 +1137,16 @@ One lane runs this flow, in order; each step names the command and the section t
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.
+   `make requirement-ids-next PREFIX=AFP-V0 SIZE=20` lists the lowest currently free block.
+   `make requirement-ids-free PREFIX=AFP-V0 RANGE=2480..2519` checks four-digit blocks,
+   origin/main and unmerged local/remote branches and worktrees. Before assigning a free block,
+   use `make requirement-ids-reserve PREFIX=AFP-V0 RANGE=2480..2519 OWNER=<lane>`; release it
+   with `make requirement-ids-release OWNER=<lane>` after integration (`LVT-V0-001..004`).
+   The shared host-local ledger defaults to the Git common directory's
+   `corvint/requirement-id-reservations.tsv`; `REQUIREMENT_ID_RESERVATIONS=/absolute/path`
+   explicitly relocates it when that directory is read-only. Reads do not create it, and
+   malformed evidence or lock contention refuses. `make spec-claims-check` checks worktree
+   digest Claims before staging a spec, including new files (`LVT-V0-010`).
 3. Focused tests through `script/heavy.sh`, one package per command, `set -o pipefail` when piped
    (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
    a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
@@ -1184,7 +1202,28 @@ One lane runs this flow, in order; each step names the command and the section t
    BASE=..`. The bind commit changes only `.corvint/`, so a current review passes, and
    `dogfood-seal: REFUSE review-not-current` stops a seal over a head the review did not read
    before its check runs (ASD-V0-1024).
-6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
+   The post-bind rerun of `make dogfood-change` and `make dogfood-check` runs from a clean worktree:
+   one with no change after the bind commit (`git -c core.excludesFile= status --porcelain
+   --untracked-files=all` lists nothing; repository-ignored paths do not count, a global
+   `core.excludesFile` does not apply). The lane's own worktree qualifies as it stands; no fresh checkout is needed, and
+   `dogfood-check` refuses a dirty one naming the path count (DCW-V0-2144). The first
+   `make dogfood-change` with every input ends `PENDING commit-sidecar` and exits 0: commit
+   `.corvint/change.cem.json`, then rerun (DCW-V0-2143).
+6. Report using `script/lane-handback.sh template [PREVIOUS] > handback.md`, then fill it and
+   run `script/lane-handback.sh lint handback.md [PREVIOUS]` (`DWC-V0-047`). Required fields:
+   base, fix head, bind head, sealed head, delivered tickets, superseded tickets and GitHub issues
+   closed. Heads are full SHAs; a delegated or unfinished bind/seal is `NOT_PRODUCED` plus its
+   reason. Delivered and superseded lists are space-separated ticket IDs (or `none`). Review
+   rounds start from the previous handback and retain the cumulative ticket lists; lint refuses
+   dropped tickets and missing fields. Include per-ticket requirement IDs, tests/results and the
+   numbered Friction list with repros (section 11).
+
+   An orchestrator may attach its external review directly with `DOGFOOD_REVIEW=/path/report.txt`
+   (`DWC-V0-046`). The report contains `dogfood-review: reviewed-head=FULL_SHA verdict=PASS`
+   naming the exact pre-seal HEAD. A different head or nonpassing verdict refuses before check;
+   no report keeps `review-before-seal NOT_OBSERVED`. The seal output and commit message retain
+   the reviewed head, report path, SHA-256 and verdict. This records supplied evidence without
+   authenticating reviewer independence. See the input table in `docs/DOGFOOD.md`.
 
 Common refusals and their recovery:
 
@@ -1194,6 +1233,10 @@ Common refusals and their recovery:
 | `heavy.sh: REFUSED whole-reason-missing` | use a selective `-run '<selected>'` from `corvint test --base SHA --dry-run`, or set `HEAVY_WHOLE_REASON` with the evidence (Corvint selected the package whole, or UNKNOWN/FALLBACK); `-short` does not clear it |
 | `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
 | `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
+| `NOTE stranded trace` (after a reset dropped an unpushed bind or seal commit) | `make dogfood-retire-traces`, then rerun (DCW-V0-2142) |
+| `dogfood-change: PENDING commit-sidecar` | commit `.corvint/change.cem.json`, then rerun `make dogfood-change` (DCW-V0-2143) |
+| `self-binary-stale` | set `CORVINT_BIN` to a build of this tree, or unset it if set; for the static pre-check, `DOGFOOD_STATIC_PRECHECK=0` (DCW-V0-2140) |
+| `tier-below-anchored` (WARN) | keep the drafted anchoring row beside each requirement row; `corvint dogfood propose-citations BASE --refresh PLAN` restores dropped ones (DCW-V0-2141) |
 | `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
 | `dogfood-seal: REFUSE review-not-current` | review HEAD^ (the bind-ready head) through `script/codex-review.sh`, save the output, rerun with `DOGFOOD_REVIEW` set to it |
 | `review-head-check: REFUSE unpinned-review` | run the review through `script/codex-review.sh`, or pass `--reviewed-head REV` with the commit the reviewer read |
@@ -1419,6 +1462,11 @@ section 4 step 2 applies to the per-lane rebind, where no such change follows.
 
 1. Bind, check and seal each lane against its own base, in parallel, each in its own worktree
    (`DCW-V0-044`). Do not merge the batch tip into a lane.
+   Before merging, run `make spec-batch-capacity-check BASE=origin/main
+   LANES='claude/lane-a claude/lane-b'` with every intended lane ref. This reports base counts and
+   distinct lane additions per spec and refuses a combined count above 256 before any merge
+   (SRG-V0-745). Move overflow to a companion spec; rerun with the revised refs. Deletions are
+   conservatively not subtracted, and this check does not predict textual conflicts.
 2. On the batch branch, at its base, run `make batch-assemble BRANCHES='claude/lane-a claude/lane-b'`
    in merge order. Each merge uses `dogfood batch-check`'s own attribute-free derivation, so the
    repository's merge drivers (`merge=union`, `merge=use-case-pins`) do not run: a clean merge is
