@@ -2089,11 +2089,13 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
-      - name: Live-tier discovery self-tests in the checkout (AFP-V0-2701, AFP-V0-2702)
-        # ./... skips .github, and the isolated helper module above omits live.go: these tests read
-        # the checkout's Git index and workflow files, so they run here, in the repository itself.
+      - name: Live-tier discovery and helper copy self-tests in the checkout (AFP-V0-2701, AFP-V0-2702, AFP-V0-2726)
+        # ./... skips .github, and the isolated helper module above omits live.go and
+        # isolated_copies_test.go: these tests read the checkout's Git index and workflow files, so
+        # they run here, in the repository itself. AFP-V0-2726 replays every isolated helper build
+        # of every workflow and fails when one omits a file its packages or embeds need.
         working-directory: source
-        run: go test -count=1 -timeout 30m -run '_AFPV0270[12]$' ./.github/cishards/
+        run: go test -count=1 -timeout 30m -run '_AFPV0270[12]$|_AFPV02726$' ./.github/cishards/
       - name: Restore checksum-bound local-authority modules (CIN-V0-7503)
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
