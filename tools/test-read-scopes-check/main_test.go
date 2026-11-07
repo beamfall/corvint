@@ -405,6 +405,8 @@ func TestStatOfDataDerivedPathFails_V1_3772(t *testing.T) {
 			"idx/idx.go":                     "package idx\n",
 			"idx/idx_test.go":                test,
 			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"idx":["specs/"]}}`,
+			// AFP-V0-3011 (2): an existence check of paths read from data keeps the tree.
+			treesPath: `{"profile":"corvint-test-read-scope-trees/0","trees":{"idx":{"specs/":"idx/idx_test.go stats paths read from specs/INDEX.json"}}}`,
 		}
 		if c.existence != "" {
 			files[".corvint/existence-readers.json"] = c.existence
