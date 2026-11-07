@@ -404,7 +404,15 @@ func launchContainer(ctx context.Context, o options) (code int, result error) {
 		return 2, err
 	}
 	if o.containerMode == "run" {
-		return containerRunResult(o, p, dest, exportErrors, runErr)
+		return containerRunResult(o, p, dest, exportErrors, runErr, func() ([]string, error) {
+			// The target commit's own tree, read by the image's Git; no receipt
+			// field supplies the hidden packages a FULL run must include.
+			listed, err := dockerCapture(ctx, o.dockerContext, "exec", id, "/usr/bin/git", "-C", containerCheckout, "-c", "core.hooksPath=/dev/null", "ls-tree", "-r", "-z", "--name-only", o.target)
+			if err != nil {
+				return nil, err
+			}
+			return hiddenPackageDirs(strings.Split(strings.TrimSuffix(string(listed), "\x00"), "\x00")), nil
+		})
 	}
 	if runErr != nil {
 		return 2, runErr

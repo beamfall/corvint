@@ -799,7 +799,9 @@
     ],
     "tools/ci-forward-row": [
       ".github/",
-      "Makefile"
+      "Makefile",
+      "go.mod",
+      "tools/corvint-pr-tests/"
     ],
     "tools/compat-trial": [
       "go.mod",

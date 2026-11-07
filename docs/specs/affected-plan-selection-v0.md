@@ -71,6 +71,59 @@ measure. None of them drops a unit the change can reach.
 
 ## Requirements
 
+### Unindexed paths and frozen digest consumers (selwide)
+
+- **AFP-V0-9012:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5018)
+  Reuse AZU-V0-005 and AZU-V0-9920's bounded Go discovery for dot-directory packages,
+  including `.github/cishards` and `.github/testconfine`, in disk and immutable source
+  universes. Their source changes select the package and its importers rather than becoming
+  unindexed source. Declared retained output remains outside the package universe, and Git
+  metadata is never descended. A new claimed source kind with no indexed unit MUST retain
+  `UNINDEXED_SOURCE_PATH` and force the session's FULL fallback. Preserve the frozen
+  read-scope profile's conservative rejection of hidden-directory declarations.
+  Graph construction and `HiddenSourcePaths` share one Go source walk. Embed resolution
+  validates filename representability only for actual pattern targets.
+  FULL execution keeps Go's own `./...` as the authority for every package it discovers
+  (including symlinked sources, build constraints and packages present when Go lists them)
+  and appends only the package directories `./...` skips: directories below a `.` or `_`
+  element holding a Go file, outside `testdata`, `vendor` and nested modules, found by a
+  narrow walk of the source root. A walk error refuses. Unsharded FULL checks the clean
+  source snapshot after the walk, so a hidden package added after it is refused, never
+  skipped. Sharded placement, reruns and historical shadow observations use `go list -race`
+  (the execution build context, so race-only packages count) of the same argv as their
+  expected universe. A container FULL receipt's argv MUST equal
+  `./...` plus the hidden packages of the target commit's own Git tree, never a list the
+  receipt supplies. CI placement keeps `go list ./...`, the universe the narrowing record
+  places with, so every shard partitions identically; shard 0 always runs the packages of
+  `corvint-pr-tests --mode packages --root .` (hidden and race-only) that `./...` lacks, whole,
+  outside placement and narrowing,
+  and a discovery failure fails the shard. No wire member changes.
+- **AFP-V0-9013:** (accepted under the owner's standing auto-accept (2026-10-11); V1-4941)
+  Preserve AFP-V0-2440's fixture-only classification through session selection: an unindexed
+  file below Go-hosted `testdata` selects its enclosing and literal readers, retains their
+  uncertainty where necessary, and alone MUST NOT force FULL. A genuinely compiled source
+  that the claimant failed to index MUST still force FULL, including a claimant that indexes
+  another unit beneath the fixture directory. This does not expand the unknown allowlist or
+  erase any reader or frontier. The confined-read-data shortcut MUST NOT suppress a compiled
+  source claim or an unobserved-language frontier.
+- **AFP-V0-9014:** (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  Changes to affected graph construction or the compact exclusion digest MUST select
+  `cmd/corvint` with `TestCoreVerbsEmitTheFrozenProfiles` retained by any function slice, or
+  report uncertainty. Reproduce the alleged omission before changing selection. If the
+  existing dependency closure already retains the test, keep that behavior and add a
+  regression for graph inputs and an exclusion-digest implementation edit. Frozen outputs
+  and their digest algorithms remain unchanged.
+
+Acceptance: `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`,
+`TestHiddenPackageDirs_AFPV09012`, `TestFullExecutionHiddenAndSymlinked_AFPV09012` (failing
+tests in a hidden package, a symlink-only package and a hidden symlink-only package all run
+under FULL), `TestFullSourceDriftHidden_AFPV09012` (a hidden package added after the walk is
+refused), `TestFullShardedRaceOnly_AFPV09012` (a race-only package runs under sharded FULL), `TestUnindexedFixtureSession_AFPV09013` and `TestCoreFreezeDigestSelection_AFPV09014`;
+the build-log entries record the reproduction, package checks and limits. Rollback: remove the reused hidden-directory discovery and
+its new regression witnesses, restoring conservative unindexed-source fallback; retain the
+existing fixture classification and frozen output contracts. Non-goals: a new source-kind
+protocol, changing digest bytes, and broadening the session unknown allowlist.
+
 ### Located runner locality (V1-4679)
 
 - **AFP-V0-2600:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Amending AFP-V0-511 (4): for a plugin that owns no dirty source, has no reached
@@ -1972,6 +2025,9 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-9012 | bounded hidden-directory discovery reused from `claude/selbatch` in `golang/golang.go`; FULL argv, universe and receipt check in `tools/corvint-pr-tests/universe.go`, `main.go`, `run_result.go`; shard-0 hidden run in `.github/workflows/ci.yml` | `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`, `TestHiddenUnrepresentableNames_AZU_V0_005`, `TestHiddenPackageDirs_AFPV09012`, `TestFullExecutionHiddenAndSymlinked_AFPV09012`, `TestFullSourceDriftHidden_AFPV09012`, `TestFullShardedRaceOnly_AFPV09012`, `TestShardedSourceDrift_AFPV0022`, `TestContainerRunResult`, `TestAFPV0098SupersetGuardSidecar` (subtest "AFP-V0-9012 shard 0 runs hidden packages outside placement", with a race-only package) |
+| AFP-V0-9013 | `seed` guards `goReadData` with `unownedUnknown`; existing `fixtureOnlyClaim`, Go selector and session unknown allowlist | `TestUnindexedFixtureSession_AFPV09013` |
+| AFP-V0-9014 | existing dependency closure and `testSourceSlice` | `TestCoreFreezeDigestSelection_AFPV09014` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
 | AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |

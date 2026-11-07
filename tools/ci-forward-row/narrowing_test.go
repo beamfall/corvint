@@ -1108,6 +1108,90 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 			t.Fatalf("mode %s, record %v, sidecar %q", mode, v, sidecar)
 		}
 	})
+	t.Run("AFP-V0-9012 shard 0 runs hidden packages outside placement", func(t *testing.T) {
+		// raceOnly has only `//go:build race` files: go list ./... omits it,
+		// the -race execution build context lists it.
+		const hidden, raceOnly = "example.org/m/nested/.helpers", "example.org/m/raceonly"
+		mode, out := narrow(t, false, nil)
+		v := readDoc(t, filepath.Join(out, "narrowing.json"))
+		if mode != "NARROWED" {
+			t.Fatalf("baseline not narrowed: %s %v", mode, v)
+		}
+		// Run the actual workflow placement and execution filter. Placement keeps
+		// Go's ./... (the narrowing record's universe); discovery adds the hidden
+		// and race-only packages on shard 0 in every mode, and on no other shard.
+		dir := filepath.Dir(out)
+		bin := filepath.Join(dir, "bin")
+		body, err := os.ReadFile(buildPackageDiscovery(t))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(dir, "ci-package-discovery"), body)
+		if err := os.Chmod(filepath.Join(dir, "ci-package-discovery"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(dir, "go.mod"), []byte("module example.org/m\n\ngo 1.27.3\n"))
+		writeFile(t, filepath.Join(dir, "nested/.helpers/helper_test.go"), []byte("package helpers\n"))
+		writeFile(t, filepath.Join(bin, "go"), []byte("#!/bin/sh\ncase \"$*\" in\n'list ./...') printf '%s\\n' "+a+" "+b+" "+c+" "+d+" ;;\n'list -race ./... ./nested/.helpers') printf '%s\\n' "+a+" "+b+" "+c+" "+d+" "+raceOnly+" "+hidden+" ;;\n*) exit 1 ;;\nesac\n"))
+		writeFile(t, filepath.Join(dir, "ci-shards"), []byte("#!/bin/sh\n! grep -Fx -e '"+hidden+"' -e '"+raceOnly+"' > /dev/null || exit 1\ncase \"$*\" in *--select*--slices*) echo '-run ^(TestX)$ "+c+"' ;; *--select*) printf '%s\\n' "+b+" ;; *--slices*) echo '-run ^(TestX)$ "+c+"' ;; *) printf '%s\\n' "+a+" "+b+" "+d+" ;; esac\n"))
+		if err := os.Chmod(filepath.Join(dir, "ci-shards"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		workflow, err := os.ReadFile("../../.github/workflows/ci.yml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := regexp.MustCompile(`(?ms)^ {10}go list \./\.\.\. > "\$RUNNER_TEMP/ci-package-universe"$.*?^ {10}if \[ -z "\$packages" \] && \[ -z "\$slices" \]; then$`).FindString(string(workflow))
+		if m == "" || !strings.Contains(m, "ci-package-discovery\" --mode packages") {
+			t.Fatal("workflow placement/filter or hidden discovery not found")
+		}
+		m = m[:strings.LastIndex(m, "          if [ -z")]
+		filter := regexp.MustCompile(`(?m)^ {10}`).ReplaceAllString(m, "")
+		for _, scenario := range []string{"narrowed", "disagreement", "FULL", "other shard"} {
+			t.Run(scenario, func(t *testing.T) {
+				narrowMode, shard := "NARROWED", "0"
+				if scenario == "disagreement" {
+					v["executed"] = []string{c}
+					writeDoc(t, filepath.Join(out, "narrowing.json"), v)
+					writeFile(t, filepath.Join(out, "executed"), []byte(c+"\n"))
+				}
+				if scenario == "FULL" {
+					narrowMode = "FULL"
+				}
+				if scenario == "other shard" {
+					shard = "3"
+				}
+				// GitHub's default step shell is bash -e without pipefail; run the filter the same way.
+				cmd := exec.Command("bash", "-e", "-c", filter+"\nprintf 'narrowed=%s\\n%s\\n' \"$narrowed\" \"$packages\" > \"$RUNNER_TEMP/execution-filter\"\n")
+				cmd.Dir = dir
+				cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"RUNNER_TEMP="+dir, "GITHUB_WORKSPACE="+dir, "GITHUB_EVENT_NAME=pull_request",
+					"NARROW_MODE="+narrowMode, "NARROW_RECORDED=success", "SHARD="+shard, "SHARDS=8")
+				if data, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("execution filter: %v\n%s", err, data)
+				}
+				data, err := os.ReadFile(filepath.Join(dir, "execution-filter"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(string(data), "\n"+hidden+"\n") != (shard == "0") || strings.Contains(string(data), "\n"+raceOnly+"\n") != (shard == "0") || strings.HasPrefix(string(data), "narrowed=1\n") != (scenario == "narrowed") {
+					t.Fatalf("%s lost hidden execution or fallback: %s", scenario, data)
+				}
+			})
+		}
+		t.Run("discovery failure fails shard 0", func(t *testing.T) {
+			writeFile(t, filepath.Join(bin, "go"), []byte("#!/bin/sh\ncase \"$*\" in\n'list ./...') printf '%s\\n' "+a+" "+b+" "+c+" "+d+" ;;\n*) exit 2 ;;\nesac\n"))
+			cmd := exec.Command("bash", "-e", "-c", filter+"\necho reached-end\n")
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"RUNNER_TEMP="+dir, "GITHUB_WORKSPACE="+dir, "GITHUB_EVENT_NAME=pull_request",
+				"NARROW_MODE=FULL", "NARROW_RECORDED=success", "SHARD=0", "SHARDS=8")
+			data, err := cmd.CombinedOutput()
+			if err == nil || strings.Contains(string(data), "reached-end") {
+				t.Fatalf("shard 0 continued after a discovery failure: %v\n%s", err, data)
+			}
+		})
+	})
 	// AFP-V0-801: all consumers use the proven parent, retaining the original event base.
 	t.Run("stale event base", func(t *testing.T) {
 		effective := strings.Repeat("a", 40)
@@ -1619,4 +1703,16 @@ exit 1
 	if want := "repos/o/r/actions/caches/1\nrepos/o/r/actions/caches/4\n"; string(got) != want {
 		t.Fatalf("deleted = %q, want %q", got, want)
 	}
+}
+
+// buildPackageDiscovery builds the corvint-pr-tests binary the workflow runs
+// as ci-package-discovery (AFP-V0-9012).
+func buildPackageDiscovery(t *testing.T) string {
+	t.Helper()
+	driver := filepath.Join(t.TempDir(), "ci-package-discovery")
+	cmd := exec.Command("go", "build", "-o", driver, "../corvint-pr-tests")
+	if data, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build discovery: %v\n%s", err, data)
+	}
+	return driver
 }
